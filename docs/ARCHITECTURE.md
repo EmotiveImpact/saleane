@@ -10,7 +10,7 @@ Vite + React + TypeScript with React Router. The lockfile makes installed depend
 src/
   domain/model.ts       Versioned Zod schemas, scoped IDs, stored-state validation
   domain/seed.ts        Separate fictional UK/US workspaces and linked histories
-  domain/commands.ts    Booking, arrival, checkout, client, note and consent rules
+  domain/commands.ts    Booking, move/cancel/missed, arrival, checkout and relationship rules
   domain/selectors.ts   Calendar, client statistics, return opportunities, reports
   domain/format.ts      Civil date, venue clock conventions and minor-unit formatting
   state/storage.ts     Load validation, revision check, commit-before-success
@@ -21,7 +21,9 @@ src/
 
 A command creates a new validated state. The storage adapter saves it before the UI adopts it. Views derive from that state. A checkout creates one sale, one settlement payment, one completion transition and one client event. Rebooking links the old and new appointments. Reports do not keep separate editable totals.
 
-Keys: `saleane.demo.v1.UK` and `saleane.demo.v1.US`. Schema version is 1; product version is 0.2.1. A corrupt, foreign-scoped or unsupported snapshot is left untouched and writes are paused. Export/reset controls enable deliberate recovery. Stale revision detects many ordinary sequential tab conflicts; localStorage is not transactional across concurrent tabs. No security claim is made for browser storage.
+Keys: `saleane.demo.v1.UK` and `saleane.demo.v1.US`. Schema version is 1; product version is 0.2.2. The new statuses and optional allocation-change events are additive; existing snapshots remain readable without resetting client history. A corrupt, foreign-scoped or unsupported snapshot is left untouched and writes are paused. Export/reset controls enable deliberate recovery. Stale revision detects many ordinary sequential tab conflicts; localStorage is not transactional across concurrent tabs. No security claim is made for browser storage.
+
+Confirmed appointments can move while retaining their ID, client, source/rebook link, booked price/deposit/duration/buffer and payment ledger. Availability uses those booked durations and the original resource category, excludes the appointment's own allocation, and validates the new professional and room together. The event stores old/new date, start, staff and resource links. Cancellation and missed attendance retain the appointment and deposit history while releasing allocation; neither writes a fee, refund or sale. Active capacity, booked totals and qualifying rebook successors exclude cancelled/missed visits. No-op retries retain the same revision and events. The demo's missed-visit guard checks date against the fixed day; the operator confirms attendance and elapsed time. Authoritative time, actor permissions and policy disposition remain server requirements.
 
 Demo scheduling stores a civil date and minutes in a fixed venue day, using 09:00–18:00 daily opening, one service/professional/resource per visit, 15-minute validation and 30-minute offered slots. It validates service qualification and shared-resource intervals including buffers. It does not implement UTC scheduling, DST conversion, holds, closures, partial processing time, staff shifts or network concurrency. Those are V1 engine work.
 
@@ -143,7 +145,7 @@ Those boundaries make 0.3–0.6 necessary. Keep the current UI/domain vocabulary
 
 ## Continuity contracts recovered from the source conversation
 
-Read [PROJECT_CONTEXT](PROJECT_CONTEXT.md), [UX_ARCHITECTURE](UX_ARCHITECTURE.md) and the PRD together. Screens are projections of durable records, not independent databases. The prototype is 0.2.1; the unverified server draft is preserved separately on `wip/saleane-server-authority` at `f73d084` and is not part of the reviewed app.
+Read [PROJECT_CONTEXT](PROJECT_CONTEXT.md), [UX_ARCHITECTURE](UX_ARCHITECTURE.md) and the PRD together. Screens are projections of durable records, not independent databases. The prototype is 0.2.2; the unverified server draft is preserved separately on `wip/saleane-server-authority` at `f73d084` and is not part of the reviewed app.
 
 - **Daily brief:** attention items carry source IDs, evaluation time, definition version and an available command. “Done for you” requires an actual action receipt. Calendar capacity, relationship history and money share organisation/location scope.
 - **Read-only continuity:** a future authorised daily snapshot contains the minimum appointment/client display fields, actor/scope, issued time and expiry. Logout, role removal and tenant change invalidate access. Offline writes, payments, identity edits and new bookings are unavailable. This snapshot mechanism is specified, not implemented.

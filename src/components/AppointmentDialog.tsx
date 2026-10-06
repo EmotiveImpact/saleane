@@ -3,17 +3,19 @@ import { Link } from 'react-router-dom'
 import { ArrowUpRight, Check, CreditCard } from 'lucide-react'
 import { useStore } from '../state/context'
 import { DEMO_DATE } from '../domain/model'
-import { depositPaid } from '../domain/commands'
+import { depositPaid, rescheduleSlots } from '../domain/commands'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
-import { Avatar, Button, ErrorMessage, Modal, Status } from './ui'
+import { Avatar, Button, ErrorMessage, Modal, Status, TimeChoices } from './ui'
 import { BookingDialog } from './BookingDialog'
 
 export function AppointmentDialog({
   appointmentId,
   onClose,
+  onMoved,
 }: {
   appointmentId: string
   onClose: () => void
+  onMoved?: (date: string, staffId: string) => void
 }) {
   const { state, commit } = useStore()
   const [checkout, setCheckout] = useState(false)
@@ -22,6 +24,12 @@ export function AppointmentDialog({
   const [error, setError] = useState('')
   const [rebook, setRebook] = useState(false)
   const appointment = state.appointments.find((a) => a.id === appointmentId)
+  const [mode, setMode] = useState<'details' | 'move' | 'cancel' | 'no-show'>('details')
+  const [date, setDate] = useState(appointment?.date ?? DEMO_DATE)
+  const [staffId, setStaffId] = useState(appointment?.staffId ?? '')
+  const [start, setStart] = useState<number | null>(appointment?.startMinutes ?? null)
+  const [reason, setReason] = useState('')
+  const [notice, setNotice] = useState('')
   if (!appointment) return null
   const client = state.clients.find((c) => c.id === appointment.clientId)!
   const service = state.services.find((s) => s.id === appointment.serviceId)!
@@ -31,6 +39,16 @@ export function AppointmentDialog({
   const deposit = depositPaid(state, appointmentId)
   const tipMinor = Math.round(Number(tip) * 100)
   const total = appointment.bookedPriceMinor + (Number.isFinite(tipMinor) ? tipMinor : 0) - deposit
+  const available = mode === 'move' ? rescheduleSlots(state, appointmentId, staffId, date) : []
+  // A booked 15-minute time remains selectable even though suggested slots use 30-minute steps.
+  if (
+    mode === 'move' &&
+    appointment.date === date &&
+    appointment.staffId === staffId &&
+    !available.includes(appointment.startMinutes)
+  )
+    available.push(appointment.startMinutes)
+  available.sort((a, b) => a - b)
   if (rebook)
     return (
       <BookingDialog
@@ -55,12 +73,58 @@ export function AppointmentDialog({
     const result = commit({ type: 'checkout', appointmentId, tipMinor, method })
     if (!result.ok) setError(result.error)
   }
+  function changeMode(next: typeof mode) {
+    setMode(next)
+    setError('')
+    setNotice('')
+    setReason(next === 'cancel' ? 'Client requested cancellation' : 'Client did not attend')
+  }
+  function move() {
+    if (start === null) {
+      setError('Choose an available time.')
+      return
+    }
+    const result = commit({ type: 'reschedule', appointmentId, date, staffId, startMinutes: start })
+    if (!result.ok) {
+      setError(result.error)
+      return
+    }
+    setMode('details')
+    setNotice('Appointment saved. Booked service and deposit history retained. No message sent.')
+    onMoved?.(date, staffId)
+  }
+  function endVisit() {
+    if (mode !== 'cancel' && mode !== 'no-show') return
+    const result = commit({ type: mode, appointmentId, reason })
+    if (!result.ok) {
+      setError(result.error)
+      return
+    }
+    setMode('details')
+    setNotice(
+      mode === 'cancel'
+        ? 'Cancellation recorded in the client relationship.'
+        : 'Missed visit recorded in the client relationship.',
+    )
+  }
   return (
     <Modal
       open
       placement="side"
       onClose={onClose}
-      title={sale ? 'A well-finished visit' : checkout ? 'Checkout' : 'Appointment'}
+      title={
+        sale
+          ? 'A well-finished visit'
+          : checkout
+            ? 'Checkout'
+            : mode === 'move'
+              ? 'Move appointment'
+              : mode === 'cancel'
+                ? 'Cancel appointment'
+                : mode === 'no-show'
+                  ? 'Record a missed visit'
+                  : 'Appointment'
+      }
       description={
         sale
           ? 'Demo receipt saved to the client relationship.'
@@ -79,6 +143,11 @@ export function AppointmentDialog({
         </div>
         <Status status={appointment.status} />
       </div>
+      {notice && (
+        <p className="success-strip" role="status">
+          {notice}
+        </p>
+      )}
       {sale ? (
         <>
           <div className="success-strip">
@@ -108,6 +177,133 @@ export function AppointmentDialog({
             <h3>Give the next visit a place.</h3>
             <p>A simple invitation to keep a good rhythm.</p>
             <Button onClick={() => setRebook(true)}>Rebook this client</Button>
+          </div>
+        </>
+      ) : mode === 'move' ? (
+        <>
+          <div className="allocation-summary">
+            <span>Currently reserved</span>
+            <strong>
+              {dateLabel(appointment.date, state.organisation.locale)} ·{' '}
+              {timeLabel(appointment.startMinutes, state.organisation.locale)}
+            </strong>
+            <p>
+              {staff.name} · {service.name}
+            </p>
+          </div>
+          <div className="form-grid">
+            <label>
+              New date
+              <input
+                type="date"
+                min={DEMO_DATE}
+                max="2027-10-06"
+                value={date}
+                onChange={(e) => {
+                  setDate(e.target.value)
+                  setStart(null)
+                  setError('')
+                }}
+              />
+            </label>
+            <label>
+              Professional
+              <select
+                value={staffId}
+                onChange={(e) => {
+                  setStaffId(e.target.value)
+                  setStart(null)
+                  setError('')
+                }}
+              >
+                {state.staff
+                  .filter((person) => person.serviceIds.includes(service.id))
+                  .map((person) => (
+                    <option key={person.id} value={person.id}>
+                      {person.name}
+                    </option>
+                  ))}
+              </select>
+            </label>
+          </div>
+          <TimeChoices
+            label="Available times"
+            value={start}
+            times={available.map((value) => ({
+              value,
+              label: timeLabel(value, state.organisation.locale),
+            }))}
+            onChange={(value) => {
+              setStart(value)
+              setError('')
+            }}
+          />
+          <div className="booking-summary">
+            <span>
+              {appointment.bookedDurationMinutes} minutes + {appointment.bookedBufferMinutes} minute
+              turnaround. The original {money(appointment.bookedPriceMinor, state.organisation)}{' '}
+              service and {money(deposit, state.organisation)} recorded deposit stay with this
+              visit.
+            </span>
+          </div>
+          <p className="subtle demo-note">
+            Availability checks the professional and treatment space together. Save updates the
+            calendar and timeline; no confirmation message is sent.
+          </p>
+          <ErrorMessage error={error} />
+          <div className="dialog-footer">
+            <Button variant="secondary" onClick={() => changeMode('details')}>
+              Back
+            </Button>
+            <Button onClick={move} disabled={start === null || !available.includes(start)}>
+              Save appointment
+            </Button>
+          </div>
+        </>
+      ) : mode === 'cancel' || mode === 'no-show' ? (
+        <>
+          <div className="allocation-summary">
+            <strong>{service.name}</strong>
+            <p>
+              {dateLabel(appointment.date, state.organisation.locale)} ·{' '}
+              {timeLabel(appointment.startMinutes, state.organisation.locale)} with {staff.name}
+            </p>
+          </div>
+          <label>
+            Operational reason
+            <input
+              maxLength={300}
+              value={reason}
+              onChange={(e) => {
+                setReason(e.target.value)
+                setError('')
+              }}
+            />
+          </label>
+          <p className="subtle demo-note">
+            Use an operational reason; keep health information out of this workspace.
+          </p>
+          {mode === 'no-show' && (
+            <p className="preference-note">
+              Confirm that the scheduled visit time has passed and the client did not attend. This
+              demo checks the visit date; it does not enforce an elapsed-time rule.
+            </p>
+          )}
+          <div className="deposit-review">
+            <strong>{money(deposit, state.organisation)} deposit remains recorded</strong>
+            <p>
+              Review its treatment with the client. This action releases the reserved time and
+              retains the history. It creates no refund, cancellation fee or completed sale.
+            </p>
+          </div>
+          <ErrorMessage error={error} />
+          <div className="dialog-footer">
+            <Button variant="secondary" onClick={() => changeMode('details')}>
+              Keep appointment
+            </Button>
+            <Button onClick={endVisit} disabled={reason.trim().length < 2}>
+              {mode === 'cancel' ? 'Confirm cancellation' : 'Confirm missed visit'}
+            </Button>
           </div>
         </>
       ) : checkout ? (
@@ -197,6 +393,30 @@ export function AppointmentDialog({
             <span>Demo deposit recorded</span>
             <span>{money(deposit, state.organisation)}</span>
           </div>
+          {(appointment.status === 'cancelled' || appointment.status === 'no_show') && (
+            <div className="deposit-review">
+              <strong>Deposit review remains open</strong>
+              <p>
+                The original deposit and relationship history are retained. No refund, fee or sale
+                was recorded for this change.
+              </p>
+            </div>
+          )}
+          {appointment.status === 'confirmed' && (
+            <div className="appointment-actions" aria-label="Manage appointment">
+              <Button variant="secondary" onClick={() => changeMode('move')}>
+                Move appointment
+              </Button>
+              <Button variant="quiet" onClick={() => changeMode('cancel')}>
+                Cancel appointment
+              </Button>
+              {appointment.date <= DEMO_DATE && (
+                <Button variant="quiet" onClick={() => changeMode('no-show')}>
+                  Mark as missed
+                </Button>
+              )}
+            </div>
+          )}
           <ErrorMessage error={error} />
           <div className="dialog-footer">
             <Button variant="secondary" onClick={onClose}>
@@ -208,7 +428,7 @@ export function AppointmentDialog({
             {appointment.status === 'arrived' && (
               <Button onClick={() => setCheckout(true)}>Continue to checkout</Button>
             )}
-            {appointment.date > DEMO_DATE && (
+            {appointment.status === 'confirmed' && appointment.date > DEMO_DATE && (
               <span className="subtle">Arrival opens on the visit day.</span>
             )}
           </div>

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
@@ -8,12 +8,13 @@ export function Button({
   children,
   variant = 'primary',
   className = '',
+  type = 'button',
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'primary' | 'secondary' | 'quiet' | 'light'
 }) {
   return (
-    <button className={`button button-${variant} ${className}`} {...props}>
+    <button type={type} className={`button button-${variant} ${className}`} {...props}>
       {children}
     </button>
   )
@@ -55,7 +56,11 @@ export function Status({ status }: { status: string }) {
         ? 'In the studio'
         : status === 'completed'
           ? 'Completed'
-          : status
+          : status === 'cancelled'
+            ? 'Cancelled'
+            : status === 'no_show'
+              ? 'Missed visit'
+              : status
   return (
     <span className={`status status-${status}`}>
       <span />
@@ -95,6 +100,44 @@ export function ErrorMessage({ error }: { error: string }) {
     </p>
   ) : null
 }
+export function TimeChoices({
+  times,
+  value,
+  onChange,
+  label,
+}: {
+  times: { value: number; label: string }[]
+  value: number | null
+  onChange: (value: number) => void
+  label: string
+}) {
+  const name = useId()
+  return (
+    <fieldset className="time-fieldset">
+      <legend>{label}</legend>
+      <div className="time-slots">
+        {times.map((time) => (
+          <label
+            key={time.value}
+            className={`time-choice time-slot ${value === time.value ? 'selected' : ''}`}
+          >
+            <input
+              type="radio"
+              name={name}
+              value={time.value}
+              checked={value === time.value}
+              onChange={() => onChange(time.value)}
+            />
+            <span>{time.label}</span>
+          </label>
+        ))}
+      </div>
+      {!times.length && (
+        <p className="subtle">No times available. Try another day or professional.</p>
+      )}
+    </fieldset>
+  )
+}
 export function Modal({
   open,
   onClose,
@@ -114,12 +157,13 @@ export function Modal({
 }) {
   const previousFocus = useRef<HTMLElement | null>(null)
   const content = useRef<HTMLDivElement | null>(null)
+  const body = useRef<HTMLDivElement | null>(null)
   const heading = useRef<HTMLHeadingElement | null>(null)
   const previousTitle = useRef(title)
   useEffect(() => {
     if (open && placement === 'side' && previousTitle.current !== title) {
       heading.current?.focus()
-      content.current?.scrollTo?.({ top: 0 })
+      body.current?.scrollTo?.({ top: 0 })
     }
     previousTitle.current = title
   }, [open, placement, title])
@@ -171,7 +215,9 @@ export function Modal({
               </button>
             </Dialog.Close>
           </div>
-          {children}
+          <div ref={body} className="dialog-body">
+            {children}
+          </div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

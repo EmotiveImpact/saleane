@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { availableResource, depositPaid, execute, slots } from './commands'
-import type { BookingInput, CommandResult } from './commands'
+import {
+  availableResource,
+  depositPaid,
+  execute,
+  rescheduleResource,
+  rescheduleSlots,
+  slots,
+} from './commands'
+import type { BookingInput, Command, CommandResult } from './commands'
 import { seed } from './seed'
 import { DEMO_DATE, parseState } from './model'
 import type { BusinessState } from './model'
@@ -129,6 +136,327 @@ describe('the shared appointment model', () => {
     const s = book(seed('UK')).state
     expect(slots(s, 'service-facial', 'staff-maya', tomorrow)).not.toContain(540)
     expect(slots(s, 'service-facial', 'staff-maya', tomorrow)).toContain(630)
+  })
+})
+
+describe('appointment lifecycle integrity', () => {
+  it.each(['UK', 'US'] as const)(
+    'moves the original allocation without repricing or recollecting its deposit in %s',
+    (region) => {
+      const booked = book(seed(region), {
+        ...booking,
+        clientId: 'client-13',
+        source: 'rebook',
+        rebookedFromId: 'history-return-13',
+      })
+      const s = booked.state
+      const original = structuredClone(s.appointments.find((a) => a.id === booked.recordId)!)
+      const service = s.services.find((item) => item.id === original.serviceId)!
+      Object.assign(service, {
+        priceMinor: 25000,
+        depositMinor: 5000,
+        durationMinutes: 180,
+        bufferMinutes: 45,
+        resourceType: 'chair',
+      })
+      const date = addDays(tomorrow, 1)
+      expect(availableResource(s, service.id, 'staff-sophia', date, 990)).toBeNull()
+      expect(rescheduleSlots(s, original.id, 'staff-sophia', date)).toContain(990)
+      const result = execute(s, {
+        type: 'reschedule',
+        appointmentId: original.id,
+        staffId: 'staff-sophia',
+        date,
+        startMinutes: 990,
+      })
+      ok(result)
+      expect(result.recordId).toBe(original.id)
+      expect(result.state.appointments.find((a) => a.id === original.id)).toEqual({
+        ...original,
+        date,
+        startMinutes: 990,
+        staffId: 'staff-sophia',
+        resourceId: 'room-one',
+      })
+      expect(result.state.appointments).toHaveLength(s.appointments.length)
+      expect(result.state.payments).toEqual(s.payments)
+      expect(result.state.sales).toEqual(s.sales)
+      expect(depositPaid(result.state, original.id)).toBe(original.bookedDepositMinor)
+      expect(result.state.events.slice(0, -1)).toEqual(s.events)
+      expect(result.state.events.at(-1)).toMatchObject({
+        type: 'rescheduled',
+        clientId: original.clientId,
+        appointmentId: original.id,
+        allocationChange: {
+          from: {
+            date: original.date,
+            startMinutes: original.startMinutes,
+            staffId: original.staffId,
+            resourceId: original.resourceId,
+          },
+          to: { date, startMinutes: 990, staffId: 'staff-sophia', resourceId: 'room-one' },
+        },
+      })
+      expect(clientStats(result.state, original.clientId).next?.date).toBe(date)
+      expect(dayAppointments(result.state, tomorrow)).toHaveLength(0)
+      expect(s.appointments.find((a) => a.id === original.id)).toEqual(original)
+      expect(result.state.revision).toBe(s.revision + 1)
+    },
+  )
+  it('excludes only its own allocation, including when moving over part of the original slot', () => {
+    const first = book(seed('UK'))
+    expect(rescheduleSlots(first.state, first.recordId, 'staff-maya', tomorrow)).toContain(540)
+    const result = execute(first.state, {
+      type: 'reschedule',
+      appointmentId: first.recordId,
+      staffId: 'staff-maya',
+      date: tomorrow,
+      startMinutes: 570,
+    })
+    ok(result)
+    expect(result.state.appointments.find((a) => a.id === first.recordId)?.startMinutes).toBe(570)
+    expect(
+      availableResource(result.state, 'service-facial', 'staff-maya', tomorrow, 540),
+    ).toBeNull()
+  })
+  it('rejects another staff allocation including its buffer, then permits the exact adjacent boundary', () => {
+    const first = book(seed('UK'))
+    const second = book(first.state, { ...booking, startMinutes: 630 })
+    const before = structuredClone(second.state)
+    expect(
+      execute(second.state, {
+        type: 'reschedule',
+        appointmentId: first.recordId,
+        staffId: 'staff-maya',
+        date: tomorrow,
+        startMinutes: 600,
+      }).ok,
+    ).toBe(false)
+    expect(second.state).toEqual(before)
+    expect(rescheduleResource(second.state, first.recordId, 'staff-maya', tomorrow, 555)).toBe(
+      'room-one',
+    )
+    const result = execute(second.state, {
+      type: 'reschedule',
+      appointmentId: first.recordId,
+      staffId: 'staff-maya',
+      date: tomorrow,
+      startMinutes: 555,
+    })
+    ok(result)
+  })
+  it('rejects exhausted treatment rooms even when the requested professional is free', () => {
+    const first = book(seed('UK'))
+    let s = book(first.state, {
+      ...booking,
+      serviceId: 'service-lymphatic',
+      staffId: 'staff-sophia',
+      startMinutes: 630,
+    }).state
+    s.staff.find((person) => person.id === 'staff-theo')!.serviceIds.push('service-facial')
+    s = book(s, { ...booking, staffId: 'staff-theo', startMinutes: 630 }).state
+    const snapshot = structuredClone(s)
+    expect(
+      execute(s, {
+        type: 'reschedule',
+        appointmentId: first.recordId,
+        staffId: 'staff-maya',
+        date: tomorrow,
+        startMinutes: 630,
+      }).ok,
+    ).toBe(false)
+    expect(s).toEqual(snapshot)
+  })
+  it.each([
+    ['unqualified professional', { staffId: 'staff-theo' }],
+    ['foreign professional', { staffId: 'foreign-staff' }],
+    ['invalid date', { date: '2026-02-30' }],
+    ['past date', { date: addDays(DEMO_DATE, -1) }],
+    ['off-grid time', { startMinutes: 541 }],
+    ['fractional time', { startMinutes: 540.5 }],
+    ['buffer after closing', { startMinutes: 1020 }],
+    ['unknown appointment', { appointmentId: 'foreign-appointment' }],
+  ])('rejects rescheduling with %s without any partial change', (_, patch) => {
+    const first = book(seed('UK'))
+    const snapshot = structuredClone(first.state)
+    expect(
+      execute(first.state, {
+        type: 'reschedule',
+        appointmentId: first.recordId,
+        staffId: 'staff-maya',
+        date: tomorrow,
+        startMinutes: 540,
+        ...patch,
+      }).ok,
+    ).toBe(false)
+    expect(first.state).toEqual(snapshot)
+  })
+  it('treats saving the same allocation as a no-op', () => {
+    const first = book(seed('UK'))
+    const result = execute(first.state, {
+      type: 'reschedule',
+      appointmentId: first.recordId,
+      staffId: 'staff-maya',
+      date: tomorrow,
+      startMinutes: 540,
+    })
+    ok(result)
+    expect(result.state).toBe(first.state)
+    expect(result.recordId).toBe(first.recordId)
+  })
+  it.each(['cancel', 'no-show'] as const)(
+    '%s retains ledger/history and removes a visit from active metrics without creating a sale',
+    (type) => {
+      const s = seed('UK')
+      const original = s.appointments.find((a) => a.id === 'visit-noor')!
+      const before = report(s, 7)
+      const stats = clientStats(s, original.clientId)
+      const result = execute(s, {
+        type,
+        appointmentId: original.id,
+        reason: 'Client unable to attend',
+      })
+      ok(result)
+      expect(result.state.appointments.find((a) => a.id === original.id)?.status).toBe(
+        type === 'cancel' ? 'cancelled' : 'no_show',
+      )
+      expect(result.state.payments).toEqual(s.payments)
+      expect(result.state.sales).toEqual(s.sales)
+      expect(depositPaid(result.state, original.id)).toBe(depositPaid(s, original.id))
+      expect(result.state.events.slice(0, -1)).toEqual(s.events)
+      expect(result.state.events.at(-1)).toMatchObject({
+        type: type === 'cancel' ? 'cancelled' : 'no_show',
+        clientId: original.clientId,
+        appointmentId: original.id,
+      })
+      expect(dayAppointments(result.state).some((a) => a.id === original.id)).toBe(false)
+      expect(
+        availableResource(
+          result.state,
+          original.serviceId,
+          original.staffId,
+          original.date,
+          original.startMinutes,
+        ),
+      ).toBe(original.resourceId)
+      expect(clientStats(result.state, original.clientId)).toMatchObject({
+        visits: stats.visits,
+        spend: stats.spend,
+        next: undefined,
+      })
+      const after = report(result.state, 7)
+      expect(after).toMatchObject({
+        revenue: before.revenue,
+        tips: before.tips,
+        completed: before.completed,
+        booked: before.booked - original.bookedPriceMinor,
+      })
+      expect(after.utilisation).toBeCloseTo(
+        before.utilisation - original.bookedDurationMinutes / (7 * s.staff.length * 540),
+      )
+      const repeated = execute(result.state, {
+        type,
+        appointmentId: original.id,
+        reason: 'Repeated request',
+      })
+      ok(repeated)
+      expect(repeated.state).toBe(result.state)
+      expect(repeated.recordId).toBe(original.id)
+      expect(s.appointments.find((a) => a.id === original.id)?.status).toBe('confirmed')
+    },
+  )
+  it('restores a return opportunity when a future next visit is cancelled', () => {
+    const first = book(seed('UK'), { ...booking, clientId: 'client-13' })
+    expect(dueClients(first.state).some((client) => client.id === 'client-13')).toBe(false)
+    const result = execute(first.state, {
+      type: 'cancel',
+      appointmentId: first.recordId,
+      reason: 'Plans changed',
+    })
+    ok(result)
+    expect(dueClients(result.state).some((client) => client.id === 'client-13')).toBe(true)
+  })
+  it('rejects a future no-show and a missing reason without altering the workspace', () => {
+    const first = book(seed('UK'))
+    const snapshot = structuredClone(first.state)
+    expect(
+      execute(first.state, {
+        type: 'no-show',
+        appointmentId: first.recordId,
+        reason: 'Did not arrive',
+      }).ok,
+    ).toBe(false)
+    expect(
+      execute(first.state, { type: 'cancel', appointmentId: first.recordId, reason: ' ' }).ok,
+    ).toBe(false)
+    expect(
+      execute(first.state, {
+        type: 'cancel',
+        appointmentId: first.recordId,
+        reason: 'x'.repeat(301),
+      }).ok,
+    ).toBe(false)
+    expect(first.state).toEqual(snapshot)
+  })
+  it.each(['arrived', 'completed', 'cancelled', 'no_show'] as const)(
+    'protects %s visits from another lifecycle transition, arrival or settlement',
+    (status) => {
+      const s = seed('UK')
+      const appointmentId =
+        status === 'arrived'
+          ? 'visit-amelia'
+          : status === 'completed'
+            ? 'visit-olivia'
+            : 'visit-noor'
+      if (status === 'cancelled' || status === 'no_show')
+        s.appointments.find((a) => a.id === appointmentId)!.status = status
+      const snapshot = structuredClone(s)
+      const commands: Command[] = [
+        {
+          type: 'reschedule',
+          appointmentId,
+          staffId: 'staff-maya',
+          date: tomorrow,
+          startMinutes: 540,
+        },
+        ...(status !== 'cancelled'
+          ? [{ type: 'cancel' as const, appointmentId, reason: 'Plans changed' }]
+          : []),
+        ...(status !== 'no_show'
+          ? [{ type: 'no-show' as const, appointmentId, reason: 'Did not arrive' }]
+          : []),
+      ]
+      if (status === 'cancelled' || status === 'no_show')
+        commands.push(
+          { type: 'arrive', appointmentId },
+          { type: 'checkout', appointmentId, tipMinor: 0, method: 'demo_card' },
+        )
+      for (const command of commands) expect(execute(s, command).ok).toBe(false)
+      expect(s).toEqual(snapshot)
+    },
+  )
+  it.each(['cancel', 'no-show'] as const)('stops counting a linked next visit after %s', (type) => {
+    const s = seed('UK')
+    const baseline = report(s, 7).rebookRate
+    const first = book(s, {
+      ...booking,
+      clientId: 'client-2',
+      date: DEMO_DATE,
+      startMinutes: 1080 - 75,
+      source: 'rebook',
+      rebookedFromId: 'visit-olivia',
+    })
+    expect(report(first.state, 7).rebookRate).toBeGreaterThan(baseline!)
+    const result = execute(first.state, {
+      type,
+      appointmentId: first.recordId,
+      reason: 'Unable to attend',
+    })
+    ok(result)
+    expect(report(result.state, 7).rebookRate).toBe(baseline)
+    expect(result.state.appointments.find((a) => a.id === first.recordId)?.rebookedFromId).toBe(
+      'visit-olivia',
+    )
   })
 })
 

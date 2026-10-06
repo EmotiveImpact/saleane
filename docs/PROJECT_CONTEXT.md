@@ -1,6 +1,6 @@
 # SALEANE project context and decision record
 
-6 October 2026. This is the continuity document for product, design and engineering. Read it with [Research v0.2](RESEARCH.md), the [PRD](PRD.md), [UX Architecture](UX_ARCHITECTURE.md), [Vision](VISION.md) and [Roadmap](ROADMAP.md). Document versions and software versions are separate: the reviewed application is 0.2.1; Research v0.2 and PRD v0.1 describe the product rather than certify a production release.
+6 October 2026. This is the continuity document for product, design and engineering. Read it with [Research v0.2](RESEARCH.md), the [PRD](PRD.md), [UX Architecture](UX_ARCHITECTURE.md), [Vision](VISION.md) and [Roadmap](ROADMAP.md). Document versions and software versions are separate: the application is locally verified at 0.2.2; Research v0.2 and PRD v0.1 describe the product rather than certify a production release.
 
 ## Source and limits
 
@@ -89,6 +89,14 @@ Software 0.2.0 at `287e02c` implemented the connected browser-local prototype, c
 
 A server-authority draft was started, then preserved on local branch `wip/saleane-server-authority` at `f73d084` while these contracts were reconciled. It is unverified draft work, not a shipped server or production feature. The review branch retains the verified prototype until a tested server slice is integrated.
 
+## Current continuation — 0.2.2 locally verified
+
+The user authorised further building and inspecting Caleane for useful component handling/styling. The read-only source audit considered its shared controls and calendar at `/Users/augustusedem/Calenne/app/src/components/workspace/WorkspaceUI.jsx`, `CalendarWorkspace.jsx` and `calendar-workspace.css`. The transferable ideas are interaction structure: persistent drawer heading, independently scrolling content, explicit selection and keyboard-accessible choices. Keep SALEANE's original serif, light ivory navigation, sage surfaces, imagery and forest actions; Caleane is a pattern reference, not replacement branding.
+
+The current local slice adds confirmed-appointment rescheduling, cancellation and missed-visit history; retains booked snapshots, appointment identity and recorded deposits; improves calendar navigation/selection/history; and uses native radio choices for moving visits. It does not simulate refunds, fees or messages. Missed attendance remains an explicit operator decision under a fixed demo date, with authoritative time and permissions reserved for production. Final local checks passed: zero lint warnings, 72 tests across three files, TypeScript and the combined app/studies build. Targeted in-app browser journeys verified keyboard-radio rescheduling, cancellation/history, Escape fallback and phone missed-visit history; six routes passed measured 320px/1440px overflow and image checks. The [0.2.2 evidence](evidence/VERIFICATION_0.2.2.md) records limits: inline screenshot inspection, no accurate archived panel captures, no full accessibility certification, and no pushed-commit CI or deployment claim.
+
+Next, qualify shared backend/authentication and transactional organisation authority before communications/payment providers. Move the existing domain commands behind that authority, then prove consent/delivery receipts and provider reconciliation. Extend the same relationship/calendar/money/staff records toward inventory and intelligence; Clinical remains a later segregated compliance boundary. The preserved server draft is useful input, not a shortcut around acceptance.
+
 ## Carry-forward rules
 
 - Preserve all prior decisions above unless the user changes them; distinguish our recommendation from their approval.
@@ -101,4 +109,4 @@ A server-authority draft was started, then preserved on local branch `wip/salean
 
 ## Repository backup status
 
-On 6 October, at the user’s request to push everything, both `feat/saleane-foundation` (`3eaf169`) and the separate `wip/saleane-server-authority` draft (`f73d084`) were verified on the private GitHub remote. The WIP backup is not a qualified release or a merged implementation. Only the Saleane development server on port 5173 is retained; the duplicate preview on 4173 was stopped. Generated dependency/build caches are reproducible local files and are not source deliverables.
+On 6 October, at the user’s request to push everything, both `feat/saleane-foundation` (`3eaf169`) and the separate `wip/saleane-server-authority` draft (`f73d084`) were verified on the private GitHub remote. The WIP backup is not a qualified release or a merged implementation. At that backup checkpoint, the Saleane development server on port 5173 was retained and the duplicate preview on 4173 was stopped; this is historical session state, not a current server-health claim. Generated dependency/build caches are reproducible local files and are not source deliverables.

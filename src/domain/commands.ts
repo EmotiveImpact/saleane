@@ -23,6 +23,15 @@ export type BookingInput = z.infer<typeof bookingSchema>
 export type ContactInput = z.infer<typeof contactSchema>
 export type Command =
   | { type: 'book'; input: BookingInput }
+  | {
+      type: 'reschedule'
+      appointmentId: string
+      date: string
+      startMinutes: number
+      staffId: string
+    }
+  | { type: 'cancel'; appointmentId: string; reason: string }
+  | { type: 'no-show'; appointmentId: string; reason: string }
   | { type: 'arrive'; appointmentId: string }
   | { type: 'checkout'; appointmentId: string; tipMinor: number; method: 'demo_card' | 'demo_cash' }
   | { type: 'note'; clientId: string; text: string }
@@ -31,31 +40,36 @@ export type Command =
 export type CommandResult =
   { ok: true; state: BusinessState; recordId: string } | { ok: false; error: string }
 
-export function availableResource(
+function availableAllocation(
   s: BusinessState,
   serviceId: string,
   staffId: string,
   date: string,
   start: number,
+  duration: number,
+  buffer: number,
+  resourceType: string,
+  excludeId?: string,
 ): string | null {
-  const service = s.services.find((item) => item.id === serviceId)
   const staff = s.staff.find((item) => item.id === staffId)
   if (
-    !service ||
     !staff ||
     !staff.serviceIds.includes(serviceId) ||
+    !z.iso.date().safeParse(date).success ||
     date < DEMO_DATE ||
     !Number.isInteger(start) ||
     start < OPEN_MINUTES ||
     start % 15 !== 0
   )
     return null
-  const end = start + service.durationMinutes + service.bufferMinutes
+  const end = start + duration + buffer
   if (end > CLOSE_MINUTES) return null
   const overlapping = s.appointments.filter(
     (a) =>
       a.date === date &&
+      a.id !== excludeId &&
       a.status !== 'cancelled' &&
+      a.status !== 'no_show' &&
       start < a.startMinutes + a.bookedDurationMinutes + a.bookedBufferMinutes &&
       end > a.startMinutes,
   )
@@ -63,10 +77,64 @@ export function availableResource(
   return (
     s.resources.find(
       (resource) =>
-        resource.type === service.resourceType &&
-        !overlapping.some((a) => a.resourceId === resource.id),
+        resource.type === resourceType && !overlapping.some((a) => a.resourceId === resource.id),
     )?.id ?? null
   )
+}
+export function availableResource(
+  s: BusinessState,
+  serviceId: string,
+  staffId: string,
+  date: string,
+  start: number,
+) {
+  const service = s.services.find((item) => item.id === serviceId)
+  return service
+    ? availableAllocation(
+        s,
+        serviceId,
+        staffId,
+        date,
+        start,
+        service.durationMinutes,
+        service.bufferMinutes,
+        service.resourceType,
+      )
+    : null
+}
+export function rescheduleResource(
+  s: BusinessState,
+  appointmentId: string,
+  staffId: string,
+  date: string,
+  start: number,
+) {
+  const appointment = s.appointments.find((item) => item.id === appointmentId)
+  const resource = s.resources.find((item) => item.id === appointment?.resourceId)
+  return appointment?.status === 'confirmed' && resource
+    ? availableAllocation(
+        s,
+        appointment.serviceId,
+        staffId,
+        date,
+        start,
+        appointment.bookedDurationMinutes,
+        appointment.bookedBufferMinutes,
+        resource.type,
+        appointment.id,
+      )
+    : null
+}
+export function rescheduleSlots(
+  s: BusinessState,
+  appointmentId: string,
+  staffId: string,
+  date: string,
+) {
+  const options: number[] = []
+  for (let start = OPEN_MINUTES; start < CLOSE_MINUTES; start += 30)
+    if (rescheduleResource(s, appointmentId, staffId, date, start)) options.push(start)
+  return options
 }
 export function slots(s: BusinessState, serviceId: string, staffId: string, date: string) {
   const options: number[] = []
@@ -189,6 +257,74 @@ export function execute(
         title: input.source === 'rebook' ? 'Next visit booked' : 'Appointment booked',
         detail: `${service.name} · ${dateLabel(input.date, org.locale)} at ${timeLabel(input.startMinutes, org.locale)}. Deposit simulated; no payment taken.`,
       })
+      recordId = appointment.id
+    } else if (
+      command.type === 'reschedule' ||
+      command.type === 'cancel' ||
+      command.type === 'no-show'
+    ) {
+      const appointment = next.appointments.find((a) => a.id === command.appointmentId)
+      if (!appointment) throw new Error('Appointment does not belong to this workspace.')
+      if (command.type === 'reschedule') {
+        if (appointment.status !== 'confirmed')
+          throw new Error('Only an upcoming appointment can be moved.')
+        const input = z
+          .object({
+            date: z.iso.date(),
+            staffId: z.string().min(1),
+            startMinutes: z.number().int(),
+          })
+          .parse(command)
+        const resourceId = rescheduleResource(
+          s,
+          appointment.id,
+          input.staffId,
+          input.date,
+          input.startMinutes,
+        )
+        if (!resourceId)
+          throw new Error('That time is no longer available. Choose another time or professional.')
+        if (
+          appointment.date === input.date &&
+          appointment.startMinutes === input.startMinutes &&
+          appointment.staffId === input.staffId
+        )
+          return { ok: true, state: s, recordId: appointment.id }
+        const from = {
+          date: appointment.date,
+          startMinutes: appointment.startMinutes,
+          staffId: appointment.staffId,
+          resourceId: appointment.resourceId,
+        }
+        const to = { ...input, resourceId }
+        Object.assign(appointment, to)
+        addEvent({
+          clientId: appointment.clientId,
+          appointmentId: appointment.id,
+          type: 'rescheduled',
+          title: 'Appointment moved',
+          allocationChange: { from, to },
+          detail: `${dateLabel(from.date, org.locale)} at ${timeLabel(from.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === from.staffId)!.name} → ${dateLabel(to.date, org.locale)} at ${timeLabel(to.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === to.staffId)!.name}. Booked service and deposit retained; no message sent.`,
+        })
+      } else {
+        const status = command.type === 'cancel' ? 'cancelled' : 'no_show'
+        if (appointment.status === status) return { ok: true, state: s, recordId: appointment.id }
+        if (appointment.status !== 'confirmed')
+          throw new Error('Only an upcoming appointment can be changed this way.')
+        if (status === 'no_show' && appointment.date > DEMO_DATE)
+          throw new Error('A future appointment cannot be marked as missed.')
+        const reason = command.reason.trim()
+        if (reason.length < 2 || reason.length > 300)
+          throw new Error('Enter an operational reason between 2 and 300 characters.')
+        appointment.status = status
+        addEvent({
+          clientId: appointment.clientId,
+          appointmentId: appointment.id,
+          type: status,
+          title: status === 'cancelled' ? 'Appointment cancelled' : 'Visit marked as missed',
+          detail: `${reason}. Deposit history retained for review. No refund, fee, sale or message created.`,
+        })
+      }
       recordId = appointment.id
     } else if (command.type === 'arrive' || command.type === 'checkout') {
       const appointment = next.appointments.find((a) => a.id === command.appointmentId)

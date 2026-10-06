@@ -56,10 +56,15 @@ Spacing uses a 4px base with 8, 12, 16, 20, 24, 32 and 40px steps. Surfaces use 
 | `Metric`            | Label, formatted value and definition; no decorative trend claim                                                                          |
 | `Agenda`            | Native visit buttons with client, service, time and status; one appointment record across all screens                                     |
 | `BookingDialog`     | Qualified staff, suitable resource, future date, available slot; revalidate on save; successful confirmation only after persisted command |
-| `AppointmentDialog` | Guarded arrival → checkout → receipt → rebook; price snapshot and deposit math; explicit simulation labels                                |
+| `AppointmentDialog` | Guarded moves/cancel/missed and arrival → checkout → receipt → rebook; booked snapshots and deposit math; explicit simulation labels      |
+| `TimeChoices`       | Native labelled radios; arrow-key selection, visible focus, one selected time; fresh availability and validation on save                  |
 | `ErrorMessage`      | Assertive accessible error, plain corrective action; no success on failed save                                                            |
 
 Calendar uses labelled appointment buttons in visual lanes, not a falsely labelled ARIA grid. The agenda alternative provides a straightforward keyboard and mobile reading order. Future drag/reschedule must have an equivalent non-drag command.
+
+The 0.2.2 side panel keeps its title, visit date and close action above a separate scrolling body. Changing steps focuses the heading and resets body scrolling. Calendar selections have a clear outline. A saved move follows both the date and any active professional filter; cancellation/missed history remains reachable after the active launcher disappears. Closing then focuses the main workspace when that launcher is no longer connected. Native radio times support moving without dragging. On narrow phones the client identity and booking action occupy separate grid rows; cancelled/missed history shows its status text.
+
+A read-only inspection of Caleane's calendar panel and `WorkspaceUI` informed contained scrolling, explicit selection and labelled controls. Only these interaction patterns were adapted: SALEANE retains the inspected original wordmark, palette, imagery and spatial identity. No Caleane assets, dependencies or source components were imported.
 
 ## State and interaction
 
@@ -84,6 +89,6 @@ The revised implementation follows the inspected original board but is not a pix
 
 ## Target interaction refinements
 
-Keep the client timeline central and the operator navigation compact. The implemented appointment flow uses a right-side preview with progressive actions with progressive actions; on phones it uses a full-height sheet. Today separates needs attention, opportunities and completed work, with source receipts for the latter. Business owns charts and reconciliation.
+Keep the client timeline central and the operator navigation compact. The implemented appointment flow uses a right-side preview with progressive actions; on phones it uses a full-height sheet. Today separates needs attention, opportunities and completed work, with source receipts for the latter. Business owns charts and reconciliation.
 
 Compare directions with the same tasks, values and failure states. Judge readability, scan speed, focus, source comprehension and guest trust as well as appearance. Quiet Luxury keeps warmth without decorative spa clichés; Modern Editorial keeps strong hierarchy without finance-dashboard clutter; After Dark belongs to optional guest/marketing surfaces. Photography should not compete with calendars, money or dense operational tables.

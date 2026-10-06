@@ -8,6 +8,8 @@ Last updated: 6 October 2026. Milestones are outcome gates, not promised dates. 
 
 The previous **v0.1** was a cloud discovery pack and HTML concept, referenced in the source conversation. It is not a Git release. The entire visible source conversation and the original PRD attachment preview have now been read; its readable text is archived. ZIP download attempts did not return bytes. The original generated visual board was subsequently inspected directly. After the first new studies were rejected, the revised studies and 0.2.1 app follow its light-sidebar, serif and photographic direction. Original image bytes remain unimported.
 
+**0.2.2 — Appointment changes (locally verified):** confirmed-visit rescheduling, cancellation/missed history with retained deposits, calendar navigation/selection and a persistent panel heading. Local lint, 72 tests, build and targeted browser journeys passed; see [0.2.2 evidence](evidence/VERIFICATION_0.2.2.md). These changes exercise the daily loop in fictional local state and do not satisfy server, payment or communications gates.
+
 ## The path to V1
 
 | Version           | Outcome                                       | Required evidence to advance                                                                                                                                                                 |
@@ -38,6 +40,15 @@ The 0.x progression avoids declaring the present local prototype to be V1. It is
 A waiting-list invitation that starts with a real empty slot; an owner brief that explains a shortfall with receipt-level evidence; a guest booking link that retains the business’s identity; a consultation that carries its version into a visit; a small group’s shared services with location-specific pricing; a stock suggestion tied to booked consumption.
 
 The sequence matters: a polished inbox without consent and delivery history is not relationship ownership. An AI conversation without authorised commands is not an operating system.
+
+## Immediate build queue
+
+1. Review the locally verified 0.2.2 appointment-change slice and its [evidence](evidence/VERIFICATION_0.2.2.md): snapshot-preserving moves, conflict rejection, terminal history, retained deposits, reporting exclusions, keyboard/focus and phone rendering. Confirm CI against the pushed commit separately; do not merge or deploy automatically.
+2. Establish **shared backend and authentication first**: qualify the preserved server draft or replace unsafe portions with tenant-scoped account → organisation → membership → location authority, transactional persistence, deny-by-default permissions, recovery and backup evidence. Keep the local demo available during this work.
+3. Move booking and appointment commands behind that authority: venue time, actual hours, atomic capacity checks/holds, attributed history and policy enforcement. Reuse durable IDs and money snapshots.
+4. Then qualify **communications and payment integrations** on those commands: purpose/consent and delivery receipts for appointment updates; provider-backed deposit/checkout/refund reconciliation. Provider test evidence, policy approval and failure recovery are prerequisites to pilot claims. Broad Inbox and marketing remain later scope.
+
+This order lets client relationships, calendar/resources, money, staff and future inventory/intelligence share one trusted domain model. Clinical remains a separate compliance programme; no clinical fields enter this slice.
 
 ## Decisions before the next build
 

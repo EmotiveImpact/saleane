@@ -20,6 +20,14 @@ export function Calendar() {
     (a) => staffFilter === 'all' || a.staffId === staffFilter,
   )
   const staff = state.staff.filter((s) => staffFilter === 'all' || s.id === staffFilter)
+  const history = state.appointments
+    .filter(
+      (a) =>
+        a.date === date &&
+        (a.status === 'cancelled' || a.status === 'no_show') &&
+        (staffFilter === 'all' || a.staffId === staffFilter),
+    )
+    .sort((a, b) => a.startMinutes - b.startMinutes)
   return (
     <>
       <div className="page-heading">
@@ -56,6 +64,16 @@ export function Calendar() {
             </Button>
           </div>
           <div className="calendar-filters">
+            <label className="calendar-date-picker">
+              Jump to date
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => {
+                  if (e.target.value) setDate(e.target.value)
+                }}
+              />
+            </label>
             <label className="sr-only" htmlFor="staff-filter">
               Filter professional
             </label>
@@ -71,7 +89,7 @@ export function Calendar() {
                 </option>
               ))}
             </select>
-            <div className="view-toggle" aria-label="Calendar display">
+            <div className="view-toggle" role="group" aria-label="Calendar display">
               <button
                 aria-pressed={view === 'grid'}
                 onClick={() => setView('grid')}
@@ -149,6 +167,9 @@ export function Calendar() {
                           className={`calendar-event tone-${s.tone} ${a.status === 'completed' ? 'event-completed' : ''}`}
                           style={{ height: (a.bookedDurationMinutes / 60) * 82 - 3 }}
                           onClick={() => setAppointmentId(a.id)}
+                          data-selected={appointmentId === a.id ? '' : undefined}
+                          aria-haspopup="dialog"
+                          aria-expanded={appointmentId === a.id}
                           aria-label={`${client.name}, ${service.name}, ${timeLabel(a.startMinutes, state.organisation.locale)}, ${s.name}, ${a.status}`}
                         >
                           <span>
@@ -167,12 +188,34 @@ export function Calendar() {
           </div>
         </div>
         <div className={view === 'agenda' ? '' : 'calendar-mobile-agenda'}>
-          <Agenda appointments={day} onOpen={setAppointmentId} />
+          <Agenda appointments={day} selectedId={appointmentId} onOpen={setAppointmentId} />
         </div>
         {!day.length && view === 'grid' && (
-          <Empty title="A clear day">Use New appointment to reserve a time.</Empty>
+          <div className="calendar-grid-desktop">
+            <Empty title="A clear day">Use New appointment to reserve a time.</Empty>
+          </div>
         )}
       </section>
+      {history.length > 0 && (
+        <section className="surface calendar-history">
+          <div className="section-heading">
+            <div>
+              <h2>Changes to this day</h2>
+              <p>
+                Cancelled and missed visits stay in the relationship history. Their reserved time is
+                available again.
+              </p>
+            </div>
+            <span>
+              {history.length} {history.length === 1 ? 'visit' : 'visits'}
+            </span>
+          </div>
+          <Agenda appointments={history} selectedId={appointmentId} onOpen={setAppointmentId} />
+          <p className="history-note">
+            Recorded deposits are retained for review. No automatic refund or fee has been applied.
+          </p>
+        </section>
+      )}
       {booking && (
         <BookingDialog
           defaults={{
@@ -191,6 +234,10 @@ export function Calendar() {
           key={appointmentId}
           appointmentId={appointmentId}
           onClose={() => setAppointmentId('')}
+          onMoved={(nextDate, nextStaffId) => {
+            setDate(nextDate)
+            if (staffFilter !== 'all') setStaffFilter(nextStaffId)
+          }}
         />
       )}
     </>

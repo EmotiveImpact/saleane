@@ -16,6 +16,8 @@ Every stage keeps durable identifiers and an attributed event history. Inventory
 
 v0.2 is a browser-local, single-location-per-workspace prototype with separate fictional UK and US organisations. It implements shared client/service/staff/resource/appointment/sale/payment/event/relationship records and guarded commands. Fixed demo day: 6 October 2026. There is no production authentication, tenant security, database, API, payment collection, message delivery or AI model.
 
+**0.2.2 — locally verified:** confirmed-visit rescheduling, cancellation/missed history, calendar navigation/selection and persistent appointment-panel context are implemented in the local prototype. Lint, 72 tests, TypeScript/build and targeted desktop/phone journeys passed; [0.2.2 evidence](evidence/VERIFICATION_0.2.2.md) records scope and limitations. Production, pushed-commit CI and deployment acceptance remain separate.
+
 It is suitable for product review and fictional-data journey validation. It is not approved to store real customer details or operate a business.
 
 ### V1 production boundary
@@ -71,7 +73,7 @@ See [architecture](ARCHITECTURE.md) for domain seams and state authority.
 
 ## 5. Functional contract and traceability
 
-Status: **Demo** = implemented with fictional local state; **Partial** = some demo behaviour exists, production rule remains; **Planned** = no executable implementation yet. V1 acceptance is independent of that status.
+Status: **Demo** = implemented with fictional local state; **Partial** = some demo behaviour exists, production rule remains; **Planned** = no executable implementation yet; **In progress** = local work exists or is being built but acceptance evidence is pending. V1 acceptance is independent of that status.
 
 | ID     | Requirement / failure behaviour                                                 | v0.2                                              | Production acceptance                                                                                 |
 | ------ | ------------------------------------------------------------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
@@ -80,7 +82,7 @@ Status: **Demo** = implemented with fictional local state; **Partial** = some de
 | CAT-01 | Configure service price, duration, buffer and eligible staff/resource           | Partial; seeded catalogue, qualification enforced | Owner can edit/version catalogue; booked snapshots remain fixed                                       |
 | CAL-01 | View day by professional, date and agenda                                       | Demo                                              | Actual working hours, breaks/closures and live updates shown; keyboard alternative maintained         |
 | CAL-02 | Reject staff or shared-resource collision including buffer                      | Demo                                              | Concurrent requests atomically reserve a slot; one winner, loser offered alternatives                 |
-| CAL-03 | Hold, confirm, reschedule, cancel and expire appointments                       | Partial; confirm/arrive/complete only             | Expiring holds, cancel/refund policy, attributed reschedule and no-show states proven                 |
+| CAL-03 | Hold, confirm, reschedule, cancel and expire appointments                       | Partial; move/cancel/missed Demo (0.2.2)          | Expiring holds, cancel/refund policy, attributed reschedule and no-show states proven                 |
 | CLI-01 | Search/create a client by stable ID without auto-merging email                  | Demo                                              | Verified identity/duplicate-review policy; permissioned import, export and erasure workflow           |
 | CLI-02 | Timeline joins visit, receipt, note, consent and relationships                  | Demo                                              | Source record links, pagination and actor provenance; permission filtering excludes restricted fields |
 | CLI-03 | Record explicit referral graph on both client relationships                     | Demo                                              | Scoped edges, provenance, correction and sharing policy; no inferred household data                   |
@@ -116,7 +118,11 @@ Production: request → expiring hold → provider deposit intent if required �
 
 Prototype: `confirmed → arrived → completed`; arrival is limited to the fixed demo day. Completed/cancelled records cannot arrive again. Future booking cannot be checked out by changing its display.
 
-Production adds `held`, `cancelled`, `no_show` and attributed reschedule transitions. A completed visit is immutable except through an adjustment/reversal. Actor and timestamp accompany every transition.
+The locally verified 0.2.2 prototype adds `confirmed → cancelled`, `confirmed → no_show`, and allocation changes while remaining `confirmed`. Only confirmed visits may use these actions. Rescheduling retains appointment/client/origin IDs and booked duration/buffer/price/deposit snapshots, excludes the original allocation during collision checks, and appends old/new staff/resource/date/time. A conflicting move leaves all original records unchanged. Cancellation/missed transitions require a reason, release active capacity, retain history and recorded deposits, and create no refund, fee, sale or outbound message. Repeating the same terminal command must not duplicate events. Completed or arrived visits cannot be moved or changed through these controls. Terminal successors are excluded from qualifying rebooking counts. Targeted local acceptance is recorded in [0.2.2 evidence](evidence/VERIFICATION_0.2.2.md); production acceptance remains outstanding.
+
+The demo's missed-visit guard rejects future dates relative to 6 October 2026. It does not enforce elapsed appointment time within that fixed day; the operator explicitly records missed attendance. Production must require authoritative elapsed venue time and permission, not infer attendance from a date-only check.
+
+Production additionally requires `held`, expiry, authenticated actor/timestamp/reason, versioned policy and an audit record for every transition. A completed visit is immutable except through an adjustment/reversal. Real refund or fee disposition is a separate authorised money command.
 
 ### Checkout and rebook
 
@@ -260,22 +266,22 @@ Rebooking uses an explicit originating completed visit and a qualifying uncancel
 
 Statuses below describe requirements not satisfied by the original 0.2 browser foundation. Read the changelog/evidence for subsequent implementation; production acceptance remains separate.
 
-| ID     | Contract / acceptance example                                                                                                | Priority and target | Current evidence boundary                                           |
-| ------ | ---------------------------------------------------------------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------- |
-| ORG-03 | Revocation/session expiry denies next request; last owner cannot be removed; recovery links single-use                       | V1 / 0.3            | Specified; server draft unverified                                  |
-| CAL-04 | Hours, breaks, closures and archived capability constrain availability; closure lists affected visits                        | V1 / 0.4            | Specified                                                           |
-| CAL-05 | Move validates booked snapshot and leaves original unchanged on conflict; cancel releases allocation without erasing deposit | V1 / 0.4            | Specified, not implemented; local and server acceptance outstanding |
-| CLI-05 | Explain lifecycle/cadence criteria; sufficient-history threshold; pause excludes outreach                                    | V1.5                | Specified; current return rule remains simplified                   |
-| BKG-04 | No preference returns eligible available assignment; never exposes private schedule/client records                           | V1 / 0.4            | Specified                                                           |
-| BKG-05 | Signed/expiring own-booking link; tampered/foreign/revoked access denied; generic error                                      | V1 / 0.4            | Specified                                                           |
-| PAY-04 | Versioned tax/cancellation/deposit/receipt policies; change cannot rewrite a booked promise                                  | V1 / 0.5            | Specified                                                           |
-| BIZ-03 | Reconcile earned, collected, liabilities, tax, tips, refunds and fees with source coverage                                   | V1 / 0.5–0.6        | Specified; current report is simplified                             |
-| MIG-01 | Dry run → mapped/duplicate/rejected review → cutover → balanced reconciliation → rollback drill                              | V1 / 0.6            | Specified; actual exports needed                                    |
-| GOV-01 | Data/access audit, scoped export, retention and erasure exceptions; sensitive fields omitted from logs                       | V1 / 0.3–0.6        | Specified                                                           |
-| OFF-01 | Authorised minimum daily snapshot, visible age, no writes, clear on logout, revalidate on reconnect                          | V1 / 0.6            | Specified; localStorage demo is not this feature                    |
-| MSG-02 | Two-way thread, waitlist offers and channel suppression; actual delivery state                                               | V1.5                | Specified; V1 only qualified appointment updates                    |
-| REL-02 | Non-clinical forms and policy version; packages/memberships/gift-card opening/redemption/refund liabilities                  | V1.5                | Specified                                                           |
-| CAL-06 | Recurrence exceptions, multi-practitioner segments and calendar integration authority                                        | V2                  | Specified; source ideas preserved                                   |
+| ID     | Contract / acceptance example                                                                                                | Priority and target | Current evidence boundary                             |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------- | ------------------- | ----------------------------------------------------- |
+| ORG-03 | Revocation/session expiry denies next request; last owner cannot be removed; recovery links single-use                       | V1 / 0.3            | Specified; server draft unverified                    |
+| CAL-04 | Hours, breaks, closures and archived capability constrain availability; closure lists affected visits                        | V1 / 0.4            | Specified                                             |
+| CAL-05 | Move validates booked snapshot and leaves original unchanged on conflict; cancel releases allocation without erasing deposit | V1 / 0.4            | 0.2.2 locally verified; server acceptance outstanding |
+| CLI-05 | Explain lifecycle/cadence criteria; sufficient-history threshold; pause excludes outreach                                    | V1.5                | Specified; current return rule remains simplified     |
+| BKG-04 | No preference returns eligible available assignment; never exposes private schedule/client records                           | V1 / 0.4            | Specified                                             |
+| BKG-05 | Signed/expiring own-booking link; tampered/foreign/revoked access denied; generic error                                      | V1 / 0.4            | Specified                                             |
+| PAY-04 | Versioned tax/cancellation/deposit/receipt policies; change cannot rewrite a booked promise                                  | V1 / 0.5            | Specified                                             |
+| BIZ-03 | Reconcile earned, collected, liabilities, tax, tips, refunds and fees with source coverage                                   | V1 / 0.5–0.6        | Specified; current report is simplified               |
+| MIG-01 | Dry run → mapped/duplicate/rejected review → cutover → balanced reconciliation → rollback drill                              | V1 / 0.6            | Specified; actual exports needed                      |
+| GOV-01 | Data/access audit, scoped export, retention and erasure exceptions; sensitive fields omitted from logs                       | V1 / 0.3–0.6        | Specified                                             |
+| OFF-01 | Authorised minimum daily snapshot, visible age, no writes, clear on logout, revalidate on reconnect                          | V1 / 0.6            | Specified; localStorage demo is not this feature      |
+| MSG-02 | Two-way thread, waitlist offers and channel suppression; actual delivery state                                               | V1.5                | Specified; V1 only qualified appointment updates      |
+| REL-02 | Non-clinical forms and policy version; packages/memberships/gift-card opening/redemption/refund liabilities                  | V1.5                | Specified                                             |
+| CAL-06 | Recurrence exceptions, multi-practitioner segments and calendar integration authority                                        | V2                  | Specified; source ideas preserved                     |
 
 Screen/journey traceability lives in [UX_ARCHITECTURE](UX_ARCHITECTURE.md), particularly UX-01–38 and J-01–08. Each implementation change names requirement, failure case, automated evidence and browser evidence before promotion.
 

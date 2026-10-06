@@ -23,6 +23,9 @@ export function Today() {
   const available = slots(state, 'service-facial', 'staff-maya', tomorrow)
   const booked = day.reduce((sum, a) => sum + a.bookedPriceMinor, 0)
   const completed = day.filter((a) => a.status === 'completed').length
+  const changed = state.appointments.filter(
+    (a) => a.date === DEMO_DATE && (a.status === 'cancelled' || a.status === 'no_show'),
+  )
   const utilisation = Math.round(
     (day.reduce((sum, a) => sum + a.bookedDurationMinutes, 0) / (state.staff.length * 540)) * 100,
   )
@@ -87,8 +90,16 @@ export function Today() {
           </div>
           <Agenda
             appointments={hideCompleted ? day.filter((a) => a.status !== 'completed') : day}
+            selectedId={appointmentId}
             onOpen={setAppointmentId}
           />
+          {changed.length > 0 && (
+            <Link className="day-changes-link" to="/calendar">
+              {changed.filter((a) => a.status === 'cancelled').length} cancelled ·{' '}
+              {changed.filter((a) => a.status === 'no_show').length} missed. Review today’s changes{' '}
+              <ArrowUpRight size={14} />
+            </Link>
+          )}
         </section>
         <aside className="today-aside">
           <section className="intelligence-panel">

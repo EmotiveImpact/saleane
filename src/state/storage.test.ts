@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { commitWorkspace, loadBrowserWorkspace, loadWorkspace, storageKey } from './storage'
 import { seed } from '../domain/seed'
+import { DEMO_DATE } from '../domain/model'
 
 describe('browser persistence and recovery', () => {
   beforeEach(() => localStorage.clear())
@@ -27,6 +28,76 @@ describe('browser persistence and recovery', () => {
     const loaded = loadWorkspace(localStorage, 'UK')
     expect(loaded.state.events.at(-1)?.detail).toBe('Prefers a quiet Tuesday.')
     expect(loaded.blocked).toBe(false)
+  })
+  it.each(['cancel', 'no-show'] as const)(
+    'reloads a moved appointment and its %s history while retaining the deposit',
+    (type) => {
+      const original = seed('UK')
+      const moved = commitWorkspace(localStorage, 'UK', original, {
+        type: 'reschedule',
+        appointmentId: 'visit-noor',
+        staffId: 'staff-maya',
+        date: DEMO_DATE,
+        startMinutes: 675,
+      })
+      expect(moved.ok).toBe(true)
+      if (!moved.ok) throw new Error(moved.error)
+      const reloaded = loadWorkspace(localStorage, 'UK')
+      expect(reloaded.blocked).toBe(false)
+      expect(reloaded.state).toEqual(moved.state)
+      expect(reloaded.state.events.at(-1)?.allocationChange).toMatchObject({
+        from: { startMinutes: 660 },
+        to: { startMinutes: 675 },
+      })
+      const ended = commitWorkspace(localStorage, 'UK', reloaded.state, {
+        type,
+        appointmentId: 'visit-noor',
+        reason: 'Unable to attend',
+      })
+      expect(ended.ok).toBe(true)
+      if (!ended.ok) throw new Error(ended.error)
+      const final = loadWorkspace(localStorage, 'UK')
+      expect(final.blocked).toBe(false)
+      expect(final.state).toEqual(ended.state)
+      expect(final.state.payments).toEqual(original.payments)
+      expect(final.state.sales).toEqual(original.sales)
+      expect(final.state.appointments.find((a) => a.id === 'visit-noor')?.status).toBe(
+        type === 'cancel' ? 'cancelled' : 'no_show',
+      )
+      const writer = vi.spyOn(Storage.prototype, 'setItem')
+      const repeated = commitWorkspace(localStorage, 'UK', final.state, {
+        type,
+        appointmentId: 'visit-noor',
+        reason: 'Repeated request',
+      })
+      expect(repeated.ok).toBe(true)
+      if (repeated.ok) expect(repeated.state).toBe(final.state)
+      expect(writer).not.toHaveBeenCalled()
+    },
+  )
+  it('rejects stale cancellation without losing the newer allocation or its history', () => {
+    const stale = seed('UK')
+    const moved = commitWorkspace(localStorage, 'UK', stale, {
+      type: 'reschedule',
+      appointmentId: 'visit-noor',
+      staffId: 'staff-maya',
+      date: DEMO_DATE,
+      startMinutes: 675,
+    })
+    expect(moved.ok).toBe(true)
+    const saved = localStorage.getItem(storageKey('UK'))
+    const result = commitWorkspace(localStorage, 'UK', stale, {
+      type: 'cancel',
+      appointmentId: 'visit-noor',
+      reason: 'Stale request',
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toContain('another tab')
+    expect(localStorage.getItem(storageKey('UK'))).toBe(saved)
+    expect(
+      loadWorkspace(localStorage, 'UK').state.appointments.find((a) => a.id === 'visit-noor'),
+    ).toMatchObject({ status: 'confirmed', startMinutes: 675 })
+    expect(loadWorkspace(localStorage, 'UK').state.events.at(-1)?.type).toBe('rescheduled')
   })
   it('rejects a stale tab without overwriting newer changes', () => {
     const stale = seed('UK')

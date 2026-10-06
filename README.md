@@ -2,7 +2,7 @@
 
 SALEANE is a connected foundation for the operating system of modern beauty, spa and wellness businesses in the UK and USA. The canonical spelling has no accent.
 
-**Version 0.2.1 is an interactive browser-local demo.** Bookings, deposits, payments, reports and relationship suggestions use fictional data. There is no production backend, authentication, payment or messaging provider, AI model, or deployment. Use fictional details only.
+**Version 0.2.2 is an interactive browser-local demo.** Bookings, deposits, payments, reports and relationship suggestions use fictional data. There is no production backend, authentication, payment or messaging provider, AI model, or deployment. Use fictional details only.
 
 ## Run locally
 
@@ -25,7 +25,7 @@ npm run preview
 ## Try the connected journeys
 
 1. On Today, open Amelia’s visit, continue to checkout, record a simulated payment and rebook. Her timeline and business figures update from those records.
-2. Use Calendar to move between days, filter professionals and switch grid/agenda. Booking rejects staff/room conflicts and includes turnaround time.
+2. Use Calendar to navigate dates, filter professionals and switch grid/agenda. Move an upcoming appointment with its booked price, duration and deposit intact. Cancel or record a missed visit through explicit review; both stay in day history and the client timeline. Booking and moves reject staff/room conflicts and include turnaround time.
 3. Open Clients, search Amelia, add an ordinary fictional note and follow her referral connection to Olivia. Add a new client with an explicit referrer.
 4. Open Your booking page and complete service → professional/time → details → review. The booking appears in the operator calendar and client directory.
 5. Open Business, switch 7/28 days, inspect exact chart values and download a CSV.
@@ -44,7 +44,8 @@ Browser-local changes persist under versioned workspace keys. An unreadable snap
 - [Architecture and durable domain](docs/ARCHITECTURE.md)
 - [Design system and wordmark](docs/DESIGN_SYSTEM.md)
 - [Research and provenance](docs/RESEARCH.md)
-- [Verification evidence](docs/evidence/VERIFICATION.md)
+- [Current verification evidence](docs/evidence/VERIFICATION_0.2.2.md)
+- [Foundation verification evidence](docs/evidence/VERIFICATION.md)
 - [Changelog](CHANGELOG.md)
 
 The original README is preserved above and byte-for-byte in `docs/archive/INITIAL_README.md`. The full visible source conversation, original PRD preview and generated visual board were inspected. The PRD transcription is archived; original ZIP/workbook/image bytes remain unavailable. See project context for provenance.

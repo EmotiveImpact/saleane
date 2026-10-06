@@ -61,7 +61,7 @@ export const appointmentSchema = z.object({
   resourceId: id,
   date: civilDate,
   startMinutes: z.number().int().min(0).max(1439),
-  status: z.enum(['confirmed', 'arrived', 'completed', 'cancelled']),
+  status: z.enum(['confirmed', 'arrived', 'completed', 'cancelled', 'no_show']),
   source: z.enum(['desk', 'online', 'rebook']),
   createdAt: z.iso.datetime(),
   rebookedFromId: id.optional(),
@@ -92,12 +92,29 @@ export const paymentSchema = z.object({
   recordedAt: z.iso.datetime(),
   method: z.enum(['demo_card', 'demo_cash']),
 })
+const allocationSchema = z.object({
+  date: civilDate,
+  startMinutes: z.number().int().min(0).max(1439),
+  staffId: id,
+  resourceId: id,
+})
 export const eventSchema = z.object({
   ...scoped,
   clientId: id,
   appointmentId: id.optional(),
   saleId: id.optional(),
-  type: z.enum(['booked', 'arrived', 'checkout', 'note', 'consent', 'relationship']),
+  type: z.enum([
+    'booked',
+    'arrived',
+    'checkout',
+    'note',
+    'consent',
+    'relationship',
+    'rescheduled',
+    'cancelled',
+    'no_show',
+  ]),
+  allocationChange: z.object({ from: allocationSchema, to: allocationSchema }).optional(),
   title: z.string(),
   detail: z.string(),
   occurredAt: z.iso.datetime(),
@@ -201,6 +218,18 @@ export function parseState(value: unknown, region: Region): BusinessState {
       (event.saleId && !exists(s.sales, event.saleId))
     )
       throw new Error('Broken timeline link.')
+  for (const event of s.events) {
+    if (
+      event.allocationChange &&
+      (event.type !== 'rescheduled' ||
+        !event.appointmentId ||
+        [event.allocationChange.from, event.allocationChange.to].some(
+          (allocation) =>
+            !exists(s.staff, allocation.staffId) || !exists(s.resources, allocation.resourceId),
+        ))
+    )
+      throw new Error('Invalid appointment change history.')
+  }
   for (const edge of s.relationships)
     if (
       edge.fromClientId === edge.toClientId ||

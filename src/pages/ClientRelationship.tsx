@@ -42,7 +42,9 @@ export function ClientRelationship() {
         e.clientId === client.id &&
         (filter === 'all' ||
           (filter === 'visits'
-            ? ['booked', 'arrived', 'checkout'].includes(e.type)
+            ? ['booked', 'arrived', 'checkout', 'rescheduled', 'cancelled', 'no_show'].includes(
+                e.type,
+              )
             : filter === 'notes'
               ? e.type === 'note'
               : ['relationship', 'consent'].includes(e.type))),

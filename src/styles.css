@@ -2737,8 +2737,10 @@ fieldset {
     height: 18px;
   }
   .relationship-heading {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr);
+    align-items: start;
     gap: 15px;
-    flex-wrap: wrap;
   }
   .relationship-heading > .avatar {
     width: 58px;
@@ -2758,6 +2760,8 @@ fieldset {
     display: none;
   }
   .relationship-heading > .button {
+    grid-column: 2;
+    justify-self: start;
     min-height: 40px;
     font-size: 13px;
   }
@@ -3057,6 +3061,135 @@ fieldset {
 }
 .dialog-side .dialog-heading {
   gap: 16px;
+  padding: 26px 26px 20px;
+  margin: 0;
+  flex-shrink: 0;
+}
+.dialog-content.dialog-side {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+.dialog-side .dialog-body {
+  overflow-y: auto;
+  min-height: 0;
+  padding: 24px 26px max(28px, env(safe-area-inset-bottom));
+  overscroll-behavior: contain;
+}
+.time-choice {
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0;
+}
+.time-choice input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+}
+.time-choice:focus-within {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+}
+.allocation-summary {
+  background: var(--sage);
+  border: 1px solid var(--line);
+  padding: 16px;
+  margin-bottom: 22px;
+  display: grid;
+  gap: 7px;
+}
+.allocation-summary > span {
+  color: var(--muted);
+  font-size: 13px;
+}
+.allocation-summary strong {
+  font-size: 16px;
+}
+.allocation-summary p {
+  color: var(--muted);
+  font-size: 14px;
+}
+.appointment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 22px;
+}
+.deposit-review {
+  padding: 16px;
+  background: #f4efe5;
+  border-left: 3px solid #917545;
+  margin-top: 20px;
+}
+.deposit-review p {
+  font-size: 14px;
+  line-height: 1.55;
+  margin-top: 8px;
+  color: var(--muted);
+}
+.status-cancelled,
+.status-no_show {
+  background: #f2ece4;
+  color: #715631;
+}
+.status-cancelled > span,
+.status-no_show > span {
+  background: currentColor;
+}
+.agenda-row[data-selected],
+.calendar-event[data-selected] {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+.calendar-date-picker {
+  font-size: 12px;
+  gap: 4px;
+}
+.calendar-date-picker input {
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: 14px;
+  width: 150px;
+}
+.calendar-filters {
+  flex-wrap: wrap;
+}
+.calendar-history {
+  margin-top: 24px;
+}
+.calendar-history .section-heading {
+  padding: 24px;
+}
+@media (max-width: 650px) {
+  .calendar-history .agenda-row > .status {
+    display: inline-flex;
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: start;
+  }
+}
+.history-note {
+  padding: 18px 24px;
+  font-size: 13px;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+}
+.day-changes-link {
+  padding: 18px 24px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  border-top: 1px solid var(--line);
+  color: var(--ink);
 }
 .dialog-side .receipt-line.total {
   align-items: baseline;
@@ -3070,7 +3203,22 @@ fieldset {
 @media (max-width: 480px) {
   .dialog-content.dialog-side {
     border-left: 0;
-    padding-bottom: max(22px, env(safe-area-inset-bottom));
+    padding: 0;
+  }
+  .dialog-side .dialog-heading {
+    padding: 20px 18px 16px;
+  }
+  .dialog-side .dialog-body {
+    padding: 20px 18px max(22px, env(safe-area-inset-bottom));
+  }
+  .calendar-date-picker input {
+    width: 100%;
+  }
+  .calendar-date-picker {
+    flex: 1 1 140px;
+  }
+  .day-changes-link {
+    flex-wrap: wrap;
   }
 }
 

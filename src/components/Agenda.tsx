@@ -7,9 +7,11 @@ import { Avatar, Empty, Status } from './ui'
 export function Agenda({
   appointments,
   onOpen,
+  selectedId,
 }: {
   appointments: Appointment[]
   onOpen: (id: string) => void
+  selectedId?: string
 }) {
   const { state } = useStore()
   if (!appointments.length)
@@ -35,6 +37,9 @@ export function Agenda({
           <button
             key={a.id}
             className="agenda-row"
+            data-selected={selectedId === a.id ? '' : undefined}
+            aria-haspopup="dialog"
+            aria-expanded={selectedId === a.id}
             onClick={() => onOpen(a.id)}
             aria-label={`${client.name}, ${service.name}, ${timeLabel(a.startMinutes, state.organisation.locale)}, ${a.status}`}
           >

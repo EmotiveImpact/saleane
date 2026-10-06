@@ -1,6 +1,25 @@
 # Changelog
 
-Changes describe observed implementation, not future capabilities. Product versions are separate from stored-state schema versions.
+Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
+
+## 0.2.2 — 2026-10-06 · Appointment changes and calendar continuity
+
+### Changed
+
+- Added confirmed-appointment rescheduling through the existing side panel. Preserve appointment/client/origin IDs, booked duration, turnaround, price and deposit history; revalidate professional and room availability and append old/new allocation history. Conflicts must leave the original visit untouched.
+- Added cancellation and operator-recorded missed visits with reasons and retained timeline history. Recorded deposits stay in the ledger for review; no refund, cancellation fee, new sale or message is simulated by these actions.
+- Extended calendar date navigation, visibly identify the selected appointment and expose cancelled/missed history separately from active allocation. Terminal successors must not inflate rebooking reporting.
+- Kept the appointment heading and close action visible while its body scrolls. Use native radio choices for reschedule times, retaining keyboard operation and return focus when the original appointment leaves the active agenda.
+- Corrected the phone client-header grid so identity and actions remain readable, and removed the duplicate empty-day message on phones.
+- Adapted inspected Caleane component behavior to SALEANE's existing serif, ivory and sage identity. This does not select a new visual direction.
+
+### Verification and boundaries
+
+**Status: locally verified.** Final `npm run check` passed with zero lint warnings, 72 tests across three files, TypeScript and the combined Vite application/studies build. Tests include the staff-filter move regression. In-app browser checks on an isolated localhost origin exercised UK rescheduling with keyboard radio arrows, cancellation/history and Escape focus fallback, phone missed-visit history, and the linked client timeline. All six routes were checked at measured 320px and 1440px widths with no document overflow or broken rendered images. See [0.2.2 verification](docs/evidence/VERIFICATION_0.2.2.md).
+
+Screenshots were inspected inline. Browser capture crops fixed panels over scrolled underlying pages, so no accurate archived 0.2.2 panel-screenshot claim is made. This is targeted browser evidence, not full accessibility certification. CI on the pushed commit remains unverified here; main and deployment are unchanged.
+
+The app remains a fictional browser-local prototype. Missed attendance is manually recorded against the fixed demo day; the current date guard does not establish that a same-day visit's scheduled time has passed. Production requires authoritative venue time, authenticated actor, policy and audit enforcement. Holds, real refunds/fees, notifications, production authentication and shared database authority remain outside this increment. No merge or deployment is implied.
 
 ## 0.2.1 — 2026-10-06 · Source context and original visual direction
 
