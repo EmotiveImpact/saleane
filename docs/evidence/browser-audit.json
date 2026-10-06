@@ -1,0 +1,138 @@
+{
+  "environment": "local production preview / Chromium",
+  "baseUrl": "http://127.0.0.1:4173",
+  "results": [
+    {
+      "route": "/today",
+      "width": 1440,
+      "violations": [],
+      "viewport": 1440,
+      "document": 1440
+    },
+    {
+      "route": "/calendar",
+      "width": 1440,
+      "violations": [],
+      "viewport": 1440,
+      "document": 1440
+    },
+    {
+      "route": "/clients",
+      "width": 1440,
+      "violations": [],
+      "viewport": 1440,
+      "document": 1440
+    },
+    {
+      "route": "/clients/client-1",
+      "width": 1440,
+      "violations": [],
+      "viewport": 1440,
+      "document": 1440
+    },
+    {
+      "route": "/business",
+      "width": 1440,
+      "violations": [],
+      "viewport": 1440,
+      "document": 1440
+    },
+    {
+      "route": "/booking",
+      "width": 1440,
+      "violations": [],
+      "viewport": 1440,
+      "document": 1440
+    },
+    {
+      "route": "/today",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "route": "/calendar",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "route": "/clients",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "route": "/clients/client-1",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "route": "/business",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "route": "/booking",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390
+    },
+    {
+      "route": "/today",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320
+    },
+    {
+      "route": "/calendar",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320
+    },
+    {
+      "route": "/clients",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320
+    },
+    {
+      "route": "/clients/client-1",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320
+    },
+    {
+      "route": "/business",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320
+    },
+    {
+      "route": "/booking",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320
+    }
+  ],
+  "passed": true,
+  "recheck": {
+    "route": "/calendar",
+    "width": 1440,
+    "reason": "Completed appointment status contrast corrected and rechecked"
+  }
+}

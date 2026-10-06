@@ -1,0 +1,16 @@
+{
+  "environment": "local production preview / Chromium",
+  "result": "passed",
+  "results": [
+    "UK checkout, receipt, explicit rebook and note persistence on production bundle",
+    "Calendar staff filter, grid/agenda switch and date navigation",
+    "Workspace search resolves the client relationship",
+    "Unreadable snapshot preserved, recovery warning shown, saved state restored"
+  ],
+  "persisted": {
+    "sales": 1,
+    "rebooks": 1,
+    "revision": 3
+  },
+  "browserVersion": "154.0.8037.98"
+}

@@ -1,0 +1,47 @@
+
+> saleane@0.2.0 check
+> npm run lint && npm run test && npm run build
+
+
+> saleane@0.2.0 lint
+> eslint . --max-warnings 0
+
+
+> saleane@0.2.0 test
+> vitest run
+
+
+ RUN  v5.0.3 /Users/augustusedem/Documents/Codex/2026-10-06/referenced-chatgpt-conversation-this-is-an/outputs/Saleane
+
+
+ Test Files  3 passed (3)
+      Tests  41 passed (41)
+   Start at  16:21:08
+   Duration  2.72s (environment 41%, tests 38%, setup 8%, import 6%, transform 6%)
+
+
+> saleane@0.2.0 build
+> tsc -b && vite build
+
+vite v8.3.3 building client environment for production...
+transforming...
+✓ 2075 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                                      0.68 kB │ gzip:   0.41 kB
+dist/assets/manrope-vietnamese-wght-normal-usUDDRr7.woff2            8.52 kB
+dist/assets/manrope-greek-wght-normal-DL7QRZyv.woff2                 9.44 kB
+dist/assets/source-sans-3-greek-ext-wght-normal-BWSLJLk6.woff2       9.78 kB
+dist/assets/source-sans-3-vietnamese-wght-normal-C1uRvKPU.woff2     10.32 kB
+dist/assets/source-sans-3-cyrillic-ext-wght-normal-DzyfIafT.woff2   10.67 kB
+dist/assets/manrope-cyrillic-wght-normal-Dvxsihut.woff2             14.50 kB
+dist/assets/source-sans-3-greek-wght-normal-C9H9m1vD.woff2          14.60 kB
+dist/assets/manrope-latin-ext-wght-normal-Ch3YOpNY.woff2            15.12 kB
+dist/assets/source-sans-3-cyrillic-wght-normal-BMDVbyM7.woff2       18.49 kB
+dist/assets/manrope-latin-wght-normal-DHIcAJRg.woff2                24.83 kB
+dist/assets/source-sans-3-latin-wght-normal-BqRLTx4X.woff2          28.74 kB
+dist/assets/source-sans-3-latin-ext-wght-normal-C8iNium2.woff2      60.08 kB
+dist/assets/index-DdLlzi-z.css                                      49.50 kB │ gzip:  12.74 kB
+dist/assets/index-CjP9vRHQ.js                                      473.24 kB │ gzip: 143.18 kB
+
+✓ built in 253ms

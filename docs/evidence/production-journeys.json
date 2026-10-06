@@ -1,0 +1,25 @@
+{
+  "environment": "local production preview / Chromium",
+  "result": "passed",
+  "checks": [
+    "US mobile guest booking appears in operator calendar with USD and 12-hour times",
+    "US simulated checkout with 20% tip and 28-day CSV export",
+    "UK/US isolation and locale restoration",
+    "Desktop booking dialog traps Tab and restores focus on Escape",
+    "Mobile navigation selects route through focus-managed dialog"
+  ],
+  "stateCheck": {
+    "UKnote": true,
+    "USnote": false,
+    "guestInUK": false,
+    "USmarketing": false,
+    "USsale": {
+      "service": 12500,
+      "tip": 2500,
+      "deposit": 2500,
+      "balance": 12500
+    },
+    "lang": "en-GB"
+  },
+  "consoleErrors": 0
+}
