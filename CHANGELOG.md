@@ -2,6 +2,19 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## In review · Version 1 hardening
+
+**Status: draft pull request, not merged.** Small fixes from the version 1 codebase review; no visual redesign, schema change or live service.
+
+- One checkout calculation (`src/domain/money.ts`) now produces both the checkout preview and the recorded receipt, so the two cannot drift.
+- Typed amounts convert to minor units by string parsing. More than two decimals is rejected with a clear message instead of being rounded silently. Tip presets now stay selected for prices whose percentage has a part penny (for example 15% of £85.50).
+- Short money display keeps two decimals when an amount has pence or cents (£85.50, not £85.5).
+- A committed remote save is shown as saved even if clearing its retry key from tab storage fails.
+- Availability reuses one time-zone formatter per zone. A no-preference availability check on the demo studio fell from about 62 ms to about 8.5 ms in a local measurement.
+- Malformed percent-encoding in an API path returns 400 rather than a generic 500.
+- CI now runs `npm run format:check`, matching the project rules.
+- Verified with lint, format check, 166 tests (133 frontend/domain/store, 33 server) and builds, plus Chromium runs of demo checkout (tip presets, three-decimal rejection, receipt) and a Manage service price edit.
+
 ## 2026-10-06 · Consolidation and AI handoff
 
 - Added `CLAUDE.md`, a detailed continuation handoff and an ordered RC2 → RC3 → provider qualification → pilot → stable 1.0 roadmap with acceptance criteria. Live services remain unconfigured.

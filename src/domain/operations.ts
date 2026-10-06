@@ -100,27 +100,34 @@ export function defaultOperations(mode: Operations['mode'] = 'sandbox'): Operati
 export function operations(s: BusinessState): Operations {
   return s.operations ?? defaultOperations()
 }
+const civilDate = z.iso.date()
+// Building an Intl formatter is far more expensive than using one, and availability checks
+// convert thousands of local times per request, so keep one formatter per time zone.
+const localFormatters = new Map<string, Intl.DateTimeFormat>()
+function localFormatter(timeZone: string) {
+  let formatter = localFormatters.get(timeZone)
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-GB', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    })
+    localFormatters.set(timeZone, formatter)
+  }
+  return formatter
+}
 export function businessDate(s: BusinessState, now = new Date().toISOString()) {
   if (operations(s).mode === 'sandbox') return '2026-10-06'
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: s.organisation.timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date(now))
+  const parts = localFormatter(s.organisation.timeZone).formatToParts(new Date(now))
   const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)!.value
   return `${part('year')}-${part('month')}-${part('day')}`
 }
 function localParts(instant: number, timeZone: string) {
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(new Date(instant))
+  const parts = localFormatter(timeZone).formatToParts(new Date(instant))
   const n = (type: Intl.DateTimeFormatPartTypes) =>
     Number(parts.find((p) => p.type === type)!.value)
   return Date.UTC(n('year'), n('month') - 1, n('day'), n('hour'), n('minute'))
@@ -128,7 +135,7 @@ function localParts(instant: number, timeZone: string) {
 /** Rejects nonexistent and repeated local times instead of silently shifting an appointment. */
 export function instantFor(s: BusinessState, date: string, minute: number) {
   if (
-    !z.iso.date().safeParse(date).success ||
+    !civilDate.safeParse(date).success ||
     !Number.isInteger(minute) ||
     minute < 0 ||
     minute >= 1440
