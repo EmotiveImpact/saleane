@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Search, ArrowUpRight } from 'lucide-react'
 import { useStore } from '../state/context'
-import { Avatar, Empty, Modal } from './ui'
+import { Avatar, Empty, Modal } from '../design'
 
 export function SearchDialog({ onClose }: { onClose: () => void }) {
   const { state } = useStore()

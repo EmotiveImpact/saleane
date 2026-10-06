@@ -2,7 +2,7 @@ import { ArrowUpRight } from 'lucide-react'
 import { useStore } from '../state/context'
 import type { Appointment } from '../domain/model'
 import { money, timeLabel } from '../domain/format'
-import { Avatar, Empty, Status } from './ui'
+import { Avatar, Empty, Status } from '../design'
 
 export function Agenda({
   appointments,

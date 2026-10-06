@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowRight, ArrowLeft, ShieldCheck } from 'lucide-react'
 import { useStore } from '../state/context'
 import { api } from '../state/api'
-import { Button, ErrorMessage } from '../components/ui'
+import { Button, ErrorMessage } from '../design'
 import '../account.css'
 
 export function Account() {

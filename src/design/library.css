@@ -1,0 +1,204 @@
+/* Living design library page (/design-language). */
+.library {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+.library-section {
+  padding: var(--space-6);
+}
+.library-section > h2 {
+  font-size: var(--text-title-s);
+}
+.library-section h3 {
+  font-size: var(--text-lead);
+  margin: var(--space-6) 0 var(--space-2);
+}
+.library-lead,
+.library-specimen > p {
+  color: var(--muted);
+  font-size: var(--text-small);
+  margin: var(--space-1) 0 var(--space-4);
+  max-width: 70ch;
+}
+.library code {
+  font-size: var(--text-meta);
+  background: var(--sage-soft);
+  border-radius: var(--radius-inner);
+  padding: 1px 5px;
+}
+.library-principles {
+  margin: var(--space-3) 0 0;
+  padding-left: var(--space-5);
+  display: grid;
+  gap: var(--space-2);
+  max-width: 80ch;
+  line-height: 1.55;
+}
+.library-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+.library-swatches figure {
+  margin: 0;
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+.library-swatch {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+}
+.library-swatches figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--text-small);
+}
+.library-swatches small {
+  color: var(--muted);
+  font-size: var(--text-micro);
+}
+.library-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-small);
+}
+.library-table th,
+.library-table td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3) var(--space-2) 0;
+  border-bottom: 1px solid var(--line);
+}
+.library-table th {
+  font-size: var(--text-meta);
+  color: var(--muted);
+  font-weight: 600;
+}
+.library-pair {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--line);
+  font-size: var(--text-micro);
+  font-weight: 600;
+}
+.library-pass,
+.library-fail {
+  font-size: var(--text-micro);
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: var(--radius-inner);
+}
+.library-pass {
+  background: var(--sage);
+  color: var(--tone-sage-ink);
+}
+.library-fail {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.library-type {
+  display: grid;
+  gap: var(--space-3);
+}
+.library-type > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+.library-type small {
+  color: var(--muted);
+  font-size: var(--text-micro);
+}
+.library-serif {
+  font-family: var(--font-editorial);
+  letter-spacing: -0.03em;
+}
+.library-spaces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  align-items: flex-end;
+}
+.library-spaces > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-micro);
+}
+.library-spaces span {
+  display: block;
+  height: 24px;
+  background: var(--sage);
+  border: 1px solid var(--palette-sage-200);
+}
+.library-spaces small {
+  color: var(--muted);
+}
+.library-specimen {
+  padding-top: var(--space-2);
+}
+.library-frame {
+  padding: var(--space-5);
+  margin-bottom: var(--space-3);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--mineral);
+}
+.library-frame .page-heading {
+  margin-bottom: 0;
+}
+.library-frame .page-heading h2 {
+  font-family: var(--font-editorial);
+  font-weight: 450;
+  letter-spacing: -0.035em;
+  line-height: 1.22;
+  font-size: var(--text-display);
+}
+.library-frame .page-heading-compact h2 {
+  font-size: var(--text-title-compact);
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+.library-frame .page-heading h2 + p {
+  color: var(--muted);
+  margin-top: 10px;
+  font-size: var(--text-lead);
+}
+.library-frame .page-heading-compact h2 + p {
+  margin-top: var(--space-1);
+  font-size: var(--text-body);
+}
+.library-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: center;
+}
+.library-panel {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.library-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: var(--space-4);
+}
+@media (max-width: 650px) {
+  .library-section {
+    padding: var(--space-4);
+  }
+  .library-table th:nth-child(2),
+  .library-table td:nth-child(2) {
+    display: none;
+  }
+  .library-metrics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

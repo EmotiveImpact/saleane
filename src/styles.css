@@ -1,23 +1,11 @@
+@import './design/tokens.css';
 :root {
-  font-family: 'Source Sans 3 Variable', sans-serif;
-  color: #29392f;
-  background: #faf9f6;
+  font-family: var(--font-display);
+  color: var(--ink);
+  background: var(--mineral);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --ink: #29392f;
-  --ink-deep: #203329;
-  --paper: #ffffff;
-  --mineral: #faf9f6;
-  --line: #e2e2da;
-  --muted: #656b63;
-  --brass: #a89a7a;
-  --sage: #e9eee5;
-  --blue: #edf0ef;
-  --sand: #f1ece3;
-  --radius: 7px;
-  --font-display: 'Source Sans 3 Variable', sans-serif;
-  --font-editorial: 'Bodoni Moda Variable', Georgia, serif;
 }
 * {
   box-sizing: border-box;
@@ -55,7 +43,7 @@ select {
   -webkit-tap-highlight-color: transparent;
 }
 :focus-visible {
-  outline: 3px solid #9a722e;
+  outline: 3px solid var(--focus);
   outline-offset: 4px;
 }
 input:focus-visible,
@@ -81,7 +69,7 @@ h1 {
   line-height: 1.22;
 }
 h2 {
-  font-size: 19px;
+  font-size: var(--text-title-s);
   letter-spacing: -0.027em;
   font-weight: 700;
   line-height: 1.4;
@@ -94,7 +82,7 @@ p {
   line-height: 1.55;
 }
 small {
-  font-size: 13px;
+  font-size: var(--text-meta);
   line-height: 1.4;
 }
 svg {
@@ -106,8 +94,8 @@ textarea {
   border: 1px solid #b9c0b3;
   background: #fff;
   color: var(--ink);
-  min-height: 44px;
-  border-radius: 5px;
+  min-height: var(--target);
+  border-radius: var(--radius-control);
   padding: 10px 12px;
   width: 100%;
 }
@@ -119,7 +107,7 @@ input[type='checkbox'] {
   flex-shrink: 0;
 }
 label {
-  font-size: 15px;
+  font-size: var(--text-body);
   font-weight: 600;
   display: flex;
   flex-direction: column;
@@ -160,12 +148,12 @@ fieldset {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 44px;
+  min-height: var(--target);
   padding: 10px 17px;
   font-weight: 600;
-  font-size: 15px;
+  font-size: var(--text-body);
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   white-space: nowrap;
   transition: background 0.15s;
 }
@@ -206,7 +194,7 @@ fieldset {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   padding: 0;
 }
 .icon-button:hover {
@@ -221,13 +209,13 @@ fieldset {
   justify-content: center;
   font-family: var(--font-display);
   font-weight: 650;
-  font-size: 14px;
+  font-size: var(--text-small);
   flex-shrink: 0;
 }
 .avatar-small {
   width: 34px;
   height: 34px;
-  font-size: 11px;
+  font-size: var(--text-micro);
 }
 .tone-sage {
   background: var(--sage);
@@ -242,7 +230,7 @@ fieldset {
   color: #735d39;
 }
 .status {
-  font-size: 12px;
+  font-size: var(--text-micro);
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -265,7 +253,7 @@ fieldset {
   background: #487258;
 }
 .status-completed {
-  color: #66727b;
+  color: #58636b;
 }
 .status-completed > span {
   background: #94a19b;
@@ -284,7 +272,7 @@ fieldset {
   border: 0;
   background: transparent;
   padding: 3px 0;
-  font-size: 14px;
+  font-size: var(--text-small);
   font-weight: 600;
   cursor: pointer;
 }
@@ -332,7 +320,7 @@ fieldset {
 .workspace-switch {
   background: #f8f8f3;
   border: 1px solid #dcded3;
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   color: var(--ink);
   padding: 12px 10px;
   display: flex;
@@ -346,19 +334,19 @@ fieldset {
   min-width: 0;
 }
 .workspace-switch strong {
-  font-size: 14px;
+  font-size: var(--text-small);
   font-weight: 600;
   display: block;
 }
 .workspace-switch small {
-  font-size: 11px;
+  font-size: var(--text-micro);
   color: var(--muted);
   display: block;
 }
 .workspace-monogram {
   font-family: var(--font-display);
   border: 1px solid #9eaaab;
-  font-size: 12px;
+  font-size: var(--text-micro);
   width: 32px;
   height: 32px;
   display: inline-flex;
@@ -374,7 +362,7 @@ fieldset {
   margin: 4px 0;
   font-size: 16px;
   color: #555f52;
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   min-height: 47px;
 }
 .nav-link.active {
@@ -396,7 +384,7 @@ fieldset {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 14px;
+  font-size: var(--text-small);
   padding: 16px 10px;
   border-bottom: 1px solid var(--line);
   color: var(--ink);
@@ -405,7 +393,7 @@ fieldset {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12px;
+  font-size: var(--text-micro);
   padding: 15px 8px 7px;
   color: var(--muted);
 }
@@ -414,7 +402,7 @@ fieldset {
 }
 .sidebar-bottom p {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-micro);
   margin: 16px 10px 0;
   line-height: 1.6;
 }
@@ -430,7 +418,7 @@ fieldset {
   justify-content: space-between;
   padding: 0 36px;
   background: white;
-  font-size: 14px;
+  font-size: var(--text-small);
 }
 .app-header > div {
   display: flex;
@@ -459,7 +447,7 @@ fieldset {
 }
 .global-search kbd {
   font-family: inherit;
-  font-size: 11px;
+  font-size: var(--text-micro);
   border: 1px solid var(--line);
   border-radius: 3px;
   padding: 1px 5px;
@@ -472,7 +460,7 @@ fieldset {
   background: transparent;
   border: 0;
   padding: 0;
-  font-size: 14px;
+  font-size: var(--text-small);
 }
 .demo-notice {
   padding: 8px 36px;
@@ -481,11 +469,11 @@ fieldset {
   display: flex;
   gap: 7px;
   align-items: center;
-  font-size: 12px;
+  font-size: var(--text-micro);
 }
 .demo-notice button {
   margin-left: auto;
-  font-size: 12px;
+  font-size: var(--text-micro);
   background: transparent;
   border: 0;
   padding: 0;
@@ -509,13 +497,13 @@ fieldset {
   align-items: center;
   gap: 7px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--text-small);
   margin-bottom: 12px;
 }
 .page-heading h1 + p {
   color: var(--muted);
   margin-top: 10px;
-  font-size: 17px;
+  font-size: var(--text-lead);
 }
 .metrics-band {
   display: grid;
@@ -537,7 +525,7 @@ fieldset {
   padding-left: 20px;
 }
 .metric > span {
-  font-size: 14px;
+  font-size: var(--text-small);
   color: var(--muted);
 }
 .metric > strong {
@@ -549,7 +537,7 @@ fieldset {
   font-variant-numeric: tabular-nums;
 }
 .metric small {
-  font-size: 12px;
+  font-size: var(--text-micro);
   color: var(--muted);
 }
 .surface {
@@ -566,11 +554,11 @@ fieldset {
 }
 .section-heading p {
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--text-small);
   margin-top: 5px;
 }
 .section-heading > span {
-  font-size: 12px;
+  font-size: var(--text-micro);
   color: var(--muted);
 }
 .today-layout {
@@ -583,7 +571,7 @@ fieldset {
   padding: 23px 23px 20px;
 }
 .schedule-surface .section-heading .text-link {
-  font-size: 12px;
+  font-size: var(--text-micro);
   white-space: nowrap;
   margin-top: 5px;
 }
@@ -595,7 +583,7 @@ fieldset {
   padding: 10px 23px;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
-  font-size: 12px;
+  font-size: var(--text-micro);
   color: var(--muted);
 }
 .schedule-toolbar .live-dot {
@@ -606,12 +594,12 @@ fieldset {
   flex-direction: row;
   align-items: center;
   gap: 9px;
-  font-size: 14px;
+  font-size: var(--text-small);
   font-weight: 400;
   line-height: 1.4;
 }
 .schedule-toolbar label {
-  font-size: 12px;
+  font-size: var(--text-micro);
 }
 .schedule-toolbar input {
   width: 13px;
@@ -626,7 +614,7 @@ fieldset {
   padding: 17px 23px;
 }
 .agenda-labels {
-  font-size: 11px;
+  font-size: var(--text-micro);
   color: var(--muted);
   padding-top: 14px;
   padding-bottom: 9px;
@@ -647,14 +635,14 @@ fieldset {
   background: #f5f7f1;
 }
 .agenda-time {
-  font-size: 15px;
+  font-size: var(--text-body);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   white-space: nowrap;
 }
 .agenda-time small {
   display: block;
-  font-size: 11px;
+  font-size: var(--text-micro);
   color: var(--muted);
   font-weight: 400;
   margin-top: 2px;
@@ -667,23 +655,23 @@ fieldset {
 }
 .agenda-client strong {
   display: block;
-  font-size: 15px;
+  font-size: var(--text-body);
   font-weight: 600;
 }
 .agenda-client small {
   display: block;
-  font-size: 12px;
+  font-size: var(--text-micro);
   color: var(--muted);
 }
 .agenda-professional {
-  font-size: 13px;
+  font-size: var(--text-meta);
 }
 .agenda-value {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  font-size: 14px;
+  font-size: var(--text-small);
   font-variant-numeric: tabular-nums;
 }
 .agenda-value svg {
@@ -701,7 +689,7 @@ fieldset {
   align-items: center;
   gap: 10px;
   color: #4c6046;
-  font-size: 13px;
+  font-size: var(--text-meta);
   margin-bottom: 22px;
 }
 .intelligence-panel h2 {
@@ -714,7 +702,7 @@ fieldset {
 }
 .intelligence-panel p {
   color: #56654e;
-  font-size: 15px;
+  font-size: var(--text-body);
   line-height: 1.6;
 }
 .insight-fact {
@@ -728,23 +716,23 @@ fieldset {
 }
 .insight-fact span,
 .insight-fact small {
-  font-size: 12px;
+  font-size: var(--text-micro);
   color: #56654e;
 }
 .insight-fact strong {
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 19px;
+  font-size: var(--text-title-s);
 }
 .intelligence-panel .button {
   width: 100%;
-  font-size: 13px;
+  font-size: var(--text-meta);
   padding: 9px 12px;
 }
 .insight-source {
   display: block;
   color: #56654e;
-  font-size: 11px;
+  font-size: var(--text-micro);
   line-height: 1.6;
   margin-top: 13px;
 }
@@ -759,7 +747,7 @@ fieldset {
   align-items: center;
 }
 .team-panel .section-heading span {
-  font-size: 11px;
+  font-size: var(--text-micro);
 }
 .team-row {
   display: flex;
@@ -771,12 +759,12 @@ fieldset {
   flex: 1;
 }
 .team-row strong {
-  font-size: 14px;
+  font-size: var(--text-small);
   font-weight: 600;
 }
 .team-row small {
   float: right;
-  font-size: 11px;
+  font-size: var(--text-micro);
   color: var(--muted);
   padding-top: 3px;
 }
@@ -809,7 +797,7 @@ fieldset {
 .mini-wordmark {
   border: 1px solid #bfc9cd;
   font-family: var(--font-display);
-  font-size: 13px;
+  font-size: var(--text-meta);
   width: 36px;
   height: 36px;
   display: flex;
@@ -821,12 +809,12 @@ fieldset {
 }
 .booking-prompt strong {
   display: block;
-  font-size: 13px;
+  font-size: var(--text-meta);
   font-weight: 600;
 }
 .booking-prompt small {
   display: block;
-  font-size: 12px;
+  font-size: var(--text-micro);
   color: var(--muted);
   margin-top: 2px;
 }
@@ -836,7 +824,7 @@ fieldset {
   justify-content: space-between;
   margin-top: 35px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-micro);
   gap: 12px;
 }
 .workspace-footer > span:first-child {
@@ -845,7 +833,7 @@ fieldset {
   letter-spacing: -0.04em;
 }
 .calendar-toolbar {
-  padding: 21px;
+  padding: 14px 20px;
   display: flex;
   justify-content: space-between;
   gap: 16px;
@@ -858,13 +846,13 @@ fieldset {
   gap: 8px;
 }
 .date-controls h2 {
-  font-size: 17px;
+  font-size: var(--text-lead);
   margin: 0 12px 0 4px;
 }
 .date-controls .button {
   min-height: 34px;
   padding: 4px 12px;
-  font-size: 13px;
+  font-size: var(--text-meta);
 }
 .calendar-filters {
   display: flex;
@@ -875,33 +863,13 @@ fieldset {
   min-height: 36px;
   width: 158px;
   padding: 6px 10px;
-  font-size: 13px;
-}
-.view-toggle {
-  display: flex;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  padding: 3px;
-}
-.view-toggle button {
-  width: 31px;
-  height: 29px;
-  border: 0;
-  background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 3px;
-}
-.view-toggle button[aria-pressed='true'] {
-  background: var(--ink);
-  color: #fff;
+  font-size: var(--text-meta);
 }
 .calendar-legend {
   display: flex;
   gap: 18px;
   align-items: center;
-  font-size: 12px;
+  font-size: var(--text-micro);
   padding: 14px 23px;
   border-bottom: 1px solid var(--line);
   flex-wrap: wrap;
@@ -925,7 +893,7 @@ fieldset {
 }
 .calendar-legend small {
   margin-left: auto;
-  font-size: 11px;
+  font-size: var(--text-micro);
   color: var(--muted);
 }
 .calendar-grid {
@@ -933,7 +901,7 @@ fieldset {
   overflow: hidden;
 }
 .calendar-corner {
-  font-size: 11px;
+  font-size: var(--text-micro);
   color: var(--muted);
   padding: 29px 12px;
   border-bottom: 1px solid var(--line);
@@ -951,11 +919,11 @@ fieldset {
   display: block;
 }
 .calendar-person strong {
-  font-size: 14px;
+  font-size: var(--text-small);
   font-weight: 600;
 }
 .calendar-person small {
-  font-size: 11px;
+  font-size: var(--text-micro);
   color: var(--muted);
   margin-top: 2px;
 }
@@ -968,7 +936,7 @@ fieldset {
   position: absolute;
   left: 13px;
   transform: translateY(-6px);
-  font-size: 11px;
+  font-size: var(--text-micro);
   color: var(--muted);
   white-space: nowrap;
 }
@@ -1022,20 +990,20 @@ fieldset {
   display: flex;
   justify-content: space-between;
   gap: 7px;
-  font-size: 11px;
+  font-size: var(--text-micro);
   align-items: center;
 }
 .calendar-event .status {
-  font-size: 9px;
+  font-size: var(--text-micro);
   color: inherit;
 }
 .calendar-event strong {
-  font-size: 14px;
+  font-size: var(--text-small);
   margin-top: 3px;
   font-weight: 600;
 }
 .calendar-event small {
-  font-size: 11px;
+  font-size: var(--text-micro);
 }
 .calendar-event:hover {
   filter: brightness(0.97);
@@ -1046,12 +1014,12 @@ fieldset {
 .buffer-block {
   display: block;
   text-align: right;
-  font-size: 9px;
+  font-size: var(--text-micro);
   padding: 1px 8px;
   color: var(--muted);
   background: #f5f7f7;
 }
-.calendar-mobile-agenda {
+.calendar-mobile-people {
   display: none;
 }
 .directory-toolbar {
@@ -1072,7 +1040,7 @@ fieldset {
 .segment-tabs button {
   border: 0;
   background: transparent;
-  font-size: 14px;
+  font-size: var(--text-small);
   color: var(--muted);
   padding: 7px 0;
   border-bottom: 2px solid transparent;
@@ -1089,7 +1057,7 @@ fieldset {
   gap: 8px;
   border: 1px solid #c5d0d6;
   background: #fff;
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   padding: 0 11px;
   min-width: 190px;
 }
@@ -1098,7 +1066,7 @@ fieldset {
   padding: 8px 0;
   min-height: 36px;
   width: 175px;
-  font-size: 14px;
+  font-size: var(--text-small);
   background: transparent;
 }
 .client-table-wrap {
@@ -1108,11 +1076,11 @@ fieldset {
   border-collapse: collapse;
   width: 100%;
   text-align: left;
-  font-size: 14px;
+  font-size: var(--text-small);
 }
 .client-table th {
   font-weight: 400;
-  font-size: 12px;
+  font-size: var(--text-micro);
   color: var(--muted);
   background: #fafbfc;
   padding: 13px 20px;
@@ -1136,13 +1104,13 @@ fieldset {
 }
 .client-cell strong {
   display: block;
-  font-size: 15px;
+  font-size: var(--text-body);
   font-weight: 600;
 }
 .client-cell small {
   display: block;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-micro);
 }
 .numeric {
   font-variant-numeric: tabular-nums;
@@ -1151,7 +1119,7 @@ fieldset {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-size: 13px;
+  font-size: var(--text-meta);
 }
 .consent-label {
   margin: 22px 0 14px;
@@ -1161,7 +1129,7 @@ fieldset {
   align-items: center;
   gap: 7px;
   margin-bottom: 27px;
-  font-size: 14px;
+  font-size: var(--text-small);
   color: var(--muted);
 }
 .relationship-heading {
@@ -1173,7 +1141,7 @@ fieldset {
 .relationship-heading > .avatar {
   width: 80px;
   height: 80px;
-  font-size: 24px;
+  font-size: var(--text-title-m);
 }
 .relationship-heading > div {
   flex: 1;
@@ -1185,12 +1153,12 @@ fieldset {
 .relationship-heading p:not(.date-caption) {
   color: var(--muted);
   margin-top: 6px;
-  font-size: 14px;
+  font-size: var(--text-small);
   overflow-wrap: anywhere;
 }
 .relationship-heading .date-caption {
   margin-bottom: 5px;
-  font-size: 12px;
+  font-size: var(--text-micro);
 }
 .contact-divider {
   padding: 0 9px;
@@ -1210,8 +1178,8 @@ fieldset {
   border-bottom: 1px solid var(--line);
   gap: 18px;
 }
-.timeline-tabs button {
-  font-size: 12px;
+.timeline-tabs .segmented-item {
+  font-size: var(--text-meta);
 }
 .timeline {
   padding: 28px 27px 15px;
@@ -1254,16 +1222,16 @@ fieldset {
   color: #745e3c;
 }
 .timeline-event time {
-  font-size: 11px;
+  font-size: var(--text-micro);
   color: var(--muted);
 }
 .timeline-event h3 {
-  font-size: 17px;
+  font-size: var(--text-lead);
   margin: 4px 0 5px;
   font-weight: 600;
 }
 .timeline-event p {
-  font-size: 14px;
+  font-size: var(--text-small);
   color: var(--muted);
   overflow-wrap: anywhere;
 }
@@ -1276,10 +1244,43 @@ fieldset {
 }
 .timeline-footer small {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-micro);
 }
 .timeline-footer .text-link {
-  font-size: 12px;
+  font-size: var(--text-micro);
+}
+.timeline-visit h3 span {
+  font-weight: 400;
+  color: var(--muted);
+}
+.visit-steps {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  border-left: 1px solid var(--line);
+}
+.visit-steps li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-2);
+  padding: 5px 0 5px var(--space-3);
+  font-size: var(--text-small);
+}
+.visit-steps .visit-step-title {
+  font-weight: 600;
+}
+.visit-steps time,
+.visit-steps small {
+  color: var(--muted);
+  font-size: var(--text-micro);
+}
+.visit-steps small::before {
+  content: '· ';
+}
+.timeline-event .visit-steps p {
+  flex-basis: 100%;
+  font-size: var(--text-meta);
 }
 .timeline-money {
   display: flex;
@@ -1297,7 +1298,7 @@ fieldset {
 }
 .timeline-money span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-micro);
 }
 .relationship-aside {
   display: flex;
@@ -1308,19 +1309,19 @@ fieldset {
   padding: 24px;
 }
 .detail-panel h2 {
-  font-size: 17px;
+  font-size: var(--text-lead);
   margin-bottom: 15px;
 }
 .detail-panel h3 {
-  font-size: 14px;
+  font-size: var(--text-small);
   margin-bottom: 12px;
 }
 .detail-panel p {
-  font-size: 14px;
+  font-size: var(--text-small);
   color: var(--muted);
 }
 .detail-panel form p {
-  font-size: 12px;
+  font-size: var(--text-micro);
   margin: 9px 0 16px;
 }
 .detail-divider {
@@ -1338,13 +1339,13 @@ fieldset {
   flex: 1;
 }
 .connection-row strong {
-  font-size: 13px;
+  font-size: var(--text-meta);
   display: block;
   font-weight: 600;
 }
 .connection-row small {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-micro);
   display: block;
 }
 .relationship-aside .checkbox-label {
@@ -1358,7 +1359,7 @@ fieldset {
   gap: 20px;
 }
 .business-period > span {
-  font-size: 13px;
+  font-size: var(--text-meta);
   color: var(--muted);
 }
 .business-layout {
@@ -1386,7 +1387,7 @@ fieldset {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: var(--text-micro);
   color: var(--muted);
   width: 46px;
   padding-bottom: 1px;
@@ -1429,12 +1430,12 @@ fieldset {
   padding-top: 10px;
   width: 100%;
   text-align: center;
-  font-size: 11px;
+  font-size: var(--text-micro);
   color: var(--muted);
 }
 .chart-data {
   margin-top: 17px;
-  font-size: 12px;
+  font-size: var(--text-micro);
   color: var(--muted);
 }
 .chart-data summary {
@@ -1467,17 +1468,17 @@ fieldset {
   margin-bottom: 16px;
 }
 .business-insight h2 {
-  font-size: 24px;
+  font-size: var(--text-title-m);
   font-weight: 550;
   letter-spacing: -0.035em;
 }
 .business-insight p {
   color: #d1dae0;
-  font-size: 14px;
+  font-size: var(--text-small);
   margin: 14px 0 21px;
 }
 .business-insight .button {
-  font-size: 13px;
+  font-size: var(--text-meta);
 }
 .business-insight > span,
 .business-insight > strong,
@@ -1485,7 +1486,7 @@ fieldset {
   display: block;
 }
 .business-insight > span {
-  font-size: 12px;
+  font-size: var(--text-micro);
   color: #d1dce0;
 }
 .business-insight > strong {
@@ -1496,7 +1497,7 @@ fieldset {
   margin: 5px 0;
 }
 .business-insight > small {
-  font-size: 11px;
+  font-size: var(--text-micro);
   color: #cbd8e0;
 }
 .insight-rule {
@@ -1522,13 +1523,13 @@ fieldset {
   margin-bottom: 0;
 }
 .service-performance strong {
-  font-size: 14px;
+  font-size: var(--text-small);
   font-weight: 600;
 }
 .service-performance small {
   display: block;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-micro);
   margin-top: 2px;
 }
 .performance-track {
@@ -1554,17 +1555,17 @@ fieldset {
   flex: 1;
 }
 .staff-performance strong {
-  font-size: 14px;
+  font-size: var(--text-small);
   font-weight: 600;
 }
 .staff-performance small {
   display: block;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-micro);
 }
 .staff-performance + p {
   margin-top: 18px;
-  font-size: 12px;
+  font-size: var(--text-micro);
 }
 .metric-definitions {
   margin-top: 25px;
@@ -1573,7 +1574,7 @@ fieldset {
   margin-top: 13px;
   max-width: 85ch;
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--text-small);
 }
 .empty {
   text-align: center;
@@ -1586,7 +1587,7 @@ fieldset {
 }
 .empty p {
   color: var(--muted);
-  font-size: 15px;
+  font-size: var(--text-body);
 }
 .dialog-overlay {
   position: fixed;
@@ -1628,7 +1629,7 @@ fieldset {
 }
 .dialog-heading p {
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--text-small);
   margin-top: 7px;
 }
 .dialog-heading .icon-button {
@@ -1646,7 +1647,7 @@ fieldset {
   margin: 22px 0;
 }
 .time-fieldset legend {
-  font-size: 14px;
+  font-size: var(--text-small);
   font-weight: 600;
   margin-bottom: 12px;
 }
@@ -1660,7 +1661,7 @@ fieldset {
   border: 1px solid #bccad1;
   border-radius: 4px;
   min-height: 42px;
-  font-size: 14px;
+  font-size: var(--text-small);
   font-variant-numeric: tabular-nums;
   padding: 8px;
 }
@@ -1678,7 +1679,7 @@ fieldset {
   gap: 10px;
   padding: 13px;
   background: #f0f1eb;
-  font-size: 13px;
+  font-size: var(--text-meta);
   color: var(--muted);
   margin: 18px 0;
 }
@@ -1687,13 +1688,13 @@ fieldset {
   justify-content: space-between;
   gap: 16px;
   padding: 11px 0;
-  font-size: 15px;
+  font-size: var(--text-body);
 }
 .receipt-line.total {
   border-top: 1px solid var(--line);
   margin-top: 17px;
   padding-top: 20px;
-  font-size: 19px;
+  font-size: var(--text-title-s);
 }
 .receipt-line.total strong {
   font-family: var(--font-display);
@@ -1706,7 +1707,7 @@ fieldset {
   color: #8c2e24;
   padding: 10px 14px;
   margin: 15px 0;
-  font-size: 14px;
+  font-size: var(--text-small);
 }
 .dialog-footer {
   display: flex;
@@ -1727,7 +1728,7 @@ fieldset {
   flex: 1;
 }
 .client-identity h3 {
-  font-size: 19px;
+  font-size: var(--text-title-s);
   font-family: var(--font-display);
   letter-spacing: -0.035em;
 }
@@ -1735,7 +1736,7 @@ fieldset {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 13px;
+  font-size: var(--text-meta);
   color: var(--muted);
   margin-top: 5px;
 }
@@ -1747,7 +1748,7 @@ fieldset {
   margin-bottom: 7px;
 }
 .visit-details p {
-  font-size: 15px;
+  font-size: var(--text-body);
   color: var(--muted);
 }
 .preference-note {
@@ -1757,11 +1758,11 @@ fieldset {
   margin: 22px 0;
 }
 .preference-note span {
-  font-size: 12px;
+  font-size: var(--text-micro);
   font-weight: 600;
 }
 .preference-note p {
-  font-size: 14px;
+  font-size: var(--text-small);
   margin-top: 5px;
 }
 .tip-options {
@@ -1771,7 +1772,7 @@ fieldset {
   margin-bottom: 15px;
 }
 .demo-note {
-  font-size: 13px;
+  font-size: var(--text-meta);
   margin: 15px 0;
 }
 .success-strip {
@@ -1781,7 +1782,7 @@ fieldset {
   background: #eaf1ec;
   color: #3b604b;
   padding: 11px 13px;
-  font-size: 14px;
+  font-size: var(--text-small);
   margin: 20px 0;
 }
 .rebook-callout {
@@ -1796,7 +1797,7 @@ fieldset {
 }
 .rebook-callout p {
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--text-small);
   margin: 8px 0 18px;
 }
 .confirmation {
@@ -1824,7 +1825,7 @@ fieldset {
   margin-bottom: 18px;
 }
 .confirmation .subtle {
-  font-size: 13px;
+  font-size: var(--text-meta);
 }
 .command-search {
   width: 100%;
@@ -1854,15 +1855,15 @@ fieldset {
   display: block;
 }
 .search-results strong {
-  font-size: 15px;
+  font-size: var(--text-body);
   font-weight: 600;
 }
 .search-results small {
-  font-size: 12px;
+  font-size: var(--text-micro);
   color: var(--muted);
 }
 .settings-body p {
-  font-size: 15px;
+  font-size: var(--text-body);
   color: var(--muted);
   margin: 16px 0;
 }
@@ -1870,7 +1871,7 @@ fieldset {
   padding: 14px 36px;
   background: #fbecdf;
   color: #704820;
-  font-size: 14px;
+  font-size: var(--text-small);
 }
 .workspace-warning button {
   margin-left: 12px;
@@ -1911,7 +1912,7 @@ fieldset {
   align-items: center;
   justify-content: center;
   border: 1px solid #899b9b;
-  font-size: 19px;
+  font-size: var(--text-title-s);
   font-weight: 550;
 }
 .public-brand > span:nth-child(2) {
@@ -1924,7 +1925,7 @@ fieldset {
   display: block;
   font-family: 'Source Sans 3 Variable', sans-serif;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-micro);
   letter-spacing: 0;
   margin-top: 3px;
 }
@@ -1934,19 +1935,19 @@ fieldset {
   gap: 30px;
 }
 .booking-header select {
-  font-size: 12px;
+  font-size: var(--text-micro);
   width: 152px;
   min-height: 34px;
   padding: 6px;
 }
 .booking-header > div a {
-  font-size: 12px;
+  font-size: var(--text-micro);
   display: flex;
   align-items: center;
   gap: 8px;
 }
 .booking-demo-banner {
-  font-size: 12px;
+  font-size: var(--text-micro);
   padding: 9px 5vw;
   background: #edf2f3;
   color: #586c79;
@@ -1986,7 +1987,7 @@ fieldset {
   margin-bottom: 30px;
 }
 .booking-story p {
-  font-size: 17px;
+  font-size: var(--text-lead);
   line-height: 1.8;
   color: #36432f;
 }
@@ -1995,14 +1996,14 @@ fieldset {
   gap: 9px;
   align-items: center;
   margin-top: 39px;
-  font-size: 13px;
+  font-size: var(--text-meta);
   color: #36432f;
 }
 .story-footer {
   display: flex;
   gap: 16px;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: var(--text-micro);
   color: #36432f;
   z-index: 2;
   position: relative;
@@ -2054,7 +2055,7 @@ fieldset {
   gap: 7px;
   padding: 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-micro);
 }
 .booking-steps button > span {
   border: 1px solid #b9c7cc;
@@ -2064,7 +2065,7 @@ fieldset {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: var(--text-micro);
 }
 .booking-steps button[aria-current='step'] {
   color: var(--ink);
@@ -2076,7 +2077,10 @@ fieldset {
   border-color: var(--ink);
 }
 .booking-steps button:disabled {
-  opacity: 0.75;
+  opacity: 1;
+}
+.booking-steps button:disabled > span {
+  border-style: dashed;
 }
 .booking-step-content {
   padding-top: 32px;
@@ -2087,7 +2091,7 @@ fieldset {
   letter-spacing: -0.05em;
 }
 .booking-step-content > p {
-  font-size: 15px;
+  font-size: var(--text-body);
   color: var(--muted);
   margin: 9px 0 25px;
 }
@@ -2120,7 +2124,7 @@ fieldset {
   max-width: 42ch;
 }
 .service-category {
-  font-size: 11px;
+  font-size: var(--text-micro);
   color: #596f67;
 }
 .service-choice h3 {
@@ -2129,7 +2133,7 @@ fieldset {
   margin-top: 4px;
 }
 .service-choice p {
-  font-size: 13px;
+  font-size: var(--text-meta);
   color: var(--muted);
   margin-top: 5px;
   line-height: 1.5;
@@ -2138,7 +2142,7 @@ fieldset {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: var(--text-micro);
   color: var(--muted);
   margin-top: 10px;
 }
@@ -2150,7 +2154,7 @@ fieldset {
   min-width: 48px;
 }
 .service-choice > span > strong {
-  font-size: 17px;
+  font-size: var(--text-lead);
   font-weight: 600;
 }
 .selection-circle {
@@ -2177,7 +2181,7 @@ fieldset {
   border-top: 1px solid var(--line);
 }
 .booking-next > span {
-  font-size: 13px;
+  font-size: var(--text-meta);
   color: var(--muted);
 }
 .booking-next > span strong {
@@ -2190,7 +2194,7 @@ fieldset {
 }
 .booking-powered {
   text-align: center;
-  font-size: 11px;
+  font-size: var(--text-micro);
   color: var(--muted);
   margin: 31px 0 0;
 }
@@ -2210,7 +2214,7 @@ fieldset {
   align-items: center;
   gap: 13px;
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   background: #fff;
   padding: 13px;
   text-align: left;
@@ -2228,11 +2232,11 @@ fieldset {
 }
 .professional-choices strong {
   font-weight: 600;
-  font-size: 15px;
+  font-size: var(--text-body);
 }
 .professional-choices small {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-micro);
 }
 .booking-contact-form {
   display: flex;
@@ -2240,7 +2244,7 @@ fieldset {
   gap: 19px;
 }
 .booking-contact-form > p {
-  font-size: 13px;
+  font-size: var(--text-meta);
 }
 .booking-review {
   background: #f4f7f6;
@@ -2249,12 +2253,12 @@ fieldset {
   border-radius: 6px;
 }
 .booking-review h3 {
-  font-size: 24px;
+  font-size: var(--text-title-m);
   margin: 7px 0 13px;
 }
 .booking-review p {
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--text-small);
   line-height: 1.65;
   margin-bottom: 17px;
 }
@@ -2266,7 +2270,7 @@ fieldset {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  font-size: 13px;
+  font-size: var(--text-meta);
   color: var(--muted);
   margin: 24px 0;
 }
@@ -2278,7 +2282,7 @@ fieldset {
 .booking-confirmation .date-caption {
   justify-content: center;
   margin: 6px 0 15px;
-  font-size: 12px;
+  font-size: var(--text-micro);
 }
 .booking-confirmation h2 {
   font-size: 37px;
@@ -2292,7 +2296,7 @@ fieldset {
   margin-bottom: 25px;
 }
 .booking-confirmation > p.subtle {
-  font-size: 13px;
+  font-size: var(--text-meta);
 }
 .confirmation-details {
   display: flex;
@@ -2302,7 +2306,7 @@ fieldset {
   padding: 22px 0;
   margin: 28px 0;
   gap: 60px;
-  font-size: 13px;
+  font-size: var(--text-meta);
   color: var(--muted);
 }
 .confirmation-details strong {
@@ -2372,7 +2376,7 @@ fieldset {
     padding: 0 15px;
   }
   .metric small {
-    font-size: 11px;
+    font-size: var(--text-micro);
   }
   .calendar-event .status {
     display: none;
@@ -2446,7 +2450,8 @@ fieldset {
     padding: 30px;
   }
   .booking-steps button small {
-    font-size: 10px;
+    font-size: var(--text-micro);
+    line-height: 1.25;
   }
 }
 @media (max-width: 900px) {
@@ -2490,7 +2495,7 @@ fieldset {
     font-size: 56px;
   }
   .booking-story p {
-    font-size: 14px;
+    font-size: var(--text-small);
   }
   .story-footer {
     flex-direction: column;
@@ -2530,7 +2535,7 @@ fieldset {
   }
   .demo-notice {
     padding: 8px 18px;
-    font-size: 10px;
+    font-size: var(--text-micro);
   }
   .demo-notice button {
     display: none;
@@ -2545,16 +2550,16 @@ fieldset {
     font-size: 32px;
   }
   .page-heading h1 + p {
-    font-size: 15px;
+    font-size: var(--text-body);
     margin-top: 8px;
   }
   .date-caption {
     margin-bottom: 10px;
-    font-size: 12px;
+    font-size: var(--text-micro);
   }
   .page-heading .button {
     min-height: 40px;
-    font-size: 13px;
+    font-size: var(--text-meta);
   }
   .metrics-band {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2566,13 +2571,13 @@ fieldset {
     padding: 0 12px;
   }
   .metric > span {
-    font-size: 12px;
+    font-size: var(--text-micro);
   }
   .metric > strong {
     font-size: 28px;
   }
   .metric small {
-    font-size: 10px;
+    font-size: var(--text-micro);
   }
   .today-layout {
     gap: 20px;
@@ -2581,10 +2586,10 @@ fieldset {
     padding: 19px 16px;
   }
   .schedule-surface .section-heading h2 {
-    font-size: 17px;
+    font-size: var(--text-lead);
   }
   .section-heading p {
-    font-size: 12px;
+    font-size: var(--text-micro);
   }
   .schedule-surface .section-heading .text-link {
     font-size: 0;
@@ -2611,16 +2616,16 @@ fieldset {
     display: none;
   }
   .agenda-client strong {
-    font-size: 14px;
+    font-size: var(--text-small);
   }
   .agenda-client small {
-    font-size: 11px;
+    font-size: var(--text-micro);
   }
   .agenda-time {
-    font-size: 13px;
+    font-size: var(--text-meta);
   }
   .agenda-value {
-    font-size: 13px;
+    font-size: var(--text-meta);
   }
   .today-aside {
     grid-template-columns: 1fr;
@@ -2656,7 +2661,7 @@ fieldset {
     gap: 3px;
   }
   .date-controls h2 {
-    font-size: 13px;
+    font-size: var(--text-meta);
     margin: 0 4px;
   }
   .date-controls .icon-button {
@@ -2670,7 +2675,7 @@ fieldset {
     width: 190px;
   }
   .calendar-legend {
-    font-size: 10px;
+    font-size: var(--text-micro);
     gap: 12px;
     padding: 12px 15px;
   }
@@ -2680,19 +2685,19 @@ fieldset {
   .calendar-grid-desktop {
     display: none;
   }
-  .calendar-mobile-agenda {
+  .calendar-mobile-people {
     display: block;
   }
   .directory-toolbar {
     padding: 16px;
   }
-  .directory-toolbar .segment-tabs {
+  .directory-toolbar .segmented {
     gap: 15px;
   }
-  .directory-toolbar .segment-tabs button {
-    font-size: 12px;
+  .directory-toolbar .segmented-item {
+    font-size: var(--text-meta);
   }
-  .directory-toolbar .segment-tabs button:last-child {
+  .directory-toolbar .segmented-item:last-child {
     width: 100%;
     text-align: left;
   }
@@ -2718,13 +2723,13 @@ fieldset {
   .client-cell .avatar {
     width: 29px;
     height: 29px;
-    font-size: 10px;
+    font-size: var(--text-micro);
   }
   .client-cell strong {
-    font-size: 13px;
+    font-size: var(--text-meta);
   }
   .client-cell small {
-    font-size: 10px;
+    font-size: var(--text-micro);
     max-width: 140px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2745,16 +2750,16 @@ fieldset {
   .relationship-heading > .avatar {
     width: 58px;
     height: 58px;
-    font-size: 19px;
+    font-size: var(--text-title-s);
   }
   .relationship-heading h1 {
     font-size: 27px;
   }
   .relationship-heading .date-caption {
-    font-size: 10px;
+    font-size: var(--text-micro);
   }
   .relationship-heading p:not(.date-caption) {
-    font-size: 12px;
+    font-size: var(--text-micro);
   }
   .contact-divider {
     display: none;
@@ -2763,7 +2768,7 @@ fieldset {
     grid-column: 2;
     justify-self: start;
     min-height: 40px;
-    font-size: 13px;
+    font-size: var(--text-meta);
   }
   .timeline-surface > .section-heading {
     padding: 19px 17px;
@@ -2772,8 +2777,8 @@ fieldset {
     padding: 0 17px 13px;
     gap: 14px;
   }
-  .timeline-tabs button {
-    font-size: 11px;
+  .timeline-tabs .segmented-item {
+    font-size: var(--text-meta);
   }
   .timeline {
     padding: 22px 17px 0;
@@ -2791,7 +2796,7 @@ fieldset {
     top: 30px;
   }
   .timeline-event p {
-    font-size: 13px;
+    font-size: var(--text-meta);
   }
   .timeline-footer {
     flex-wrap: wrap;
@@ -2808,7 +2813,7 @@ fieldset {
     gap: 12px;
   }
   .business-period > span {
-    font-size: 12px;
+    font-size: var(--text-micro);
   }
   .chart-panel {
     padding: 20px 16px;
@@ -2824,11 +2829,11 @@ fieldset {
     gap: 12px;
   }
   .chart-axis {
-    font-size: 10px;
+    font-size: var(--text-micro);
     width: 33px;
   }
   .chart-column > span {
-    font-size: 9px;
+    font-size: var(--text-micro);
   }
   .business-insight {
     display: block;
@@ -2855,14 +2860,14 @@ fieldset {
     font-size: 21px;
   }
   .dialog-heading p {
-    font-size: 13px;
+    font-size: var(--text-meta);
   }
   .form-grid {
     grid-template-columns: 1fr;
     gap: 15px;
   }
   .dialog-footer .button {
-    font-size: 13px;
+    font-size: var(--text-meta);
     padding: 9px 12px;
   }
   .client-identity {
@@ -2875,7 +2880,7 @@ fieldset {
     grid-template-columns: repeat(3, 1fr);
   }
   .time-slot {
-    font-size: 13px;
+    font-size: var(--text-meta);
   }
   .workspace-warning {
     padding: 15px 18px;
@@ -2890,12 +2895,12 @@ fieldset {
     gap: 11px;
   }
   .public-brand > span:nth-child(2) {
-    font-size: 15px;
+    font-size: var(--text-body);
   }
   .atelier-monogram {
     width: 33px;
     height: 33px;
-    font-size: 15px;
+    font-size: var(--text-body);
   }
   .booking-header > div {
     gap: 13px;
@@ -2909,10 +2914,10 @@ fieldset {
   }
   .booking-header select {
     width: 118px;
-    font-size: 10px;
+    font-size: var(--text-micro);
   }
   .booking-demo-banner {
-    font-size: 10px;
+    font-size: var(--text-micro);
     padding: 8px 20px;
   }
   .public-booking-layout {
@@ -2936,14 +2941,14 @@ fieldset {
     display: none;
   }
   .booking-story p {
-    font-size: 13px;
+    font-size: var(--text-meta);
   }
   .booking-story p br {
     display: none;
   }
   .story-location {
     margin-top: 17px;
-    font-size: 11px;
+    font-size: var(--text-micro);
   }
   .story-footer {
     display: none;
@@ -2961,7 +2966,8 @@ fieldset {
     padding-bottom: 22px;
   }
   .booking-steps button small {
-    font-size: 9px;
+    font-size: var(--text-micro);
+    line-height: 1.25;
   }
   .booking-step-content {
     padding-top: 24px;
@@ -2970,7 +2976,7 @@ fieldset {
     font-size: 28px;
   }
   .booking-step-content > p {
-    font-size: 14px;
+    font-size: var(--text-small);
   }
   .service-choice {
     padding: 16px;
@@ -2982,20 +2988,20 @@ fieldset {
     font-size: 16px;
   }
   .service-choice p {
-    font-size: 12px;
+    font-size: var(--text-micro);
   }
   .service-choice > span > strong {
-    font-size: 15px;
+    font-size: var(--text-body);
   }
   .booking-next {
     gap: 15px;
   }
   .booking-next .button {
-    font-size: 13px;
+    font-size: var(--text-meta);
     padding: 10px 12px;
   }
   .booking-next > span {
-    font-size: 11px;
+    font-size: var(--text-micro);
     max-width: 140px;
   }
   .booking-main .time-slots {
@@ -3028,17 +3034,12 @@ fieldset {
   align-items: center;
   gap: 12px;
   padding: 14px 12px;
-  border-radius: 5px;
-  font-size: 17px;
+  border-radius: var(--radius-control);
+  font-size: var(--text-lead);
 }
 .mobile-route-menu a.active {
   background: #edf2f4;
   font-weight: 600;
-}
-@media (max-width: 650px) {
-  .calendar-filters .view-toggle {
-    display: none;
-  }
 }
 
 /* Keep appointment context beside the calendar; other dialogs retain their centred layout. */
@@ -3108,14 +3109,14 @@ fieldset {
 }
 .allocation-summary > span {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-meta);
 }
 .allocation-summary strong {
   font-size: 16px;
 }
 .allocation-summary p {
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--text-small);
 }
 .appointment-actions {
   display: flex;
@@ -3130,7 +3131,7 @@ fieldset {
   margin-top: 20px;
 }
 .deposit-review p {
-  font-size: 14px;
+  font-size: var(--text-small);
   line-height: 1.55;
   margin-top: 8px;
   color: var(--muted);
@@ -3150,13 +3151,15 @@ fieldset {
   outline-offset: -2px;
 }
 .calendar-date-picker {
-  font-size: 12px;
-  gap: 4px;
+  flex-direction: row;
+  align-items: center;
+  font-size: var(--text-meta);
+  gap: var(--space-2);
 }
 .calendar-date-picker input {
   min-height: 36px;
   padding: 6px 10px;
-  font-size: 14px;
+  font-size: var(--text-small);
   width: 150px;
 }
 .calendar-filters {
@@ -3178,7 +3181,7 @@ fieldset {
 }
 .history-note {
   padding: 18px 24px;
-  font-size: 13px;
+  font-size: var(--text-meta);
   color: var(--muted);
   border-top: 1px solid var(--line);
 }
@@ -3187,7 +3190,7 @@ fieldset {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 14px;
+  font-size: var(--text-small);
   border-top: 1px solid var(--line);
   color: var(--ink);
 }
@@ -3215,7 +3218,7 @@ fieldset {
     width: 100%;
   }
   .calendar-date-picker {
-    flex: 1 1 140px;
+    flex: 1 1 100%;
   }
   .day-changes-link {
     flex-wrap: wrap;
@@ -3268,7 +3271,7 @@ fieldset {
 .sidebar-photo {
   display: block;
   margin: 16px 10px 0;
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   overflow: hidden;
 }
 .sidebar-photo img {
@@ -3324,4 +3327,148 @@ fieldset {
 }
 .business-insight .button-light:hover {
   background: white;
+}
+
+/* Narrow-screen calendar: one swipeable column per professional. */
+.people-calendar {
+  padding: var(--space-4) 0 var(--space-5);
+}
+.people-summary {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding: 0 var(--space-4) var(--space-3);
+  scrollbar-width: none;
+}
+.people-summary button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+  min-height: var(--target);
+  padding: 5px 12px 5px 5px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  text-align: left;
+}
+.people-summary .avatar-small {
+  width: 30px;
+  height: 30px;
+}
+.people-summary span,
+.person-column header span {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+.people-summary strong {
+  font-size: var(--text-meta);
+}
+.people-summary small,
+.person-column header small {
+  font-size: var(--text-micro);
+  color: var(--muted);
+}
+.people-columns {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: calc(100% - 48px);
+  gap: var(--space-3);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: var(--space-4);
+  padding: 0 var(--space-4);
+  overscroll-behavior-x: contain;
+}
+.person-column {
+  scroll-snap-align: start;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+}
+.person-column header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+.person-column ol {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.person-free,
+.person-closed {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 9px 12px;
+  border-radius: var(--radius-control);
+  font-size: var(--text-meta);
+}
+.person-free {
+  border: 1px dashed var(--palette-sage-200);
+  color: var(--palette-forest-600);
+  background: var(--sage-soft);
+  font-weight: 600;
+}
+.person-closed {
+  background: var(--palette-mist-100);
+  color: var(--muted);
+}
+.person-free small,
+.person-closed small {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: var(--text-micro);
+}
+.person-visit {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  grid-template-areas:
+    'time body'
+    'time status';
+  row-gap: 4px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-left: 3px solid currentColor;
+  border-radius: var(--radius-control);
+  text-align: left;
+}
+.person-visit[data-selected] {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+.person-visit-time {
+  grid-area: time;
+  display: flex;
+  flex-direction: column;
+  font-weight: 650;
+  font-size: var(--text-small);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.person-visit-time small,
+.person-visit-body small {
+  font-weight: 400;
+  font-size: var(--text-micro);
+  color: var(--muted);
+}
+.person-visit-body {
+  grid-area: body;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--ink);
+}
+.person-visit .status {
+  grid-area: status;
+  justify-self: start;
 }

@@ -7,7 +7,7 @@ import { contactSchema } from '../domain/commandSchema'
 import { useStore } from '../state/context'
 import type { BusinessState } from '../domain/model'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
-import { Button, ErrorMessage, TimeChoices } from '../components/ui'
+import { Button, ErrorMessage, TimeChoices } from '../design'
 
 const pendingBookingSchema = z.object({
   payload: z.object({

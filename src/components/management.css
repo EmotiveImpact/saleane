@@ -14,7 +14,7 @@
   border: 1px solid #d5decd;
   border-radius: var(--radius);
   color: var(--ink);
-  font-size: 14px;
+  font-size: var(--text-small);
 }
 .ops-banner svg {
   margin-top: 2px;
@@ -26,30 +26,6 @@
 .ops-banner p {
   margin-top: 3px;
   color: var(--muted);
-}
-.ops-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 25px;
-}
-.ops-tabs button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  border: 0;
-  background: transparent;
-  border-radius: 5px;
-  padding: 10px 16px;
-  font-weight: 600;
-  color: var(--muted);
-}
-.ops-tabs button[aria-pressed='true'] {
-  background: var(--sage);
-  color: var(--ink-deep);
 }
 .ops-layout {
   display: grid;
@@ -73,7 +49,7 @@
 }
 .ops-panel > header p,
 .ops-help {
-  font-size: 14px;
+  font-size: var(--text-small);
   color: var(--muted);
   margin-top: 6px;
 }
@@ -85,13 +61,13 @@
 }
 .ops-aside h2 {
   font-family: var(--font-editorial);
-  font-size: 24px;
+  font-size: var(--text-title-m);
   font-weight: 450;
 }
 .ops-aside p {
   margin-top: 13px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--text-small);
 }
 .ops-aside img {
   display: block;
@@ -112,7 +88,7 @@
   flex-direction: column;
   gap: 7px;
   min-width: 0;
-  font-size: 14px;
+  font-size: var(--text-small);
   font-weight: 600;
 }
 .ops-fields small,
@@ -134,7 +110,7 @@
 }
 .ops-save-note {
   color: #36573e;
-  font-size: 14px;
+  font-size: var(--text-small);
 }
 .ops-count {
   display: inline-flex;
@@ -144,7 +120,7 @@
   padding: 2px 8px;
   background: var(--sage);
   border-radius: 4px;
-  font-size: 13px;
+  font-size: var(--text-meta);
   font-variant-numeric: tabular-nums;
 }
 .ops-ledger {
@@ -195,7 +171,7 @@
   background: var(--sand);
   padding: 4px 8px;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: var(--text-micro);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -208,13 +184,13 @@
 }
 .ops-checks {
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   padding: 16px;
   min-width: 0;
 }
 .ops-checks legend {
   padding: 0 5px;
-  font-size: 14px;
+  font-size: var(--text-small);
   font-weight: 600;
 }
 .ops-checks label,
@@ -223,7 +199,7 @@
   flex-direction: row;
   align-items: flex-start;
   gap: 10px;
-  font-size: 14px;
+  font-size: var(--text-small);
   font-weight: 400;
   padding: 7px 0;
 }
@@ -235,7 +211,7 @@
   background: var(--sage);
   padding: 13px 16px;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: var(--text-small);
   margin-bottom: 20px;
 }
 .ops-hours {
@@ -256,7 +232,7 @@
   gap: 10px;
 }
 .ops-day .ops-field {
-  font-size: 12px;
+  font-size: var(--text-micro);
 }
 .ops-summary {
   display: grid;
@@ -272,7 +248,7 @@
   min-width: 0;
 }
 .ops-summary span {
-  font-size: 13px;
+  font-size: var(--text-meta);
   color: var(--muted);
 }
 .ops-summary strong {
@@ -317,14 +293,14 @@
   color: var(--muted);
 }
 .ops-message h3 {
-  font-size: 17px;
+  font-size: var(--text-lead);
   margin-top: 13px;
 }
 .ops-message > p {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   margin: 8px 0 15px;
-  font-size: 14px;
+  font-size: var(--text-small);
   color: var(--muted);
 }
 .ops-message-footer {
@@ -335,7 +311,7 @@
   gap: 12px;
 }
 .ops-receipt {
-  font-size: 14px;
+  font-size: var(--text-small);
 }
 .ops-receipt > div {
   display: flex;
@@ -350,7 +326,7 @@
   font-variant-numeric: tabular-nums;
 }
 .ops-receipt .ops-total {
-  font-size: 19px;
+  font-size: var(--text-title-s);
   font-weight: 650;
   padding-top: 17px;
 }
@@ -366,7 +342,7 @@
 .ops-no-records p {
   color: var(--muted);
   margin-top: 9px;
-  font-size: 14px;
+  font-size: var(--text-small);
 }
 .ops-section-title {
   margin-top: 24px;
@@ -383,15 +359,6 @@
 @media (max-width: 650px) {
   .ops-panel {
     padding: 18px;
-  }
-  .ops-tabs {
-    gap: 2px;
-  }
-  .ops-tabs button {
-    padding: 9px 11px;
-  }
-  .ops-tabs button svg {
-    display: none;
   }
   .ops-fields {
     grid-template-columns: minmax(0, 1fr);

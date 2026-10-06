@@ -3,7 +3,7 @@ import { FileUp, Check } from 'lucide-react'
 import { useStore } from '../state/context'
 import { can } from '../domain/operations'
 import type { ContactInput } from '../domain/commands'
-import { Button, ErrorMessage, Modal } from './ui'
+import { Button, ErrorMessage, Modal } from '../design'
 import {
   CLIENT_IMPORT_MAX_BYTES,
   CLIENT_IMPORT_MAX_PAYLOAD_BYTES,

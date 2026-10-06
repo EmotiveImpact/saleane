@@ -39,11 +39,11 @@
 }
 .account-story p {
   max-width: 360px;
-  font-size: 19px;
+  font-size: var(--text-title-s);
   line-height: 1.65;
 }
 .account-story small {
-  font-size: 13px;
+  font-size: var(--text-meta);
 }
 .account-main {
   padding: 50px clamp(28px, 6vw, 100px);
@@ -69,7 +69,7 @@
   min-height: 46px;
 }
 .account-main label small {
-  font-size: 12px;
+  font-size: var(--text-micro);
   color: var(--muted);
   font-weight: 400;
 }
@@ -85,7 +85,7 @@
   align-items: flex-start;
   margin-top: 35px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-meta);
   border-top: 1px solid var(--line);
   padding-top: 22px;
   line-height: 1.55;
@@ -114,7 +114,7 @@
   display: block;
 }
 .account-workspaces small {
-  font-size: 13px;
+  font-size: var(--text-meta);
   color: var(--muted);
   margin-top: 5px;
 }
@@ -132,7 +132,7 @@
 .business-subnav a {
   padding: 10px 0 14px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--text-small);
 }
 .business-subnav a.active {
   color: var(--ink);
@@ -249,7 +249,7 @@
   align-items: center;
   gap: 8px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-micro);
 }
 .booking-steps > span[aria-current] {
   color: var(--ink-deep);

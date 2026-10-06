@@ -6,7 +6,7 @@ import { can, operations } from '../domain/operations'
 import type { Command } from '../domain/commands'
 import { depositPaid, rescheduleSlots } from '../domain/commands'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
-import { Avatar, Button, ErrorMessage, Modal, Status, TimeChoices } from './ui'
+import { Avatar, Button, ErrorMessage, Modal, Status, TimeChoices } from '../design'
 import { BookingDialog } from './BookingDialog'
 
 export function AppointmentDialog({
