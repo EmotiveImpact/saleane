@@ -10,6 +10,7 @@ import {
   Users,
   Check,
   Mail,
+  PencilLine,
 } from 'lucide-react'
 import { useStore } from '../state/context'
 import { clientStats } from '../domain/selectors'
@@ -37,6 +38,9 @@ export function ClientRelationship() {
   const [note, setNote] = useState('')
   const [noteSaved, setNoteSaved] = useState(false)
   const [error, setError] = useState('')
+  const [editingPreferences, setEditingPreferences] = useState(false)
+  const [preferences, setPreferences] = useState('')
+  const [preferencesError, setPreferencesError] = useState('')
   const [booking, setBooking] = useState(false)
   const [appointmentId, setAppointmentId] = useState('')
   const client = state.clients.find((c) => c.id === clientId)
@@ -103,6 +107,30 @@ export function ClientRelationship() {
       setNoteSaved(true)
     } catch {
       setError('Could not save your note. Your writing is still here; try again.')
+    } finally {
+      setPending(false)
+    }
+  }
+  async function savePreferences(e: React.SubmitEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (busy || blocked || !can(role, 'client-edit')) return
+    setPending(true)
+    setPreferencesError('')
+    try {
+      const { name, email, phone, marketingConsent } = client!
+      const result = await commit({
+        type: 'client-edit',
+        clientId: client!.id,
+        contact: { name, email, phone, marketingConsent },
+        preferences: preferences.trim(),
+      })
+      if (!result.ok) {
+        setPreferencesError(result.error)
+        return
+      }
+      setEditingPreferences(false)
+    } catch {
+      setPreferencesError('Could not save. Your writing is still here; try again.')
     } finally {
       setPending(false)
     }
@@ -307,8 +335,69 @@ export function ClientRelationship() {
         </section>
         <aside className="relationship-aside">
           <section className="surface detail-panel">
-            <h2>Good to remember</h2>
-            <p>{client.preferences || 'No preferences recorded. Add something useful below.'}</p>
+            <div className="section-heading">
+              <h2>Good to remember</h2>
+              {!editingPreferences && can(role, 'client-edit') && (
+                <button
+                  className="text-link"
+                  disabled={busy || blocked}
+                  aria-label="Edit good to remember"
+                  onClick={() => {
+                    setPreferences(client.preferences)
+                    setPreferencesError('')
+                    setEditingPreferences(true)
+                  }}
+                >
+                  <PencilLine size={14} />
+                  Edit
+                </button>
+              )}
+            </div>
+            {editingPreferences ? (
+              <form onSubmit={savePreferences} aria-busy={busy}>
+                <label>
+                  <span className="sr-only">Good to remember</span>
+                  <textarea
+                    autoFocus
+                    maxLength={1000}
+                    value={preferences}
+                    onChange={(e) => setPreferences(e.target.value)}
+                    placeholder="How they like their treatments, products they prefer, things to avoid…"
+                    rows={4}
+                  />
+                </label>
+                <p className="subtle">
+                  Shown to everyone who looks after this client, including on the visit. Ordinary
+                  service preferences only.{' '}
+                  {operations(state).mode === 'sandbox'
+                    ? 'Use fictional information in this sandbox.'
+                    : ''}
+                </p>
+                <ErrorMessage error={preferencesError} />
+                <div className="form-actions">
+                  <Button type="submit" variant="secondary" disabled={busy || blocked}>
+                    {busy ? 'Saving…' : 'Save'}
+                  </Button>
+                  <Button
+                    variant="quiet"
+                    disabled={busy}
+                    onClick={() => {
+                      setEditingPreferences(false)
+                      setPreferencesError('')
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <p>
+                {client.preferences ||
+                  (can(role, 'client-edit')
+                    ? 'Nothing recorded yet. Use Edit to keep the details worth carrying into every visit.'
+                    : 'Nothing recorded yet.')}
+              </p>
+            )}
             <div className="detail-divider" />
             <h3>People in their story</h3>
             {edges.length ? (
