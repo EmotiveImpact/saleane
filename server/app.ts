@@ -8,6 +8,7 @@ import type { InjectOptions, InjectResponse } from './http'
 import { authRoutes } from './routes/auth'
 import { workspaceRoutes } from './routes/workspace'
 import { publicRoutes } from './routes/public'
+import { guestRoutes } from './routes/guest'
 import { privacyRoutes } from './routes/privacy'
 
 export type { ApiOptions } from './context'
@@ -23,7 +24,7 @@ export type ApiHandler = ((
 }
 
 // Route modules are tried in order; each claims its own paths and returns false otherwise.
-const routes = [authRoutes, privacyRoutes, workspaceRoutes, publicRoutes]
+const routes = [authRoutes, privacyRoutes, workspaceRoutes, publicRoutes, guestRoutes]
 
 export function createApiHandler(options: ApiOptions): ApiHandler {
   const ctx = createContext(options)

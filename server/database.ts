@@ -63,6 +63,19 @@ export const migrations: Migration[] = [
         CREATE INDEX IF NOT EXISTS booking_holds_visitor ON booking_holds(organisation_id,visitor,expires_at);
       `),
   },
+  {
+    version: 3,
+    // Guest manage links (LOCAL-02): one hashed, expiring, revocable capability per visit.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE guest_links (
+          token_hash TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          appointment_id TEXT NOT NULL, origin TEXT NOT NULL CHECK(origin IN ('booking','desk')),
+          created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, revoked_at INTEGER
+        ) STRICT;
+        CREATE INDEX guest_links_visit ON guest_links(organisation_id,appointment_id);
+      `),
+  },
 ]
 export const SCHEMA_VERSION = migrations[migrations.length - 1].version
 

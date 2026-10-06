@@ -147,7 +147,7 @@ v0.2 uses schema-versioned local snapshots and a revision check. Invalid JSON, u
 
 ## 7. Permissions contract (production)
 
-The browser demo has one fictional operator. Local server workspaces enforce owner, manager and reception command permissions. The table below remains the **full production policy target**; LOCAL-01 (in review) gives an assigned practitioner a scoped read of their own visits and minimal client context, and only the welcome and note commands for that scope; main refuses practitioner access until it merges.
+The browser demo has one fictional operator. Local server workspaces enforce owner, manager and reception command permissions. The table below remains the **full production policy target**; LOCAL-01 gives an assigned practitioner a scoped read of their own visits and minimal client context, and only the welcome and note commands for that scope. LOCAL-02 (in review) gives a guest holding a private link a view of that one visit and online cancellation: a paid deposit is flagged for refund when cancelled at least 24 hours ahead and retained after that, with no automatic refund.
 
 | Action                          | Owner                                 | Manager        | Front desk                            | Professional         | Guest                                    |
 | ------------------------------- | ------------------------------------- | -------------- | ------------------------------------- | -------------------- | ---------------------------------------- |

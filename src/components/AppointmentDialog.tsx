@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowUpRight, Check, CreditCard } from 'lucide-react'
 import { useStore } from '../state/context'
+import { GuestLinkPanel } from './GuestLinkPanel'
 import { can, operations } from '../domain/operations'
 import type { Command } from '../domain/commands'
 import { depositPaid, rescheduleSlots } from '../domain/commands'
@@ -19,7 +20,7 @@ export function AppointmentDialog({
   onClose: () => void
   onMoved?: (date: string, staffId: string) => void
 }) {
-  const { state, commit, today, blocked, saving, role } = useStore()
+  const { state, commit, today, blocked, saving, role, mode: storeMode } = useStore()
   const config = operations(state)
   const sandbox = config.mode === 'sandbox'
   const [pending, setPending] = useState(false)
@@ -609,6 +610,9 @@ export function AppointmentDialog({
                 </Button>
               )}
             </div>
+          )}
+          {storeMode === 'server' && appointment.status === 'confirmed' && (
+            <GuestLinkPanel appointmentId={appointment.id} />
           )}
           <ErrorMessage error={error} />
           <div className="dialog-footer">
