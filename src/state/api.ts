@@ -42,6 +42,21 @@ let csrf = ''
 export function setCsrf(value: string) {
   csrf = value
 }
+/** OFF-01: a network failure or gateway error means the local service could not be reached. */
+export const unreachable = (error: unknown) =>
+  error instanceof ApiError && [0, 502, 504].includes(error.status)
+const unreachableListeners = new Set<() => void>()
+/** Tells the workspace when a request could not reach the service, so writes can pause. */
+export function onUnreachable(listener: () => void) {
+  unreachableListeners.add(listener)
+  return () => {
+    unreachableListeners.delete(listener)
+  }
+}
+function report(error: ApiError) {
+  if (unreachable(error)) for (const listener of unreachableListeners) listener()
+  return error
+}
 export async function api<T>(
   path: string,
   options: { method?: string; body?: unknown; key?: string } = {},
@@ -60,9 +75,11 @@ export async function api<T>(
       signal: AbortSignal.timeout(15000),
     })
   } catch {
-    throw new ApiError(
-      'The local server could not confirm this request. Reconnect and retry; an uncertain save keeps its request key.',
-      0,
+    throw report(
+      new ApiError(
+        'The local server could not confirm this request. Reconnect and retry; an uncertain save keeps its request key.',
+        0,
+      ),
     )
   }
   const payload = (await response.json().catch(() => null)) as {
@@ -70,9 +87,11 @@ export async function api<T>(
     csrf?: string
   } | null
   if (!response.ok)
-    throw new ApiError(
-      payload?.error ?? `The request could not be completed (${response.status}).`,
-      response.status,
+    throw report(
+      new ApiError(
+        payload?.error ?? `The request could not be completed (${response.status}).`,
+        response.status,
+      ),
     )
   if (payload?.csrf) setCsrf(payload.csrf)
   return payload as T

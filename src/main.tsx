@@ -6,12 +6,15 @@ import '@fontsource-variable/source-sans-3'
 import './styles.css'
 import { StoreProvider } from './state/StoreProvider'
 import { App } from './App'
+import { DaySheetGate } from './components/DaySheetGate'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <StoreProvider>
-        <App />
+        <DaySheetGate>
+          <App />
+        </DaySheetGate>
       </StoreProvider>
     </BrowserRouter>
   </StrictMode>,

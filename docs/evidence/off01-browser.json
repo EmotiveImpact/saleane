@@ -1,0 +1,95 @@
+[
+  {
+    "step": "signed in",
+    "detail": "owner of sample studio 3eca9ef9-4eb3-4de2-92aa-7d935f576bfc, Today shown"
+  },
+  {
+    "step": "printable day sheet",
+    "detail": {
+      "description": "Last synced at 21:43 · valid until Wed, 7 Oct, 00:00 · read-only",
+      "rows": 12,
+      "header": "Time\tClient\tService\tProfessional\tRoom\tStatus\n"
+    }
+  },
+  {
+    "step": "print media",
+    "detail": "page actions hidden when printing: true"
+  },
+  {
+    "step": "tab storage",
+    "detail": {
+      "sessionKeys": ["saleane.workspace", "saleane.day-sheet.v1"],
+      "localKeys": [],
+      "fields": [
+        "id",
+        "startMinutes",
+        "endMinutes",
+        "serviceName",
+        "professionalName",
+        "roomName",
+        "status",
+        "clientName",
+        "clientPhone"
+      ],
+      "hasEmail": false,
+      "hasMoney": false
+    }
+  },
+  {
+    "step": "server",
+    "detail": "stopped (SIGTERM)"
+  },
+  {
+    "step": "offline state",
+    "detail": {
+      "text": "Offline Showing the day sheet saved at 21:43, valid until Wed, 7 Oct, 00:00. Changes are paused. Try again Remove from this tab",
+      "newAppointmentButtons": 0
+    }
+  },
+  {
+    "step": "mobile 390px",
+    "detail": "horizontal overflow 0px"
+  },
+  {
+    "step": "try again while down",
+    "detail": "Offline"
+  },
+  {
+    "step": "server",
+    "detail": "restarted with the same database"
+  },
+  {
+    "step": "reconnected",
+    "detail": {
+      "workspaceBack": true,
+      "sheetReplaced": true,
+      "firstSync": "2026-10-06T20:43:42.308Z",
+      "after": "2026-10-06T20:43:43.895Z"
+    }
+  },
+  {
+    "step": "browser offline event",
+    "detail": "Offline"
+  },
+  {
+    "step": "browser online event",
+    "detail": "session rechecked, workspace returned"
+  },
+  {
+    "step": "sign out",
+    "detail": "day sheet in tab storage after sign-out: null"
+  },
+  {
+    "step": "practitioner sheet",
+    "detail": {
+      "audience": "practitioner",
+      "professional": {
+        "id": "staff-maya",
+        "name": "Maya Lewis"
+      },
+      "visits": 4,
+      "phoneField": false,
+      "header": "TimeClientServiceRoomStatus"
+    }
+  }
+]

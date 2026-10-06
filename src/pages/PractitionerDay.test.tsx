@@ -19,7 +19,13 @@ const session = {
   user: { id: 'account-maya', name: 'Maya Lewis', email: 'maya@example.invalid' },
 }
 vi.mock('../state/context', () => ({
-  useStore: () => ({ session, refreshSession: async () => session, openWorkspace }),
+  useStore: () => ({
+    session,
+    refreshSession: async () => session,
+    openWorkspace,
+    connection: 'online',
+    syncDaySheet: async () => {},
+  }),
 }))
 
 const studio = seed('UK')
