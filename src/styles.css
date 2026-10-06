@@ -955,6 +955,152 @@ fieldset {
   position: relative;
   border-left: 1px solid var(--line);
 }
+.calendar-free {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  background: none;
+  border: 1px dashed transparent;
+  border-radius: var(--radius-control);
+  cursor: copy;
+  padding: 0;
+}
+.calendar-free:hover,
+.calendar-free:focus-visible {
+  border-color: var(--palette-sage-200);
+  background: var(--sage-soft);
+}
+.calendar-free:hover::after,
+.calendar-free:focus-visible::after {
+  content: '+ Book ' attr(data-time);
+  position: absolute;
+  top: calc(var(--hover-y, 0px) + 4px);
+  left: 10px;
+  font-size: var(--text-micro);
+  font-weight: 600;
+  color: var(--palette-forest-600);
+}
+.calendar-free:focus-visible::after {
+  content: '+ Book';
+}
+.now-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--palette-clay-500);
+  z-index: 3;
+  pointer-events: none;
+}
+.time-axis .time-axis-now {
+  color: #fff;
+  background: var(--palette-clay-500);
+  border-radius: 999px;
+  padding: 1px 6px;
+  left: 6px;
+  transform: translateY(-8px);
+  font-weight: 600;
+  z-index: 3;
+}
+.calendar-hint {
+  font-size: var(--text-micro);
+  color: var(--muted);
+  padding: 0 0 10px;
+}
+.calendar-event.event-movable {
+  cursor: grab;
+  touch-action: none;
+}
+.calendar-event.event-dragging {
+  opacity: 0.4;
+}
+.calendar-ghost {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  z-index: 4;
+  border: 1px dashed var(--palette-forest-600);
+  background: #ffffffd9;
+  border-radius: 4px;
+  padding: 8px 11px;
+  font-size: var(--text-micro);
+  font-weight: 600;
+  color: var(--palette-forest-600);
+  pointer-events: none;
+}
+.week-view {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(132px, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  overflow-x: auto;
+}
+.week-day {
+  background: var(--paper, #fff);
+  min-height: 320px;
+  min-width: 0;
+}
+.week-day-head {
+  width: 100%;
+  display: grid;
+  gap: 1px;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 10px 12px;
+}
+.week-day-head:hover {
+  background: #f6f4ee;
+}
+.week-day-head span,
+.week-day-head small {
+  font-size: var(--text-micro);
+  color: var(--muted);
+}
+.week-day-head strong {
+  font-size: var(--text-body);
+}
+.week-today .week-day-head {
+  background: var(--sage-soft);
+}
+.week-day ol {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  display: grid;
+  gap: 6px;
+}
+.week-visit {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-radius: 4px;
+  padding: 7px 9px;
+  display: grid;
+  gap: 1px;
+}
+.week-visit span,
+.week-visit small {
+  font-size: var(--text-micro);
+}
+.week-visit strong {
+  font-size: var(--text-meta);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.week-visit small {
+  opacity: 0.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.week-visit[data-selected] {
+  outline: 2px solid var(--ink);
+}
 .hour-line {
   height: 1px;
   position: absolute;
@@ -1749,6 +1895,217 @@ fieldset {
   color: white;
   border-color: var(--ink);
 }
+.client-picker {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 18px;
+}
+.client-picker > label {
+  display: block;
+}
+.client-picker-field {
+  position: relative;
+}
+.client-picker-field svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+}
+.client-picker-field input {
+  padding-left: 36px;
+}
+.client-picker-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  max-height: 224px;
+  overflow-y: auto;
+}
+.client-picker-results li + li {
+  border-top: 1px solid var(--line);
+}
+.client-picker-results li.subtle {
+  padding: 10px 12px;
+  font-size: var(--text-small);
+}
+.client-picker-results button {
+  width: 100%;
+  background: none;
+  border: 0;
+  text-align: left;
+  padding: 10px 12px;
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  min-height: var(--target);
+}
+.client-picker-results button:hover {
+  background: #f6f4ee;
+}
+.client-picker-results small,
+.client-picker-chosen small {
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+.client-picker-chosen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin-bottom: 4px;
+}
+.client-picker-label {
+  flex-basis: 100%;
+  font-weight: 600;
+}
+.client-picker-chosen strong {
+  font-size: var(--text-title-s);
+  font-weight: 600;
+}
+.client-picker-chosen .button {
+  margin-left: auto;
+}
+.booking-client-context {
+  margin-bottom: 22px;
+}
+.booking-client-context .preference-note {
+  margin: 10px 0 8px;
+}
+.booking-client-context > p {
+  font-size: var(--text-meta);
+}
+.rebook-rhythm {
+  grid-column: 1 / -1;
+}
+.rebook-rhythm legend {
+  font-size: var(--text-body);
+  font-weight: 600;
+  margin-bottom: 7px;
+}
+.rebook-rhythm > div {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+.rebook-rhythm .time-slot {
+  display: grid;
+  gap: 2px;
+  font-weight: 600;
+}
+.rebook-rhythm .time-slot small {
+  font-weight: 400;
+  font-size: var(--text-micro);
+  opacity: 0.8;
+}
+.time-group + .time-group {
+  margin-top: 14px;
+}
+.time-group-label {
+  display: block;
+  font-size: var(--text-micro);
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.date-strip {
+  margin: 22px 0 10px;
+  min-width: 0;
+}
+.date-strip legend {
+  font-size: var(--text-small);
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.date-strip-days {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(74px, 1fr);
+  gap: 8px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding-bottom: 6px;
+}
+.date-strip-day {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  padding: 10px 6px;
+  border: 1px solid #bccad1;
+  border-radius: 4px;
+  background: #fff;
+  scroll-snap-align: start;
+  cursor: pointer;
+  font-weight: 400;
+}
+.date-strip-day input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.date-strip-day:focus-within {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+}
+.date-strip-weekday {
+  font-size: var(--text-micro);
+  color: var(--muted);
+}
+.date-strip-day strong {
+  font-size: var(--text-small);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.date-strip-day small {
+  font-size: var(--text-micro);
+  color: var(--palette-forest-600);
+}
+.date-strip-day.full {
+  background: var(--palette-mist-100);
+  border-color: var(--line);
+}
+.date-strip-day.full small,
+.date-strip-day.full strong {
+  color: var(--muted);
+}
+.date-strip-day.selected {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+.date-strip-day.selected small,
+.date-strip-day.selected .date-strip-weekday,
+.date-strip-day.selected strong {
+  color: #fff;
+}
+.date-strip-other {
+  font-size: var(--text-small);
+  font-weight: 400;
+  color: var(--muted);
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.date-strip-other input {
+  width: auto;
+  min-height: 36px;
+  padding: 6px 10px;
+}
+.next-available {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  margin: 22px 0;
+  padding: 16px;
+  background: #f6f4ee;
+  border-radius: var(--radius-control);
+}
 .booking-summary {
   display: flex;
   align-items: center;
@@ -1793,6 +2150,10 @@ fieldset {
   border-top: 1px solid var(--line);
   margin-top: 22px;
   padding-top: 20px;
+}
+.dialog-footer-note {
+  margin-right: auto;
+  font-size: var(--text-meta);
 }
 .client-identity {
   display: flex;
@@ -1841,9 +2202,15 @@ fieldset {
   font-size: var(--text-small);
   margin-top: 5px;
 }
+.form-grid-wide {
+  grid-column: 1 / -1;
+}
+.checkout-discount {
+  margin-top: 18px;
+}
 .tip-options {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 7px;
   margin-bottom: 15px;
 }
@@ -3504,6 +3871,23 @@ fieldset {
   color: var(--palette-forest-600);
   background: var(--sage-soft);
   font-weight: 600;
+}
+.person-free:has(> button) {
+  padding: 0;
+}
+.person-free > button {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 9px 12px;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  min-height: var(--target);
+  align-items: center;
 }
 .person-closed {
   background: var(--palette-mist-100);

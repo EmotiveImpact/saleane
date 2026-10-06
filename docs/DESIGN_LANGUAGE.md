@@ -81,6 +81,7 @@ All are exported from `src/design/index.ts`. Interactive primitives use Radix, u
 | `Status`                | native             | Visit state as text plus dot                                                                          |
 | `Avatar`                | native             | Fictional seed portrait or initials on a staff tone; decorative beside a visible name                 |
 | `TimeChoices`           | native radios      | Picking an appointment time; arrow keys select                                                        |
+| `DateStrip`             | native radios      | Picking a day from the next fortnight, each showing how many times it has                             |
 | `Modal`                 | Radix Dialog       | One decision or one record. Focus trapped, Escape closes, focus returns                               |
 | `Empty`, `ErrorMessage` | native             | Empty and failed states with a next step                                                              |
 
@@ -97,6 +98,8 @@ Route links (main navigation, the Business sub-navigation) stay as links. They a
 - **Figures on phones.** Below 650px, metric groups become one slim strip and their detail lines are hidden; the label and value stay.
 - **Nothing lost on small screens.** When a column is hidden at a narrower width, its value moves under the row's name rather than disappearing.
 - **Plain words.** Say what is not connected yet in studio language ("Card payments are not connected yet"), never configuration names or internal codes.
+- **Start where you are.** Free time on the calendar books there, and a dragged visit opens the move step at its new spot. Shortcuts fill in choices; the same checks and confirmation still decide.
+- **Times in groups.** Long runs of times sit under Morning, Afternoon and Evening.
 
 ## Voice
 

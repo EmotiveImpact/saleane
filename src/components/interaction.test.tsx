@@ -154,7 +154,7 @@ describe('connected operator journeys', () => {
     const user = userEvent.setup()
     show('/booking')
     await user.click(screen.getByRole('button', { name: 'Choose a time' }))
-    await user.click(screen.getByRole('button', { name: '09:00' }))
+    await user.click(screen.getByRole('radio', { name: '09:00' }))
     await user.click(screen.getByRole('button', { name: 'Your details' }))
     await user.type(screen.getByRole('textbox', { name: 'Full name' }), 'Alex Demo')
     await user.type(screen.getByRole('textbox', { name: 'Email' }), 'alex@example.com')

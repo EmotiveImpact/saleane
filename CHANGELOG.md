@@ -2,7 +2,7 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
-## In review · Design tightening pass
+## In review · Design tightening pass and faster flows
 
 **Status: draft pull request, not merged.** Look and wording only; bookings, money and messages behave as before.
 
@@ -15,6 +15,19 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - One "Find a client" field in the top bar instead of two controls.
 - Plain studio language for services that are not connected yet, the bot check setting and held-back messages.
 - The sign-in welcome sits on a softer wash so it reads clearly over the photograph.
+
+Second pass, for speed at the desk and for guests (same draft). Bookings still pass the same availability checks; nothing is sent or charged.
+
+- Click any free space on the calendar to book there, with the professional, day and nearest time that fits already chosen. On phones the free times in each person's column do the same.
+- A "now" line marks the current time on today's calendar.
+- Drag an upcoming visit to another time or professional on the computer calendar. It opens the move step with the new spot chosen, so the usual checks and the Save button still decide.
+- A week view shows seven days side by side; choosing a day opens it.
+- The booking form finds a client by typing a name, email or phone. Once chosen, their "Good to remember" note and last visit appear. Services show their length and price.
+- Rebooking after checkout offers "In 4, 6 or 8 weeks", led by the client's usual gap between visits when there is one, and keeps their usual time when it is free.
+- Times are grouped into morning, afternoon and evening everywhere times are chosen.
+- The demo booking page shows the next fortnight with how many times each day has, and a "Next available" shortcut when a day is full. The live booking page offers "Try" the next day when a day is full.
+- Checkout reads in order: service, deposit, discount, tip, payment, total. A custom tip sits behind "Other".
+- Search is titled "Search clients", matches phone numbers and shows each person's next visit.
 
 ## 2026-10-06 · Merged · LOCAL-05 qualification pass
 

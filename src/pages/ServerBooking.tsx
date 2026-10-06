@@ -497,6 +497,18 @@ function BookingFlow({
                           onChange={setStart}
                         />
                       )}
+                      {!loadingTimes && !times.length && date < addDays(today, 365) && (
+                        <Button
+                          variant="secondary"
+                          onClick={() => {
+                            setDate(addDays(date, 1))
+                            setStart(null)
+                            setError('')
+                          }}
+                        >
+                          Try {dateLabel(addDays(date, 1), org.locale)}
+                        </Button>
+                      )}
                       {botCheck && (
                         <BotCheck
                           key={botAttempt}
