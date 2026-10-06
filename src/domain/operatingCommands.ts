@@ -73,6 +73,7 @@ export function runOperatingCommand(
       timeZone: command.timeZone,
     })
     o.bookingEnabled = command.bookingEnabled
+    if (command.botCheck !== undefined) o.botCheck = command.botCheck
     recordId = next.organisation.id
   } else if (command.type === 'hours') {
     o.hours = command.hours

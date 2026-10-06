@@ -208,6 +208,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                       address: text(data, 'address'),
                       timeZone: text(data, 'timeZone'),
                       bookingEnabled: data.get('bookingEnabled') === 'on',
+                      botCheck: data.get('botCheck') === 'on',
                     },
                     'Business settings saved.',
                   )
@@ -280,6 +281,14 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                   />
                   Allow bookings in this local workspace
                 </label>
+                <label className="ops-check">
+                  <input type="checkbox" name="botCheck" defaultChecked={!!config.botCheck} />
+                  Ask online guests to pass a quick bot check before a time is held
+                </label>
+                <p className="ops-help">
+                  Uses Cloudflare Turnstile. It needs TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY on
+                  the server and stays off until both are set.
+                </p>
                 <p className="ops-help">Payment and message delivery services are unconfigured.</p>
                 {status}
                 <div className="ops-actions">

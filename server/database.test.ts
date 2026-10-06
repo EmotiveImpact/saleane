@@ -19,8 +19,10 @@ const versions = (db: LocalDatabase) =>
   db
     .all<{ version: number }>('SELECT version FROM schema_migrations ORDER BY version')
     .map((row) => row.version)
+const next = migrations.length + 1
+const known = migrations.map((migration) => migration.version)
 const addNotes: Migration = {
-  version: 2,
+  version: next,
   up: (connection) =>
     connection.exec('CREATE TABLE fixture_notes (id TEXT PRIMARY KEY, text TEXT NOT NULL) STRICT;'),
 }
@@ -45,12 +47,12 @@ describe('numbered schema migrations', () => {
     )
     first.close()
     const upgraded = new LocalDatabase(path, [...migrations, addNotes])
-    expect(versions(upgraded)).toEqual([1, 2])
+    expect(versions(upgraded)).toEqual([...known, next])
     upgraded.run("INSERT INTO fixture_notes(id,text) VALUES('n1','kept')")
     expect(upgraded.all('SELECT id FROM accounts')).toEqual([{ id: 'account-1' }])
     upgraded.close()
     const reopened = new LocalDatabase(path, [...migrations, addNotes])
-    expect(versions(reopened)).toEqual([1, 2])
+    expect(versions(reopened)).toEqual([...known, next])
     expect(reopened.all('SELECT text FROM fixture_notes')).toEqual([{ text: 'kept' }])
     reopened.close()
   })
@@ -58,7 +60,7 @@ describe('numbered schema migrations', () => {
     const path = file()
     new LocalDatabase(path).close()
     const broken: Migration = {
-      version: 2,
+      version: next,
       up: (connection) => {
         connection.exec('CREATE TABLE half_done (id TEXT) STRICT;')
         throw new Error('Simulated migration failure.')
@@ -66,7 +68,7 @@ describe('numbered schema migrations', () => {
     }
     expect(() => new LocalDatabase(path, [...migrations, broken])).toThrow('Simulated')
     const db = new LocalDatabase(path)
-    expect(versions(db)).toEqual([1])
+    expect(versions(db)).toEqual(known)
     expect(db.all("SELECT name FROM sqlite_master WHERE name='half_done'")).toEqual([])
     db.close()
   })

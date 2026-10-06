@@ -54,6 +54,15 @@ export const migrations: Migration[] = [
         CREATE INDEX IF NOT EXISTS audit_scope ON audit_events(organisation_id,occurred_at);
       `),
   },
+  {
+    version: 2,
+    // Public hold protection: which visitor made a hold, so one visitor cannot stack them.
+    up: (connection) =>
+      connection.exec(`
+        ALTER TABLE booking_holds ADD COLUMN visitor TEXT;
+        CREATE INDEX IF NOT EXISTS booking_holds_visitor ON booking_holds(organisation_id,visitor,expires_at);
+      `),
+  },
 ]
 export const SCHEMA_VERSION = migrations[migrations.length - 1].version
 

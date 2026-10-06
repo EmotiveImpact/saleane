@@ -41,6 +41,7 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     address: z.string().trim().max(300),
     timeZone: z.string().min(1).max(80),
     bookingEnabled: z.boolean(),
+    botCheck: z.boolean().optional(),
   }),
   z.object({ type: z.literal('hours'), hours: weeklyHoursSchema }),
   z.object({ type: z.literal('closure'), input: closureInputSchema }),
