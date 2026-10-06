@@ -21,6 +21,7 @@ import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import { Avatar, Button, Empty, ErrorMessage, Metric, SegmentedControl, Status } from '../design'
 import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
+import { ClientPrivacy } from '../components/Privacy'
 
 // A booking's detail opens with the service, date and time already shown in
 // the visit heading; only the sentence after it (payment state) is new.
@@ -504,6 +505,7 @@ export function ClientRelationship() {
               no message.
             </p>
           </section>
+          <ClientPrivacy clientId={client.id} />
         </aside>
       </div>
       {booking && (

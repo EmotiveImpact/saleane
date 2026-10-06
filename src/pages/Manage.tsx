@@ -7,6 +7,7 @@ import { operations, can, permissionFor } from '../domain/operations'
 import { money, dateLabel, timeLabel } from '../domain/format'
 import { parseMinor } from '../domain/money'
 import { Avatar, Button, ErrorMessage, Modal, PageHeader, Tabs } from '../design'
+import { StudioPrivacy } from '../components/Privacy'
 import '../components/management.css'
 
 const sections = [
@@ -15,6 +16,7 @@ const sections = [
   { id: 'staff', label: 'Team', icon: Users },
   { id: 'resource', label: 'Spaces & equipment', icon: Armchair },
   { id: 'hours', label: 'Hours & closures', icon: CalendarDays },
+  { id: 'privacy', label: 'Data & privacy', icon: ShieldCheck },
 ] as const
 const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const clock = (value: number) =>
@@ -185,6 +187,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
       >
         <div className="ops-layout">
           <div>
+            {section === 'privacy' && <StudioPrivacy />}
             {section === 'business' && (
               <section className="surface ops-panel">
                 <header>

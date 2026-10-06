@@ -2,6 +2,16 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-06 · Merged · Privacy and data lifecycle (LOCAL-03)
+
+**Status: merged into main on 6 October 2026; not deployed.** No schema migration. Scope, roles and retention are defaults awaiting the owner's decision with an adviser.
+
+- Owners and managers can preview, then download, a copy of one client's data (JSON plus a readable summary) from the client page. It holds their profile, consent, visits, receipts, payments, refunds, timeline and unsent messages with their real status; other clients appear only as a connection type, and credentials, sessions, invitations, holds, internal ids and the audit log stay out. Reception and practitioners get 403 from the server.
+- The owner can preview and download a whole-studio export in Manage studio → Data & privacy, with team names, emails and roles but no password hashes, tokens, holds or other studios.
+- Each download and each erasure request is written to the audit log by action and record id only, and listed as the privacy record.
+- An erasure review shows what a decided policy could remove and what must be kept, with reasons. Recording a request deletes nothing. Email marketing can be withdrawn through the existing consent command.
+- Added a proposed retention register in [PRIVACY.md](docs/PRIVACY.md). Evidence: [LOCAL-03](docs/evidence/LOCAL-03.md).
+
 ## In review · LOCAL-02 guest manage and cancel
 
 **Status: draft pull request, not merged.** Schema migration 3 adds `guest_links`. Live services stay unconfigured; nothing is emailed or refunded automatically.
