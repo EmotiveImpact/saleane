@@ -193,8 +193,27 @@ export function parseState(value: unknown, region: Region): BusinessState {
     if (collection.some((item) => item.organisationId !== org.id))
       throw new Error('Foreign workspace record.')
   }
-  const exists = (rows: { id: string }[], recordId: string) =>
-    rows.some((row) => row.id === recordId)
+  // Index each collection once: checking links by scanning arrays made validation quadratic, which
+  // took seconds per request at tens of thousands of visits.
+  const indexes = new Map<{ id: string }[], Set<string>>()
+  const exists = (rows: { id: string }[], recordId: string) => {
+    let ids = indexes.get(rows)
+    if (!ids) indexes.set(rows, (ids = new Set(rows.map((row) => row.id))))
+    return ids.has(recordId)
+  }
+  const appointmentById = new Map(s.appointments.map((a) => [a.id, a]))
+  const paymentsByAppointment = new Map<string, (typeof s.payments)[number][]>()
+  for (const payment of s.payments)
+    paymentsByAppointment.set(payment.appointmentId, [
+      ...(paymentsByAppointment.get(payment.appointmentId) ?? []),
+      payment,
+    ])
+  const paymentsBySale = new Map<string, (typeof s.payments)[number][]>()
+  for (const payment of s.payments)
+    if (payment.saleId)
+      paymentsBySale.set(payment.saleId, [...(paymentsBySale.get(payment.saleId) ?? []), payment])
+  const depositsFor = (appointmentId: string) =>
+    (paymentsByAppointment.get(appointmentId) ?? []).filter((p) => p.kind === 'deposit')
   for (const service of s.services)
     if (service.depositMinor > service.priceMinor) throw new Error('Invalid service deposit.')
   for (const staff of s.staff)
@@ -219,7 +238,7 @@ export function parseState(value: unknown, region: Region): BusinessState {
   if (new Set(s.sales.map((sale) => sale.appointmentId)).size !== s.sales.length)
     throw new Error('Duplicate appointment settlement.')
   for (const sale of s.sales) {
-    const appointment = s.appointments.find((a) => a.id === sale.appointmentId)
+    const appointment = appointmentById.get(sale.appointmentId)
     if (
       !appointment ||
       appointment.status !== 'completed' ||
@@ -242,9 +261,7 @@ export function parseState(value: unknown, region: Region): BusinessState {
     )
       throw new Error('Invalid payment link.')
   for (const appointment of s.appointments) {
-    const deposits = s.payments.filter(
-      (p) => p.appointmentId === appointment.id && p.kind === 'deposit',
-    )
+    const deposits = depositsFor(appointment.id)
     if (
       deposits.some((p) => p.saleId) ||
       deposits.reduce((sum, p) => sum + p.amountMinor, 0) > appointment.bookedDepositMinor
@@ -252,11 +269,9 @@ export function parseState(value: unknown, region: Region): BusinessState {
       throw new Error('Invalid deposit ledger.')
   }
   for (const sale of s.sales) {
-    const a = s.appointments.find((a) => a.id === sale.appointmentId)!
-    const deposits = s.payments
-      .filter((p) => p.appointmentId === a.id && p.kind === 'deposit')
-      .reduce((sum, p) => sum + p.amountMinor, 0)
-    const settlements = s.payments.filter((p) => p.saleId === sale.id)
+    const a = appointmentById.get(sale.appointmentId)!
+    const deposits = depositsFor(a.id).reduce((sum, p) => sum + p.amountMinor, 0)
+    const settlements = paymentsBySale.get(sale.id) ?? []
     const taxable = sale.serviceMinor - (sale.discountMinor ?? 0)
     const rate = sale.taxRateBps ?? 0
     const expectedTax = Math.round(
@@ -289,9 +304,7 @@ export function parseState(value: unknown, region: Region): BusinessState {
     if (
       !exists(s.clients, event.clientId) ||
       (event.appointmentId &&
-        !s.appointments.some(
-          (a) => a.id === event.appointmentId && a.clientId === event.clientId,
-        )) ||
+        appointmentById.get(event.appointmentId)?.clientId !== event.clientId) ||
       (event.saleId && !exists(s.sales, event.saleId))
     )
       throw new Error('Broken timeline link.')
@@ -337,7 +350,9 @@ export function parseState(value: unknown, region: Region): BusinessState {
         throw new Error('Stock cannot fall below zero.')
     for (const message of o.messages) {
       const client = s.clients.find((c) => c.id === message.clientId)
-      const appointment = s.appointments.find((a) => a.id === message.appointmentId)
+      const appointment = message.appointmentId
+        ? appointmentById.get(message.appointmentId)
+        : undefined
       if (
         !client ||
         (message.appointmentId && appointment?.clientId !== client.id) ||

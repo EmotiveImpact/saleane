@@ -103,16 +103,14 @@ export function PeopleColumns({
                       aria-haspopup="dialog"
                       aria-expanded={selectedId === a.id}
                       onClick={() => onOpen(a.id)}
-                      aria-label={`${client.name}, ${service.name}, ${timeLabel(a.startMinutes, locale)}, ${person.name}, ${a.status}`}
                     >
                       <span className="person-visit-time">
-                        {timeLabel(a.startMinutes, locale)}
+                        {timeLabel(a.startMinutes, locale)}{' '}
                         <small>{a.bookedDurationMinutes} min</small>
-                      </span>
+                      </span>{' '}
                       <span className="person-visit-body">
-                        <strong>{client.name}</strong>
-                        <small>{service.name}</small>
-                      </span>
+                        <strong>{client.name}</strong> <small>{service.name}</small>
+                      </span>{' '}
                       <Status status={a.status} />
                     </button>
                   </li>

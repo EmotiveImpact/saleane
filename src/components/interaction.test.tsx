@@ -19,7 +19,7 @@ describe('connected operator journeys', () => {
   it('moves a visit with keyboard time choices and follows it to its new calendar day', async () => {
     const user = userEvent.setup()
     show('/calendar')
-    await user.click(screen.getAllByRole('button', { name: /Noor Ahmed, Skin Renewal Facial/ })[0])
+    await user.click(screen.getAllByRole('button', { name: /Noor Ahmed Skin Renewal Facial/ })[0])
     await user.click(screen.getByRole('button', { name: 'Move appointment' }))
     expect(screen.getByRole('heading', { name: 'Move appointment' })).toHaveFocus()
     await user.clear(screen.getByLabelText('New date'))
@@ -40,13 +40,13 @@ describe('connected operator journeys', () => {
     await user.keyboard('{Escape}')
     expect(screen.getByLabelText('Jump to date')).toHaveValue('2026-10-07')
     expect(
-      screen.getAllByRole('button', { name: /Noor Ahmed, Skin Renewal Facial, 09:30/ }).length,
+      screen.getAllByRole('button', { name: /09:30 .*Noor Ahmed Skin Renewal Facial/ }).length,
     ).toBeGreaterThan(0)
   })
   it('requires cancellation review and preserves the visit in accessible calendar history', async () => {
     const user = userEvent.setup()
     show('/calendar')
-    await user.click(screen.getAllByRole('button', { name: /Noor Ahmed, Skin Renewal Facial/ })[0])
+    await user.click(screen.getAllByRole('button', { name: /Noor Ahmed Skin Renewal Facial/ })[0])
     await user.click(screen.getByRole('button', { name: 'Cancel appointment' }))
     expect(screen.getByText('£25 deposit remains recorded')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Keep appointment' }))
@@ -58,7 +58,7 @@ describe('connected operator journeys', () => {
     await user.keyboard('{Escape}')
     expect(screen.getByRole('heading', { name: 'Changes to this day' })).toBeInTheDocument()
     await user.click(
-      screen.getByRole('button', { name: /Noor Ahmed, Skin Renewal Facial, 11:00, cancelled/ }),
+      screen.getByRole('button', { name: /11:00 .*Noor Ahmed Skin Renewal Facial .*Cancelled/ }),
     )
     expect(
       within(screen.getByRole('dialog')).getByText('Cancelled', { exact: true }),
@@ -69,7 +69,7 @@ describe('connected operator journeys', () => {
     const user = userEvent.setup()
     show('/calendar')
     await user.selectOptions(screen.getByLabelText('Filter professional'), 'staff-maya')
-    await user.click(screen.getAllByRole('button', { name: /Noor Ahmed, Skin Renewal Facial/ })[0])
+    await user.click(screen.getAllByRole('button', { name: /Noor Ahmed Skin Renewal Facial/ })[0])
     await user.click(screen.getByRole('button', { name: 'Move appointment' }))
     await user.selectOptions(screen.getByLabelText('Professional'), 'staff-sophia')
     await user.click(screen.getByRole('radio', { name: '12:30' }))
@@ -77,13 +77,13 @@ describe('connected operator journeys', () => {
     await user.keyboard('{Escape}')
     expect(screen.getByLabelText('Filter professional')).toHaveValue('staff-sophia')
     expect(
-      screen.getAllByRole('button', { name: /Noor Ahmed, Skin Renewal Facial, 12:30/ }).length,
+      screen.getAllByRole('button', { name: /12:30 .*Noor Ahmed Skin Renewal Facial/ }).length,
     ).toBeGreaterThan(0)
   })
   it('records missed attendance through an explicit review without creating a sale', async () => {
     const user = userEvent.setup()
     show()
-    await user.click(screen.getByRole('button', { name: /Noor Ahmed, Skin Renewal Facial/ }))
+    await user.click(screen.getByRole('button', { name: /Noor Ahmed Skin Renewal Facial/ }))
     await user.click(screen.getByRole('button', { name: 'Mark as missed' }))
     expect(screen.getByText(/Confirm that the scheduled visit time has passed/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Confirm missed visit' }))
@@ -111,7 +111,7 @@ describe('connected operator journeys', () => {
   it('checks out an arrived visit and presents the linked receipt and rebooking action', async () => {
     const user = userEvent.setup()
     show()
-    await user.click(screen.getByRole('button', { name: /Amelia Carter, Skin Renewal Facial/ }))
+    await user.click(screen.getByRole('button', { name: /Amelia Carter Skin Renewal Facial/ }))
     await user.click(screen.getByRole('button', { name: 'Continue to checkout' }))
     await user.click(screen.getByRole('button', { name: '15%' }))
     await user.click(screen.getByRole('button', { name: 'Record demo payment' }))

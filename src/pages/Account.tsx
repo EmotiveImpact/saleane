@@ -121,11 +121,11 @@ export function Account() {
         </Link>
         <div>
           <span className="eyebrow">A considered way to run your business</span>
-          <h1>
+          <p className="account-story-title">
             A place for
             <br />
             every promise.
-          </h1>
+          </p>
           <p>Your people, appointments and client relationships, remembered together.</p>
         </div>
         <img

@@ -206,28 +206,21 @@ function WorkspaceApp() {
             <span>{pageName}</span>
           </div>
           <div>
-            <button
-              aria-label="Find a client"
-              className="global-search"
-              onClick={() => setSearch(true)}
-            >
+            <button className="global-search" onClick={() => setSearch(true)}>
               <Search size={17} />
               <span>Find a client</span>
-              <kbd>Search</kbd>
+              <kbd aria-hidden="true">Search</kbd>
             </button>
             <span className="header-divider" />
-            <button
-              aria-label="Workspace and market settings"
-              className="operator-button"
-              onClick={() => setSettings(true)}
-            >
+            <button className="operator-button" onClick={() => setSettings(true)}>
               <Avatar small name={operator} tone="sand" />
               <span>{operator.split(' ')[0]}</span>
+              <span className="sr-only">, workspace and market settings</span>
               <ChevronDown size={13} />
             </button>
           </div>
         </header>
-        <div className="demo-notice">
+        <section className="demo-notice" aria-label="About this version">
           <Info size={13} />
           <span>
             {mode === 'demo'
@@ -237,7 +230,7 @@ function WorkspaceApp() {
                 : 'Local studio. Payments are recorded manually; email delivery is unconfigured.'}
           </span>
           <button onClick={() => setSettings(true)}>About this version</button>
-        </div>
+        </section>
         {warning && (
           <div role="alert" className="workspace-warning">
             {warning}

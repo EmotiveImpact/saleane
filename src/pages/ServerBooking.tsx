@@ -278,11 +278,11 @@ function BookingFlow({
           Workspace <ArrowRight size={15} />
         </Link>
       </header>
-      <div className="booking-demo-banner">
+      <section className="booking-demo-banner" aria-label="About this booking page">
         {sample
           ? 'Fictional sample studio. Reservations and deposits are simulated.'
           : 'Local booking preview. Pay at the studio; online payments and email delivery are unconfigured.'}
-      </div>
+      </section>
       <div className="public-booking-layout">
         <aside className="booking-story">
           <img

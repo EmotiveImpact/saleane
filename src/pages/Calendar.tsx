@@ -192,14 +192,12 @@ export function Calendar() {
                           data-selected={appointmentId === a.id ? '' : undefined}
                           aria-haspopup="dialog"
                           aria-expanded={appointmentId === a.id}
-                          aria-label={`${client.name}, ${service.name}, ${timeLabel(a.startMinutes, state.organisation.locale)}, ${s.name}, ${a.status}`}
                         >
                           <span>
                             {timeLabel(a.startMinutes, state.organisation.locale)}{' '}
                             <Status status={a.status} />
-                          </span>
-                          <strong>{client.name}</strong>
-                          <small>{service.name}</small>
+                          </span>{' '}
+                          <strong>{client.name}</strong> <small>{service.name}</small>
                         </button>
                         <span className="buffer-block">{a.bookedBufferMinutes} min turnaround</span>
                       </div>

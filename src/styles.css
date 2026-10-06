@@ -2528,13 +2528,19 @@ fieldset {
   .header-slash {
     display: none;
   }
-  .global-search span {
-    display: none;
+  /* Hidden visually but kept as each button's accessible name. */
+  .global-search span,
+  .operator-button > span:not(.avatar) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
   }
   .global-search {
     padding: 8px;
   }
-  .operator-button > span:not(.avatar),
   .operator-button > svg,
   .header-divider {
     display: none;
