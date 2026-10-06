@@ -98,3 +98,7 @@ A server-authority draft was started, then preserved on local branch `wip/salean
 - Retain source dates, region, billing terms and confidence with competitor observations. Public documentation is not a completed logged-in usability test.
 - Record a design-discovered problem as a PRD change and a testable journey, not just a visual patch.
 - Keep speculative claims, invented conversion gains and private internal reasoning out of public marketing copy.
+
+## Repository backup status
+
+On 6 October, at the user’s request to push everything, both `feat/saleane-foundation` (`3eaf169`) and the separate `wip/saleane-server-authority` draft (`f73d084`) were verified on the private GitHub remote. The WIP backup is not a qualified release or a merged implementation. Only the Saleane development server on port 5173 is retained; the duplicate preview on 4173 was stopped. Generated dependency/build caches are reproducible local files and are not source deliverables.
