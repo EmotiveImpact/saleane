@@ -177,9 +177,9 @@ export function createContext(options: ApiOptions) {
       actor.id,
     )
     if (!row) fail(404, 'Workspace was not found.')
-    // Practitioner provisioning is gated until a tested assigned-client DTO exists.
-    if (row!.role === 'practitioner')
-      fail(403, 'Practitioner access is not enabled in this local candidate.')
+    // A practitioner reads only through their projection, which needs a linked professional.
+    if (row!.role === 'practitioner' && !row!.staff_id)
+      fail(403, 'Your access is not linked to a professional. Ask the owner to update it.')
     const raw = JSON.parse(row!.state) as BusinessState
     return {
       id: row!.id,
@@ -321,9 +321,19 @@ export function createContext(options: ApiOptions) {
     }
     fail(409, 'That time was just taken. Choose another time or professional.')
   }
-  const rejectPractitioner = (role: string) => {
-    if (role === 'practitioner')
-      fail(422, 'Practitioner access awaits an assigned-client view and is not enabled yet.')
+  /** A practitioner seat links one active professional, held by at most one person. */
+  const linkableProfessional = (org: Org, staffId: string | undefined, exceptAccount = '') => {
+    if (!staffId) fail(422, 'Choose the professional this person works as.')
+    if (!org.state.staff.some((person) => person.id === staffId && !person.archived))
+      fail(422, 'Choose an active professional from this studio.')
+    const taken = db.get(
+      "SELECT account_id FROM memberships WHERE organisation_id=? AND role='practitioner' AND staff_id=? AND account_id<>?",
+      org.id,
+      staffId!,
+      exceptAccount,
+    )
+    if (taken) fail(409, 'Another team member already works as this professional.')
+    return staffId!
   }
   const invitationFor = (raw: string, email: string) => {
     const invite = db.get<Invitation>(
@@ -333,7 +343,6 @@ export function createContext(options: ApiOptions) {
     )
     if (!invite || invite.email !== email)
       fail(400, 'This invitation does not match your email or has expired.')
-    rejectPractitioner(invite!.role)
     return invite!
   }
   const join = (invite: Invitation, accountId: string) => {
@@ -347,6 +356,9 @@ export function createContext(options: ApiOptions) {
     db.run('UPDATE invitations SET used_at=? WHERE token_hash=?', now(), invite.token_hash)
     const actor = db.get<Actor>('SELECT id,name,email FROM accounts WHERE id=?', accountId)!
     const org = orgFor(invite.organisation_id, actor)
+    // The professional may have been archived or linked to someone else since the invitation.
+    if (invite.role === 'practitioner')
+      linkableProfessional(org, invite.staff_id ?? undefined, accountId)
     audit(org, accountId, 'invitation.accepted', accountId)
     return org.id
   }
@@ -368,7 +380,7 @@ export function createContext(options: ApiOptions) {
     persist,
     withHolds,
     chooseStaff,
-    rejectPractitioner,
+    linkableProfessional,
     invitationFor,
     join,
   }

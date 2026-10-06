@@ -26,6 +26,7 @@ function fixture(name = 'Test local studio'): RemoteWorkspace {
   return {
     id: state.organisation.id,
     slug: `studio-${state.organisation.id}`,
+    view: 'studio',
     state,
     role: 'owner',
     today: '2026-10-06',

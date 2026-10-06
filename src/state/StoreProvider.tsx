@@ -6,7 +6,18 @@ import { businessDate } from '../domain/operations'
 import { StoreContext } from './context'
 import { commitWorkspace, loadBrowserWorkspace, resetWorkspace } from './storage'
 import { api, ApiError, setCsrf } from './api'
-import type { RemoteWorkspace, Session } from './api'
+import type { PractitionerWorkspace, RemoteWorkspace, Session } from './api'
+import { readPendingKeys, requestFingerprint, writePendingKeys } from './journal'
+
+/** Practitioners receive a scoped record with no studio state; their day has its own screen. */
+function studioRecord(next: RemoteWorkspace | PractitionerWorkspace): RemoteWorkspace {
+  if (next.view !== 'studio' || !next.state)
+    throw new Error(
+      'This account opens a practitioner day. Choose the studio from your account page.',
+    )
+  next.state = parseState(next.state, next.state.organisation.region)
+  return next
+}
 const remembered = (key: string) => {
   try {
     return sessionStorage.getItem(key)
@@ -21,53 +32,6 @@ const remember = (key: string, value?: string) => {
   } catch {
     /* Keep the current session usable. */
   }
-}
-
-const PENDING_KEY = 'saleane.pending-commands.v1'
-function readPendingKeys(): { keys: Map<string, string>; error: string } {
-  try {
-    const raw = sessionStorage.getItem(PENDING_KEY)
-    if (!raw) return { keys: new Map(), error: '' }
-    if (raw.length > 32000) throw new Error('oversized journal')
-    const rows: unknown = JSON.parse(raw)
-    if (
-      !Array.isArray(rows) ||
-      rows.length > 200 ||
-      rows.some(
-        (row) =>
-          !Array.isArray(row) ||
-          row.length !== 2 ||
-          typeof row[0] !== 'string' ||
-          !/^[a-f0-9]{64}$/.test(row[0]) ||
-          typeof row[1] !== 'string' ||
-          !/^[a-f0-9-]{36}$/i.test(row[1]),
-      )
-    )
-      throw new Error('invalid journal')
-    return { keys: new Map(rows as [string, string][]), error: '' }
-  } catch {
-    return {
-      keys: new Map(),
-      error:
-        'Pending save recovery is unavailable. Restore access to this tab’s session storage and reload before saving. Existing server records are preserved.',
-    }
-  }
-}
-function canonical(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
-  if (value && typeof value === 'object')
-    return `{${Object.entries(value)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, item]) => `${JSON.stringify(key)}:${canonical(item)}`)
-      .join(',')}}`
-  return JSON.stringify(value) ?? 'null'
-}
-async function requestFingerprint(workspaceId: string, actorId: string, command: unknown) {
-  const bytes = new TextEncoder().encode(
-    canonical([workspaceId, actorId, JSON.parse(JSON.stringify(command))]),
-  )
-  const hash = await crypto.subtle.digest('SHA-256', bytes)
-  return Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
 export function StoreProvider({ children }: { children: ReactNode }) {
@@ -87,19 +51,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const pendingKeys = useRef(pendingJournal.keys)
   function keepKey(fingerprint: string, key?: string) {
     if (pendingJournal.error) throw new Error(pendingJournal.error)
-    const next = new Map(pendingKeys.current)
-    if (key) next.set(fingerprint, key)
-    else next.delete(fingerprint)
-    if (next.size > 200)
-      throw new Error('Too many unresolved saves. Review pending changes before recording more.')
-    try {
-      sessionStorage.setItem(PENDING_KEY, JSON.stringify([...next]))
-    } catch {
-      throw new Error(
-        'This tab cannot preserve safe retry information. Restore session storage and reload before saving again; existing server records are preserved.',
-      )
-    }
-    pendingKeys.current = next
+    pendingKeys.current = writePendingKeys(pendingKeys.current, fingerprint, key)
   }
   const state = remote?.state ?? workspace.state
   useEffect(() => {
@@ -124,8 +76,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     transitioning.current = true
     setLoading(true)
     try {
-      const next = await api<RemoteWorkspace>(`/api/workspaces/${encodeURIComponent(id)}`)
-      next.state = parseState(next.state, next.state.organisation.region)
+      const next = studioRecord(
+        await api<RemoteWorkspace>(`/api/workspaces/${encodeURIComponent(id)}`),
+      )
       if (ticket !== generation.current) return
       activeId.current = id
       setRemote(next)
@@ -157,8 +110,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const found = await api<Session>('/api/session')
         if (cancelled || ticket !== generation.current) return
         setSession(found)
-        const next = await api<RemoteWorkspace>(`/api/workspaces/${encodeURIComponent(id)}`)
-        next.state = parseState(next.state, next.state.organisation.region)
+        const next = studioRecord(
+          await api<RemoteWorkspace>(`/api/workspaces/${encodeURIComponent(id)}`),
+        )
         if (cancelled || ticket !== generation.current) return
         activeId.current = id
         setRemote(next)
@@ -268,10 +222,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                 keepKey(fingerprint)
               if (error instanceof ApiError && error.status === 409) {
                 try {
-                  const latest = await api<RemoteWorkspace>(
-                    `/api/workspaces/${encodeURIComponent(remote.id)}`,
+                  const latest = studioRecord(
+                    await api<RemoteWorkspace>(`/api/workspaces/${encodeURIComponent(remote.id)}`),
                   )
-                  latest.state = parseState(latest.state, state.organisation.region)
                   if (ticket === generation.current && activeId.current === remote.id) {
                     setRemote(latest)
                     setWorkspace({ state: latest.state, warning: '', blocked: false })

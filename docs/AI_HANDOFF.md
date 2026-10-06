@@ -21,7 +21,7 @@ The requested GitHub merge consolidates this into main; verify the actual merge/
 
 Version **1.0.0-rc.1** connects Today → Calendar → Client → Appointment → manual Checkout → Rebook → Business intelligence. There are two modes: the preserved fictional browser demo with a fixed 6 October 2026 date, and authenticated local studios with current venue time and SQLite authority.
 
-Local accounts, tenant memberships (owner/manager/reception), manual invitations, services/qualified professionals/resources, hours/closures/tax setup, public availability with exact-room holds, appointment lifecycle, client timeline, manual receipts/deposits/refunds, unsent drafts, bounded CSV imports and backup/restore are implemented. Empty UK/GBP and US/USD studios can be created through `/account`. Professional catalogue entries do not confer login access. Practitioner invitations/logins deliberately remain disabled.
+Local accounts, tenant memberships (owner/manager/reception), manual invitations, services/qualified professionals/resources, hours/closures/tax setup, public availability with exact-room holds, appointment lifecycle, client timeline, manual receipts/deposits/refunds, unsent drafts, bounded CSV imports and backup/restore are implemented. Empty UK/GBP and US/USD studios can be created through `/account`. Professional catalogue entries do not confer login access by themselves. LOCAL-01 (in review as a draft PR, not merged) adds practitioner invitations linked to one professional and a scoped "Your day" screen; until it merges, main still refuses practitioner logins.
 
 There is no hosted service, processor capture/refund, sent email/SMS, production identity qualification, verified guest self-management, comprehensive privacy programme or real studio pilot. V2 stock command seams are not retail UI. Stable 1.0 requires the roadmap’s release gates, not a cosmetic version change.
 
@@ -38,7 +38,7 @@ There is no hosted service, processor capture/refund, sent email/SMS, production
 ## Invariants that must survive
 
 - Validate membership, command permissions, expected revision and scoped request keys server-side, in transactions. Never accept client role claims or use UI hiding as access control.
-- Existing whole-studio BusinessState reads are unsuitable for practitioner access. LOCAL-01 needs a minimal read contract and adapted client surface, not frontend filtering or fabricated empty required collections.
+- Existing whole-studio BusinessState reads are unsuitable for practitioner access. Practitioners receive only the `PractitionerView` from `src/domain/practitioner.ts` via `server/projections.ts`, and only `practitionerRefusal`-approved commands; never widen this by frontend filtering or fabricated empty collections.
 - Keep immutable booked service/price/duration/buffer terms, original appointment/client IDs, exact held rooms and linked history. Public holds and desk bookings share availability. Check venue civil time, elapsed duration and DST.
 - Operator uncertain requests retain SHA-256-scoped fingerprint → request UUID mappings in tab session storage (200 limit), without command payloads. Storage failure/corruption blocks writes. Reload must not mint a new key for an uncertain operation.
 - Guest confirmation retains its exact submitted contact/consent and hold snapshot in tab storage until a definitive outcome. Unknown results remain protected even after hold expiry; do not enable a second booking/edit while recovery is unresolved. Closing the tab is a documented recovery boundary.
