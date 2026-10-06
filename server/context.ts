@@ -5,6 +5,8 @@ import { LocalDatabase } from './database'
 import { workspaceInput } from './workspace'
 import { digest, equalToken, passwordHash, token } from './auth'
 import { COOKIE, SESSION_MS, fail, header, sessionToken } from './http'
+import { turnstileFromEnv } from './turnstile'
+import type { Turnstile } from './turnstile'
 import { parseState } from '../src/domain/model'
 import type { BusinessState } from '../src/domain/model'
 import { availableResource } from '../src/domain/commands'
@@ -80,12 +82,28 @@ export type HoldRow = {
   fingerprint: string | null
 }
 
+/**
+ * Public hold limits. A hold lapses after HOLD_MS; one visitor (network address) keeps at most
+ * HOLDS_PER_VISITOR, newest replacing oldest; and a studio carries at most
+ * max(STUDIO_HOLDS_MIN, STUDIO_HOLDS_PER_PROFESSIONAL x active professionals) at once.
+ */
+export const HOLD_LIMITS = {
+  HOLD_MS: 5 * 60000,
+  HOLDS_PER_VISITOR: 2,
+  STUDIO_HOLDS_MIN: 8,
+  STUDIO_HOLDS_PER_PROFESSIONAL: 3,
+  HOLDS_PER_MINUTE: 6,
+  HOLDS_PER_HOUR: 30,
+}
+
 export type ApiOptions = {
   origin: string
   databasePath?: string
   database?: LocalDatabase
   now?: () => number
   allowRegistration?: boolean
+  /** Bot check for public holds. Omitted reads TURNSTILE_* from the environment; null disables. */
+  turnstile?: Turnstile | null
 }
 
 /** Shared request authority: database, clock, sessions, tenant lookup, holds and audit. */
@@ -104,14 +122,19 @@ export function createContext(options: ApiOptions) {
   const db = options.database ?? new LocalDatabase(options.databasePath)
   const now = options.now ?? Date.now
   const dummyHash = passwordHash(token())
+  const turnstile = options.turnstile === undefined ? turnstileFromEnv() : options.turnstile
   const rates = new Map<string, { count: number; expires: number }>()
+  const address = (request: IncomingMessage) => request.socket?.remoteAddress ?? 'local'
+  // Holds last minutes, so a per-process salt keeps stored visitor keys from revealing addresses.
+  const visitorSalt = token()
+  const visitorFor = (request: IncomingMessage) => digest(`${visitorSalt}:${address(request)}`)
 
   const rateLimit = (request: IncomingMessage, bucket: string, limit: number, window: number) => {
     const time = now()
     if (rates.size > 5000)
       for (const [key, entry] of rates) if (entry.expires <= time) rates.delete(key)
     if (rates.size > 10000) fail(503, 'The local service is busy. Try again shortly.')
-    const key = `${request.socket?.remoteAddress ?? 'local'}:${bucket}`
+    const key = `${address(request)}:${bucket}`
     const existing = rates.get(key)
     const entry =
       existing && existing.expires > time ? existing : { count: 0, expires: time + window }
@@ -370,6 +393,9 @@ export function createContext(options: ApiOptions) {
     now,
     dummyHash,
     rateLimit,
+    address,
+    visitorFor,
+    turnstile,
     actorFor,
     signIn,
     memberships,

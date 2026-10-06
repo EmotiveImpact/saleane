@@ -41,6 +41,8 @@ export const productInputSchema = z.object({
 export const operationsSchema = z.object({
   mode: z.enum(['sandbox', 'local']),
   bookingEnabled: z.boolean(),
+  /** Ask online guests to pass a Cloudflare Turnstile check before a time is held. */
+  botCheck: z.boolean().optional(),
   hours: weeklyHoursSchema,
   closures: z.array(closureInputSchema.and(z.object({ id }))),
   products: z.array(productInputSchema.extend({ id })),

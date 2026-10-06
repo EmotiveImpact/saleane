@@ -2,6 +2,16 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## In review · Public booking hold protection
+
+**Status: draft pull request, stacked on the LOCAL-01 PR, not merged.** Schema migration 2 adds a `visitor` column to `booking_holds`. Live services stay unconfigured.
+
+- Holds still lapse after five minutes. One visitor now keeps at most two unbooked holds per studio: a new hold replaces their oldest, and the booking page hands back its previous hold when a guest picks again.
+- Hold creation has its own limits per address (six a minute, thirty an hour) on top of the existing public write limit.
+- A studio-wide cap (the larger of 8 or three per active professional) stops many addresses together from holding the whole calendar. Booked and expired holds free their place.
+- Optional Cloudflare Turnstile bot check, off by default, switched on in Manage under business details. It needs `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` on the server; without them the setting is refused. Tokens are verified server side before any write and fail closed if Cloudflare cannot be reached.
+- Verified with lint, format check, strict TypeScript, builds and 198 tests (138 frontend/domain/store, 60 server), plus a Chromium pass on the built server. See `docs/evidence/HOLD-PROTECTION.md`.
+
 ## In review · LOCAL-01 assigned-practitioner access
 
 **Status: draft pull request, stacked on the server groundwork PR, not merged.** No schema migration (the membership and invitation tables already carried `staff_id`); live services stay unconfigured.

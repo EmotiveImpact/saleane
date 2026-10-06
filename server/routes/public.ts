@@ -4,12 +4,13 @@ import { digest, token } from '../auth'
 import { canonical, fail } from '../http'
 import { commandSchema, dispatch, slots } from '../../src/domain/commands'
 import { businessDate, operations } from '../../src/domain/operations'
-import { holdInput, guestContact } from '../context'
+import { HOLD_LIMITS, holdInput, guestContact } from '../context'
 import type { Context, Route, HoldAllocation, HoldRow } from '../context'
 
 /** Public booking routes. These never return clients, histories or money. Returns false when the request belongs to another module. */
 export async function publicRoutes(ctx: Context, route: Route): Promise<boolean> {
-  const { db, now, rateLimit, publicOrg, persist, withHolds, chooseStaff } = ctx
+  const { db, now, rateLimit, address, visitorFor, turnstile } = ctx
+  const { publicOrg, persist, withHolds, chooseStaff } = ctx
   const { request, method, url, path, body, reply } = route
   if (path[1] === 'public' && path[2]) {
     const slug = path[2]
@@ -35,6 +36,7 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
         sample,
         depositPolicy: sample ? 'simulated' : 'pay_at_studio',
         paymentCollectionConfigured: false,
+        botCheck: operations(state).botCheck && turnstile ? { siteKey: turnstile.siteKey } : null,
       })
       return true
     }
@@ -78,13 +80,56 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
       return true
     }
     if (path[3] === 'holds' && path.length === 4 && method === 'POST') {
+      const limits = HOLD_LIMITS
       rateLimit(request, 'public-write', 20, 5 * 60000)
-      const data = holdInput.parse(body)
+      rateLimit(request, 'public-hold-minute', limits.HOLDS_PER_MINUTE, 60000)
+      rateLimit(request, 'public-hold-hour', limits.HOLDS_PER_HOUR, 60 * 60000)
+      const { replaces, botCheck, ...data } = holdInput
+        .extend({
+          replaces: z.string().min(32).max(100).optional(),
+          botCheck: z.string().min(1).max(2048).optional(),
+        })
+        .parse(body)
+      // The check runs before any write; a studio that switched it on never takes an unchecked hold.
+      if (operations(publicOrg(slug).state).botCheck && turnstile) {
+        if (!botCheck || !(await turnstile.verify(botCheck, address(request))))
+          fail(403, 'Complete the quick check below, then reserve your time again.')
+      }
       const raw = token(),
-        expires = now() + 5 * 60000
+        visitor = visitorFor(request)
+      let expires = 0
       db.transaction(() => {
-        const org = publicOrg(slug),
-          blocked = withHolds(org),
+        const time = now()
+        expires = time + limits.HOLD_MS
+        db.run('DELETE FROM booking_holds WHERE expires_at<=? AND appointment_id IS NULL', time)
+        const org = publicOrg(slug)
+        if (replaces)
+          db.run(
+            'DELETE FROM booking_holds WHERE token_hash=? AND organisation_id=? AND appointment_id IS NULL',
+            digest(replaces),
+            org.id,
+          )
+        // One visitor keeps at most HOLDS_PER_VISITOR: the newest replace the oldest, never stack.
+        // A refused new hold rolls back, so the visitor keeps the time they already had.
+        for (const old of db
+          .all<{ token_hash: string }>(
+            'SELECT token_hash FROM booking_holds WHERE organisation_id=? AND visitor=? AND appointment_id IS NULL ORDER BY expires_at DESC, rowid DESC',
+            org.id,
+            visitor,
+          )
+          .slice(limits.HOLDS_PER_VISITOR - 1))
+          db.run('DELETE FROM booking_holds WHERE token_hash=?', old.token_hash)
+        const active = db.get<{ count: number }>(
+          'SELECT count(*) AS count FROM booking_holds WHERE organisation_id=? AND appointment_id IS NULL',
+          org.id,
+        )!.count
+        const professionals = org.state.staff.filter((person) => !person.archived).length
+        if (
+          active >=
+          Math.max(limits.STUDIO_HOLDS_MIN, limits.STUDIO_HOLDS_PER_PROFESSIONAL * professionals)
+        )
+          fail(429, 'Many guests are choosing times right now. Try again in a few minutes.')
+        const blocked = withHolds(org),
           allocation = chooseStaff(blocked, data)
         const service = org.state.services.find((service) => service.id === data.serviceId)!
         const input: HoldAllocation = {
@@ -96,14 +141,14 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
           deposit: service.depositMinor,
           resourceType: service.resourceType,
         }
-        db.run('DELETE FROM booking_holds WHERE expires_at<=? AND appointment_id IS NULL', now())
         db.run(
-          'INSERT INTO booking_holds(token_hash,id,organisation_id,input,expires_at) VALUES(?,?,?,?,?)',
+          'INSERT INTO booking_holds(token_hash,id,organisation_id,input,expires_at,visitor) VALUES(?,?,?,?,?,?)',
           digest(raw),
           randomUUID(),
           org.id,
           JSON.stringify(input),
           expires,
+          visitor,
         )
       })
       reply(201, { hold: raw, expiresAt: new Date(expires).toISOString() })

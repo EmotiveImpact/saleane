@@ -137,3 +137,51 @@ test('corrupt pending confirmation fails closed instead of offering another book
   expect(await screen.findByText(/unfinished confirmation could not be recovered/)).toBeVisible()
   expect(screen.getByRole('button', { name: 'Choose a time' })).toBeDisabled()
 })
+
+test('a studio bot check gates the hold and sends a fresh single-use token each attempt', async () => {
+  let issued = 0
+  const callbacks: ((token: string) => void)[] = []
+  window.turnstile = {
+    render: (_element, options) => {
+      callbacks.push(options.callback)
+      return `widget-${callbacks.length}`
+    },
+    remove: vi.fn(),
+  }
+  let refuse = true
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path === base)
+      return { ...catalog, botCheck: { siteKey: '1x00000000000000000000AA' } } as never
+    if (path.startsWith(`${base}/availability`)) return { times: [600] } as never
+    if (path === `${base}/holds`) {
+      if (refuse) {
+        refuse = false
+        throw new ApiError('Complete the quick check below, then reserve your time again.', 403)
+      }
+      return { hold: payload.hold, expiresAt: new Date(Date.now() + 300000).toISOString() } as never
+    }
+    throw new Error(`Unexpected route ${path}`)
+  })
+  const user = userEvent.setup()
+  view()
+  await user.click(await screen.findByRole('button', { name: 'Choose a time' }))
+  await user.click(await screen.findByRole('radio', { name: '10:00' }))
+  const holdButton = screen.getByRole('button', { name: 'Hold this time' })
+  expect(holdButton).toBeDisabled()
+  act(() => callbacks.at(-1)!(`token-${++issued}`))
+  expect(holdButton).toBeEnabled()
+  await user.click(holdButton)
+  await screen.findByText('Complete the quick check below, then reserve your time again.')
+  // The used token is discarded and a new widget is rendered for the retry.
+  await waitFor(() => expect(callbacks).toHaveLength(2))
+  expect(screen.getByRole('button', { name: 'Hold this time' })).toBeDisabled()
+  act(() => callbacks.at(-1)!(`token-${++issued}`))
+  await user.click(screen.getByRole('button', { name: 'Hold this time' }))
+  await screen.findByLabelText('Full name')
+  const holds = vi.mocked(api).mock.calls.filter(([path]) => path === `${base}/holds`)
+  expect(holds.map(([, init]) => (init?.body as { botCheck: string }).botCheck)).toEqual([
+    'token-1',
+    'token-2',
+  ])
+  delete window.turnstile
+})

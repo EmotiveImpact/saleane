@@ -2167,6 +2167,10 @@ fieldset {
   color: #fff;
   border-color: #5b786a;
 }
+.bot-check {
+  margin-top: 18px;
+  min-height: 65px;
+}
 .booking-next {
   display: flex;
   justify-content: space-between;

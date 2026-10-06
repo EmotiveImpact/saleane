@@ -50,6 +50,11 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         .object({ revision: z.number().int().nonnegative(), command: commandSchema })
         .strict()
         .parse(body)
+      if (data.command.type === 'organisation' && data.command.botCheck && !ctx.turnstile)
+        fail(
+          422,
+          'Add the Cloudflare Turnstile keys to this server before switching on the bot check.',
+        )
       const key = header(request, 'idempotency-key')
       if (!key || !/^[A-Za-z0-9._:-]{8,100}$/.test(key))
         fail(400, 'Use an idempotency key between 8 and 100 safe characters.')
