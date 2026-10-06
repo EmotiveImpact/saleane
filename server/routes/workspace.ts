@@ -10,6 +10,7 @@ import type { Context, Route } from '../context'
 import { practitionerRefusal } from '../../src/domain/practitioner'
 import { workspaceView } from '../projections'
 import type { Reader } from '../projections'
+import { issueGuestLink, revokeGuestLinks } from './guest'
 
 /** Signed-in workspace routes: records, commands, team, invitations and audit. Returns false when the request belongs to another module. */
 export async function workspaceRoutes(ctx: Context, route: Route): Promise<boolean> {
@@ -229,6 +230,33 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         audit(org, actor.id, 'membership.changed', data.accountId)
       })
       reply(200, { ok: true })
+      return true
+    }
+    if (path[3] === 'guest-links' && method === 'POST' && path.length <= 5) {
+      const revoke = path[4] === 'revoke'
+      if (path.length === 5 && !revoke) return false
+      const data = z
+        .object({ appointmentId: z.string().min(1).max(100) })
+        .strict()
+        .parse(body)
+      const result = db.transaction(() => {
+        const org = orgFor(orgId, actor)
+        if (!['owner', 'manager', 'reception'].includes(org.role))
+          fail(403, 'Your role cannot manage guest links.')
+        const appointment = org.state.appointments.find((a) => a.id === data.appointmentId)
+        if (!appointment) fail(404, 'This visit is not in the studio record.')
+        if (revoke) {
+          const revoked = revokeGuestLinks(ctx, org, data.appointmentId)
+          audit(org, actor.id, 'guest_link.revoked', data.appointmentId)
+          return { revoked }
+        }
+        if (appointment!.status !== 'confirmed')
+          fail(409, 'Only an upcoming visit can have a manage link.')
+        const link = issueGuestLink(ctx, org, data.appointmentId, 'desk')
+        audit(org, actor.id, 'guest_link.created', data.appointmentId)
+        return link
+      })
+      reply(revoke ? 200 : 201, result)
       return true
     }
     if (path[3] === 'audit' && path.length === 4 && method === 'GET') {

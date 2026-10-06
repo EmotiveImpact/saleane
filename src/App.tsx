@@ -35,6 +35,7 @@ const Inbox = lazy(() => import('./pages/Inbox').then((module) => ({ default: mo
 const Money = lazy(() => import('./pages/Money').then((module) => ({ default: module.Money })))
 import { AccessPanel } from './components/AccessPanel'
 import { PractitionerDay } from './pages/PractitionerDay'
+import { ManageVisit } from './pages/ManageVisit'
 import './account.css'
 
 const navigation = [
@@ -65,6 +66,7 @@ function WorkspaceApp() {
   }, [location.pathname])
   const pageName = navigation.find((n) => location.pathname.startsWith(n.to))?.label ?? 'Today'
   if (location.pathname === '/account' || location.pathname === '/join') return <Account />
+  if (location.pathname === '/manage') return <ManageVisit />
   if (location.pathname.startsWith('/practice/'))
     return (
       <Routes>

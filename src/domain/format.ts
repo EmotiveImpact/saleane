@@ -2,7 +2,7 @@ import type { BusinessState } from './model'
 
 export function money(
   amountMinor: number,
-  organisation: BusinessState['organisation'],
+  organisation: Pick<BusinessState['organisation'], 'locale' | 'currency'>,
   decimals = false,
 ) {
   return new Intl.NumberFormat(organisation.locale, {

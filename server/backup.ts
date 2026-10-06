@@ -46,6 +46,7 @@ export function validateDatabase(path: string) {
       'command_receipts',
       'booking_holds',
       'audit_events',
+      'guest_links',
     ])
       if (!tables.includes(table))
         throw new Error('This database does not contain the required authority tables.')
@@ -95,7 +96,7 @@ function snapshot(source: string, destination: string, restore: boolean) {
       })
       try {
         recovered.exec(
-          'BEGIN IMMEDIATE; DELETE FROM sessions; DELETE FROM invitations; DELETE FROM booking_holds;',
+          'BEGIN IMMEDIATE; DELETE FROM sessions; DELETE FROM invitations; DELETE FROM booking_holds; DELETE FROM guest_links;',
         )
         for (const row of recovered.prepare('SELECT id,revision FROM organisations').all())
           recovered
