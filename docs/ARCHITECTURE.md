@@ -1,33 +1,37 @@
 # SALEANE architecture
 
-Foundation 0.2 · 6 October 2026. This document separates **implemented local authority** from **target production contracts**. Hosting, database, authentication, payments, communications and model providers are not configured or deployed.
+Local V1 candidate · 6 October 2026. The implemented authority is a localhost Node service with SQLite. Hosted infrastructure, managed identity, payment, messaging and model providers remain unconfigured at the user's explicit request.
 
 ## Implemented application
 
-Vite + React + TypeScript with React Router. The lockfile makes installed dependencies reproducible. Radix Dialog supplies headless accessible behaviour. Saleane owns its components, CSS tokens and page composition. Fonts are bundled locally.
+Vite + React + TypeScript, React Router, Saleane CSS tokens and locally bundled fonts. Radix supplies dialog semantics beneath the custom component layer. The original ivory/sage/serif photographic direction remains the design authority. Management and account routes are loaded on demand.
 
 ```text
-src/
-  domain/model.ts       Versioned Zod schemas, scoped IDs, stored-state validation
-  domain/seed.ts        Separate fictional UK/US workspaces and linked histories
-  domain/commands.ts    Booking, move/cancel/missed, arrival, checkout and relationship rules
-  domain/selectors.ts   Calendar, client statistics, return opportunities, reports
-  domain/format.ts      Civil date, venue clock conventions and minor-unit formatting
-  state/storage.ts     Load validation, revision check, commit-before-success
-  state/StoreProvider   Workspace context and market selection
-  components/          Saleane controls, agenda, visit/booking sheets and recovery
-  pages/               Today, Calendar, Clients, Timeline, Business, Guest booking
+src/domain/                 Versioned schemas, commands, scoped links, time and money rules
+src/state/StoreProvider     Async server writes, browser demo adapter, recovery, retry journal
+src/pages/                  Daily loop, accounts, guest booking, Manage, Inbox, Money
+server/app.ts               Same-origin account/workspace/command/public-booking API
+server/database.ts          SQLite migrations, transactions, revision receipts and audit
+server/auth.ts              Salted password hashing and opaque session material
+server/index.ts             Loopback-only built app + API host
+server/backup.ts            Consistent backup, verification and fresh-path restore
 ```
 
-A command creates a new validated state. The storage adapter saves it before the UI adopts it. Views derive from that state. A checkout creates one sale, one settlement payment, one completion transition and one client event. Rebooking links the old and new appointments. Reports do not keep separate editable totals.
+`npm run dev` serves UI and API through one Vite listener on **127.0.0.1:5173**. `npm run build && npm start` serves the built UI and API through one Node listener at the same address. Stop one before starting the other. The database is `.saleane-data/saleane.sqlite`, excluded from Git with its WAL files; the public build must never contain it. The built host rejects a database or WAL/SHM path inside the static root, including symlink/prospective path aliases, before opening SQLite. See [server runbook](../server/README.md) for configuration, exact API and recovery commands.
 
-Keys: `saleane.demo.v1.UK` and `saleane.demo.v1.US`. Schema version is 1; product version is 0.2.2. The new statuses and optional allocation-change events are additive; existing snapshots remain readable without resetting client history. A corrupt, foreign-scoped or unsupported snapshot is left untouched and writes are paused. Export/reset controls enable deliberate recovery. Stale revision detects many ordinary sequential tab conflicts; localStorage is not transactional across concurrent tabs. No security claim is made for browser storage.
+An account owns explicit organisation memberships. Professional capability is a separate record. Owner, manager and reception access are checked on every server command. Restricted practitioner access is intentionally unavailable until assigned-client read projections exist; the server rejects its creation. A studio is one location and currency. Multiple studios can coexist without sharing records; this is not group reporting or multi-location operations.
 
-Confirmed appointments can move while retaining their ID, client, source/rebook link, booked price/deposit/duration/buffer and payment ledger. Availability uses those booked durations and the original resource category, excludes the appointment's own allocation, and validates the new professional and room together. The event stores old/new date, start, staff and resource links. Cancellation and missed attendance retain the appointment and deposit history while releasing allocation; neither writes a fee, refund or sale. Active capacity, booked totals and qualifying rebook successors exclude cancelled/missed visits. No-op retries retain the same revision and events. The demo's missed-visit guard checks date against the fixed day; the operator confirms attendance and elapsed time. Authoritative time, actor permissions and policy disposition remain server requirements.
+The local database uses scoped organisation snapshots plus relational accounts, memberships, sessions, invitations, command receipts, guest holds and audit events. Transactions validate expected revision, permission and domain references before replacing the snapshot. The public API returns a limited catalogue and available times, never clients or histories. It allocates professional and exact room under a short-lived hold and revalidates inside confirmation. This small local authority is not the future relational aggregate implementation or a distributed service.
 
-Demo scheduling stores a civil date and minutes in a fixed venue day, using 09:00–18:00 daily opening, one service/professional/resource per visit, 15-minute validation and 30-minute offered slots. It validates service qualification and shared-resource intervals including buffers. It does not implement UTC scheduling, DST conversion, holds, closures, partial processing time, staff shifts or network concurrency. Those are V1 engine work.
+Async screen saves show success only after a committed response. A privacy-preserving retry journal retains hashed command identity and request UUID across refresh/remount; no operator command body is stored in it. Guest confirmation separately retains its exact submitted contact/consent and hold snapshot in that tab’s session storage until a definitive response, so a reload/expired timer cannot create another booking while confirmation is unknown. Successful/definitively rejected confirmations clear that recovery snapshot. Uncertain transport failures reuse the key. Stale revisions refresh authoritative records while leaving the user's form available to review. Workspace transitions reject new writes and discard late responses from another workspace. Server receipts recheck current permission before replay.
 
-Guest booking creates a new local client record instead of guessing an existing identity from email. Production needs verified identity and reviewed duplicates. Guest and operator routes in this one demo share the same browser state; the guest route is not an access-control boundary.
+A new local studio starts without clients, appointments or funds. It uses the venue's current civil day and rejects elapsed/nonexistent/ambiguous booking times. Hours, closures, qualified staff and resources determine availability. A separate explicit sample studio uses 6 October 2026 and simulated funds. The original browser demo and `saleane.demo.v1.UK` / `.US` snapshots remain intact; neither implies authenticated server storage.
+
+Appointments preserve booked service name, duration, buffer, price, deposit terms and original resource category. Manual receipts, deposits and external refund records require explicit provenance; they never imply a processor call. Tax is configured by the operator and snapshotted at checkout, not determined by a tax engine. Message drafts/queues remain unsent and consent is checked at queue time. No delivery worker exists. Reports derive from the same receipt/visit model; historical utilisation uses the current schedule because schedules are not yet versioned.
+
+Client imports are bounded and reviewed, have a source label and do not infer marketing consent or merge identity on email. Backup uses a consistent SQLite snapshot; restore validates into a fresh destination and revokes sessions/invitations/holds. The local file is not encrypted by this application; hosted encryption, key management, account recovery, privacy erasure and monitored operational recovery remain release gates.
+
+See [local domain contract](V1_LOCAL_CONTRACT.md) and [candidate evidence](evidence/VERIFICATION_1.0.0-rc.1.md) for accepted rules and measured limits.
 
 ## End-state domain
 
@@ -59,7 +63,7 @@ erDiagram
     DomainEvent ||--o{ InsightProposal : supports
 ```
 
-The diagram is the target contract, not a claim that every table exists in v0.2. Current prototype uses one service segment on each appointment and a service-only sale; multi-segment visit and sale-line migration must preserve those IDs and snapshots.
+The diagram is the target contract, not a claim that every table exists in the local candidate. Current implementation uses one service segment on each appointment and a service-only sale; multi-segment visit and sale-line migration must preserve those IDs and snapshots.
 
 | Aggregate / seam        | Stable information                                                                | Owning authority / growth                                                  |
 | ----------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |

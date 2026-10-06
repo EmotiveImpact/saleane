@@ -1,6 +1,6 @@
 # SALEANE vision
 
-Revision 0.3 · 6 October 2026 · product direction, not a claim of shipped capability.
+Revision 0.4 · 6 October 2026 · product direction, not a claim of shipped capability.
 
 Saleane should become the operating system for modern beauty, spa and wellness businesses in the United Kingdom and United States. It should remember the whole relationship, make the working day dependable, and help an owner make better decisions without creating more administrative work.
 
@@ -33,7 +33,7 @@ This is a domain model, not seven disconnected tools. A timeline is a useful vie
 - V1.5 relationship ownership needs purpose-specific consent and explicit graph edges in the first client model.
 - V1 running the day needs a reliable appointment promise before adding growth automation.
 
-The current v0.2 foundation tests the vocabulary and connected journeys with fictional, browser-local data. It gives the next production slice a concrete interface and executable rules. Authentication, a server database and providers remain future work.
+The local V1 candidate now connects accounts, tenant-scoped storage, studio configuration and the daily journey through shared server commands. The original browser demo remains available. This advances the operating model without changing the end-state ambition. The user chose local development first: hosted operations, provider qualification and a real studio pilot remain separate acceptance gates. The candidate uses fictional review data and does not claim a production launch.
 
 ## Product doctrine
 

@@ -2,8 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, ArrowUpRight, Plus, Leaf, Sun } from 'lucide-react'
 import { useStore } from '../state/context'
-import { DEMO_DATE } from '../domain/model'
-import { dayAppointments, dueClients } from '../domain/selectors'
+import { dayAppointments, dueClients, availableMinutes } from '../domain/selectors'
 import { slots } from '../domain/commands'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import { Avatar, Button, Metric } from '../components/ui'
@@ -13,21 +12,29 @@ import { BookingDialog } from '../components/BookingDialog'
 import type { BookingDefaults } from '../components/BookingDialog'
 
 export function Today() {
-  const { state } = useStore()
+  const { state, today, session } = useStore()
   const [appointmentId, setAppointmentId] = useState('')
   const [booking, setBooking] = useState<BookingDefaults | null>(null)
   const [hideCompleted, setHideCompleted] = useState(false)
   const day = dayAppointments(state)
   const due = dueClients(state)
-  const tomorrow = addDays(DEMO_DATE, 1)
-  const available = slots(state, 'service-facial', 'staff-maya', tomorrow)
+  const tomorrow = addDays(today, 1)
+  const professional = state.staff.find(
+    (p) =>
+      !p.archived &&
+      p.serviceIds.some((id) => state.services.some((s) => s.id === id && !s.archived)),
+  )
+  const service = state.services.find((s) => !s.archived && professional?.serviceIds.includes(s.id))
+  const available =
+    professional && service ? slots(state, service.id, professional.id, tomorrow) : []
+  const capacity = availableMinutes(state, today)
   const booked = day.reduce((sum, a) => sum + a.bookedPriceMinor, 0)
   const completed = day.filter((a) => a.status === 'completed').length
   const changed = state.appointments.filter(
-    (a) => a.date === DEMO_DATE && (a.status === 'cancelled' || a.status === 'no_show'),
+    (a) => a.date === today && (a.status === 'cancelled' || a.status === 'no_show'),
   )
   const utilisation = Math.round(
-    (day.reduce((sum, a) => sum + a.bookedDurationMinutes, 0) / (state.staff.length * 540)) * 100,
+    capacity ? (day.reduce((sum, a) => sum + a.bookedDurationMinutes, 0) / capacity) * 100 : 0,
   )
   return (
     <>
@@ -35,12 +42,14 @@ export function Today() {
         <div>
           <p className="date-caption">
             <Sun size={16} />
-            {dateLabel(DEMO_DATE, state.organisation.locale)}
+            {dateLabel(today, state.organisation.locale)}
           </p>
-          <h1>Good morning, Maya.</h1>
+          <h1>
+            {session ? `Welcome, ${session.user.name.split(' ')[0]}.` : 'A good day begins here.'}
+          </h1>
           <p>Everything you need to give today your best.</p>
         </div>
-        <Button onClick={() => setBooking({ date: DEMO_DATE })}>
+        <Button onClick={() => setBooking({ date: today })}>
           <Plus size={17} />
           New appointment
         </Button>
@@ -49,7 +58,7 @@ export function Today() {
         <Metric
           label="Booked for today"
           value={money(booked, state.organisation)}
-          detail="Service value, before tips"
+          detail="Before discounts, tax adjustments and tips"
         />
         <Metric
           label="Appointments"
@@ -63,6 +72,18 @@ export function Today() {
         />
         <Metric label="Ready to return" value={due.length} detail="Clients with no next visit" />
       </div>
+      {!state.services.length && (
+        <section className="surface setup-prompt">
+          <h2>Let’s make this your studio.</h2>
+          <p>
+            Add your services, professionals and spaces, then set opening hours. Your first
+            appointment brings the day to life.
+          </p>
+          <Link className="button button-primary" to="/business/manage">
+            Set up your studio <ArrowRight size={16} />
+          </Link>
+        </section>
+      )}
       <div className="today-layout">
         <section className="surface schedule-surface">
           <div className="section-heading">
@@ -114,16 +135,26 @@ export function Today() {
             <p>
               {due.length
                 ? `${due.length} clients last visited at least four weeks ago and haven’t booked their next visit.`
-                : 'Every returning client has a visit in the calendar. A good rhythm to keep.'}
+                : state.appointments.some((a) => a.status === 'completed')
+                  ? 'Every returning client has a visit in the calendar. A good rhythm to keep.'
+                  : 'No return visits to review yet. Relationship history will grow with each completed visit.'}
             </p>
             <div className="insight-fact">
-              <span>Tomorrow with Maya</span>
+              <span>
+                {professional
+                  ? `Tomorrow with ${professional.name.split(' ')[0]}`
+                  : 'Your next opening'}
+              </span>
               <strong>
                 {available.length
                   ? `${timeLabel(available[0], state.organisation.locale)} available`
-                  : 'Fully booked'}
+                  : 'No bookable times'}
               </strong>
-              <small>Skin Renewal Facial · 60 minutes</small>
+              <small>
+                {service
+                  ? `${service.name} · ${service.durationMinutes} minutes`
+                  : 'Add your services and people to begin'}
+              </small>
             </div>
             {due.length > 0 && available.length > 0 && (
               <Button
@@ -131,8 +162,8 @@ export function Today() {
                 onClick={() =>
                   setBooking({
                     clientId: due[0].id,
-                    serviceId: 'service-facial',
-                    staffId: 'staff-maya',
+                    serviceId: service?.id,
+                    staffId: professional?.id,
                     date: tomorrow,
                   })
                 }
@@ -147,31 +178,41 @@ export function Today() {
           <section className="team-panel">
             <div className="section-heading">
               <h2>Your people today</h2>
-              <span>{state.staff.length} on the floor</span>
+              <span>{state.staff.filter((p) => !p.archived).length} professionals</span>
             </div>
-            {state.staff.map((staff) => {
-              const visits = day.filter((a) => a.staffId === staff.id)
-              const percent = Math.round(
-                (visits.reduce((sum, a) => sum + a.bookedDurationMinutes, 0) / 540) * 100,
-              )
-              return (
-                <div className="team-row" key={staff.id}>
-                  <Avatar identity={staff.id} name={staff.name} small tone={staff.tone} />
-                  <div>
-                    <strong>{staff.name.split(' ')[0]}</strong>
-                    <small>
-                      {visits.length} visits · {percent}% booked
-                    </small>
-                    <div className={`capacity-bar tone-${staff.tone}`}>
-                      <span style={{ width: `${percent}%` }} />
+            {state.staff
+              .filter((p) => !p.archived)
+              .map((staff) => {
+                const visits = day.filter((a) => a.staffId === staff.id)
+                const percent = Math.round(
+                  (visits.reduce((sum, a) => sum + a.bookedDurationMinutes, 0) /
+                    (availableMinutes({ ...state, staff: [staff] }, today) || 1)) *
+                    100,
+                )
+                return (
+                  <div className="team-row" key={staff.id}>
+                    <Avatar identity={staff.id} name={staff.name} small tone={staff.tone} />
+                    <div>
+                      <strong>{staff.name.split(' ')[0]}</strong>
+                      <small>
+                        {visits.length} visits · {percent}% booked
+                      </small>
+                      <div className={`capacity-bar tone-${staff.tone}`}>
+                        <span style={{ width: `${percent}%` }} />
+                      </div>
                     </div>
                   </div>
-                </div>
-              )
-            })}
+                )
+              })}
           </section>
           <Link className="booking-prompt" to="/booking">
-            <span className="mini-wordmark">AH</span>
+            <span className="mini-wordmark">
+              {state.organisation.name
+                .split(' ')
+                .map((n) => n[0])
+                .slice(0, 2)
+                .join('')}
+            </span>
             <span>
               <strong>Your booking experience</strong>
               <small>See what your clients see</small>

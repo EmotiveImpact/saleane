@@ -1,18 +1,20 @@
 {
   "name": "saleane",
   "private": true,
-  "version": "0.2.2",
+  "version": "1.0.0-rc.1",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
-    "build": "tsc -b && vite build",
+    "dev": "vite --configLoader bundle --host 127.0.0.1",
+    "build": "tsc -b && vite build --configLoader bundle && vite build --configLoader bundle --ssr server/index.ts --outDir server-dist && vite build --configLoader bundle --ssr server/backup.ts --outDir server-dist --emptyOutDir false",
     "lint": "eslint . --max-warnings 0",
-    "test": "vitest run",
+    "test": "vitest run && vitest run --config server/vitest.config.ts",
     "test:watch": "vitest",
     "preview": "vite preview --host 127.0.0.1",
     "check": "npm run lint && npm run test && npm run build",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "start": "node server-dist/index.js",
+    "db:backup": "node server-dist/backup.js"
   },
   "dependencies": {
     "@fontsource-variable/bodoni-moda": "^5.3.0",
@@ -46,7 +48,7 @@
     "vitest": "^5.0.3"
   },
   "engines": {
-    "node": ">=22.12.0",
+    "node": ">=22.13.0",
     "npm": ">=10"
   }
 }

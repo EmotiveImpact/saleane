@@ -156,3 +156,11 @@ Cost model per location: subscription net of tax + any explicitly agreed platfor
 | Advantage        | Relationship continuity and dependable operations         | Measured task and retention outcomes           | Product               |
 
 Functional owners are proposed responsibilities, not assigned people. These bounded questions must feed the PRD while design and engineering continue.
+
+## Local-first build decision · 6 October 2026
+
+The user explicitly selected local development with live services unconfigured. A single Node 22 process and built-in SQLite avoid new dependencies and a second application server while providing a testable account/tenant/transaction boundary. This is an implementation choice for the local candidate, not a vendor selection or production infrastructure claim.
+
+Primary API references checked: [Node SQLite](https://nodejs.org/api/sqlite.html) and [Node crypto scrypt](https://nodejs.org/api/crypto.html#cryptoscryptpassword-salt-keylen-options-callback). Actual runtime evidence uses Node 22.22.3; built-in SQLite emits an experimental warning in that runtime. The candidate depends only on APIs exercised in the server tests. No new payments, legal or competitor pricing conclusions are inferred from this build.
+
+Research questions for the pilot remain open: operator-observed task completion, identity/recovery requirements, receipts/tax policy, verified guest management, import/source reconciliation, message channel/consent and support/restore expectations. Local test coverage does not close those research questions.

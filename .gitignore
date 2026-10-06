@@ -10,3 +10,11 @@ output/playwright/
 *.local
 
 *.tsbuildinfo
+
+server-dist/
+.saleane-data/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+work/

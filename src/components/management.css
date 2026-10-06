@@ -1,0 +1,450 @@
+/* Operational surfaces extend SALEANE's existing ivory, serif and sage identity. */
+.manage-page,
+.inbox-page,
+.money-page {
+  min-width: 0;
+}
+.ops-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 15px 18px;
+  margin-bottom: 24px;
+  background: var(--sage);
+  border: 1px solid #d5decd;
+  border-radius: var(--radius);
+  color: var(--ink);
+  font-size: 14px;
+}
+.ops-banner svg {
+  margin-top: 2px;
+}
+.ops-banner strong {
+  display: block;
+  font-weight: 650;
+}
+.ops-banner p {
+  margin-top: 3px;
+  color: var(--muted);
+}
+.ops-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 25px;
+}
+.ops-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  border-radius: 5px;
+  padding: 10px 16px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.ops-tabs button[aria-pressed='true'] {
+  background: var(--sage);
+  color: var(--ink-deep);
+}
+.ops-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 24px;
+  align-items: start;
+}
+.ops-panel {
+  min-width: 0;
+  padding: 26px;
+}
+.ops-panel + .ops-panel {
+  margin-top: 22px;
+}
+.ops-panel > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+.ops-panel > header p,
+.ops-help {
+  font-size: 14px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+.ops-aside {
+  padding: 22px;
+  background: #f1f1e9;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.ops-aside h2 {
+  font-family: var(--font-editorial);
+  font-size: 24px;
+  font-weight: 450;
+}
+.ops-aside p {
+  margin-top: 13px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.ops-aside img {
+  display: block;
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  border-radius: 4px;
+  margin-top: 22px;
+}
+.ops-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.ops-fields > label,
+.ops-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.ops-fields small,
+.ops-field small {
+  font-weight: 400;
+  color: var(--muted);
+}
+.ops-wide {
+  grid-column: 1 / -1;
+}
+.ops-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+  margin-top: 23px;
+}
+.ops-save-note {
+  color: #36573e;
+  font-size: 14px;
+}
+.ops-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 25px;
+  padding: 2px 8px;
+  background: var(--sage);
+  border-radius: 4px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.ops-ledger {
+  display: grid;
+  gap: 0;
+}
+.ops-record {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-top: 1px solid var(--line);
+  padding: 19px 0;
+  min-width: 0;
+}
+.ops-record:first-child {
+  border-top: 0;
+}
+.ops-record-copy {
+  min-width: 0;
+  flex: 1;
+}
+.ops-record-copy strong,
+.ops-record-copy small {
+  display: block;
+}
+.ops-record-copy strong {
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+.ops-record-copy small {
+  margin-top: 4px;
+  color: var(--muted);
+}
+.ops-record-money {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ops-record-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ops-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--sand);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ops-tag.is-active {
+  background: var(--sage);
+}
+.ops-tag.is-blocked {
+  background: #f6e8e0;
+  color: #85442d;
+}
+.ops-checks {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 16px;
+  min-width: 0;
+}
+.ops-checks legend {
+  padding: 0 5px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.ops-checks label,
+.ops-check {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 400;
+  padding: 7px 0;
+}
+.ops-checks input,
+.ops-check input {
+  margin-top: 2px;
+}
+.ops-editor-note {
+  background: var(--sage);
+  padding: 13px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+.ops-hours {
+  display: grid;
+  gap: 12px;
+}
+.ops-day {
+  display: grid;
+  grid-template-columns: 150px minmax(90px, 1fr) minmax(90px, 1fr);
+  gap: 14px;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.ops-day > label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ops-day .ops-field {
+  font-size: 12px;
+}
+.ops-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 15px;
+  margin-bottom: 24px;
+}
+.ops-summary > div {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  border-radius: var(--radius);
+  padding: 19px 21px;
+  min-width: 0;
+}
+.ops-summary span {
+  font-size: 13px;
+  color: var(--muted);
+}
+.ops-summary strong {
+  display: block;
+  margin: 5px 0;
+  font-size: 28px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.ops-summary small {
+  color: var(--muted);
+}
+.ops-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.ops-toolbar .ops-field {
+  flex: 1;
+  min-width: 180px;
+}
+.ops-message {
+  border-top: 1px solid var(--line);
+  padding: 20px 0;
+}
+.ops-message:first-child {
+  border-top: 0;
+}
+.ops-message > header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.ops-message > header > div {
+  flex: 1;
+  min-width: 0;
+}
+.ops-message small {
+  color: var(--muted);
+}
+.ops-message h3 {
+  font-size: 17px;
+  margin-top: 13px;
+}
+.ops-message > p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 8px 0 15px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.ops-message-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.ops-receipt {
+  font-size: 14px;
+}
+.ops-receipt > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 15px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+}
+.ops-receipt strong {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ops-receipt .ops-total {
+  font-size: 19px;
+  font-weight: 650;
+  padding-top: 17px;
+}
+.ops-no-records {
+  padding: 32px 8px;
+  text-align: center;
+}
+.ops-no-records h3 {
+  font-family: var(--font-editorial);
+  font-size: 25px;
+  font-weight: 450;
+}
+.ops-no-records p {
+  color: var(--muted);
+  margin-top: 9px;
+  font-size: 14px;
+}
+.ops-section-title {
+  margin-top: 24px;
+  font-size: 16px;
+}
+@media (max-width: 1100px) {
+  .ops-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ops-aside {
+    display: none;
+  }
+}
+@media (max-width: 650px) {
+  .ops-panel {
+    padding: 18px;
+  }
+  .ops-tabs {
+    gap: 2px;
+  }
+  .ops-tabs button {
+    padding: 9px 11px;
+  }
+  .ops-tabs button svg {
+    display: none;
+  }
+  .ops-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ops-summary {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 9px;
+  }
+  .ops-summary > div {
+    padding: 14px 18px;
+  }
+  .ops-summary strong {
+    font-size: 25px;
+  }
+  .ops-record {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .ops-record-controls {
+    margin-left: auto;
+  }
+  .ops-day {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .ops-day > label {
+    grid-column: 1 / -1;
+  }
+  .ops-panel > header {
+    flex-wrap: wrap;
+  }
+  .ops-banner {
+    padding: 13px;
+  }
+  .ops-message > header {
+    flex-wrap: wrap;
+  }
+  .ops-message > header > div {
+    min-width: 120px;
+  }
+}
+.ops-record-controls {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.ops-receipt > div > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ops-message-footer > small {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.ops-save-note:empty {
+  display: none;
+}

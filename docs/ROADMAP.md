@@ -10,6 +10,8 @@ The previous **v0.1** was a cloud discovery pack and HTML concept, referenced in
 
 **0.2.2 — Appointment changes (locally verified):** confirmed-visit rescheduling, cancellation/missed history with retained deposits, calendar navigation/selection and a persistent panel heading. Local lint, 72 tests, build and targeted browser journeys passed; see [0.2.2 evidence](evidence/VERIFICATION_0.2.2.md). These changes exercise the daily loop in fictional local state and do not satisfy server, payment or communications gates.
 
+**1.0.0-rc.1 — Local V1 candidate:** the user authorised a team build and selected local-first operation with live services unconfigured. Local account/studio authority, editable operating configuration, guest holds and exact-room allocation, manual money, unsent drafts, bounded client import and backup/restore are now implemented. See [local contract](V1_LOCAL_CONTRACT.md) and [candidate evidence](evidence/VERIFICATION_1.0.0-rc.1.md). The candidate version identifies a reviewable local app; it does not waive any stable production 1.0 gate.
+
 ## The path to V1
 
 | Version           | Outcome                                       | Required evidence to advance                                                                                                                                                                 |
@@ -21,7 +23,7 @@ The previous **v0.1** was a cloud discovery pack and HTML concept, referenced in
 | 0.6               | Run a supervised studio pilot                 | Real onboarding/import, consented appointment communications, daily cash reconciliation, accessibility review, support runbook and a successful restore                                      |
 | 1.0 · Run the Day | Reliably operate a paying non-clinical studio | All PRD V1 gates; live UK/US pilot evidence as applicable; legal/privacy/provider acceptance; monitored release and rollback                                                                 |
 
-The 0.x progression avoids declaring the present local prototype to be V1. It is intended to keep the durable identifiers, commands and interface vocabulary, while moving state authority to the server.
+The staged gates remain in force for production even though local candidate packaging is now 1.0.0-rc.1. It is intended to keep the durable identifiers, commands and interface vocabulary, while moving state authority to the server.
 
 ## The long view
 
@@ -43,12 +45,12 @@ The sequence matters: a polished inbox without consent and delivery history is n
 
 ## Immediate build queue
 
-1. Review the locally verified 0.2.2 appointment-change slice and its [evidence](evidence/VERIFICATION_0.2.2.md): snapshot-preserving moves, conflict rejection, terminal history, retained deposits, reporting exclusions, keyboard/focus and phone rendering. Confirm CI against the pushed commit separately; do not merge or deploy automatically.
-2. Establish **shared backend and authentication first**: qualify the preserved server draft or replace unsafe portions with tenant-scoped account → organisation → membership → location authority, transactional persistence, deny-by-default permissions, recovery and backup evidence. Keep the local demo available during this work.
-3. Move booking and appointment commands behind that authority: venue time, actual hours, atomic capacity checks/holds, attributed history and policy enforcement. Reuse durable IDs and money snapshots.
-4. Then qualify **communications and payment integrations** on those commands: purpose/consent and delivery receipts for appointment updates; provider-backed deposit/checkout/refund reconciliation. Provider test evidence, policy approval and failure recovery are prerequisites to pilot claims. Broad Inbox and marketing remain later scope.
+1. Review the local candidate end to end, its server authority, retry journal, money provenance and bounded imports. Keep one local server and preserve all browser demo records. Verify pushed-commit CI separately; no automatic merge or deploy.
+2. Close remaining locally addressable release gates: assigned-practitioner read projections, verified guest manage/cancel links, comprehensive privacy/export/erasure workflow, accessibility and Safari/Firefox coverage, schedule history and performance budgets.
+3. When the user selects a pilot and live services, qualify hosted database/identity/recovery and provider-backed capture/refund/reconciliation and consented message delivery. These remain deliberately unconfigured now.
+4. Run a supervised non-clinical studio pilot with observed restore, rollback, support and UK/USA policy acceptance before the stable 1.0 release.
 
-This order lets client relationships, calendar/resources, money, staff and future inventory/intelligence share one trusted domain model. Clinical remains a separate compliance programme; no clinical fields enter this slice.
+Inventory/retail/commissions remain V2; local stock ledger command seams do not constitute a shipped retail product. Clinical remains separate.
 
 ## Decisions before the next build
 
@@ -64,7 +66,7 @@ Every release updates the changelog, PRD status matrix and evidence. Every provi
 
 Research v0.2 → PRD product bible → UX architecture → three visual directions → connected prototype → real build is the governing sequence. Research/design overlap and discoveries revise the contract. The context reconciliation, screen map and visual comparisons close gaps in the first repository foundation; they do not certify production readiness.
 
-The server draft remains preserved on local `wip/saleane-server-authority` at `f73d084`. It is not a release. Before integration it must satisfy assigned-practitioner read filtering, tenant/role tests, safe session/recovery behaviour, persistence tests and an authenticated browser journey. Broad endpoints in a draft are not a substitute for a verified vertical slice. Keep the existing working prototype available while qualifying server authority.
+The server draft remains preserved on local `wip/saleane-server-authority` at `f73d084`. It is not a release. It was preserved rather than merged wholesale. The local candidate implements a smaller Node/SQLite authority without adding dependencies; the old draft remains a reference, not deployed authority. Broad endpoints in a draft are not a substitute for a verified vertical slice. Keep the existing working prototype available while qualifying server authority.
 
 ## Original feature disposition
 

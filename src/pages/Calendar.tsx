@@ -1,7 +1,8 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Plus, LayoutGrid, List } from 'lucide-react'
 import { useStore } from '../state/context'
-import { DEMO_DATE } from '../domain/model'
+import { hoursFor } from '../domain/operations'
 import { dayAppointments } from '../domain/selectors'
 import { addDays, dateLabel, timeLabel } from '../domain/format'
 import { Avatar, Button, Empty, Status } from '../components/ui'
@@ -10,8 +11,11 @@ import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
 
 export function Calendar() {
-  const { state } = useStore()
-  const [date, setDate] = useState(DEMO_DATE)
+  const { state, today } = useStore()
+  const [params] = useSearchParams()
+  const [date, setDate] = useState(() =>
+    /^\d{4}-\d{2}-\d{2}$/.test(params.get('date') ?? '') ? params.get('date')! : today,
+  )
   const [staffFilter, setStaffFilter] = useState('all')
   const [view, setView] = useState<'grid' | 'agenda'>('grid')
   const [booking, setBooking] = useState(false)
@@ -19,7 +23,22 @@ export function Calendar() {
   const day = dayAppointments(state, date).filter(
     (a) => staffFilter === 'all' || a.staffId === staffFilter,
   )
-  const staff = state.staff.filter((s) => staffFilter === 'all' || s.id === staffFilter)
+  const staff = state.staff.filter(
+    (s) =>
+      (!s.archived || day.some((a) => a.staffId === s.id)) &&
+      (staffFilter === 'all' || s.id === staffFilter),
+  )
+  const hours = hoursFor(state, date)
+  const start =
+    Math.floor(Math.min(hours?.open ?? 540, ...day.map((a) => a.startMinutes)) / 60) * 60
+  const end =
+    Math.ceil(
+      Math.max(
+        hours?.close ?? 1080,
+        ...day.map((a) => a.startMinutes + a.bookedDurationMinutes + a.bookedBufferMinutes),
+      ) / 60,
+    ) * 60
+  const hourCount = Math.max(1, (end - start) / 60)
   const history = state.appointments
     .filter(
       (a) =>
@@ -59,7 +78,7 @@ export function Calendar() {
               <ChevronRight size={18} />
             </button>
             <h2>{dateLabel(date, state.organisation.locale)}</h2>
-            <Button variant="secondary" onClick={() => setDate(DEMO_DATE)}>
+            <Button variant="secondary" onClick={() => setDate(today)}>
               Today
             </Button>
           </div>
@@ -125,7 +144,9 @@ export function Calendar() {
         <div className={view === 'grid' ? 'calendar-grid-desktop' : 'hidden'}>
           <div
             className="calendar-grid"
-            style={{ gridTemplateColumns: `66px repeat(${staff.length}, minmax(160px, 1fr))` }}
+            style={{
+              gridTemplateColumns: `66px repeat(${Math.max(1, staff.length)}, minmax(160px, 1fr))`,
+            }}
           >
             <div className="calendar-corner">Time</div>
             {staff.map((s) => (
@@ -137,16 +158,21 @@ export function Calendar() {
                 </span>
               </div>
             ))}
-            <div className="time-axis">
-              {Array.from({ length: 10 }, (_, i) => (
+            <div className="time-axis" style={{ height: hourCount * 82 }}>
+              {Array.from({ length: hourCount + 1 }, (_, i) => (
                 <span key={i} style={{ top: i * 82 }}>
-                  {timeLabel(540 + i * 60, state.organisation.locale)}
+                  {timeLabel(start + i * 60, state.organisation.locale)}
                 </span>
               ))}
             </div>
             {staff.map((s) => (
-              <div className="calendar-lane" key={s.id} aria-label={`${s.name} appointments`}>
-                {Array.from({ length: 9 }, (_, i) => (
+              <div
+                className="calendar-lane"
+                style={{ height: hourCount * 82 }}
+                key={s.id}
+                aria-label={`${s.name} appointments`}
+              >
+                {Array.from({ length: hourCount }, (_, i) => (
                   <div className="hour-line" style={{ top: i * 82 }} key={i} />
                 ))}
                 {day
@@ -159,7 +185,7 @@ export function Calendar() {
                         key={a.id}
                         className="calendar-event-wrap"
                         style={{
-                          top: ((a.startMinutes - 540) / 60) * 82,
+                          top: ((a.startMinutes - start) / 60) * 82,
                           height: ((a.bookedDurationMinutes + a.bookedBufferMinutes) / 60) * 82,
                         }}
                       >
@@ -219,12 +245,12 @@ export function Calendar() {
       {booking && (
         <BookingDialog
           defaults={{
-            date: date < DEMO_DATE ? DEMO_DATE : date,
+            date: date < today ? today : date,
             staffId: staffFilter === 'all' ? undefined : staffFilter,
             serviceId:
               staffFilter === 'all'
                 ? undefined
-                : state.staff.find((s) => s.id === staffFilter)!.serviceIds[0],
+                : state.staff.find((s) => s.id === staffFilter)?.serviceIds[0],
           }}
           onClose={() => setBooking(false)}
         />

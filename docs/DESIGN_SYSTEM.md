@@ -92,3 +92,11 @@ The revised implementation follows the inspected original board but is not a pix
 Keep the client timeline central and the operator navigation compact. The implemented appointment flow uses a right-side preview with progressive actions; on phones it uses a full-height sheet. Today separates needs attention, opportunities and completed work, with source receipts for the latter. Business owns charts and reconciliation.
 
 Compare directions with the same tasks, values and failure states. Judge readability, scan speed, focus, source comprehension and guest trust as well as appearance. Quiet Luxury keeps warmth without decorative spa clichés; Modern Editorial keeps strong hierarchy without finance-dashboard clutter; After Dark belongs to optional guest/marketing surfaces. Photography should not compete with calendars, money or dense operational tables.
+
+## Local V1 application extension
+
+Keep the original reference as visual authority: ivory surfaces, light navigation, Bodoni Moda wordmark/editorial headings, functional Source Sans, sage/forest actions and generated fictional studio photography. No accent is introduced and no new brand direction replaces the approved foundation.
+
+Accounts use a photographic welcome panel and a quiet form. Business uses a compact Overview/Money/Manage subnavigation rather than adding every administration surface to the main sidebar. Manage separates capability from account access. Money surfaces provenance next to the receipt. Inbox makes unsent status explicit. Imports use a reviewable table before any record is written.
+
+Loading, disabled, empty and error states are part of the component contract. All mutations await authority, preserve entered data when rejected, and communicate uncertain saves without inventing success. Time choices retain a keyboard path; slot suggestions now use 15-minute increments. Responsive verification is recorded in the candidate evidence rather than inferred from CSS.

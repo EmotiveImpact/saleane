@@ -110,3 +110,9 @@ Next, qualify shared backend/authentication and transactional organisation autho
 ## Repository backup status
 
 On 6 October, at the user’s request to push everything, both `feat/saleane-foundation` (`3eaf169`) and the separate `wip/saleane-server-authority` draft (`f73d084`) were verified on the private GitHub remote. The WIP backup is not a qualified release or a merged implementation. At that backup checkpoint, the Saleane development server on port 5173 was retained and the duplicate preview on 4173 was stopped; this is historical session state, not a current server-health claim. Generated dependency/build caches are reproducible local files and are not source deliverables.
+
+## User-directed local V1 build · 6 October 2026
+
+The user requested a team of agents to advance the application to version 1.0, then explicitly chose **“Build locally first; keep live services unconfigured.”** Three agents covered domain/continuity, server authority/recovery and operational UX; the main agent integrated the application, maintained one server, verified browser journeys and prepared the review branch.
+
+The resulting package is labelled **1.0.0-rc.1** to distinguish a local release candidate from the existing production V1 acceptance contract. The original browser demo, history, research and visual direction remain preserved. Hosted services were not configured, no real communications or payments were sent, and no automatic merge/deployment was authorised. The old server draft remains preserved on its separate branch.

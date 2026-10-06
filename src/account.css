@@ -1,0 +1,279 @@
+.account-layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.9fr) minmax(450px, 1.1fr);
+  min-height: 100dvh;
+}
+.account-story {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 44px 48px;
+  gap: 50px;
+  overflow: hidden;
+  min-height: 800px;
+  background: var(--sage);
+}
+.account-story img {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+.account-story:after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, #f3f0e8f5 0%, #f3f0e8cc 43%, #f3f0e820 65%, #f3f0e8ed 100%);
+}
+.account-story h1 {
+  font-size: clamp(40px, 4.5vw, 72px);
+  line-height: 1.06;
+  font-weight: 450;
+  margin: 20px 0;
+}
+.account-story p {
+  max-width: 360px;
+  font-size: 19px;
+  line-height: 1.65;
+}
+.account-story small {
+  font-size: 13px;
+}
+.account-main {
+  padding: 50px clamp(28px, 6vw, 100px);
+  max-width: 850px;
+  align-self: center;
+  width: 100%;
+  margin: auto;
+}
+.account-main h1 {
+  font-size: 37px;
+}
+.account-intro {
+  margin: 16px 0 28px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.account-main form {
+  display: grid;
+  gap: 18px;
+}
+.account-main form > .button {
+  margin-top: 6px;
+  min-height: 46px;
+}
+.account-main label small {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 400;
+}
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+.account-footnote {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-top: 35px;
+  color: var(--muted);
+  font-size: 13px;
+  border-top: 1px solid var(--line);
+  padding-top: 22px;
+  line-height: 1.55;
+}
+.account-footnote svg {
+  flex-shrink: 0;
+}
+.account-workspaces {
+  display: grid;
+  gap: 10px;
+  margin-top: 28px;
+}
+.account-workspaces button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px;
+  gap: 20px;
+}
+.account-workspaces strong,
+.account-workspaces small {
+  display: block;
+}
+.account-workspaces small {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 5px;
+}
+.account-workspaces button:hover {
+  border-color: var(--ink);
+  background: #f4f5ef;
+}
+.business-subnav {
+  display: flex;
+  gap: 24px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 25px;
+  flex-wrap: wrap;
+}
+.business-subnav a {
+  padding: 10px 0 14px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.business-subnav a.active {
+  color: var(--ink);
+  border-bottom: 2px solid var(--ink);
+  font-weight: 600;
+}
+.workspace-connect {
+  display: grid;
+  gap: 12px;
+}
+.access-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+.access-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.access-row small {
+  display: block;
+  color: var(--muted);
+}
+.access-row select {
+  max-width: 160px;
+}
+.copy-invitation {
+  margin-top: 18px;
+  padding: 16px;
+  background: var(--sage);
+  overflow-wrap: anywhere;
+}
+.copy-invitation input {
+  margin: 10px 0;
+}
+.candidate-loading {
+  min-height: 60dvh;
+  display: grid;
+  place-content: center;
+  gap: 20px;
+  padding: 30px;
+  text-align: center;
+}
+@media (max-width: 900px) {
+  .account-layout {
+    grid-template-columns: 1fr;
+  }
+  .account-story {
+    min-height: 320px;
+    padding: 30px;
+    gap: 30px;
+  }
+  .account-story h1 {
+    font-size: 42px;
+  }
+  .account-story p {
+    font-size: 16px;
+  }
+  .account-main {
+    padding: 30px;
+    max-width: 640px;
+  }
+  .account-story > div {
+    max-width: 520px;
+  }
+  .account-story small {
+    display: none;
+  }
+}
+@media (max-width: 480px) {
+  .account-story {
+    padding: 24px;
+    min-height: 290px;
+  }
+  .account-main {
+    padding: 26px 20px;
+  }
+  .account-main h1 {
+    font-size: 30px;
+  }
+  .account-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .account-main .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .access-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .access-row select {
+    max-width: none;
+  }
+  .business-subnav {
+    gap: 17px;
+  }
+  .account-story .wordmark {
+    font-size: 23px;
+  }
+}
+.booking-operation-fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.booking-steps > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.booking-steps > span[aria-current] {
+  color: var(--ink-deep);
+}
+.booking-steps > span > span {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+}
+.setup-prompt {
+  margin: 0 0 28px;
+  padding: 24px;
+}
+.setup-prompt p {
+  max-width: 680px;
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+.access-list {
+  margin: 20px 0;
+}
+.access-row small {
+  display: block;
+}

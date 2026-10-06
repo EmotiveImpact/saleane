@@ -1,17 +1,23 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowUpRight, Plus, Search } from 'lucide-react'
+import { ArrowUpRight, Plus, Search, FileUp } from 'lucide-react'
+import { can, operations } from '../domain/operations'
 import { useStore } from '../state/context'
 import { clientStats, dueClients } from '../domain/selectors'
 import { dateLabel, money } from '../domain/format'
 import { Avatar, Button, Empty, ErrorMessage, Modal } from '../components/ui'
+import { ClientImport } from '../components/ClientImport'
 
 export function Clients() {
-  const { state, commit } = useStore()
+  const { state, commit, blocked, saving, role } = useStore()
   const navigate = useNavigate()
+  const [pending, setPending] = useState(false)
+  const busy = pending || saving
+  const allowed = !blocked && can(role, 'client')
   const [query, setQuery] = useState('')
   const [segment, setSegment] = useState('all')
   const [newClient, setNewClient] = useState(false)
+  const [importing, setImporting] = useState(false)
   const [error, setError] = useState('')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -25,19 +31,28 @@ export function Clients() {
       (segment !== 'consented' || c.marketingConsent) &&
       `${c.name} ${c.email} ${c.phone}`.toLowerCase().includes(query.toLowerCase()),
   )
-  function save(e: React.SubmitEvent<HTMLFormElement>) {
+  async function save(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
-    const result = commit({
-      type: 'client',
-      contact: { name, email, phone, marketingConsent: consent },
-      referredById: referrer || undefined,
-    })
-    if (!result.ok) {
-      setError(result.error)
-      return
+    if (busy || !allowed) return
+    setPending(true)
+    setError('')
+    try {
+      const result = await commit({
+        type: 'client',
+        contact: { name, email, phone, marketingConsent: consent },
+        referredById: referrer || undefined,
+      })
+      if (!result.ok) {
+        setError(result.error)
+        return
+      }
+      setNewClient(false)
+      navigate(`/clients/${result.recordId}`)
+    } catch {
+      setError('Could not save the client. Your entries are still here; try again.')
+    } finally {
+      setPending(false)
     }
-    setNewClient(false)
-    navigate(`/clients/${result.recordId}`)
   }
   return (
     <>
@@ -47,10 +62,22 @@ export function Clients() {
           <h1>Relationships, remembered.</h1>
           <p>Know their story. Give the next visit a reason.</p>
         </div>
-        <Button onClick={() => setNewClient(true)}>
-          <Plus size={17} />
-          Add client
-        </Button>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {can(role, 'import-clients') && (
+            <Button
+              variant="secondary"
+              disabled={blocked || busy}
+              onClick={() => setImporting(true)}
+            >
+              <FileUp size={17} />
+              Import clients
+            </Button>
+          )}
+          <Button disabled={!allowed || busy} onClick={() => setNewClient(true)}>
+            <Plus size={17} />
+            Add client
+          </Button>{' '}
+        </div>
       </div>
       <section className="surface">
         <div className="directory-toolbar">
@@ -142,14 +169,17 @@ export function Clients() {
           </Empty>
         )}
       </section>
+      {importing && <ClientImport onClose={() => setImporting(false)} />}
       {newClient && (
         <Modal
           open
-          onClose={() => setNewClient(false)}
+          onClose={() => {
+            if (!busy) setNewClient(false)
+          }}
           title="Begin a relationship"
           description="Create a client record and, if you know it, their connection to the studio."
         >
-          <form onSubmit={save}>
+          <form onSubmit={save} aria-busy={busy}>
             <div className="form-grid">
               <label>
                 Full name
@@ -206,14 +236,23 @@ export function Clients() {
               Client has given email marketing consent
             </label>
             <p className="subtle">
-              Use fictional details only. This demo stores data in your browser.
+              {operations(state).mode === 'sandbox'
+                ? 'Use fictional details only. This is a sandbox workspace.'
+                : 'The record is saved to your local workspace. Marketing permission is independent of booking.'}
             </p>
             <ErrorMessage error={error} />
             <div className="dialog-footer">
-              <Button type="button" variant="secondary" onClick={() => setNewClient(false)}>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={busy}
+                onClick={() => setNewClient(false)}
+              >
                 Cancel
               </Button>
-              <Button type="submit">Save client</Button>
+              <Button type="submit" disabled={busy || !allowed}>
+                {busy ? 'Saving…' : 'Save client'}
+              </Button>
             </div>
           </form>
         </Modal>

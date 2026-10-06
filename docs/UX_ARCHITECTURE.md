@@ -113,3 +113,20 @@ Recurring appointments and Apple/Google calendar integration were early ideas; k
 ## Design feedback and evidence
 
 The recovered brief's compact appointment side preview was implemented in 0.2.1. The locally verified 0.2.2 increment adds persistent panel context and appointment-change journeys. No-preference selection, production reschedule/cancellation policy, real Inbox and offline continuity remain contract gaps. A read-only inspection of Caleane's shared controls and calendar informed the fixed heading, contained scrolling and explicit selection patterns; SALEANE retains its original serif/ivory/sage identity. These are behavior adaptations, not a new brand selection. Compare A/B on the same tasks; evaluate C only for guest flow. Record final direction as a decision after review, not as an implied approval from an agent recommendation.
+
+## Local V1 candidate implementation update · 6 October 2026
+
+The original 38-screen architecture remains the end-state map; it is not a claim that all screens shipped. The candidate adds the following working surfaces without changing the approved warm, photographic identity:
+
+| Route               | Working journey                                                                                         | Authority / important exception                                                            |
+| ------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `/account`, `/join` | Sign in, create empty/sample studio, switch permitted studios, accept local invitation                  | Server session/membership; no email verification or recovery provider                      |
+| `/business/manage`  | Business/tax, services, professional capabilities, rooms/chairs, weekly hours, closures, account access | Asynchronous role-checked commands; edits preserve booked terms; practitioner logins gated |
+| `/business/money`   | Receipts, deposits, external refunds, fund provenance                                                   | Explicit acknowledgement/reference; no processor call                                      |
+| `/inbox`            | Draft/edit, appointment or marketing purpose, consent review, local queue                               | Queued is always unsent; no incoming message synchronisation                               |
+| `/book/:slug`       | Branded catalogue, no-preference availability, five-minute hold, details/review, confirmation           | Public limited DTO; exact-room transactional allocation; expiry/release; no money/email    |
+| `/clients` → Import | File/source → validation and duplicate preview → explicit review → commit                               | Bounded CSV; all imported marketing consent false; preserve preview on failed save         |
+
+The daily journey remains **Today → Calendar → Client → Appointment → Checkout → Rebook → Business intelligence**. New empty studios show a setup path. Sample/browser workspaces retain their explicit fictional-money boundary. Save errors stay with the initiating form; navigation/loading cannot mix studios. Confirmed booking return navigation refreshes the operator view and follows the booked date.
+
+Acceptance still requires in-person usability research, keyboard and assistive-technology review beyond automated checks, and Safari/Firefox coverage. See the candidate evidence and local domain contract before marking a target screen complete.

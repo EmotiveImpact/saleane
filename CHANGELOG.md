@@ -2,6 +2,27 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 1.0.0-rc.1 — 2026-10-06 · Local operating application
+
+**Status: local release candidate, not stable production 1.0.** The user selected local-first development with live services unconfigured. Existing browser demos, records, history and the original visual direction remain preserved.
+
+### Added and connected
+
+- Local accounts, studios, owner/manager/reception memberships, manual invitation links, sessions, password change and tenant-scoped SQLite authority. Practitioner logins are rejected until scoped projections exist.
+- One combined UI/API host; asynchronous commands, revision conflicts, scoped idempotency receipts, durable privacy-preserving retry keys, attributed audit and workspace-transition guards.
+- Manage surfaces for identity, services, qualification, rooms/chairs, weekly opening hours, closures and explicit tax configuration. Local venue clocks, 15-minute suggestions, DST/elapsed-time guards and no-preference allocation.
+- Public studio booking with limited catalogue responses, temporary exact-room reservations, release/expiry and atomic confirmation shared with desk availability.
+- Manual cash/external-card checkout, discounts/tax, deposits, receipts and externally completed refund recording with explicit acknowledgement/reference. No processor success is fabricated.
+- Editable purpose-aware drafts and local unsent queue; bounded client CSV validation/preview/import with source, duplicate handling and no inferred consent.
+- Consistent backup/verification and fresh-path restore with session/invitation/hold revocation. Original browser demo remains available alongside the local account workspace.
+- Original ivory/sage/serif photographic system extended into accounts, Manage, Money and Inbox; route splitting and dynamic studio/operator identity. Product contract revision 0.4 and local V1 domain/runbook/evidence documentation.
+
+### Verification and boundaries
+
+156 tests passed (123 frontend/domain/store, 33 server/recovery), with lint, strict TypeScript and application/server/tool builds. Browser verification exercised fresh setup, guest/desk booking, arrival, explicit fictional manual checkout, receipt-linked rebooking, derived reporting, unsent drafts and reviewed CSV import; targeted 320px and desktop checks passed. A built-CLI backup/verify/restore drill passed while preserving the active source database. See [candidate evidence](docs/evidence/VERIFICATION_1.0.0-rc.1.md).
+
+Live services, production data, provider reconciliation, assigned-practitioner projections, verified guest management, comprehensive privacy/accessibility and pilot acceptance remain unqualified. Node SQLite experimental and Vite config-loader advisories are recorded. No merge, deployment, message or real payment occurred. Remote CI is a separate review gate.
+
 ## 0.2.2 — 2026-10-06 · Appointment changes and calendar continuity
 
 ### Changed

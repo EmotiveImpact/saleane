@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import { useStore } from '../state/context'
 import { clientStats } from '../domain/selectors'
-import { DEMO_DATE } from '../domain/model'
+import { can, operations } from '../domain/operations'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import { Avatar, Button, Empty, ErrorMessage, Metric } from '../components/ui'
 import { AppointmentDialog } from '../components/AppointmentDialog'
@@ -21,7 +21,10 @@ import { BookingDialog } from '../components/BookingDialog'
 
 export function ClientRelationship() {
   const { clientId } = useParams()
-  const { state, commit } = useStore()
+  const { state, commit, today, blocked, saving, role } = useStore()
+  const [pending, setPending] = useState(false)
+  const busy = pending || saving
+  const [consentError, setConsentError] = useState('')
   const [filter, setFilter] = useState('all')
   const [note, setNote] = useState('')
   const [noteSaved, setNoteSaved] = useState(false)
@@ -42,9 +45,16 @@ export function ClientRelationship() {
         e.clientId === client.id &&
         (filter === 'all' ||
           (filter === 'visits'
-            ? ['booked', 'arrived', 'checkout', 'rescheduled', 'cancelled', 'no_show'].includes(
-                e.type,
-              )
+            ? [
+                'booked',
+                'arrived',
+                'checkout',
+                'rescheduled',
+                'cancelled',
+                'no_show',
+                'deposit',
+                'refund',
+              ].includes(e.type)
             : filter === 'notes'
               ? e.type === 'note'
               : ['relationship', 'consent'].includes(e.type))),
@@ -58,16 +68,38 @@ export function ClientRelationship() {
       (a) => a.staffId === s.id && a.clientId === client.id && a.status === 'completed',
     ),
   )
-  function saveNote(e: React.SubmitEvent<HTMLFormElement>) {
+  async function saveNote(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
-    const result = commit({ type: 'note', clientId: client!.id, text: note })
-    if (!result.ok) {
-      setError(result.error)
-      return
-    }
-    setNote('')
+    if (busy || blocked || !can(role, 'note')) return
+    setPending(true)
     setError('')
-    setNoteSaved(true)
+    try {
+      const result = await commit({ type: 'note', clientId: client!.id, text: note })
+      if (!result.ok) {
+        setError(result.error)
+        return
+      }
+      setNote('')
+      setError('')
+      setNoteSaved(true)
+    } catch {
+      setError('Could not save your note. Your writing is still here; try again.')
+    } finally {
+      setPending(false)
+    }
+  }
+  async function changeConsent(consent: boolean) {
+    if (busy || blocked || !can(role, 'consent')) return
+    setPending(true)
+    setConsentError('')
+    try {
+      const result = await commit({ type: 'consent', clientId: client!.id, consent })
+      if (!result.ok) setConsentError(result.error)
+    } catch {
+      setConsentError('Could not update consent. The previous preference has been retained.')
+    } finally {
+      setPending(false)
+    }
   }
   return (
     <>
@@ -78,13 +110,13 @@ export function ClientRelationship() {
       <div className="relationship-heading">
         <Avatar identity={client.id} name={client.name} />
         <div>
-          <p className="date-caption">A relationship with Atelier House</p>
+          <p className="date-caption">A relationship with {state.organisation.name}</p>
           <h1>{client.name}</h1>
           <p>
             {client.email} <span className="contact-divider">/</span> {client.phone}
           </p>
         </div>
-        <Button onClick={() => setBooking(true)}>
+        <Button disabled={busy || blocked || !can(role, 'book')} onClick={() => setBooking(true)}>
           <Plus size={17} />
           Book next visit
         </Button>
@@ -109,7 +141,8 @@ export function ClientRelationship() {
           }
           detail={
             stats.last
-              ? state.services.find((s) => s.id === stats.last?.serviceId)?.name
+              ? (stats.last.bookedServiceName ??
+                state.services.find((s) => s.id === stats.last?.serviceId)?.name)
               : 'A new story to begin'
           }
         />
@@ -221,7 +254,8 @@ export function ClientRelationship() {
                   (c) =>
                     c.id ===
                     (edge.fromClientId === client.id ? edge.toClientId : edge.fromClientId),
-                )!
+                )
+                if (!other) return null
                 return (
                   <Link className="connection-row" to={`/clients/${other.id}`} key={edge.id}>
                     <Avatar small identity={other.id} name={other.name} tone="sand" />
@@ -254,7 +288,7 @@ export function ClientRelationship() {
           </section>
           <section className="surface detail-panel">
             <h2>A small detail matters.</h2>
-            <form onSubmit={saveNote}>
+            <form onSubmit={saveNote} aria-busy={busy}>
               <label>
                 Relationship note
                 <textarea
@@ -271,12 +305,21 @@ export function ClientRelationship() {
                 />
               </label>
               <p className="subtle">
-                Ordinary service preferences only. Use fictional information; clinical records
-                belong in a separate future product.
+                Ordinary service preferences only.{' '}
+                {operations(state).mode === 'sandbox'
+                  ? 'Use fictional information in this sandbox. '
+                  : ''}
+                Clinical records belong in a separate future product.
               </p>
               <ErrorMessage error={error} />
-              <Button type="submit" variant="secondary">
-                {noteSaved ? (
+              <Button
+                type="submit"
+                variant="secondary"
+                disabled={busy || blocked || !can(role, 'note')}
+              >
+                {busy ? (
+                  'Saving…'
+                ) : noteSaved ? (
                   <>
                     <Check size={16} />
                     Added
@@ -292,17 +335,14 @@ export function ClientRelationship() {
           </section>
           <section className="surface detail-panel">
             <h2>Communication preference</h2>
+            <ErrorMessage error={consentError} />
             <label className="checkbox-label">
               <input
                 type="checkbox"
                 checked={client.marketingConsent}
+                disabled={busy || blocked || !can(role, 'consent')}
                 onChange={(e) => {
-                  const result = commit({
-                    type: 'consent',
-                    clientId: client.id,
-                    consent: e.target.checked,
-                  })
-                  if (!result.ok) setError(result.error)
+                  void changeConsent(e.target.checked)
                 }}
               />
               Email marketing enabled
@@ -316,7 +356,7 @@ export function ClientRelationship() {
       </div>
       {booking && (
         <BookingDialog
-          defaults={{ clientId: client.id, date: addDays(DEMO_DATE, 1) }}
+          defaults={{ clientId: client.id, date: addDays(today, 1) }}
           onClose={() => setBooking(false)}
         />
       )}

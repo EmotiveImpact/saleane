@@ -1,8 +1,8 @@
 # SALEANE product contract
 
-**Contract revision:** 0.3 · **Updated:** 6 October 2026 · **Markets:** United Kingdom and United States.
+**Contract revision:** 0.4 · **Updated:** 6 October 2026 · **Markets:** United Kingdom and United States.
 
-This is the build contract for core Saleane. Requirements distinguish the executable v0.2 foundation from production V1 acceptance. A completed local demo does not satisfy a server/provider/legal gate. Canonical brand spelling is **SALEANE**, without an accent.
+This is the build contract for core Saleane. Requirements distinguish the executable local V1 candidate from production V1 acceptance. A completed local demo does not satisfy a server/provider/legal gate. Canonical brand spelling is **SALEANE**, without an accent.
 
 ## 1. Product outcome and scope
 
@@ -14,11 +14,18 @@ Every stage keeps durable identifiers and an attributed event history. Inventory
 
 ### Present release boundary
 
-v0.2 is a browser-local, single-location-per-workspace prototype with separate fictional UK and US organisations. It implements shared client/service/staff/resource/appointment/sale/payment/event/relationship records and guarded commands. Fixed demo day: 6 October 2026. There is no production authentication, tenant security, database, API, payment collection, message delivery or AI model.
+**1.0.0-rc.1 is the local V1 candidate.** The user explicitly chose to build locally and leave live services unconfigured. It adds local accounts, isolated studio memberships, transactional SQLite authority, catalogue/hours/resources configuration, guest holds, manual money records, drafts, reviewed imports and recovery tooling to the original connected journey. The browser demo is preserved as an independent fictional workspace.
 
-**0.2.2 — locally verified:** confirmed-visit rescheduling, cancellation/missed history, calendar navigation/selection and persistent appointment-panel context are implemented in the local prototype. Lint, 72 tests, TypeScript/build and targeted desktop/phone journeys passed; [0.2.2 evidence](evidence/VERIFICATION_0.2.2.md) records scope and limitations. Production, pushed-commit CI and deployment acceptance remain separate.
+A local studio follows venue time and starts empty; an explicitly selected sample studio retains the fixed demo day and simulated money. The [local domain contract](V1_LOCAL_CONTRACT.md), [server runbook](../server/README.md) and [verification record](evidence/VERIFICATION_1.0.0-rc.1.md) govern this candidate. It is suitable for fictional-data review. It has not passed hosted/pilot, provider, legal or full accessibility acceptance, and is not a stable production 1.0 release.
 
-It is suitable for product review and fictional-data journey validation. It is not approved to store real customer details or operate a business.
+| Capability           | Local candidate                                                                                                   | Remaining production acceptance                                                           |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Accounts and studios | Password sign-in, sessions, owner/manager/reception, invitation links, isolated SQLite records                    | Verified identity/recovery, assigned-practitioner read scoping, operational threat review |
+| Scheduling           | Editable catalogue/capability/resources, hours/closures, venue time, exact-room holds and transactional conflicts | Pilot policy, monitored multi-device load, guest verified cancellation/manage links       |
+| Money                | Manual cash/external payment, discounts, configured tax, deposits, receipts, external refund provenance           | Processor capture/refund/webhook reconciliation, legally approved tax/receipt policies    |
+| Relationships        | Directory, explicit edges, non-clinical notes, consent, scoped CSV preview/import and source                      | Reviewed migrations from named providers, duplicate resolution, retention/erasure         |
+| Communications       | Purpose-aware editable drafts and unsent queue                                                                    | Qualified delivery adapters, delivery receipts, unsubscribe/versioned consent             |
+| Operations           | Snapshot export, consistent backup/fresh-path restore, audit, defined reports                                     | Monitored restore/rollback, support SLA, offline continuity, pilot acceptance             |
 
 ### V1 production boundary
 
@@ -42,7 +49,7 @@ UK and US behaviours differ in currency, date/clock conventions, telephone count
 
 ## 3. Information architecture
 
-Operator navigation: **Today, Calendar, Clients, Business** in v0.2. Inbox enters V1.5 when conversations have real delivery/consent authority. Search finds clients. Workspace controls expose market, demo recovery and export. Booking is a separate guest route with the business’s brand.
+Operator navigation: **Today, Calendar, Clients, Inbox, Business**. Inbox currently exposes local drafts and an unsent review queue; delivered conversations and broader campaigns remain later gates. Business has Overview, Money and Manage sections. Search finds clients. Workspace controls expose market, demo recovery and export. Booking is a separate guest route with the business’s brand.
 
 | Route                | Intent                                      | Required connection                                                                        |
 | -------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------ |
@@ -75,7 +82,7 @@ See [architecture](ARCHITECTURE.md) for domain seams and state authority.
 
 Status: **Demo** = implemented with fictional local state; **Partial** = some demo behaviour exists, production rule remains; **Planned** = no executable implementation yet; **In progress** = local work exists or is being built but acceptance evidence is pending. V1 acceptance is independent of that status.
 
-| ID     | Requirement / failure behaviour                                                 | v0.2                                              | Production acceptance                                                                                 |
+| ID     | Requirement / failure behaviour                                                 | Original foundation status (historical)           | Production acceptance                                                                                 |
 | ------ | ------------------------------------------------------------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | ORG-01 | Create organisation/location and membership; no cross-tenant access             | Planned; scoped fixtures only                     | Authenticated actor can create/select permitted workspace; foreign IDs consistently denied            |
 | ORG-02 | Preserve market, currency and venue zone                                        | Demo                                              | Venue policies stored server-side; changes cannot reinterpret past receipts/times                     |
@@ -140,7 +147,7 @@ v0.2 uses schema-versioned local snapshots and a revision check. Invalid JSON, u
 
 ## 7. Permissions contract (production)
 
-The prototype has one fictional operator. The table below is a **required server policy**, not an implemented permission UI.
+The browser demo has one fictional operator. Local server workspaces enforce owner, manager and reception command permissions. The table below remains the **full production policy target**; restricted practitioner access is currently rejected until scoped read projections exist.
 
 | Action                          | Owner                                 | Manager        | Front desk                            | Professional         | Guest                                    |
 | ------------------------------- | ------------------------------------- | -------------- | ------------------------------------- | -------------------- | ---------------------------------------- |
@@ -173,14 +180,14 @@ Core preferences must avoid collecting clinical information. Later non-clinical 
 
 Present “Saleane noticed” is deterministic: a client’s last completed visit was at least 28 days before the demo day, they have no next confirmed visit and are not currently arrived. Tomorrow’s first available facial slot with Maya comes from the booking rules. The operator reviews a booking; no message or AI request is made.
 
-| Metric             | Present definition                                                                 | Production refinement                                                                    |
-| ------------------ | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Booked value       | Non-cancelled visit price snapshots by visit date                                  | Status policy, tax inclusion and cancellation treatment                                  |
-| Service revenue    | Completed receipt service amounts by visit date, excluding tips                    | Accounting policy, refund adjustments, recognition dates                                 |
-| Service spend      | Sum of client’s completed service receipts                                         | Permissioned lifetime scope, adjustments and retention                                   |
-| Utilisation        | Service minutes ÷ 9 open hours × professional count × calendar days                | Actual bookable staff hours and closures; report treatment/buffer/processing separately  |
-| Rebooking          | Completed cohort with an explicit non-cancelled next-visit link ÷ completed cohort | Time window, visit status and attribution policy                                         |
-| Return opportunity | Last completion ≥28 days ago, no next booking, not arrived                         | Service-specific cadence, client channel preferences, consent and wait-list availability |
+| Metric             | Present definition                                                                          | Production refinement                                                                    |
+| ------------------ | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Booked value       | Non-cancelled visit price snapshots by visit date                                           | Status policy, tax inclusion and cancellation treatment                                  |
+| Service revenue    | Completed service amounts less discount/inclusive tax, by visit date; tips/refunds separate | Accounting policy, refund adjustments, recognition dates                                 |
+| Service spend      | Sum of client’s completed service receipts                                                  | Permissioned lifetime scope, adjustments and retention                                   |
+| Utilisation        | Service minutes ÷ configured staff capacity after closures (current schedule)               | Actual bookable staff hours and closures; report treatment/buffer/processing separately  |
+| Rebooking          | Completed cohort with an explicit non-cancelled next-visit link ÷ completed cohort          | Time window, visit status and attribution policy                                         |
+| Return opportunity | Last completion ≥28 days ago, no next booking, not arrived                                  | Service-specific cadence, client channel preferences, consent and wait-list availability |
 
 Production analytics events need organisation/location/actor IDs, correlation/command IDs, version, occurrence time and source. Avoid exporting personal details in analytics. Evaluate booking completion, checkout correctness, rebooking, cancellation recovery and support burden; no invented conversion uplift is approved.
 
@@ -192,7 +199,7 @@ These are V1 targets to test, not demonstrated guarantees:
 - No double booking/charge under concurrent requests and webhook replay; server transactions and scoped uniqueness.
 - WCAG 2.2 AA, 200% zoom/reflow, keyboard/assistive-technology and touch journey evidence.
 - Schedule/client operations feel immediate; target p95 API reads under 500ms and booking commit under 1s excluding provider/network delay, measured in pilot conditions.
-- Supported current Chrome, Safari and Firefox; mobile iOS/Android booking. v0.2 browser evidence covers Chromium only.
+- Supported current Chrome, Safari and Firefox; mobile iOS/Android booking. Current browser evidence covers Chromium only; targeted tests are not an accessibility certification.
 - Monitored service availability and incident response; choose contractual SLO after infrastructure/pilot evidence rather than promising uptime here.
 - Encrypted transport/storage, managed secrets, scoped audit logs, data retention/export/deletion and restore procedures.
 - Provider outage has an explicit state and manual recovery path; no silent optimistic confirmation of payment.
@@ -220,7 +227,7 @@ Open decisions: pilot studio, provider selections, verified guest identity, prod
 
 ## 13. Product bible context and release reconciliation
 
-Read [PROJECT_CONTEXT](PROJECT_CONTEXT.md) for the recovered conversation and [original PRD transcription](archive/ORIGINAL_PRD_TRANSCRIPTION.md). This contract fulfils the requested **PRD v0.1 product-bible stage**; its repository revision is 0.3, preserving the previous 0.2 contract history. Software and document versions do not certify one another.
+Read [PROJECT_CONTEXT](PROJECT_CONTEXT.md) for the recovered conversation and [original PRD transcription](archive/ORIGINAL_PRD_TRANSCRIPTION.md). This contract fulfils the requested **PRD v0.1 product-bible stage**; its repository revision is 0.4, preserving the previous 0.2 contract history. Software and document versions do not certify one another.
 
 Initial ICP is **1–10 practitioners, 1–2 locations**, premium independent beauty/spa/wellness in UK and USA. The two-to-five-person single-location pilot is a proposed validation cohort. Core promise: reduce administration and make the relationship, day and money understandable without making the owner a software operator. Full payroll, insurance billing, EMR, consumer marketplace, website builder, accounting replacement, autonomous clinical advice and arbitrary workflow builders are not first-V1 scope.
 

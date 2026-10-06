@@ -4,11 +4,10 @@ import { Link } from 'react-router-dom'
 import { useStore } from '../state/context'
 import { dueClients, report } from '../domain/selectors'
 import { dateLabel, money } from '../domain/format'
-import { DEMO_DATE } from '../domain/model'
 import { Avatar, Button, Metric } from '../components/ui'
 
 export function Business() {
-  const { state } = useStore()
+  const { state, today } = useStore()
   const [days, setDays] = useState(7)
   const [definitions, setDefinitions] = useState(false)
   const data = report(state, days)
@@ -25,7 +24,7 @@ export function Business() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `saleane-demo-report-${state.organisation.region}-${DEMO_DATE}.csv`
+    link.download = `saleane-report-${state.organisation.region}-${today}.csv`
     link.click()
     URL.revokeObjectURL(url)
   }
@@ -57,7 +56,7 @@ export function Business() {
         </div>
         <span>
           {dateLabel(data.from, state.organisation.locale, true)} –{' '}
-          {dateLabel(DEMO_DATE, state.organisation.locale, true)}
+          {dateLabel(today, state.organisation.locale, true)}
         </span>
       </div>
       <div className="metrics-band">
@@ -108,7 +107,7 @@ export function Business() {
               {data.byDay.map((d, i) => (
                 <div className="chart-column" key={d.date}>
                   <div
-                    className={`chart-bar ${d.date === DEMO_DATE ? 'current-bar' : ''}`}
+                    className={`chart-bar ${d.date === today ? 'current-bar' : ''}`}
                     style={{ height: `${(d.revenue / maxRevenue) * 100}%` }}
                     title={`${dateLabel(d.date, state.organisation.locale, true)}: ${money(d.revenue, state.organisation)}`}
                   />
@@ -212,11 +211,13 @@ export function Business() {
         {definitions && (
           <p>
             Revenue uses completed service receipts by appointment date, excludes tips and counts
-            the full service value once. A deposit is a part-payment. Utilisation uses booked
-            service minutes against 9 opening hours per professional per calendar day; this
-            simplified demo includes all days. Rebooking counts explicit links created through
+            service value after discounts and excluding included tax, once. A deposit is a
+            part-payment. Refunds are shown separately in Money and are not deducted here.
+            Utilisation uses booked service minutes against configured opening and professional
+            hours, less recorded closures. Historical utilisation uses the current schedule;
+            schedule versions are not yet retained. Rebooking counts explicit links created through
             checkout, rather than assuming another appointment is a rebook. All figures come from
-            fictional workspace records.
+            this workspace’s records. A manual payment record is not processor settlement evidence.
           </p>
         )}
       </div>

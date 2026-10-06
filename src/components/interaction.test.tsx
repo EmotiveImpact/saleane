@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
@@ -26,7 +26,7 @@ describe('connected operator journeys', () => {
     await user.type(screen.getByLabelText('New date'), '2026-10-07')
     const first = screen.getByRole('radio', { name: '09:00' })
     await user.click(first)
-    await user.keyboard('{ArrowRight}')
+    await user.keyboard('{ArrowRight}{ArrowRight}')
     expect(screen.getByRole('radio', { name: '09:30' })).toBeChecked()
     await user.click(screen.getByRole('button', { name: 'Save appointment' }))
     expect(screen.getByRole('status')).toHaveTextContent('Appointment saved')
@@ -157,5 +157,164 @@ describe('connected operator journeys', () => {
       saved.clients.find((c: { name: string }) => c.name === 'Alex Demo').marketingConsent,
     ).toBe(false)
     expect(saved.appointments.some((a: { source: string }) => a.source === 'online')).toBe(true)
+  })
+})
+
+describe('local operating surfaces', () => {
+  it('edits catalogue pricing without rewriting booked promises and preserves a conflicting closure draft', async () => {
+    const user = userEvent.setup()
+    show('/business/manage')
+    await user.click(await screen.findByRole('button', { name: 'Services' }))
+    await user.click(screen.getByRole('button', { name: 'Edit Skin Renewal Facial' }))
+    await user.clear(screen.getByLabelText('Price (GBP)'))
+    await user.type(screen.getByLabelText('Price (GBP)'), '120')
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    const saved = JSON.parse(localStorage.getItem('saleane.demo.v1.UK')!)
+    expect(saved.services.find((s: { id: string }) => s.id === 'service-facial').priceMinor).toBe(
+      12000,
+    )
+    expect(
+      saved.appointments.find((a: { id: string }) => a.id === 'visit-noor').bookedPriceMinor,
+    ).toBe(9500)
+    await user.click(screen.getByRole('button', { name: 'Hours & closures' }))
+    await user.click(screen.getByRole('button', { name: 'Add closure' }))
+    await user.type(screen.getByLabelText('Date'), '2026-10-06')
+    await user.type(screen.getByLabelText('Reason'), 'Maintenance')
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(within(screen.getByRole('dialog')).getByRole('alert')).not.toBeEmptyDOMElement()
+    expect(screen.getByLabelText('Reason')).toHaveValue('Maintenance')
+    expect(screen.getByLabelText('Date')).toHaveValue('2026-10-06')
+    expect(
+      JSON.parse(localStorage.getItem('saleane.demo.v1.UK')!).operations.closures,
+    ).toHaveLength(0)
+  })
+
+  it('keeps an unconsented marketing message as an editable unsent draft', async () => {
+    const user = userEvent.setup()
+    show('/inbox')
+    await user.click(await screen.findByRole('button', { name: 'Write a draft' }))
+    await user.selectOptions(screen.getByLabelText('Client'), 'client-4')
+    await user.selectOptions(screen.getByLabelText('Purpose'), 'marketing')
+    await user.type(screen.getByLabelText('Subject'), 'A future invitation')
+    await user.type(screen.getByLabelText('Message'), 'We would love to welcome you back.')
+    await user.click(screen.getByRole('button', { name: 'Save draft' }))
+    expect(screen.getByRole('button', { name: 'Queue for later delivery' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Edit draft A future invitation' }))
+    expect(screen.getByLabelText('Client')).toBeDisabled()
+    expect(screen.getByLabelText('Purpose')).toBeDisabled()
+    await user.clear(screen.getByLabelText('Subject'))
+    await user.type(screen.getByLabelText('Subject'), 'Revised invitation')
+    await user.click(screen.getByRole('button', { name: 'Save draft' }))
+    const saved = JSON.parse(localStorage.getItem('saleane.demo.v1.UK')!)
+    expect(saved.operations.messages).toHaveLength(1)
+    expect(saved.operations.messages[0]).toMatchObject({
+      subject: 'Revised invitation',
+      purpose: 'marketing',
+      status: 'draft',
+      clientId: 'client-4',
+    })
+    expect(saved.clients.find((c: { id: string }) => c.id === 'client-4').marketingConsent).toBe(
+      false,
+    )
+  })
+
+  it('requires refund provenance confirmation and retains the settled receipt', async () => {
+    const user = userEvent.setup()
+    show('/business/money')
+    await user.click((await screen.findAllByRole('button', { name: /View receipt for/ }))[0])
+    await user.click(screen.getByRole('button', { name: 'Record simulated refund' }))
+    await user.type(screen.getByLabelText('Amount (GBP)'), '10')
+    await user.type(screen.getByLabelText('External reference'), 'simulation-001')
+    await user.type(screen.getByLabelText('Reason'), 'Review adjustment')
+    await user.click(screen.getByRole('button', { name: 'Record refund' }))
+    expect(screen.getByRole('heading', { name: 'Record a simulated refund' })).toBeInTheDocument()
+    await user.click(
+      screen.getByRole('checkbox', { name: 'I understand this is a simulated refund.' }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Record refund' }))
+    expect(screen.getByRole('heading', { name: 'Receipt' })).toBeInTheDocument()
+    const saved = JSON.parse(localStorage.getItem('saleane.demo.v1.UK')!)
+    expect(saved.operations.refunds).toHaveLength(1)
+    expect(saved.operations.refunds[0]).toMatchObject({
+      amountMinor: 1000,
+      reference: 'simulation-001',
+    })
+    expect(
+      saved.sales.some((sale: { id: string }) => sale.id === saved.operations.refunds[0].saleId),
+    ).toBe(true)
+    expect(within(screen.getByRole('dialog')).getByRole('status')).toHaveTextContent(
+      'No money moved',
+    )
+  })
+})
+
+describe('reviewed CSV client import', () => {
+  it('previews duplicates and invalid rows, ignores consent columns and saves only reviewed contacts', async () => {
+    const user = userEvent.setup()
+    show('/clients')
+    await user.click(screen.getByRole('button', { name: 'Import clients' }))
+    const csv =
+      'name,email,phone,marketingConsent\nAmelia Carter,amelia.carter@example.com,+447700900001,true\nAlex Import,alex.import@example.com,+12125550111,true\n,missing@example.com,+12125550112,true'
+    await user.upload(
+      screen.getByLabelText('Choose CSV'),
+      new File([csv], 'booking-export.csv', { type: 'text/csv' }),
+    )
+    expect(
+      await screen.findByRole('checkbox', { name: 'Import record 3: Alex Import' }),
+    ).toBeChecked()
+    const submit = screen.getByRole('button', { name: 'Import 1 reviewed client' })
+    expect(submit).toBeDisabled()
+    expect(screen.getByText(/Exact name and email already exist/)).toBeInTheDocument()
+    expect(screen.getByText(/Ignored columns: marketingconsent/)).toBeInTheDocument()
+    await user.clear(screen.getByLabelText('Import source'))
+    await user.type(screen.getByLabelText('Import source'), 'Previous booking system')
+    await user.click(
+      screen.getByRole('checkbox', { name: /I have reviewed these 1 selected records/ }),
+    )
+    await user.click(submit)
+    expect(screen.getByRole('heading', { name: '1 client imported' })).toBeInTheDocument()
+    const saved = JSON.parse(localStorage.getItem('saleane.demo.v1.UK')!)
+    expect(saved.clients).toHaveLength(16)
+    const imported = saved.clients.find(
+      (client: { email: string }) => client.email === 'alex.import@example.com',
+    )
+    expect(imported.marketingConsent).toBe(false)
+    expect(
+      saved.events.find((event: { clientId: string }) => event.clientId === imported.id).detail,
+    ).toContain('Previous booking system')
+  })
+
+  it('retains a reviewed import after a failed save and allows explicit review before retry', async () => {
+    const user = userEvent.setup()
+    show('/clients')
+    await user.click(screen.getByRole('button', { name: 'Import clients' }))
+    await user.upload(
+      screen.getByLabelText('Choose CSV'),
+      new File(['name,email,phone\nRetry Person,retry@example.com,+442071234567'], 'retry.csv', {
+        type: 'text/csv',
+      }),
+    )
+    await screen.findByRole('checkbox', { name: 'Import record 2: Retry Person' })
+    await user.click(
+      screen.getByRole('checkbox', { name: /I have reviewed these 1 selected records/ }),
+    )
+    const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
+      throw new Error('Storage unavailable')
+    })
+    await user.click(screen.getByRole('button', { name: 'Import 1 reviewed client' }))
+    write.mockRestore()
+    expect(screen.getByRole('alert')).not.toBeEmptyDOMElement()
+    expect(screen.getByLabelText('Import source')).toHaveValue('retry.csv')
+    expect(screen.getByRole('checkbox', { name: 'Import record 2: Retry Person' })).toBeChecked()
+    expect(
+      screen.getByRole('checkbox', { name: /I have reviewed these 1 selected records/ }),
+    ).not.toBeChecked()
+    await user.click(
+      screen.getByRole('checkbox', { name: /I have reviewed these 1 selected records/ }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Import 1 reviewed client' }))
+    expect(screen.getByRole('heading', { name: '1 client imported' })).toBeInTheDocument()
   })
 })

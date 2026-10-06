@@ -8,7 +8,7 @@ import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import { Avatar, Button, ErrorMessage } from '../components/ui'
 
 export function BrandedBooking() {
-  const { state, commit, region, changeRegion } = useStore()
+  const { state, commit, region, changeRegion, saving } = useStore()
   const [step, setStep] = useState(1)
   const [category, setCategory] = useState('All')
   const [serviceId, setServiceId] = useState(state.services[0].id)
@@ -27,12 +27,12 @@ export function BrandedBooking() {
   const professionals = state.staff.filter((s) => s.serviceIds.includes(serviceId))
   const times = slots(state, serviceId, staffId, date)
   const steps = ['Your treatment', 'A time for you', 'Your details', 'A final look']
-  function confirm() {
+  async function confirm() {
     if (start === null || !policy) {
       setError('Choose a time and acknowledge the demo booking policy.')
       return
     }
-    const result = commit({
+    const result = await commit({
       type: 'book',
       input: {
         serviceId,
@@ -447,7 +447,7 @@ export function BrandedBooking() {
                         <ArrowLeft size={16} />
                         Back
                       </Button>
-                      <Button disabled={!policy} onClick={confirm}>
+                      <Button disabled={!policy || saving} onClick={confirm}>
                         Confirm demo visit <Check size={17} />
                       </Button>
                     </div>
