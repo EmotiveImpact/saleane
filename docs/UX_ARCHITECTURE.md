@@ -1,0 +1,132 @@
+# SALEANE UX architecture
+
+Revision 0.2 · 6 October 2026. Companion contract to [PRD](PRD.md), [context](PROJECT_CONTEXT.md) and [visual directions](VISUAL_DIRECTIONS.md). Proposed routes describe the target; only routes marked **Demo** are present in the app. A designed screen is not an implemented feature. Appointment-change additions for software 0.2.2 are locally verified; see [targeted browser and test evidence](evidence/VERIFICATION_0.2.2.md).
+
+## Experience structure
+
+Operator navigation remains **Today · Calendar · Clients · Inbox · Business**, with workspace/settings under the business switcher and one global search/command entry. The 0.2 app omits Inbox because no real conversations are delivered. Do not add empty future pages to make the menu look complete. Public booking has its own business-branded shell and a strict server access boundary in production.
+
+Today gives attention, opportunity and verified completed work. Calendar owns allocation. Clients owns relationship context. Inbox owns communication history. Business owns commercial understanding and configuration. A visit opened from Today, Calendar or a client is the same appointment; its compact right-side preview leads to checkout or deliberate expansion into the client timeline. On a phone it becomes a full-height sheet, retaining the same action order.
+
+## Screen register
+
+All V1 screens/states required by the current contract are listed here. “Planned” does not mean an empty route should be exposed. IDs are stable even if routes change.
+
+| ID    | Surface / proposed route                      | Audience and content                                                       | Primary action / exit                           | State & requirement                                               |
+| ----- | --------------------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------- |
+| UX-01 | Sign in `/sign-in`                            | Staff; account session, accessible credentials                             | Sign in → workspace or setup                    | Planned; expired/rate-limited/recovery, ORG-01                    |
+| UX-02 | Account recovery `/recover`                   | Account owner; neutral disclosure and expiring recovery                    | Verify → rotate session                         | Planned; expired/reused links, ORG-03                             |
+| UX-03 | Create business `/setup`                      | Owner; name, country, currency, zone, location                             | Create → readiness checklist                    | Planned; preserve fields, prevent repeat create, ORG-01/02        |
+| UX-04 | Setup readiness `/setup/checklist`            | Owner; services, people, rooms, hours, policy, payments                    | Preview and enable booking only when ready      | Planned; explicit blocker per dependency, CAT-01                  |
+| UX-05 | Workspace switcher                            | Permitted memberships and location context                                 | Switch → scoped Today                           | Demo UK/US fixtures only; clear previous context, ORG-01          |
+| UX-06 | Today `/today`                                | Authorised daily agenda, attention and evidence-linked opportunities       | Open visit / book / investigate                 | Demo; empty/closed/loading/stale, INT-01                          |
+| UX-07 | Calendar day `/calendar`                      | Staff lanes, date, room allocation, buffer                                 | Open appointment / book                         | Demo; shared conflict and agenda equivalent, CAL-01/02            |
+| UX-08 | Calendar week / agenda                        | Same records, filters, week capacity                                       | Navigate day / select visit                     | Agenda Demo; week Planned, CAL-01                                 |
+| UX-09 | Appointment preview                           | Person, service, staff, room, time, deposit, status                        | Arrive / checkout / move / cancel / open client | Demo core; CAL-03/PAY-02                                          |
+| UX-10 | Desk booking                                  | Existing/new client, service, staff, time                                  | Review → confirm                                | Demo; unavailable preserves client details, BKG-02                |
+| UX-11 | Reschedule                                    | Existing promise alongside new allocation                                  | Confirm move after revalidation                 | Demo (0.2.2); production pending, CAL-03/05                       |
+| UX-12 | Cancel / no-show                              | Reason, policy version, deposit consequences                               | Confirm status; refund handled separately       | Demo (0.2.2); no refund/fee, CAL-03/PAY-03                        |
+| UX-13 | Client directory `/clients`                   | Search, next visit, visit/spend context                                    | Open / add client                               | Demo; empty search and scope filtering, CLI-01                    |
+| UX-14 | New / edit client                             | Contact, ordinary preferences, independent consent                         | Save → timeline                                 | New Demo, edit Planned; duplicate review, CLI-01/04               |
+| UX-15 | Relationship `/clients/:id`                   | Timeline, next visit, explicit relationships and source receipts           | Book / note / source drilldown                  | Demo; missing/deleted/restricted records, CLI-02/03               |
+| UX-16 | Consent detail                                | Channel/purpose/source/policy/time history                                 | Record grant or withdrawal                      | Boolean/events Demo, full ledger Planned, CLI-04                  |
+| UX-17 | Checkout                                      | Service snapshot, actual deposit, tax, optional tip, permitted adjustments | Review total → settle                           | Simulated Demo; pending/failed/unknown separate, PAY-01/02        |
+| UX-18 | Receipt                                       | Immutable settled values, method/reference, attributed time                | Print/export / rebook / permitted refund        | Demo summary; delivery/print Planned, PAY-02/03                   |
+| UX-19 | Refund / adjustment                           | Original receipt, refundable balance, reason, authority                    | Preview → submit → reconciliation               | Planned; pending/failure/retry, PAY-03                            |
+| UX-20 | Rebook                                        | Same client, originating completed visit, service cadence                  | Choose new available time → confirm             | Demo; preserves receipt on failure, RBK-01                        |
+| UX-21 | Business overview `/business`                 | Date range, defined totals, source lists and table                         | Drilldown / permitted CSV                       | Demo; empty denominator/partial data, BIZ-01/02                   |
+| UX-22 | Revenue / cash detail                         | Earned, tax, tips, deposits, collected, refunds, provider settlement       | Reconcile exceptions                            | Planned production; no mixed currency, BIZ-03                     |
+| UX-23 | Service catalogue `/business/services`        | Versioned price/duration/buffer/eligibility                                | Edit/archive future offer                       | Planned; booked snapshots immutable, CAT-01                       |
+| UX-24 | Team and access `/business/team`              | Membership distinct from practitioner capability                           | Invite/revoke/scope/hours                       | Planned; last owner guarded, STF-01/ORG-03                        |
+| UX-25 | Resources and hours `/business/availability`  | Rooms/equipment, shifts, breaks, closures, IANA zone                       | Preview affected visits → save                  | Planned; conflicts never silently cancel, CAL-04                  |
+| UX-26 | Booking and money policy `/business/policies` | Deposit/cancel/tax/tip/receipt settings, effective dates                   | Version policy → publish                        | Planned; acceptance retained, PAY-04                              |
+| UX-27 | Imports `/business/imports`                   | Manifest, mapping, dry run, duplicates, rejected rows                      | Review → staged commit → reconciliation         | Planned; resumable, MIG-01                                        |
+| UX-28 | Data rights and audit `/business/data`        | Permissioned export, retention, requests, access/change log                | Review scoped request                           | Planned; financial retention exceptions, GOV-01                   |
+| UX-29 | Daily continuity / recovery                   | Snapshot age and offline/reconnect state                                   | Read / retry / recover                          | Local corruption controls Demo; offline authority Planned, OFF-01 |
+| UX-30 | Guest services `/book/:slug`                  | Business identity, venue, prices/durations                                 | Select service                                  | `/booking` Demo; no private client data, BKG-01                   |
+| UX-31 | Guest practitioner/time                       | Named or no preference; best eligible slots, venue zone                    | Select slot → hold                              | Named Demo; holds/no preference Planned, BKG-01/04                |
+| UX-32 | Guest details/policy                          | Contact, policy version, optional channel consent                          | Continue → review                               | Demo; no forced account, BKG-03                                   |
+| UX-33 | Guest review/deposit                          | Final time, person, totals, terms, expiry                                  | Pay/confirm with retry identity                 | Simulated Demo; provider states Planned, PAY-01                   |
+| UX-34 | Guest confirmation                            | Booking reference, business contact, time/zone, payment status             | Save appointment / permitted manage link        | Demo summary; signed management Planned, BKG-05                   |
+| UX-35 | Guest manage booking                          | Verified own visit, reschedule/cancel policy                               | Preview → confirm action                        | Planned; revoked/expired/tampered links, BKG-05                   |
+| UX-36 | Appointment delivery status                   | Staff view of reminder/receipt purpose and attempts                        | Retry only if safe / suppress                   | Planned V1 transactional service, COM-01                          |
+| UX-37 | Search / command                              | Scope-aware results, source labels                                         | Open record; later proposed action              | Client search Demo; analysis V3, INT-02                           |
+| UX-38 | Unknown / forbidden / expired                 | Plain safe explanation without disclosing existence                        | Return to permitted workspace                   | Missing route Demo; server cases Planned, ORG-01                  |
+
+## Journey contracts
+
+### J-01 — establish a bookable business
+
+UX-01 → 03 → 04 → 23 → 24 → 25 → 26 → guest preview. Owner chooses market and venue zone explicitly; currency is not a cosmetic toggle. Sample data must stay in a separate sandbox. Readiness checks service eligibility, real staff hours, suitable resource, clear policies and payment configuration if a deposit is required. A provider outage cannot be bypassed by pretending a deposit was captured. Existing visits block destructive configuration changes; archiving changes future availability only.
+
+### J-02 — Today → Calendar → Client → Appointment → Checkout → Rebook → Intelligence
+
+Start UX-06, open the day's allocation UX-07, recover context UX-15, return to the same visit UX-09. Welcome the client, review UX-17, confirm a single settlement, inspect UX-18, book UX-20 and see the linked next visit on UX-15/07. UX-21 explains the resulting revenue and rebooking changes with their source records. The app must preserve the client, appointment and origin IDs throughout. Tax/tip/deposit cannot be conflated. Rebook failure cannot unwind a settled receipt.
+
+### J-03 — business-branded guest booking
+
+UX-30 → 31 → 32 → 33 → 34. No account/app/marketplace wall. No preference means any eligible professional, not bypassed capability checks; show the assigned professional before confirmation. Unavailable time returns to slot selection with entered details retained. A hold expires visibly; renewal rechecks capacity. Interrupted payment resumes from authoritative provider state. An unknown payment outcome says checking, never failed-and-charge-again. Returning contact details do not reveal existing records without verification.
+
+### J-04 — move, cancellation and recovery
+
+UX-09 → 11 or 12. Show old/new allocation, preserved service price and actual deposit. Validate both staff and room including cleanup; a failed move leaves the original promise untouched. A cancellation releases capacity, records reason/actor/policy, and flags deposit disposition separately. No-show requires a passed visit and authorised actor. Later waitlist recovery creates a reviewed offer; only one successful allocation can own the slot. Equal-priority selection policy must be explicit, not an unexplained “AI choice”.
+
+The 0.2.2 local implementation narrows this journey to confirmed visits. Reschedule presents the existing promise, chosen professional/date and native radio time choices. It preserves the same appointment ID, booked duration/buffer/price and deposit; conflict feedback keeps the original visit intact. Cancellation and missed attendance require a reason and clearly state that recorded deposits remain for review, with no refund, fee, sale or message. Confirm the result in the same panel and retain the source event in the client timeline. Show cancelled/missed visits in calendar history without occupying active lanes or counting as qualifying rebooks. The demo prevents future-date missed records but does not prove elapsed time within its fixed day; production enforces the stricter rule above.
+
+Date navigation and the staff filter determine the visible schedule. Opening a visit gives its calendar/agenda item an explicit selected state. The panel heading and close control remain visible; only the body scrolls. After a move or terminal change removes the original active-row launcher, close restores the launcher when available and otherwise falls back to the main content focus target. Changing a radio time must be possible by keyboard without dragging. Targeted 0.2.2 evidence covers keyboard-radio rescheduling, following the moved date, cancellation/history, Escape fallback to main, missed-visit review on a phone and the relationship timeline. Six routes passed measured 320px/1440px overflow and rendered-image checks. See [verification](evidence/VERIFICATION_0.2.2.md); inline visual review is not an accurate archived panel-screenshot set or full accessibility certification.
+
+### J-05 — relationship and consent
+
+UX-13 → 15 → 16. Match by durable ID and review duplicate candidates. Ordinary notes carry author/time. Financial and message details are independently permissioned; practitioners do not get full revenue/export access through the timeline. Withdrawal changes future send eligibility immediately. Opening a client relationship does not create a marketing grant. A future lifecycle badge names its criteria and supports audited correction; no health inference or irreversible person scoring.
+
+### J-06 — recover from money failures
+
+UX-17 pending → success UX-18, definite failure retry, or unknown reconciliation UX-22. Disable duplicate submission locally and deduplicate on the server. Refund UX-19 adds an adjustment, never edits the receipt. Incomplete webhook/reconciliation work stays visible on Today. Cash/external-terminal recording is a deliberate authorised operation with receipt evidence, not a simulated card capture presented as real.
+
+### J-07 — migrate and operate through disruption
+
+UX-27 dry run → review mappings/duplicates → reconcile future appointments and money → scheduled cutover → rollback if required. During outage, UX-29 shows last-sync time and a bounded read-only daily view. No offline payment/booking queue. On reconnect, reauthenticate/recheck role, replace the snapshot and show conflicts before enabling writes. Invalid state is preserved for recovery rather than silently reset.
+
+### J-08 — explain the business
+
+UX-21 → metric definition → source rows → UX-22 if reconciliation is needed. Owner chooses period/location/currency. “Why below target?” must distinguish actual receipts, scheduled value and estimates with coverage and comparison period. A cancelled rebook cannot inflate retention. Export follows the same scope as the screen. Future command actions show exact affected records, cost and recipient before approval.
+
+## Shared states and accessibility
+
+Every data surface has loading, empty, ready, stale, unavailable, forbidden and recoverable failure designs. Distinguish “no records” from “not permitted” without revealing foreign IDs. Forms retain input after validation/conflict, put error text beside the field and announce the summary; focus the first relevant error. Pending writes have one stable label and no false success toast. Currency/zone and business identity remain visible at money/time decisions.
+
+Use semantic buttons/lists/tables and accessible headless dialog behaviour. A panel has a visible title, close action, logical focus order, Escape and return to its launcher. Never require dragging, hovering, colour recognition or tiny calendar cells to complete a task. Charts have a table. Keyboard and screen-reader tests complement automated rules. Phone layout preserves content priority; permission controls remain server-enforced.
+
+## Later screens retained in the architecture
+
+| Stage    | Surfaces retained from the original ambition                                                                                                                               | Entry point / dependency                                               |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| V1.5     | Inbox list/thread, templates, waitlist/offer, non-clinical forms/version/response, packages/memberships/gift-card liabilities, client journey segments, feedback/aftercare | Inbox / Client / Business; consent, delivery and money contracts first |
+| V2       | Retail/backbar stock ledger, purchase/adjust/count, commissions, staff performance, location switch, accounting export, recurring/multi-practitioner scheduling            | Business / Calendar; location scope and reversal rules                 |
+| V3       | Daily brief evidence, opportunity review, cadence/anomaly explanation, natural-language answer and approved action preview                                                 | Today / global command; evaluated facts and permissions                |
+| V4       | Concierge conversation, handoff queue, action receipt, channel/cost configuration                                                                                          | Inbox / Business; identity and constrained commands                    |
+| V5       | Group governance, API/integration management, opt-in benchmark reports                                                                                                     | Business; explicit sharing and aggregation rights                      |
+| Clinical | Separate consent, health records/images and clinical audit                                                                                                                 | Separately governed product boundary; no dormant core fields           |
+
+Recurring appointments and Apple/Google calendar integration were early ideas; keep them in later scheduling scope until recurrence exceptions, external authority, revocation and privacy have a tested contract. A consumer marketplace, website builder, accounting replacement, full payroll and arbitrary workflow builder remain first-V1 non-goals.
+
+## Design feedback and evidence
+
+The recovered brief's compact appointment side preview was implemented in 0.2.1. The locally verified 0.2.2 increment adds persistent panel context and appointment-change journeys. No-preference selection, production reschedule/cancellation policy, real Inbox and offline continuity remain contract gaps. A read-only inspection of Caleane's shared controls and calendar informed the fixed heading, contained scrolling and explicit selection patterns; SALEANE retains its original serif/ivory/sage identity. These are behavior adaptations, not a new brand selection. Compare A/B on the same tasks; evaluate C only for guest flow. Record final direction as a decision after review, not as an implied approval from an agent recommendation.
+
+## Local V1 candidate implementation update · 6 October 2026
+
+The original 38-screen architecture remains the end-state map; it is not a claim that all screens shipped. The candidate adds the following working surfaces without changing the approved warm, photographic identity:
+
+| Route               | Working journey                                                                                         | Authority / important exception                                                            |
+| ------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `/account`, `/join` | Sign in, create empty/sample studio, switch permitted studios, accept local invitation                  | Server session/membership; no email verification or recovery provider                      |
+| `/business/manage`  | Business/tax, services, professional capabilities, rooms/chairs, weekly hours, closures, account access | Asynchronous role-checked commands; edits preserve booked terms; practitioner logins gated |
+| `/business/money`   | Receipts, deposits, external refunds, fund provenance                                                   | Explicit acknowledgement/reference; no processor call                                      |
+| `/inbox`            | Draft/edit, appointment or marketing purpose, consent review, local queue                               | Queued is always unsent; no incoming message synchronisation                               |
+| `/book/:slug`       | Branded catalogue, no-preference availability, five-minute hold, details/review, confirmation           | Public limited DTO; exact-room transactional allocation; expiry/release; no money/email    |
+| `/clients` → Import | File/source → validation and duplicate preview → explicit review → commit                               | Bounded CSV; all imported marketing consent false; preserve preview on failed save         |
+
+The daily journey remains **Today → Calendar → Client → Appointment → Checkout → Rebook → Business intelligence**. New empty studios show a setup path. Sample/browser workspaces retain their explicit fictional-money boundary. Save errors stay with the initiating form; navigation/loading cannot mix studios. Confirmed booking return navigation refreshes the operator view and follows the booked date.
+
+Acceptance still requires in-person usability research, keyboard and assistive-technology review beyond automated checks, and Safari/Firefox coverage. See the candidate evidence and local domain contract before marking a target screen complete.

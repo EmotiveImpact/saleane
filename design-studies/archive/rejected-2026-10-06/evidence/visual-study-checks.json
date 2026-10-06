@@ -1,0 +1,253 @@
+{
+  "checkedAt": "2026-10-06",
+  "browser": "154.0.8037.98",
+  "scope": "Isolated visual studies, not the application",
+  "results": [
+    {
+      "direction": "quiet-luxury",
+      "screen": "today",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "violations": []
+    },
+    {
+      "direction": "quiet-luxury",
+      "screen": "calendar",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "violations": []
+    },
+    {
+      "direction": "quiet-luxury",
+      "screen": "client",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "violations": []
+    },
+    {
+      "direction": "quiet-luxury",
+      "screen": "checkout",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "violations": []
+    },
+    {
+      "direction": "quiet-luxury",
+      "screen": "intelligence",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "violations": []
+    },
+    {
+      "direction": "quiet-luxury",
+      "screen": "today",
+      "width": 390,
+      "scrollWidth": 390,
+      "violations": []
+    },
+    {
+      "direction": "quiet-luxury",
+      "screen": "calendar",
+      "width": 390,
+      "scrollWidth": 390,
+      "violations": []
+    },
+    {
+      "direction": "quiet-luxury",
+      "screen": "client",
+      "width": 390,
+      "scrollWidth": 390,
+      "violations": []
+    },
+    {
+      "direction": "quiet-luxury",
+      "screen": "checkout",
+      "width": 390,
+      "scrollWidth": 390,
+      "violations": []
+    },
+    {
+      "direction": "quiet-luxury",
+      "screen": "intelligence",
+      "width": 390,
+      "scrollWidth": 390,
+      "violations": []
+    },
+    {
+      "direction": "quiet-luxury",
+      "screen": "today",
+      "width": 320,
+      "scrollWidth": 320,
+      "violations": []
+    },
+    {
+      "direction": "quiet-luxury",
+      "screen": "calendar",
+      "width": 320,
+      "scrollWidth": 320,
+      "violations": []
+    },
+    {
+      "direction": "quiet-luxury",
+      "screen": "client",
+      "width": 320,
+      "scrollWidth": 320,
+      "violations": []
+    },
+    {
+      "direction": "quiet-luxury",
+      "screen": "checkout",
+      "width": 320,
+      "scrollWidth": 320,
+      "violations": []
+    },
+    {
+      "direction": "quiet-luxury",
+      "screen": "intelligence",
+      "width": 320,
+      "scrollWidth": 320,
+      "violations": []
+    },
+    {
+      "direction": "modern-editorial",
+      "screen": "today",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "violations": []
+    },
+    {
+      "direction": "modern-editorial",
+      "screen": "calendar",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "violations": []
+    },
+    {
+      "direction": "modern-editorial",
+      "screen": "client",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "violations": []
+    },
+    {
+      "direction": "modern-editorial",
+      "screen": "checkout",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "violations": []
+    },
+    {
+      "direction": "modern-editorial",
+      "screen": "intelligence",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "violations": []
+    },
+    {
+      "direction": "modern-editorial",
+      "screen": "today",
+      "width": 390,
+      "scrollWidth": 390,
+      "violations": []
+    },
+    {
+      "direction": "modern-editorial",
+      "screen": "calendar",
+      "width": 390,
+      "scrollWidth": 390,
+      "violations": []
+    },
+    {
+      "direction": "modern-editorial",
+      "screen": "client",
+      "width": 390,
+      "scrollWidth": 390,
+      "violations": []
+    },
+    {
+      "direction": "modern-editorial",
+      "screen": "checkout",
+      "width": 390,
+      "scrollWidth": 390,
+      "violations": []
+    },
+    {
+      "direction": "modern-editorial",
+      "screen": "intelligence",
+      "width": 390,
+      "scrollWidth": 390,
+      "violations": []
+    },
+    {
+      "direction": "modern-editorial",
+      "screen": "today",
+      "width": 320,
+      "scrollWidth": 320,
+      "violations": []
+    },
+    {
+      "direction": "modern-editorial",
+      "screen": "calendar",
+      "width": 320,
+      "scrollWidth": 320,
+      "violations": []
+    },
+    {
+      "direction": "modern-editorial",
+      "screen": "client",
+      "width": 320,
+      "scrollWidth": 320,
+      "violations": []
+    },
+    {
+      "direction": "modern-editorial",
+      "screen": "checkout",
+      "width": 320,
+      "scrollWidth": 320,
+      "violations": []
+    },
+    {
+      "direction": "modern-editorial",
+      "screen": "intelligence",
+      "width": 320,
+      "scrollWidth": 320,
+      "violations": []
+    },
+    {
+      "direction": "after-dark",
+      "screen": "today",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "violations": []
+    },
+    {
+      "direction": "after-dark",
+      "screen": "today",
+      "width": 390,
+      "scrollWidth": 390,
+      "violations": []
+    },
+    {
+      "direction": "after-dark",
+      "screen": "today",
+      "width": 320,
+      "scrollWidth": 320,
+      "violations": []
+    }
+  ],
+  "errors": [],
+  "journeys": {
+    "UKCheckout15Percent": "GBP 84.25 after GBP 25 deposit",
+    "USCheckout20Percent": "USD 125 after USD 25 deposit",
+    "rebooking": "Selected 11:00 reflected in relationship timeline",
+    "directionSwitch": "Relationship and checkout state preserved between A and B",
+    "appointmentPreview": "Right-side preview; Escape closes and restores trigger focus",
+    "afterDark": "Mobile USD guest review and simulated confirmation passed"
+  },
+  "limitations": [
+    "Fictional session-only state",
+    "No payment or real booking",
+    "Automated axe rule checks do not certify WCAG",
+    "No real user study"
+  ]
+}

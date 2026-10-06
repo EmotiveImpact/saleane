@@ -1,0 +1,123 @@
+{
+  "version": "0.2.2",
+  "date": "2026-10-06",
+  "environment": "Existing Vite server 5173; isolated localhost origin; user 127.0.0.1 demo state not mutated by QA",
+  "checks": {
+    "lint": "pass, zero warnings",
+    "tests": {
+      "files": 3,
+      "passed": 72
+    },
+    "typescript_build": "pass",
+    "vite_app_and_studies_build": "pass"
+  },
+  "browser_matrix": [
+    {
+      "route": "/today",
+      "effective_width": 320,
+      "document_width": 320,
+      "heading": "Good morning, Maya.",
+      "broken_completed_images": 0
+    },
+    {
+      "route": "/calendar",
+      "effective_width": 320,
+      "document_width": 320,
+      "heading": "Calendar",
+      "broken_completed_images": 0
+    },
+    {
+      "route": "/clients",
+      "effective_width": 320,
+      "document_width": 320,
+      "heading": "Relationships, remembered.",
+      "broken_completed_images": 0
+    },
+    {
+      "route": "/clients/client-4",
+      "effective_width": 320,
+      "document_width": 320,
+      "heading": "Noor Ahmed",
+      "broken_completed_images": 0
+    },
+    {
+      "route": "/business",
+      "effective_width": 320,
+      "document_width": 320,
+      "heading": "A clearer view.",
+      "broken_completed_images": 0
+    },
+    {
+      "route": "/booking",
+      "effective_width": 320,
+      "document_width": 320,
+      "heading": "Care, considered.",
+      "broken_completed_images": 0
+    },
+    {
+      "route": "/today",
+      "effective_width": 1440,
+      "document_width": 1440,
+      "heading": "Good morning, Maya.",
+      "broken_completed_images": 0
+    },
+    {
+      "route": "/calendar",
+      "effective_width": 1440,
+      "document_width": 1440,
+      "heading": "Calendar",
+      "broken_completed_images": 0
+    },
+    {
+      "route": "/clients",
+      "effective_width": 1440,
+      "document_width": 1440,
+      "heading": "Relationships, remembered.",
+      "broken_completed_images": 0
+    },
+    {
+      "route": "/clients/client-4",
+      "effective_width": 1440,
+      "document_width": 1440,
+      "heading": "Noor Ahmed",
+      "broken_completed_images": 0
+    },
+    {
+      "route": "/business",
+      "effective_width": 1440,
+      "document_width": 1440,
+      "heading": "A clearer view.",
+      "broken_completed_images": 0
+    },
+    {
+      "route": "/booking",
+      "effective_width": 1440,
+      "document_width": 1440,
+      "heading": "Care, considered.",
+      "broken_completed_images": 0
+    }
+  ],
+  "journeys": {
+    "move": "Noor Oct6 11:00 to Oct7 09:30; native Right arrow selected 09:30; retained GBP9500 service/GBP2500 deposit; panel heading focused; calendar date followed",
+    "cancel": "Explicit review, retained deposit and day history; Escape restored main focus after active launcher disappeared",
+    "missed": "Zoe explicit date-only attendance review; terminal status, inactive allocation, visible phone history text",
+    "timeline": "Noor relationship displays Appointment moved and Appointment cancelled",
+    "phone_identity": "320px viewport; identity column measured 211.035px after grid correction"
+  },
+  "panel_geometry": {
+    "phone_width": 320,
+    "phone_height": 800,
+    "heading_top": 0,
+    "heading_height": 93.789,
+    "body_top": 93.789,
+    "body_height": 706.211,
+    "desktop_heading_top_after_body_scroll": 0,
+    "desktop_body_scroll": 17.5
+  },
+  "limitations": [
+    "Browser dev-server rendering; production bundle built, not separately served",
+    "No full axe/screen-reader certification",
+    "In-app screenshot captures clipped fixed panels when underlying document was scrolled; inspected inline, not archived as reliable 0.2.2 captures",
+    "No production auth/database/provider/deployment verification"
+  ]
+}

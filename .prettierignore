@@ -1,0 +1,8 @@
+node_modules
+dist
+coverage
+.playwright-cli
+output
+docs/archive
+package-lock.json
+*.tsbuildinfo

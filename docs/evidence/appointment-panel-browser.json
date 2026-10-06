@@ -1,0 +1,50 @@
+{
+  "checkedAt": "2026-10-06",
+  "browser": "154.0.8037.98",
+  "viewports": [
+    {
+      "viewport": 1440,
+      "documentWidth": 1440,
+      "x": 980,
+      "right": 1440,
+      "width": 460,
+      "height": 1000,
+      "panelScrollWidth": 459,
+      "panelClientWidth": 459,
+      "violations": []
+    },
+    {
+      "viewport": 390,
+      "documentWidth": 390,
+      "x": 0,
+      "right": 390,
+      "width": 390,
+      "height": 844,
+      "panelScrollWidth": 390,
+      "panelClientWidth": 390,
+      "violations": []
+    },
+    {
+      "viewport": 320,
+      "documentWidth": 320,
+      "x": 0,
+      "right": 320,
+      "width": 320,
+      "height": 844,
+      "panelScrollWidth": 320,
+      "panelClientWidth": 320,
+      "violations": []
+    }
+  ],
+  "errors": [],
+  "keyboard": "Heading initial focus, 12 Tab presses trapped, Escape returned to original appointment",
+  "otherDialogs": "Booking centred; search focuses input and closes normally",
+  "checkout": {
+    "balanceMinor": 8425,
+    "currency": "GBP",
+    "sales": 1,
+    "rebooks": 1,
+    "headingFocus": "Checkout and receipt headings focused",
+    "rebookFocus": "Enabled Service select, not disabled Client select"
+  }
+}

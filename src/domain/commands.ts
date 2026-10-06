@@ -1,0 +1,599 @@
+import { z } from 'zod'
+import { parseState } from './model'
+import { businessDate, hoursFor, instantFor, operations, staffHoursFor } from './operations'
+import { bookingSchema, commandSchema, contactSchema } from './commandSchema'
+import type { Command, ContactInput } from './commandSchema'
+import { assertMethod, runOperatingCommand } from './operatingCommands'
+export { commandSchema } from './commandSchema'
+export type { Command, BookingInput, ContactInput } from './commandSchema'
+import type { Appointment, BusinessState, RelationshipEvent } from './model'
+import { addDays, dateLabel, timeLabel } from './format'
+
+export type CommandResult =
+  { ok: true; state: BusinessState; recordId: string } | { ok: false; error: string }
+
+function availableAllocation(
+  s: BusinessState,
+  serviceId: string,
+  staffId: string,
+  date: string,
+  start: number,
+  duration: number,
+  buffer: number,
+  resourceType: string,
+  excludeId?: string,
+  now = new Date().toISOString(),
+  preferredResourceId?: string,
+): string | null {
+  const staff = s.staff.find((item) => item.id === staffId)
+  if (
+    !staff ||
+    staff.archived ||
+    !staff.serviceIds.includes(serviceId) ||
+    !z.iso.date().safeParse(date).success ||
+    date < businessDate(s, now) ||
+    !Number.isInteger(start) ||
+    start < 0 ||
+    start % 15 !== 0
+  )
+    return null
+  const end = start + duration + buffer
+  const h = hoursFor(s, date),
+    ph = staffHoursFor(s, staffId, date)
+  if (
+    !h ||
+    !ph ||
+    h.closed ||
+    ph.closed ||
+    start < Math.max(h.open, ph.open) ||
+    end > Math.min(h.close, ph.close)
+  )
+    return null
+  if (
+    operations(s).closures.some(
+      (c) =>
+        c.date === date &&
+        (!c.staffId || c.staffId === staffId) &&
+        start < c.endMinutes &&
+        end > c.startMinutes,
+    )
+  )
+    return null
+  try {
+    const instant = instantFor(s, date, start)
+    const finish = instantFor(s, end === 1440 ? addDays(date, 1) : date, end % 1440)
+    if (Date.parse(finish) - Date.parse(instant) !== (duration + buffer) * 60000) return null
+    if (operations(s).mode === 'local' && Date.parse(instant) < Date.parse(now)) return null
+  } catch {
+    return null
+  }
+
+  const overlapping = s.appointments.filter(
+    (a) =>
+      a.date === date &&
+      a.id !== excludeId &&
+      a.status !== 'cancelled' &&
+      a.status !== 'no_show' &&
+      start < a.startMinutes + a.bookedDurationMinutes + a.bookedBufferMinutes &&
+      end > a.startMinutes,
+  )
+  if (overlapping.some((a) => a.staffId === staffId)) return null
+  return (
+    s.resources.find(
+      (resource) =>
+        !resource.archived &&
+        (!preferredResourceId || resource.id === preferredResourceId) &&
+        resource.type === resourceType &&
+        !overlapping.some((a) => a.resourceId === resource.id),
+    )?.id ?? null
+  )
+}
+export function availableResource(
+  s: BusinessState,
+  serviceId: string,
+  staffId: string,
+  date: string,
+  start: number,
+  now = new Date().toISOString(),
+  preferredResourceId?: string,
+) {
+  const service = s.services.find((item) => item.id === serviceId)
+  return service && !service.archived
+    ? availableAllocation(
+        s,
+        serviceId,
+        staffId,
+        date,
+        start,
+        service.durationMinutes,
+        service.bufferMinutes,
+        service.resourceType,
+        undefined,
+        now,
+        preferredResourceId,
+      )
+    : null
+}
+export function rescheduleResource(
+  s: BusinessState,
+  appointmentId: string,
+  staffId: string,
+  date: string,
+  start: number,
+  now = new Date().toISOString(),
+  preferredResourceId?: string,
+) {
+  const appointment = s.appointments.find((item) => item.id === appointmentId)
+  const resource = s.resources.find((item) => item.id === appointment?.resourceId)
+  return appointment?.status === 'confirmed' && resource
+    ? availableAllocation(
+        s,
+        appointment.serviceId,
+        staffId,
+        date,
+        start,
+        appointment.bookedDurationMinutes,
+        appointment.bookedBufferMinutes,
+        appointment.bookedResourceType ?? resource.type,
+        appointment.id,
+        now,
+        preferredResourceId,
+      )
+    : null
+}
+export function rescheduleSlots(
+  s: BusinessState,
+  appointmentId: string,
+  staffId: string,
+  date: string,
+  now = new Date().toISOString(),
+) {
+  const options: number[] = []
+  for (let start = 0; start < 1440; start += 15)
+    if (rescheduleResource(s, appointmentId, staffId, date, start, now)) options.push(start)
+  return options
+}
+export function slots(
+  s: BusinessState,
+  serviceId: string,
+  staffId: string,
+  date: string,
+  now = new Date().toISOString(),
+) {
+  const options: number[] = []
+  for (let start = 0; start < 1440; start += 15)
+    if (
+      staffId === 'any'
+        ? availableProfessionals(s, serviceId, date, start, now).length > 0
+        : availableResource(s, serviceId, staffId, date, start, now)
+    )
+      options.push(start)
+  return options
+}
+export function availableProfessionals(
+  s: BusinessState,
+  serviceId: string,
+  date: string,
+  start: number,
+  now = new Date().toISOString(),
+) {
+  return s.staff.filter((person) => availableResource(s, serviceId, person.id, date, start, now))
+}
+export function depositPaid(s: BusinessState, appointmentId: string) {
+  return s.payments
+    .filter((p) => p.appointmentId === appointmentId && p.kind === 'deposit')
+    .reduce((sum, p) => sum + p.amountMinor, 0)
+}
+
+export function execute(
+  s: BusinessState,
+  rawCommand: Command,
+  now = new Date().toISOString(),
+  makeId: () => string = () => crypto.randomUUID(),
+): CommandResult {
+  try {
+    const command = commandSchema.parse(rawCommand)
+    const next = structuredClone(s)
+    const org = s.organisation
+    const addEvent = (
+      event: Omit<RelationshipEvent, 'id' | 'organisationId' | 'occurredAt' | 'actor'>,
+    ) => {
+      next.events.push({
+        ...event,
+        id: makeId(),
+        organisationId: org.id,
+        occurredAt: now,
+        actor: operations(s).mode === 'sandbox' ? 'Maya · demo operator' : 'Local operator',
+      })
+    }
+    const createClient = (contact: ContactInput) => {
+      const clean = contactSchema.parse({
+        ...contact,
+        name: contact.name.trim(),
+        email: contact.email.trim().toLowerCase(),
+        phone: contact.phone.trim(),
+      })
+      if (!/^\+[\d() -]{6,29}$/.test(clean.phone))
+        throw new Error('Enter a valid telephone number starting with + and a country code.')
+      const client = {
+        ...clean,
+        id: makeId(),
+        organisationId: org.id,
+        createdAt: now,
+        preferences: '',
+      }
+      next.clients.push(client)
+      addEvent({
+        clientId: client.id,
+        type: 'consent',
+        title: 'Client relationship opened',
+        detail: clean.marketingConsent
+          ? 'Email marketing consent recorded.'
+          : 'Marketing remains off. Appointment updates are separate.',
+      })
+      return client
+    }
+    let recordId = ''
+    if (command.type === 'book') {
+      const input = bookingSchema.parse(command.input)
+      if (input.source === 'online' && !operations(s).bookingEnabled)
+        throw new Error('Online booking is currently closed.')
+      const staffId =
+        input.staffId === 'any'
+          ? availableProfessionals(s, input.serviceId, input.date, input.startMinutes, now).find(
+              (person) =>
+                !input.resourceId ||
+                availableResource(
+                  s,
+                  input.serviceId,
+                  person.id,
+                  input.date,
+                  input.startMinutes,
+                  now,
+                  input.resourceId,
+                ),
+            )?.id
+          : input.staffId
+      if (!staffId)
+        throw new Error('That time is no longer available. Choose another time or professional.')
+      const resourceId = availableResource(
+        s,
+        input.serviceId,
+        staffId,
+        input.date,
+        input.startMinutes,
+        now,
+        input.resourceId,
+      )
+      if (!resourceId)
+        throw new Error('That time is no longer available. Choose another time or professional.')
+      const service = s.services.find((item) => item.id === input.serviceId)!
+      let client = input.clientId
+        ? next.clients.find((item) => item.id === input.clientId)
+        : undefined
+      if (input.clientId && !client) throw new Error('Client does not belong to this workspace.')
+      if (!client && input.contact) client = createClient(input.contact)
+      if (!client) throw new Error('Choose a client or enter their details.')
+      if (input.source === 'rebook' && !input.rebookedFromId)
+        throw new Error('Rebooking requires a linked completed visit.')
+      if (input.rebookedFromId && input.source !== 'rebook')
+        throw new Error('Use the rebooking workflow to link a previous visit.')
+      if (input.rebookedFromId) {
+        const previous = s.appointments.find((a) => a.id === input.rebookedFromId)
+        if (!previous || previous.status !== 'completed' || previous.clientId !== client.id)
+          throw new Error('Rebooking needs a completed visit for this client.')
+      }
+      const appointment: Appointment = {
+        id: makeId(),
+        organisationId: org.id,
+        locationId: org.locationId,
+        clientId: client.id,
+        serviceId: service.id,
+        staffId,
+        resourceId,
+        date: input.date,
+        startMinutes: input.startMinutes,
+        status: 'confirmed',
+        source: input.source,
+        createdAt: now,
+        rebookedFromId: input.rebookedFromId,
+        bookedPriceMinor: service.priceMinor,
+        bookedDepositMinor: service.depositMinor,
+        bookedDurationMinutes: service.durationMinutes,
+        bookedBufferMinutes: service.bufferMinutes,
+        bookedResourceType: service.resourceType,
+        bookedServiceName: service.name,
+      }
+      next.appointments.push(appointment)
+      // Simulated deposit receipt is deliberately separate from the service-price snapshot.
+      if (operations(s).mode === 'sandbox' && service.depositMinor > 0)
+        next.payments.push({
+          id: makeId(),
+          organisationId: org.id,
+          appointmentId: appointment.id,
+          kind: 'deposit',
+          amountMinor: service.depositMinor,
+          currency: org.currency,
+          recordedAt: now,
+          method: 'demo_card',
+        })
+      addEvent({
+        clientId: client.id,
+        appointmentId: appointment.id,
+        type: 'booked',
+        title: input.source === 'rebook' ? 'Next visit booked' : 'Appointment booked',
+        detail: `${service.name} · ${dateLabel(input.date, org.locale)} at ${timeLabel(input.startMinutes, org.locale)}. ${operations(s).mode === 'sandbox' ? 'Deposit simulated; no payment taken.' : 'No payment collected. Any required deposit remains outstanding.'}`,
+      })
+      recordId = appointment.id
+    } else if (
+      command.type === 'reschedule' ||
+      command.type === 'cancel' ||
+      command.type === 'no-show'
+    ) {
+      const appointment = next.appointments.find((a) => a.id === command.appointmentId)
+      if (!appointment) throw new Error('Appointment does not belong to this workspace.')
+      if (command.type === 'reschedule') {
+        if (appointment.status !== 'confirmed')
+          throw new Error('Only an upcoming appointment can be moved.')
+        const input = z
+          .object({
+            date: z.iso.date(),
+            staffId: z.string().min(1),
+            startMinutes: z.number().int(),
+          })
+          .parse(command)
+        const resourceId = rescheduleResource(
+          s,
+          appointment.id,
+          input.staffId,
+          input.date,
+          input.startMinutes,
+          now,
+          command.resourceId,
+        )
+        if (!resourceId)
+          throw new Error('That time is no longer available. Choose another time or professional.')
+        if (
+          appointment.date === input.date &&
+          appointment.startMinutes === input.startMinutes &&
+          appointment.staffId === input.staffId &&
+          (!command.resourceId || appointment.resourceId === resourceId)
+        )
+          return { ok: true, state: s, recordId: appointment.id }
+        const from = {
+          date: appointment.date,
+          startMinutes: appointment.startMinutes,
+          staffId: appointment.staffId,
+          resourceId: appointment.resourceId,
+        }
+        const to = { ...input, resourceId }
+        Object.assign(appointment, to)
+        addEvent({
+          clientId: appointment.clientId,
+          appointmentId: appointment.id,
+          type: 'rescheduled',
+          title: 'Appointment moved',
+          allocationChange: { from, to },
+          detail: `${dateLabel(from.date, org.locale)} at ${timeLabel(from.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === from.staffId)!.name} → ${dateLabel(to.date, org.locale)} at ${timeLabel(to.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === to.staffId)!.name}. Booked service and deposit retained; no message sent.`,
+        })
+      } else {
+        const status = command.type === 'cancel' ? 'cancelled' : 'no_show'
+        if (appointment.status === status) return { ok: true, state: s, recordId: appointment.id }
+        if (appointment.status !== 'confirmed')
+          throw new Error('Only an upcoming appointment can be changed this way.')
+        if (status === 'no_show' && appointment.date > businessDate(s, now))
+          throw new Error('A future appointment cannot be marked as missed.')
+        const reason = command.reason.trim()
+        if (reason.length < 2 || reason.length > 300)
+          throw new Error('Enter an operational reason between 2 and 300 characters.')
+        appointment.status = status
+        addEvent({
+          clientId: appointment.clientId,
+          appointmentId: appointment.id,
+          type: status,
+          title: status === 'cancelled' ? 'Appointment cancelled' : 'Visit marked as missed',
+          detail: `${reason}. Deposit history retained for review. No refund, fee, sale or message created.`,
+        })
+      }
+      recordId = appointment.id
+    } else if (command.type === 'arrive' || command.type === 'checkout') {
+      const appointment = next.appointments.find((a) => a.id === command.appointmentId)
+      if (!appointment) throw new Error('Appointment does not belong to this workspace.')
+      if (command.type === 'arrive') {
+        if (appointment.status === 'arrived')
+          return { ok: true, state: s, recordId: appointment.id }
+        if (appointment.status !== 'confirmed' || appointment.date !== businessDate(s, now))
+          throw new Error('Only a confirmed visit on the venue’s current day can arrive.')
+        appointment.status = 'arrived'
+        addEvent({
+          clientId: appointment.clientId,
+          appointmentId: appointment.id,
+          type: 'arrived',
+          title: 'Welcomed to the studio',
+          detail: 'Arrival recorded by the front desk.',
+        })
+        recordId = appointment.id
+      } else {
+        const existing = s.sales.find((sale) => sale.appointmentId === appointment.id)
+        if (existing) return { ok: true, state: s, recordId: existing.id }
+        if (appointment.status !== 'arrived')
+          throw new Error('Welcome the client before completing checkout.')
+        if (
+          !Number.isInteger(command.tipMinor) ||
+          command.tipMinor < 0 ||
+          command.tipMinor > appointment.bookedPriceMinor * 2
+        )
+          throw new Error('Enter a valid tip up to twice the service price.')
+        assertMethod(s, command.method, command.reference)
+        if (command.reference && s.payments.some((p) => p.reference === command.reference))
+          throw new Error(
+            'This payment reference is already recorded. Review the existing receipt.',
+          )
+        const deposit = depositPaid(s, appointment.id)
+        if (deposit > appointment.bookedPriceMinor)
+          throw new Error('Deposit exceeds this service. Review the ledger.')
+        const discount = command.discountMinor ?? 0
+        if (discount > appointment.bookedPriceMinor)
+          throw new Error('Discount cannot exceed the booked service price.')
+        const net = appointment.bookedPriceMinor - discount
+        const tax = operations(s).tax
+        const taxMinor = tax
+          ? Math.round(
+              tax.inclusive
+                ? (net * tax.rateBps) / (10000 + tax.rateBps)
+                : (net * tax.rateBps) / 10000,
+            )
+          : 0
+        const total = net + command.tipMinor + (tax?.inclusive ? 0 : taxMinor)
+        if (deposit > total)
+          throw new Error(
+            'The discount leaves a balance below the recorded deposit. Review the deposit before checkout.',
+          )
+        const sale = {
+          id: makeId(),
+          organisationId: org.id,
+          appointmentId: appointment.id,
+          currency: org.currency,
+          serviceMinor: appointment.bookedPriceMinor,
+          discountMinor: discount,
+          taxMinor,
+          taxInclusive: tax?.inclusive ?? false,
+          taxRateBps: tax?.rateBps ?? 0,
+          taxLabel: tax?.label ?? '',
+          receiptNumber: `SL-${s.sales.length + 1}`,
+          reference: command.reference,
+          tipMinor: command.tipMinor,
+          depositAppliedMinor: deposit,
+          totalMinor: total,
+          balanceMinor: total - deposit,
+          paidAt: now,
+          method: command.method,
+        }
+        next.sales.push(sale)
+        next.payments.push({
+          id: makeId(),
+          organisationId: org.id,
+          appointmentId: appointment.id,
+          saleId: sale.id,
+          kind: 'settlement',
+          amountMinor: sale.balanceMinor,
+          currency: org.currency,
+          recordedAt: now,
+          method: command.method,
+          reference: command.reference,
+        })
+        appointment.status = 'completed'
+        addEvent({
+          clientId: appointment.clientId,
+          appointmentId: appointment.id,
+          saleId: sale.id,
+          type: 'checkout',
+          title: 'Visit completed',
+          detail:
+            operations(s).mode === 'sandbox'
+              ? 'Demo receipt recorded. No real money was collected.'
+              : `Payment recorded as ${command.method === 'cash' ? 'cash received' : 'already paid at an external terminal'}. SALEANE did not process a payment.`,
+        })
+        recordId = sale.id
+      }
+    } else if (command.type === 'note' || command.type === 'consent') {
+      const client = next.clients.find((c) => c.id === command.clientId)
+      if (!client) throw new Error('Client does not belong to this workspace.')
+      if (command.type === 'note') {
+        const text = command.text.trim()
+        if (text.length < 2 || text.length > 1000)
+          throw new Error('Write a preference between 2 and 1,000 characters.')
+        addEvent({
+          clientId: client.id,
+          type: 'note',
+          title: 'Relationship note added',
+          detail: text,
+        })
+      } else {
+        client.marketingConsent = command.consent
+        if (!command.consent && next.operations)
+          next.operations.messages
+            .filter(
+              (m) => m.clientId === client.id && m.purpose === 'marketing' && m.status === 'queued',
+            )
+            .forEach((m) => {
+              m.status = 'suppressed'
+            })
+        addEvent({
+          clientId: client.id,
+          type: 'consent',
+          title: command.consent ? 'Email marketing enabled' : 'Email marketing withdrawn',
+          detail: 'Preference recorded. No message sent.',
+        })
+      }
+      recordId = client.id
+    } else if (command.type === 'client') {
+      if (command.referredById && !s.clients.some((c) => c.id === command.referredById))
+        throw new Error('Referrer does not belong to this workspace.')
+      const client = createClient(command.contact)
+      if (command.referredById) {
+        next.relationships.push({
+          id: makeId(),
+          organisationId: org.id,
+          fromClientId: command.referredById,
+          toClientId: client.id,
+          type: 'referral',
+          createdAt: now,
+        })
+        addEvent({
+          clientId: command.referredById,
+          type: 'relationship',
+          title: 'A relationship grew',
+          detail: `Referred ${client.name}.`,
+        })
+        addEvent({
+          clientId: client.id,
+          type: 'relationship',
+          title: 'Referred to the studio',
+          detail: `Introduced by ${s.clients.find((c) => c.id === command.referredById)!.name}.`,
+        })
+      }
+      recordId = client.id
+    } else {
+      recordId = runOperatingCommand(next, command, now, makeId, addEvent)
+    }
+    next.revision += 1
+    return { ok: true, state: parseState(next, org.region), recordId }
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof z.ZodError
+          ? 'Check the client details, date and time, then try again.'
+          : error instanceof Error
+            ? error.message
+            : 'Unable to save this change.',
+    }
+  }
+}
+
+export function dispatch(
+  s: BusinessState,
+  command: Command,
+  actorName = 'Local operator',
+  now = new Date().toISOString(),
+): CommandResult {
+  const result = execute(s, command, now)
+  if (!result.ok || result.state === s) return result
+  const eventIds = new Set(s.events.map((e) => e.id))
+  result.state.events
+    .filter((e) => !eventIds.has(e.id))
+    .forEach((e) => {
+      e.actor = actorName
+    })
+  for (const key of ['messages', 'movements', 'refunds'] as const) {
+    const ids = new Set(operations(s)[key].map((r) => r.id))
+    const records = operations(result.state)[key]
+    records
+      .filter((r) => !ids.has(r.id))
+      .forEach((r) => {
+        r.actor = actorName
+      })
+  }
+  return result
+}
