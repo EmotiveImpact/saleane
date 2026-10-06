@@ -975,16 +975,9 @@ fieldset {
   border-radius: 4px;
   width: 100%;
   text-align: left;
-  border-left: 3px solid #8fa394;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-}
-.calendar-event.tone-blue {
-  border-color: #8aa5b7;
-}
-.calendar-event.tone-sand {
-  border-color: #b5a279;
 }
 .calendar-event > span {
   display: flex;
@@ -1257,7 +1250,6 @@ fieldset {
   list-style: none;
   margin: 10px 0 0;
   padding: 0;
-  border-left: 1px solid var(--line);
 }
 .visit-steps li {
   display: flex;
@@ -1289,7 +1281,7 @@ fieldset {
   padding: 10px 13px;
   background: #f6f8f7;
   margin-top: 10px;
-  border-left: 2px solid #96ae9d;
+  border-radius: var(--radius-control);
 }
 .timeline-money strong {
   font-family: var(--font-display);
@@ -1702,7 +1694,7 @@ fieldset {
   font-size: 25px;
 }
 .form-error {
-  border-left: 3px solid #a34137;
+  border-radius: var(--radius-control);
   background: #fcf1ef;
   color: #8c2e24;
   padding: 10px 14px;
@@ -1753,7 +1745,7 @@ fieldset {
 }
 .preference-note {
   padding: 16px;
-  border-left: 2px solid #bba77f;
+  border-radius: var(--radius-control);
   background: #f6f4ee;
   margin: 22px 0;
 }
@@ -3127,7 +3119,7 @@ fieldset {
 .deposit-review {
   padding: 16px;
   background: #f4efe5;
-  border-left: 3px solid #917545;
+  border-radius: var(--radius-control);
   margin-top: 20px;
 }
 .deposit-review p {
@@ -3438,7 +3430,6 @@ fieldset {
   width: 100%;
   padding: 10px 12px;
   border: 0;
-  border-left: 3px solid currentColor;
   border-radius: var(--radius-control);
   text-align: left;
 }

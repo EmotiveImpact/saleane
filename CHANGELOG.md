@@ -13,6 +13,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Today and Business now show one measure, "Time booked", with a shared definition and the period stated; Business also shows today's figure.
 - The client timeline shows each visit once, ordered by when it happens, with its booking, arrival, checkout and money inside.
 - On phones the calendar shows a swipeable column per professional with free time written between visits.
+- Removed the coloured stripes on the left edge of calendar visits, phone calendar visits, errors, deposit reviews, preference notes, timeline money rows and visit steps. Tone now comes from the surface colour alone, and a test fails if a left-edge stripe is added again.
 
 ## 2026-10-06 · Consolidation and AI handoff
 
