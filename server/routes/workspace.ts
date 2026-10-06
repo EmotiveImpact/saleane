@@ -7,6 +7,7 @@ import { businessDate, can, operations, permissionFor } from '../../src/domain/o
 import type { Role } from '../../src/domain/operations'
 import { emailSchema, roleSchema } from '../context'
 import type { Context, Route } from '../context'
+import { practitionerRefusal } from '../../src/domain/practitioner'
 import { workspaceView } from '../projections'
 import type { Reader } from '../projections'
 
@@ -22,7 +23,7 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
     persist,
     withHolds,
     chooseStaff,
-    rejectPractitioner,
+    linkableProfessional,
   } = ctx
   const { request, method, path, body, reply } = route
   if (path[1] === 'workspaces' && path[2]) {
@@ -30,10 +31,14 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
     const orgId = path[2]
     if (path.length === 3 && method === 'GET') {
       const org = orgFor(orgId, actor)
+      const today = businessDate(org.state, new Date(now()).toISOString())
       reply(200, {
-        ...org,
-        state: workspaceView(org, org.state),
-        today: businessDate(org.state, new Date(now()).toISOString()),
+        id: org.id,
+        slug: org.slug,
+        role: org.role,
+        staffId: org.staffId,
+        ...workspaceView(org, org.state, today),
+        today,
         mode: operations(org.state).mode,
         deliveryConfigured: false,
         paymentsConfigured: false,
@@ -55,6 +60,15 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         reader = org
         if (!can(org.role, permissionFor(data.command)))
           fail(403, 'Your role cannot make this change.')
+        if (org.role === 'practitioner') {
+          const refusal = practitionerRefusal(
+            org.state,
+            org.staffId!,
+            data.command,
+            businessDate(org.state, new Date(now()).toISOString()),
+          )
+          if (refusal) fail(403, refusal)
+        }
         const receipt = db.get<{ fingerprint: string; record_id: string }>(
           'SELECT fingerprint,record_id FROM command_receipts WHERE organisation_id=? AND account_id=? AND key=?',
           org.id,
@@ -101,7 +115,11 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         )
         return result
       })
-      reply(200, { ...result, state: workspaceView(reader, result.state) })
+      const { state, ...outcome } = result
+      reply(200, {
+        ...outcome,
+        ...workspaceView(reader, state, businessDate(state, new Date(now()).toISOString())),
+      })
       return true
     }
     if (path[3] === 'team' && path.length === 4 && method === 'GET') {
@@ -117,13 +135,19 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
           org.id,
           now(),
         ),
-        practitionerAccessEnabled: false,
+        practitionerAccessEnabled: true,
       })
       return true
     }
     if (path[3] === 'invitations' && path.length === 4 && method === 'POST') {
-      const data = z.object({ email: emailSchema, role: roleSchema }).strict().parse(body)
-      rejectPractitioner(data.role)
+      const data = z
+        .object({
+          email: emailSchema,
+          role: roleSchema,
+          staffId: z.string().min(1).max(100).optional(),
+        })
+        .strict()
+        .parse(body)
       const raw = token(),
         expiresAt = now() + 48 * 60 * 60000
       db.transaction(() => {
@@ -135,6 +159,8 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
           data.email,
         )
         if (member) fail(409, 'This person already belongs to the workspace.')
+        const staffId =
+          data.role === 'practitioner' ? linkableProfessional(org, data.staffId) : null
         db.run(
           'UPDATE invitations SET used_at=? WHERE organisation_id=? AND email=? AND used_at IS NULL',
           now(),
@@ -142,11 +168,12 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
           data.email,
         )
         db.run(
-          'INSERT INTO invitations(token_hash,organisation_id,email,role,created_at,expires_at) VALUES(?,?,?,?,?,?)',
+          'INSERT INTO invitations(token_hash,organisation_id,email,role,staff_id,created_at,expires_at) VALUES(?,?,?,?,?,?,?)',
           digest(raw),
           org.id,
           data.email,
           data.role,
+          staffId,
           now(),
           expiresAt,
         )
@@ -165,10 +192,10 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         .object({
           accountId: z.string().min(1).max(100),
           role: z.enum(['manager', 'reception', 'practitioner', 'remove']),
+          staffId: z.string().min(1).max(100).optional(),
         })
         .strict()
         .parse(body)
-      rejectPractitioner(data.role)
       db.transaction(() => {
         const org = orgFor(orgId, actor)
         if (org.role !== 'owner') fail(403, 'Only the owner can change access.')
@@ -186,8 +213,11 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
           )
         else
           db.run(
-            'UPDATE memberships SET role=?,staff_id=NULL WHERE organisation_id=? AND account_id=?',
+            'UPDATE memberships SET role=?,staff_id=? WHERE organisation_id=? AND account_id=?',
             data.role,
+            data.role === 'practitioner'
+              ? linkableProfessional(org, data.staffId, data.accountId)
+              : null,
             org.id,
             data.accountId,
           )
@@ -208,7 +238,7 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
       return true
     }
     if (path[3] === 'messages' && path[4] === 'send' && method === 'POST') {
-      orgFor(orgId, actor)
+      if (orgFor(orgId, actor).role === 'practitioner') fail(403, 'Your role cannot send messages.')
       fail(503, 'Message delivery is not configured. Drafts and queues remain local.')
     }
   }

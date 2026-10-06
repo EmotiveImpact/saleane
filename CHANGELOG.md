@@ -2,6 +2,17 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## In review · LOCAL-01 assigned-practitioner access
+
+**Status: draft pull request, stacked on the server groundwork PR, not merged.** No schema migration (the membership and invitation tables already carried `staff_id`); live services stay unconfigured.
+
+- A practitioner invitation must name one active professional, and no two team members can work as the same professional. The owner chooses the professional when inviting or changing someone's role in Manage.
+- A practitioner's workspace read returns a separate practitioner record from `server/projections.ts`, never the studio record: their own visits from two weeks back to four weeks ahead (service, room, time, status) and, for clients in those visits only, a name, preferences and the latest 20 relationship notes. No email, phone, consent, prices, deposits, receipts, payments, other professionals' diaries, catalogue or settings.
+- Practitioners may only welcome a client to their own visit and add a note for a client they serve. The server checks this after the role permission and before the request receipt, so a reused key cannot widen scope. Team, audit, invitations and message sending stay refused.
+- Role changes and removal take effect on the next request, including replayed receipts.
+- Practitioners sign in to a new "Your day" screen at `/practice/:studio` with its own retry journal. The studio workspace refuses a practitioner record rather than filling gaps.
+- Verified with lint, format check, strict TypeScript, builds and 182 tests (137 frontend/domain/store, 45 server), plus a Chromium journey: invitation, sign-up, own day, welcome, note, owner sees the note, desktop and 390px. See `docs/evidence/LOCAL-01.md`.
+
 ## In review · Server groundwork for practitioner access
 
 **Status: draft pull request, stacked on the hardening PR, not merged.** No API contract, schema or behaviour change.

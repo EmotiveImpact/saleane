@@ -464,7 +464,7 @@ describe('tenant authority, durable commands and access', () => {
       audit.json<{ events: { action: string }[] }>().events.map((event) => event.action),
     ).toContain('membership.changed')
   })
-  it('gates practitioner provisioning and rejects a reused invitation', async () => {
+  it('requires a professional for practitioner invitations and rejects a reused invitation', async () => {
     const owner = await register()
     const gated = await api.inject({
       method: 'POST',
