@@ -4,8 +4,8 @@ import { api } from '../state/api'
 import { Button, ErrorMessage } from '../design'
 
 type Team = {
-  members: { id: string; name: string; email: string; role: string }[]
-  invitations: { email: string; role: string; expiresAt: number }[]
+  members: { id: string; name: string; email: string; role: string; staffId: string | null }[]
+  invitations: { email: string; role: string; staffId: string | null; expiresAt: number }[]
 }
 export function AccessPanel() {
   const { state, role, mode } = useStore()
@@ -15,6 +15,7 @@ export function AccessPanel() {
     [pending, setPending] = useState(false)
   const [email, setEmail] = useState(''),
     [inviteRole, setInviteRole] = useState('reception'),
+    [inviteStaff, setInviteStaff] = useState(''),
     [link, setLink] = useState(''),
     [copied, setCopied] = useState(false)
   const [password, setPassword] = useState(''),
@@ -47,11 +48,19 @@ export function AccessPanel() {
         </a>
       </section>
     )
-  async function changeMember(accountId: string, nextRole: string) {
+  // A practitioner seat is always linked to one active professional: "practitioner:<staffId>".
+  const professionals = state.staff.filter((person) => !person.archived)
+  const professionalName = (staffId: string | null) =>
+    state.staff.find((person) => person.id === staffId)?.name ?? 'an archived professional'
+  async function changeMember(accountId: string, choice: string) {
+    const [nextRole, staffId] = choice.split(':')
     setPending(true)
     setError('')
     try {
-      await api(`${base}/membership`, { method: 'POST', body: { accountId, role: nextRole } })
+      await api(`${base}/membership`, {
+        method: 'POST',
+        body: { accountId, role: nextRole, ...(staffId ? { staffId } : {}) },
+      })
       setTeam(await api<Team>(`${base}/team`))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Access could not be updated.')
@@ -83,11 +92,22 @@ export function AccessPanel() {
                       <span className="sr-only">Role for {m.name}</span>
                       <select
                         disabled={pending}
-                        value={m.role}
+                        value={m.role === 'practitioner' ? `practitioner:${m.staffId}` : m.role}
                         onChange={(e) => void changeMember(m.id, e.target.value)}
                       >
                         <option value="manager">Manager</option>
                         <option value="reception">Reception</option>
+                        {m.role === 'practitioner' &&
+                          !professionals.some((person) => person.id === m.staffId) && (
+                            <option value={`practitioner:${m.staffId}`}>
+                              Practitioner · {professionalName(m.staffId)}
+                            </option>
+                          )}
+                        {professionals.map((person) => (
+                          <option key={person.id} value={`practitioner:${person.id}`}>
+                            Practitioner · {person.name}
+                          </option>
+                        ))}
                       </select>
                     </label>
                     <Button
@@ -111,7 +131,11 @@ export function AccessPanel() {
               try {
                 const result = await api<{ url: string }>(`${base}/invitations`, {
                   method: 'POST',
-                  body: { email, role: inviteRole },
+                  body: {
+                    email,
+                    role: inviteRole,
+                    ...(inviteRole === 'practitioner' ? { staffId: inviteStaff } : {}),
+                  },
                 })
                 setLink(result.url)
                 setCopied(false)
@@ -138,12 +162,32 @@ export function AccessPanel() {
                 <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
                   <option value="reception">Reception</option>
                   <option value="manager">Manager</option>
+                  <option value="practitioner">Practitioner</option>
                 </select>
               </label>
+              {inviteRole === 'practitioner' && (
+                <label>
+                  Works as
+                  <select
+                    required
+                    value={inviteStaff}
+                    onChange={(e) => setInviteStaff(e.target.value)}
+                  >
+                    <option value="">Choose a professional</option>
+                    {professionals.map((person) => (
+                      <option key={person.id} value={person.id}>
+                        {person.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
             </div>
             <p className="subtle">
               Managers can configure the studio and review money. Reception can manage appointments,
-              clients and checkout. Restricted practitioner accounts are a later release gate.
+              clients and checkout. A practitioner sees only their own visits, with each client's
+              name, preferences and notes, and can welcome their client and add notes. They see no
+              contact details, prices, payments or other diaries.
             </p>
             <Button type="submit" disabled={pending}>
               Create invitation link
@@ -176,6 +220,7 @@ export function AccessPanel() {
               {team?.invitations.map((i) => (
                 <p key={i.email}>
                   {i.email} · {i.role}
+                  {i.role === 'practitioner' ? ` · ${professionalName(i.staffId)}` : ''}
                 </p>
               ))}
             </details>

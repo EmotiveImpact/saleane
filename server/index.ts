@@ -6,6 +6,7 @@ import { basename, dirname, extname, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createApiHandler } from './app'
 import type { ApiHandler } from './app'
+import { turnstileFromEnv } from './turnstile'
 
 const types: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -81,6 +82,9 @@ export function createLocalServer(options: {
   protectDatabase(root, options.databasePath)
   const api = createApiHandler(options)
   const expectedHost = new URL(options.origin).host
+  // Cloudflare's script and frame are allowed only when the bot check keys are configured.
+  const challenges = turnstileFromEnv() ? ' https://challenges.cloudflare.com' : ''
+  const contentSecurityPolicy = `default-src 'self'; script-src 'self'${challenges}; frame-src 'self'${challenges}; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`
   const server = createServer(async (request, response) => {
     if (request.headers.host !== expectedHost) {
       response.writeHead(403).end('Use the configured SALEANE address.')
@@ -93,10 +97,7 @@ export function createLocalServer(options: {
     response.setHeader('X-Content-Type-Options', 'nosniff')
     response.setHeader('X-Frame-Options', 'DENY')
     response.setHeader('Referrer-Policy', 'same-origin')
-    response.setHeader(
-      'Content-Security-Policy',
-      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
-    )
+    response.setHeader('Content-Security-Policy', contentSecurityPolicy)
     if (!['GET', 'HEAD'].includes(request.method ?? 'GET')) {
       response.writeHead(405, { Allow: 'GET, HEAD' }).end()
       return

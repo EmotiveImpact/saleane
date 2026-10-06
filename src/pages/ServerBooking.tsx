@@ -8,6 +8,7 @@ import { useStore } from '../state/context'
 import type { BusinessState } from '../domain/model'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import { Button, ErrorMessage, TimeChoices } from '../design'
+import { BotCheck } from '../components/BotCheck'
 
 const pendingBookingSchema = z.object({
   payload: z.object({
@@ -40,6 +41,7 @@ type Catalog = {
   staff: BusinessState['staff']
   today: string
   sample: boolean
+  botCheck?: { siteKey: string } | null
 }
 export function ServerBooking() {
   const { slug } = useParams(),
@@ -92,7 +94,7 @@ function BookingFlow({
   pending: boolean
   setPending: (value: boolean) => void
 }) {
-  const { organisation: org, services, staff, today, sample } = catalog
+  const { organisation: org, services, staff, today, sample, botCheck } = catalog
   const store = useStore(),
     navigate = useNavigate()
   const journalKey = `saleane.guest-confirmation:${base}`
@@ -116,6 +118,8 @@ function BookingFlow({
         : null,
     ),
     [seconds, setSeconds] = useState(0)
+  const [botToken, setBotToken] = useState(''),
+    [botAttempt, setBotAttempt] = useState(0)
   const [name, setName] = useState(recovery.value?.payload.contact.name ?? ''),
     [email, setEmail] = useState(recovery.value?.payload.contact.email ?? ''),
     [phone, setPhone] = useState(recovery.value?.payload.contact.phone ?? ''),
@@ -160,13 +164,23 @@ function BookingFlow({
       setHold(
         await api(`${base}/holds`, {
           method: 'POST',
-          body: { serviceId, staffId, date, startMinutes: start },
+          body: {
+            serviceId,
+            staffId,
+            date,
+            startMinutes: start,
+            // Hand back any earlier hold so this guest never holds two times at once.
+            ...(hold ? { replaces: hold.hold } : {}),
+            ...(botCheck ? { botCheck: botToken } : {}),
+          },
         }),
       )
       setStep(3)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'This time could not be reserved.')
     } finally {
+      // Turnstile tokens are single use, so every attempt needs a fresh check.
+      if (botCheck) setBotAttempt((n) => n + 1)
       setPending(false)
     }
   }
@@ -464,13 +478,25 @@ function BookingFlow({
                           onChange={setStart}
                         />
                       )}
+                      {botCheck && (
+                        <BotCheck
+                          key={botAttempt}
+                          siteKey={botCheck.siteKey}
+                          onToken={setBotToken}
+                        />
+                      )}
                       <div className="booking-next">
                         <Button variant="quiet" onClick={() => setStep(1)}>
                           <ArrowLeft size={16} />
                           Back
                         </Button>
                         <Button
-                          disabled={start === null || loadingTimes || !times.includes(start)}
+                          disabled={
+                            start === null ||
+                            loadingTimes ||
+                            !times.includes(start) ||
+                            (!!botCheck && !botToken)
+                          }
                           onClick={() => void reserve()}
                         >
                           Hold this time <ArrowRight size={17} />

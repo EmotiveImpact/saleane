@@ -11,6 +11,7 @@ import {
 import { dirname, resolve } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { fileURLToPath } from 'node:url'
+import { SCHEMA_VERSION } from './database'
 import { parseState } from '../src/domain/model'
 import type { BusinessState } from '../src/domain/model'
 
@@ -26,7 +27,11 @@ export function validateDatabase(path: string) {
     const versions = database
       .prepare('SELECT version FROM schema_migrations ORDER BY version')
       .all()
-    if (versions.length !== 1 || versions[0].version !== 1)
+    // Exactly the contiguous steps this build knows: older files open through the app first.
+    if (
+      versions.length !== SCHEMA_VERSION ||
+      versions.some((row, index) => Number(row.version) !== index + 1)
+    )
       throw new Error('This database migration version is not supported.')
     const tables = database
       .prepare("SELECT name FROM sqlite_master WHERE type='table'")
@@ -51,7 +56,7 @@ export function validateDatabase(path: string) {
         throw new Error('Database snapshot and revision do not agree.')
     }
     return {
-      migrations: [1],
+      migrations: versions.map((row) => Number(row.version)),
       workspaces: Number(
         database.prepare('SELECT count(*) AS total FROM organisations').get()!.total,
       ),

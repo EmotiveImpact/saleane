@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowRight, ArrowLeft, ShieldCheck } from 'lucide-react'
 import { useStore } from '../state/context'
 import { api } from '../state/api'
+import type { Session } from '../state/api'
 import { Button, ErrorMessage } from '../design'
 import '../account.css'
 
@@ -41,12 +42,20 @@ export function Account() {
     // Session lookup is intentionally once per account-page visit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  async function enter(id: string) {
+  /** Practitioners open their own day; every other role opens the studio workspace. */
+  async function open(id: string, current: Session | null) {
+    if (current?.workspaces.find((w) => w.id === id)?.role === 'practitioner') {
+      navigate(`/practice/${encodeURIComponent(id)}`)
+      return
+    }
+    await store.openWorkspace(id)
+    navigate('/today')
+  }
+  async function enter(id: string, current = store.session) {
     setPending(true)
     setError('')
     try {
-      await store.openWorkspace(id)
-      navigate('/today')
+      await open(id, current)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Workspace could not be opened.')
     } finally {
@@ -59,24 +68,25 @@ export function Account() {
     setError('')
     try {
       let orgId = ''
+      let current: Session | null = null
       if (view === 'signin') {
         await api('/api/auth/login', { method: 'POST', body: { email, password } })
-        const next = await store.refreshSession()
+        current = await store.refreshSession()
         if (invitation) {
           const joined = await api<{ orgId: string }>('/api/invitations/accept', {
             method: 'POST',
             body: { invitation },
           })
           orgId = joined.orgId
-          await store.refreshSession()
-        } else orgId = next?.workspaces[0]?.id ?? ''
+          current = await store.refreshSession()
+        } else orgId = current?.workspaces[0]?.id ?? ''
       } else if (view === 'workspace') {
         const result = await api<{ orgId: string }>('/api/workspaces', {
           method: 'POST',
           body: { workspace: { name: business, region, locationName: location, timeZone, sample } },
         })
         orgId = result.orgId
-        await store.refreshSession()
+        current = await store.refreshSession()
       } else {
         const result = await api<{ orgId: string }>('/api/auth/register', {
           method: 'POST',
@@ -92,13 +102,11 @@ export function Account() {
           },
         })
         orgId = result.orgId
-        await store.refreshSession()
+        current = await store.refreshSession()
       }
       setPassword('')
-      if (orgId) {
-        await store.openWorkspace(orgId)
-        navigate('/today')
-      } else setView('workspace')
+      if (orgId) await open(orgId, current)
+      else setView('workspace')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'This request could not be completed.')
     } finally {
@@ -163,8 +171,7 @@ export function Account() {
                       method: 'POST',
                       body: { invitation },
                     })
-                    await store.refreshSession()
-                    await enter(result.orgId)
+                    await enter(result.orgId, await store.refreshSession())
                   } catch (e) {
                     setError(e instanceof Error ? e.message : 'Invitation could not be accepted.')
                   } finally {
