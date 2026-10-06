@@ -2,7 +2,13 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, ArrowUpRight, Plus, Leaf, Sun } from 'lucide-react'
 import { useStore } from '../state/context'
-import { dayAppointments, dueClients, availableMinutes } from '../domain/selectors'
+import {
+  dayAppointments,
+  dueClients,
+  utilisation,
+  UTILISATION_DEFINITION,
+  UTILISATION_LABEL,
+} from '../domain/selectors'
 import { slots } from '../domain/commands'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import { Avatar, Button, Metric } from '../components/ui'
@@ -27,15 +33,12 @@ export function Today() {
   const service = state.services.find((s) => !s.archived && professional?.serviceIds.includes(s.id))
   const available =
     professional && service ? slots(state, service.id, professional.id, tomorrow) : []
-  const capacity = availableMinutes(state, today)
   const booked = day.reduce((sum, a) => sum + a.bookedPriceMinor, 0)
   const completed = day.filter((a) => a.status === 'completed').length
   const changed = state.appointments.filter(
     (a) => a.date === today && (a.status === 'cancelled' || a.status === 'no_show'),
   )
-  const utilisation = Math.round(
-    capacity ? (day.reduce((sum, a) => sum + a.bookedDurationMinutes, 0) / capacity) * 100 : 0,
-  )
+  const filled = utilisation(state, 1)
   return (
     <>
       <div className="page-heading">
@@ -66,9 +69,9 @@ export function Today() {
           detail={`${completed} complete · ${day.length - completed} still to come`}
         />
         <Metric
-          label="Time well filled"
-          value={`${utilisation}%`}
-          detail="Of available professional hours"
+          label={UTILISATION_LABEL}
+          value={`${filled.percent}%`}
+          detail={`${filled.period} · ${UTILISATION_DEFINITION}`}
         />
         <Metric label="Ready to return" value={due.length} detail="Clients with no next visit" />
       </div>
@@ -184,11 +187,7 @@ export function Today() {
               .filter((p) => !p.archived)
               .map((staff) => {
                 const visits = day.filter((a) => a.staffId === staff.id)
-                const percent = Math.round(
-                  (visits.reduce((sum, a) => sum + a.bookedDurationMinutes, 0) /
-                    (availableMinutes({ ...state, staff: [staff] }, today) || 1)) *
-                    100,
-                )
+                const percent = utilisation(state, 1, staff.id).percent
                 return (
                   <div className="team-row" key={staff.id}>
                     <Avatar identity={staff.id} name={staff.name} small tone={staff.tone} />

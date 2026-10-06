@@ -12,7 +12,14 @@ import { seed } from './seed'
 import { DEMO_DATE, parseState } from './model'
 import type { BusinessState } from './model'
 import { addDays, money, timeLabel } from './format'
-import { clientStats, dayAppointments, dueClients, report } from './selectors'
+import {
+  availableMinutes,
+  clientStats,
+  dayAppointments,
+  dueClients,
+  report,
+  utilisation,
+} from './selectors'
 
 const tomorrow = addDays(DEMO_DATE, 1)
 const booking: BookingInput = {
@@ -617,5 +624,61 @@ describe('relationship integrity', () => {
     s.clients[0].organisationId = 'org-another-business'
     expect(() => parseState(s, 'UK')).toThrow('Foreign workspace record')
     expect(() => parseState(seed('US'), 'UK')).toThrow('Workspace region mismatch')
+  })
+})
+
+describe('one utilisation definition', () => {
+  it('measures today from active booked service minutes over open professional minutes', () => {
+    const s = seed('UK')
+    const today = utilisation(s, 1)
+    const booked = dayAppointments(s).reduce((sum, a) => sum + a.bookedDurationMinutes, 0)
+    expect(today).toMatchObject({
+      from: DEMO_DATE,
+      to: DEMO_DATE,
+      bookedMinutes: booked,
+      openMinutes: availableMinutes(s, DEMO_DATE),
+      period: 'Today',
+    })
+    expect(today.ratio).toBeCloseTo(booked / availableMinutes(s, DEMO_DATE))
+    expect(today.percent).toBe(Math.round(today.ratio * 100))
+  })
+  it('is the same figure the business report uses for the same period', () => {
+    const s = seed('UK')
+    for (const days of [1, 7, 28]) {
+      expect(report(s, days).utilisation).toBe(utilisation(s, days).ratio)
+    }
+    expect(utilisation(s, 7)).toMatchObject({ from: addDays(DEMO_DATE, -6), period: 'Last 7 days' })
+    expect(utilisation(s, 7).openMinutes).toBe(
+      Array.from({ length: 7 }, (_, i) => availableMinutes(s, addDays(DEMO_DATE, i - 6))).reduce(
+        (sum, minutes) => sum + minutes,
+        0,
+      ),
+    )
+  })
+  it('excludes cancelled visits and turnaround buffers from booked time', () => {
+    const s = seed('UK')
+    const original = s.appointments.find((a) => a.id === 'visit-noor')!
+    const before = utilisation(s, 1)
+    const result = execute(s, {
+      type: 'cancel',
+      appointmentId: original.id,
+      reason: 'Client unable to attend',
+    })
+    ok(result)
+    const after = utilisation(result.state, 1)
+    expect(after.bookedMinutes).toBe(before.bookedMinutes - original.bookedDurationMinutes)
+    expect(after.openMinutes).toBe(before.openMinutes)
+  })
+  it('adds up across professionals when measured one person at a time', () => {
+    const s = seed('UK')
+    const people = s.staff.filter((p) => !p.archived)
+    const each = people.map((p) => utilisation(s, 1, p.id))
+    expect(each.reduce((sum, u) => sum + u.bookedMinutes, 0)).toBe(utilisation(s, 1).bookedMinutes)
+    expect(each.reduce((sum, u) => sum + u.openMinutes, 0)).toBe(utilisation(s, 1).openMinutes)
+  })
+  it('reports zero rather than dividing by zero when nothing is open', () => {
+    const s = seed('UK')
+    const closed = { ...s, staff: [] }
+    expect(utilisation(closed, 7)).toMatchObject({ openMinutes: 0, ratio: 0, percent: 0 })
   })
 })

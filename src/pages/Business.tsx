@@ -2,7 +2,13 @@ import { useState } from 'react'
 import { Download, Info, TrendingUp } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useStore } from '../state/context'
-import { dueClients, report } from '../domain/selectors'
+import {
+  dueClients,
+  report,
+  utilisation,
+  UTILISATION_DEFINITION,
+  UTILISATION_LABEL,
+} from '../domain/selectors'
 import { dateLabel, money } from '../domain/format'
 import { Avatar, Button, Metric } from '../components/ui'
 
@@ -11,6 +17,7 @@ export function Business() {
   const [days, setDays] = useState(7)
   const [definitions, setDefinitions] = useState(false)
   const data = report(state, days)
+  const filled = utilisation(state, days)
   const due = dueClients(state)
   const maxRevenue = Math.max(...data.byDay.map((d) => d.revenue), 1)
   function exportReport() {
@@ -74,9 +81,9 @@ export function Business() {
           detail="Service revenue ÷ completed visits"
         />
         <Metric
-          label="Professional utilisation"
-          value={`${Math.round(data.utilisation * 100)}%`}
-          detail="Booked treatment time ÷ open hours"
+          label={UTILISATION_LABEL}
+          value={`${filled.percent}%`}
+          detail={`${filled.period} · ${UTILISATION_DEFINITION}`}
         />
         <Metric
           label="Recorded rebooking"
@@ -213,11 +220,13 @@ export function Business() {
             Revenue uses completed service receipts by appointment date, excludes tips and counts
             service value after discounts and excluding included tax, once. A deposit is a
             part-payment. Refunds are shown separately in Money and are not deducted here.
-            Utilisation uses booked service minutes against configured opening and professional
-            hours, less recorded closures. Historical utilisation uses the current schedule;
-            schedule versions are not yet retained. Rebooking counts explicit links created through
-            checkout, rather than assuming another appointment is a rebook. All figures come from
-            this workspace’s records. A manual payment record is not processor settlement evidence.
+            Professional time booked uses booked service minutes, excluding turnaround, against
+            configured opening and professional hours, less recorded closures. Today shows the
+            current day; this page shows the selected period, so the two figures differ. Historical
+            utilisation uses the current schedule; schedule versions are not yet retained. Rebooking
+            counts explicit links created through checkout, rather than assuming another appointment
+            is a rebook. All figures come from this workspace’s records. A manual payment record is
+            not processor settlement evidence.
           </p>
         )}
       </div>

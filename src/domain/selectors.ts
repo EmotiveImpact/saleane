@@ -43,7 +43,6 @@ export function report(s: BusinessState, days: number) {
   const revenue = sales.reduce((sum, sale) => sum + serviceRevenue(sale), 0)
   const tips = sales.reduce((sum, sale) => sum + sale.tipMinor, 0)
   const booked = appointments.reduce((sum, a) => sum + a.bookedPriceMinor, 0)
-  const minutes = appointments.reduce((sum, a) => sum + a.bookedDurationMinutes, 0)
   const rebooked = completed.filter((a) =>
     s.appointments.some(
       (next) =>
@@ -77,14 +76,13 @@ export function report(s: BusinessState, days: number) {
       .reduce((sum, sale) => sum + serviceRevenue(sale), 0),
     visits: completed.filter((a) => a.staffId === staff.id).length,
   }))
-  const capacity = byDay.reduce((sum, day) => sum + availableMinutes(s, day.date), 0)
   return {
     from,
     revenue,
     tips,
     booked,
     completed: completed.length,
-    utilisation: capacity ? minutes / capacity : 0,
+    utilisation: utilisation(s, days).ratio,
     tax: sales.reduce((sum, sale) => sum + (sale.taxMinor ?? 0), 0),
     refunds: operations(s)
       .refunds.filter((refund) => sales.some((sale) => sale.id === refund.saleId))
@@ -129,4 +127,45 @@ export function availableMinutes(s: BusinessState, date: string) {
       }
       return sum + end - start - unavailable
     }, 0)
+}
+
+/** The single label for utilisation, shared by Today and Business. */
+export const UTILISATION_LABEL = 'Professional time booked'
+/** Plain-language definition shown beneath every utilisation figure. */
+export const UTILISATION_DEFINITION = 'booked service time ÷ open professional hours'
+
+/**
+ * One definition of utilisation for every screen: booked service minutes on active
+ * (not cancelled or missed) appointments, divided by open professional minutes, over the
+ * `days` ending on the business date. Turnaround buffers are excluded from booked time.
+ * Pass `staffId` to measure one professional.
+ */
+export function utilisation(s: BusinessState, days = 1, staffId?: string) {
+  const to = businessDate(s)
+  const from = addDays(to, 1 - days)
+  const bookedMinutes = s.appointments
+    .filter(
+      (a) =>
+        a.date >= from &&
+        a.date <= to &&
+        a.status !== 'cancelled' &&
+        a.status !== 'no_show' &&
+        (!staffId || a.staffId === staffId),
+    )
+    .reduce((sum, a) => sum + a.bookedDurationMinutes, 0)
+  const scoped = staffId ? { ...s, staff: s.staff.filter((p) => p.id === staffId) } : s
+  const openMinutes = Array.from({ length: days }, (_, i) => addDays(from, i)).reduce(
+    (sum, date) => sum + availableMinutes(scoped, date),
+    0,
+  )
+  return {
+    from,
+    to,
+    days,
+    bookedMinutes,
+    openMinutes,
+    ratio: openMinutes ? bookedMinutes / openMinutes : 0,
+    percent: Math.round(openMinutes ? (bookedMinutes / openMinutes) * 100 : 0),
+    period: days === 1 ? 'Today' : `Last ${days} days`,
+  }
 }
