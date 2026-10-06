@@ -6,7 +6,7 @@ Policy chosen by the user: a guest cancelling at least 24 hours before the visit
 
 ## Automated checks
 
-`npm run check` passed: lint, strict TypeScript, application/server/backup builds and 206 tests (141 frontend/domain/store, 65 server). `npm run format:check` passed on tracked files.
+`npm run check` passed: lint, strict TypeScript, application/server/backup builds and 218 tests (153 frontend/domain/store, 65 server, after merging the design pass). `npm run format:check` passed on tracked files.
 
 `server/guest.test.ts` covers:
 

@@ -11,7 +11,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - The guest sees the treatment, time, professional's first name, status and any deposit recorded. No contact details, notes or other visits.
 - The guest can cancel while the visit is still upcoming. The user chose a 24-hour cutoff: cancelling earlier flags a paid deposit for refund, later keeps it. The guest sees which applies before confirming, and the server refuses if the terms changed in between. No refund payment is created; the studio records any refund in Money. The cancellation event says who cancelled and what happened to the deposit.
 - A replayed booking confirmation issues a fresh link and stops the earlier one. Rescheduling by the desk shows the new time on the same link.
-- Verified with lint, format check, strict TypeScript, builds and 206 tests (141 frontend/domain/store, 65 server), plus a Chromium journey. See `docs/evidence/LOCAL-02.md`.
+- Verified with lint, format check, strict TypeScript, builds and 218 tests (153 frontend/domain/store, 65 server, after merging the design pass), plus a Chromium journey. See `docs/evidence/LOCAL-02.md`.
 
 ## 2026-10-06 · Merged · Editable "Good to remember"
 
