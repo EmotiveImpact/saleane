@@ -31,7 +31,11 @@
   z-index: -1;
   background: linear-gradient(180deg, #f3f0e8f5 0%, #f3f0e8cc 43%, #f3f0e820 65%, #f3f0e8ed 100%);
 }
-.account-story h1 {
+.account-story .account-story-title {
+  /* Brand line, styled as a display heading; the form owns the page's one h1. */
+  max-width: none;
+  font-family: var(--font-editorial);
+  letter-spacing: -0.035em;
   font-size: clamp(40px, 4.5vw, 72px);
   line-height: 1.06;
   font-weight: 450;
@@ -189,7 +193,7 @@
     padding: 30px;
     gap: 30px;
   }
-  .account-story h1 {
+  .account-story .account-story-title {
     font-size: 42px;
   }
   .account-story p {

@@ -13,7 +13,13 @@ export function Definition({ label, children }: { label: string; children: React
         <Info size={14} aria-hidden="true" />
       </Popover.Trigger>
       <Popover.Portal>
-        <Popover.Content className="definition-content" side="bottom" align="start" sideOffset={6}>
+        <Popover.Content
+          className="definition-content"
+          aria-label={`How ${label} is measured`}
+          side="bottom"
+          align="start"
+          sideOffset={6}
+        >
           <strong>{label}</strong>
           <div>{children}</div>
           <Popover.Arrow className="definition-arrow" width={12} height={6} />

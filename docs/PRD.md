@@ -199,7 +199,7 @@ These are V1 targets to test, not demonstrated guarantees:
 - No double booking/charge under concurrent requests and webhook replay; server transactions and scoped uniqueness.
 - WCAG 2.2 AA, 200% zoom/reflow, keyboard/assistive-technology and touch journey evidence.
 - Schedule/client operations feel immediate; target p95 API reads under 500ms and booking commit under 1s excluding provider/network delay, measured in pilot conditions.
-- Supported current Chrome, Safari and Firefox; mobile iOS/Android booking. Current browser evidence covers Chromium only; targeted tests are not an accessibility certification.
+- Supported current Chrome, Safari and Firefox; mobile iOS/Android booking. Current browser evidence covers Chromium only; targeted tests are not an accessibility certification. LOCAL-05 (in review) records a WCAG 2.2 A/AA rule sweep, 320px reflow, keyboard daily loop and measured local load in `docs/evidence/LOCAL-05.md`; Safari, Firefox and screen-reader runs remain open.
 - Monitored service availability and incident response; choose contractual SLO after infrastructure/pilot evidence rather than promising uptime here.
 - Encrypted transport/storage, managed secrets, scoped audit logs, data retention/export/deletion and restore procedures.
 - Provider outage has an explicit state and manual recovery path; no silent optimistic confirmation of payment.

@@ -78,9 +78,9 @@ export function BrandedBooking() {
           </Link>
         </div>
       </header>
-      <div className="booking-demo-banner">
+      <section className="booking-demo-banner" aria-label="About this booking page">
         Demo booking experience. Use fictional details. No real reservation or payment is made.
-      </div>
+      </section>
       <div className="public-booking-layout">
         <aside className="booking-story">
           <img
@@ -216,7 +216,6 @@ export function BrandedBooking() {
                         .map((s) => (
                           <button
                             key={s.id}
-                            aria-label={`${s.name}, ${s.durationMinutes} minutes, ${money(s.priceMinor, state.organisation)}`}
                             aria-pressed={serviceId === s.id}
                             className={`service-choice ${serviceId === s.id ? 'selected' : ''}`}
                             onClick={() => {

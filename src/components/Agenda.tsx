@@ -41,21 +41,19 @@ export function Agenda({
             aria-haspopup="dialog"
             aria-expanded={selectedId === a.id}
             onClick={() => onOpen(a.id)}
-            aria-label={`${client.name}, ${service.name}, ${timeLabel(a.startMinutes, state.organisation.locale)}, ${a.status}`}
           >
             <span className="agenda-time">
-              {timeLabel(a.startMinutes, state.organisation.locale)}
+              {timeLabel(a.startMinutes, state.organisation.locale)}{' '}
               <small>{a.bookedDurationMinutes} min</small>
-            </span>
+            </span>{' '}
             <span className="agenda-client">
               <Avatar small identity={client.id} name={client.name} tone={staff.tone} />
               <span>
-                <strong>{client.name}</strong>
-                <small>{service.name}</small>
+                <strong>{client.name}</strong> <small>{service.name}</small>
               </span>
-            </span>
-            <span className="agenda-professional">{staff.name.split(' ')[0]}</span>
-            <Status status={a.status} />
+            </span>{' '}
+            <span className="agenda-professional">{staff.name.split(' ')[0]}</span>{' '}
+            <Status status={a.status} />{' '}
             <span className="agenda-value">
               {money(a.bookedPriceMinor, state.organisation)}
               <ArrowUpRight size={15} />

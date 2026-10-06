@@ -2,6 +2,14 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## Unreleased · LOCAL-05 qualification pass
+
+**Status: draft pull request, not merged.** Chromium only; Safari, Firefox and screen readers are still to be run.
+
+- Visit rows, calendar visits and demo booking services now take their spoken name from their visible text, so voice control matches what is on screen (WCAG 2.5.3). "Find a client" and the operator button keep their names on phones. The measure popover is named, notices sit in labelled sections and the sign-in page has one `h1`.
+- Record validation no longer scans whole lists for every link. At 5,074 visits a read fell from 322 ms to 105 ms (p95) and a booking from 966 ms to 297 ms; a 30,074-visit studio now completes (read 568 ms, booking 1.7 s).
+- `scripts/qualify.mjs` repeats the accessibility, reflow and keyboard sweep; `server/measure.test.ts` (with `MEASURE=1`) repeats the load and restore measurements. See `docs/evidence/LOCAL-05.md`.
+
 ## Unreleased · Editable "Good to remember"
 
 **Status: draft for review, not released.**

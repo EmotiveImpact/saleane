@@ -1,0 +1,95 @@
+[
+  {
+    "appointments": 1074,
+    "clients": 415,
+    "payloadBytes": 1071893,
+    "readMs": {
+      "p50": 18,
+      "p95": 31,
+      "runs": 20
+    },
+    "noteCommandMs": {
+      "p50": 50,
+      "p95": 71,
+      "runs": 20
+    },
+    "bookCommandMs": {
+      "p50": 62,
+      "p95": 77,
+      "runs": 10
+    },
+    "publicAvailabilityMs": {
+      "p50": 23,
+      "p95": 29,
+      "runs": 20
+    },
+    "drill": {
+      "backupMs": 31,
+      "verifyMs": 12,
+      "restoreMs": 33,
+      "databaseBytes": 1208320
+    }
+  },
+  {
+    "appointments": 5074,
+    "clients": 2015,
+    "payloadBytes": 4790361,
+    "readMs": {
+      "p50": 77,
+      "p95": 105,
+      "runs": 20
+    },
+    "noteCommandMs": {
+      "p50": 255,
+      "p95": 288,
+      "runs": 20
+    },
+    "bookCommandMs": {
+      "p50": 258,
+      "p95": 297,
+      "runs": 10
+    },
+    "publicAvailabilityMs": {
+      "p50": 92,
+      "p95": 108,
+      "runs": 20
+    },
+    "drill": {
+      "backupMs": 126,
+      "verifyMs": 56,
+      "restoreMs": 132,
+      "databaseBytes": 4927488
+    }
+  },
+  {
+    "appointments": 30074,
+    "clients": 8015,
+    "payloadBytes": 26880807,
+    "readMs": {
+      "p50": 459,
+      "p95": 568,
+      "runs": 20
+    },
+    "noteCommandMs": {
+      "p50": 1364,
+      "p95": 1503,
+      "runs": 20
+    },
+    "bookCommandMs": {
+      "p50": 1602,
+      "p95": 1702,
+      "runs": 10
+    },
+    "publicAvailabilityMs": {
+      "p50": 534,
+      "p95": 612,
+      "runs": 20
+    },
+    "drill": {
+      "backupMs": 646,
+      "verifyMs": 309,
+      "restoreMs": 699,
+      "databaseBytes": 27041792
+    }
+  }
+]
