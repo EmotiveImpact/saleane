@@ -1,0 +1,108 @@
+/*
+ * SALEANE design language: tokens.
+ *
+ * One home for every value a component may use. Components reference the
+ * semantic tokens (text, surface, action, state); the raw palette exists so
+ * the semantic layer has something honest to point at. Each text pairing
+ * below is checked against WCAG 2.2 AA in the living library (/design-language).
+ */
+:root {
+  /* Palette: ivory, stone, sage and forest, from the original reference board. */
+  --palette-forest-900: #203329;
+  --palette-forest-800: #29392f;
+  --palette-forest-700: #395341;
+  --palette-forest-600: #3d5c4e;
+  --palette-moss-500: #487258;
+  --palette-moss-300: #7d997f;
+  --palette-sage-200: #d3dccb;
+  --palette-sage-100: #e9eee5;
+  --palette-sage-50: #f4f7f2;
+  --palette-ivory-50: #faf9f6;
+  --palette-white: #ffffff;
+  --palette-stone-300: #b9c0b3;
+  --palette-stone-200: #d4d5cc;
+  --palette-stone-100: #e2e2da;
+  --palette-stone-600: #656b63;
+  --palette-mist-100: #edf0ef;
+  --palette-mist-700: #36556d;
+  --palette-sand-100: #f1ece3;
+  --palette-sand-700: #735d39;
+  --palette-brass-400: #a89a7a;
+  --palette-brass-600: #9a722e;
+  --palette-clay-700: #8c2e24;
+  --palette-clay-500: #a34137;
+  --palette-clay-50: #fcf1ef;
+
+  /* Semantic colour. These names predate the library and stay stable. */
+  --ink: var(--palette-forest-800);
+  --ink-deep: var(--palette-forest-900);
+  --paper: var(--palette-white);
+  --mineral: var(--palette-ivory-50);
+  --line: var(--palette-stone-100);
+  --line-strong: var(--palette-stone-200);
+  --field-line: var(--palette-stone-300);
+  --muted: var(--palette-stone-600);
+  --brass: var(--palette-brass-400);
+  --focus: var(--palette-brass-600);
+  --sage: var(--palette-sage-100);
+  --sage-soft: var(--palette-sage-50);
+  --blue: var(--palette-mist-100);
+  --sand: var(--palette-sand-100);
+  --action: var(--palette-forest-800);
+  --action-hover: var(--palette-forest-700);
+  --success: var(--palette-moss-500);
+  --danger: var(--palette-clay-700);
+  --danger-soft: var(--palette-clay-50);
+
+  /* Staff and service tones: background plus the ink that reads on it. */
+  --tone-sage-bg: var(--palette-sage-100);
+  --tone-sage-ink: var(--palette-forest-600);
+  --tone-blue-bg: var(--palette-mist-100);
+  --tone-blue-ink: var(--palette-mist-700);
+  --tone-sand-bg: var(--palette-sand-100);
+  --tone-sand-ink: var(--palette-sand-700);
+
+  /* Type families. */
+  --font-display: 'Source Sans 3 Variable', sans-serif;
+  --font-editorial: 'Bodoni Moda Variable', Georgia, serif;
+
+  /*
+   * Type scale. --text-micro is the floor: nothing in the workspace renders
+   * below 12px. Editorial sizes belong to Today, booking and accounts only.
+   */
+  --text-micro: 12px;
+  --text-meta: 13px;
+  --text-small: 14px;
+  --text-body: 15px;
+  --text-lead: 17px;
+  --text-title-s: 19px;
+  --text-title-m: 24px;
+  --text-title-compact: 26px;
+  --text-display: clamp(29px, 2.8vw, 38px);
+
+  /* Spacing on a 4px base. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* Shape. Surfaces 7px, fields and actions 5px, people are round. */
+  --radius: 7px;
+  --radius-control: 5px;
+  --radius-inner: 3px;
+  --radius-round: 50%;
+
+  /* Elevation: used only for layers that float above the workspace. */
+  --shadow-float: 0 12px 36px #13202a1f;
+  --shadow-dialog: 0 20px 70px #13202a25;
+
+  /* Motion answers an action; reduced motion removes it. */
+  --motion-quick: 0.15s;
+
+  /* Touch targets. */
+  --target: 44px;
+}

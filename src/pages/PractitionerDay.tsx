@@ -14,7 +14,7 @@ import { practitionerViewSchema } from '../domain/practitioner'
 import type { PractitionerView } from '../domain/practitioner'
 import type { Command } from '../domain/commands'
 import { addDays, dateLabel, timeLabel } from '../domain/format'
-import { Avatar, Button, Empty, ErrorMessage, Status } from '../components/ui'
+import { Avatar, Button, Empty, ErrorMessage, PageHeader, Status } from '../design'
 import '../practitioner.css'
 
 /**
@@ -169,42 +169,45 @@ export function PractitionerDay() {
         </span>
       </header>
       <main id="main-content" className="practitioner-main">
-        <div className="page-heading">
-          <div>
-            <p className="date-caption">
+        <PageHeader
+          variant="editorial"
+          eyebrow={
+            <>
               <Sun size={16} />
               {dateLabel(date, locale)}
               {date === record.today ? ' · Today' : ''}
-            </p>
-            <h1>{date === record.today ? `Your day, ${firstName}.` : 'Your visits'}</h1>
-            <p>Your own visits and the notes that help you look after each client.</p>
-          </div>
-          <div className="practitioner-days" role="group" aria-label="Choose a day">
-            <Button
-              variant="secondary"
-              aria-label="Previous day"
-              disabled={date <= window.from}
-              onClick={() => setDate(addDays(date, -1))}
-            >
-              <ArrowLeft size={16} />
-            </Button>
-            <Button
-              variant="secondary"
-              disabled={date === record.today}
-              onClick={() => setDate(record.today)}
-            >
-              Today
-            </Button>
-            <Button
-              variant="secondary"
-              aria-label="Next day"
-              disabled={date >= window.to}
-              onClick={() => setDate(addDays(date, 1))}
-            >
-              <ArrowRight size={16} />
-            </Button>
-          </div>
-        </div>
+            </>
+          }
+          title={date === record.today ? `Your day, ${firstName}.` : 'Your visits'}
+          description="Your own visits and the notes that help you look after each client."
+          actions={
+            <div className="practitioner-days" role="group" aria-label="Choose a day">
+              <Button
+                variant="secondary"
+                aria-label="Previous day"
+                disabled={date <= window.from}
+                onClick={() => setDate(addDays(date, -1))}
+              >
+                <ArrowLeft size={16} />
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={date === record.today}
+                onClick={() => setDate(record.today)}
+              >
+                Today
+              </Button>
+              <Button
+                variant="secondary"
+                aria-label="Next day"
+                disabled={date >= window.to}
+                onClick={() => setDate(addDays(date, 1))}
+              >
+                <ArrowRight size={16} />
+              </Button>
+            </div>
+          }
+        />
         <ErrorMessage error={error} />
         {notice && (
           <p className="practitioner-notice" role="status">

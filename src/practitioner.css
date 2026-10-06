@@ -72,7 +72,7 @@
 }
 .practitioner-client h3 {
   margin: 22px 0 6px;
-  font-size: 15px;
+  font-size: var(--text-body);
 }
 .practitioner-client > .button {
   margin-top: 4px;
@@ -107,7 +107,7 @@
 }
 .practitioner-footnote {
   margin-top: 28px;
-  font-size: 14px;
+  font-size: var(--text-small);
 }
 @media (max-width: 860px) {
   .practitioner-header,

@@ -4,7 +4,7 @@ import { api, ApiError } from '../state/api'
 import { guestViewSchema, GUEST_CANCEL_CUTOFF_HOURS } from '../domain/guest'
 import type { GuestView } from '../domain/guest'
 import { dateLabel, money, timeLabel } from '../domain/format'
-import { Button, ErrorMessage, Status } from '../components/ui'
+import { Button, ErrorMessage, Status } from '../design'
 import '../guest.css'
 
 /** The token stays in the address fragment, which browsers never send to a server. */

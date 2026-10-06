@@ -5,8 +5,9 @@ import { useStore } from '../state/context'
 import { hoursFor } from '../domain/operations'
 import { dayAppointments } from '../domain/selectors'
 import { addDays, dateLabel, timeLabel } from '../domain/format'
-import { Avatar, Button, Empty, Status } from '../components/ui'
+import { Avatar, Button, Empty, Status, PageHeader, SegmentedControl } from '../design'
 import { Agenda } from '../components/Agenda'
+import { PeopleColumns } from '../components/PeopleColumns'
 import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
 
@@ -49,17 +50,17 @@ export function Calendar() {
     .sort((a, b) => a.startMinutes - b.startMinutes)
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <p className="date-caption">A place for every appointment</p>
-          <h1>Calendar</h1>
-          <p>People, spaces and time, working together.</p>
-        </div>
-        <Button onClick={() => setBooking(true)}>
-          <Plus size={17} />
-          New appointment
-        </Button>
-      </div>
+      <PageHeader
+        variant="compact"
+        title="Calendar"
+        description="People, spaces and time, working together."
+        actions={
+          <Button onClick={() => setBooking(true)}>
+            <Plus size={17} />
+            New appointment
+          </Button>
+        }
+      />
       <section className="surface calendar-surface">
         <div className="calendar-toolbar">
           <div className="date-controls">
@@ -108,22 +109,16 @@ export function Calendar() {
                 </option>
               ))}
             </select>
-            <div className="view-toggle" role="group" aria-label="Calendar display">
-              <button
-                aria-pressed={view === 'grid'}
-                onClick={() => setView('grid')}
-                aria-label="Grid view"
-              >
-                <LayoutGrid size={16} />
-              </button>
-              <button
-                aria-pressed={view === 'agenda'}
-                onClick={() => setView('agenda')}
-                aria-label="Agenda view"
-              >
-                <List size={16} />
-              </button>
-            </div>
+            <SegmentedControl
+              label="Calendar display"
+              appearance="icon"
+              value={view}
+              onChange={setView}
+              options={[
+                { value: 'grid', label: <LayoutGrid size={16} />, accessibleLabel: 'Grid view' },
+                { value: 'agenda', label: <List size={16} />, accessibleLabel: 'Agenda view' },
+              ]}
+            />
           </div>
         </div>
         <div className="calendar-legend">
@@ -213,9 +208,18 @@ export function Calendar() {
             ))}
           </div>
         </div>
-        <div className={view === 'agenda' ? '' : 'calendar-mobile-agenda'}>
+        {view === 'grid' ? (
+          <div className="calendar-mobile-people">
+            <PeopleColumns
+              staff={staff}
+              date={date}
+              selectedId={appointmentId}
+              onOpen={setAppointmentId}
+            />
+          </div>
+        ) : (
           <Agenda appointments={day} selectedId={appointmentId} onOpen={setAppointmentId} />
-        </div>
+        )}
         {!day.length && view === 'grid' && (
           <div className="calendar-grid-desktop">
             <Empty title="A clear day">Use New appointment to reserve a time.</Empty>

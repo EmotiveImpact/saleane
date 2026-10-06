@@ -13,6 +13,25 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - A replayed booking confirmation issues a fresh link and stops the earlier one. Rescheduling by the desk shows the new time on the same link.
 - Verified with lint, format check, strict TypeScript, builds and 206 tests (141 frontend/domain/store, 65 server), plus a Chromium journey. See `docs/evidence/LOCAL-02.md`.
 
+## 2026-10-06 · Merged · Editable "Good to remember"
+
+**Status: merged into main on 6 October 2026; not deployed.**
+
+- Owners, managers and reception can edit a client's "Good to remember" preferences in place on the client page, through the existing `client-edit` command, which records a "Client details updated" event. Practitioners still read preferences but cannot change them. Previously no screen could set preferences, so real studios always showed the empty state, and its wording pointed at the note form, which never changed this panel.
+
+## 2026-10-06 · Merged · Design language library and design pass
+
+**Status: merged into main on 6 October 2026; not deployed.**
+
+- Added the SALEANE design language library: tokens in `src/design/tokens.css` (palette, semantic colour, type scale with a 12px floor, spacing, shape, elevation), components exported from `src/design/`, a living library page at `/design-language` that reads tokens and checks contrast live, and [DESIGN_LANGUAGE.md](docs/DESIGN_LANGUAGE.md).
+- Brought in unstyled Radix Tabs, Toggle Group and Popover alongside Dialog. Manage sections are now tabs; reporting period, client segments, timeline filters and calendar view use one segmented control; metric definitions open in a popover.
+- Working screens (Calendar, Clients, Inbox, Business, Money, Manage) use a compact serif header; Today keeps the editorial greeting.
+- Raised all workspace text to at least 12px (statuses and turnaround labels were 9px) and fixed the measured contrast failures: completed status on tinted cards and upcoming booking steps.
+- Today and Business now show one measure, "Time booked", with a shared definition and the period stated; Business also shows today's figure.
+- The client timeline shows each visit once, ordered by when it happens, with its booking, arrival, checkout and money inside.
+- On phones the calendar shows a swipeable column per professional with free time written between visits.
+- Removed the coloured stripes on the left edge of calendar visits, phone calendar visits, errors, deposit reviews, preference notes, timeline money rows and visit steps. Tone now comes from the surface colour alone, and a test fails if a left-edge stripe is added again.
+
 ## 2026-10-06 · Merged · Public booking hold protection
 
 **Status: merged into main on 6 October 2026; not deployed.** Schema migration 2 adds a `visitor` column to `booking_holds`. Live services stay unconfigured.

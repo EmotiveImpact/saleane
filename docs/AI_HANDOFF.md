@@ -6,7 +6,7 @@ Prepared 6 October 2026 for transfer to Claude. Read the repository before rebui
 
 1. This file and [ROADMAP.md](ROADMAP.md): ordered next work and release gates.
 2. [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), [VISION.md](VISION.md), [PRD.md](PRD.md) (revision 0.4) and [V1_LOCAL_CONTRACT.md](V1_LOCAL_CONTRACT.md).
-3. [ARCHITECTURE.md](ARCHITECTURE.md), [server runbook](../server/README.md), [UX_ARCHITECTURE.md](UX_ARCHITECTURE.md), [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md).
+3. [ARCHITECTURE.md](ARCHITECTURE.md), [server runbook](../server/README.md), [UX_ARCHITECTURE.md](UX_ARCHITECTURE.md), [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), [DESIGN_LANGUAGE.md](DESIGN_LANGUAGE.md).
 4. [Candidate evidence](evidence/VERIFICATION_1.0.0-rc.1.md), [RESEARCH.md](RESEARCH.md) and [CHANGELOG.md](../CHANGELOG.md).
 
 ## Repository and consolidation

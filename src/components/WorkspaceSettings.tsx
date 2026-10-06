@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Download, RotateCcw } from 'lucide-react'
 import { useStore } from '../state/context'
 import { storageKey } from '../state/storage'
-import { Button, ErrorMessage, Modal } from './ui'
+import { Button, ErrorMessage, Modal } from '../design'
 
 export function WorkspaceSettings({ onClose }: { onClose: () => void }) {
   const { state, reset, region, changeRegion, mode, role, reload, enterDemo } = useStore()

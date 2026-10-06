@@ -5,7 +5,7 @@ import { useStore } from '../state/context'
 import { DEMO_DATE } from '../domain/model'
 import { slots } from '../domain/commands'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
-import { Avatar, Button, ErrorMessage } from '../components/ui'
+import { Avatar, Button, ErrorMessage } from '../design'
 
 export function BrandedBooking() {
   const { state, commit, region, changeRegion, saving } = useStore()

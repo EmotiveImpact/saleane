@@ -10,14 +10,23 @@ import {
   Users,
   Check,
   Mail,
+  PencilLine,
 } from 'lucide-react'
 import { useStore } from '../state/context'
 import { clientStats } from '../domain/selectors'
-import { can, operations } from '../domain/operations'
+import { groupTimeline } from '../domain/timeline'
+import type { RelationshipEvent } from '../domain/model'
+import { can, instantFor, operations } from '../domain/operations'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
-import { Avatar, Button, Empty, ErrorMessage, Metric } from '../components/ui'
+import { Avatar, Button, Empty, ErrorMessage, Metric, SegmentedControl, Status } from '../design'
 import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
+
+// A booking's detail opens with the service, date and time already shown in
+// the visit heading; only the sentence after it (payment state) is new.
+function stepDetail(event: RelationshipEvent) {
+  return event.type === 'booked' ? event.detail.split('. ').slice(1).join('. ') : event.detail
+}
 
 export function ClientRelationship() {
   const { clientId } = useParams()
@@ -29,6 +38,9 @@ export function ClientRelationship() {
   const [note, setNote] = useState('')
   const [noteSaved, setNoteSaved] = useState(false)
   const [error, setError] = useState('')
+  const [editingPreferences, setEditingPreferences] = useState(false)
+  const [preferences, setPreferences] = useState('')
+  const [preferencesError, setPreferencesError] = useState('')
   const [booking, setBooking] = useState(false)
   const [appointmentId, setAppointmentId] = useState('')
   const client = state.clients.find((c) => c.id === clientId)
@@ -39,27 +51,38 @@ export function ClientRelationship() {
       </Empty>
     )
   const stats = clientStats(state, client.id)
-  const events = state.events
-    .filter(
-      (e) =>
-        e.clientId === client.id &&
-        (filter === 'all' ||
-          (filter === 'visits'
-            ? [
-                'booked',
-                'arrived',
-                'checkout',
-                'rescheduled',
-                'cancelled',
-                'no_show',
-                'deposit',
-                'refund',
-              ].includes(e.type)
-            : filter === 'notes'
-              ? e.type === 'note'
-              : ['relationship', 'consent'].includes(e.type))),
-    )
-    .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
+  const entries = groupTimeline(
+    state.events.filter((e) => e.clientId === client.id),
+    (id) => {
+      const a = state.appointments.find((appointment) => appointment.id === id)
+      if (!a) return undefined
+      try {
+        return instantFor(state, a.date, a.startMinutes)
+      } catch {
+        return undefined
+      }
+    },
+  ).filter(
+    (entry) =>
+      filter === 'all' ||
+      (filter === 'visits'
+        ? entry.kind === 'visit'
+        : entry.kind === 'event' &&
+          (filter === 'notes'
+            ? entry.event.type === 'note'
+            : ['relationship', 'consent'].includes(entry.event.type))),
+  )
+  const longDate = new Intl.DateTimeFormat(state.organisation.locale, {
+    timeZone: state.organisation.timeZone,
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+  const shortDate = new Intl.DateTimeFormat(state.organisation.locale, {
+    timeZone: state.organisation.timeZone,
+    day: 'numeric',
+    month: 'short',
+  })
   const edges = state.relationships.filter(
     (e) => e.fromClientId === client.id || e.toClientId === client.id,
   )
@@ -84,6 +107,30 @@ export function ClientRelationship() {
       setNoteSaved(true)
     } catch {
       setError('Could not save your note. Your writing is still here; try again.')
+    } finally {
+      setPending(false)
+    }
+  }
+  async function savePreferences(e: React.SubmitEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (busy || blocked || !can(role, 'client-edit')) return
+    setPending(true)
+    setPreferencesError('')
+    try {
+      const { name, email, phone, marketingConsent } = client!
+      const result = await commit({
+        type: 'client-edit',
+        clientId: client!.id,
+        contact: { name, email, phone, marketingConsent },
+        preferences: preferences.trim(),
+      })
+      if (!result.ok) {
+        setPreferencesError(result.error)
+        return
+      }
+      setEditingPreferences(false)
+    } catch {
+      setPreferencesError('Could not save. Your writing is still here; try again.')
     } finally {
       setPending(false)
     }
@@ -113,7 +160,11 @@ export function ClientRelationship() {
           <p className="date-caption">A relationship with {state.organisation.name}</p>
           <h1>{client.name}</h1>
           <p>
-            {client.email} <span className="contact-divider">/</span> {client.phone}
+            {client.email}{' '}
+            <span className="contact-divider" aria-hidden="true">
+              /
+            </span>{' '}
+            {client.phone}
           </p>
         </div>
         <Button disabled={busy || blocked || !can(role, 'book')} onClick={() => setBooking(true)}>
@@ -168,58 +219,98 @@ export function ClientRelationship() {
               <p>One story across visits, people and small details.</p>
             </div>
           </div>
-          <div className="segment-tabs timeline-tabs" aria-label="Timeline filters">
-            {[
-              ['all', 'Everything'],
-              ['visits', 'Visits & money'],
-              ['notes', 'Notes'],
-              ['people', 'People & preferences'],
-            ].map(([value, label]) => (
-              <button
-                key={value}
-                aria-pressed={filter === value}
-                className={filter === value ? 'active' : ''}
-                onClick={() => setFilter(value)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            label="Timeline filters"
+            className="timeline-tabs"
+            value={filter}
+            onChange={setFilter}
+            options={[
+              { value: 'all', label: 'Everything' },
+              { value: 'visits', label: 'Visits & money' },
+              { value: 'notes', label: 'Notes' },
+              { value: 'people', label: 'People & preferences' },
+            ]}
+          />
           <div className="timeline">
-            {events.map((event) => {
+            {entries.map((entry) => {
+              if (entry.kind === 'visit') {
+                const appointment = state.appointments.find((a) => a.id === entry.appointmentId)
+                const service = state.services.find((s) => s.id === appointment?.serviceId)
+                const staff = state.staff.find((s) => s.id === appointment?.staffId)
+                const sales = entry.events
+                  .map((event) => state.sales.find((s) => s.id === event.saleId))
+                  .filter((sale) => sale !== undefined)
+                const sale = sales[sales.length - 1]
+                const Icon = sale ? CreditCard : CalendarDays
+                return (
+                  <article className="timeline-event timeline-visit" key={entry.id}>
+                    <span className={`timeline-icon ${sale ? 'timeline-checkout' : ''}`}>
+                      <Icon size={17} />
+                    </span>
+                    <div>
+                      {appointment && (
+                        <time dateTime={appointment.date}>
+                          {longDate.format(new Date(`${appointment.date}T12:00:00Z`))}
+                          {' · '}
+                          {timeLabel(appointment.startMinutes, state.organisation.locale)}
+                        </time>
+                      )}
+                      <h3>
+                        {appointment?.bookedServiceName ?? service?.name ?? 'Visit'}
+                        {staff && <span> with {staff.name.split(' ')[0]}</span>}
+                      </h3>
+                      {appointment && <Status status={appointment.status} />}
+                      <ol className="visit-steps" aria-label="What happened">
+                        {entry.events.map((event) => (
+                          <li key={event.id}>
+                            <span className="visit-step-title">{event.title}</span>
+                            <time dateTime={event.occurredAt}>
+                              {shortDate.format(new Date(event.occurredAt))}
+                            </time>
+                            <small>{event.actor}</small>
+                            {stepDetail(event) && <p>{stepDetail(event)}</p>}
+                          </li>
+                        ))}
+                      </ol>
+                      {sale && (
+                        <div className="timeline-money">
+                          <strong>{money(sale.serviceMinor, state.organisation)}</strong>
+                          <span>Service · {money(sale.tipMinor, state.organisation)} tip</span>
+                        </div>
+                      )}
+                      <div className="timeline-footer">
+                        <span />
+                        <button
+                          className="text-link"
+                          onClick={() => setAppointmentId(entry.appointmentId)}
+                        >
+                          View visit <ArrowUpRight size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                )
+              }
+              const { event } = entry
               const Icon =
-                event.type === 'checkout'
-                  ? CreditCard
-                  : event.type === 'note'
-                    ? MessageSquare
-                    : event.type === 'relationship'
-                      ? Users
-                      : event.type === 'consent'
-                        ? Mail
-                        : CalendarDays
-              const sale = state.sales.find((s) => s.id === event.saleId)
+                event.type === 'note'
+                  ? MessageSquare
+                  : event.type === 'relationship'
+                    ? Users
+                    : event.type === 'consent'
+                      ? Mail
+                      : CalendarDays
               return (
-                <article className="timeline-event" key={event.id}>
+                <article className="timeline-event" key={entry.id}>
                   <span className={`timeline-icon timeline-${event.type}`}>
                     <Icon size={17} />
                   </span>
                   <div>
                     <time dateTime={event.occurredAt}>
-                      {new Intl.DateTimeFormat(state.organisation.locale, {
-                        timeZone: state.organisation.timeZone,
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                      }).format(new Date(event.occurredAt))}
+                      {longDate.format(new Date(event.occurredAt))}
                     </time>
                     <h3>{event.title}</h3>
                     <p>{event.detail}</p>
-                    {sale && (
-                      <div className="timeline-money">
-                        <strong>{money(sale.serviceMinor, state.organisation)}</strong>
-                        <span>Service · {money(sale.tipMinor, state.organisation)} tip</span>
-                      </div>
-                    )}
                     <div className="timeline-footer">
                       <small>{event.actor}</small>
                       {event.appointmentId && (
@@ -235,7 +326,7 @@ export function ClientRelationship() {
                 </article>
               )
             })}
-            {!events.length && (
+            {!entries.length && (
               <Empty title="This part of the story is still ahead">
                 Add a note or book a visit to begin.
               </Empty>
@@ -244,8 +335,69 @@ export function ClientRelationship() {
         </section>
         <aside className="relationship-aside">
           <section className="surface detail-panel">
-            <h2>Good to remember</h2>
-            <p>{client.preferences || 'No preferences recorded. Add something useful below.'}</p>
+            <div className="section-heading">
+              <h2>Good to remember</h2>
+              {!editingPreferences && can(role, 'client-edit') && (
+                <button
+                  className="text-link"
+                  disabled={busy || blocked}
+                  aria-label="Edit good to remember"
+                  onClick={() => {
+                    setPreferences(client.preferences)
+                    setPreferencesError('')
+                    setEditingPreferences(true)
+                  }}
+                >
+                  <PencilLine size={14} />
+                  Edit
+                </button>
+              )}
+            </div>
+            {editingPreferences ? (
+              <form onSubmit={savePreferences} aria-busy={busy}>
+                <label>
+                  <span className="sr-only">Good to remember</span>
+                  <textarea
+                    autoFocus
+                    maxLength={1000}
+                    value={preferences}
+                    onChange={(e) => setPreferences(e.target.value)}
+                    placeholder="How they like their treatments, products they prefer, things to avoid…"
+                    rows={4}
+                  />
+                </label>
+                <p className="subtle">
+                  Shown to everyone who looks after this client, including on the visit. Ordinary
+                  service preferences only.{' '}
+                  {operations(state).mode === 'sandbox'
+                    ? 'Use fictional information in this sandbox.'
+                    : ''}
+                </p>
+                <ErrorMessage error={preferencesError} />
+                <div className="form-actions">
+                  <Button type="submit" variant="secondary" disabled={busy || blocked}>
+                    {busy ? 'Saving…' : 'Save'}
+                  </Button>
+                  <Button
+                    variant="quiet"
+                    disabled={busy}
+                    onClick={() => {
+                      setEditingPreferences(false)
+                      setPreferencesError('')
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <p>
+                {client.preferences ||
+                  (can(role, 'client-edit')
+                    ? 'Nothing recorded yet. Use Edit to keep the details worth carrying into every visit.'
+                    : 'Nothing recorded yet.')}
+              </p>
+            )}
             <div className="detail-divider" />
             <h3>People in their story</h3>
             {edges.length ? (

@@ -1,0 +1,178 @@
+/* SALEANE design language: styles for the library components added in 0.3. */
+
+/* Page header ------------------------------------------------------------ */
+.page-actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  align-items: center;
+}
+.page-heading-compact {
+  margin-bottom: var(--space-6);
+  align-items: flex-end;
+}
+.page-heading-compact h1 {
+  font-size: var(--text-title-compact);
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+.page-heading.page-heading-compact h1 + p {
+  margin-top: var(--space-1);
+  font-size: var(--text-body);
+}
+
+/* Definition popover ------------------------------------------------------ */
+.definition-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: -2px;
+  margin-left: var(--space-1);
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-round);
+  background: transparent;
+  color: var(--muted);
+}
+.definition-trigger:hover,
+.definition-trigger[data-state='open'] {
+  background: var(--sage);
+  color: var(--ink);
+}
+.definition-content {
+  z-index: 60;
+  max-width: min(300px, calc(100vw - 32px));
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow-float);
+  font-size: var(--text-small);
+  line-height: 1.5;
+}
+.definition-content strong {
+  display: block;
+  margin-bottom: var(--space-1);
+}
+.definition-content p + p {
+  margin-top: var(--space-2);
+}
+.definition-arrow {
+  fill: var(--paper);
+}
+
+/* Segmented control (Radix Toggle Group) ---------------------------------- */
+.segmented {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.segmented-item {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.segmented-underline {
+  gap: 17px;
+}
+.segmented-underline .segmented-item {
+  padding: 7px 0;
+  border-bottom: 2px solid transparent;
+}
+.segmented-underline .segmented-item[data-state='on'] {
+  color: var(--ink);
+  font-weight: 600;
+  border-color: var(--ink);
+}
+.segmented-pill,
+.segmented-icon {
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+}
+.segmented-pill .segmented-item {
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: var(--radius-inner);
+  font-weight: 600;
+}
+.segmented-icon .segmented-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 32px;
+  border-radius: var(--radius-inner);
+  color: var(--ink);
+}
+.segmented-pill .segmented-item[data-state='on'],
+.segmented-icon .segmented-item[data-state='on'] {
+  background: var(--ink);
+  color: var(--paper);
+}
+.segmented-item:not([data-state='on']):hover {
+  color: var(--ink);
+}
+
+/* Tabs (Radix Tabs) ------------------------------------------------------- */
+.tabs-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 25px;
+}
+.tabs-trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target);
+  border: 0;
+  background: transparent;
+  border-radius: var(--radius-control);
+  padding: 10px var(--space-4);
+  font-weight: 600;
+  color: var(--muted);
+}
+.tabs-trigger:hover {
+  color: var(--ink);
+}
+.tabs-trigger[data-state='active'] {
+  background: var(--sage);
+  color: var(--ink-deep);
+}
+.tabs-panel:focus-visible {
+  outline-offset: 6px;
+}
+
+@media (max-width: 650px) {
+  .page-heading-compact {
+    align-items: flex-start;
+    gap: var(--space-3);
+    margin-bottom: var(--space-5);
+  }
+  .page-heading-compact h1 {
+    font-size: var(--text-title-m);
+  }
+  .tabs-list {
+    gap: 2px;
+  }
+  .tabs-trigger {
+    padding: 9px 11px;
+  }
+  .tabs-trigger svg {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .definition-content {
+    animation: none;
+  }
+}

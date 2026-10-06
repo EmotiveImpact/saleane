@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, ArrowUpRight, Plus, Leaf, Sun } from 'lucide-react'
 import { useStore } from '../state/context'
-import { dayAppointments, dueClients, availableMinutes } from '../domain/selectors'
+import { availableMinutes, bookedTimeShare, dayAppointments, dueClients } from '../domain/selectors'
+import { bookedTimeDefinition } from '../components/definitions'
 import { slots } from '../domain/commands'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
-import { Avatar, Button, Metric } from '../components/ui'
+import { Avatar, Button, Metric, PageHeader } from '../design'
 import { Agenda } from '../components/Agenda'
 import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
@@ -27,33 +28,31 @@ export function Today() {
   const service = state.services.find((s) => !s.archived && professional?.serviceIds.includes(s.id))
   const available =
     professional && service ? slots(state, service.id, professional.id, tomorrow) : []
-  const capacity = availableMinutes(state, today)
   const booked = day.reduce((sum, a) => sum + a.bookedPriceMinor, 0)
   const completed = day.filter((a) => a.status === 'completed').length
   const changed = state.appointments.filter(
     (a) => a.date === today && (a.status === 'cancelled' || a.status === 'no_show'),
   )
-  const utilisation = Math.round(
-    capacity ? (day.reduce((sum, a) => sum + a.bookedDurationMinutes, 0) / capacity) * 100 : 0,
-  )
+  const utilisation = Math.round(bookedTimeShare(state, today) * 100)
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <p className="date-caption">
+      <PageHeader
+        variant="editorial"
+        eyebrow={
+          <>
             <Sun size={16} />
             {dateLabel(today, state.organisation.locale)}
-          </p>
-          <h1>
-            {session ? `Welcome, ${session.user.name.split(' ')[0]}.` : 'A good day begins here.'}
-          </h1>
-          <p>Everything you need to give today your best.</p>
-        </div>
-        <Button onClick={() => setBooking({ date: today })}>
-          <Plus size={17} />
-          New appointment
-        </Button>
-      </div>
+          </>
+        }
+        title={session ? `Welcome, ${session.user.name.split(' ')[0]}.` : 'A good day begins here.'}
+        description="Everything you need to give today your best."
+        actions={
+          <Button onClick={() => setBooking({ date: today })}>
+            <Plus size={17} />
+            New appointment
+          </Button>
+        }
+      />
       <div className="metrics-band">
         <Metric
           label="Booked for today"
@@ -66,9 +65,12 @@ export function Today() {
           detail={`${completed} complete · ${day.length - completed} still to come`}
         />
         <Metric
-          label="Time well filled"
+          label="Time booked"
           value={`${utilisation}%`}
-          detail="Of available professional hours"
+          detail="Today, of open professional hours"
+          definition={bookedTimeDefinition.map((line) => (
+            <p key={line}>{line}</p>
+          ))}
         />
         <Metric label="Ready to return" value={due.length} detail="Clients with no next visit" />
       </div>

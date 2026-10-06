@@ -8,7 +8,7 @@ import type { Command } from '../domain/commands'
 import { depositPaid, rescheduleSlots } from '../domain/commands'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import { checkoutTotals, minorInput, parseMinor } from '../domain/money'
-import { Avatar, Button, ErrorMessage, Modal, Status, TimeChoices } from './ui'
+import { Avatar, Button, ErrorMessage, Modal, Status, TimeChoices } from '../design'
 import { BookingDialog } from './BookingDialog'
 
 export function AppointmentDialog({

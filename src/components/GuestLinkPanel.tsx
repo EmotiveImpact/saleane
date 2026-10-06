@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useStore } from '../state/context'
 import { api } from '../state/api'
-import { Button, ErrorMessage } from './ui'
+import { Button, ErrorMessage } from '../design'
 import '../guest.css'
 
 /**
