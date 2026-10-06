@@ -9,6 +9,7 @@ import { authRoutes } from './routes/auth'
 import { workspaceRoutes } from './routes/workspace'
 import { publicRoutes } from './routes/public'
 import { guestRoutes } from './routes/guest'
+import { daySheetRoutes } from './routes/daysheet'
 import { privacyRoutes } from './routes/privacy'
 
 export type { ApiOptions } from './context'
@@ -24,7 +25,14 @@ export type ApiHandler = ((
 }
 
 // Route modules are tried in order; each claims its own paths and returns false otherwise.
-const routes = [authRoutes, privacyRoutes, workspaceRoutes, publicRoutes, guestRoutes]
+const routes = [
+  authRoutes,
+  privacyRoutes,
+  workspaceRoutes,
+  publicRoutes,
+  guestRoutes,
+  daySheetRoutes,
+]
 
 export function createApiHandler(options: ApiOptions): ApiHandler {
   const ctx = createContext(options)

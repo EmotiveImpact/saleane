@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, ArrowUpRight, Plus, Leaf, Sun } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, Plus, Leaf, Printer, Sun } from 'lucide-react'
 import { useStore } from '../state/context'
 import { availableMinutes, bookedTimeShare, dayAppointments, dueClients } from '../domain/selectors'
 import { bookedTimeDefinition } from '../components/definitions'
@@ -47,10 +47,16 @@ export function Today() {
         title={session ? `Welcome, ${session.user.name.split(' ')[0]}.` : 'A good day begins here.'}
         description="Everything you need to give today your best."
         actions={
-          <Button onClick={() => setBooking({ date: today })}>
-            <Plus size={17} />
-            New appointment
-          </Button>
+          <>
+            <Link className="button button-secondary" to="/day-sheet">
+              <Printer size={16} />
+              Day sheet
+            </Link>
+            <Button onClick={() => setBooking({ date: today })}>
+              <Plus size={17} />
+              New appointment
+            </Button>
+          </>
         }
       />
       <div className="metrics-band">

@@ -2,6 +2,16 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-06 · Merged · Read-only offline day sheet (OFF-01)
+
+**Status: merged into main on 6 October 2026; not deployed.**
+
+- New `GET /api/workspaces/:id/day-sheet`, built by `src/domain/daySheet.ts`. Desk and management roles get today's studio visits with time, service, professional, room, status, client name and phone. A practitioner gets only their own visits and no phone numbers. No email, money, notes, exports or marketing lists. The sheet shows when it was synced and expires at closing time (at most 12 hours).
+- The sheet is kept for the current tab only (session storage), and cleared on sign-out, studio change, expiry and changed access.
+- When SALEANE cannot be reached, the saved sheet replaces the workspace with a clear offline notice and every change is paused. Reconnecting checks the session and role and replaces the sheet before changes resume.
+- `/day-sheet` is a printable paper fallback, linked from Today and the practitioner day. The browser demo builds the sheet locally and offers a preview of the offline view.
+- Not enabled, pending a threat review: keeping the sheet beyond the tab, a service worker and a device policy. Offline revocation is not instantaneous.
+
 ## 2026-10-06 · Merged · LOCAL-04 schedule administration continuity
 
 **Status: merged into main on 6 October 2026; not deployed.** No schema migration: the history lives in the studio record as an optional, bounded list, so older records load unchanged. Live services stay unconfigured.

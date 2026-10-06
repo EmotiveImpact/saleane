@@ -55,6 +55,8 @@ export function PractitionerDay() {
         navigate('/account', { replace: true })
         return
       }
+      // OFF-01: keep this tab's read-only day sheet for the same studio while connected.
+      void store.syncDaySheet(orgId).catch(() => {})
       const view = await load()
       if (active && view) setDate(view.today)
     })().catch((e) => {
@@ -72,6 +74,10 @@ export function PractitionerDay() {
 
   async function save(command: Command, done: string) {
     if (!record || !store.session || saving) return false
+    if (store.connection !== 'online') {
+      setError('Offline. Changes are paused until SALEANE reconnects and checks your access.')
+      return false
+    }
     if (journal.error) {
       setError(journal.error)
       return false
@@ -111,6 +117,7 @@ export function PractitionerDay() {
         })
         setRecord(practitionerViewSchema.parse(result.practitioner))
         forget()
+        void store.syncDaySheet(orgId).catch(() => {})
         setNotice(done)
         return true
       } catch (e) {
@@ -342,7 +349,10 @@ export function PractitionerDay() {
           )}
         </div>
         <p className="practitioner-footnote">
-          Bookings, payments and client contact details stay with reception and managers.
+          Bookings, payments and client contact details stay with reception and managers.{' '}
+          <Link className="text-link" to="/day-sheet">
+            Your day sheet for offline use and printing
+          </Link>
         </p>
       </main>
     </div>
