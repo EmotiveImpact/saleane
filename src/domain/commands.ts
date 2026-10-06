@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { Temporal } from '@js-temporal/polyfill'
+import { businessDate, hoursFor, instantFor, operations } from './operations'
 import { CLOSE_MINUTES, DEMO_DATE, OPEN_MINUTES, clientSchema, parseState } from './model'
 import type { Appointment, BusinessState, RelationshipEvent } from './model'
 import { dateLabel, timeLabel } from './format'
@@ -13,7 +15,7 @@ const bookingSchema = z.object({
   serviceId: z.string(),
   staffId: z.string(),
   date: z.iso.date(),
-  startMinutes: z.number().int().min(OPEN_MINUTES).max(CLOSE_MINUTES),
+  startMinutes: z.number().int().min(0).max(1439),
   clientId: z.string().optional(),
   contact: contactSchema.optional(),
   source: z.enum(['desk', 'online', 'rebook']),
@@ -24,7 +26,7 @@ export type ContactInput = z.infer<typeof contactSchema>
 export type Command =
   | { type: 'book'; input: BookingInput }
   | { type: 'arrive'; appointmentId: string }
-  | { type: 'checkout'; appointmentId: string; tipMinor: number; method: 'demo_card' | 'demo_cash' }
+  | { type: 'checkout'; appointmentId: string; tipMinor: number; method: 'demo_card' | 'demo_cash' | 'cash' | 'external_card'; reference?: string }
   | { type: 'note'; clientId: string; text: string }
   | { type: 'client'; contact: ContactInput; referredById?: string }
   | { type: 'consent'; clientId: string; consent: boolean }
@@ -42,16 +44,23 @@ export function availableResource(
   const staff = s.staff.find((item) => item.id === staffId)
   if (
     !service ||
-    !staff ||
+    !staff || service.archived || staff.archived ||
     !staff.serviceIds.includes(serviceId) ||
-    date < DEMO_DATE ||
+    date < businessDate(s) ||
     !Number.isInteger(start) ||
-    start < OPEN_MINUTES ||
+    start < 0 ||
     start % 15 !== 0
   )
     return null
   const end = start + service.durationMinutes + service.bufferMinutes
-  if (end > CLOSE_MINUTES) return null
+  const hours = hoursFor(s, date)
+  if (hours.closed || start < hours.open || end > hours.close) return null
+  if (operations(s).closures.some(c => c.date === date && (!c.staffId || c.staffId === staffId) && start < c.endMinutes && end > c.startMinutes)) return null
+  try {
+    const instant = instantFor(s, date, start)
+    if (operations(s).mode === 'live' && instant < new Date().toISOString()) return null
+    if (end < 1440 && Temporal.Instant.from(instantFor(s, date, end)).epochMilliseconds - Temporal.Instant.from(instant).epochMilliseconds !== (end-start)*60000) return null
+  } catch { return null }
   const overlapping = s.appointments.filter(
     (a) =>
       a.date === date &&
@@ -63,14 +72,14 @@ export function availableResource(
   return (
     s.resources.find(
       (resource) =>
-        resource.type === service.resourceType &&
+        !resource.archived && resource.type === service.resourceType &&
         !overlapping.some((a) => a.resourceId === resource.id),
     )?.id ?? null
   )
 }
 export function slots(s: BusinessState, serviceId: string, staffId: string, date: string) {
   const options: number[] = []
-  for (let start = OPEN_MINUTES; start < CLOSE_MINUTES; start += 30)
+  for (let start = 0; start < 1440; start += 15)
     if (availableResource(s, serviceId, staffId, date, start)) options.push(start)
   return options
 }
@@ -169,10 +178,12 @@ export function execute(
         bookedDepositMinor: service.depositMinor,
         bookedDurationMinutes: service.durationMinutes,
         bookedBufferMinutes: service.bufferMinutes,
+        startsAt: instantFor(s, input.date, input.startMinutes),
+        endsAt: Temporal.Instant.from(instantFor(s, input.date, input.startMinutes)).add({minutes: service.durationMinutes + service.bufferMinutes}).toString(),
       }
       next.appointments.push(appointment)
       // Simulated deposit receipt is deliberately separate from the service-price snapshot.
-      next.payments.push({
+      if (operations(s).mode === 'sandbox') next.payments.push({
         id: makeId(),
         organisationId: org.id,
         appointmentId: appointment.id,
@@ -187,7 +198,7 @@ export function execute(
         appointmentId: appointment.id,
         type: 'booked',
         title: input.source === 'rebook' ? 'Next visit booked' : 'Appointment booked',
-        detail: `${service.name} · ${dateLabel(input.date, org.locale)} at ${timeLabel(input.startMinutes, org.locale)}. Deposit simulated; no payment taken.`,
+        detail: `${service.name} · ${dateLabel(input.date, org.locale)} at ${timeLabel(input.startMinutes, org.locale)}. ${operations(s).mode === 'sandbox' ? 'Deposit simulated; no payment taken.' : 'Booking confirmed. No deposit collected.'}`,
       })
       recordId = appointment.id
     } else if (command.type === 'arrive' || command.type === 'checkout') {
@@ -196,8 +207,8 @@ export function execute(
       if (command.type === 'arrive') {
         if (appointment.status === 'arrived')
           return { ok: true, state: s, recordId: appointment.id }
-        if (appointment.status !== 'confirmed' || appointment.date !== DEMO_DATE)
-          throw new Error('Only a confirmed visit on the demo day can arrive.')
+        if (appointment.status !== 'confirmed' || appointment.date !== businessDate(s, now))
+          throw new Error('Only a confirmed visit on the current business day can arrive.')
         appointment.status = 'arrived'
         addEvent({
           clientId: appointment.clientId,
@@ -218,6 +229,8 @@ export function execute(
           command.tipMinor > appointment.bookedPriceMinor * 2
         )
           throw new Error('Enter a valid tip up to twice the service price.')
+        if (operations(s).mode === 'live' && (command.method === 'demo_card' || command.method === 'demo_cash')) throw new Error('Choose cash or an external card terminal for a live workspace.')
+        if (command.method === 'external_card' && !command.reference?.trim()) throw new Error('Enter the card terminal receipt reference.')
         const deposit = depositPaid(s, appointment.id)
         if (deposit > appointment.bookedPriceMinor)
           throw new Error('Deposit exceeds this service. Review the ledger.')
@@ -234,6 +247,7 @@ export function execute(
           balanceMinor: total - deposit,
           paidAt: now,
           method: command.method,
+          reference: command.reference,
         }
         next.sales.push(sale)
         next.payments.push({
@@ -246,6 +260,7 @@ export function execute(
           currency: org.currency,
           recordedAt: now,
           method: command.method,
+          reference: command.reference,
         })
         appointment.status = 'completed'
         addEvent({
@@ -254,7 +269,7 @@ export function execute(
           saleId: sale.id,
           type: 'checkout',
           title: 'Visit completed',
-          detail: 'Demo receipt recorded. No real money was collected.',
+          detail: operations(s).mode === 'sandbox' ? 'Demo receipt recorded. No real money was collected.' : `Payment recorded by ${command.method === 'cash' ? 'cash' : 'external card terminal'}.`,
         })
         recordId = sale.id
       }

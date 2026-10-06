@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { operationsSchema } from './operations'
 
 export const DEMO_DATE = '2026-10-06'
 export const OPEN_MINUTES = 9 * 60
@@ -39,6 +40,7 @@ export const serviceSchema = z.object({
   priceMinor: minor,
   depositMinor: minor,
   resourceType: z.enum(['treatment', 'chair']),
+  archived: z.boolean().optional(),
 })
 export const staffSchema = z.object({
   ...scoped,
@@ -46,11 +48,13 @@ export const staffSchema = z.object({
   role: z.string(),
   serviceIds: z.array(id),
   tone: z.enum(['sage', 'blue', 'sand']),
+  archived: z.boolean().optional(),
 })
 export const resourceSchema = z.object({
   ...scoped,
   name: z.string(),
   type: z.enum(['treatment', 'chair']),
+  archived: z.boolean().optional(),
 })
 export const appointmentSchema = z.object({
   ...scoped,
@@ -69,6 +73,8 @@ export const appointmentSchema = z.object({
   bookedDepositMinor: minor,
   bookedDurationMinutes: z.number().int().positive(),
   bookedBufferMinutes: z.number().int().nonnegative(),
+  startsAt: z.iso.datetime().optional(),
+  endsAt: z.iso.datetime().optional(),
 })
 export const saleSchema = z.object({
   ...scoped,
@@ -80,7 +86,8 @@ export const saleSchema = z.object({
   totalMinor: minor,
   balanceMinor: minor,
   paidAt: z.iso.datetime(),
-  method: z.enum(['demo_card', 'demo_cash']),
+  method: z.enum(['demo_card', 'demo_cash', 'cash', 'external_card']),
+  reference: z.string().max(150).optional(),
 })
 export const paymentSchema = z.object({
   ...scoped,
@@ -90,14 +97,15 @@ export const paymentSchema = z.object({
   amountMinor: minor,
   currency: z.enum(['GBP', 'USD']),
   recordedAt: z.iso.datetime(),
-  method: z.enum(['demo_card', 'demo_cash']),
+  method: z.enum(['demo_card', 'demo_cash', 'cash', 'external_card']),
+  reference: z.string().max(150).optional(),
 })
 export const eventSchema = z.object({
   ...scoped,
   clientId: id,
   appointmentId: id.optional(),
   saleId: id.optional(),
-  type: z.enum(['booked', 'arrived', 'checkout', 'note', 'consent', 'relationship']),
+  type: z.enum(['booked', 'arrived', 'checkout', 'note', 'consent', 'relationship', 'rescheduled', 'cancelled', 'message', 'refund']),
   title: z.string(),
   detail: z.string(),
   occurredAt: z.iso.datetime(),
@@ -123,6 +131,7 @@ export const stateSchema = z.object({
   payments: z.array(paymentSchema),
   events: z.array(eventSchema),
   relationships: z.array(relationshipSchema),
+  operations: operationsSchema.optional(),
 })
 export type BusinessState = z.infer<typeof stateSchema>
 export type Client = z.infer<typeof clientSchema>
@@ -208,5 +217,14 @@ export function parseState(value: unknown, region: Region): BusinessState {
       !exists(s.clients, edge.toClientId)
     )
       throw new Error('Invalid relationship edge.')
+  if (s.operations) {
+    const o = s.operations
+    if (new Set(o.hours.map(h=>h.day)).size !== 7) throw new Error('Each weekday needs one hours rule.')
+    for (const m of o.movements) if (!exists(o.products,m.productId) || (m.appointmentId && !exists(s.appointments,m.appointmentId))) throw new Error('Invalid stock movement.')
+    for (const m of o.messages) if (!exists(s.clients,m.clientId) || (m.appointmentId && !exists(s.appointments,m.appointmentId))) throw new Error('Invalid message link.')
+    for (const w of o.waitlist) if (!exists(s.clients,w.clientId) || !exists(s.services,w.serviceId) || (w.appointmentId && !exists(s.appointments,w.appointmentId))) throw new Error('Invalid waitlist link.')
+    for (const r of o.refunds) if (!exists(s.sales,r.saleId)) throw new Error('Invalid refund link.')
+    for (const p of o.products) if (o.movements.filter(m=>m.productId===p.id).reduce((n,m)=>n+m.quantity,0)<0) throw new Error('Stock cannot be negative.')
+  }
   return s
 }
