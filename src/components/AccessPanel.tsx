@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useStore } from '../state/context'
 import { api } from '../state/api'
-import { Button, ErrorMessage } from './ui'
+import { Button, ErrorMessage } from '../design'
 
 type Team = {
   members: { id: string; name: string; email: string; role: string; staffId: string | null }[]

@@ -164,7 +164,7 @@ describe('local operating surfaces', () => {
   it('edits catalogue pricing without rewriting booked promises and preserves a conflicting closure draft', async () => {
     const user = userEvent.setup()
     show('/business/manage')
-    await user.click(await screen.findByRole('button', { name: 'Services' }))
+    await user.click(await screen.findByRole('tab', { name: 'Services' }))
     await user.click(screen.getByRole('button', { name: 'Edit Skin Renewal Facial' }))
     await user.clear(screen.getByLabelText('Price (GBP)'))
     await user.type(screen.getByLabelText('Price (GBP)'), '120')
@@ -177,7 +177,7 @@ describe('local operating surfaces', () => {
     expect(
       saved.appointments.find((a: { id: string }) => a.id === 'visit-noor').bookedPriceMinor,
     ).toBe(9500)
-    await user.click(screen.getByRole('button', { name: 'Hours & closures' }))
+    await user.click(screen.getByRole('tab', { name: 'Hours & closures' }))
     await user.click(screen.getByRole('button', { name: 'Add closure' }))
     await user.type(screen.getByLabelText('Date'), '2026-10-06')
     await user.type(screen.getByLabelText('Reason'), 'Maintenance')

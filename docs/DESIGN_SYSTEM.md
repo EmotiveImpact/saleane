@@ -1,6 +1,6 @@
 # SALEANE design system
 
-Foundation 0.2 · custom tokens and components. The reference implementation is `src/styles.css`; accessible dialog behaviour comes from Radix. There is no shadcn theme or UXio integration.
+Foundation 0.2, design language library 0.3. Tokens and components now live in `src/design/` and are documented in [DESIGN_LANGUAGE.md](DESIGN_LANGUAGE.md), with a living library at `/design-language`. Accessible dialog, tabs, segmented control and popover behaviour comes from unstyled Radix primitives. There is no shadcn theme or UXio integration.
 
 ## Source and direction status
 
@@ -28,6 +28,8 @@ The Atelier House AH mark is a fictional guest-brand demonstration. It is not an
 
 ## Tokens
 
+The authoritative token set, including the type scale and semantic colours added in 0.3, is `src/design/tokens.css` and [DESIGN_LANGUAGE.md](DESIGN_LANGUAGE.md). The table below is the original foundation palette, which the library keeps under the same names.
+
 | Token        | Value     | Use                                       |
 | ------------ | --------- | ----------------------------------------- |
 | `--ink`      | `#29392f` | Primary text and forest-green actions     |
@@ -41,7 +43,7 @@ The Atelier House AH mark is a fictional guest-brand demonstration. It is not an
 | `--blue`     | `#edf0ef` | Body/skin context                         |
 | `--sand`     | `#f1ece3` | Hair/styling context                      |
 
-Type: 11–13px metadata; 14–17px operational text; 19–24px section headings; 29–38px page headings. Public booking display type can be larger. Use tabular numbers for times and money. Maximum body-copy line length is generally 65–80 characters.
+Type: 12–13px metadata (12px is the floor); 14–17px operational text; 19–24px section headings; 29–38px page headings. Public booking display type can be larger. Use tabular numbers for times and money. Maximum body-copy line length is generally 65–80 characters.
 
 Spacing uses a 4px base with 8, 12, 16, 20, 24, 32 and 40px steps. Surfaces use 7px corners; fields/actions use 4–5px; people avatars are circular. Avoid identical decorative cards for every fact: daily metrics are compact bordered cells, the agenda is a continuous surface, and the attention panel uses quiet sage contrast.
 
@@ -77,7 +79,7 @@ Motion answers actions only: short hover/focus and navigation transitions. Reduc
 ## Responsive and accessibility acceptance
 
 - Desktop rail at 236px; mobile navigation opens from a named control. The selected route remains evident.
-- Below 650px the calendar uses the agenda. Directory scroll/column reduction stays within its surface.
+- Below 650px the calendar shows one swipeable column per professional with free time between visits; the list view remains available. Directory scroll/column reduction stays within its surface.
 - Forms have visible labels; consent is independently optional; public progress identifies the current step.
 - Public booking works at 390px and the application has a 320px minimum layout.
 - Touch actions aim for 44px; WCAG 2.2 AA is the production target, not a certification earned by these checks.

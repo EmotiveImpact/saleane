@@ -15,7 +15,7 @@ import {
   Mail,
 } from 'lucide-react'
 import { useStore } from './state/context'
-import { Avatar, Modal } from './components/ui'
+import { Avatar, Modal } from './design'
 import { SearchDialog } from './components/SearchDialog'
 import { WorkspaceSettings } from './components/WorkspaceSettings'
 import { Today } from './pages/Today'
@@ -33,6 +33,9 @@ const ServerBooking = lazy(() =>
 const Manage = lazy(() => import('./pages/Manage').then((module) => ({ default: module.Manage })))
 const Inbox = lazy(() => import('./pages/Inbox').then((module) => ({ default: module.Inbox })))
 const Money = lazy(() => import('./pages/Money').then((module) => ({ default: module.Money })))
+const DesignLanguage = lazy(() =>
+  import('./pages/DesignLanguage').then((module) => ({ default: module.DesignLanguage })),
+)
 import { AccessPanel } from './components/AccessPanel'
 import { PractitionerDay } from './pages/PractitionerDay'
 import './account.css'
@@ -63,7 +66,10 @@ function WorkspaceApp() {
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0 })
   }, [location.pathname])
-  const pageName = navigation.find((n) => location.pathname.startsWith(n.to))?.label ?? 'Today'
+  const pageName =
+    location.pathname === '/design-language'
+      ? 'Design language'
+      : (navigation.find((n) => location.pathname.startsWith(n.to))?.label ?? 'Today')
   if (location.pathname === '/account' || location.pathname === '/join') return <Account />
   if (location.pathname.startsWith('/practice/'))
     return (
@@ -192,7 +198,9 @@ function WorkspaceApp() {
               <Menu size={20} />
             </button>
             <span className="header-studio">{state.organisation.name}</span>
-            <span className="header-slash">/</span>
+            <span className="header-slash" aria-hidden="true">
+              /
+            </span>
             <span>{pageName}</span>
           </div>
           <div>
@@ -265,6 +273,7 @@ function WorkspaceApp() {
             />
             <Route path="/business/money" element={<Money />} />
             <Route path="/business/manage" element={<Manage accessPanel={<AccessPanel />} />} />
+            <Route path="/design-language" element={<DesignLanguage />} />
             <Route
               path="*"
               element={
@@ -277,6 +286,9 @@ function WorkspaceApp() {
           </Routes>
           <footer className="workspace-footer">
             <span>SALEANE</span>
+            <Link className="text-link" to="/design-language">
+              Design language
+            </Link>
             {mode === 'server' && (
               <button className="text-link" onClick={() => void reload().catch(() => {})}>
                 Refresh records

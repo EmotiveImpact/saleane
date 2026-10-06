@@ -4,7 +4,7 @@ import { FilePenLine, Mail, MailWarning, Plus } from 'lucide-react'
 import { useStore } from '../state/context'
 import { operations, can } from '../domain/operations'
 import { dateLabel, timeLabel } from '../domain/format'
-import { Avatar, Button, ErrorMessage, Modal } from '../components/ui'
+import { Avatar, Button, ErrorMessage, Modal, PageHeader } from '../design'
 import '../components/management.css'
 
 export function Inbox() {
@@ -85,30 +85,30 @@ export function Inbox() {
   }
   return (
     <div className="inbox-page">
-      <div className="page-heading">
-        <div>
-          <p className="date-caption">Every conversation has a purpose</p>
-          <h1>A considered word.</h1>
-          <p>Prepare client messages with their relationship and permissions in view.</p>
-        </div>
-        <Button
-          disabled={!allowedDraft || !state.clients.length}
-          onClick={() => {
-            setError('')
-            setNotice('')
-            if (editingId) {
-              setSubject('')
-              setBody('')
-              setAppointmentId('')
-              setEditingId(undefined)
-            }
-            setComposing(true)
-          }}
-        >
-          <Plus size={17} />
-          Write a draft
-        </Button>
-      </div>
+      <PageHeader
+        variant="compact"
+        title="A considered word."
+        description="Prepare client messages with their relationship and permissions in view."
+        actions={
+          <Button
+            disabled={!allowedDraft || !state.clients.length}
+            onClick={() => {
+              setError('')
+              setNotice('')
+              if (editingId) {
+                setSubject('')
+                setBody('')
+                setAppointmentId('')
+                setEditingId(undefined)
+              }
+              setComposing(true)
+            }}
+          >
+            <Plus size={17} />
+            Write a draft
+          </Button>
+        }
+      />
       <div className="ops-banner">
         <MailWarning size={20} />
         <div>

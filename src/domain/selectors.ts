@@ -101,6 +101,12 @@ export function serviceRevenue(sale: BusinessState['sales'][number]) {
     sale.serviceMinor - (sale.discountMinor ?? 0) - (sale.taxInclusive ? (sale.taxMinor ?? 0) : 0)
   )
 }
+/** Share of open professional time taken by booked service minutes on one day. */
+export function bookedTimeShare(s: BusinessState, date: string) {
+  const capacity = availableMinutes(s, date)
+  const minutes = dayAppointments(s, date).reduce((sum, a) => sum + a.bookedDurationMinutes, 0)
+  return capacity ? minutes / capacity : 0
+}
 export function availableMinutes(s: BusinessState, date: string) {
   const h = hoursFor(s, date)
   if (!h || h.closed) return 0
@@ -129,4 +135,64 @@ export function availableMinutes(s: BusinessState, date: string) {
       }
       return sum + end - start - unavailable
     }, 0)
+}
+
+export type DaySegment =
+  | { kind: 'visit'; from: number; to: number; appointment: BusinessState['appointments'][number] }
+  | { kind: 'free'; from: number; to: number }
+  | { kind: 'closed'; from: number; to: number; reason: string }
+
+/**
+ * One professional's working day as an ordered run of visits, closures and
+ * free time, so a narrow screen can show who is free without a time grid.
+ * A visit's span includes its turnaround. Free gaps shorter than
+ * `minimumFree` minutes are left out because nothing can be booked there.
+ */
+export function staffDay(s: BusinessState, staffId: string, date: string, minimumFree = 15) {
+  const h = hoursFor(s, date)
+  const ph = staffHoursFor(s, staffId, date)
+  const visits = dayAppointments(s, date).filter((a) => a.staffId === staffId)
+  const start = Math.max(h.open, ph.open)
+  const end = Math.min(h.close, ph.close)
+  const working = !h.closed && !ph.closed && end > start
+  const busy: DaySegment[] = [
+    ...visits.map((appointment) => ({
+      kind: 'visit' as const,
+      from: appointment.startMinutes,
+      to:
+        appointment.startMinutes +
+        appointment.bookedDurationMinutes +
+        appointment.bookedBufferMinutes,
+      appointment,
+    })),
+    ...operations(s)
+      .closures.filter(
+        (c) =>
+          working &&
+          c.date === date &&
+          (!c.staffId || c.staffId === staffId) &&
+          c.startMinutes < end &&
+          c.endMinutes > start,
+      )
+      .map((c) => ({
+        kind: 'closed' as const,
+        from: Math.max(start, c.startMinutes),
+        to: Math.min(end, c.endMinutes),
+        reason: c.reason,
+      })),
+  ].sort((a, b) => a.from - b.from || a.to - b.to)
+  const segments: DaySegment[] = []
+  let through = working ? start : Infinity
+  for (const segment of busy) {
+    if (working && segment.from - through >= minimumFree)
+      segments.push({ kind: 'free', from: through, to: segment.from })
+    segments.push(segment)
+    through = Math.max(through === Infinity ? segment.to : through, segment.to)
+  }
+  if (working && end - through >= minimumFree)
+    segments.push({ kind: 'free', from: through, to: end })
+  const freeMinutes = segments
+    .filter((segment) => segment.kind === 'free')
+    .reduce((sum, segment) => sum + segment.to - segment.from, 0)
+  return { working, start, end, segments, visits: visits.length, freeMinutes }
 }

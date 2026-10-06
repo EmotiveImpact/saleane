@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { Download, Info, TrendingUp } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useStore } from '../state/context'
-import { dueClients, report } from '../domain/selectors'
+import { bookedTimeShare, dueClients, report } from '../domain/selectors'
+import { bookedTimeDefinition } from '../components/definitions'
 import { dateLabel, money } from '../domain/format'
-import { Avatar, Button, Metric } from '../components/ui'
+import { Avatar, Button, Metric, PageHeader, SegmentedControl } from '../design'
 
 export function Business() {
   const { state, today } = useStore()
@@ -30,30 +31,24 @@ export function Business() {
   }
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <p className="date-caption">Clarity for the business you’re building</p>
-          <h1>A clearer view.</h1>
-          <p>Understand the rhythm. Choose what comes next.</p>
-        </div>
-        <Button variant="secondary" onClick={exportReport}>
-          <Download size={17} />
-          Export report
-        </Button>
-      </div>
+      <PageHeader
+        variant="compact"
+        title="A clearer view."
+        description="Understand the rhythm. Choose what comes next."
+        actions={
+          <Button variant="secondary" onClick={exportReport}>
+            <Download size={17} />
+            Export report
+          </Button>
+        }
+      />
       <div className="business-period">
-        <div className="segment-tabs" aria-label="Reporting period">
-          {[7, 28].map((value) => (
-            <button
-              key={value}
-              aria-pressed={days === value}
-              className={days === value ? 'active' : ''}
-              onClick={() => setDays(value)}
-            >
-              Last {value} days
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          label="Reporting period"
+          value={String(days)}
+          onChange={(value) => setDays(Number(value))}
+          options={[7, 28].map((value) => ({ value: String(value), label: `Last ${value} days` }))}
+        />
         <span>
           {dateLabel(data.from, state.organisation.locale, true)} –{' '}
           {dateLabel(today, state.organisation.locale, true)}
@@ -74,9 +69,12 @@ export function Business() {
           detail="Service revenue ÷ completed visits"
         />
         <Metric
-          label="Professional utilisation"
+          label="Time booked"
           value={`${Math.round(data.utilisation * 100)}%`}
-          detail="Booked treatment time ÷ open hours"
+          detail={`Last ${days} days · today ${Math.round(bookedTimeShare(state, today) * 100)}%`}
+          definition={bookedTimeDefinition.map((line) => (
+            <p key={line}>{line}</p>
+          ))}
         />
         <Metric
           label="Recorded rebooking"
@@ -212,12 +210,12 @@ export function Business() {
           <p>
             Revenue uses completed service receipts by appointment date, excludes tips and counts
             service value after discounts and excluding included tax, once. A deposit is a
-            part-payment. Refunds are shown separately in Money and are not deducted here.
-            Utilisation uses booked service minutes against configured opening and professional
-            hours, less recorded closures. Historical utilisation uses the current schedule;
-            schedule versions are not yet retained. Rebooking counts explicit links created through
-            checkout, rather than assuming another appointment is a rebook. All figures come from
-            this workspace’s records. A manual payment record is not processor settlement evidence.
+            part-payment. Refunds are shown separately in Money and are not deducted here. Time
+            booked uses booked service minutes against configured opening and professional hours,
+            less recorded closures. Earlier days use the current schedule; schedule versions are not
+            yet retained. Rebooking counts explicit links created through checkout, rather than
+            assuming another appointment is a rebook. All figures come from this workspace’s
+            records. A manual payment record is not processor settlement evidence.
           </p>
         )}
       </div>

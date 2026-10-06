@@ -2,6 +2,19 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## Unreleased · Design language library and design pass
+
+**Status: draft for review, not released.**
+
+- Added the SALEANE design language library: tokens in `src/design/tokens.css` (palette, semantic colour, type scale with a 12px floor, spacing, shape, elevation), components exported from `src/design/`, a living library page at `/design-language` that reads tokens and checks contrast live, and [DESIGN_LANGUAGE.md](docs/DESIGN_LANGUAGE.md).
+- Brought in unstyled Radix Tabs, Toggle Group and Popover alongside Dialog. Manage sections are now tabs; reporting period, client segments, timeline filters and calendar view use one segmented control; metric definitions open in a popover.
+- Working screens (Calendar, Clients, Inbox, Business, Money, Manage) use a compact serif header; Today keeps the editorial greeting.
+- Raised all workspace text to at least 12px (statuses and turnaround labels were 9px) and fixed the measured contrast failures: completed status on tinted cards and upcoming booking steps.
+- Today and Business now show one measure, "Time booked", with a shared definition and the period stated; Business also shows today's figure.
+- The client timeline shows each visit once, ordered by when it happens, with its booking, arrival, checkout and money inside.
+- On phones the calendar shows a swipeable column per professional with free time written between visits.
+- Removed the coloured stripes on the left edge of calendar visits, phone calendar visits, errors, deposit reviews, preference notes, timeline money rows and visit steps. Tone now comes from the surface colour alone, and a test fails if a left-edge stripe is added again.
+
 ## In review · Public booking hold protection
 
 **Status: draft pull request, stacked on the LOCAL-01 PR, not merged.** Schema migration 2 adds a `visitor` column to `booking_holds`. Live services stay unconfigured.

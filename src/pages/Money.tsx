@@ -7,7 +7,7 @@ import { depositPaid } from '../domain/commands'
 import { operations, can } from '../domain/operations'
 import { dateLabel, money } from '../domain/format'
 import { parseMinor } from '../domain/money'
-import { Button, ErrorMessage, Modal, Status } from '../components/ui'
+import { Button, ErrorMessage, Modal, Status, PageHeader } from '../design'
 import '../components/management.css'
 
 const methodLabel = (method: string) =>
@@ -141,13 +141,11 @@ export function Money() {
   }
   return (
     <div className="money-page">
-      <div className="page-heading">
-        <div>
-          <p className="date-caption">Every amount, with a source</p>
-          <h1>Money, clearly.</h1>
-          <p>Receipts, recorded funds and the deposits still held for a visit.</p>
-        </div>
-      </div>
+      <PageHeader
+        variant="compact"
+        title="Money, clearly."
+        description="Receipts, recorded funds and the deposits still held for a visit."
+      />
       <div className="ops-banner">
         <ShieldCheck size={20} />
         <div>

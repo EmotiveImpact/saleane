@@ -5,7 +5,7 @@ import { can, operations } from '../domain/operations'
 import { useStore } from '../state/context'
 import { clientStats, dueClients } from '../domain/selectors'
 import { dateLabel, money } from '../domain/format'
-import { Avatar, Button, Empty, ErrorMessage, Modal } from '../components/ui'
+import { Avatar, Button, Empty, ErrorMessage, Modal, PageHeader, SegmentedControl } from '../design'
 import { ClientImport } from '../components/ClientImport'
 
 export function Clients() {
@@ -56,47 +56,41 @@ export function Clients() {
   }
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <p className="date-caption">The people behind the appointments</p>
-          <h1>Relationships, remembered.</h1>
-          <p>Know their story. Give the next visit a reason.</p>
-        </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {can(role, 'import-clients') && (
-            <Button
-              variant="secondary"
-              disabled={blocked || busy}
-              onClick={() => setImporting(true)}
-            >
-              <FileUp size={17} />
-              Import clients
+      <PageHeader
+        variant="compact"
+        title="Relationships, remembered."
+        description="Know their story. Give the next visit a reason."
+        actions={
+          <>
+            {can(role, 'import-clients') && (
+              <Button
+                variant="secondary"
+                disabled={blocked || busy}
+                onClick={() => setImporting(true)}
+              >
+                <FileUp size={17} />
+                Import clients
+              </Button>
+            )}
+            <Button disabled={!allowed || busy} onClick={() => setNewClient(true)}>
+              <Plus size={17} />
+              Add client
             </Button>
-          )}
-          <Button disabled={!allowed || busy} onClick={() => setNewClient(true)}>
-            <Plus size={17} />
-            Add client
-          </Button>{' '}
-        </div>
-      </div>
+          </>
+        }
+      />
       <section className="surface">
         <div className="directory-toolbar">
-          <div className="segment-tabs" aria-label="Client segments">
-            {[
-              ['all', `All clients (${state.clients.length})`],
-              ['due', `Ready to return (${due.length})`],
-              ['consented', 'Email marketing enabled'],
-            ].map(([value, label]) => (
-              <button
-                aria-pressed={segment === value}
-                className={segment === value ? 'active' : ''}
-                key={value}
-                onClick={() => setSegment(value)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            label="Client segments"
+            value={segment}
+            onChange={setSegment}
+            options={[
+              { value: 'all', label: `All clients (${state.clients.length})` },
+              { value: 'due', label: `Ready to return (${due.length})` },
+              { value: 'consented', label: 'Email marketing enabled' },
+            ]}
+          />
           <label className="search-field">
             <Search size={17} />
             <span className="sr-only">Search clients</span>

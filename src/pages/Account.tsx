@@ -4,7 +4,7 @@ import { ArrowRight, ArrowLeft, ShieldCheck } from 'lucide-react'
 import { useStore } from '../state/context'
 import { api } from '../state/api'
 import type { Session } from '../state/api'
-import { Button, ErrorMessage } from '../components/ui'
+import { Button, ErrorMessage } from '../design'
 import '../account.css'
 
 export function Account() {

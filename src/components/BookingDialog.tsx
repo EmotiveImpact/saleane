@@ -4,7 +4,7 @@ import { useStore } from '../state/context'
 import { operations, can } from '../domain/operations'
 import { slots } from '../domain/commands'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
-import { Button, ErrorMessage, Modal } from './ui'
+import { Button, ErrorMessage, Modal } from '../design'
 
 export type BookingDefaults = {
   clientId?: string
