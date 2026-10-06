@@ -2,6 +2,16 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## Unreleased · LOCAL-04 schedule administration continuity
+
+**Status: draft for review, not released.** No schema migration: the history lives in the studio record as an optional, bounded list, so older records load unchanged. Live services stay unconfigured.
+
+- A change to opening hours, a professional's own hours, time away (including a break for one professional), or archiving a professional or room is refused while it would strand an upcoming visit. The refusal now names each visit (date, time, client first name and professional) and why it no longer fits, instead of a generic conflict. Visits are never moved or cancelled for you.
+- Manage shows the same check before saving: "These N upcoming visits would be affected", each linked to that visit in the calendar, and holds the save until they are moved or cancelled. Visits that already did not fit before the change, past days and visits already finished today do not block it.
+- New Schedule history in Manage, Hours & closures: who changed what and when, in plain words, with the structured before and after kept in the record (latest 500 changes). A refused or stale (409) save records nothing.
+- Professionals can have their own working hours in the team editor, or follow the venue's hours. Booked duration, turnaround, price and deposit stay with each visit when the service or hours change.
+- Verified with lint, format check, strict TypeScript, builds and 233 tests (169 frontend/domain/store, 64 server), plus a Chromium pass on the built server. See `docs/evidence/LOCAL-04.md`.
+
 ## Unreleased · Editable "Good to remember"
 
 **Status: draft for review, not released.**

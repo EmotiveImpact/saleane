@@ -107,7 +107,7 @@ Status: **Demo** = implemented with fictional local state; **Partial** = some de
 | INT-02 | AI analysis/action proposal with approval and audit                             | Planned V3                                        | Read/write tool permissions, source links, model evaluation and rollback evidence                     |
 | COM-01 | Appointment updates with purpose/channel/consent and delivery history           | Planned                                           | Provider receipts, suppression and opt-out behaviour tested per jurisdiction                          |
 | INV-01 | Stock, consumption and sale movements share sale/visit IDs                      | Planned V2                                        | Ledger balances, reversal and per-location availability reconcile                                     |
-| STF-01 | Staff permissions, capability, hours and compensation                           | Partial; capability/visual lanes only             | Server permissions and availability; versioned commission rules later                                 |
+| STF-01 | Staff permissions, capability, hours and compensation                           | Partial; capability, own hours (LOCAL-04 review)  | Server permissions and availability; versioned commission rules later                                 |
 | REL-01 | Persist honest state and recover without silent data loss                       | Demo                                              | Transactional server storage, migrations and tested backup/restore; local recovery is insufficient    |
 | ACC-01 | Accessible keyboard, responsive and plain error journeys                        | Partial; semantic controls and browser checks     | WCAG 2.2 AA review and assistive-technology evidence on supported browsers                            |
 
@@ -239,7 +239,7 @@ Earlier foundation P0 lists were broader than the later V1/V1.5/V2/V3 roadmap. T
 
 An account is a person; a membership grants access to a particular organisation/location; a practitioner record describes delivery capability. They are different entities. A revoked membership must cease authorising reads, writes, exports and jobs immediately on the server. Prevent removal of the last owner. New organisations start with an explicit market, currency, IANA zone and non-clinical classification. Currency/zone changes require impact review and cannot reinterpret old events.
 
-Publish booking only after services, qualified people, resource capacity, opening hours, policy versions and required provider configuration pass readiness checks. Inactive services/staff/resources remain in history but cannot receive new allocations. If a proposed closure overlaps confirmed visits, show affected visits and require a resolution plan; never silently cancel them.
+Publish booking only after services, qualified people, resource capacity, opening hours, policy versions and required provider configuration pass readiness checks. Inactive services/staff/resources remain in history but cannot receive new allocations. If a proposed closure overlaps confirmed visits, show affected visits and require a resolution plan; never silently cancel them. LOCAL-04 (in review) names those visits before saving and refuses the change on the server until each is moved or cancelled; every accepted hours, working-hours, time-away and archive change is kept in a bounded schedule history with its actor, time and before/after.
 
 ### Scheduling
 
@@ -276,7 +276,7 @@ Statuses below describe requirements not satisfied by the original 0.2 browser f
 | ID     | Contract / acceptance example                                                                                                | Priority and target | Current evidence boundary                             |
 | ------ | ---------------------------------------------------------------------------------------------------------------------------- | ------------------- | ----------------------------------------------------- |
 | ORG-03 | Revocation/session expiry denies next request; last owner cannot be removed; recovery links single-use                       | V1 / 0.3            | Specified; server draft unverified                    |
-| CAL-04 | Hours, breaks, closures and archived capability constrain availability; closure lists affected visits                        | V1 / 0.4            | Specified                                             |
+| CAL-04 | Hours, breaks, closures and archived capability constrain availability; closure lists affected visits                        | V1 / 0.4            | In review (LOCAL-04 draft PR); locally verified       |
 | CAL-05 | Move validates booked snapshot and leaves original unchanged on conflict; cancel releases allocation without erasing deposit | V1 / 0.4            | 0.2.2 locally verified; server acceptance outstanding |
 | CLI-05 | Explain lifecycle/cadence criteria; sufficient-history threshold; pause excludes outreach                                    | V1.5                | Specified; current return rule remains simplified     |
 | BKG-04 | No preference returns eligible available assignment; never exposes private schedule/client records                           | V1 / 0.4            | Specified                                             |

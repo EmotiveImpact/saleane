@@ -1,12 +1,16 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { Building2, CalendarDays, Plus, Scissors, Users, Armchair, ShieldCheck } from 'lucide-react'
 import { useStore } from '../state/context'
 import type { Command } from '../domain/commands'
+import type { BusinessState } from '../domain/model'
+import type { OperatingCommand } from '../domain/commandSchema'
+import { scheduleImpact } from '../domain/schedule'
 import { operations, can, permissionFor } from '../domain/operations'
 import { money, dateLabel, timeLabel } from '../domain/format'
 import { parseMinor } from '../domain/money'
 import { Avatar, Button, ErrorMessage, Modal, PageHeader, Tabs } from '../design'
+import { AffectedVisits, ScheduleHistory } from '../components/ScheduleImpact'
 import '../components/management.css'
 
 const sections = [
@@ -28,6 +32,26 @@ const minutes = (value: string) => {
 const text = (data: FormData, name: string) => String(data.get(name) ?? '').trim()
 const numeric = (data: FormData, name: string) => Number(data.get(name))
 type Editor = { kind: 'service' | 'staff' | 'resource' | 'closure'; id?: string }
+type WeekHours = ReturnType<typeof operations>['hours']
+const weekOrder = [1, 2, 3, 4, 5, 6, 0]
+/** LOCAL-04: the booked visits a proposed change would strand, checked as the form changes. */
+function previewImpact(state: BusinessState, command: Command | null) {
+  if (!command || !['hours', 'closure', 'staff', 'resource'].includes(command.type)) return []
+  return scheduleImpact(state, command as OperatingCommand, new Date().toISOString())
+}
+/** A professional's own week from the form, using `fallback` for days not shown yet. */
+function ownHours(data: FormData, fallback: WeekHours): WeekHours {
+  return fallback.map((day) => {
+    const open = data.get(`own-${day.day}-open`)
+    if (open === null) return { ...day }
+    return {
+      day: day.day,
+      closed: data.get(`own-${day.day}-on`) !== 'on',
+      open: minutes(String(open)),
+      close: minutes(String(data.get(`own-${day.day}-close`) ?? '')),
+    }
+  })
+}
 
 export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
   const { state, commit, blocked, role } = useStore()
@@ -38,6 +62,11 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
   const [error, setError] = useState('')
   const [saved, setSaved] = useState('')
   const [hours, setHours] = useState(() => config.hours.map((day) => ({ ...day })))
+  const [draft, setDraft] = useState<Command | null>(null)
+  const [customHours, setCustomHours] = useState(false)
+  const hoursImpact = useMemo(() => previewImpact(state, { type: 'hours', hours }), [state, hours])
+  const editorImpact = useMemo(() => previewImpact(state, draft), [state, draft])
+  const locale = state.organisation.locale
   const service = state.services.find((item) => item.id === editor?.id)
   const person = state.staff.find((item) => item.id === editor?.id)
   const resource = state.resources.find((item) => item.id === editor?.id)
@@ -64,78 +93,75 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
   function open(kind: Editor['kind'], id?: string) {
     setError('')
     setSaved('')
+    setDraft(null)
+    setCustomHours(!!state.staff.find((item) => item.id === id)?.hours)
     setEditor({ kind, id })
+  }
+  function commandFrom(editor: Editor, data: FormData, custom = customHours): Command {
+    const archived = data.get('archived') === 'on'
+    if (editor.kind === 'service')
+      return {
+        type: 'service',
+        id: editor.id,
+        input: {
+          name: text(data, 'name'),
+          description: text(data, 'description'),
+          category: text(data, 'category') as 'Skin' | 'Body' | 'Hair',
+          durationMinutes: numeric(data, 'duration'),
+          bufferMinutes: numeric(data, 'buffer'),
+          priceMinor: parseMinor(data.get('price')),
+          depositMinor: parseMinor(data.get('deposit')),
+          resourceType: text(data, 'resourceType') as 'treatment' | 'chair',
+          archived,
+        },
+      }
+    if (editor.kind === 'staff') {
+      const current = state.staff.find((item) => item.id === editor.id)
+      return {
+        type: 'staff',
+        id: editor.id,
+        input: {
+          name: text(data, 'name'),
+          role: text(data, 'role'),
+          tone: text(data, 'tone') as 'sage' | 'blue' | 'sand',
+          serviceIds: data.getAll('serviceIds').map(String),
+          hours: custom ? ownHours(data, current?.hours ?? config.hours) : undefined,
+          archived,
+        },
+      }
+    }
+    if (editor.kind === 'resource')
+      return {
+        type: 'resource',
+        id: editor.id,
+        input: {
+          name: text(data, 'name'),
+          type: text(data, 'resourceType') as 'treatment' | 'chair',
+          archived,
+        },
+      }
+    return {
+      type: 'closure',
+      input: {
+        date: text(data, 'date'),
+        staffId: text(data, 'staffId') || undefined,
+        startMinutes: minutes(text(data, 'start')),
+        endMinutes: minutes(text(data, 'end')),
+        reason: text(data, 'reason'),
+      },
+    }
   }
   function submitEditor(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!editor) return
-    const data = new FormData(event.currentTarget)
-    const archived = data.get('archived') === 'on'
-    if (editor.kind === 'service')
-      void save(
-        {
-          type: 'service',
-          id: editor.id,
-          input: {
-            name: text(data, 'name'),
-            description: text(data, 'description'),
-            category: text(data, 'category') as 'Skin' | 'Body' | 'Hair',
-            durationMinutes: numeric(data, 'duration'),
-            bufferMinutes: numeric(data, 'buffer'),
-            priceMinor: parseMinor(data.get('price')),
-            depositMinor: parseMinor(data.get('deposit')),
-            resourceType: text(data, 'resourceType') as 'treatment' | 'chair',
-            archived,
-          },
-        },
-        'Service saved. Booked prices and durations are preserved.',
-        true,
-      )
-    if (editor.kind === 'staff')
-      void save(
-        {
-          type: 'staff',
-          id: editor.id,
-          input: {
-            name: text(data, 'name'),
-            role: text(data, 'role'),
-            tone: text(data, 'tone') as 'sage' | 'blue' | 'sand',
-            serviceIds: data.getAll('serviceIds').map(String),
-            archived,
-          },
-        },
-        'Professional saved.',
-        true,
-      )
-    if (editor.kind === 'resource')
-      void save(
-        {
-          type: 'resource',
-          id: editor.id,
-          input: {
-            name: text(data, 'name'),
-            type: text(data, 'resourceType') as 'treatment' | 'chair',
-            archived,
-          },
-        },
-        'Resource saved.',
-        true,
-      )
-    if (editor.kind === 'closure')
-      void save(
-        {
-          type: 'closure',
-          input: {
-            date: text(data, 'date'),
-            staffId: text(data, 'staffId') || undefined,
-            startMinutes: minutes(text(data, 'start')),
-            endMinutes: minutes(text(data, 'end')),
-            reason: text(data, 'reason'),
-          },
-        },
-        'Closure saved.',
-        true,
-      )
+    if (!editor || editorImpact.length) return
+    const command = commandFrom(editor, new FormData(event.currentTarget))
+    const message = {
+      service: 'Service saved. Booked prices and durations are preserved.',
+      staff: 'Professional saved.',
+      resource: 'Resource saved.',
+      closure: 'Time away saved.',
+    }[editor.kind]
+    void save(command, message, true)
   }
   const status = (
     <>
@@ -506,11 +532,12 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                     aria-busy={pending}
                     onSubmit={(event) => {
                       event.preventDefault()
-                      void save({ type: 'hours', hours }, 'Opening hours saved.')
+                      if (!hoursImpact.length)
+                        void save({ type: 'hours', hours }, 'Opening hours saved.')
                     }}
                   >
                     <div className="ops-hours">
-                      {[1, 2, 3, 4, 5, 6, 0].map((weekday) => {
+                      {weekOrder.map((weekday) => {
                         const day = hours.find((item) => item.day === weekday)
                         if (!day) return null
                         const update = (patch: Partial<typeof day>) =>
@@ -555,9 +582,13 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                         )
                       })}
                     </div>
+                    <AffectedVisits visits={hoursImpact} locale={locale} />
                     {status}
                     <div className="ops-actions">
-                      <Button type="submit" disabled={pending || !allowed('hours')}>
+                      <Button
+                        type="submit"
+                        disabled={pending || !allowed('hours') || hoursImpact.length > 0}
+                      >
                         {pending ? 'Saving…' : 'Save opening hours'}
                       </Button>
                     </div>
@@ -567,7 +598,9 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                   <header>
                     <div>
                       <h2>Time away</h2>
-                      <p>One-off closures for the venue or a professional.</p>
+                      <p>
+                        One-off closures for the venue, or a break or leave for one professional.
+                      </p>
                     </div>
                     <Button
                       variant="secondary"
@@ -611,6 +644,10 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                     <p className="ops-help">No one-off closures recorded.</p>
                   )}
                 </section>
+                <ScheduleHistory
+                  entries={config.scheduleHistory ?? []}
+                  organisation={state.organisation}
+                />
               </>
             )}
           </div>
@@ -644,7 +681,11 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
           }
           description="Changes are saved to this workspace. Existing history is preserved."
         >
-          <form onSubmit={submitEditor} aria-busy={pending}>
+          <form
+            onSubmit={submitEditor}
+            onChange={(event) => setDraft(commandFrom(editor, new FormData(event.currentTarget)))}
+            aria-busy={pending}
+          >
             <div className="ops-fields">
               {editor.kind !== 'closure' && (
                 <label className="ops-wide">
@@ -769,6 +810,66 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                       <p>Add a service before assigning qualifications.</p>
                     )}
                   </fieldset>
+                  <fieldset className="ops-checks ops-wide">
+                    <legend>Working hours</legend>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={!customHours}
+                        onChange={(event) => {
+                          // Handled here so the preview uses the new choice, not the old one.
+                          event.stopPropagation()
+                          const custom = !event.target.checked
+                          setCustomHours(custom)
+                          const form = event.currentTarget.form
+                          if (form) setDraft(commandFrom(editor, new FormData(form), custom))
+                        }}
+                      />
+                      Follows the venue opening hours
+                    </label>
+                    {customHours && (
+                      <div className="ops-hours">
+                        {weekOrder.map((weekday) => {
+                          const day = (person?.hours ?? config.hours).find(
+                            (item) => item.day === weekday,
+                          )
+                          if (!day) return null
+                          return (
+                            <div className="ops-day" key={weekday}>
+                              <label>
+                                <input
+                                  type="checkbox"
+                                  name={`own-${weekday}-on`}
+                                  defaultChecked={!day.closed}
+                                />
+                                {days[weekday]}
+                              </label>
+                              <label className="ops-field">
+                                Starts
+                                <input
+                                  type="time"
+                                  name={`own-${weekday}-open`}
+                                  aria-label={`${days[weekday]} starts`}
+                                  required
+                                  defaultValue={clock(day.open)}
+                                />
+                              </label>
+                              <label className="ops-field">
+                                Finishes
+                                <input
+                                  type="time"
+                                  name={`own-${weekday}-close`}
+                                  aria-label={`${days[weekday]} finishes`}
+                                  required
+                                  defaultValue={clock(day.close)}
+                                />
+                              </label>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </fieldset>
                 </>
               )}
               {editor.kind === 'resource' && (
@@ -818,7 +919,8 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                     />
                   </label>
                   <p className="ops-help ops-wide">
-                    Existing appointments are checked before a closure can be saved.
+                    Choose one professional for a break or leave. Booked visits are checked before
+                    time away can be saved.
                   </p>
                 </>
               )}
@@ -835,11 +937,16 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                 </label>
               )}
             </div>
+            <AffectedVisits visits={editorImpact} locale={locale} />
             <ErrorMessage error={error} />
             <div className="ops-actions">
               <Button
                 type="submit"
-                disabled={pending || !allowed(editor.kind === 'closure' ? 'hours' : 'catalogue')}
+                disabled={
+                  pending ||
+                  !allowed(editor.kind === 'closure' ? 'hours' : 'catalogue') ||
+                  editorImpact.length > 0
+                }
               >
                 {pending ? 'Saving…' : 'Save changes'}
               </Button>

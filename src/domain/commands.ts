@@ -587,9 +587,9 @@ export function dispatch(
     .forEach((e) => {
       e.actor = actorName
     })
-  for (const key of ['messages', 'movements', 'refunds'] as const) {
-    const ids = new Set(operations(s)[key].map((r) => r.id))
-    const records = operations(result.state)[key]
+  for (const key of ['messages', 'movements', 'refunds', 'scheduleHistory'] as const) {
+    const ids = new Set((operations(s)[key] ?? []).map((r) => r.id))
+    const records = operations(result.state)[key] ?? []
     records
       .filter((r) => !ids.has(r.id))
       .forEach((r) => {

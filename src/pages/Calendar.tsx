@@ -20,7 +20,8 @@ export function Calendar() {
   const [staffFilter, setStaffFilter] = useState('all')
   const [view, setView] = useState<'grid' | 'agenda'>('grid')
   const [booking, setBooking] = useState(false)
-  const [appointmentId, setAppointmentId] = useState('')
+  // Links from elsewhere (such as affected visits in Manage) can open one visit directly.
+  const [appointmentId, setAppointmentId] = useState(() => params.get('appointment') ?? '')
   const day = dayAppointments(state, date).filter(
     (a) => staffFilter === 'all' || a.staffId === staffFilter,
   )
