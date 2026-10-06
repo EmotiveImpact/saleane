@@ -68,6 +68,33 @@ export function Status({ status }: { status: string }) {
     </span>
   )
 }
+/**
+ * Compact header for working surfaces (Calendar, Clients, a client, Money, Manage, Inbox).
+ * The serif title sits on one line with a short context phrase and the page actions, so the
+ * work starts near the top. Today and guest booking keep their large editorial greeting.
+ */
+export function WorkHeader({
+  title,
+  context,
+  leading,
+  children,
+}: {
+  title: ReactNode
+  context?: ReactNode
+  leading?: ReactNode
+  children?: ReactNode
+}) {
+  return (
+    <header className="work-heading">
+      {leading}
+      <div className="work-heading-title">
+        <h1>{title}</h1>
+        {context && <p>{context}</p>}
+      </div>
+      {children && <div className="work-heading-actions">{children}</div>}
+    </header>
+  )
+}
 export function Metric({
   label,
   value,

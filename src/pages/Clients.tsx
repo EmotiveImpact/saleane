@@ -5,7 +5,7 @@ import { can, operations } from '../domain/operations'
 import { useStore } from '../state/context'
 import { clientStats, dueClients } from '../domain/selectors'
 import { dateLabel, money } from '../domain/format'
-import { Avatar, Button, Empty, ErrorMessage, Modal } from '../components/ui'
+import { Avatar, Button, Empty, ErrorMessage, Modal, WorkHeader } from '../components/ui'
 import { ClientImport } from '../components/ClientImport'
 
 export function Clients() {
@@ -56,29 +56,18 @@ export function Clients() {
   }
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <p className="date-caption">The people behind the appointments</p>
-          <h1>Relationships, remembered.</h1>
-          <p>Know their story. Give the next visit a reason.</p>
-        </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {can(role, 'import-clients') && (
-            <Button
-              variant="secondary"
-              disabled={blocked || busy}
-              onClick={() => setImporting(true)}
-            >
-              <FileUp size={17} />
-              Import clients
-            </Button>
-          )}
-          <Button disabled={!allowed || busy} onClick={() => setNewClient(true)}>
-            <Plus size={17} />
-            Add client
-          </Button>{' '}
-        </div>
-      </div>
+      <WorkHeader title="Clients" context="Relationships, remembered.">
+        {can(role, 'import-clients') && (
+          <Button variant="secondary" disabled={blocked || busy} onClick={() => setImporting(true)}>
+            <FileUp size={17} />
+            Import clients
+          </Button>
+        )}
+        <Button disabled={!allowed || busy} onClick={() => setNewClient(true)}>
+          <Plus size={17} />
+          Add client
+        </Button>
+      </WorkHeader>
       <section className="surface">
         <div className="directory-toolbar">
           <div className="segment-tabs" aria-label="Client segments">

@@ -5,7 +5,7 @@ import { useStore } from '../state/context'
 import type { Command } from '../domain/commands'
 import { operations, can, permissionFor } from '../domain/operations'
 import { money, dateLabel, timeLabel } from '../domain/format'
-import { Avatar, Button, ErrorMessage, Modal } from '../components/ui'
+import { Avatar, Button, ErrorMessage, Modal, WorkHeader } from '../components/ui'
 import '../components/management.css'
 
 const sections = [
@@ -158,13 +158,10 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
     archived ? <span className="ops-tag">Archived</span> : null
   return (
     <div className="manage-page">
-      <div className="page-heading">
-        <div>
-          <p className="date-caption">The foundations of a well-run day</p>
-          <h1>Your business, considered.</h1>
-          <p>Shape the services, people and spaces behind every visit.</p>
-        </div>
-      </div>
+      <WorkHeader
+        title="Manage studio"
+        context="The services, people and spaces behind every visit."
+      />
       <div className="ops-tabs" role="group" aria-label="Business settings sections">
         {sections.map(({ id, label, icon: Icon }) => (
           <button

@@ -15,7 +15,8 @@ import { useStore } from '../state/context'
 import { clientStats } from '../domain/selectors'
 import { can, operations } from '../domain/operations'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
-import { Avatar, Button, Empty, ErrorMessage, Metric } from '../components/ui'
+import { Avatar, Button, Empty, ErrorMessage, Metric, Status, WorkHeader } from '../components/ui'
+import { groupTimeline } from '../components/timeline'
 import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
 
@@ -60,6 +61,13 @@ export function ClientRelationship() {
               : ['relationship', 'consent'].includes(e.type))),
     )
     .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
+  const eventDate = (iso: string) =>
+    new Intl.DateTimeFormat(state.organisation.locale, {
+      timeZone: state.organisation.timeZone,
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(new Date(iso))
   const edges = state.relationships.filter(
     (e) => e.fromClientId === client.id || e.toClientId === client.id,
   )
@@ -107,20 +115,20 @@ export function ClientRelationship() {
         <ArrowLeft size={16} />
         Clients
       </Link>
-      <div className="relationship-heading">
-        <Avatar identity={client.id} name={client.name} />
-        <div>
-          <p className="date-caption">A relationship with {state.organisation.name}</p>
-          <h1>{client.name}</h1>
-          <p>
+      <WorkHeader
+        leading={<Avatar small identity={client.id} name={client.name} />}
+        title={client.name}
+        context={
+          <>
             {client.email} <span className="contact-divider">/</span> {client.phone}
-          </p>
-        </div>
+          </>
+        }
+      >
         <Button disabled={busy || blocked || !can(role, 'book')} onClick={() => setBooking(true)}>
           <Plus size={17} />
           Book next visit
         </Button>
-      </div>
+      </WorkHeader>
       <div className="metrics-band">
         <Metric
           label="Completed visits"
@@ -186,50 +194,107 @@ export function ClientRelationship() {
             ))}
           </div>
           <div className="timeline">
-            {events.map((event) => {
-              const Icon =
-                event.type === 'checkout'
-                  ? CreditCard
-                  : event.type === 'note'
-                    ? MessageSquare
-                    : event.type === 'relationship'
-                      ? Users
-                      : event.type === 'consent'
-                        ? Mail
-                        : CalendarDays
-              const sale = state.sales.find((s) => s.id === event.saleId)
+            {groupTimeline(events).map((entry) => {
+              if (entry.kind === 'event') {
+                const event = entry.event
+                const Icon =
+                  event.type === 'checkout'
+                    ? CreditCard
+                    : event.type === 'note'
+                      ? MessageSquare
+                      : event.type === 'relationship'
+                        ? Users
+                        : event.type === 'consent'
+                          ? Mail
+                          : CalendarDays
+                const sale = state.sales.find((s) => s.id === event.saleId)
+                return (
+                  <article className="timeline-event" key={entry.key}>
+                    <span className={`timeline-icon timeline-${event.type}`}>
+                      <Icon size={17} />
+                    </span>
+                    <div>
+                      <time dateTime={event.occurredAt}>{eventDate(event.occurredAt)}</time>
+                      <h3>{event.title}</h3>
+                      <p>{event.detail}</p>
+                      {sale && (
+                        <div className="timeline-money">
+                          <strong>{money(sale.serviceMinor, state.organisation)}</strong>
+                          <span>Service · {money(sale.tipMinor, state.organisation)} tip</span>
+                        </div>
+                      )}
+                      <div className="timeline-footer">
+                        <small>{event.actor}</small>
+                      </div>
+                    </div>
+                  </article>
+                )
+              }
+              const appointment = state.appointments.find((a) => a.id === entry.appointmentId)
+              const service = state.services.find((s) => s.id === appointment?.serviceId)
+              const staff = state.staff.find((s) => s.id === appointment?.staffId)
+              const sale = state.sales.find(
+                (s) =>
+                  s.appointmentId === entry.appointmentId &&
+                  entry.events.some((e) => e.saleId === s.id),
+              )
+              const name = appointment?.bookedServiceName ?? service?.name ?? 'Visit'
+              const settled = entry.events.some((e) => e.type === 'checkout')
               return (
-                <article className="timeline-event" key={event.id}>
-                  <span className={`timeline-icon timeline-${event.type}`}>
-                    <Icon size={17} />
+                <article className="timeline-event timeline-visit" key={entry.key}>
+                  <span className={`timeline-icon ${settled ? 'timeline-checkout' : ''}`}>
+                    {settled ? <CreditCard size={17} /> : <CalendarDays size={17} />}
                   </span>
                   <div>
-                    <time dateTime={event.occurredAt}>
-                      {new Intl.DateTimeFormat(state.organisation.locale, {
-                        timeZone: state.organisation.timeZone,
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                      }).format(new Date(event.occurredAt))}
-                    </time>
-                    <h3>{event.title}</h3>
-                    <p>{event.detail}</p>
+                    {appointment ? (
+                      <time dateTime={appointment.date}>
+                        {dateLabel(appointment.date, state.organisation.locale, true)} at{' '}
+                        {timeLabel(appointment.startMinutes, state.organisation.locale)}
+                      </time>
+                    ) : (
+                      <time dateTime={entry.latestAt}>{eventDate(entry.latestAt)}</time>
+                    )}
+                    <h3>
+                      {name}
+                      {appointment && <Status status={appointment.status} />}
+                    </h3>
+                    {staff && (
+                      <p>
+                        With {staff.name}
+                        {appointment ? ` · ${appointment.bookedDurationMinutes} min` : ''}
+                      </p>
+                    )}
                     {sale && (
                       <div className="timeline-money">
                         <strong>{money(sale.serviceMinor, state.organisation)}</strong>
-                        <span>Service · {money(sale.tipMinor, state.organisation)} tip</span>
+                        <span>
+                          Service · {money(sale.tipMinor, state.organisation)} tip
+                          {sale.receiptNumber ? ` · Receipt ${sale.receiptNumber}` : ''}
+                        </span>
                       </div>
                     )}
+                    <ol className="visit-steps" aria-label={`${name} history`}>
+                      {entry.events.map((event) => (
+                        <li key={event.id}>
+                          <span className="visit-step-heading">
+                            <strong>{event.title}</strong>
+                            <time dateTime={event.occurredAt}>{eventDate(event.occurredAt)}</time>
+                          </span>
+                          {event.detail && <span>{event.detail}</span>}
+                          <small>{event.actor}</small>
+                        </li>
+                      ))}
+                    </ol>
                     <div className="timeline-footer">
-                      <small>{event.actor}</small>
-                      {event.appointmentId && (
-                        <button
-                          className="text-link"
-                          onClick={() => setAppointmentId(event.appointmentId!)}
-                        >
-                          View visit <ArrowUpRight size={14} />
-                        </button>
-                      )}
+                      <small>
+                        {entry.events.length} {entry.events.length === 1 ? 'record' : 'records'}
+                      </small>
+                      <button
+                        className="text-link"
+                        onClick={() => setAppointmentId(entry.appointmentId)}
+                      >
+                        View visit <ArrowUpRight size={14} />
+                      </button>
                     </div>
                   </div>
                 </article>

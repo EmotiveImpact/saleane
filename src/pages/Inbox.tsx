@@ -4,7 +4,7 @@ import { FilePenLine, Mail, MailWarning, Plus } from 'lucide-react'
 import { useStore } from '../state/context'
 import { operations, can } from '../domain/operations'
 import { dateLabel, timeLabel } from '../domain/format'
-import { Avatar, Button, ErrorMessage, Modal } from '../components/ui'
+import { Avatar, Button, ErrorMessage, Modal, WorkHeader } from '../components/ui'
 import '../components/management.css'
 
 export function Inbox() {
@@ -85,12 +85,7 @@ export function Inbox() {
   }
   return (
     <div className="inbox-page">
-      <div className="page-heading">
-        <div>
-          <p className="date-caption">Every conversation has a purpose</p>
-          <h1>A considered word.</h1>
-          <p>Prepare client messages with their relationship and permissions in view.</p>
-        </div>
+      <WorkHeader title="Inbox" context="Every conversation has a purpose.">
         <Button
           disabled={!allowedDraft || !state.clients.length}
           onClick={() => {
@@ -108,7 +103,7 @@ export function Inbox() {
           <Plus size={17} />
           Write a draft
         </Button>
-      </div>
+      </WorkHeader>
       <div className="ops-banner">
         <MailWarning size={20} />
         <div>

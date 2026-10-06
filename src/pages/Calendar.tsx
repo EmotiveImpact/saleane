@@ -1,11 +1,12 @@
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Plus, LayoutGrid, List } from 'lucide-react'
 import { useStore } from '../state/context'
 import { hoursFor } from '../domain/operations'
 import { dayAppointments } from '../domain/selectors'
 import { addDays, dateLabel, timeLabel } from '../domain/format'
-import { Avatar, Button, Empty, Status } from '../components/ui'
+import { Avatar, Button, Empty, Status, WorkHeader } from '../components/ui'
 import { Agenda } from '../components/Agenda'
 import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
@@ -49,17 +50,12 @@ export function Calendar() {
     .sort((a, b) => a.startMinutes - b.startMinutes)
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <p className="date-caption">A place for every appointment</p>
-          <h1>Calendar</h1>
-          <p>People, spaces and time, working together.</p>
-        </div>
+      <WorkHeader title="Calendar" context="People, spaces and time, working together.">
         <Button onClick={() => setBooking(true)}>
           <Plus size={17} />
           New appointment
         </Button>
-      </div>
+      </WorkHeader>
       <section className="surface calendar-surface">
         <div className="calendar-toolbar">
           <div className="date-controls">
@@ -141,12 +137,20 @@ export function Calendar() {
           </span>
           <small>Turnaround time shown beneath each visit</small>
         </div>
-        <div className={view === 'grid' ? 'calendar-grid-desktop' : 'hidden'}>
+        {view === 'grid' && staff.length > 1 && (
+          <p className="calendar-swipe-hint" id="calendar-swipe-hint">
+            Swipe sideways for each professional, or choose one above.
+          </p>
+        )}
+        <div
+          className={view === 'grid' ? 'calendar-grid-desktop' : 'hidden'}
+          role="region"
+          aria-label={`Schedule by professional, ${dateLabel(date, state.organisation.locale)}`}
+          aria-describedby={staff.length > 1 ? 'calendar-swipe-hint' : undefined}
+        >
           <div
             className="calendar-grid"
-            style={{
-              gridTemplateColumns: `66px repeat(${Math.max(1, staff.length)}, minmax(160px, 1fr))`,
-            }}
+            style={{ '--lanes': Math.max(1, staff.length) } as CSSProperties}
           >
             <div className="calendar-corner">Time</div>
             {staff.map((s) => (
@@ -170,6 +174,7 @@ export function Calendar() {
                 className="calendar-lane"
                 style={{ height: hourCount * 82 }}
                 key={s.id}
+                role="group"
                 aria-label={`${s.name} appointments`}
               >
                 {Array.from({ length: hourCount }, (_, i) => (

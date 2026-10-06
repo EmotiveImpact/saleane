@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { StoreProvider } from '../state/StoreProvider'
 import { App } from '../App'
+import { seed } from '../domain/seed'
 
 function show(route = '/today') {
   render(
@@ -135,6 +136,29 @@ describe('connected operator journeys', () => {
     await user.click(screen.getByRole('button', { name: 'Add to timeline' }))
     expect(screen.getByText('Prefers a Tuesday afternoon.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Added' })).toBeInTheDocument()
+  })
+  it('shows each visit once in the relationship timeline and keeps its filters working', async () => {
+    const user = userEvent.setup()
+    show('/clients/client-1')
+    const visits = new Set(
+      seed('UK')
+        .events.filter((e) => e.clientId === 'client-1' && e.appointmentId)
+        .map((e) => e.appointmentId),
+    )
+    expect(screen.getAllByRole('button', { name: /View visit/ })).toHaveLength(visits.size)
+    const histories = screen.getAllByRole('list', { name: /history$/ })
+    expect(histories).toHaveLength(visits.size)
+    expect(
+      histories.some(
+        (list) =>
+          within(list).queryByText('Appointment booked') &&
+          within(list).queryByText('Visit completed'),
+      ),
+    ).toBe(true)
+    await user.click(screen.getByRole('button', { name: 'Notes' }))
+    expect(screen.queryByRole('button', { name: /View visit/ })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Visits & money' }))
+    expect(screen.getAllByRole('button', { name: /View visit/ })).toHaveLength(visits.size)
   })
   it('completes public booking with marketing left off and exposes it in the calendar', async () => {
     const user = userEvent.setup()
