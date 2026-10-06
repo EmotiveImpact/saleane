@@ -1,0 +1,451 @@
+import type { Appointment, BusinessState } from './model'
+import { operations } from './operations'
+import type { Role } from './operations'
+
+/**
+ * LOCAL-03 (PRD GOV-01): data exports and erasure review.
+ *
+ * Every rule here is a default awaiting the owner's and a privacy adviser's confirmation (see
+ * docs/PRIVACY.md). The same functions build an export on the server and in the browser demo, so
+ * both produce the same shape. Nothing here deletes or rewrites a record.
+ *
+ * Client export (a subject access copy): owner and manager. It holds what the studio records
+ * about one person: profile, consent, booked visit terms, the receipts, payments and refunds for
+ * those visits, timeline, unsent messages with their real status, and client connections as a
+ * type only. Another person's name or details never appear (third-party data); neither do
+ * credentials, sessions, invitations, request receipts, booking holds, the audit log or internal
+ * record identifiers. Visits are referred to as V1, V2… within the file.
+ *
+ * Studio export: owner only. The one studio's records plus team names, emails and roles, never
+ * password hashes, session or invitation tokens, booking holds, other studios or the audit log.
+ */
+export const PRIVACY_EXPORT_VERSION = 1
+const PRIVACY_ROLES = {
+  'client.export': ['owner', 'manager'],
+  'client.erasure': ['owner', 'manager'],
+  'studio.export': ['owner'],
+} as const satisfies Record<string, readonly Role[]>
+export type PrivacyAction = keyof typeof PRIVACY_ROLES
+export function canPrivacy(role: Role, action: PrivacyAction) {
+  return (PRIVACY_ROLES[action] as readonly Role[]).includes(role)
+}
+
+/** Status words for a message that SALEANE has never delivered. */
+const MESSAGE_STATUS = {
+  draft: 'Draft. Not sent.',
+  queued: 'Queued in SALEANE. Not sent: no delivery service is configured.',
+  suppressed: 'Suppressed after marketing consent was withdrawn. Not sent.',
+} as const
+const METHOD = {
+  demo_card: 'Demo card (fictional, no money moved)',
+  demo_cash: 'Demo cash (fictional, no money moved)',
+  cash: 'Cash received at the studio',
+  external_card: 'Card taken on an external terminal',
+} as const
+const THIRD_PARTY = 'Linked to another client. Their details are withheld as third-party data.'
+const clock = (minutes: number) =>
+  `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+
+export type ExportMeta = { generatedAt: string; generatedBy: string }
+export type PreviewSection = { label: string; count: number }
+export type ExportPreview = {
+  title: string
+  sections: PreviewSection[]
+  excluded: string[]
+  notes: string[]
+}
+
+function studioHeading(state: BusinessState) {
+  const { name, locationName, address, region } = state.organisation
+  return { name, locationName, address, region, sandbox: operations(state).mode === 'sandbox' }
+}
+
+export function clientExport(state: BusinessState, clientId: string, meta: ExportMeta) {
+  const client = state.clients.find((c) => c.id === clientId)
+  if (!client) throw new Error('This client was not found.')
+  const ops = operations(state)
+  const visits = state.appointments
+    .filter((a) => a.clientId === client.id)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.startMinutes - b.startMinutes)
+  const ref = new Map(visits.map((a, index) => [a.id, `V${index + 1}`]))
+  const visitRef = (id?: string) => (id ? ref.get(id) : undefined)
+  const name = (rows: { id: string; name: string }[], id: string) =>
+    rows.find((row) => row.id === id)?.name ?? 'Not recorded'
+  const sales = state.sales
+    .filter((s) => ref.has(s.appointmentId))
+    .sort((a, b) => a.paidAt.localeCompare(b.paidAt))
+  const receipt = (saleId?: string) => sales.find((s) => s.id === saleId)?.receiptNumber
+  const events = state.events
+    .filter((e) => e.clientId === client.id)
+    .sort((a, b) => a.occurredAt.localeCompare(b.occurredAt))
+  return {
+    format: 'saleane.client-export',
+    version: PRIVACY_EXPORT_VERSION,
+    ...meta,
+    studio: studioHeading(state),
+    money: { currency: state.organisation.currency, amounts: 'minor units (pence or cents)' },
+    subject: {
+      name: client.name,
+      email: client.email,
+      phone: client.phone,
+      goodToRemember: client.preferences,
+      clientSince: client.createdAt,
+    },
+    consent: {
+      emailMarketing: client.marketingConsent,
+      history: events
+        .filter((e) => e.type === 'consent')
+        .map((e) => ({ occurredAt: e.occurredAt, change: e.title, detail: e.detail })),
+    },
+    visits: visits.map((a: Appointment) => ({
+      visit: ref.get(a.id)!,
+      date: a.date,
+      time: clock(a.startMinutes),
+      service: a.bookedServiceName ?? name(state.services, a.serviceId),
+      professional: name(state.staff, a.staffId),
+      room: name(state.resources, a.resourceId),
+      status: a.status,
+      bookedThrough: a.source,
+      bookedAt: a.createdAt,
+      bookedPriceMinor: a.bookedPriceMinor,
+      bookedDepositMinor: a.bookedDepositMinor,
+      durationMinutes: a.bookedDurationMinutes,
+      ...(a.rebookedFromId && ref.has(a.rebookedFromId)
+        ? { rebookedFrom: ref.get(a.rebookedFromId) }
+        : {}),
+    })),
+    receipts: sales.map((s) => ({
+      visit: ref.get(s.appointmentId)!,
+      receiptNumber: s.receiptNumber ?? 'Not numbered',
+      paidAt: s.paidAt,
+      method: METHOD[s.method],
+      serviceMinor: s.serviceMinor,
+      discountMinor: s.discountMinor ?? 0,
+      taxMinor: s.taxMinor ?? 0,
+      taxLabel: s.taxLabel ?? '',
+      taxIncluded: !!s.taxInclusive,
+      tipMinor: s.tipMinor,
+      depositAppliedMinor: s.depositAppliedMinor,
+      totalMinor: s.totalMinor,
+      balanceMinor: s.balanceMinor,
+      ...(s.reference ? { reference: s.reference } : {}),
+    })),
+    payments: state.payments
+      .filter((p) => ref.has(p.appointmentId))
+      .sort((a, b) => a.recordedAt.localeCompare(b.recordedAt))
+      .map((p) => ({
+        visit: ref.get(p.appointmentId)!,
+        kind: p.kind,
+        amountMinor: p.amountMinor,
+        recordedAt: p.recordedAt,
+        method: METHOD[p.method],
+        ...(p.reference ? { reference: p.reference } : {}),
+      })),
+    refunds: ops.refunds
+      .filter((r) => sales.some((s) => s.id === r.saleId))
+      .map((r) => ({
+        visit: ref.get(sales.find((s) => s.id === r.saleId)!.appointmentId)!,
+        receiptNumber: receipt(r.saleId) ?? 'Not numbered',
+        amountMinor: r.amountMinor,
+        reason: r.reason,
+        reference: r.reference,
+        recordedAt: r.createdAt,
+      })),
+    timeline: events.map((e) => ({
+      occurredAt: e.occurredAt,
+      type: e.type,
+      // Relationship events name the other client in their wording; that person is not the subject.
+      title: e.type === 'relationship' ? 'Client connection' : e.title,
+      detail: e.type === 'relationship' ? THIRD_PARTY : e.detail,
+      recordedBy: e.actor,
+      ...(visitRef(e.appointmentId) ? { visit: visitRef(e.appointmentId) } : {}),
+    })),
+    messages: ops.messages
+      .filter((m) => m.clientId === client.id)
+      .map((m) => ({
+        createdAt: m.createdAt,
+        purpose: m.purpose,
+        subject: m.subject,
+        body: m.body,
+        status: m.status,
+        delivery: MESSAGE_STATUS[m.status],
+        ...(visitRef(m.appointmentId) ? { visit: visitRef(m.appointmentId) } : {}),
+      })),
+    connections: state.relationships
+      .filter((r) => r.fromClientId === client.id || r.toClientId === client.id)
+      .map((r) => ({
+        type: r.type,
+        role:
+          r.type === 'household'
+            ? 'Shares a household with another client'
+            : r.fromClientId === client.id
+              ? 'Introduced another client'
+              : 'Introduced by another client',
+        since: r.createdAt,
+      })),
+  }
+}
+export type ClientExport = ReturnType<typeof clientExport>
+
+export const CLIENT_EXPORT_EXCLUDED = [
+  'Other clients’ names and details, including the people they are connected to',
+  'Staff accounts, passwords, sign-in sessions and invitation links',
+  'Internal record identifiers, request receipts and online booking holds',
+  'The studio’s internal audit log',
+  'Anything from another studio',
+]
+
+export function previewClientExport(file: ClientExport): ExportPreview {
+  return {
+    title: file.subject.name,
+    sections: [
+      { label: 'Profile and contact details', count: 1 },
+      { label: 'Consent changes', count: file.consent.history.length },
+      { label: 'Visits with their booked terms', count: file.visits.length },
+      { label: 'Receipts', count: file.receipts.length },
+      { label: 'Payments and deposits', count: file.payments.length },
+      { label: 'Refunds', count: file.refunds.length },
+      { label: 'Timeline entries', count: file.timeline.length },
+      { label: 'Messages, none of them sent', count: file.messages.length },
+      { label: 'Client connections, type only', count: file.connections.length },
+    ],
+    excluded: CLIENT_EXPORT_EXCLUDED,
+    notes: [
+      'Notes, preferences and message text are included as written. Read them before sending, in case they mention someone else.',
+      'Staff names appear where they recorded an entry or looked after a visit.',
+      'Messages show their real status. SALEANE has no delivery service configured, so none was sent.',
+      ...(file.studio.sandbox
+        ? ['This is the fictional sandbox. Its money and people are not real.']
+        : []),
+    ],
+  }
+}
+
+export type TeamMember = { name: string; email: string; role: Role; professional?: string }
+
+export function studioExport(state: BusinessState, meta: ExportMeta, team: TeamMember[] = []) {
+  const records = structuredClone(state)
+  return {
+    format: 'saleane.studio-export',
+    version: PRIVACY_EXPORT_VERSION,
+    ...meta,
+    studio: studioHeading(state),
+    money: { currency: state.organisation.currency, amounts: 'minor units (pence or cents)' },
+    team: team.map(({ name, email, role, professional }) => ({
+      name,
+      email,
+      role,
+      ...(professional ? { professional } : {}),
+    })),
+    records: { ...records, operations: operations(records) },
+  }
+}
+export type StudioExport = ReturnType<typeof studioExport>
+
+export const STUDIO_EXPORT_EXCLUDED = [
+  'Passwords and password hashes',
+  'Sign-in sessions, invitation links and their tokens',
+  'Online booking holds and their tokens',
+  'Request receipts and the internal audit log',
+  'Every other studio on this server',
+]
+
+export function previewStudioExport(file: StudioExport): ExportPreview {
+  const r = file.records
+  return {
+    title: file.studio.name,
+    sections: [
+      { label: 'Team members (name, email and role)', count: file.team.length },
+      { label: 'Clients', count: r.clients.length },
+      { label: 'Visits', count: r.appointments.length },
+      { label: 'Receipts', count: r.sales.length },
+      { label: 'Payments and deposits', count: r.payments.length },
+      { label: 'Refunds', count: r.operations.refunds.length },
+      { label: 'Timeline entries', count: r.events.length },
+      { label: 'Messages, none of them sent', count: r.operations.messages.length },
+      { label: 'Client connections', count: r.relationships.length },
+      {
+        label: 'Services, professionals and spaces',
+        count: r.services.length + r.staff.length + r.resources.length,
+      },
+      {
+        label: 'Products and stock movements',
+        count: r.operations.products.length + r.operations.movements.length,
+      },
+    ],
+    excluded: STUDIO_EXPORT_EXCLUDED,
+    notes: [
+      'This file holds every client’s personal details. Store it somewhere private and share it only with people entitled to see it.',
+      'Record identifiers are kept so the file can be imported or reconciled later.',
+      ...(file.studio.sandbox
+        ? ['This is the fictional sandbox. Its money and people are not real.']
+        : []),
+    ],
+  }
+}
+
+/** `count` is null where the record lives outside the studio state (the server audit log). */
+export type ErasureItem = { label: string; count: number | null; reason: string }
+export type ErasureReview = {
+  client: string
+  removable: ErasureItem[]
+  kept: ErasureItem[]
+  upcomingVisits: number
+  marketingConsent: boolean
+  decisions: string[]
+}
+
+/**
+ * What an erasure request would touch once the owner has decided a retention policy. This only
+ * describes; SALEANE deletes nothing until those decisions are recorded with an adviser.
+ */
+export function erasureReview(
+  state: BusinessState,
+  clientId: string,
+  today: string,
+): ErasureReview {
+  const client = state.clients.find((c) => c.id === clientId)
+  if (!client) throw new Error('This client was not found.')
+  const ops = operations(state)
+  const visits = state.appointments.filter((a) => a.clientId === client.id)
+  const visitIds = new Set(visits.map((a) => a.id))
+  const sales = state.sales.filter((s) => visitIds.has(s.appointmentId))
+  const events = state.events.filter((e) => e.clientId === client.id)
+  const upcomingVisits = visits.filter(
+    (a) => ['confirmed', 'arrived'].includes(a.status) && a.date >= today,
+  ).length
+  return {
+    client: client.name,
+    removable: [
+      {
+        label: 'Email address and telephone number',
+        count: 1,
+        reason: 'Needed only to arrange visits and send updates.',
+      },
+      {
+        label: 'Good to remember',
+        count: client.preferences.trim() ? 1 : 0,
+        reason:
+          'Service preferences help care, but are not needed for any record that must be kept.',
+      },
+      {
+        label: 'Relationship notes',
+        count: events.filter((e) => e.type === 'note').length,
+        reason: 'Free-text notes. Not linked to money.',
+      },
+      {
+        label: 'Unsent messages (drafts, queued and suppressed)',
+        count: ops.messages.filter((m) => m.clientId === client.id).length,
+        reason: 'None was ever sent, so no delivery record depends on them.',
+      },
+      {
+        label: 'Client connections',
+        count: state.relationships.filter(
+          (r) => r.fromClientId === client.id || r.toClientId === client.id,
+        ).length,
+        reason: 'Only the link would go. The other person’s record stays as it is.',
+      },
+    ],
+    kept: [
+      {
+        label: 'Receipts',
+        count: sales.length,
+        reason:
+          'Tax and accounting records. The retention period needs your adviser’s confirmation.',
+      },
+      {
+        label: 'Payments and deposits',
+        count: state.payments.filter((p) => visitIds.has(p.appointmentId)).length,
+        reason: 'Money history is never rewritten; receipts and reconciliation depend on it.',
+      },
+      {
+        label: 'Refunds',
+        count: ops.refunds.filter((r) => sales.some((s) => s.id === r.saleId)).length,
+        reason: 'Part of the money history for each receipt.',
+      },
+      {
+        label: 'Booked visit terms',
+        count: visits.length,
+        reason: 'Receipts, deposits and the diary depend on the original service, price and time.',
+      },
+      {
+        label: 'Consent history',
+        count: events.filter((e) => e.type === 'consent').length,
+        reason: 'Shows what the person agreed to and any opt-out, so they are not contacted again.',
+      },
+      {
+        label: 'Audit history',
+        count: null,
+        reason:
+          'Records who did what and when, without the person’s details. Kept for accountability.',
+      },
+    ],
+    upcomingVisits,
+    marketingConsent: client.marketingConsent,
+    decisions: [
+      'How long each kind of record is kept (see the proposed retention register).',
+      'Whether the name on kept receipts stays or is replaced with a reference.',
+      'How the studio confirms a request really comes from the client.',
+      ...(upcomingVisits
+        ? [
+            `${upcomingVisits} upcoming visit${upcomingVisits === 1 ? '' : 's'} would need cancelling or completing first.`,
+          ]
+        : []),
+    ],
+  }
+}
+
+const amount = (minor: number, currency: string, locale: string) =>
+  new Intl.NumberFormat(locale, { style: 'currency', currency }).format(minor / 100)
+
+/** A plain-text reading of a client export, for people who will not open JSON. */
+export function clientExportText(file: ClientExport, locale = 'en-GB') {
+  const cur = file.money.currency
+  const lines = [
+    `Personal data held by ${file.studio.name}`,
+    `Prepared ${file.generatedAt} by ${file.generatedBy}`,
+    ...(file.studio.sandbox ? ['Fictional sandbox data. Nothing here is real.'] : []),
+    '',
+    'PROFILE',
+    `Name: ${file.subject.name}`,
+    `Email: ${file.subject.email}`,
+    `Telephone: ${file.subject.phone || 'Not recorded'}`,
+    `Client since: ${file.subject.clientSince.slice(0, 10)}`,
+    `Good to remember: ${file.subject.goodToRemember || 'Nothing recorded'}`,
+    `Email marketing: ${file.consent.emailMarketing ? 'agreed' : 'not agreed'}`,
+    '',
+    `VISITS (${file.visits.length})`,
+    ...file.visits.map(
+      (v) =>
+        `${v.visit} · ${v.date} ${v.time} · ${v.service} with ${v.professional} · ${v.status} · booked at ${amount(v.bookedPriceMinor, cur, locale)}`,
+    ),
+    '',
+    `RECEIPTS (${file.receipts.length})`,
+    ...file.receipts.map(
+      (r) =>
+        `${r.receiptNumber} · ${r.visit} · ${r.paidAt.slice(0, 10)} · total ${amount(r.totalMinor, cur, locale)} · ${r.method}`,
+    ),
+    '',
+    `PAYMENTS AND DEPOSITS (${file.payments.length})`,
+    ...file.payments.map(
+      (p) =>
+        `${p.visit} · ${p.kind} · ${amount(p.amountMinor, cur, locale)} · ${p.recordedAt.slice(0, 10)} · ${p.method}`,
+    ),
+    '',
+    `REFUNDS (${file.refunds.length})`,
+    ...file.refunds.map(
+      (r) =>
+        `${r.receiptNumber} · ${amount(r.amountMinor, cur, locale)} · ${r.recordedAt.slice(0, 10)} · ${r.reason}`,
+    ),
+    '',
+    `MESSAGES (${file.messages.length}), none sent`,
+    ...file.messages.map((m) => `${m.createdAt.slice(0, 10)} · ${m.subject} · ${m.delivery}`),
+    '',
+    `CONNECTIONS (${file.connections.length})`,
+    ...file.connections.map((c) => `${c.role} · since ${c.since.slice(0, 10)}`),
+    '',
+    `TIMELINE (${file.timeline.length})`,
+    ...file.timeline.map((t) => `${t.occurredAt.slice(0, 10)} · ${t.title} · ${t.detail}`),
+  ]
+  return `${lines.join('\n')}\n`
+}
