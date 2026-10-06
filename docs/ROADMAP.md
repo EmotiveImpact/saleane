@@ -1,6 +1,6 @@
 # SALEANE version roadmap
 
-Last updated: 6 October 2026. Milestones are outcome gates, not promised dates. Nothing in this document authorises an automatic merge or deployment.
+Last updated: 6 October 2026. Milestones are outcome gates, not promised dates. The user authorised consolidation into main on 6 October 2026. This does not authorise deployment or future automatic merges.
 
 ## Current position
 
@@ -12,18 +12,17 @@ The previous **v0.1** was a cloud discovery pack and HTML concept, referenced in
 
 **1.0.0-rc.1 — Local V1 candidate:** the user authorised a team build and selected local-first operation with live services unconfigured. Local account/studio authority, editable operating configuration, guest holds and exact-room allocation, manual money, unsent drafts, bounded client import and backup/restore are now implemented. See [local contract](V1_LOCAL_CONTRACT.md) and [candidate evidence](evidence/VERIFICATION_1.0.0-rc.1.md). The candidate version identifies a reviewable local app; it does not waive any stable production 1.0 gate.
 
-## The path to V1
+## The path from the current candidate to V1
 
-| Version           | Outcome                                       | Required evidence to advance                                                                                                                                                                 |
-| ----------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0.2               | Review the connected product foundation       | Build, lint, rule and journey tests; desktop/mobile browser evidence; documented limitations                                                                                                 |
-| 0.3               | Establish real organisation authority         | Authenticated account → organisation → location → memberships; tenant-scoped database and migrations; deny-by-default permissions; backup/restore drill                                      |
-| 0.4               | Keep the booking promise on a server          | Service/team/resource setup; real opening hours, breaks, closures and capability; UTC/IANA scheduling; atomic holds and conflicts; public booking abuse controls; simultaneous-booking tests |
-| 0.5               | Complete a provider-backed money loop         | Region-qualified payment provider; deposit capture and failure recovery; signed webhook deduplication; checkout/refund reconciliation; receipts and tax configuration approved for pilot     |
-| 0.6               | Run a supervised studio pilot                 | Real onboarding/import, consented appointment communications, daily cash reconciliation, accessibility review, support runbook and a successful restore                                      |
-| 1.0 · Run the Day | Reliably operate a paying non-clinical studio | All PRD V1 gates; live UK/US pilot evidence as applicable; legal/privacy/provider acceptance; monitored release and rollback                                                                 |
+Do not rebuild the authority and booking foundations: they already operate locally. Earlier planned 0.3/0.4 milestones are substantially implemented in 1.0.0-rc.1; their outstanding qualification is listed below. A candidate version is not a production release.
 
-The staged gates remain in force for production even though local candidate packaging is now 1.0.0-rc.1. It is intended to keep the durable identifiers, commands and interface vocabulary, while moving state authority to the server.
+| Milestone                                    | Scope                                                                                                                                      | Exit evidence                                                                                                                                 |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| RC2 · Restricted access and guest continuity | Assigned-practitioner projections; verified own-booking management; permission and expiry UX                                               | Direct API cross-staff/cross-tenant denial, minimal read payloads, revocation and guest cancellation race tests; browser journeys             |
+| RC3 · Local operational readiness            | Privacy/export workflows, schedule change history, broader accessibility/browser coverage, measured performance and recovery               | Reviewed retention decisions, scoped exports, keyboard/screen-reader and Safari/Firefox checks, measured budgets and repeatable restore drill |
+| Pilot qualification · External services      | Only after user selects pilot/providers: hosted identity/database/recovery, real payment/deposit/refund reconciliation, consented delivery | Provider sandbox then controlled live evidence, signed event replay protection, failed/unknown operation recovery, verified delivery receipts |
+| Supervised pilot                             | One non-clinical studio, actual configuration/import, daily reconciliation, support and rollback                                           | Observed onboarding, operating days, recovery and incident drill; UK/US acceptance for markets actually enabled                               |
+| 1.0 · Run the Day                            | Reliably operate a paying non-clinical studio                                                                                              | All PRD V1 gates; explicit release approval. No version bump substitutes for evidence                                                         |
 
 ## The long view
 
@@ -43,16 +42,20 @@ A waiting-list invitation that starts with a real empty slot; an owner brief tha
 
 The sequence matters: a polished inbox without consent and delivery history is not relationship ownership. An AI conversation without authorised commands is not an operating system.
 
-## Immediate build queue
+## Ordered build queue for the next AI
 
-1. Review the local candidate end to end, its server authority, retry journal, money provenance and bounded imports. Keep one local server and preserve all browser demo records. Verify pushed-commit CI separately; no automatic merge or deploy.
-2. Close remaining locally addressable release gates: assigned-practitioner read projections, verified guest manage/cancel links, comprehensive privacy/export/erasure workflow, accessibility and Safari/Firefox coverage, schedule history and performance budgets.
-3. When the user selects a pilot and live services, qualify hosted database/identity/recovery and provider-backed capture/refund/reconciliation and consented message delivery. These remain deliberately unconfigured now.
-4. Run a supervised non-clinical studio pilot with observed restore, rollback, support and UK/USA policy acceptance before the stable 1.0 release.
+| ID / priority    | Deliverable                        | Dependencies and acceptance                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ---------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| LOCAL-01 / first | Assigned-practitioner access       | Define a minimal server read DTO and explicit field/command policy before enabling invitations. Only assigned visits and necessary client information; no full organisation snapshot, unrelated client records, owner finance or exports. Test cross-staff, cross-tenant, revoked membership, direct URL/API and permitted browser journeys. Adapt frontend reads explicitly rather than fabricating incomplete BusinessState. |
+| LOCAL-02         | Guest manage/cancel                | Depends on an ownership capability contract and cancellation/deposit policy. Expiring, revocable, narrowly scoped tokens; no client lookup by guessable IDs. Local manual link delivery is clearly labelled. Test replay, wrong booking, expiry, hold/appointment races and retained money history. No email verification claim without a provider.                                                                            |
+| LOCAL-03         | Privacy and data lifecycle         | Define export scope, actor permissions, retention and erasure exceptions. Preview and audit operations, test tenant isolation and exclusion of credentials/internal records. Obtain decisions before destructive retention; do not guess legal deletion of receipts.                                                                                                                                                           |
+| LOCAL-04         | Schedule administration continuity | Review breaks, hours/closure edits and booked-visit impacts. Preserve historical terms and show affected visits; no silent moves. Test DST, buffers, room continuity and conflicting edits.                                                                                                                                                                                                                                    |
+| LOCAL-05         | Qualification pass                 | Keyboard/focus/error recovery, screen-reader sampling, Safari/Firefox and small screens across the complete daily loop. Measure realistic appointment/client loads before setting performance budgets; repeat backup/recovery. Record exact environment and gaps.                                                                                                                                                              |
+| EXTERNAL-01      | Provider-backed pilot              | Blocked only on user choices below, not a reason to stop LOCAL-01–05. Build against bounded provider contracts, never fabricate delivery or payment success.                                                                                                                                                                                                                                                                   |
 
-Inventory/retail/commissions remain V2; local stock ledger command seams do not constitute a shipped retail product. Clinical remains separate.
+Each increment updates PRD status, changelog and evidence, runs lint/tests/build, and stays reviewable. Keep one server and preserve browser demo records. Inventory/retail/commissions remain V2; command seams are not a shipped retail product. Clinical stays separate.
 
-## Decisions before the next build
+## Deferred decisions required for a live pilot
 
 1. Select the first non-clinical pilot business and map its actual hours, resources and booking policy.
 2. Choose authentication, hosting, database and payment providers using UK/US residency, availability and cost evidence. No vendor is deployed or approved by this foundation.
@@ -66,7 +69,7 @@ Every release updates the changelog, PRD status matrix and evidence. Every provi
 
 Research v0.2 → PRD product bible → UX architecture → three visual directions → connected prototype → real build is the governing sequence. Research/design overlap and discoveries revise the contract. The context reconciliation, screen map and visual comparisons close gaps in the first repository foundation; they do not certify production readiness.
 
-The server draft remains preserved on local `wip/saleane-server-authority` at `f73d084`. It is not a release. It was preserved rather than merged wholesale. The local candidate implements a smaller Node/SQLite authority without adding dependencies; the old draft remains a reference, not deployed authority. Broad endpoints in a draft are not a substitute for a verified vertical slice. Keep the existing working prototype available while qualifying server authority.
+The experimental server draft at `f73d084` is superseded by the verified Node/SQLite candidate. Its ancestry is retained during consolidation with an explicit history-only merge; the Fastify/PGlite/Postgres draft and its additional dependencies are not installed or substituted into the application. The original branch remains available for archaeology. See [AI handoff](AI_HANDOFF.md).
 
 ## Original feature disposition
 

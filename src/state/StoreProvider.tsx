@@ -4,8 +4,7 @@ import type { Region } from '../domain/model'
 import { parseState } from '../domain/model'
 import { businessDate } from '../domain/operations'
 import { StoreContext } from './context'
-import { commitWorkspace, loadBrowserWorkspace, storageKey } from './storage'
-import { seed } from '../domain/seed'
+import { commitWorkspace, loadBrowserWorkspace, resetWorkspace } from './storage'
 import { api, ApiError, setCsrf } from './api'
 import type { RemoteWorkspace, Session } from './api'
 const remembered = (key: string) => {
@@ -319,8 +318,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         reset() {
           if (remote) return
           try {
-            localStorage.setItem(storageKey(region), JSON.stringify(seed(region)))
-            setWorkspace({ state: seed(region), warning: '', blocked: false })
+            const state = resetWorkspace(localStorage, region, workspace.state)
+            setWorkspace({ state, warning: '', blocked: false })
           } catch {
             setWorkspace({
               ...workspace,

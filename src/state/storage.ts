@@ -57,3 +57,28 @@ export function commitWorkspace(
     }
   }
 }
+
+export function resetWorkspace(
+  storage: Storage,
+  region: Region,
+  current: BusinessState,
+): BusinessState {
+  const raw = storage.getItem(storageKey(region))
+  let persistedRevision = 0
+  if (raw) {
+    try {
+      const revision: unknown = JSON.parse(raw).revision
+      persistedRevision =
+        typeof revision === 'number' && Number.isSafeInteger(revision) && revision >= 0
+          ? revision
+          : Date.now()
+    } catch {
+      persistedRevision = Date.now()
+    }
+  }
+  const revision = Math.max(current.revision, persistedRevision) + 1
+  if (!Number.isSafeInteger(revision)) throw new Error('Demo revision limit reached.')
+  const next = { ...seed(region), revision }
+  storage.setItem(storageKey(region), JSON.stringify(next))
+  return next
+}

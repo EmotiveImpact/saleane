@@ -4,6 +4,8 @@ SALEANE is becoming the operating system for modern beauty, spa and wellness bus
 
 **1.0.0-rc.1 is a local V1 release candidate.** Accounts, separate studios, booking, clients, receipts and reports now share a local server and SQLite database. Live services remain unconfigured, as requested. This is a fictional-data review build, not a hosted or production-qualified release.
 
+**Continuing development with Claude or another AI? Start with [CLAUDE.md](CLAUDE.md) and the [handoff](docs/AI_HANDOFF.md).**
+
 ## Run locally
 
 Use Node **22.13+** (tested with 22.22.3) and npm. Dependencies are pinned; this increment adds none.
@@ -58,4 +60,4 @@ The visible original conversation, PRD preview and generated board were inspecte
 
 This candidate is ready for local review. Stable production 1.0 still requires qualified hosting/identity/recovery, payment and message providers, verified guest management, restricted practitioner views, privacy/retention procedures, broader accessibility/browser testing and a supervised non-clinical pilot. Tax settings are manual, not jurisdiction advice. No real client data or Clinical workflows should enter this candidate.
 
-The feature branch and PR are the review surface. **No automatic merge or deployment.**
+The user authorised this candidate’s consolidation into main. Future changes should remain reviewable; deployment and live-service configuration require separate instruction.

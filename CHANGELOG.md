@@ -2,6 +2,13 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-06 · Consolidation and AI handoff
+
+- Added `CLAUDE.md`, a detailed continuation handoff and an ordered RC2 → RC3 → provider qualification → pilot → stable 1.0 roadmap with acceptance criteria. Live services remain unconfigured.
+- Reconciled the superseded server draft through a history-only merge preserving the verified Node/SQLite tree; retained the experimental branch for reference.
+- Fixed browser-demo reset revision reuse reported in PR review. Reset advances beyond the persisted/current revision; two regression tests cover stale-tab rejection after a reset plus write, and explicit recovery of unreadable demo data.
+- The user authorised consolidation into main. This entry is not a deployment or stable 1.0 claim; see the consolidation evidence for check results.
+
 ## 1.0.0-rc.1 — 2026-10-06 · Local operating application
 
 **Status: local release candidate, not stable production 1.0.** The user selected local-first development with live services unconfigured. Existing browser demos, records, history and the original visual direction remain preserved.

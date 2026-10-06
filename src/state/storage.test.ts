@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { commitWorkspace, loadBrowserWorkspace, loadWorkspace, storageKey } from './storage'
+import {
+  commitWorkspace,
+  loadBrowserWorkspace,
+  loadWorkspace,
+  resetWorkspace,
+  storageKey,
+} from './storage'
 import { seed } from '../domain/seed'
 import { DEMO_DATE } from '../domain/model'
 
@@ -17,6 +23,36 @@ describe('browser persistence and recovery', () => {
     } finally {
       getter.mockRestore()
     }
+  })
+  it('keeps reset revisions above persisted state and rejects pre-reset tabs after another write', () => {
+    const original = seed('UK')
+    const first = commitWorkspace(localStorage, 'UK', original, {
+      type: 'note',
+      clientId: 'client-1',
+      text: 'Before reset.',
+    })
+    if (!first.ok) throw new Error(first.error)
+    const reset = resetWorkspace(localStorage, 'UK', original)
+    expect(reset.revision).toBe(first.state.revision + 1)
+    const next = commitWorkspace(localStorage, 'UK', reset, {
+      type: 'note',
+      clientId: 'client-1',
+      text: 'After reset.',
+    })
+    expect(next.ok).toBe(true)
+    const stale = commitWorkspace(localStorage, 'UK', first.state, {
+      type: 'note',
+      clientId: 'client-1',
+      text: 'Stale overwrite.',
+    })
+    expect(stale.ok).toBe(false)
+    expect(loadWorkspace(localStorage, 'UK').state.events.at(-1)?.detail).toBe('After reset.')
+  })
+  it('supports explicit reset of unreadable data without reusing the current revision', () => {
+    localStorage.setItem(storageKey('UK'), 'broken')
+    const reset = resetWorkspace(localStorage, 'UK', seed('UK'))
+    expect(reset.revision).toBeGreaterThan(0)
+    expect(loadWorkspace(localStorage, 'UK').blocked).toBe(false)
   })
   it('persists a command and reloads the linked records', () => {
     const result = commitWorkspace(localStorage, 'UK', seed('UK'), {
