@@ -31,7 +31,7 @@ There is no hosted service, processor capture/refund, sent email/SMS, production
 - `src/domain/commands.ts`, `operatingCommands.ts`, `commandSchema.ts`: validated operations; `selectors.ts`: derived reporting.
 - `src/state/StoreProvider.tsx`, `api.ts`, `storage.ts`: async authority, workspace transitions, recovery and preserved browser persistence.
 - `src/pages/`, `src/components/`: route and shared interface; inspect actual exports before editing.
-- `server/app.ts`, `auth.ts`, `database.ts`, `workspace.ts`: API, sessions, permissions, transactional persistence and migrations.
+- `server/app.ts` (request checks and routing), `context.ts` (sessions, tenant lookup, holds, audit), `routes/auth.ts`, `routes/workspace.ts`, `routes/public.ts`, `projections.ts` (the one place a workspace record leaves the server), `database.ts` (numbered migrations), `auth.ts`, `workspace.ts`.
 - `server/index.ts`: same-origin built UI/API host; `backup.ts`: consistent snapshot/verification/fresh-path restore.
 - Tests sit beside domain, state and server implementation; `docs/evidence/` records observed browser and recovery work.
 

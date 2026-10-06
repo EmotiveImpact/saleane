@@ -10,8 +10,11 @@ Vite + React + TypeScript, React Router, Saleane CSS tokens and locally bundled 
 src/domain/                 Versioned schemas, commands, scoped links, time and money rules
 src/state/StoreProvider     Async server writes, browser demo adapter, recovery, retry journal
 src/pages/                  Daily loop, accounts, guest booking, Manage, Inbox, Money
-server/app.ts               Same-origin account/workspace/command/public-booking API
-server/database.ts          SQLite migrations, transactions, revision receipts and audit
+server/app.ts               Same-origin request checks and route dispatch
+server/context.ts           Sessions, tenant lookup, holds, persistence and audit helpers
+server/routes/              Account, workspace and public-booking route modules
+server/projections.ts       The single seam where workspace records leave the server
+server/database.ts          Numbered SQLite migrations, transactions, receipts and audit
 server/auth.ts              Salted password hashing and opaque session material
 server/index.ts             Loopback-only built app + API host
 server/backup.ts            Consistent backup, verification and fresh-path restore
