@@ -9,6 +9,7 @@ import type { BusinessState } from '../domain/model'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import { Button, ErrorMessage, TimeChoices } from '../design'
 import { BotCheck } from '../components/BotCheck'
+import '../guest.css'
 
 const pendingBookingSchema = z.object({
   payload: z.object({
@@ -126,7 +127,8 @@ function BookingFlow({
     [consent, setConsent] = useState(recovery.value?.payload.contact.marketingConsent ?? false),
     [policy, setPolicy] = useState(!!recovery.value),
     [error, setError] = useState(''),
-    [confirmed, setConfirmed] = useState('')
+    [confirmed, setConfirmed] = useState(''),
+    [manageUrl, setManageUrl] = useState('')
   const service = services.find((s) => s.id === serviceId),
     professional = staff.find((s) => s.id === staffId)
   useEffect(() => {
@@ -223,10 +225,11 @@ function BookingFlow({
       // Preserve the exact consent/contact snapshot before any request leaves this tab.
       sessionStorage.setItem(journalKey, JSON.stringify(submitted))
       setAttempt(submitted)
-      const result = await api<{ appointmentId: string }>(`${base}/book`, {
-        method: 'POST',
-        body: submitted.payload,
-      })
+      const result = await api<{ appointmentId: string; manage?: { url: string } }>(
+        `${base}/book`,
+        { method: 'POST', body: submitted.payload },
+      )
+      setManageUrl(result.manage?.url ?? '')
       setConfirmed(result.appointmentId)
       setAttempt(null)
       try {
@@ -329,6 +332,22 @@ function BookingFlow({
                   : 'Your reservation is saved on this local server.'}{' '}
                 No money was collected and no email was sent. Keep this page for your records.
               </p>
+              {manageUrl && (
+                <div className="manage-link">
+                  <label htmlFor="manage-link">
+                    Your private link to view or cancel this visit
+                  </label>
+                  <input
+                    id="manage-link"
+                    readOnly
+                    value={manageUrl}
+                    onFocus={(e) => e.target.select()}
+                  />
+                  <small>
+                    Not sent anywhere. Copy it now; anyone with this link can cancel the visit.
+                  </small>
+                </div>
+              )}
               <Button
                 onClick={async () => {
                   if (store.mode === 'server' && store.state.organisation.id === org.id) {

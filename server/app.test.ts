@@ -797,6 +797,7 @@ describe('public booking privacy and reservation races', () => {
     expect((await book()).json()).toEqual({
       appointmentId: booked.json().appointmentId,
       replayed: true,
+      manage: expect.objectContaining({ delivery: 'not_sent' }),
     })
     expect(
       (await workspace(owner)).state.appointments.filter((row) => row.date === '2026-10-07'),

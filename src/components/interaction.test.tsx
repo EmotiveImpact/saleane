@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { StoreProvider } from '../state/StoreProvider'
@@ -195,14 +195,41 @@ describe('local operating surfaces', () => {
     await user.click(screen.getByRole('button', { name: 'Add closure' }))
     await user.type(screen.getByLabelText('Date'), '2026-10-06')
     await user.type(screen.getByLabelText('Reason'), 'Maintenance')
+    // LOCAL-04: the affected visits are named before saving, and saving waits until they move.
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText(/upcoming visits would be affected/)).toBeInTheDocument()
+    expect(
+      within(dialog).getByRole('link', { name: 'Tue 6 Oct 09:30, Amelia with Maya Lewis' }),
+    ).toHaveAttribute('href', '/calendar?date=2026-10-06&appointment=visit-amelia')
+    expect(within(dialog).getByRole('button', { name: 'Save changes' })).toBeDisabled()
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
     expect(screen.getByRole('dialog')).toBeInTheDocument()
-    expect(within(screen.getByRole('dialog')).getByRole('alert')).not.toBeEmptyDOMElement()
     expect(screen.getByLabelText('Reason')).toHaveValue('Maintenance')
     expect(screen.getByLabelText('Date')).toHaveValue('2026-10-06')
     expect(
       JSON.parse(localStorage.getItem('saleane.demo.v1.UK')!).operations.closures,
     ).toHaveLength(0)
+  })
+
+  it('previews affected visits for opening hours and lists the change in schedule history', async () => {
+    const user = userEvent.setup()
+    show('/business/manage')
+    await user.click(await screen.findByRole('tab', { name: 'Hours & closures' }))
+    expect(screen.getByText(/No schedule changes recorded yet/)).toBeInTheDocument()
+    const tuesday = screen.getByRole('checkbox', { name: 'Tuesday' })
+    await user.click(tuesday)
+    expect(screen.getByText(/upcoming visits would be affected/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save opening hours' })).toBeDisabled()
+    await user.click(tuesday)
+    expect(screen.queryByText(/upcoming visits would be affected/)).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Friday closes'), { target: { value: '17:00' } })
+    await user.click(screen.getByRole('button', { name: 'Save opening hours' }))
+    expect(
+      await screen.findByText(
+        'Opening hours changed: Friday 09:00 to 18:00 became 09:00 to 17:00.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/Maya · demo operator/)).toBeInTheDocument()
   })
 
   it('keeps an unconsented marketing message as an editable unsent draft', async () => {

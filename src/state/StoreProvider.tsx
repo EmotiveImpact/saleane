@@ -1,13 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
+import { ZodError } from 'zod'
 import type { ReactNode } from 'react'
 import type { Region } from '../domain/model'
 import { parseState } from '../domain/model'
 import { businessDate } from '../domain/operations'
 import { StoreContext } from './context'
 import { commitWorkspace, loadBrowserWorkspace, resetWorkspace } from './storage'
-import { api, ApiError, setCsrf } from './api'
+import { api, ApiError, onUnreachable, setCsrf, unreachable } from './api'
 import type { PractitionerWorkspace, RemoteWorkspace, Session } from './api'
 import { readPendingKeys, requestFingerprint, writePendingKeys } from './journal'
+import { daySheetSchema } from '../domain/daySheet'
+import { clearDaySheet, readDaySheet, storeDaySheet } from './daySheet'
+import type { SavedDaySheet } from './daySheet'
+import type { Store } from './context'
+
+const OFFLINE_RETRY_MS = 15000
+const PAUSED = 'Offline. Changes are paused until SALEANE reconnects and checks your access.'
 
 /** Practitioners receive a scoped record with no studio state; their day has its own screen. */
 function studioRecord(next: RemoteWorkspace | PractitionerWorkspace): RemoteWorkspace {
@@ -41,6 +49,57 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [workspace, setWorkspace] = useState(() => loadBrowserWorkspace(region))
   const [remote, setRemote] = useState<RemoteWorkspace | null>(null)
   const [session, setSession] = useState<Session | null>(null)
+  const sessionRef = useRef<Session | null>(null)
+  function adopt(next: Session | null) {
+    sessionRef.current = next
+    setSession(next)
+  }
+  // OFF-01: the day sheet this tab holds, and whether the service can be reached.
+  const [restored] = useState(() => {
+    const id = remembered('saleane.workspace')
+    const sheet = readDaySheet(id ? { workspaceId: id } : {})
+    return { id: id ?? sheet?.workspaceId ?? null, sheet }
+  })
+  const [daySheet, setDaySheet] = useState<SavedDaySheet | null>(restored.sheet)
+  const [sheetWorkspace, setSheetWorkspace] = useState<string | null>(restored.id)
+  const [connection, setConnection] = useState<Store['connection']>('online')
+  const scope = useRef(restored.id),
+    sheetTicket = useRef(0),
+    connectionRef = useRef<Store['connection']>('online'),
+    reconnecting = useRef(false)
+  function connect(next: Store['connection']) {
+    connectionRef.current = next
+    setConnection(next)
+  }
+  /** Removes the sheet from memory and this tab, and stops any in-flight sync from restoring it. */
+  function forgetSheet(nextScope: string | null = null) {
+    sheetTicket.current++
+    scope.current = nextScope
+    clearDaySheet()
+    setDaySheet(null)
+    setSheetWorkspace(nextScope)
+  }
+  async function syncDaySheet(workspaceId: string) {
+    if (scope.current !== workspaceId) forgetSheet(workspaceId)
+    const ticket = ++sheetTicket.current
+    const sheet = daySheetSchema.parse(
+      await api(`/api/workspaces/${encodeURIComponent(workspaceId)}/day-sheet`),
+    )
+    if (ticket !== sheetTicket.current || scope.current !== workspaceId) return
+    if (sheet.organisation.id !== workspaceId)
+      throw new Error('This day sheet is for another studio.')
+    const saved: SavedDaySheet = {
+      accountId: sessionRef.current?.user.id ?? '',
+      workspaceId,
+      savedAt: new Date().toISOString(),
+      source: 'server',
+      sheet,
+    }
+    storeDaySheet(saved)
+    setDaySheet(saved)
+  }
+  /** Refreshes after a load or save; a failure keeps the previous sheet until it expires. */
+  const refreshSheet = (workspaceId: string) => void syncDaySheet(workspaceId).catch(() => {})
   const [loading, setLoading] = useState(() => !!remembered('saleane.workspace'))
   const [saving, setSaving] = useState(false)
   const busy = useRef(false),
@@ -60,21 +119,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   async function refreshSession() {
     try {
       const next = await api<Session>('/api/session')
-      setSession(next)
+      adopt(next)
       return next
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
-        setSession(null)
+        adopt(null)
         setCsrf('')
         return null
       }
       throw error
     }
   }
-  async function openWorkspace(id: string) {
+  async function openWorkspace(id: string, sheet: 'background' | 'await' = 'background') {
     const ticket = ++generation.current
     transitioning.current = true
     setLoading(true)
+    if (scope.current !== id) forgetSheet(id)
     try {
       const next = studioRecord(
         await api<RemoteWorkspace>(`/api/workspaces/${encodeURIComponent(id)}`),
@@ -84,6 +144,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setRemote(next)
       setWorkspace({ state: next.state, warning: '', blocked: false })
       remember('saleane.workspace', id)
+      if (sheet === 'await') await syncDaySheet(id)
+      else refreshSheet(id)
     } finally {
       if (ticket === generation.current) {
         transitioning.current = false
@@ -93,6 +155,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }
   function enterDemo() {
     generation.current++
+    forgetSheet()
+    connect('online')
     activeId.current = null
     transitioning.current = false
     setRemote(null)
@@ -100,6 +164,98 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     remember('saleane.workspace')
     setWorkspace(loadBrowserWorkspace(region))
   }
+  /**
+   * OFF-01: on reconnect, check the session and this account's access to the studio, then load the
+   * studio and a fresh day sheet before writes resume. Access that changed clears the sheet.
+   */
+  async function reconnect() {
+    const id = scope.current
+    if (reconnecting.current || !id) return
+    reconnecting.current = true
+    connect('reconnecting')
+    try {
+      const found = await api<Session>('/api/session')
+      adopt(found)
+      if (!found.workspaces.some((w) => w.id === id))
+        throw new ApiError('Your access to this studio has changed.', 404)
+      if (activeId.current === id) await openWorkspace(id, 'await')
+      else await syncDaySheet(id)
+      connect('online')
+    } catch (error) {
+      if (unreachable(error)) {
+        connect('offline')
+        return
+      }
+      // Reached the service but could not confirm this sheet: never keep the old one.
+      forgetSheet(id)
+      connect('online')
+      if (error instanceof ApiError && error.status === 401) {
+        adopt(null)
+        setCsrf('')
+      }
+      // A malformed sheet only clears the sheet; changed access also blocks the studio.
+      if (activeId.current === id && !(error instanceof ZodError))
+        setWorkspace((prev) => ({
+          ...prev,
+          blocked: true,
+          warning:
+            error instanceof ApiError && error.status === 401
+              ? 'Your session ended while offline. Sign in to continue; server records are preserved.'
+              : error instanceof Error
+                ? `${error.message} Reopen the studio from your account.`
+                : 'Your access could not be confirmed. Reopen the studio from your account.',
+        }))
+    } finally {
+      reconnecting.current = false
+    }
+  }
+  // Event listeners and timers call the latest functions without re-subscribing.
+  const reconnectRef = useRef(reconnect),
+    syncRef = useRef(syncDaySheet),
+    forgetRef = useRef(forgetSheet)
+  useEffect(() => {
+    reconnectRef.current = reconnect
+    syncRef.current = syncDaySheet
+    forgetRef.current = forgetSheet
+  })
+  useEffect(() => {
+    // Any unreachable request, or the browser reporting no network, pauses writes for a signed-in studio.
+    const offline = () => {
+      if (scope.current && !reconnecting.current) connect('offline')
+    }
+    const online = () => {
+      if (connectionRef.current !== 'online') void reconnectRef.current()
+    }
+    const stop = onUnreachable(offline)
+    window.addEventListener('offline', offline)
+    window.addEventListener('online', online)
+    return () => {
+      stop()
+      window.removeEventListener('offline', offline)
+      window.removeEventListener('online', online)
+    }
+  }, [])
+  useEffect(() => {
+    if (connection !== 'offline') return
+    const timer = window.setInterval(() => void reconnectRef.current(), OFFLINE_RETRY_MS)
+    return () => window.clearInterval(timer)
+  }, [connection])
+  useEffect(() => {
+    if (!daySheet) return
+    // The sheet leaves memory and this tab when it expires, online or not.
+    const timer = window.setTimeout(
+      () => {
+        if (scope.current === daySheet.workspaceId) {
+          sheetTicket.current++
+          clearDaySheet()
+          setDaySheet(null)
+        }
+      },
+      Math.min(Math.max(Date.parse(daySheet.sheet.expiresAt) - Date.now(), 0), 2 ** 31 - 1),
+    )
+    return () => window.clearTimeout(timer)
+  }, [daySheet])
+  const restoredSheet = restored.sheet
   useEffect(() => {
     const id = remembered('saleane.workspace')
     if (!id) return
@@ -109,7 +265,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       try {
         const found = await api<Session>('/api/session')
         if (cancelled || ticket !== generation.current) return
-        setSession(found)
+        adopt(found)
+        // A sheet restored in this tab must belong to the account now signed in.
+        if (restoredSheet && restoredSheet.accountId !== found.user.id) forgetRef.current(id)
         const next = studioRecord(
           await api<RemoteWorkspace>(`/api/workspaces/${encodeURIComponent(id)}`),
         )
@@ -117,7 +275,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         activeId.current = id
         setRemote(next)
         setWorkspace({ state: next.state, warning: '', blocked: false })
+        void syncRef.current(id).catch(() => {})
       } catch (error) {
+        // An unreachable service shows the saved day sheet instead (see the reachability effect);
+        // any other refusal means this tab can no longer vouch for the sheet.
+        if (!cancelled && ticket === generation.current && !unreachable(error))
+          forgetRef.current(id)
         if (!cancelled && ticket === generation.current)
           setWorkspace((prev) => ({
             ...prev,
@@ -135,7 +298,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [])
+    // restoredSheet is fixed for the life of this provider.
+  }, [restoredSheet])
   return (
     <StoreContext.Provider
       value={{
@@ -152,13 +316,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         refreshSession,
         openWorkspace,
         enterDemo,
+        connection,
+        sheetWorkspace,
+        daySheet,
+        syncDaySheet,
+        forgetDaySheet: () => forgetSheet(scope.current),
+        reconnect,
         async reload() {
-          if (activeId.current) await openWorkspace(activeId.current)
+          if (connectionRef.current !== 'online') await reconnect()
+          else if (activeId.current) await openWorkspace(activeId.current)
           else setWorkspace(loadBrowserWorkspace(region))
         },
         async logout() {
+          // The day sheet leaves this tab even if the sign-out request cannot reach the service.
+          forgetSheet()
           await api('/api/auth/logout', { method: 'POST', body: {} })
-          setSession(null)
+          adopt(null)
           setCsrf('')
           enterDemo()
         },
@@ -166,6 +339,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           if (transitioning.current)
             return { ok: false, error: 'The workspace is opening. Wait before saving.' }
           if (workspace.blocked) return { ok: false, error: workspace.warning }
+          if (remote && connectionRef.current !== 'online') return { ok: false, error: PAUSED }
           if (busy.current)
             return { ok: false, error: 'Please wait for the current change to finish.' }
           busy.current = true
@@ -211,6 +385,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               // and a key left behind only replays this same committed receipt.
               setRemote({ ...remote, state: parsed })
               setWorkspace({ state: parsed, warning: '', blocked: false })
+              refreshSheet(remote.id)
               try {
                 keepKey(fingerprint)
               } catch {
@@ -265,6 +440,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         },
         changeRegion(next) {
           generation.current++
+          forgetSheet()
+          connect('online')
           activeId.current = null
           transitioning.current = false
           remember('saleane.region', next)

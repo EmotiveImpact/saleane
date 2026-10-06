@@ -1,0 +1,155 @@
+/* OFF-01: the read-only day sheet, on screen while offline and on paper. */
+.day-sheet-layout {
+  min-height: 100dvh;
+  background: var(--mineral);
+}
+.day-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  padding: 18px var(--space-10);
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+}
+.day-sheet-header > span:last-child {
+  display: grid;
+  text-align: right;
+}
+.day-sheet-header small {
+  color: var(--muted);
+}
+.day-sheet-main {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 32px var(--space-10) 56px;
+}
+.day-sheet-offline {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+  margin-bottom: var(--space-6);
+  padding: var(--space-5) var(--space-6);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--sand);
+  color: var(--ink-deep);
+}
+.day-sheet-offline svg {
+  flex: none;
+  margin-top: 4px;
+}
+.day-sheet-offline h2 {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-editorial);
+  font-size: var(--text-title-m);
+  font-weight: 500;
+}
+.day-sheet-offline p {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-lead);
+}
+.day-sheet-offline .subtle {
+  font-size: var(--text-small);
+}
+.day-sheet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+.day-sheet-surface {
+  overflow: hidden;
+}
+.day-sheet-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-small);
+}
+.day-sheet-table th {
+  padding: var(--space-3) var(--space-4);
+  color: var(--muted);
+  font-size: var(--text-meta);
+  font-weight: 600;
+  text-align: left;
+  background: var(--sage-soft);
+}
+.day-sheet-table td {
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--line);
+  vertical-align: top;
+}
+.day-sheet-table td small {
+  display: block;
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+.day-sheet-time {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.day-sheet-footnote {
+  max-width: 72ch;
+  margin-top: var(--space-5);
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+@media (max-width: 700px) {
+  .day-sheet-header,
+  .day-sheet-main {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+  .day-sheet-table thead {
+    display: none;
+  }
+  .day-sheet-table tr {
+    display: grid;
+    grid-template-columns: 74px minmax(0, 1fr);
+    column-gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-top: 1px solid var(--line);
+  }
+  .day-sheet-table tr:first-child {
+    border-top: 0;
+  }
+  .day-sheet-table td {
+    grid-column: 2;
+    padding: 0;
+    border: 0;
+  }
+  .day-sheet-table td.day-sheet-time {
+    grid-column: 1;
+    grid-row: 1 / span 5;
+  }
+}
+@media print {
+  .day-sheet-layout {
+    background: none;
+  }
+  .day-sheet-header {
+    padding: 0 0 var(--space-3);
+    background: none;
+  }
+  .day-sheet-main {
+    max-width: none;
+    padding: var(--space-4) 0 0;
+  }
+  .day-sheet-main .page-actions,
+  .day-sheet-actions {
+    display: none;
+  }
+  .day-sheet-offline {
+    background: none;
+  }
+  .day-sheet-surface {
+    border: 0;
+  }
+  .day-sheet-table tr {
+    break-inside: avoid;
+  }
+  .day-sheet-table th {
+    background: none;
+    border-bottom: 1px solid var(--line-strong);
+  }
+}
