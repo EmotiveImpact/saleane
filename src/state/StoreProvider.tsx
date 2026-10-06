@@ -253,9 +253,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                   error:
                     'The workspace changed while saving. Reopen the original workspace to see the saved result.',
                 }
-              keepKey(fingerprint)
+              // The server has committed: show that first. Clearing the retry key is best-effort,
+              // and a key left behind only replays this same committed receipt.
               setRemote({ ...remote, state: parsed })
               setWorkspace({ state: parsed, warning: '', blocked: false })
+              try {
+                keepKey(fingerprint)
+              } catch {
+                // Storage refused the update; the next write reports that storage error itself.
+              }
               return { ...result, state: parsed }
             } catch (error) {
               if (error instanceof ApiError && error.status > 0 && error.status < 500)

@@ -478,7 +478,13 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
       const path = url.pathname
         .split('/')
         .filter(Boolean)
-        .map((part) => decodeURIComponent(part))
+        .map((part) => {
+          try {
+            return decodeURIComponent(part)
+          } catch {
+            return fail(400, 'This address is not valid.')
+          }
+        })
       let body: unknown
       if (!['GET', 'HEAD'].includes(method)) {
         if (

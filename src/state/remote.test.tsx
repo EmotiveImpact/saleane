@@ -280,6 +280,34 @@ describe('the local API workspace context', () => {
     expect(view.store.state.revision).toBe(0)
     setter.mockRestore()
   })
+  it('reports a committed save as saved even if clearing its retry key fails', async () => {
+    const remote = fixture()
+    const committed = saved(remote)
+    fetchMock.mockImplementation(async (path) =>
+      String(path).endsWith('/commands')
+        ? response({ ok: true, state: committed.state, recordId: committed.recordId })
+        : response(String(path) === '/api/session' ? sessionFor(remote) : remote),
+    )
+    const view = mountStore()
+    await open(view, remote)
+    const original = Storage.prototype.setItem
+    const setter = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
+      this: Storage,
+      name: string,
+      value: string,
+    ) {
+      if (name === journalKey && value === '[]')
+        throw new DOMException('Quota exceeded', 'QuotaExceededError')
+      return original.call(this, name, value)
+    })
+    await act(async () => {
+      const result = await view.store.commit(note)
+      expect(result.ok).toBe(true)
+    })
+    expect(view.store.state.revision).toBe(committed.state.revision)
+    expect(view.store.state.events).toHaveLength(committed.state.events.length)
+    setter.mockRestore()
+  })
   it('blocks a corrupt pending journal rather than silently assigning a duplicate request key', async () => {
     const remote = fixture()
     sessionStorage.setItem(journalKey, '{broken')

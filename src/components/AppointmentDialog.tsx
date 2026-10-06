@@ -6,6 +6,7 @@ import { can, operations } from '../domain/operations'
 import type { Command } from '../domain/commands'
 import { depositPaid, rescheduleSlots } from '../domain/commands'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
+import { checkoutTotals, minorInput, parseMinor } from '../domain/money'
 import { Avatar, Button, ErrorMessage, Modal, Status, TimeChoices } from './ui'
 import { BookingDialog } from './BookingDialog'
 
@@ -69,23 +70,17 @@ export function AppointmentDialog({
     )
   const sale = state.sales.find((s) => s.appointmentId === appointmentId)
   const deposit = depositPaid(state, appointmentId)
-  const tipMinor = Math.round(Number(tip) * 100)
-  const discountMinor = Math.round(Number(discount) * 100)
-  const netService =
-    appointment.bookedPriceMinor - (Number.isFinite(discountMinor) ? discountMinor : 0)
+  const tipMinor = parseMinor(tip, 0)
+  const discountMinor = parseMinor(discount, 0)
   const tax = config.tax
-  const taxMinor = tax
-    ? Math.round(
-        tax.inclusive
-          ? (netService * tax.rateBps) / (10000 + tax.rateBps)
-          : (netService * tax.rateBps) / 10000,
-      )
-    : 0
-  const total =
-    netService +
-    (Number.isFinite(tipMinor) ? tipMinor : 0) +
-    (tax?.inclusive ? 0 : taxMinor) -
-    deposit
+  const { taxMinor, balanceMinor: total } = checkoutTotals({
+    priceMinor: appointment.bookedPriceMinor,
+    discountMinor: Number.isFinite(discountMinor) ? discountMinor : 0,
+    tipMinor: Number.isFinite(tipMinor) ? tipMinor : 0,
+    depositMinor: deposit,
+    tax,
+  })
+  const tipPreset = (percent: number) => Math.round((appointment.bookedPriceMinor * percent) / 100)
   const available = mode === 'move' ? rescheduleSlots(state, appointmentId, staffId, date) : []
   // Keep the existing booked allocation available for an unchanged visit.
   if (
@@ -142,6 +137,10 @@ export function AppointmentDialog({
     }
     if (method === 'external_card' && !reference.trim()) {
       setError('Enter the external card payment reference.')
+      return
+    }
+    if (!Number.isFinite(tipMinor) || !Number.isFinite(discountMinor)) {
+      setError('Enter the tip and discount as amounts with up to two decimal places.')
       return
     }
     await run({
@@ -436,11 +435,12 @@ export function AppointmentDialog({
               {[0, 10, 15, 20].map((percent) => (
                 <button
                   key={percent}
-                  aria-pressed={Number(tip) === (appointment.bookedPriceMinor * percent) / 10000}
-                  className={`time-slot ${Number(tip) === (appointment.bookedPriceMinor * percent) / 10000 ? 'selected' : ''}`}
+                  aria-pressed={tipMinor === tipPreset(percent)}
+                  className={`time-slot ${tipMinor === tipPreset(percent) ? 'selected' : ''}`}
                   onClick={() => {
-                    setTip(((appointment.bookedPriceMinor * percent) / 10000).toFixed(2))
+                    setTip(minorInput(tipPreset(percent)))
                     setCollected(false)
+                    setError('')
                   }}
                 >
                   {percent ? `${percent}%` : 'No tip'}
@@ -458,6 +458,7 @@ export function AppointmentDialog({
                 onChange={(e) => {
                   setTip(e.target.value)
                   setCollected(false)
+                  setError('')
                 }}
               />
             </label>
@@ -516,6 +517,7 @@ export function AppointmentDialog({
               onChange={(event) => {
                 setDiscount(event.target.value)
                 setCollected(false)
+                setError('')
               }}
             />
           </label>

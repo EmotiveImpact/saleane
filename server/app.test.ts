@@ -235,6 +235,9 @@ describe('local sessions and request boundary', () => {
     expect((await workspace(owner)).state.revision).toBe(0)
   })
   it('bounds malformed/large bodies and repeated authentication attempts', async () => {
+    const badAddress = await api.inject({ url: '/api/public/%E0' })
+    expect(badAddress.statusCode).toBe(400)
+    expect(badAddress.json().error).toBe('This address is not valid.')
     expect(
       (await api.inject({ method: 'POST', url: '/api/auth/login', rawPayload: '{broken' }))
         .statusCode,
