@@ -1324,6 +1324,16 @@ fieldset {
   font-size: var(--text-micro);
   margin: 9px 0 16px;
 }
+.detail-panel .section-heading {
+  align-items: baseline;
+}
+.detail-panel .section-heading .text-link {
+  font-size: var(--text-micro);
+}
+.detail-panel .form-actions {
+  display: flex;
+  gap: 8px;
+}
 .detail-divider {
   height: 1px;
   background: var(--line);

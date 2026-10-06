@@ -2,6 +2,12 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## Unreleased · Editable "Good to remember"
+
+**Status: draft for review, not released.**
+
+- Owners, managers and reception can edit a client's "Good to remember" preferences in place on the client page, through the existing `client-edit` command, which records a "Client details updated" event. Practitioners still read preferences but cannot change them. Previously no screen could set preferences, so real studios always showed the empty state, and its wording pointed at the note form, which never changed this panel.
+
 ## Unreleased · Design language library and design pass
 
 **Status: draft for review, not released.**
