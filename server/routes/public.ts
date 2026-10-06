@@ -6,6 +6,7 @@ import { commandSchema, dispatch, slots } from '../../src/domain/commands'
 import { businessDate, operations } from '../../src/domain/operations'
 import { HOLD_LIMITS, holdInput, guestContact } from '../context'
 import type { Context, Route, HoldAllocation, HoldRow } from '../context'
+import { issueGuestLink } from './guest'
 
 /** Public booking routes. These never return clients, histories or money. Returns false when the request belongs to another module. */
 export async function publicRoutes(ctx: Context, route: Route): Promise<boolean> {
@@ -177,7 +178,13 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
         if (hold!.appointment_id) {
           if (hold!.fingerprint !== fingerprint)
             fail(409, 'This reservation has already been used.')
-          return { appointmentId: hold!.appointment_id, replayed: true }
+          // The first response may never have arrived, so the guest gets a fresh manage link and
+          // any earlier one stops working.
+          return {
+            appointmentId: hold!.appointment_id,
+            replayed: true,
+            manage: issueGuestLink(ctx, org, hold!.appointment_id!, 'booking'),
+          }
         }
         if (hold!.expires_at <= now()) fail(409, 'This reservation expired. Choose a time again.')
         const allocation = JSON.parse(hold!.input) as HoldAllocation
@@ -218,6 +225,7 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
         )
         return {
           appointmentId: result.recordId,
+          manage: issueGuestLink(ctx, { ...org, state: result.state }, result.recordId, 'booking'),
           sample: operations(org.state).mode === 'sandbox',
           depositPolicy: operations(org.state).mode === 'sandbox' ? 'simulated' : 'pay_at_studio',
           confirmation: 'local_only',

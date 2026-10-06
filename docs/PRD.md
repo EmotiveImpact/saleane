@@ -107,7 +107,7 @@ Status: **Demo** = implemented with fictional local state; **Partial** = some de
 | INT-02 | AI analysis/action proposal with approval and audit                             | Planned V3                                        | Read/write tool permissions, source links, model evaluation and rollback evidence                     |
 | COM-01 | Appointment updates with purpose/channel/consent and delivery history           | Planned                                           | Provider receipts, suppression and opt-out behaviour tested per jurisdiction                          |
 | INV-01 | Stock, consumption and sale movements share sale/visit IDs                      | Planned V2                                        | Ledger balances, reversal and per-location availability reconcile                                     |
-| STF-01 | Staff permissions, capability, hours and compensation                           | Partial; capability, own hours (LOCAL-04 review)  | Server permissions and availability; versioned commission rules later                                 |
+| STF-01 | Staff permissions, capability, hours and compensation                           | Partial; capability, own hours (LOCAL-04 merged)  | Server permissions and availability; versioned commission rules later                                 |
 | REL-01 | Persist honest state and recover without silent data loss                       | Demo                                              | Transactional server storage, migrations and tested backup/restore; local recovery is insufficient    |
 | ACC-01 | Accessible keyboard, responsive and plain error journeys                        | Partial; semantic controls and browser checks     | WCAG 2.2 AA review and assistive-technology evidence on supported browsers                            |
 
@@ -147,7 +147,7 @@ v0.2 uses schema-versioned local snapshots and a revision check. Invalid JSON, u
 
 ## 7. Permissions contract (production)
 
-The browser demo has one fictional operator. Local server workspaces enforce owner, manager and reception command permissions. The table below remains the **full production policy target**; LOCAL-01 (in review) gives an assigned practitioner a scoped read of their own visits and minimal client context, and only the welcome and note commands for that scope; main refuses practitioner access until it merges.
+The browser demo has one fictional operator. Local server workspaces enforce owner, manager and reception command permissions. The table below remains the **full production policy target**; LOCAL-01 gives an assigned practitioner a scoped read of their own visits and minimal client context, and only the welcome and note commands for that scope. LOCAL-02 (in review) gives a guest holding a private link a view of that one visit and online cancellation: a paid deposit is flagged for refund when cancelled at least 24 hours ahead and retained after that, with no automatic refund.
 
 | Action                          | Owner                                 | Manager        | Front desk                            | Professional         | Guest                                    |
 | ------------------------------- | ------------------------------------- | -------------- | ------------------------------------- | -------------------- | ---------------------------------------- |
@@ -239,7 +239,7 @@ Earlier foundation P0 lists were broader than the later V1/V1.5/V2/V3 roadmap. T
 
 An account is a person; a membership grants access to a particular organisation/location; a practitioner record describes delivery capability. They are different entities. A revoked membership must cease authorising reads, writes, exports and jobs immediately on the server. Prevent removal of the last owner. New organisations start with an explicit market, currency, IANA zone and non-clinical classification. Currency/zone changes require impact review and cannot reinterpret old events.
 
-Publish booking only after services, qualified people, resource capacity, opening hours, policy versions and required provider configuration pass readiness checks. Inactive services/staff/resources remain in history but cannot receive new allocations. If a proposed closure overlaps confirmed visits, show affected visits and require a resolution plan; never silently cancel them. LOCAL-04 (in review) names those visits before saving and refuses the change on the server until each is moved or cancelled; every accepted hours, working-hours, time-away and archive change is kept in a bounded schedule history with its actor, time and before/after.
+Publish booking only after services, qualified people, resource capacity, opening hours, policy versions and required provider configuration pass readiness checks. Inactive services/staff/resources remain in history but cannot receive new allocations. If a proposed closure overlaps confirmed visits, show affected visits and require a resolution plan; never silently cancel them.
 
 ### Scheduling
 
@@ -273,22 +273,22 @@ Rebooking uses an explicit originating completed visit and a qualifying uncancel
 
 Statuses below describe requirements not satisfied by the original 0.2 browser foundation. Read the changelog/evidence for subsequent implementation; production acceptance remains separate.
 
-| ID     | Contract / acceptance example                                                                                                | Priority and target | Current evidence boundary                             |
-| ------ | ---------------------------------------------------------------------------------------------------------------------------- | ------------------- | ----------------------------------------------------- |
-| ORG-03 | Revocation/session expiry denies next request; last owner cannot be removed; recovery links single-use                       | V1 / 0.3            | Specified; server draft unverified                    |
-| CAL-04 | Hours, breaks, closures and archived capability constrain availability; closure lists affected visits                        | V1 / 0.4            | In review (LOCAL-04 draft PR); locally verified       |
-| CAL-05 | Move validates booked snapshot and leaves original unchanged on conflict; cancel releases allocation without erasing deposit | V1 / 0.4            | 0.2.2 locally verified; server acceptance outstanding |
-| CLI-05 | Explain lifecycle/cadence criteria; sufficient-history threshold; pause excludes outreach                                    | V1.5                | Specified; current return rule remains simplified     |
-| BKG-04 | No preference returns eligible available assignment; never exposes private schedule/client records                           | V1 / 0.4            | Specified                                             |
-| BKG-05 | Signed/expiring own-booking link; tampered/foreign/revoked access denied; generic error                                      | V1 / 0.4            | Specified                                             |
-| PAY-04 | Versioned tax/cancellation/deposit/receipt policies; change cannot rewrite a booked promise                                  | V1 / 0.5            | Specified                                             |
-| BIZ-03 | Reconcile earned, collected, liabilities, tax, tips, refunds and fees with source coverage                                   | V1 / 0.5–0.6        | Specified; current report is simplified               |
-| MIG-01 | Dry run → mapped/duplicate/rejected review → cutover → balanced reconciliation → rollback drill                              | V1 / 0.6            | Specified; actual exports needed                      |
-| GOV-01 | Data/access audit, scoped export, retention and erasure exceptions; sensitive fields omitted from logs                       | V1 / 0.3–0.6        | Specified                                             |
-| OFF-01 | Authorised minimum daily snapshot, visible age, no writes, clear on logout, revalidate on reconnect                          | V1 / 0.6            | Specified; localStorage demo is not this feature      |
-| MSG-02 | Two-way thread, waitlist offers and channel suppression; actual delivery state                                               | V1.5                | Specified; V1 only qualified appointment updates      |
-| REL-02 | Non-clinical forms and policy version; packages/memberships/gift-card opening/redemption/refund liabilities                  | V1.5                | Specified                                             |
-| CAL-06 | Recurrence exceptions, multi-practitioner segments and calendar integration authority                                        | V2                  | Specified; source ideas preserved                     |
+| ID     | Contract / acceptance example                                                                                                | Priority and target | Current evidence boundary                                                         |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------- | ------------------- | --------------------------------------------------------------------------------- |
+| ORG-03 | Revocation/session expiry denies next request; last owner cannot be removed; recovery links single-use                       | V1 / 0.3            | Specified; server draft unverified                                                |
+| CAL-04 | Hours, breaks, closures and archived capability constrain availability; closure lists affected visits                        | V1 / 0.4            | Merged (LOCAL-04); locally verified                                               |
+| CAL-05 | Move validates booked snapshot and leaves original unchanged on conflict; cancel releases allocation without erasing deposit | V1 / 0.4            | 0.2.2 locally verified; server acceptance outstanding                             |
+| CLI-05 | Explain lifecycle/cadence criteria; sufficient-history threshold; pause excludes outreach                                    | V1.5                | Specified; current return rule remains simplified                                 |
+| BKG-04 | No preference returns eligible available assignment; never exposes private schedule/client records                           | V1 / 0.4            | Specified                                                                         |
+| BKG-05 | Signed/expiring own-booking link; tampered/foreign/revoked access denied; generic error                                      | V1 / 0.4            | Specified                                                                         |
+| PAY-04 | Versioned tax/cancellation/deposit/receipt policies; change cannot rewrite a booked promise                                  | V1 / 0.5            | Specified                                                                         |
+| BIZ-03 | Reconcile earned, collected, liabilities, tax, tips, refunds and fees with source coverage                                   | V1 / 0.5–0.6        | Specified; current report is simplified                                           |
+| MIG-01 | Dry run → mapped/duplicate/rejected review → cutover → balanced reconciliation → rollback drill                              | V1 / 0.6            | Specified; actual exports needed                                                  |
+| GOV-01 | Data/access audit, scoped export, retention and erasure exceptions; sensitive fields omitted from logs                       | V1 / 0.3–0.6        | In review (draft PR): LOCAL-03 local exports, erasure review; defaults to confirm |
+| OFF-01 | Authorised minimum daily snapshot, visible age, no writes, clear on logout, revalidate on reconnect                          | V1 / 0.6            | Specified; localStorage demo is not this feature                                  |
+| MSG-02 | Two-way thread, waitlist offers and channel suppression; actual delivery state                                               | V1.5                | Specified; V1 only qualified appointment updates                                  |
+| REL-02 | Non-clinical forms and policy version; packages/memberships/gift-card opening/redemption/refund liabilities                  | V1.5                | Specified                                                                         |
+| CAL-06 | Recurrence exceptions, multi-practitioner segments and calendar integration authority                                        | V2                  | Specified; source ideas preserved                                                 |
 
 Screen/journey traceability lives in [UX_ARCHITECTURE](UX_ARCHITECTURE.md), particularly UX-01–38 and J-01–08. Each implementation change names requirement, failure case, automated evidence and browser evidence before promotion.
 

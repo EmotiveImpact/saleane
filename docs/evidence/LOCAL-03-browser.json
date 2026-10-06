@@ -1,0 +1,78 @@
+[
+  {
+    "check": "owner registered",
+    "result": 201
+  },
+  {
+    "check": "client preview shows exclusions",
+    "result": 1
+  },
+  {
+    "check": "client file name",
+    "result": "amelia-carter-data.json"
+  },
+  {
+    "check": "client file subject",
+    "result": "Amelia Carter"
+  },
+  {
+    "check": "client file has no other client names, internal ids or secrets",
+    "result": true
+  },
+  {
+    "check": "status after download",
+    "result": "Downloaded. This export is recorded in the studio’s audit log."
+  },
+  {
+    "check": "summary file",
+    "result": "amelia-carter-data.txt"
+  },
+  {
+    "check": "record button disabled after recording",
+    "result": true
+  },
+  {
+    "check": "request shown on client",
+    "result": "Erasure request recorded on 6 October 2026 by Studio Owner. Waiting for a retention decision; nothing has been deleted."
+  },
+  {
+    "check": "studio export clients",
+    "result": 15
+  },
+  {
+    "check": "studio export has no secrets",
+    "result": true
+  },
+  {
+    "check": "privacy record rows",
+    "result": 3
+  },
+  {
+    "check": "reception registered",
+    "result": 201
+  },
+  {
+    "check": "reception API client export",
+    "result": 403
+  },
+  {
+    "check": "reception API studio export",
+    "result": 403
+  },
+  {
+    "check": "reception sees explanation",
+    "result": 1
+  },
+  {
+    "check": "reception has no export button",
+    "result": 0
+  },
+  {
+    "check": "mobile horizontal overflow",
+    "result": false
+  },
+  {
+    "check": "page errors",
+    "result": []
+  }
+]
