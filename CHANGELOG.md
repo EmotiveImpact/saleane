@@ -19,6 +19,50 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Today and Business now show one measure, "Time booked", with a shared definition and the period stated; Business also shows today's figure.
 - The client timeline shows each visit once, ordered by when it happens, with its booking, arrival, checkout and money inside.
 - On phones the calendar shows a swipeable column per professional with free time written between visits.
+- Removed the coloured stripes on the left edge of calendar visits, phone calendar visits, errors, deposit reviews, preference notes, timeline money rows and visit steps. Tone now comes from the surface colour alone, and a test fails if a left-edge stripe is added again.
+
+## In review · Public booking hold protection
+
+**Status: draft pull request, stacked on the LOCAL-01 PR, not merged.** Schema migration 2 adds a `visitor` column to `booking_holds`. Live services stay unconfigured.
+
+- Holds still lapse after five minutes. One visitor now keeps at most two unbooked holds per studio: a new hold replaces their oldest, and the booking page hands back its previous hold when a guest picks again.
+- Hold creation has its own limits per address (six a minute, thirty an hour) on top of the existing public write limit.
+- A studio-wide cap (the larger of 8 or three per active professional) stops many addresses together from holding the whole calendar. Booked and expired holds free their place.
+- Optional Cloudflare Turnstile bot check, off by default, switched on in Manage under business details. It needs `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` on the server; without them the setting is refused. Tokens are verified server side before any write and fail closed if Cloudflare cannot be reached.
+- Verified with lint, format check, strict TypeScript, builds and 198 tests (138 frontend/domain/store, 60 server), plus a Chromium pass on the built server. See `docs/evidence/HOLD-PROTECTION.md`.
+
+## In review · LOCAL-01 assigned-practitioner access
+
+**Status: draft pull request, stacked on the server groundwork PR, not merged.** No schema migration (the membership and invitation tables already carried `staff_id`); live services stay unconfigured.
+
+- A practitioner invitation must name one active professional, and no two team members can work as the same professional. The owner chooses the professional when inviting or changing someone's role in Manage.
+- A practitioner's workspace read returns a separate practitioner record from `server/projections.ts`, never the studio record: their own visits from two weeks back to four weeks ahead (service, room, time, status) and, for clients in those visits only, a name, preferences and the latest 20 relationship notes. No email, phone, consent, prices, deposits, receipts, payments, other professionals' diaries, catalogue or settings.
+- Practitioners may only welcome a client to their own visit and add a note for a client they serve. The server checks this after the role permission and before the request receipt, so a reused key cannot widen scope. Team, audit, invitations and message sending stay refused.
+- Role changes and removal take effect on the next request, including replayed receipts.
+- Practitioners sign in to a new "Your day" screen at `/practice/:studio` with its own retry journal. The studio workspace refuses a practitioner record rather than filling gaps.
+- Verified with lint, format check, strict TypeScript, builds and 182 tests (137 frontend/domain/store, 45 server), plus a Chromium journey: invitation, sign-up, own day, welcome, note, owner sees the note, desktop and 390px. See `docs/evidence/LOCAL-01.md`.
+
+## In review · Server groundwork for practitioner access
+
+**Status: draft pull request, stacked on the hardening PR, not merged.** No API contract, schema or behaviour change.
+
+- `server/app.ts` (about 1,050 lines) is split into request checks and dispatch (`app.ts`), shared authority helpers (`context.ts`), HTTP utilities (`http.ts`) and three route modules (`routes/auth.ts`, `routes/workspace.ts`, `routes/public.ts`). The moved code is otherwise unchanged.
+- `database.ts` runs numbered, forward-only migrations. Each step commits with its version record, a failed step rolls back to the last good version, and a database written by an unknown version is refused. Backup validation follows the same version list.
+- `projections.ts` is the single place a signed-in workspace record leaves the server, for both workspace reads and command responses. Practitioners are still refused; LOCAL-01 adds their assigned-visit view there.
+- Verified with lint, format check, strict TypeScript, builds and 172 tests (133 frontend/domain/store, 39 server including new migration and projection tests).
+
+## In review · Version 1 hardening
+
+**Status: draft pull request, not merged.** Small fixes from the version 1 codebase review; no visual redesign, schema change or live service.
+
+- One checkout calculation (`src/domain/money.ts`) now produces both the checkout preview and the recorded receipt, so the two cannot drift.
+- Typed amounts convert to minor units by string parsing. More than two decimals is rejected with a clear message instead of being rounded silently. Tip presets now stay selected for prices whose percentage has a part penny (for example 15% of £85.50).
+- Short money display keeps two decimals when an amount has pence or cents (£85.50, not £85.5).
+- A committed remote save is shown as saved even if clearing its retry key from tab storage fails.
+- Availability reuses one time-zone formatter per zone. A no-preference availability check on the demo studio fell from about 62 ms to about 8.5 ms in a local measurement.
+- Malformed percent-encoding in an API path returns 400 rather than a generic 500.
+- CI now runs `npm run format:check`, matching the project rules.
+- Verified with lint, format check, 166 tests (133 frontend/domain/store, 33 server) and builds, plus Chromium runs of demo checkout (tip presets, three-decimal rejection, receipt) and a Manage service price edit.
 
 ## 2026-10-06 · Consolidation and AI handoff
 

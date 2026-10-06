@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { LocalDatabase } from './database'
+import { LocalDatabase, migrations } from './database'
 import { createApiHandler } from './app'
 import type { ApiHandler } from './app'
 import { backupDatabase, restoreDatabase, validateDatabase } from './backup'
@@ -61,7 +61,10 @@ describe('consistent local backups and fresh-path recovery', () => {
       workspaces: 1,
       sessionsRevoked: false,
     })
-    expect(validateDatabase(backup)).toEqual({ migrations: [1], workspaces: 1 })
+    expect(validateDatabase(backup)).toEqual({
+      migrations: migrations.map((migration) => migration.version),
+      workspaces: 1,
+    })
     expect(restoreDatabase(backup, restored)).toMatchObject({
       workspaces: 1,
       sessionsRevoked: true,

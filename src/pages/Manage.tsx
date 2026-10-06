@@ -5,6 +5,7 @@ import { useStore } from '../state/context'
 import type { Command } from '../domain/commands'
 import { operations, can, permissionFor } from '../domain/operations'
 import { money, dateLabel, timeLabel } from '../domain/format'
+import { parseMinor } from '../domain/money'
 import { Avatar, Button, ErrorMessage, Modal, PageHeader, Tabs } from '../design'
 import '../components/management.css'
 
@@ -81,8 +82,8 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
             category: text(data, 'category') as 'Skin' | 'Body' | 'Hair',
             durationMinutes: numeric(data, 'duration'),
             bufferMinutes: numeric(data, 'buffer'),
-            priceMinor: Math.round(numeric(data, 'price') * 100),
-            depositMinor: Math.round(numeric(data, 'deposit') * 100),
+            priceMinor: parseMinor(data.get('price')),
+            depositMinor: parseMinor(data.get('deposit')),
             resourceType: text(data, 'resourceType') as 'treatment' | 'chair',
             archived,
           },
@@ -206,6 +207,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                         address: text(data, 'address'),
                         timeZone: text(data, 'timeZone'),
                         bookingEnabled: data.get('bookingEnabled') === 'on',
+                        botCheck: data.get('botCheck') === 'on',
                       },
                       'Business settings saved.',
                     )
@@ -278,6 +280,14 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                     />
                     Allow bookings in this local workspace
                   </label>
+                  <label className="ops-check">
+                    <input type="checkbox" name="botCheck" defaultChecked={!!config.botCheck} />
+                    Ask online guests to pass a quick bot check before a time is held
+                  </label>
+                  <p className="ops-help">
+                    Uses Cloudflare Turnstile. It needs TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY
+                    on the server and stays off until both are set.
+                  </p>
                   <p className="ops-help">
                     Payment and message delivery services are unconfigured.
                   </p>

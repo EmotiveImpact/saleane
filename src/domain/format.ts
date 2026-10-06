@@ -8,7 +8,8 @@ export function money(
   return new Intl.NumberFormat(organisation.locale, {
     style: 'currency',
     currency: organisation.currency,
-    minimumFractionDigits: decimals ? 2 : 0,
+    // Whole amounts may drop pence/cents, but a part amount always shows two digits (£85.50).
+    minimumFractionDigits: decimals || amountMinor % 100 !== 0 ? 2 : 0,
     maximumFractionDigits: 2,
   }).format(amountMinor / 100)
 }

@@ -4,10 +4,13 @@ import { businessDate, hoursFor, instantFor, operations, staffHoursFor } from '.
 import { bookingSchema, commandSchema, contactSchema } from './commandSchema'
 import type { Command, ContactInput } from './commandSchema'
 import { assertMethod, runOperatingCommand } from './operatingCommands'
+import { checkoutTotals } from './money'
 export { commandSchema } from './commandSchema'
 export type { Command, BookingInput, ContactInput } from './commandSchema'
 import type { Appointment, BusinessState, RelationshipEvent } from './model'
 import { addDays, dateLabel, timeLabel } from './format'
+
+const civilDate = z.iso.date()
 
 export type CommandResult =
   { ok: true; state: BusinessState; recordId: string } | { ok: false; error: string }
@@ -30,7 +33,7 @@ function availableAllocation(
     !staff ||
     staff.archived ||
     !staff.serviceIds.includes(serviceId) ||
-    !z.iso.date().safeParse(date).success ||
+    !civilDate.safeParse(date).success ||
     date < businessDate(s, now) ||
     !Number.isInteger(start) ||
     start < 0 ||
@@ -435,16 +438,14 @@ export function execute(
         const discount = command.discountMinor ?? 0
         if (discount > appointment.bookedPriceMinor)
           throw new Error('Discount cannot exceed the booked service price.')
-        const net = appointment.bookedPriceMinor - discount
         const tax = operations(s).tax
-        const taxMinor = tax
-          ? Math.round(
-              tax.inclusive
-                ? (net * tax.rateBps) / (10000 + tax.rateBps)
-                : (net * tax.rateBps) / 10000,
-            )
-          : 0
-        const total = net + command.tipMinor + (tax?.inclusive ? 0 : taxMinor)
+        const { taxMinor, totalMinor: total } = checkoutTotals({
+          priceMinor: appointment.bookedPriceMinor,
+          discountMinor: discount,
+          tipMinor: command.tipMinor,
+          depositMinor: deposit,
+          tax,
+        })
         if (deposit > total)
           throw new Error(
             'The discount leaves a balance below the recorded deposit. Review the deposit before checkout.',

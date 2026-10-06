@@ -37,6 +37,7 @@ const DesignLanguage = lazy(() =>
   import('./pages/DesignLanguage').then((module) => ({ default: module.DesignLanguage })),
 )
 import { AccessPanel } from './components/AccessPanel'
+import { PractitionerDay } from './pages/PractitionerDay'
 import './account.css'
 
 const navigation = [
@@ -70,6 +71,12 @@ function WorkspaceApp() {
       ? 'Design language'
       : (navigation.find((n) => location.pathname.startsWith(n.to))?.label ?? 'Today')
   if (location.pathname === '/account' || location.pathname === '/join') return <Account />
+  if (location.pathname.startsWith('/practice/'))
+    return (
+      <Routes>
+        <Route path="/practice/:orgId" element={<PractitionerDay />} />
+      </Routes>
+    )
   if (location.pathname.startsWith('/book/'))
     return (
       <Routes>

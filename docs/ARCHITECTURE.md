@@ -10,8 +10,11 @@ Vite + React + TypeScript, React Router, Saleane CSS tokens and locally bundled 
 src/domain/                 Versioned schemas, commands, scoped links, time and money rules
 src/state/StoreProvider     Async server writes, browser demo adapter, recovery, retry journal
 src/pages/                  Daily loop, accounts, guest booking, Manage, Inbox, Money
-server/app.ts               Same-origin account/workspace/command/public-booking API
-server/database.ts          SQLite migrations, transactions, revision receipts and audit
+server/app.ts               Same-origin request checks and route dispatch
+server/context.ts           Sessions, tenant lookup, holds, persistence and audit helpers
+server/routes/              Account, workspace and public-booking route modules
+server/projections.ts       The single seam where workspace records leave the server
+server/database.ts          Numbered SQLite migrations, transactions, receipts and audit
 server/auth.ts              Salted password hashing and opaque session material
 server/index.ts             Loopback-only built app + API host
 server/backup.ts            Consistent backup, verification and fresh-path restore
@@ -21,7 +24,7 @@ server/backup.ts            Consistent backup, verification and fresh-path resto
 
 An account owns explicit organisation memberships. Professional capability is a separate record. Owner, manager and reception access are checked on every server command. Restricted practitioner access is intentionally unavailable until assigned-client read projections exist; the server rejects its creation. A studio is one location and currency. Multiple studios can coexist without sharing records; this is not group reporting or multi-location operations.
 
-The local database uses scoped organisation snapshots plus relational accounts, memberships, sessions, invitations, command receipts, guest holds and audit events. Transactions validate expected revision, permission and domain references before replacing the snapshot. The public API returns a limited catalogue and available times, never clients or histories. It allocates professional and exact room under a short-lived hold and revalidates inside confirmation. This small local authority is not the future relational aggregate implementation or a distributed service.
+The local database uses scoped organisation snapshots plus relational accounts, memberships, sessions, invitations, command receipts, guest holds and audit events. Transactions validate expected revision, permission and domain references before replacing the snapshot. The public API returns a limited catalogue and available times, never clients or histories. It allocates professional and exact room under a short-lived hold and revalidates inside confirmation. Holds are limited per visitor, per address rate and per studio, with an optional Turnstile check (see `server/README.md`). This small local authority is not the future relational aggregate implementation or a distributed service.
 
 Async screen saves show success only after a committed response. A privacy-preserving retry journal retains hashed command identity and request UUID across refresh/remount; no operator command body is stored in it. Guest confirmation separately retains its exact submitted contact/consent and hold snapshot in that tab’s session storage until a definitive response, so a reload/expired timer cannot create another booking while confirmation is unknown. Successful/definitively rejected confirmations clear that recovery snapshot. Uncertain transport failures reuse the key. Stale revisions refresh authoritative records while leaving the user's form available to review. Workspace transitions reject new writes and discard late responses from another workspace. Server receipts recheck current permission before replay.
 

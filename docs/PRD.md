@@ -95,7 +95,7 @@ Status: **Demo** = implemented with fictional local state; **Partial** = some de
 | CLI-03 | Record explicit referral graph on both client relationships                     | Demo                                              | Scoped edges, provenance, correction and sharing policy; no inferred household data                   |
 | CLI-04 | Record ordinary preferences and purpose-specific consent                        | Partial; ordinary notes and email boolean/events  | Channel/purpose/policy-version ledger, withdrawal propagation, retention controls                     |
 | BKG-01 | Guest booking chooses service → professional/time → details → review            | Demo                                              | Accessible phone completion with clear business identity, price, venue zone and terms                 |
-| BKG-02 | Final booking revalidates availability and preserves entered details on error   | Demo                                              | Server-side hold/rate limits and retry-safe confirmation; no phantom booked client/charge             |
+| BKG-02 | Final booking revalidates availability and preserves entered details on error   | Local; hold limits in review                      | Server-side hold/rate limits and retry-safe confirmation; no phantom booked client/charge             |
 | BKG-03 | Collect consent independently from booking; no account wall in first guest path | Demo                                              | Identity verification where required without mandatory marketing opt-in                               |
 | PAY-01 | Record deposit and calculate remaining balance from actual recorded payments    | Demo, simulated                                   | Provider capture/failure/webhook/reconciliation; hosted card input; no raw card data stored           |
 | PAY-02 | Checkout after arrival; separate tip; stable booked price; retry is idempotent  | Demo, simulated                                   | Unique sale/charge keys; failure/retry/refund evidence; signed tax and receipt policy                 |
@@ -147,7 +147,7 @@ v0.2 uses schema-versioned local snapshots and a revision check. Invalid JSON, u
 
 ## 7. Permissions contract (production)
 
-The browser demo has one fictional operator. Local server workspaces enforce owner, manager and reception command permissions. The table below remains the **full production policy target**; restricted practitioner access is currently rejected until scoped read projections exist.
+The browser demo has one fictional operator. Local server workspaces enforce owner, manager and reception command permissions. The table below remains the **full production policy target**; LOCAL-01 (in review) gives an assigned practitioner a scoped read of their own visits and minimal client context, and only the welcome and note commands for that scope; main refuses practitioner access until it merges.
 
 | Action                          | Owner                                 | Manager        | Front desk                            | Professional         | Guest                                    |
 | ------------------------------- | ------------------------------------- | -------------- | ------------------------------------- | -------------------- | ---------------------------------------- |

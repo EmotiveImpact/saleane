@@ -1,0 +1,135 @@
+/* LOCAL-01: the assigned practitioner's own day, outside the studio shell. */
+.practitioner-layout {
+  min-height: 100dvh;
+  background: var(--mineral);
+}
+.practitioner-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 40px;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+}
+.practitioner-header > span {
+  display: grid;
+  text-align: right;
+}
+.practitioner-header small {
+  color: var(--muted);
+}
+.practitioner-main {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 36px 40px 56px;
+}
+.practitioner-days {
+  display: flex;
+  gap: 8px;
+  align-self: flex-end;
+}
+.practitioner-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+.practitioner-grid .section-heading {
+  padding: 22px 22px 16px;
+}
+.practitioner-grid .section-heading h2 {
+  margin: 0;
+}
+.practitioner-client {
+  padding-bottom: 8px;
+}
+.practitioner-client > :not(.section-heading) {
+  margin-left: 22px;
+  margin-right: 22px;
+}
+.practitioner-visits,
+.practitioner-notes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.practitioner-visit {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 22px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  text-align: left;
+}
+.practitioner-visit:hover,
+.practitioner-visit[aria-pressed='true'] {
+  background: var(--sage);
+}
+.practitioner-client h3 {
+  margin: 22px 0 6px;
+  font-size: var(--text-body);
+}
+.practitioner-client > .button {
+  margin-top: 4px;
+}
+.practitioner-note {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.practitioner-note .button {
+  justify-self: start;
+}
+.practitioner-notes li {
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.practitioner-notes p {
+  margin: 0 0 4px;
+}
+.practitioner-notes small,
+.practitioner-footnote {
+  color: var(--muted);
+}
+.practitioner-notice,
+.practitioner-main > .form-error {
+  margin: 0 0 18px;
+}
+.practitioner-notice {
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--sage);
+}
+.practitioner-footnote {
+  margin-top: 28px;
+  font-size: var(--text-small);
+}
+@media (max-width: 860px) {
+  .practitioner-header,
+  .practitioner-main {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+  .practitioner-grid {
+    grid-template-columns: 1fr;
+  }
+  .practitioner-visit {
+    grid-template-columns: 64px minmax(0, 1fr);
+    padding: 14px 16px;
+  }
+  .practitioner-grid .section-heading {
+    padding: 18px 16px 14px;
+  }
+  .practitioner-client > :not(.section-heading) {
+    margin-left: 16px;
+    margin-right: 16px;
+  }
+  .practitioner-visit .status {
+    grid-column: 2;
+  }
+}

@@ -6,6 +6,7 @@ import { useStore } from '../state/context'
 import { depositPaid } from '../domain/commands'
 import { operations, can } from '../domain/operations'
 import { dateLabel, money } from '../domain/format'
+import { parseMinor } from '../domain/money'
 import { Button, ErrorMessage, Modal, Status, PageHeader } from '../design'
 import '../components/management.css'
 
@@ -84,7 +85,7 @@ export function Money() {
       const result = await commit({
         type: 'refund',
         saleId: receipt.id,
-        amountMinor: Math.round(Number(data.get('amount')) * 100),
+        amountMinor: parseMinor(data.get('amount')),
         reason: String(data.get('reason') ?? '').trim(),
         reference: String(data.get('reference') ?? '').trim(),
       })
@@ -118,7 +119,7 @@ export function Money() {
       const result = await commit({
         type: 'deposit',
         appointmentId: depositVisit.id,
-        amountMinor: Math.round(Number(data.get('amount')) * 100),
+        amountMinor: parseMinor(data.get('amount')),
         method: String(data.get('method')) as 'cash' | 'external_card' | 'demo_cash' | 'demo_card',
         reference: String(data.get('reference') ?? '').trim() || undefined,
       })

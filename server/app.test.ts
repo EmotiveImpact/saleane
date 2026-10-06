@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createApiHandler } from './app'
+import { SCHEMA_VERSION } from './database'
 import type { ApiHandler, InjectResponse } from './app'
 import type { BusinessState } from '../src/domain/model'
 import type { Command } from '../src/domain/commands'
@@ -92,11 +93,18 @@ async function invite(owner: Login, email: string, role = 'reception') {
   expect(response.statusCode, response.body).toBe(201)
   return response.json<{ invitation: string; delivery: string; url: string }>()
 }
-async function hold(slug: string, staffId = 'staff-maya', startMinutes = 540) {
+async function hold(
+  slug: string,
+  staffId = 'staff-maya',
+  startMinutes = 540,
+  remoteAddress = '127.0.0.1',
+  extra: Record<string, unknown> = {},
+) {
   return api.inject({
     method: 'POST',
     url: `/api/public/${slug}/holds`,
-    payload: { serviceId: 'service-facial', staffId, date: '2026-10-07', startMinutes },
+    remoteAddress,
+    payload: { serviceId: 'service-facial', staffId, date: '2026-10-07', startMinutes, ...extra },
   })
 }
 
@@ -235,6 +243,9 @@ describe('local sessions and request boundary', () => {
     expect((await workspace(owner)).state.revision).toBe(0)
   })
   it('bounds malformed/large bodies and repeated authentication attempts', async () => {
+    const badAddress = await api.inject({ url: '/api/public/%E0' })
+    expect(badAddress.statusCode).toBe(400)
+    expect(badAddress.json().error).toBe('This address is not valid.')
     expect(
       (await api.inject({ method: 'POST', url: '/api/auth/login', rawPayload: '{broken' }))
         .statusCode,
@@ -461,7 +472,7 @@ describe('tenant authority, durable commands and access', () => {
       audit.json<{ events: { action: string }[] }>().events.map((event) => event.action),
     ).toContain('membership.changed')
   })
-  it('gates practitioner provisioning and rejects a reused invitation', async () => {
+  it('requires a professional for practitioner invitations and rejects a reused invitation', async () => {
     const owner = await register()
     const gated = await api.inject({
       method: 'POST',
@@ -518,7 +529,7 @@ describe('tenant authority, durable commands and access', () => {
     )
     expect((await workspace(owner)).state.events.at(-1)?.detail).toBe(change.text)
     expect((await command(owner, 0, change, key)).json().replayed).toBe(true)
-    expect(api.database.all('SELECT * FROM schema_migrations')).toHaveLength(1)
+    expect(api.database.all('SELECT * FROM schema_migrations')).toHaveLength(SCHEMA_VERSION)
     expect(api.database.all('SELECT * FROM command_receipts')).toHaveLength(1)
   })
 })
@@ -646,9 +657,10 @@ describe('public booking privacy and reservation races', () => {
   it('resolves no-preference across professionals without double reserving a shared resource', async () => {
     const owner = await register(),
       org = await workspace(owner)
-    const first = await hold(org.slug, 'any'),
-      second = await hold(org.slug, 'any'),
-      third = await hold(org.slug, 'any')
+    // Three different guests, so per-visitor replacement does not hide the shared-room limit.
+    const first = await hold(org.slug, 'any', 540, '192.0.2.1'),
+      second = await hold(org.slug, 'any', 540, '192.0.2.2'),
+      third = await hold(org.slug, 'any', 540, '192.0.2.3')
     expect([first.statusCode, second.statusCode, third.statusCode]).toEqual([201, 201, 409])
     const stored = api.database
       .all<{ input: string }>('SELECT input FROM booking_holds')

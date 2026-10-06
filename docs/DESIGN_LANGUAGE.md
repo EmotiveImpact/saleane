@@ -63,6 +63,7 @@ Display sizes on guest booking and marketing panels may sit outside this scale.
 - Space: `--space-1` to `--space-10` on a 4px base (4, 8, 12, 16, 20, 24, 32, 40).
 - Corners: `--radius` 7px for surfaces, `--radius-control` 5px for fields and actions, `--radius-inner` 3px inside grouped controls, `--radius-round` for people.
 - Elevation: `--shadow-float` for popovers, `--shadow-dialog` for dialogs. Surfaces in the page use a line, not a shadow.
+- No left-edge stripes. Cards, notes, errors and visits never carry a coloured border or inset shadow on one side; their tone comes from the surface colour and the words. The only left rules are the 1px `--line` dividers between calendar columns, and `src/design/edges.test.ts` enforces this.
 - Touch: `--target` 44px. Motion: `--motion-quick` for hover and focus only; reduced motion removes transitions.
 
 ## Components

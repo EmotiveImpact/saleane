@@ -3,52 +3,15 @@ import type { SQLInputValue } from 'node:sqlite'
 import { chmodSync, mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
-export class LocalDatabase {
-  readonly connection: DatabaseSync
-  readonly path: string
+/** One forward schema step. Versions are contiguous from 1; never edit a released step. */
+export type Migration = { version: number; up: (connection: DatabaseSync) => void }
 
-  constructor(path = resolve('.saleane-data', 'saleane.sqlite')) {
-    this.path = path === ':memory:' ? path : resolve(path)
-    if (this.path !== ':memory:') mkdirSync(dirname(this.path), { recursive: true, mode: 0o700 })
-    this.connection = new DatabaseSync(this.path, {
-      timeout: 5000,
-      enableForeignKeyConstraints: true,
-    })
-    this.connection.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;')
-    if (this.path !== ':memory:') chmodSync(this.path, 0o600)
-    this.migrate()
-  }
-
-  get<T>(sql: string, ...values: SQLInputValue[]): T | undefined {
-    return this.connection.prepare(sql).get(...values) as T | undefined
-  }
-  all<T>(sql: string, ...values: SQLInputValue[]): T[] {
-    return this.connection.prepare(sql).all(...values) as T[]
-  }
-  run(sql: string, ...values: SQLInputValue[]) {
-    return this.connection.prepare(sql).run(...values)
-  }
-  transaction<T>(callback: () => T): T {
-    this.connection.exec('BEGIN IMMEDIATE')
-    try {
-      const result = callback()
-      if (result && typeof (result as { then?: unknown }).then === 'function')
-        throw new Error('Database transactions must be synchronous.')
-      this.connection.exec('COMMIT')
-      return result
-    } catch (error) {
-      this.connection.exec('ROLLBACK')
-      throw error
-    }
-  }
-  close() {
-    if (this.connection.isOpen) this.connection.close()
-  }
-
-  private migrate() {
-    this.transaction(() => {
-      this.connection.exec(`
-        CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL) STRICT;
+export const migrations: Migration[] = [
+  {
+    version: 1,
+    // Accounts, memberships, sessions, invitations, organisation snapshots, receipts, holds, audit.
+    up: (connection) =>
+      connection.exec(`
         CREATE TABLE IF NOT EXISTS accounts (
           id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE COLLATE NOCASE, name TEXT NOT NULL,
           password_hash TEXT NOT NULL, created_at INTEGER NOT NULL
@@ -89,11 +52,92 @@ export class LocalDatabase {
           action TEXT NOT NULL, record_id TEXT NOT NULL, revision INTEGER NOT NULL, occurred_at INTEGER NOT NULL
         ) STRICT;
         CREATE INDEX IF NOT EXISTS audit_scope ON audit_events(organisation_id,occurred_at);
-      `)
-      this.run(
-        'INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(1,?)',
-        Date.now(),
-      )
+      `),
+  },
+  {
+    version: 2,
+    // Public hold protection: which visitor made a hold, so one visitor cannot stack them.
+    up: (connection) =>
+      connection.exec(`
+        ALTER TABLE booking_holds ADD COLUMN visitor TEXT;
+        CREATE INDEX IF NOT EXISTS booking_holds_visitor ON booking_holds(organisation_id,visitor,expires_at);
+      `),
+  },
+]
+export const SCHEMA_VERSION = migrations[migrations.length - 1].version
+
+export class LocalDatabase {
+  readonly connection: DatabaseSync
+  readonly path: string
+
+  constructor(
+    path = resolve('.saleane-data', 'saleane.sqlite'),
+    private readonly steps: Migration[] = migrations,
+  ) {
+    this.path = path === ':memory:' ? path : resolve(path)
+    if (this.path !== ':memory:') mkdirSync(dirname(this.path), { recursive: true, mode: 0o700 })
+    this.connection = new DatabaseSync(this.path, {
+      timeout: 5000,
+      enableForeignKeyConstraints: true,
     })
+    this.connection.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;')
+    try {
+      if (this.path !== ':memory:') chmodSync(this.path, 0o600)
+      this.migrate()
+    } catch (error) {
+      this.connection.close()
+      throw error
+    }
+  }
+
+  get<T>(sql: string, ...values: SQLInputValue[]): T | undefined {
+    return this.connection.prepare(sql).get(...values) as T | undefined
+  }
+  all<T>(sql: string, ...values: SQLInputValue[]): T[] {
+    return this.connection.prepare(sql).all(...values) as T[]
+  }
+  run(sql: string, ...values: SQLInputValue[]) {
+    return this.connection.prepare(sql).run(...values)
+  }
+  transaction<T>(callback: () => T): T {
+    this.connection.exec('BEGIN IMMEDIATE')
+    try {
+      const result = callback()
+      if (result && typeof (result as { then?: unknown }).then === 'function')
+        throw new Error('Database transactions must be synchronous.')
+      this.connection.exec('COMMIT')
+      return result
+    } catch (error) {
+      this.connection.exec('ROLLBACK')
+      throw error
+    }
+  }
+  close() {
+    if (this.connection.isOpen) this.connection.close()
+  }
+
+  private migrate() {
+    this.connection.exec(
+      'CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL) STRICT;',
+    )
+    const applied = this.connection
+      .prepare('SELECT version FROM schema_migrations ORDER BY version')
+      .all()
+      .map((row) => Number(row.version))
+    const known = this.steps.map((migration) => migration.version)
+    if (applied.some((version, index) => version !== known[index]))
+      throw new Error(
+        'This database was created by a different SALEANE version. Restore a supported backup.',
+      )
+    // Each pending migration commits with its version record, so a failure leaves the last good version.
+    for (const migration of this.steps.slice(applied.length))
+      this.transaction(() => {
+        migration.up(this.connection)
+        this.run(
+          'INSERT INTO schema_migrations(version,applied_at) VALUES(?,?)',
+          migration.version,
+          Date.now(),
+        )
+      })
   }
 }

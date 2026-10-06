@@ -1,4 +1,5 @@
 import type { BusinessState } from '../domain/model'
+import type { PractitionerView } from '../domain/practitioner'
 export type WorkspaceAccess = {
   id: string
   slug: string
@@ -15,14 +16,20 @@ export type Session = {
   services: { email: boolean; payments: boolean }
   localOnly: boolean
 }
-export type RemoteWorkspace = {
+type WorkspaceRecord = {
   id: string
   slug: string
-  state: BusinessState
   role: WorkspaceAccess['role']
-  staffId?: string
+  staffId?: string | null
   today: string
   mode: WorkspaceAccess['mode']
+}
+/** What desk and management roles receive: the whole studio record. */
+export type RemoteWorkspace = WorkspaceRecord & { view: 'studio'; state: BusinessState }
+/** What an assigned practitioner receives: their own visits only (LOCAL-01). */
+export type PractitionerWorkspace = WorkspaceRecord & {
+  view: 'practitioner'
+  practitioner: PractitionerView
 }
 export class ApiError extends Error {
   status: number
