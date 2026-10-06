@@ -28,20 +28,24 @@ The Atelier House AH mark is a fictional guest-brand demonstration. It is not an
 
 ## Tokens
 
-| Token        | Value     | Use                                       |
-| ------------ | --------- | ----------------------------------------- |
-| `--ink`      | `#29392f` | Primary text and forest-green actions     |
-| `--ink-deep` | `#203329` | Deeper structural ink                     |
-| `--paper`    | `#ffffff` | Work surfaces and fields                  |
-| `--mineral`  | `#faf9f6` | Application ground                        |
-| `--line`     | `#e2e2da` | Table and section structure               |
-| `--muted`    | `#656b63` | Readable secondary text                   |
-| `--brass`    | `#a89a7a` | Limited warm orientation accents          |
-| `--sage`     | `#e9eee5` | Skin/wellbeing staff and calendar context |
-| `--blue`     | `#edf0ef` | Body/skin context                         |
-| `--sand`     | `#f1ece3` | Hair/styling context                      |
+| Token              | Value     | Use                                         |
+| ------------------ | --------- | ------------------------------------------- |
+| `--ink`            | `#29392f` | Primary text and forest-green actions       |
+| `--ink-deep`       | `#203329` | Deeper structural ink                       |
+| `--paper`          | `#ffffff` | Work surfaces and fields                    |
+| `--mineral`        | `#faf9f6` | Application ground                          |
+| `--line`           | `#e2e2da` | Table and section structure                 |
+| `--muted`          | `#656b63` | Readable secondary text                     |
+| `--muted-strong`   | `#5b615a` | 12px metadata, including on tinted surfaces |
+| `--status-neutral` | `#4e5f6a` | Upcoming and other neutral status labels    |
+| `--status-done`    | `#56626a` | Completed status labels                     |
+| `--text-meta`      | `12px`    | Minimum operator metadata size              |
+| `--brass`          | `#a89a7a` | Limited warm orientation accents            |
+| `--sage`           | `#e9eee5` | Skin/wellbeing staff and calendar context   |
+| `--blue`           | `#edf0ef` | Body/skin context                           |
+| `--sand`           | `#f1ece3` | Hair/styling context                        |
 
-Type: 11–13px metadata; 14–17px operational text; 19–24px section headings; 29–38px page headings. Public booking display type can be larger. Use tabular numbers for times and money. Maximum body-copy line length is generally 65–80 characters.
+Type: 12–13px metadata (operator text is never below `--text-meta`; guest booking sizes have not yet been reviewed); 14–17px operational text; 19–24px section headings; 29–38px page headings on Today and Business overview; working surfaces (Calendar, Clients, a client, Money, Manage, Inbox) use the compact `WorkHeader`: a 26px serif title on one line with context and actions on the same row. Public booking display type can be larger. Use tabular numbers for times and money. Maximum body-copy line length is generally 65–80 characters.
 
 Spacing uses a 4px base with 8, 12, 16, 20, 24, 32 and 40px steps. Surfaces use 7px corners; fields/actions use 4–5px; people avatars are circular. Avoid identical decorative cards for every fact: daily metrics are compact bordered cells, the agenda is a continuous surface, and the attention panel uses quiet sage contrast.
 
@@ -77,7 +81,7 @@ Motion answers actions only: short hover/focus and navigation transitions. Reduc
 ## Responsive and accessibility acceptance
 
 - Desktop rail at 236px; mobile navigation opens from a named control. The selected route remains evident.
-- Below 650px the calendar uses the agenda. Directory scroll/column reduction stays within its surface.
+- Below 720px the calendar grid keeps one column per professional, scrolling sideways with snap and a sticky time axis; the agenda list remains available from the display toggle. Directory scroll/column reduction stays within its surface.
 - Forms have visible labels; consent is independently optional; public progress identifies the current step.
 - Public booking works at 390px and the application has a 320px minimum layout.
 - Touch actions aim for 44px; WCAG 2.2 AA is the production target, not a certification earned by these checks.

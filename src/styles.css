@@ -3087,6 +3087,13 @@ fieldset {
   .calendar-person {
     padding: 12px 14px;
   }
+  .calendar-event .status {
+    display: inline-flex;
+  }
+  .view-toggle button {
+    width: 40px;
+    height: 36px;
+  }
   .calendar-swipe-hint {
     display: block;
     padding: 10px 15px;
@@ -3121,11 +3128,6 @@ fieldset {
 .mobile-route-menu a.active {
   background: #edf2f4;
   font-weight: 600;
-}
-@media (max-width: 650px) {
-  .calendar-filters .view-toggle {
-    display: none;
-  }
 }
 
 /* Keep appointment context beside the calendar; other dialogs retain their centred layout. */
