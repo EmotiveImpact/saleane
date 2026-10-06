@@ -57,8 +57,7 @@ h3,
 p {
   margin: 0;
 }
-h1,
-h2 {
+h1 {
   font-family: var(--font-display);
 }
 h1 {
@@ -68,11 +67,13 @@ h1 {
   font-weight: 450;
   line-height: 1.22;
 }
+/* Panel and section titles share the editorial serif so every screen speaks in one voice. */
 h2 {
-  font-size: var(--text-title-s);
-  letter-spacing: -0.027em;
-  font-weight: 700;
-  line-height: 1.4;
+  font-family: var(--font-editorial);
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  font-weight: 450;
+  line-height: 1.3;
 }
 h3 {
   font-size: 18px;
@@ -440,18 +441,16 @@ fieldset {
   display: flex;
   align-items: center;
   gap: 9px;
+  min-width: 240px;
   color: var(--muted);
-  background: transparent;
-  border: 0;
-  padding: 8px 0;
-}
-.global-search kbd {
-  font-family: inherit;
-  font-size: var(--text-micro);
+  background: var(--mineral);
   border: 1px solid var(--line);
-  border-radius: 3px;
-  padding: 1px 5px;
-  margin-left: 23px;
+  border-radius: var(--radius-control);
+  padding: 7px 14px;
+}
+.global-search:hover {
+  border-color: var(--field-line);
+  color: var(--ink);
 }
 .operator-button {
   display: flex;
@@ -611,7 +610,7 @@ fieldset {
   grid-template-columns: 55px minmax(160px, 1fr) 65px 89px 60px;
   align-items: center;
   gap: 12px;
-  padding: 17px 23px;
+  padding: 10px 23px;
 }
 .agenda-labels {
   font-size: var(--text-micro);
@@ -625,7 +624,7 @@ fieldset {
   border: 0;
   border-bottom: 1px solid #e9ebe4;
   width: 100%;
-  min-height: 81px;
+  min-height: 60px;
   transition: background 0.15s;
 }
 .agenda-row:last-child {
@@ -652,6 +651,11 @@ fieldset {
   align-items: center;
   gap: 10px;
   min-width: 0;
+}
+.agenda-client .avatar {
+  width: 36px;
+  height: 36px;
+  font-size: var(--text-micro);
 }
 .agenda-client strong {
   display: block;
@@ -740,7 +744,7 @@ fieldset {
   padding: 25px 2px 10px;
 }
 .team-panel h2 {
-  font-size: 16px;
+  font-size: var(--text-title-s);
 }
 .team-panel .section-heading {
   margin-bottom: 17px;
@@ -846,6 +850,9 @@ fieldset {
   gap: 8px;
 }
 .date-controls h2 {
+  font-family: var(--font-display);
+  font-weight: 650;
+  letter-spacing: -0.01em;
   font-size: var(--text-lead);
   margin: 0 12px 0 4px;
 }
@@ -1080,15 +1087,38 @@ fieldset {
   white-space: nowrap;
 }
 .client-table td {
-  padding: 18px 20px;
+  padding: 10px 20px;
   border-bottom: 1px solid #e8edef;
   white-space: nowrap;
+}
+.client-table tbody tr {
+  position: relative;
+}
+/* The client's name opens the relationship; its link covers the whole row. */
+.client-table .client-cell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+.client-table .avatar {
+  width: 36px;
+  height: 36px;
+  font-size: var(--text-micro);
+}
+.client-flag {
+  display: inline-flex;
+  padding: 3px 9px;
+  border-radius: 99px;
+  background: var(--sage);
+  color: var(--tone-sage-ink);
+  font-size: var(--text-micro);
+  font-weight: 650;
 }
 .client-table tr:last-child td {
   border-bottom: 0;
 }
-.client-table tr:hover {
-  background: #fafcfc;
+.client-table tbody tr:hover {
+  background: var(--sage-soft);
 }
 .client-cell {
   display: flex;
@@ -1246,6 +1276,50 @@ fieldset {
   font-weight: 400;
   color: var(--muted);
 }
+/* Past visits fold to one line; the person opens one to see what happened. */
+.timeline-event:has(.visit-summary[aria-expanded='false']) {
+  padding-bottom: var(--space-2);
+}
+.timeline-event h3.visit-summary-heading {
+  margin: 0;
+  font-size: var(--text-body);
+}
+.visit-summary {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) auto 16px;
+  gap: var(--space-3);
+  align-items: baseline;
+  width: 100%;
+  padding: 6px var(--space-2) 6px 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  font: inherit;
+}
+.visit-summary:hover .visit-summary-title strong {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.visit-summary time {
+  font-variant-numeric: tabular-nums;
+}
+.visit-summary-title strong {
+  font-weight: 600;
+}
+.visit-summary-end {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.visit-summary svg {
+  align-self: center;
+  color: var(--muted);
+  transition: transform var(--motion-quick);
+}
+.visit-summary[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
 .visit-steps {
   list-style: none;
   margin: 10px 0 0;
@@ -1301,7 +1375,7 @@ fieldset {
   padding: 24px;
 }
 .detail-panel h2 {
-  font-size: var(--text-lead);
+  font-size: var(--text-title-s);
   margin-bottom: 15px;
 }
 .detail-panel h3 {
@@ -1471,8 +1545,8 @@ fieldset {
 }
 .business-insight h2 {
   font-size: var(--text-title-m);
-  font-weight: 550;
-  letter-spacing: -0.035em;
+  font-weight: 450;
+  letter-spacing: -0.02em;
 }
 .business-insight p {
   color: #d1dae0;
@@ -2488,9 +2562,6 @@ fieldset {
   .app-header {
     height: 67px;
   }
-  .global-search kbd {
-    display: none;
-  }
   .relationship-heading h1 {
     font-size: 32px;
   }
@@ -2539,7 +2610,10 @@ fieldset {
     white-space: nowrap;
   }
   .global-search {
+    min-width: 0;
     padding: 8px;
+    border-color: transparent;
+    background: transparent;
   }
   .operator-button > svg,
   .header-divider {
@@ -2618,7 +2692,8 @@ fieldset {
   }
   .agenda-row {
     grid-template-columns: 52px minmax(140px, 1fr) auto;
-    padding: 17px 15px;
+    min-height: 54px;
+    padding: 9px 15px;
     gap: 10px;
   }
   .agenda-row > .status {

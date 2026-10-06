@@ -539,7 +539,7 @@ export function AppointmentDialog({
             are separate from service revenue.{' '}
             {sandbox
               ? 'No real payment will be taken.'
-              : 'Only record funds already received. Payment collection is unconfigured.'}
+              : 'Only record funds already received. Card payments are not connected yet.'}
           </p>
           <ErrorMessage error={error} />
           <div className="dialog-footer">

@@ -49,7 +49,13 @@ export function Agenda({
             <span className="agenda-client">
               <Avatar small identity={client.id} name={client.name} tone={staff.tone} />
               <span>
-                <strong>{client.name}</strong> <small>{service.name}</small>
+                <strong>{client.name}</strong> <small>{service.name}</small>{' '}
+                <span className="agenda-mobile-meta">
+                  <span className="agenda-meta-staff">with {staff.name.split(' ')[0]}</span>{' '}
+                  <span className="agenda-meta-status">
+                    <Status status={a.status} />
+                  </span>
+                </span>
               </span>
             </span>{' '}
             <span className="agenda-professional">{staff.name.split(' ')[0]}</span>{' '}

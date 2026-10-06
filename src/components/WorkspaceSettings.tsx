@@ -57,7 +57,7 @@ export function WorkspaceSettings({ onClose }: { onClose: () => void }) {
           <>
             <p>
               Accounts and studio records are saved on this computer’s local server. Your access:{' '}
-              {role}. Live payment and email providers remain unconfigured.
+              {role}. Card payments and email sending are not connected yet.
             </p>
             <Link className="button button-secondary" onClick={onClose} to="/business/manage">
               Manage your studio

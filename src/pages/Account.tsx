@@ -132,7 +132,7 @@ export function Account() {
           src="/images/saleane-studio-warm.png"
           alt="A calm fictional studio with natural light"
         />
-        <small>Local V1 workspace · live services unconfigured</small>
+        <small>Local V1 workspace · payments and email not connected</small>
       </aside>
       <main className="account-main">
         <Link className="back-link" to="/today">
@@ -221,7 +221,7 @@ export function Account() {
             <p className="account-intro">
               {view === 'signin'
                 ? 'Sign in to continue with the records saved on this computer.'
-                : 'Accounts and studio records are saved by the local server. Payment and email providers remain unconfigured.'}
+                : 'Accounts and studio records are saved by the local server. Card payments and email sending are not connected yet.'}
             </p>
             <form onSubmit={submit}>
               {view !== 'workspace' && (

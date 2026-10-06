@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   ArrowUpRight,
   CalendarDays,
+  ChevronDown,
   CreditCard,
   MessageSquare,
   Plus,
@@ -36,6 +37,7 @@ export function ClientRelationship() {
   const busy = pending || saving
   const [consentError, setConsentError] = useState('')
   const [filter, setFilter] = useState('all')
+  const [openVisits, setOpenVisits] = useState<string[]>([])
   const [note, setNote] = useState('')
   const [noteSaved, setNoteSaved] = useState(false)
   const [error, setError] = useState('')
@@ -83,6 +85,12 @@ export function ClientRelationship() {
     timeZone: state.organisation.timeZone,
     day: 'numeric',
     month: 'short',
+  })
+  const summaryDate = new Intl.DateTimeFormat(state.organisation.locale, {
+    timeZone: state.organisation.timeZone,
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
   })
   const edges = state.relationships.filter(
     (e) => e.fromClientId === client.id || e.toClientId === client.id,
@@ -243,51 +251,96 @@ export function ClientRelationship() {
                   .filter((sale) => sale !== undefined)
                 const sale = sales[sales.length - 1]
                 const Icon = sale ? CreditCard : CalendarDays
+                const settled =
+                  appointment !== undefined &&
+                  ['completed', 'cancelled', 'no_show'].includes(appointment.status)
+                const open = !settled || openVisits.includes(entry.id)
                 return (
                   <article className="timeline-event timeline-visit" key={entry.id}>
                     <span className={`timeline-icon ${sale ? 'timeline-checkout' : ''}`}>
                       <Icon size={17} />
                     </span>
                     <div>
-                      {appointment && (
-                        <time dateTime={appointment.date}>
-                          {longDate.format(new Date(`${appointment.date}T12:00:00Z`))}
-                          {' · '}
-                          {timeLabel(appointment.startMinutes, state.organisation.locale)}
-                        </time>
-                      )}
-                      <h3>
-                        {appointment?.bookedServiceName ?? service?.name ?? 'Visit'}
-                        {staff && <span> with {staff.name.split(' ')[0]}</span>}
-                      </h3>
-                      {appointment && <Status status={appointment.status} />}
-                      <ol className="visit-steps" aria-label="What happened">
-                        {entry.events.map((event) => (
-                          <li key={event.id}>
-                            <span className="visit-step-title">{event.title}</span>
-                            <time dateTime={event.occurredAt}>
-                              {shortDate.format(new Date(event.occurredAt))}
+                      {settled ? (
+                        <h3 className="visit-summary-heading">
+                          <button
+                            type="button"
+                            className="visit-summary"
+                            aria-expanded={open}
+                            onClick={() =>
+                              setOpenVisits((current) =>
+                                current.includes(entry.id)
+                                  ? current.filter((id) => id !== entry.id)
+                                  : [...current, entry.id],
+                              )
+                            }
+                          >
+                            <time dateTime={appointment.date}>
+                              {summaryDate.format(new Date(`${appointment.date}T12:00:00Z`))}
                             </time>
-                            <small>{event.actor}</small>
-                            {stepDetail(event) && <p>{stepDetail(event)}</p>}
-                          </li>
-                        ))}
-                      </ol>
-                      {sale && (
-                        <div className="timeline-money">
-                          <strong>{money(sale.serviceMinor, state.organisation)}</strong>
-                          <span>Service · {money(sale.tipMinor, state.organisation)} tip</span>
-                        </div>
+                            <span className="visit-summary-title">
+                              <strong>
+                                {appointment.bookedServiceName ?? service?.name ?? 'Visit'}
+                              </strong>
+                              {staff && <span> with {staff.name.split(' ')[0]}</span>}
+                            </span>
+                            <span className="visit-summary-end">
+                              {sale && appointment.status === 'completed' ? (
+                                money(sale.totalMinor, state.organisation)
+                              ) : (
+                                <Status status={appointment.status} />
+                              )}
+                            </span>
+                            <ChevronDown size={16} />
+                          </button>
+                        </h3>
+                      ) : (
+                        <>
+                          {appointment && (
+                            <time dateTime={appointment.date}>
+                              {longDate.format(new Date(`${appointment.date}T12:00:00Z`))}
+                              {' · '}
+                              {timeLabel(appointment.startMinutes, state.organisation.locale)}
+                            </time>
+                          )}
+                          <h3>
+                            {appointment?.bookedServiceName ?? service?.name ?? 'Visit'}
+                            {staff && <span> with {staff.name.split(' ')[0]}</span>}
+                          </h3>
+                          {appointment && <Status status={appointment.status} />}
+                        </>
                       )}
-                      <div className="timeline-footer">
-                        <span />
-                        <button
-                          className="text-link"
-                          onClick={() => setAppointmentId(entry.appointmentId)}
-                        >
-                          View visit <ArrowUpRight size={14} />
-                        </button>
-                      </div>
+                      {open && (
+                        <>
+                          <ol className="visit-steps" aria-label="What happened">
+                            {entry.events.map((event) => (
+                              <li key={event.id}>
+                                <span className="visit-step-title">{event.title}</span>
+                                <time dateTime={event.occurredAt}>
+                                  {shortDate.format(new Date(event.occurredAt))}
+                                </time>
+                                <small>{event.actor}</small>
+                                {stepDetail(event) && <p>{stepDetail(event)}</p>}
+                              </li>
+                            ))}
+                          </ol>
+                          {sale && (
+                            <div className="timeline-money">
+                              <strong>{money(sale.serviceMinor, state.organisation)}</strong>
+                              <span>Service · {money(sale.tipMinor, state.organisation)} tip</span>
+                            </div>
+                          )}
+                          <div className="timeline-footer">
+                            <span />
+                            <button
+                              className="text-link"
+                              onClick={() => setAppointmentId(entry.appointmentId)}
+                            >
+                              View visit <ArrowUpRight size={14} />
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </article>
                 )

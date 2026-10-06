@@ -281,7 +281,7 @@ function BookingFlow({
       <section className="booking-demo-banner" aria-label="About this booking page">
         {sample
           ? 'Fictional sample studio. Reservations and deposits are simulated.'
-          : 'Local booking preview. Pay at the studio; online payments and email delivery are unconfigured.'}
+          : 'Local booking preview. Pay at the studio; online payments and emails are not connected yet.'}
       </section>
       <div className="public-booking-layout">
         <aside className="booking-story">

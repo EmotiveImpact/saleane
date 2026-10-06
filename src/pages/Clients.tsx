@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowUpRight, Plus, Search, FileUp } from 'lucide-react'
+import { Plus, Search, FileUp } from 'lucide-react'
 import { can, operations } from '../domain/operations'
 import { useStore } from '../state/context'
 import { clientStats, dueClients } from '../domain/selectors'
@@ -113,7 +113,9 @@ export function Clients() {
                 <th>Visits</th>
                 <th>Service spend</th>
                 <th>Next visit</th>
-                <th>Relationship</th>
+                <th>
+                  <span className="sr-only">Status</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -131,6 +133,12 @@ export function Clients() {
                         <span>
                           <strong>{client.name}</strong>
                           <small>{client.email}</small>
+                          <small className="client-mobile-meta">
+                            {money(stats.spend, state.organisation)} ·{' '}
+                            {stats.next
+                              ? `Next ${dateLabel(stats.next.date, state.organisation.locale, true)}`
+                              : 'No next visit'}
+                          </small>
                         </span>
                       </Link>
                     </td>
@@ -144,12 +152,9 @@ export function Clients() {
                       )}
                     </td>
                     <td>
-                      <Link className="relationship-link" to={`/clients/${client.id}`}>
-                        {due.some((c) => c.id === client.id)
-                          ? 'Ready to return'
-                          : 'View relationship'}
-                        <ArrowUpRight size={15} />
-                      </Link>
+                      {due.some((c) => c.id === client.id) && (
+                        <span className="client-flag">Ready to return</span>
+                      )}
                     </td>
                   </tr>
                 )

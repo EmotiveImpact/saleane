@@ -209,7 +209,6 @@ function WorkspaceApp() {
             <button className="global-search" onClick={() => setSearch(true)}>
               <Search size={17} />
               <span>Find a client</span>
-              <kbd aria-hidden="true">Search</kbd>
             </button>
             <span className="header-divider" />
             <button className="operator-button" onClick={() => setSettings(true)}>
@@ -227,7 +226,7 @@ function WorkspaceApp() {
               ? 'Fictional demo. Records are saved in this browser.'
               : state.operations?.mode === 'sandbox'
                 ? 'Local sample studio. Fictional appointments and simulated payments.'
-                : 'Local studio. Payments are recorded manually; email delivery is unconfigured.'}
+                : 'Local studio. Payments are recorded by hand and email sending is not connected yet.'}
           </span>
           <button onClick={() => setSettings(true)}>About this version</button>
         </section>

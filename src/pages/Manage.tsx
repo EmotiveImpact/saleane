@@ -314,11 +314,11 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                     Ask online guests to pass a quick bot check before a time is held
                   </label>
                   <p className="ops-help">
-                    Uses Cloudflare Turnstile. It needs TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY
-                    on the server and stays off until both are set.
+                    Uses Cloudflare&rsquo;s free bot check. Whoever runs your server adds two
+                    Cloudflare keys first; until then this stays off.
                   </p>
                   <p className="ops-help">
-                    Payment and message delivery services are unconfigured.
+                    Card payments and message sending are not connected yet.
                   </p>
                   {status}
                   <div className="ops-actions">

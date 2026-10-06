@@ -2,6 +2,20 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## In review · Design tightening pass
+
+**Status: draft pull request, not merged.** Look and wording only; bookings, money and messages behave as before.
+
+- Fixed the Money and Inbox section switches, which had lost their styling in the design library pass and showed as plain grey buttons.
+- Money receipts are grouped by day with a day total and slim rows, five days at a time with "Show earlier receipts". Internal record codes are no longer shown.
+- A client's past visits fold to one line (date, service, person, amount) and open to show what happened. Today's and upcoming visits stay open.
+- On phones, the figures at the top of Today, Clients, Business, Money and Inbox sit in one slim strip.
+- Slimmer rows on Today, the calendar list and Clients. Every detail is kept: where a column is hidden on a smaller screen, the professional, status, spend and next visit now appear under the name. The whole client row opens the client, and "Ready to return" shows as a label.
+- Panel and section titles all use the editorial serif.
+- One "Find a client" field in the top bar instead of two controls.
+- Plain studio language for services that are not connected yet, the bot check setting and held-back messages.
+- The sign-in welcome sits on a softer wash so it reads clearly over the photograph.
+
 ## 2026-10-06 · Merged · LOCAL-05 qualification pass
 
 **Status: merged into main on 6 October 2026; not deployed.** Chromium only; Safari, Firefox and screen readers are still to be run.

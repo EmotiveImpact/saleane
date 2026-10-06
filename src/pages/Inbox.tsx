@@ -4,7 +4,7 @@ import { FilePenLine, Mail, MailWarning, Plus } from 'lucide-react'
 import { useStore } from '../state/context'
 import { operations, can } from '../domain/operations'
 import { dateLabel, timeLabel } from '../domain/format'
-import { Avatar, Button, ErrorMessage, Modal, PageHeader } from '../design'
+import { Avatar, Button, ErrorMessage, Modal, PageHeader, SegmentedControl } from '../design'
 import '../components/management.css'
 
 export function Inbox() {
@@ -76,7 +76,7 @@ export function Inbox() {
         setError(result.error)
         return
       }
-      setNotice('Queue review recorded. Delivery remains unconfigured; no message was sent.')
+      setNotice('Queue review recorded. Sending is not connected yet, so no message was sent.')
     } catch {
       setError('Could not update the queue. Try again.')
     } finally {
@@ -112,7 +112,7 @@ export function Inbox() {
       <div className="ops-banner">
         <MailWarning size={20} />
         <div>
-          <strong>Delivery is unconfigured.</strong>
+          <strong>Messages are not sent yet.</strong>
           <p>
             This is the local draft and review queue. Email and SMS are not connected. Queued does
             not mean sent, and no incoming conversations are imported.
@@ -133,30 +133,32 @@ export function Inbox() {
         <div>
           <span>Consent needs attention</span>
           <strong>{count('suppressed')}</strong>
-          <small>Suppressed messages</small>
+          <small>Held back until consent is recorded</small>
         </div>
       </div>
-      <div className="ops-tabs" role="group" aria-label="Message queue view">
-        {(['all', 'draft', 'queued', 'suppressed'] as const).map((value) => (
-          <button
-            key={value}
-            type="button"
-            aria-pressed={filter === value}
-            onClick={() => setFilter(value)}
-          >
-            {value === 'all'
-              ? 'All messages'
-              : value === 'draft'
-                ? 'Drafts'
-                : value === 'queued'
-                  ? 'Queued'
-                  : 'Suppressed'}
-            <span className="ops-count">
-              {value === 'all' ? config.messages.length : count(value)}
-            </span>
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        label="Message queue view"
+        className="ops-switch"
+        value={filter}
+        onChange={setFilter}
+        options={(['all', 'draft', 'queued', 'suppressed'] as const).map((value) => ({
+          value,
+          label: (
+            <>
+              {value === 'all'
+                ? 'All messages'
+                : value === 'draft'
+                  ? 'Drafts'
+                  : value === 'queued'
+                    ? 'Queued'
+                    : 'Held back'}
+              <span className="ops-count">
+                {value === 'all' ? config.messages.length : count(value)}
+              </span>
+            </>
+          ),
+        }))}
+      />
       <div className="ops-layout">
         <section className="surface ops-panel">
           <header>
@@ -192,7 +194,7 @@ export function Inbox() {
                     {message.status === 'queued'
                       ? 'Queued · unsent'
                       : message.status === 'suppressed'
-                        ? 'Suppressed'
+                        ? 'Held back'
                         : 'Draft'}
                   </span>
                 </header>
@@ -361,7 +363,7 @@ export function Inbox() {
             {purpose === 'marketing' && (
               <p className="ops-editor-note">
                 {client?.marketingConsent
-                  ? 'Marketing permission is recorded. Delivery remains unconfigured.'
+                  ? 'Marketing permission is recorded. Sending is not connected yet.'
                   : 'Marketing permission is not recorded. You can keep a draft, but it cannot be queued for delivery.'}
               </p>
             )}

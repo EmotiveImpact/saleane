@@ -93,6 +93,11 @@ Route links (main navigation, the Business sub-navigation) stay as links. They a
 - **Client timeline.** One entry per visit, dated by when the visit happens. Its booking, moves, arrival, checkout, deposits and refunds appear as steps inside. Notes, consent and relationships stay as their own entries. Grouping is `groupTimeline` in `src/domain/timeline.ts`.
 - **Narrow calendar.** Below 650px the grid becomes one swipeable column per professional, with free time written between visits and a summary row showing each person's free time. The list view remains available from the same toggle. Segments come from `staffDay` in `src/domain/selectors.ts`.
 
+- **Long records.** Lists that grow with time (receipts, client history) show recent items first in slim rows, grouped by day where money is totalled, with a way to see earlier ones. Past visits fold to one line and open in place.
+- **Figures on phones.** Below 650px, metric groups become one slim strip and their detail lines are hidden; the label and value stay.
+- **Nothing lost on small screens.** When a column is hidden at a narrower width, its value moves under the row's name rather than disappearing.
+- **Plain words.** Say what is not connected yet in studio language ("Card payments are not connected yet"), never configuration names or internal codes.
+
 ## Voice
 
 British English, calm and specific, no exclamation marks in the workspace. Editorial lines are short and warm; working copy says exactly what will happen. Errors keep the person's input and name the next step. Never imply that a recorded payment was processed or a queued message was sent.

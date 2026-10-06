@@ -29,7 +29,14 @@
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(180deg, #f3f0e8f5 0%, #f3f0e8cc 43%, #f3f0e820 65%, #f3f0e8ed 100%);
+  background: linear-gradient(
+    180deg,
+    #f3f0e8f5 0%,
+    #f3f0e8eb 52%,
+    #f3f0e8c2 68%,
+    #f3f0e833 84%,
+    #f3f0e8ed 100%
+  );
 }
 .account-story .account-story-title {
   /* Brand line, styled as a display heading; the form owns the page's one h1. */
