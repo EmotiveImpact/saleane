@@ -6,7 +6,7 @@ Last updated: 6 October 2026. Milestones are outcome gates, not promised dates. 
 
 **0.2.0 — Connected foundation:** Vite, React and TypeScript; custom visual system; browser-local Today, Calendar, client directory and timeline, branded booking, simulated checkout/rebooking and derived business reporting. Executable booking, ledger and persistence rules; fictional UK and US workspaces. See [verification evidence](evidence/VERIFICATION.md).
 
-The previous **v0.1** was a cloud discovery pack and HTML concept, referenced in the source conversation. It is not a Git release. Its downloadable ZIP was not accessible through the conversation-read tool or found in the checked local folders. This build preserves the available product decisions; it does not claim to have imported unseen files.
+The previous **v0.1** was a cloud discovery pack and HTML concept, referenced in the source conversation. It is not a Git release. The entire visible source conversation and the original PRD attachment preview have now been read; its readable text is archived. ZIP download attempts did not return bytes. The original generated visual board was subsequently inspected directly. After the first new studies were rejected, the revised studies and 0.2.1 app follow its light-sidebar, serif and photographic direction. Original image bytes remain unimported.
 
 ## The path to V1
 
@@ -48,3 +48,32 @@ The sequence matters: a polished inbox without consent and delivery history is n
 5. Validate the wordmark and naming with target users; complete trademark/domain clearance separately.
 
 Every release updates the changelog, PRD status matrix and evidence. Every provider-dependent claim names the environment in which it was verified.
+
+## Foundation sequence and immediate continuation
+
+Research v0.2 → PRD product bible → UX architecture → three visual directions → connected prototype → real build is the governing sequence. Research/design overlap and discoveries revise the contract. The context reconciliation, screen map and visual comparisons close gaps in the first repository foundation; they do not certify production readiness.
+
+The server draft remains preserved on local `wip/saleane-server-authority` at `f73d084`. It is not a release. Before integration it must satisfy assigned-practitioner read filtering, tenant/role tests, safe session/recovery behaviour, persistence tests and an authenticated browser journey. Broad endpoints in a draft are not a substitute for a verified vertical slice. Keep the existing working prototype available while qualifying server authority.
+
+## Original feature disposition
+
+| Original idea                                                  | Release and rationale                | Dependency retained now                                           |
+| -------------------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------- |
+| Compact Today, calendar side preview, client timeline          | Foundation and V1                    | Shared IDs, event sources, accessible progressive disclosure      |
+| Services/people/rooms/hours, move/cancel/no-show               | V1                                   | Capability versus membership, immutable booked snapshots          |
+| Branded booking, no preference, deposit, guest manage          | V1                                   | Same availability, holds, verified own-booking authority          |
+| Checkout, tax, discounts, tips, refunds and receipts           | V1                                   | Versioned money/policy, authority limits, provider reconciliation |
+| Migration, export, offline daily continuity                    | V1 pilot gates                       | Scoped source mappings, minimal read-only cache, retention        |
+| Forms/waivers and consultation                                 | V1.5 non-clinical only               | Version/classification/acceptance; clinical content excluded      |
+| Memberships/packages/gift cards                                | V1.5                                 | Liability, redemption, expiry/refund and imported-balance rules   |
+| Inbox, waitlist, aftercare/feedback, reactivation              | V1.5                                 | Purpose/channel consent, dispatch receipts, reviewed offers       |
+| Retail and professional/backbar stock                          | V2                                   | Product/stock movement, sale/consumption reference and reversal   |
+| Commission, renters and staff performance                      | V2                                   | Employment model is explicit; no full payroll promise             |
+| Multi-location, deeper accounting export                       | V2                                   | Tenant/location/currency from V1                                  |
+| Recurring and multi-practitioner visits; Apple/Google calendar | V2 scheduling track                  | Exception/segment model, sync authority and revocation            |
+| Personal cadence, owner questions, schedule optimisation       | V3                                   | Defined metrics, evidence and approval-led commands               |
+| Phone/SMS/web/WhatsApp concierge                               | V4; channel qualification separately | Identity, opt-out, bounded tools, handoff and usage costs         |
+| Groups, APIs and benchmarking                                  | V5                                   | Explicit sharing, aggregation and stable versions                 |
+| Health forms, treatment-response notes, clinical photos        | Separate Clinical programme          | Later instruction supersedes early mixed examples                 |
+
+No calendar dates are committed. The source workbook's illustrative 12–16-week schedule depended on an unverified team assumption; it is not a delivery promise. Final price, pilot and provider remain decisions supported by the research closure register.

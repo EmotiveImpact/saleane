@@ -58,6 +58,7 @@ export function AppointmentDialog({
   return (
     <Modal
       open
+      placement="side"
       onClose={onClose}
       title={sale ? 'A well-finished visit' : checkout ? 'Checkout' : 'Appointment'}
       description={
@@ -69,7 +70,7 @@ export function AppointmentDialog({
       }
     >
       <div className="client-identity">
-        <Avatar name={client.name} />
+        <Avatar identity={client.id} name={client.name} />
         <div>
           <h3>{client.name}</h3>
           <Link onClick={onClose} to={`/clients/${client.id}`}>

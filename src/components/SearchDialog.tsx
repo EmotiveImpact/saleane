@@ -30,7 +30,7 @@ export function SearchDialog({ onClose }: { onClose: () => void }) {
       <div className="search-results">
         {clients.map((client) => (
           <Link onClick={onClose} key={client.id} to={`/clients/${client.id}`}>
-            <Avatar small name={client.name} />
+            <Avatar small identity={client.id} name={client.name} />
             <span>
               <strong>{client.name}</strong>
               <small>{client.email}</small>

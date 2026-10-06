@@ -83,11 +83,11 @@ export function BrandedBooking() {
       </div>
       <div className="public-booking-layout">
         <aside className="booking-story">
-          <div className="story-motif" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </div>
+          <img
+            className="booking-story-image"
+            src="/images/saleane-studio-warm.png"
+            alt="Sunlit treatment room with linen, natural stone and olive branches"
+          />
           <div className="booking-story-copy">
             <Leaf size={28} />
             <h1>
@@ -276,7 +276,7 @@ export function BrandedBooking() {
                               setStart(null)
                             }}
                           >
-                            <Avatar name={person.name} tone={person.tone} />
+                            <Avatar identity={person.id} name={person.name} tone={person.tone} />
                             <span>
                               <strong>{person.name}</strong>
                               <small>{person.role}</small>

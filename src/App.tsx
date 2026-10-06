@@ -79,6 +79,13 @@ export function App() {
           ))}
         </nav>
         <div className="sidebar-bottom">
+          <Link
+            to="/booking"
+            className="sidebar-photo"
+            aria-label="Preview your studio’s booking experience"
+          >
+            <img src="/images/saleane-studio-warm.png" alt="" />
+          </Link>
           <Link to="/booking" className="public-booking-link">
             <span>Your booking page</span>
             <ArrowUpRight size={16} />
@@ -152,7 +159,7 @@ export function App() {
               className="operator-button"
               onClick={() => setSettings(true)}
             >
-              <Avatar small name="Maya Lewis" tone="sand" />
+              <Avatar small identity="staff-maya" name="Maya Lewis" tone="sand" />
               <span>Maya</span>
               <ChevronDown size={13} />
             </button>

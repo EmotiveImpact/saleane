@@ -187,7 +187,7 @@ export function Business() {
           <h2>The people behind it</h2>
           {data.byStaff.map(({ staff, revenue, visits }) => (
             <div className="staff-performance" key={staff.id}>
-              <Avatar small name={staff.name} tone={staff.tone} />
+              <Avatar small identity={staff.id} name={staff.name} tone={staff.tone} />
               <span>
                 <strong>{staff.name}</strong>
                 <small>{visits} completed visits</small>

@@ -74,7 +74,7 @@ export function ClientRelationship() {
         Clients
       </Link>
       <div className="relationship-heading">
-        <Avatar name={client.name} />
+        <Avatar identity={client.id} name={client.name} />
         <div>
           <p className="date-caption">A relationship with Atelier House</p>
           <h1>{client.name}</h1>
@@ -222,7 +222,7 @@ export function ClientRelationship() {
                 )!
                 return (
                   <Link className="connection-row" to={`/clients/${other.id}`} key={edge.id}>
-                    <Avatar small name={other.name} tone="sand" />
+                    <Avatar small identity={other.id} name={other.name} tone="sand" />
                     <span>
                       <strong>{other.name}</strong>
                       <small>
@@ -242,7 +242,7 @@ export function ClientRelationship() {
             )}
             {professionals.map((s) => (
               <div className="connection-row" key={s.id}>
-                <Avatar small name={s.name} tone={s.tone} />
+                <Avatar small identity={s.id} name={s.name} tone={s.tone} />
                 <span>
                   <strong>{s.name}</strong>
                   <small>A familiar professional</small>

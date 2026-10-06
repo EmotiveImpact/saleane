@@ -2,40 +2,48 @@
 
 Foundation 0.2 · custom tokens and components. The reference implementation is `src/styles.css`; accessible dialog behaviour comes from Radix. There is no shadcn theme or UXio integration.
 
-## Character
+## Source and direction status
 
-Weighted, established and resilient, with the warmth of a good practitioner. The application is a place of work: a substantial slate-blue navigation rail anchors the environment, white operational surfaces hold the information, and mineral-grey ground separates them. Small brass details identify orientation; service colour helps read the calendar.
+The original generated three-column visual board was opened and visually inspected in the source conversation on 6 October. The user rejected the first new studies and explicitly asked us to follow that original, including imagery. The rejected studies are preserved under `design-studies/archive/rejected-2026-10-06/`; they are not recommendations. [Revised studies](VISUAL_DIRECTIONS.md) follow the recovered visual reference. This does not imply final brand approval.
 
-Spend visual emphasis on the operational promise, not decoration. Today is a working brief with a linked agenda and a source-based invitation to review a return visit. Business is a distinct reporting view. The guest experience belongs to Atelier House in the demo, with a quiet SALEANE attribution.
+## Character and reference composition
+
+The original board pairs a widely tracked, high-contrast serif SALEANE wordmark with small, functional sans-serif text. Quiet Luxury has a light ivory/stone sidebar, a warm white workspace, compact metrics, fine appointment rules, circular portraits and a subtle sage attention panel with forest-green actions. Modern Editorial keeps that left-sidebar composition with cooler white/charcoal contrast. After Dark uses near-black/brown, warm gold, candles and dark marble.
+
+The reference photographs matter: sunlit plaster, linen, stone, ceramics and olive branches carry the guest brand. The working app now follows the warm expression. Photography belongs in guest booking and a small studio preview; the operational agenda keeps its space for appointments. Generated fictional portraits help identify a small set of seed people; new records keep initials. No real client photos are supplied or inferred.
+
+Weighted and established means dependable proportions, alignment, restrained hierarchy and legible work surfaces. It does not require a heavy dark navigation rail or oversized sans-serif headings. Preserve the source board's quiet scale as the product becomes more capable.
 
 ## Name and wordmark
 
 **Canonical spelling: SALEANE. No accent.** Use Saleane in prose and SALEANE in the wordmark. Keep spelling identical in search, URLs, accessibility labels and future legal/product records. An accent introduces a spelling ambiguity across UK and US typing and recall. This is a product decision inherited from the conversation, not legal name clearance.
 
-The prototype wordmark uses **Manrope Variable at weight 800**, compact tracking (-0.065em) and a firm baseline. Its repeated A forms, broad geometric structure and closely held letters provide a substantial silhouette without a beauty-industry script. The letters themselves remain unmodified. A future custom drawn mark may refine the A/L/E rhythm, provided the spelling and legibility survive.
+The current wordmark uses **Bodoni Moda Variable, weight 500, tracking 0.12em**, as an openly licensed implementation of the original high-contrast serif direction. It is a reasoned type choice, not a claim to identify the exact generated font. Page greetings and guest headings use Bodoni at restrained weights. The original image is a reference, not a proprietary font file or production logo master.
 
-**Source Sans 3 Variable** carries operational text. Its UI-oriented proportions distinguish small metadata and long client details without competing with the mark. Manrope handles headings and monetary totals. This pairing is deliberately practical; no licensed commercial typeface is assumed. Both fonts are served locally from pinned Fontsource dependencies. Unmodified fonts and licence notices ship with the app; see [THIRD_PARTY_NOTICES](../THIRD_PARTY_NOTICES.md).
+**Source Sans 3 Variable** carries navigation, forms, tables, money and metadata. Functional figures retain tabular numerals and ordinary spacing. The previous compact Manrope mark belongs to the archived foundation history. Fonts are served locally; supplied OFL notices are included. See [third-party and generated-asset provenance](../THIRD_PARTY_NOTICES.md).
+
+No historical lunar or linguistic etymology has been established. Do not invent meaning for a glyph. Pronunciation and trademark/domain clearance remain separate decisions; past domain availability is not current ownership evidence. The source phrase “everything is under control” guides clarity, structure and honest failure states.
 
 The Atelier House AH mark is a fictional guest-brand demonstration. It is not another Saleane logo.
 
 ## Tokens
 
-| Token        | Value     | Use                                         |
-| ------------ | --------- | ------------------------------------------- |
-| `--ink`      | `#263b49` | Navigation mass, primary text and actions   |
-| `--ink-deep` | `#20323e` | Deeper structural ink                       |
-| `--paper`    | `#ffffff` | Work surfaces and fields                    |
-| `--mineral`  | `#f2f5f6` | Application ground                          |
-| `--line`     | `#dce3e6` | Table and section structure                 |
-| `--muted`    | `#5b6c77` | Readable secondary text                     |
-| `--brass`    | `#cfb98f` | Active rail and limited orientation accents |
-| `--sage`     | `#e7eeea` | Skin/wellbeing staff and calendar context   |
-| `--blue`     | `#e7eef4` | Body/skin context                           |
-| `--sand`     | `#f1ece3` | Hair/styling context                        |
+| Token        | Value     | Use                                       |
+| ------------ | --------- | ----------------------------------------- |
+| `--ink`      | `#29392f` | Primary text and forest-green actions     |
+| `--ink-deep` | `#203329` | Deeper structural ink                     |
+| `--paper`    | `#ffffff` | Work surfaces and fields                  |
+| `--mineral`  | `#faf9f6` | Application ground                        |
+| `--line`     | `#e2e2da` | Table and section structure               |
+| `--muted`    | `#656b63` | Readable secondary text                   |
+| `--brass`    | `#a89a7a` | Limited warm orientation accents          |
+| `--sage`     | `#e9eee5` | Skin/wellbeing staff and calendar context |
+| `--blue`     | `#edf0ef` | Body/skin context                         |
+| `--sand`     | `#f1ece3` | Hair/styling context                      |
 
-Type: 11–13px metadata; 14–17px operational text; 19–24px section headings; 30–42px page headings. Public booking display type can be larger. Use tabular numbers for times and money. Maximum body-copy line length is generally 65–80 characters.
+Type: 11–13px metadata; 14–17px operational text; 19–24px section headings; 29–38px page headings. Public booking display type can be larger. Use tabular numbers for times and money. Maximum body-copy line length is generally 65–80 characters.
 
-Spacing uses a 4px base with 8, 12, 16, 20, 24, 32 and 40px steps. Surfaces use 7px corners; fields/actions use 4–5px; people avatars are circular. Avoid identical decorative cards for every fact: daily metrics share one ruled band, the agenda is a continuous surface, and the attention panel has distinct ink mass.
+Spacing uses a 4px base with 8, 12, 16, 20, 24, 32 and 40px steps. Surfaces use 7px corners; fields/actions use 4–5px; people avatars are circular. Avoid identical decorative cards for every fact: daily metrics are compact bordered cells, the agenda is a continuous surface, and the attention panel uses quiet sage contrast.
 
 ## Component contracts
 
@@ -43,7 +51,7 @@ Spacing uses a 4px base with 8, 12, 16, 20, 24, 32 and 40px steps. Surfaces use 
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `Button`            | Native button, explicit action name, primary/secondary/quiet/light treatment, visible focus, disabled state                               |
 | `Modal`             | Radix focus trap/inert background; title and description; Escape closes; return focus to initiating control; scrollable within viewport   |
-| `Avatar`            | Initials and staff tone; decorative because adjacent visible text names the person                                                        |
+| `Avatar`            | Fictional seed portraits or initials and staff tone; decorative because adjacent visible text names the person                            |
 | `Status`            | Text and dot; colour never carries the status alone; agenda buttons include state in their accessible name                                |
 | `Metric`            | Label, formatted value and definition; no decorative trend claim                                                                          |
 | `Agenda`            | Native visit buttons with client, service, time and status; one appointment record across all screens                                     |
@@ -72,4 +80,10 @@ Motion answers actions only: short hover/focus and navigation transitions. Reduc
 
 ## Deliberate limits
 
-The present treatment is a reviewable identity foundation. No original v0.1 visual image was recovered, so this is not described as a pixel-faithful recreation of an unseen concept. User research, brand clearance, assistive-technology testing, a fuller token API and light/dark/forced-colour validation remain release work. Preserve the weighted structure while refining those details.
+The revised implementation follows the inspected original board but is not a pixel reproduction. The original image bytes could not be exported; the visible source was inspected directly. New generated photographs are separate assets with recorded provenance. User task testing, brand clearance, assistive-technology testing and forced-colour validation remain release work.
+
+## Target interaction refinements
+
+Keep the client timeline central and the operator navigation compact. The implemented appointment flow uses a right-side preview with progressive actions with progressive actions; on phones it uses a full-height sheet. Today separates needs attention, opportunities and completed work, with source receipts for the latter. Business owns charts and reconciliation.
+
+Compare directions with the same tasks, values and failure states. Judge readability, scan speed, focus, source comprehension and guest trust as well as appearance. Quiet Luxury keeps warmth without decorative spa clichés; Modern Editorial keeps strong hierarchy without finance-dashboard clutter; After Dark belongs to optional guest/marketing surfaces. Photography should not compete with calendars, money or dense operational tables.

@@ -102,7 +102,11 @@ export function Clients() {
                   <tr key={client.id}>
                     <td>
                       <Link className="client-cell" to={`/clients/${client.id}`}>
-                        <Avatar name={client.name} tone={['sage', 'blue', 'sand'][index % 3]} />
+                        <Avatar
+                          identity={client.id}
+                          name={client.name}
+                          tone={['sage', 'blue', 'sand'][index % 3]}
+                        />
                         <span>
                           <strong>{client.name}</strong>
                           <small>{client.email}</small>

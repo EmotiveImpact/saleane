@@ -112,7 +112,7 @@ export function Calendar() {
             <div className="calendar-corner">Time</div>
             {staff.map((s) => (
               <div className="calendar-person" key={s.id}>
-                <Avatar small name={s.name} tone={s.tone} />
+                <Avatar small identity={s.id} name={s.name} tone={s.tone} />
                 <span>
                   <strong>{s.name}</strong>
                   <small>{s.role}</small>

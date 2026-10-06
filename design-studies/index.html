@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>SALEANE · Original direction studies</title>
+    <link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="studies.css" />
+  </head>
+  <body data-direction="quiet-luxury">
+    <a class="skip-link" href="#main">Skip to workspace</a>
+    <header class="study-bar">
+      <a class="study-title" href="?direction=quiet-luxury"
+        >SALEANE <span>Reference studies</span></a
+      >
+      <nav class="directions" aria-label="Visual direction">
+        <button data-direction="quiet-luxury" aria-pressed="true">A · Quiet Luxury</button
+        ><button data-direction="modern-editorial" aria-pressed="false">B · Modern Editorial</button
+        ><button data-direction="after-dark" aria-pressed="false">C · After Dark</button>
+      </nav>
+      <button class="about-control" id="about-open">About these studies</button>
+    </header>
+    <div class="study-note">
+      <span id="direction-summary"></span><span>Fictional study · No payments or messages</span>
+    </div>
+    <div class="workspace">
+      <aside class="rail">
+        <a class="wordmark" href="?direction=quiet-luxury" aria-label="Saleane home">SALEANE</a>
+        <div class="studio">
+          <span class="studio-symbol">AH</span>
+          <div><strong>Atelier House</strong><small id="place">Marylebone, London</small></div>
+          <span aria-hidden="true">⌄</span>
+        </div>
+        <nav class="app-nav" aria-label="Workspace">
+          <button data-screen="today">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 10 12 3l9 7v10H3zM9 20v-7h6v7" /></svg
+            >Today</button
+          ><button data-screen="calendar">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="16" rx="2" />
+              <path d="M7 2v6m10-6v6M3 11h18" /></svg
+            >Calendar</button
+          ><button data-screen="client">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="9" cy="8" r="3" />
+              <path d="M3 21v-3a6 6 0 0 1 12 0v3m1-16a3 3 0 0 1 0 6m3 10v-3a6 6 0 0 0-2-4" /></svg
+            >Clients</button
+          ><button data-action="inbox">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v14H3zM3 7l9 7 9-7" /></svg
+            >Inbox</button
+          ><button data-screen="intelligence">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 21V11m7 10V4m7 17v-7M2 21h20" /></svg
+            >Business
+          </button>
+        </nav>
+        <div class="rail-bottom">
+          <button class="booking-link" data-screen="booking">
+            Your booking page <span aria-hidden="true">↗</span>
+          </button>
+          <div class="operator">
+            <span class="portrait portrait-0" aria-hidden="true"></span>
+            <div><strong>Maya Lewis</strong><small>Studio owner</small></div>
+          </div>
+          <p>A considered way to run<br />a remarkable business.</p>
+        </div>
+      </aside>
+      <div class="workspace-body">
+        <header class="utility">
+          <div class="breadcrumb">
+            Atelier House <span>/</span><strong id="crumb">Today</strong>
+          </div>
+          <div class="utility-actions">
+            <label class="market-control"
+              >Market
+              <select id="market">
+                <option value="UK">UK · GBP</option>
+                <option value="US">USA · USD</option>
+              </select></label
+            ><button class="quiet" id="find-client">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="10" cy="10" r="6" />
+                <path d="m15 15 6 6" />
+              </svg>
+              Find a client
+            </button>
+          </div>
+        </header>
+        <main id="main" tabindex="-1"></main>
+        <footer class="workspace-footer">
+          <span>SALEANE</span><span id="footer-locale">London · GBP · Europe/London</span>
+        </footer>
+      </div>
+    </div>
+    <dialog id="detail-dialog" aria-labelledby="dialog-title">
+      <div class="dialog-heading">
+        <h2 id="dialog-title">Appointment</h2>
+        <button id="dialog-close" class="icon-button" aria-label="Close dialog">×</button>
+      </div>
+      <div id="dialog-body"></div>
+    </dialog>
+    <script type="module" src="studies.js"></script>
+  </body>
+</html>

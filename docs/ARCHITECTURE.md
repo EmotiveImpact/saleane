@@ -21,7 +21,7 @@ src/
 
 A command creates a new validated state. The storage adapter saves it before the UI adopts it. Views derive from that state. A checkout creates one sale, one settlement payment, one completion transition and one client event. Rebooking links the old and new appointments. Reports do not keep separate editable totals.
 
-Keys: `saleane.demo.v1.UK` and `saleane.demo.v1.US`. Schema version is 1; product version is 0.2.0. A corrupt, foreign-scoped or unsupported snapshot is left untouched and writes are paused. Export/reset controls enable deliberate recovery. Stale revision detects many ordinary sequential tab conflicts; localStorage is not transactional across concurrent tabs. No security claim is made for browser storage.
+Keys: `saleane.demo.v1.UK` and `saleane.demo.v1.US`. Schema version is 1; product version is 0.2.1. A corrupt, foreign-scoped or unsupported snapshot is left untouched and writes are paused. Export/reset controls enable deliberate recovery. Stale revision detects many ordinary sequential tab conflicts; localStorage is not transactional across concurrent tabs. No security claim is made for browser storage.
 
 Demo scheduling stores a civil date and minutes in a fixed venue day, using 09:00–18:00 daily opening, one service/professional/resource per visit, 15-minute validation and 30-minute offered slots. It validates service qualification and shared-resource intervals including buffers. It does not implement UTC scheduling, DST conversion, holds, closures, partial processing time, staff shifts or network concurrency. Those are V1 engine work.
 
@@ -140,3 +140,15 @@ Before pilot: backups and restore drill; retention/export/erasure procedure; sec
 LocalStorage has no atomic cross-tab transaction, trusted authorisation, encryption boundary or collaborative live updates. A very short simultaneous-write race remains despite revision checks. Demo schema validation catches malformed scoped links but is not a complete forensic ledger validator. The daily opening-hours model ignores closures and actual staff shifts. Guest client identity is unverified. Reports use visit date and simplified denominators. Tax, refunds, provider reconciliation, inbox, inventory, commissions, memberships and Clinical are not implemented.
 
 Those boundaries make 0.3–0.6 necessary. Keep the current UI/domain vocabulary, move state authority to a transactional service, and add real evidence before claiming V1.
+
+## Continuity contracts recovered from the source conversation
+
+Read [PROJECT_CONTEXT](PROJECT_CONTEXT.md), [UX_ARCHITECTURE](UX_ARCHITECTURE.md) and the PRD together. Screens are projections of durable records, not independent databases. The prototype is 0.2.1; the unverified server draft is preserved separately on `wip/saleane-server-authority` at `f73d084` and is not part of the reviewed app.
+
+- **Daily brief:** attention items carry source IDs, evaluation time, definition version and an available command. “Done for you” requires an actual action receipt. Calendar capacity, relationship history and money share organisation/location scope.
+- **Read-only continuity:** a future authorised daily snapshot contains the minimum appointment/client display fields, actor/scope, issued time and expiry. Logout, role removal and tenant change invalidate access. Offline writes, payments, identity edits and new bookings are unavailable. This snapshot mechanism is specified, not implemented.
+- **Migration:** imports stage immutable source rows with batch IDs and external-to-internal mappings. Preview, duplicate review, counts and money reconciliation precede commit. Source consent is evidence, never automatic permission to market. No card credentials are imported through CSV. Re-runs must not duplicate records.
+- **Relationship expansion:** membership, consultation and aftercare events attach to existing client IDs; inbox threads and delivery receipts attach to consent purpose and visit IDs. Retail stock and professional consumption use distinct movement reasons. Commission rules snapshot eligibility rather than changing old sales when a staff rule changes.
+- **Interface evolution:** side-panel appointments reuse the same command authority as calendar/checkout. Imagery, serif branding and the three study expressions do not introduce extra source records or fork the product's domain. The current static studies are visual experiments, not another booking engine.
+
+The next server slice must prove two competing booking attempts, replayed checkout, unauthorised tenant access, restart persistence and recoverable migration against a real transactional database before replacing browser authority. Production provider, backup, legal and deployment gates remain separate.

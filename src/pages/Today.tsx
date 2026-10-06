@@ -145,7 +145,7 @@ export function Today() {
               )
               return (
                 <div className="team-row" key={staff.id}>
-                  <Avatar name={staff.name} small tone={staff.tone} />
+                  <Avatar identity={staff.id} name={staff.name} small tone={staff.tone} />
                   <div>
                     <strong>{staff.name.split(' ')[0]}</strong>
                     <small>

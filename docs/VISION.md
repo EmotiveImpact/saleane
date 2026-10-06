@@ -1,6 +1,6 @@
 # SALEANE vision
 
-Version 0.2 · 6 October 2026 · product direction, not a claim of shipped capability.
+Revision 0.3 · 6 October 2026 · product direction, not a claim of shipped capability.
 
 Saleane should become the operating system for modern beauty, spa and wellness businesses in the United Kingdom and United States. It should remember the whole relationship, make the working day dependable, and help an owner make better decisions without creating more administrative work.
 
@@ -47,7 +47,9 @@ The current v0.2 foundation tests the vocabulary and connected journeys with fic
 
 ## Who we serve first
 
-First pilot: an owner-led, non-clinical studio with two to five professionals, a small service catalogue and shared treatment rooms. This exposes genuine resource and relationship complexity while keeping onboarding achievable. A solo practitioner must still find the product straightforward. Five-to-ten-person businesses follow; multi-location groups validate the end-state architecture later.
+The initial audience recovered from the original conversation is premium independent beauty, spa and wellness businesses with **1–10 practitioners and 1–2 locations**, in the UK and USA. Facials/skincare, massage, brows/lashes, nails, body and non-medical aesthetics are central. Hair is supported without allowing large hair-salon workflows to dictate the entire product.
+
+A proposed first pilot is a non-clinical studio with two to five professionals, a small catalogue and shared treatment rooms, alongside solo usability sessions. That is a test-cohort recommendation, not a narrower replacement for the ICP or an approved pilot. Second-location operations arrive behind their own permission, pricing and reporting gates.
 
 Success is a full working loop: a client books, the business keeps the promise, the visit is paid for accurately, the relationship is remembered, and the next visit has a place.
 
@@ -56,3 +58,23 @@ Success is a full working loop: a client books, the business keeps the promise, 
 The product should be recognisable without its logo, useful without training, and trustworthy when something fails. User testing must include a busy receptionist, an owner reconciling receipts, a professional with limited client access, and a customer booking on a phone with assistive technology.
 
 The ambition is durable. Versions remain bounded. We do not call an attractive demo a pilot, or call a connected pilot production-ready before its release gates pass.
+
+## The relationship is the product
+
+Discovery → enquiry → consultation → booking → forms/policy → deposit → visit → retail → feedback/aftercare → rebook → membership → referral. A person can change practitioners, pause, lapse and return without losing their history. V1 proves a subset of that lifecycle; later modules join the same identity and events. The graph is a strategic hypothesis to validate, not a claimed moat.
+
+The signature screen is a client timeline that helps a professional understand the next visit and an owner understand the relationship. Ordinary preferences, receipts, explicit referrals and purpose-specific communication belong together. Health details and clinical photographs belong to a separately qualified programme.
+
+## The experience we are pursuing
+
+The feeling is **everything is under control**. Today answers what needs attention, what opportunity deserves review and what work was actually completed. Calendar keeps the schedule legible; a compact appointment preview opens from the right. Clients holds the relationship. Inbox belongs in the compact five-item navigation once it has real purpose/consent and delivery authority. Business explains outcomes with their sources.
+
+Branded booking belongs to the business: useful available times, optional practitioner preference, clear prices and policies, no mandatory app or consumer account, no competing-business promotion. Intelligence should appear naturally as evidence and a proposed next step. A command field can grow from search into analysis and authorised actions.
+
+The three visual expressions are Quiet Luxury, Modern Editorial and After Dark, interpreted under the later requirement for weight and permanence. The third serves guest/marketing contexts, not the primary operator workspace. No final direction has been approved.
+
+## Commercial and operational principles
+
+Preserve the source's affordable £29/£59/£99 and $29/$69/$119 monthly hypotheses for testing, not promises. Explain usage and payment costs, make migration and export credible, and avoid unexpected receptionist or fragmented core-feature charges. Distinctiveness has to survive a busy day, a cancellation, a disputed payment and an outage. A limited read-only daily snapshot is the intended offline continuity; it never pretends an offline payment or booking was confirmed.
+
+[Project context](PROJECT_CONTEXT.md) records source decisions and conflicts. [Research](RESEARCH.md), [PRD](PRD.md), [UX architecture](UX_ARCHITECTURE.md) and [roadmap](ROADMAP.md) turn this vision into bounded, testable delivery.

@@ -43,7 +43,7 @@ export function Agenda({
               <small>{a.bookedDurationMinutes} min</small>
             </span>
             <span className="agenda-client">
-              <Avatar small name={client.name} tone={staff.tone} />
+              <Avatar small identity={client.id} name={client.name} tone={staff.tone} />
               <span>
                 <strong>{client.name}</strong>
                 <small>{service.name}</small>

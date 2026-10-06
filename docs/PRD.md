@@ -1,6 +1,6 @@
 # SALEANE product contract
 
-**Contract version:** 0.2 · **Updated:** 6 October 2026 · **Markets:** United Kingdom and United States.
+**Contract revision:** 0.3 · **Updated:** 6 October 2026 · **Markets:** United Kingdom and United States.
 
 This is the build contract for core Saleane. Requirements distinguish the executable v0.2 foundation from production V1 acceptance. A completed local demo does not satisfy a server/provider/legal gate. Canonical brand spelling is **SALEANE**, without an accent.
 
@@ -211,3 +211,94 @@ The verification ledger names the environment and observed result. Missing evide
 Changing the durable identity, money model, clinical boundary, canonical name or authority model requires an architectural decision and reviewed migration. Normal interaction/layout improvements can proceed with equivalent accessibility and flow evidence.
 
 Open decisions: pilot studio, provider selections, verified guest identity, production tax/cancellation/retention policies, commission/contractor handling, licensed final wordmark, trademark/domain clearance and real customer usability findings. Resolve them in the roadmap order rather than building disconnected feature pages.
+
+## 13. Product bible context and release reconciliation
+
+Read [PROJECT_CONTEXT](PROJECT_CONTEXT.md) for the recovered conversation and [original PRD transcription](archive/ORIGINAL_PRD_TRANSCRIPTION.md). This contract fulfils the requested **PRD v0.1 product-bible stage**; its repository revision is 0.3, preserving the previous 0.2 contract history. Software and document versions do not certify one another.
+
+Initial ICP is **1–10 practitioners, 1–2 locations**, premium independent beauty/spa/wellness in UK and USA. The two-to-five-person single-location pilot is a proposed validation cohort. Core promise: reduce administration and make the relationship, day and money understandable without making the owner a software operator. Full payroll, insurance billing, EMR, consumer marketplace, website builder, accounting replacement, autonomous clinical advice and arbitrary workflow builders are not first-V1 scope.
+
+Earlier foundation P0 lists were broader than the later V1/V1.5/V2/V3 roadmap. The later staged direction governs release scope: forms/packages/memberships/inbox follow daily operations; retail/commissions and multi-location UI follow relationship authority; advanced intelligence follows trustworthy metrics. No original capability is treated as implemented because it appears in a document. Ordinary forms do not become a route for health data.
+
+## 14. Detailed operating contracts
+
+### Organisation, readiness and lifecycle
+
+An account is a person; a membership grants access to a particular organisation/location; a practitioner record describes delivery capability. They are different entities. A revoked membership must cease authorising reads, writes, exports and jobs immediately on the server. Prevent removal of the last owner. New organisations start with an explicit market, currency, IANA zone and non-clinical classification. Currency/zone changes require impact review and cannot reinterpret old events.
+
+Publish booking only after services, qualified people, resource capacity, opening hours, policy versions and required provider configuration pass readiness checks. Inactive services/staff/resources remain in history but cannot receive new allocations. If a proposed closure overlaps confirmed visits, show affected visits and require a resolution plan; never silently cancel them.
+
+### Scheduling
+
+Allocation reserves both staff and resource for treatment plus required turnaround. Working hours, breaks, holidays, capability, lead time, booking horizon and policy belong to the venue, with staff-specific overrides. A slot must fit wholly within the intersection. “No preference” selects an eligible available person with a deterministic, documented order and discloses the assignment before confirmation. Server revalidation can offer an alternative but cannot silently swap a named professional.
+
+A reschedule retains appointment ID, client, origin, price/duration/buffer/deposit snapshots and money history while appending old/new allocation, actor, reason and timestamp. It validates using the booked duration even if catalogue duration changed. Cancelled time is released; paid deposits remain in the ledger awaiting policy disposition. Cancelled/completed records cannot arrive or settle. No-show is distinct from cancellation and requires the scheduled visit to have passed. Recurrence, multi-service processing gaps and multiple practitioners are later extensions, not implied by one-service booking.
+
+### Relationships and lifecycle
+
+The timeline is a projection of visits, money, notes, consent, communications and explicit edges. It must link to a source object and identify the actor; correcting ordinary text preserves attribution. Never expose restricted fields by embedding them in an event description. A graph edge has type, provenance and correction history. Email/phone cannot automatically merge people or establish a household.
+
+Future lifecycle definitions: discovered/enquired require an explicit attributable enquiry; first visit and returned derive from completed visits; regular derives from a versioned cadence rule with adequate history; member requires an active contract; advocate derives from explicit referral evidence; VIP is an audited business designation. These can overlap and are not a mandatory linear funnel. A pause/opt-out suppresses outreach. “At risk” is an explainable operating hypothesis, never a health or personal-worth inference.
+
+### Money
+
+A sale is separate from money movement. Deposits are liabilities until applied or resolved; refunds, fees, tips, discounts and tax have their own reasons and references. Store currency, source amount, tax classification/version, inclusive/exclusive basis, rounding and policy on immutable sale lines. Front desk discount/refund authority has explicit limits. Cash and external-terminal recording need actor, method and reference; they are not provider-capture evidence.
+
+Pending, authorised, captured, failed, unknown, refunded and disputed outcomes must remain distinct. Idempotency binds tenant, actor/action and request fingerprint; reusing a key with different content is a conflict. Out-of-order webhooks cannot move a final refund back to captured. Disputed/late-captured deposits surface in reconciliation. Receipt delivery failure does not reverse a successful payment. Cancellation does not automatically prove deposit forfeiture is lawful.
+
+### Communication
+
+Each communication has client, purpose, channel, template/version, recipient, related visit, authority, attempt and delivery receipt. Appointment updates use approved operational templates; inserting a promotion changes the review. Check consent/suppression both when queued and immediately before dispatch. Retry provider calls only with durable idempotency and a bounded reconciliation policy. Queued, sent, delivered, bounced, suppressed and unknown are different states. “Done for you” counts verified outcomes, not queued intentions.
+
+### Daily brief and reporting
+
+Today shows the actual agenda, unresolved operational exceptions and source-linked opportunities. Empty sections explain an uneventful day without fabricated activity. The original illustrative “£4,000 below target” question belongs to later analysis backed by a target record, comparable period, location/currency, booked versus earned distinction and visible source rows. An estimate includes method, horizon and coverage; it is not guaranteed recovered revenue.
+
+Rebooking uses an explicit originating completed visit and a qualifying uncancelled successor. Retention is separately defined as a completed return in an agreed window. Utilisation denominator is actual bookable staff time after shifts/closures, with treatment and buffer occupancy reported separately. Cash reconciliation compares ledger captures/refunds/fees against provider statements by settlement period, not merely visit date.
+
+## 15. Additional requirement register
+
+Statuses below describe requirements not satisfied by the original 0.2 browser foundation. Read the changelog/evidence for subsequent implementation; production acceptance remains separate.
+
+| ID     | Contract / acceptance example                                                                                                | Priority and target | Current evidence boundary                                           |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------- |
+| ORG-03 | Revocation/session expiry denies next request; last owner cannot be removed; recovery links single-use                       | V1 / 0.3            | Specified; server draft unverified                                  |
+| CAL-04 | Hours, breaks, closures and archived capability constrain availability; closure lists affected visits                        | V1 / 0.4            | Specified                                                           |
+| CAL-05 | Move validates booked snapshot and leaves original unchanged on conflict; cancel releases allocation without erasing deposit | V1 / 0.4            | Specified, not implemented; local and server acceptance outstanding |
+| CLI-05 | Explain lifecycle/cadence criteria; sufficient-history threshold; pause excludes outreach                                    | V1.5                | Specified; current return rule remains simplified                   |
+| BKG-04 | No preference returns eligible available assignment; never exposes private schedule/client records                           | V1 / 0.4            | Specified                                                           |
+| BKG-05 | Signed/expiring own-booking link; tampered/foreign/revoked access denied; generic error                                      | V1 / 0.4            | Specified                                                           |
+| PAY-04 | Versioned tax/cancellation/deposit/receipt policies; change cannot rewrite a booked promise                                  | V1 / 0.5            | Specified                                                           |
+| BIZ-03 | Reconcile earned, collected, liabilities, tax, tips, refunds and fees with source coverage                                   | V1 / 0.5–0.6        | Specified; current report is simplified                             |
+| MIG-01 | Dry run → mapped/duplicate/rejected review → cutover → balanced reconciliation → rollback drill                              | V1 / 0.6            | Specified; actual exports needed                                    |
+| GOV-01 | Data/access audit, scoped export, retention and erasure exceptions; sensitive fields omitted from logs                       | V1 / 0.3–0.6        | Specified                                                           |
+| OFF-01 | Authorised minimum daily snapshot, visible age, no writes, clear on logout, revalidate on reconnect                          | V1 / 0.6            | Specified; localStorage demo is not this feature                    |
+| MSG-02 | Two-way thread, waitlist offers and channel suppression; actual delivery state                                               | V1.5                | Specified; V1 only qualified appointment updates                    |
+| REL-02 | Non-clinical forms and policy version; packages/memberships/gift-card opening/redemption/refund liabilities                  | V1.5                | Specified                                                           |
+| CAL-06 | Recurrence exceptions, multi-practitioner segments and calendar integration authority                                        | V2                  | Specified; source ideas preserved                                   |
+
+Screen/journey traceability lives in [UX_ARCHITECTURE](UX_ARCHITECTURE.md), particularly UX-01–38 and J-01–08. Each implementation change names requirement, failure case, automated evidence and browser evidence before promotion.
+
+## 16. Offline, data and operational acceptance
+
+OFF-01 is explicitly **read-only**. Cache only the authenticated role's approved daily fields: visit time, service, staff/room and minimum client/contact context needed for the day. Ordinary notes are opt-in and field-scoped; no clinical data, full money/export history or marketing lists. Show last successful sync and expiry, clear on logout/workspace change, avoid shared-device persistence by default, and document that offline revocation cannot be instantaneous. A bounded expiry, device policy and threat review are required before enabling persistence. Reconnect revalidates identity/role and replaces the snapshot before writes resume.
+
+Production import needs a manifest, immutable source mapping, dry-run counts/errors, reviewed duplicates, consent defaults, currency/time validation and explicit financial opening balances. Do not silently import unsupported liabilities or clinical records. Backups need measured restore evidence and an assigned incident responder; a successful file export alone is insufficient. No claimed recovery-time or uptime guarantee precedes infrastructure evidence.
+
+## 17. Validation and launch scorecard
+
+These are proposed acceptance targets for a supervised pilot, not measured performance or contractual promises:
+
+| Outcome                | Measurement / proposed criterion                                                                                                       | Evidence owner                     |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| First bookable service | Unassisted setup under 20 minutes with supplied business data; log help requests                                                       | Product                            |
+| Front-desk context     | Known client and next visit found within 15 seconds in representative data                                                             | UX                                 |
+| Booking                | At least 8/10 recruited participants finish phone booking without facilitator intervention; investigate every wrong-time/price outcome | UX                                 |
+| Scheduling correctness | Race last staff/room capacity, buffer boundary, closure and DST cases; zero invalid confirmed allocations                              | Engineering                        |
+| Checkout               | Deposit/tax/tip/refund scenarios reconcile exactly; no duplicate charge under retries/replays                                          | Engineering + finance              |
+| Migration              | Counts and monetary totals reconcile or have explicitly signed exceptions; rollback rehearsed                                          | Implementation                     |
+| Permissions            | Cross-tenant, revoked, front-desk/export and assigned-practitioner tests deny both read and write leaks                                | Engineering                        |
+| Continuity             | Outage state is unmistakable, offline writes blocked, restore succeeds with recorded duration                                          | Operations                         |
+| Relationship value     | Measure 30/90-day cohort returns, rebooking and support burden against a recorded baseline                                             | Product; no invented uplift target |
+
+Ten participants provide formative evidence, not statistical market validation. Pricing uses the preserved £/$ hypotheses in Research with real cost/usage scenarios. Final visual choice, pilot, provider and legal policies remain explicit decisions. These unknowns do not block bounded design or fictional-data engineering; they do block claims that the whole commercial product is production-ready.
