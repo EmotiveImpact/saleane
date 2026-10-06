@@ -1,0 +1,101 @@
+/* LOCAL-02: the guest's private manage page and the link shown after booking. */
+.guest-page {
+  min-height: 100dvh;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 28px;
+  padding: 40px 20px 56px;
+  background: var(--mineral);
+}
+.guest-card {
+  width: min(560px, 100%);
+  padding: 32px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.guest-card h1 {
+  margin: 10px 0 22px;
+  font-family: var(--font-editorial);
+  font-weight: 500;
+  font-size: 34px;
+}
+.guest-visit {
+  display: grid;
+  gap: 0;
+  margin: 0 0 22px;
+}
+.guest-visit > div {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.guest-visit dt {
+  color: var(--muted);
+}
+.guest-visit dd {
+  margin: 0;
+  display: grid;
+  justify-items: start;
+}
+.guest-visit small,
+.guest-footnote,
+.manage-link small {
+  color: var(--muted);
+}
+.guest-notice,
+.guest-confirm {
+  padding: 14px 16px;
+  margin-bottom: 18px;
+  border-radius: var(--radius);
+  background: var(--sage);
+}
+.guest-confirm p {
+  margin: 0 0 14px;
+}
+.guest-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.guest-footnote {
+  margin: 26px 0 0;
+  font-size: 14px;
+}
+.manage-link {
+  display: grid;
+  gap: 8px;
+  margin: 0 auto 28px;
+  text-align: left;
+}
+.manage-link input {
+  width: 100%;
+}
+@media (max-width: 480px) {
+  .guest-card {
+    padding: 22px 18px;
+  }
+  .guest-visit > div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+.guest-link-panel {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.guest-link-panel small {
+  color: var(--muted);
+}
+.guest-link-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

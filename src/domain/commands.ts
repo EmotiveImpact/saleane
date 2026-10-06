@@ -8,7 +8,7 @@ import { checkoutTotals } from './money'
 export { commandSchema } from './commandSchema'
 export type { Command, BookingInput, ContactInput } from './commandSchema'
 import type { Appointment, BusinessState, RelationshipEvent } from './model'
-import { addDays, dateLabel, timeLabel } from './format'
+import { addDays, dateLabel, money, timeLabel } from './format'
 
 const civilDate = z.iso.date()
 
@@ -390,12 +390,19 @@ export function execute(
         if (reason.length < 2 || reason.length > 300)
           throw new Error('Enter an operational reason between 2 and 300 characters.')
         appointment.status = status
+        const paid = depositPaid(s, appointment.id)
+        const deposit =
+          command.type === 'cancel' && command.deposit && paid
+            ? command.deposit === 'refund_due'
+              ? `Deposit of ${money(paid, org, true)} flagged for refund under the 24-hour cancellation policy. No refund has been made; record it in Money once returned. No message sent.`
+              : `Deposit of ${money(paid, org, true)} retained under the 24-hour cancellation policy. No fee, sale or message created.`
+            : 'Deposit history retained for review. No refund, fee, sale or message created.'
         addEvent({
           clientId: appointment.clientId,
           appointmentId: appointment.id,
           type: status,
           title: status === 'cancelled' ? 'Appointment cancelled' : 'Visit marked as missed',
-          detail: `${reason}. Deposit history retained for review. No refund, fee, sale or message created.`,
+          detail: `${reason}. ${deposit}`,
         })
       }
       recordId = appointment.id

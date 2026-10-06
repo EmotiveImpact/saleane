@@ -2,15 +2,26 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
-## Unreleased · Editable "Good to remember"
+## In review · LOCAL-02 guest manage and cancel
 
-**Status: draft for review, not released.**
+**Status: draft pull request, not merged.** Schema migration 3 adds `guest_links`. Live services stay unconfigured; nothing is emailed or refunded automatically.
+
+- A confirmed online booking returns a private link (`/manage#…`) shown on the confirmation page, labelled as not sent. The desk can create a new link for any upcoming visit from the appointment panel, which stops every earlier link, or stop all links.
+- A link is a random token stored only as a hash, scoped to one visit in one studio. It expires 120 days after issue or seven days after the visit starts, whichever is sooner, and every failure returns the same message. The token lives in the address fragment, so it is not sent in server requests' paths or Referer headers. Restoring a backup revokes all links.
+- The guest sees the treatment, time, professional's first name, status and any deposit recorded. No contact details, notes or other visits.
+- The guest can cancel while the visit is still upcoming. The user chose a 24-hour cutoff: cancelling earlier flags a paid deposit for refund, later keeps it. The guest sees which applies before confirming, and the server refuses if the terms changed in between. No refund payment is created; the studio records any refund in Money. The cancellation event says who cancelled and what happened to the deposit.
+- A replayed booking confirmation issues a fresh link and stops the earlier one. Rescheduling by the desk shows the new time on the same link.
+- Verified with lint, format check, strict TypeScript, builds and 218 tests (153 frontend/domain/store, 65 server, after merging the design pass), plus a Chromium journey. See `docs/evidence/LOCAL-02.md`.
+
+## 2026-10-06 · Merged · Editable "Good to remember"
+
+**Status: merged into main on 6 October 2026; not deployed.**
 
 - Owners, managers and reception can edit a client's "Good to remember" preferences in place on the client page, through the existing `client-edit` command, which records a "Client details updated" event. Practitioners still read preferences but cannot change them. Previously no screen could set preferences, so real studios always showed the empty state, and its wording pointed at the note form, which never changed this panel.
 
-## Unreleased · Design language library and design pass
+## 2026-10-06 · Merged · Design language library and design pass
 
-**Status: draft for review, not released.**
+**Status: merged into main on 6 October 2026; not deployed.**
 
 - Added the SALEANE design language library: tokens in `src/design/tokens.css` (palette, semantic colour, type scale with a 12px floor, spacing, shape, elevation), components exported from `src/design/`, a living library page at `/design-language` that reads tokens and checks contrast live, and [DESIGN_LANGUAGE.md](docs/DESIGN_LANGUAGE.md).
 - Brought in unstyled Radix Tabs, Toggle Group and Popover alongside Dialog. Manage sections are now tabs; reporting period, client segments, timeline filters and calendar view use one segmented control; metric definitions open in a popover.
@@ -21,9 +32,9 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - On phones the calendar shows a swipeable column per professional with free time written between visits.
 - Removed the coloured stripes on the left edge of calendar visits, phone calendar visits, errors, deposit reviews, preference notes, timeline money rows and visit steps. Tone now comes from the surface colour alone, and a test fails if a left-edge stripe is added again.
 
-## In review · Public booking hold protection
+## 2026-10-06 · Merged · Public booking hold protection
 
-**Status: draft pull request, stacked on the LOCAL-01 PR, not merged.** Schema migration 2 adds a `visitor` column to `booking_holds`. Live services stay unconfigured.
+**Status: merged into main on 6 October 2026; not deployed.** Schema migration 2 adds a `visitor` column to `booking_holds`. Live services stay unconfigured.
 
 - Holds still lapse after five minutes. One visitor now keeps at most two unbooked holds per studio: a new hold replaces their oldest, and the booking page hands back its previous hold when a guest picks again.
 - Hold creation has its own limits per address (six a minute, thirty an hour) on top of the existing public write limit.
@@ -31,9 +42,9 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Optional Cloudflare Turnstile bot check, off by default, switched on in Manage under business details. It needs `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` on the server; without them the setting is refused. Tokens are verified server side before any write and fail closed if Cloudflare cannot be reached.
 - Verified with lint, format check, strict TypeScript, builds and 198 tests (138 frontend/domain/store, 60 server), plus a Chromium pass on the built server. See `docs/evidence/HOLD-PROTECTION.md`.
 
-## In review · LOCAL-01 assigned-practitioner access
+## 2026-10-06 · Merged · LOCAL-01 assigned-practitioner access
 
-**Status: draft pull request, stacked on the server groundwork PR, not merged.** No schema migration (the membership and invitation tables already carried `staff_id`); live services stay unconfigured.
+**Status: merged into main on 6 October 2026; not deployed.** No schema migration (the membership and invitation tables already carried `staff_id`); live services stay unconfigured.
 
 - A practitioner invitation must name one active professional, and no two team members can work as the same professional. The owner chooses the professional when inviting or changing someone's role in Manage.
 - A practitioner's workspace read returns a separate practitioner record from `server/projections.ts`, never the studio record: their own visits from two weeks back to four weeks ahead (service, room, time, status) and, for clients in those visits only, a name, preferences and the latest 20 relationship notes. No email, phone, consent, prices, deposits, receipts, payments, other professionals' diaries, catalogue or settings.
@@ -42,18 +53,18 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Practitioners sign in to a new "Your day" screen at `/practice/:studio` with its own retry journal. The studio workspace refuses a practitioner record rather than filling gaps.
 - Verified with lint, format check, strict TypeScript, builds and 182 tests (137 frontend/domain/store, 45 server), plus a Chromium journey: invitation, sign-up, own day, welcome, note, owner sees the note, desktop and 390px. See `docs/evidence/LOCAL-01.md`.
 
-## In review · Server groundwork for practitioner access
+## 2026-10-06 · Merged · Server groundwork for practitioner access
 
-**Status: draft pull request, stacked on the hardening PR, not merged.** No API contract, schema or behaviour change.
+**Status: merged into main on 6 October 2026; not deployed.** No API contract, schema or behaviour change.
 
 - `server/app.ts` (about 1,050 lines) is split into request checks and dispatch (`app.ts`), shared authority helpers (`context.ts`), HTTP utilities (`http.ts`) and three route modules (`routes/auth.ts`, `routes/workspace.ts`, `routes/public.ts`). The moved code is otherwise unchanged.
 - `database.ts` runs numbered, forward-only migrations. Each step commits with its version record, a failed step rolls back to the last good version, and a database written by an unknown version is refused. Backup validation follows the same version list.
 - `projections.ts` is the single place a signed-in workspace record leaves the server, for both workspace reads and command responses. Practitioners are still refused; LOCAL-01 adds their assigned-visit view there.
 - Verified with lint, format check, strict TypeScript, builds and 172 tests (133 frontend/domain/store, 39 server including new migration and projection tests).
 
-## In review · Version 1 hardening
+## 2026-10-06 · Merged · Version 1 hardening
 
-**Status: draft pull request, not merged.** Small fixes from the version 1 codebase review; no visual redesign, schema change or live service.
+**Status: merged into main on 6 October 2026; not deployed.** Small fixes from the version 1 codebase review; no visual redesign, schema change or live service.
 
 - One checkout calculation (`src/domain/money.ts`) now produces both the checkout preview and the recorded receipt, so the two cannot drift.
 - Typed amounts convert to minor units by string parsing. More than two decimals is rejected with a clear message instead of being rounded silently. Tip presets now stay selected for prices whose percentage has a part penny (for example 15% of £85.50).
