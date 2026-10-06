@@ -1,6 +1,7 @@
 import type { BusinessState, RelationshipEvent } from './model'
 import type { OperatingCommand } from './commandSchema'
-import { businessDate, hoursFor, operations, staffHoursFor, stock } from './operations'
+import { SCHEDULE_HISTORY_LIMIT, operations, stock } from './operations'
+import { assertSchedulePreserved, scheduleChanges, scheduleSnapshot } from './schedule'
 
 export function assertMethod(s: BusinessState, method: string, reference?: string) {
   const sandbox = operations(s).mode === 'sandbox'
@@ -15,38 +16,6 @@ export function assertMethod(s: BusinessState, method: string, reference?: strin
       'Enter the external terminal receipt reference. SALEANE has not charged the card.',
     )
 }
-export function assertSchedulePreserved(s: BusinessState, now: string) {
-  const o = operations(s)
-  for (const a of s.appointments.filter(
-    (a) => ['confirmed', 'arrived'].includes(a.status) && a.date >= businessDate(s, now),
-  )) {
-    const person = s.staff.find((p) => p.id === a.staffId)!
-    const resource = s.resources.find((r) => r.id === a.resourceId)!
-    const h = hoursFor(s, a.date),
-      ph = staffHoursFor(s, a.staffId, a.date)
-    const end = a.startMinutes + a.bookedDurationMinutes + a.bookedBufferMinutes
-    if (
-      person.archived ||
-      resource.archived ||
-      !person.serviceIds.includes(a.serviceId) ||
-      h.closed ||
-      ph.closed ||
-      a.startMinutes < Math.max(h.open, ph.open) ||
-      end > Math.min(h.close, ph.close) ||
-      (a.bookedResourceType && resource.type !== a.bookedResourceType) ||
-      o.closures.some(
-        (c) =>
-          c.date === a.date &&
-          (!c.staffId || c.staffId === a.staffId) &&
-          a.startMinutes < c.endMinutes &&
-          end > c.startMinutes,
-      )
-    )
-      throw new Error(
-        'This change would conflict with an upcoming appointment. Move or cancel the affected visit first.',
-      )
-  }
-}
 export function runOperatingCommand(
   next: BusinessState,
   command: OperatingCommand,
@@ -56,6 +25,11 @@ export function runOperatingCommand(
     event: Omit<RelationshipEvent, 'id' | 'organisationId' | 'occurredAt' | 'actor'>,
   ) => void,
 ) {
+  const scheduling = ['hours', 'closure', 'remove-closure', 'staff', 'resource'].includes(
+    command.type,
+  )
+  // Taken before any change so the schedule check and its history compare like with like.
+  const before = scheduling ? scheduleSnapshot(next) : next
   next.operations = structuredClone(operations(next))
   const o = next.operations,
     scope = { organisationId: next.organisation.id }
@@ -77,12 +51,10 @@ export function runOperatingCommand(
     recordId = next.organisation.id
   } else if (command.type === 'hours') {
     o.hours = command.hours
-    assertSchedulePreserved(next, now)
     recordId = next.organisation.locationId
   } else if (command.type === 'closure') {
     const closure = { ...command.input, id: makeId() }
     o.closures.push(closure)
-    assertSchedulePreserved(next, now)
     recordId = closure.id
   } else if (command.type === 'remove-closure') {
     if (!o.closures.some((c) => c.id === command.closureId)) throw new Error('Closure not found.')
@@ -110,16 +82,43 @@ export function runOperatingCommand(
       if (old) Object.assign(old, record)
       else next.services.push({ ...command.input, ...scope, id: record.id })
     } else if (command.type === 'staff') {
-      if (old) Object.assign(old, record)
-      else next.staff.push({ ...command.input, ...scope, id: record.id })
-      assertSchedulePreserved(next, now)
+      if (old) {
+        Object.assign(old, record)
+        // Without hours of their own, a professional follows the venue opening hours.
+        if (!command.input.hours) delete (old as { hours?: unknown }).hours
+      } else next.staff.push({ ...command.input, ...scope, id: record.id })
     } else {
       if (old) Object.assign(old, record)
       else next.resources.push({ ...command.input, ...scope, id: record.id })
-      assertSchedulePreserved(next, now)
     }
     recordId = record.id
-  } else if (command.type === 'tax') {
+  }
+  if (
+    command.type === 'organisation' ||
+    command.type === 'hours' ||
+    command.type === 'closure' ||
+    command.type === 'remove-closure' ||
+    command.type === 'service' ||
+    command.type === 'staff' ||
+    command.type === 'resource'
+  ) {
+    if (scheduling) {
+      // Removing time away only frees time, so it can never strand a visit.
+      if (command.type !== 'remove-closure') assertSchedulePreserved(before, next, now)
+      const entries = scheduleChanges(before, next, command, recordId).map((entry) => ({
+        ...entry,
+        id: makeId(),
+        occurredAt: now,
+        actor: o.mode === 'sandbox' ? 'Maya · demo operator' : 'Local operator',
+      }))
+      if (entries.length)
+        o.scheduleHistory = [...(o.scheduleHistory ?? []), ...entries].slice(
+          -SCHEDULE_HISTORY_LIMIT,
+        )
+    }
+    return recordId
+  }
+  if (command.type === 'tax') {
     o.tax = { label: command.label, rateBps: command.rateBps, inclusive: command.inclusive }
     recordId = next.organisation.id
   } else if (command.type === 'message') {

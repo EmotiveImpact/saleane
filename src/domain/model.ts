@@ -345,6 +345,29 @@ export function parseState(value: unknown, region: Region): BusinessState {
       )
         throw new Error('Invalid communication or consent.')
     }
+    const history = o.scheduleHistory ?? []
+    if (new Set(history.map((r) => r.id)).size !== history.length)
+      throw new Error('Duplicate schedule history IDs.')
+    for (const change of history) {
+      const week = (value: unknown) => Array.isArray(value)
+      const shapeFits =
+        change.kind === 'hours'
+          ? week(change.before) && week(change.after)
+          : change.kind === 'staff-hours'
+            ? [change.before, change.after].every((v) => v === null || week(v))
+            : change.kind === 'closure-added'
+              ? change.before === null && !!change.after && 'date' in change.after
+              : change.kind === 'closure-removed'
+                ? !!change.before && 'date' in change.before && change.after === null
+                : [change.before, change.after].every((v) => !!v && 'archived' in v)
+      // Professionals and rooms are archived, never deleted, so their history keeps its link.
+      const subjectFits = change.kind.startsWith('staff')
+        ? !!change.subjectId && exists(s.staff, change.subjectId)
+        : change.kind.startsWith('resource')
+          ? !!change.subjectId && exists(s.resources, change.subjectId)
+          : true
+      if (!shapeFits || !subjectFits) throw new Error('Invalid schedule history.')
+    }
     for (const refund of o.refunds)
       if (!exists(s.sales, refund.saleId)) throw new Error('Missing refunded receipt.')
     for (const sale of s.sales)

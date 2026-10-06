@@ -24,6 +24,37 @@ export const closureInputSchema = z
     reason: z.string().trim().min(2).max(150),
   })
   .refine((c) => c.endMinutes > c.startMinutes, 'A closure must end after it starts.')
+export const SCHEDULE_HISTORY_LIMIT = 500
+const scheduleValueSchema = z.union([
+  weeklyHoursSchema,
+  closureInputSchema.and(z.object({ id })),
+  z.object({ archived: z.boolean() }),
+])
+/**
+ * LOCAL-04: who changed the schedule, when, and what it was before and after. Optional so older
+ * records still load, and bounded so a busy studio keeps the latest changes only.
+ */
+export const scheduleChangeSchema = z.object({
+  id,
+  occurredAt: z.iso.datetime(),
+  actor: z.string(),
+  kind: z.enum([
+    'hours',
+    'staff-hours',
+    'closure-added',
+    'closure-removed',
+    'staff-archived',
+    'staff-restored',
+    'resource-archived',
+    'resource-restored',
+  ]),
+  /** The professional, room or closure the change was about; absent for venue hours. */
+  subjectId: id.optional(),
+  summary: z.string().min(1).max(2000),
+  /** Null means "nothing" (a new closure) or, for a professional's hours, "the venue's hours". */
+  before: scheduleValueSchema.nullable(),
+  after: scheduleValueSchema.nullable(),
+})
 export const messageInputSchema = z.object({
   clientId: id,
   appointmentId: id.optional(),
@@ -77,6 +108,7 @@ export const operationsSchema = z.object({
       actor: z.string(),
     }),
   ),
+  scheduleHistory: z.array(scheduleChangeSchema).max(SCHEDULE_HISTORY_LIMIT).optional(),
   tax: z
     .object({
       label: z.string().max(40),

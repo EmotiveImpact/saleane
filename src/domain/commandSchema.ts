@@ -124,6 +124,8 @@ export const commandSchema = z.discriminatedUnion('type', [
     type: z.literal('cancel'),
     appointmentId: id,
     reason: z.string().trim().min(2).max(300),
+    // Set only when the guest cancels through their private link (LOCAL-02).
+    deposit: z.enum(['refund_due', 'retained']).optional(),
   }),
   z.object({
     type: z.literal('no-show'),
