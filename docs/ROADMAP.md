@@ -44,7 +44,11 @@ Reviewed on 6 October 2026 against Mindbody ([comparison](https://claude.ai/arti
 2. **A narrow missed-call text-back arrives in V1.5**, well before the full V4 concierge. When a call is missed, the client receives a consented text with the studio's booking link. It needs a qualified SMS provider, purpose/channel consent and delivery receipts; it never claims a message was sent without a receipt.
 3. **No marketplace remains a firm rule.** No consumer marketplace, commission on clients or competitor promotion.
 4. **Fair discovery is an idea to validate:** booking straight from Google search and an Instagram booking button, both landing on the studio's own branded booking.
-5. **Steer away from** class timetables and gym features, feature sprawl, locked pricing tiers, long contracts and exit fees.
+5. **One promise, shown in ordinary work:** "SALEANE helps a small, high-touch studio run every visit well, and turn good visits into lasting client relationships." Every feature should show up in one of four moments: before the visit (the right practitioner and room, preferences easy to find), during the day (delays, changes and open tasks visible without searching), at checkout (payment, balances and the next visit connected) and afterwards (who needs attention, why, and the permitted next step).
+6. **A signature workflow to aim for: from cancellation to filled slot.** A cancellation identifies the free practitioner and room, finds suitable consenting clients, lets the team approve an invitation and measures whether the slot was filled. This is a V1.5 target built on the waitlist, consent and delivery receipts, not a shipped capability.
+7. **Keep navigation focused.** Today, Calendar, Clients, Inbox and Business stay the main sections; new modules live inside them rather than adding to the sidebar.
+8. **The test that matters:** can one real studio run its day with less effort, fewer mistakes and better continuity for its clients than with its current software? Mindbody stays a serious benchmark, but the pilot is judged on this.
+9. **Steer away from** class timetables and gym features, feature sprawl, locked pricing tiers, long contracts and exit fees.
 
 ## Ideas to validate, rather than commitments
 

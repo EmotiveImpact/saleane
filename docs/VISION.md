@@ -75,7 +75,7 @@ The three visual expressions are Quiet Luxury, Modern Editorial and After Dark, 
 
 ## Where SALEANE competes
 
-SALEANE shares the category's basic jobs with Mindbody, Fresha, Boulevard, Mangomint and Phorest. It aims to be the product a small premium studio chooses because it is easier to learn, fairer on price, better at remembering each client and more beautiful to use every day. Mindbody's strengths in memberships and always-on reply to missed calls are worth matching; its class focus, marketplace commission, locked tiers and exit fees are not. See the [roadmap](ROADMAP.md#competitive-position).
+SALEANE shares the category's basic jobs with Mindbody, Fresha, Boulevard, Mangomint and Phorest. Its promise: SALEANE helps a small, high-touch studio run every visit well, and turn good visits into lasting client relationships. It aims to be the product a small premium studio chooses because it is easier to learn, fairer on price, better at remembering each client and more beautiful to use every day. Mindbody's strengths in memberships and always-on reply to missed calls are worth matching; its class focus, marketplace commission, locked tiers and exit fees are not. See the [roadmap](ROADMAP.md#competitive-position).
 
 ## Commercial and operational principles
 
