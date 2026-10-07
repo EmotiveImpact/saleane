@@ -15,6 +15,8 @@ import {
   Mail,
 } from 'lucide-react'
 import { useStore } from './state/context'
+import { useStudioColours } from './state/studioColours'
+import { operations } from './domain/operations'
 import { Avatar, Modal } from './design'
 import { SearchDialog } from './components/SearchDialog'
 import { WorkspaceSettings } from './components/WorkspaceSettings'
@@ -61,6 +63,8 @@ function WorkspaceApp() {
   const [search, setSearch] = useState(false)
   const [settings, setSettings] = useState(false)
   const [mobileNav, setMobileNav] = useState(false)
+  useStudioColours(state.organisation.id)
+  const drafts = operations(state).messages.filter((m) => m.status === 'draft').length
   useEffect(() => {
     document.title = `SALEANE — ${state.organisation.name}`
   }, [state.organisation.name])
@@ -133,8 +137,14 @@ function WorkspaceApp() {
               key={to}
               to={to}
             >
-              <Icon size={19} strokeWidth={1.65} />
+              <Icon size={19} strokeWidth={1.6} />
               {label}
+              {to === '/inbox' && drafts > 0 && (
+                <span className="nav-count">
+                  {drafts}
+                  <span className="sr-only"> {drafts === 1 ? 'draft' : 'drafts'} to approve</span>
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>
@@ -144,7 +154,7 @@ function WorkspaceApp() {
             className="sidebar-photo"
             aria-label="Preview your studio’s booking experience"
           >
-            <img src="/images/saleane-studio-warm.png" alt="" />
+            <img src="/images/saleane-studio-warm-small.jpg" alt="" />
           </Link>
           <Link to="/booking" className="public-booking-link">
             <span>Your booking page</span>

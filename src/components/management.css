@@ -11,7 +11,7 @@
   padding: 15px 18px;
   margin-bottom: 24px;
   background: var(--sage);
-  border: 1px solid #d5decd;
+  border: 1px solid var(--line2);
   border-radius: var(--radius);
   color: var(--ink);
   font-size: var(--text-small);
@@ -21,7 +21,7 @@
 }
 .ops-banner strong {
   display: block;
-  font-weight: 650;
+  font-weight: var(--weight-strong);
 }
 .ops-banner p {
   margin-top: 3px;
@@ -55,14 +55,14 @@
 }
 .ops-aside {
   padding: 22px;
-  background: #f1f1e9;
+  background: var(--stone);
   border: 1px solid var(--line);
   border-radius: var(--radius);
 }
 .ops-aside h2 {
   font-family: var(--font-editorial);
   font-size: var(--text-title-m);
-  font-weight: 450;
+  font-weight: var(--weight-editorial);
 }
 .ops-aside p {
   margin-top: 13px;
@@ -89,11 +89,11 @@
   gap: 7px;
   min-width: 0;
   font-size: var(--text-small);
-  font-weight: 600;
+  font-weight: var(--weight-strong);
 }
 .ops-fields small,
 .ops-field small {
-  font-weight: 400;
+  font-weight: var(--weight-body);
   color: var(--muted);
 }
 .ops-wide {
@@ -109,7 +109,7 @@
   margin-top: 23px;
 }
 .ops-save-note {
-  color: #36573e;
+  color: var(--brand-ink);
   font-size: var(--text-small);
 }
 .ops-count {
@@ -155,7 +155,7 @@
   color: var(--muted);
 }
 .ops-record-money {
-  font-weight: 650;
+  font-weight: var(--weight-strong);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -172,7 +172,7 @@
   padding: 4px 8px;
   border-radius: 4px;
   font-size: var(--text-micro);
-  font-weight: 600;
+  font-weight: var(--weight-strong);
   white-space: nowrap;
 }
 .ops-tag.is-active {
@@ -191,7 +191,7 @@
 .ops-checks legend {
   padding: 0 5px;
   font-size: var(--text-small);
-  font-weight: 600;
+  font-weight: var(--weight-strong);
 }
 .ops-checks label,
 .ops-check {
@@ -200,7 +200,7 @@
   align-items: flex-start;
   gap: 10px;
   font-size: var(--text-small);
-  font-weight: 400;
+  font-weight: var(--weight-body);
   padding: 7px 0;
 }
 .ops-checks input,
@@ -255,7 +255,7 @@
   display: block;
   margin: 5px 0;
   font-size: 28px;
-  font-weight: 600;
+  font-weight: var(--weight-strong);
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
@@ -327,7 +327,7 @@
 }
 .ops-receipt .ops-total {
   font-size: var(--text-title-s);
-  font-weight: 650;
+  font-weight: var(--weight-strong);
   padding-top: 17px;
 }
 .ops-no-records {
@@ -337,7 +337,7 @@
 .ops-no-records h3 {
   font-family: var(--font-editorial);
   font-size: 25px;
-  font-weight: 450;
+  font-weight: var(--weight-editorial);
 }
 .ops-no-records p {
   color: var(--muted);
@@ -368,7 +368,7 @@
 }
 .ops-impact strong {
   display: block;
-  font-weight: 650;
+  font-weight: var(--weight-strong);
 }
 .ops-impact p {
   margin-top: 3px;
@@ -386,7 +386,7 @@
 }
 .ops-impact a {
   color: var(--ink);
-  font-weight: 600;
+  font-weight: var(--weight-strong);
   text-decoration: underline;
   text-underline-offset: 3px;
   overflow-wrap: anywhere;
@@ -404,7 +404,7 @@
   gap: 5px;
   padding: 0;
   font-size: var(--text-micro);
-  font-weight: 600;
+  font-weight: var(--weight-strong);
 }
 .ops-history {
   margin: 0;
@@ -517,7 +517,7 @@
   color: var(--muted);
   font-family: var(--font-display);
   font-size: var(--text-micro);
-  font-weight: 650;
+  font-weight: var(--weight-strong);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   font-variant-numeric: tabular-nums;
@@ -546,7 +546,7 @@
   display: block;
 }
 .receipt-row-copy strong {
-  font-weight: 600;
+  font-weight: var(--weight-strong);
 }
 .receipt-row-copy small {
   margin-top: 1px;

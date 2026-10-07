@@ -1,16 +1,44 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, ArrowUpRight, Plus, Leaf, Printer, Sun } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, Plus, Leaf, Printer } from 'lucide-react'
 import { useStore } from '../state/context'
 import { availableMinutes, bookedTimeShare, dayAppointments, dueClients } from '../domain/selectors'
 import { bookedTimeDefinition } from '../components/definitions'
 import { slots } from '../domain/commands'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
-import { Avatar, Button, Metric, PageHeader } from '../design'
+import { Avatar, Button, Metric } from '../design'
+import { businessMinutes } from '../domain/operations'
+import type { Appointment, Client } from '../domain/model'
 import { Agenda } from '../components/Agenda'
 import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
 import type { BookingDefaults } from '../components/BookingDialog'
+
+function greeting(minutes: number) {
+  if (minutes < 12 * 60) return 'Good morning'
+  if (minutes < 17 * 60) return 'Good afternoon'
+  return 'Good evening'
+}
+
+const counts = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten']
+const spell = (n: number) => counts[n] ?? String(n)
+
+/** One calm sentence about the day, built only from what the calendar records. */
+function daySummary(day: Appointment[], clients: Client[], all: Appointment[]) {
+  if (!day.length) return 'Nothing is booked today yet. Open time is ready for whoever comes next.'
+  const guests = new Set(day.map((a) => a.clientId))
+  const firstVisits = [...guests].filter(
+    (id) => !all.some((a) => a.clientId === id && a.status === 'completed' && !day.includes(a)),
+  ).length
+  const inRoom = day.find((a) => a.status === 'arrived')
+  const name = inRoom && clients.find((c) => c.id === inRoom.clientId)?.name.split(' ')[0]
+  const people = `${spell(guests.size)} ${guests.size === 1 ? 'guest' : 'guests'} today`
+  const fresh = firstVisits
+    ? `, ${firstVisits === guests.size ? 'all' : spell(firstVisits).toLowerCase()} of them new`
+    : ''
+  const now = name ? ` ${name} is in the studio now.` : ''
+  return `${people}${fresh}.${now}`
+}
 
 export function Today() {
   const { state, today, session } = useStore()
@@ -36,29 +64,30 @@ export function Today() {
   const utilisation = Math.round(bookedTimeShare(state, today) * 100)
   return (
     <>
-      <PageHeader
-        variant="editorial"
-        eyebrow={
-          <>
-            <Sun size={16} />
-            {dateLabel(today, state.organisation.locale)}
-          </>
-        }
-        title={session ? `Welcome, ${session.user.name.split(' ')[0]}.` : 'A good day begins here.'}
-        description="Everything you need to give today your best."
-        actions={
-          <>
-            <Link className="button button-secondary" to="/day-sheet">
-              <Printer size={16} />
-              Day sheet
-            </Link>
+      <section className="greeting" aria-labelledby="greeting-title">
+        <div className="greeting-copy">
+          <p className="eyebrow">{dateLabel(today, state.organisation.locale)}</p>
+          <h1 id="greeting-title">
+            {greeting(businessMinutes(state))}
+            {session ? `, ${session.user.name.split(' ')[0]}.` : '.'}
+          </h1>
+          <p className="greeting-summary">{daySummary(day, state.clients, state.appointments)}</p>
+          <div className="page-actions">
             <Button onClick={() => setBooking({ date: today })}>
               <Plus size={17} />
               New appointment
             </Button>
-          </>
-        }
-      />
+            <Link className="button button-secondary" to="/calendar">
+              Open calendar
+            </Link>
+            <Link className="button button-quiet" to="/day-sheet">
+              <Printer size={16} />
+              Day sheet
+            </Link>
+          </div>
+        </div>
+        <div className="greeting-photo" aria-hidden="true" />
+      </section>
       <div className="metrics-band">
         <Metric
           label="Booked for today"
@@ -121,6 +150,7 @@ export function Today() {
             appointments={hideCompleted ? day.filter((a) => a.status !== 'completed') : day}
             selectedId={appointmentId}
             onOpen={setAppointmentId}
+            nowMinutes={businessMinutes(state)}
           />
           {changed.length > 0 && (
             <Link className="day-changes-link" to="/calendar">

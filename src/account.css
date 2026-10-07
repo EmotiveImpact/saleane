@@ -45,7 +45,7 @@
   letter-spacing: -0.035em;
   font-size: clamp(40px, 4.5vw, 72px);
   line-height: 1.06;
-  font-weight: 450;
+  font-weight: var(--weight-editorial);
   margin: 20px 0;
 }
 .account-story p {
@@ -82,7 +82,7 @@
 .account-main label small {
   font-size: var(--text-micro);
   color: var(--muted);
-  font-weight: 400;
+  font-weight: var(--weight-body);
 }
 .account-actions {
   display: flex;
@@ -131,7 +131,7 @@
 }
 .account-workspaces button:hover {
   border-color: var(--ink);
-  background: #f4f5ef;
+  background: var(--stone);
 }
 .business-subnav {
   display: flex;
@@ -148,7 +148,7 @@
 .business-subnav a.active {
   color: var(--ink);
   border-bottom: 2px solid var(--ink);
-  font-weight: 600;
+  font-weight: var(--weight-strong);
 }
 .workspace-connect {
   display: grid;

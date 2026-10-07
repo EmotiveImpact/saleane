@@ -129,7 +129,7 @@ export function Account() {
           <p>Your people, appointments and client relationships, remembered together.</p>
         </div>
         <img
-          src="/images/saleane-studio-warm.png"
+          src="/images/saleane-studio-warm.jpg"
           alt="A calm fictional studio with natural light"
         />
         <small>Local V1 workspace · payments and email not connected</small>

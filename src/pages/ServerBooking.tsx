@@ -287,7 +287,7 @@ function BookingFlow({
         <aside className="booking-story">
           <img
             className="booking-story-image"
-            src="/images/saleane-studio-warm.png"
+            src="/images/saleane-studio-warm.jpg"
             alt="A fictional studio in warm natural light"
           />
           <div className="booking-story-copy">

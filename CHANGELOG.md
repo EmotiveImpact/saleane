@@ -2,6 +2,21 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## In review · The new look: fonts, studio colours and a Clients directory for hundreds
+
+**Status: built on the design tightening pass below, not merged, not deployed.** Look and wording only; bookings, money and messages behave as before. The Inbox layout is unchanged while a layout is chosen.
+
+- New type: Figtree for all working text (360 body, 460 menu, 560 emphasis) and a light serif for headings and names. Financier Display Light is the chosen heading font, but its licence is not bought, so the committed code uses the free Newsreader at 300, then Georgia. Bodoni Moda, Source Sans 3 and Manrope are removed.
+- A warm off-white ground, a warm sidebar, white cards with 20px corners, pill buttons and a sticky, translucent top bar. No dark panels: the Business insight card is now light.
+- Studio colours: owners and managers pick a first and second colour in workspace settings (six and five presets, sage and soft rose by default). Buttons, selection, focus, the now line, counts and tags follow them. Every preset keeps white button text and coloured text at WCAG AA. **The choice is saved in this browser only** until studio settings are stored on the server.
+- Today opens with a greeting card ("Good morning, …", how many guests are in today and who is in the studio now) beside a light studio photograph. Completed visits fade and a rose line marks the current time in the agenda.
+- Clients is a directory built for hundreds: counts for All, Ready to return, New this month, Booked this week and Email marketing on; search by name, phone or email (a UK number typed with its leading 0 still matches); sort by most recent visit, name, visits or spend; 25 per page with "Showing 1 to 25 of N". Checked with 412 fictional clients brought in through Import clients. The query is shaped so the server can answer it page by page once clients live in Postgres.
+- A client's page opens with their portrait, "Client since …, usually every N weeks", their next visit (or "Book next visit"), four figures, and a year of visits as dots.
+- The Inbox menu item shows a rose count of drafts waiting for approval.
+- Lighter, sunlit photographs in JPEG (242 KB and 48 KB) replace the larger PNG on the workspace, sign-in and booking pages.
+- The design library page now resolves colours mixed with `color-mix()` before measuring contrast, and lists the studio colours.
+- Tests: four new directory tests (paging 412 clients, search, agreement with Today's "ready to return", sorting). The offline day sheet test now accepts a date before the saved time, which it shows when the computer's date differs from the studio's; it failed on main for the same reason.
+
 ## In review · Design tightening pass and faster flows
 
 **Status: draft pull request, not merged.** Look and wording only; bookings, money and messages behave as before.

@@ -11,10 +11,13 @@
   margin-bottom: var(--space-6);
   align-items: flex-end;
 }
+.page-heading .eyebrow {
+  margin-bottom: var(--space-3);
+}
 .page-heading-compact h1 {
-  font-size: var(--text-title-compact);
-  letter-spacing: -0.03em;
-  line-height: 1.2;
+  font-size: var(--text-display);
+  letter-spacing: -0.02em;
+  line-height: 1.05;
 }
 .page-heading.page-heading-compact h1 + p {
   margin-top: var(--space-1);
@@ -85,7 +88,7 @@
 }
 .segmented-underline .segmented-item[data-state='on'] {
   color: var(--ink);
-  font-weight: 600;
+  font-weight: var(--weight-strong);
   border-color: var(--ink);
 }
 .segmented-pill,
@@ -100,7 +103,7 @@
   min-height: 34px;
   padding: 6px 12px;
   border-radius: var(--radius-inner);
-  font-weight: 600;
+  font-weight: var(--weight-strong);
 }
 .segmented-icon .segmented-item {
   display: flex;
@@ -115,6 +118,31 @@
 .segmented-icon .segmented-item[data-state='on'] {
   background: var(--ink);
   color: var(--paper);
+}
+.segmented-chips {
+  gap: var(--space-2);
+}
+.segmented-chips .segmented-item {
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-pill);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: var(--text-meta);
+}
+.segmented-chips .segmented-item .chip-count {
+  color: var(--muted);
+  margin-left: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.segmented-chips .segmented-item[data-state='on'] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+.segmented-chips .segmented-item[data-state='on'] .chip-count {
+  color: color-mix(in srgb, var(--paper) 72%, var(--ink));
 }
 .segmented-item:not([data-state='on']):hover {
   color: var(--ink);
@@ -138,7 +166,7 @@
   background: transparent;
   border-radius: var(--radius-control);
   padding: 10px var(--space-4);
-  font-weight: 600;
+  font-weight: var(--weight-strong);
   color: var(--muted);
 }
 .tabs-trigger:hover {
@@ -157,6 +185,9 @@
     align-items: flex-start;
     gap: var(--space-3);
     margin-bottom: var(--space-5);
+  }
+  .page-heading .eyebrow {
+    margin-bottom: var(--space-3);
   }
   .page-heading-compact h1 {
     font-size: var(--text-title-m);

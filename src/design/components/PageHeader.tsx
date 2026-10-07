@@ -26,7 +26,9 @@ export function PageHeader({
   return (
     <div className={`page-heading page-heading-${variant}`}>
       <div>
-        {variant === 'editorial' && eyebrow && <p className="date-caption">{eyebrow}</p>}
+        {eyebrow && (
+          <p className={variant === 'editorial' ? 'date-caption' : 'eyebrow'}>{eyebrow}</p>
+        )}
         <Heading>{title}</Heading>
         {description && <p>{description}</p>}
       </div>

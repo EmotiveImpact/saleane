@@ -662,7 +662,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
             </p>
             <p>Booked prices, durations and deposits remain attached to the original visit.</p>
             <img
-              src="/images/saleane-studio-warm.png"
+              src="/images/saleane-studio-warm.jpg"
               alt="Sunlit treatment studio with cream linens"
             />
           </aside>

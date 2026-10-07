@@ -102,7 +102,7 @@ export function BrandedBooking() {
         <aside className="booking-story">
           <img
             className="booking-story-image"
-            src="/images/saleane-studio-warm.png"
+            src="/images/saleane-studio-warm.jpg"
             alt="Sunlit treatment room with linen, natural stone and olive branches"
           />
           <div className="booking-story-copy">

@@ -126,7 +126,10 @@ describe('connected operator journeys', () => {
   it('finds a client and appends an ordinary relationship note', async () => {
     const user = userEvent.setup()
     show('/clients')
-    await user.type(screen.getByRole('searchbox', { name: 'Search clients' }), 'Amelia')
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search by name, phone or email' }),
+      'Amelia',
+    )
     await user.click(screen.getByRole('link', { name: /Amelia Carter/ }))
     await user.type(
       screen.getByRole('textbox', { name: 'Relationship note' }),
@@ -139,7 +142,10 @@ describe('connected operator journeys', () => {
   it('edits what is good to remember about a client in place', async () => {
     const user = userEvent.setup()
     show('/clients')
-    await user.type(screen.getByRole('searchbox', { name: 'Search clients' }), 'Amelia')
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search by name, phone or email' }),
+      'Amelia',
+    )
     await user.click(screen.getByRole('link', { name: /Amelia Carter/ }))
     await user.click(screen.getByRole('button', { name: 'Edit good to remember' }))
     const field = screen.getByRole('textbox', { name: 'Good to remember' })

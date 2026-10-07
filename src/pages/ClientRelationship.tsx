@@ -14,12 +14,12 @@ import {
   PencilLine,
 } from 'lucide-react'
 import { useStore } from '../state/context'
-import { clientStats } from '../domain/selectors'
+import { clientStats, usualWeeks } from '../domain/selectors'
 import { groupTimeline } from '../domain/timeline'
 import type { RelationshipEvent } from '../domain/model'
 import { can, instantFor, operations } from '../domain/operations'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
-import { Avatar, Button, Empty, ErrorMessage, Metric, SegmentedControl, Status } from '../design'
+import { Avatar, Button, Empty, ErrorMessage, SegmentedControl, Status } from '../design'
 import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
 import { ClientPrivacy } from '../components/Privacy'
@@ -100,6 +100,31 @@ export function ClientRelationship() {
       (a) => a.staffId === s.id && a.clientId === client.id && a.status === 'completed',
     ),
   )
+  const kept = state.appointments.filter(
+    (a) => a.clientId === client.id && a.status !== 'cancelled' && a.status !== 'no_show',
+  )
+  const firstVisit = kept.map((a) => a.date).sort()[0]
+  const completedDates = kept.filter((a) => a.status === 'completed').map((a) => a.date)
+  const rhythm = usualWeeks(completedDates)
+  const monthYear = new Intl.DateTimeFormat(state.organisation.locale, {
+    timeZone: 'UTC',
+    month: 'long',
+    year: 'numeric',
+  })
+  const yearStart = addDays(today, -364)
+  const yearVisits = kept
+    .filter((a) => a.status === 'completed' && a.date >= yearStart && a.date <= today)
+    .map((a) => {
+      const service = state.services.find((s) => s.id === a.serviceId)
+      const days = (Date.parse(a.date) - Date.parse(yearStart)) / 86_400_000
+      return {
+        id: a.id,
+        date: a.date,
+        name: a.bookedServiceName ?? service?.name ?? 'Visit',
+        tone: ['Skin', 'Body'].includes(service?.category ?? '') ? 'year-brand' : 'year-rose',
+        position: Math.min(100, Math.max(0, (days / 364) * 100)),
+      }
+    })
   async function saveNote(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
     if (busy || blocked || !can(role, 'note')) return
@@ -161,65 +186,109 @@ export function ClientRelationship() {
     <>
       <Link className="back-link" to="/clients">
         <ArrowLeft size={16} />
-        Clients
+        All clients
       </Link>
-      <div className="relationship-heading">
-        <Avatar identity={client.id} name={client.name} />
-        <div>
-          <p className="date-caption">A relationship with {state.organisation.name}</p>
-          <h1>{client.name}</h1>
-          <p>
-            {client.email}{' '}
-            <span className="contact-divider" aria-hidden="true">
-              /
-            </span>{' '}
-            {client.phone}
-          </p>
+      <section className="surface relationship-hero" aria-labelledby="client-name">
+        <div className="relationship-heading">
+          <Avatar identity={client.id} name={client.name} />
+          <div>
+            <p className="eyebrow">
+              {firstVisit
+                ? `Client since ${monthYear.format(new Date(`${firstVisit}T12:00:00Z`))}`
+                : `New to ${state.organisation.name}`}
+              {rhythm ? `, usually every ${rhythm} weeks` : ''}
+            </p>
+            <h1 id="client-name">{client.name}</h1>
+            <p>
+              {client.email}{' '}
+              <span className="contact-divider" aria-hidden="true">
+                /
+              </span>{' '}
+              {client.phone}
+            </p>
+          </div>
+          <div className="next-visit-panel">
+            <p className="eyebrow">Next visit</p>
+            {stats.next ? (
+              <>
+                <strong>
+                  {dateLabel(stats.next.date, state.organisation.locale, true)} ·{' '}
+                  {timeLabel(stats.next.startMinutes, state.organisation.locale)}
+                </strong>
+                <small>
+                  {stats.next.bookedServiceName ??
+                    state.services.find((s) => s.id === stats.next?.serviceId)?.name}
+                </small>
+                <Button variant="secondary" onClick={() => setAppointmentId(stats.next!.id)}>
+                  Open visit
+                </Button>
+              </>
+            ) : (
+              <>
+                <strong>Not booked</strong>
+                <small>A good moment to make an invitation.</small>
+                <Button
+                  disabled={busy || blocked || !can(role, 'book')}
+                  onClick={() => setBooking(true)}
+                >
+                  <Plus size={17} />
+                  Book next visit
+                </Button>
+              </>
+            )}
+          </div>
         </div>
-        <Button disabled={busy || blocked || !can(role, 'book')} onClick={() => setBooking(true)}>
-          <Plus size={17} />
-          Book next visit
-        </Button>
-      </div>
-      <div className="metrics-band">
-        <Metric
-          label="Completed visits"
-          value={stats.visits}
-          detail="Time together at the studio"
-        />
-        <Metric
-          label="Service spend"
-          value={money(stats.spend, state.organisation)}
-          detail="Completed services, excluding tips"
-        />
-        <Metric
-          label="Last visit"
-          value={
-            stats.last
-              ? dateLabel(stats.last.date, state.organisation.locale, true).split(',').pop()
-              : 'New client'
-          }
-          detail={
-            stats.last
-              ? (stats.last.bookedServiceName ??
-                state.services.find((s) => s.id === stats.last?.serviceId)?.name)
-              : 'A new story to begin'
-          }
-        />
-        <Metric
-          label="Next visit"
-          value={
-            stats.next
-              ? dateLabel(stats.next.date, state.organisation.locale, true).split(',').pop()
-              : 'Not booked'
-          }
-          detail={
-            stats.next
-              ? timeLabel(stats.next.startMinutes, state.organisation.locale)
-              : 'A good moment to make an invitation'
-          }
-        />
-      </div>
+        <dl className="relationship-stats">
+          <div>
+            <dt>Completed visits</dt>
+            <dd>{stats.visits}</dd>
+          </div>
+          <div>
+            <dt>Spent with the studio</dt>
+            <dd>{money(stats.spend, state.organisation)}</dd>
+          </div>
+          <div>
+            <dt>Last visit</dt>
+            <dd>
+              {stats.last
+                ? dateLabel(stats.last.date, state.organisation.locale, true).split(',').pop()
+                : 'Not yet'}
+            </dd>
+          </div>
+          <div>
+            <dt>Friends introduced</dt>
+            <dd>{edges.filter((e) => e.fromClientId === client.id).length}</dd>
+          </div>
+        </dl>
+        <div className="relationship-year">
+          <div className="relationship-year-heading">
+            <h2>A year with the studio</h2>
+            <span>One mark per visit</span>
+          </div>
+          <div
+            className="year-track"
+            role="img"
+            aria-label={`${yearVisits.length} ${yearVisits.length === 1 ? 'visit' : 'visits'} in the last twelve months`}
+          >
+            {yearVisits.map((visit) => (
+              <span
+                key={visit.id}
+                className={`year-mark ${visit.tone}`}
+                style={{ left: `${visit.position}%` }}
+                title={`${shortDate.format(new Date(`${visit.date}T12:00:00Z`))} · ${visit.name}`}
+              />
+            ))}
+          </div>
+          <div className="year-legend" aria-hidden="true">
+            <span>{monthYear.format(new Date(`${addDays(today, -364)}T12:00:00Z`))}</span>
+            <span className="year-key">
+              <span className="year-mark year-brand" /> Skin and body
+              <span className="year-mark year-rose" /> Hair, brows and other
+            </span>
+            <span>Today</span>
+          </div>
+        </div>
+      </section>
       <div className="relationship-layout">
         <section className="surface timeline-surface">
           <div className="section-heading">

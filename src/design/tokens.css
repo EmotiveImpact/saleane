@@ -7,78 +7,101 @@
  * below is checked against WCAG 2.2 AA in the living library (/design-language).
  */
 :root {
-  /* Palette: ivory, stone, sage and forest, from the original reference board. */
-  --palette-forest-900: #203329;
-  --palette-forest-800: #29392f;
-  --palette-forest-700: #395341;
-  --palette-forest-600: #3d5c4e;
-  --palette-moss-500: #487258;
-  --palette-moss-300: #7d997f;
-  --palette-sage-200: #d3dccb;
-  --palette-sage-100: #e9eee5;
-  --palette-sage-50: #f4f7f2;
-  --palette-ivory-50: #faf9f6;
+  /*
+   * House direction: a light warm off-white base, soft ink, one studio colour
+   * and one quiet second colour. Each studio can set its own first and second
+   * colour (--brand and --rose); everything else is derived from them.
+   */
+  --palette-warm-bg: #faf8f5;
+  --palette-warm-side: #f4f1ec;
+  --palette-warm-stone: #f3f0eb;
+  --palette-warm-hover: #fbf9f6;
+  --palette-warm-line: #ebe5df;
+  --palette-warm-line2: #ddd5ce;
+  --palette-ink: #2e2b33;
+  --palette-muted: #6b6670;
+  --palette-faint: #9a949c;
   --palette-white: #ffffff;
-  --palette-stone-300: #b9c0b3;
-  --palette-stone-200: #d4d5cc;
-  --palette-stone-100: #e2e2da;
-  --palette-stone-600: #656b63;
-  --palette-mist-100: #edf0ef;
-  --palette-mist-700: #36556d;
-  --palette-sand-100: #f1ece3;
-  --palette-sand-700: #735d39;
-  --palette-brass-400: #a89a7a;
-  --palette-brass-600: #9a722e;
+  --palette-sand-700: #6e5a43;
   --palette-clay-700: #8c2e24;
-  --palette-clay-500: #a34137;
   --palette-clay-50: #fcf1ef;
 
-  /* Semantic colour. These names predate the library and stay stable. */
-  --ink: var(--palette-forest-800);
-  --ink-deep: var(--palette-forest-900);
+  /* Studio colours. Defaults are sage and soft rose; a studio may override both. */
+  --brand: #5f8471;
+  --rose: #c27286;
+  --brand-soft: color-mix(in srgb, var(--brand) 10%, #fdfcfa);
+  --brand-mid: color-mix(in srgb, var(--brand) 32%, #fdfcfa);
+  --brand-ink: color-mix(in srgb, var(--brand) 72%, var(--palette-ink));
+  --rose-soft: color-mix(in srgb, var(--rose) 14%, #ffffff);
+  --rose-ink: color-mix(in srgb, var(--rose) 65%, var(--palette-ink));
+
+  /* Surfaces. */
+  --bg: var(--palette-warm-bg);
+  --panel: var(--palette-white);
+  --side: var(--palette-warm-side);
+  --stone: var(--palette-warm-stone);
+  --hover: var(--palette-warm-hover);
+  --faint: var(--palette-faint);
+  --line2: var(--palette-warm-line2);
+
+  /* Semantic colour. These names predate the house direction and stay stable. */
+  --ink: var(--palette-ink);
+  --ink-deep: var(--palette-ink);
   --paper: var(--palette-white);
-  --mineral: var(--palette-ivory-50);
-  --line: var(--palette-stone-100);
-  --line-strong: var(--palette-stone-200);
-  --field-line: var(--palette-stone-300);
-  --muted: var(--palette-stone-600);
-  --brass: var(--palette-brass-400);
-  --focus: var(--palette-brass-600);
-  --sage: var(--palette-sage-100);
-  --sage-soft: var(--palette-sage-50);
-  --blue: var(--palette-mist-100);
-  --sand: var(--palette-sand-100);
-  --action: var(--palette-forest-800);
-  --action-hover: var(--palette-forest-700);
-  --success: var(--palette-moss-500);
+  --mineral: var(--bg);
+  --line: var(--palette-warm-line);
+  --line-strong: var(--palette-warm-line2);
+  --field-line: var(--palette-warm-line2);
+  --muted: var(--palette-muted);
+  --brass: #b3a38c;
+  --focus: var(--brand);
+  --sage: var(--brand-soft);
+  --sage-soft: color-mix(in srgb, var(--brand) 5%, #fdfcfa);
+  --blue: #f7eff1;
+  --sand: var(--stone);
+  /* White text sits on --action, so it is the studio colour deepened just enough for AA. */
+  --action: color-mix(in srgb, var(--brand) 88%, var(--palette-ink));
+  --action-hover: color-mix(in srgb, var(--brand) 76%, var(--palette-ink));
+  --success: var(--brand);
   --danger: var(--palette-clay-700);
   --danger-soft: var(--palette-clay-50);
 
-  /* Staff and service tones: background plus the ink that reads on it. */
-  --tone-sage-bg: var(--palette-sage-100);
-  --tone-sage-ink: var(--palette-forest-600);
-  --tone-blue-bg: var(--palette-mist-100);
-  --tone-blue-ink: var(--palette-mist-700);
-  --tone-sand-bg: var(--palette-sand-100);
+  /* Staff and treatment tones: background plus the ink that reads on it. */
+  --tone-sage-bg: var(--brand-soft);
+  --tone-sage-ink: var(--brand-ink);
+  --tone-blue-bg: #f7eff1;
+  --tone-blue-ink: var(--rose-ink);
+  --tone-sand-bg: var(--stone);
   --tone-sand-ink: var(--palette-sand-700);
 
-  /* Type families. */
-  --font-display: 'Source Sans 3 Variable', sans-serif;
-  --font-editorial: 'Bodoni Moda Variable', Georgia, serif;
+  /*
+   * Type families. Figtree carries all text and numbers. Headings and names use
+   * the display serif: Financier Display when its licensed files are present,
+   * otherwise Newsreader, then Georgia.
+   */
+  --font-display: 'Figtree Variable', 'Figtree', system-ui, sans-serif;
+  --font-editorial: 'Newsreader Variable', Georgia, serif;
+  --weight-body: 360;
+  --weight-nav: 460;
+  --weight-strong: 560;
+  --weight-editorial: 300;
 
   /*
-   * Type scale. --text-micro is the floor: nothing in the workspace renders
-   * below 12px. Editorial sizes belong to Today, booking and accounts only.
+   * Type scale. --text-micro is the floor for reading text; eyebrows and table
+   * headers use --text-eyebrow in capitals with generous tracking.
    */
+  --text-eyebrow: 11px;
   --text-micro: 12px;
   --text-meta: 13px;
   --text-small: 14px;
   --text-body: 15px;
   --text-lead: 17px;
   --text-title-s: 19px;
-  --text-title-m: 24px;
-  --text-title-compact: 26px;
-  --text-display: clamp(29px, 2.8vw, 38px);
+  --text-title-m: 26px;
+  --text-title-compact: 28px;
+  --text-display: clamp(34px, 3.4vw, 44px);
+  --text-greeting: clamp(38px, 4vw, 52px);
+  --text-stat: 34px;
 
   /* Spacing on a 4px base. */
   --space-1: 4px;
@@ -90,15 +113,18 @@
   --space-8: 32px;
   --space-10: 40px;
 
-  /* Shape. Surfaces 7px, fields and actions 5px, people are round. */
-  --radius: 7px;
-  --radius-control: 5px;
-  --radius-inner: 3px;
+  /* Shape. Cards 20px, inner panels 14px, fields 12px, actions and tags are pills. */
+  --radius: 20px;
+  --radius-large: 24px;
+  --radius-panel: 14px;
+  --radius-control: 12px;
+  --radius-inner: 8px;
+  --radius-pill: 999px;
   --radius-round: 50%;
 
   /* Elevation: used only for layers that float above the workspace. */
-  --shadow-float: 0 12px 36px #13202a1f;
-  --shadow-dialog: 0 20px 70px #13202a25;
+  --shadow-float: 0 12px 36px #2e2b331a;
+  --shadow-dialog: 0 24px 70px #2e2b3324;
 
   /* Motion answers an action; reduced motion removes it. */
   --motion-quick: 0.15s;
