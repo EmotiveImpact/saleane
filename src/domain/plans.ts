@@ -294,19 +294,25 @@ export function runPlanCommand(
   if (refundMinor > standing.unusedMinor)
     throw new Error(`Refund up to ${money(standing.unusedMinor, org, true)}, the unused part.`)
   if (refundMinor > 0) {
-    if (!command.method || !command.reference?.trim())
+    // The sample workspace asks for no reference, so a demo refund is given one.
+    const refundId = makeId()
+    const reference =
+      command.reference?.trim() ||
+      (operations(next).mode === 'sandbox' ? `DEMO-${refundId.slice(0, 8)}` : '')
+    if (!command.method || !reference)
       throw new Error('Say how the money was returned and give its reference.')
-    assertMethod(next, command.method, command.reference)
+    assertMethod(next, command.method, reference)
     if (
-      operations(next).refunds.some((r) => r.reference === command.reference!.trim()) ||
-      holdings(next).some((h) => h.refunds.some((r) => r.reference === command.reference!.trim()))
+      operations(next).refunds.some((r) => r.reference === reference) ||
+      holdings(next).some((h) => h.refunds.some((r) => r.reference === reference)) ||
+      (next.giftCards ?? []).some((c) => c.refunds.some((r) => r.reference === reference))
     )
       throw new Error('This refund reference is already recorded. Review the existing record.')
     holding.refunds.push({
-      id: makeId(),
+      id: refundId,
       amountMinor: refundMinor,
       method: command.method,
-      reference: command.reference.trim(),
+      reference,
       reason: command.reason,
       createdAt: now,
       actor: '',
@@ -337,7 +343,8 @@ function assertReferenceFree(s: BusinessState, reference?: string) {
   if (
     ref &&
     (s.payments.some((p) => p.reference === ref) ||
-      holdings(s).some((h) => h.payments.some((p) => p.reference === ref)))
+      holdings(s).some((h) => h.payments.some((p) => p.reference === ref)) ||
+      (s.giftCards ?? []).some((c) => c.payment.reference === ref))
   )
     throw new Error('This payment reference is already recorded. Review the existing payment.')
 }

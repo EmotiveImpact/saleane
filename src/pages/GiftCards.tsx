@@ -1,0 +1,544 @@
+import { useState } from 'react'
+import type { FormEvent } from 'react'
+import { Gift, Plus } from 'lucide-react'
+import { useStore } from '../state/context'
+import { businessDate, can, operations } from '../domain/operations'
+import { giftCardMonths, giftCards, giftStanding, normaliseCode } from '../domain/giftCards'
+import type { GiftCard } from '../domain/giftCardsSchema'
+import { fullDateLabel, money } from '../domain/format'
+import { parseMinor } from '../domain/money'
+import { Button, Empty, ErrorMessage, Modal, PageHeader, SegmentedControl } from '../design'
+import { PaymentFields } from '../components/Plans'
+import { usePayment, useRun } from '../components/usePayment'
+import '../components/management.css'
+import '../components/plans.css'
+import '../giftCards.css'
+
+const STATE_LABEL = {
+  active: 'Ready to spend',
+  used: 'Used up',
+  expired: 'Expired',
+  cancelled: 'Cancelled',
+} as const
+
+type Dialog =
+  | { kind: 'sell' }
+  | { kind: 'sold' }
+  | { kind: 'view'; cardId: string }
+  | { kind: 'extend'; cardId: string }
+  | { kind: 'cancel'; cardId: string }
+
+/**
+ * V1.5: gift cards and vouchers. The desk sells them and spends them at checkout; owners and
+ * managers can give an expired card more time or cancel one. Money on a card is held for the
+ * guest until it pays for a visit.
+ */
+export function GiftCards() {
+  const { state, role, blocked } = useStore()
+  const org = state.organisation
+  const today = businessDate(state)
+  const sandbox = operations(state).mode === 'sandbox'
+  const may = (action: string) => !blocked && can(role, action)
+  const [dialog, setDialog] = useState<Dialog | null>(null)
+  const [query, setQuery] = useState('')
+  const [kind, setKind] = useState<'money' | 'service'>('money')
+  const [amount, setAmount] = useState('50')
+  const [serviceId, setServiceId] = useState('')
+  const [clientId, setClientId] = useState('')
+  const [purchaser, setPurchaser] = useState('')
+  const [recipient, setRecipient] = useState('')
+  const [message, setMessage] = useState('')
+  const [expiresOn, setExpiresOn] = useState('')
+  const [reason, setReason] = useState('')
+  const [refund, setRefund] = useState('0')
+  const pay = usePayment()
+  const { run, pending, error, setError } = useRun()
+  if (role === 'practitioner')
+    return (
+      <div className="gift-page">
+        <PageHeader variant="compact" title="Gift cards" description="" />
+        <Empty title="For the front desk">Gift cards are sold and spent at the front desk.</Empty>
+      </div>
+    )
+  const services = state.services.filter((s) => !s.archived && s.priceMinor > 0)
+  const rows = giftCards(state)
+    .map((card) => ({ card, standing: giftStanding(card, today) }))
+    .sort((a, b) => b.card.soldAt.localeCompare(a.card.soldAt))
+  const needle = query.trim().toLowerCase()
+  const code = normaliseCode(query)
+  const shown = needle
+    ? rows.filter(
+        ({ card }) =>
+          card.code === code ||
+          card.code.replace(/-/g, '').includes(code.replace(/-/g, '')) ||
+          card.purchaserName.toLowerCase().includes(needle) ||
+          card.recipientName.toLowerCase().includes(needle),
+      )
+    : rows
+  const held = rows
+    .filter((r) => r.standing.state === 'active')
+    .reduce((sum, r) => sum + r.standing.balanceMinor, 0)
+  const spent = rows.reduce((sum, r) => sum + r.standing.spentMinor, 0)
+  const sold = rows.reduce((sum, r) => sum + r.card.valueMinor, 0)
+  const open = (next: Dialog) => {
+    setDialog(next)
+    setError('')
+    pay.reset()
+    if (next.kind === 'sell') {
+      setKind('money')
+      setAmount('50')
+      setServiceId(services[0]?.id ?? '')
+      setClientId('')
+      setPurchaser('')
+      setRecipient('')
+      setMessage('')
+    }
+    if (next.kind === 'extend') {
+      const card = giftCards(state).find((c) => c.id === next.cardId)!
+      const from = card.expiresOn > today ? card.expiresOn : today
+      const d = new Date(`${from}T12:00:00Z`)
+      d.setUTCMonth(d.getUTCMonth() + 6)
+      setExpiresOn(d.toISOString().slice(0, 10))
+    }
+    if (next.kind === 'cancel') {
+      setReason('')
+      setRefund('0')
+    }
+  }
+  const current =
+    dialog && 'cardId' in dialog ? giftCards(state).find((c) => c.id === dialog.cardId) : null
+  const currentStanding = current ? giftStanding(current, today) : null
+  const chosenService = services.find((s) => s.id === serviceId)
+  const valueMinor = kind === 'service' ? (chosenService?.priceMinor ?? 0) : parseMinor(amount, 0)
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!dialog) return
+    if (dialog.kind === 'sell') {
+      if (!Number.isFinite(valueMinor) || valueMinor <= 0) {
+        setError('Enter an amount above zero, with up to two decimal places.')
+        return
+      }
+      if (!pay.ready) {
+        setError('Confirm the payment has already been received.')
+        return
+      }
+      const client = state.clients.find((c) => c.id === clientId)
+      const result = await run({
+        type: 'gift-card-sell',
+        input: {
+          kind,
+          ...(kind === 'service' ? { serviceId } : { valueMinor }),
+          ...(client ? { clientId: client.id } : {}),
+          purchaserName: (client?.name ?? purchaser).trim(),
+          recipientName: recipient.trim(),
+          message: message.trim(),
+        },
+        ...pay.payment,
+      })
+      // The new card is the newest one once the saved state arrives.
+      if (result) setDialog({ kind: 'sold' })
+      return
+    }
+    if (!current) return
+    if (dialog.kind === 'extend') {
+      if (await run({ type: 'gift-card-extend', giftCardId: current.id, expiresOn }))
+        setDialog({ kind: 'view', cardId: current.id })
+      return
+    }
+    if (dialog.kind === 'cancel') {
+      const refundMinor = parseMinor(refund, 0)
+      if (!Number.isFinite(refundMinor)) {
+        setError('Enter the amount returned with up to two decimal places.')
+        return
+      }
+      if (refundMinor > 0 && !pay.ready) {
+        setError('Confirm the money has already been returned.')
+        return
+      }
+      if (
+        await run({
+          type: 'gift-card-cancel',
+          giftCardId: current.id,
+          reason: reason.trim(),
+          ...(refundMinor > 0 ? { refundMinor, ...pay.payment } : {}),
+        })
+      )
+        setDialog({ kind: 'view', cardId: current.id })
+    }
+  }
+
+  // After a sale, show the newest card so the desk can read out or print its code.
+  const newest = rows[0]?.card
+  const soldCard = dialog?.kind === 'sold' ? newest : undefined
+
+  return (
+    <div className="gift-page">
+      <PageHeader
+        variant="compact"
+        title="Gift cards and vouchers."
+        description={`Sold at the desk and spent at checkout. Each lasts ${giftCardMonths(state) / 12} years and can pay for any visit until it runs out.`}
+        actions={
+          may('gift-card-sell') ? (
+            <Button onClick={() => open({ kind: 'sell' })}>
+              <Plus size={16} aria-hidden="true" /> Sell a gift card
+            </Button>
+          ) : undefined
+        }
+      />
+      <dl className="plans-totals gift-totals">
+        <div>
+          <dt>Waiting to be spent</dt>
+          <dd>{money(held, org, true)}</dd>
+        </div>
+        <div>
+          <dt>Spent at visits</dt>
+          <dd>{money(spent, org, true)}</dd>
+        </div>
+        <div>
+          <dt>Sold in total</dt>
+          <dd>{money(sold, org, true)}</dd>
+        </div>
+      </dl>
+      <p className="ops-help">
+        Money paid for a gift card counts as takings only when the card pays for a visit. Until then
+        it belongs to whoever holds the card.
+      </p>
+      {rows.length > 0 && (
+        <label className="ops-field gift-search">
+          Find a card by code or name
+          <input
+            type="search"
+            value={query}
+            placeholder="ABCD-EFGH-JKLM or a name"
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </label>
+      )}
+      {rows.length === 0 ? (
+        <Empty title="No gift cards yet">
+          When you sell one, its code, balance and every visit it pays for appear here.
+        </Empty>
+      ) : shown.length === 0 ? (
+        <p className="ops-help">No card matches that search.</p>
+      ) : (
+        <ul className="gift-list">
+          {shown.map(({ card, standing }) => (
+            <li key={card.id}>
+              <button
+                type="button"
+                className="gift-row"
+                onClick={() => open({ kind: 'view', cardId: card.id })}
+              >
+                <span className="gift-row-copy">
+                  <strong className="gift-code">{card.code}</strong>
+                  <small>
+                    {card.kind === 'service' ? `${card.serviceName} voucher` : 'Gift card'} from{' '}
+                    {card.purchaserName}
+                    {card.recipientName ? ` for ${card.recipientName}` : ''}
+                  </small>
+                  <small>
+                    {standing.state === 'active'
+                      ? `Use by ${fullDateLabel(card.expiresOn, org.locale)}`
+                      : STATE_LABEL[standing.state]}
+                  </small>
+                </span>
+                <span className="gift-row-money">
+                  <strong>{money(standing.balanceMinor, org, true)}</strong>
+                  <small>of {money(card.valueMinor, org, true)}</small>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {dialog?.kind === 'sold' && soldCard && (
+        <Modal
+          open
+          onClose={() => setDialog(null)}
+          title="Gift card ready"
+          description="Give the code to the buyer. It is all anyone needs to spend the card here."
+        >
+          <GiftCardFace card={soldCard} />
+          <div className="ops-actions">
+            <Button onClick={() => window.print()}>Print</Button>
+            <Button variant="secondary" onClick={() => setDialog(null)}>
+              Done
+            </Button>
+          </div>
+        </Modal>
+      )}
+      {dialog?.kind === 'view' && current && currentStanding && (
+        <Modal
+          open
+          onClose={() => setDialog(null)}
+          title={current.kind === 'service' ? 'Voucher' : 'Gift card'}
+          description={`${STATE_LABEL[currentStanding.state]} · ${money(currentStanding.balanceMinor, org, true)} left of ${money(current.valueMinor, org, true)}`}
+        >
+          <GiftCardFace card={current} />
+          <GiftHistory card={current} />
+          {current.status === 'active' && currentStanding.balanceMinor > 0 && (
+            <div className="ops-actions">
+              {may('gift-card-extend') && (
+                <Button
+                  variant="secondary"
+                  onClick={() => open({ kind: 'extend', cardId: current.id })}
+                >
+                  Give more time
+                </Button>
+              )}
+              {may('gift-card-cancel') && (
+                <Button
+                  variant="quiet"
+                  onClick={() => open({ kind: 'cancel', cardId: current.id })}
+                >
+                  Cancel card
+                </Button>
+              )}
+            </div>
+          )}
+        </Modal>
+      )}
+      {dialog &&
+        (dialog.kind === 'sell' || dialog.kind === 'extend' || dialog.kind === 'cancel') && (
+          <Modal
+            open
+            onClose={() => {
+              if (!pending) setDialog(null)
+            }}
+            title={
+              dialog.kind === 'sell'
+                ? 'Sell a gift card'
+                : dialog.kind === 'extend'
+                  ? `Give ${current?.code} more time`
+                  : `Cancel ${current?.code}`
+            }
+            description={
+              dialog.kind === 'sell'
+                ? 'The payment is recorded now. The card can be spent on any visit.'
+                : dialog.kind === 'extend'
+                  ? `It can be spent until ${current ? fullDateLabel(current.expiresOn, org.locale) : ''} at the moment. The earlier date stays in its history.`
+                  : `Nothing is deleted. Up to ${money(currentStanding?.balanceMinor ?? 0, org, true)} is left on it.`
+            }
+          >
+            <form onSubmit={submit} className="plan-form">
+              {dialog.kind === 'sell' && (
+                <>
+                  <SegmentedControl
+                    label="What are they buying?"
+                    appearance="pill"
+                    value={kind}
+                    onChange={(value) => {
+                      setKind(value)
+                      setError('')
+                    }}
+                    options={[
+                      { value: 'money', label: 'An amount' },
+                      { value: 'service', label: 'A treatment' },
+                    ]}
+                  />
+                  {kind === 'money' ? (
+                    <label className="ops-field">
+                      Amount ({org.currency})
+                      <input
+                        inputMode="decimal"
+                        value={amount}
+                        required
+                        onChange={(e) => setAmount(e.target.value)}
+                      />
+                    </label>
+                  ) : (
+                    <label className="ops-field">
+                      Treatment
+                      <select value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
+                        {services.map((service) => (
+                          <option key={service.id} value={service.id}>
+                            {service.name} · {money(service.priceMinor, org, true)}
+                          </option>
+                        ))}
+                      </select>
+                      <small>
+                        Worth today’s price. If the price goes up, the guest pays the difference.
+                      </small>
+                    </label>
+                  )}
+                  <label className="ops-field">
+                    Bought by a client?
+                    <select value={clientId} onChange={(e) => setClientId(e.target.value)}>
+                      <option value="">Someone new</option>
+                      {state.clients.map((client) => (
+                        <option key={client.id} value={client.id}>
+                          {client.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {!clientId && (
+                    <label className="ops-field">
+                      Buyer’s name
+                      <input
+                        value={purchaser}
+                        required
+                        minLength={2}
+                        maxLength={100}
+                        onChange={(e) => setPurchaser(e.target.value)}
+                      />
+                    </label>
+                  )}
+                  <label className="ops-field">
+                    For (optional)
+                    <input
+                      value={recipient}
+                      maxLength={100}
+                      onChange={(e) => setRecipient(e.target.value)}
+                    />
+                  </label>
+                  <label className="ops-field">
+                    Message on the card (optional)
+                    <textarea
+                      value={message}
+                      maxLength={300}
+                      rows={2}
+                      onChange={(e) => setMessage(e.target.value)}
+                    />
+                  </label>
+                  <PaymentFields {...pay.fields} />
+                </>
+              )}
+              {dialog.kind === 'extend' && (
+                <label className="ops-field">
+                  New last day
+                  <input
+                    type="date"
+                    value={expiresOn}
+                    min={today}
+                    required
+                    onChange={(e) => setExpiresOn(e.target.value)}
+                  />
+                </label>
+              )}
+              {dialog.kind === 'cancel' && (
+                <>
+                  <label className="ops-field">
+                    Why it is cancelled
+                    <input
+                      value={reason}
+                      required
+                      minLength={2}
+                      maxLength={300}
+                      placeholder="For example: bought by mistake"
+                      onChange={(e) => setReason(e.target.value)}
+                    />
+                  </label>
+                  <label className="ops-field">
+                    Money returned ({org.currency})
+                    <input
+                      inputMode="decimal"
+                      value={refund}
+                      onChange={(e) => setRefund(e.target.value)}
+                    />
+                    <small>Leave at 0 if nothing is returned.</small>
+                  </label>
+                  {parseMinor(refund, 0) > 0 && <PaymentFields {...pay.fields} verb="returned" />}
+                </>
+              )}
+              {dialog.kind !== 'extend' && (
+                <p className="subtle demo-note">
+                  {sandbox
+                    ? 'Sample workspace: no real money moves.'
+                    : 'SALEANE records this; it does not take or return the money itself.'}
+                </p>
+              )}
+              <ErrorMessage error={error} />
+              <div className="ops-actions">
+                <Button
+                  type="submit"
+                  disabled={
+                    pending || (dialog.kind === 'sell' && kind === 'service' && !chosenService)
+                  }
+                >
+                  {pending
+                    ? 'Saving…'
+                    : dialog.kind === 'sell'
+                      ? `Record ${Number.isFinite(valueMinor) && valueMinor > 0 ? money(valueMinor, org, true) : 'sale'}`
+                      : dialog.kind === 'extend'
+                        ? 'Save new date'
+                        : 'Cancel card'}
+                </Button>
+                <Button variant="secondary" disabled={pending} onClick={() => setDialog(null)}>
+                  {dialog.kind === 'cancel' ? 'Keep card' : 'Back'}
+                </Button>
+              </div>
+            </form>
+          </Modal>
+        )}
+    </div>
+  )
+}
+
+/** The card as the guest would see it, for reading out or printing. */
+function GiftCardFace({ card }: { card: GiftCard }) {
+  const { state } = useStore()
+  const org = state.organisation
+  return (
+    <figure className="gift-face">
+      <p className="gift-face-studio">{org.name}</p>
+      <p className="gift-face-value">
+        {card.kind === 'service' ? card.serviceName : money(card.valueMinor, org, true)}
+      </p>
+      {card.recipientName && <p className="gift-face-for">For {card.recipientName}</p>}
+      {card.message && <blockquote>{card.message}</blockquote>}
+      <p className="gift-face-code">{card.code}</p>
+      <figcaption>Use by {fullDateLabel(card.expiresOn, org.locale)}</figcaption>
+    </figure>
+  )
+}
+
+/** Everything that has happened to a card, oldest first. */
+function GiftHistory({ card }: { card: GiftCard }) {
+  const { state } = useStore()
+  const org = state.organisation
+  const day = (instant: string) => fullDateLabel(instant.slice(0, 10), org.locale)
+  const receipt = (saleId: string) => state.sales.find((s) => s.id === saleId)?.receiptNumber
+  const rows = [
+    {
+      at: card.soldAt,
+      text: `Sold for ${money(card.valueMinor, org, true)} by ${card.actor || 'the desk'}`,
+    },
+    ...card.redemptions.map((r) => ({
+      at: r.at,
+      text: `Paid ${money(r.amountMinor, org, true)} towards a visit${receipt(r.saleId) ? ` (receipt ${receipt(r.saleId)})` : ''}`,
+    })),
+    ...card.extensions.map((e) => ({
+      at: e.at,
+      text: `Last day moved from ${fullDateLabel(e.from, org.locale)} to ${fullDateLabel(e.to, org.locale)} by ${e.actor || 'a manager'}`,
+    })),
+    ...card.refunds.map((r) => ({
+      at: r.createdAt,
+      text: `${money(r.amountMinor, org, true)} recorded as returned`,
+    })),
+    ...(card.cancelled
+      ? [
+          {
+            at: card.cancelled.at,
+            text: `Cancelled by ${card.cancelled.actor}: ${card.cancelled.reason}`,
+          },
+        ]
+      : []),
+  ].sort((a, b) => a.at.localeCompare(b.at))
+  return (
+    <section className="gift-history" aria-label="History">
+      <h3>
+        <Gift size={16} aria-hidden="true" /> History
+      </h3>
+      <ol>
+        {rows.map((row, index) => (
+          <li key={index}>
+            <time dateTime={row.at}>{day(row.at)}</time>
+            <span>{row.text}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}

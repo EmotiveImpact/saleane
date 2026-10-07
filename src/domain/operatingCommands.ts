@@ -342,7 +342,10 @@ export function runOperatingCommand(
       throw new Error('This refund reference already belongs to another receipt.')
     if (
       o.refunds.filter(same).reduce((sum, r) => sum + r.amountMinor, 0) + command.amountMinor >
-      (sale ? sale.totalMinor - (sale.coveredMinor ?? 0) : paid!.amountMinor)
+      (sale
+        ? // A plan's or gift card's share was never paid at the desk, so it cannot go back as money.
+          sale.totalMinor - (sale.coveredMinor ?? 0) - (sale.giftCardMinor ?? 0)
+        : paid!.amountMinor)
     )
       throw new Error('This refund would exceed the remaining receipt total.')
     if (command.method) assertMethod(next, command.method, command.reference, command.processor)

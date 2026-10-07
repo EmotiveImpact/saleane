@@ -7,38 +7,16 @@ import { clientHoldings, holdings, offers, planStanding } from '../domain/plans'
 import type { Holding, Offer, OfferInput } from '../domain/plansSchema'
 import { dateLabel, money } from '../domain/format'
 import { minorInput, parseMinor } from '../domain/money'
-import type { Command } from '../domain/commands'
 import { Button, ErrorMessage, Modal, SegmentedControl } from '../design'
 import './management.css'
 import './plans.css'
+import { usePayment, useRun } from './usePayment'
+import type { Method } from './usePayment'
 
 /**
  * V1.5 screens for packages and memberships: what the studio offers (Settings), what a client
  * holds (their page), and the money held for visits not yet used (Money).
  */
-type Method = 'demo_card' | 'demo_cash' | 'cash' | 'external_card'
-
-function useRun() {
-  const { commit } = useStore()
-  const [pending, setPending] = useState(false)
-  const [error, setError] = useState('')
-  async function run(command: Command) {
-    if (pending) return false
-    setPending(true)
-    setError('')
-    try {
-      const result = await commit(command)
-      if (!result.ok) setError(result.error)
-      return result.ok
-    } catch {
-      setError('This could not be saved. Your entries are still here; try again.')
-      return false
-    } finally {
-      setPending(false)
-    }
-  }
-  return { run, pending, error, setError }
-}
 
 /** One line describing what a plan gives, in the studio's money. */
 function planTerms(plan: Pick<Offer, 'kind' | 'visits' | 'discountPercent' | 'validMonths'>) {
@@ -314,7 +292,7 @@ export function PlanSettings() {
 }
 
 /** How money changed hands, with the honest confirmation a local studio needs. */
-function PaymentFields({
+export function PaymentFields({
   method,
   setMethod,
   reference,
@@ -374,23 +352,6 @@ function PaymentFields({
       )}
     </>
   )
-}
-
-function usePayment() {
-  const { state } = useStore()
-  const sandbox = operations(state).mode === 'sandbox'
-  const [method, setMethod] = useState<Method>(sandbox ? 'demo_card' : 'cash')
-  const [reference, setReference] = useState('')
-  const [collected, setCollected] = useState(false)
-  return {
-    fields: { method, setMethod, reference, setReference, collected, setCollected },
-    ready: sandbox || collected,
-    payment: { method, ...(reference.trim() ? { reference: reference.trim() } : {}) },
-    reset() {
-      setReference('')
-      setCollected(false)
-    },
-  }
 }
 
 /** One line on where a plan stands today. */
