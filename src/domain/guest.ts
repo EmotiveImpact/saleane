@@ -25,6 +25,9 @@ export const GUEST_LINK_AFTER_VISIT_MS = 7 * 24 * 60 * 60000
 /** The longest a link can live from the moment it is issued. */
 export const GUEST_LINK_MAX_MS = 120 * 24 * 60 * 60000
 
+/** A guest can say "I've arrived" from this long before their visit until it ends. */
+export const GUEST_HERE_EARLY_MS = 30 * 60000
+
 export const depositOutcomes = ['refund_due', 'retained', 'none'] as const
 export type DepositOutcome = (typeof depositOutcomes)[number]
 
@@ -125,6 +128,19 @@ export const guestViewSchema = z
       .strict(),
     /** PILOT-02: paying the deposit or saving a card. Absent when there is nothing to do. */
     payment: guestPaymentSchema.nullable().optional(),
+    /**
+     * V1.5: "I've arrived", on the day of the visit. `saidAt` is when the guest told the desk;
+     * `welcomed` is true once the desk has welcomed them.
+     */
+    here: z
+      .object({
+        open: z.boolean(),
+        opensAt: z.iso.datetime(),
+        saidAt: z.iso.datetime().nullable(),
+        welcomed: z.boolean(),
+      })
+      .strict()
+      .optional(),
     /** V1.5: private feedback after a completed visit. Only the guest's own ratings come back. */
     feedback: z
       .object({
@@ -175,6 +191,22 @@ export function guestCancellation(s: BusinessState, appointmentId: string, now: 
     outcome,
     paidMinor,
   }
+}
+
+/**
+ * Whether a guest can tap "I've arrived" now: a confirmed visit today on the studio's clock, from
+ * half an hour before it starts until it ends. `opensAt` is when it opens, for the page to say.
+ */
+export function guestHereWindow(s: BusinessState, appointmentId: string, now: number) {
+  const a = s.appointments.find((item) => item.id === appointmentId)
+  if (!a) throw new Error('This visit is not in the studio record.')
+  const start = visitStart(s, appointmentId)
+  const opensAt = start - GUEST_HERE_EARLY_MS
+  const end = start + a.bookedDurationMinutes * 60000
+  const today = a.date === businessDate(s, new Date(now).toISOString())
+  const reason =
+    a.status !== 'confirmed' || !today || now >= end ? 'closed' : now < opensAt ? 'early' : null
+  return { open: !reason, reason, today, opensAt: new Date(opensAt).toISOString() }
 }
 
 /** Builds the guest's read model. The server is the only caller. */
@@ -233,6 +265,20 @@ export function guestView(
               return entry ? { anyone: !entry.staffId, times: entry.times } : null
             })(),
           },
+        }
+      : {}),
+    ...((a.status === 'confirmed' || a.status === 'arrived') &&
+    a.date === businessDate(s, new Date(now).toISOString())
+      ? {
+          here: (() => {
+            const window = guestHereWindow(s, a.id, now)
+            return {
+              open: window.open,
+              opensAt: window.opensAt,
+              saidAt: a.guestHereAt ?? null,
+              welcomed: a.status === 'arrived',
+            }
+          })(),
         }
       : {}),
     ...(a.status === 'completed'

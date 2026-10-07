@@ -258,6 +258,14 @@ fieldset {
 .status-arrived > span {
   background: var(--brand-ink);
 }
+/* V1.5: the guest tapped "I've arrived"; the desk has not welcomed them yet. */
+.status-here {
+  color: var(--ink);
+  background: var(--rose-soft);
+}
+.status-here > span {
+  background: var(--rose);
+}
 .status-completed {
   color: var(--muted);
 }

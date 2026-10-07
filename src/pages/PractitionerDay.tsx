@@ -351,7 +351,7 @@ export function PractitionerDay() {
                           </small>
                         </span>
                       </span>
-                      <Status status={a.status} />
+                      <Status status={a.guestHere ? 'here' : a.status} />
                     </button>
                   </li>
                 ))}
@@ -379,7 +379,7 @@ export function PractitionerDay() {
                     {visit.resourceName ? ` · ${visit.resourceName}` : ''}
                   </p>
                 </div>
-                <Status status={visit.status} />
+                <Status status={visit.guestHere ? 'here' : visit.status} />
               </div>
               {visit.status === 'confirmed' && visit.date === record.today && (
                 <Button

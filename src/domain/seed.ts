@@ -387,6 +387,7 @@ export function seed(region: Region): BusinessState {
   seedTimeOff(state, uk)
   seedRent(state, uk)
   seedAccounting(state, uk)
+  seedArrivals(state, uk)
   // V1.5: a few clients waiting for a time, so the waitlist shows openings straight away.
   const wishes: [string, string, string | undefined, string, string, WaitlistTime[], string][] = [
     [
@@ -823,4 +824,37 @@ function seedStock(state: BusinessState, uk: boolean) {
         saleId: sale.id,
       })
   }
+}
+
+/**
+ * V1.5: two calls nobody could answer this morning, one from a client, and a guest who has told
+ * the desk from her private link that she has arrived.
+ */
+function seedArrivals(state: BusinessState, uk: boolean) {
+  const o = (state.operations ??= defaultOperations('sandbox'))
+  const at = (hour: number, minute: number) =>
+    `${DEMO_DATE}T${String(hour - (uk ? 1 : -4)).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00.000Z`
+  o.missedCalls = [
+    {
+      id: 'missed-call-1',
+      number: uk ? '+447700900002' : '+12125550101',
+      at: at(8, 52),
+      lastAt: at(9, 4),
+      calls: 2,
+      source: 'phone',
+      clientId: 'client-2',
+      actor: 'Phone line',
+    },
+    {
+      id: 'missed-call-2',
+      number: uk ? '+447700900456' : '+12125550199',
+      at: at(10, 41),
+      lastAt: at(10, 41),
+      calls: 1,
+      source: 'desk',
+      actor: 'Front desk · demo fixture',
+    },
+  ]
+  const noor = state.appointments.find((a) => a.id === 'visit-noor')
+  if (noor) noor.guestHereAt = at(10, 52)
 }

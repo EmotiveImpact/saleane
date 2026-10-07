@@ -3,6 +3,7 @@ import { ArrowUpRight } from 'lucide-react'
 import { useStore } from '../state/context'
 import type { Appointment } from '../domain/model'
 import { money, timeLabel } from '../domain/format'
+import { shownStatus } from '../domain/selectors'
 import { Avatar, Empty, Status } from '../design'
 
 export function Agenda({
@@ -66,13 +67,13 @@ export function Agenda({
                   <span className="agenda-mobile-meta">
                     <span className="agenda-meta-staff">with {staff.name.split(' ')[0]}</span>{' '}
                     <span className="agenda-meta-status">
-                      <Status status={a.status} />
+                      <Status status={shownStatus(a)} />
                     </span>
                   </span>
                 </span>
               </span>{' '}
               <span className="agenda-professional">{staff.name.split(' ')[0]}</span>{' '}
-              <Status status={a.status} />{' '}
+              <Status status={shownStatus(a)} />{' '}
               <span className="agenda-value">
                 {money(a.bookedPriceMinor, state.organisation)}
                 <ArrowUpRight size={15} />

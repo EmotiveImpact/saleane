@@ -73,3 +73,28 @@
     flex-direction: column;
   }
 }
+/* V1.5: missed calls to call back, on Today. */
+.patch-list > li > .missed-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.missed-actions .button {
+  min-height: 36px;
+  padding: 6px 14px;
+}
+.missed-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+.missed-form label {
+  display: grid;
+  gap: 6px;
+  flex: 1 1 180px;
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+}

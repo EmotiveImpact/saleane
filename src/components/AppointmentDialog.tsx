@@ -19,6 +19,7 @@ import { Avatar, Button, ErrorMessage, Modal, Status, TimeChoices } from '../des
 import { BookingDialog } from './BookingDialog'
 import { CardCheckout, VisitCardPanel } from './CardPayments'
 import { VisitPatchTest } from './PatchTests'
+import { shownStatus } from '../domain/selectors'
 
 export function AppointmentDialog({
   appointmentId,
@@ -322,8 +323,21 @@ export function AppointmentDialog({
             Open relationship <ArrowUpRight size={14} />
           </Link>
         </div>
-        <Status status={appointment.status} />
+        <Status status={shownStatus(appointment)} />
       </div>
+      {appointment.status === 'confirmed' && appointment.guestHereAt && (
+        <p className="success-strip">
+          {`${client.name.split(' ')[0]} tapped “I’ve arrived” at ${new Intl.DateTimeFormat(
+            state.organisation.locale,
+            {
+              timeZone: state.organisation.timeZone,
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: state.organisation.locale === 'en-US',
+            },
+          ).format(new Date(appointment.guestHereAt))}. Welcome them when you’re ready.`}
+        </p>
+      )}
       {notice && (
         <p className="success-strip" role="status">
           {notice}

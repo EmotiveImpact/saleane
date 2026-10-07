@@ -163,6 +163,29 @@ export async function guestRoutes(ctx: Context, route: Route): Promise<boolean> 
     reply(200, view)
     return true
   }
+  if (path[2] === 'here') {
+    rateLimit(request, 'guest-write', 10, 5 * 60000)
+    const data = z.object({ token: tokenSchema }).strict().parse(body)
+    const view = db.transaction(() => {
+      const { org, appointmentId } = open(data.token)
+      const result = dispatch(
+        org.state,
+        { type: 'guest-here', appointmentId },
+        'Guest (private link)',
+        new Date(now()).toISOString(),
+      )
+      if (!result.ok) fail(409, result.error)
+      if (result.state !== org.state) persist(org, result.state, null, 'guest.here', appointmentId)
+      return guestView(
+        result.state,
+        appointmentId,
+        now(),
+        guestPaymentFor(ctx, { ...org, state: result.state }, appointmentId),
+      )
+    })
+    reply(200, view)
+    return true
+  }
   if (path[2] === 'waitlist') {
     rateLimit(request, 'guest-write', 10, 5 * 60000)
     const data = z
