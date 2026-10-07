@@ -275,7 +275,8 @@ export function stock(s: BusinessState, productId: string) {
     .reduce((sum, m) => sum + m.quantity, 0)
 }
 export function permissionFor(command: { type: string }) {
-  if (['service', 'staff', 'resource', 'guest-notes'].includes(command.type)) return 'catalogue'
+  if (['service', 'staff', 'resource', 'guest-notes', 'offer'].includes(command.type))
+    return 'catalogue'
   if (['closure', 'remove-closure'].includes(command.type)) return 'hours'
   if (command.type === 'message-queue') return 'message.queue'
   return command.type
@@ -300,6 +301,7 @@ export function can(role: Role, action: string) {
       'reminders',
       'fee',
       'protection',
+      'plan-cancel',
     ].includes(action)
   )
     return false

@@ -14,6 +14,7 @@ import {
   Users,
   CreditCard,
   ArrowRightLeft,
+  Layers,
 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { useStore } from '../state/context'
@@ -33,6 +34,7 @@ import { GuestNotesSettings } from '../components/GuestNotesSettings'
 import { ShareBookingPage } from '../components/ShareBookingPage'
 import { PaymentSettings } from '../components/CardPayments'
 import { SwitchingSettings } from '../components/Switching'
+import { PlanSettings } from '../components/Plans'
 import '../components/management.css'
 
 const sections = [
@@ -42,6 +44,7 @@ const sections = [
   { id: 'messages', label: 'Messages to guests', icon: BellRing },
   { id: 'payments', label: 'Payments', icon: CreditCard },
   { id: 'service', label: 'Services', icon: Scissors },
+  { id: 'plans', label: 'Packages & memberships', icon: Layers },
   { id: 'staff', label: 'Team', icon: Users },
   { id: 'resource', label: 'Spaces & equipment', icon: Armchair },
   { id: 'hours', label: 'Hours & closures', icon: CalendarDays },
@@ -264,6 +267,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
             {section === 'workspace' && <WorkspaceSection onReset={() => setReplaced(true)} />}
             {section === 'privacy' && <StudioPrivacy />}
             {section === 'switching' && <SwitchingSettings />}
+            {section === 'plans' && <PlanSettings />}
             {section === 'business' && (
               <section className="surface ops-panel">
                 <header>

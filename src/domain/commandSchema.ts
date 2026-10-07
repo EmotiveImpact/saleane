@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { offerInputSchema } from './plansSchema'
 import {
   GUEST_NOTE_LIMIT,
   bookingChannels,
@@ -253,11 +254,35 @@ export const commandSchema = z.discriminatedUnion('type', [
     reference: z.string().trim().max(150).optional(),
     discountMinor: money.optional(),
     processor,
+    /** V1.5: a package or membership pays for the visit; the guest pays any tip at the desk. */
+    holdingId: id.optional(),
   }),
   z.object({ type: z.literal('note'), clientId: id, text: z.string().trim().min(2).max(1000) }),
   z.object({ type: z.literal('client'), contact: contactSchema, referredById: id.optional() }),
   z.object({ type: z.literal('consent'), clientId: id, consent: z.boolean() }),
   tillCountCommandSchema,
+  z.object({ type: z.literal('offer'), id: id.optional(), input: offerInputSchema }),
+  z.object({
+    type: z.literal('plan-sell'),
+    offerId: id,
+    clientId: id,
+    method,
+    reference: z.string().trim().max(150).optional(),
+  }),
+  z.object({
+    type: z.literal('plan-renew'),
+    holdingId: id,
+    method,
+    reference: z.string().trim().max(150).optional(),
+  }),
+  z.object({
+    type: z.literal('plan-cancel'),
+    holdingId: id,
+    reason: z.string().trim().min(2).max(300),
+    refundMinor: money.optional(),
+    method: method.optional(),
+    reference: z.string().trim().max(150).optional(),
+  }),
   ...operatingCommandSchema.options,
 ])
 export type BookingInput = z.infer<typeof bookingSchema>

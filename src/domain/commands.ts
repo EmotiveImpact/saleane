@@ -13,6 +13,7 @@ import type { Appointment, BusinessState, RelationshipEvent } from './model'
 import { dateLabel, money, timeLabel } from './format'
 import { availableAllocation } from './allocation'
 import { runSwitchingCommand } from './switching'
+import { coverVisit, runPlanCommand, stampPlanActors } from './plans'
 
 export type CommandResult =
   { ok: true; state: BusinessState; recordId: string } | { ok: false; error: string }
@@ -372,10 +373,21 @@ export function execute(
         const deposit = depositPaid(s, appointment.id)
         if (deposit > appointment.bookedPriceMinor)
           throw new Error('Deposit exceeds this service. Review the ledger.')
-        const discount = command.discountMinor ?? 0
+        const saleId = makeId()
+        // A plan pays its share of the visit; the rest of the booked price is the plan's saving.
+        const plan = command.holdingId
+          ? coverVisit(next, appointment, command.holdingId, deposit, saleId, now, makeId)
+          : undefined
+        if (plan && command.discountMinor)
+          throw new Error('A visit paid by a plan takes no further discount.')
+        const discount = plan
+          ? appointment.bookedPriceMinor - plan.valueMinor
+          : (command.discountMinor ?? 0)
         if (discount > appointment.bookedPriceMinor)
           throw new Error('Discount cannot exceed the booked service price.')
-        const tax = visitTax(s, appointment)
+        // A plan's price already includes any tax, so its share is tax-inclusive.
+        const bookedTax = visitTax(s, appointment)
+        const tax = plan && bookedTax ? { ...bookedTax, inclusive: true } : bookedTax
         const { taxMinor, totalMinor: total } = checkoutTotals({
           priceMinor: appointment.bookedPriceMinor,
           discountMinor: discount,
@@ -388,14 +400,14 @@ export function execute(
             'The discount leaves a balance below the recorded deposit. Review the deposit before checkout.',
           )
         const sale = {
-          id: makeId(),
+          id: saleId,
           organisationId: org.id,
           appointmentId: appointment.id,
           currency: org.currency,
           serviceMinor: appointment.bookedPriceMinor,
           discountMinor: discount,
           taxMinor,
-          taxInclusive: tax?.inclusive ?? false,
+          taxInclusive: plan ? true : (tax?.inclusive ?? false),
           taxRateBps: tax?.rateBps ?? 0,
           taxLabel: tax?.label ?? '',
           receiptNumber: `SL-${s.sales.length + 1}`,
@@ -403,10 +415,11 @@ export function execute(
           tipMinor: command.tipMinor,
           depositAppliedMinor: deposit,
           totalMinor: total,
-          balanceMinor: total - deposit,
+          balanceMinor: total - deposit - (plan?.valueMinor ?? 0),
           paidAt: now,
           method: command.method,
           ...(command.processor ? { processor: command.processor } : {}),
+          ...(plan ? { holdingId: plan.holding.id, coveredMinor: plan.valueMinor } : {}),
         }
         next.sales.push(sale)
         next.payments.push({
@@ -429,10 +442,15 @@ export function execute(
           saleId: sale.id,
           type: 'checkout',
           title: 'Visit completed',
-          detail:
+          detail: `${
+            plan
+              ? `Paid by ${plan.holding.name}${plan.holding.visits ? ` (${plan.visitsLeft} ${plan.visitsLeft === 1 ? 'visit' : 'visits'} left${plan.holding.kind === 'membership' ? ' this month' : ''})` : ''}. `
+              : ''
+          }${
             operations(s).mode === 'sandbox'
               ? 'Demo receipt recorded. No real money was collected.'
-              : paymentDetail(command.method, command.processor),
+              : paymentDetail(command.method, command.processor)
+          }`,
         })
         recordId = sale.id
       }
@@ -503,6 +521,13 @@ export function execute(
       command.type === 'balance-settle'
     ) {
       recordId = runSwitchingCommand(next, command, now, makeId, addEvent, createClient)
+    } else if (
+      command.type === 'offer' ||
+      command.type === 'plan-sell' ||
+      command.type === 'plan-renew' ||
+      command.type === 'plan-cancel'
+    ) {
+      recordId = runPlanCommand(next, command, now, makeId, addEvent)
     } else {
       recordId = runOperatingCommand(next, command, now, makeId, addEvent)
     }
@@ -535,6 +560,7 @@ export function dispatch(
     .forEach((e) => {
       e.actor = actorName
     })
+  stampPlanActors(s, result.state, actorName)
   const counted = new Set((s.tillCounts ?? []).map((c) => c.id))
   for (const count of result.state.tillCounts ?? [])
     if (!counted.has(count.id)) count.actor = actorName

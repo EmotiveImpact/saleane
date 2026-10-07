@@ -2,9 +2,20 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · V1.5 · Packages and memberships
+
+**Status: built locally on 7 October 2026, in review; nothing deployed.** Plan payments are recorded by the desk (cash or the studio's own card terminal); paying for a plan by card through SALEANE and automatic monthly renewal come in a later stage.
+
+- Settings has a new "Packages & memberships" section. A package is a number of visits bought at one price and used within a set number of months. A membership is paid each month and can include visits each month, a discount on other visits, or both. Changing a plan affects future sales only: each client keeps the terms they bought, and a plan is taken off sale rather than deleted.
+- On a client's page the desk can sell a plan, take a membership's monthly payment and see what is left. Only owners and managers can end a plan; any money returned is capped at what was paid and not yet used, recorded with a reference, and never processed by SALEANE.
+- At checkout a plan that covers the visit is offered first. It pays its share of the plan's price (the last visit takes what is left, so a package uses exactly its price), the difference from the list price shows as the plan saving, and the guest pays only any tip. A membership's discount is offered on other visits for the desk to apply.
+- Money has a Plans tab showing what was taken for plans and the package visits paid for but not yet used. A covered visit counts its share as that day's takings; plan money stays apart until used. Cash taken or returned for plans is part of the till count.
+- A lapsed membership covers nothing until paid; paying again restarts it from the current month without charging the missed months. Unused visits in a month do not roll over.
+- Plans, their payments, visits used and refunds appear in the client's data export. Practitioners see none of it.
+
 ## 2026-10-07 · 1.0 readiness ledger
 
-**Status: documentation only; the version stays 1.0.0-rc.1.**
+**Status: merged into main on 7 October 2026 (#26), documentation only; the version stays 1.0.0-rc.1.**
 
 - [docs/V1_READINESS.md](docs/V1_READINESS.md) checks each 1.0 release gate against the evidence here: every V1 daily job works locally, and what remains needs a pilot studio, provider accounts, hosting or the owner's release approval.
 
