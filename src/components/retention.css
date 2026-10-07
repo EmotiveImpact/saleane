@@ -1,0 +1,106 @@
+/* Who comes back: retention figures on the Business page. Tokens only; no accent edges. */
+.retention-panel {
+  margin-top: var(--space-6);
+  padding: var(--space-6);
+}
+.retention-panel > header h2 {
+  font-size: var(--text-lead);
+}
+.retention-panel > header p {
+  margin-top: var(--space-1);
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.retention-figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+.retention-figures .metric {
+  background: var(--mineral);
+}
+.retention-figures .metric small {
+  line-height: 1.45;
+}
+.retention-none {
+  display: block;
+  font-size: var(--text-body);
+  letter-spacing: 0;
+  font-weight: 600;
+  color: var(--muted);
+  line-height: 2.2;
+}
+.retention-table-wrap {
+  margin-top: var(--space-6);
+  overflow-x: auto;
+}
+.retention-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-small);
+}
+.retention-table caption {
+  text-align: left;
+  font-weight: 650;
+  font-size: var(--text-body);
+  padding-bottom: var(--space-3);
+}
+.retention-table caption small {
+  display: block;
+  margin-top: var(--space-1);
+  font-weight: 400;
+  font-size: var(--text-meta);
+  color: var(--muted);
+}
+.retention-table th,
+.retention-table td {
+  padding: var(--space-3) var(--space-2);
+  border-top: 1px solid var(--line);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  vertical-align: middle;
+}
+.retention-table thead th {
+  border-top: 0;
+  color: var(--muted);
+  font-size: var(--text-meta);
+  font-weight: 500;
+}
+.retention-table th:first-child {
+  text-align: left;
+  padding-left: 0;
+}
+.retention-table td:last-child {
+  padding-right: 0;
+}
+.retention-table tbody th {
+  font-weight: 600;
+}
+.retention-table .retention-none {
+  display: inline;
+  font-size: var(--text-meta);
+  font-weight: 400;
+  line-height: inherit;
+}
+.retention-person {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.retention-empty {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+@media (max-width: 760px) {
+  .retention-panel {
+    padding: var(--space-5) var(--space-4);
+  }
+  .retention-figures {
+    grid-template-columns: 1fr;
+  }
+  .retention-table th,
+  .retention-table td {
+    padding: var(--space-2) var(--space-1);
+  }
+}
