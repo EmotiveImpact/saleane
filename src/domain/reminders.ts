@@ -260,8 +260,13 @@ export function planMessages(
       // shows a reaction, reminders from before it no longer count: the guest needs a new test.
       const patchRows = mine.filter((row) => row.kind === 'patch_test')
       const since = reactedAt(s, a)
+      // One still waiting to go out serves the new round too, so the guest is not told twice.
       const current = patchRows.filter(
-        (row) => !since || !row.createdAt || Date.parse(row.createdAt) > Date.parse(since),
+        (row) =>
+          !since ||
+          !row.createdAt ||
+          ['pending', 'unknown'].includes(row.status) ||
+          Date.parse(row.createdAt) > Date.parse(since),
       )
       if (
         patchTestReminderDue(s, a, start, now) &&

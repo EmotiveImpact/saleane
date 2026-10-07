@@ -316,6 +316,11 @@ describe('patch tests', () => {
       expect.objectContaining({ dedupeKey: expect.stringMatching(/:again-1$/) }),
       expect.objectContaining({ dedupeKey: expect.stringMatching(/:again-1$/) }),
     ])
+    // One from before the reaction that has not gone out yet serves the new round.
+    const waiting = actedOn.map((m) => ({ ...m, status: 'pending' as const }))
+    expect(
+      planMessages(local(reactedAfter), now, waiting).filter((m) => m.kind === 'patch_test'),
+    ).toEqual([])
     // One sent after the reaction does count.
     const afterReaction = actedOn.map((m) => ({ ...m, createdAt: '2026-10-06T09:00:00.000Z' }))
     expect(
