@@ -14,6 +14,8 @@ import { dateLabel, money, timeLabel } from './format'
 import { availableAllocation } from './allocation'
 import { runSwitchingCommand } from './switching'
 import { coverVisit, runPlanCommand, stampPlanActors } from './plans'
+import { runGiftCardCommand, spendGiftCard, stampGiftCardActors } from './giftCards'
+import { referenceTaken } from './references'
 import { recordFeedback, repeatedFeedback } from './feedback'
 import { priceRetail, recordRetailMovements, retailCharge, sellAtCounter } from './retail'
 import {
@@ -124,11 +126,18 @@ export function depositPaid(s: BusinessState, appointmentId: string) {
     .reduce((sum, p) => sum + p.amountMinor, 0)
 }
 
+/** Server-only settings that never come from a request body. */
+export type ExecuteOptions = {
+  /** A card payment held this gift card share on this business day; judge expiry as of then. */
+  giftCardAsOf?: string
+}
+
 export function execute(
   s: BusinessState,
   rawCommand: Command,
   now = new Date().toISOString(),
   makeId: () => string = () => crypto.randomUUID(),
+  options: ExecuteOptions = {},
 ): CommandResult {
   try {
     const command = commandSchema.parse(rawCommand)
@@ -380,7 +389,7 @@ export function execute(
         )
           throw new Error('Enter a valid tip up to twice the service price.')
         assertMethod(s, command.method, command.reference, command.processor)
-        if (command.reference && s.payments.some((p) => p.reference === command.reference))
+        if (referenceTaken(s, command.reference))
           throw new Error(
             'This payment reference is already recorded. Review the existing receipt.',
           )
@@ -416,6 +425,24 @@ export function execute(
           throw new Error(
             'The discount leaves a balance below the recorded deposit. Review the deposit before checkout.',
           )
+        // A gift card pays part or all of what is left after any deposit and plan.
+        if (command.giftCardMinor !== undefined && !command.giftCardId)
+          throw new Error('Choose the gift card to take this amount from.')
+        const due = total - deposit - (plan?.valueMinor ?? 0)
+        const gift = command.giftCardId
+          ? spendGiftCard(
+              next,
+              appointment,
+              command.giftCardId,
+              command.giftCardMinor ?? 0,
+              due,
+              saleId,
+              now,
+              makeId,
+              options.giftCardAsOf,
+            )
+          : undefined
+        const giftMinor = gift ? command.giftCardMinor! : 0
         const sale = {
           id: saleId,
           organisationId: org.id,
@@ -432,12 +459,13 @@ export function execute(
           tipMinor: command.tipMinor,
           depositAppliedMinor: deposit,
           totalMinor: total,
-          balanceMinor: total - deposit - (plan?.valueMinor ?? 0),
+          balanceMinor: due - giftMinor,
           paidAt: now,
           method: command.method,
           ...(command.processor ? { processor: command.processor } : {}),
           ...(plan ? { holdingId: plan.holding.id, coveredMinor: plan.valueMinor } : {}),
           ...(retail ? { retail } : {}),
+          ...(gift ? { giftCardId: gift.card.id, giftCardMinor: giftMinor } : {}),
         }
         next.sales.push(sale)
         if (retail)
@@ -476,6 +504,10 @@ export function execute(
           }${
             plan
               ? `Paid by ${plan.holding.name}${plan.holding.visits ? ` (${plan.visitsLeft} ${plan.visitsLeft === 1 ? 'visit' : 'visits'} left${plan.holding.kind === 'membership' ? ' this month' : ''})` : ''}. `
+              : ''
+          }${
+            gift
+              ? `${money(giftMinor, org, true)} paid by gift card ${gift.card.code} (${money(gift.leftMinor, org, true)} left). `
               : ''
           }${
             operations(s).mode === 'sandbox'
@@ -586,6 +618,12 @@ export function execute(
       command.type === 'plan-cancel'
     ) {
       recordId = runPlanCommand(next, command, now, makeId, addEvent)
+    } else if (
+      command.type === 'gift-card-sell' ||
+      command.type === 'gift-card-extend' ||
+      command.type === 'gift-card-cancel'
+    ) {
+      recordId = runGiftCardCommand(next, command, now, makeId, addEvent)
     } else {
       recordId = runOperatingCommand(next, command, now, makeId, addEvent)
     }
@@ -609,8 +647,9 @@ export function dispatch(
   command: Command,
   actorName = 'Local operator',
   now = new Date().toISOString(),
+  options: ExecuteOptions = {},
 ): CommandResult {
-  const result = execute(s, command, now)
+  const result = execute(s, command, now, undefined, options)
   if (!result.ok || result.state === s) return result
   const eventIds = new Set(s.events.map((e) => e.id))
   result.state.events
@@ -621,6 +660,7 @@ export function dispatch(
   stampPlanActors(s, result.state, actorName)
   const sold = new Set((s.counterSales ?? []).map((sale) => sale.id))
   for (const sale of result.state.counterSales ?? []) if (!sold.has(sale.id)) sale.actor = actorName
+  stampGiftCardActors(s, result.state, actorName)
   const counted = new Set((s.tillCounts ?? []).map((c) => c.id))
   for (const count of result.state.tillCounts ?? [])
     if (!counted.has(count.id)) count.actor = actorName

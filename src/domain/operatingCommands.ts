@@ -18,6 +18,7 @@ import { RENT_LIMIT, RENT_PAYMENT_LIMIT } from './rentSchema'
 import { restockReturn } from './retail'
 import { assertSchedulePreserved, scheduleChanges, scheduleSnapshot } from './schedule'
 import { isWaitlistOffer, staleOffer } from './waitlist'
+import { otherLedgerRefund, otherLedgerReference, referenceTaken } from './references'
 
 export function assertMethod(
   s: BusinessState,
@@ -304,7 +305,7 @@ export function runOperatingCommand(
         throw new Error('This reference already records a different payment.')
       return existing.id
     }
-    if (command.reference && next.payments.some((p) => p.reference === command.reference))
+    if (referenceTaken(next, command.reference))
       throw new Error('This payment reference is already recorded for another payment.')
     const paid = next.payments
       .filter((p) => p.appointmentId === a.id && p.kind === 'deposit')
@@ -340,6 +341,8 @@ export function runOperatingCommand(
     if (!a || !['no_show', 'cancelled'].includes(a.status))
       throw new Error('A fee applies only to a missed or cancelled visit.')
     assertMethod(next, command.method, command.reference, command.processor)
+    if (otherLedgerReference(next, command.reference))
+      throw new Error('This payment reference is already recorded for another payment.')
     if (command.reference && next.payments.some((p) => p.reference === command.reference)) {
       const existing = next.payments.find(
         (p) => p.appointmentId === a.id && p.kind === 'fee' && p.reference === command.reference,
@@ -450,11 +453,17 @@ export function runOperatingCommand(
         throw new Error('This reference already records a different refund.')
       return existing.id
     }
-    if (o.refunds.some((r) => r.reference === command.reference))
+    if (
+      o.refunds.some((r) => r.reference === command.reference) ||
+      otherLedgerRefund(next, command.reference)
+    )
       throw new Error('This refund reference already belongs to another receipt.')
     if (
       o.refunds.filter(same).reduce((sum, r) => sum + r.amountMinor, 0) + command.amountMinor >
-      (sale ? sale.totalMinor - (sale.coveredMinor ?? 0) : paid!.amountMinor)
+      (sale
+        ? // A plan's or gift card's share was never paid at the desk, so it cannot go back as money.
+          sale.totalMinor - (sale.coveredMinor ?? 0) - (sale.giftCardMinor ?? 0)
+        : paid!.amountMinor)
     )
       throw new Error('This refund would exceed the remaining receipt total.')
     if (command.method) assertMethod(next, command.method, command.reference, command.processor)

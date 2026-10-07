@@ -175,6 +175,15 @@ export const migrations: Migration[] = [
   },
   {
     version: 8,
+    // V1.5: a gift card paying part of a visit whose rest is charged to a card.
+    up: (connection) =>
+      connection.exec(`
+        ALTER TABLE payment_attempts ADD COLUMN gift_card_id TEXT;
+        ALTER TABLE payment_attempts ADD COLUMN gift_card_minor INTEGER NOT NULL DEFAULT 0 CHECK(gift_card_minor>=0);
+      `),
+  },
+  {
+    version: 9,
     // V2: a card checkout remembers the products added, so the receipt matches what was charged.
     up: (connection) => connection.exec('ALTER TABLE payment_attempts ADD COLUMN products TEXT;'),
   },

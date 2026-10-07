@@ -24,3 +24,9 @@ Screenshots: [Stock](V2-STOCK-page.png), [count](V2-STOCK-count.png), [add a pro
 - No discounts on products yet.
 - Purchase orders and suppliers are not tracked; a delivery is recorded as a count and a note.
 - Safari and Firefox were not checked.
+
+## With gift cards (added 7 October 2026, after merging gift cards from main)
+
+In the browser demo studio, Amelia Carter's £95 facial (£25 deposit already recorded) had a £32 Calming Cleansing Balm added and gift card SAGE-9P3T-XW5C applied for £95. The checkout showed £7.00 to collect. The receipt listed the facial, the balm, the deposit, "Paid by gift card SAGE-9P3T-XW5C −£95.00" and £7.00 collected. A gift card can pay for products as well as the visit. `src/domain/giftCards.test.ts` checks that a card pays exactly the £127 for a visit and product, and refuses a penny more. Screenshot: [products and a gift card](V2-STOCK-giftcard.png).
+
+The card checkout's products column is now database migration 9, because gift cards took 8.

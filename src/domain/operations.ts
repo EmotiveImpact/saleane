@@ -449,6 +449,8 @@ export function can(role: Role, action: string) {
       'receive-order',
       'cancel-order',
       'accounting-export',
+      'gift-card-extend',
+      'gift-card-cancel',
     ].includes(action)
   )
     return false

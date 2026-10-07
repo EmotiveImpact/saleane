@@ -35,6 +35,6 @@ Screenshots: [the page](V2-ACCOUNTS-page.png), [the Xero section after preparing
 
 - Nothing is sent to Xero or QuickBooks. Sending needs the studio's accountant to sign in to their software, which comes later behind the same adapter.
 - One summary journal per day, not one entry per receipt.
-- Visit receipts have no receipt numbers in SALEANE, so that column is blank for them; walk-in sales show their SC number.
+- Visit receipts recorded before receipt numbers arrived with gift cards (SL-1, SL-2 and so on) have a blank receipt column; walk-in sales show their SC number.
 - Deposits count as takings when the visit is paid, as in Business.
 - One location. Safari and Firefox were not checked.

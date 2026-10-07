@@ -6,11 +6,13 @@ import { checkoutTotals } from '../../src/domain/money'
 import { cardPolicy, guestPayment } from '../../src/domain/guest'
 import { feeAllowed } from '../../src/domain/fees'
 export { feeAllowed }
-import { operations, visitTax } from '../../src/domain/operations'
+import { businessDate, operations, visitTax } from '../../src/domain/operations'
 import { priceRetail, retailCharge } from '../../src/domain/retail'
 import { retailItemsSchema } from '../../src/domain/retailSchema'
 import type { RetailItems } from '../../src/domain/retailSchema'
 import type { BusinessState } from '../../src/domain/model'
+import { giftCards, giftStanding } from '../../src/domain/giftCards'
+import { money } from '../../src/domain/format'
 import type { Context, Org } from '../context'
 import { HOSTED_MINUTES } from './providers'
 import type { PayOutcome, PaymentEvent, PaymentProvider, SavedCardDetails } from './providers'
@@ -29,6 +31,8 @@ export type AttemptRow = {
   discount_minor: number
   /** V2: the products added at checkout, as JSON; null when none. */
   products: string | null
+  gift_card_id: string | null
+  gift_card_minor: number
   save_card: number
   refund_of: string | null
   reason: string | null
@@ -63,12 +67,16 @@ export function attemptProducts(row: Pick<AttemptRow, 'products'>): RetailItems 
   return row.products ? retailItemsSchema.parse(JSON.parse(row.products)) : undefined
 }
 
-/** The amount still owed at checkout, with the tip, discount and products the desk entered. */
+/**
+ * The amount still owed at checkout, with the tip, discount, any gift card and the products the
+ * desk entered.
+ */
 export function balanceDue(
   s: BusinessState,
   appointmentId: string,
   tipMinor: number,
   discountMinor: number,
+  giftCardMinor = 0,
   products?: RetailItems,
 ) {
   const a = s.appointments.find((item) => item.id === appointmentId)
@@ -81,7 +89,7 @@ export function balanceDue(
     depositMinor: deposit,
     tax: visitTax(s, a),
   })
-  return totalMinor + retailCharge(priceRetail(s, products)) - deposit
+  return totalMinor + retailCharge(priceRetail(s, products)) - deposit - giftCardMinor
 }
 
 /**
@@ -123,13 +131,15 @@ export function createPayments(ctx: Context, provider: PaymentProvider) {
       | 'created_at'
       | 'updated_at'
       | 'products'
-    > & { products?: RetailItems },
+      | 'gift_card_id'
+      | 'gift_card_minor'
+    > & { products?: RetailItems } & Partial<Pick<AttemptRow, 'gift_card_id' | 'gift_card_minor'>>,
   ) => {
     const id = randomUUID()
     const time = now()
     db.run(
-      `INSERT INTO payment_attempts(id,organisation_id,appointment_id,client_id,purpose,route,amount_minor,currency,tip_minor,discount_minor,products,save_card,refund_of,reason,provider,status,request_key,actor_id,created_at,updated_at)
-       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'started',?,?,?,?)`,
+      `INSERT INTO payment_attempts(id,organisation_id,appointment_id,client_id,purpose,route,amount_minor,currency,tip_minor,discount_minor,products,gift_card_id,gift_card_minor,save_card,refund_of,reason,provider,status,request_key,actor_id,created_at,updated_at)
+       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'started',?,?,?,?)`,
       id,
       row.organisation_id,
       row.appointment_id,
@@ -141,6 +151,8 @@ export function createPayments(ctx: Context, provider: PaymentProvider) {
       row.tip_minor,
       row.discount_minor,
       row.products?.length ? JSON.stringify(row.products) : null,
+      row.gift_card_id ?? null,
+      row.gift_card_minor ?? 0,
       row.save_card,
       row.refund_of,
       row.reason,
@@ -179,8 +191,14 @@ export function createPayments(ctx: Context, provider: PaymentProvider) {
         throw new Error('The visit had already been checked out.')
       const products = attemptProducts(row)
       if (
-        balanceDue(s, row.appointment_id, row.tip_minor, row.discount_minor, products) !==
-        row.amount_minor
+        balanceDue(
+          s,
+          row.appointment_id,
+          row.tip_minor,
+          row.discount_minor,
+          row.gift_card_minor,
+          products,
+        ) !== row.amount_minor
       )
         throw new Error('The visit’s total changed while the card was being charged.')
       return {
@@ -189,6 +207,9 @@ export function createPayments(ctx: Context, provider: PaymentProvider) {
         tipMinor: row.tip_minor,
         discountMinor: row.discount_minor,
         ...(products ? { products } : {}),
+        ...(row.gift_card_id
+          ? { giftCardId: row.gift_card_id, giftCardMinor: row.gift_card_minor }
+          : {}),
         ...base,
       }
     }
@@ -242,7 +263,12 @@ export function createPayments(ctx: Context, provider: PaymentProvider) {
         if (command) {
           const actor =
             row.purpose === 'deposit' && !row.actor_id ? 'Guest (card payment)' : 'Card payment'
-          const result = dispatch(org.state, command, actor, new Date(now()).toISOString())
+          // A held gift card share stays spendable as of the day the payment started.
+          const result = dispatch(org.state, command, actor, new Date(now()).toISOString(), {
+            ...(row.gift_card_id
+              ? { giftCardAsOf: businessDate(org.state, new Date(row.created_at).toISOString()) }
+              : {}),
+          })
           if (!result.ok) throw new Error(result.error)
           ledgerId = result.recordId
           if (result.state.revision !== org.state.revision)
@@ -299,6 +325,33 @@ export function createPayments(ctx: Context, provider: PaymentProvider) {
   return { provider, processor, get, update, cards, create, settle, succeed, apply, visit }
 }
 export type Payments = ReturnType<typeof createPayments>
+
+/**
+ * A card payment still under way holds the gift card share it was started with, so nothing else
+ * can spend or cancel that money before the payment lands. Returns why `state` breaks a hold.
+ */
+export function giftCardHoldProblem(
+  ctx: Context,
+  organisationId: string,
+  state: BusinessState,
+  exceptAttemptId?: string,
+) {
+  const held = ctx.db.all<{ gift_card_id: string; held: number }>(
+    `SELECT gift_card_id, SUM(gift_card_minor) AS held FROM payment_attempts
+     WHERE organisation_id=? AND gift_card_id IS NOT NULL AND id<>? AND route IN ('saved_card','reader')
+     AND status IN ('started','processing','unknown') GROUP BY gift_card_id`,
+    organisationId,
+    exceptAttemptId ?? '',
+  )
+  for (const row of held) {
+    const card = giftCards(state).find((c) => c.id === row.gift_card_id)
+    if (!card) continue
+    const standing = giftStanding(card, '0000-00-00')
+    if (card.status === 'cancelled' || standing.balanceMinor < row.held)
+      return `${money(row.held, state.organisation, true)} on gift card ${card.code} is held for a card payment that is still under way. Finish or check that payment first.`
+  }
+  return null
+}
 
 /** The payment part of a guest's view, read with the server's provider and saved cards. */
 export function guestPaymentFor(ctx: Context, org: Org, appointmentId: string) {

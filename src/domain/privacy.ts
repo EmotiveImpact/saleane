@@ -147,6 +147,7 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
         : {}),
       totalMinor: s.totalMinor,
       balanceMinor: s.balanceMinor,
+      ...(s.giftCardMinor ? { paidByGiftCardMinor: s.giftCardMinor } : {}),
       ...(s.reference ? { reference: s.reference } : {}),
     })),
     /** V2: products bought without a visit. */
@@ -288,6 +289,21 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
           recordedAt: r.createdAt,
         })),
       })),
+    // V1.5: gift cards and vouchers this client bought, and what each has paid for since.
+    giftCards: (state.giftCards ?? [])
+      .filter((c) => c.clientId === client.id)
+      .map((c) => ({
+        kind: c.kind === 'service' ? ('voucher' as const) : ('gift card' as const),
+        ...(c.serviceName ? { treatment: c.serviceName } : {}),
+        valueMinor: c.valueMinor,
+        recipientName: c.recipientName,
+        message: c.message,
+        issuedOn: c.issuedOn,
+        expiresOn: c.expiresOn,
+        status: c.status,
+        spentMinor: c.redemptions.reduce((sum, r) => sum + r.amountMinor, 0),
+        returnedMinor: c.refunds.reduce((sum, r) => sum + r.amountMinor, 0),
+      })),
   }
 }
 export type ClientExport = ReturnType<typeof clientExport>
@@ -316,6 +332,7 @@ export function previewClientExport(file: ClientExport): ExportPreview {
       { label: 'Client connections, type only', count: file.connections.length },
       { label: 'Private feedback they gave', count: file.feedback.length },
       { label: 'Waitlist requests', count: file.waitlist.length },
+      { label: 'Gift cards and vouchers they bought', count: file.giftCards.length },
     ],
     excluded: CLIENT_EXPORT_EXCLUDED,
     notes: [
@@ -374,6 +391,7 @@ export function previewStudioExport(file: StudioExport): ExportPreview {
       { label: 'Client connections', count: r.relationships.length },
       { label: 'Private guest feedback, comments as written', count: (r.feedback ?? []).length },
       { label: 'Waitlist requests', count: (r.waitlist ?? []).length },
+      { label: 'Gift cards and vouchers', count: (r.giftCards ?? []).length },
       {
         label: 'Services, professionals and spaces',
         count: r.services.length + r.staff.length + r.resources.length,
@@ -493,6 +511,12 @@ export function erasureReview(
         reason: 'Part of the money history for each receipt.',
       },
       {
+        label: 'Gift cards and vouchers they bought',
+        count: (state.giftCards ?? []).filter((c) => c.clientId === client.id).length,
+        reason:
+          'Money held for whoever has the card. Its balance and spending must stay accountable.',
+      },
+      {
         label: 'Booked visit terms',
         count: visits.length,
         reason: 'Receipts, deposits and the diary depend on the original service, price and time.',
@@ -603,6 +627,12 @@ export function clientExportText(file: ClientExport, locale = 'en-GB') {
           cur,
           locale,
         )} · ${p.visitsUsed.length} visits used · ${p.status}`,
+    ),
+    '',
+    `GIFT CARDS AND VOUCHERS BOUGHT (${file.giftCards.length})`,
+    ...file.giftCards.map(
+      (c) =>
+        `${c.treatment ? `${c.treatment} voucher` : 'Gift card'} · ${amount(c.valueMinor, cur, locale)}${c.recipientName ? ` for ${c.recipientName}` : ''} · ${c.issuedOn} to ${c.expiresOn} · spent ${amount(c.spentMinor, cur, locale)} · ${c.status}`,
     ),
     '',
     `MESSAGES (${file.messages.length}), none sent`,

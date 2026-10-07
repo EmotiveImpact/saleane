@@ -107,6 +107,22 @@ export function cashForDay(s: BusinessState, date: string) {
       amount: r.amountMinor,
     })),
   ])
+  // Cash taken for gift cards and vouchers, and cash returned when one is cancelled.
+  for (const card of s.giftCards ?? [])
+    planRows.push(
+      {
+        in: true,
+        method: card.payment.method,
+        at: card.payment.recordedAt,
+        amount: card.payment.amountMinor,
+      },
+      ...card.refunds.map((r) => ({
+        in: false,
+        method: r.method,
+        at: r.createdAt,
+        amount: r.amountMinor,
+      })),
+    )
   const planCash = (incoming: boolean) =>
     planRows
       .filter((r) => r.in === incoming && CASH.has(r.method) && recordDay(s, r.at) === date)

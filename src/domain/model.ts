@@ -4,6 +4,8 @@ import { tillCountProblem, tillCountSchema } from './tillCount'
 import { paymentMethodSchema, processorSchema } from './paymentMethods'
 import { holdingSchema, offerSchema } from './plansSchema'
 import { coveredSaleProblem, plansProblem } from './plans'
+import { giftCardSchema } from './giftCardsSchema'
+import { giftCardsProblem, refundableOnReceipt } from './giftCards'
 import { feedbackProblem, feedbackSchema } from './feedback'
 import { counterSaleSchema, saleRetailSchema } from './retailSchema'
 import { retailCharge, retailProblem } from './retail'
@@ -131,6 +133,9 @@ export const saleSchema = z.object({
   coveredMinor: minor.optional(),
   /** V2: products bought with the visit. They add to the total; plans and discounts never cover them. */
   retail: saleRetailSchema.optional(),
+  /** V1.5: the gift card that paid part or all of what was due, and how much it paid. */
+  giftCardId: id.optional(),
+  giftCardMinor: minor.optional(),
 })
 export const paymentSchema = z.object({
   ...scoped,
@@ -172,6 +177,7 @@ export const eventSchema = z.object({
     'profile',
     'plan',
     'waitlist',
+    'gift_card',
   ]),
   allocationChange: z.object({ from: allocationSchema, to: allocationSchema }).optional(),
   title: z.string(),
@@ -211,6 +217,8 @@ export const stateSchema = z.object({
   counterSales: z.array(counterSaleSchema).optional(),
   /** V1.5: clients waiting for an earlier or a free time. */
   waitlist: z.array(waitlistEntrySchema).optional(),
+  /** V1.5: gift cards and vouchers sold here. */
+  giftCards: z.array(giftCardSchema).optional(),
 })
 export type BusinessState = z.infer<typeof stateSchema>
 export type Client = z.infer<typeof clientSchema>
@@ -301,7 +309,11 @@ export function parseState(value: unknown, region: Region): BusinessState {
           (sale.taxInclusive ? 0 : (sale.taxMinor ?? 0)) +
           retailCharge(sale.retail) +
           sale.tipMinor ||
-      sale.balanceMinor !== sale.totalMinor - sale.depositAppliedMinor - (sale.coveredMinor ?? 0) ||
+      sale.balanceMinor !==
+        sale.totalMinor -
+          sale.depositAppliedMinor -
+          (sale.coveredMinor ?? 0) -
+          (sale.giftCardMinor ?? 0) ||
       coveredSaleProblem(sale)
     )
       throw new Error('Invalid sale ledger.')
@@ -515,7 +527,7 @@ export function parseState(value: unknown, region: Region): BusinessState {
     for (const sale of s.sales)
       if (
         o.refunds.filter((r) => r.saleId === sale.id).reduce((sum, r) => sum + r.amountMinor, 0) >
-        sale.totalMinor - (sale.coveredMinor ?? 0)
+        refundableOnReceipt(sale)
       )
         throw new Error('Refunds exceed the receipt total.')
   }
@@ -523,6 +535,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
     if (tillCountProblem(count)) throw new Error('Invalid till count.')
   const plans = plansProblem(s)
   if (plans) throw new Error(plans)
+  const gifts = giftCardsProblem(s)
+  if (gifts) throw new Error(gifts)
   const feedback = feedbackProblem(s)
   if (feedback) throw new Error(feedback)
   const retail = retailProblem(s)

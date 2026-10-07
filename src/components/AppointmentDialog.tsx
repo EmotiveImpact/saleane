@@ -6,12 +6,13 @@ import { GuestLinkPanel } from './GuestLinkPanel'
 import { can, operations, visitTax } from '../domain/operations'
 import type { Command } from '../domain/commands'
 import { depositPaid, rescheduleSlots } from '../domain/commands'
-import { addDays, dateLabel, money, timeLabel } from '../domain/format'
+import { addDays, dateLabel, fullDateLabel, money, timeLabel } from '../domain/format'
 import { checkoutTotals, minorInput, parseMinor } from '../domain/money'
 import { coverPreview, holdings, memberDiscountPercent, plansForVisit } from '../domain/plans'
 import { priceRetail, retailCharge } from '../domain/retail'
 import type { RetailItems } from '../domain/retailSchema'
 import { CheckoutProducts, ReceiptProducts } from './CheckoutProducts'
+import { findGiftCard, giftCards, giftStanding } from '../domain/giftCards'
 import '../components/plans.css'
 import { Avatar, Button, ErrorMessage, Modal, Status, TimeChoices } from '../design'
 import { BookingDialog } from './BookingDialog'
@@ -40,6 +41,11 @@ export function AppointmentDialog({
   const [discount, setDiscount] = useState('0')
   // V1.5: the package or membership paying for this visit ('' pays as usual).
   const [holdingId, setHoldingId] = useState<string | null>(null)
+  // V1.5: a gift card the desk applied at checkout, and how much to take from it.
+  const [giftCode, setGiftCode] = useState('')
+  const [giftId, setGiftId] = useState('')
+  const [giftAmount, setGiftAmount] = useState('')
+  const [giftError, setGiftError] = useState('')
   const [checkout, setCheckout] = useState(false)
   // V2: products the guest is buying with the visit.
   const [items, setItems] = useState<RetailItems>([])
@@ -90,7 +96,6 @@ export function AppointmentDialog({
   const sale = state.sales.find((s) => s.appointmentId === appointmentId)
   // PILOT-02: a signed-in local studio can take a card through the payment provider.
   const cardTaking = storeMode === 'server' && !sandbox
-  const byCard = cardTaking && method === 'card'
   const deposit = depositPaid(state, appointmentId)
   const tipMinor = parseMinor(tip, 0)
   const coverable = deposit ? [] : plansForVisit(state, appointment, today)
@@ -122,7 +127,39 @@ export function AppointmentDialog({
   } catch (problem) {
     retailError = problem instanceof Error ? problem.message : 'Check the products.'
   }
-  const total = dueMinor - coveredMinor + retailCharge(retail)
+  const gift = giftCards(state).find((c) => c.id === giftId)
+  const giftLeft = gift ? giftStanding(gift, today).balanceMinor : 0
+  // A gift card can pay for products as well as the visit.
+  const beforeGift = Math.max(0, dueMinor - coveredMinor) + retailCharge(retail)
+  // Typed amounts are kept within what the card holds and what is due.
+  const giftMinor = gift
+    ? Math.min(Math.max(0, parseMinor(giftAmount, 0) || 0), giftLeft, beforeGift)
+    : 0
+  const total = beforeGift - giftMinor
+  // Nothing is charged to a card when a plan or gift card leaves nothing to pay.
+  const byCard = cardTaking && method === 'card' && total > 0
+  function applyGift() {
+    const card = findGiftCard(state, giftCode)
+    const standing = card && giftStanding(card, today)
+    if (!card || !standing) {
+      setGiftError('No gift card here has that code. Check it and try again.')
+      return
+    }
+    if (!standing.canSpend) {
+      setGiftError(
+        standing.state === 'cancelled'
+          ? 'This gift card was cancelled.'
+          : standing.state === 'used'
+            ? 'This gift card has been used up.'
+            : `This gift card expired on ${fullDateLabel(card.expiresOn, state.organisation.locale)}. A manager can give it more time.`,
+      )
+      return
+    }
+    setGiftId(card.id)
+    setGiftAmount(minorInput(Math.min(standing.balanceMinor, beforeGift)))
+    setGiftError('')
+    setCollected(false)
+  }
   const needsConfirm = !sandbox && total > 0
   const tipPreset = (percent: number) => Math.round((appointment.bookedPriceMinor * percent) / 100)
   const available = mode === 'move' ? rescheduleSlots(state, appointmentId, staffId, date) : []
@@ -180,7 +217,9 @@ export function AppointmentDialog({
       setError('Confirm that the balance has already been received outside Saleane.')
       return
     }
-    if (method === 'external_card' && !reference.trim()) {
+    // With nothing left to pay the payment fields are hidden; the visit closes at nothing due.
+    const nothingDue = total === 0
+    if (method === 'external_card' && !nothingDue && !reference.trim()) {
       setError('Enter the external card payment reference.')
       return
     }
@@ -192,10 +231,12 @@ export function AppointmentDialog({
       type: 'checkout',
       appointmentId,
       tipMinor,
-      method,
+      // A provider card is charged only through its own screen, and a terminal only when money is due.
+      method: method === 'card' || (nothingDue && method === 'external_card') ? 'cash' : method,
       ...(chosenPlan ? { holdingId: chosenPlan.holding.id } : { discountMinor }),
       ...(items.length ? { products: items } : {}),
-      reference: reference.trim() || undefined,
+      ...(gift && giftMinor > 0 ? { giftCardId: gift.id, giftCardMinor: giftMinor } : {}),
+      reference: (!nothingDue && reference.trim()) || undefined,
     })
   }
   function changeMode(next: typeof mode) {
@@ -277,16 +318,18 @@ export function AppointmentDialog({
           <div className="success-strip">
             <Check size={18} />
             Receipt recorded ·{' '}
-            {sale.coveredMinor !== undefined && !sale.balanceMinor
+            {sale.coveredMinor !== undefined && !sale.balanceMinor && !sale.giftCardMinor
               ? `Paid by ${holdings(state).find((h) => h.id === sale.holdingId)?.name ?? 'plan'}`
-              : {
-                  demo_card: 'Demo card',
-                  demo_cash: 'Demo cash',
-                  cash: 'Cash',
-                  external_card: 'External card',
-                  card: sale.processor?.live ? 'Card' : 'Test card, no money moved',
-                  previous_system: 'Previous system',
-                }[sale.method]}
+              : sale.giftCardMinor && !sale.balanceMinor
+                ? 'Paid by gift card'
+                : {
+                    demo_card: 'Demo card',
+                    demo_cash: 'Demo cash',
+                    cash: 'Cash',
+                    external_card: 'External card',
+                    card: sale.processor?.live ? 'Card' : 'Test card, no money moved',
+                    previous_system: 'Previous system',
+                  }[sale.method]}
           </div>
           <div className="receipt-line">
             <span>{appointment.bookedServiceName ?? service.name}</span>
@@ -323,6 +366,15 @@ export function AppointmentDialog({
             <span>Deposit applied</span>
             <span>−{money(sale.depositAppliedMinor, state.organisation, true)}</span>
           </div>
+          {!!sale.giftCardMinor && (
+            <div className="receipt-line">
+              <span>
+                Paid by gift card{' '}
+                {giftCards(state).find((c) => c.id === sale.giftCardId)?.code ?? ''}
+              </span>
+              <span>−{money(sale.giftCardMinor, state.organisation, true)}</span>
+            </div>
+          )}
           <div className="receipt-line total">
             <span>Collected at checkout</span>
             <strong>{money(sale.balanceMinor, state.organisation, true)}</strong>
@@ -650,7 +702,75 @@ export function AppointmentDialog({
             )}
           </fieldset>
           <ErrorMessage error={retailError} />
-          {(total > 0 || !chosenPlan) && (
+          {gift ? (
+            <div className="checkout-gift">
+              <div className="receipt-line">
+                <span>
+                  Gift card {gift.code} · {money(giftLeft, state.organisation, true)} on it
+                </span>
+                <button
+                  type="button"
+                  className="text-link"
+                  onClick={() => {
+                    setGiftId('')
+                    setGiftCode('')
+                    setCollected(false)
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+              <label>
+                Take from the gift card ({state.organisation.currency})
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  max={Math.min(giftLeft, beforeGift) / 100}
+                  value={giftAmount}
+                  onChange={(event) => {
+                    setGiftAmount(event.target.value)
+                    setCollected(false)
+                  }}
+                />
+              </label>
+              <div className="receipt-line">
+                <span>Paid by gift card</span>
+                <span>−{money(giftMinor, state.organisation, true)}</span>
+              </div>
+            </div>
+          ) : (
+            beforeGift > 0 &&
+            giftCards(state).length > 0 && (
+              <div className="checkout-gift">
+                <label>
+                  Gift card or voucher code
+                  <span className="checkout-gift-row">
+                    <input
+                      value={giftCode}
+                      maxLength={20}
+                      autoComplete="off"
+                      placeholder="ABCD-EFGH-JKLM"
+                      onChange={(event) => {
+                        setGiftCode(event.target.value)
+                        setGiftError('')
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={giftCode.trim().length < 12}
+                      onClick={applyGift}
+                    >
+                      Apply
+                    </Button>
+                  </span>
+                </label>
+                <ErrorMessage error={giftError} />
+              </div>
+            )
+          )}
+          {(total > 0 || (!chosenPlan && !gift)) && (
             <>
               <label>
                 Payment method
@@ -717,13 +837,15 @@ export function AppointmentDialog({
               ? 'Tax follows the setting in place when this visit was booked. '
               : 'No tax applies to this visit. '}
             Tips are separate from service revenue.{' '}
-            {chosenPlan && total === 0
-              ? `${chosenPlan.holding.name} pays for this visit; there is nothing to collect.`
-              : sandbox
-                ? 'No real payment will be taken.'
-                : byCard
-                  ? 'The visit is checked out only when the card payment goes through.'
-                  : 'Only record funds already received outside SALEANE.'}
+            {gift && total === 0
+              ? 'The gift card pays for this visit; there is nothing to collect.'
+              : chosenPlan && total === 0
+                ? `${chosenPlan.holding.name} pays for this visit; there is nothing to collect.`
+                : sandbox
+                  ? 'No real payment will be taken.'
+                  : byCard
+                    ? 'The visit is checked out only when the card payment goes through.'
+                    : 'Only record funds already received outside SALEANE.'}
           </p>
           {byCard && (
             <CardCheckout
@@ -732,6 +854,7 @@ export function AppointmentDialog({
               tipMinor={Number.isFinite(tipMinor) ? tipMinor : 0}
               discountMinor={Number.isFinite(discountMinor) ? discountMinor : 0}
               products={items}
+              giftCard={gift && giftMinor > 0 ? { id: gift.id, amountMinor: giftMinor } : undefined}
             />
           )}
           <ErrorMessage error={error} />

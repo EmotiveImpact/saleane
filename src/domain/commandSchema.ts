@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { offerInputSchema } from './plansSchema'
 import { waitlistInputSchema, waitlistTimesSchema } from './waitlistSchema'
+import { giftCardInputSchema } from './giftCardsSchema'
 import { feedbackInputSchema } from './feedback'
 import {
   GUEST_NOTE_LIMIT,
@@ -322,6 +323,9 @@ export const commandSchema = z.discriminatedUnion('type', [
     holdingId: id.optional(),
     /** V2: products the guest buys with the visit, at their catalogue price. */
     products: retailItemsSchema.optional(),
+    /** V1.5: a gift card or voucher pays part or all of what is due. */
+    giftCardId: id.optional(),
+    giftCardMinor: money.optional(),
   }),
   z.object({ type: z.literal('note'), clientId: id, text: z.string().trim().min(2).max(1000) }),
   // V2: products sold to someone without a visit.
@@ -377,6 +381,21 @@ export const commandSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('plan-cancel'),
     holdingId: id,
+    reason: z.string().trim().min(2).max(300),
+    refundMinor: money.optional(),
+    method: method.optional(),
+    reference: z.string().trim().max(150).optional(),
+  }),
+  z.object({
+    type: z.literal('gift-card-sell'),
+    input: giftCardInputSchema,
+    method,
+    reference: z.string().trim().max(150).optional(),
+  }),
+  z.object({ type: z.literal('gift-card-extend'), giftCardId: id, expiresOn: z.iso.date() }),
+  z.object({
+    type: z.literal('gift-card-cancel'),
+    giftCardId: id,
     reason: z.string().trim().min(2).max(300),
     refundMinor: money.optional(),
     method: method.optional(),

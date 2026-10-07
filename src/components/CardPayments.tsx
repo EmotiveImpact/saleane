@@ -214,6 +214,7 @@ export function CardCheckout({
   tipMinor,
   discountMinor,
   products = [],
+  giftCard,
 }: {
   appointmentId: string
   amountMinor: number
@@ -221,6 +222,8 @@ export function CardCheckout({
   discountMinor: number
   /** V2: products bought with the visit; the server prices them again before charging. */
   products?: { productId: string; quantity: number }[]
+  /** V1.5: a gift card paying part of the visit; the card is charged the rest. */
+  giftCard?: { id: string; amountMinor: number }
 }) {
   const { state, blocked } = useStore()
   const { reply, error: loadError } = usePayments({ appointmentId })
@@ -288,6 +291,7 @@ export function CardCheckout({
             tipMinor,
             discountMinor,
             ...(products.length ? { products } : {}),
+            ...(giftCard ? { giftCardId: giftCard.id, giftCardMinor: giftCard.amountMinor } : {}),
           })
         }}
       >
