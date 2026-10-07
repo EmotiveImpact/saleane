@@ -2,6 +2,14 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-06 · In review · Competitive position in the plan
+
+**Status: documentation only; no product behaviour changes.**
+
+- Roadmap gains a Competitive position section from the Mindbody comparison: memberships and packages lead V1.5, a narrow consented missed-call text-back joins V1.5 ahead of the V4 concierge, no marketplace stays a firm rule, and booking from Google search or Instagram is listed as an idea to validate.
+- The same section records the one-line promise, the four moments (before, during, checkout, after), the cancellation-to-filled-slot workflow, focused navigation and the pilot test of less effort, fewer mistakes and better continuity.
+- Vision states the no-marketplace rule plainly and adds a short "Where SALEANE competes" section.
+
 ## 2026-10-06 · Merged · LOCAL-05 qualification pass
 
 **Status: merged into main on 6 October 2026; not deployed.** Chromium only; Safari, Firefox and screen readers are still to be run.

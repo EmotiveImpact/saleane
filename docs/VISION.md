@@ -1,6 +1,6 @@
 # SALEANE vision
 
-Revision 0.4 · 6 October 2026 · product direction, not a claim of shipped capability.
+Revision 0.5 · 6 October 2026 · product direction, not a claim of shipped capability.
 
 Saleane should become the operating system for modern beauty, spa and wellness businesses in the United Kingdom and United States. It should remember the whole relationship, make the working day dependable, and help an owner make better decisions without creating more administrative work.
 
@@ -42,7 +42,7 @@ The local V1 candidate now connects accounts, tenant-scoped storage, studio conf
 3. **Give money a clear history.** Deposits are part-payments. Earned revenue, cash collected, gratuities and liabilities have different meanings.
 4. **Earn the right to automate.** Suggestions show their evidence. Sending messages, moving appointments and collecting money require appropriate authority and a reviewable action.
 5. **Feel dependable.** Weight comes from legible type, stable structure, restrained colour and honest state. Dense operational information should remain calm.
-6. **Let the business own the relationship.** Branded booking stays focused on the selected business; a marketplace is not the core product.
+6. **Let the business own the relationship.** Branded booking stays focused on the selected business. There is no consumer marketplace, no commission on a studio's clients and no competitor promotion. Discovery, such as booking from Google search, always lands on the studio's own booking.
 7. **Keep clinical work deliberate.** No diagnosis, clinical chart, medication, treatment photograph or health-data inference enters core Saleane by accident.
 
 ## Who we serve first
@@ -72,6 +72,10 @@ The feeling is **everything is under control**. Today answers what needs attenti
 Branded booking belongs to the business: useful available times, optional practitioner preference, clear prices and policies, no mandatory app or consumer account, no competing-business promotion. Intelligence should appear naturally as evidence and a proposed next step. A command field can grow from search into analysis and authorised actions.
 
 The three visual expressions are Quiet Luxury, Modern Editorial and After Dark, interpreted under the later requirement for weight and permanence. The third serves guest/marketing contexts, not the primary operator workspace. No final direction has been approved.
+
+## Where SALEANE competes
+
+SALEANE shares the category's basic jobs with Mindbody, Fresha, Boulevard, Mangomint and Phorest. Its promise: SALEANE helps a small, high-touch studio run every visit well, and turn good visits into lasting client relationships. It aims to be the product a small premium studio chooses because it is easier to learn, fairer on price, better at remembering each client and more beautiful to use every day. Mindbody's strengths in memberships and always-on reply to missed calls are worth matching; its class focus, marketplace commission, locked tiers and exit fees are not. See the [roadmap](ROADMAP.md#competitive-position).
 
 ## Commercial and operational principles
 
