@@ -162,6 +162,17 @@ export const migrations: Migration[] = [
         CREATE UNIQUE INDEX outbox_provider_ref ON outbox(provider,provider_ref) WHERE provider_ref IS NOT NULL;
       `),
   },
+  {
+    version: 7,
+    // Ask Saleane: each studio's assistant use this month, so the allowance holds across restarts.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE assistant_usage (
+          organisation_id TEXT PRIMARY KEY REFERENCES organisations(id),
+          usage TEXT NOT NULL, updated_at INTEGER NOT NULL
+        ) STRICT;
+      `),
+  },
 ]
 export const SCHEMA_VERSION = migrations[migrations.length - 1].version
 
