@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-07 · In review · Generated photo library
+
+Added 40 photographic candidates across rooms, details, treatments, people, moments and guest pages, with original PNGs, quality-80 WebPs, numbered review gallery and provenance manifest. The user's follow-up broadens representation of people of colour throughout the treatment and everyday studio scenes. Existing imagery is preserved. Shortlisting and app-skin integration remain pending. Asset dimensions and original-file integrity are checked; no application behaviour changes are included.
+
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
 ## 2026-10-06 · Merged · LOCAL-05 qualification pass
