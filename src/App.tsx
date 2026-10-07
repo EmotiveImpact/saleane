@@ -8,7 +8,6 @@ import {
   Search,
   Settings2,
   Users,
-  ArrowUpRight,
   Menu,
   X,
   Info,
@@ -176,8 +175,7 @@ function WorkspaceApp() {
             <img src="/images/saleane-studio-warm-small.jpg" alt="" />
           </Link>
           <Link to="/booking" className="public-booking-link">
-            <span>Your booking page</span>
-            <ArrowUpRight size={16} />
+            Your booking page
           </Link>
           <div className="sidebar-footer">
             <span>
@@ -205,7 +203,7 @@ function WorkspaceApp() {
               </NavLink>
             ))}
             <Link to="/booking" onClick={() => setMobileNav(false)}>
-              Your booking page <ArrowUpRight size={17} />
+              Your booking page
             </Link>
           </nav>
         </Modal>

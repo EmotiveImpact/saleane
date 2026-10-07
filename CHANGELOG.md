@@ -2,11 +2,13 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
-## In review · Sidebar tagline under the name
+## In review · Sidebar tidy and a booking page spacing fix
 
 **Status: pull request, not merged.**
 
-- The sidebar line "A considered way to run a remarkable business." now sits directly under the SALEANE name at the top of the sidebar instead of at the foot. Phones use the navigation menu, which is unchanged.
+- The sidebar line "A considered way to run a remarkable business." now sits directly under the SALEANE name at the top of the sidebar instead of at the foot. Phones use the navigation menu, which never carried the line.
+- The "Your booking page" link in the sidebar and the phone menu no longer has an arrow. It opens in the same tab, so no meaning is lost.
+- On phones, the real guest booking page showed its welcome as "Care,considered." and "just for you.Thoughtful" because the hidden line breaks had no space beside them. Both now read with a space.
 
 ## 2026-10-07 · A smoother booking page and the house photographs
 
