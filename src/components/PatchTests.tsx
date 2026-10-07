@@ -59,14 +59,17 @@ export function PatchTestForm({ clientId, onClose }: { clientId: string; onClose
   const now = new Date().toISOString()
   const today = businessDate(state, now)
   const client = state.clients.find((c) => c.id === clientId)
-  const team = state.staff.filter((p) => !p.archived)
+  // Who can do patch-tested treatments come first, but nobody is chosen for you: a wrong name
+  // here would end up in the client's record.
+  const colour = new Set(state.services.filter((x) => x.patchTest).map((x) => x.id))
+  const qualified = (p: { serviceIds: string[] }) => p.serviceIds.some((id) => colour.has(id))
+  const team = state.staff
+    .filter((p) => !p.archived)
+    .sort((a, b) => Number(qualified(b)) - Number(qualified(a)))
   const [date, setDate] = useState(today)
   const [time, setTime] = useState(clockTime(Math.floor(businessMinutes(state, now) / 5) * 5))
   const [product, setProduct] = useState('')
-  const colour = new Set(state.services.filter((x) => x.patchTest).map((x) => x.id))
-  const [staffId, setStaffId] = useState(
-    team.find((p) => p.serviceIds.some((id) => colour.has(id)))?.id ?? '',
-  )
+  const [staffId, setStaffId] = useState('')
   const [notes, setNotes] = useState('')
   const [picked, setOutcome] = useState<'' | 'clear' | 'reaction'>('')
   const [resultNotes, setResultNotes] = useState('')
