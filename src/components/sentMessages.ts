@@ -41,18 +41,26 @@ export const kindLabel: Record<MessageKind, string> = {
   message: 'Written in the inbox',
 }
 /** The outbox for one studio, or one client. Reads only; staff can ask a failed message to go again. */
-export function useSentMessages(clientId?: string) {
+export function useSentMessages(
+  clientId?: string,
+  options: { limit?: number; skip?: boolean } = {},
+) {
+  const { limit, skip = false } = options
   const { mode, state, session } = useStore()
   const [reply, setReply] = useState<OutboxReply | null>(null)
   const [error, setError] = useState('')
   const [refresh, setRefresh] = useState(0)
   const orgId = state.organisation.id
-  const signedIn = mode === 'server' && !!session
+  const signedIn = mode === 'server' && !!session && !skip
   useEffect(() => {
     if (!signedIn) return
     let active = true
+    const query = new URLSearchParams({
+      ...(clientId ? { clientId } : {}),
+      ...(limit ? { limit: String(limit) } : {}),
+    }).toString()
     api<OutboxReply>(
-      `/api/workspaces/${encodeURIComponent(orgId)}/outbox${clientId ? `?clientId=${encodeURIComponent(clientId)}` : ''}`,
+      `/api/workspaces/${encodeURIComponent(orgId)}/outbox${query ? `?${query}` : ''}`,
     )
       .then((next) => {
         if (!active) return
@@ -65,6 +73,6 @@ export function useSentMessages(clientId?: string) {
     return () => {
       active = false
     }
-  }, [orgId, clientId, signedIn, state.revision, refresh])
+  }, [orgId, clientId, limit, signedIn, state.revision, refresh])
   return { reply, error, load: () => setRefresh((n) => n + 1), available: signedIn }
 }

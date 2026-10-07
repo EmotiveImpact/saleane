@@ -81,7 +81,20 @@ export function Inbox() {
   const shown = all
     .filter((c) => filter === 'all' || (filter === 'unread' ? c.unread > 0 : c.drafts > 0))
     .filter((c) => matches(state, c, query))
-  const selected = shown.find((c) => c.key === selectedKey) ?? shown[0]
+  const listed = shown.find((c) => c.key === selectedKey) ?? shown[0]
+  // The list comes from the studio's newest messages; an open conversation reads that guest's own.
+  const own = useSentMessages(listed?.clientId, { limit: 200, skip: !listed?.clientId })
+  const selected =
+    listed &&
+    (own.reply
+      ? conversations(state, [
+          ...own.reply.messages,
+          ...(sent.reply?.messages ?? []).filter(
+            (row) => !own.reply!.messages.some((mine) => mine.id === row.id),
+          ),
+        ]).find((c) => c.key === listed.key)
+      : undefined)
+  const current = selected ?? listed
   const unread = all.reduce((n, c) => n + c.unread, 0)
   const drafts = all.reduce((n, c) => n + c.drafts, 0)
   const allowedDraft = can(role, 'message') && !blocked
@@ -500,15 +513,15 @@ export function Inbox() {
           </p>
           <ul className="inbox-rows">
             {shown.map((c) => {
-              const current = view === 'columns' && selected?.key === c.key
+              const isCurrent = view === 'columns' && current?.key === c.key
               const last = c.items[c.items.length - 1]
               const name = who(state, c)
               return (
                 <li key={c.key}>
                   <button
                     type="button"
-                    className={`inbox-row ${current ? 'is-selected' : ''} ${c.unread ? 'is-unread' : ''}`}
-                    aria-current={current ? 'true' : undefined}
+                    className={`inbox-row ${isCurrent ? 'is-selected' : ''} ${c.unread ? 'is-unread' : ''}`}
+                    aria-current={isCurrent ? 'true' : undefined}
                     onClick={() => open(c)}
                   >
                     <Avatar small identity={c.clientId ?? c.from} name={c.clientId ? name : '?'} />
@@ -556,13 +569,13 @@ export function Inbox() {
         </div>
         {view === 'columns' && (
           <div className="inbox-pane" aria-live="polite">
-            {selected ? (
+            {current ? (
               <>
                 <button type="button" className="inbox-back" onClick={() => setOpened(false)}>
                   <ArrowLeft size={16} />
                   All conversations
                 </button>
-                {conversationView(selected)}
+                {conversationView(current)}
               </>
             ) : (
               <p className="inbox-pane-empty">Choose a conversation to read it here.</p>
@@ -571,17 +584,17 @@ export function Inbox() {
         )}
       </section>
       <SentMessages />
-      {view === 'panel' && panelOpen && selected && (
+      {view === 'panel' && panelOpen && current && (
         <Modal
           open
           placement="side"
           onClose={() => setPanelOpen(false)}
-          title={who(state, selected)}
+          title={who(state, current)}
           description={
             sends ? 'Each message shows what became of it.' : 'Nothing leaves this sample studio.'
           }
         >
-          <div className="inbox-panel">{conversationView(selected)}</div>
+          <div className="inbox-panel">{conversationView(current)}</div>
         </Modal>
       )}
       {noting && client && (

@@ -185,7 +185,13 @@ export function runInboxCommand(
   // A guest's own words, as they arrived. Over-long ones are kept to the limit, never refused.
   const from = (command.channel === 'sms' ? textNumber(command.from) : null) ?? command.from.trim()
   const body = command.body.trim().slice(0, REPLY_TEXT_LIMIT) || '(No words, perhaps a picture.)'
-  const client = senderClient(next, command.channel, from)
+  // A sender matched to a client before stays with them, even if their profile has other details.
+  const earlier = list
+    .filter((r) => r.channel === command.channel && r.from === from.slice(0, 200) && r.clientId)
+    .at(-1)
+  const client =
+    (earlier && next.clients.find((c) => c.id === earlier.clientId)) ??
+    senderClient(next, command.channel, from)
   const reply: Reply = {
     id: makeId(),
     organisationId: next.organisation.id,

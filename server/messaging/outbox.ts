@@ -12,6 +12,7 @@ import {
   missedCallTextDue,
   isClientKind,
   messageSlot,
+  appointmentMessagesOff,
   missYouDue,
   dueBackDue,
   composeMessage,
@@ -170,6 +171,8 @@ export function createOutbox(ctx: Context, providers: Providers) {
           return skip('Stopped or changed before it went out.')
         if (message.purpose === 'marketing' && !client.marketingConsent)
           return skip('Email news was no longer agreed before it went out.')
+        if (message.purpose === 'appointment' && appointmentMessagesOff(client, fresh.channel))
+          return skip('Turned off for this client before it went out.')
         const to = fresh.channel === 'email' ? client.email.trim() : textNumber(client.phone)
         if (!to) return skip('The client has no address for this channel now.')
         const body = message.body.replaceAll(BOOK_LINK, `${ctx.allowedOrigin}/book/${org.slug}`)

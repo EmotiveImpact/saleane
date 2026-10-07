@@ -786,6 +786,15 @@ function approveMessage(next: BusinessState, message: DraftMessage, now: string)
         ? 'This client has no mobile number with its country code. Add one, or send by email.'
         : 'This client has no email address. Add one, or send by text.',
     )
+  if (
+    message.purpose === 'appointment' &&
+    (message.channel === 'sms' ? to.noTextReminders : to.noEmailReminders)
+  )
+    throw new Error(
+      message.channel === 'sms'
+        ? 'This client asked for no appointment texts. Send by email, or change their preferences first.'
+        : 'This client asked for no appointment emails. Send by text, or change their preferences first.',
+    )
   message.status = 'queued'
   message.approvedAt = now
 }

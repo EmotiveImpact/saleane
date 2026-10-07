@@ -408,7 +408,9 @@ export function stock(s: BusinessState, productId: string) {
     .movements.filter((m) => m.productId === productId)
     .reduce((sum, m) => sum + m.quantity, 0)
 }
-export function permissionFor(command: { type: string }) {
+export function permissionFor(command: { type: string; approve?: boolean }) {
+  // Writing and approving in one step needs the right to approve.
+  if (command.type === 'message' && command.approve) return 'message.queue'
   if (['service', 'staff', 'resource', 'guest-notes', 'offer'].includes(command.type))
     return 'catalogue'
   if (

@@ -551,6 +551,7 @@ export function planMessages(
     const client = s.clients.find((c) => c.id === message.clientId)
     if (!client || (message.purpose === 'marketing' && !client.marketingConsent)) continue
     const channel = message.channel ?? 'email'
+    if (message.purpose === 'appointment' && appointmentMessagesOff(client, channel)) continue
     const recipient = channel === 'email' ? client.email.trim() : textNumber(client.phone)
     if (!recipient) continue
     plan.push({
@@ -567,6 +568,10 @@ export function planMessages(
   }
   return plan
 }
+
+/** Whether a client asked for no appointment messages on this channel. */
+export const appointmentMessagesOff = (client: Client, channel: MessageChannel) =>
+  channel === 'email' ? !!client.noEmailReminders : !!client.noTextReminders
 
 /** The outbox slot of a message written in the inbox, which names the message. */
 export const messageSlot = (messageId: string) => `message:${messageId}`

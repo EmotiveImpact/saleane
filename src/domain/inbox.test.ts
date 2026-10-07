@@ -4,7 +4,7 @@ import { dispatch, execute } from './commands'
 import type { Command } from './commands'
 import { DEMO_DATE, parseState } from './model'
 import type { BusinessState } from './model'
-import { can, operations } from './operations'
+import { can, operations, permissionFor } from './operations'
 import { conversations, repliesList, savedReplies, unreadReplies } from './inbox'
 import { planMessages } from './reminders'
 import { clientExport, clientExportText, erasureReview } from './privacy'
@@ -309,6 +309,42 @@ describe('the inbox (V1.5)', () => {
     expect(clientExportText(file)).toContain('REPLIES (1)')
     const review = erasureReview(s, 'client-3', DEMO_DATE)
     expect(review.kept.find((k) => k.label === 'Messages approved for sending')?.count).toBe(1)
+  })
+
+  it('respects a client who asked for no appointment texts, and needs the right to approve', () => {
+    let s = seed('UK')
+    const written = draft(s, { channel: 'sms' })
+    s = structuredClone(written.state)
+    s.clients.find((c) => c.id === 'client-3')!.noTextReminders = true
+    const approve = execute(s, { type: 'message-queue', messageId: written.recordId! }, NOW, makeId)
+    expect(approve.ok || approve.error).toMatch(/asked for no appointment texts/)
+    // Approved before they asked: it is not planned after all.
+    const before = run(written.state, { type: 'message-queue', messageId: written.recordId! }).state
+    before.clients.find((c) => c.id === 'client-3')!.noTextReminders = true
+    expect(planMessages(sending(before), NOW, []).some((m) => m.kind === 'message')).toBe(false)
+    expect(permissionFor({ type: 'message', approve: true })).toBe('message.queue')
+    expect(can('reception', permissionFor({ type: 'message', approve: true }))).toBe(false)
+    expect(can('reception', permissionFor({ type: 'message' }))).toBe(true)
+  })
+
+  it('keeps a later reply from a sender matched before with the same client', () => {
+    let s = run(seed('UK'), {
+      type: 'reply-received',
+      channel: 'sms',
+      from: '+447700900888',
+      body: 'Hi, it is Grace on my work phone.',
+      providerRef: 'SM-a',
+    }).state
+    const first = repliesList(s).find((r) => r.providerRef === 'SM-a')!
+    s = run(s, { type: 'reply-link', replyId: first.id, clientId: 'client-6' }).state
+    const later = run(s, {
+      type: 'reply-received',
+      channel: 'sms',
+      from: '+44 7700 900888',
+      body: 'Running ten minutes late.',
+      providerRef: 'SM-b',
+    })
+    expect(repliesList(later.state).find((r) => r.id === later.recordId)?.clientId).toBe('client-6')
   })
 
   it('refuses a reply that names a client who is not there', () => {
