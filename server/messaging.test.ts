@@ -263,6 +263,98 @@ describe('appointment messages (PILOT-01)', () => {
     expect(sent).toEqual([])
   })
 
+  it('asks a guest booked for a colour to come in for a patch test, unless one is recorded first', async () => {
+    const { serviceId, staffId, slug, owner } = await localStudio()
+    await run(owner, {
+      type: 'service',
+      id: serviceId,
+      input: {
+        name: 'Restorative facial',
+        description: 'A fictional service',
+        category: 'Skin',
+        durationMinutes: 60,
+        bufferMinutes: 15,
+        priceMinor: 9500,
+        depositMinor: 0,
+        resourceType: 'treatment',
+        patchTest: true,
+      },
+    })
+    const { appointmentId } = await book(slug, serviceId, staffId, '2026-10-12')
+    api.outbox.plan()
+    const planned = rows().filter((r) => r.kind === 'patch_test')
+    expect(planned.map((r) => r.channel).sort()).toEqual(['email', 'sms'])
+    expect(planned[0].body).toContain('needs a quick patch test at least 48 hours before')
+    const { state } = await workspace(owner)
+    const clientId = state.appointments.find((a) => a.id === appointmentId)!.clientId
+    // A test recorded before the message goes out stops it.
+    await run(owner, {
+      type: 'patch-test',
+      input: {
+        clientId,
+        testedAt: '2026-10-06T06:30:00.000Z',
+        product: 'Gloss toner 7.1',
+        staffId,
+        notes: '',
+      },
+    })
+    await api.outbox.deliver()
+    expect(sent.map((m) => m.subject).filter((x) => x.includes('patch test'))).toEqual([])
+    expect(
+      rows()
+        .filter((r) => r.kind === 'patch_test')
+        .map((r) => r.detail),
+    ).toEqual([
+      'A patch test was recorded, or it was too late, before it went out.',
+      'A patch test was recorded, or it was too late, before it went out.',
+    ])
+    // That test then shows a reaction, so the guest is asked again for a new one.
+    const after = await workspace(owner)
+    const patchTestId = after.state.patchTests!.find((t) => t.clientId === clientId)!.id
+    await run(owner, { type: 'patch-test-result', patchTestId, outcome: 'reaction', notes: '' })
+    api.outbox.plan()
+    expect(
+      rows()
+        .filter((r) => r.kind === 'patch_test' && r.status === 'pending')
+        .map((r) => r.channel)
+        .sort(),
+    ).toEqual(['email', 'sms'])
+  })
+
+  it('says the patch test rules as they are when the message goes out', async () => {
+    const { serviceId, staffId, slug, owner } = await localStudio()
+    await run(owner, {
+      type: 'service',
+      id: serviceId,
+      input: {
+        name: 'Restorative facial',
+        description: 'A fictional service',
+        category: 'Skin',
+        durationMinutes: 60,
+        bufferMinutes: 15,
+        priceMinor: 9500,
+        depositMinor: 0,
+        resourceType: 'treatment',
+        patchTest: true,
+      },
+    })
+    await book(slug, serviceId, staffId, '2026-10-12')
+    api.outbox.plan()
+    await run(owner, {
+      type: 'patch-test-settings',
+      settings: { hoursBefore: 72, validMonths: 6, remind: true },
+    })
+    await api.outbox.deliver()
+    const told = sent.filter(
+      (m) => m.subject.includes('patch test') || m.body.includes('patch test'),
+    )
+    expect(told).toHaveLength(2)
+    for (const m of told) expect(m.body).toContain('at least 72 hours before')
+    // The record shows what was sent, not what was first queued.
+    for (const r of rows().filter((r) => r.kind === 'patch_test'))
+      expect(r.body).toContain('at least 72 hours before')
+  })
+
   it('asks for private feedback once after checkout, and not once the guest has answered', async () => {
     const { serviceId, staffId, slug, owner } = await localStudio()
     const { appointmentId } = await book(slug, serviceId, staffId, '2026-10-06')

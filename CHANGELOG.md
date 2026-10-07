@@ -16,6 +16,20 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - A manager's day in Ask Saleane: "who's my 10 o'clock?" answers with the guest, what to know before they arrive and who is next; "book Jamie with Maya for a facial on Thursday afternoon" lists open times, and with a time prepares the booking for approval (price and any deposit shown); "cancel Nina Patel" prepares the cancellation and says whether the studio's fee policy would allow a fee, which is never charged automatically; "Theo is off sick today" plans the whole day for one approval (each upcoming visit moved to someone free at the same time who does the treatment, guests nobody can see asked to pick a new day, a short note to every guest saved unsent, and the rest of Theo's day closed so nobody books him); "how did we do today?" closes the day with takings against a usual day, rebooking, who left without a next visit and a first look at tomorrow; "how was the week?" compares the last seven days with the four weeks before and explains the quietest day from the record. A one-approval plan is applied together or not at all, can only move, cancel, close time and save unsent drafts, and every change in it is checked against the person's role.
 - Ask Saleane speaks first and remembers the conversation: opening it shows what it noticed (a waitlist client who could take a time free today or tomorrow, today's reminders, anything unusual), each with a one-tap follow-up, and the header button shows a small dot when there is something to mention. Short follow-ups such as "and tomorrow?" or "and after her?" are understood from the last few lines. "Anyone on the waitlist?" lists who is waiting with their first free time, and "offer Emily Wednesday at 9am" prepares the offer for approval, saved to the Inbox unsent. Reminders: "remind me on Friday to call the supplier" prepares one for approval, it appears in the morning brief and on Today that day, and the desk can add and tick off reminders on Today. Nothing is sent by any of these.
 
+## 2026-10-07 · V1.5 · Patch tests
+
+**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** A salon record and a reminder, not a clinical record. [Evidence](docs/evidence/V15-PATCH.md).
+
+- A treatment can be marked as needing a patch test, such as a colour (Settings › Services). The sample studio has a new Gloss & Tone colour service with three visits later in the week.
+- Each client page has a Patch tests panel: what was tested, when, by whom, where it was placed and, once the skin is checked, clear or a reaction with what was seen. A test can be called clear only once the studio's waiting time has passed; a reaction can be recorded straight away. Tests are kept side by side and never deleted.
+- Each colour visit shows where the guest stands: clear, result to record, test too close to the visit, test needed, or a reaction. Owners and managers set how many hours before the visit a test must be done (48 by default) and how long a clear one counts (6 months by default).
+- A recorded reaction stops the guest being welcomed for that treatment until a later clear test is recorded. Nothing else is blocked.
+- Today shows booked treatments in the next two weeks whose patch test is not in order.
+- A guest booked for such a treatment with no test that counts gets one message asking them to arrange a test, up to two weeks before and only while there is still time. It follows their usual email and text choices and the studio can turn it off. It is checked again just before it goes, so a test recorded meanwhile stops it. With no provider configured it stays in test mode.
+- Practitioners see the patch test status of their own visits and can record a test they did, and its result, for their own clients only.
+- The booking page tells guests which treatments need a patch test and how far ahead.
+- Patch tests are in the client's data export and listed as kept in the erasure review.
+
 ## 2026-10-07 · V2 · Accountant exports
 
 **Status: built locally on 7 October 2026, in review; nothing deployed. Nothing is sent to Xero or QuickBooks.**
@@ -118,9 +132,11 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Changes stay in that browser. Passwords use a simple stand-in there, so the demo is for showing, never for real data.
 - Checked in Chromium at desktop and phone width: Today, Calendar, Clients, Inbox, Business, Settings, a full guest booking, the guest manage page and a checkout receipt. Not checked in Safari or Firefox.
 
+> > > > > > > origin/main
+
 ## 2026-10-07 · V1.5 · Gift cards and vouchers
 
-**Status: built locally on 7 October 2026, in review; nothing deployed and no money taken.** SALEANE records gift card payments and refunds; it does not take or return money itself. [Evidence](docs/evidence/V15-GIFT.md).
+**Status: built locally on 7 October 2026 and merged (#34); nothing deployed and no money taken.** SALEANE records gift card payments and refunds; it does not take or return money itself. [Evidence](docs/evidence/V15-GIFT.md).
 
 - A new Gift cards page under Business (owners, managers and reception) sells gift cards for an amount, or vouchers for a treatment at its price on the day. Each gets a 12-character code that is easy to read out, and the page shows the card as the guest would see it, ready to print. Cards last two years in the UK and five in the US, up to and including the anniversary.
 - At checkout the desk types a code, in any case and with or without dashes, and chooses how much to take from the card, up to what it holds and what is due after any deposit or plan. The guest pays the rest as usual, including by card through SALEANE when the studio takes cards (a saved card or a card reader is charged only the rest, and the gift card's share is held while that payment is under way, so it cannot be spent or cancelled elsewhere). The receipt, the receipt in Money and the client's timeline show what the card paid and what is left on it; a package or membership's share now shows on the Money receipt too.

@@ -6,6 +6,8 @@ import { holdingSchema, offerSchema } from './plansSchema'
 import { coveredSaleProblem, plansProblem } from './plans'
 import { giftCardSchema } from './giftCardsSchema'
 import { giftCardsProblem, refundableOnReceipt } from './giftCards'
+import { patchTestsProblem } from './patchTests'
+import { patchTestSchema } from './patchTestsSchema'
 import { feedbackProblem, feedbackSchema } from './feedback'
 import { specialSchema, specialsProblem } from './specialsSchema'
 import { taskSchema, tasksProblem } from './tasksSchema'
@@ -68,6 +70,8 @@ export const serviceSchema = z.object({
   archived: z.boolean().optional(),
   /** Practical preparation shown to guests, such as "Come with clean skin". Not clinical. */
   prepNote: z.string().max(GUEST_NOTE_LIMIT).optional(),
+  /** V1.5: guests need a clear patch test before this treatment, such as a colour. */
+  patchTest: z.boolean().optional(),
 })
 export const staffSchema = z.object({
   ...scoped,
@@ -180,6 +184,7 @@ export const eventSchema = z.object({
     'plan',
     'waitlist',
     'gift_card',
+    'patch_test',
   ]),
   allocationChange: z.object({ from: allocationSchema, to: allocationSchema }).optional(),
   title: z.string(),
@@ -225,6 +230,8 @@ export const stateSchema = z.object({
   waitlist: z.array(waitlistEntrySchema).optional(),
   /** V1.5: gift cards and vouchers sold here. */
   giftCards: z.array(giftCardSchema).optional(),
+  /** V1.5: patch tests done here, kept beside each other and never deleted. */
+  patchTests: z.array(patchTestSchema).optional(),
 })
 export type BusinessState = z.infer<typeof stateSchema>
 export type Client = z.infer<typeof clientSchema>
@@ -543,6 +550,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
   if (plans) throw new Error(plans)
   const gifts = giftCardsProblem(s)
   if (gifts) throw new Error(gifts)
+  const patch = patchTestsProblem(s)
+  if (patch) throw new Error(patch)
   const feedback = feedbackProblem(s)
   if (feedback) throw new Error(feedback)
   const specials = specialsProblem(s)

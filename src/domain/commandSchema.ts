@@ -4,6 +4,11 @@ import { specialInputSchema } from './specialsSchema'
 import { taskInputSchema } from './tasksSchema'
 import { waitlistInputSchema, waitlistTimesSchema } from './waitlistSchema'
 import { giftCardInputSchema } from './giftCardsSchema'
+import {
+  patchTestInputSchema,
+  patchTestResultSchema,
+  patchTestSettingsSchema,
+} from './patchTestsSchema'
 import { feedbackInputSchema } from './feedback'
 import {
   GUEST_NOTE_LIMIT,
@@ -418,6 +423,21 @@ export const commandSchema = z.discriminatedUnion('type', [
     method: method.optional(),
     reference: z.string().trim().max(150).optional(),
   }),
+  z.object({
+    type: z.literal('patch-test'),
+    input: patchTestInputSchema,
+    /** For a test done earlier whose skin has already been checked. */
+    result: z
+      .object({ outcome: patchTestResultSchema, notes: z.string().trim().max(300) })
+      .optional(),
+  }),
+  z.object({
+    type: z.literal('patch-test-result'),
+    patchTestId: id,
+    outcome: patchTestResultSchema,
+    notes: z.string().trim().max(300),
+  }),
+  z.object({ type: z.literal('patch-test-settings'), settings: patchTestSettingsSchema }),
   ...operatingCommandSchema.options,
 ])
 export type BookingInput = z.infer<typeof bookingSchema>

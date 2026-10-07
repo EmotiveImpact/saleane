@@ -2,8 +2,10 @@ import { randomUUID } from 'node:crypto'
 import {
   MANAGE_LINK,
   channelsFor,
+  composeMessage,
   planMessages,
   feedbackDue,
+  patchTestReminderDue,
   visitSlot,
 } from '../../src/domain/reminders'
 import type { MessageChannel, MessageKind, OutboxStatus } from '../../src/domain/reminders'
@@ -57,8 +59,10 @@ export function createOutbox(ctx: Context, providers: Providers) {
       const org = ctx.systemOrg(id)
       if (!org) continue
       const recorded = db
-        .all<Pick<OutboxRow, 'appointment_id' | 'kind' | 'channel' | 'slot' | 'status'>>(
-          'SELECT appointment_id,kind,channel,slot,status FROM outbox WHERE organisation_id=?',
+        .all<
+          Pick<OutboxRow, 'appointment_id' | 'kind' | 'channel' | 'slot' | 'status' | 'created_at'>
+        >(
+          'SELECT appointment_id,kind,channel,slot,status,created_at FROM outbox WHERE organisation_id=?',
           id,
         )
         .map((row) => ({
@@ -67,6 +71,7 @@ export function createOutbox(ctx: Context, providers: Providers) {
           channel: row.channel,
           slot: row.slot,
           status: row.status,
+          createdAt: new Date(row.created_at).toISOString(),
         }))
       const time = now()
       for (const message of planMessages(org.state, new Date(time).toISOString(), recorded))
@@ -137,9 +142,19 @@ export function createOutbox(ctx: Context, providers: Providers) {
         !feedbackDue(org.state, visit, visitStart(org.state, visit.id), now())
       )
         return skip('Answered, turned off or too late before it went out.')
+      if (
+        fresh.kind === 'patch_test' &&
+        !patchTestReminderDue(org.state, visit, visitStart(org.state, visit.id), now())
+      )
+        return skip('A patch test was recorded, or it was too late, before it went out.')
       if (fresh.kind !== 'cancelled' && !channelsFor(org.state, client).includes(fresh.channel))
         return skip('Turned off for this client or studio before it went out.')
-      let body = fresh.body
+      // The studio's rules may have changed since this was queued: say what they are now.
+      const current =
+        fresh.kind === 'patch_test'
+          ? composeMessage(org.state, visit, 'patch_test', fresh.channel)
+          : null
+      let body = current?.body ?? fresh.body
       if (body.includes(MANAGE_LINK)) {
         try {
           body = body.replaceAll(MANAGE_LINK, issueGuestLink(ctx, org, visit.id, 'message').url)
@@ -149,9 +164,11 @@ export function createOutbox(ctx: Context, providers: Providers) {
       }
       const provider = providers[fresh.channel]
       db.run(
-        "UPDATE outbox SET status='unknown',provider=?,attempts=attempts+1,detail=?,updated_at=? WHERE id=?",
+        "UPDATE outbox SET status='unknown',provider=?,attempts=attempts+1,detail=?,subject=?,body=?,updated_at=? WHERE id=?",
         provider.name,
         'Sending was interrupted. Check before sending again.',
+        current?.subject ?? fresh.subject,
+        current?.body ?? fresh.body,
         now(),
         fresh.id,
       )
@@ -161,7 +178,7 @@ export function createOutbox(ctx: Context, providers: Providers) {
           id: fresh.id,
           channel: fresh.channel,
           to: fresh.recipient,
-          subject: fresh.subject,
+          subject: current?.subject ?? fresh.subject,
           body,
           fromName: org.state.organisation.name,
         },

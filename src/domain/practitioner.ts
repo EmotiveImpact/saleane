@@ -4,6 +4,7 @@ import type { BusinessState } from './model'
 import type { Command } from './commandSchema'
 import { addDays } from './format'
 import { ownRating } from './feedback'
+import { clearFrom, patchTests, visitPatchTest } from './patchTests'
 
 /**
  * LOCAL-01: what an assigned practitioner may read and change.
@@ -13,12 +14,14 @@ import { ownRating } from './feedback'
  * their last completed visit with this practitioner. No email, phone, consent,
  * prices, deposits, receipts, payments, other professionals' diaries, catalogue or settings.
  * Write: welcome their own client on the day (`arrive`) and add a note for a client they serve.
+ * V1.5: see and record patch tests for the clients in their visits, as the one who did them.
  * Everything else stays with reception, managers and owners.
  */
 export const PRACTITIONER_DAYS_BEFORE = 14
 export const PRACTITIONER_DAYS_AFTER = 28
 export const PRACTITIONER_NOTES = 20
-const PRACTITIONER_COMMANDS = ['arrive', 'note'] as const
+export const PRACTITIONER_PATCH_TESTS = 5
+const PRACTITIONER_COMMANDS = ['arrive', 'note', 'patch-test', 'patch-test-result'] as const
 
 const id = z.string().min(1)
 export const practitionerViewSchema = z
@@ -55,6 +58,14 @@ export const practitionerViewSchema = z
           durationMinutes: z.number().int().positive(),
           bufferMinutes: z.number().int().nonnegative(),
           status: appointmentSchema.shape.status,
+          /** V1.5: for a treatment that needs one, where the guest's patch test stands. */
+          patchTest: z
+            .object({
+              state: z.enum(['clear', 'waiting', 'too-close', 'reaction', 'needed']),
+              label: z.string(),
+            })
+            .strict()
+            .nullable(),
         })
         .strict(),
     ),
@@ -76,6 +87,21 @@ export const practitionerViewSchema = z
           notes: z.array(
             z
               .object({ id, detail: z.string(), occurredAt: z.iso.datetime(), actor: z.string() })
+              .strict(),
+          ),
+          /** V1.5: the client's latest patch tests: what, when and the result, nothing more. */
+          patchTests: z.array(
+            z
+              .object({
+                id,
+                testedAt: z.iso.datetime(),
+                product: z.string(),
+                outcome: z.enum(['clear', 'reaction']).nullable(),
+                /** Whether this practitioner did the test, so they can record its result. */
+                yours: z.boolean(),
+                /** The earliest moment the test can be called clear. */
+                clearFrom: z.iso.datetime(),
+              })
               .strict(),
           ),
         })
@@ -125,6 +151,10 @@ export function practitionerView(
       .sort((a, b) => b.date.localeCompare(a.date) || b.startMinutes - a.startMinutes)[0]
     return done ? { date: done.date, serviceName: serviceName(done) } : null
   }
+  const patchFor = (a: BusinessState['appointments'][number]) => {
+    const standing = visitPatchTest(s, a)
+    return standing ? { state: standing.state, label: standing.label } : null
+  }
   return practitionerViewSchema.parse({
     view: 'practitioner',
     revision: s.revision,
@@ -150,6 +180,7 @@ export function practitionerView(
       durationMinutes: a.bookedDurationMinutes,
       bufferMinutes: a.bookedBufferMinutes,
       status: a.status,
+      patchTest: patchFor(a),
     })),
     clients: s.clients
       .filter((c) => clientIds.has(c.id))
@@ -163,6 +194,18 @@ export function practitionerView(
           .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
           .slice(0, PRACTITIONER_NOTES)
           .map((e) => ({ id: e.id, detail: e.detail, occurredAt: e.occurredAt, actor: e.actor })),
+        patchTests: patchTests(s)
+          .filter((t) => t.clientId === c.id)
+          .sort((a, b) => b.testedAt.localeCompare(a.testedAt))
+          .slice(0, PRACTITIONER_PATCH_TESTS)
+          .map((t) => ({
+            id: t.id,
+            testedAt: t.testedAt,
+            product: t.product,
+            outcome: t.result?.outcome ?? null,
+            yours: t.staffId === staffId,
+            clearFrom: clearFrom(s, t.testedAt),
+          })),
       })),
   })
 }
@@ -188,5 +231,16 @@ export function practitionerRefusal(
     return visits.some((a) => a.clientId === command.clientId)
       ? null
       : 'This client is not in your assigned visits.'
+  if (command.type === 'patch-test') {
+    if (!visits.some((a) => a.clientId === command.input.clientId))
+      return 'This client is not in your assigned visits.'
+    return command.input.staffId === staffId ? null : 'Record only the patch tests you did.'
+  }
+  if (command.type === 'patch-test-result') {
+    const test = patchTests(s).find((t) => t.id === command.patchTestId)
+    if (!test || !visits.some((a) => a.clientId === test.clientId))
+      return 'This client is not in your assigned visits.'
+    return test.staffId === staffId ? null : 'Record results only for the patch tests you did.'
+  }
   return 'Your role cannot make this change.'
 }

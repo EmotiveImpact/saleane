@@ -73,6 +73,7 @@ export function createWorkspace(input: WorkspaceInput): BusinessState {
     state.specials ?? [],
     state.tasks ?? [],
     state.giftCards ?? [],
+    state.patchTests ?? [],
   ]) {
     for (const row of collection) row.organisationId = organisationId
   }

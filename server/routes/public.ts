@@ -4,6 +4,7 @@ import { digest, token } from '../auth'
 import { canonical, fail } from '../http'
 import { commandSchema, dispatch, slots } from '../../src/domain/commands'
 import { businessDate, operations } from '../../src/domain/operations'
+import { patchTestSettings } from '../../src/domain/patchTests'
 import { HOLD_LIMITS, holdInput, guestContact } from '../context'
 import type { Context, Route, HoldAllocation, HoldRow } from '../context'
 import { issueGuestLink } from './guest'
@@ -37,6 +38,8 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
           })),
         today: businessDate(state, new Date(now()).toISOString()),
         sample,
+        // V1.5: treatments marked as needing a patch test tell guests how far ahead to have one.
+        patchTestHours: patchTestSettings(state).hoursBefore,
         depositPolicy: sample ? 'simulated' : 'pay_at_studio',
         paymentCollectionConfigured: false,
         // Only the rate and basis, so each service can show its full price including any tax.

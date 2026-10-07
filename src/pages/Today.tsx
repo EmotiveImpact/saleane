@@ -13,6 +13,7 @@ import { SmartInsights } from '../components/SmartInsights'
 import { Specials } from '../components/Specials'
 import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
+import { PatchTestsDue } from '../components/PatchTests'
 import type { BookingDefaults } from '../components/BookingDialog'
 
 function greeting(minutes: number) {
@@ -157,6 +158,7 @@ export function Today() {
           )}
         </section>
         <aside className="today-aside">
+          <PatchTestsDue />
           <SmartInsights onBook={setBooking} />
           <Specials />
           <section className="team-panel">

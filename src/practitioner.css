@@ -92,6 +92,12 @@
 .practitioner-notes p {
   margin: 0 0 4px;
 }
+.practitioner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
 .practitioner-notes small,
 .practitioner-footnote {
   color: var(--muted);

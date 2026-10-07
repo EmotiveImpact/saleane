@@ -2893,6 +2893,9 @@ fieldset {
   font-size: var(--text-micro);
   color: var(--muted);
 }
+.service-choice p.service-patch {
+  color: var(--ink);
+}
 .service-choice h3 {
   font-size: 18px;
   font-weight: var(--weight-strong);
