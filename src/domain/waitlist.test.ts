@@ -266,6 +266,22 @@ describe('waitlist', () => {
       removedReason: 'Their visit was cancelled.',
     })
     expect(guestView(cancelled, visit.id, Date.parse(now)).waitlist).toBeUndefined()
+
+    // A request whose dates had already passed keeps that as its history.
+    const ended = structuredClone(joined)
+    const request = ended.waitlist!.find((e) => e.appointmentId === visit.id)!
+    request.toDate = '2026-10-05'
+    const later = apply(ended, { type: 'cancel', appointmentId: visit.id, reason: 'Away' })
+    expect(later.waitlist!.find((e) => e.id === request.id)!.status).toBe('waiting')
+  })
+
+  it('takes each time of day once', () => {
+    expect(
+      run(seed('UK'), {
+        type: 'waitlist-add',
+        input: { ...wish, times: ['morning', 'morning', 'morning'] },
+      }).ok,
+    ).toBe(false)
   })
 
   it('keeps each studio’s requests to itself', () => {

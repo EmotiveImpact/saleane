@@ -10,6 +10,11 @@ const id = z.string().min(1).max(150)
 const civilDate = z.iso.date()
 
 export const WAITLIST_TIMES = ['morning', 'afternoon', 'evening'] as const
+/** Times of day a request suits, each at most once; empty means any time. */
+export const waitlistTimesSchema = z
+  .array(z.enum(WAITLIST_TIMES))
+  .max(3)
+  .refine((times) => new Set(times).size === times.length, 'Choose each time of day once.')
 export type WaitlistTime = (typeof WAITLIST_TIMES)[number]
 /** The longest window a client can wait for, from its first day to its last. */
 export const WAITLIST_MAX_DAYS = 90
@@ -25,7 +30,7 @@ export const waitlistInputSchema = z
     fromDate: civilDate,
     toDate: civilDate,
     /** Empty: any time of day. */
-    times: z.array(z.enum(WAITLIST_TIMES)).max(3),
+    times: waitlistTimesSchema,
     note: z.string().trim().max(300),
     /** A guest who already has this later visit and would like to come in sooner. */
     appointmentId: id.optional(),

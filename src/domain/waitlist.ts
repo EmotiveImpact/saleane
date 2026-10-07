@@ -512,9 +512,20 @@ export function fillFromWaitlist(
 }
 
 /** A guest's wish to come in sooner ends if the visit it was for is cancelled. */
-export function closeForCancelledVisit(next: BusinessState, appointmentId: string, now: string) {
+export function closeForCancelledVisit(
+  before: BusinessState,
+  next: BusinessState,
+  appointmentId: string,
+  now: string,
+) {
+  // Judged before the cancellation: a request whose dates had already passed keeps that history.
+  const open = new Set(
+    waitlistList(before)
+      .filter((e) => isOpen(before, e, now))
+      .map((e) => e.id),
+  )
   for (const entry of next.waitlist ?? [])
-    if (entry.status === 'waiting' && entry.appointmentId === appointmentId) {
+    if (open.has(entry.id) && entry.status === 'waiting' && entry.appointmentId === appointmentId) {
       entry.status = 'removed'
       entry.closedAt = now
       entry.removedReason = 'Their visit was cancelled.'

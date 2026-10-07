@@ -14,7 +14,7 @@ import {
 } from '../../src/domain/guest'
 import type { Context, Org, Route } from '../context'
 import { feedbackForVisit, feedbackInputSchema, feedbackOpen } from '../../src/domain/feedback'
-import { WAITLIST_TIMES } from '../../src/domain/waitlistSchema'
+import { waitlistTimesSchema } from '../../src/domain/waitlistSchema'
 import { guestPaymentFor } from '../payments/service'
 
 const INVALID = 'This link is no longer valid. Contact the studio to manage your visit.'
@@ -170,7 +170,7 @@ export async function guestRoutes(ctx: Context, route: Route): Promise<boolean> 
         token: tokenSchema,
         join: z.boolean(),
         anyone: z.boolean(),
-        times: z.array(z.enum(WAITLIST_TIMES)).max(3),
+        times: waitlistTimesSchema,
       })
       .strict()
       .parse(body)

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { offerInputSchema } from './plansSchema'
-import { WAITLIST_TIMES, waitlistInputSchema } from './waitlistSchema'
+import { waitlistInputSchema, waitlistTimesSchema } from './waitlistSchema'
 import { feedbackInputSchema } from './feedback'
 import {
   GUEST_NOTE_LIMIT,
@@ -287,7 +287,7 @@ export const commandSchema = z.discriminatedUnion('type', [
     type: z.literal('waitlist-join'),
     appointmentId: id,
     anyone: z.boolean(),
-    times: z.array(z.enum(WAITLIST_TIMES)).max(3),
+    times: waitlistTimesSchema,
   }),
   z.object({ type: z.literal('waitlist-leave'), appointmentId: id }),
   z.object({ type: z.literal('offer'), id: id.optional(), input: offerInputSchema }),

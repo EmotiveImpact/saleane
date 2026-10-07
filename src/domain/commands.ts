@@ -333,7 +333,7 @@ export function execute(
         if (reason.length < 2 || reason.length > 300)
           throw new Error('Enter an operational reason between 2 and 300 characters.')
         appointment.status = status
-        if (status === 'cancelled') closeForCancelledVisit(next, appointment.id, now)
+        if (status === 'cancelled') closeForCancelledVisit(s, next, appointment.id, now)
         const paid = depositPaid(s, appointment.id)
         const deposit =
           command.type === 'cancel' && command.deposit && paid
