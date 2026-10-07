@@ -262,11 +262,13 @@ describe('patch tests', () => {
     const luca = visit(moved, 'visit-gloss-luca')
     luca.date = addDays(luca.date, 1)
     expect(planMessages(moved, now, recorded).filter((m) => m.kind === 'patch_test')).toEqual([])
-    // One that could not go out does not count.
+    // One that failed has spent its retries and is not queued again.
     const failed = recorded.map((m) => ({ ...m, status: 'failed' as const }))
-    const retry = planMessages(moved, now, failed).filter((m) => m.kind === 'patch_test')
+    expect(planMessages(moved, now, failed).filter((m) => m.kind === 'patch_test')).toEqual([])
+    // One that was skipped may be asked for again, under a new key so the outbox takes it.
+    const skipped = recorded.map((m) => ({ ...m, status: 'skipped' as const }))
+    const retry = planMessages(moved, now, skipped).filter((m) => m.kind === 'patch_test')
     expect(retry).toHaveLength(2)
-    // A new key, so the outbox does not ignore it as a repeat of the failed one.
     expect(retry.map((m) => m.dedupeKey)).not.toContain(recorded[0].dedupeKey)
     expect(retry[0].dedupeKey).toMatch(/:again-1$/)
     const tested = structuredClone(apply(seed('UK'), test('client-9', '2026-10-06T07:30:00.000Z')))

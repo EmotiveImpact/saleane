@@ -321,6 +321,40 @@ describe('appointment messages (PILOT-01)', () => {
     ).toEqual(['email', 'sms'])
   })
 
+  it('says the patch test rules as they are when the message goes out', async () => {
+    const { serviceId, staffId, slug, owner } = await localStudio()
+    await run(owner, {
+      type: 'service',
+      id: serviceId,
+      input: {
+        name: 'Restorative facial',
+        description: 'A fictional service',
+        category: 'Skin',
+        durationMinutes: 60,
+        bufferMinutes: 15,
+        priceMinor: 9500,
+        depositMinor: 0,
+        resourceType: 'treatment',
+        patchTest: true,
+      },
+    })
+    await book(slug, serviceId, staffId, '2026-10-12')
+    api.outbox.plan()
+    await run(owner, {
+      type: 'patch-test-settings',
+      settings: { hoursBefore: 72, validMonths: 6, remind: true },
+    })
+    await api.outbox.deliver()
+    const told = sent.filter(
+      (m) => m.subject.includes('patch test') || m.body.includes('patch test'),
+    )
+    expect(told).toHaveLength(2)
+    for (const m of told) expect(m.body).toContain('at least 72 hours before')
+    // The record shows what was sent, not what was first queued.
+    for (const r of rows().filter((r) => r.kind === 'patch_test'))
+      expect(r.body).toContain('at least 72 hours before')
+  })
+
   it('asks for private feedback once after checkout, and not once the guest has answered', async () => {
     const { serviceId, staffId, slug, owner } = await localStudio()
     const { appointmentId } = await book(slug, serviceId, staffId, '2026-10-06')

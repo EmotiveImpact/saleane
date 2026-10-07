@@ -247,11 +247,12 @@ export function planMessages(
           add('confirmation', channel)
       }
       // One reminder per visit and channel, even if the visit moves afterwards. One that was
-      // skipped or failed may be asked for again, under a new key so the outbox takes it.
+      // skipped (a test was recorded, or the visit moved) may be asked for again, under a new key
+      // so the outbox takes it. A failed one is not: its retries were already spent.
       const patchRows = mine.filter((row) => row.kind === 'patch_test')
       if (
         patchTestReminderDue(s, a, start, now) &&
-        !patchRows.some((row) => !['skipped', 'failed'].includes(row.status))
+        patchRows.every((row) => row.status === 'skipped')
       )
         add('patch_test', channel, patchRows.length)
       if (settings.reminders && !mine.some((row) => row.kind === 'reminder' && row.slot === slot)) {
