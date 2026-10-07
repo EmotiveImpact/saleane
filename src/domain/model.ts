@@ -5,6 +5,7 @@ import { paymentMethodSchema, processorSchema } from './paymentMethods'
 import { holdingSchema, offerSchema } from './plansSchema'
 import { coveredSaleProblem, plansProblem } from './plans'
 import { feedbackProblem, feedbackSchema } from './feedback'
+import { specialSchema, specialsProblem } from './specialsSchema'
 export { paymentMethodSchema, paymentMethods, processorSchema } from './paymentMethods'
 
 export const DEMO_DATE = '2026-10-06'
@@ -198,6 +199,8 @@ export const stateSchema = z.object({
   holdings: z.array(holdingSchema).optional(),
   /** V1.5: private guest feedback, one per completed visit. Owners and managers only. */
   feedback: z.array(feedbackSchema).optional(),
+  /** V3: specials a manager planned from a seasonal or local suggestion. Nothing is sent by them. */
+  specials: z.array(specialSchema).optional(),
 })
 export type BusinessState = z.infer<typeof stateSchema>
 export type Client = z.infer<typeof clientSchema>
@@ -490,6 +493,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
   if (plans) throw new Error(plans)
   const feedback = feedbackProblem(s)
   if (feedback) throw new Error(feedback)
+  const specials = specialsProblem(s)
+  if (specials) throw new Error(specials)
   try {
     new Intl.DateTimeFormat('en', { timeZone: org.timeZone }).format(new Date())
   } catch {

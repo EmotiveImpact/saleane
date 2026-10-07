@@ -10,6 +10,7 @@ import { businessMinutes } from '../domain/operations'
 import type { Appointment, Client } from '../domain/model'
 import { Agenda } from '../components/Agenda'
 import { SmartInsights } from '../components/SmartInsights'
+import { Specials } from '../components/Specials'
 import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
 import type { BookingDefaults } from '../components/BookingDialog'
@@ -157,6 +158,7 @@ export function Today() {
         </section>
         <aside className="today-aside">
           <SmartInsights onBook={setBooking} />
+          <Specials />
           <section className="team-panel">
             <div className="section-heading">
               <h2>Your people today</h2>

@@ -80,3 +80,36 @@ describe('Smart insights through Ask Saleane', () => {
     expect((await ask('Anything unusual?')).text).toBe('Nothing looks unusual right now.')
   })
 })
+
+describe('Specials through Ask Saleane', () => {
+  it('suggests specials for owners and managers only', async () => {
+    const owner = await ask('Any specials we should run?')
+    expect(owner.text).toMatch(/^Specials to consider\./)
+    expect(owner.text).toMatch(/Idea:/)
+    expect((await ask('Any specials we should run?', 'reception')).text).toBe(
+      'That is for owners and managers.',
+    )
+  })
+
+  it('prepares a named special for approval, and approving it only records it', async () => {
+    const result = await ask('Plan the Diwali special')
+    if (result.status !== 'answered') throw new Error('refused')
+    expect(result.text).toMatch(/Nothing is sent and no prices change/)
+    expect(result.proposals).toHaveLength(1)
+    expect(result.proposals[0].summary).toMatch(/^Plan "Diwali"/)
+    const command = commandSchema.parse(result.proposals[0].effect)
+    const done = dispatch(s, command, 'Owner', at)
+    if (!done.ok) throw new Error(done.error)
+    expect(done.state.specials).toHaveLength(1)
+    expect(done.state.services).toEqual(s.services)
+    const after = await askSaleane({
+      state: done.state,
+      role: 'owner',
+      personId: 'p1',
+      text: 'How did our specials go?',
+      usage: undefined,
+      at,
+    })
+    expect(after.text).toMatch(/^Diwali: Starts .*Nothing has been sent/)
+  })
+})

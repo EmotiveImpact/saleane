@@ -15,6 +15,7 @@ import { availableAllocation } from './allocation'
 import { runSwitchingCommand } from './switching'
 import { coverVisit, runPlanCommand, stampPlanActors } from './plans'
 import { recordFeedback, repeatedFeedback } from './feedback'
+import { planSpecial, stopSpecial } from './specials'
 
 export type CommandResult =
   { ok: true; state: BusinessState; recordId: string } | { ok: false; error: string }
@@ -526,6 +527,10 @@ export function execute(
       const same = repeatedFeedback(s, command)
       if (same) return { ok: true, state: s, recordId: same.id }
       recordId = recordFeedback(next, command, now, makeId)
+    } else if (command.type === 'special-plan') {
+      recordId = planSpecial(next, command.input, now, makeId)
+    } else if (command.type === 'special-stop') {
+      recordId = stopSpecial(next, command.specialId, businessDate(s, now))
     } else if (
       command.type === 'offer' ||
       command.type === 'plan-sell' ||

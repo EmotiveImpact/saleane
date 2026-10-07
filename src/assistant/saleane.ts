@@ -3,12 +3,19 @@ import { actionSkill, readSkill, SkillRefusal } from '../../lumane'
 import type { Allowance, Skill } from '../../lumane'
 import { commandSchema, rescheduleResource } from '../domain/commands'
 import type { Command } from '../domain/commands'
-import { addDays, money, timeLabel } from '../domain/format'
+import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import type { BusinessState } from '../domain/model'
 import { businessDate, can, operations, stock } from '../domain/operations'
 import type { Role } from '../domain/operations'
 import { drifting, gapSuggestions, morningBrief, unusual } from '../domain/insights'
 import { holdings, planStanding } from '../domain/plans'
+import {
+  currentSpecials,
+  resultSentence,
+  roomSentence,
+  suggestionInput,
+  suggestSpecials,
+} from '../domain/specials'
 import {
   clientStats,
   dayAppointments,
@@ -307,6 +314,62 @@ export function askSaleaneSkills(): Skill<AskContext, Command>[] {
             reorderAt: p.reorderAt,
           }))
           .filter((p) => p.inStock <= p.reorderAt)
+      },
+    }),
+    readSkill<AskContext, Record<string, never>>({
+      name: 'special_ideas',
+      description:
+        'Specials worth considering now, from the time of year, bank and school holidays, the weather and local events: each with its dates, reason, room to fill and a starting idea.',
+      input: z.object({}).strict(),
+      allowed: managers,
+      run(ctx) {
+        return suggestSpecials(ctx.state, ctx.today, { limit: 6 }).map((g) => ({
+          signalId: g.signal.id,
+          title: g.title,
+          from: g.startDate,
+          to: g.endDate,
+          reason: g.reason,
+          room: roomSentence(g),
+          idea: g.offer,
+          source: g.signal.source,
+          caution: g.signal.caution ?? null,
+        }))
+      },
+    }),
+    readSkill<AskContext, Record<string, never>>({
+      name: 'special_results',
+      description:
+        'Specials the studio has planned: upcoming, running, or finished in the last 30 days, and how each compares with usual.',
+      input: z.object({}).strict(),
+      allowed: managers,
+      run(ctx) {
+        const day = (date: string) => dateLabel(date, ctx.state.organisation.locale, true)
+        return currentSpecials(ctx.state, ctx.today).map((r) => ({
+          title: r.special.title,
+          from: r.special.startDate,
+          to: r.special.stoppedOn ?? r.special.endDate,
+          state: r.state,
+          result: resultSentence(r, day),
+        }))
+      },
+    }),
+    actionSkill<AskContext, { signalId: string }, Command>({
+      name: 'plan_special',
+      description:
+        'Plan one of the suggested specials (by signalId from special_ideas). It only records the special: nothing is sent and no price changes.',
+      input: z.object({ signalId: z.string().min(1) }).strict(),
+      allowed: (ctx) => managers(ctx) && can(ctx.role, 'special'),
+      propose(ctx, { signalId }) {
+        const idea = suggestSpecials(ctx.state, ctx.today, { limit: 20 }).find(
+          (g) => g.signal.id === signalId,
+        )
+        if (!idea) throw new SkillRefusal('That special is not one of the current suggestions.')
+        const effect = commandSchema.parse({ type: 'special-plan', input: suggestionInput(idea) })
+        const day = (date: string) => dateLabel(date, ctx.state.organisation.locale, true)
+        return {
+          summary: `Plan "${idea.title}" from ${day(idea.startDate)} to ${day(idea.endDate)}: ${idea.offer} Nothing is sent and no prices change.`,
+          effect,
+        }
       },
     }),
     actionSkill<

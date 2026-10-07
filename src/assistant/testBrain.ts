@@ -21,7 +21,7 @@ export function testModeBrain(today: string, locale = 'en-GB'): Brain {
 }
 
 const HELP =
-  'In test mode I can answer a few things from your records: your morning brief, anything unusual, who is drifting away, what is on today or tomorrow, who is due back, takings, money owed, plans running low, low stock, and a brief on a client ("tell me about Maya"). I can also prepare an invitation for a client to come back ("invite Maya back") for you to approve.'
+  'In test mode I can answer a few things from your records: your morning brief, anything unusual, who is drifting away, what is on today or tomorrow, who is due back, takings, money owed, plans running low, low stock, and a brief on a client ("tell me about Maya"). I can also prepare an invitation for a client to come back ("invite Maya back") for you to approve. Owners and managers can ask for specials to run and how planned ones went.'
 
 const MANAGERS_ONLY = 'That is for owners and managers.'
 
@@ -85,6 +85,11 @@ function firstStep(question: string, today: string, offered: Set<string>): Step 
     return offered.has('draft_message')
       ? call('find_client', { name: clientName(question)! })
       : say('Your role cannot prepare messages.')
+  if (/\b(specials?|deals?|promotions?|promos?|seasonal|season|events?|occasions?)\b/.test(q)) {
+    if (/\b(work|worked|working|results?|how did|going|went)\b/.test(q))
+      return need('special_results', call('special_results'))
+    return need('special_ideas', call('special_ideas'))
+  }
   if (/\b(brief|summary|morning|overview)\b/.test(q) && !clientName(question))
     return { calls: [...call('morning_brief').calls, ...call('unusual').calls] }
   if (/\b(unusual|warning|warnings|worry|wrong|odd|problems?)\b/.test(q)) return call('unusual')
@@ -147,6 +152,31 @@ function nextStep(
         })
       }
       return say(describeBrief(brief, day))
+    }
+    case 'special_ideas': {
+      const ideas = last.data as Idea[]
+      const wanted = /\b(plan|run|set up|start|go with)\b/.test(q) && pickIdea(q, ideas)
+      if (wanted && offered.has('plan_special'))
+        return call('plan_special', { signalId: wanted.signalId })
+      if (!ideas.length) return say('Nothing coming up needs a special right now.')
+      const lines = ideas
+        .slice(0, 3)
+        .map(
+          (g) =>
+            `${g.title} (${day(g.from)} to ${day(g.to)}): ${g.reason} ${g.room} Idea: ${g.idea}`,
+        )
+      return say(
+        `Specials to consider. ${lines.join(' ')} Say "plan the" and its name and I will prepare it for you to approve.`,
+      )
+    }
+    case 'plan_special':
+      return say(
+        'I have prepared the special below. Approve it to plan it. Nothing is sent and no prices change; you tell clients from the Inbox.',
+      )
+    case 'special_results': {
+      const list = last.data as { title: string; result: string }[]
+      if (!list.length) return say('You have no specials planned. Ask me for ideas.')
+      return say(list.map((r) => `${r.title}: ${r.result}`).join(' '))
     }
     case 'draft_message':
       return say(
@@ -234,6 +264,21 @@ type Morning = {
   usualYesterdayTakings?: string | null
 }
 type Notice = { title: string; detail: string }
+type Idea = {
+  signalId: string
+  title: string
+  from: string
+  to: string
+  reason: string
+  room: string
+  idea: string
+}
+
+/** The suggestion whose name the person used, such as "plan the Diwali special". */
+function pickIdea(q: string, ideas: Idea[]) {
+  const words = (s: string) => s.toLowerCase().match(/[a-z']{4,}/g) ?? []
+  return ideas.find((g) => words(g.title).some((w) => q.includes(w)))
+}
 type Drifting = {
   name: string
   weeksSince: number

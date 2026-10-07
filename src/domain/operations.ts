@@ -279,6 +279,7 @@ export function permissionFor(command: { type: string }) {
     return 'catalogue'
   if (['closure', 'remove-closure'].includes(command.type)) return 'hours'
   if (command.type === 'message-queue') return 'message.queue'
+  if (command.type === 'special-plan' || command.type === 'special-stop') return 'special'
   return command.type
 }
 export const commandPermission = permissionFor
@@ -304,6 +305,7 @@ export function can(role: Role, action: string) {
       'fee',
       'protection',
       'plan-cancel',
+      'special',
     ].includes(action)
   )
     return false

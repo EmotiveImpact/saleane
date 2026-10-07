@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { offerInputSchema } from './plansSchema'
+import { specialInputSchema } from './specialsSchema'
 import { feedbackInputSchema } from './feedback'
 import {
   GUEST_NOTE_LIMIT,
@@ -286,6 +287,9 @@ export const commandSchema = z.discriminatedUnion('type', [
     method: method.optional(),
     reference: z.string().trim().max(150).optional(),
   }),
+  // V3: planning a special records it; nothing is sent and no price changes.
+  z.object({ type: z.literal('special-plan'), input: specialInputSchema }),
+  z.object({ type: z.literal('special-stop'), specialId: id }),
   ...operatingCommandSchema.options,
 ])
 export type BookingInput = z.infer<typeof bookingSchema>
