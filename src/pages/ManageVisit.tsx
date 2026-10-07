@@ -5,6 +5,8 @@ import { guestViewSchema, GUEST_CANCEL_CUTOFF_HOURS } from '../domain/guest'
 import type { GuestView } from '../domain/guest'
 import { dateLabel, money, timeLabel } from '../domain/format'
 import { Button, ErrorMessage, Status } from '../design'
+import { BeforeYouArrive } from '../components/BeforeYouArrive'
+import { AddToCalendar } from '../components/AddToCalendar'
 import '../guest.css'
 
 /** The token stays in the address fragment, which browsers never send to a server. */
@@ -92,7 +94,7 @@ export function ManageVisit() {
       </main>
     )
 
-  const { organisation: org, visit, deposit, cancellation } = view
+  const { organisation: org, visit, deposit, cancellation, arrival } = view
   const cutoff = new Intl.DateTimeFormat(org.locale, {
     timeZone: org.timeZone,
     weekday: 'long',
@@ -130,6 +132,12 @@ export function ManageVisit() {
               <small>{visit.durationMinutes} minutes</small>
             </dd>
           </div>
+          {org.address && (
+            <div>
+              <dt>Where</dt>
+              <dd>{org.address}</dd>
+            </div>
+          )}
           <div>
             <dt>With</dt>
             <dd>{visit.professional}</dd>
@@ -141,6 +149,24 @@ export function ManageVisit() {
             </dd>
           </div>
         </dl>
+        {visit.status === 'confirmed' && (
+          <>
+            <BeforeYouArrive studioNote={arrival.studioNote} serviceNote={arrival.serviceNote} />
+            <AddToCalendar
+              visit={{
+                uid: visit.calendarUid,
+                serviceName: visit.serviceName,
+                studioName: org.name,
+                date: visit.date,
+                startMinutes: visit.startMinutes,
+                durationMinutes: visit.durationMinutes,
+                timeZone: org.timeZone,
+                location: org.address || org.locationName,
+                description: `With ${visit.professional}.`,
+              }}
+            />
+          </>
+        )}
         <ErrorMessage error={error} />
         {done && (
           <p className="guest-notice" role="status">

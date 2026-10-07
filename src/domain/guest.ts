@@ -1,5 +1,6 @@
 import { z } from 'zod'
-import { appointmentSchema, organisationSchema } from './model'
+import { GUEST_NOTE_LIMIT, appointmentSchema, organisationSchema } from './model'
+import { visitUid } from './calendarFile'
 import type { BusinessState } from './model'
 import { instantFor } from './operations'
 
@@ -7,7 +8,8 @@ import { instantFor } from './operations'
  * LOCAL-02: what a guest holding a private manage link may see and do.
  *
  * Read: their one visit (service, professional's first name, time, status) and the deposit
- * already recorded against it. No contact details, notes, history or other visits.
+ * already recorded against it, the studio address and its "before you arrive" notes. No contact
+ * details, client notes, history or other visits.
  * Write: cancel that visit while it is still upcoming. A paid deposit is flagged for refund when
  * the guest cancels at least GUEST_CANCEL_CUTOFF_HOURS before the start, and retained after that.
  * Nothing is refunded automatically; the studio records any refund in Money.
@@ -31,6 +33,7 @@ export const guestViewSchema = z
         timeZone: true,
         currency: true,
         region: true,
+        address: true,
       })
       .strict(),
     visit: z
@@ -41,6 +44,15 @@ export const guestViewSchema = z
         startMinutes: z.number().int().min(0).max(1439),
         durationMinutes: z.number().int().positive(),
         status: appointmentSchema.shape.status,
+        /** A one-way calendar identifier from visitUid, never the record ID itself. */
+        calendarUid: z.string().min(1).max(100),
+      })
+      .strict(),
+    /** The studio's "before you arrive" texts, empty when it has written none. */
+    arrival: z
+      .object({
+        studioNote: z.string().max(GUEST_NOTE_LIMIT),
+        serviceNote: z.string().max(GUEST_NOTE_LIMIT),
       })
       .strict(),
     deposit: z
@@ -95,6 +107,7 @@ export function guestView(s: BusinessState, appointmentId: string, now: number):
       timeZone: s.organisation.timeZone,
       currency: s.organisation.currency,
       region: s.organisation.region,
+      address: s.organisation.address,
     },
     visit: {
       serviceName:
@@ -104,6 +117,11 @@ export function guestView(s: BusinessState, appointmentId: string, now: number):
       startMinutes: a.startMinutes,
       durationMinutes: a.bookedDurationMinutes,
       status: a.status,
+      calendarUid: visitUid(a.id),
+    },
+    arrival: {
+      studioNote: s.organisation.arrivalNote ?? '',
+      serviceNote: s.services.find((x) => x.id === a.serviceId)?.prepNote ?? '',
     },
     deposit: {
       paidMinor,

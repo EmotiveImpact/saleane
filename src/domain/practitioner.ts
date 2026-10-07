@@ -8,7 +8,8 @@ import { addDays } from './format'
  * LOCAL-01: what an assigned practitioner may read and change.
  *
  * Read: their own visits from two weeks back to four weeks ahead, and for the clients in those
- * visits only a name, service preferences and relationship notes. No email, phone, consent,
+ * visits only a name, service preferences, relationship notes and the date and treatment of
+ * their last completed visit with this practitioner. No email, phone, consent,
  * prices, deposits, receipts, payments, other professionals' diaries, catalogue or settings.
  * Write: welcome their own client on the day (`arrive`) and add a note for a client they serve.
  * Everything else stays with reception, managers and owners.
@@ -57,6 +58,15 @@ export const practitionerViewSchema = z
           id,
           name: z.string(),
           preferences: z.string(),
+          // Pocket view: "Last time with you" before a treatment. The visit window only reaches
+          // two weeks back and regulars often return every four to eight weeks, so the window alone
+          // would usually miss it. Only this practitioner's own completed visits count, and only
+          // a date and treatment name leave the server: no room, price, receipt or other
+          // professional's visit. Null when they have not completed a visit together.
+          previousVisit: z
+            .object({ date: z.iso.date(), serviceName: z.string() })
+            .strict()
+            .nullable(),
           notes: z.array(
             z
               .object({ id, detail: z.string(), occurredAt: z.iso.datetime(), actor: z.string() })
@@ -92,6 +102,23 @@ export function practitionerView(
     (a, b) => a.date.localeCompare(b.date) || a.startMinutes - b.startMinutes,
   )
   const clientIds = new Set(visits.map((a) => a.clientId))
+  const serviceName = (a: BusinessState['appointments'][number]) =>
+    a.bookedServiceName ??
+    s.services.find((service) => service.id === a.serviceId)?.name ??
+    'Service'
+  /** The latest visit this practitioner completed with the client before today, if any. */
+  const previousVisit = (clientId: string) => {
+    const done = s.appointments
+      .filter(
+        (a) =>
+          a.staffId === staffId &&
+          a.clientId === clientId &&
+          a.status === 'completed' &&
+          a.date < today,
+      )
+      .sort((a, b) => b.date.localeCompare(a.date) || b.startMinutes - a.startMinutes)[0]
+    return done ? { date: done.date, serviceName: serviceName(done) } : null
+  }
   return practitionerViewSchema.parse({
     view: 'practitioner',
     revision: s.revision,
@@ -109,10 +136,7 @@ export function practitionerView(
     appointments: visits.map((a) => ({
       id: a.id,
       clientId: a.clientId,
-      serviceName:
-        a.bookedServiceName ??
-        s.services.find((service) => service.id === a.serviceId)?.name ??
-        'Service',
+      serviceName: serviceName(a),
       resourceName: s.resources.find((r) => r.id === a.resourceId)?.name ?? '',
       date: a.date,
       startMinutes: a.startMinutes,
@@ -126,6 +150,7 @@ export function practitionerView(
         id: c.id,
         name: c.name,
         preferences: c.preferences,
+        previousVisit: previousVisit(c.id),
         notes: s.events
           .filter((e) => e.clientId === c.id && e.type === 'note')
           .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))

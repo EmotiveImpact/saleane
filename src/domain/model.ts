@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { operationsSchema, weeklyHoursSchema } from './operations'
+import { tillCountProblem, tillCountSchema } from './tillCount'
 
 export const DEMO_DATE = '2026-10-06'
 export const OPEN_MINUTES = 9 * 60
@@ -9,6 +10,10 @@ const id = z.string().min(1)
 const minor = z.number().int().nonnegative().max(100_000_000)
 const civilDate = z.iso.date()
 const scoped = { id, organisationId: id }
+/** Shared booking links the studio can hand out; anything else is ignored. */
+export const bookingChannels = ['google', 'instagram'] as const
+export type BookingChannel = (typeof bookingChannels)[number]
+export const GUEST_NOTE_LIMIT = 400
 
 export const organisationSchema = z.object({
   id,
@@ -20,6 +25,8 @@ export const organisationSchema = z.object({
   locationId: id,
   locationName: z.string(),
   address: z.string(),
+  /** Shown to guests before they arrive: directions, parking, how long to allow. Not clinical. */
+  arrivalNote: z.string().max(GUEST_NOTE_LIMIT).optional(),
 })
 export const clientSchema = z.object({
   ...scoped,
@@ -41,6 +48,8 @@ export const serviceSchema = z.object({
   depositMinor: minor,
   resourceType: z.enum(['treatment', 'chair']),
   archived: z.boolean().optional(),
+  /** Practical preparation shown to guests, such as "Come with clean skin". Not clinical. */
+  prepNote: z.string().max(GUEST_NOTE_LIMIT).optional(),
 })
 export const staffSchema = z.object({
   ...scoped,
@@ -70,6 +79,8 @@ export const appointmentSchema = z.object({
   startMinutes: z.number().int().min(0).max(1439),
   status: z.enum(['confirmed', 'arrived', 'completed', 'cancelled', 'no_show']),
   source: z.enum(['desk', 'online', 'rebook']),
+  /** Where an online guest came from, when they followed a shared booking link. */
+  channel: z.enum(bookingChannels).optional(),
   createdAt: z.iso.datetime(),
   rebookedFromId: id.optional(),
   bookedPriceMinor: minor,
@@ -162,6 +173,8 @@ export const stateSchema = z.object({
   events: z.array(eventSchema),
   relationships: z.array(relationshipSchema),
   operations: operationsSchema.optional(),
+  /** End-of-day till counts, append-only. Optional so records saved before them still load. */
+  tillCounts: z.array(tillCountSchema).optional(),
 })
 export type BusinessState = z.infer<typeof stateSchema>
 export type Client = z.infer<typeof clientSchema>
@@ -186,6 +199,7 @@ export function parseState(value: unknown, region: Region): BusinessState {
     s.payments,
     s.events,
     s.relationships,
+    s.tillCounts ?? [],
   ]
   for (const collection of collections) {
     if (new Set(collection.map((item) => item.id)).size !== collection.length)
@@ -392,6 +406,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
       )
         throw new Error('Refunds exceed the receipt total.')
   }
+  for (const count of s.tillCounts ?? [])
+    if (tillCountProblem(count)) throw new Error('Invalid till count.')
   try {
     new Intl.DateTimeFormat('en', { timeZone: org.timeZone }).format(new Date())
   } catch {

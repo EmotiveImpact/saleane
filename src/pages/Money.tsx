@@ -9,6 +9,7 @@ import { dateLabel, money } from '../domain/format'
 import { parseMinor } from '../domain/money'
 import { Button, ErrorMessage, Modal, Status, PageHeader, SegmentedControl } from '../design'
 import '../components/management.css'
+import { TillCount } from '../components/TillCount'
 
 const methodLabel = (method: string) =>
   ({
@@ -106,6 +107,7 @@ export function Money() {
         amountMinor: parseMinor(data.get('amount')),
         reason: String(data.get('reason') ?? '').trim(),
         reference: String(data.get('reference') ?? '').trim(),
+        method: String(data.get('method')) as 'cash' | 'external_card' | 'demo_cash' | 'demo_card',
       })
       if (!result.ok) {
         setError(result.error)
@@ -424,6 +426,7 @@ export function Money() {
           <p>Card payments are not connected yet.</p>
         </aside>
       </div>
+      <TillCount />
       {receipt && (
         <Modal
           open
@@ -518,6 +521,33 @@ export function Money() {
                     step="0.01"
                     required
                   />
+                </label>
+                <label>
+                  Returned as
+                  <select
+                    name="method"
+                    defaultValue={
+                      sandbox
+                        ? receipt.method === 'demo_cash'
+                          ? 'demo_cash'
+                          : 'demo_card'
+                        : receipt.method === 'cash'
+                          ? 'cash'
+                          : 'external_card'
+                    }
+                  >
+                    {sandbox ? (
+                      <>
+                        <option value="demo_cash">Simulated cash</option>
+                        <option value="demo_card">Simulated card</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="cash">Cash from the till</option>
+                        <option value="external_card">Card or bank, outside SALEANE</option>
+                      </>
+                    )}
+                  </select>
                 </label>
                 <label>
                   External reference
