@@ -242,6 +242,9 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
         lastCall: c.lastAt,
         calls: c.calls,
         ...(c.calledBackAt ? { calledBackAt: c.calledBackAt } : {}),
+        ...(c.appointmentId && ref.has(c.appointmentId)
+          ? { bookedVisit: ref.get(c.appointmentId) }
+          : {}),
       })),
     // V1.5: the private feedback this client gave about their visits.
     feedback: (state.feedback ?? [])

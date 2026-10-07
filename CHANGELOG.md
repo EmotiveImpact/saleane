@@ -2,6 +2,13 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · V1.5 · Booking from a missed call
+
+**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-CALLBOOK.md).
+
+- Each call on Today's Missed calls list has a Book button. It opens the booking window for that caller: a client matched by their number is already chosen, and anyone else can be found by number or added as a new client while booking, with their number filled in.
+- Booking takes the call off the list, counts as calling back, links the call to the visit and notes it on the visit's timeline. The client's data export shows which visit a call led to. The panel says how many calls this week became a booked visit.
+
 ## 2026-10-07 · V1.5 · Neutral review requests and room resting time
 
 **Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-REVIEWS.md).

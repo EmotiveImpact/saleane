@@ -5,6 +5,7 @@ import { operations, can } from '../domain/operations'
 import { slots } from '../domain/commands'
 import { usualWeeks } from '../domain/selectors'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
+import { numberLabel } from '../domain/missedCalls'
 import { Button, ErrorMessage, Modal, TimeChoices } from '../design'
 
 export type BookingDefaults = {
@@ -15,6 +16,8 @@ export type BookingDefaults = {
   /** A time chosen on the calendar, or the time of the visit being rebooked. */
   startMinutes?: number
   rebookedFromId?: string
+  /** V1.5: a missed call the desk is booking for, from Today's list. */
+  callId?: string
 }
 
 export function BookingDialog({
@@ -30,6 +33,16 @@ export function BookingDialog({
   const [pending, setPending] = useState(false)
   const busy = pending || saving
   const [clientId, setClientId] = useState(defaults.clientId ?? '')
+  const call = defaults.callId
+    ? operations(state).missedCalls?.find((c) => c.id === defaults.callId)
+    : undefined
+  // A caller nobody recognises may be new: the desk can add them while booking.
+  const [someoneNew, setSomeoneNew] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newEmail, setNewEmail] = useState('')
+  const [newPhone, setNewPhone] = useState(call ? numberLabel(call.number) : '')
+  const newReady =
+    someoneNew && newName.trim().length >= 2 && !!newEmail.trim() && !!newPhone.trim()
   const firstService = () => {
     // A time picked on the calendar should open with a service that person can fit in there.
     const person = state.staff.find((item) => item.id === defaults.staffId && !item.archived)
@@ -75,6 +88,9 @@ export function BookingDialog({
   const [confirmedId, setConfirmedId] = useState('')
   const available = slots(state, serviceId, staffId, date)
   const client = state.clients.find((c) => c.id === clientId)
+  const bookedClient = state.clients.find(
+    (c) => c.id === (state.appointments.find((a) => a.id === confirmedId)?.clientId ?? clientId),
+  )
   const locale = state.organisation.locale
   const pastVisits = state.appointments
     .filter(
@@ -103,8 +119,8 @@ export function BookingDialog({
   }
   async function save() {
     if (busy || blocked || !can(role, 'book')) return
-    if (!clientId) {
-      setError('Choose a client.')
+    if (!clientId && !newReady) {
+      setError(someoneNew ? 'Enter their name, email and phone.' : 'Choose a client.')
       return
     }
     if (start === null) {
@@ -117,13 +133,23 @@ export function BookingDialog({
       const result = await commit({
         type: 'book',
         input: {
-          clientId,
+          ...(someoneNew
+            ? {
+                contact: {
+                  name: newName.trim(),
+                  email: newEmail.trim(),
+                  phone: newPhone.trim(),
+                  marketingConsent: false,
+                },
+              }
+            : { clientId }),
           serviceId,
           staffId,
           date,
           startMinutes: start,
           source: defaults.rebookedFromId ? 'rebook' : 'desk',
           rebookedFromId: defaults.rebookedFromId,
+          ...(call ? { callId: call.id } : {}),
         },
       })
       if (!result.ok) {
@@ -156,7 +182,7 @@ export function BookingDialog({
           : 'Availability includes the professional, treatment space and turnaround time.'
       }
     >
-      {!service || !state.clients.length ? (
+      {!service || (!state.clients.length && !call) ? (
         <div className="empty">
           <h3>A little setup is needed.</h3>
           <p>
@@ -175,7 +201,7 @@ export function BookingDialog({
           <span className="confirmation-mark">
             <Check />
           </span>
-          <h3>{client?.name}</h3>
+          <h3>{bookedClient?.name}</h3>
           <p>
             {service.name}
             <br /> {dateLabel(date, state.organisation.locale)} at{' '}
@@ -186,21 +212,86 @@ export function BookingDialog({
               ? 'Deposit simulated. No real payment taken.'
               : 'Visit reserved. Record any deposit already received in Money; no card has been charged.'}
           </p>
+          {call && <p className="subtle">The call is off the missed calls list.</p>}
           <Button autoFocus onClick={onClose}>
             Done
           </Button>
         </div>
       ) : (
         <>
-          <ClientPicker
-            clientId={clientId}
-            locked={busy || !!defaults.rebookedFromId}
-            onChange={(id) => {
-              setClientId(id)
-              setError('')
-            }}
-          />
-          {client && (
+          {call && (
+            <p className="booking-call-note">
+              For the missed call from {numberLabel(call.number)}. Booking takes it off the list.
+            </p>
+          )}
+          {someoneNew ? (
+            <fieldset className="booking-new-client">
+              <legend>Someone new</legend>
+              <div className="form-grid">
+                <label className="form-grid-wide">
+                  Name
+                  <input
+                    value={newName}
+                    autoComplete="off"
+                    maxLength={100}
+                    disabled={busy}
+                    onChange={(e) => setNewName(e.target.value)}
+                  />
+                </label>
+                <label>
+                  Email
+                  <input
+                    type="email"
+                    value={newEmail}
+                    autoComplete="off"
+                    disabled={busy}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                  />
+                </label>
+                <label>
+                  Phone
+                  <input
+                    type="tel"
+                    value={newPhone}
+                    autoComplete="off"
+                    disabled={busy}
+                    onChange={(e) => setNewPhone(e.target.value)}
+                  />
+                </label>
+              </div>
+              <small>
+                They are added as a client when you confirm. Ask before sending them news.
+              </small>
+              <Button variant="quiet" disabled={busy} onClick={() => setSomeoneNew(false)}>
+                Choose an existing client instead
+              </Button>
+            </fieldset>
+          ) : (
+            <>
+              <ClientPicker
+                clientId={clientId}
+                locked={busy || !!defaults.rebookedFromId || !!call?.clientId}
+                initialQuery={call && !call.clientId ? call.number : ''}
+                onChange={(id) => {
+                  setClientId(id)
+                  setError('')
+                }}
+              />
+              {call && !call.clientId && !clientId && (
+                <Button
+                  variant="quiet"
+                  disabled={busy}
+                  onClick={() => {
+                    setSomeoneNew(true)
+                    setError('')
+                  }}
+                >
+                  They are new: add them while booking
+                </Button>
+              )}
+            </>
+          )}
+          {client && !someoneNew && (
             <div className="booking-client-context">
               <div className="preference-note">
                 <span>Good to remember</span>
@@ -324,7 +415,7 @@ export function BookingDialog({
                 busy ||
                 blocked ||
                 !can(role, 'book') ||
-                !clientId ||
+                !(someoneNew ? newReady : clientId) ||
                 start === null ||
                 !available.includes(start)
               }
@@ -342,15 +433,18 @@ export function BookingDialog({
 function ClientPicker({
   clientId,
   locked,
+  initialQuery = '',
   onChange,
 }: {
   clientId: string
   locked: boolean
+  /** Starts the search with this, such as a caller's number. */
+  initialQuery?: string
   onChange: (id: string) => void
 }) {
   const { state } = useStore()
   const id = useId()
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(initialQuery)
   const [editing, setEditing] = useState(!clientId)
   const chosen = state.clients.find((c) => c.id === clientId)
   const words = query.trim().toLowerCase()

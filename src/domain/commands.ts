@@ -24,7 +24,7 @@ import {
 import { referenceTaken } from './references'
 import { recordFeedback, repeatedFeedback } from './feedback'
 import { guestHereWindow } from './guest'
-import { markCalledBack, recordMissedCall } from './missedCalls'
+import { callForBooking, linkCallToVisit, markCalledBack, recordMissedCall } from './missedCalls'
 import { planSpecial, stopSpecial } from './specials'
 import { addTask, completeTask } from './tasks'
 import { priceRetail, recordRetailMovements, retailCharge, sellAtCounter } from './retail'
@@ -259,6 +259,10 @@ export function execute(
         if (!previous || previous.status !== 'completed' || previous.clientId !== client.id)
           throw new Error('Rebooking needs a completed visit for this client.')
       }
+      if (input.callId) {
+        if (input.source === 'online') throw new Error('Only the desk can book for a missed call.')
+        callForBooking(s, input.callId, client.id)
+      }
       const appointment: Appointment = {
         id: makeId(),
         organisationId: org.id,
@@ -300,9 +304,10 @@ export function execute(
         appointmentId: appointment.id,
         type: 'booked',
         title: input.source === 'rebook' ? 'Next visit booked' : 'Appointment booked',
-        detail: `${service.name} · ${dateLabel(input.date, org.locale)} at ${timeLabel(input.startMinutes, org.locale)}. ${operations(s).mode === 'sandbox' ? 'Deposit simulated; no payment taken.' : 'No payment collected. Any required deposit remains outstanding.'}${input.channel ? ` Booked through your ${channelLabel(input.channel)} link.` : ''}`,
+        detail: `${service.name} · ${dateLabel(input.date, org.locale)} at ${timeLabel(input.startMinutes, org.locale)}. ${operations(s).mode === 'sandbox' ? 'Deposit simulated; no payment taken.' : 'No payment collected. Any required deposit remains outstanding.'}${input.channel ? ` Booked through your ${channelLabel(input.channel)} link.` : ''}${input.callId ? ' Booked when the studio called back after a missed call.' : ''}`,
       })
       if (input.waitlistId) fillFromWaitlist(next, input.waitlistId, appointment, now, 'book')
+      if (input.callId) linkCallToVisit(next, input.callId, appointment.id, client.id, now)
       recordId = appointment.id
     } else if (
       command.type === 'reschedule' ||

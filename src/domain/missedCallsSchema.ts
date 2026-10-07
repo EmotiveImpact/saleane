@@ -28,6 +28,8 @@ export const missedCallSchema = z
     actor: z.string(),
     calledBackAt: z.iso.datetime().optional(),
     calledBackBy: z.string().optional(),
+    /** The visit booked for this caller from the list, which also counts as calling back. */
+    appointmentId: id.optional(),
   })
   .strict()
 export type MissedCall = z.infer<typeof missedCallSchema>
