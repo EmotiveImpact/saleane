@@ -369,6 +369,28 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
           ...(content?.agreement ? { agreed: content.agreement, agreedAs: r.agreedName } : {}),
         }
       }),
+    // V1.5: consultations held with them, every version, and the visits booked from each.
+    consultations: (state.consultations ?? [])
+      .filter((c) => c.clientId === client.id)
+      .map((c) => ({
+        heldOn: c.heldOn,
+        heldBy: state.staff.find((p) => p.id === c.staffId)?.name ?? 'Not recorded',
+        visitsBooked: visits
+          .filter((a) => a.consultation?.id === c.id)
+          .map((a) => ({ visit: ref.get(a.id)!, version: a.consultation!.version })),
+        versions: c.versions.map((v) => ({
+          version: v.version,
+          savedAt: v.savedAt,
+          savedBy: v.savedBy,
+          treatments: v.serviceIds.map(
+            (id) => state.services.find((x) => x.id === id)?.name ?? 'A treatment',
+          ),
+          wants: v.wants,
+          plan: v.plan,
+          quoteMinor: v.quoteMinor,
+          notes: v.notes,
+        })),
+      })),
   }
 }
 export type ClientExport = ReturnType<typeof clientExport>
@@ -400,6 +422,7 @@ export function previewClientExport(file: ClientExport): ExportPreview {
       { label: 'Gift cards and vouchers they bought', count: file.giftCards.length },
       { label: 'Patch tests', count: file.patchTests.length },
       { label: 'Forms they filled in, answers as written', count: file.forms.length },
+      { label: 'Consultations and what was agreed', count: file.consultations.length },
     ],
     excluded: CLIENT_EXPORT_EXCLUDED,
     notes: [
@@ -462,6 +485,7 @@ export function previewStudioExport(file: StudioExport): ExportPreview {
       { label: 'Patch tests', count: (r.patchTests ?? []).length },
       { label: 'Guest forms and their answers', count: (r.formResponses ?? []).length },
       { label: 'Email permission records', count: (r.consentRecords ?? []).length },
+      { label: 'Consultations', count: (r.consultations ?? []).length },
       {
         label: 'Services, professionals and spaces',
         count: r.services.length + r.staff.length + r.resources.length,
@@ -596,6 +620,12 @@ export function erasureReview(
         count: (state.patchTests ?? []).filter((t) => t.clientId === client.id).length,
         reason:
           'Shows the studio checked for a reaction before a treatment, in case of a later complaint or claim.',
+      },
+      {
+        label: 'Consultations',
+        count: (state.consultations ?? []).filter((c) => c.clientId === client.id).length,
+        reason:
+          'Shows what was agreed before a treatment and the price given, in case of a dispute.',
       },
       {
         label: 'Forms they filled in',
@@ -737,6 +767,15 @@ export function clientExportText(file: ClientExport, locale = 'en-GB') {
     ...file.forms.flatMap((f) => [
       `${f.submittedAt.slice(0, 10)} · ${f.form} (version ${f.version})${f.agreedAs ? ` · agreed as ${f.agreedAs}` : ''}`,
       ...f.answers.map((a) => `  ${a.question}: ${a.answer || '–'}`),
+    ]),
+    '',
+    `CONSULTATIONS (${file.consultations.length})`,
+    ...file.consultations.flatMap((c) => [
+      `${c.heldOn} · with ${c.heldBy}`,
+      ...c.versions.map(
+        (v) =>
+          `  Version ${v.version}: ${v.plan}${v.wants ? ` · wanted: ${v.wants}` : ''}${v.quoteMinor !== null ? ` · quoted ${amount(v.quoteMinor, cur, locale)}` : ''}`,
+      ),
     ]),
     '',
     `MESSAGES (${file.messages.length}), none sent`,

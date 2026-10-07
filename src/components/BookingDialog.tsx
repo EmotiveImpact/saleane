@@ -6,6 +6,7 @@ import { slots } from '../domain/commands'
 import { usualWeeks } from '../domain/selectors'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import { numberLabel } from '../domain/missedCalls'
+import { consultationsList, latestVersion } from '../domain/consultations'
 import { Button, ErrorMessage, Modal, TimeChoices } from '../design'
 
 export type BookingDefaults = {
@@ -18,6 +19,8 @@ export type BookingDefaults = {
   rebookedFromId?: string
   /** V1.5: a missed call the desk is booking for, from Today's list. */
   callId?: string
+  /** V1.5: the consultation this visit comes from; the visit keeps its current version. */
+  consultationId?: string
 }
 
 export function BookingDialog({
@@ -33,6 +36,9 @@ export function BookingDialog({
   const [pending, setPending] = useState(false)
   const busy = pending || saving
   const [clientId, setClientId] = useState(defaults.clientId ?? '')
+  const consultation = defaults.consultationId
+    ? consultationsList(state).find((c) => c.id === defaults.consultationId)
+    : undefined
   const call = defaults.callId
     ? operations(state).missedCalls?.find((c) => c.id === defaults.callId)
     : undefined
@@ -150,6 +156,7 @@ export function BookingDialog({
           source: defaults.rebookedFromId ? 'rebook' : 'desk',
           rebookedFromId: defaults.rebookedFromId,
           ...(call ? { callId: call.id } : {}),
+          ...(consultation ? { consultationId: consultation.id } : {}),
         },
       })
       if (!result.ok) {
@@ -219,6 +226,12 @@ export function BookingDialog({
         </div>
       ) : (
         <>
+          {consultation && (
+            <p className="booking-call-note">
+              From the consultation on {dateLabel(consultation.heldOn, state.organisation.locale)}{' '}
+              (version {latestVersion(consultation).version}): {latestVersion(consultation).plan}
+            </p>
+          )}
           {call && (
             <p className="booking-call-note">
               For the missed call from {numberLabel(call.number)}. Booking takes it off the list.
@@ -270,7 +283,7 @@ export function BookingDialog({
             <>
               <ClientPicker
                 clientId={clientId}
-                locked={busy || !!defaults.rebookedFromId || !!call?.clientId}
+                locked={busy || !!defaults.rebookedFromId || !!call?.clientId || !!consultation}
                 initialQuery={call && !call.clientId ? call.number : ''}
                 onChange={(id) => {
                   setClientId(id)

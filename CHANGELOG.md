@@ -2,6 +2,15 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · V1.5 · Consultations
+
+**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-CONSULT.md).
+
+- A client's page has a new Consultations panel. The desk notes the date, who held it, the treatments talked about, what the guest would like, what was agreed and any price given. Health details are refused, as they are for guest forms.
+- Each update is kept as a new version, with who saved it. Earlier versions stay readable.
+- "Book from this" opens the booking window for that guest and treatment. The visit keeps the version agreed, and its window shows the plan, what they wanted and the price given, with a note if the consultation has changed since.
+- The practitioner's own day shows what was agreed for their visit. The client's data export, text export and erasure review include every version.
+
 ## 2026-10-07 · V1.5 · Versioned consent for email news
 
 **Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-CONSENT.md).

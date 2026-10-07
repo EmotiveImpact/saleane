@@ -659,6 +659,39 @@ export function seed(region: Region): BusinessState {
       actor: 'Guest (private link)',
     },
   ]
+  // V1.5: Ellie talked through a colour change with Theo; the price was firmed up the next day,
+  // and her gloss visit was booked against that second version.
+  const talked = { serviceIds: ['service-gloss'], quoteMinor: uk ? 6500 : 8500, notes: '' }
+  state.consultations = [
+    {
+      ...scope,
+      id: 'consult-ellie',
+      clientId: 'client-3',
+      staffId: 'staff-theo',
+      heldOn: addDays(DEMO_DATE, -5),
+      versions: [
+        {
+          ...talked,
+          version: 1,
+          wants: 'Warmer, softer blonde. Less brassy at the ends.',
+          plan: 'Gloss and tone in a warm beige. Keep the roots as they are.',
+          quoteMinor: null,
+          savedAt: `${addDays(DEMO_DATE, -5)}T15:20:00.000Z`,
+          savedBy: 'Theo Bennett',
+        },
+        {
+          ...talked,
+          version: 2,
+          wants: 'Warmer, softer blonde. Less brassy at the ends.',
+          plan: 'Gloss and tone in a warm beige. Keep the roots as they are. Trim the ends after.',
+          savedAt: `${addDays(DEMO_DATE, -4)}T09:05:00.000Z`,
+          savedBy: 'Maya · demo operator',
+        },
+      ],
+    },
+  ]
+  const ellie = state.appointments.find((a) => a.id === 'visit-gloss-ellie')
+  if (ellie) ellie.consultation = { id: 'consult-ellie', version: 2 }
   return parseState(state, region)
 }
 
