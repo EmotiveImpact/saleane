@@ -688,7 +688,11 @@ fieldset {
   padding-bottom: 9px;
 }
 .agenda-completed > :not(.status) {
-  opacity: 0.55;
+  /* Quieter than open visits, still readable: fade the colour, not the whole text. */
+  color: var(--muted);
+}
+.agenda-completed > :not(.status) :is(strong, small, span) {
+  color: inherit;
 }
 .agenda-now {
   display: flex;
@@ -1303,7 +1307,11 @@ fieldset {
 }
 .search-field:focus-within {
   border-color: var(--brand);
-  box-shadow: 0 0 0 3px var(--brand-soft);
+}
+/* The ring sits on the whole pill, so keyboard users see it clearly. */
+.search-field:has(input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 .search-field input {
   border: 0;
@@ -4215,6 +4223,7 @@ fieldset {
   padding: 0;
 }
 .person-free > button {
+  position: relative;
   display: flex;
   justify-content: space-between;
   gap: var(--space-2);
@@ -4337,4 +4346,8 @@ fieldset {
 .colour-swatch:has(input:focus-visible) {
   outline: 2px solid var(--focus);
   outline-offset: 3px;
+}
+
+.layout-choice .colour-swatch {
+  padding: 8px 16px;
 }

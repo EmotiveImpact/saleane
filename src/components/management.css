@@ -334,7 +334,7 @@
   padding: 32px 8px;
   text-align: center;
 }
-.ops-no-records h3 {
+.ops-no-records :is(h2, h3) {
   font-family: var(--font-editorial);
   font-size: 25px;
   font-weight: var(--weight-editorial);
@@ -558,37 +558,8 @@
 }
 
 /* Inbox: two columns by default, or a full-width list with a side panel. */
-.inbox-view {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-  margin: 18px 0 12px;
-  font-size: var(--text-meta);
-  color: var(--muted);
-}
-.inbox-view > span {
-  margin-right: 4px;
-}
-.inbox-view button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 34px;
-  padding: 6px 14px;
-  border: 1px solid var(--line2);
-  border-radius: var(--radius-pill);
-  background: var(--paper);
-  color: var(--ink);
-  font: inherit;
-  cursor: pointer;
-}
-.inbox-view button[aria-pressed='true'] {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: #fff;
-}
 .inbox-card {
+  margin-top: 18px;
   padding: 0;
   overflow: hidden;
 }
@@ -797,10 +768,73 @@
   .inbox-pane {
     padding: 18px;
   }
-  .inbox-view button {
-    padding: 6px 10px;
-  }
   .inbox-pane-header {
     flex-wrap: wrap;
+  }
+}
+
+/* Settings: one page for personal preferences, the studio and this workspace. */
+.settings-page .ops-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+.settings-page .ops-aside {
+  display: none;
+}
+.settings-panel .colour-choice + .colour-choice {
+  margin-top: 18px;
+}
+.settings-panel .colour-choice legend {
+  font-weight: var(--weight-strong);
+  margin-bottom: 10px;
+}
+.settings-booking-link {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 24px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+}
+.settings-booking-link img {
+  width: 96px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: var(--radius-inner);
+}
+.settings-booking-link > div {
+  flex: 1;
+  min-width: 0;
+}
+.settings-booking-link p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+.settings-body {
+  display: grid;
+  gap: 14px;
+  justify-items: start;
+}
+.settings-body label,
+.settings-body select {
+  width: 100%;
+  max-width: 460px;
+}
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+@media (max-width: 650px) {
+  .settings-panel > header > svg {
+    display: none;
+  }
+  .settings-booking-link {
+    flex-wrap: wrap;
+  }
+  .settings-booking-link img {
+    width: 100%;
+    height: 120px;
   }
 }

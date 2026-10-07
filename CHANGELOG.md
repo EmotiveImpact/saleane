@@ -2,6 +2,21 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · Merged · A full Settings page
+
+**Status: merged into main on 7 October 2026; not deployed.** Layout and navigation only; studio records save exactly as before.
+
+- Settings is now a page in the main menu instead of a small pop-up. Sections sit down the side: Your preferences, Studio details, Colours & booking page, Services, Team, Spaces & equipment, Hours & closures, Data & privacy and This workspace.
+- "Manage studio" under Business has moved into Settings; old links to it open Settings. Reception, who could not see Business, now land on Settings.
+- Your preferences holds the Inbox layout: "Two columns, like email" (the default) or "List with a side panel", chosen per person and kept in this browser. The switch on the Inbox page is gone.
+- The studio card, your name in the top bar, "About this version" and "Open recovery controls" each open the matching Settings section. The address names the section, so a link can open it directly.
+- Accessibility fixes for regressions the new look brought in, found by the WCAG 2.2 A/AA sweep (`scripts/qualify.mjs`), which is back to zero violations across 63 page checks:
+  - Today: completed visits are now quieted by a softer text colour rather than fading the whole row, so they keep enough contrast.
+  - Calendar: free gaps shorter than a comfortable tap (24px) are no longer separate buttons; they are booked from New appointment. On phones, free-time buttons are named by what they show, with the person's name for screen readers.
+  - Inbox: the empty-view heading sits at the right level. Money: receipt rows are named by what they show.
+  - Clients and Inbox: the search pill shows a clear focus ring for keyboard users.
+  - The sweep no longer opens the old Settings pop-up, which this change removes; the Settings page is covered by the page checks.
+
 ## 2026-10-07 · Merged · Small extras
 
 **Status: built and checked locally; nothing deployed, nothing sent or charged.**

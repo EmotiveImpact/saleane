@@ -1,27 +1,16 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { ArrowLeft, Columns2, FilePenLine, List, MailWarning, Plus, Search } from 'lucide-react'
+import { ArrowLeft, FilePenLine, MailWarning, Plus, Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useStore } from '../state/context'
 import { operations, can } from '../domain/operations'
 import { dateLabel, timeLabel } from '../domain/format'
 import { Avatar, Button, ErrorMessage, Modal, PageHeader, SegmentedControl } from '../design'
 import type { BusinessState } from '../domain/model'
+import { useInboxView } from '../state/inboxView'
 import '../components/management.css'
 
-type InboxView = 'columns' | 'panel'
 type QueuedMessage = ReturnType<typeof operations>['messages'][number]
-
-const viewKey = (userId?: string) => `saleane-inbox-view:${userId ?? 'demo'}`
-
-/** Each person keeps their own choice of view in this browser. Two columns is the default. */
-function readView(userId?: string): InboxView {
-  try {
-    return localStorage.getItem(viewKey(userId)) === 'panel' ? 'panel' : 'columns'
-  } catch {
-    return 'columns'
-  }
-}
 
 function matches(message: QueuedMessage, state: BusinessState, query: string) {
   const q = query.trim().toLowerCase()
@@ -52,7 +41,7 @@ export function Inbox() {
   const [notice, setNotice] = useState('')
   const client = state.clients.find((item) => item.id === clientId)
   const [query, setQuery] = useState('')
-  const [view, setView] = useState<InboxView>(() => readView(session?.user.id))
+  const view = useInboxView(session?.user.id)
   const [selectedId, setSelectedId] = useState<string | undefined>()
   // On a phone the two-column view shows the list first, then one conversation.
   const [opened, setOpened] = useState(false)
@@ -118,15 +107,6 @@ export function Inbox() {
       setError('Could not update the queue. Try again.')
     } finally {
       setPending('')
-    }
-  }
-  function chooseView(next: InboxView) {
-    setView(next)
-    setPanelOpen(false)
-    try {
-      localStorage.setItem(viewKey(session?.user.id), next)
-    } catch {
-      /* The choice still applies for this visit. */
     }
   }
   function open(message: QueuedMessage) {
@@ -266,21 +246,6 @@ export function Inbox() {
           </p>
         </div>
       </div>
-      <div className="inbox-view" role="group" aria-label="View">
-        <span>View</span>
-        <button
-          type="button"
-          aria-pressed={view === 'columns'}
-          onClick={() => chooseView('columns')}
-        >
-          <Columns2 size={15} />
-          Two columns
-        </button>
-        <button type="button" aria-pressed={view === 'panel'} onClick={() => chooseView('panel')}>
-          <List size={15} />
-          List with side panel
-        </button>
-      </div>
       <section className={`surface inbox-card inbox-${view} ${opened ? 'is-open' : ''}`}>
         <div className="inbox-list">
           <div className="inbox-toolbar">
@@ -357,11 +322,11 @@ export function Inbox() {
           {!messages.length && (
             <div className="ops-no-records">
               <FilePenLine size={27} />
-              <h3>
+              <h2>
                 {filter === 'all' && !query
                   ? 'A little space to be thoughtful.'
                   : 'Nothing in this view.'}
-              </h3>
+              </h2>
               <p>
                 {filter === 'all' && !query
                   ? 'Write an appointment update or a consent-aware marketing draft. It stays here until you decide the next step.'

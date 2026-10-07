@@ -183,7 +183,7 @@ describe('connected operator journeys', () => {
 describe('local operating surfaces', () => {
   it('edits catalogue pricing without rewriting booked promises and preserves a conflicting closure draft', async () => {
     const user = userEvent.setup()
-    show('/business/manage')
+    show('/settings')
     await user.click(await screen.findByRole('tab', { name: 'Services' }))
     await user.click(screen.getByRole('button', { name: 'Edit Skin Renewal Facial' }))
     await user.clear(screen.getByLabelText('Price (GBP)'))
@@ -219,7 +219,7 @@ describe('local operating surfaces', () => {
 
   it('previews affected visits for opening hours and lists the change in schedule history', async () => {
     const user = userEvent.setup()
-    show('/business/manage')
+    show('/settings')
     await user.click(await screen.findByRole('tab', { name: 'Hours & closures' }))
     expect(screen.getByText(/No schedule changes recorded yet/)).toBeInTheDocument()
     const tuesday = screen.getByRole('checkbox', { name: 'Tuesday' })
@@ -267,17 +267,21 @@ describe('local operating surfaces', () => {
     )
   })
 
-  it('opens the inbox in two columns and remembers a switch to the side panel', async () => {
+  it('opens the inbox in two columns and lets each person choose the side panel on the Settings page', async () => {
     const user = userEvent.setup()
     show('/inbox')
-    const columns = await screen.findByRole('button', { name: 'Two columns' })
-    expect(columns).toHaveAttribute('aria-pressed', 'true')
-    await user.click(screen.getByRole('button', { name: 'List with side panel' }))
-    expect(localStorage.getItem('saleane-inbox-view:demo')).toBe('panel')
-    expect(screen.getByRole('button', { name: 'List with side panel' })).toHaveAttribute(
-      'aria-pressed',
+    expect(await screen.findByText('Choose a message to read it here.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /your preferences/ }))
+    expect(await screen.findByRole('tab', { name: 'Your preferences' })).toHaveAttribute(
+      'aria-selected',
       'true',
     )
+    expect(screen.getByRole('radio', { name: 'Two columns, like email' })).toBeChecked()
+    await user.click(screen.getByRole('radio', { name: 'List with a side panel' }))
+    expect(localStorage.getItem('saleane-inbox-view:demo')).toBe('panel')
+    await user.click(screen.getAllByRole('link', { name: /Inbox/ })[0])
+    expect(await screen.findByRole('heading', { name: 'A considered word.' })).toBeInTheDocument()
+    expect(screen.queryByText('Choose a message to read it here.')).not.toBeInTheDocument()
   })
 
   it('requires refund provenance confirmation and retains the settled receipt', async () => {

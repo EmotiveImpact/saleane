@@ -26,7 +26,7 @@ const demoRoutes = [
   '/inbox',
   '/business',
   '/business/money',
-  '/business/manage',
+  '/settings',
   '/booking',
   '/design-language',
   '/account',
@@ -71,7 +71,14 @@ async function keyboard(page, steps = 60) {
       const visible =
         (style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) > 0) ||
         (style.boxShadow && style.boxShadow !== 'none') ||
-        style.textDecorationLine.includes('underline')
+        style.textDecorationLine.includes('underline') ||
+        // A search input inside a pill shows its ring on the pill around it.
+        (() => {
+          const field = el.closest('.search-field')
+          if (!field) return false
+          const ring = getComputedStyle(field)
+          return ring.outlineStyle !== 'none' && parseFloat(ring.outlineWidth) > 0
+        })()
       const label = (
         el.getAttribute('aria-label') ||
         el.textContent ||
@@ -161,7 +168,6 @@ async function dialogs(context, label) {
     })
   }
   await check('search', () => page.getByRole('button', { name: 'Find a client' }).click())
-  await check('settings', () => page.getByRole('button', { name: 'Workspace settings' }).click())
   await check('appointment', () => page.locator('.agenda-row').first().click())
   await check('new appointment', () =>
     page.getByRole('button', { name: 'New appointment' }).click(),
