@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowUpRight, Plus, Search, FileUp } from 'lucide-react'
-import { can, operations } from '../domain/operations'
+import { Plus, Search, FileUp } from 'lucide-react'
+import { businessDate, can, operations } from '../domain/operations'
 import { useStore } from '../state/context'
-import { clientStats, dueClients } from '../domain/selectors'
-import { dateLabel, money } from '../domain/format'
+import { directoryRows, queryDirectory } from '../domain/directory'
+import type { DirectorySegment, DirectorySort } from '../domain/directory'
+import { addDays, money } from '../domain/format'
 import { Avatar, Button, Empty, ErrorMessage, Modal, PageHeader, SegmentedControl } from '../design'
 import { ClientImport } from '../components/ClientImport'
 
@@ -15,7 +16,7 @@ export function Clients() {
   const busy = pending || saving
   const allowed = !blocked && can(role, 'client')
   const [query, setQuery] = useState('')
-  const [segment, setSegment] = useState('all')
+  const [segment, setSegment] = useState<DirectorySegment>('all')
   const [newClient, setNewClient] = useState(false)
   const [importing, setImporting] = useState(false)
   const [error, setError] = useState('')
@@ -24,13 +25,27 @@ export function Clients() {
   const [phone, setPhone] = useState('')
   const [consent, setConsent] = useState(false)
   const [referrer, setReferrer] = useState('')
-  const due = dueClients(state)
-  const clients = state.clients.filter(
-    (c) =>
-      (segment !== 'due' || due.some((d) => d.id === c.id)) &&
-      (segment !== 'consented' || c.marketingConsent) &&
-      `${c.name} ${c.email} ${c.phone}`.toLowerCase().includes(query.toLowerCase()),
-  )
+  const [sort, setSort] = useState<DirectorySort>('recent')
+  const [page, setPage] = useState(1)
+  const rows = useMemo(() => directoryRows(state), [state])
+  const result = queryDirectory(rows, { segment, query, sort, page })
+  const today = businessDate(state)
+  const { locale } = state.organisation
+  function visitDay(date: string) {
+    if (date === today) return 'Today'
+    if (date === addDays(today, -1)) return 'Yesterday'
+    if (date === addDays(today, 1)) return 'Tomorrow'
+    return new Intl.DateTimeFormat(locale, {
+      timeZone: 'UTC',
+      day: 'numeric',
+      month: 'short',
+      ...(date.slice(0, 4) === today.slice(0, 4) ? {} : { year: 'numeric' }),
+    }).format(new Date(`${date}T12:00:00Z`))
+  }
+  function refine(update: () => void) {
+    update()
+    setPage(1)
+  }
   async function save(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
     if (busy || !allowed) return
@@ -58,8 +73,8 @@ export function Clients() {
     <>
       <PageHeader
         variant="compact"
+        eyebrow="Clients"
         title="Relationships, remembered."
-        description="Know their story. Give the next visit a reason."
         actions={
           <>
             {can(role, 'import-clients') && (
@@ -79,77 +94,118 @@ export function Clients() {
           </>
         }
       />
-      <section className="surface">
+      <section className="surface directory">
         <div className="directory-toolbar">
           <SegmentedControl
             label="Client segments"
+            appearance="chips"
             value={segment}
-            onChange={setSegment}
-            options={[
-              { value: 'all', label: `All clients (${state.clients.length})` },
-              { value: 'due', label: `Ready to return (${due.length})` },
-              { value: 'consented', label: 'Email marketing enabled' },
-            ]}
+            onChange={(next) => refine(() => setSegment(next))}
+            options={(
+              [
+                ['all', 'All clients'],
+                ['due', 'Ready to return'],
+                ['new', 'New this month'],
+                ['week', 'Booked this week'],
+                ['consented', 'Email marketing on'],
+              ] as const
+            ).map(([value, label]) => ({
+              value,
+              label: (
+                <>
+                  {label} <span className="chip-count">{result.counts[value]}</span>
+                </>
+              ),
+            }))}
           />
-          <label className="search-field">
-            <Search size={17} />
-            <span className="sr-only">Search clients</span>
-            <input
-              placeholder="Search clients"
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </label>
+          <div className="directory-controls">
+            <label className="search-field">
+              <Search size={17} />
+              <span className="sr-only">Search by name, phone or email</span>
+              <input
+                placeholder="Search by name, phone or email"
+                type="search"
+                value={query}
+                onChange={(e) => refine(() => setQuery(e.target.value))}
+              />
+            </label>
+            <label className="sort-field">
+              <span className="sr-only">Sort clients</span>
+              <select
+                value={sort}
+                onChange={(e) => refine(() => setSort(e.target.value as DirectorySort))}
+              >
+                <option value="recent">Most recent visit</option>
+                <option value="name">Name A to Z</option>
+                <option value="visits">Most visits</option>
+                <option value="spend">Most spent</option>
+              </select>
+            </label>
+          </div>
         </div>
         <div className="client-table-wrap">
           <table className="client-table">
             <caption className="sr-only">
-              Client directory with visit history, completed service spend and next visit
+              Client directory with last and next visit, completed visits and service spend
             </caption>
             <thead>
               <tr>
-                <th>Client</th>
-                <th>Visits</th>
-                <th>Service spend</th>
-                <th>Next visit</th>
-                <th>Relationship</th>
+                <th scope="col">Client</th>
+                <th scope="col" className="directory-wide">
+                  Last visit
+                </th>
+                <th scope="col">Next visit</th>
+                <th scope="col" className="directory-wide numeric">
+                  Visits
+                </th>
+                <th scope="col" className="directory-wide numeric">
+                  Spent
+                </th>
+                <th scope="col" className="directory-wide">
+                  <span className="sr-only">Status</span>
+                </th>
               </tr>
             </thead>
             <tbody>
-              {clients.map((client, index) => {
-                const stats = clientStats(state, client.id)
+              {result.rows.map((row) => {
+                const { client } = row
                 return (
                   <tr key={client.id}>
                     <td>
                       <Link className="client-cell" to={`/clients/${client.id}`}>
-                        <Avatar
-                          identity={client.id}
-                          name={client.name}
-                          tone={['sage', 'blue', 'sand'][index % 3]}
-                        />
+                        <Avatar identity={client.id} name={client.name} tone="sand" />
                         <span>
                           <strong>{client.name}</strong>
-                          <small>{client.email}</small>
+                          <small>{client.phone}</small>
                         </span>
                       </Link>
                     </td>
-                    <td>{stats.visits}</td>
-                    <td className="numeric">{money(stats.spend, state.organisation)}</td>
-                    <td>
-                      {stats.next ? (
-                        dateLabel(stats.next.date, state.organisation.locale, true)
+                    <td className="directory-wide">
+                      {row.firstVisitToday ? (
+                        'First visit today'
+                      ) : row.lastDate ? (
+                        visitDay(row.lastDate)
                       ) : (
-                        <span className="subtle">No next visit</span>
+                        <span className="subtle">No visits yet</span>
                       )}
                     </td>
                     <td>
-                      <Link className="relationship-link" to={`/clients/${client.id}`}>
-                        {due.some((c) => c.id === client.id)
-                          ? 'Ready to return'
-                          : 'View relationship'}
-                        <ArrowUpRight size={15} />
-                      </Link>
+                      {row.nextDate ? (
+                        visitDay(row.nextDate)
+                      ) : (
+                        <span className="subtle">Not booked</span>
+                      )}
+                    </td>
+                    <td className="directory-wide numeric">{row.visits}</td>
+                    <td className="directory-wide numeric">
+                      {money(row.spend, state.organisation)}
+                    </td>
+                    <td className="directory-wide">
+                      {row.due ? (
+                        <span className="tag tag-rose">Ready to return</span>
+                      ) : row.isNew ? (
+                        <span className="tag tag-brand">New</span>
+                      ) : null}
                     </td>
                   </tr>
                 )
@@ -157,10 +213,35 @@ export function Clients() {
             </tbody>
           </table>
         </div>
-        {!clients.length && (
+        {!result.total && (
           <Empty title="No clients found">
             Try a name, email or phone number, or choose another segment.
           </Empty>
+        )}
+        {result.total > 0 && (
+          <nav className="directory-paging" aria-label="Client pages">
+            <span role="status">
+              Showing {result.from} to {result.to} of {result.total}
+            </span>
+            {result.pages > 1 && (
+              <span className="directory-paging-buttons">
+                <Button
+                  variant="secondary"
+                  disabled={result.page <= 1}
+                  onClick={() => setPage(result.page - 1)}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="secondary"
+                  disabled={result.page >= result.pages}
+                  onClick={() => setPage(result.page + 1)}
+                >
+                  Next
+                </Button>
+              </span>
+            )}
+          </nav>
         )}
       </section>
       {importing && <ClientImport onClose={() => setImporting(false)} />}

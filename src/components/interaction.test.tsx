@@ -126,7 +126,10 @@ describe('connected operator journeys', () => {
   it('finds a client and appends an ordinary relationship note', async () => {
     const user = userEvent.setup()
     show('/clients')
-    await user.type(screen.getByRole('searchbox', { name: 'Search clients' }), 'Amelia')
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search by name, phone or email' }),
+      'Amelia',
+    )
     await user.click(screen.getByRole('link', { name: /Amelia Carter/ }))
     await user.type(
       screen.getByRole('textbox', { name: 'Relationship note' }),
@@ -139,7 +142,10 @@ describe('connected operator journeys', () => {
   it('edits what is good to remember about a client in place', async () => {
     const user = userEvent.setup()
     show('/clients')
-    await user.type(screen.getByRole('searchbox', { name: 'Search clients' }), 'Amelia')
+    await user.type(
+      screen.getByRole('searchbox', { name: 'Search by name, phone or email' }),
+      'Amelia',
+    )
     await user.click(screen.getByRole('link', { name: /Amelia Carter/ }))
     await user.click(screen.getByRole('button', { name: 'Edit good to remember' }))
     const field = screen.getByRole('textbox', { name: 'Good to remember' })
@@ -154,7 +160,7 @@ describe('connected operator journeys', () => {
     const user = userEvent.setup()
     show('/booking')
     await user.click(screen.getByRole('button', { name: 'Choose a time' }))
-    await user.click(screen.getByRole('button', { name: '09:00' }))
+    await user.click(screen.getByRole('radio', { name: '09:00' }))
     await user.click(screen.getByRole('button', { name: 'Your details' }))
     await user.type(screen.getByRole('textbox', { name: 'Full name' }), 'Alex Demo')
     await user.type(screen.getByRole('textbox', { name: 'Email' }), 'alex@example.com')
@@ -241,7 +247,7 @@ describe('local operating surfaces', () => {
     await user.type(screen.getByLabelText('Subject'), 'A future invitation')
     await user.type(screen.getByLabelText('Message'), 'We would love to welcome you back.')
     await user.click(screen.getByRole('button', { name: 'Save draft' }))
-    expect(screen.getByRole('button', { name: 'Queue for later delivery' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Approve and queue' })).toBeDisabled()
     await user.click(screen.getByRole('button', { name: 'Edit draft A future invitation' }))
     expect(screen.getByLabelText('Client')).toBeDisabled()
     expect(screen.getByLabelText('Purpose')).toBeDisabled()
@@ -258,6 +264,19 @@ describe('local operating surfaces', () => {
     })
     expect(saved.clients.find((c: { id: string }) => c.id === 'client-4').marketingConsent).toBe(
       false,
+    )
+  })
+
+  it('opens the inbox in two columns and remembers a switch to the side panel', async () => {
+    const user = userEvent.setup()
+    show('/inbox')
+    const columns = await screen.findByRole('button', { name: 'Two columns' })
+    expect(columns).toHaveAttribute('aria-pressed', 'true')
+    await user.click(screen.getByRole('button', { name: 'List with side panel' }))
+    expect(localStorage.getItem('saleane-inbox-view:demo')).toBe('panel')
+    expect(screen.getByRole('button', { name: 'List with side panel' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
     )
   })
 

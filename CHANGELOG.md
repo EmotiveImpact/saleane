@@ -12,7 +12,50 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Manage studio: arrival and preparation notes, and shareable booking links for Google and Instagram that record where a guest came from.
 - Practitioners: a phone-first day with "Next up" and "Before you begin". Evidence: [EXTRAS](docs/evidence/EXTRAS.md).
 
-## 2026-10-06 · Merged · Competitive position in the plan
+## 2026-10-07 · Merged · The new look: fonts, studio colours and a Clients directory for hundreds
+
+**Status: merged into main on 7 October 2026 with the design tightening pass below; not deployed.** Look and wording only; bookings, money and messages behave as before.
+
+- New type: Figtree for all working text (360 body, 460 menu, 560 emphasis) and a light serif for headings and names. Financier Display Light is the chosen heading font, but its licence is not bought, so the committed code uses the free Newsreader at 300, then Georgia. Bodoni Moda, Source Sans 3 and Manrope are removed.
+- A warm off-white ground, a warm sidebar, white cards with 20px corners, pill buttons and a sticky, translucent top bar. No dark panels: the Business insight card is now light.
+- Studio colours: owners and managers pick a first and second colour in workspace settings (six and five presets, sage and soft rose by default). Buttons, selection, focus, the now line, counts and tags follow them. Every preset keeps white button text and coloured text at WCAG AA. **The choice is saved in this browser only** until studio settings are stored on the server.
+- Today opens with a greeting card ("Good morning, …", how many guests are in today and who is in the studio now) beside a light studio photograph. Completed visits fade and a rose line marks the current time in the agenda.
+- Clients is a directory built for hundreds: counts for All, Ready to return, New this month, Booked this week and Email marketing on; search by name, phone or email (a UK number typed with its leading 0 still matches); sort by most recent visit, name, visits or spend; 25 per page with "Showing 1 to 25 of N". Checked with 412 fictional clients brought in through Import clients. The query is shaped so the server can answer it page by page once clients live in Postgres.
+- A client's page opens with their portrait, "Client since …, usually every N weeks", their next visit (or "Book next visit"), four figures, and a year of visits as dots.
+- The Inbox menu item shows a rose count of drafts waiting for approval.
+- The Inbox opens in two columns, like email: the queue on the left (All, To approve, Queued, Not sent, and search) and the chosen message on the right, with that client's earlier queued messages above it and the draft in a dashed outline with "Approve and queue" and "Edit". A View switch offers "List with side panel" instead, and each person's choice is remembered in this browser. On a phone the list comes first, then the message with an "All messages" link back. Nothing is labelled sent: queued messages read "Queued, not sent", because texting and email are not connected.
+- Lighter, sunlit photographs in JPEG (242 KB and 48 KB) replace the larger PNG on the workspace, sign-in and booking pages.
+- The design library page now resolves colours mixed with `color-mix()` before measuring contrast, and lists the studio colours.
+- Tests: four new directory tests (paging 412 clients, search, agreement with Today's "ready to return", sorting). One Inbox test covers the remembered view.
+
+## 2026-10-07 · Merged · Design tightening pass and faster flows
+
+**Status: merged into main on 7 October 2026; not deployed.** Look and wording only; bookings, money and messages behave as before.
+
+- Fixed the Money and Inbox section switches, which had lost their styling in the design library pass and showed as plain grey buttons.
+- Money receipts are grouped by day with a day total and slim rows, five days at a time with "Show earlier receipts". Internal record codes are no longer shown.
+- A client's past visits fold to one line (date, service, person, amount) and open to show what happened. Today's and upcoming visits stay open.
+- On phones, the figures at the top of Today, Clients, Business, Money and Inbox sit in one slim strip.
+- Slimmer rows on Today, the calendar list and Clients. Every detail is kept: where a column is hidden on a smaller screen, the professional, status, spend and next visit now appear under the name. The whole client row opens the client, and "Ready to return" shows as a label.
+- Panel and section titles all use the editorial serif.
+- One "Find a client" field in the top bar instead of two controls.
+- Plain studio language for services that are not connected yet, the bot check setting and held-back messages.
+- The sign-in welcome sits on a softer wash so it reads clearly over the photograph.
+
+Second pass, for speed at the desk and for guests (same draft). Bookings still pass the same availability checks; nothing is sent or charged.
+
+- Click any free space on the calendar to book there, with the professional, day and nearest time that fits already chosen. On phones the free times in each person's column do the same.
+- A "now" line marks the current time on today's calendar.
+- Drag an upcoming visit to another time or professional on the computer calendar. It opens the move step with the new spot chosen, so the usual checks and the Save button still decide.
+- A week view shows seven days side by side; choosing a day opens it.
+- The booking form finds a client by typing a name, email or phone. Once chosen, their "Good to remember" note and last visit appear. Services show their length and price.
+- Rebooking after checkout offers "In 4, 6 or 8 weeks", led by the client's usual gap between visits when there is one, and keeps their usual time when it is free.
+- Times are grouped into morning, afternoon and evening everywhere times are chosen.
+- The demo booking page shows the next fortnight with how many times each day has, and a "Next available" shortcut when a day is full. The live booking page offers "Try" the next day when a day is full.
+- Checkout reads in order: service, deposit, discount, tip, payment, total. A custom tip sits behind "Other".
+- Search is titled "Search clients", matches phone numbers and shows each person's next visit.
+
+## 2026-10-07 · Merged · Competitive position in the plan
 
 **Status: documentation only; no product behaviour changes.**
 
@@ -60,7 +103,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## In review · LOCAL-02 guest manage and cancel
 
-**Status: draft pull request, not merged.** Schema migration 3 adds `guest_links`. Live services stay unconfigured; nothing is emailed or refunded automatically.
+**Status: merged into main on 7 October 2026; not deployed.** Schema migration 3 adds `guest_links`. Live services stay unconfigured; nothing is emailed or refunded automatically.
 
 - A confirmed online booking returns a private link (`/manage#…`) shown on the confirmation page, labelled as not sent. The desk can create a new link for any upcoming visit from the appointment panel, which stops every earlier link, or stop all links.
 - A link is a random token stored only as a hash, scoped to one visit in one studio. It expires 120 days after issue or seven days after the visit starts, whichever is sooner, and every failure returns the same message. The token lives in the address fragment, so it is not sent in server requests' paths or Referer headers. Restoring a backup revokes all links.

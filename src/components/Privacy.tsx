@@ -186,7 +186,7 @@ export function ClientPrivacy({ clientId }: { clientId: string }) {
       if (!result.ok) setError(result.error)
       else {
         setReview(erasureReview(result.state, clientId, today))
-        setDone('Email marketing withdrawn. Queued marketing messages are now suppressed.')
+        setDone('Email marketing withdrawn. Queued marketing messages are now held back.')
       }
     } catch {
       setError('Consent could not be updated. The previous preference has been kept.')

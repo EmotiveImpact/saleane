@@ -301,13 +301,13 @@ function BookingFlow({
       <section className="booking-demo-banner" aria-label="About this booking page">
         {sample
           ? 'Fictional sample studio. Reservations and deposits are simulated.'
-          : 'Local booking preview. Pay at the studio; online payments and email delivery are unconfigured.'}
+          : 'Local booking preview. Pay at the studio; online payments and emails are not connected yet.'}
       </section>
       <div className="public-booking-layout">
         <aside className="booking-story">
           <img
             className="booking-story-image"
-            src="/images/saleane-studio-warm.png"
+            src="/images/saleane-studio-warm.jpg"
             alt="A fictional studio in warm natural light"
           />
           <div className="booking-story-copy">
@@ -536,6 +536,18 @@ function BookingFlow({
                           value={start}
                           onChange={setStart}
                         />
+                      )}
+                      {!loadingTimes && !times.length && date < addDays(today, 365) && (
+                        <Button
+                          variant="secondary"
+                          onClick={() => {
+                            setDate(addDays(date, 1))
+                            setStart(null)
+                            setError('')
+                          }}
+                        >
+                          Try {dateLabel(addDays(date, 1), org.locale)}
+                        </Button>
                       )}
                       {botCheck && (
                         <BotCheck

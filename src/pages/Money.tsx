@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Banknote, ReceiptText, ShieldCheck } from 'lucide-react'
+import { Banknote, ChevronRight, ReceiptText, ShieldCheck } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useStore } from '../state/context'
 import { depositPaid } from '../domain/commands'
 import { operations, can } from '../domain/operations'
 import { dateLabel, money } from '../domain/format'
 import { parseMinor } from '../domain/money'
-import { Button, ErrorMessage, Modal, Status, PageHeader } from '../design'
+import { Button, ErrorMessage, Modal, Status, PageHeader, SegmentedControl } from '../design'
 import '../components/management.css'
 import { TillCount } from '../components/TillCount'
 
@@ -30,6 +30,7 @@ export function Money() {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [shownDays, setShownDays] = useState(5)
   const receipt = state.sales.find((sale) => sale.id === receiptId)
   const visit = state.appointments.find((appointment) => appointment.id === receipt?.appointmentId)
   const depositVisit = state.appointments.find((appointment) => appointment.id === depositId)
@@ -58,6 +59,23 @@ export function Money() {
     0,
   )
   const format = (amount: number) => money(amount, state.organisation, true)
+  const locale = state.organisation.locale
+  const serviceName = (appointmentId: string) =>
+    state.services.find(
+      (service) =>
+        service.id ===
+        state.appointments.find((appointment) => appointment.id === appointmentId)?.serviceId,
+    )?.name ?? 'Visit'
+  const receiptDays = Object.entries(
+    state.sales
+      .slice()
+      .sort((a, b) => b.paidAt.localeCompare(a.paidAt))
+      .reduce<Record<string, typeof state.sales>>((days, sale) => {
+        const day = sale.paidAt.slice(0, 10)
+        ;(days[day] ??= []).push(sale)
+        return days
+      }, {}),
+  )
   const clientName = (appointmentId: string) =>
     state.clients.find(
       (client) =>
@@ -158,7 +176,7 @@ export function Money() {
           <p>
             {sandbox
               ? 'All payments and refunds here are simulated. No real money is collected or returned.'
-              : 'Cash and external card activity can be recorded. Payment collection, refunds through a provider and bank reconciliation are unconfigured.'}
+              : 'Cash and external card activity can be recorded. Taking card payments, refunding through a provider and matching to the bank are not connected yet.'}
           </p>
         </div>
       </div>
@@ -179,27 +197,21 @@ export function Money() {
           <small>Net recorded funds: {format(received - refunded)}</small>
         </div>
       </div>
-      <div className="ops-tabs" role="group" aria-label="Money records">
-        {(['receipts', 'funds', 'deposits', 'refunds'] as const).map((value) => (
-          <button
-            key={value}
-            type="button"
-            aria-pressed={tab === value}
-            onClick={() => {
-              setTab(value)
-              setError('')
-            }}
-          >
-            {value === 'receipts'
-              ? 'Receipts'
-              : value === 'funds'
-                ? 'Recorded funds'
-                : value === 'deposits'
-                  ? 'Deposit review'
-                  : 'Refund records'}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        label="Money records"
+        className="ops-switch"
+        value={tab}
+        onChange={(value) => {
+          setTab(value)
+          setError('')
+        }}
+        options={[
+          { value: 'receipts', label: 'Receipts' },
+          { value: 'funds', label: 'Recorded funds' },
+          { value: 'deposits', label: 'Deposit review' },
+          { value: 'refunds', label: 'Refund records' },
+        ]}
+      />
       <p className="ops-save-note" role="status">
         {receipt ? '' : notice}
       </p>
@@ -230,41 +242,45 @@ export function Money() {
           </header>
           {tab === 'receipts' && (
             <>
-              {state.sales
-                .slice()
-                .sort((a, b) => b.paidAt.localeCompare(a.paidAt))
-                .map((sale) => (
-                  <div className="ops-record" key={sale.id}>
-                    <div className="ops-record-copy">
-                      <strong>{clientName(sale.appointmentId)}</strong>
-                      <small>
-                        {sale.receiptNumber ?? sale.id} · {methodLabel(sale.method)}
-                      </small>
-                      <small>
-                        {dateLabel(sale.paidAt.slice(0, 10), state.organisation.locale)}
-                        {refundFor(sale.id) > 0 ? ` · ${format(refundFor(sale.id))} refunded` : ''}
-                      </small>
-                    </div>
-                    <div className="ops-record-controls">
+              {receiptDays.slice(0, shownDays).map(([day, sales]) => (
+                <section className="receipt-day" key={day} aria-label={dateLabel(day, locale)}>
+                  <h3 className="receipt-day-heading">
+                    <span>{dateLabel(day, locale)}</span>
+                    <span>{format(sales.reduce((total, sale) => total + sale.totalMinor, 0))}</span>
+                  </h3>
+                  {sales.map((sale) => (
+                    <button
+                      type="button"
+                      className="receipt-row"
+                      key={sale.id}
+                      aria-label={`View receipt for ${clientName(sale.appointmentId)}, ${format(sale.totalMinor)}`}
+                      onClick={() => {
+                        setReceiptId(sale.id)
+                        setRefund(false)
+                        setError('')
+                      }}
+                    >
+                      <span className="receipt-row-copy">
+                        <strong>{clientName(sale.appointmentId)}</strong>
+                        <small>
+                          {serviceName(sale.appointmentId)} · {methodLabel(sale.method)}
+                          {sale.receiptNumber ? ` · ${sale.receiptNumber}` : ''}
+                          {refundFor(sale.id) > 0
+                            ? ` · ${format(refundFor(sale.id))} refunded`
+                            : ''}
+                        </small>
+                      </span>
                       <span className="ops-record-money">{format(sale.totalMinor)}</span>
-                      <Button
-                        variant="secondary"
-                        aria-label={`View receipt for ${clientName(sale.appointmentId)}`}
-                        onClick={() => {
-                          setReceiptId(sale.id)
-                          setRefund(false)
-                          setError('')
-                        }}
-                      >
-                        View
-                        <span className="sr-only">
-                          {' '}
-                          receipt for {clientName(sale.appointmentId)}
-                        </span>
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                      <ChevronRight size={16} />
+                    </button>
+                  ))}
+                </section>
+              ))}
+              {receiptDays.length > shownDays && (
+                <Button variant="quiet" onClick={() => setShownDays((days) => days + 7)}>
+                  Show earlier receipts
+                </Button>
+              )}
               {!state.sales.length && (
                 <EmptyMoney
                   title="The first receipt starts with a visit."
@@ -406,7 +422,7 @@ export function Money() {
             Service revenue, tips, refunds and unapplied deposits have different meanings. Keep each
             source visible.
           </p>
-          <p>Live payment services remain unconfigured.</p>
+          <p>Card payments are not connected yet.</p>
         </aside>
       </div>
       <TillCount />
@@ -478,7 +494,7 @@ export function Money() {
             {receipt.reference ? ` · ${receipt.reference}` : ''}.{' '}
             {sandbox
               ? 'Simulated receipt; no real payment.'
-              : 'A local receipt for manually recorded funds; provider reconciliation is unconfigured.'}
+              : 'A local receipt for manually recorded funds; it is not matched to a payment provider.'}
           </p>
           {visit && (
             <Link className="text-link" onClick={close} to={`/clients/${visit.clientId}`}>

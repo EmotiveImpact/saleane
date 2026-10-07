@@ -18,7 +18,7 @@ export function SegmentedControl<T extends string>({
   value: T
   onChange: (value: T) => void
   options: { value: T; label: ReactNode; accessibleLabel?: string }[]
-  appearance?: 'underline' | 'pill' | 'icon'
+  appearance?: 'underline' | 'pill' | 'icon' | 'chips'
   className?: string
 }) {
   return (

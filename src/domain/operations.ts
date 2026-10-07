@@ -160,6 +160,13 @@ export function businessDate(s: BusinessState, now = new Date().toISOString()) {
   const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)!.value
   return `${part('year')}-${part('month')}-${part('day')}`
 }
+/** Minutes past midnight on the studio's own clock, for the calendar's "now" line. */
+export function businessMinutes(s: BusinessState, now = new Date().toISOString()) {
+  const parts = localFormatter(s.organisation.timeZone).formatToParts(new Date(now))
+  const n = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((p) => p.type === type)!.value)
+  return n('hour') * 60 + n('minute')
+}
 function localParts(instant: number, timeZone: string) {
   const parts = localFormatter(timeZone).formatToParts(new Date(instant))
   const n = (type: Intl.DateTimeFormatPartTypes) =>
