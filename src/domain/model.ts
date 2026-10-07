@@ -1,6 +1,11 @@
 import { z } from 'zod'
 import { operationsSchema, taxSchema, weeklyHoursSchema } from './operations'
 import { tillCountProblem, tillCountSchema } from './tillCount'
+import { paymentMethodSchema, processorSchema } from './paymentMethods'
+import { holdingSchema, offerSchema } from './plansSchema'
+import { coveredSaleProblem, plansProblem } from './plans'
+import { feedbackProblem, feedbackSchema } from './feedback'
+export { paymentMethodSchema, paymentMethods, processorSchema } from './paymentMethods'
 
 export const DEMO_DATE = '2026-10-06'
 export const OPEN_MINUTES = 9 * 60
@@ -81,7 +86,8 @@ export const appointmentSchema = z.object({
   date: civilDate,
   startMinutes: z.number().int().min(0).max(1439),
   status: z.enum(['confirmed', 'arrived', 'completed', 'cancelled', 'no_show']),
-  source: z.enum(['desk', 'online', 'rebook']),
+  /** `import` marks a visit booked in the studio's previous system and carried over (PILOT-03). */
+  source: z.enum(['desk', 'online', 'rebook', 'import']),
   /** Where an online guest came from, when they followed a shared booking link. */
   channel: z.enum(bookingChannels).optional(),
   createdAt: z.iso.datetime(),
@@ -111,19 +117,25 @@ export const saleSchema = z.object({
   totalMinor: minor,
   balanceMinor: minor,
   paidAt: z.iso.datetime(),
-  method: z.enum(['demo_card', 'demo_cash', 'cash', 'external_card']),
+  method: paymentMethodSchema,
   reference: z.string().max(150).optional(),
+  processor: processorSchema.optional(),
+  /** V1.5: the plan that paid for the visit, and how much of it this visit used. */
+  holdingId: id.optional(),
+  coveredMinor: minor.optional(),
 })
 export const paymentSchema = z.object({
   ...scoped,
   appointmentId: id,
   saleId: id.optional(),
-  kind: z.enum(['deposit', 'settlement']),
+  /** A fee is a no-show or late-cancellation charge (PILOT-02), never part of a sale. */
+  kind: z.enum(['deposit', 'settlement', 'fee']),
   amountMinor: minor,
   currency: z.enum(['GBP', 'USD']),
   recordedAt: z.iso.datetime(),
-  method: z.enum(['demo_card', 'demo_cash', 'cash', 'external_card']),
+  method: paymentMethodSchema,
   reference: z.string().max(150).optional(),
+  processor: processorSchema.optional(),
 })
 const allocationSchema = z.object({
   date: civilDate,
@@ -150,6 +162,7 @@ export const eventSchema = z.object({
     'refund',
     'deposit',
     'profile',
+    'plan',
   ]),
   allocationChange: z.object({ from: allocationSchema, to: allocationSchema }).optional(),
   title: z.string(),
@@ -180,6 +193,11 @@ export const stateSchema = z.object({
   operations: operationsSchema.optional(),
   /** End-of-day till counts, append-only. Optional so records saved before them still load. */
   tillCounts: z.array(tillCountSchema).optional(),
+  /** V1.5: packages and memberships on sale, and the ones clients hold. */
+  offers: z.array(offerSchema).optional(),
+  holdings: z.array(holdingSchema).optional(),
+  /** V1.5: private guest feedback, one per completed visit. Owners and managers only. */
+  feedback: z.array(feedbackSchema).optional(),
 })
 export type BusinessState = z.infer<typeof stateSchema>
 export type Client = z.infer<typeof clientSchema>
@@ -268,7 +286,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
           (sale.discountMinor ?? 0) +
           (sale.taxInclusive ? 0 : (sale.taxMinor ?? 0)) +
           sale.tipMinor ||
-      sale.balanceMinor !== sale.totalMinor - sale.depositAppliedMinor
+      sale.balanceMinor !== sale.totalMinor - sale.depositAppliedMinor - (sale.coveredMinor ?? 0) ||
+      coveredSaleProblem(sale)
     )
       throw new Error('Invalid sale ledger.')
   }
@@ -310,11 +329,41 @@ export function parseState(value: unknown, region: Region): BusinessState {
   }
   for (const payment of s.payments)
     if (payment.kind === 'settlement' && !payment.saleId) throw new Error('Unlinked settlement.')
+  for (const payment of s.payments)
+    if (payment.kind === 'fee') {
+      const a = appointmentById.get(payment.appointmentId)!
+      const charged = (paymentsByAppointment.get(a.id) ?? [])
+        .filter((p) => p.kind !== 'settlement')
+        .reduce((sum, p) => sum + p.amountMinor, 0)
+      if (
+        payment.saleId ||
+        !['no_show', 'cancelled'].includes(a.status) ||
+        charged > a.bookedPriceMinor
+      )
+        throw new Error('Invalid visit fee.')
+    }
+  for (const record of [...s.sales, ...s.payments])
+    if (
+      (record.method === 'card') !== !!record.processor ||
+      (record.method === 'card' && !record.reference?.trim())
+    )
+      throw new Error('A card payment must carry its provider reference.')
+  // A deposit paid to the old system arrives only with a carried-over visit (PILOT-03).
+  for (const payment of s.payments)
+    if (
+      payment.method === 'previous_system' &&
+      (payment.kind !== 'deposit' ||
+        appointmentById.get(payment.appointmentId)?.source !== 'import' ||
+        !payment.reference?.trim())
+    )
+      throw new Error('A carried-over deposit must belong to an imported visit.')
+  if (s.sales.some((sale) => sale.method === 'previous_system'))
+    throw new Error('A receipt cannot be settled by the previous system.')
   const sandbox = !s.operations || s.operations.mode === 'sandbox'
   if (
     [...s.sales, ...s.payments].some(
       (record) =>
-        sandbox !== record.method.startsWith('demo_') ||
+        (record.method !== 'previous_system' && sandbox !== record.method.startsWith('demo_')) ||
         (record.method === 'external_card' && !record.reference?.trim()),
     )
   )
@@ -348,7 +397,15 @@ export function parseState(value: unknown, region: Region): BusinessState {
       throw new Error('Invalid relationship edge.')
   if (s.operations) {
     const o = s.operations
-    for (const rows of [o.closures, o.products, o.movements, o.messages, o.refunds])
+    for (const rows of [
+      o.closures,
+      o.products,
+      o.movements,
+      o.messages,
+      o.refunds,
+      o.imports ?? [],
+      o.balances ?? [],
+    ])
       if (new Set(rows.map((r) => r.id)).size !== rows.length)
         throw new Error('Duplicate operating record IDs.')
     for (const closure of o.closures)
@@ -402,17 +459,37 @@ export function parseState(value: unknown, region: Region): BusinessState {
           : true
       if (!shapeFits || !subjectFits) throw new Error('Invalid schedule history.')
     }
+    for (const balance of o.balances ?? [])
+      if (!exists(s.clients, balance.clientId) || !exists(o.imports ?? [], balance.importId))
+        throw new Error('Invalid carried-over balance.')
     for (const refund of o.refunds)
-      if (!exists(s.sales, refund.saleId)) throw new Error('Missing refunded receipt.')
+      if (
+        !!refund.saleId === !!refund.paymentId ||
+        (refund.saleId && !exists(s.sales, refund.saleId)) ||
+        (refund.paymentId && !exists(s.payments, refund.paymentId)) ||
+        (refund.method === 'card') !== !!refund.processor
+      )
+        throw new Error('Missing refunded receipt.')
+    for (const payment of s.payments)
+      if (
+        o.refunds
+          .filter((r) => r.paymentId === payment.id)
+          .reduce((sum, r) => sum + r.amountMinor, 0) > payment.amountMinor
+      )
+        throw new Error('Refunds exceed the payment.')
     for (const sale of s.sales)
       if (
         o.refunds.filter((r) => r.saleId === sale.id).reduce((sum, r) => sum + r.amountMinor, 0) >
-        sale.totalMinor
+        sale.totalMinor - (sale.coveredMinor ?? 0)
       )
         throw new Error('Refunds exceed the receipt total.')
   }
   for (const count of s.tillCounts ?? [])
     if (tillCountProblem(count)) throw new Error('Invalid till count.')
+  const plans = plansProblem(s)
+  if (plans) throw new Error(plans)
+  const feedback = feedbackProblem(s)
+  if (feedback) throw new Error(feedback)
   try {
     new Intl.DateTimeFormat('en', { timeZone: org.timeZone }).format(new Date())
   } catch {

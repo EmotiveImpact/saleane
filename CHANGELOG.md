@@ -2,9 +2,9 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
-## In review · A smoother booking page
+## 2026-10-07 · A smoother booking page and the house photographs
 
-**Status: draft pull request, not merged.** Look and flow only; booking rules, holds, prices and deposits are unchanged.
+Look and flow only; booking rules, holds, prices and deposits are unchanged.
 
 - On phones and narrow screens, the studio photo greets guests on the first step only; later steps open straight on the task, and each step starts at the top of the page.
 - Times show one part of the day at a time (Morning, Afternoon, Evening, each with its count), opening on the part that holds the chosen time or else the earliest. The staff booking dialogs still show the full day.
@@ -13,9 +13,84 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - The owner's 12 chosen house photographs (AI-generated, fictional rooms and details, from the photo set in #15) are in the app, matching the prototype: the sunlit treatment room in the Today greeting, a cup of tea on "Saleane noticed", a calm studio strip on Calendar, window light above Clients, the studio entrance on the booking pages, and on Business a "Your booking page" card (reception and one photo per treatment) beside a "Closing up" card in late-afternoon light that counts today's visits still to check out from real records. Empty pages ("No clients found", page not found) carry stacked towels. The manicure photo is ready for nail treatments; the demo studios have none yet.
 - The demo booking page offers "Anyone available" first when more than one professional does the treatment, combining their times; the visit goes to the first professional free at the chosen time. The real guest page already offered "No preference · first available".
 
+## 2026-10-07 · Lumane · Assistant engine and first Ask Saleane skills
+
+**Status: built locally on 7 October 2026, in review; no real AI connected yet.** Everything runs with a test-mode brain that recognises a few plain questions and answers from the studio record, so nothing is sent to an AI supplier and nothing costs money. Talking (voice), guest chat and the ChatGPT and Claude connection come later.
+
+- Lumane is a separate engine in `lumane/`, built so other products can reuse it. A test makes sure it never imports anything from SALEANE.
+- Skills are either read skills, which answer from the studio's own records, or action skills, which only propose a change. A proposal does nothing until a person approves it, and it expires after 30 minutes.
+- Every request is checked against the studio's monthly allowance (typed requests, talking time, guest chats), a per-person hourly limit and a daily spending ceiling before any AI is called. When a limit is reached the AI is simply not called; there is no silent cheaper fallback. A new month starts from zero.
+- Each question has a cap on how many steps the AI can take, and every answer, proposal and refusal is written to an audit trail.
+- The first Ask Saleane skills cover the day overview, finding a client, a client brief, who is due back, takings and low stock (owners and managers only), money owed and plans running low. Drafting a message and moving a visit are proposals: a draft stays unsent until someone sends it from the Inbox, a move checks the diary for clashes, and marketing drafts are refused without consent.
+- Practitioners get no Ask Saleane skills yet; theirs will be built on `PractitionerView` so they never see a whole studio.
+- An "Ask Saleane" button in the header opens a side panel for owners, managers and reception. It answers what is on today or tomorrow, who is due back, takings, money owed, plans running low, low stock and a brief on a client, and can prepare an invitation for a client to come back. The invitation appears as a suggestion with Approve and Not now; approving saves it as an unsent draft in the Inbox through the same checks as any desk change. The panel shows how many of the month's 300 questions are used.
+- Voices are kept apart from the brain. SALEANE has one default voice; a studio can choose the voice guests hear, and each person can choose their own for talking to the assistant. Guests always hear the studio's voice. The shortlist is a set of candidates for the side-by-side trial of OpenAI and ElevenLabs; no voice is connected yet.
+- Signed in, the server answers and keeps each studio's monthly use in the database (schema version 7), so the allowance holds across restarts. Suggestions stay on the server for 30 minutes, only the person who asked can approve them, and each is decided once; suggesting, approving and declining are recorded in the audit log. In the browser demo the panel works the same way against the demo record.
+
+## 2026-10-07 · V1.5 · Private client feedback and ratings
+
+**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** The feedback request joins the message outbox like any other message; with no provider connected it waits there unsent.
+
+- After checkout, a guest with an email address is queued one private "How was your visit?" message, two hours later (never more than two days after checkout, and never once the visit is a week old). Studios can turn it off in Settings, Messages.
+- The guest's private visit link shows a short form once the visit is complete: stars for the visit and for the person who looked after them, and an optional comment. One answer per visit; sending the same answer twice lands once, and an answer cannot be changed afterwards. The guest sees a thank-you with their own ratings, never anyone else's.
+- Business has a new Feedback page for owners and managers only, with the number of visits rated, the average for visits and for the team, each professional's average and the latest answers with comments, over 30 days, 90 days or all time.
+- A practitioner's day shows only their own average. New ratings join it in groups of at least three different guests, so a change in the average reflects a group, not one guest. As with any average, a group in which every guest gave the same score (all fives, say) shows that score. Reception and practitioners never receive individual answers.
+- Feedback is private and never published. Public reviews remain a separate, neutral request to the studio's Google page. A client's data export (and its preview) and erasure review include the feedback they gave. Feedback is kept for 2 years after it was given, then waits for an owner or manager to approve deletion or keep it longer; nothing is deleted automatically.
+
+## 2026-10-07 · V1.5 · Packages and memberships
+
+**Status: built locally on 7 October 2026, in review; nothing deployed.** Plan payments are recorded by the desk (cash or the studio's own card terminal); paying for a plan by card through SALEANE and automatic monthly renewal come in a later stage.
+
+- Settings has a new "Packages & memberships" section. A package is a number of visits bought at one price and used within a set number of months. A membership is paid each month and can include visits each month, a discount on other visits, or both. Changing a plan affects future sales only: each client keeps the terms they bought, and a plan is taken off sale rather than deleted.
+- On a client's page the desk can sell a plan, take a membership's monthly payment and see what is left. Only owners and managers can end a plan; any money returned is capped at what was paid and not yet used (for a membership, only the current paid month), recorded with a reference that cannot be reused, and never processed by SALEANE.
+- At checkout a plan that covers the visit is offered first. It pays its share of the plan's price (the last visit takes what is left, so a package uses exactly its price), the difference from the list price shows as the plan saving, and the guest pays only any tip. A membership's discount is offered on other visits for the desk to apply.
+- Money has a Plans tab showing what was taken for plans and the package visits paid for but not yet used. A covered visit counts its share as that day's takings; plan money stays apart until used. Cash taken or returned for plans is part of the till count.
+- A lapsed membership covers nothing until paid; paying again restarts it from the current month without charging the missed months. Unused visits in a month do not roll over.
+- Plans, their payments, visits used and refunds appear in the client's data export. Practitioners see none of it.
+
+## 2026-10-07 · 1.0 readiness ledger
+
+**Status: merged into main on 7 October 2026 (#26), documentation only; the version stays 1.0.0-rc.1.**
+
+- [docs/V1_READINESS.md](docs/V1_READINESS.md) checks each 1.0 release gate against the evidence here: every V1 daily job works locally, and what remains needs a pilot studio, provider accounts, hosting or the owner's release approval.
+
+## 2026-10-07 · PILOT-04 · One clear published price
+
+**Status: merged into main on 7 October 2026 (#25); nothing deployed and no billing connected.** The figure shown, £49 / $59 a month per studio, is the recommended price awaiting the owner's confirmation.
+
+- A new public page at /pricing shows one monthly price per studio, for the United Kingdom (plus VAT) or the United States (plus any sales tax), guessed from the browser's language and switchable.
+- It lists everything included, with no feature held back for a dearer plan, and three promises: no commission on a studio's clients, no locked tiers and no fee to leave.
+- Costs outside SALEANE are named plainly: the payment provider's card fee and text messages, each passed on with nothing added. Emails are included.
+- The sign-in page links to it. The price lives in one place, so changing it changes the page and its tests together.
+
+## 2026-10-07 · PILOT-03 · Switching over from another system
+
+**Status: merged into main on 7 October 2026 (#24); nothing deployed.** No data from a real studio was used.
+
+- Settings has a new "Switching over" section that walks a studio across in four steps: clients, services, upcoming visits and balances. Each step reads a CSV file exported from the old system, shows every row as ready, already here or to fix (with the reason), and adds up the totals so the owner can check them against the old system's own report before anything is saved.
+- Services arrive with their length, price, deposit, category and who gives them. A name already in SALEANE is left alone.
+- Upcoming visits keep the price the guest was quoted, as the full amount with any tax inside it, and any deposit they already paid. They are matched to clients by email, even when the old system spells a name differently (a new guest is added once, however many visits they bring), and each must fit the team's hours, time away and the rooms and chairs free, without clashing with another visit. Past times are refused. The old system already confirmed them, so SALEANE sends no new confirmation; reminders follow the studio's settings, including for a visit brought across after its reminder time has opened.
+- A deposit paid to the old system is recorded as "Paid before switching" with the old reference. It is taken off the bill at checkout like any deposit, never counted in the till, and can never be chosen as a payment method at the desk.
+- Credit a client holds, or money they owe, is kept as a carried-over balance on the client's page and in a new Money tab. SALEANE does not take it off a bill by itself; the desk applies it and closes it with a note, and it stays on record. Client data exports include it.
+- "What has come across" lists every import, client imports included, with who did it, how many records, the money involved and how many visits or balances are still open.
+- Only owners and managers can bring records across; the desk can close a balance. Practitioners see none of it.
+
+## 2026-10-07 · PILOT-02 · Saved cards, card payments and deposits
+
+**Status: merged into main on 7 October 2026 (#23); test mode, nothing deployed and nothing charged.** No payment provider has been chosen.
+
+- A guest can pay their deposit from the private link to their visit, and save a card for later visits when the studio offers it. The card is typed on the payment provider's own page; SALEANE never sees or stores the number. Guests see the studio's terms, word for word, before they save a card, and those terms are kept with the card.
+- At checkout, "Card through SALEANE" charges the client's saved card or sends the amount to a card reader. The visit is checked out only when the provider confirms the payment, and a repeated click or a dropped connection cannot charge twice.
+- Settings has a new "Payments" section: let guests save a card, and a missed visit and late cancellation fee of up to 25%, 50% or 100% of the booked price. A fee applies only to a missed visit or one cancelled less than 24 hours ahead, comes off any deposit, and is always charged by a person.
+- A visit shows the client's saved card, a deposit still owed, the fee the policy allows, and any card payment that needs a look. A client's profile shows the saved card, what they agreed to, and a way to remove it.
+- Money can refund a card receipt, a card deposit (once the visit is cancelled) or a fee back to the card, through the provider.
+- If money is taken for a visit that changed meanwhile (for example cancelled while the guest was paying), it is not forced onto the record: it is listed as "Taken, needs review" with what happened.
+- Card payments can no longer be typed in as ordinary records; they enter only from the provider.
+- Test mode is the default: a clearly labelled test payment page and a test card reader let the desk and guests rehearse every step, and no money moves. A Stripe adapter (hosted card pages, saved cards, card readers, refunds and signed webhooks) is written and tested against simulated answers, ready for when an account exists. Sample studios never take card payments.
+
 ## 2026-10-07 · PILOT-01 · Appointment messages
 
-**Status: built and checked locally in test mode; nothing deployed and nothing sent.** No email or text provider has been chosen.
+**Status: merged into main on 7 October 2026 (#22); test mode, nothing deployed and nothing sent.** No email or text provider has been chosen.
 
 - Real studios now confirm each booking, tell the guest about a new time or a cancellation, and send a reminder before the visit, by email and text. Each message carries its own private link to view, add to calendar or cancel the visit.
 - Settings has a new "Messages to guests" section: confirmations on or off, reminders on or off, when the reminder goes (2 hours, the day before or two days before), and email and text on or off. Owners and managers can change it.

@@ -9,6 +9,8 @@ export const reminderSettingsSchema = z
     hoursBefore: z.union([z.literal(2), z.literal(24), z.literal(48)]),
     email: z.boolean(),
     sms: z.boolean(),
+    /** V1.5: a private "how was your visit?" email after checkout. Absent means on. */
+    feedback: z.boolean().optional(),
   })
   .strict()
 export type ReminderSettings = z.infer<typeof reminderSettingsSchema>
@@ -18,4 +20,5 @@ export const defaultReminderSettings: ReminderSettings = {
   hoursBefore: 24,
   email: true,
   sms: true,
+  feedback: true,
 }

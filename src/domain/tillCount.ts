@@ -88,11 +88,30 @@ export function cashForDay(s: BusinessState, date: string) {
   const cashRefunded = operations(s)
     .refunds.filter(
       (r) =>
-        (r.method ? CASH.has(r.method) : cashSales.has(r.saleId)) &&
+        (r.method ? CASH.has(r.method) : cashSales.has(r.saleId ?? '')) &&
         recordDay(s, r.createdAt) === date,
     )
     .reduce((sum, r) => sum + r.amountMinor, 0)
-  return { cashIn, cashRefunded }
+  // Cash taken for packages and memberships, and cash handed back when one ends (V1.5).
+  const planRows = (s.holdings ?? []).flatMap((h) => [
+    ...h.payments.map((p) => ({
+      in: true,
+      method: p.method,
+      at: p.recordedAt,
+      amount: p.amountMinor,
+    })),
+    ...h.refunds.map((r) => ({
+      in: false,
+      method: r.method,
+      at: r.createdAt,
+      amount: r.amountMinor,
+    })),
+  ])
+  const planCash = (incoming: boolean) =>
+    planRows
+      .filter((r) => r.in === incoming && CASH.has(r.method) && recordDay(s, r.at) === date)
+      .reduce((sum, r) => sum + r.amount, 0)
+  return { cashIn: cashIn + planCash(true), cashRefunded: cashRefunded + planCash(false) }
 }
 
 export function expectedCash(s: BusinessState, date: string, openingFloatMinor: number) {

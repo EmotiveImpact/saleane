@@ -1,105 +1,24 @@
 import { z } from 'zod'
 import { parseState } from './model'
-import {
-  businessDate,
-  hoursFor,
-  instantFor,
-  operations,
-  staffHoursFor,
-  visitTax,
-} from './operations'
+import { businessDate, operations, visitTax } from './operations'
 import { bookingSchema, commandSchema, contactSchema } from './commandSchema'
 import type { Command, ContactInput } from './commandSchema'
-import { assertMethod, runOperatingCommand } from './operatingCommands'
+import { assertMethod, paymentDetail, runOperatingCommand } from './operatingCommands'
 import { channelLabel } from './bookingChannel'
 import { checkoutTotals } from './money'
 import { recordTillCount } from './tillCount'
 export { commandSchema } from './commandSchema'
 export type { Command, BookingInput, ContactInput } from './commandSchema'
 import type { Appointment, BusinessState, RelationshipEvent } from './model'
-import { addDays, dateLabel, money, timeLabel } from './format'
-
-const civilDate = z.iso.date()
+import { dateLabel, money, timeLabel } from './format'
+import { availableAllocation } from './allocation'
+import { runSwitchingCommand } from './switching'
+import { coverVisit, runPlanCommand, stampPlanActors } from './plans'
+import { recordFeedback, repeatedFeedback } from './feedback'
 
 export type CommandResult =
   { ok: true; state: BusinessState; recordId: string } | { ok: false; error: string }
 
-function availableAllocation(
-  s: BusinessState,
-  serviceId: string,
-  staffId: string,
-  date: string,
-  start: number,
-  duration: number,
-  buffer: number,
-  resourceType: string,
-  excludeId?: string,
-  now = new Date().toISOString(),
-  preferredResourceId?: string,
-): string | null {
-  const staff = s.staff.find((item) => item.id === staffId)
-  if (
-    !staff ||
-    staff.archived ||
-    !staff.serviceIds.includes(serviceId) ||
-    !civilDate.safeParse(date).success ||
-    date < businessDate(s, now) ||
-    !Number.isInteger(start) ||
-    start < 0 ||
-    start % 15 !== 0
-  )
-    return null
-  const end = start + duration + buffer
-  const h = hoursFor(s, date),
-    ph = staffHoursFor(s, staffId, date)
-  if (
-    !h ||
-    !ph ||
-    h.closed ||
-    ph.closed ||
-    start < Math.max(h.open, ph.open) ||
-    end > Math.min(h.close, ph.close)
-  )
-    return null
-  if (
-    operations(s).closures.some(
-      (c) =>
-        c.date === date &&
-        (!c.staffId || c.staffId === staffId) &&
-        start < c.endMinutes &&
-        end > c.startMinutes,
-    )
-  )
-    return null
-  try {
-    const instant = instantFor(s, date, start)
-    const finish = instantFor(s, end === 1440 ? addDays(date, 1) : date, end % 1440)
-    if (Date.parse(finish) - Date.parse(instant) !== (duration + buffer) * 60000) return null
-    if (operations(s).mode === 'local' && Date.parse(instant) < Date.parse(now)) return null
-  } catch {
-    return null
-  }
-
-  const overlapping = s.appointments.filter(
-    (a) =>
-      a.date === date &&
-      a.id !== excludeId &&
-      a.status !== 'cancelled' &&
-      a.status !== 'no_show' &&
-      start < a.startMinutes + a.bookedDurationMinutes + a.bookedBufferMinutes &&
-      end > a.startMinutes,
-  )
-  if (overlapping.some((a) => a.staffId === staffId)) return null
-  return (
-    s.resources.find(
-      (resource) =>
-        !resource.archived &&
-        (!preferredResourceId || resource.id === preferredResourceId) &&
-        resource.type === resourceType &&
-        !overlapping.some((a) => a.resourceId === resource.id),
-    )?.id ?? null
-  )
-}
 export function availableResource(
   s: BusinessState,
   serviceId: string,
@@ -447,7 +366,7 @@ export function execute(
           command.tipMinor > appointment.bookedPriceMinor * 2
         )
           throw new Error('Enter a valid tip up to twice the service price.')
-        assertMethod(s, command.method, command.reference)
+        assertMethod(s, command.method, command.reference, command.processor)
         if (command.reference && s.payments.some((p) => p.reference === command.reference))
           throw new Error(
             'This payment reference is already recorded. Review the existing receipt.',
@@ -455,10 +374,21 @@ export function execute(
         const deposit = depositPaid(s, appointment.id)
         if (deposit > appointment.bookedPriceMinor)
           throw new Error('Deposit exceeds this service. Review the ledger.')
-        const discount = command.discountMinor ?? 0
+        const saleId = makeId()
+        // A plan pays its share of the visit; the rest of the booked price is the plan's saving.
+        const plan = command.holdingId
+          ? coverVisit(next, appointment, command.holdingId, deposit, saleId, now, makeId)
+          : undefined
+        if (plan && command.discountMinor)
+          throw new Error('A visit paid by a plan takes no further discount.')
+        const discount = plan
+          ? appointment.bookedPriceMinor - plan.valueMinor
+          : (command.discountMinor ?? 0)
         if (discount > appointment.bookedPriceMinor)
           throw new Error('Discount cannot exceed the booked service price.')
-        const tax = visitTax(s, appointment)
+        // A plan's price already includes any tax, so its share is tax-inclusive.
+        const bookedTax = visitTax(s, appointment)
+        const tax = plan && bookedTax ? { ...bookedTax, inclusive: true } : bookedTax
         const { taxMinor, totalMinor: total } = checkoutTotals({
           priceMinor: appointment.bookedPriceMinor,
           discountMinor: discount,
@@ -471,14 +401,14 @@ export function execute(
             'The discount leaves a balance below the recorded deposit. Review the deposit before checkout.',
           )
         const sale = {
-          id: makeId(),
+          id: saleId,
           organisationId: org.id,
           appointmentId: appointment.id,
           currency: org.currency,
           serviceMinor: appointment.bookedPriceMinor,
           discountMinor: discount,
           taxMinor,
-          taxInclusive: tax?.inclusive ?? false,
+          taxInclusive: plan ? true : (tax?.inclusive ?? false),
           taxRateBps: tax?.rateBps ?? 0,
           taxLabel: tax?.label ?? '',
           receiptNumber: `SL-${s.sales.length + 1}`,
@@ -486,9 +416,11 @@ export function execute(
           tipMinor: command.tipMinor,
           depositAppliedMinor: deposit,
           totalMinor: total,
-          balanceMinor: total - deposit,
+          balanceMinor: total - deposit - (plan?.valueMinor ?? 0),
           paidAt: now,
           method: command.method,
+          ...(command.processor ? { processor: command.processor } : {}),
+          ...(plan ? { holdingId: plan.holding.id, coveredMinor: plan.valueMinor } : {}),
         }
         next.sales.push(sale)
         next.payments.push({
@@ -502,6 +434,7 @@ export function execute(
           recordedAt: now,
           method: command.method,
           reference: command.reference,
+          ...(command.processor ? { processor: command.processor } : {}),
         })
         appointment.status = 'completed'
         addEvent({
@@ -510,10 +443,15 @@ export function execute(
           saleId: sale.id,
           type: 'checkout',
           title: 'Visit completed',
-          detail:
+          detail: `${
+            plan
+              ? `Paid by ${plan.holding.name}${plan.holding.visits ? ` (${plan.visitsLeft} ${plan.visitsLeft === 1 ? 'visit' : 'visits'} left${plan.holding.kind === 'membership' ? ' this month' : ''})` : ''}. `
+              : ''
+          }${
             operations(s).mode === 'sandbox'
               ? 'Demo receipt recorded. No real money was collected.'
-              : `Payment recorded as ${command.method === 'cash' ? 'cash received' : 'already paid at an external terminal'}. SALEANE did not process a payment.`,
+              : paymentDetail(command.method, command.processor)
+          }`,
         })
         recordId = sale.id
       }
@@ -577,6 +515,24 @@ export function execute(
       recordId = client.id
     } else if (command.type === 'till-count') {
       recordId = recordTillCount(next, command, now, businessDate(s, now), makeId)
+    } else if (
+      command.type === 'import-services' ||
+      command.type === 'import-appointments' ||
+      command.type === 'import-balances' ||
+      command.type === 'balance-settle'
+    ) {
+      recordId = runSwitchingCommand(next, command, now, makeId, addEvent, createClient)
+    } else if (command.type === 'feedback') {
+      const same = repeatedFeedback(s, command)
+      if (same) return { ok: true, state: s, recordId: same.id }
+      recordId = recordFeedback(next, command, now, makeId)
+    } else if (
+      command.type === 'offer' ||
+      command.type === 'plan-sell' ||
+      command.type === 'plan-renew' ||
+      command.type === 'plan-cancel'
+    ) {
+      recordId = runPlanCommand(next, command, now, makeId, addEvent)
     } else {
       recordId = runOperatingCommand(next, command, now, makeId, addEvent)
     }
@@ -609,10 +565,21 @@ export function dispatch(
     .forEach((e) => {
       e.actor = actorName
     })
+  stampPlanActors(s, result.state, actorName)
   const counted = new Set((s.tillCounts ?? []).map((c) => c.id))
   for (const count of result.state.tillCounts ?? [])
     if (!counted.has(count.id)) count.actor = actorName
-  for (const key of ['messages', 'movements', 'refunds', 'scheduleHistory'] as const) {
+  const settled = new Set((operations(s).balances ?? []).filter((b) => b.settled).map((b) => b.id))
+  for (const balance of operations(result.state).balances ?? [])
+    if (balance.settled && !settled.has(balance.id)) balance.settled.actor = actorName
+  for (const key of [
+    'messages',
+    'movements',
+    'refunds',
+    'scheduleHistory',
+    'imports',
+    'balances',
+  ] as const) {
     const ids = new Set((operations(s)[key] ?? []).map((r) => r.id))
     const records = operations(result.state)[key] ?? []
     records

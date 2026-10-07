@@ -480,6 +480,20 @@ fieldset {
   border-color: var(--field-line);
   color: var(--ink);
 }
+.ask-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 7px 16px;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-pill);
+}
+.ask-button:hover {
+  border-color: var(--field-line);
+}
 .operator-button {
   display: flex;
   align-items: center;
@@ -3356,6 +3370,7 @@ fieldset {
   }
   /* Hidden visually but kept as each button's accessible name. */
   .global-search span,
+  .ask-button span,
   .operator-button > span:not(.avatar) {
     position: absolute;
     width: 1px;
@@ -3364,7 +3379,8 @@ fieldset {
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
   }
-  .global-search {
+  .global-search,
+  .ask-button {
     min-width: 0;
     padding: 8px;
     border-color: transparent;

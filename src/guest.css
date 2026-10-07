@@ -99,3 +99,156 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+
+/* PILOT-02: deposit and saved card on the guest's page, and the test payment page. */
+.guest-pay {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  padding: 18px 0 20px;
+  margin-bottom: 18px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.guest-pay h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-family: var(--font-editorial);
+  font-weight: 500;
+  font-size: 22px;
+}
+.guest-pay p {
+  margin: 0;
+}
+.guest-pay small,
+.guest-pay-save small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.guest-pay-test {
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--mineral);
+  border: 1px dashed var(--line);
+}
+.guest-pay-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.guest-pay-save {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  font-weight: 400;
+  gap: 10px;
+}
+.guest-pay-save input {
+  margin-top: 4px;
+}
+.test-cards {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0 20px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.test-cards label {
+  display: flex;
+  flex-direction: row;
+  font-weight: 400;
+  align-items: center;
+  gap: 10px;
+}
+
+.test-cards input[type='radio'] {
+  width: 17px;
+  height: 17px;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  flex: none;
+  accent-color: var(--ink);
+}
+.guest-card > .guest-pay-test {
+  margin-bottom: 14px;
+}
+
+/* V1.5: private feedback after a visit. */
+.guest-feedback {
+  display: grid;
+  gap: 14px;
+  margin-top: 26px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.guest-feedback h2 {
+  font-family: var(--font-editorial);
+  font-weight: var(--weight-editorial);
+  font-size: var(--text-title-m);
+}
+.guest-feedback form {
+  display: grid;
+  gap: 18px;
+}
+.guest-stars {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.guest-stars legend {
+  margin-bottom: 8px;
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+}
+.guest-stars-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.guest-stars label {
+  position: relative;
+  display: inline-flex;
+  padding: 4px;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 6px;
+}
+.guest-stars label.is-on {
+  color: var(--brand-ink);
+}
+.guest-stars label.is-on svg {
+  fill: currentColor;
+}
+.guest-stars input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.guest-stars label:has(input:focus-visible) {
+  outline: 2px solid var(--brand-ink);
+  outline-offset: 2px;
+}
+.guest-stars-word {
+  margin-left: 8px;
+  font-size: var(--text-small);
+  color: var(--muted);
+}
+.guest-comment {
+  display: grid;
+  gap: 7px;
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+}
+.guest-comment textarea {
+  font: inherit;
+  font-weight: var(--weight-body);
+}

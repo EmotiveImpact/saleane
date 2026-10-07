@@ -9,6 +9,8 @@ import { turnstileFromEnv } from './turnstile'
 import type { Turnstile } from './turnstile'
 import type { Providers } from './messaging/providers'
 import { providersFromEnv } from './messaging/providers'
+import type { PaymentProvider } from './payments/providers'
+import { paymentProviderFromEnv } from './payments/providers'
 import { parseState } from '../src/domain/model'
 import type { BusinessState } from '../src/domain/model'
 import { availableResource } from '../src/domain/commands'
@@ -112,6 +114,8 @@ export type ApiOptions = {
   providers?: Providers
   /** Runs the message outbox on this interval. Omitted leaves it to be run by hand (tests). */
   outboxIntervalMs?: number
+  /** Card payments. Omitted reads SALEANE_PAYMENTS_PROVIDER; unset is test mode, charging nothing. */
+  paymentProvider?: PaymentProvider
 }
 
 /** Shared request authority: database, clock, sessions, tenant lookup, holds and audit. */
@@ -132,6 +136,8 @@ export function createContext(options: ApiOptions) {
   const dummyHash = passwordHash(token())
   const turnstile = options.turnstile === undefined ? turnstileFromEnv() : options.turnstile
   const messaging = options.providers ?? providersFromEnv(process.env, allowedOrigin)
+  const paymentProvider =
+    options.paymentProvider ?? paymentProviderFromEnv(process.env, allowedOrigin)
   const rates = new Map<string, { count: number; expires: number }>()
   const address = (request: IncomingMessage) => request.socket?.remoteAddress ?? 'local'
   // Holds last minutes, so a per-process salt keeps stored visitor keys from revealing addresses.
@@ -219,6 +225,22 @@ export function createContext(options: ApiOptions) {
       role: row!.role,
       staffId: row!.staff_id,
       state: parseState(raw, raw.organisation.region),
+    }
+  }
+  /** A studio read by the server itself (outbox, payment confirmations), with owner authority. */
+  const systemOrg = (id: string): Org | null => {
+    const row = db.get<{ id: string; slug: string; state: string }>(
+      'SELECT id,slug,state FROM organisations WHERE id=?',
+      id,
+    )
+    if (!row) return null
+    const raw = JSON.parse(row.state) as BusinessState
+    return {
+      id: row.id,
+      slug: row.slug,
+      state: parseState(raw, raw.organisation.region),
+      role: 'owner',
+      staffId: null,
     }
   }
   const publicOrg = (slug: string): Org => {
@@ -406,10 +428,12 @@ export function createContext(options: ApiOptions) {
     visitorFor,
     turnstile,
     messaging,
+    paymentProvider,
     actorFor,
     signIn,
     memberships,
     orgFor,
+    systemOrg,
     publicOrg,
     audit,
     insertWorkspace,

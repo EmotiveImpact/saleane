@@ -13,6 +13,7 @@ import {
   X,
   Info,
   Mail,
+  Sparkles,
 } from 'lucide-react'
 import { useStore } from './state/context'
 import { useStudioColours } from './state/studioColours'
@@ -34,12 +35,20 @@ const ServerBooking = lazy(() =>
 const Manage = lazy(() => import('./pages/Manage').then((module) => ({ default: module.Manage })))
 const Inbox = lazy(() => import('./pages/Inbox').then((module) => ({ default: module.Inbox })))
 const Money = lazy(() => import('./pages/Money').then((module) => ({ default: module.Money })))
+const Feedback = lazy(() =>
+  import('./pages/Feedback').then((module) => ({ default: module.Feedback })),
+)
+const AskSaleane = lazy(() =>
+  import('./components/AskSaleane').then((module) => ({ default: module.AskSaleane })),
+)
 const DesignLanguage = lazy(() =>
   import('./pages/DesignLanguage').then((module) => ({ default: module.DesignLanguage })),
 )
 import { AccessPanel } from './components/AccessPanel'
 import { PractitionerDay } from './pages/PractitionerDay'
 import { ManageVisit } from './pages/ManageVisit'
+import { TestPayment } from './pages/TestPayment'
+import { Pricing } from './pages/Pricing'
 import './account.css'
 
 const navigation = [
@@ -61,6 +70,7 @@ function WorkspaceApp() {
     .join('')
   const location = useLocation()
   const [search, setSearch] = useState(false)
+  const [asking, setAsking] = useState(false)
   const navigate = useNavigate()
   const openSettings = (section: string) => navigate(`/settings?section=${section}`)
   const [mobileNav, setMobileNav] = useState(false)
@@ -78,6 +88,8 @@ function WorkspaceApp() {
       : (navigation.find((n) => location.pathname.startsWith(n.to))?.label ?? 'Today')
   if (location.pathname === '/account' || location.pathname === '/join') return <Account />
   if (location.pathname === '/manage') return <ManageVisit />
+  if (location.pathname === '/pay/test') return <TestPayment />
+  if (location.pathname === '/pricing') return <Pricing />
   if (location.pathname.startsWith('/practice/'))
     return (
       <Routes>
@@ -213,6 +225,10 @@ function WorkspaceApp() {
             <span>{pageName}</span>
           </div>
           <div>
+            <button className="ask-button" onClick={() => setAsking(true)}>
+              <Sparkles size={17} />
+              <span>Ask Saleane</span>
+            </button>
             <button className="global-search" onClick={() => setSearch(true)}>
               <Search size={17} />
               <span>Find a client</span>
@@ -233,7 +249,9 @@ function WorkspaceApp() {
               ? 'Fictional demo. Records are saved in this browser.'
               : state.operations?.mode === 'sandbox'
                 ? 'Local sample studio. Fictional appointments and simulated payments.'
-                : 'Local studio. Payments are recorded by hand and email sending is not connected yet.'}
+                : session?.services.payments || session?.services.email
+                  ? 'Local studio. Connected services are named in Settings.'
+                  : 'Local studio. Messages and card payments run in test mode: nothing is sent or charged.'}
           </span>
           <button onClick={() => openSettings('workspace')}>About this version</button>
         </section>
@@ -256,6 +274,9 @@ function WorkspaceApp() {
                 Overview
               </NavLink>
               <NavLink to="/business/money">Money</NavLink>
+              {(role === 'owner' || role === 'manager') && (
+                <NavLink to="/business/feedback">Feedback</NavLink>
+              )}
             </nav>
           )}
           <Routes>
@@ -270,6 +291,7 @@ function WorkspaceApp() {
               element={role === 'reception' ? <Navigate to="/settings" replace /> : <Business />}
             />
             <Route path="/business/money" element={<Money />} />
+            <Route path="/business/feedback" element={<Feedback />} />
             <Route path="/settings" element={<Manage accessPanel={<AccessPanel />} />} />
             <Route path="/business/manage" element={<Navigate to="/settings" replace />} />
             <Route path="/design-language" element={<DesignLanguage />} />
@@ -301,6 +323,11 @@ function WorkspaceApp() {
         </main>
       </div>
       {search && <SearchDialog onClose={() => setSearch(false)} />}
+      {asking && (
+        <Suspense fallback={null}>
+          <AskSaleane onClose={() => setAsking(false)} />
+        </Suspense>
+      )}
     </div>
   )
 }

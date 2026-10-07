@@ -3,6 +3,7 @@ import type { Role } from '../src/domain/operations'
 import { practitionerView } from '../src/domain/practitioner'
 import type { PractitionerView } from '../src/domain/practitioner'
 import { fail } from './http'
+import { withoutFeedback } from '../src/domain/feedback'
 
 /** Who is reading: the role and linked professional come from the server membership, never the client. */
 export type Reader = { role: Role; staffId: string | null }
@@ -21,6 +22,8 @@ export function workspaceView(
   state: BusinessState,
   today: string,
 ): WorkspaceRecord {
+  // Guests' individual ratings and comments are for owners and managers only (V1.5).
+  if (reader.role === 'reception') return { view: 'studio', state: withoutFeedback(state) }
   if (reader.role !== 'practitioner') return { view: 'studio', state }
   if (!reader.staffId) fail(403, 'Your access is not linked to a professional.')
   try {

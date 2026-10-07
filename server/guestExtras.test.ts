@@ -176,6 +176,7 @@ describe('guest extras', () => {
       'cancellation',
       'deposit',
       'organisation',
+      'payment',
       'visit',
     ])
     expect(Object.keys(view.organisation).sort()).toEqual([

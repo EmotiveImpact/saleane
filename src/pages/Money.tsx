@@ -10,6 +10,9 @@ import { parseMinor } from '../domain/money'
 import { Button, ErrorMessage, Modal, Status, PageHeader, SegmentedControl } from '../design'
 import '../components/management.css'
 import { TillCount } from '../components/TillCount'
+import { CardRefund } from '../components/CardPayments'
+import { CarriedBalances } from '../components/Switching'
+import { PlansLedger } from '../components/Plans'
 
 const methodLabel = (method: string) =>
   ({
@@ -17,21 +20,42 @@ const methodLabel = (method: string) =>
     demo_cash: 'Simulated cash',
     cash: 'Cash recorded',
     external_card: 'External card recorded',
+    card: 'Card through SALEANE',
+    previous_system: 'Paid before switching',
   })[method] ?? method
 
 export function Money() {
-  const { state, commit, blocked, role } = useStore()
+  const { state, commit, blocked, role, session } = useStore()
   const config = operations(state)
   const sandbox = config.mode === 'sandbox'
-  const [tab, setTab] = useState<'receipts' | 'funds' | 'deposits' | 'refunds'>('receipts')
+  const [tab, setTab] = useState<
+    'receipts' | 'funds' | 'deposits' | 'refunds' | 'carried' | 'plans'
+  >('receipts')
+  const carried = !!config.balances?.length
+  const plans = !!state.holdings?.length
   const [receiptId, setReceiptId] = useState('')
   const [refund, setRefund] = useState(false)
   const [depositId, setDepositId] = useState('')
+  const [cardRefundId, setCardRefundId] = useState('')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [shownDays, setShownDays] = useState(5)
   const receipt = state.sales.find((sale) => sale.id === receiptId)
+  const refundedPayment = state.payments.find((payment) => payment.id === cardRefundId)
+  const paymentRefunded = (paymentId: string) =>
+    config.refunds
+      .filter((item) => item.paymentId === paymentId)
+      .reduce((total, item) => total + item.amountMinor, 0)
+  // A card receipt can return only what the card paid; a deposit was its own charge.
+  const cardRefundable = (saleId: string) => {
+    const sale = state.sales.find((item) => item.id === saleId)
+    if (!sale || sale.method !== 'card') return 0
+    const toCard = config.refunds
+      .filter((item) => item.saleId === saleId && item.method === 'card')
+      .reduce((total, item) => total + item.amountMinor, 0)
+    return Math.max(0, Math.min(sale.balanceMinor - toCard, sale.totalMinor - refundFor(saleId)))
+  }
   const visit = state.appointments.find((appointment) => appointment.id === receipt?.appointmentId)
   const depositVisit = state.appointments.find((appointment) => appointment.id === depositId)
   const refundFor = (saleId: string) =>
@@ -87,6 +111,7 @@ export function Money() {
       setReceiptId('')
       setRefund(false)
       setDepositId('')
+      setCardRefundId('')
       setError('')
     }
   }
@@ -177,7 +202,9 @@ export function Money() {
           <p>
             {sandbox
               ? 'All payments and refunds here are simulated. No real money is collected or returned.'
-              : 'Cash and external card activity can be recorded. Taking card payments, refunding through a provider and matching to the bank are not connected yet.'}
+              : session?.services.payments
+                ? 'Card payments and refunds through SALEANE are confirmed by the payment provider. Cash and outside card payments are recorded by hand. Matching to the bank is not connected yet.'
+                : 'Card payments through SALEANE are in test mode and move no money. Cash and outside card payments are recorded by hand. Matching to the bank is not connected yet.'}
           </p>
         </div>
       </div>
@@ -185,7 +212,15 @@ export function Money() {
         <div>
           <span>{sandbox ? 'Simulated funds received' : 'Funds recorded'}</span>
           <strong>{format(received)}</strong>
-          <small>Deposits and settlements counted once</small>
+          <small>
+            {state.payments.some((p) => p.method === 'previous_system')
+              ? `Includes ${format(
+                  state.payments
+                    .filter((p) => p.method === 'previous_system')
+                    .reduce((total, p) => total + p.amountMinor, 0),
+                )} paid to your old system before switching`
+              : 'Deposits and settlements counted once'}
+          </small>
         </div>
         <div>
           <span>Unapplied deposits</span>
@@ -211,6 +246,8 @@ export function Money() {
           { value: 'funds', label: 'Recorded funds' },
           { value: 'deposits', label: 'Deposit review' },
           { value: 'refunds', label: 'Refund records' },
+          ...(carried ? [{ value: 'carried' as const, label: 'Carried over' }] : []),
+          ...(plans ? [{ value: 'plans' as const, label: 'Plans' }] : []),
         ]}
       />
       <p className="ops-save-note" role="status">
@@ -227,7 +264,11 @@ export function Money() {
                     ? 'Funds ledger'
                     : tab === 'deposits'
                       ? 'Deposits to follow through'
-                      : 'Refund history'}
+                      : tab === 'carried'
+                        ? 'Balances from your old system'
+                        : tab === 'plans'
+                          ? 'Packages and memberships'
+                          : 'Refund history'}
               </h2>
               <p>
                 {tab === 'receipts'
@@ -236,7 +277,11 @@ export function Money() {
                     ? 'Recorded payment methods and references. This is not a bank statement.'
                     : tab === 'deposits'
                       ? 'A cancellation keeps its deposit history; it does not decide a refund or fee.'
-                      : 'Separate records preserve the original receipt.'}
+                      : tab === 'carried'
+                        ? 'Credit and money owed brought across when you switched. Close each one once it is used, paid or returned.'
+                        : tab === 'plans'
+                          ? 'What clients have paid for plans, what they have used and what is still to come.'
+                          : 'Separate records preserve the original receipt.'}
               </p>
             </div>
             <ReceiptText size={22} />
@@ -301,7 +346,11 @@ export function Money() {
                     <div className="ops-record-copy">
                       <strong>
                         {clientName(payment.appointmentId)} ·{' '}
-                        {payment.kind === 'deposit' ? 'Deposit' : 'Settlement'}
+                        {payment.kind === 'deposit'
+                          ? 'Deposit'
+                          : payment.kind === 'fee'
+                            ? 'Missed visit fee'
+                            : 'Settlement'}
                       </strong>
                       <small>
                         {methodLabel(payment.method)} ·{' '}
@@ -314,6 +363,24 @@ export function Money() {
                       </small>
                     </div>
                     <span className="ops-record-money">{format(payment.amountMinor)}</span>
+                    {payment.method === 'card' &&
+                      payment.kind !== 'settlement' &&
+                      can(role, 'refund') &&
+                      paymentRefunded(payment.id) < payment.amountMinor &&
+                      (payment.kind === 'fee' ||
+                        state.appointments.find((a) => a.id === payment.appointmentId)?.status ===
+                          'cancelled') && (
+                        <Button
+                          variant="quiet"
+                          disabled={blocked}
+                          onClick={() => {
+                            setCardRefundId(payment.id)
+                            setError('')
+                          }}
+                        >
+                          Refund to card
+                        </Button>
+                      )}
                   </div>
                 ))}
               {!state.payments.length && (
@@ -381,6 +448,8 @@ export function Money() {
               )}
             </>
           )}
+          {tab === 'carried' && <CarriedBalances />}
+          {tab === 'plans' && <PlansLedger />}
           {tab === 'refunds' && (
             <>
               {config.refunds
@@ -423,7 +492,11 @@ export function Money() {
             Service revenue, tips, refunds and unapplied deposits have different meanings. Keep each
             source visible.
           </p>
-          <p>Card payments are not connected yet.</p>
+          <p>
+            {session?.services.payments
+              ? 'Card payments taken through SALEANE appear here only once the payment provider confirms them.'
+              : 'Card payments run in test mode until a payment provider is connected. Test payments move no money.'}
+          </p>
         </aside>
       </div>
       <TillCount />
@@ -495,14 +568,28 @@ export function Money() {
             {receipt.reference ? ` · ${receipt.reference}` : ''}.{' '}
             {sandbox
               ? 'Simulated receipt; no real payment.'
-              : 'A local receipt for manually recorded funds; it is not matched to a payment provider.'}
+              : receipt.method === 'card'
+                ? receipt.processor?.live
+                  ? 'Paid by card; the payment provider confirmed it.'
+                  : 'Paid with a test card; no money moved.'
+                : 'A local receipt for manually recorded funds; it is not matched to a payment provider.'}
           </p>
           {visit && (
             <Link className="text-link" onClick={close} to={`/clients/${visit.clientId}`}>
               Open client relationship
             </Link>
           )}
-          {refund ? (
+          {refund && receipt.method === 'card' && cardRefundable(receipt.id) > 0 ? (
+            <CardRefund
+              target={{ saleId: receipt.id }}
+              maxMinor={cardRefundable(receipt.id)}
+              testMode={!receipt.processor?.live}
+              onDone={() => {
+                setRefund(false)
+                setNotice('Refunded to the card. The refund is on the receipt.')
+              }}
+            />
+          ) : refund ? (
             <form onSubmit={recordRefund} aria-busy={pending}>
               <h3 className="ops-section-title">Record the refund</h3>
               <p className="ops-editor-note">
@@ -591,10 +678,32 @@ export function Money() {
                   setError('')
                 }}
               >
-                {sandbox ? 'Record simulated refund' : 'Record external refund'}
+                {sandbox
+                  ? 'Record simulated refund'
+                  : receipt.method === 'card' && cardRefundable(receipt.id) > 0
+                    ? 'Refund to the card'
+                    : 'Record external refund'}
               </Button>
             </div>
           )}
+        </Modal>
+      )}
+      {refundedPayment && (
+        <Modal
+          open
+          onClose={close}
+          title="Refund to the card"
+          description={`${clientName(refundedPayment.appointmentId)} · ${refundedPayment.kind === 'fee' ? 'Missed visit fee' : 'Deposit'}`}
+        >
+          <CardRefund
+            target={{ paymentId: refundedPayment.id }}
+            maxMinor={refundedPayment.amountMinor - paymentRefunded(refundedPayment.id)}
+            testMode={!refundedPayment.processor?.live}
+            onDone={() => {
+              setCardRefundId('')
+              setNotice('Refunded to the card. It is listed under refund records.')
+            }}
+          />
         </Modal>
       )}
       {depositVisit && (

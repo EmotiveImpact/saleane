@@ -28,9 +28,14 @@ const demoRoutes = [
   '/business/money',
   '/settings',
   '/settings?section=messages',
+  '/settings?section=payments',
+  '/settings?section=switching',
+  '/settings?section=plans',
+  '/business/feedback',
   '/booking',
   '/design-language',
   '/account',
+  '/pricing',
 ]
 
 async function axe(page) {

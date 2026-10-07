@@ -130,10 +130,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       throw error
     }
   }
-  async function openWorkspace(id: string, sheet: 'background' | 'await' = 'background') {
+  /** `quiet` refreshes the open studio in place, so open dialogs keep their place. */
+  async function openWorkspace(
+    id: string,
+    sheet: 'background' | 'await' = 'background',
+    quiet = false,
+  ) {
     const ticket = ++generation.current
     transitioning.current = true
-    setLoading(true)
+    if (!quiet) setLoading(true)
     if (scope.current !== id) forgetSheet(id)
     try {
       const next = studioRecord(
@@ -149,7 +154,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } finally {
       if (ticket === generation.current) {
         transitioning.current = false
-        setLoading(false)
+        if (!quiet) setLoading(false)
       }
     }
   }
@@ -324,7 +329,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         reconnect,
         async reload() {
           if (connectionRef.current !== 'online') await reconnect()
-          else if (activeId.current) await openWorkspace(activeId.current)
+          else if (activeId.current) await openWorkspace(activeId.current, 'background', true)
           else setWorkspace(loadBrowserWorkspace(region))
         },
         async logout() {

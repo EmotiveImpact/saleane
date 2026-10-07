@@ -2,7 +2,8 @@ import { z } from 'zod'
 import { GUEST_NOTE_LIMIT, appointmentSchema, organisationSchema } from './model'
 import { visitUid } from './calendarFile'
 import type { BusinessState } from './model'
-import { instantFor } from './operations'
+import { instantFor, operations } from './operations'
+import { feedbackForVisit, feedbackOpen } from './feedback'
 
 /**
  * LOCAL-02: what a guest holding a private manage link may see and do.
@@ -22,6 +23,59 @@ export const GUEST_LINK_MAX_MS = 120 * 24 * 60 * 60000
 
 export const depositOutcomes = ['refund_due', 'retained', 'none'] as const
 export type DepositOutcome = (typeof depositOutcomes)[number]
+
+export const guestPaymentSchema = z
+  .object({
+    /** True while payments run in test mode: nothing is charged and no card is asked for. */
+    testMode: z.boolean(),
+    depositDueMinor: z.number().int().nonnegative(),
+    saveCardOffered: z.boolean(),
+    savedCard: z.object({ brand: z.string(), last4: z.string() }).strict().nullable(),
+    /** What the guest agrees to when a card is saved, word for word. */
+    policy: z.string(),
+    /** A payment has started and its confirmation has not arrived yet. */
+    pending: z.boolean(),
+  })
+  .strict()
+export type GuestPayment = z.infer<typeof guestPaymentSchema>
+
+/** What a guest agrees to when a card is saved. Kept with the card, word for word. */
+export function cardPolicy(s: BusinessState) {
+  const fee = operations(s).protection?.feePercent ?? 0
+  return fee
+    ? `Your card is saved for visits at ${s.organisation.name}. If you miss a visit, or cancel less than ${GUEST_CANCEL_CUTOFF_HOURS} hours before it, the studio may charge up to ${fee}% of the booked price, less any deposit you paid. You can ask the studio to remove the card at any time.`
+    : `Your card is saved for visits at ${s.organisation.name}, so you can pay for a visit without handing over a card. You can ask the studio to remove it at any time.`
+}
+
+/** The payment part of a guest's view, or null when there is nothing to pay or save. */
+export function guestPayment(
+  s: BusinessState,
+  appointmentId: string,
+  now: number,
+  context: {
+    testMode: boolean
+    savedCard: { brand: string; last4: string } | null
+    pending: boolean
+  },
+): GuestPayment | null {
+  const a = s.appointments.find((item) => item.id === appointmentId)
+  if (!a || operations(s).mode !== 'local' || a.status !== 'confirmed') return null
+  if (visitStart(s, appointmentId) <= now) return null
+  const paid = s.payments
+    .filter((p) => p.appointmentId === a.id && p.kind === 'deposit')
+    .reduce((sum, p) => sum + p.amountMinor, 0)
+  const depositDueMinor = Math.max(0, a.bookedDepositMinor - paid)
+  const saveCardOffered = !!operations(s).protection?.saveCard && !context.savedCard
+  if (!depositDueMinor && !saveCardOffered && !context.savedCard && !context.pending) return null
+  return {
+    testMode: context.testMode,
+    depositDueMinor,
+    saveCardOffered,
+    savedCard: context.savedCard,
+    policy: cardPolicy(s),
+    pending: context.pending,
+  }
+}
 
 export const guestViewSchema = z
   .object({
@@ -65,6 +119,19 @@ export const guestViewSchema = z
         outcome: z.enum(depositOutcomes),
       })
       .strict(),
+    /** PILOT-02: paying the deposit or saving a card. Absent when there is nothing to do. */
+    payment: guestPaymentSchema.nullable().optional(),
+    /** V1.5: private feedback after a completed visit. Only the guest's own ratings come back. */
+    feedback: z
+      .object({
+        open: z.boolean(),
+        given: z
+          .object({ visitRating: z.number().int(), practitionerRating: z.number().int() })
+          .strict()
+          .nullable(),
+      })
+      .strict()
+      .optional(),
   })
   .strict()
 export type GuestView = z.infer<typeof guestViewSchema>
@@ -94,7 +161,12 @@ export function guestCancellation(s: BusinessState, appointmentId: string, now: 
 }
 
 /** Builds the guest's read model. The server is the only caller. */
-export function guestView(s: BusinessState, appointmentId: string, now: number): GuestView {
+export function guestView(
+  s: BusinessState,
+  appointmentId: string,
+  now: number,
+  payment?: GuestPayment | null,
+): GuestView {
   const a = s.appointments.find((item) => item.id === appointmentId)
   if (!a) throw new Error('This visit is not in the studio record.')
   const { paidMinor, ...cancellation } = guestCancellation(s, appointmentId, now)
@@ -130,5 +202,19 @@ export function guestView(s: BusinessState, appointmentId: string, now: number):
       ),
     },
     cancellation,
+    ...(payment === undefined ? {} : { payment }),
+    ...(a.status === 'completed'
+      ? {
+          feedback: {
+            open: feedbackOpen(s, a.id, visitStart(s, a.id), now),
+            given: (() => {
+              const row = feedbackForVisit(s, a.id)
+              return row
+                ? { visitRating: row.visitRating, practitionerRating: row.practitionerRating }
+                : null
+            })(),
+          },
+        }
+      : {}),
   })
 }

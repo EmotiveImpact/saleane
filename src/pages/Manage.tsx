@@ -12,6 +12,9 @@ import {
   SlidersHorizontal,
   Store,
   Users,
+  CreditCard,
+  ArrowRightLeft,
+  Layers,
 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { useStore } from '../state/context'
@@ -29,6 +32,9 @@ import { BrandSection, PreferencesSection, WorkspaceSection } from '../component
 import { MessageSettings } from '../components/AppointmentMessages'
 import { GuestNotesSettings } from '../components/GuestNotesSettings'
 import { ShareBookingPage } from '../components/ShareBookingPage'
+import { PaymentSettings } from '../components/CardPayments'
+import { SwitchingSettings } from '../components/Switching'
+import { PlanSettings } from '../components/Plans'
 import '../components/management.css'
 
 const sections = [
@@ -36,11 +42,14 @@ const sections = [
   { id: 'business', label: 'Studio details', icon: Building2 },
   { id: 'brand', label: 'Colours & booking page', icon: Palette },
   { id: 'messages', label: 'Messages to guests', icon: BellRing },
+  { id: 'payments', label: 'Payments', icon: CreditCard },
   { id: 'service', label: 'Services', icon: Scissors },
+  { id: 'plans', label: 'Packages & memberships', icon: Layers },
   { id: 'staff', label: 'Team', icon: Users },
   { id: 'resource', label: 'Spaces & equipment', icon: Armchair },
   { id: 'hours', label: 'Hours & closures', icon: CalendarDays },
   { id: 'privacy', label: 'Data & privacy', icon: ShieldCheck },
+  { id: 'switching', label: 'Switching over', icon: ArrowRightLeft },
   { id: 'workspace', label: 'This workspace', icon: Store },
 ] as const
 type SectionId = (typeof sections)[number]['id']
@@ -254,8 +263,11 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
             {section === 'preferences' && <PreferencesSection />}
             {section === 'brand' && <BrandSection />}
             {section === 'messages' && <MessageSettings />}
+            {section === 'payments' && <PaymentSettings />}
             {section === 'workspace' && <WorkspaceSection onReset={() => setReplaced(true)} />}
             {section === 'privacy' && <StudioPrivacy />}
+            {section === 'switching' && <SwitchingSettings />}
+            {section === 'plans' && <PlanSettings />}
             {section === 'business' && (
               <section className="surface ops-panel">
                 <header>

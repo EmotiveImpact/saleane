@@ -1,7 +1,11 @@
 import { z } from 'zod'
+import { offerInputSchema } from './plansSchema'
+import { feedbackInputSchema } from './feedback'
 import {
   GUEST_NOTE_LIMIT,
   bookingChannels,
+  paymentMethodSchema,
+  processorSchema,
   clientSchema,
   resourceSchema,
   serviceSchema,
@@ -10,6 +14,7 @@ import {
 import {
   closureInputSchema,
   messageInputSchema,
+  protectionSchema,
   productInputSchema,
   weeklyHoursSchema,
 } from './operations'
@@ -17,7 +22,10 @@ import { tillCountCommandSchema } from './tillCount'
 import { reminderSettingsSchema } from './reminderSettings'
 const id = z.string().min(1).max(150)
 const money = z.number().int().nonnegative().max(100_000_000)
-const method = z.enum(['demo_card', 'demo_cash', 'cash', 'external_card'])
+const method = paymentMethodSchema
+/** Set only by the server when a payment provider took the money; the API refuses it from a page. */
+const processor = processorSchema.optional()
+const importSource = z.string().trim().min(2).max(100)
 export const contactSchema = clientSchema
   .pick({ name: true, email: true, phone: true, marketingConsent: true })
   .extend({
@@ -96,12 +104,15 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('refund'),
-    saleId: id,
+    /** The receipt refunded; or, with `paymentId`, a deposit or fee payment (PILOT-02). */
+    saleId: id.optional(),
+    paymentId: id.optional(),
     amountMinor: money.refine((n) => n > 0),
     reason: z.string().trim().min(3).max(300),
     reference: z.string().trim().min(1).max(150),
     /** How the money went back. Older refunds lack it; the till count then follows the receipt. */
     method: method.optional(),
+    processor,
   }),
   z.object({
     type: z.literal('deposit'),
@@ -109,7 +120,18 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     amountMinor: money.refine((n) => n > 0),
     method,
     reference: z.string().trim().max(150).optional(),
+    processor,
   }),
+  // PILOT-02: a no-show or late-cancellation fee, charged by card or recorded by hand.
+  z.object({
+    type: z.literal('fee'),
+    appointmentId: id,
+    amountMinor: money.refine((n) => n > 0),
+    method,
+    reference: z.string().trim().max(150).optional(),
+    processor,
+  }),
+  z.object({ type: z.literal('protection'), settings: protectionSchema }),
   z.object({
     type: z.literal('tax'),
     label: z.string().trim().max(40),
@@ -135,6 +157,65 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     clientId: id,
     contact: contactSchema,
     preferences: z.string().trim().max(1000),
+  }),
+  // PILOT-03: moving from another system. Each import is reviewed row by row before it is sent.
+  z.object({
+    type: z.literal('import-services'),
+    source: importSource,
+    services: z
+      .array(
+        serviceSchema
+          .omit({ id: true, organisationId: true, archived: true, prepNote: true })
+          .extend({ staffIds: z.array(id).max(100) }),
+      )
+      .min(1)
+      .max(200),
+    reviewed: z.literal(true),
+  }),
+  z.object({
+    type: z.literal('import-appointments'),
+    source: importSource,
+    appointments: z
+      .array(
+        z.object({
+          clientId: id.optional(),
+          contact: contactSchema.optional(),
+          serviceId: id,
+          staffId: id,
+          date: z.iso.date(),
+          startMinutes: z.number().int().min(0).max(1439),
+          /** The price the guest was quoted in the old system, kept as booked. */
+          priceMinor: money,
+          /** A deposit the guest already paid to the old system. */
+          depositPaidMinor: money,
+          /** The old system's booking reference, when it has one. */
+          reference: z.string().trim().max(40).optional(),
+        }),
+      )
+      .min(1)
+      .max(200),
+    reviewed: z.literal(true),
+  }),
+  z.object({
+    type: z.literal('import-balances'),
+    source: importSource,
+    balances: z
+      .array(
+        z.object({
+          clientId: id,
+          kind: z.enum(['credit', 'owed']),
+          amountMinor: money.refine((n) => n > 0),
+          note: z.string().trim().max(200),
+        }),
+      )
+      .min(1)
+      .max(500),
+    reviewed: z.literal(true),
+  }),
+  z.object({
+    type: z.literal('balance-settle'),
+    balanceId: id,
+    note: z.string().trim().min(2).max(200),
   }),
   z.object({
     type: z.literal('import-clients'),
@@ -173,11 +254,38 @@ export const commandSchema = z.discriminatedUnion('type', [
     method,
     reference: z.string().trim().max(150).optional(),
     discountMinor: money.optional(),
+    processor,
+    /** V1.5: a package or membership pays for the visit; the guest pays any tip at the desk. */
+    holdingId: id.optional(),
   }),
   z.object({ type: z.literal('note'), clientId: id, text: z.string().trim().min(2).max(1000) }),
   z.object({ type: z.literal('client'), contact: contactSchema, referredById: id.optional() }),
   z.object({ type: z.literal('consent'), clientId: id, consent: z.boolean() }),
   tillCountCommandSchema,
+  // Sent only through a guest's private link, never by the studio.
+  z.object({ type: z.literal('feedback'), appointmentId: id }).extend(feedbackInputSchema.shape),
+  z.object({ type: z.literal('offer'), id: id.optional(), input: offerInputSchema }),
+  z.object({
+    type: z.literal('plan-sell'),
+    offerId: id,
+    clientId: id,
+    method,
+    reference: z.string().trim().max(150).optional(),
+  }),
+  z.object({
+    type: z.literal('plan-renew'),
+    holdingId: id,
+    method,
+    reference: z.string().trim().max(150).optional(),
+  }),
+  z.object({
+    type: z.literal('plan-cancel'),
+    holdingId: id,
+    reason: z.string().trim().min(2).max(300),
+    refundMinor: money.optional(),
+    method: method.optional(),
+    reference: z.string().trim().max(150).optional(),
+  }),
   ...operatingCommandSchema.options,
 ])
 export type BookingInput = z.infer<typeof bookingSchema>

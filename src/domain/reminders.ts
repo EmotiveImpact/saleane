@@ -2,6 +2,7 @@ import type { Appointment, BusinessState, Client } from './model'
 import { instantFor, operations } from './operations'
 import { dateLabel, timeLabel } from './format'
 import { GUEST_CANCEL_CUTOFF_HOURS } from './guest'
+import { FEEDBACK_WINDOW_MS } from './feedback'
 import { defaultReminderSettings } from './reminderSettings'
 import type { ReminderSettings } from './reminderSettings'
 
@@ -23,7 +24,13 @@ export function reminderSettings(s: BusinessState): ReminderSettings {
   return operations(s).reminders ?? defaultReminderSettings
 }
 
-export const messageKinds = ['confirmation', 'changed', 'reminder', 'cancelled'] as const
+export const messageKinds = [
+  'confirmation',
+  'changed',
+  'reminder',
+  'cancelled',
+  'feedback',
+] as const
 export type MessageKind = (typeof messageKinds)[number]
 export const messageChannels = ['email', 'sms'] as const
 export type MessageChannel = (typeof messageChannels)[number]
@@ -75,6 +82,25 @@ const HOUR = 60 * 60000
 const RECENT_MS = 48 * HOUR
 /** A reminder that would arrive less than this before the visit is no longer useful. */
 const REMINDER_FLOOR_MS = 45 * 60000
+/** A feedback request goes this long after checkout, so it never lands while the guest is still in. */
+const FEEDBACK_DELAY_MS = 2 * HOUR
+
+/**
+ * Whether a completed visit's feedback request may go now: switched on, not yet answered, at least
+ * two hours and at most two days after checkout, and within the private link's lifetime. Checked
+ * when planning and again just before sending, so a late or retried request never goes out.
+ */
+export function feedbackDue(s: BusinessState, a: Appointment, start: number, now: number) {
+  const paidAt = Date.parse(s.sales.find((sale) => sale.appointmentId === a.id)?.paidAt ?? '')
+  return (
+    a.status === 'completed' &&
+    reminderSettings(s).feedback !== false &&
+    now - paidAt >= FEEDBACK_DELAY_MS &&
+    now - paidAt < RECENT_MS &&
+    now < start + FEEDBACK_WINDOW_MS &&
+    !s.feedback?.some((f) => f.appointmentId === a.id)
+  )
+}
 
 /** A visit's time and place, so a moved visit is told about again. */
 export function visitSlot(a: Pick<Appointment, 'date' | 'startMinutes' | 'staffId'>) {
@@ -131,8 +157,26 @@ export function planMessages(
     } catch {
       continue
     }
-    if (start <= now) continue
     const slot = visitSlot(a)
+    // V1.5: once a visit is complete, one private feedback request, a little after checkout.
+    if (a.status === 'completed') {
+      if (!feedbackDue(s, a, start, now)) continue
+      // Email only: a text adds cost for a request the guest may ignore.
+      if (!channelsFor(s, client).includes('email') || !client.email) continue
+      if ((byVisit.get(a.id) ?? []).some((row) => row.kind === 'feedback')) continue
+      plan.push({
+        dedupeKey: `${a.id}:feedback:email:${slot}`,
+        appointmentId: a.id,
+        clientId: client.id,
+        kind: 'feedback',
+        channel: 'email',
+        slot,
+        recipient: client.email,
+        ...composeMessage(s, a, 'feedback', 'email'),
+      })
+      continue
+    }
+    if (start <= now) continue
     const rows = byVisit.get(a.id) ?? []
     const moved = lastMoved(s, a.id)
     const add = (kind: MessageKind, channel: MessageChannel) => {
@@ -163,12 +207,15 @@ export function planMessages(
       if (a.status !== 'confirmed') continue
       if (settings.confirmations && !told.some((row) => row.slot === slot)) {
         if (told.length || (moved && now - moved < RECENT_MS)) add('changed', channel)
-        else if (now - Date.parse(a.createdAt) < RECENT_MS) add('confirmation', channel)
+        // A visit carried over from another system was confirmed there already (PILOT-03).
+        else if (a.source !== 'import' && now - Date.parse(a.createdAt) < RECENT_MS)
+          add('confirmation', channel)
       }
       if (settings.reminders && !mine.some((row) => row.kind === 'reminder' && row.slot === slot)) {
         const opens = start - settings.hoursBefore * HOUR
         // Booked or moved after the reminder time: the confirmation already did this job.
-        const settled = Math.max(Date.parse(a.createdAt), moved)
+        // A carried-over visit was booked in the old system long before, so only a move counts.
+        const settled = Math.max(a.source === 'import' ? 0 : Date.parse(a.createdAt), moved)
         if (now >= opens && settled < opens && start - now >= REMINDER_FLOOR_MS)
           add('reminder', channel)
       }
@@ -205,9 +252,14 @@ export function composeMessage(
       changed: `${org.name}: your visit has moved to ${when}, ${service}${withWhom}.`,
       reminder: `${org.name}: a reminder of ${service}${withWhom}, ${when}.`,
       cancelled: `${org.name}: your ${service} on ${when} is cancelled.`,
+      feedback: `${org.name}: thank you for visiting. How was it? Tell us privately:`,
     }[kind]
     const tail =
-      kind === 'cancelled' ? ' We hope to see you soon.' : ` Manage your visit: ${MANAGE_LINK}`
+      kind === 'cancelled'
+        ? ' We hope to see you soon.'
+        : kind === 'feedback'
+          ? ` ${MANAGE_LINK}`
+          : ` Manage your visit: ${MANAGE_LINK}`
     return { subject: '', body: `${lead}${tail} Reply STOP to stop texts.` }
   }
   const subject = {
@@ -215,12 +267,14 @@ export function composeMessage(
     changed: `Your visit to ${org.name} has moved`,
     reminder: `See you soon at ${org.name}`,
     cancelled: `Your visit to ${org.name} is cancelled`,
+    feedback: `How was your visit to ${org.name}?`,
   }[kind]
   const opening = {
     confirmation: `Thank you for booking. Here are your details.`,
     changed: `Your visit has a new time. Here are the updated details.`,
     reminder: `A gentle reminder of your visit.`,
     cancelled: `Your visit below has been cancelled. Nothing else is needed from you.`,
+    feedback: `Thank you for visiting us. We would love to know how it went.`,
   }[kind]
   const lines = [
     greeting,
@@ -231,7 +285,12 @@ export function composeMessage(
     when,
     [org.locationName, org.address].filter(Boolean).join(', '),
   ]
-  if (kind !== 'cancelled') {
+  if (kind === 'feedback') {
+    lines.push(
+      '',
+      `Rate your visit${professional ? ` and ${professional}` : ''}, and add a note if you like. Only the studio's owner and managers read what you write: ${MANAGE_LINK}`,
+    )
+  } else if (kind !== 'cancelled') {
     if (arrival) lines.push('', `Before you arrive: ${arrival}`)
     if (prep) lines.push('', prep)
     lines.push('', policy, `View, add to your calendar or cancel: ${MANAGE_LINK}`)

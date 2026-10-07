@@ -14,6 +14,10 @@ import { privacyRoutes } from './routes/privacy'
 import { messagingRoutes } from './routes/messaging'
 import { createOutbox } from './messaging/outbox'
 import type { Outbox } from './messaging/outbox'
+import { paymentRoutes } from './routes/payments'
+import { assistantRoutes } from './routes/assistant'
+import { createPayments } from './payments/service'
+import type { Payments } from './payments/service'
 
 export type { ApiOptions } from './context'
 export type { InjectOptions, InjectResponse } from './http'
@@ -24,6 +28,7 @@ export type ApiHandler = ((
 ) => Promise<void>) & {
   database: LocalDatabase
   outbox: Outbox
+  payments: Payments
   close: () => void
   inject: (request: InjectOptions) => Promise<InjectResponse>
 }
@@ -42,7 +47,13 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   const ctx = createContext(options)
   const { origin, allowedOrigin, db, rateLimit } = ctx
   const outbox = createOutbox(ctx, ctx.messaging)
-  const routes = [messagingRoutes(outbox), ...baseRoutes]
+  const payments = createPayments(ctx, ctx.paymentProvider)
+  const routes = [
+    messagingRoutes(outbox),
+    paymentRoutes(payments),
+    assistantRoutes(),
+    ...baseRoutes,
+  ]
   if (options.outboxIntervalMs) outbox.start(options.outboxIntervalMs)
 
   const handler = (async (
@@ -82,6 +93,18 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
         })
         if (!receipts) fail(403, 'This receipt could not be verified.')
         for (const receipt of receipts!) outbox.record(receipt)
+        reply(200, { ok: true })
+        return
+      }
+      if (url.pathname === '/api/hooks/stripe') {
+        if (method !== 'POST') fail(405, 'Use POST.')
+        const body = (await readBody(request, true)) as string
+        const events = await payments.provider.events({
+          headers: request.headers as Record<string, string | undefined>,
+          body,
+        })
+        if (!events) fail(403, 'This event could not be verified.')
+        for (const event of events!) payments.apply(event)
         reply(200, { ok: true })
         return
       }
@@ -129,6 +152,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   }) as ApiHandler
   handler.database = db
   handler.outbox = outbox
+  handler.payments = payments
   handler.close = () => {
     outbox.stop()
     db.close()

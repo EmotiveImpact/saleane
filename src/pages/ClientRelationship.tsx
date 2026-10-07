@@ -12,6 +12,7 @@ import {
   Check,
   Mail,
   PencilLine,
+  Layers,
 } from 'lucide-react'
 import { useStore } from '../state/context'
 import { clientStats, usualWeeks } from '../domain/selectors'
@@ -23,6 +24,9 @@ import { Avatar, Button, Empty, ErrorMessage, SegmentedControl, Status } from '.
 import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
 import { ClientMessagePreferences, SentMessages } from '../components/AppointmentMessages'
+import { ClientCards } from '../components/CardPayments'
+import { CarriedBalances } from '../components/Switching'
+import { ClientPlans } from '../components/Plans'
 import { ClientPrivacy } from '../components/Privacy'
 
 // A booking's detail opens with the service, date and time already shown in
@@ -423,7 +427,9 @@ export function ClientRelationship() {
                     ? Users
                     : event.type === 'consent'
                       ? Mail
-                      : CalendarDays
+                      : event.type === 'plan'
+                        ? Layers
+                        : CalendarDays
               return (
                 <article className="timeline-event" key={entry.id}>
                   <span className={`timeline-icon timeline-${event.type}`}>
@@ -629,6 +635,9 @@ export function ClientRelationship() {
             </p>
             <ClientMessagePreferences client={client} />
           </section>
+          <ClientPlans clientId={client.id} />
+          <ClientCards clientId={client.id} />
+          <CarriedBalances clientId={client.id} />
           <SentMessages clientId={client.id} />
           <ClientPrivacy clientId={client.id} />
         </aside>

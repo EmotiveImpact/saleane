@@ -41,6 +41,8 @@ const METHOD = {
   demo_cash: 'Demo cash (fictional, no money moved)',
   cash: 'Cash received at the studio',
   external_card: 'Card taken on an external terminal',
+  card: 'Card processed by the payment provider',
+  previous_system: 'Paid to the studio’s previous booking system',
 } as const
 const THIRD_PARTY = 'Linked to another client. Their details are withheld as third-party data.'
 const clock = (minutes: number) =>
@@ -75,6 +77,13 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
     .filter((s) => ref.has(s.appointmentId))
     .sort((a, b) => a.paidAt.localeCompare(b.paidAt))
   const receipt = (saleId?: string) => sales.find((s) => s.id === saleId)?.receiptNumber
+  /** The client's visit a refund belongs to, through its receipt or its deposit or fee payment. */
+  const refundVisit = (r: { saleId?: string; paymentId?: string }) => {
+    const visit = r.saleId
+      ? sales.find((s) => s.id === r.saleId)?.appointmentId
+      : state.payments.find((p) => p.id === r.paymentId)?.appointmentId
+    return visit && ref.has(visit) ? visit : undefined
+  }
   const events = state.events
     .filter((e) => e.clientId === client.id)
     .sort((a, b) => a.occurredAt.localeCompare(b.occurredAt))
@@ -142,10 +151,10 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
         ...(p.reference ? { reference: p.reference } : {}),
       })),
     refunds: ops.refunds
-      .filter((r) => sales.some((s) => s.id === r.saleId))
+      .filter((r) => refundVisit(r))
       .map((r) => ({
-        visit: ref.get(sales.find((s) => s.id === r.saleId)!.appointmentId)!,
-        receiptNumber: receipt(r.saleId) ?? 'Not numbered',
+        visit: ref.get(refundVisit(r)!)!,
+        receiptNumber: receipt(r.saleId) ?? (r.paymentId ? 'Deposit or fee' : 'Not numbered'),
         amountMinor: r.amountMinor,
         reason: r.reason,
         reference: r.reference,
@@ -183,6 +192,52 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
               : 'Introduced by another client',
         since: r.createdAt,
       })),
+    // PILOT-03: credit or money owed brought across from the studio's previous system.
+    carriedOver: (ops.balances ?? [])
+      .filter((b) => b.clientId === client.id)
+      .map((b) => ({
+        kind: b.kind,
+        amountMinor: b.amountMinor,
+        note: b.note,
+        from: ops.imports?.find((batch) => batch.id === b.importId)?.source ?? 'Previous system',
+        recordedAt: b.createdAt,
+        ...(b.settled ? { closedAt: b.settled.at, closedNote: b.settled.note } : {}),
+      })),
+    // V1.5: the private feedback this client gave about their visits.
+    feedback: (state.feedback ?? [])
+      .filter((f) => f.clientId === client.id)
+      .map((f) => ({
+        visit: ref.get(f.appointmentId),
+        visitRating: f.visitRating,
+        practitionerRating: f.practitionerRating,
+        comment: f.comment,
+        givenAt: f.createdAt,
+      })),
+    // V1.5: packages and memberships this client bought, with what was paid, used and returned.
+    plans: (state.holdings ?? [])
+      .filter((h) => h.clientId === client.id)
+      .map((h) => ({
+        kind: h.kind,
+        name: h.name,
+        startedOn: h.startedOn,
+        ...(h.endsOn ? { endsOn: h.endsOn } : {}),
+        ...(h.paidUntil ? { paidUntil: h.paidUntil } : {}),
+        status: h.status,
+        payments: h.payments.map((p) => ({
+          amountMinor: p.amountMinor,
+          method: METHOD[p.method],
+          recordedAt: p.recordedAt,
+        })),
+        visitsUsed: h.uses.map((u) => ({
+          visit: ref.get(u.appointmentId),
+          valueMinor: u.valueMinor,
+        })),
+        refunds: h.refunds.map((r) => ({
+          amountMinor: r.amountMinor,
+          reason: r.reason,
+          recordedAt: r.createdAt,
+        })),
+      })),
   }
 }
 export type ClientExport = ReturnType<typeof clientExport>
@@ -208,10 +263,11 @@ export function previewClientExport(file: ClientExport): ExportPreview {
       { label: 'Timeline entries', count: file.timeline.length },
       { label: 'Messages, none of them sent', count: file.messages.length },
       { label: 'Client connections, type only', count: file.connections.length },
+      { label: 'Private feedback they gave', count: file.feedback.length },
     ],
     excluded: CLIENT_EXPORT_EXCLUDED,
     notes: [
-      'Notes, preferences and message text are included as written. Read them before sending, in case they mention someone else.',
+      'Notes, preferences, feedback comments and message text are included as written. Read them before sending, in case they mention someone else.',
       'Staff names appear where they recorded an entry or looked after a visit.',
       'Messages show their real status. SALEANE has no delivery service configured, so none was sent.',
       ...(file.studio.sandbox
@@ -264,6 +320,7 @@ export function previewStudioExport(file: StudioExport): ExportPreview {
       { label: 'Timeline entries', count: r.events.length },
       { label: 'Messages, none of them sent', count: r.operations.messages.length },
       { label: 'Client connections', count: r.relationships.length },
+      { label: 'Private guest feedback, comments as written', count: (r.feedback ?? []).length },
       {
         label: 'Services, professionals and spaces',
         count: r.services.length + r.staff.length + r.resources.length,
@@ -276,6 +333,11 @@ export function previewStudioExport(file: StudioExport): ExportPreview {
     excluded: STUDIO_EXPORT_EXCLUDED,
     notes: [
       'This file holds every client’s personal details. Store it somewhere private and share it only with people entitled to see it.',
+      ...((r.feedback ?? []).length
+        ? [
+            'It includes guests’ private feedback comments as written, which only owners and managers normally see.',
+          ]
+        : []),
       'Record identifiers are kept so the file can be imported or reconciled later.',
       ...(file.studio.sandbox
         ? ['This is the fictional sandbox. Its money and people are not real.']
@@ -339,6 +401,12 @@ export function erasureReview(
         reason: 'None was ever sent, so no delivery record depends on them.',
       },
       {
+        label: 'Private feedback (ratings and comments)',
+        count: (state.feedback ?? []).filter((f) => f.clientId === client.id).length,
+        reason:
+          'What the person told the studio privately. Not linked to money; the averages would no longer count it.',
+      },
+      {
         label: 'Client connections',
         count: state.relationships.filter(
           (r) => r.fromClientId === client.id || r.toClientId === client.id,
@@ -359,7 +427,11 @@ export function erasureReview(
       },
       {
         label: 'Refunds',
-        count: ops.refunds.filter((r) => sales.some((s) => s.id === r.saleId)).length,
+        count: ops.refunds.filter(
+          (r) =>
+            sales.some((s) => s.id === r.saleId) ||
+            state.payments.some((p) => p.id === r.paymentId && visitIds.has(p.appointmentId)),
+        ).length,
         reason: 'Part of the money history for each receipt.',
       },
       {
@@ -435,6 +507,28 @@ export function clientExportText(file: ClientExport, locale = 'en-GB') {
     ...file.refunds.map(
       (r) =>
         `${r.receiptNumber} · ${amount(r.amountMinor, cur, locale)} · ${r.recordedAt.slice(0, 10)} · ${r.reason}`,
+    ),
+    '',
+    `CARRIED OVER FROM A PREVIOUS SYSTEM (${file.carriedOver.length})`,
+    ...file.carriedOver.map(
+      (b) =>
+        `${b.kind === 'credit' ? 'Credit' : 'Owed'} · ${amount(b.amountMinor, cur, locale)} · from ${b.from} · ${b.closedAt ? `closed ${b.closedAt.slice(0, 10)}` : 'open'}`,
+    ),
+    '',
+    `FEEDBACK GIVEN (${file.feedback.length})`,
+    ...file.feedback.map(
+      (f) =>
+        `${f.givenAt.slice(0, 10)} · visit ${f.visitRating}/5 · care ${f.practitionerRating}/5${f.comment ? ` · ${f.comment}` : ''}`,
+    ),
+    '',
+    `PACKAGES AND MEMBERSHIPS (${file.plans.length})`,
+    ...file.plans.map(
+      (p) =>
+        `${p.name} · ${p.kind} · from ${p.startedOn} · paid ${amount(
+          p.payments.reduce((sum, x) => sum + x.amountMinor, 0),
+          cur,
+          locale,
+        )} · ${p.visitsUsed.length} visits used · ${p.status}`,
     ),
     '',
     `MESSAGES (${file.messages.length}), none sent`,

@@ -13,9 +13,11 @@ import {
   visitStart,
 } from '../../src/domain/guest'
 import type { Context, Org, Route } from '../context'
+import { feedbackForVisit, feedbackInputSchema, feedbackOpen } from '../../src/domain/feedback'
+import { guestPaymentFor } from '../payments/service'
 
 const INVALID = 'This link is no longer valid. Contact the studio to manage your visit.'
-const tokenSchema = z.string().min(32).max(100)
+export const tokenSchema = z.string().min(32).max(100)
 /** An email and a text each for the latest two messages. */
 const MESSAGE_LINKS = 4
 
@@ -88,38 +90,76 @@ export function revokeGuestLinks(ctx: Context, org: Org, appointmentId: string) 
   )
 }
 
+/** Opens a private link. Every failure reads the same, so a link cannot reveal whether a visit exists. */
+export function openGuestLink(ctx: Context, raw: string) {
+  const { db, now } = ctx
+  const link = db.get<{ organisation_id: string; appointment_id: string; expires_at: number }>(
+    'SELECT organisation_id,appointment_id,expires_at FROM guest_links WHERE token_hash=? AND revoked_at IS NULL',
+    digest(raw),
+  )
+  if (!link || link.expires_at <= now()) fail(404, INVALID)
+  const row = db.get<{ id: string; slug: string; state: string }>(
+    'SELECT id,slug,state FROM organisations WHERE id=?',
+    link!.organisation_id,
+  )
+  if (!row) fail(404, INVALID)
+  const stored = JSON.parse(row!.state) as BusinessState
+  const state = parseState(stored, stored.organisation.region)
+  if (!state.appointments.some((a) => a.id === link!.appointment_id)) fail(404, INVALID)
+  if (visitStart(state, link!.appointment_id) + GUEST_LINK_AFTER_VISIT_MS <= now())
+    fail(404, INVALID)
+  const org: Org = { id: row!.id, slug: row!.slug, state, role: 'owner', staffId: null }
+  return { org, appointmentId: link!.appointment_id }
+}
+
 /** Guest manage routes. A link opens one visit and nothing else. Returns false for other paths. */
 export async function guestRoutes(ctx: Context, route: Route): Promise<boolean> {
   const { db, now, rateLimit, persist } = ctx
   const { request, method, path, body, reply } = route
   if (path[1] !== 'guest' || path.length !== 3 || method !== 'POST') return false
 
-  // Every failure reads the same, so a link cannot be used to learn whether a visit exists.
-  const open = (raw: string) => {
-    const link = db.get<{ organisation_id: string; appointment_id: string; expires_at: number }>(
-      'SELECT organisation_id,appointment_id,expires_at FROM guest_links WHERE token_hash=? AND revoked_at IS NULL',
-      digest(raw),
-    )
-    if (!link || link.expires_at <= now()) fail(404, INVALID)
-    const row = db.get<{ id: string; slug: string; state: string }>(
-      'SELECT id,slug,state FROM organisations WHERE id=?',
-      link!.organisation_id,
-    )
-    if (!row) fail(404, INVALID)
-    const stored = JSON.parse(row!.state) as BusinessState
-    const state = parseState(stored, stored.organisation.region)
-    if (!state.appointments.some((a) => a.id === link!.appointment_id)) fail(404, INVALID)
-    if (visitStart(state, link!.appointment_id) + GUEST_LINK_AFTER_VISIT_MS <= now())
-      fail(404, INVALID)
-    const org: Org = { id: row!.id, slug: row!.slug, state, role: 'owner', staffId: null }
-    return { org, appointmentId: link!.appointment_id }
-  }
+  const open = (raw: string) => openGuestLink(ctx, raw)
 
   if (path[2] === 'visit') {
     rateLimit(request, 'guest-read', 30, 5 * 60000)
     const data = z.object({ token: tokenSchema }).strict().parse(body)
     const { org, appointmentId } = open(data.token)
-    reply(200, guestView(org.state, appointmentId, now()))
+    reply(200, guestView(org.state, appointmentId, now(), guestPaymentFor(ctx, org, appointmentId)))
+    return true
+  }
+  if (path[2] === 'feedback') {
+    rateLimit(request, 'guest-write', 10, 5 * 60000)
+    const data = z
+      .object({ token: tokenSchema })
+      .extend(feedbackInputSchema.shape)
+      .strict()
+      .parse(body)
+    const view = db.transaction(() => {
+      const { org, appointmentId } = open(data.token)
+      const already = feedbackForVisit(org.state, appointmentId)
+      if (
+        !already &&
+        !feedbackOpen(org.state, appointmentId, visitStart(org.state, appointmentId), now())
+      )
+        fail(409, 'Feedback for this visit is not open.')
+      const result = dispatch(
+        org.state,
+        {
+          type: 'feedback',
+          appointmentId,
+          visitRating: data.visitRating,
+          practitionerRating: data.practitionerRating,
+          comment: data.comment,
+        },
+        'Guest (private link)',
+        new Date(now()).toISOString(),
+      )
+      if (!result.ok) fail(409, result.error)
+      if (result.state !== org.state)
+        persist(org, result.state, null, 'guest.feedback', appointmentId)
+      return guestView(result.state, appointmentId, now())
+    })
+    reply(200, view)
     return true
   }
   if (path[2] === 'cancel') {
@@ -132,7 +172,8 @@ export async function guestRoutes(ctx: Context, route: Route): Promise<boolean> 
       const { org, appointmentId } = open(data.token)
       const appointment = org.state.appointments.find((a) => a.id === appointmentId)!
       // A repeated request after a cancellation that already landed returns the same result.
-      if (appointment.status === 'cancelled') return guestView(org.state, appointmentId, now())
+      if (appointment.status === 'cancelled')
+        return guestView(org.state, appointmentId, now(), guestPaymentFor(ctx, org, appointmentId))
       const terms = guestCancellation(org.state, appointmentId, now())
       if (!terms.available)
         fail(409, 'This visit can no longer be cancelled online. Contact the studio.')
@@ -151,7 +192,12 @@ export async function guestRoutes(ctx: Context, route: Route): Promise<boolean> 
       )
       if (!result.ok) fail(422, result.error)
       persist(org, result.state, null, 'guest.cancel', appointmentId)
-      return guestView(result.state, appointmentId, now())
+      return guestView(
+        result.state,
+        appointmentId,
+        now(),
+        guestPaymentFor(ctx, { ...org, state: result.state }, appointmentId),
+      )
     })
     reply(200, view)
     return true

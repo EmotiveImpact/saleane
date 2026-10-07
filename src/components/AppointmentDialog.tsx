@@ -8,8 +8,11 @@ import type { Command } from '../domain/commands'
 import { depositPaid, rescheduleSlots } from '../domain/commands'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import { checkoutTotals, minorInput, parseMinor } from '../domain/money'
+import { coverPreview, holdings, memberDiscountPercent, plansForVisit } from '../domain/plans'
+import '../components/plans.css'
 import { Avatar, Button, ErrorMessage, Modal, Status, TimeChoices } from '../design'
 import { BookingDialog } from './BookingDialog'
+import { CardCheckout, VisitCardPanel } from './CardPayments'
 
 export function AppointmentDialog({
   appointmentId,
@@ -32,12 +35,14 @@ export function AppointmentDialog({
   const [reference, setReference] = useState('')
   const [collected, setCollected] = useState(false)
   const [discount, setDiscount] = useState('0')
+  // V1.5: the package or membership paying for this visit ('' pays as usual).
+  const [holdingId, setHoldingId] = useState<string | null>(null)
   const [checkout, setCheckout] = useState(false)
   const [tip, setTip] = useState('0')
   const [otherTip, setOtherTip] = useState(false)
-  const [method, setMethod] = useState<'demo_card' | 'demo_cash' | 'cash' | 'external_card'>(
-    sandbox ? 'demo_card' : 'cash',
-  )
+  const [method, setMethod] = useState<
+    'demo_card' | 'demo_cash' | 'cash' | 'external_card' | 'card'
+  >(sandbox ? 'demo_card' : 'cash')
   const [error, setError] = useState('')
   const [rebook, setRebook] = useState(false)
   const appointment = state.appointments.find((a) => a.id === appointmentId)
@@ -78,17 +83,35 @@ export function AppointmentDialog({
       </Modal>
     )
   const sale = state.sales.find((s) => s.appointmentId === appointmentId)
+  // PILOT-02: a signed-in local studio can take a card through the payment provider.
+  const cardTaking = storeMode === 'server' && !sandbox
+  const byCard = cardTaking && method === 'card'
   const deposit = depositPaid(state, appointmentId)
   const tipMinor = parseMinor(tip, 0)
-  const discountMinor = parseMinor(discount, 0)
-  const tax = visitTax(state, appointment)
-  const { taxMinor, balanceMinor: total } = checkoutTotals({
+  const coverable = deposit ? [] : plansForVisit(state, appointment, today)
+  const memberPercent = memberDiscountPercent(state, appointment, today)
+  // The first plan that can pay is chosen unless the desk picks "pay as usual".
+  const chosenPlan =
+    holdingId === ''
+      ? undefined
+      : (coverable.find((p) => p.holding.id === holdingId) ?? coverable[0])
+  const coveredMinor = chosenPlan
+    ? coverPreview(chosenPlan.holding, appointment.bookedPriceMinor, today)
+    : 0
+  const discountMinor = chosenPlan
+    ? appointment.bookedPriceMinor - coveredMinor
+    : parseMinor(discount, 0)
+  const bookedTax = visitTax(state, appointment)
+  const tax = chosenPlan && bookedTax ? { ...bookedTax, inclusive: true } : bookedTax
+  const { taxMinor, balanceMinor: dueMinor } = checkoutTotals({
     priceMinor: appointment.bookedPriceMinor,
     discountMinor: Number.isFinite(discountMinor) ? discountMinor : 0,
     tipMinor: Number.isFinite(tipMinor) ? tipMinor : 0,
     depositMinor: deposit,
     tax,
   })
+  const total = dueMinor - coveredMinor
+  const needsConfirm = !sandbox && total > 0
   const tipPreset = (percent: number) => Math.round((appointment.bookedPriceMinor * percent) / 100)
   const available = mode === 'move' ? rescheduleSlots(state, appointmentId, staffId, date) : []
   // Keep the existing booked allocation available for an unchanged visit.
@@ -141,7 +164,7 @@ export function AppointmentDialog({
     await run({ type: 'arrive', appointmentId })
   }
   async function pay() {
-    if (!sandbox && !collected) {
+    if (needsConfirm && !collected) {
       setError('Confirm that the balance has already been received outside Saleane.')
       return
     }
@@ -158,7 +181,7 @@ export function AppointmentDialog({
       appointmentId,
       tipMinor,
       method,
-      discountMinor,
+      ...(chosenPlan ? { holdingId: chosenPlan.holding.id } : { discountMinor }),
       reference: reference.trim() || undefined,
     })
   }
@@ -213,7 +236,9 @@ export function AppointmentDialog({
         sale
           ? sandbox
             ? 'Demo receipt saved to the client relationship.'
-            : 'Local receipt saved. No payment provider was contacted.'
+            : sale.method === 'card'
+              ? 'Receipt saved. The payment provider confirmed the card payment.'
+              : 'Local receipt saved. No payment provider was contacted.'
           : checkout
             ? 'Review the service, deposit and optional tip before recording payment.'
             : `${dateLabel(appointment.date, state.organisation.locale)} at ${timeLabel(appointment.startMinutes, state.organisation.locale)}`
@@ -239,22 +264,32 @@ export function AppointmentDialog({
           <div className="success-strip">
             <Check size={18} />
             Receipt recorded ·{' '}
-            {
-              {
-                demo_card: 'Demo card',
-                demo_cash: 'Demo cash',
-                cash: 'Cash',
-                external_card: 'External card',
-              }[sale.method]
-            }
+            {sale.coveredMinor !== undefined && !sale.balanceMinor
+              ? `Paid by ${holdings(state).find((h) => h.id === sale.holdingId)?.name ?? 'plan'}`
+              : {
+                  demo_card: 'Demo card',
+                  demo_cash: 'Demo cash',
+                  cash: 'Cash',
+                  external_card: 'External card',
+                  card: sale.processor?.live ? 'Card' : 'Test card, no money moved',
+                  previous_system: 'Previous system',
+                }[sale.method]}
           </div>
           <div className="receipt-line">
             <span>{appointment.bookedServiceName ?? service.name}</span>
             <strong>{money(sale.serviceMinor, state.organisation, true)}</strong>
           </div>
+          {!!sale.coveredMinor && (
+            <div className="receipt-line">
+              <span>
+                Paid by {holdings(state).find((h) => h.id === sale.holdingId)?.name ?? 'plan'}
+              </span>
+              <span>−{money(sale.coveredMinor, state.organisation, true)}</span>
+            </div>
+          )}
           {!!sale.discountMinor && (
             <div className="receipt-line">
-              <span>Discount</span>
+              <span>{sale.coveredMinor !== undefined ? 'Plan saving' : 'Discount'}</span>
               <span>−{money(sale.discountMinor, state.organisation, true)}</span>
             </div>
           )}
@@ -281,7 +316,11 @@ export function AppointmentDialog({
           <p className="subtle demo-note">
             {sandbox
               ? 'This is a simulated receipt. No payment provider was contacted.'
-              : 'This receipt records funds handled outside Saleane. No payment provider was contacted.'}
+              : sale.method === 'card'
+                ? sale.processor?.live
+                  ? 'Paid by card through SALEANE. The payment provider confirmed it.'
+                  : 'Paid with a test card. Test mode: no money moved.'
+                : 'This receipt records funds handled outside Saleane. No payment provider was contacted.'}
           </p>
           <div className="rebook-callout">
             <h3>Give the next visit a place.</h3>
@@ -445,21 +484,97 @@ export function AppointmentDialog({
             <span>Deposit already recorded</span>
             <span>−{money(deposit, state.organisation, true)}</span>
           </div>
-          <label className="checkout-discount">
-            Discount ({state.organisation.currency})
-            <input
-              type="number"
-              min="0"
-              max={appointment.bookedPriceMinor / 100}
-              step="0.01"
-              value={discount}
-              onChange={(event) => {
-                setDiscount(event.target.value)
-                setCollected(false)
-                setError('')
-              }}
-            />
-          </label>
+          {coverable.length > 0 && (
+            <fieldset className="checkout-plans">
+              <legend>Pay with</legend>
+              {coverable.map(({ holding, standing }) => (
+                <label key={holding.id}>
+                  <input
+                    type="radio"
+                    name="checkout-plan"
+                    checked={chosenPlan?.holding.id === holding.id}
+                    onChange={() => {
+                      setHoldingId(holding.id)
+                      setCollected(false)
+                      if (method === 'card') setMethod('cash')
+                    }}
+                  />
+                  {holding.name} ({standing.visitsLeft}{' '}
+                  {standing.visitsLeft === 1 ? 'visit' : 'visits'} left
+                  {holding.kind === 'membership' ? ' this month' : ''})
+                </label>
+              ))}
+              <label>
+                <input
+                  type="radio"
+                  name="checkout-plan"
+                  checked={!chosenPlan}
+                  onChange={() => {
+                    setHoldingId('')
+                    setCollected(false)
+                  }}
+                />
+                Pay as usual
+              </label>
+            </fieldset>
+          )}
+          {chosenPlan ? (
+            <>
+              <div className="receipt-line">
+                <span>Paid by {chosenPlan.holding.name}</span>
+                <span>−{money(coveredMinor, state.organisation, true)}</span>
+              </div>
+              {discountMinor > 0 && (
+                <div className="receipt-line">
+                  <span>Plan saving</span>
+                  <span>−{money(discountMinor, state.organisation, true)}</span>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {memberPercent > 0 && (
+                <p className="member-discount">
+                  Member price: {memberPercent}% off is{' '}
+                  {money(
+                    Math.round((appointment.bookedPriceMinor * memberPercent) / 100),
+                    state.organisation,
+                    true,
+                  )}
+                  .{' '}
+                  <button
+                    type="button"
+                    className="text-link"
+                    onClick={() => {
+                      setDiscount(
+                        minorInput(
+                          Math.round((appointment.bookedPriceMinor * memberPercent) / 100),
+                        ),
+                      )
+                      setCollected(false)
+                    }}
+                  >
+                    Apply it
+                  </button>
+                </p>
+              )}
+              <label className="checkout-discount">
+                Discount ({state.organisation.currency})
+                <input
+                  type="number"
+                  min="0"
+                  max={appointment.bookedPriceMinor / 100}
+                  step="0.01"
+                  value={discount}
+                  onChange={(event) => {
+                    setDiscount(event.target.value)
+                    setCollected(false)
+                    setError('')
+                  }}
+                />
+              </label>
+            </>
+          )}
           <fieldset className="time-fieldset">
             <legend>Optional tip</legend>
             <div className="tip-options">
@@ -510,47 +625,54 @@ export function AppointmentDialog({
               </label>
             )}
           </fieldset>
-          <label>
-            Payment method
-            <select
-              value={method}
-              disabled={busy}
-              onChange={(e) => {
-                setMethod(e.target.value as typeof method)
-                setCollected(false)
-              }}
-            >
-              {sandbox ? (
-                <>
-                  <option value="demo_card">Demo card</option>
-                  <option value="demo_cash">Demo cash</option>
-                </>
-              ) : (
-                <>
-                  <option value="cash">Cash received</option>
-                  <option value="external_card">External card payment</option>
-                </>
-              )}
-            </select>
-          </label>
-          {!sandbox && (
+          {(total > 0 || !chosenPlan) && (
             <>
               <label>
-                Payment reference {method === 'external_card' ? '(required)' : '(optional)'}
-                <input
-                  value={reference}
-                  maxLength={150}
-                  onChange={(event) => setReference(event.target.value)}
-                />
+                Payment method
+                <select
+                  value={method}
+                  disabled={busy}
+                  onChange={(e) => {
+                    setMethod(e.target.value as typeof method)
+                    setCollected(false)
+                  }}
+                >
+                  {sandbox ? (
+                    <>
+                      <option value="demo_card">Demo card</option>
+                      <option value="demo_cash">Demo cash</option>
+                    </>
+                  ) : (
+                    <>
+                      {cardTaking && !chosenPlan && (
+                        <option value="card">Card through SALEANE</option>
+                      )}
+                      <option value="cash">Cash received</option>
+                      <option value="external_card">External card payment</option>
+                    </>
+                  )}
+                </select>
               </label>
-              <label className="checkbox-label consent-label">
-                <input
-                  type="checkbox"
-                  checked={collected}
-                  onChange={(event) => setCollected(event.target.checked)}
-                />
-                I confirm the balance has already been received outside Saleane.
-              </label>
+              {!sandbox && !byCard && (
+                <>
+                  <label>
+                    Payment reference {method === 'external_card' ? '(required)' : '(optional)'}
+                    <input
+                      value={reference}
+                      maxLength={150}
+                      onChange={(event) => setReference(event.target.value)}
+                    />
+                  </label>
+                  <label className="checkbox-label consent-label">
+                    <input
+                      type="checkbox"
+                      checked={collected}
+                      onChange={(event) => setCollected(event.target.checked)}
+                    />
+                    I confirm the balance has already been received outside Saleane.
+                  </label>
+                </>
+              )}
             </>
           )}
           {tax && (
@@ -562,7 +684,7 @@ export function AppointmentDialog({
             </div>
           )}
           <div className="receipt-line total">
-            <span>{sandbox ? 'To collect' : 'Balance to record'}</span>
+            <span>{sandbox ? 'To collect' : byCard ? 'To pay by card' : 'Balance to record'}</span>
             <strong>{money(total, state.organisation, true)}</strong>
           </div>
           <p className="subtle demo-note">
@@ -570,19 +692,33 @@ export function AppointmentDialog({
               ? 'Tax follows the setting in place when this visit was booked. '
               : 'No tax applies to this visit. '}
             Tips are separate from service revenue.{' '}
-            {sandbox
-              ? 'No real payment will be taken.'
-              : 'Only record funds already received. Card payments are not connected yet.'}
+            {chosenPlan && total === 0
+              ? `${chosenPlan.holding.name} pays for this visit; there is nothing to collect.`
+              : sandbox
+                ? 'No real payment will be taken.'
+                : byCard
+                  ? 'The visit is checked out only when the card payment goes through.'
+                  : 'Only record funds already received outside SALEANE.'}
           </p>
+          {byCard && (
+            <CardCheckout
+              appointmentId={appointmentId}
+              amountMinor={total}
+              tipMinor={Number.isFinite(tipMinor) ? tipMinor : 0}
+              discountMinor={Number.isFinite(discountMinor) ? discountMinor : 0}
+            />
+          )}
           <ErrorMessage error={error} />
           <div className="dialog-footer">
             <Button variant="secondary" disabled={busy} onClick={() => setCheckout(false)}>
               Back
             </Button>
-            <Button disabled={!allowed('checkout') || (!sandbox && !collected)} onClick={pay}>
-              <CreditCard size={16} />
-              {busy ? 'Recording…' : sandbox ? 'Record demo payment' : 'Record payment'}
-            </Button>
+            {!byCard && (
+              <Button disabled={!allowed('checkout') || (needsConfirm && !collected)} onClick={pay}>
+                <CreditCard size={16} />
+                {busy ? 'Recording…' : sandbox ? 'Record demo payment' : 'Record payment'}
+              </Button>
+            )}
           </div>
         </>
       ) : (
@@ -644,6 +780,7 @@ export function AppointmentDialog({
               )}
             </div>
           )}
+          {cardTaking && <VisitCardPanel appointmentId={appointment.id} />}
           {storeMode === 'server' && appointment.status === 'confirmed' && (
             <GuestLinkPanel appointmentId={appointment.id} />
           )}

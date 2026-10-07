@@ -107,6 +107,72 @@ export const migrations: Migration[] = [
         CREATE INDEX guest_links_visit ON guest_links(organisation_id,appointment_id);
       `),
   },
+  {
+    version: 5,
+    // PILOT-02: each card payment, saved card and card refund the provider handles.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE payment_attempts (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          appointment_id TEXT NOT NULL, client_id TEXT NOT NULL,
+          purpose TEXT NOT NULL CHECK(purpose IN ('deposit','balance','fee','save_card','refund')),
+          route TEXT NOT NULL CHECK(route IN ('hosted','saved_card','reader','refund')),
+          amount_minor INTEGER NOT NULL CHECK(amount_minor>=0), currency TEXT NOT NULL,
+          tip_minor INTEGER NOT NULL DEFAULT 0, discount_minor INTEGER NOT NULL DEFAULT 0,
+          save_card INTEGER NOT NULL DEFAULT 0, refund_of TEXT, reason TEXT,
+          provider TEXT NOT NULL, provider_ref TEXT,
+          status TEXT NOT NULL CHECK(status IN ('started','processing','succeeded','failed','unknown','review')),
+          detail TEXT, ledger_id TEXT, request_key TEXT, actor_id TEXT,
+          created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+        ) STRICT;
+        CREATE INDEX payment_attempts_visit ON payment_attempts(organisation_id,appointment_id);
+        CREATE UNIQUE INDEX payment_attempts_key ON payment_attempts(organisation_id,actor_id,request_key) WHERE request_key IS NOT NULL;
+        CREATE TABLE saved_cards (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          client_id TEXT NOT NULL, provider TEXT NOT NULL, customer_ref TEXT NOT NULL, method_ref TEXT NOT NULL,
+          brand TEXT NOT NULL, last4 TEXT NOT NULL, exp_month INTEGER NOT NULL, exp_year INTEGER NOT NULL,
+          agreed TEXT NOT NULL, created_at INTEGER NOT NULL, removed_at INTEGER,
+          UNIQUE(organisation_id,provider,method_ref)
+        ) STRICT;
+        CREATE INDEX saved_cards_client ON saved_cards(organisation_id,client_id);
+      `),
+  },
+  {
+    version: 6,
+    // V1.5: the outbox also carries the private "how was your visit?" request.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE outbox_next (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          dedupe_key TEXT NOT NULL, appointment_id TEXT NOT NULL, client_id TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK(kind IN ('confirmation','changed','reminder','cancelled','feedback')),
+          channel TEXT NOT NULL CHECK(channel IN ('email','sms')), slot TEXT NOT NULL,
+          recipient TEXT NOT NULL, subject TEXT NOT NULL, body TEXT NOT NULL,
+          status TEXT NOT NULL CHECK(status IN ('pending','test','accepted','delivered','failed','unknown','skipped')),
+          provider TEXT, provider_ref TEXT, detail TEXT, attempts INTEGER NOT NULL DEFAULT 0,
+          next_attempt_at INTEGER NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+          UNIQUE(organisation_id,dedupe_key)
+        ) STRICT;
+        INSERT INTO outbox_next SELECT id,organisation_id,dedupe_key,appointment_id,client_id,kind,channel,slot,recipient,subject,body,status,provider,provider_ref,detail,attempts,next_attempt_at,created_at,updated_at FROM outbox;
+        DROP TABLE outbox;
+        ALTER TABLE outbox_next RENAME TO outbox;
+        CREATE INDEX outbox_due ON outbox(status,next_attempt_at);
+        CREATE INDEX outbox_visit ON outbox(organisation_id,appointment_id);
+        CREATE INDEX outbox_recent ON outbox(organisation_id,created_at);
+        CREATE UNIQUE INDEX outbox_provider_ref ON outbox(provider,provider_ref) WHERE provider_ref IS NOT NULL;
+      `),
+  },
+  {
+    version: 7,
+    // Ask Saleane: each studio's assistant use this month, so the allowance holds across restarts.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE assistant_usage (
+          organisation_id TEXT PRIMARY KEY REFERENCES organisations(id),
+          usage TEXT NOT NULL, updated_at INTEGER NOT NULL
+        ) STRICT;
+      `),
+  },
 ]
 export const SCHEMA_VERSION = migrations[migrations.length - 1].version
 

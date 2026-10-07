@@ -9,11 +9,18 @@ describe('the workspace read projection', () => {
   const state = seed('UK')
   const maya = state.staff[0].id
   it('gives desk and management roles the whole studio record', () => {
-    for (const role of ['owner', 'manager', 'reception'] as const)
+    for (const role of ['owner', 'manager'] as const)
       expect(workspaceView({ role, staffId: null }, state, DEMO_DATE)).toEqual({
         view: 'studio',
         state,
       })
+    // V1.5: guests' private feedback is for owners and managers only.
+    const { feedback, ...desk } = state
+    expect(feedback?.length).toBeGreaterThan(0)
+    expect(workspaceView({ role: 'reception', staffId: null }, state, DEMO_DATE)).toEqual({
+      view: 'studio',
+      state: desk,
+    })
   })
   it('gives a practitioner only their own visits and minimal client details', () => {
     const record = workspaceView({ role: 'practitioner', staffId: maya }, state, DEMO_DATE)

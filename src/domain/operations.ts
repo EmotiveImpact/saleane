@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { BusinessState } from './model'
 import { reminderSettingsSchema } from './reminderSettings'
+import { paymentMethodSchema, processorSchema } from './paymentMethods'
 
 const id = z.string().min(1).max(150)
 const money = z.number().int().nonnegative().max(100_000_000)
@@ -70,12 +71,53 @@ export const productInputSchema = z.object({
   reorderAt: z.number().int().nonnegative().max(10000),
   archived: z.boolean(),
 })
+export const protectionSchema = z
+  .object({
+    /** Offer guests a way to save a card for their visit. */
+    saveCard: z.boolean(),
+    /** Share of the booked price the studio may charge for a no-show or a late cancellation. */
+    feePercent: z.number().int().min(0).max(100),
+  })
+  .strict()
+export type Protection = z.infer<typeof protectionSchema>
 export const taxSchema = z.object({
   label: z.string().max(40),
   rateBps: z.number().int().min(0).max(10000),
   inclusive: z.boolean(),
 })
 export type Tax = z.infer<typeof taxSchema>
+
+export const importKinds = ['clients', 'services', 'appointments', 'balances'] as const
+export const importBatchSchema = z.object({
+  id,
+  kind: z.enum(importKinds),
+  source: z.string().trim().min(2).max(100),
+  createdAt: z.iso.datetime(),
+  actor: z.string(),
+  /** The records this import created, so the log can say what still stands. */
+  recordIds: z.array(id).max(500),
+  /** Money the imported rows carry: visit prices, or balances held. */
+  totalMinor: money,
+  /** Deposits already paid to the previous system, for an appointment import. */
+  depositsMinor: money.optional(),
+})
+export type ImportBatch = z.infer<typeof importBatchSchema>
+export const openingBalanceSchema = z.object({
+  id,
+  clientId: id,
+  importId: id,
+  /** `credit` is the studio's to give back or use; `owed` is the client's to pay. */
+  kind: z.enum(['credit', 'owed']),
+  amountMinor: money.refine((v) => v > 0),
+  note: z.string().trim().max(200),
+  createdAt: z.iso.datetime(),
+  actor: z.string(),
+  /** Set once staff record that the balance was used, paid or returned. Never deleted. */
+  settled: z
+    .object({ at: z.iso.datetime(), actor: z.string(), note: z.string().trim().min(2).max(200) })
+    .optional(),
+})
+export type OpeningBalance = z.infer<typeof openingBalanceSchema>
 
 export const operationsSchema = z.object({
   mode: z.enum(['sandbox', 'local']),
@@ -108,11 +150,14 @@ export const operationsSchema = z.object({
   refunds: z.array(
     z.object({
       id,
-      saleId: id,
+      /** A refund returns money from one receipt, or from one deposit or fee payment (PILOT-02). */
+      saleId: id.optional(),
+      paymentId: id.optional(),
       amountMinor: money.refine((v) => v > 0),
       reason: z.string().trim().min(3).max(300),
       reference: z.string().trim().min(1).max(150),
-      method: z.enum(['demo_card', 'demo_cash', 'cash', 'external_card']).optional(),
+      method: paymentMethodSchema.optional(),
+      processor: processorSchema.optional(),
       createdAt: z.iso.datetime(),
       actor: z.string(),
     }),
@@ -121,6 +166,12 @@ export const operationsSchema = z.object({
   tax: taxSchema.optional(),
   /** Appointment confirmations and reminders (PILOT-01). Absent means the defaults apply. */
   reminders: reminderSettingsSchema.optional(),
+  /** No-show protection (PILOT-02). Absent means no card is asked for and no fee applies. */
+  protection: protectionSchema.optional(),
+  /** Reviewed imports from the studio's previous system, kept as a log (PILOT-03). */
+  imports: z.array(importBatchSchema).optional(),
+  /** Credit or money owed that the previous system held for a client (PILOT-03). */
+  balances: z.array(openingBalanceSchema).optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 export type Role = 'owner' | 'manager' | 'reception' | 'practitioner'
@@ -224,13 +275,16 @@ export function stock(s: BusinessState, productId: string) {
     .reduce((sum, m) => sum + m.quantity, 0)
 }
 export function permissionFor(command: { type: string }) {
-  if (['service', 'staff', 'resource', 'guest-notes'].includes(command.type)) return 'catalogue'
+  if (['service', 'staff', 'resource', 'guest-notes', 'offer'].includes(command.type))
+    return 'catalogue'
   if (['closure', 'remove-closure'].includes(command.type)) return 'hours'
   if (command.type === 'message-queue') return 'message.queue'
   return command.type
 }
 export const commandPermission = permissionFor
 export function can(role: Role, action: string) {
+  // Feedback comes only from the guest's own private link (V1.5).
+  if (action === 'feedback') return false
   if (role === 'owner') return true
   if (['membership', 'restore', 'organisation', 'tax'].includes(action)) return false
   if (role === 'manager') return true
@@ -243,7 +297,13 @@ export function can(role: Role, action: string) {
       'product',
       'message.queue',
       'import-clients',
+      'import-services',
+      'import-appointments',
+      'import-balances',
       'reminders',
+      'fee',
+      'protection',
+      'plan-cancel',
     ].includes(action)
   )
     return false

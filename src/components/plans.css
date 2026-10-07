@@ -1,0 +1,93 @@
+/* V1.5: packages and memberships. */
+.plan-form {
+  display: grid;
+  gap: 18px;
+}
+.plan-form .ops-actions {
+  margin-top: 4px;
+}
+.client-plans .ops-record {
+  align-items: flex-start;
+}
+.client-plans .ops-tag {
+  margin-top: 8px;
+}
+.client-plans > .button {
+  margin-top: 14px;
+  max-width: 100%;
+  white-space: normal;
+}
+.plan-controls {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.plans-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.plans-totals div {
+  padding: 16px 18px;
+  background: var(--stone);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.plans-totals dt {
+  font-size: var(--text-small);
+  color: var(--muted);
+}
+.plans-totals dd {
+  margin-top: 6px;
+  font-family: var(--font-editorial);
+  font-size: var(--text-title-m);
+  font-variant-numeric: tabular-nums;
+}
+.checkout-plans {
+  display: grid;
+  gap: 8px;
+  border: 0;
+  padding: 0;
+  margin: 4px 0;
+  min-width: 0;
+}
+.checkout-plans legend {
+  margin-bottom: 8px;
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+}
+.checkout-plans input {
+  accent-color: var(--brand-ink);
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+fieldset.checkout-plans > label {
+  flex-direction: row;
+  justify-content: flex-start;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  font-weight: var(--weight-body);
+}
+.checkout-plans label:has(input:checked) {
+  border-color: var(--brand-ink);
+  background: var(--sage);
+}
+.member-discount {
+  font-size: var(--text-small);
+  color: var(--muted);
+}
+@media (max-width: 560px) {
+  .client-plans .ops-record {
+    flex-wrap: wrap;
+  }
+  .plan-controls {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
