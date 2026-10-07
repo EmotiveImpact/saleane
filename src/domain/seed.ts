@@ -406,5 +406,62 @@ export function seed(region: Region): BusinessState {
       createdAt: `${addDays(DEMO_DATE, -2)}T10:00:00.000Z`,
     }),
   )
+  // V1.5: two gift cards on sale already, so the desk can try spending one at checkout.
+  const soldOn = addDays(DEMO_DATE, -12)
+  const lastDay = (years: number) => `${Number(soldOn.slice(0, 4)) + years}${soldOn.slice(4)}`
+  const years = region === 'US' ? 5 : 2
+  state.giftCards = [
+    {
+      ...scope,
+      id: 'gift-1',
+      code: 'LAKE-7K4M-2QHN',
+      kind: 'money' as const,
+      valueMinor: uk ? 7500 : 10000,
+      clientId: 'client-2',
+      purchaserName: state.clients.find((c) => c.id === 'client-2')!.name,
+      recipientName: 'Her sister',
+      message: 'For a quiet hour just for you.',
+      issuedOn: soldOn,
+      expiresOn: lastDay(years),
+      soldAt: `${soldOn}T11:20:00.000Z`,
+      actor: 'Sample front desk',
+      payment: {
+        id: 'gift-pay-1',
+        amountMinor: uk ? 7500 : 10000,
+        method: 'demo_card' as const,
+        recordedAt: `${soldOn}T11:20:00.000Z`,
+      },
+      redemptions: [],
+      extensions: [],
+      status: 'active' as const,
+      refunds: [],
+    },
+    {
+      ...scope,
+      id: 'gift-2',
+      code: 'SAGE-9P3T-XW5C',
+      kind: 'service' as const,
+      serviceId: 'service-facial',
+      serviceName: 'Skin Renewal Facial',
+      valueMinor: uk ? 9500 : 12500,
+      purchaserName: 'Daniel Okafor',
+      recipientName: 'Amara',
+      message: 'Happy anniversary.',
+      issuedOn: soldOn,
+      expiresOn: lastDay(years),
+      soldAt: `${soldOn}T15:05:00.000Z`,
+      actor: 'Sample front desk',
+      payment: {
+        id: 'gift-pay-2',
+        amountMinor: uk ? 9500 : 12500,
+        method: 'demo_cash' as const,
+        recordedAt: `${soldOn}T15:05:00.000Z`,
+      },
+      redemptions: [],
+      extensions: [],
+      status: 'active' as const,
+      refunds: [],
+    },
+  ]
   return parseState(state, region)
 }

@@ -1,4 +1,4 @@
-.demo-note {
+.saleane-demo-pill {
   position: fixed;
   left: 12px;
   bottom: 12px;
@@ -15,7 +15,7 @@
     system-ui,
     sans-serif;
 }
-.demo-note summary {
+.saleane-demo-pill summary {
   padding: 5px 12px;
   cursor: pointer;
   color: #4f6a56;
@@ -23,19 +23,19 @@
   letter-spacing: 0.04em;
   list-style: none;
 }
-.demo-note summary::-webkit-details-marker {
+.saleane-demo-pill summary::-webkit-details-marker {
   display: none;
 }
-.demo-note[open] {
+.saleane-demo-pill[open] {
   padding-bottom: 12px;
 }
-.demo-note p {
+.saleane-demo-pill p {
   margin: 0 12px 8px;
 }
-.demo-note a {
+.saleane-demo-pill a {
   color: #4f6a56;
 }
-.demo-note button {
+.saleane-demo-pill button {
   margin: 0 12px;
   padding: 6px 10px;
   border: 1px solid rgba(60, 72, 60, 0.2);
@@ -46,7 +46,7 @@
   cursor: pointer;
 }
 @media print {
-  .demo-note {
+  .saleane-demo-pill {
     display: none;
   }
 }

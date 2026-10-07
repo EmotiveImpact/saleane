@@ -13,6 +13,7 @@ import { TillCount } from '../components/TillCount'
 import { CardRefund } from '../components/CardPayments'
 import { CarriedBalances } from '../components/Switching'
 import { PlansLedger } from '../components/Plans'
+import { giftCards, refundableOnReceipt } from '../domain/giftCards'
 
 const methodLabel = (method: string) =>
   ({
@@ -54,7 +55,10 @@ export function Money() {
     const toCard = config.refunds
       .filter((item) => item.saleId === saleId && item.method === 'card')
       .reduce((total, item) => total + item.amountMinor, 0)
-    return Math.max(0, Math.min(sale.balanceMinor - toCard, sale.totalMinor - refundFor(saleId)))
+    return Math.max(
+      0,
+      Math.min(sale.balanceMinor - toCard, refundableOnReceipt(sale) - refundFor(saleId)),
+    )
   }
   const visit = state.appointments.find((appointment) => appointment.id === receipt?.appointmentId)
   const depositVisit = state.appointments.find((appointment) => appointment.id === depositId)
@@ -550,6 +554,21 @@ export function Money() {
               <span>Deposit applied</span>
               <strong>{format(receipt.depositAppliedMinor)}</strong>
             </div>
+            {!!receipt.coveredMinor && (
+              <div>
+                <span>Paid by a package or membership</span>
+                <strong>{format(receipt.coveredMinor)}</strong>
+              </div>
+            )}
+            {!!receipt.giftCardMinor && (
+              <div>
+                <span>
+                  Paid by gift card{' '}
+                  {giftCards(state).find((c) => c.id === receipt.giftCardId)?.code ?? ''}
+                </span>
+                <strong>{format(receipt.giftCardMinor)}</strong>
+              </div>
+            )}
             <div>
               <span>Collected at checkout</span>
               <strong>{format(receipt.balanceMinor)}</strong>
@@ -604,7 +623,7 @@ export function Money() {
                     name="amount"
                     type="number"
                     min="0.01"
-                    max={(receipt.totalMinor - refundFor(receipt.id)) / 100}
+                    max={(refundableOnReceipt(receipt) - refundFor(receipt.id)) / 100}
                     step="0.01"
                     required
                   />
@@ -671,7 +690,9 @@ export function Money() {
               <Button
                 variant="secondary"
                 disabled={
-                  !can(role, 'refund') || blocked || refundFor(receipt.id) >= receipt.totalMinor
+                  !can(role, 'refund') ||
+                  blocked ||
+                  refundFor(receipt.id) >= refundableOnReceipt(receipt)
                 }
                 onClick={() => {
                   setRefund(true)

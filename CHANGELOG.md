@@ -13,13 +13,26 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - The Ask Saleane button works in the demo in test mode: it answers from the studio's own records, and an invitation it prepares is saved as an unsent draft only after approval.
 - The house photographs travel inside the demo file, so the new booking page and the photos across the app show as they do in the real app.
 - The waitlist works in the demo with the three sample clients waiting; booking a suggested time for one of them fills it straight away.
+- Gift cards work in the demo. London's two sample cards show as paid in cash, because a real studio cannot hold simulated card payments.
 - Booking confirmations and reminders appear in test mode for the demo's studios. Nothing is sent or charged. The real app still never sends from sample studios.
 - Changes stay in that browser. Passwords use a simple stand-in there, so the demo is for showing, never for real data.
 - Checked in Chromium at desktop and phone width: Today, Calendar, Clients, Inbox, Business, Settings, a full guest booking, the guest manage page and a checkout receipt. Not checked in Safari or Firefox.
 
+## 2026-10-07 · V1.5 · Gift cards and vouchers
+
+**Status: built locally on 7 October 2026, in review; nothing deployed and no money taken.** SALEANE records gift card payments and refunds; it does not take or return money itself. [Evidence](docs/evidence/V15-GIFT.md).
+
+- A new Gift cards page under Business (owners, managers and reception) sells gift cards for an amount, or vouchers for a treatment at its price on the day. Each gets a 12-character code that is easy to read out, and the page shows the card as the guest would see it, ready to print. Cards last two years in the UK and five in the US, up to and including the anniversary.
+- At checkout the desk types a code, in any case and with or without dashes, and chooses how much to take from the card, up to what it holds and what is due after any deposit or plan. The guest pays the rest as usual, including by card through SALEANE when the studio takes cards (a saved card or a card reader is charged only the rest, and the gift card's share is held while that payment is under way, so it cannot be spent or cancelled elsewhere). The receipt, the receipt in Money and the client's timeline show what the card paid and what is left on it; a package or membership's share now shows on the Money receipt too.
+- Money paid for a card is held until it pays for a visit, so it counts as takings only then. Cash taken for cards, and cash returned when one is cancelled, is counted in the till.
+- Owners and managers can give an expired card more time, keeping the earlier date in its history, or cancel a card with an optional recorded refund up to what is left. Nothing is deleted.
+- Cards bought by a client are in their data export, its preview and the erasure review, and the studio export counts them.
+- Fix: ending a package or membership with money returned in the sample studio asked for a reference the sample screen does not show. A demo refund is now given its own reference, as gift cards are.
+- Test fix: one offline day sheet test saved a sheet dated 6 October 2026 and began failing once that sheet's real expiry passed. It now uses a time just ahead of the clock.
+
 ## 2026-10-07 · V1.5 · Waitlist
 
-**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** The waitlist never contacts anyone by itself: an offer is an Inbox draft the team approves.
+**Status: built locally on 7 October 2026 and merged (#30); nothing deployed and no message sent.** The waitlist never contacts anyone by itself: an offer is an Inbox draft the team approves.
 
 - A new Waitlist page (in the main menu, for owners, managers and reception) lists everyone waiting, longest first, with the earliest three times that suit each person read live from the diary, so a cancellation shows at once as a time someone could take. It counts how many times were filled from the list in the last 30 days and what those visits were worth.
 - Choosing a time offers two things: book it for them (or, for a guest who already has a later visit, move that visit earlier), or write an offer. An offer becomes a draft in the Inbox saying the time is not held and the first to answer gets it.

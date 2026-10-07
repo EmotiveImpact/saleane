@@ -62,7 +62,7 @@ document.addEventListener('click', (event) => {
 
 function DemoNote() {
   return (
-    <details className="demo-note">
+    <details className="saleane-demo-pill">
       <summary>Demo</summary>
       <p>Fictional studios. Nothing is sent or charged. Your changes stay in this browser.</p>
       <p>

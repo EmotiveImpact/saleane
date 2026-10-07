@@ -21,6 +21,15 @@ export function dateLabel(date: string, locale = 'en-GB', short = false) {
     day: 'numeric',
   }).format(new Date(`${date}T12:00:00Z`))
 }
+/** A date with its year, for dates that may be more than a year away ("5 October 2028"). */
+export function fullDateLabel(date: string, locale = 'en-GB') {
+  return new Intl.DateTimeFormat(locale, {
+    timeZone: 'UTC',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(`${date}T12:00:00Z`))
+}
 export function timeLabel(minutes: number, locale = 'en-GB') {
   return new Intl.DateTimeFormat(locale, {
     timeZone: 'UTC',

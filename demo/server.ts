@@ -7,7 +7,7 @@ import { DEMO_DATE } from '../src/domain/model'
 import { exportDatabase, initSqlite } from './shims/sqlite'
 
 const ORIGIN = 'http://saleane.demo'
-const STORE = 'saleane.demo.database.v6'
+const STORE = 'saleane.demo.database.v7'
 export const DEMO_EMAIL = 'owner@atelier.demo'
 export const DEMO_PASSWORD = 'saleane-demo-2026'
 
@@ -16,7 +16,7 @@ let api: ApiHandler
 
 function saved(): Uint8Array | undefined {
   try {
-    for (const old of ['v1', 'v2', 'v3', 'v4', 'v5'])
+    for (const old of ['v1', 'v2', 'v3', 'v4', 'v5', 'v6'])
       localStorage.removeItem(`saleane.demo.database.${old}`)
     const text = localStorage.getItem(STORE)
     return text ? Buffer.from(text, 'base64') : undefined
@@ -95,6 +95,7 @@ function makeTestModeStudio(orgId: string) {
     payments: unknown[]
     events: { saleId?: string; type?: string }[]
     counterSales?: unknown[]
+    giftCards?: { payment: { method: string }; refunds: { method: string }[] }[]
   }
   state.operations.mode = 'local'
   // A real studio follows the real calendar, so move the sample's 6 October day to today.
@@ -116,6 +117,10 @@ function makeTestModeStudio(orgId: string) {
       (movement) => !movement.saleId && !movement.counterSaleId,
     )
   if (state.counterSales) state.counterSales = []
+  // The sample gift cards were paid with simulated cards; a real studio records them as cash.
+  for (const card of state.giftCards ?? [])
+    for (const record of [card.payment, ...card.refunds])
+      if (record.method.startsWith('demo_')) record.method = 'cash'
   state.sales = []
   state.payments = []
   state.events = state.events.filter((event) => !event.saleId)
