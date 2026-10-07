@@ -22,6 +22,17 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Business shows products sold beside service revenue, kept apart from it. Receipts in Money, the client timeline and the client's data export list the products.
 - The ledger checks that every receipt's products match the stock that left, line by line.
 
+## 2026-10-07 · A smoother booking page and the house photographs
+
+Look and flow only; booking rules, holds, prices and deposits are unchanged.
+
+- On phones and narrow screens, the studio photo greets guests on the first step only; later steps open straight on the task, and each step starts at the top of the page.
+- Times show one part of the day at a time (Morning, Afternoon, Evening, each with its count), opening on the part that holds the chosen time or else the earliest. The staff booking dialogs still show the full day.
+- On phones, the bar with the treatment, price and Continue button stays at the bottom of the screen while the guest scrolls.
+- The chosen time and chosen day use the studio's own colour instead of black, here and in the staff app.
+- The owner's 12 chosen house photographs (AI-generated, fictional rooms and details, from the photo set in #15) are in the app, matching the prototype: the sunlit treatment room in the Today greeting, a cup of tea on "Saleane noticed", a calm studio strip on Calendar, window light above Clients, the studio entrance on the booking pages, and on Business a "Your booking page" card (reception and one photo per treatment) beside a "Closing up" card in late-afternoon light that counts today's visits still to check out from real records. Empty pages ("No clients found", page not found) carry stacked towels. The manicure photo is ready for nail treatments; the demo studios have none yet.
+- The demo booking page offers "Anyone available" first when more than one professional does the treatment, combining their times; the visit goes to the first professional free at the chosen time. The real guest page already offered "No preference · first available".
+
 ## 2026-10-07 · Lumane · Assistant engine and first Ask Saleane skills
 
 **Status: built locally on 7 October 2026, in review; no real AI connected yet.** Everything runs with a test-mode brain that recognises a few plain questions and answers from the studio record, so nothing is sent to an AI supplier and nothing costs money. Talking (voice), guest chat and the ChatGPT and Claude connection come later.

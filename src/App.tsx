@@ -301,7 +301,7 @@ function WorkspaceApp() {
             <Route
               path="*"
               element={
-                <div className="empty">
+                <div className="empty empty-photo">
                   <h1>This page isn’t here.</h1>
                   <Link to="/today">Return to Today</Link>
                 </div>
