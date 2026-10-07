@@ -328,6 +328,19 @@ describe('patch tests', () => {
       expect.objectContaining({ result: 'clear', doneBy: 'Theo Bennett' }),
     ])
     expect(clientExportText(file)).toContain('2026-09-27 · Gloss toner 9.1')
+    // Who did a test is never guessed from who wrote it down.
+    const unknown = apply(seed('UK'), {
+      type: 'patch-test',
+      input: {
+        clientId: 'client-9',
+        testedAt: '2026-10-01T10:00:00.000Z',
+        product: 'Toner',
+        notes: '',
+      },
+    })
+    expect(clientExport(unknown, 'client-9', {} as never).patchTests).toEqual([
+      expect.objectContaining({ doneBy: 'Not recorded' }),
+    ])
     expect(previewClientExport(file).sections).toContainEqual({ label: 'Patch tests', count: 1 })
     expect(JSON.stringify(erasureReview(s, 'client-3', '2026-10-06'))).toContain('Patch tests')
   })
