@@ -6,7 +6,7 @@ import { can, operations } from '../../src/domain/operations'
 import type { BusinessState } from '../../src/domain/model'
 import type { Context, Org, Route } from '../context'
 import { TEST_CARDS } from '../payments/providers'
-import { balanceDue, feeAllowed, guestPaymentFor } from '../payments/service'
+import { balanceDue, feeAllowed, giftCardHoldProblem, guestPaymentFor } from '../payments/service'
 import type { AttemptRow, CardRow, Payments } from '../payments/service'
 import { openGuestLink, tokenSchema } from './guest'
 
@@ -45,6 +45,7 @@ function cardView(row: CardRow) {
 function rehearse(org: Org, command: Command) {
   const result = dispatch(org.state, command, 'Card payment', new Date().toISOString())
   if (!result.ok) fail(422, result.error)
+  return result.ok ? result.state : org.state
 }
 
 function cardRefundable(s: BusinessState, target: { saleId?: string; paymentId?: string }) {
@@ -347,8 +348,8 @@ export function paymentRoutes(payments: Payments) {
             balanceDue(fresh.state, a.id, data.tipMinor, data.discountMinor, data.giftCardMinor) ??
             0
           // The rehearsal checks the gift card can pay its share now.
-          if (expected > 0)
-            rehearse(fresh, {
+          if (expected > 0) {
+            const after = rehearse(fresh, {
               type: 'checkout',
               appointmentId: a.id,
               tipMinor: data.tipMinor,
@@ -358,6 +359,9 @@ export function paymentRoutes(payments: Payments) {
                 : {}),
               ...placeholder,
             })
+            const held = giftCardHoldProblem(ctx, fresh.id, after)
+            if (held) fail(409, held)
+          }
         } else if (data.purpose === 'deposit') {
           expected =
             a.status === 'confirmed'

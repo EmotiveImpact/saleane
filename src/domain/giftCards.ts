@@ -130,11 +130,6 @@ function paidWith(method: string, mode: string) {
     ? 'Recorded as cash received.'
     : 'Recorded as paid at an external terminal. SALEANE did not process a payment.'
 }
-function dayBefore(date: string) {
-  const value = new Date(`${date}T12:00:00Z`)
-  value.setUTCDate(value.getUTCDate() - 1)
-  return value.toISOString().slice(0, 10)
-}
 
 export function runGiftCardCommand(
   next: BusinessState,
@@ -176,7 +171,8 @@ export function runGiftCardCommand(
       recipientName: input.recipientName,
       message: input.message,
       issuedOn: today,
-      expiresOn: dayBefore(addMonths(today, giftCardMonths(next))),
+      // The last day is the anniversary itself: US rules keep the money for at least five years.
+      expiresOn: addMonths(today, giftCardMonths(next)),
       soldAt: now,
       actor: '',
       payment: {

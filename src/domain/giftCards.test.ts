@@ -73,14 +73,14 @@ describe('gift cards and vouchers', () => {
     expect(giftCodeSchema.safeParse(card.code).success).toBe(true)
     expect(card.valueMinor).toBe(5000)
     expect(card.issuedOn).toBe('2026-10-06')
-    expect(card.expiresOn).toBe('2028-10-05')
+    expect(card.expiresOn).toBe('2028-10-06')
     expect(card.payment).toMatchObject({ amountMinor: 5000, method: 'cash' })
     expect(giftStanding(card, '2026-10-06')).toMatchObject({ state: 'active', balanceMinor: 5000 })
   })
 
   it('lasts five years in the US, the shortest federal rules allow', () => {
     const s = apply(local('US'), sellMoney(5000))
-    expect(giftCards(s)[0].expiresOn).toBe('2031-10-05')
+    expect(giftCards(s)[0].expiresOn).toBe('2031-10-06')
   })
 
   it('makes a voucher worth the treatment’s price on the day it is sold', () => {

@@ -408,8 +408,7 @@ export function seed(region: Region): BusinessState {
   )
   // V1.5: two gift cards on sale already, so the desk can try spending one at checkout.
   const soldOn = addDays(DEMO_DATE, -12)
-  const lastDay = (years: number) =>
-    `${Number(soldOn.slice(0, 4)) + years}${addDays(soldOn, -1).slice(4)}`
+  const lastDay = (years: number) => `${Number(soldOn.slice(0, 4)) + years}${soldOn.slice(4)}`
   const years = region === 'US' ? 5 : 2
   state.giftCards = [
     {

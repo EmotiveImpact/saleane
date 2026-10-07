@@ -8,6 +8,8 @@ import { feeAllowed } from '../../src/domain/fees'
 export { feeAllowed }
 import { operations, visitTax } from '../../src/domain/operations'
 import type { BusinessState } from '../../src/domain/model'
+import { giftCards, giftStanding } from '../../src/domain/giftCards'
+import { money } from '../../src/domain/format'
 import type { Context, Org } from '../context'
 import { HOSTED_MINUTES } from './providers'
 import type { PayOutcome, PaymentEvent, PaymentProvider, SavedCardDetails } from './providers'
@@ -300,6 +302,33 @@ export function createPayments(ctx: Context, provider: PaymentProvider) {
   return { provider, processor, get, update, cards, create, settle, succeed, apply, visit }
 }
 export type Payments = ReturnType<typeof createPayments>
+
+/**
+ * A card payment still under way holds the gift card share it was started with, so nothing else
+ * can spend or cancel that money before the payment lands. Returns why `state` breaks a hold.
+ */
+export function giftCardHoldProblem(
+  ctx: Context,
+  organisationId: string,
+  state: BusinessState,
+  exceptAttemptId?: string,
+) {
+  const held = ctx.db.all<{ gift_card_id: string; held: number }>(
+    `SELECT gift_card_id, SUM(gift_card_minor) AS held FROM payment_attempts
+     WHERE organisation_id=? AND gift_card_id IS NOT NULL AND id<>? AND route IN ('saved_card','reader')
+     AND status IN ('started','processing','unknown') GROUP BY gift_card_id`,
+    organisationId,
+    exceptAttemptId ?? '',
+  )
+  for (const row of held) {
+    const card = giftCards(state).find((c) => c.id === row.gift_card_id)
+    if (!card) continue
+    const standing = giftStanding(card, '0000-00-00')
+    if (card.status === 'cancelled' || standing.balanceMinor < row.held)
+      return `${money(row.held, state.organisation, true)} on gift card ${card.code} is held for a card payment that is still under way. Finish or check that payment first.`
+  }
+  return null
+}
 
 /** The payment part of a guest's view, read with the server's provider and saved cards. */
 export function guestPaymentFor(ctx: Context, org: Org, appointmentId: string) {

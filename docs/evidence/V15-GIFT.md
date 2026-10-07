@@ -5,7 +5,7 @@ Recorded 7 October 2026 in Chromium (Playwright) against the built app (`npm run
 ## What was exercised
 
 - **Gift cards page (owner, 1280px and 390px):** Business › Gift cards shows the two sample cards (a £75 gift card bought by Olivia James for her sister, and a Skin Renewal Facial voucher worth £95), with what is waiting to be spent, what has been spent at visits and what was sold in total.
-- **Sell:** "Sell a gift card" with an amount of £60, a buyer's name, who it is for and a message records a demo payment and shows the card as the guest would see it, with its 12-character code and last day (two years less a day in the UK), ready to read out or print.
+- **Sell:** "Sell a gift card" with an amount of £60, a buyer's name, who it is for and a message records a demo payment and shows the card as the guest would see it, with its 12-character code and last day (two years on in the UK, five in the US), ready to read out or print.
 - **Spend at checkout:** on Amelia's £95 facial with a £25 deposit, the code typed in lower case with spaces is accepted, the card offers its full £60, and the balance to collect drops to £10. The receipt shows "Paid by gift card" with the code, and the card then reads "Used up" with the visit and receipt in its history.
 - **Give more time:** the owner moves the voucher's last day six months later; the history keeps the earlier date and who changed it.
 - **Cancel:** the owner cancels the £75 card, returning £75 by demo card; the card reads "Cancelled · £0.00 left" with the refund and reason in its history. A used-up card offers no actions.
