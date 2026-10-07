@@ -8,6 +8,7 @@ import type { Role } from '../../src/domain/operations'
 import { emailSchema, roleSchema } from '../context'
 import type { Context, Route } from '../context'
 import { practitionerRefusal } from '../../src/domain/practitioner'
+import { openingFree } from '../../src/domain/waitlist'
 import { workspaceView } from '../projections'
 import type { Reader } from '../projections'
 import { issueGuestLink, revokeGuestLinks } from './guest'
@@ -110,6 +111,21 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
           )
           if (!resourceId) fail(409, 'This time is reserved or unavailable. Choose another time.')
           command = { ...command, resourceId }
+        } else if (command.type === 'waitlist-offer') {
+          // An offer must not describe a time another guest is holding while they book.
+          const held = withHolds(org)
+          const { entryId, date, startMinutes, staffId } = command
+          const entry = held.waitlist?.find((e) => e.id === entryId)
+          if (
+            entry &&
+            !openingFree(
+              held,
+              entry,
+              { date, startMinutes, staffId },
+              new Date(now()).toISOString(),
+            )
+          )
+            fail(409, 'This time is reserved or unavailable. Choose another time.')
         }
         const result = dispatch(org.state, command, actor.name, new Date(now()).toISOString())
         if (!result.ok) fail(422, result.error)

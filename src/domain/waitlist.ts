@@ -233,12 +233,52 @@ function entryFor(next: BusinessState, entryId: string) {
   return entry
 }
 
-function remove(entry: WaitlistEntry, reason: string, now: string, addEvent: AddEvent) {
+/**
+ * When a request ends, offers written for it that are not yet sent are withdrawn, so nobody can
+ * approve a time the client no longer wants (or already has).
+ */
+function retireOffers(next: BusinessState, entry: WaitlistEntry) {
+  const ids = new Set((entry.offers ?? []).map((o) => o.messageId))
+  if (!ids.size || !next.operations) return
+  for (const message of next.operations.messages)
+    if (ids.has(message.id) && message.status !== 'suppressed') message.status = 'suppressed'
+}
+
+/** Whether a message is an offer from a request that has since ended (approving it is refused). */
+export function withdrawnOffer(s: BusinessState, messageId: string) {
+  return waitlistList(s).some(
+    (e) => e.status !== 'waiting' && e.offers?.some((o) => o.messageId === messageId),
+  )
+}
+
+/**
+ * After the desk moves a guest's visit to another professional, a request to come in sooner with
+ * "their" professional follows the visit, so it matches what the guest's page shows.
+ */
+export function followMovedVisit(next: BusinessState, appointment: Appointment) {
+  for (const entry of next.waitlist ?? [])
+    if (
+      entry.status === 'waiting' &&
+      entry.appointmentId === appointment.id &&
+      entry.staffId &&
+      entry.staffId !== appointment.staffId
+    )
+      entry.staffId = appointment.staffId
+}
+
+function remove(
+  next: BusinessState,
+  entry: WaitlistEntry,
+  reason: string,
+  now: string,
+  addEvent: AddEvent,
+) {
   if (entry.status === 'removed') return entry.id
   if (entry.status !== 'waiting') throw new Error('This entry has already been booked.')
   entry.status = 'removed'
   entry.closedAt = now
   entry.removedReason = reason
+  retireOffers(next, entry)
   addEvent({
     clientId: entry.clientId,
     appointmentId: entry.appointmentId,
@@ -326,7 +366,7 @@ export function runWaitlistCommand(
     const earlier = (next.waitlist ?? []).find(
       (e) => isOpen(next, e, now) && e.appointmentId === input.appointmentId,
     )
-    if (earlier) remove(earlier, 'The guest changed what times suit them.', now, addEvent)
+    if (earlier) remove(next, earlier, 'The guest changed what times suit them.', now, addEvent)
     return add(next, input, 'guest', now, makeId, addEvent)
   }
   if (command.type === 'waitlist-leave') {
@@ -334,10 +374,10 @@ export function runWaitlistCommand(
       (e) => isOpen(next, e, now) && e.appointmentId === command.appointmentId,
     )
     if (!entry) throw new Error('You are not on the waitlist for this visit.')
-    return remove(entry, 'The guest no longer wants an earlier time.', now, addEvent)
+    return remove(next, entry, 'The guest no longer wants an earlier time.', now, addEvent)
   }
   const entry = entryFor(next, command.entryId)
-  if (command.type === 'waitlist-remove') return remove(entry, command.reason, now, addEvent)
+  if (command.type === 'waitlist-remove') return remove(next, entry, command.reason, now, addEvent)
   // waitlist-offer: a draft for the team to approve in the Inbox; nothing is sent from here.
   const opening = {
     date: command.date,
@@ -409,6 +449,7 @@ export function fillFromWaitlist(
   entry.status = 'booked'
   entry.closedAt = now
   entry.outcomeAppointmentId = appointment.id
+  retireOffers(next, entry)
 }
 
 /** A guest's wish to come in sooner ends if the visit it was for is cancelled. */
@@ -418,6 +459,7 @@ export function closeForCancelledVisit(next: BusinessState, appointmentId: strin
       entry.status = 'removed'
       entry.closedAt = now
       entry.removedReason = 'Their visit was cancelled.'
+      retireOffers(next, entry)
     }
 }
 

@@ -5,6 +5,7 @@ import type { ApiHandler } from './app'
 import type { BusinessState } from '../src/domain/model'
 import type { Command } from '../src/domain/commands'
 import type { GuestView } from '../src/domain/guest'
+import { openings } from '../src/domain/waitlist'
 
 // V1.5: a guest asks to come in sooner from their own link. Only that link can join or leave;
 // the desk adds, books and removes, and never sees more than the studio's own waitlist.
@@ -206,5 +207,23 @@ describe('guest waitlist', () => {
     expect(booked.statusCode, booked.body).toBe(200)
     state = (await studio(owner)).state
     expect(state.waitlist!.find((e) => e.id === entry.id)!.status).toBe('booked')
+  })
+
+  it('will not offer a time another guest is holding while they book', async () => {
+    const owner = await register()
+    const { slug, state } = await studio(owner)
+    const entry = state.waitlist!.find((e) => e.staffId === 'staff-maya')!
+    const [first, second] = openings(state, entry, new Date(clock).toISOString())
+    const held = await api.inject({
+      method: 'POST',
+      url: `/api/public/${slug}/holds`,
+      payload: { serviceId: entry.serviceId, ...first },
+    })
+    expect(held.statusCode, held.body).toBe(201)
+    const offer = (opening: typeof first) =>
+      run(owner, state.revision, { type: 'waitlist-offer', entryId: entry.id, ...opening })
+    expect((await offer(first)).statusCode).toBe(409)
+    const ok = await offer(second)
+    expect(ok.statusCode, ok.body).toBe(200)
   })
 })

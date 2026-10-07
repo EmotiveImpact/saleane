@@ -427,4 +427,42 @@ describe('waitlist', () => {
       }).ok,
     ).toBe(false)
   })
+
+  it('withdraws unsent offers when a request ends, and refuses to approve them', () => {
+    const s = seed('UK')
+    const entry = waiting(s)[0]
+    const offered = apply(s, {
+      type: 'waitlist-offer',
+      entryId: entry.id,
+      ...openings(s, entry, now)[0],
+    })
+    const messageId = offered.waitlist!.find((e) => e.id === entry.id)!.offers![0].messageId
+    const removed = apply(offered, {
+      type: 'waitlist-remove',
+      entryId: entry.id,
+      reason: 'Found a time elsewhere',
+    })
+    expect(operations(removed).messages.find((m) => m.id === messageId)!.status).toBe('suppressed')
+    expect(run(removed, { type: 'message-queue', messageId }).ok).toBe(false)
+    // While the request is open the offer can be approved as usual.
+    expect(run(offered, { type: 'message-queue', messageId }).ok).toBe(true)
+  })
+
+  it('keeps a guest’s chosen professional in step when the desk moves their visit to someone else', () => {
+    const { s, visit } = withLaterVisit()
+    const joined = apply(s, {
+      type: 'waitlist-join',
+      appointmentId: visit.id,
+      anyone: false,
+      times: [],
+    })
+    const moved = apply(joined, {
+      type: 'reschedule',
+      appointmentId: visit.id,
+      date: visit.date,
+      startMinutes: visit.startMinutes,
+      staffId: 'staff-sophia',
+    })
+    expect(waiting(moved).find((e) => e.appointmentId === visit.id)!.staffId).toBe('staff-sophia')
+  })
 })
