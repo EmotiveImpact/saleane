@@ -290,6 +290,33 @@ describe('waitlist', () => {
     expect(RETENTION_REGISTER.some((r) => r.record === 'Waitlist requests')).toBe(true)
   })
 
+  it('finds nothing in a long window when the professional is away throughout', () => {
+    let s = seed('UK')
+    for (let day = 0; day < 90; day++)
+      s = apply(s, {
+        type: 'closure',
+        input: {
+          date: addDays('2026-10-07', day),
+          staffId: 'staff-theo',
+          startMinutes: 0,
+          endMinutes: 1440,
+          reason: 'Away',
+        },
+      })
+    s = apply(s, {
+      type: 'waitlist-add',
+      input: {
+        ...wish,
+        clientId: 'client-2',
+        serviceId: 'service-cut',
+        staffId: 'staff-theo',
+        toDate: addDays('2026-10-07', 89),
+        times: [],
+      },
+    })
+    expect(openings(s, s.waitlist!.at(-1)!, now)).toEqual([])
+  })
+
   it('searches the whole window, not only the first month', () => {
     let s = seed('UK')
     // Theo is away for the first 40 days; the only times are later in the window.

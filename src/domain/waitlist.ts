@@ -2,7 +2,7 @@ import type { Command } from './commandSchema'
 import type { Appointment, BusinessState, RelationshipEvent } from './model'
 import { availableAllocation } from './allocation'
 import { addDays, dateLabel, timeLabel } from './format'
-import { businessDate, operations } from './operations'
+import { businessDate, hoursFor, operations, staffHoursFor } from './operations'
 import { WAITLIST_MAX_DAYS } from './waitlistSchema'
 import type { WaitlistEntry, WaitlistInput, WaitlistTime } from './waitlistSchema'
 
@@ -134,9 +134,27 @@ export function openings(s: BusinessState, entry: WaitlistEntry, now: string, li
   for (let day = 0; day < WAITLIST_MAX_DAYS && found.length < limit; day++) {
     const date = addDays(first, day)
     if (date > last) break
-    for (let start = 0; start < 1440 && found.length < limit; start += 15) {
+    // Only the hours someone on the team is working that day are tried, so a full diary over a long
+    // window costs a few thousand checks rather than every quarter hour of every day.
+    const studio = hoursFor(s, date)
+    if (!studio || studio.closed) continue
+    const working = team
+      .map((p) => ({ p, h: staffHoursFor(s, p.id, date) }))
+      .filter(({ h }) => h && !h.closed)
+      .map(({ p, h }) => ({
+        p,
+        open: Math.max(studio.open, h.open),
+        close: Math.min(studio.close, h.close),
+      }))
+      .filter((w) => w.open < w.close)
+    if (!working.length) continue
+    const from = Math.ceil(Math.min(...working.map((w) => w.open)) / 15) * 15
+    const to = Math.max(...working.map((w) => w.close))
+    for (let start = from; start < to && found.length < limit; start += 15) {
       if (entry.times.length && !entry.times.includes(timeOfDay(start))) continue
-      const person = team.find((p) => free(s, entry, p.id, date, start, now))
+      const person = working.find(
+        (w) => start >= w.open && start < w.close && free(s, entry, w.p.id, date, start, now),
+      )?.p
       if (person) found.push({ date, startMinutes: start, staffId: person.id })
     }
   }
