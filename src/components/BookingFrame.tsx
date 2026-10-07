@@ -6,7 +6,7 @@ import '../booking.css'
 
 /**
  * The guest booking page's frame: the studio photograph that stays in place while
- * the guest books, a softly frosted card for the welcome so it reads on any photo,
+ * the guest books, a feathered blur behind the welcome so it reads on any photo,
  * and, for the studio's own team only, a preview bar kept apart from the page.
  */
 export function BookingFrame({
