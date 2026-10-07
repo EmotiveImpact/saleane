@@ -94,6 +94,21 @@ describe('Ask Saleane on the server', () => {
     })
   })
 
+  it('reads a follow-up against a short conversation, and refuses a long one', async () => {
+    const owner = await register('history@example.invalid')
+    const first = (await ask(owner, "Who's my 2pm?")).json<Answer>()
+    const history = [
+      { from: 'you', text: "Who's my 2pm?" },
+      { from: 'saleane', text: first.text },
+    ]
+    const after = await post(owner, '/assistant', { text: 'and after her?', history })
+    expect(after.statusCode, after.body).toBe(200)
+    expect(after.json<Answer>().text).toMatch(/^16:00: Isabel Wilson/)
+    const long = Array.from({ length: 7 }, () => ({ from: 'you', text: 'Hello' }))
+    const refused = await post(owner, '/assistant', { text: 'and after her?', history: long })
+    expect(refused.statusCode).toBe(400)
+  })
+
   it('stops asking once the monthly allowance is used, without calling the brain', async () => {
     const owner = await register('owner@example.invalid')
     api.database.run(

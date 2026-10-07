@@ -3,7 +3,7 @@ import { current, decide, record } from '../../lumane'
 import type { PendingProposal, Usage } from '../../lumane'
 import { fail } from '../http'
 import type { Context, Route } from '../context'
-import { TYPED_WORST_CASE_MINOR, askSaleane } from '../../src/assistant/ask'
+import { HISTORY_TURNS, TYPED_WORST_CASE_MINOR, askSaleane } from '../../src/assistant/ask'
 import { ALLOWANCES } from '../../src/assistant/saleane'
 import type { Command } from '../../src/domain/commands'
 
@@ -45,8 +45,16 @@ export function assistantRoutes() {
     }
     if (path.length === 4 && method === 'POST') {
       ctx.rateLimit(request, 'assistant', 30, 60000)
-      const { text } = z
-        .object({ text: z.string().trim().min(1).max(500) })
+      const { text, history } = z
+        .object({
+          text: z.string().trim().min(1).max(500),
+          history: z
+            .array(
+              z.object({ from: z.enum(['you', 'saleane']), text: z.string().max(2000) }).strict(),
+            )
+            .max(HISTORY_TURNS)
+            .optional(),
+        })
         .strict()
         .parse(body)
       const result = await askSaleane({
@@ -54,6 +62,7 @@ export function assistantRoutes() {
         role: org.role,
         personId: actor.id,
         text,
+        history,
         usage: stored(),
         at,
         allowance,

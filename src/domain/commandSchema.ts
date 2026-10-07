@@ -1,5 +1,7 @@
 import { z } from 'zod'
 import { offerInputSchema } from './plansSchema'
+import { specialInputSchema } from './specialsSchema'
+import { taskInputSchema } from './tasksSchema'
 import { waitlistInputSchema, waitlistTimesSchema } from './waitlistSchema'
 import { giftCardInputSchema } from './giftCardsSchema'
 import {
@@ -409,6 +411,21 @@ export const commandSchema = z.discriminatedUnion('type', [
     method: method.optional(),
     reference: z.string().trim().max(150).optional(),
   }),
+  // Ask Saleane: several desk changes approved together, applied together or not at all. Only
+  // moving, cancelling, closing time and unsent drafts, so no money moves in a batch.
+  z.object({
+    type: z.literal('batch'),
+    label: z.string().trim().min(2).max(200),
+    commands: z
+      .array(z.looseObject({ type: z.enum(['reschedule', 'cancel', 'closure', 'message']) }))
+      .min(1)
+      .max(40),
+  }),
+  // V3: planning a special records it; nothing is sent and no price changes.
+  z.object({ type: z.literal('special-plan'), input: specialInputSchema }),
+  z.object({ type: z.literal('task-add'), input: taskInputSchema }),
+  z.object({ type: z.literal('task-done'), taskId: id }),
+  z.object({ type: z.literal('special-stop'), specialId: id }),
   z.object({
     type: z.literal('gift-card-sell'),
     input: giftCardInputSchema,

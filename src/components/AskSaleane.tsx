@@ -3,9 +3,10 @@ import type { FormEvent } from 'react'
 import { Check, Sparkles } from 'lucide-react'
 import { current, decide } from '../../lumane'
 import type { PendingProposal, Usage } from '../../lumane'
-import { askSaleane } from '../assistant/ask'
+import { HISTORY_TURNS, askSaleane } from '../assistant/ask'
 import { ALLOWANCES } from '../assistant/saleane'
 import type { Command } from '../domain/commands'
+import { nudges } from '../domain/nudges'
 import { api } from '../state/api'
 import { useStore } from '../state/context'
 import { Button, Modal } from '../design'
@@ -17,7 +18,12 @@ type Entry =
   | { id: string; from: 'you'; text: string }
   | { id: string; from: 'saleane'; text: string; suggestions: Suggestion[] }
 
-const STARTERS = ["What's on today?", 'Who is due back?', 'How much did we take this week?']
+const STARTERS = [
+  'Give me my morning brief',
+  "Who's my 10 o'clock?",
+  'Anything I should be planning?',
+  'How did we do today?',
+]
 const usageKey = (orgId: string) => `saleane.ask-usage.v1.${orgId}`
 
 /**
@@ -26,9 +32,11 @@ const usageKey = (orgId: string) => `saleane.ask-usage.v1.${orgId}`
  * changes the record is a suggestion until approved, and is then saved like any desk change.
  */
 export function AskSaleane({ onClose }: { onClose: () => void }) {
-  const { state, mode, slug, session, role, commit } = useStore()
+  const { state, mode, slug, session, role, commit, today } = useStore()
   const orgId = session?.workspaces.find((w) => w.slug === slug)?.id
   const [entries, setEntries] = useState<Entry[]>([])
+  // What Saleane mentions first, read once when the panel opens.
+  const [opening] = useState(() => nudges(state, role, today, new Date().toISOString()))
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -57,6 +65,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
     setError('')
     setText('')
     const id = crypto.randomUUID()
+    const history = entries.slice(-HISTORY_TURNS).map((e) => ({ from: e.from, text: e.text }))
     setEntries((list) => [...list, { id, from: 'you', text: trimmed }])
     try {
       let answer: { text: string; proposals: { id: string; summary: string }[] }
@@ -65,7 +74,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
           text: string
           proposals: { id: string; summary: string }[]
           usage: { used: { typed: number }; allowance: { typed: number } }
-        }>(base, { method: 'POST', body: { text: trimmed } })
+        }>(base, { method: 'POST', body: { text: trimmed, history } })
         setMeter({ used: r.usage.used.typed, allowance: r.usage.allowance.typed })
         answer = r
       } else {
@@ -75,6 +84,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
           role,
           personId: 'demo',
           text: trimmed,
+          history,
           usage: demoUsage(state.organisation.id),
           at,
         })
@@ -174,6 +184,23 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
           is sent.
         </p>
         <div className="ask-thread" aria-live="polite">
+          {!entries.length && opening.length > 0 && (
+            <div className="ask-nudges">
+              <span className="ask-name">
+                <Sparkles size={14} aria-hidden="true" /> Saleane noticed
+              </span>
+              <ul>
+                {opening.map((n) => (
+                  <li key={n.id}>
+                    <p>{n.text}</p>
+                    <button className="ask-starter" onClick={() => void ask(n.ask)}>
+                      {n.ask}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {!entries.length && (
             <div className="ask-starters">
               {STARTERS.map((starter) => (

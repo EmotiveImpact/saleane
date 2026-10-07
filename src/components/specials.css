@@ -1,0 +1,114 @@
+/* V3 specials, the assistant manager on Today. No left-edge stripes. */
+.specials-panel {
+  margin-top: 20px;
+  padding: 24px;
+  background: var(--palette-white);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius);
+  color: var(--ink);
+}
+.specials-symbol {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  color: var(--brand-ink);
+  font-size: var(--text-eyebrow);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.specials-panel h2 {
+  margin: 0 0 6px;
+  font-family: var(--font-editorial);
+  font-size: 26px;
+  font-weight: var(--weight-editorial);
+  line-height: 1.15;
+}
+.specials-intro {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-meta);
+  line-height: 1.5;
+}
+.specials-panel ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.specials-panel li {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 0;
+}
+.specials-panel li + li {
+  border-top: 1px solid var(--line2);
+}
+.specials-panel li > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.specials-panel strong {
+  font-size: var(--text-meta);
+}
+.specials-panel li p {
+  margin: 0;
+  font-size: var(--text-meta);
+  line-height: 1.5;
+}
+.specials-panel small {
+  color: var(--muted);
+  font-size: var(--text-micro);
+  line-height: 1.5;
+}
+.specials-panel .specials-ideas {
+  margin-top: 8px;
+}
+.specials-effect {
+  color: var(--brand-ink);
+}
+.specials-idea {
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--brand) 7%, var(--stone));
+  border-radius: var(--radius-inner);
+}
+.specials-idea span {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--brand-ink);
+  font-size: var(--text-eyebrow);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.specials-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.specials-planned {
+  margin-top: 16px;
+  padding: 14px 16px 12px;
+  background: color-mix(in srgb, var(--brand) 5%, var(--stone));
+  border-radius: var(--radius-inner);
+}
+.specials-planned h3 {
+  margin: 0;
+  color: var(--brand-ink);
+  font-size: var(--text-eyebrow);
+  font-weight: var(--weight-strong);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.specials-planned li {
+  padding: 12px 0;
+}
+.specials-note {
+  display: block;
+  margin-top: 12px;
+}
+.specials-error {
+  margin: 12px 0 0;
+  color: var(--danger);
+  font-size: var(--text-meta);
+}

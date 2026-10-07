@@ -23,6 +23,8 @@ import {
 } from './patchTests'
 import { referenceTaken } from './references'
 import { recordFeedback, repeatedFeedback } from './feedback'
+import { planSpecial, stopSpecial } from './specials'
+import { addTask, completeTask } from './tasks'
 import { priceRetail, recordRetailMovements, retailCharge, sellAtCounter } from './retail'
 import {
   closeForCancelledVisit,
@@ -147,6 +149,22 @@ export function execute(
 ): CommandResult {
   try {
     const command = commandSchema.parse(rawCommand)
+    if (command.type === 'batch') {
+      let current = s
+      let recordId = ''
+      for (const part of command.commands) {
+        const result = execute(current, part as Command, now, makeId)
+        if (!result.ok) return result
+        current = result.state
+        recordId = result.recordId
+      }
+      if (current === s) return { ok: true, state: s, recordId }
+      return {
+        ok: true,
+        state: parseState({ ...current, revision: s.revision + 1 }, s.organisation.region),
+        recordId,
+      }
+    }
     const next = structuredClone(s)
     const org = s.organisation
     const addEvent = (
@@ -619,6 +637,16 @@ export function execute(
       const same = repeatedFeedback(s, command)
       if (same) return { ok: true, state: s, recordId: same.id }
       recordId = recordFeedback(next, command, now, makeId)
+    } else if (command.type === 'special-plan') {
+      recordId = planSpecial(next, command.input, now, makeId)
+    } else if (command.type === 'special-stop') {
+      recordId = stopSpecial(next, command.specialId, businessDate(s, now))
+    } else if (command.type === 'task-add') {
+      recordId = addTask(next, command.input, businessDate(s, now), now, makeId)
+    } else if (command.type === 'task-done') {
+      const task = (s.tasks ?? []).find((x) => x.id === command.taskId)
+      if (task?.doneAt) return { ok: true, state: s, recordId: task.id }
+      recordId = completeTask(next, command.taskId, now)
     } else if (
       command.type === 'offer' ||
       command.type === 'plan-sell' ||
@@ -674,6 +702,8 @@ export function dispatch(
       e.actor = actorName
     })
   stampPlanActors(s, result.state, actorName)
+  const tasks = new Set((s.tasks ?? []).map((x) => x.id))
+  for (const task of result.state.tasks ?? []) if (!tasks.has(task.id)) task.createdBy = actorName
   const sold = new Set((s.counterSales ?? []).map((sale) => sale.id))
   for (const sale of result.state.counterSales ?? []) if (!sold.has(sale.id)) sale.actor = actorName
   stampGiftCardActors(s, result.state, actorName)

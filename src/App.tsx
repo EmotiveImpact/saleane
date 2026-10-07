@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import {
   CalendarDays,
@@ -19,6 +19,7 @@ import { useStore } from './state/context'
 import { useStudioColours } from './state/studioColours'
 import { operations } from './domain/operations'
 import { staleOffer } from './domain/waitlist'
+import { nudges } from './domain/nudges'
 import { Avatar, Modal } from './design'
 import { SearchDialog } from './components/SearchDialog'
 import { Today } from './pages/Today'
@@ -74,7 +75,7 @@ const navigation = [
 ]
 
 function WorkspaceApp() {
-  const { state, warning, mode, slug, loading, session, role, reload } = useStore()
+  const { state, warning, mode, slug, loading, session, role, reload, today } = useStore()
   const operator = session?.user.name ?? 'Demo operator'
   const initials = state.organisation.name
     .split(' ')
@@ -90,6 +91,11 @@ function WorkspaceApp() {
   useStudioColours(state.organisation.id)
   // Waitlist offers whose time has gone are not counted as waiting for approval.
   const clock = useClock()
+  // Read again each minute too, so a waitlist time that has passed stops counting.
+  const noticed = useMemo(
+    () => nudges(state, role, today, clock).length,
+    [state, role, today, clock],
+  )
   const drafts = operations(state).messages.filter(
     (m) => m.status === 'draft' && !staleOffer(state, m.id, clock),
   ).length
@@ -245,7 +251,11 @@ function WorkspaceApp() {
           <div>
             <button className="ask-button" onClick={() => setAsking(true)}>
               <Sparkles size={17} />
-              <span>Ask Saleane</span>
+              <span>
+                Ask Saleane
+                {noticed > 0 && `, ${noticed} ${noticed === 1 ? 'thing' : 'things'} to mention`}
+              </span>
+              {noticed > 0 && <i className="ask-dot" aria-hidden="true" />}
             </button>
             <button className="global-search" onClick={() => setSearch(true)}>
               <Search size={17} />

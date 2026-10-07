@@ -1,0 +1,120 @@
+.insight-notices,
+.insight-drifting ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.insight-notices {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 18px;
+}
+.insight-notices li {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--palette-white) 70%, transparent);
+  border-radius: var(--radius-inner);
+}
+.insight-notices strong {
+  font-size: var(--text-meta);
+}
+.insight-notices small,
+.insight-drifting small {
+  color: var(--brand-ink);
+  font-size: var(--text-micro);
+  line-height: 1.5;
+}
+.insight-drifting {
+  border-top: 1px solid var(--line2);
+  margin-top: 19px;
+  padding-top: 17px;
+}
+.insight-drifting h3 {
+  margin: 0 0 10px;
+  color: var(--brand-ink);
+  font-size: var(--text-eyebrow);
+  font-weight: var(--weight-strong);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.insight-drifting li {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0;
+}
+.insight-drifting li + li {
+  border-top: 1px solid var(--line2);
+}
+.insight-drifting li > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.insight-drifting strong {
+  font-size: var(--text-meta);
+}
+.insight-more {
+  display: block;
+  margin-top: 4px;
+}
+.insight-draft {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--palette-white);
+  border-radius: var(--radius-inner);
+}
+.insight-draft p {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-meta);
+  line-height: 1.5;
+}
+.insight-draft > div {
+  display: flex;
+  gap: 8px;
+}
+.insight-saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.insight-error {
+  margin: 12px 0 0;
+  color: var(--danger);
+  font-size: var(--text-meta);
+}
+.insight-reminders li {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+.insight-remind {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.insight-remind label:first-child {
+  flex: 1 1 160px;
+}
+.insight-remind input,
+.insight-remind select {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-inner);
+  background: var(--palette-white);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-meta);
+}
+.insight-reminders li > span {
+  flex: 1;
+}
