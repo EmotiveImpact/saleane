@@ -252,6 +252,20 @@ export function withdrawnOffer(s: BusinessState, messageId: string) {
 }
 
 /**
+ * Why an offer can no longer be approved, or null if it still can: its request has ended (or its
+ * dates passed), or its time has gone since it was written, since an offer holds nothing.
+ */
+export function staleOffer(s: BusinessState, messageId: string, now: string) {
+  const entry = waitlistList(s).find((e) => e.offers?.some((o) => o.messageId === messageId))
+  if (!entry) return null
+  if (!isOpen(s, entry, now)) return 'This waitlist offer was withdrawn when the request ended.'
+  const offer = entry.offers!.find((o) => o.messageId === messageId)!
+  return openingFree(s, entry, offer, now)
+    ? null
+    : 'That time has gone since this offer was written. Write a new one from the waitlist.'
+}
+
+/**
  * After the desk moves a guest's visit to another professional, a request to come in sooner with
  * "their" professional follows the visit, so it matches what the guest's page shows.
  */

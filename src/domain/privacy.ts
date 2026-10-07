@@ -1,6 +1,7 @@
 import type { Appointment, BusinessState } from './model'
 import { operations } from './operations'
 import type { Role } from './operations'
+import { withdrawnOffer } from './waitlist'
 
 /**
  * LOCAL-03 (PRD GOV-01): data exports and erasure review.
@@ -177,7 +178,10 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
         subject: m.subject,
         body: m.body,
         status: m.status,
-        delivery: MESSAGE_STATUS[m.status],
+        delivery:
+          m.status === 'suppressed' && withdrawnOffer(state, m.id)
+            ? 'Withdrawn before it was sent: the waitlist request it offered a time for had ended. Not sent.'
+            : MESSAGE_STATUS[m.status],
         ...(visitRef(m.appointmentId) ? { visit: visitRef(m.appointmentId) } : {}),
       })),
     connections: state.relationships

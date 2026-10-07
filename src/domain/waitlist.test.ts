@@ -442,7 +442,9 @@ describe('waitlist', () => {
       entryId: entry.id,
       reason: 'Found a time elsewhere',
     })
-    expect(operations(removed).messages.find((m) => m.id === messageId)!.status).toBe('suppressed')
+    expect(operations(removed).messages.find((m) => m.status === 'suppressed')!.status).toBe(
+      'suppressed',
+    )
     expect(run(removed, { type: 'message-queue', messageId }).ok).toBe(false)
     // While the request is open the offer can be approved as usual.
     expect(run(offered, { type: 'message-queue', messageId }).ok).toBe(true)
@@ -464,5 +466,36 @@ describe('waitlist', () => {
       staffId: 'staff-sophia',
     })
     expect(waiting(moved).find((e) => e.appointmentId === visit.id)!.staffId).toBe('staff-sophia')
+  })
+
+  it('checks an offer again when it is approved, and exports a withdrawn one honestly', () => {
+    const s = seed('UK')
+    const entry = waiting(s)[0]
+    const opening = openings(s, entry, now)[0]
+    const offered = apply(s, { type: 'waitlist-offer', entryId: entry.id, ...opening })
+    const messageId = offered.waitlist!.find((e) => e.id === entry.id)!.offers![0].messageId
+    // Someone else books that time first.
+    const taken = apply(offered, {
+      type: 'book',
+      input: { clientId: 'client-1', serviceId: entry.serviceId, source: 'desk', ...opening },
+    })
+    const refused = run(taken, { type: 'message-queue', messageId })
+    expect(refused.ok).toBe(false)
+    if (!refused.ok) expect(refused.error).toContain('time has gone')
+    // A request whose dates have passed cannot have its offer approved either.
+    const expired = structuredClone(offered)
+    expired.waitlist!.find((e) => e.id === entry.id)!.toDate = '2026-10-05'
+    expect(run(expired, { type: 'message-queue', messageId }).ok).toBe(false)
+    // In the client's export a withdrawn offer is not described as a consent change.
+    const removed = apply(offered, {
+      type: 'waitlist-remove',
+      entryId: entry.id,
+      reason: 'No longer needed',
+    })
+    const sent = clientExport(removed, entry.clientId, {} as never).messages.find(
+      (m) => m.status === 'suppressed',
+    )!
+    expect(sent.delivery).toContain('waitlist request')
+    expect(sent.delivery).not.toContain('consent')
   })
 })

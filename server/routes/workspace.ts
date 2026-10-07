@@ -8,7 +8,7 @@ import type { Role } from '../../src/domain/operations'
 import { emailSchema, roleSchema } from '../context'
 import type { Context, Route } from '../context'
 import { practitionerRefusal } from '../../src/domain/practitioner'
-import { openingFree } from '../../src/domain/waitlist'
+import { openingFree, staleOffer } from '../../src/domain/waitlist'
 import { workspaceView } from '../projections'
 import type { Reader } from '../projections'
 import { issueGuestLink, revokeGuestLinks } from './guest'
@@ -126,6 +126,10 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
             )
           )
             fail(409, 'This time is reserved or unavailable. Choose another time.')
+        } else if (command.type === 'message-queue') {
+          // Approving a waitlist offer checks its time again, including guests holding it.
+          const stale = staleOffer(withHolds(org), command.messageId, new Date(now()).toISOString())
+          if (stale) fail(409, stale)
         }
         const result = dispatch(org.state, command, actor.name, new Date(now()).toISOString())
         if (!result.ok) fail(422, result.error)

@@ -225,5 +225,16 @@ describe('guest waitlist', () => {
     expect((await offer(first)).statusCode).toBe(409)
     const ok = await offer(second)
     expect(ok.statusCode, ok.body).toBe(200)
+    // A guest starts booking the offered time before the team approves the offer.
+    const after = (await studio(owner)).state
+    const messageId = after.waitlist!.find((e) => e.id === entry.id)!.offers!.at(-1)!.messageId
+    const heldAgain = await api.inject({
+      method: 'POST',
+      url: `/api/public/${slug}/holds`,
+      payload: { serviceId: entry.serviceId, ...second },
+    })
+    expect(heldAgain.statusCode, heldAgain.body).toBe(201)
+    const approve = await run(owner, after.revision, { type: 'message-queue', messageId })
+    expect(approve.statusCode).toBe(409)
   })
 })

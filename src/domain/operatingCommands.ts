@@ -2,7 +2,7 @@ import type { BusinessState, RelationshipEvent } from './model'
 import type { OperatingCommand } from './commandSchema'
 import { SCHEDULE_HISTORY_LIMIT, operations, stock } from './operations'
 import { assertSchedulePreserved, scheduleChanges, scheduleSnapshot } from './schedule'
-import { withdrawnOffer } from './waitlist'
+import { staleOffer } from './waitlist'
 
 export function assertMethod(
   s: BusinessState,
@@ -210,8 +210,8 @@ export function runOperatingCommand(
   } else if (command.type === 'message-queue') {
     const message = o.messages.find((m) => m.id === command.messageId)
     if (!message) throw new Error('Message does not belong to this workspace.')
-    if (withdrawnOffer(next, message.id))
-      throw new Error('This waitlist offer was withdrawn when the request ended.')
+    const stale = staleOffer(next, message.id, now)
+    if (stale) throw new Error(stale)
     if (
       message.purpose === 'marketing' &&
       !next.clients.find((c) => c.id === message.clientId)?.marketingConsent
