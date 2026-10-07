@@ -24,7 +24,7 @@
 .privacy-preview h3,
 .privacy-subheading {
   font-size: var(--text-small);
-  font-weight: 650;
+  font-weight: var(--weight-strong);
   margin: 0 0 10px;
 }
 .privacy-subheading {
@@ -64,7 +64,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  font-weight: 600;
+  font-weight: var(--weight-strong);
 }
 .privacy-items small {
   display: block;

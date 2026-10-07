@@ -1,4 +1,5 @@
 import { useId } from 'react'
+import { groupTimes } from './timeGroups'
 
 export function TimeChoices({
   times,
@@ -15,23 +16,30 @@ export function TimeChoices({
   return (
     <fieldset className="time-fieldset">
       <legend>{label}</legend>
-      <div className="time-slots">
-        {times.map((time) => (
-          <label
-            key={time.value}
-            className={`time-choice time-slot ${value === time.value ? 'selected' : ''}`}
-          >
-            <input
-              type="radio"
-              name={name}
-              value={time.value}
-              checked={value === time.value}
-              onChange={() => onChange(time.value)}
-            />
-            <span>{time.label}</span>
-          </label>
-        ))}
-      </div>
+      {groupTimes(times).map((group) => (
+        <div className="time-group" key={group.label}>
+          <span className="time-group-label" aria-hidden>
+            {group.label}
+          </span>
+          <div className="time-slots">
+            {group.times.map((time) => (
+              <label
+                key={time.value}
+                className={`time-choice time-slot ${value === time.value ? 'selected' : ''}`}
+              >
+                <input
+                  type="radio"
+                  name={name}
+                  value={time.value}
+                  checked={value === time.value}
+                  onChange={() => onChange(time.value)}
+                />
+                <span>{time.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      ))}
       {!times.length && (
         <p className="subtle">No times available. Try another day or professional.</p>
       )}

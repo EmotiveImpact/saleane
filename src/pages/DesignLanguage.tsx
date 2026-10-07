@@ -23,7 +23,9 @@ const colours = [
   ['--paper', 'Paper', 'Work surfaces and fields'],
   ['--mineral', 'Mineral', 'Application ground'],
   ['--line', 'Line', 'Table and section rules'],
-  ['--sage', 'Sage', 'Selection, attention panel, skin and wellbeing'],
+  ['--brand', 'First studio colour', 'Chosen by the studio. Buttons, selection, focus'],
+  ['--rose', 'Second studio colour', 'Chosen by the studio. Now line, counts, ready to return'],
+  ['--sage', 'Brand soft', 'Selection, attention panel, skin and wellbeing'],
   ['--blue', 'Mist', 'Body and skin context'],
   ['--sand', 'Sand', 'Hair and styling context'],
   ['--brass', 'Brass', 'Small warm accents only'],
@@ -41,6 +43,8 @@ const pairs = [
   ['--tone-blue-ink', '--tone-blue-bg'],
   ['--tone-sand-ink', '--tone-sand-bg'],
   ['--paper', '--action'],
+  ['--rose-ink', '--paper'],
+  ['--brand-ink', '--sage'],
   ['--danger', '--danger-soft'],
 ] as const
 
@@ -84,8 +88,32 @@ function contrast(a: string, b: string) {
 
 /**
  * Reads token values from the live stylesheet, so the page cannot drift from
- * the code. Custom properties resolve their var() references when computed.
+ * the code. Colours are resolved through a probe element, because tokens built
+ * with color-mix() only become a concrete colour once a property uses them.
  */
+function toHex(computed: string) {
+  const rgb = computed.match(/^rgba?\(([\d.]+)[ ,]+([\d.]+)[ ,]+([\d.]+)/)
+  const srgb = computed.match(/^color\(srgb ([\d.]+) ([\d.]+) ([\d.]+)/)
+  const parts = rgb
+    ? rgb.slice(1, 4).map(Number)
+    : srgb
+      ? srgb.slice(1, 4).map((v) => Number(v) * 255)
+      : undefined
+  if (!parts) return ''
+  return `#${parts.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`
+}
+function readColours(names: readonly string[]) {
+  const probe = document.createElement('span')
+  document.body.append(probe)
+  const resolved = Object.fromEntries(
+    names.map((name) => {
+      probe.style.color = `var(${name})`
+      return [name, toHex(getComputedStyle(probe).color)]
+    }),
+  )
+  probe.remove()
+  return resolved
+}
 function readTokens(names: readonly string[]) {
   const style = getComputedStyle(document.documentElement)
   return Object.fromEntries(names.map((name) => [name, style.getPropertyValue(name).trim()]))
@@ -94,7 +122,7 @@ function readTokens(names: readonly string[]) {
 export function DesignLanguage() {
   const allColours = [...new Set([...colours.map(([n]) => n), ...pairs.flat()])]
   const [{ hex, sizes, spacing }] = useState(() => ({
-    hex: readTokens(allColours),
+    hex: readColours(allColours),
     sizes: readTokens(typeScale.map(([n]) => n)),
     spacing: readTokens(spaces),
   }))
@@ -114,8 +142,9 @@ export function DesignLanguage() {
         <h2 id="principles">Principles</h2>
         <ol className="library-principles">
           <li>
-            <strong>Hospitality before software.</strong> Ivory, sage and a high-contrast serif set
-            a calm studio tone. Photography belongs to guests and moments of arrival.
+            <strong>Hospitality before software.</strong> Warm off-white, the studio's own colours
+            and a light serif set a calm studio tone. Photography belongs to guests and moments of
+            arrival.
           </li>
           <li>
             <strong>Space goes to the work.</strong> Editorial headers greet on Today and booking;
@@ -200,8 +229,9 @@ export function DesignLanguage() {
       <section className="surface library-section" aria-labelledby="type">
         <h2 id="type">Type</h2>
         <p className="library-lead">
-          Bodoni Moda for the wordmark and editorial moments; Source Sans 3 for everything that is
-          read while working. Times and money use tabular figures.
+          Financier Display Light for headings, names and the greeting, with Newsreader as the free
+          stand-in until the licence is bought. Figtree for everything read while working: 360 for
+          body text, 460 for the menu and 560 for emphasis. Times and money use tabular figures.
         </p>
         <div className="library-type">
           {typeScale.map(([name, label, use, family]) => (

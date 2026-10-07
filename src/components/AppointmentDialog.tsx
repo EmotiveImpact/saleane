@@ -15,10 +15,13 @@ export function AppointmentDialog({
   appointmentId,
   onClose,
   onMoved,
+  proposal,
 }: {
   appointmentId: string
   onClose: () => void
   onMoved?: (date: string, staffId: string) => void
+  /** A new person and time from dragging on the calendar, opened straight into the move step. */
+  proposal?: { date: string; staffId: string; startMinutes: number }
 }) {
   const { state, commit, today, blocked, saving, role, mode: storeMode } = useStore()
   const config = operations(state)
@@ -31,16 +34,21 @@ export function AppointmentDialog({
   const [discount, setDiscount] = useState('0')
   const [checkout, setCheckout] = useState(false)
   const [tip, setTip] = useState('0')
+  const [otherTip, setOtherTip] = useState(false)
   const [method, setMethod] = useState<'demo_card' | 'demo_cash' | 'cash' | 'external_card'>(
     sandbox ? 'demo_card' : 'cash',
   )
   const [error, setError] = useState('')
   const [rebook, setRebook] = useState(false)
   const appointment = state.appointments.find((a) => a.id === appointmentId)
-  const [mode, setMode] = useState<'details' | 'move' | 'cancel' | 'no-show'>('details')
-  const [date, setDate] = useState(appointment?.date ?? today)
-  const [staffId, setStaffId] = useState(appointment?.staffId ?? '')
-  const [start, setStart] = useState<number | null>(appointment?.startMinutes ?? null)
+  const [mode, setMode] = useState<'details' | 'move' | 'cancel' | 'no-show'>(
+    proposal ? 'move' : 'details',
+  )
+  const [date, setDate] = useState(proposal?.date ?? appointment?.date ?? today)
+  const [staffId, setStaffId] = useState(proposal?.staffId ?? appointment?.staffId ?? '')
+  const [start, setStart] = useState<number | null>(
+    proposal?.startMinutes ?? appointment?.startMinutes ?? null,
+  )
   const [reason, setReason] = useState('')
   const [notice, setNotice] = useState('')
   if (!appointment)
@@ -103,6 +111,7 @@ export function AppointmentDialog({
             addDays(appointment.date, 28) > today
               ? addDays(appointment.date, 28)
               : addDays(today, 1),
+          startMinutes: appointment.startMinutes,
           rebookedFromId: appointment.id,
         }}
         onClose={() => {
@@ -343,6 +352,12 @@ export function AppointmentDialog({
               setError('')
             }}
           />
+          {start !== null && !available.includes(start) && (
+            <p className="form-error" role="status">
+              {timeLabel(start, state.organisation.locale)} is not free for this visit with this
+              professional. Choose one of the times above.
+            </p>
+          )}
           <div className="booking-summary">
             <span>
               {appointment.bookedDurationMinutes} minutes + {appointment.bookedBufferMinutes} minute
@@ -430,15 +445,32 @@ export function AppointmentDialog({
             <span>Deposit already recorded</span>
             <span>−{money(deposit, state.organisation, true)}</span>
           </div>
+          <label className="checkout-discount">
+            Discount ({state.organisation.currency})
+            <input
+              type="number"
+              min="0"
+              max={appointment.bookedPriceMinor / 100}
+              step="0.01"
+              value={discount}
+              onChange={(event) => {
+                setDiscount(event.target.value)
+                setCollected(false)
+                setError('')
+              }}
+            />
+          </label>
           <fieldset className="time-fieldset">
             <legend>Optional tip</legend>
             <div className="tip-options">
               {[0, 10, 15, 20].map((percent) => (
                 <button
+                  type="button"
                   key={percent}
-                  aria-pressed={tipMinor === tipPreset(percent)}
-                  className={`time-slot ${tipMinor === tipPreset(percent) ? 'selected' : ''}`}
+                  aria-pressed={!otherTip && tipMinor === tipPreset(percent)}
+                  className={`time-slot ${!otherTip && tipMinor === tipPreset(percent) ? 'selected' : ''}`}
                   onClick={() => {
+                    setOtherTip(false)
                     setTip(minorInput(tipPreset(percent)))
                     setCollected(false)
                     setError('')
@@ -447,22 +479,36 @@ export function AppointmentDialog({
                   {percent ? `${percent}%` : 'No tip'}
                 </button>
               ))}
-            </div>
-            <label>
-              Custom tip ({state.organisation.currency})
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                max={appointment.bookedPriceMinor / 50}
-                value={tip}
-                onChange={(e) => {
-                  setTip(e.target.value)
+              <button
+                type="button"
+                aria-pressed={otherTip}
+                className={`time-slot ${otherTip ? 'selected' : ''}`}
+                onClick={() => {
+                  setOtherTip(true)
                   setCollected(false)
-                  setError('')
                 }}
-              />
-            </label>
+              >
+                Other
+              </button>
+            </div>
+            {otherTip && (
+              <label>
+                Custom tip ({state.organisation.currency})
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  autoFocus
+                  max={appointment.bookedPriceMinor / 50}
+                  value={tip}
+                  onChange={(e) => {
+                    setTip(e.target.value)
+                    setCollected(false)
+                    setError('')
+                  }}
+                />
+              </label>
+            )}
           </fieldset>
           <label>
             Payment method
@@ -507,21 +553,6 @@ export function AppointmentDialog({
               </label>
             </>
           )}
-          <label>
-            Discount ({state.organisation.currency})
-            <input
-              type="number"
-              min="0"
-              max={appointment.bookedPriceMinor / 100}
-              step="0.01"
-              value={discount}
-              onChange={(event) => {
-                setDiscount(event.target.value)
-                setCollected(false)
-                setError('')
-              }}
-            />
-          </label>
           {tax && (
             <div className="receipt-line">
               <span>
@@ -539,7 +570,7 @@ export function AppointmentDialog({
             are separate from service revenue.{' '}
             {sandbox
               ? 'No real payment will be taken.'
-              : 'Only record funds already received. Payment collection is unconfigured.'}
+              : 'Only record funds already received. Card payments are not connected yet.'}
           </p>
           <ErrorMessage error={error} />
           <div className="dialog-footer">
@@ -616,6 +647,9 @@ export function AppointmentDialog({
           )}
           <ErrorMessage error={error} />
           <div className="dialog-footer">
+            {appointment.status === 'confirmed' && appointment.date > today && (
+              <span className="subtle dialog-footer-note">Arrival opens on the visit day.</span>
+            )}
             <Button variant="secondary" disabled={busy} onClick={onClose}>
               Close
             </Button>
@@ -628,9 +662,6 @@ export function AppointmentDialog({
               <Button disabled={!allowed('checkout')} onClick={() => setCheckout(true)}>
                 Continue to checkout
               </Button>
-            )}
-            {appointment.status === 'confirmed' && appointment.date > today && (
-              <span className="subtle">Arrival opens on the visit day.</span>
             )}
           </div>
         </>

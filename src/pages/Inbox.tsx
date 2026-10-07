@@ -1,14 +1,43 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { FilePenLine, Mail, MailWarning, Plus } from 'lucide-react'
+import { ArrowLeft, Columns2, FilePenLine, List, MailWarning, Plus, Search } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useStore } from '../state/context'
 import { operations, can } from '../domain/operations'
 import { dateLabel, timeLabel } from '../domain/format'
-import { Avatar, Button, ErrorMessage, Modal, PageHeader } from '../design'
+import { Avatar, Button, ErrorMessage, Modal, PageHeader, SegmentedControl } from '../design'
+import type { BusinessState } from '../domain/model'
 import '../components/management.css'
 
+type InboxView = 'columns' | 'panel'
+type QueuedMessage = ReturnType<typeof operations>['messages'][number]
+
+const viewKey = (userId?: string) => `saleane-inbox-view:${userId ?? 'demo'}`
+
+/** Each person keeps their own choice of view in this browser. Two columns is the default. */
+function readView(userId?: string): InboxView {
+  try {
+    return localStorage.getItem(viewKey(userId)) === 'panel' ? 'panel' : 'columns'
+  } catch {
+    return 'columns'
+  }
+}
+
+function matches(message: QueuedMessage, state: BusinessState, query: string) {
+  const q = query.trim().toLowerCase()
+  if (!q) return true
+  const name = state.clients.find((c) => c.id === message.clientId)?.name ?? ''
+  return `${name} ${message.subject} ${message.body}`.toLowerCase().includes(q)
+}
+
+const statusLabel = {
+  draft: 'To approve',
+  queued: 'Queued, not sent',
+  suppressed: 'Not sent',
+} as const
+
 export function Inbox() {
-  const { state, commit, blocked, role } = useStore()
+  const { state, commit, blocked, role, session } = useStore()
   const config = operations(state)
   const [filter, setFilter] = useState<'all' | 'draft' | 'queued' | 'suppressed'>('all')
   const [composing, setComposing] = useState(false)
@@ -22,10 +51,18 @@ export function Inbox() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const client = state.clients.find((item) => item.id === clientId)
+  const [query, setQuery] = useState('')
+  const [view, setView] = useState<InboxView>(() => readView(session?.user.id))
+  const [selectedId, setSelectedId] = useState<string | undefined>()
+  // On a phone the two-column view shows the list first, then one conversation.
+  const [opened, setOpened] = useState(false)
+  const [panelOpen, setPanelOpen] = useState(false)
   const messages = config.messages
     .filter((message) => filter === 'all' || message.status === filter)
+    .filter((message) => matches(message, state, query))
     .slice()
     .reverse()
+  const selected = messages.find((message) => message.id === selectedId) ?? messages[0]
   const count = (status: string) =>
     config.messages.filter((message) => message.status === status).length
   const allowedDraft = can(role, 'message') && !blocked
@@ -76,17 +113,127 @@ export function Inbox() {
         setError(result.error)
         return
       }
-      setNotice('Queue review recorded. Delivery remains unconfigured; no message was sent.')
+      setNotice('Approved and queued. Sending is not connected yet, so no message was sent.')
     } catch {
       setError('Could not update the queue. Try again.')
     } finally {
       setPending('')
     }
   }
+  function chooseView(next: InboxView) {
+    setView(next)
+    setPanelOpen(false)
+    try {
+      localStorage.setItem(viewKey(session?.user.id), next)
+    } catch {
+      /* The choice still applies for this visit. */
+    }
+  }
+  function open(message: QueuedMessage) {
+    setSelectedId(message.id)
+    setOpened(true)
+    if (view === 'panel') setPanelOpen(true)
+  }
+  function edit(message: QueuedMessage) {
+    setEditingId(message.id)
+    setClientId(message.clientId)
+    setPurpose(message.purpose)
+    setAppointmentId(message.appointmentId ?? '')
+    setSubject(message.subject)
+    setBody(message.body)
+    setError('')
+    setPanelOpen(false)
+    setComposing(true)
+  }
+  const when = (iso: string) =>
+    new Intl.DateTimeFormat(state.organisation.locale, {
+      day: 'numeric',
+      month: 'short',
+      timeZone: state.organisation.timeZone,
+    }).format(new Date(iso))
+  function conversation(message: QueuedMessage) {
+    const recipient = state.clients.find((item) => item.id === message.clientId)
+    const visit = state.appointments.find((item) => item.id === message.appointmentId)
+    const missingConsent = message.purpose === 'marketing' && !recipient?.marketingConsent
+    const earlier = config.messages.filter(
+      (item) =>
+        item.clientId === message.clientId &&
+        item.id !== message.id &&
+        item.createdAt <= message.createdAt,
+    )
+    return (
+      <>
+        <header className="inbox-pane-header">
+          <Avatar identity={recipient?.id} name={recipient?.name ?? 'Client'} />
+          <div>
+            <h2 className="inbox-name">{recipient?.name ?? 'Client no longer available'}</h2>
+            <p>
+              {message.purpose === 'appointment' ? 'Appointment update' : 'Marketing'}
+              {visit &&
+                ` for the visit on ${dateLabel(visit.date, state.organisation.locale)} at ${timeLabel(visit.startMinutes, state.organisation.locale)}`}
+            </p>
+          </div>
+          {recipient && (
+            <Link className="button button-secondary" to={`/clients/${recipient.id}`}>
+              Profile
+            </Link>
+          )}
+        </header>
+        <div className="inbox-thread">
+          {earlier.map((item) => (
+            <div className="inbox-bubble" key={item.id}>
+              <small>
+                {when(item.createdAt)} · {statusLabel[item.status]}
+              </small>
+              <strong>{item.subject}</strong>
+              <p>{item.body}</p>
+            </div>
+          ))}
+          <div className={`inbox-bubble inbox-bubble-current is-${message.status}`}>
+            <small>
+              {message.status === 'draft' ? 'Draft, waiting for you' : statusLabel[message.status]}{' '}
+              · saved {when(message.createdAt)} by {message.actor}
+            </small>
+            <strong>{message.subject}</strong>
+            <p>{message.body}</p>
+          </div>
+          {missingConsent && (
+            <p className="ops-help">
+              Marketing permission is not recorded. Review consent before queueing.
+            </p>
+          )}
+        </div>
+        <footer className="inbox-pane-actions">
+          {message.status === 'draft' && (
+            <Button
+              disabled={!allowedQueue || !!pending || missingConsent}
+              onClick={() => {
+                void queue(message.id)
+              }}
+            >
+              {pending === message.id ? 'Queueing…' : 'Approve and queue'}
+            </Button>
+          )}
+          {message.status !== 'queued' && (
+            <Button
+              variant="secondary"
+              aria-label={`Edit draft ${message.subject}`}
+              disabled={!allowedDraft || !!pending}
+              onClick={() => edit(message)}
+            >
+              Edit<span className="sr-only"> draft {message.subject}</span>
+            </Button>
+          )}
+          <small>Nothing leaves SALEANE until texting and email are connected.</small>
+        </footer>
+      </>
+    )
+  }
   return (
     <div className="inbox-page">
       <PageHeader
         variant="compact"
+        eyebrow="Inbox"
         title="A considered word."
         description="Prepare client messages with their relationship and permissions in view."
         actions={
@@ -112,171 +259,144 @@ export function Inbox() {
       <div className="ops-banner">
         <MailWarning size={20} />
         <div>
-          <strong>Delivery is unconfigured.</strong>
+          <strong>Texting and email aren’t connected yet.</strong>
           <p>
-            This is the local draft and review queue. Email and SMS are not connected. Queued does
-            not mean sent, and no incoming conversations are imported.
+            Approved messages wait in the queue and nothing is sent. Queued does not mean sent, and
+            no incoming conversations are imported.
           </p>
         </div>
       </div>
-      <div className="ops-summary">
-        <div>
-          <span>Ready to consider</span>
-          <strong>{count('draft')}</strong>
-          <small>Saved drafts</small>
-        </div>
-        <div>
-          <span>Awaiting a delivery service</span>
-          <strong>{count('queued')}</strong>
-          <small>Queued locally · none sent</small>
-        </div>
-        <div>
-          <span>Consent needs attention</span>
-          <strong>{count('suppressed')}</strong>
-          <small>Suppressed messages</small>
-        </div>
+      <div className="inbox-view" role="group" aria-label="View">
+        <span>View</span>
+        <button
+          type="button"
+          aria-pressed={view === 'columns'}
+          onClick={() => chooseView('columns')}
+        >
+          <Columns2 size={15} />
+          Two columns
+        </button>
+        <button type="button" aria-pressed={view === 'panel'} onClick={() => chooseView('panel')}>
+          <List size={15} />
+          List with side panel
+        </button>
       </div>
-      <div className="ops-tabs" role="group" aria-label="Message queue view">
-        {(['all', 'draft', 'queued', 'suppressed'] as const).map((value) => (
-          <button
-            key={value}
-            type="button"
-            aria-pressed={filter === value}
-            onClick={() => setFilter(value)}
-          >
-            {value === 'all'
-              ? 'All messages'
-              : value === 'draft'
-                ? 'Drafts'
-                : value === 'queued'
-                  ? 'Queued'
-                  : 'Suppressed'}
-            <span className="ops-count">
-              {value === 'all' ? config.messages.length : count(value)}
-            </span>
-          </button>
-        ))}
-      </div>
-      <div className="ops-layout">
-        <section className="surface ops-panel">
-          <header>
-            <div>
-              <h2>Your message queue</h2>
-              <p>Consent is checked when a draft is queued. Future delivery must check it again.</p>
-            </div>
-            <Mail size={21} />
-          </header>
+      <section className={`surface inbox-card inbox-${view} ${opened ? 'is-open' : ''}`}>
+        <div className="inbox-list">
+          <div className="inbox-toolbar">
+            <SegmentedControl
+              label="Message queue view"
+              appearance="chips"
+              value={filter}
+              onChange={(next) => {
+                setFilter(next)
+                setOpened(false)
+              }}
+              options={(['all', 'draft', 'queued', 'suppressed'] as const).map((value) => ({
+                value,
+                label: (
+                  <>
+                    {value === 'all' ? 'All' : statusLabel[value].replace(', not sent', '')}
+                    <span className="chip-count">
+                      {value === 'all' ? config.messages.length : count(value)}
+                    </span>
+                  </>
+                ),
+              }))}
+            />
+            <label className="search-field">
+              <Search size={17} />
+              <span className="sr-only">Search messages</span>
+              <input
+                type="search"
+                placeholder="Search messages"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </label>
+          </div>
           <ErrorMessage error={composing ? '' : error} />
           <p className="ops-save-note" role="status">
             {notice}
           </p>
-          {messages.map((message) => {
-            const recipient = state.clients.find((item) => item.id === message.clientId)
-            const visit = state.appointments.find((item) => item.id === message.appointmentId)
-            const missingConsent = message.purpose === 'marketing' && !recipient?.marketingConsent
-            return (
-              <article className="ops-message" key={message.id}>
-                <header>
-                  <Avatar small identity={recipient?.id} name={recipient?.name ?? 'Client'} />
-                  <div>
-                    <strong>{recipient?.name ?? 'Client no longer available'}</strong>
-                    <br />
-                    <small>
-                      {recipient?.email} ·{' '}
-                      {message.purpose === 'appointment' ? 'Appointment update' : 'Marketing'}
-                    </small>
-                  </div>
-                  <span
-                    className={`ops-tag ${message.status === 'suppressed' || missingConsent ? 'is-blocked' : ''}`}
+          <ul className="inbox-rows">
+            {messages.map((message) => {
+              const recipient = state.clients.find((item) => item.id === message.clientId)
+              const current = view === 'columns' && selected?.id === message.id
+              return (
+                <li key={message.id}>
+                  <button
+                    type="button"
+                    className={`inbox-row ${current ? 'is-selected' : ''}`}
+                    aria-current={current ? 'true' : undefined}
+                    onClick={() => open(message)}
                   >
-                    {message.status === 'queued'
-                      ? 'Queued · unsent'
-                      : message.status === 'suppressed'
-                        ? 'Suppressed'
-                        : 'Draft'}
-                  </span>
-                </header>
-                <h3>{message.subject}</h3>
-                <p>{message.body}</p>
-                {visit && (
-                  <p className="ops-help">
-                    Linked visit: {dateLabel(visit.date, state.organisation.locale)} at{' '}
-                    {timeLabel(visit.startMinutes, state.organisation.locale)}
-                  </p>
-                )}
-                {missingConsent && (
-                  <p className="ops-help">
-                    Marketing permission is not recorded. Review consent before queueing.
-                  </p>
-                )}
-                <footer className="ops-message-footer">
-                  <small>
-                    Saved{' '}
-                    {new Intl.DateTimeFormat(state.organisation.locale, {
-                      dateStyle: 'medium',
-                      timeZone: state.organisation.timeZone,
-                    }).format(new Date(message.createdAt))}{' '}
-                    · {message.actor}
-                  </small>
-                  {message.status !== 'queued' && (
-                    <Button
-                      variant="quiet"
-                      aria-label={`Edit draft ${message.subject}`}
-                      disabled={!allowedDraft || !!pending}
-                      onClick={() => {
-                        setEditingId(message.id)
-                        setClientId(message.clientId)
-                        setPurpose(message.purpose)
-                        setAppointmentId(message.appointmentId ?? '')
-                        setSubject(message.subject)
-                        setBody(message.body)
-                        setError('')
-                        setComposing(true)
-                      }}
+                    <Avatar small identity={recipient?.id} name={recipient?.name ?? 'Client'} />
+                    <span className="inbox-row-text">
+                      <span className="inbox-row-top">
+                        <strong>{recipient?.name ?? 'Client no longer available'}</strong>
+                        <small>{when(message.createdAt)}</small>
+                      </span>
+                      <small>
+                        {message.purpose === 'appointment' ? 'Appointment update' : 'Marketing'}
+                      </small>
+                      <span className="inbox-preview">
+                        {message.subject}: {message.body}
+                      </span>
+                    </span>
+                    <span
+                      className={`ops-tag ${message.status === 'suppressed' ? 'is-blocked' : ''}`}
                     >
-                      Edit draft<span className="sr-only"> {message.subject}</span>
-                    </Button>
-                  )}
-                  {message.status === 'draft' && (
-                    <Button
-                      variant="secondary"
-                      disabled={!allowedQueue || !!pending || missingConsent}
-                      onClick={() => {
-                        void queue(message.id)
-                      }}
-                    >
-                      {pending === message.id ? 'Reviewing…' : 'Queue for later delivery'}
-                    </Button>
-                  )}
-                </footer>
-              </article>
-            )
-          })}
+                      {statusLabel[message.status]}
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
           {!messages.length && (
             <div className="ops-no-records">
               <FilePenLine size={27} />
               <h3>
-                {filter === 'all' ? 'A little space to be thoughtful.' : 'Nothing in this view.'}
+                {filter === 'all' && !query
+                  ? 'A little space to be thoughtful.'
+                  : 'Nothing in this view.'}
               </h3>
               <p>
-                {filter === 'all'
+                {filter === 'all' && !query
                   ? 'Write an appointment update or a consent-aware marketing draft. It stays here until you decide the next step.'
-                  : 'Choose another queue view to see your saved messages.'}
+                  : 'Choose another view or clear the search to see your saved messages.'}
               </p>
             </div>
           )}
-        </section>
-        <aside className="ops-aside">
-          <h2>Relevant, and welcome.</h2>
-          <p>
-            Keep appointment messages about the visit. Promotions belong in marketing and require
-            the appropriate permission.
-          </p>
-          <p>
-            Saving a draft does not grant consent, contact a provider or create a delivery receipt.
-          </p>
-        </aside>
-      </div>
+        </div>
+        {view === 'columns' && (
+          <div className="inbox-pane" aria-live="polite">
+            {selected ? (
+              <>
+                <button type="button" className="inbox-back" onClick={() => setOpened(false)}>
+                  <ArrowLeft size={16} />
+                  All messages
+                </button>
+                {conversation(selected)}
+              </>
+            ) : (
+              <p className="inbox-pane-empty">Choose a message to read it here.</p>
+            )}
+          </div>
+        )}
+      </section>
+      {view === 'panel' && panelOpen && selected && (
+        <Modal
+          open
+          placement="side"
+          onClose={() => setPanelOpen(false)}
+          title={statusLabel[selected.status]}
+          description="Prepared in SALEANE. Nothing is sent until texting and email are connected."
+        >
+          <div className="inbox-panel">{conversation(selected)}</div>
+        </Modal>
+      )}
       {composing && (
         <Modal
           open
@@ -361,7 +481,7 @@ export function Inbox() {
             {purpose === 'marketing' && (
               <p className="ops-editor-note">
                 {client?.marketingConsent
-                  ? 'Marketing permission is recorded. Delivery remains unconfigured.'
+                  ? 'Marketing permission is recorded. Sending is not connected yet.'
                   : 'Marketing permission is not recorded. You can keep a draft, but it cannot be queued for delivery.'}
               </p>
             )}
