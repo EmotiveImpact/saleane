@@ -1,0 +1,124 @@
+/* End-of-day till count on the Money page. Tokens only; no accent edges. */
+.till-panel {
+  margin-top: var(--space-6);
+  padding: var(--space-6);
+}
+.till-panel > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+.till-panel > header h2 {
+  font-size: var(--text-lead);
+}
+.till-panel > header p {
+  margin-top: var(--space-1);
+  max-width: 70ch;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.till-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
+  gap: var(--space-6);
+  align-items: start;
+  margin-top: var(--space-5);
+}
+.till-form input {
+  width: 100%;
+}
+.till-form .ops-save-note:empty {
+  display: none;
+}
+.till-form .ops-save-note {
+  margin-top: var(--space-3);
+}
+.till-expected {
+  padding: var(--space-5);
+  background: var(--sage-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-size: var(--text-small);
+}
+.till-expected h3,
+.till-history h3 {
+  font-size: var(--text-body);
+  font-weight: 650;
+}
+.till-expected dl {
+  margin: var(--space-3) 0 0;
+}
+.till-expected dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--line);
+}
+.till-expected dl > div:first-child {
+  border-top: 0;
+}
+.till-expected dt {
+  color: var(--muted);
+}
+.till-expected dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.till-expected .till-total {
+  border-top: 1px solid var(--line-strong);
+  font-weight: 650;
+}
+.till-expected .till-total dt {
+  color: var(--ink);
+}
+.till-difference {
+  margin-top: var(--space-3);
+  font-weight: 650;
+  font-size: var(--text-body);
+}
+.till-expected small {
+  display: block;
+  margin-top: var(--space-2);
+  color: var(--muted);
+  font-size: var(--text-meta);
+  line-height: 1.45;
+}
+.till-history {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--line);
+}
+.till-history h3 {
+  margin-bottom: var(--space-2);
+}
+.till-superseded .ops-record-copy strong {
+  font-size: var(--text-small);
+  font-weight: 600;
+  color: var(--muted);
+}
+.till-superseded .ops-record-money {
+  color: var(--muted);
+  font-weight: 500;
+}
+.till-none {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+@media (max-width: 760px) {
+  .till-panel {
+    padding: var(--space-5) var(--space-4);
+  }
+  .till-layout {
+    grid-template-columns: 1fr;
+  }
+  .till-form .ops-fields {
+    grid-template-columns: 1fr;
+  }
+  .till-entry {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

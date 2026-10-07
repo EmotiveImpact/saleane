@@ -5,6 +5,7 @@ import { bookingSchema, commandSchema, contactSchema } from './commandSchema'
 import type { Command, ContactInput } from './commandSchema'
 import { assertMethod, runOperatingCommand } from './operatingCommands'
 import { checkoutTotals } from './money'
+import { recordTillCount } from './tillCount'
 export { commandSchema } from './commandSchema'
 export type { Command, BookingInput, ContactInput } from './commandSchema'
 import type { Appointment, BusinessState, RelationshipEvent } from './model'
@@ -562,6 +563,8 @@ export function execute(
         })
       }
       recordId = client.id
+    } else if (command.type === 'till-count') {
+      recordId = recordTillCount(next, command, now, businessDate(s, now), makeId)
     } else {
       recordId = runOperatingCommand(next, command, now, makeId, addEvent)
     }
@@ -594,6 +597,9 @@ export function dispatch(
     .forEach((e) => {
       e.actor = actorName
     })
+  const counted = new Set((s.tillCounts ?? []).map((c) => c.id))
+  for (const count of result.state.tillCounts ?? [])
+    if (!counted.has(count.id)) count.actor = actorName
   for (const key of ['messages', 'movements', 'refunds', 'scheduleHistory'] as const) {
     const ids = new Set((operations(s)[key] ?? []).map((r) => r.id))
     const records = operations(result.state)[key] ?? []

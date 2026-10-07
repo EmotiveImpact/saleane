@@ -6,6 +6,7 @@ import {
   productInputSchema,
   weeklyHoursSchema,
 } from './operations'
+import { tillCountCommandSchema } from './tillCount'
 const id = z.string().min(1).max(150)
 const money = z.number().int().nonnegative().max(100_000_000)
 const method = z.enum(['demo_card', 'demo_cash', 'cash', 'external_card'])
@@ -144,6 +145,7 @@ export const commandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('note'), clientId: id, text: z.string().trim().min(2).max(1000) }),
   z.object({ type: z.literal('client'), contact: contactSchema, referredById: id.optional() }),
   z.object({ type: z.literal('consent'), clientId: id, consent: z.boolean() }),
+  tillCountCommandSchema,
   ...operatingCommandSchema.options,
 ])
 export type BookingInput = z.infer<typeof bookingSchema>

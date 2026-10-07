@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { operationsSchema, weeklyHoursSchema } from './operations'
+import { tillCountProblem, tillCountSchema } from './tillCount'
 
 export const DEMO_DATE = '2026-10-06'
 export const OPEN_MINUTES = 9 * 60
@@ -162,6 +163,8 @@ export const stateSchema = z.object({
   events: z.array(eventSchema),
   relationships: z.array(relationshipSchema),
   operations: operationsSchema.optional(),
+  /** End-of-day till counts, append-only. Optional so records saved before them still load. */
+  tillCounts: z.array(tillCountSchema).optional(),
 })
 export type BusinessState = z.infer<typeof stateSchema>
 export type Client = z.infer<typeof clientSchema>
@@ -186,6 +189,7 @@ export function parseState(value: unknown, region: Region): BusinessState {
     s.payments,
     s.events,
     s.relationships,
+    s.tillCounts ?? [],
   ]
   for (const collection of collections) {
     if (new Set(collection.map((item) => item.id)).size !== collection.length)
@@ -392,6 +396,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
       )
         throw new Error('Refunds exceed the receipt total.')
   }
+  for (const count of s.tillCounts ?? [])
+    if (tillCountProblem(count)) throw new Error('Invalid till count.')
   try {
     new Intl.DateTimeFormat('en', { timeZone: org.timeZone }).format(new Date())
   } catch {
