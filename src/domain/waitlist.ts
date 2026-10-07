@@ -235,7 +235,7 @@ function add(
     )
   )
     throw new Error(
-      `${client.name} is already waiting for ${service.name}. Change or remove that first.`,
+      `${client.name} is already waiting for ${input.appointmentId ? 'an earlier time for this visit' : service.name}. Change or remove that first.`,
     )
   const entry: WaitlistEntry = {
     ...input,
@@ -256,7 +256,7 @@ function add(
     appointmentId: input.appointmentId,
     type: 'waitlist',
     title: source === 'guest' ? 'Asked to come in sooner' : 'Added to the waitlist',
-    detail: `${service.name}${who}, ${dateLabel(input.fromDate, locale)} to ${dateLabel(input.toDate, locale)}, ${timesLabel(input.times)}. Nobody is contacted until the team chooses to.`,
+    detail: `${serviceLabel(next, entry)}${who}, ${dateLabel(input.fromDate, locale)} to ${dateLabel(input.toDate, locale)}, ${timesLabel(input.times)}. Nobody is contacted until the team chooses to.`,
   })
   return entry.id
 }

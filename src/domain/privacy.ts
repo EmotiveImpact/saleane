@@ -1,7 +1,7 @@
 import type { Appointment, BusinessState } from './model'
 import { operations } from './operations'
 import type { Role } from './operations'
-import { withdrawnOffer } from './waitlist'
+import { serviceLabel, withdrawnOffer } from './waitlist'
 
 /**
  * LOCAL-03 (PRD GOV-01): data exports and erasure review.
@@ -221,7 +221,7 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
     waitlist: (state.waitlist ?? [])
       .filter((e) => e.clientId === client.id)
       .map((e) => ({
-        service: state.services.find((item) => item.id === e.serviceId)?.name ?? 'Service',
+        service: serviceLabel(state, e),
         with: e.staffId
           ? (state.staff.find((p) => p.id === e.staffId)?.name ?? 'Professional')
           : 'Anyone',

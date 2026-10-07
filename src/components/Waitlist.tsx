@@ -436,10 +436,11 @@ export function ClientWaitlist({ clientId }: { clientId: string }) {
   const { state } = useStore()
   const allowed = useWaitlistAllowed()
   const [adding, setAdding] = useState(false)
+  const clock = useClock()
   const rows = waitlistList(state).filter((e) => e.clientId === clientId)
-  const open = rows.filter((e) => isOpen(state, e))
+  const open = rows.filter((e) => isOpen(state, e, clock))
   const closed = rows
-    .filter((e) => !isOpen(state, e))
+    .filter((e) => !isOpen(state, e, clock))
     .sort((a, b) => (b.closedAt ?? b.toDate).localeCompare(a.closedAt ?? a.toDate))
     .slice(0, 3)
   const org = state.organisation

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Hourglass, Plus } from 'lucide-react'
 import { useStore } from '../state/context'
+import { useClock } from '../state/clock'
 import { feedbackSince } from '../domain/feedback'
 import { money } from '../domain/format'
 import { waiting, waitlistSummary } from '../domain/waitlist'
@@ -18,6 +19,8 @@ export function Waitlist() {
   const { state, role, blocked } = useStore()
   const allowed = !blocked && can(role, 'waitlist-add')
   const [adding, setAdding] = useState(false)
+  // Requests whose dates pass drop off an open page without waiting for another change.
+  const clock = useClock()
   if (role === 'practitioner')
     return (
       <div className="waitlist-page">
@@ -27,8 +30,8 @@ export function Waitlist() {
         </Empty>
       </div>
     )
-  const summary = waitlistSummary(state, feedbackSince(state, 30))
-  const rows = waiting(state).sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+  const summary = waitlistSummary(state, feedbackSince(state, 30), clock)
+  const rows = waiting(state, clock).sort((a, b) => a.createdAt.localeCompare(b.createdAt))
   return (
     <div className="waitlist-page">
       <PageHeader

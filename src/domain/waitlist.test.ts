@@ -536,6 +536,9 @@ describe('waitlist', () => {
     expect(body).toContain(visit.bookedServiceName!)
     expect(body).not.toContain('Renamed facial')
     expect(serviceLabel(joined, entry)).toBe(visit.bookedServiceName)
+    const exported = clientExport(joined, 'client-1', {} as never).waitlist.map((e) => e.service)
+    expect(exported).toContain(visit.bookedServiceName)
+    expect(exported).not.toContain('Renamed facial')
   })
 
   it('stops offering once a request has had the most offers it can keep', () => {
