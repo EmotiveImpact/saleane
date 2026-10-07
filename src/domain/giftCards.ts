@@ -84,7 +84,8 @@ export function giftStanding(card: GiftCard, today: string) {
 
 /**
  * Checks a card can pay `amountMinor` towards this visit and records it. `dueMinor` is what is
- * left to pay after any deposit and plan. `next` is the working copy.
+ * left to pay after any deposit and plan. `next` is the working copy. `asOf` is the business day a
+ * card payment started on, when that payment held the card's share.
  */
 export function spendGiftCard(
   next: BusinessState,
@@ -95,11 +96,12 @@ export function spendGiftCard(
   saleId: string,
   now: string,
   makeId: () => string,
+  asOf?: string,
 ) {
   const org = next.organisation
   const card = giftCards(next).find((c) => c.id === giftCardId)
   if (!card) throw new Error('This gift card was not sold here.')
-  const standing = giftStanding(card, businessDate(next, now))
+  const standing = giftStanding(card, asOf ?? businessDate(next, now))
   if (!standing.canSpend)
     throw new Error(
       standing.state === 'cancelled'

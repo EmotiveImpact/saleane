@@ -192,6 +192,10 @@ describe('gift cards and vouchers', () => {
     const refused = run(v.s, spend)
     expect(refused.ok).toBe(false)
     if (!refused.ok) expect(refused.error).toContain('expired')
+    // A card payment that held the card's share on its last day still lands after midnight.
+    expect(
+      execute(v.s, spend, now, () => `gift-${++sequence}`, { giftCardAsOf: '2026-10-05' }).ok,
+    ).toBe(true)
     const extended = apply(v.s, {
       type: 'gift-card-extend',
       giftCardId: card.id,

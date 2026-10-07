@@ -6,7 +6,7 @@ import { checkoutTotals } from '../../src/domain/money'
 import { cardPolicy, guestPayment } from '../../src/domain/guest'
 import { feeAllowed } from '../../src/domain/fees'
 export { feeAllowed }
-import { operations, visitTax } from '../../src/domain/operations'
+import { businessDate, operations, visitTax } from '../../src/domain/operations'
 import type { BusinessState } from '../../src/domain/model'
 import { giftCards, giftStanding } from '../../src/domain/giftCards'
 import { money } from '../../src/domain/format'
@@ -245,7 +245,12 @@ export function createPayments(ctx: Context, provider: PaymentProvider) {
         if (command) {
           const actor =
             row.purpose === 'deposit' && !row.actor_id ? 'Guest (card payment)' : 'Card payment'
-          const result = dispatch(org.state, command, actor, new Date(now()).toISOString())
+          // A held gift card share stays spendable as of the day the payment started.
+          const result = dispatch(org.state, command, actor, new Date(now()).toISOString(), {
+            ...(row.gift_card_id
+              ? { giftCardAsOf: businessDate(org.state, new Date(row.created_at).toISOString()) }
+              : {}),
+          })
           if (!result.ok) throw new Error(result.error)
           ledgerId = result.recordId
           if (result.state.revision !== org.state.revision)

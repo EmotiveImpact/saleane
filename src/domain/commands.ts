@@ -125,11 +125,18 @@ export function depositPaid(s: BusinessState, appointmentId: string) {
     .reduce((sum, p) => sum + p.amountMinor, 0)
 }
 
+/** Server-only settings that never come from a request body. */
+export type ExecuteOptions = {
+  /** A card payment held this gift card share on this business day; judge expiry as of then. */
+  giftCardAsOf?: string
+}
+
 export function execute(
   s: BusinessState,
   rawCommand: Command,
   now = new Date().toISOString(),
   makeId: () => string = () => crypto.randomUUID(),
+  options: ExecuteOptions = {},
 ): CommandResult {
   try {
     const command = commandSchema.parse(rawCommand)
@@ -428,6 +435,7 @@ export function execute(
               saleId,
               now,
               makeId,
+              options.giftCardAsOf,
             )
           : undefined
         const giftMinor = gift ? command.giftCardMinor! : 0
@@ -608,8 +616,9 @@ export function dispatch(
   command: Command,
   actorName = 'Local operator',
   now = new Date().toISOString(),
+  options: ExecuteOptions = {},
 ): CommandResult {
-  const result = execute(s, command, now)
+  const result = execute(s, command, now, undefined, options)
   if (!result.ok || result.state === s) return result
   const eventIds = new Set(s.events.map((e) => e.id))
   result.state.events
