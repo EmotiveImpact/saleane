@@ -1,11 +1,20 @@
 import type { Appointment, BusinessState, Client } from './model'
-import { instantFor, operations } from './operations'
+import { businessDate, businessMinutes, instantFor, operations } from './operations'
 import { dateLabel, timeLabel } from './format'
 import { GUEST_CANCEL_CUTOFF_HOURS } from './guest'
 import { FEEDBACK_WINDOW_MS } from './feedback'
 import { defaultReminderSettings } from './reminderSettings'
 import type { ReminderSettings } from './reminderSettings'
 import { countsForVisit, patchTestSettings, patchTests, visitPatchTest } from './patchTests'
+import { addDays } from './format'
+import {
+  DEFAULT_RETURN_DAYS,
+  dueBackOn,
+  hasVisitAhead,
+  isLatestVisit,
+  sameGuest,
+  returnWeeksFor,
+} from './dueBack'
 
 /**
  * PILOT-01: appointment confirmations and reminders by email and text.
@@ -32,12 +41,16 @@ export const messageKinds = [
   'cancelled',
   'feedback',
   'patch_test',
+  'aftercare',
+  'due_back',
 ] as const
 export type MessageKind = (typeof messageKinds)[number]
 export const messageChannels = ['email', 'sms'] as const
 export type MessageChannel = (typeof messageChannels)[number]
 /** Where a link to manage the visit goes. The outbox swaps it for a fresh private link. */
 export const MANAGE_LINK = '{{manage_link}}'
+/** Where a link to book again goes. The outbox swaps it for the studio's public booking page. */
+export const BOOK_LINK = '{{book_link}}'
 
 /** A message the outbox has already recorded, enough to avoid sending it twice. */
 export type RecordedMessage = {
@@ -103,6 +116,65 @@ export function feedbackDue(s: BusinessState, a: Appointment, start: number, now
     now - paidAt < RECENT_MS &&
     now < start + FEEDBACK_WINDOW_MS &&
     !s.feedback?.some((f) => f.appointmentId === a.id)
+  )
+}
+
+/** Aftercare goes a little after checkout, once the guest has had time to get home. */
+const AFTERCARE_DELAY_MS = 30 * 60000
+
+/** The care advice for a visit's treatment, if the studio has written some. */
+export function aftercareNote(s: BusinessState, a: Appointment) {
+  return s.services.find((x) => x.id === a.serviceId)?.aftercareNote?.trim() ?? ''
+}
+
+/**
+ * Whether a completed visit's aftercare email may go now: switched on, the treatment has advice,
+ * and between half an hour and two days after checkout. Checked again just before sending.
+ */
+export function aftercareDue(s: BusinessState, a: Appointment, now: number) {
+  const paidAt = Date.parse(s.sales.find((sale) => sale.appointmentId === a.id)?.paidAt ?? '')
+  return (
+    a.status === 'completed' &&
+    reminderSettings(s).aftercare !== false &&
+    !!aftercareNote(s, a) &&
+    now - paidAt >= AFTERCARE_DELAY_MS &&
+    now - paidAt < RECENT_MS
+  )
+}
+
+/** "You're due back" may go from a few days before the due date until two weeks after it. */
+const DUE_BACK_EARLY_DAYS = 3
+const DUE_BACK_LATE_DAYS = 14
+/** And only in the daytime on the studio's clock, never at night. */
+const DAYTIME = { from: 9 * 60, to: 19 * 60 }
+
+/**
+ * Whether a guest may be told they are due back, after this visit: switched on, the treatment sets
+ * how many weeks guests usually leave, the guest agreed to hear from the studio, this is their
+ * latest visit, nothing is booked, and today is near the due date. Checked again before sending,
+ * so a booking made meanwhile, or a guest changing their mind, stops it.
+ */
+export function dueBackDue(s: BusinessState, a: Appointment, nowIso: string) {
+  const client = s.clients.find((c) => c.id === a.clientId)
+  if (
+    a.status !== 'completed' ||
+    reminderSettings(s).dueBack === false ||
+    !returnWeeksFor(s, a) ||
+    !client ||
+    // A guest who said no under any of their records has said no.
+    s.clients.some((c) => sameGuest(s, client.id).has(c.id) && !c.marketingConsent) ||
+    !isLatestVisit(s, a) ||
+    hasVisitAhead(s, a.clientId)
+  )
+    return false
+  const today = businessDate(s, nowIso)
+  const due = dueBackOn(s, a)
+  const minutes = businessMinutes(s, nowIso)
+  return (
+    today >= addDays(due, -DUE_BACK_EARLY_DAYS) &&
+    today <= addDays(due, DUE_BACK_LATE_DAYS) &&
+    minutes >= DAYTIME.from &&
+    minutes < DAYTIME.to
   )
 }
 
@@ -201,22 +273,30 @@ export function planMessages(
       continue
     }
     const slot = visitSlot(a)
-    // V1.5: once a visit is complete, one private feedback request, a little after checkout.
+    // V1.5: once a visit is complete, each follow-up goes at most once, by email only: a text
+    // adds cost for messages the guest may ignore. Feedback a little after checkout, aftercare
+    // advice soon after it, and a "due back" note weeks later for guests who agreed to hear.
     if (a.status === 'completed') {
-      if (!feedbackDue(s, a, start, now)) continue
-      // Email only: a text adds cost for a request the guest may ignore.
       if (!channelsFor(s, client).includes('email') || !client.email) continue
-      if ((byVisit.get(a.id) ?? []).some((row) => row.kind === 'feedback')) continue
-      plan.push({
-        dedupeKey: `${a.id}:feedback:email:${slot}`,
-        appointmentId: a.id,
-        clientId: client.id,
-        kind: 'feedback',
-        channel: 'email',
-        slot,
-        recipient: client.email,
-        ...composeMessage(s, a, 'feedback', 'email'),
-      })
+      const sent = byVisit.get(a.id) ?? []
+      const due: Record<'feedback' | 'aftercare' | 'due_back', boolean> = {
+        feedback: feedbackDue(s, a, start, now),
+        aftercare: aftercareDue(s, a, now),
+        due_back: dueBackDue(s, a, nowIso),
+      }
+      for (const kind of ['feedback', 'aftercare', 'due_back'] as const) {
+        if (!due[kind] || sent.some((row) => row.kind === kind)) continue
+        plan.push({
+          dedupeKey: `${a.id}:${kind}:email:${slot}`,
+          appointmentId: a.id,
+          clientId: client.id,
+          kind,
+          channel: 'email',
+          slot,
+          recipient: client.email,
+          ...composeMessage(s, a, kind, 'email'),
+        })
+      }
       continue
     }
     if (start <= now) continue
@@ -307,6 +387,10 @@ export function composeMessage(
   const greeting = client ? `Hello ${firstName(client.name)},` : 'Hello,'
   const arrival = org.arrivalNote?.trim()
   const prep = s.services.find((x) => x.id === a.serviceId)?.prepNote?.trim()
+  // With online booking off, the link would lead nowhere, so ask the guest to get in touch.
+  const bookLine = operations(s).bookingEnabled
+    ? `Book when it suits you: ${BOOK_LINK}`
+    : 'Call us or reply to book when it suits you.'
   const policy = `If your plans change, please let us know at least ${GUEST_CANCEL_CUTOFF_HOURS} hours before.`
   if (channel === 'sms') {
     const lead = {
@@ -316,13 +400,19 @@ export function composeMessage(
       cancelled: `${org.name}: your ${service} on ${when} is cancelled.`,
       feedback: `${org.name}: thank you for visiting. How was it? Tell us privately:`,
       patch_test: `${org.name}: your ${service} on ${when} needs a quick patch test at least ${patchTestSettings(s).hoursBefore} hours before. Please call or pop in to arrange one.`,
+      aftercare: `${org.name}: looking after your ${service}. ${aftercareNote(s, a)}`,
+      due_back: `${org.name}: you're about due for your next ${service}.`,
     }[kind]
     const tail =
       kind === 'cancelled'
         ? ' We hope to see you soon.'
         : kind === 'feedback'
           ? ` ${MANAGE_LINK}`
-          : ` Manage your visit: ${MANAGE_LINK}`
+          : kind === 'aftercare'
+            ? ''
+            : kind === 'due_back'
+              ? ` ${bookLine}`
+              : ` Manage your visit: ${MANAGE_LINK}`
     return { subject: '', body: `${lead}${tail} Reply STOP to stop texts.` }
   }
   const subject = {
@@ -332,6 +422,8 @@ export function composeMessage(
     cancelled: `Your visit to ${org.name} is cancelled`,
     feedback: `How was your visit to ${org.name}?`,
     patch_test: `A quick patch test before your visit to ${org.name}`,
+    aftercare: `Looking after your ${service}`,
+    due_back: `Time for your next visit to ${org.name}?`,
   }[kind]
   const opening = {
     confirmation: `Thank you for booking. Here are your details.`,
@@ -340,22 +432,35 @@ export function composeMessage(
     cancelled: `Your visit below has been cancelled. Nothing else is needed from you.`,
     feedback: `Thank you for visiting us. We would love to know how it went.`,
     patch_test: `Your treatment below needs a quick patch test at least ${patchTestSettings(s).hoursBefore} hours before, and we need a new one for you. It takes a few minutes: please call us or pop in to arrange it.`,
+    aftercare: `Thank you for coming in. Here is how to look after your ${service} over the next few days.`,
+    due_back: `It is about ${returnWeeksFor(s, a) ?? DEFAULT_RETURN_DAYS / 7} weeks since your ${service}${withWhom}, which is usually when guests come back for the next one.`,
   }[kind]
-  const lines = [
-    greeting,
-    '',
-    opening,
-    '',
-    `${service}${withWhom}`,
-    when,
-    [org.locationName, org.address].filter(Boolean).join(', '),
-  ]
+  const lines = [greeting, '', opening, '']
+  if (kind === 'aftercare') {
+    lines.push(
+      aftercareNote(s, a),
+      '',
+      `If anything feels wrong, please call us. For anything urgent, contact a medical professional.`,
+    )
+  } else if (kind === 'due_back') {
+    lines.push(
+      bookLine,
+      '',
+      `You are hearing this because you said we could keep in touch. To stop these, reply to this email or tell us at your next visit.`,
+    )
+  } else
+    lines.push(
+      `${service}${withWhom}`,
+      when,
+      [org.locationName, org.address].filter(Boolean).join(', '),
+    )
+  // Aftercare and due back are about a visit that is over: no visit details or manage link.
   if (kind === 'feedback') {
     lines.push(
       '',
       `Rate your visit${professional ? ` and ${professional}` : ''}, and add a note if you like. Only the studio's owner and managers read what you write: ${MANAGE_LINK}`,
     )
-  } else if (kind !== 'cancelled') {
+  } else if (kind !== 'cancelled' && kind !== 'aftercare' && kind !== 'due_back') {
     if (arrival) lines.push('', `Before you arrive: ${arrival}`)
     if (prep) lines.push('', prep)
     lines.push('', policy, `View, add to your calendar or cancel: ${MANAGE_LINK}`)

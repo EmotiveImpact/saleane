@@ -32,6 +32,10 @@ export function GuestNotesSettings() {
         serviceId: service.id,
         note: note(`prep-${service.id}`),
       })),
+      aftercareNotes: services.map((service) => ({
+        serviceId: service.id,
+        note: note(`aftercare-${service.id}`),
+      })),
     }
     setPending(true)
     setError('')
@@ -51,10 +55,10 @@ export function GuestNotesSettings() {
     <section className="surface ops-panel" aria-labelledby="guest-notes-heading">
       <header>
         <div>
-          <h2 id="guest-notes-heading">Before you arrive</h2>
+          <h2 id="guest-notes-heading">Before and after a visit</h2>
           <p>
-            Shown to guests on their booking confirmation and their private visit page. Keep it
-            practical; leave health and treatment advice to a conversation.
+            Before notes show on the booking confirmation and private visit page. Aftercare is
+            emailed soon after checkout. Keep both practical.
           </p>
         </div>
         <MapPin size={21} />
@@ -73,16 +77,29 @@ export function GuestNotesSettings() {
             <small>Up to {GUEST_NOTE_LIMIT} characters.</small>
           </label>
           {services.map((service) => (
-            <label key={service.id}>
-              {service.name}
-              <textarea
-                name={`prep-${service.id}`}
-                rows={2}
-                maxLength={GUEST_NOTE_LIMIT}
-                defaultValue={service.prepNote ?? ''}
-                placeholder="Optional. For example: come with clean skin."
-              />
-            </label>
+            <fieldset key={service.id} className="guest-notes-service">
+              <legend>{service.name}</legend>
+              <label>
+                Before
+                <textarea
+                  name={`prep-${service.id}`}
+                  rows={2}
+                  maxLength={GUEST_NOTE_LIMIT}
+                  defaultValue={service.prepNote ?? ''}
+                  placeholder="Optional. For example: come with clean skin."
+                />
+              </label>
+              <label>
+                Aftercare, emailed after the visit
+                <textarea
+                  name={`aftercare-${service.id}`}
+                  rows={2}
+                  maxLength={GUEST_NOTE_LIMIT}
+                  defaultValue={service.aftercareNote ?? ''}
+                  placeholder="Optional. For example: avoid hot water for the rest of the day."
+                />
+              </label>
+            </fieldset>
           ))}
         </fieldset>
         <ErrorMessage error={error} />

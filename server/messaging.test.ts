@@ -133,7 +133,13 @@ async function localStudio() {
   })
   return { owner, serviceId, staffId, slug: (await workspace(owner)).slug }
 }
-async function book(slug: string, serviceId: string, staffId: string, date = '2026-10-08') {
+async function book(
+  slug: string,
+  serviceId: string,
+  staffId: string,
+  date = '2026-10-08',
+  guest = contact,
+) {
   const held = await api.inject({
     method: 'POST',
     url: `/api/public/${slug}/holds`,
@@ -143,10 +149,19 @@ async function book(slug: string, serviceId: string, staffId: string, date = '20
   const booked = await api.inject({
     method: 'POST',
     url: `/api/public/${slug}/book`,
-    payload: { hold: held.json<{ hold: string }>().hold, contact, policy: true },
+    payload: { hold: held.json<{ hold: string }>().hold, contact: guest, policy: true },
   })
   expect(booked.statusCode, booked.body).toBe(200)
   return booked.json<{ appointmentId: string; manage: { url: string } }>()
+}
+/** Guests usually come back for this treatment after six weeks. */
+async function withReturnWeeks(owner: Login, serviceId: string) {
+  const { state } = await workspace(owner)
+  const service = state.services.find((x) => x.id === serviceId)!
+  const input = Object.fromEntries(
+    Object.entries(service).filter(([key]) => key !== 'id' && key !== 'organisationId'),
+  ) as Omit<typeof service, 'id' | 'organisationId'>
+  await run(owner, { type: 'service', id: serviceId, input: { ...input, returnWeeks: 6 } })
 }
 const rows = () => api.database.all<OutboxRow>('SELECT * FROM outbox ORDER BY created_at,channel')
 const outbox = (login: Login, query = '') =>
@@ -429,6 +444,119 @@ describe('appointment messages (PILOT-01)', () => {
     await api.outbox.deliver()
     expect(sent).toEqual([])
     expect(rows().find((r) => r.kind === 'feedback')).toMatchObject({ status: 'skipped' })
+  })
+
+  it('emails aftercare advice soon after checkout, once, before the feedback request', async () => {
+    const { serviceId, staffId, slug, owner } = await localStudio()
+    await run(owner, {
+      type: 'guest-notes',
+      arrivalNote: '',
+      prepNotes: [],
+      aftercareNotes: [{ serviceId, note: 'Skip make-up for the rest of today.' }],
+    })
+    const { appointmentId } = await book(slug, serviceId, staffId, '2026-10-06')
+    await api.outbox.tick()
+    await api.outbox.tick()
+    clock = Date.parse('2026-10-06T10:05:00.000Z')
+    await signIn(owner)
+    await run(owner, { type: 'arrive', appointmentId })
+    await run(owner, { type: 'checkout', appointmentId, tipMinor: 0, method: 'cash' })
+    sent = []
+    await api.outbox.tick()
+    expect(sent).toEqual([])
+    clock = Date.parse('2026-10-06T10:40:00.000Z')
+    await api.outbox.tick()
+    expect(sent.map((m) => [m.channel, m.subject])).toEqual([
+      ['email', 'Looking after your Restorative facial'],
+    ])
+    expect(sent[0].body).toContain('Skip make-up for the rest of today.')
+    expect(sent[0].body).not.toContain('/manage#')
+    sent = []
+    clock = Date.parse('2026-10-06T12:10:00.000Z')
+    await api.outbox.tick()
+    expect(sent.map((m) => m.subject)).toEqual(['How was your visit to Linden Studio?'])
+  })
+
+  it('tells a guest who agreed to hear when they are due back, with the booking page link', async () => {
+    const { serviceId, staffId, slug, owner } = await localStudio()
+    await withReturnWeeks(owner, serviceId)
+    const keen = { ...contact, marketingConsent: true }
+    const { appointmentId } = await book(slug, serviceId, staffId, '2026-10-06', keen)
+    await api.outbox.tick()
+    await api.outbox.tick()
+    clock = Date.parse('2026-10-06T10:05:00.000Z')
+    await signIn(owner)
+    await run(owner, { type: 'arrive', appointmentId })
+    await run(owner, { type: 'checkout', appointmentId, tipMinor: 0, method: 'cash' })
+    await api.outbox.tick()
+    sent = []
+    // 14 November, 10:00 in London: three days before the six weeks are up.
+    clock = Date.parse('2026-11-14T10:00:00.000Z')
+    await signIn(owner)
+    await api.outbox.tick()
+    expect(sent.map((m) => [m.channel, m.subject])).toEqual([
+      ['email', 'Time for your next visit to Linden Studio?'],
+    ])
+    expect(sent[0].body).toContain(`Book when it suits you: ${origin}/book/${slug}`)
+    expect(sent[0].body).not.toContain('{{')
+    sent = []
+    await api.outbox.tick()
+    expect(sent).toEqual([])
+  })
+
+  it('sends a due back note to the email on file when it goes, not when it was planned', async () => {
+    const { serviceId, staffId, slug, owner } = await localStudio()
+    await withReturnWeeks(owner, serviceId)
+    const keen = { ...contact, marketingConsent: true }
+    const { appointmentId } = await book(slug, serviceId, staffId, '2026-10-06', keen)
+    await api.outbox.tick()
+    await api.outbox.tick()
+    clock = Date.parse('2026-10-06T10:05:00.000Z')
+    await signIn(owner)
+    await run(owner, { type: 'arrive', appointmentId })
+    await run(owner, { type: 'checkout', appointmentId, tipMinor: 0, method: 'cash' })
+    await api.outbox.tick()
+    clock = Date.parse('2026-11-14T10:00:00.000Z')
+    await signIn(owner)
+    api.outbox.plan()
+    const { state } = await workspace(owner)
+    const guest = state.clients.find((c) => c.email === keen.email)!
+    await run(owner, {
+      type: 'client-edit',
+      clientId: guest.id,
+      contact: { ...keen, email: 'rosa.new@example.invalid' },
+      preferences: guest.preferences,
+    })
+    sent = []
+    await api.outbox.deliver()
+    expect(sent.map((m) => [m.subject, m.to])).toEqual([
+      ['Time for your next visit to Linden Studio?', 'rosa.new@example.invalid'],
+    ])
+    expect(rows().find((r) => r.kind === 'due_back')?.recipient).toBe('rosa.new@example.invalid')
+  })
+
+  it('skips a due back note when the guest books before it goes', async () => {
+    const { serviceId, staffId, slug, owner } = await localStudio()
+    await withReturnWeeks(owner, serviceId)
+    const keen = { ...contact, marketingConsent: true }
+    const { appointmentId } = await book(slug, serviceId, staffId, '2026-10-06', keen)
+    await api.outbox.tick()
+    await api.outbox.tick()
+    clock = Date.parse('2026-10-06T10:05:00.000Z')
+    await signIn(owner)
+    await run(owner, { type: 'arrive', appointmentId })
+    await run(owner, { type: 'checkout', appointmentId, tipMinor: 0, method: 'cash' })
+    await api.outbox.tick()
+    clock = Date.parse('2026-11-14T10:00:00.000Z')
+    api.outbox.plan()
+    await book(slug, serviceId, staffId, '2026-11-18', keen)
+    sent = []
+    await api.outbox.deliver()
+    expect(sent.map((m) => m.subject)).not.toContain('Time for your next visit to Linden Studio?')
+    expect(rows().find((r) => r.kind === 'due_back')).toMatchObject({
+      status: 'skipped',
+      detail: 'Booked again, turned off or no longer agreed before it went out.',
+    })
   })
 
   it('retries a busy provider, stops at a refusal, and never resends an unclear one by itself', async () => {

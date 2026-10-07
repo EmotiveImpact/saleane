@@ -48,6 +48,8 @@ const kindLabel: Record<MessageKind, string> = {
   cancelled: 'Cancellation',
   feedback: 'How was your visit?',
   patch_test: 'Patch test needed',
+  aftercare: 'Aftercare',
+  due_back: 'Due back',
 }
 const providerLabel: Record<string, string> = {
   test: 'test mode',
@@ -121,6 +123,22 @@ export function MessageSettings() {
             />
             After checkout, email a private &ldquo;how was your visit?&rdquo; request
           </label>
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={draft.aftercare !== false}
+              onChange={(e) => set('aftercare', e.target.checked)}
+            />
+            After checkout, email the treatment&rsquo;s aftercare advice, if it has some
+          </label>
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={draft.dueBack !== false}
+              onChange={(e) => set('dueBack', e.target.checked)}
+            />
+            Email guests who agreed to hear from you when they are due back
+          </label>
           <label>
             When the reminder goes
             <select
@@ -162,8 +180,9 @@ export function MessageSettings() {
           </label>
         </fieldset>
         <p className="subtle">
-          These are service messages about a booked visit, never marketing. A client can turn them
-          off on their profile. {mode === 'demo' ? 'The demo studio never sends anything.' : ''}
+          These are service messages about a visit, which a client can turn off on their profile.
+          The due back note goes only to guests who agreed to hear from you, by email only.{' '}
+          {mode === 'demo' ? 'The demo studio never sends anything.' : ''}
         </p>
         <ErrorMessage error={error} />
         <p className="ops-save-note" role="status">

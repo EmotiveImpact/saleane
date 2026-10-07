@@ -90,13 +90,25 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
         (rows) => new Set(rows.map((row) => row.serviceId)).size === rows.length,
         'Each service appears once.',
       ),
+    /** V1.5: care advice emailed after the visit. Absent leaves every note as it is. */
+    aftercareNotes: z
+      .array(z.object({ serviceId: id, note: z.string().trim().max(GUEST_NOTE_LIMIT) }))
+      .max(500)
+      .refine(
+        (rows) => new Set(rows.map((row) => row.serviceId)).size === rows.length,
+        'Each service appears once.',
+      )
+      .optional(),
   }),
   z.object({ type: z.literal('closure'), input: closureInputSchema }),
   z.object({ type: z.literal('remove-closure'), closureId: id }),
   z.object({
     type: z.literal('service'),
     id: id.optional(),
-    input: serviceSchema.omit({ id: true, organisationId: true }),
+    // A blank "usually back after" clears it, so null is allowed here.
+    input: serviceSchema
+      .omit({ id: true, organisationId: true })
+      .extend({ returnWeeks: z.number().int().min(1).max(52).nullable().optional() }),
   }),
   z.object({
     type: z.literal('staff'),
@@ -234,7 +246,13 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     services: z
       .array(
         serviceSchema
-          .omit({ id: true, organisationId: true, archived: true, prepNote: true })
+          .omit({
+            id: true,
+            organisationId: true,
+            archived: true,
+            prepNote: true,
+            aftercareNote: true,
+          })
           .extend({ staffIds: z.array(id).max(100) }),
       )
       .min(1)

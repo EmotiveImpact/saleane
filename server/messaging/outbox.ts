@@ -1,9 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import {
+  BOOK_LINK,
   MANAGE_LINK,
+  aftercareDue,
   channelsFor,
+  dueBackDue,
   composeMessage,
   planMessages,
+  textNumber,
   feedbackDue,
   patchTestReminderDue,
   visitSlot,
@@ -129,12 +133,8 @@ export function createOutbox(ctx: Context, providers: Providers) {
       }
       if (!org || !visit || !client) return skip('The visit is no longer in the studio record.')
       if (operations(org.state).mode !== 'local') return skip('Sample studios never send.')
-      const wanted =
-        fresh.kind === 'cancelled'
-          ? 'cancelled'
-          : fresh.kind === 'feedback'
-            ? 'completed'
-            : 'confirmed'
+      const after = ['feedback', 'aftercare', 'due_back'].includes(fresh.kind)
+      const wanted = fresh.kind === 'cancelled' ? 'cancelled' : after ? 'completed' : 'confirmed'
       if (visit.status !== wanted || visitSlot(visit) !== fresh.slot)
         return skip('The visit changed before this went out.')
       if (
@@ -147,14 +147,18 @@ export function createOutbox(ctx: Context, providers: Providers) {
         !patchTestReminderDue(org.state, visit, visitStart(org.state, visit.id), now())
       )
         return skip('A patch test was recorded, or it was too late, before it went out.')
+      if (fresh.kind === 'aftercare' && !aftercareDue(org.state, visit, now()))
+        return skip('Turned off, advice removed or too late before it went out.')
+      if (fresh.kind === 'due_back' && !dueBackDue(org.state, visit, new Date(now()).toISOString()))
+        return skip('Booked again, turned off or no longer agreed before it went out.')
       if (fresh.kind !== 'cancelled' && !channelsFor(org.state, client).includes(fresh.channel))
         return skip('Turned off for this client or studio before it went out.')
       // The studio's rules may have changed since this was queued: say what they are now.
-      const current =
-        fresh.kind === 'patch_test'
-          ? composeMessage(org.state, visit, 'patch_test', fresh.channel)
-          : null
+      const current = ['patch_test', 'aftercare', 'due_back'].includes(fresh.kind)
+        ? composeMessage(org.state, visit, fresh.kind, fresh.channel)
+        : null
       let body = current?.body ?? fresh.body
+      body = body.replaceAll(BOOK_LINK, `${ctx.allowedOrigin}/book/${org.slug}`)
       if (body.includes(MANAGE_LINK)) {
         try {
           body = body.replaceAll(MANAGE_LINK, issueGuestLink(ctx, org, visit.id, 'message').url)
@@ -162,22 +166,30 @@ export function createOutbox(ctx: Context, providers: Providers) {
           return skip('The visit is too close or too far past for a manage link.')
         }
       }
+      // Messages that can go days or weeks after planning use the contact on file now.
+      const to = !current
+        ? fresh.recipient
+        : fresh.channel === 'email'
+          ? client.email.trim()
+          : textNumber(client.phone)
+      if (!to) return skip('The client has no address for this channel now.')
       const provider = providers[fresh.channel]
       db.run(
-        "UPDATE outbox SET status='unknown',provider=?,attempts=attempts+1,detail=?,subject=?,body=?,updated_at=? WHERE id=?",
+        "UPDATE outbox SET status='unknown',provider=?,attempts=attempts+1,detail=?,recipient=?,subject=?,body=?,updated_at=? WHERE id=?",
         provider.name,
         'Sending was interrupted. Check before sending again.',
+        to,
         current?.subject ?? fresh.subject,
         current?.body ?? fresh.body,
         now(),
         fresh.id,
       )
       return {
-        row: { ...fresh, provider: provider.name, attempts: fresh.attempts + 1 },
+        row: { ...fresh, recipient: to, provider: provider.name, attempts: fresh.attempts + 1 },
         message: {
           id: fresh.id,
           channel: fresh.channel,
-          to: fresh.recipient,
+          to,
           subject: current?.subject ?? fresh.subject,
           body,
           fromName: org.state.organisation.name,

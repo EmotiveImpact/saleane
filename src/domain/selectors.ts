@@ -1,6 +1,7 @@
 import { businessDate, hoursFor, operations, staffHoursFor } from './operations'
 import type { BusinessState, Client } from './model'
 import { addDays } from './format'
+import { dueBackOn, lastCompletedVisit } from './dueBack'
 import { retailByProduct, retailRevenue } from './retail'
 import { recordDay } from './tillCount'
 
@@ -23,9 +24,11 @@ export function clientStats(s: BusinessState, clientId: string) {
 export function dueClients(s: BusinessState): Client[] {
   return s.clients.filter((c) => {
     const stats = clientStats(s, c.id)
+    // V1.5: a treatment can set its own "usually back after"; otherwise four weeks.
+    const last = lastCompletedVisit(s, c.id)
     return (
-      stats.last &&
-      stats.last.date <= addDays(businessDate(s), -28) &&
+      last &&
+      dueBackOn(s, last) <= businessDate(s) &&
       !stats.next &&
       !s.appointments.some((a) => a.clientId === c.id && a.status === 'arrived')
     )

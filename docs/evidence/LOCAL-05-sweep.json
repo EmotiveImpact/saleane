@@ -1,6 +1,6 @@
 {
   "environment": "Chromium 141.0.7390.37 / http://127.0.0.1:5173",
-  "recordedAt": "2026-10-07T15:35:52.937Z",
+  "recordedAt": "2026-10-07T16:03:31.451Z",
   "results": [
     {
       "mode": "demo",
@@ -114,7 +114,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 44,
+        "focusable": 49,
         "missing": []
       },
       "errors": []
@@ -127,7 +127,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 26,
+        "focusable": 28,
         "missing": []
       },
       "errors": []
@@ -833,7 +833,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 45,
+        "focusable": 50,
         "missing": []
       },
       "errors": []
@@ -846,7 +846,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 27,
+        "focusable": 29,
         "missing": []
       },
       "errors": []
@@ -983,7 +983,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-546a83ad",
+      "route": "/book/qualify-studio-eaca0201",
       "width": 1280,
       "violations": [],
       "viewport": 1280,
@@ -1189,7 +1189,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-546a83ad",
+      "route": "/book/qualify-studio-eaca0201",
       "width": 390,
       "violations": [],
       "viewport": 390,
@@ -1387,7 +1387,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-546a83ad",
+      "route": "/book/qualify-studio-eaca0201",
       "width": 320,
       "violations": [],
       "viewport": 320,
@@ -1536,9 +1536,9 @@
       "route": "/today",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": ["Good afternoon."],
+      "h1": ["Good evening."],
       "headings": [
-        "H1 Good afternoon.",
+        "H1 Good evening.",
         "H2 The day ahead",
         "H2 Patch tests to sort",
         "H2 Make room for a familiar face.",
@@ -1731,7 +1731,7 @@
         "H2 Business details",
         "H2 Checkout tax",
         "H2 Share your booking page",
-        "H2 Before you arrive",
+        "H2 Before and after a visit",
         "H2 A steady foundation."
       ],
       "landmarks": [
@@ -2048,9 +2048,9 @@
       "route": "/today",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": ["Good afternoon, Qualification."],
+      "h1": ["Good evening, Qualification."],
       "headings": [
-        "H1 Good afternoon, Qualification.",
+        "H1 Good evening, Qualification.",
         "H2 The day ahead",
         "H2 Patch tests to sort",
         "H2 Make room for a familiar face.",
@@ -2249,7 +2249,7 @@
         "H2 Business details",
         "H2 Checkout tax",
         "H2 Share your booking page",
-        "H2 Before you arrive",
+        "H2 Before and after a visit",
         "H2 A steady foundation."
       ],
       "landmarks": [
@@ -2510,7 +2510,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-546a83ad",
+      "route": "/book/qualify-studio-eaca0201",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
       "h1": ["Care, considered."],
