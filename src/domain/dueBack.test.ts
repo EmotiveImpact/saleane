@@ -178,6 +178,13 @@ describe('due back', () => {
     expect(dueBackDue(newer, visit, due)).toBe(false)
   })
 
+  it('counts only one of two visits at the same moment as the latest', () => {
+    const { state, visit } = studio()
+    const twin = { ...visit, id: `${visit.id}-z` }
+    state.appointments.push(twin)
+    expect([dueBackDue(state, visit, due), dueBackDue(state, twin, due)]).toEqual([false, true])
+  })
+
   it('asks the guest to get in touch when online booking is off', () => {
     const { state, visit } = studio()
     state.operations!.bookingEnabled = false

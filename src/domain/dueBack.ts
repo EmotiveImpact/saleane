@@ -58,6 +58,10 @@ export function isLatestVisit(s: BusinessState, visit: Appointment) {
       ids.has(a.clientId) &&
       a.status === 'completed' &&
       a.id !== visit.id &&
-      (a.date > visit.date || (a.date === visit.date && a.startMinutes > visit.startMinutes)),
+      // Two visits at the same moment: the larger id counts as later, so only one is latest.
+      (a.date > visit.date ||
+        (a.date === visit.date &&
+          (a.startMinutes > visit.startMinutes ||
+            (a.startMinutes === visit.startMinutes && a.id > visit.id)))),
   )
 }

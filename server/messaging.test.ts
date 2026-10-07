@@ -504,6 +504,37 @@ describe('appointment messages (PILOT-01)', () => {
     expect(sent).toEqual([])
   })
 
+  it('sends a due back note to the email on file when it goes, not when it was planned', async () => {
+    const { serviceId, staffId, slug, owner } = await localStudio()
+    await withReturnWeeks(owner, serviceId)
+    const keen = { ...contact, marketingConsent: true }
+    const { appointmentId } = await book(slug, serviceId, staffId, '2026-10-06', keen)
+    await api.outbox.tick()
+    await api.outbox.tick()
+    clock = Date.parse('2026-10-06T10:05:00.000Z')
+    await signIn(owner)
+    await run(owner, { type: 'arrive', appointmentId })
+    await run(owner, { type: 'checkout', appointmentId, tipMinor: 0, method: 'cash' })
+    await api.outbox.tick()
+    clock = Date.parse('2026-11-14T10:00:00.000Z')
+    await signIn(owner)
+    api.outbox.plan()
+    const { state } = await workspace(owner)
+    const guest = state.clients.find((c) => c.email === keen.email)!
+    await run(owner, {
+      type: 'client-edit',
+      clientId: guest.id,
+      contact: { ...keen, email: 'rosa.new@example.invalid' },
+      preferences: guest.preferences,
+    })
+    sent = []
+    await api.outbox.deliver()
+    expect(sent.map((m) => [m.subject, m.to])).toEqual([
+      ['Time for your next visit to Linden Studio?', 'rosa.new@example.invalid'],
+    ])
+    expect(rows().find((r) => r.kind === 'due_back')?.recipient).toBe('rosa.new@example.invalid')
+  })
+
   it('skips a due back note when the guest books before it goes', async () => {
     const { serviceId, staffId, slug, owner } = await localStudio()
     await withReturnWeeks(owner, serviceId)

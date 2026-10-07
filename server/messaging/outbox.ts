@@ -7,6 +7,7 @@ import {
   dueBackDue,
   composeMessage,
   planMessages,
+  textNumber,
   feedbackDue,
   patchTestReminderDue,
   visitSlot,
@@ -165,22 +166,30 @@ export function createOutbox(ctx: Context, providers: Providers) {
           return skip('The visit is too close or too far past for a manage link.')
         }
       }
+      // Messages that can go days or weeks after planning use the contact on file now.
+      const to = !current
+        ? fresh.recipient
+        : fresh.channel === 'email'
+          ? client.email.trim()
+          : textNumber(client.phone)
+      if (!to) return skip('The client has no address for this channel now.')
       const provider = providers[fresh.channel]
       db.run(
-        "UPDATE outbox SET status='unknown',provider=?,attempts=attempts+1,detail=?,subject=?,body=?,updated_at=? WHERE id=?",
+        "UPDATE outbox SET status='unknown',provider=?,attempts=attempts+1,detail=?,recipient=?,subject=?,body=?,updated_at=? WHERE id=?",
         provider.name,
         'Sending was interrupted. Check before sending again.',
+        to,
         current?.subject ?? fresh.subject,
         current?.body ?? fresh.body,
         now(),
         fresh.id,
       )
       return {
-        row: { ...fresh, provider: provider.name, attempts: fresh.attempts + 1 },
+        row: { ...fresh, recipient: to, provider: provider.name, attempts: fresh.attempts + 1 },
         message: {
           id: fresh.id,
           channel: fresh.channel,
-          to: fresh.recipient,
+          to,
           subject: current?.subject ?? fresh.subject,
           body,
           fromName: org.state.organisation.name,
