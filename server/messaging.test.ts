@@ -149,7 +149,12 @@ async function book(
   const booked = await api.inject({
     method: 'POST',
     url: `/api/public/${slug}/book`,
-    payload: { hold: held.json<{ hold: string }>().hold, contact: guest, policy: true },
+    payload: {
+      hold: held.json<{ hold: string }>().hold,
+      contact: guest,
+      policy: true,
+      ...(guest.marketingConsent ? { emailNewsVersion: 1 } : {}),
+    },
   })
   expect(booked.statusCode, booked.body).toBe(200)
   return booked.json<{ appointmentId: string; manage: { url: string } }>()

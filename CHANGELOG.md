@@ -2,6 +2,16 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · V1.5 · Versioned consent for email news
+
+**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-CONSENT.md).
+
+- Settings › Messages to guests has a new panel for the studio's own words asking about email news. Each change is kept as a numbered version; SALEANE's standard words are version 1.
+- The booking page shows the studio's current words beside the optional box. Every time a guest's email permission is given or stopped (booking online, at the desk, editing the client, or from the guest's own link) SALEANE keeps a record of the words agreed to, where, when and who.
+- Guests can stop email news from their private visit link. Any email news already queued for them is held back. Visit updates carry on.
+- A client's page lists their history under Communication preference, and their data export includes each record with the words.
+- On a phone, the "come in sooner" boxes on the guest's page now sit beside their labels instead of above them.
+
 ## 2026-10-07 · V1.5 · Guest forms before a visit
 
 **Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-FORMS.md).

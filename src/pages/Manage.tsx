@@ -38,6 +38,7 @@ import { PaymentSettings } from '../components/CardPayments'
 import { SwitchingSettings } from '../components/Switching'
 import { PlanSettings } from '../components/Plans'
 import { FormSettings } from '../components/GuestForms'
+import { EmailNewsWording } from '../components/EmailConsent'
 import '../components/management.css'
 
 const sections = [
@@ -273,7 +274,12 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
           <div>
             {section === 'preferences' && <PreferencesSection />}
             {section === 'brand' && <BrandSection />}
-            {section === 'messages' && <MessageSettings />}
+            {section === 'messages' && (
+              <>
+                <MessageSettings />
+                <EmailNewsWording />
+              </>
+            )}
             {section === 'payments' && <PaymentSettings />}
             {section === 'workspace' && <WorkspaceSection onReset={() => setReplaced(true)} />}
             {section === 'privacy' && <StudioPrivacy />}

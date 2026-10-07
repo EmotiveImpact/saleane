@@ -415,12 +415,23 @@ export function permissionFor(command: { type: string }) {
   if (command.type === 'task-add' || command.type === 'task-done') return 'task'
   if (command.type === 'missed-call-done') return 'missed-call'
   if (command.type === 'form-save' || command.type === 'form-archive') return 'forms'
+  if (command.type === 'consent-wording') return 'consent-wording'
   return command.type
 }
 export const commandPermission = permissionFor
 export function can(role: Role, action: string) {
-  // Feedback, a guest's own waitlist choices and "I've arrived" come only from their private link.
-  if (['feedback', 'waitlist-join', 'waitlist-leave', 'guest-here', 'form-submit'].includes(action))
+  // Feedback, a guest's own waitlist choices, forms, "I've arrived" and stopping email news come
+  // only from their private link.
+  if (
+    [
+      'feedback',
+      'waitlist-join',
+      'waitlist-leave',
+      'guest-here',
+      'form-submit',
+      'guest-consent-stop',
+    ].includes(action)
+  )
     return false
   if (role === 'owner') return true
   if (
@@ -465,6 +476,7 @@ export function can(role: Role, action: string) {
       'gift-card-cancel',
       'patch-test-settings',
       'forms',
+      'consent-wording',
     ].includes(action)
   )
     return false

@@ -24,6 +24,12 @@ import {
 import { referenceTaken } from './references'
 import { recordFeedback, repeatedFeedback } from './feedback'
 import { repeatedFormAnswer, runFormCommand, stampFormActors } from './forms'
+import {
+  consentUnchanged,
+  recordConsentChanges,
+  runConsentCommand,
+  stampConsentActors,
+} from './consent'
 import { guestHereWindow } from './guest'
 import { callForBooking, linkCallToVisit, markCalledBack, recordMissedCall } from './missedCalls'
 import { planSpecial, stopSpecial } from './specials'
@@ -715,9 +721,14 @@ export function execute(
       const same = command.type === 'form-submit' && repeatedFormAnswer(s, command)
       if (same) return { ok: true, state: s, recordId: same.id }
       recordId = runFormCommand(next, command, now, makeId, addEvent)
+    } else if (command.type === 'consent-wording' || command.type === 'guest-consent-stop') {
+      const unchanged = consentUnchanged(s, command)
+      if (unchanged) return { ok: true, state: s, recordId: unchanged }
+      recordId = runConsentCommand(next, command, now, addEvent)
     } else {
       recordId = runOperatingCommand(next, command, now, makeId, addEvent)
     }
+    recordConsentChanges(s, next, command, now, makeId)
     next.revision += 1
     return { ok: true, state: parseState(next, org.region), recordId }
   } catch (error) {
@@ -762,6 +773,7 @@ export function dispatch(
   }
   stampPatchTestActors(s, result.state, actorName)
   stampFormActors(s, result.state, actorName)
+  stampConsentActors(s, result.state, actorName)
   const counted = new Set((s.tillCounts ?? []).map((c) => c.id))
   for (const count of result.state.tillCounts ?? [])
     if (!counted.has(count.id)) count.actor = actorName

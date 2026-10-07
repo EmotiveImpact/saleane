@@ -5,6 +5,7 @@ import { canonical, fail } from '../http'
 import { commandSchema, dispatch, slots } from '../../src/domain/commands'
 import { businessDate, operations } from '../../src/domain/operations'
 import { patchTestSettings } from '../../src/domain/patchTests'
+import { currentWording } from '../../src/domain/consent'
 import { HOLD_LIMITS, holdInput, guestContact } from '../context'
 import type { Context, Route, HoldAllocation, HoldRow } from '../context'
 import { issueGuestLink } from './guest'
@@ -40,6 +41,8 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
         sample,
         // V1.5: treatments marked as needing a patch test tell guests how far ahead to have one.
         patchTestHours: patchTestSettings(state).hoursBefore,
+        // V1.5: the studio's current words for email news, so a ticked box records what was read.
+        emailNews: (({ version, text }) => ({ version, text }))(currentWording(state)),
         depositPolicy: sample ? 'simulated' : 'pay_at_studio',
         paymentCollectionConfigured: false,
         // Only the rate and basis, so each service can show its full price including any tax.
@@ -173,6 +176,8 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
           hold: z.string().min(32).max(100),
           contact: guestContact,
           policy: z.literal(true),
+          /** The version of the email news wording shown to the guest. */
+          emailNewsVersion: z.number().int().min(1).max(1000).optional(),
           // The `from` value of a shared booking link. Unknown values are ignored, not refused.
           from: z.unknown().optional(),
         })
@@ -228,6 +233,9 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
             contact: data.contact,
             source: 'online',
             channel: bookingChannel(data.from),
+            ...(data.contact.marketingConsent && data.emailNewsVersion
+              ? { consentVersion: data.emailNewsVersion }
+              : {}),
           },
         })
         const result = dispatch(org.state, command, 'Guest booking', new Date(now()).toISOString())

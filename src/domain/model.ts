@@ -10,6 +10,8 @@ import { patchTestsProblem } from './patchTests'
 import { patchTestSchema } from './patchTestsSchema'
 import { formResponseSchema, formSchema } from './formsSchema'
 import { formsProblem } from './forms'
+import { consentRecordSchema, consentWordingSchema } from './consentSchema'
+import { consentProblem } from './consent'
 import { feedbackProblem, feedbackSchema } from './feedback'
 import { specialSchema, specialsProblem } from './specialsSchema'
 import { taskSchema, tasksProblem } from './tasksSchema'
@@ -278,6 +280,9 @@ export const stateSchema = z.object({
   /** V1.5: ordinary forms guests fill in before a visit, and every answer given, by version. */
   forms: z.array(formSchema).optional(),
   formResponses: z.array(formResponseSchema).optional(),
+  /** V1.5: the studio's wording for email news by version, and every permission change. */
+  consentWording: z.array(consentWordingSchema).max(500).optional(),
+  consentRecords: z.array(consentRecordSchema).optional(),
 })
 export type BusinessState = z.infer<typeof stateSchema>
 export type Client = z.infer<typeof clientSchema>
@@ -602,6 +607,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
   if (feedback) throw new Error(feedback)
   const forms = formsProblem(s)
   if (forms) throw new Error(forms)
+  const consent = consentProblem(s)
+  if (consent) throw new Error(consent)
   const specials = specialsProblem(s)
   if (specials) throw new Error(specials)
   const tasks = tasksProblem(s)

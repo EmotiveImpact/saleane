@@ -37,6 +37,7 @@ import { rentMethods, rentalInputSchema } from './rentSchema'
 import { orderLinesSchema, supplierInputSchema } from './purchasingSchema'
 import { accountingProviders, accountingSettingsSchema } from './accountsSchema'
 import { reminderSettingsSchema } from './reminderSettings'
+import { CONSENT_TEXT_LIMIT } from './consentSchema'
 const id = z.string().min(1).max(150)
 const money = z.number().int().nonnegative().max(100_000_000)
 const method = paymentMethodSchema
@@ -71,6 +72,8 @@ export const bookingSchema = z.object({
   waitlistId: id.optional(),
   /** V1.5: the missed call this booking answers. */
   callId: id.optional(),
+  /** V1.5: the version of the email news wording the guest was shown, when they ticked it. */
+  consentVersion: z.number().int().min(1).optional(),
 })
 export const operatingCommandSchema = z.discriminatedUnion('type', [
   z.object({
@@ -377,6 +380,11 @@ export const commandSchema = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('client'), contact: contactSchema, referredById: id.optional() }),
   z.object({ type: z.literal('consent'), clientId: id, consent: z.boolean() }),
+  z.object({
+    type: z.literal('consent-wording'),
+    text: z.string().trim().min(10).max(CONSENT_TEXT_LIMIT),
+  }),
+  z.object({ type: z.literal('guest-consent-stop'), appointmentId: id }),
   tillCountCommandSchema,
   // Sent only through a guest's private link, never by the studio.
   z.object({ type: z.literal('feedback'), appointmentId: id }).extend(feedbackInputSchema.shape),
