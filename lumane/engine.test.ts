@@ -14,8 +14,9 @@ import {
   scriptedBrain,
   SkillRefusal,
   talkWindowSeconds,
+  voiceFor,
 } from '.'
-import type { Allowance, Brain, Skill, Usage } from '.'
+import type { Allowance, Brain, Skill, Usage, Voice } from '.'
 
 type Ctx = { role: 'owner' | 'guest'; count: number }
 const allowance: Allowance = {
@@ -245,5 +246,26 @@ describe('Lumane boundary', () => {
           `${file} imports ${path}`,
         ).toBe(true)
     }
+  })
+})
+
+describe('voices', () => {
+  const list: Voice[] = [
+    { key: 'a', label: 'A', supplier: 'openai', supplierVoice: 'a', accent: 'British' },
+    { key: 'b', label: 'B', supplier: 'elevenlabs', supplierVoice: 'b1', accent: 'American' },
+    { key: 'c', label: 'C', supplier: 'openai', supplierVoice: 'c', accent: 'British' },
+  ]
+  it('uses the default until the studio chooses', () => {
+    expect(voiceFor(list, 'a', {}, { kind: 'guest' }).key).toBe('a')
+    expect(voiceFor(list, 'a', { studio: 'b' }, { kind: 'guest' }).key).toBe('b')
+  })
+  it('lets each person choose their own voice, but guests always hear the studio voice', () => {
+    const choices = { studio: 'b', people: { p1: 'c' } }
+    expect(voiceFor(list, 'a', choices, { kind: 'person', personId: 'p1' }).key).toBe('c')
+    expect(voiceFor(list, 'a', choices, { kind: 'person', personId: 'p2' }).key).toBe('b')
+    expect(voiceFor(list, 'a', choices, { kind: 'guest' }).key).toBe('b')
+  })
+  it('falls back when a chosen voice leaves the list', () => {
+    expect(voiceFor(list, 'a', { studio: 'gone' }, { kind: 'guest' }).key).toBe('a')
   })
 })
