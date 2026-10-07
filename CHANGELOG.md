@@ -8,6 +8,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 - Each new visit stores the studio's tax setting at the moment it is booked, and checkout uses it. A guest pays the all-in price they were shown, even if the studio changes its tax setting before the visit (owner decision, 7 October 2026).
 - Visits booked before this change keep following the studio's current setting.
+- A time held on the public booking page also remembers the tax setting. If the studio changes it before the guest confirms, the guest is asked to choose the time again, as already happens when the price changes.
 - The checkout panel now says "Tax follows the setting in place when this visit was booked."
 
 ## 2026-10-07 · Merged · Small extras
