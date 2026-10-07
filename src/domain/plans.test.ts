@@ -335,6 +335,63 @@ describe('memberships', () => {
   })
 })
 
+describe('review fixes', () => {
+  it('lets a membership return only the current paid month, never past ones', () => {
+    const plan = withPlan({ ...club, visits: 0 })
+    const later = '2026-12-10T08:00:00.000Z'
+    let s = apply(plan.s, { type: 'plan-renew', holdingId: plan.holding.id, method: 'cash' }, later)
+    expect(planStanding(holdings(s)[0], '2026-12-10').unusedMinor).toBe(7500)
+    const end = { type: 'plan-cancel' as const, holdingId: plan.holding.id, reason: 'Moving' }
+    expect(run(s, { ...end, refundMinor: 7501, method: 'cash', reference: 'M1' }, later).ok).toBe(
+      false,
+    )
+    s = apply(s, { ...end, refundMinor: 7500, method: 'cash', reference: 'M1' }, later)
+    expect(holdings(s)[0].refunds[0].amountMinor).toBe(7500)
+    // A lapsed membership has nothing left to return.
+    const lapsed = withPlan(club)
+    expect(planStanding(lapsed.holding, '2027-03-01').unusedMinor).toBe(0)
+  })
+
+  it('refuses a payment or refund reference that is already recorded', () => {
+    const s = apply(local(), { type: 'offer', input: pkg })
+    const offerId = s.offers![0].id
+    const sell = {
+      type: 'plan-sell' as const,
+      offerId,
+      clientId: 'client-1',
+      method: 'external_card' as const,
+      reference: 'T-100',
+    }
+    const once = apply(s, sell)
+    expect(run(once, { ...sell, clientId: 'client-2' }).ok).toBe(false)
+    const twice = apply(once, { ...sell, clientId: 'client-2', reference: 'T-101' })
+    const end = (holdingId: string) => ({
+      type: 'plan-cancel' as const,
+      holdingId,
+      reason: 'Changed mind',
+      refundMinor: 100,
+      method: 'cash' as const,
+      reference: 'R-1',
+    })
+    const ended = apply(twice, end(holdings(twice)[0].id))
+    expect(run(ended, end(holdings(ended)[1].id)).ok).toBe(false)
+  })
+
+  it('keeps names unique when a plan is renamed or put back on sale', () => {
+    let s = apply(local(), { type: 'offer', input: pkg })
+    s = apply(s, { type: 'offer', input: { ...pkg, name: 'Three facials', visits: 3 } })
+    const second = s.offers![1].id
+    expect(run(s, { type: 'offer', id: second, input: { ...pkg, visits: 3 } }).ok).toBe(false)
+    s = apply(s, { type: 'offer', id: second, input: { ...pkg, visits: 3, archived: true } })
+    expect(
+      run(s, { type: 'offer', id: second, input: { ...pkg, visits: 3, archived: false } }).ok,
+    ).toBe(false)
+    expect(
+      run(s, { type: 'offer', id: s.offers![0].id, input: { ...pkg, priceMinor: 41000 } }).ok,
+    ).toBe(true)
+  })
+})
+
 describe('records', () => {
   it('names who sold and ended a plan, and refuses money from nowhere', () => {
     let s = apply(local(), { type: 'offer', input: pkg })

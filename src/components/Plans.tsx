@@ -639,7 +639,7 @@ export function PlansLedger() {
     client: state.clients.find((c) => c.id === holding.clientId)?.name ?? 'Client',
   }))
   const owed = rows
-    .filter((r) => r.holding.kind === 'package' && r.standing.state !== 'cancelled')
+    .filter((r) => r.holding.kind === 'package' && r.standing.state === 'active')
     .reduce((sum, r) => sum + r.standing.unusedMinor, 0)
   const taken = rows.reduce((sum, r) => sum + r.standing.paidMinor - r.standing.refundedMinor, 0)
   return (
@@ -675,7 +675,7 @@ export function PlansLedger() {
               </small>
             </div>
             <span className="ops-record-money">
-              {holding.kind === 'package' && standing.state !== 'cancelled'
+              {holding.kind === 'package' && standing.state === 'active'
                 ? money(standing.unusedMinor, org, true)
                 : STATE_LABEL[standing.state]}
             </span>

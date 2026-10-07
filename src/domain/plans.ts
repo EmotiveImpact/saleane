@@ -72,8 +72,19 @@ export function planStanding(holding: Holding, today: string) {
     paidMinor,
     usedMinor,
     refundedMinor,
-    /** What a client could still use, or have back. A membership's past months are not owed. */
-    unusedMinor: Math.max(0, paidMinor - usedMinor - refundedMinor),
+    /**
+     * What a client could still use, or have back. A membership's past months are not owed and
+     * unused visits do not roll over, so only the current and any prepaid months count.
+     */
+    unusedMinor:
+      holding.kind === 'package'
+        ? Math.max(0, paidMinor - usedMinor - refundedMinor)
+        : Math.max(
+            0,
+            sum(holding.payments.filter((p) => (p.periodStart ?? '') >= periodStart)) -
+              sum(holding.uses.filter((u) => (u.periodStart ?? '') >= periodStart)) -
+              refundedMinor,
+          ),
     visitsLeft,
     periodStart,
     canCover: live && visitsLeft > 0,
@@ -177,13 +188,12 @@ export function runPlanCommand(
       if (!offer) throw new Error('This plan is not offered here.')
       if (offer.kind !== input.kind)
         throw new Error('A package cannot become a membership. Add a new plan instead.')
+      assertNameFree(next.offers, input, offer.id)
       // Clients keep the terms they bought; only future sales change.
       Object.assign(offer, input)
       return offer.id
     }
-    const name = input.name.trim().toLowerCase()
-    if (next.offers.some((o) => !o.archived && o.name.trim().toLowerCase() === name))
-      throw new Error('A plan with this name is already offered.')
+    assertNameFree(next.offers, input)
     const offer: Offer = { id: makeId(), organisationId: org.id, createdAt: now, ...input }
     next.offers.push(offer)
     return offer.id
@@ -194,6 +204,7 @@ export function runPlanCommand(
     if (!offer || offer.archived) throw new Error('This plan is not on sale.')
     if (!client) throw new Error('Client does not belong to this workspace.')
     assertMethod(next, command.method, command.reference)
+    assertReferenceFree(next, command.reference)
     next.holdings ??= []
     if (
       offer.kind === 'membership' &&
@@ -255,6 +266,7 @@ export function runPlanCommand(
       throw new Error('This membership is already paid for the coming month.')
     if (holding.payments.some((p) => p.periodStart === periodStart))
       return holding.payments.find((p) => p.periodStart === periodStart)!.id
+    assertReferenceFree(next, command.reference)
     const payment = {
       id: makeId(),
       amountMinor: holding.priceMinor,
@@ -285,6 +297,11 @@ export function runPlanCommand(
     if (!command.method || !command.reference?.trim())
       throw new Error('Say how the money was returned and give its reference.')
     assertMethod(next, command.method, command.reference)
+    if (
+      operations(next).refunds.some((r) => r.reference === command.reference!.trim()) ||
+      holdings(next).some((h) => h.refunds.some((r) => r.reference === command.reference!.trim()))
+    )
+      throw new Error('This refund reference is already recorded. Review the existing record.')
     holding.refunds.push({
       id: makeId(),
       amountMinor: refundMinor,
@@ -306,6 +323,24 @@ export function runPlanCommand(
   return holding.id
 }
 
+function assertNameFree(list: Offer[], input: { name: string; archived: boolean }, id?: string) {
+  const name = input.name.trim().toLowerCase()
+  if (
+    !input.archived &&
+    list.some((o) => o.id !== id && !o.archived && o.name.trim().toLowerCase() === name)
+  )
+    throw new Error('A plan with this name is already offered.')
+}
+/** A payment reference names one payment, as at checkout and for deposits. */
+function assertReferenceFree(s: BusinessState, reference?: string) {
+  const ref = reference?.trim()
+  if (
+    ref &&
+    (s.payments.some((p) => p.reference === ref) ||
+      holdings(s).some((h) => h.payments.some((p) => p.reference === ref)))
+  )
+    throw new Error('This payment reference is already recorded. Review the existing payment.')
+}
 function addDaysBefore(date: string) {
   const value = new Date(`${date}T12:00:00Z`)
   value.setUTCDate(value.getUTCDate() - 1)
