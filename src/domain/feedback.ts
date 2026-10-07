@@ -140,6 +140,16 @@ export function feedbackSince(s: BusinessState, days: number) {
   return `${day}T00:00:00.000Z`
 }
 
+/** The studio's own calendar date (YYYY-MM-DD) on which an answer was given. */
+export function feedbackDay(s: BusinessState, createdAt: string) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: s.organisation.timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(createdAt))
+}
+
 /** Averages for the owner's feedback page: the studio, then each professional. */
 export function feedbackSummary(s: BusinessState, since?: string) {
   const rows = feedbackList(s).filter((r) => !since || r.createdAt >= since)

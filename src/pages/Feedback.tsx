@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MessageSquareQuote, Star } from 'lucide-react'
 import { useStore } from '../state/context'
-import { feedbackList, feedbackSince, feedbackSummary } from '../domain/feedback'
+import { feedbackDay, feedbackList, feedbackSince, feedbackSummary } from '../domain/feedback'
 import { dateLabel } from '../domain/format'
 import { Avatar, Empty, PageHeader, SegmentedControl } from '../design'
 import '../components/management.css'
@@ -115,7 +115,7 @@ export function Feedback() {
                       {' · '}
                       {visit?.bookedServiceName ?? 'Visit'} with {name(row.staffId, state.staff)}
                       {' · '}
-                      {dateLabel(row.createdAt.slice(0, 10), org.locale)}
+                      {dateLabel(feedbackDay(state, row.createdAt), org.locale)}
                     </p>
                     <p className="feedback-scores">
                       Visit {row.visitRating} / 5 · Looked after {row.practitionerRating} / 5

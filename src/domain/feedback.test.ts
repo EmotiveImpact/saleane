@@ -5,7 +5,7 @@ import type { Command } from './commands'
 import type { BusinessState } from './model'
 import { parseState } from './model'
 import { can, defaultOperations } from './operations'
-import { feedbackSince, feedbackSummary, ownRating, withoutFeedback } from './feedback'
+import { feedbackDay, feedbackSince, feedbackSummary, ownRating, withoutFeedback } from './feedback'
 import { planMessages } from './reminders'
 import { practitionerView } from './practitioner'
 import { guestView } from './guest'
@@ -106,6 +106,10 @@ describe('who sees what', () => {
     const la = structuredClone(s)
     la.organisation.timeZone = 'America/Los_Angeles'
     expect(feedbackSince(la, 30)).toBe('2026-09-07T07:00:00.000Z')
+    const sydney = structuredClone(s)
+    sydney.organisation.timeZone = 'Australia/Sydney'
+    expect(feedbackDay(sydney, '2026-10-06T13:30:00.000Z')).toBe('2026-10-07')
+    expect(feedbackDay(la, '2026-10-06T03:30:00.000Z')).toBe('2026-10-05')
   })
 
   it('gives a practitioner their own average only once three guests have rated them', () => {
