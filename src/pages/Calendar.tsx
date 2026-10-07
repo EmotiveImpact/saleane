@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Plus, LayoutGrid, List } from 'lucide-react'
 import { useStore } from '../state/context'
+import { useLiveRefresh } from '../state/useLive'
 import { businessMinutes, can, hoursFor } from '../domain/operations'
 import { dayAppointments, shownStatus, staffDay } from '../domain/selectors'
 import { addDays, dateLabel, timeLabel } from '../domain/format'
@@ -23,6 +24,7 @@ import type { BookingDefaults } from '../components/BookingDialog'
 
 export function Calendar() {
   const { state, today, role, blocked } = useStore()
+  useLiveRefresh()
   const [params] = useSearchParams()
   const [date, setDate] = useState(() =>
     /^\d{4}-\d{2}-\d{2}$/.test(params.get('date') ?? '') ? params.get('date')! : today,

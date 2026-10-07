@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { DoorOpen } from 'lucide-react'
 import { api } from '../state/api'
 import { guestViewSchema } from '../domain/guest'
@@ -20,7 +20,17 @@ export function GuestHere({
 }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [reached, setReached] = useState(false)
   const here = view.here
+  const opensAt = here?.opensAt
+  // A page opened early shows the button once the time comes, without a reload.
+  useEffect(() => {
+    if (!opensAt) return
+    const wait = Date.parse(opensAt) - Date.now()
+    if (wait <= 0) return
+    const timer = window.setTimeout(() => setReached(true), Math.min(wait, 2 ** 31 - 1))
+    return () => window.clearTimeout(timer)
+  }, [opensAt])
   if (!here || here.welcomed) return null
   const org = view.organisation
   const time = (iso: string) =>
@@ -56,7 +66,7 @@ export function GuestHere({
         </p>
       </section>
     )
-  if (!here.open && !saving)
+  if (!here.open && !reached && !saving)
     return (
       <section className="guest-here" aria-labelledby="here-heading">
         <h2 id="here-heading">
