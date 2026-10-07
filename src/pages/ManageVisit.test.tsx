@@ -18,6 +18,7 @@ const view = (outcome: GuestView['cancellation']['outcome'], status = 'confirmed
     timeZone: 'Europe/London',
     currency: 'GBP',
     region: 'UK',
+    address: '12 Example Mews, London',
   },
   visit: {
     serviceName: 'Skin Renewal Facial',
@@ -26,7 +27,9 @@ const view = (outcome: GuestView['cancellation']['outcome'], status = 'confirmed
     startMinutes: 540,
     durationMinutes: 60,
     status: status as GuestView['visit']['status'],
+    calendarUid: 'visit-0123456789abcdef@saleane',
   },
+  arrival: { studioNote: '', serviceNote: '' },
   deposit: { paidMinor: 2500, simulated: false },
   cancellation: {
     available: status === 'confirmed',
@@ -85,4 +88,46 @@ test('never asks the server without a token and explains the broken link', async
   render(<ManageVisit />)
   expect(await screen.findByText(/This link is incomplete/)).toBeInTheDocument()
   expect(vi.mocked(api)).not.toHaveBeenCalled()
+})
+
+test('shows the studio notes and downloads a calendar file without the private link', async () => {
+  const user = userEvent.setup()
+  vi.mocked(api).mockResolvedValue({
+    ...view('none'),
+    arrival: {
+      studioNote: 'Ring the bell at the blue door.',
+      serviceNote: 'Come with clean skin.',
+    },
+  } as never)
+  const files: Blob[] = []
+  const createObjectURL = vi.fn((blob: Blob) => {
+    files.push(blob)
+    return 'blob:visit'
+  })
+  Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() })
+  const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+  render(<ManageVisit />)
+  expect(await screen.findByRole('heading', { name: 'Before you arrive' })).toBeInTheDocument()
+  expect(screen.getByText('Ring the bell at the blue door.')).toBeInTheDocument()
+  expect(screen.getByText('Come with clean skin.')).toBeInTheDocument()
+  expect(screen.getByText('12 Example Mews, London')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Add to calendar' }))
+  expect(click).toHaveBeenCalledOnce()
+  const file = await files[0].text()
+  expect(file).toContain('UID:visit-0123456789abcdef@saleane')
+  expect(file).toContain('SUMMARY:Skin Renewal Facial at Reference Studio')
+  expect(file).toContain('DTSTART:20261007T080000Z')
+  expect(file).not.toContain(token)
+  click.mockRestore()
+})
+
+test('offers no calendar file or notes once a visit is cancelled', async () => {
+  vi.mocked(api).mockResolvedValue({
+    ...view('none', 'cancelled'),
+    arrival: { studioNote: 'Ring the bell.', serviceNote: '' },
+  } as never)
+  render(<ManageVisit />)
+  await screen.findByText('Skin Renewal Facial')
+  expect(screen.queryByRole('button', { name: 'Add to calendar' })).not.toBeInTheDocument()
+  expect(screen.queryByText('Ring the bell.')).not.toBeInTheDocument()
 })

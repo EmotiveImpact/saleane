@@ -1,0 +1,97 @@
+/* Guest extras: the all-in price line, "before you arrive", add to calendar and shared links. */
+.price-sentence {
+  display: block;
+  margin-top: 8px;
+  color: var(--ink);
+  font-size: var(--text-small);
+  line-height: 1.45;
+}
+.before-arrive {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 22px;
+  padding: 18px 20px;
+  text-align: left;
+  background: var(--sage-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.before-arrive h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-family: var(--font-editorial);
+  font-weight: 500;
+  font-size: var(--text-title-s);
+}
+.before-arrive p {
+  margin: 0;
+  color: var(--ink);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.add-to-calendar {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  margin: 0 0 18px;
+}
+.guest-card .add-to-calendar {
+  justify-items: start;
+}
+.add-to-calendar .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.add-to-calendar small {
+  color: var(--danger);
+}
+.guest-notes-fields {
+  display: grid;
+  gap: 16px;
+  margin: 0 0 12px;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.guest-notes-fields label,
+.share-link {
+  display: grid;
+  gap: 6px;
+}
+.guest-notes-fields textarea {
+  width: 100%;
+  resize: vertical;
+}
+.guest-notes-fields small,
+.share-link small {
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+.share-links {
+  display: grid;
+  gap: 18px;
+  margin: 0 0 14px;
+}
+.share-link label {
+  font-weight: 600;
+}
+.share-link-row {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+.share-link-row input {
+  flex: 1;
+  min-width: 0;
+}
+@media (max-width: 480px) {
+  .share-link-row {
+    flex-direction: column;
+  }
+  .before-arrive {
+    padding: 16px;
+  }
+}

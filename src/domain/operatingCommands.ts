@@ -28,6 +28,21 @@ export function runOperatingCommand(
   const scheduling = ['hours', 'closure', 'remove-closure', 'staff', 'resource'].includes(
     command.type,
   )
+  // Guest notes change only text guests read; an empty note removes it.
+  if (command.type === 'guest-notes') {
+    const services = command.prepNotes.map(({ serviceId, note }) => {
+      const service = next.services.find((item) => item.id === serviceId)
+      if (!service) throw new Error('Service does not belong to this workspace.')
+      return { service, note }
+    })
+    if (command.arrivalNote) next.organisation.arrivalNote = command.arrivalNote
+    else delete next.organisation.arrivalNote
+    for (const { service, note } of services) {
+      if (note) service.prepNote = note
+      else delete service.prepNote
+    }
+    return next.organisation.id
+  }
   // Taken before any change so the schedule check and its history compare like with like.
   const before = scheduling ? scheduleSnapshot(next) : next
   next.operations = structuredClone(operations(next))
