@@ -147,6 +147,10 @@ function BookingFlow({
     [manageUrl, setManageUrl] = useState('')
   const service = services.find((s) => s.id === serviceId),
     professional = staff.find((s) => s.id === staffId)
+  // Each step starts at the top, so a guest on a phone isn't left at the foot of the last one.
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0 })
+  }, [step, confirmed])
   useEffect(() => {
     if (!serviceId || step !== 2) return
     let active = true
@@ -303,7 +307,10 @@ function BookingFlow({
           ? 'Fictional sample studio. Reservations and deposits are simulated.'
           : 'Local booking preview. Pay at the studio; online payments and emails are not connected yet.'}
       </section>
-      <div className="public-booking-layout">
+      <div
+        // On phones the photo greets the guest on the first step only.
+        className={`public-booking-layout ${step > 1 || confirmed ? 'booking-past-welcome' : ''}`}
+      >
         <aside className="booking-story">
           <img
             className="booking-story-image"
@@ -535,6 +542,7 @@ function BookingFlow({
                           }))}
                           value={start}
                           onChange={setStart}
+                          tabs
                         />
                       )}
                       {!loadingTimes && !times.length && date < addDays(today, 365) && (

@@ -2188,9 +2188,9 @@ fieldset {
   background: var(--stone);
 }
 .time-slot.selected {
-  background: var(--ink);
+  background: var(--action);
   color: white;
-  border-color: var(--ink);
+  border-color: var(--action);
 }
 .client-picker {
   display: grid;
@@ -2371,8 +2371,8 @@ fieldset {
   color: var(--muted);
 }
 .date-strip-day.selected {
-  background: var(--ink);
-  border-color: var(--ink);
+  background: var(--action);
+  border-color: var(--action);
   color: #fff;
 }
 .date-strip-day.selected small,
@@ -2981,6 +2981,65 @@ fieldset {
 .professional-choices small {
   color: var(--muted);
   font-size: var(--text-micro);
+}
+.anyone-mark {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--radius-round);
+  background: var(--brand-soft);
+  color: var(--brand-ink);
+}
+
+/* Morning, afternoon and evening as a row of choices above one set of times. */
+.time-periods {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.time-periods button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-pill);
+  background: #fff;
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+}
+.time-periods button small {
+  color: var(--muted);
+  font-weight: var(--weight-body);
+  font-variant-numeric: tabular-nums;
+}
+.time-periods button.selected {
+  background: var(--brand-soft);
+  border-color: var(--brand);
+}
+
+/* Booking on a phone: the welcome photo shows once, and the next step stays in reach. */
+@media (max-width: 900px) {
+  .booking-past-welcome .booking-story {
+    display: none;
+  }
+}
+@media (max-width: 650px) {
+  .booking-main .booking-next {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    margin: 24px -20px 0;
+    padding: 12px 20px max(12px, env(safe-area-inset-bottom));
+    background: color-mix(in srgb, #fff 94%, transparent);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 -1px 0 var(--line);
+    border-top: 0;
+  }
 }
 .booking-contact-form {
   display: flex;

@@ -2,6 +2,16 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## In review · A smoother booking page
+
+**Status: draft pull request, not merged.** Look and flow only; booking rules, holds, prices and deposits are unchanged.
+
+- On phones and narrow screens, the studio photo greets guests on the first step only; later steps open straight on the task, and each step starts at the top of the page.
+- Times show one part of the day at a time (Morning, Afternoon, Evening, each with its count), opening on the part that holds the chosen time or else the earliest. The staff booking dialogs still show the full day.
+- On phones, the bar with the treatment, price and Continue button stays at the bottom of the screen while the guest scrolls.
+- The chosen time and chosen day use the studio's own colour instead of black, here and in the staff app.
+- The demo booking page offers "Anyone available" first when more than one professional does the treatment, combining their times; the visit goes to the first professional free at the chosen time. The real guest page already offered "No preference · first available".
+
 ## 2026-10-07 · Merged · A full Settings page
 
 **Status: merged into main on 7 October 2026; not deployed.** Layout and navigation only; studio records save exactly as before.

@@ -1,6 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Check, Clock3, MapPin, ShieldCheck, Leaf } from 'lucide-react'
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Clock3,
+  MapPin,
+  ShieldCheck,
+  Leaf,
+  Users,
+} from 'lucide-react'
 import { useStore } from '../state/context'
 import { DEMO_DATE } from '../domain/model'
 import { slots } from '../domain/commands'
@@ -19,7 +28,8 @@ export function BrandedBooking() {
   const [step, setStep] = useState(1)
   const [category, setCategory] = useState('All')
   const [serviceId, setServiceId] = useState(state.services[0].id)
-  const [staffId, setStaffId] = useState(state.staff[0].id)
+  // 'any' lets the guest take the first professional free at the time they choose.
+  const [staffId, setStaffId] = useState('any')
   const [date, setDate] = useState(addDays(DEMO_DATE, 1))
   const [start, setStart] = useState<number | null>(null)
   const [name, setName] = useState('')
@@ -30,27 +40,44 @@ export function BrandedBooking() {
   const [error, setError] = useState('')
   const [confirmedId, setConfirmedId] = useState('')
   const service = state.services.find((s) => s.id === serviceId)!
-  const staff = state.staff.find((s) => s.id === staffId)!
   const professionals = state.staff.filter((s) => s.serviceIds.includes(serviceId))
-  const times = slots(state, serviceId, staffId, date)
+  const anyone = staffId === 'any' && professionals.length > 1
+  const pool = anyone
+    ? professionals
+    : professionals
+        .filter((p) => p.id === staffId)
+        .concat(professionals)
+        .slice(0, 1)
+  /** Every time someone in the pool is free on a day, earliest first. */
+  const freeTimes = (day: string) =>
+    [...new Set(pool.flatMap((p) => slots(state, serviceId, p.id, day)))].sort((a, b) => a - b)
+  const times = freeTimes(date)
+  // With no preference, the visit goes to the first professional free at the chosen time.
+  const staff =
+    (start !== null && pool.find((p) => slots(state, serviceId, p.id, date).includes(start))) ||
+    pool[0]
   // Only work out the fortnight and the next opening while the guest is choosing a time.
   const fortnight =
     step === 2
       ? Array.from({ length: 14 }, (_, i) => {
           const day = addDays(DEMO_DATE, i)
-          return { date: day, free: slots(state, serviceId, staffId, day).length }
+          return { date: day, free: freeTimes(day).length }
         })
       : []
   const nextOpen = (() => {
     if (step !== 2 || times.length) return null
     for (let i = 1; i <= 60; i++) {
       const day = addDays(date, i)
-      const open = slots(state, serviceId, staffId, day)
+      const open = freeTimes(day)
       if (open.length) return { date: day, time: open[0] }
     }
     return null
   })()
   const steps = ['Your treatment', 'A time for you', 'Your details', 'A final look']
+  // Each step starts at the top, so a guest on a phone isn't left at the foot of the last one.
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0 })
+  }, [step, confirmedId])
   const tax = operations(state).tax
   const fullPrice = (s: { priceMinor: number }) => fullPriceMinor(s, tax)
   async function confirm() {
@@ -62,7 +89,7 @@ export function BrandedBooking() {
       type: 'book',
       input: {
         serviceId,
-        staffId,
+        staffId: staff.id,
         date,
         startMinutes: start,
         contact: { name, email, phone, marketingConsent: consent },
@@ -109,7 +136,10 @@ export function BrandedBooking() {
       <section className="booking-demo-banner" aria-label="About this booking page">
         Demo booking experience. Use fictional details. No real reservation or payment is made.
       </section>
-      <div className="public-booking-layout">
+      <div
+        // On phones the photo greets the guest on the first step only.
+        className={`public-booking-layout ${step > 1 || confirmedId ? 'booking-past-welcome' : ''}`}
+      >
         <aside className="booking-story">
           <img
             className="booking-story-image"
@@ -267,9 +297,7 @@ export function BrandedBooking() {
                             className={`service-choice ${serviceId === s.id ? 'selected' : ''}`}
                             onClick={() => {
                               setServiceId(s.id)
-                              setStaffId(
-                                state.staff.find((person) => person.serviceIds.includes(s.id))!.id,
-                              )
+                              setStaffId('any')
                               setStart(null)
                             }}
                           >
@@ -318,11 +346,30 @@ export function BrandedBooking() {
                     <fieldset className="time-fieldset">
                       <legend>Your professional</legend>
                       <div className="professional-choices">
+                        {professionals.length > 1 && (
+                          <button
+                            aria-pressed={anyone}
+                            className={anyone ? 'selected' : ''}
+                            onClick={() => {
+                              setStaffId('any')
+                              setStart(null)
+                            }}
+                          >
+                            <span className="anyone-mark" aria-hidden="true">
+                              <Users size={18} />
+                            </span>
+                            <span>
+                              <strong>Anyone available</strong>
+                              <small>The most times to choose from</small>
+                            </span>
+                            {anyone && <Check size={16} />}
+                          </button>
+                        )}
                         {professionals.map((person) => (
                           <button
                             key={person.id}
-                            aria-pressed={staffId === person.id}
-                            className={staffId === person.id ? 'selected' : ''}
+                            aria-pressed={!anyone && staff.id === person.id}
+                            className={!anyone && staff.id === person.id ? 'selected' : ''}
                             onClick={() => {
                               setStaffId(person.id)
                               setStart(null)
@@ -333,7 +380,7 @@ export function BrandedBooking() {
                               <strong>{person.name}</strong>
                               <small>{person.role}</small>
                             </span>
-                            {staffId === person.id && <Check size={16} />}
+                            {!anyone && staff.id === person.id && <Check size={16} />}
                           </button>
                         ))}
                       </div>
@@ -371,10 +418,15 @@ export function BrandedBooking() {
                         }))}
                         value={start}
                         onChange={setStart}
+                        tabs
                       />
                     ) : (
                       <div className="next-available">
-                        <p>{staff.name.split(' ')[0]} has no times left on this day.</p>
+                        <p>
+                          {anyone
+                            ? 'Nobody has times left on this day.'
+                            : `${staff.name.split(' ')[0]} has no times left on this day.`}
+                        </p>
                         {nextOpen && (
                           <Button
                             variant="secondary"
