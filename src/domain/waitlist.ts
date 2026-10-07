@@ -106,6 +106,9 @@ function free(
           visit.bookedResourceType ?? room.type,
           visit.id,
           now,
+          undefined,
+          undefined,
+          visit.locationId,
         )
       : null
   }

@@ -1,8 +1,10 @@
 import type { BusinessState, RelationshipEvent } from './model'
 import type { OperatingCommand } from './commandSchema'
+import { placeOf, places } from './locations'
 import {
   PAY_RATE_LIMIT,
   PAY_RULES_LIMIT,
+  LOCATION_LIMIT,
   SCHEDULE_HISTORY_LIMIT,
   TIME_OFF_DAYS,
   TIME_OFF_LIMIT,
@@ -62,6 +64,7 @@ export function runOperatingCommand(
   ) => void,
 ) {
   const scheduling = [
+    'location',
     'hours',
     'closure',
     'remove-closure',
@@ -156,6 +159,23 @@ export function runOperatingCommand(
     if (!o.closures.some((c) => c.id === command.closureId)) throw new Error('Closure not found.')
     o.closures = o.closures.filter((c) => c.id !== command.closureId)
     recordId = command.closureId
+  } else if (command.type === 'location') {
+    const list = (o.locations ??= [])
+    const old = command.id ? list.find((l) => l.id === command.id) : undefined
+    if (command.id && !old) throw new Error('Location does not belong to this workspace.')
+    const name = command.input.name.toLowerCase()
+    if (places(next, true).some((p) => p.id !== command.id && p.name.toLowerCase() === name))
+      throw new Error('Another location already has that name.')
+    if (!old && list.length >= LOCATION_LIMIT) throw new Error('Too many locations to keep.')
+    const record = { ...command.input, id: command.id ?? makeId() }
+    if (!record.arrivalNote) delete record.arrivalNote
+    if (old) {
+      Object.assign(old, record)
+      if (!command.input.hours) delete old.hours
+      if (!command.input.arrivalNote) delete old.arrivalNote
+      if (!command.input.archived) delete old.archived
+    } else list.push(record)
+    recordId = record.id
   } else if (
     command.type === 'service' ||
     command.type === 'staff' ||
@@ -178,19 +198,33 @@ export function runOperatingCommand(
       if (old) Object.assign(old, record)
       else next.services.push({ ...command.input, ...scope, id: record.id })
     } else if (command.type === 'staff') {
+      for (const day of command.input.hours ?? []) {
+        const site = day.locationId && placeOf(next, day.locationId)
+        if (day.locationId && (!site || (site.archived && !day.closed)))
+          throw new Error('Choose an open location for each working day.')
+      }
       if (old) {
         Object.assign(old, record)
         // Without hours of their own, a professional follows the venue opening hours.
         if (!command.input.hours) delete (old as { hours?: unknown }).hours
       } else next.staff.push({ ...command.input, ...scope, id: record.id })
     } else {
-      if (old) Object.assign(old, record)
-      else next.resources.push({ ...command.input, ...scope, id: record.id })
+      const place = command.input.locationId
+      if (place && place !== (old as { locationId?: string } | undefined)?.locationId) {
+        const site = placeOf(next, place)
+        if (!site || site.archived) throw new Error('Choose an open location for this room.')
+      }
+      if (old) {
+        Object.assign(old, record)
+        // Without a location of its own, a room is at the main location.
+        if (!place) delete (old as { locationId?: unknown }).locationId
+      } else next.resources.push({ ...command.input, ...scope, id: record.id })
     }
     recordId = record.id
   }
   if (
     command.type === 'organisation' ||
+    command.type === 'location' ||
     command.type === 'hours' ||
     command.type === 'closure' ||
     command.type === 'remove-closure' ||

@@ -37,6 +37,7 @@ export function availableResource(
   start: number,
   now = new Date().toISOString(),
   preferredResourceId?: string,
+  locationId?: string,
 ) {
   const service = s.services.find((item) => item.id === serviceId)
   return service && !service.archived
@@ -52,6 +53,8 @@ export function availableResource(
         undefined,
         now,
         preferredResourceId,
+        undefined,
+        locationId,
       )
     : null
 }
@@ -79,6 +82,9 @@ export function rescheduleResource(
         appointment.id,
         now,
         preferredResourceId,
+        undefined,
+        // A visit moves to another time at the same location.
+        appointment.locationId,
       )
     : null
 }
@@ -100,13 +106,14 @@ export function slots(
   staffId: string,
   date: string,
   now = new Date().toISOString(),
+  locationId?: string,
 ) {
   const options: number[] = []
   for (let start = 0; start < 1440; start += 15)
     if (
       staffId === 'any'
-        ? availableProfessionals(s, serviceId, date, start, now).length > 0
-        : availableResource(s, serviceId, staffId, date, start, now)
+        ? availableProfessionals(s, serviceId, date, start, now, locationId).length > 0
+        : availableResource(s, serviceId, staffId, date, start, now, undefined, locationId)
     )
       options.push(start)
   return options
@@ -117,8 +124,11 @@ export function availableProfessionals(
   date: string,
   start: number,
   now = new Date().toISOString(),
+  locationId?: string,
 ) {
-  return s.staff.filter((person) => availableResource(s, serviceId, person.id, date, start, now))
+  return s.staff.filter((person) =>
+    availableResource(s, serviceId, person.id, date, start, now, undefined, locationId),
+  )
 }
 export function depositPaid(s: BusinessState, appointmentId: string) {
   return s.payments
@@ -186,9 +196,17 @@ export function execute(
       const input = bookingSchema.parse(command.input)
       if (input.source === 'online' && !operations(s).bookingEnabled)
         throw new Error('Online booking is currently closed.')
+      const locationId = input.locationId ?? org.locationId
       const staffId =
         input.staffId === 'any'
-          ? availableProfessionals(s, input.serviceId, input.date, input.startMinutes, now).find(
+          ? availableProfessionals(
+              s,
+              input.serviceId,
+              input.date,
+              input.startMinutes,
+              now,
+              locationId,
+            ).find(
               (person) =>
                 !input.resourceId ||
                 availableResource(
@@ -199,6 +217,7 @@ export function execute(
                   input.startMinutes,
                   now,
                   input.resourceId,
+                  locationId,
                 ),
             )?.id
           : input.staffId
@@ -212,6 +231,7 @@ export function execute(
         input.startMinutes,
         now,
         input.resourceId,
+        locationId,
       )
       if (!resourceId)
         throw new Error('That time is no longer available. Choose another time or professional.')
@@ -236,7 +256,7 @@ export function execute(
       const appointment: Appointment = {
         id: makeId(),
         organisationId: org.id,
-        locationId: org.locationId,
+        locationId,
         clientId: client.id,
         serviceId: service.id,
         staffId,

@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import { hasLocations, placeOf, staffLocationOn } from '../domain/locations'
 import { Check, CalendarDays, Search } from 'lucide-react'
 import { useStore } from '../state/context'
 import { operations, can } from '../domain/operations'
@@ -27,6 +28,10 @@ export function BookingDialog({
   const { state, commit, today, blocked, saving, role } = useStore()
   const sandbox = operations(state).mode === 'sandbox'
   const services = state.services.filter((item) => !item.archived)
+  // V2: a person works at one location a day, so their times are at that location.
+  const free = (service: string, person: string, day: string) =>
+    slots(state, service, person, day, undefined, staffLocationOn(state, person, day))
+  const multiSite = hasLocations(state)
   const [pending, setPending] = useState(false)
   const busy = pending || saving
   const [clientId, setClientId] = useState(defaults.clientId ?? '')
@@ -38,7 +43,7 @@ export function BookingDialog({
       const fits = services.find(
         (item) =>
           person.serviceIds.includes(item.id) &&
-          slots(state, item.id, person.id, date).some(
+          free(item.id, person.id, date).some(
             (time) => Math.abs(time - defaults.startMinutes!) <= 90,
           ),
       )
@@ -66,14 +71,14 @@ export function BookingDialog({
     const wanted = defaults.startMinutes
     if (wanted === undefined) return null
     // A spot on the calendar may sit too close to the next visit, so take the nearest time that fits.
-    const nearest = slots(state, serviceId, staffId, date).sort(
+    const nearest = free(serviceId, staffId, date).sort(
       (a, b) => Math.abs(a - wanted) - Math.abs(b - wanted) || a - b,
     )[0]
     return nearest !== undefined && Math.abs(nearest - wanted) <= 90 ? nearest : null
   })
   const [error, setError] = useState('')
   const [confirmedId, setConfirmedId] = useState('')
-  const available = slots(state, serviceId, staffId, date)
+  const available = free(serviceId, staffId, date)
   const client = state.clients.find((c) => c.id === clientId)
   const locale = state.organisation.locale
   const pastVisits = state.appointments
@@ -97,9 +102,7 @@ export function BookingDialog({
     setDate(next)
     // Keep a familiar time when it is free on the new day.
     const keep = defaults.startMinutes
-    setStart(
-      keep !== undefined && slots(state, serviceId, staffId, next).includes(keep) ? keep : null,
-    )
+    setStart(keep !== undefined && free(serviceId, staffId, next).includes(keep) ? keep : null)
   }
   async function save() {
     if (busy || blocked || !can(role, 'book')) return
@@ -122,6 +125,7 @@ export function BookingDialog({
           staffId,
           date,
           startMinutes: start,
+          ...(multiSite ? { locationId: staffLocationOn(state, staffId, date) } : {}),
           source: defaults.rebookedFromId ? 'rebook' : 'desk',
           rebookedFromId: defaults.rebookedFromId,
         },
@@ -289,6 +293,12 @@ export function BookingDialog({
               />
             </label>
           </div>
+          {multiSite && staffId && (
+            <p className="subtle">
+              At {placeOf(state, staffLocationOn(state, staffId, date))?.name}, where{' '}
+              {state.staff.find((p) => p.id === staffId)?.name.split(' ')[0]} works that day.
+            </p>
+          )}
           <TimeChoices
             label="Available times"
             times={available.map((value) => ({ value, label: timeLabel(value, locale) }))}

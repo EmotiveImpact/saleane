@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { hasLocations, placeOf, staffLocationOn } from '../domain/locations'
 import { Link } from 'react-router-dom'
 import { ArrowRight, ArrowUpRight, Plus, Leaf, Printer } from 'lucide-react'
 import { useStore } from '../state/context'
@@ -46,6 +47,7 @@ export function Today() {
   const [booking, setBooking] = useState<BookingDefaults | null>(null)
   const [hideCompleted, setHideCompleted] = useState(false)
   const day = dayAppointments(state)
+  const multiSite = hasLocations(state)
   const due = dueClients(state)
   const tomorrow = addDays(today, 1)
   const professional = state.staff.find(
@@ -55,7 +57,16 @@ export function Today() {
   )
   const service = state.services.find((s) => !s.archived && professional?.serviceIds.includes(s.id))
   const available =
-    professional && service ? slots(state, service.id, professional.id, tomorrow) : []
+    professional && service
+      ? slots(
+          state,
+          service.id,
+          professional.id,
+          tomorrow,
+          undefined,
+          staffLocationOn(state, professional.id, tomorrow),
+        )
+      : []
   const booked = day.reduce((sum, a) => sum + a.bookedPriceMinor, 0)
   const completed = day.filter((a) => a.status === 'completed').length
   const changed = state.appointments.filter(
@@ -243,6 +254,9 @@ export function Today() {
                       <strong>{staff.name.split(' ')[0]}</strong>
                       <small>
                         {visits.length} visits · {percent}% booked
+                        {multiSite
+                          ? ` · ${placeOf(state, staffLocationOn(state, staff.id, today))?.name ?? ''}`
+                          : ''}
                       </small>
                       <div className={`capacity-bar tone-${staff.tone}`}>
                         <span style={{ width: `${percent}%` }} />

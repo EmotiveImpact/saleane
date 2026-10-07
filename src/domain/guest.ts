@@ -1,3 +1,4 @@
+import { visitPlace } from './locations'
 import { z } from 'zod'
 import { GUEST_NOTE_LIMIT, appointmentSchema, organisationSchema } from './model'
 import { visitUid } from './calendarFile'
@@ -187,15 +188,17 @@ export function guestView(
   if (!a) throw new Error('This visit is not in the studio record.')
   const { paidMinor, ...cancellation } = guestCancellation(s, appointmentId, now)
   const professional = s.staff.find((p) => p.id === a.staffId)?.name.split(' ')[0] ?? 'The studio'
+  // V2: the guest sees the location their visit is at.
+  const place = visitPlace(s, a)
   return guestViewSchema.parse({
     organisation: {
       name: s.organisation.name,
-      locationName: s.organisation.locationName,
+      locationName: place.name,
       locale: s.organisation.locale,
       timeZone: s.organisation.timeZone,
       currency: s.organisation.currency,
       region: s.organisation.region,
-      address: s.organisation.address,
+      address: place.address,
     },
     visit: {
       serviceName:
@@ -208,7 +211,7 @@ export function guestView(
       calendarUid: visitUid(a.id),
     },
     arrival: {
-      studioNote: s.organisation.arrivalNote ?? '',
+      studioNote: place.arrivalNote ?? '',
       serviceNote: s.services.find((x) => x.id === a.serviceId)?.prepNote ?? '',
     },
     deposit: {

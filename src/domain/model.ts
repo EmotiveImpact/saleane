@@ -13,6 +13,7 @@ import { rentProblem } from './rent'
 import { purchasingProblem } from './purchasing'
 import { waitlistEntrySchema } from './waitlistSchema'
 import { waitlistProblem } from './waitlist'
+import { locationsProblem } from './locations'
 export { paymentMethodSchema, paymentMethods, processorSchema } from './paymentMethods'
 
 export const DEMO_DATE = '2026-10-06'
@@ -83,6 +84,8 @@ export const resourceSchema = z.object({
   name: z.string().trim().min(2).max(100),
   type: z.enum(['treatment', 'chair']),
   archived: z.boolean().optional(),
+  /** V2: the location the room or chair is at. Absent means the main location. */
+  locationId: id.optional(),
 })
 export const appointmentSchema = z.object({
   ...scoped,
@@ -280,7 +283,6 @@ export function parseState(value: unknown, region: Region): BusinessState {
       throw new Error('Missing staff service.')
   for (const a of s.appointments) {
     if (
-      a.locationId !== org.locationId ||
       !exists(s.clients, a.clientId) ||
       !exists(s.staff, a.staffId) ||
       !exists(s.services, a.serviceId) ||
@@ -547,6 +549,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
   if (purchasing) throw new Error(purchasing)
   const waitlist = waitlistProblem(s)
   if (waitlist) throw new Error(waitlist)
+  const location = locationsProblem(s)
+  if (location) throw new Error(location)
   try {
     new Intl.DateTimeFormat('en', { timeZone: org.timeZone }).format(new Date())
   } catch {

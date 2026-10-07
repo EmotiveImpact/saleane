@@ -2,6 +2,17 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · V2 · Several locations
+
+**Status: built locally on 7 October 2026, in review; nothing deployed.**
+
+- Settings has a new Locations section. The owner adds further locations with a name, address, an optional "before you arrive" note and, if different, their own opening hours. A location can be closed for good; its history stays.
+- Each room or chair belongs to one location, and each person works at one location on a given day, set on their weekly hours under Team.
+- When a studio has more than one location, guests choose where they would like to come first, on both the live booking page and the demo one. Only places where someone does the chosen treatment are offered, and only the people who work there that day are shown. Reminders, the guest's own visit page, the day sheet and the practitioner's day name the visit's location and address.
+- The calendar has an "All locations" filter, booking from the desk only offers times at the place the person is working that day, and Today shows where each person is.
+- Changing hours, rooms or someone's location is checked against booked visits first: a visit that would end up at a closed location, in a room at another location, or with someone working elsewhere is listed and the change is refused.
+- A studio with one location works exactly as before.
+
 ## 2026-10-07 · V2 · Accountant exports
 
 **Status: built locally on 7 October 2026, in review; nothing deployed. Nothing is sent to Xero or QuickBooks.**

@@ -15,6 +15,7 @@ import {
 } from './model'
 import {
   closureInputSchema,
+  locationInputSchema,
   messageInputSchema,
   payRulesInputSchema,
   protectionSchema,
@@ -49,6 +50,8 @@ export const contactSchema = clientSchema
 export const importContactSchema = contactSchema
 export const bookingSchema = z.object({
   resourceId: id.optional(),
+  /** V2: where the visit is. Absent means the main location. */
+  locationId: id.optional(),
   serviceId: id,
   staffId: id,
   date: z.iso.date(),
@@ -72,6 +75,8 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     botCheck: z.boolean().optional(),
   }),
   z.object({ type: z.literal('hours'), hours: weeklyHoursSchema }),
+  // V2: a further location; the main one is edited with the organisation.
+  z.object({ type: z.literal('location'), id: id.optional(), input: locationInputSchema }),
   // Guest-facing "before you arrive" notes; an empty note removes it.
   z.object({
     type: z.literal('guest-notes'),

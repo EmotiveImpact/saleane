@@ -14,6 +14,8 @@ import { TreatmentPicker } from '../components/TreatmentPicker'
 import { PriceSentence } from '../components/PriceSentence'
 import { BeforeYouArrive } from '../components/BeforeYouArrive'
 import { AddToCalendar } from '../components/AddToCalendar'
+import { LocationChoice } from '../components/LocationChoice'
+import type { LocationOption } from '../components/LocationChoice'
 import { visitUid } from '../domain/calendarFile'
 import { bookingChannel } from '../domain/bookingChannel'
 import { fullPriceMinor } from '../domain/priceSentence'
@@ -31,6 +33,7 @@ const pendingBookingSchema = z.object({
   date: z.iso.date(),
   start: z.number().int(),
   expiresAt: z.iso.datetime(),
+  locationId: z.string().optional(),
 })
 type PendingBooking = z.infer<typeof pendingBookingSchema>
 function readPendingBooking(key: string) {
@@ -56,11 +59,14 @@ function urlChannel() {
 type Catalog = {
   organisation: BusinessState['organisation']
   services: BusinessState['services']
-  staff: BusinessState['staff']
+  /** V2: locationIds says where each person works; older servers send none. */
+  staff: (BusinessState['staff'][number] & { locationIds?: string[] })[]
   today: string
   sample: boolean
   botCheck?: { siteKey: string } | null
   tax?: PriceTax
+  /** V2: open locations, main first. Older servers send none. */
+  locations?: LocationOption[]
 }
 export function ServerBooking() {
   const { slug } = useParams(),
@@ -114,6 +120,7 @@ function BookingFlow({
   setPending: (value: boolean) => void
 }) {
   const { organisation: org, services, staff, today, sample, botCheck, tax } = catalog
+  const locations = catalog.locations ?? []
   const store = useStore(),
     navigate = useNavigate()
   const journalKey = `saleane.guest-confirmation:${base}`
@@ -126,13 +133,31 @@ function BookingFlow({
   const [step, setStep] = useState(recovery.value ? 4 : 1),
     [serviceId, setServiceId] = useState(recovery.value?.serviceId ?? services[0]?.id ?? ''),
     [staffId, setStaffId] = useState(recovery.value?.staffId ?? 'any'),
-    [date, setDate] = useState(recovery.value?.date ?? addDays(today, 1))
+    [date, setDate] = useState(recovery.value?.date ?? addDays(today, 1)),
+    [chosenLocation, setLocationId] = useState(recovery.value?.locationId ?? locations[0]?.id ?? '')
+  // Only places where someone does the chosen treatment are offered.
+  const offered = locations.filter((l) =>
+    staff.some(
+      (p) => p.serviceIds.includes(serviceId) && (!p.locationIds || p.locationIds.includes(l.id)),
+    ),
+  )
+  const locationId = offered.some((l) => l.id === chosenLocation)
+    ? chosenLocation
+    : (offered[0]?.id ?? chosenLocation)
+  // Where the visit is: the chosen location, or the studio itself when it has only one.
+  const place = locations.find((l) => l.id === locationId)
+  const where = {
+    name: place?.name ?? org.locationName,
+    address: place?.address ?? org.address,
+    arrivalNote: place ? place.arrivalNote : org.arrivalNote,
+  }
+  const located: { locationId?: string } = locations.length > 1 && locationId ? { locationId } : {}
   const [availability, setAvailability] = useState<{ key: string; times: number[] }>({
       key: '',
       times: [],
     }),
     [start, setStart] = useState<number | null>(recovery.value?.start ?? null)
-  const queryKey = [serviceId, staffId, date, base, step].join('|'),
+  const queryKey = [serviceId, staffId, date, base, step, locationId].join('|'),
     loadingTimes = availability.key !== queryKey,
     times = loadingTimes ? [] : availability.times
   const [hold, setHold] = useState<{ hold: string; expiresAt: string } | null>(
@@ -161,7 +186,7 @@ function BookingFlow({
     if (!serviceId || step !== 2) return
     let active = true
     api<{ times: number[] }>(
-      `${base}/availability?${new URLSearchParams({ serviceId, staffId, date })}`,
+      `${base}/availability?${new URLSearchParams(located.locationId ? { serviceId, staffId, date, locationId: located.locationId } : { serviceId, staffId, date })}`,
     )
       .then((r) => {
         if (active) setAvailability({ key: queryKey, times: r.times })
@@ -175,6 +200,8 @@ function BookingFlow({
     return () => {
       active = false
     }
+    // `located` follows locationId, which is part of the query key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serviceId, staffId, date, base, step, queryKey])
   useEffect(() => {
     if (!hold) return
@@ -197,6 +224,7 @@ function BookingFlow({
             staffId,
             date,
             startMinutes: start,
+            ...located,
             // Hand back any earlier hold so this guest never holds two times at once.
             ...(hold ? { replaces: hold.hold } : {}),
             ...(botCheck ? { botCheck: botToken } : {}),
@@ -246,6 +274,7 @@ function BookingFlow({
       date,
       start: start!,
       expiresAt: hold.expiresAt,
+      ...located,
     }
     try {
       // Preserve the exact consent/contact snapshot before any request leaves this tab.
@@ -288,7 +317,7 @@ function BookingFlow({
   return (
     <BookingFrame
       studio={org.name}
-      location={org.locationName}
+      location={where.name}
       notice={
         sample
           ? 'Fictional sample studio. Reservations and deposits are simulated.'
@@ -310,7 +339,13 @@ function BookingFlow({
             {dateLabel(date, org.locale)} at {timeLabel(start!, org.locale)}
           </p>
           <p>Booking reference: {confirmed.slice(-8).toUpperCase()}</p>
-          <BeforeYouArrive studioNote={org.arrivalNote} serviceNote={service?.prepNote} />
+          {locations.length > 1 && (
+            <p>
+              {where.name}
+              {where.address ? `, ${where.address}` : ''}
+            </p>
+          )}
+          <BeforeYouArrive studioNote={where.arrivalNote} serviceNote={service?.prepNote} />
           {service && start !== null && (
             <AddToCalendar
               visit={{
@@ -321,7 +356,7 @@ function BookingFlow({
                 startMinutes: start,
                 durationMinutes: service.durationMinutes,
                 timeZone: org.timeZone,
-                location: org.address || org.locationName,
+                location: where.address || where.name,
               }}
             />
           )}
@@ -457,6 +492,18 @@ function BookingFlow({
               )}
               {step === 2 && (
                 <>
+                  <LocationChoice
+                    locations={offered}
+                    value={locationId}
+                    onChange={(id) => {
+                      setLocationId(id)
+                      // Someone who never works at the new location is no longer a choice.
+                      if (!staff.find((p) => p.id === staffId)?.locationIds?.includes(id))
+                        setStaffId('any')
+                      setStart(null)
+                      setError('')
+                    }}
+                  />
                   <label>
                     Your professional
                     <select
@@ -469,7 +516,13 @@ function BookingFlow({
                     >
                       <option value="any">No preference · first available</option>
                       {staff
-                        .filter((p) => p.serviceIds.includes(serviceId))
+                        .filter(
+                          (p) =>
+                            p.serviceIds.includes(serviceId) &&
+                            (!located.locationId ||
+                              !p.locationIds ||
+                              p.locationIds.includes(located.locationId)),
+                        )
                         .map((p) => (
                           <option key={p.id} value={p.id}>
                             {p.name}
@@ -615,7 +668,8 @@ function BookingFlow({
                       {service.durationMinutes} minutes ·{' '}
                       {professional?.name ?? 'First available professional'}
                       <br />
-                      {org.locationName}
+                      {where.name}
+                      {locations.length > 1 && where.address ? `, ${where.address}` : ''}
                     </p>
                     <div className="receipt-line">
                       <span>Service total</span>

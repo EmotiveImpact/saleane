@@ -35,6 +35,8 @@ export const holdInput = z
     staffId: z.string().min(1).max(100),
     date: z.iso.date(),
     startMinutes: z.number().int().min(0).max(1439),
+    /** V2: the location the guest chose. Absent means the main location. */
+    locationId: z.string().min(1).max(150).optional(),
   })
   .strict()
 export const guestContact = z
@@ -334,7 +336,7 @@ export function createContext(options: ApiOptions) {
       state.appointments.push({
         id: hold.id,
         organisationId: org.id,
-        locationId: state.organisation.locationId,
+        locationId: allocation.locationId ?? state.organisation.locationId,
         clientId: 'ephemeral-hold',
         serviceId: allocation.serviceId,
         staffId: allocation.staffId,
@@ -370,6 +372,7 @@ export function createContext(options: ApiOptions) {
         input.startMinutes,
         new Date(now()).toISOString(),
         preferredResourceId,
+        input.locationId,
       )
       if (resourceId) return { staffId: professional.id, resourceId }
     }

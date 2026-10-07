@@ -2,12 +2,13 @@ import { z } from 'zod'
 import type { BusinessState } from './model'
 import { businessDate, hoursFor, instantFor, operations, staffHoursFor } from './operations'
 import { addDays } from './format'
+import { placeOf, resourceLocation, staffLocationOn } from './locations'
 
 const civilDate = z.iso.date()
 
 /**
  * The room or chair a visit can take at this time, or null when the professional, the hours, a
- * closure or another visit is in the way. `step` is the booking grid in minutes; a visit carried
+ * closure or another visit is in the way. Without a location, the main one is meant. `step` is the booking grid in minutes; a visit carried
  * over from another system (PILOT-03) may sit on a five-minute grid.
  */
 export function availableAllocation(
@@ -23,7 +24,12 @@ export function availableAllocation(
   now = new Date().toISOString(),
   preferredResourceId?: string,
   step = 15,
+  locationId?: string,
 ): string | null {
+  // V2: a visit is at one location; the person must work there that day and the room be there.
+  const place = locationId ?? s.organisation.locationId
+  const site = placeOf(s, place)
+  if (!site || (site.archived && !excludeId)) return null
   const staff = s.staff.find((item) => item.id === staffId)
   if (
     !staff ||
@@ -37,7 +43,8 @@ export function availableAllocation(
   )
     return null
   const end = start + duration + buffer
-  const h = hoursFor(s, date),
+  if (staffLocationOn(s, staffId, date) !== place) return null
+  const h = hoursFor(s, date, place),
     ph = staffHoursFor(s, staffId, date)
   if (
     !h ||
@@ -81,6 +88,7 @@ export function availableAllocation(
     s.resources.find(
       (resource) =>
         !resource.archived &&
+        resourceLocation(s, resource) === place &&
         (!preferredResourceId || resource.id === preferredResourceId) &&
         resource.type === resourceType &&
         !overlapping.some((a) => a.resourceId === resource.id),

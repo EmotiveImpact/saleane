@@ -8,6 +8,7 @@ import { HOLD_LIMITS, holdInput, guestContact } from '../context'
 import type { Context, Route, HoldAllocation, HoldRow } from '../context'
 import { issueGuestLink } from './guest'
 import { bookingChannel } from '../../src/domain/bookingChannel'
+import { places, staffPlaces } from '../../src/domain/locations'
 
 /** Public booking routes. These never return clients, histories or money. Returns false when the request belongs to another module. */
 export async function publicRoutes(ctx: Context, route: Route): Promise<boolean> {
@@ -34,7 +35,16 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
             role: person.role,
             serviceIds: person.serviceIds,
             tone: person.tone,
+            // V2: where they work, so a guest choosing a location sees only who is there.
+            locationIds: staffPlaces(state, person.id),
           })),
+        // V2: open locations for the guest to choose from, main first.
+        locations: places(state).map(({ id, name, address, arrivalNote }) => ({
+          id,
+          name,
+          address,
+          ...(arrivalNote ? { arrivalNote } : {}),
+        })),
         today: businessDate(state, new Date(now()).toISOString()),
         sample,
         depositPolicy: sample ? 'simulated' : 'pay_at_studio',
@@ -54,6 +64,7 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
           serviceId: z.string().min(1).max(100),
           staffId: z.string().min(1).max(100),
           date: z.iso.date(),
+          locationId: z.string().min(1).max(150).optional(),
         })
         .parse(Object.fromEntries(url.searchParams))
       const org = publicOrg(slug)
@@ -64,6 +75,7 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
           query.staffId,
           query.date,
           new Date(now()).toISOString(),
+          query.locationId,
         ),
       })
       return true
@@ -222,6 +234,7 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
             resourceId: allocation.resourceId,
             date: allocation.date,
             startMinutes: allocation.startMinutes,
+            ...(allocation.locationId ? { locationId: allocation.locationId } : {}),
             contact: data.contact,
             source: 'online',
             channel: bookingChannel(data.from),

@@ -1,3 +1,4 @@
+import { roomWithPlace } from './locations'
 import { z } from 'zod'
 import { appointmentSchema, organisationSchema } from './model'
 import type { BusinessState } from './model'
@@ -144,7 +145,7 @@ export function practitionerView(
       id: a.id,
       clientId: a.clientId,
       serviceName: serviceName(a),
-      resourceName: s.resources.find((r) => r.id === a.resourceId)?.name ?? '',
+      resourceName: roomWithPlace(s, a),
       date: a.date,
       startMinutes: a.startMinutes,
       durationMinutes: a.bookedDurationMinutes,

@@ -15,6 +15,8 @@ import { AddToCalendar } from '../components/AddToCalendar'
 import { visitUid } from '../domain/calendarFile'
 import { bookingChannel } from '../domain/bookingChannel'
 import { fullPriceMinor } from '../domain/priceSentence'
+import { places, staffPlaces } from '../domain/locations'
+import { LocationChoice } from '../components/LocationChoice'
 
 export function BrandedBooking() {
   const { state, commit, region, changeRegion, saving } = useStore()
@@ -28,6 +30,9 @@ export function BrandedBooking() {
   const [staffId, setStaffId] = useState('any')
   const [date, setDate] = useState(addDays(DEMO_DATE, 1))
   const [start, setStart] = useState<number | null>(null)
+  // V2: where the visit is, when the studio has more than one location.
+  const locations = places(state)
+  const [locationId, setLocationId] = useState(locations[0].id)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -36,7 +41,18 @@ export function BrandedBooking() {
   const [error, setError] = useState('')
   const [confirmedId, setConfirmedId] = useState('')
   const service = state.services.find((s) => s.id === serviceId)!
-  const professionals = state.staff.filter((s) => s.serviceIds.includes(serviceId))
+  const qualified = state.staff.filter((s) => s.serviceIds.includes(serviceId))
+  // With several locations, offer only places where someone does this treatment, and only the
+  // people who work at the chosen one.
+  const offered =
+    locations.length < 2
+      ? locations
+      : locations.filter((l) => qualified.some((p) => staffPlaces(state, p.id).includes(l.id)))
+  const where = offered.find((l) => l.id === locationId) ?? offered[0] ?? locations[0]
+  const professionals =
+    locations.length < 2
+      ? qualified
+      : qualified.filter((p) => staffPlaces(state, p.id).includes(where.id))
   const anyone = staffId === 'any' && professionals.length > 1
   const pool = anyone
     ? professionals
@@ -46,11 +62,14 @@ export function BrandedBooking() {
         .slice(0, 1)
   /** Every time someone in the pool is free on a day, earliest first. */
   const freeTimes = (day: string) =>
-    [...new Set(pool.flatMap((p) => slots(state, serviceId, p.id, day)))].sort((a, b) => a - b)
+    [...new Set(pool.flatMap((p) => slots(state, serviceId, p.id, day, undefined, where.id)))].sort(
+      (a, b) => a - b,
+    )
   const times = freeTimes(date)
   // With no preference, the visit goes to the first professional free at the chosen time.
   const staff =
-    (start !== null && pool.find((p) => slots(state, serviceId, p.id, date).includes(start))) ||
+    (start !== null &&
+      pool.find((p) => slots(state, serviceId, p.id, date, undefined, where.id).includes(start))) ||
     pool[0]
   // Only work out the fortnight and the next opening while the guest is choosing a time.
   const fortnight =
@@ -88,6 +107,7 @@ export function BrandedBooking() {
         staffId: staff.id,
         date,
         startMinutes: start,
+        ...(where.main ? {} : { locationId: where.id }),
         contact: { name, email, phone, marketingConsent: consent },
         source: 'online',
         // Where the guest came from, when they followed one of the studio's shared links.
@@ -103,7 +123,7 @@ export function BrandedBooking() {
   return (
     <BookingFrame
       studio={state.organisation.name}
-      location={state.organisation.locationName}
+      location={where.name}
       notice="Demo booking experience. Use fictional details. No real reservation or payment is made."
       pastWelcome={step > 1 || !!confirmedId}
       team
@@ -146,10 +166,7 @@ export function BrandedBooking() {
               Demo deposit<strong>{money(service.depositMinor, state.organisation)}</strong>
             </span>
           </div>
-          <BeforeYouArrive
-            studioNote={state.organisation.arrivalNote}
-            serviceNote={service.prepNote}
-          />
+          <BeforeYouArrive studioNote={where.arrivalNote} serviceNote={service.prepNote} />
           {start !== null && (
             <AddToCalendar
               visit={{
@@ -160,7 +177,7 @@ export function BrandedBooking() {
                 startMinutes: start,
                 durationMinutes: service.durationMinutes,
                 timeZone: state.organisation.timeZone,
-                location: state.organisation.address || state.organisation.locationName,
+                location: where.address || where.name,
                 description: `With ${staff.name.split(' ')[0]}.`,
               }}
             />
@@ -288,6 +305,16 @@ export function BrandedBooking() {
             )}
             {step === 2 && (
               <>
+                <LocationChoice
+                  locations={offered}
+                  value={where.id}
+                  onChange={(id) => {
+                    setLocationId(id)
+                    setStaffId('any')
+                    setStart(null)
+                    setError('')
+                  }}
+                />
                 <fieldset className="time-fieldset">
                   <legend>Your professional</legend>
                   <div className="professional-choices">
@@ -474,7 +501,8 @@ export function BrandedBooking() {
                     {dateLabel(date, state.organisation.locale)} at{' '}
                     {timeLabel(start!, state.organisation.locale)}
                     <br /> {service.durationMinutes} minutes with {staff.name}
-                    <br /> {state.organisation.locationName}
+                    <br /> {where.name}
+                    {locations.length > 1 && where.address ? `, ${where.address}` : ''}
                   </p>
                   <div className="receipt-line">
                     <span>Service total</span>

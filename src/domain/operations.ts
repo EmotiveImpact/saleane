@@ -23,12 +23,29 @@ export const hoursSchema = z
     open: z.number().int().min(0).max(1439),
     close: z.number().int().min(1).max(1440),
     closed: z.boolean(),
+    /** V2: on a person's own hours, the location they work at that day. Absent means the main one. */
+    locationId: id.optional(),
   })
   .refine((h) => h.closed || h.close > h.open, 'Closing time must follow opening time.')
 export const weeklyHoursSchema = z
   .array(hoursSchema)
   .length(7)
   .refine((hours) => new Set(hours.map((h) => h.day)).size === 7, 'Each weekday must appear once.')
+/**
+ * V2: a further location of the studio. The main location stays on the organisation (its id, name,
+ * address and arrival note), so a single-location studio is unchanged. Opening hours are the
+ * studio's unless the location sets its own.
+ */
+export const LOCATION_LIMIT = 20
+export const locationInputSchema = z.object({
+  name: z.string().trim().min(2).max(100),
+  address: z.string().trim().max(300),
+  arrivalNote: z.string().trim().max(400).optional(),
+  hours: weeklyHoursSchema.optional(),
+  archived: z.boolean().optional(),
+})
+export const locationSchema = locationInputSchema.extend({ id })
+export type Location = z.infer<typeof locationSchema>
 export const closureInputSchema = z
   .object({
     date: z.iso.date(),
@@ -270,6 +287,8 @@ export const operationsSchema = z.object({
   /** V2: commission rates per person, kept as a history. */
   payRates: z.array(payRateSchema).max(PAY_RATE_LIMIT).optional(),
   payRules: z.array(payRulesSchema).max(PAY_RULES_LIMIT).optional(),
+  /** V2: locations beyond the main one. */
+  locations: z.array(locationSchema).max(LOCATION_LIMIT).optional(),
   /** V2: holidays, sickness and other days away, and each person's yearly holiday allowance. */
   timeOff: z.array(timeOffSchema).max(TIME_OFF_LIMIT).optional(),
   /** V2: chairs and rooms rented to self-employed people, and the rent they have paid. */
@@ -367,9 +386,14 @@ export function instantIn(timeZone: string, date: string, minute: number) {
     )
   return new Date(matches[0]).toISOString()
 }
-export function hoursFor(s: BusinessState, date: string) {
+/** Opening hours for a day: the location's own when it sets them, otherwise the studio's. */
+export function hoursFor(s: BusinessState, date: string, locationId?: string) {
   const day = new Date(`${date}T12:00:00Z`).getUTCDay()
-  return operations(s).hours.find((h) => h.day === day)!
+  const own =
+    locationId && locationId !== s.organisation.locationId
+      ? operations(s).locations?.find((l) => l.id === locationId)?.hours
+      : undefined
+  return (own ?? operations(s).hours).find((h) => h.day === day)!
 }
 /** A person's usual hours for a day from their weekly pattern, ignoring time off. */
 export function usualHoursFor(s: BusinessState, staffId: string, date: string) {
@@ -420,6 +444,7 @@ export function can(role: Role, action: string) {
       'tax',
       'pay-rate',
       'pay-rules',
+      'location',
       'accounting-settings',
     ].includes(action)
   )

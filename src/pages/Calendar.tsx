@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Plus, LayoutGrid, List } from 'lucide-react'
 import { useStore } from '../state/context'
 import { businessMinutes, can, hoursFor } from '../domain/operations'
 import { dayAppointments, staffDay } from '../domain/selectors'
+import { hasLocations, places, staffLocationOn } from '../domain/locations'
 import { addDays, dateLabel, timeLabel } from '../domain/format'
 import {
   Avatar,
@@ -28,6 +29,11 @@ export function Calendar() {
     /^\d{4}-\d{2}-\d{2}$/.test(params.get('date') ?? '') ? params.get('date')! : today,
   )
   const [staffFilter, setStaffFilter] = useState('all')
+  // V2: with more than one location, the calendar can show one of them or all.
+  const multiSite = hasLocations(state)
+  const [locationFilter, setLocationFilter] = useState('all')
+  const atPlace = (a: { locationId: string }) =>
+    locationFilter === 'all' || a.locationId === locationFilter
   // Calendar lands on today; the switch moves between a day, its week and its month.
   const [period, setPeriod] = useState<'day' | 'week' | 'month'>('day')
   const [layout, setLayout] = useState<'grid' | 'agenda'>('grid')
@@ -36,14 +42,17 @@ export function Calendar() {
   // Links from elsewhere (such as affected visits in Manage) can open one visit directly.
   const [appointmentId, setAppointmentId] = useState(() => params.get('appointment') ?? '')
   const day = dayAppointments(state, date).filter(
-    (a) => staffFilter === 'all' || a.staffId === staffFilter,
+    (a) => (staffFilter === 'all' || a.staffId === staffFilter) && atPlace(a),
   )
   const staff = state.staff.filter(
     (s) =>
       (!s.archived || day.some((a) => a.staffId === s.id)) &&
-      (staffFilter === 'all' || s.id === staffFilter),
+      (staffFilter === 'all' || s.id === staffFilter) &&
+      (locationFilter === 'all' ||
+        staffLocationOn(state, s.id, date) === locationFilter ||
+        day.some((a) => a.staffId === s.id)),
   )
-  const hours = hoursFor(state, date)
+  const hours = hoursFor(state, date, locationFilter === 'all' ? undefined : locationFilter)
   const start =
     Math.floor(Math.min(hours?.open ?? 540, ...day.map((a) => a.startMinutes)) / 60) * 60
   const end =
@@ -114,7 +123,8 @@ export function Calendar() {
       (a) =>
         a.date === date &&
         (a.status === 'cancelled' || a.status === 'no_show') &&
-        (staffFilter === 'all' || a.staffId === staffFilter),
+        (staffFilter === 'all' || a.staffId === staffFilter) &&
+        atPlace(a),
     )
     .sort((a, b) => a.startMinutes - b.startMinutes)
   return (
@@ -194,6 +204,25 @@ export function Calendar() {
                 </option>
               ))}
             </select>
+            {multiSite && (
+              <>
+                <label className="sr-only" htmlFor="location-filter">
+                  Filter location
+                </label>
+                <select
+                  id="location-filter"
+                  value={locationFilter}
+                  onChange={(e) => setLocationFilter(e.target.value)}
+                >
+                  <option value="all">All locations</option>
+                  {places(state).map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
             {period === 'day' && (
               <SegmentedControl
                 label="Day layout"
@@ -424,6 +453,7 @@ export function Calendar() {
           <WeekView
             date={date}
             staffFilter={staffFilter}
+            locationFilter={locationFilter}
             selectedId={appointmentId}
             onOpen={setAppointmentId}
             onDay={openDay}
@@ -432,6 +462,7 @@ export function Calendar() {
           <MonthView
             date={date}
             staffFilter={staffFilter}
+            locationFilter={locationFilter}
             selectedId={appointmentId}
             onOpen={setAppointmentId}
             onDay={openDay}
@@ -540,12 +571,14 @@ function monthLabel(date: string, locale: string) {
 function MonthView({
   date,
   staffFilter,
+  locationFilter,
   selectedId,
   onOpen,
   onDay,
 }: {
   date: string
   staffFilter: string
+  locationFilter: string
   selectedId: string
   onOpen: (id: string) => void
   onDay: (date: string) => void
@@ -559,9 +592,14 @@ function MonthView({
       (7 * 86_400_000),
   )
   const weekday = new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' })
-  const people = state.staff.filter(
+  const team = state.staff.filter(
     (s) => !s.archived && (staffFilter === 'all' || s.id === staffFilter),
-  ).length
+  )
+  // People working at the chosen location that day, for how full the day is.
+  const peopleOn = (day: string) =>
+    locationFilter === 'all'
+      ? team.length
+      : team.filter((s) => staffLocationOn(state, s.id, day) === locationFilter).length
   return (
     <div className="month-view">
       <div className="month-weekdays" aria-hidden="true">
@@ -573,10 +611,12 @@ function MonthView({
         {Array.from({ length: weeks * 7 }, (_, i) => {
           const day = addDays(first, i)
           const visits = dayAppointments(state, day).filter(
-            (a) => staffFilter === 'all' || a.staffId === staffFilter,
+            (a) =>
+              (staffFilter === 'all' || a.staffId === staffFilter) &&
+              (locationFilter === 'all' || a.locationId === locationFilter),
           )
-          const hours = hoursFor(state, day)
-          const open = hours.closed ? 0 : (hours.close - hours.open) * Math.max(1, people)
+          const hours = hoursFor(state, day, locationFilter === 'all' ? undefined : locationFilter)
+          const open = hours.closed ? 0 : (hours.close - hours.open) * Math.max(1, peopleOn(day))
           const booked = visits.reduce((sum, a) => sum + a.bookedDurationMinutes, 0)
           const fill = open ? Math.min(1, booked / open) : 0
           const shown = visits.slice(0, 3)
@@ -642,12 +682,14 @@ function MonthView({
 function WeekView({
   date,
   staffFilter,
+  locationFilter,
   selectedId,
   onOpen,
   onDay,
 }: {
   date: string
   staffFilter: string
+  locationFilter: string
   selectedId: string
   onOpen: (id: string) => void
   onDay: (date: string) => void
@@ -667,9 +709,11 @@ function WeekView({
         const day = addDays(monday, i)
         const when = new Date(`${day}T00:00:00Z`)
         const visits = dayAppointments(state, day).filter(
-          (a) => staffFilter === 'all' || a.staffId === staffFilter,
+          (a) =>
+            (staffFilter === 'all' || a.staffId === staffFilter) &&
+            (locationFilter === 'all' || a.locationId === locationFilter),
         )
-        const hours = hoursFor(state, day)
+        const hours = hoursFor(state, day, locationFilter === 'all' ? undefined : locationFilter)
         return (
           <section
             className={`week-day ${day === today ? 'week-today' : ''}`}

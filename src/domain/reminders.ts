@@ -1,3 +1,4 @@
+import { visitPlace } from './locations'
 import type { Appointment, BusinessState, Client } from './model'
 import { instantFor, operations } from './operations'
 import { dateLabel, timeLabel } from './format'
@@ -243,7 +244,9 @@ export function composeMessage(
   const when = `${dateLabel(a.date, org.locale)} at ${timeLabel(a.startMinutes, org.locale)}`
   const withWhom = professional ? ` with ${professional}` : ''
   const greeting = client ? `Hello ${firstName(client.name)},` : 'Hello,'
-  const arrival = org.arrivalNote?.trim()
+  // V2: the name, address and arrival note of the location the visit is at.
+  const place = visitPlace(s, a)
+  const arrival = place.arrivalNote?.trim()
   const prep = s.services.find((x) => x.id === a.serviceId)?.prepNote?.trim()
   const policy = `If your plans change, please let us know at least ${GUEST_CANCEL_CUTOFF_HOURS} hours before.`
   if (channel === 'sms') {
@@ -283,7 +286,7 @@ export function composeMessage(
     '',
     `${service}${withWhom}`,
     when,
-    [org.locationName, org.address].filter(Boolean).join(', '),
+    [place.name, place.address].filter(Boolean).join(', '),
   ]
   if (kind === 'feedback') {
     lines.push(

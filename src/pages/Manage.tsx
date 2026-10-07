@@ -15,6 +15,7 @@ import {
   CreditCard,
   ArrowRightLeft,
   Layers,
+  MapPin,
 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { useStore } from '../state/context'
@@ -35,11 +36,14 @@ import { ShareBookingPage } from '../components/ShareBookingPage'
 import { PaymentSettings } from '../components/CardPayments'
 import { SwitchingSettings } from '../components/Switching'
 import { PlanSettings } from '../components/Plans'
+import { LocationsSettings } from '../components/LocationsSettings'
+import { hasLocations, places, resourceLocation } from '../domain/locations'
 import '../components/management.css'
 
 const sections = [
   { id: 'preferences', label: 'Your preferences', icon: SlidersHorizontal },
   { id: 'business', label: 'Studio details', icon: Building2 },
+  { id: 'locations', label: 'Locations', icon: MapPin },
   { id: 'brand', label: 'Colours & booking page', icon: Palette },
   { id: 'messages', label: 'Messages to guests', icon: BellRing },
   { id: 'payments', label: 'Payments', icon: CreditCard },
@@ -71,19 +75,23 @@ type WeekHours = ReturnType<typeof operations>['hours']
 const weekOrder = [1, 2, 3, 4, 5, 6, 0]
 /** LOCAL-04: the booked visits a proposed change would strand, checked as the form changes. */
 function previewImpact(state: BusinessState, command: Command | null) {
-  if (!command || !['hours', 'closure', 'staff', 'resource'].includes(command.type)) return []
+  if (!command || !['hours', 'closure', 'staff', 'resource', 'location'].includes(command.type))
+    return []
   return scheduleImpact(state, command as OperatingCommand, new Date().toISOString())
 }
 /** A professional's own week from the form, using `fallback` for days not shown yet. */
-function ownHours(data: FormData, fallback: WeekHours): WeekHours {
+function ownHours(data: FormData, fallback: WeekHours, main: string): WeekHours {
   return fallback.map((day) => {
     const open = data.get(`own-${day.day}-open`)
     if (open === null) return { ...day }
+    // V2: where they work that day; the main location is left unnamed.
+    const where = String(data.get(`own-${day.day}-loc`) ?? '')
     return {
       day: day.day,
       closed: data.get(`own-${day.day}-on`) !== 'on',
       open: minutes(String(open)),
       close: minutes(String(data.get(`own-${day.day}-close`) ?? '')),
+      ...(where && where !== main ? { locationId: where } : {}),
     }
   })
 }
@@ -118,6 +126,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
   const person = state.staff.find((item) => item.id === editor?.id)
   const resource = state.resources.find((item) => item.id === editor?.id)
   const allowed = (action: string) => !blocked && can(role, action)
+  const multiSite = hasLocations(state)
   async function save(command: Command, message: string, close = false) {
     if (pending || !allowed(permissionFor(command))) return
     setPending(true)
@@ -172,7 +181,9 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
           role: text(data, 'role'),
           tone: text(data, 'tone') as 'sage' | 'blue' | 'sand',
           serviceIds: data.getAll('serviceIds').map(String),
-          hours: custom ? ownHours(data, current?.hours ?? config.hours) : undefined,
+          hours: custom
+            ? ownHours(data, current?.hours ?? config.hours, state.organisation.locationId)
+            : undefined,
           archived,
         },
       }
@@ -185,6 +196,9 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
           name: text(data, 'name'),
           type: text(data, 'resourceType') as 'treatment' | 'chair',
           archived,
+          ...(text(data, 'locationId') && text(data, 'locationId') !== state.organisation.locationId
+            ? { locationId: text(data, 'locationId') }
+            : {}),
         },
       }
     return {
@@ -268,6 +282,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
             {section === 'privacy' && <StudioPrivacy />}
             {section === 'switching' && <SwitchingSettings />}
             {section === 'plans' && <PlanSettings />}
+            {section === 'locations' && <LocationsSettings />}
             {section === 'business' && (
               <section className="surface ops-panel">
                 <header>
@@ -568,6 +583,9 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                         <strong>{item.name}</strong>
                         <small>
                           {item.type === 'treatment' ? 'Treatment space' : 'Styling chair'}
+                          {multiSite
+                            ? ` · ${places(state, true).find((p) => p.id === resourceLocation(state, item))?.name ?? ''}`
+                            : ''}
                         </small>
                       </div>
                       <div className="ops-record-controls">
@@ -890,6 +908,12 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                       />
                       Follows the venue opening hours
                     </label>
+                    {multiSite && !customHours && (
+                      <p className="ops-help">
+                        Following the venue hours means working at the main location. Set their own
+                        hours to choose a location for each day.
+                      </p>
+                    )}
                     {customHours && (
                       <div className="ops-hours">
                         {weekOrder.map((weekday) => {
@@ -927,6 +951,22 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                                   defaultValue={clock(day.close)}
                                 />
                               </label>
+                              {(multiSite || day.locationId) && (
+                                <label className="ops-field">
+                                  At
+                                  <select
+                                    name={`own-${weekday}-loc`}
+                                    aria-label={`${days[weekday]} location`}
+                                    defaultValue={day.locationId ?? state.organisation.locationId}
+                                  >
+                                    {places(state).map((place) => (
+                                      <option value={place.id} key={place.id}>
+                                        {place.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                              )}
                             </div>
                           )
                         })}
@@ -941,6 +981,21 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                   <select name="resourceType" defaultValue={resource?.type ?? 'treatment'}>
                     <option value="treatment">Treatment space</option>
                     <option value="chair">Styling chair</option>
+                  </select>
+                </label>
+              )}
+              {editor.kind === 'resource' && (multiSite || resource?.locationId) && (
+                <label>
+                  Location
+                  <select
+                    name="locationId"
+                    defaultValue={resource ? resourceLocation(state, resource) : undefined}
+                  >
+                    {places(state).map((place) => (
+                      <option value={place.id} key={place.id}>
+                        {place.name}
+                      </option>
+                    ))}
                   </select>
                 </label>
               )}
