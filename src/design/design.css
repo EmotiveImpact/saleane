@@ -308,3 +308,48 @@
     color: var(--ink);
   }
 }
+
+/* Vertical tabs: the section list sits beside the panel (Settings). */
+.tabs-vertical {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+.tabs-vertical .tabs-list {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 2px;
+  position: sticky;
+  top: 96px;
+  padding: 0;
+  margin: 0;
+  border-bottom: 0;
+}
+.tabs-vertical .tabs-trigger {
+  justify-content: flex-start;
+  font-weight: var(--weight-nav);
+  color: color-mix(in srgb, var(--ink) 78%, var(--muted));
+  text-align: left;
+}
+.tabs-vertical .tabs-trigger[data-state='active'] {
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: var(--weight-strong);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 6%, transparent);
+}
+@media (max-width: 900px) {
+  .tabs-vertical {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+  .tabs-vertical .tabs-list {
+    position: static;
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: var(--space-2);
+  }
+  .tabs-vertical .tabs-trigger {
+    white-space: nowrap;
+  }
+}

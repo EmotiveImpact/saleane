@@ -1,6 +1,18 @@
 import { useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
-import { Building2, CalendarDays, Plus, Scissors, Users, Armchair, ShieldCheck } from 'lucide-react'
+import {
+  Armchair,
+  Building2,
+  CalendarDays,
+  Palette,
+  Plus,
+  Scissors,
+  ShieldCheck,
+  SlidersHorizontal,
+  Store,
+  Users,
+} from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import { useStore } from '../state/context'
 import type { Command } from '../domain/commands'
 import type { BusinessState } from '../domain/model'
@@ -12,18 +24,25 @@ import { parseMinor } from '../domain/money'
 import { Avatar, Button, ErrorMessage, Modal, PageHeader, Tabs } from '../design'
 import { AffectedVisits, ScheduleHistory } from '../components/ScheduleImpact'
 import { StudioPrivacy } from '../components/Privacy'
+import { BrandSection, PreferencesSection, WorkspaceSection } from '../components/SettingsSections'
 import { GuestNotesSettings } from '../components/GuestNotesSettings'
 import { ShareBookingPage } from '../components/ShareBookingPage'
 import '../components/management.css'
 
 const sections = [
-  { id: 'business', label: 'Business', icon: Building2 },
+  { id: 'preferences', label: 'Your preferences', icon: SlidersHorizontal },
+  { id: 'business', label: 'Studio details', icon: Building2 },
+  { id: 'brand', label: 'Colours & booking page', icon: Palette },
   { id: 'service', label: 'Services', icon: Scissors },
   { id: 'staff', label: 'Team', icon: Users },
   { id: 'resource', label: 'Spaces & equipment', icon: Armchair },
   { id: 'hours', label: 'Hours & closures', icon: CalendarDays },
   { id: 'privacy', label: 'Data & privacy', icon: ShieldCheck },
+  { id: 'workspace', label: 'This workspace', icon: Store },
 ] as const
+type SectionId = (typeof sections)[number]['id']
+const isSection = (value: string | null): value is SectionId =>
+  sections.some((item) => item.id === value)
 const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const clock = (value: number) =>
   Number.isFinite(value)
@@ -60,7 +79,11 @@ function ownHours(data: FormData, fallback: WeekHours): WeekHours {
 export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
   const { state, commit, blocked, role } = useStore()
   const config = operations(state)
-  const [section, setSection] = useState<(typeof sections)[number]['id']>('business')
+  // The open section lives in the address, so links elsewhere can open Settings at the right place.
+  const [params, setParams] = useSearchParams()
+  const requested = params.get('section')
+  const section: SectionId = isSection(requested) ? requested : 'business'
+  const setSection = (id: SectionId) => setParams({ section: id }, { replace: true })
   const [editor, setEditor] = useState<Editor | null>(null)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
@@ -68,6 +91,14 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
   const [hours, setHours] = useState(() => config.hours.map((day) => ({ ...day })))
   const [draft, setDraft] = useState<Command | null>(null)
   const [customHours, setCustomHours] = useState(false)
+  // A demo reset replaces the records under this page, so unsaved copies are taken afresh.
+  const [replaced, setReplaced] = useState(false)
+  if (replaced) {
+    setReplaced(false)
+    setHours(config.hours.map((day) => ({ ...day })))
+    setEditor(null)
+    setDraft(null)
+  }
   const hoursImpact = useMemo(() => previewImpact(state, { type: 'hours', hours }), [state, hours])
   const editorImpact = useMemo(() => previewImpact(state, draft), [state, draft])
   const locale = state.organisation.locale
@@ -188,14 +219,16 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
   const archivedTag = (archived?: boolean) =>
     archived ? <span className="ops-tag">Archived</span> : null
   return (
-    <div className="manage-page">
+    <div className="manage-page settings-page">
       <PageHeader
         variant="compact"
-        title="Your business, considered."
-        description="Shape the services, people and spaces behind every visit."
+        eyebrow="Settings"
+        title="Your studio, considered."
+        description="Your own preferences, and the services, people and spaces behind every visit."
       />
       <Tabs
-        label="Business settings sections"
+        label="Settings sections"
+        orientation="vertical"
         value={section}
         disabled={pending}
         onChange={(id) => {
@@ -215,6 +248,9 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
       >
         <div className="ops-layout">
           <div>
+            {section === 'preferences' && <PreferencesSection />}
+            {section === 'brand' && <BrandSection />}
+            {section === 'workspace' && <WorkspaceSection onReset={() => setReplaced(true)} />}
             {section === 'privacy' && <StudioPrivacy />}
             {section === 'business' && (
               <section className="surface ops-panel">

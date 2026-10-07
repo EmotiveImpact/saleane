@@ -249,7 +249,9 @@ export function Calendar() {
                         date === today
                           ? Math.max(segment.from, Math.ceil(clock / 15) * 15)
                           : segment.from
-                      if (segment.to - from < 15) return null
+                      // A gap shorter than a comfortable tap (24px) is booked from New appointment instead.
+                      if (segment.to - from < 15 || ((segment.to - from) / 60) * 82 < 24)
+                        return null
                       return (
                         <button
                           type="button"

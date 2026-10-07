@@ -87,8 +87,8 @@ export function PeopleColumns({
                         <button
                           type="button"
                           onClick={() => onBook(person.id, Math.max(segment.from, notBefore))}
-                          aria-label={`Book with ${person.name} from ${from}`}
                         >
+                          <span className="sr-only">Book with {person.name}, </span>
                           <span>
                             Free {from} to {to}
                           </span>

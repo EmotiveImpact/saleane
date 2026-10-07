@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import {
   CalendarDays,
   ChartNoAxesCombined,
@@ -19,7 +19,6 @@ import { useStudioColours } from './state/studioColours'
 import { operations } from './domain/operations'
 import { Avatar, Modal } from './design'
 import { SearchDialog } from './components/SearchDialog'
-import { WorkspaceSettings } from './components/WorkspaceSettings'
 import { Today } from './pages/Today'
 import { Calendar } from './pages/Calendar'
 import { Clients } from './pages/Clients'
@@ -49,6 +48,7 @@ const navigation = [
   { to: '/clients', label: 'Clients', icon: Users },
   { to: '/inbox', label: 'Inbox', icon: Mail },
   { to: '/business', label: 'Business', icon: ChartNoAxesCombined },
+  { to: '/settings', label: 'Settings', icon: Settings2 },
 ]
 
 function WorkspaceApp() {
@@ -61,7 +61,8 @@ function WorkspaceApp() {
     .join('')
   const location = useLocation()
   const [search, setSearch] = useState(false)
-  const [settings, setSettings] = useState(false)
+  const navigate = useNavigate()
+  const openSettings = (section: string) => navigate(`/settings?section=${section}`)
   const [mobileNav, setMobileNav] = useState(false)
   useStudioColours(state.organisation.id)
   const drafts = operations(state).messages.filter((m) => m.status === 'draft').length
@@ -121,7 +122,7 @@ function WorkspaceApp() {
             <X size={20} />
           </button>
         </div>
-        <button className="workspace-switch" onClick={() => setSettings(true)}>
+        <button className="workspace-switch" onClick={() => openSettings('workspace')}>
           <span className="workspace-monogram">{initials}</span>
           <span>
             <strong>{state.organisation.name}</strong>
@@ -165,13 +166,9 @@ function WorkspaceApp() {
               <span className="live-dot" />
               Local V1 candidate
             </span>
-            <button
-              className="icon-button"
-              aria-label="Workspace settings"
-              onClick={() => setSettings(true)}
-            >
+            <Link className="icon-button" aria-label="Settings" to="/settings">
               <Settings2 size={18} />
-            </button>
+            </Link>
           </div>
           <p>
             A considered way to run
@@ -221,10 +218,10 @@ function WorkspaceApp() {
               <span>Find a client</span>
             </button>
             <span className="header-divider" />
-            <button className="operator-button" onClick={() => setSettings(true)}>
+            <button className="operator-button" onClick={() => openSettings('preferences')}>
               <Avatar small name={operator} tone="sand" />
               <span>{operator.split(' ')[0]}</span>
-              <span className="sr-only">, workspace and market settings</span>
+              <span className="sr-only">, your preferences</span>
               <ChevronDown size={13} />
             </button>
           </div>
@@ -238,12 +235,12 @@ function WorkspaceApp() {
                 ? 'Local sample studio. Fictional appointments and simulated payments.'
                 : 'Local studio. Payments are recorded by hand and email sending is not connected yet.'}
           </span>
-          <button onClick={() => setSettings(true)}>About this version</button>
+          <button onClick={() => openSettings('workspace')}>About this version</button>
         </section>
         {warning && (
           <div role="alert" className="workspace-warning">
             {warning}
-            <button onClick={() => setSettings(true)}>Open recovery controls</button>
+            <button onClick={() => openSettings('workspace')}>Open recovery controls</button>
           </div>
         )}
         <main
@@ -259,7 +256,6 @@ function WorkspaceApp() {
                 Overview
               </NavLink>
               <NavLink to="/business/money">Money</NavLink>
-              <NavLink to="/business/manage">Manage studio</NavLink>
             </nav>
           )}
           <Routes>
@@ -271,12 +267,11 @@ function WorkspaceApp() {
             <Route path="/inbox" element={<Inbox />} />
             <Route
               path="/business"
-              element={
-                role === 'reception' ? <Navigate to="/business/manage" replace /> : <Business />
-              }
+              element={role === 'reception' ? <Navigate to="/settings" replace /> : <Business />}
             />
             <Route path="/business/money" element={<Money />} />
-            <Route path="/business/manage" element={<Manage accessPanel={<AccessPanel />} />} />
+            <Route path="/settings" element={<Manage accessPanel={<AccessPanel />} />} />
+            <Route path="/business/manage" element={<Navigate to="/settings" replace />} />
             <Route path="/design-language" element={<DesignLanguage />} />
             <Route
               path="*"
@@ -306,7 +301,6 @@ function WorkspaceApp() {
         </main>
       </div>
       {search && <SearchDialog onClose={() => setSearch(false)} />}
-      {settings && <WorkspaceSettings onClose={() => setSettings(false)} />}
     </div>
   )
 }
