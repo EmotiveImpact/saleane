@@ -424,10 +424,10 @@ fieldset {
 .sidebar-footer .live-dot {
   margin-right: 6px;
 }
-.sidebar-bottom p {
+.sidebar-tagline {
   color: var(--muted);
   font-size: var(--text-micro);
-  margin: 16px 10px 0;
+  margin: 0 8px;
   line-height: 1.6;
 }
 .app-content {
