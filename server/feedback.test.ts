@@ -331,3 +331,63 @@ describe('guest forms (V1.5)', () => {
     expect(mine.body).not.toContain('L. Guest signature')
   })
 })
+
+describe('versioned consent for email news (V1.5)', () => {
+  it('records the words ticked on the booking page and lets the guest stop from their link', async () => {
+    const owner = await register()
+    const { slug } = await studio(owner)
+    const page = (await api.inject({ url: `/api/public/${slug}` })).json<{
+      emailNews: { version: number; text: string }
+    }>()
+    expect(page.emailNews.version).toBe(1)
+    const held = await api.inject({
+      method: 'POST',
+      url: `/api/public/${slug}/holds`,
+      payload: {
+        serviceId: 'service-facial',
+        staffId: 'staff-maya',
+        date: '2026-10-06',
+        startMinutes: 990,
+      },
+    })
+    expect(held.statusCode, held.body).toBe(201)
+    const booked = await api.inject({
+      method: 'POST',
+      url: `/api/public/${slug}/book`,
+      payload: {
+        hold: held.json<{ hold: string }>().hold,
+        contact: { ...contact, email: 'news.guest@example.invalid', marketingConsent: true },
+        policy: true,
+        emailNewsVersion: page.emailNews.version,
+      },
+    })
+    expect(booked.statusCode, booked.body).toBe(200)
+    const { appointmentId, manage } = booked.json<{ appointmentId: string; manage: Manage }>()
+    let { state } = await studio(owner)
+    const clientId = state.appointments.find((a) => a.id === appointmentId)!.clientId
+    expect(state.consentRecords?.filter((r) => r.clientId === clientId)).toEqual([
+      expect.objectContaining({
+        given: true,
+        wordingVersion: 1,
+        source: 'booking page',
+        actor: 'Guest booking',
+      }),
+    ])
+    // The studio cannot stop it on the guest's behalf through the guest-only command.
+    const forged = await run(owner, state.revision, { type: 'guest-consent-stop', appointmentId })
+    expect(forged.statusCode).toBe(403)
+    const token = tokenOf(manage)
+    expect((await visit(token)).json<GuestView>().emailNews).toBe(true)
+    const stop = () =>
+      api.inject({ method: 'POST', url: '/api/guest/email-news', payload: { token } })
+    const stopped = await stop()
+    expect(stopped.statusCode, stopped.body).toBe(200)
+    expect(stopped.json<GuestView>().emailNews).toBeUndefined()
+    expect((await stop()).statusCode).toBe(200)
+    state = (await studio(owner)).state
+    expect(state.clients.find((c) => c.id === clientId)?.marketingConsent).toBe(false)
+    expect(
+      state.consentRecords?.filter((r) => r.clientId === clientId).map((r) => r.source),
+    ).toEqual(['booking page', 'guest link'])
+  })
+})

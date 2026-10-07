@@ -354,3 +354,20 @@
   font: inherit;
   font-weight: var(--weight-body);
 }
+/* V1.5: stopping email news from the private link. */
+.guest-news {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  margin-top: 26px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.guest-news h2,
+.guest-news p {
+  margin: 0;
+}
+.guest-news h2 {
+  font-family: var(--font-editorial);
+  font-weight: var(--weight-editorial);
+}

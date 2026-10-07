@@ -1040,3 +1040,39 @@
 a.receipt-row {
   text-decoration: none;
 }
+/* V1.5: versioned email news wording and each client's permission history. */
+.consent-wording {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+}
+.consent-wording label {
+  display: grid;
+  gap: 7px;
+  width: 100%;
+}
+.consent-wording p {
+  margin: 0;
+}
+.consent-earlier {
+  margin-top: 18px;
+}
+.consent-earlier ol,
+.consent-history {
+  display: grid;
+  gap: 10px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.consent-earlier li,
+.consent-history li {
+  display: grid;
+  gap: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.consent-history small,
+.consent-earlier q {
+  color: var(--muted);
+}

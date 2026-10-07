@@ -25,6 +25,7 @@ const pendingBookingSchema = z.object({
     hold: z.string().min(32).max(100),
     contact: contactSchema,
     policy: z.literal(true),
+    emailNewsVersion: z.number().int().min(1).optional(),
   }),
   serviceId: z.string(),
   staffId: z.string(),
@@ -60,6 +61,8 @@ type Catalog = {
   today: string
   sample: boolean
   patchTestHours?: number
+  /** V1.5: the studio's current words for email news, by version. */
+  emailNews?: { version: number; text: string }
   botCheck?: { siteKey: string } | null
   tax?: PriceTax
 }
@@ -241,6 +244,7 @@ function BookingFlow({
         hold: hold.hold,
         contact: { name, email, phone, marketingConsent: consent },
         policy: true as const,
+        ...(consent && catalog.emailNews ? { emailNewsVersion: catalog.emailNews.version } : {}),
       },
       serviceId,
       staffId,
@@ -598,7 +602,8 @@ function BookingFlow({
                         checked={consent}
                         onChange={(e) => setConsent(e.target.checked)}
                       />
-                      I’d like occasional email news from {org.name}.
+                      {catalog.emailNews?.text ??
+                        `I’d like occasional email news from ${org.name}.`}
                     </label>
                     <p className="subtle">
                       Optional. Booking does not depend on marketing consent. Use fictional contact
