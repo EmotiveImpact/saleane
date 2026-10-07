@@ -203,6 +203,16 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
         recordedAt: b.createdAt,
         ...(b.settled ? { closedAt: b.settled.at, closedNote: b.settled.note } : {}),
       })),
+    // V1.5: the private feedback this client gave about their visits.
+    feedback: (state.feedback ?? [])
+      .filter((f) => f.clientId === client.id)
+      .map((f) => ({
+        visit: ref.get(f.appointmentId),
+        visitRating: f.visitRating,
+        practitionerRating: f.practitionerRating,
+        comment: f.comment,
+        givenAt: f.createdAt,
+      })),
     // V1.5: packages and memberships this client bought, with what was paid, used and returned.
     plans: (state.holdings ?? [])
       .filter((h) => h.clientId === client.id)
@@ -490,6 +500,12 @@ export function clientExportText(file: ClientExport, locale = 'en-GB') {
     ...file.carriedOver.map(
       (b) =>
         `${b.kind === 'credit' ? 'Credit' : 'Owed'} · ${amount(b.amountMinor, cur, locale)} · from ${b.from} · ${b.closedAt ? `closed ${b.closedAt.slice(0, 10)}` : 'open'}`,
+    ),
+    '',
+    `FEEDBACK GIVEN (${file.feedback.length})`,
+    ...file.feedback.map(
+      (f) =>
+        `${f.givenAt.slice(0, 10)} · visit ${f.visitRating}/5 · care ${f.practitionerRating}/5${f.comment ? ` · ${f.comment}` : ''}`,
     ),
     '',
     `PACKAGES AND MEMBERSHIPS (${file.plans.length})`,

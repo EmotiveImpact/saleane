@@ -283,6 +283,8 @@ export function permissionFor(command: { type: string }) {
 }
 export const commandPermission = permissionFor
 export function can(role: Role, action: string) {
+  // Feedback comes only from the guest's own private link (V1.5).
+  if (action === 'feedback') return false
   if (role === 'owner') return true
   if (['membership', 'restore', 'organisation', 'tax'].includes(action)) return false
   if (role === 'manager') return true

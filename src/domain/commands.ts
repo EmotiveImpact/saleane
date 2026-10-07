@@ -14,6 +14,7 @@ import { dateLabel, money, timeLabel } from './format'
 import { availableAllocation } from './allocation'
 import { runSwitchingCommand } from './switching'
 import { coverVisit, runPlanCommand, stampPlanActors } from './plans'
+import { recordFeedback } from './feedback'
 
 export type CommandResult =
   { ok: true; state: BusinessState; recordId: string } | { ok: false; error: string }
@@ -521,6 +522,8 @@ export function execute(
       command.type === 'balance-settle'
     ) {
       recordId = runSwitchingCommand(next, command, now, makeId, addEvent, createClient)
+    } else if (command.type === 'feedback') {
+      recordId = recordFeedback(next, command, now, makeId)
     } else if (
       command.type === 'offer' ||
       command.type === 'plan-sell' ||

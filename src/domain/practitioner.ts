@@ -3,6 +3,7 @@ import { appointmentSchema, organisationSchema } from './model'
 import type { BusinessState } from './model'
 import type { Command } from './commandSchema'
 import { addDays } from './format'
+import { ownRating } from './feedback'
 
 /**
  * LOCAL-01: what an assigned practitioner may read and change.
@@ -37,6 +38,11 @@ export const practitionerViewSchema = z
       })
       .strict(),
     staff: z.object({ id, name: z.string(), role: z.string() }).strict(),
+    /** V1.5: how guests rate this practitioner, as an average only and never single answers. */
+    rating: z
+      .object({ count: z.number().int().nonnegative(), average: z.number().nullable() })
+      .strict()
+      .optional(),
     appointments: z.array(
       z
         .object({
@@ -133,6 +139,7 @@ export function practitionerView(
       locationName: s.organisation.locationName,
     },
     staff: { id: person.id, name: person.name, role: person.role },
+    rating: ownRating(s, staffId),
     appointments: visits.map((a) => ({
       id: a.id,
       clientId: a.clientId,

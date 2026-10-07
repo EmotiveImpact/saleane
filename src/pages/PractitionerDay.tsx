@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, ChevronRight, NotebookPen, Sun } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ChevronRight, NotebookPen, Star, Sun } from 'lucide-react'
 import { useStore } from '../state/context'
 import { api, ApiError } from '../state/api'
 import type { PractitionerWorkspace, RemoteWorkspace } from '../state/api'
@@ -15,6 +15,7 @@ import type { PractitionerView } from '../domain/practitioner'
 import type { Command } from '../domain/commands'
 import { addDays, dateLabel, timeLabel } from '../domain/format'
 import { firstName, nextUp, previousWithYou, untilLabel, venueMinutes } from '../domain/pocket'
+import { PRACTITIONER_AVERAGE_MIN } from '../domain/feedback'
 import { Avatar, Button, Empty, ErrorMessage, PageHeader, Status } from '../design'
 import '../practitioner.css'
 
@@ -262,6 +263,14 @@ export function PractitionerDay() {
           />
         </div>
         <ErrorMessage error={error} />
+        {record.rating && record.rating.count > 0 && (
+          <p className="practitioner-rating">
+            <Star size={16} aria-hidden="true" />
+            {record.rating.average !== null
+              ? `Guests rate how you look after them ${record.rating.average.toFixed(1)} out of 5, from ${record.rating.count} private ${record.rating.count === 1 ? 'rating' : 'ratings'}.`
+              : `Your average from guests' private ratings appears once ${PRACTITIONER_AVERAGE_MIN} guests have rated you.`}
+          </p>
+        )}
         {notice && (
           <p className="practitioner-notice" role="status">
             {notice}
