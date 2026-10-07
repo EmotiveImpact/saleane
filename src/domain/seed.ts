@@ -557,6 +557,66 @@ export function seed(region: Region): BusinessState {
       actor: 'Theo Bennett · demo fixture',
     },
   ]
+  // V1.5: an ordinary form for haircuts, and one guest who has filled it in already.
+  const fixture = 'Theo Bennett · demo fixture'
+  state.forms = [
+    {
+      ...scope,
+      id: 'form-cut',
+      serviceIds: ['service-cut'],
+      when: 'every_visit',
+      versions: [
+        {
+          version: 1,
+          publishedAt: `${addDays(DEMO_DATE, -30)}T09:00:00.000Z`,
+          publishedBy: fixture,
+          content: {
+            title: 'Before your cut',
+            intro: 'A few quick questions so your stylist is ready for you.',
+            questions: [
+              {
+                id: 'q-change',
+                kind: 'choice',
+                label: 'What would you like this time?',
+                required: true,
+                options: ['The same again', 'A small change', 'Something new'],
+              },
+              {
+                id: 'q-ideas',
+                kind: 'long',
+                label: 'Anything you would like us to know?',
+                required: false,
+              },
+              {
+                id: 'q-quiet',
+                kind: 'yes_no',
+                label: 'Would you like a quiet appointment, with little conversation?',
+                required: false,
+              },
+            ],
+            agreement: '',
+          },
+        },
+      ],
+    },
+  ]
+  state.formResponses = [
+    {
+      ...scope,
+      id: 'form-answer-1',
+      formId: 'form-cut',
+      version: 1,
+      appointmentId: 'visit-grace',
+      clientId: 'client-6',
+      answers: [
+        { questionId: 'q-change', value: 'A small change' },
+        { questionId: 'q-ideas', value: 'Keeping the length, just tidier at the front.' },
+        { questionId: 'q-quiet', value: 'yes' },
+      ],
+      agreedName: '',
+      submittedAt: `${addDays(DEMO_DATE, -1)}T19:12:00.000Z`,
+    },
+  ]
   return parseState(state, region)
 }
 

@@ -2,6 +2,15 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · V1.5 · Guest forms before a visit
+
+**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-FORMS.md).
+
+- Settings has a new Guest forms section. Owners and managers set up short forms for some or all services, asked before every visit or once per guest: short or longer answers, yes or no, pick one, and something to agree to by typing a name. The sample studio has one for haircuts.
+- Forms are for everyday questions. A form that asks about health (allergies, pregnancy, medication, medical conditions and similar) is refused; those wait for the separate clinical part of SALEANE.
+- Guests fill them in from their private visit link. Confirmations and reminders mention a form that is still waiting. Answers show on the visit for the desk and on the practitioner's own day (without the typed name), and on the client's timeline, data export and erasure review.
+- Changing a form's wording makes a new version. Every answer keeps the version it was given against, and answers cannot be changed or replaced once sent.
+
 ## 2026-10-07 · V1.5 · Booking from a missed call
 
 **Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-CALLBOOK.md).

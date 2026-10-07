@@ -8,6 +8,8 @@ import { giftCardSchema } from './giftCardsSchema'
 import { giftCardsProblem, refundableOnReceipt } from './giftCards'
 import { patchTestsProblem } from './patchTests'
 import { patchTestSchema } from './patchTestsSchema'
+import { formResponseSchema, formSchema } from './formsSchema'
+import { formsProblem } from './forms'
 import { feedbackProblem, feedbackSchema } from './feedback'
 import { specialSchema, specialsProblem } from './specialsSchema'
 import { taskSchema, tasksProblem } from './tasksSchema'
@@ -225,6 +227,7 @@ export const eventSchema = z.object({
     'waitlist',
     'gift_card',
     'patch_test',
+    'form',
   ]),
   allocationChange: z.object({ from: allocationSchema, to: allocationSchema }).optional(),
   title: z.string(),
@@ -272,6 +275,9 @@ export const stateSchema = z.object({
   giftCards: z.array(giftCardSchema).optional(),
   /** V1.5: patch tests done here, kept beside each other and never deleted. */
   patchTests: z.array(patchTestSchema).optional(),
+  /** V1.5: ordinary forms guests fill in before a visit, and every answer given, by version. */
+  forms: z.array(formSchema).optional(),
+  formResponses: z.array(formResponseSchema).optional(),
 })
 export type BusinessState = z.infer<typeof stateSchema>
 export type Client = z.infer<typeof clientSchema>
@@ -594,6 +600,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
   if (patch) throw new Error(patch)
   const feedback = feedbackProblem(s)
   if (feedback) throw new Error(feedback)
+  const forms = formsProblem(s)
+  if (forms) throw new Error(forms)
   const specials = specialsProblem(s)
   if (specials) throw new Error(specials)
   const tasks = tasksProblem(s)

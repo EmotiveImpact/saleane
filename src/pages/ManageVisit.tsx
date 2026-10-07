@@ -12,6 +12,7 @@ import { GuestFeedback } from '../components/GuestFeedback'
 import { GuestWaitlist } from '../components/GuestWaitlist'
 import { GuestHere } from '../components/GuestHere'
 import { GuestReview } from '../components/GuestReview'
+import { GuestForms } from '../components/GuestFormFill'
 import { returnNote, returnedToken } from '../state/guestReturn'
 import '../guest.css'
 
@@ -187,6 +188,7 @@ export function ManageVisit() {
           </p>
         )}
         {!done && <GuestHere token={token} view={view} onChange={setView} />}
+        <GuestForms token={token} view={view} onChange={setView} />
         <GuestFeedback token={token} view={view} onChange={setView} />
         <GuestReview view={view} />
         {view.payment && !done && (

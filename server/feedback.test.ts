@@ -242,3 +242,92 @@ describe('public review link (V1.5)', () => {
     expect(refused.statusCode).toBe(422)
   })
 })
+
+describe('guest forms (V1.5)', () => {
+  const content = {
+    title: 'Before your facial',
+    intro: '',
+    questions: [
+      {
+        id: 'q-goal',
+        kind: 'choice' as const,
+        label: 'What would you like most?',
+        required: true,
+        options: ['To relax', 'Brighter skin'],
+      },
+    ],
+    agreement: 'I have read the cancellation policy.',
+  }
+  it('takes a form from the guest link and shows it to the desk and the practitioner', async () => {
+    const owner = await register()
+    let { state } = await studio(owner)
+    const saved = await run(owner, state.revision, {
+      type: 'form-save',
+      content,
+      settings: { serviceIds: ['service-facial'], when: 'every_visit' },
+    })
+    expect(saved.statusCode, saved.body).toBe(200)
+    const formId = saved.json<{ recordId: string }>().recordId
+    const booked = await book((await studio(owner)).slug, 990)
+    const token = tokenOf(booked.manage)
+    const before = (await visit(token)).json<GuestView>()
+    expect(before.forms).toEqual([{ formId, version: 1, content, done: false }])
+    const send = (extra: Record<string, unknown> = {}) =>
+      api.inject({
+        method: 'POST',
+        url: '/api/guest/form',
+        payload: {
+          token,
+          formId,
+          version: 1,
+          answers: [{ questionId: 'q-goal', value: 'To relax' }],
+          agreedName: 'L. Guest signature',
+          ...extra,
+        },
+      })
+    expect((await send({ agreedName: '' })).statusCode).toBe(409)
+    const sent = await send()
+    expect(sent.statusCode, sent.body).toBe(200)
+    expect(sent.json<GuestView>().forms?.[0].done).toBe(true)
+    // A retry is safe.
+    expect((await send()).statusCode).toBe(200)
+    state = (await studio(owner)).state
+    expect(state.formResponses?.filter((r) => r.formId === formId)).toEqual([
+      expect.objectContaining({
+        appointmentId: booked.appointmentId,
+        agreedName: 'L. Guest signature',
+      }),
+    ])
+    // The studio cannot answer for the guest, and reception cannot change forms.
+    const forged = await run(owner, state.revision, {
+      type: 'form-submit',
+      appointmentId: booked.appointmentId,
+      formId,
+      version: 1,
+      answers: [{ questionId: 'q-goal', value: 'To relax' }],
+      agreedName: 'Ada',
+    })
+    expect(forged.statusCode).toBe(403)
+    const desk = await member(owner, 'desk2@example.invalid', 'reception')
+    const deskEdit = await run(desk, state.revision, {
+      type: 'form-archive',
+      formId,
+      archived: true,
+    })
+    expect(deskEdit.statusCode).toBe(403)
+    const maya = await member(owner, 'maya2@example.invalid', 'practitioner', 'staff-maya')
+    const mine = await api.inject({ url: `/api/workspaces/${owner.orgId}`, headers: headers(maya) })
+    const visits = mine.json<{
+      practitioner: {
+        appointments: { id: string; forms?: { answers: { answer: string }[] }[] }[]
+      }
+    }>().practitioner.appointments
+    expect(visits.find((a) => a.id === booked.appointmentId)?.forms).toEqual([
+      {
+        title: 'Before your facial',
+        answers: [{ question: 'What would you like most?', answer: 'To relax' }],
+      },
+    ])
+    expect(mine.body).not.toContain('L. Guest signature')
+  })
+})

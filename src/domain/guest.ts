@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { formContentSchema } from './formsSchema'
+import { visitForms } from './forms'
 import { GUEST_NOTE_LIMIT, appointmentSchema, organisationSchema } from './model'
 import { visitUid } from './calendarFile'
 import type { BusinessState } from './model'
@@ -148,6 +150,22 @@ export const guestViewSchema = z
       .object({ url: z.string().max(300) })
       .strict()
       .optional(),
+    /**
+     * V1.5: ordinary forms this visit asks for, before it happens. Answers are not sent back:
+     * `done` says only that the studio has them.
+     */
+    forms: z
+      .array(
+        z
+          .object({
+            formId: z.string(),
+            version: z.number().int(),
+            content: formContentSchema,
+            done: z.boolean(),
+          })
+          .strict(),
+      )
+      .optional(),
     /** V1.5: private feedback after a completed visit. Only the guest's own ratings come back. */
     feedback: z
       .object({
@@ -284,6 +302,18 @@ export function guestView(
               welcomed: a.status === 'arrived',
             }
           })(),
+        }
+      : {}),
+    ...((a.status === 'confirmed' || a.status === 'arrived') &&
+    visitStart(s, a.id) > now &&
+    visitForms(s, a).length
+      ? {
+          forms: visitForms(s, a).map((item) => ({
+            formId: item.form.id,
+            version: item.current.version,
+            content: item.current.content,
+            done: !!item.answer,
+          })),
         }
       : {}),
     ...(a.status === 'completed' && s.organisation.reviewUrl

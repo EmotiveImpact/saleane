@@ -415,6 +415,14 @@ export function PractitionerDay() {
                     <dd>{visit.patchTest.label}.</dd>
                   </div>
                 )}
+                {visit.forms?.flatMap((form) =>
+                  form.answers.map((row) => (
+                    <div key={`${form.title} ${row.question}`}>
+                      <dt>{row.question}</dt>
+                      <dd>{row.answer}</dd>
+                    </div>
+                  )),
+                )}
               </dl>
               {(visit.patchTest || client.patchTests.length > 0) && (
                 <>
