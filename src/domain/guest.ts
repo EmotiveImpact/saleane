@@ -2,7 +2,10 @@ import { z } from 'zod'
 import { GUEST_NOTE_LIMIT, appointmentSchema, organisationSchema } from './model'
 import { visitUid } from './calendarFile'
 import type { BusinessState } from './model'
-import { instantFor, operations } from './operations'
+import { businessDate, instantFor, operations } from './operations'
+import { addDays } from './format'
+import { WAITLIST_TIMES } from './waitlistSchema'
+import { isOpen } from './waitlist'
 import { feedbackForVisit, feedbackOpen } from './feedback'
 
 /**
@@ -132,6 +135,19 @@ export const guestViewSchema = z
       })
       .strict()
       .optional(),
+    /**
+     * V1.5: "tell me if something sooner comes up", for an upcoming visit at least a day away.
+     * Only the guest's own choice comes back, never who else is waiting.
+     */
+    waitlist: z
+      .object({
+        joined: z
+          .object({ anyone: z.boolean(), times: z.array(z.enum(WAITLIST_TIMES)) })
+          .strict()
+          .nullable(),
+      })
+      .strict()
+      .optional(),
   })
   .strict()
 export type GuestView = z.infer<typeof guestViewSchema>
@@ -203,6 +219,19 @@ export function guestView(
     },
     cancellation,
     ...(payment === undefined ? {} : { payment }),
+    ...(a.status === 'confirmed' &&
+    addDays(a.date, -1) >= businessDate(s, new Date(now).toISOString())
+      ? {
+          waitlist: {
+            joined: (() => {
+              const entry = (s.waitlist ?? []).find(
+                (e) => isOpen(s, e, new Date(now).toISOString()) && e.appointmentId === a.id,
+              )
+              return entry ? { anyone: !entry.staffId, times: entry.times } : null
+            })(),
+          },
+        }
+      : {}),
     ...(a.status === 'completed'
       ? {
           feedback: {

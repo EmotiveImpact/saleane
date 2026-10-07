@@ -8,7 +8,9 @@ import { dateLabel, timeLabel } from '../domain/format'
 import { Avatar, Button, ErrorMessage, Modal, PageHeader, SegmentedControl } from '../design'
 import type { BusinessState } from '../domain/model'
 import { useInboxView } from '../state/inboxView'
+import { isWaitlistOffer, staleOffer } from '../domain/waitlist'
 import { SentMessages } from '../components/AppointmentMessages'
+import { useClock } from '../state/clock'
 import '../components/management.css'
 
 type QueuedMessage = ReturnType<typeof operations>['messages'][number]
@@ -27,6 +29,7 @@ const statusLabel = {
 } as const
 
 export function Inbox() {
+  const clock = useClock()
   const { state, commit, blocked, role, session } = useStore()
   const config = operations(state)
   const [filter, setFilter] = useState<'all' | 'draft' | 'queued' | 'suppressed'>('all')
@@ -135,6 +138,8 @@ export function Inbox() {
   function conversation(message: QueuedMessage) {
     const recipient = state.clients.find((item) => item.id === message.clientId)
     const visit = state.appointments.find((item) => item.id === message.appointmentId)
+    // A waitlist offer whose request ended or whose time has gone cannot be approved.
+    const stale = message.status === 'draft' ? staleOffer(state, message.id, clock) : null
     const missingConsent = message.purpose === 'marketing' && !recipient?.marketingConsent
     const earlier = config.messages.filter(
       (item) =>
@@ -183,9 +188,10 @@ export function Inbox() {
               Marketing permission is not recorded. Review consent before queueing.
             </p>
           )}
+          {stale && <p className="ops-help">{stale} This offer will not be sent.</p>}
         </div>
         <footer className="inbox-pane-actions">
-          {message.status === 'draft' && (
+          {message.status === 'draft' && !stale && (
             <Button
               disabled={!allowedQueue || !!pending || missingConsent}
               onClick={() => {
@@ -195,7 +201,7 @@ export function Inbox() {
               {pending === message.id ? 'Queueing…' : 'Approve and queue'}
             </Button>
           )}
-          {message.status !== 'queued' && (
+          {message.status !== 'queued' && !isWaitlistOffer(state, message.id) && (
             <Button
               variant="secondary"
               aria-label={`Edit draft ${message.subject}`}

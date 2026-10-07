@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { offerInputSchema } from './plansSchema'
+import { waitlistInputSchema, waitlistTimesSchema } from './waitlistSchema'
 import { feedbackInputSchema } from './feedback'
 import {
   GUEST_NOTE_LIMIT,
@@ -50,6 +51,8 @@ export const bookingSchema = z.object({
   source: z.enum(['desk', 'online', 'rebook']),
   channel: z.enum(bookingChannels).optional(),
   rebookedFromId: id.optional(),
+  /** V1.5: the waitlist request this booking fills. */
+  waitlistId: id.optional(),
 })
 export const operatingCommandSchema = z.discriminatedUnion('type', [
   z.object({
@@ -230,6 +233,8 @@ export const commandSchema = z.discriminatedUnion('type', [
     type: z.literal('reschedule'),
     resourceId: id.optional(),
     appointmentId: id,
+    /** V1.5: the guest's waitlist request this earlier time fills. */
+    waitlistId: id.optional(),
     date: z.iso.date(),
     startMinutes: z.number().int().min(0).max(1439),
     staffId: id,
@@ -264,6 +269,27 @@ export const commandSchema = z.discriminatedUnion('type', [
   tillCountCommandSchema,
   // Sent only through a guest's private link, never by the studio.
   z.object({ type: z.literal('feedback'), appointmentId: id }).extend(feedbackInputSchema.shape),
+  z.object({ type: z.literal('waitlist-add'), input: waitlistInputSchema }),
+  z.object({
+    type: z.literal('waitlist-remove'),
+    entryId: id,
+    reason: z.string().trim().min(2).max(300),
+  }),
+  z.object({
+    type: z.literal('waitlist-offer'),
+    entryId: id,
+    date: z.iso.date(),
+    startMinutes: z.number().int().min(0).max(1439),
+    staffId: id,
+  }),
+  // From the guest's own private link only.
+  z.object({
+    type: z.literal('waitlist-join'),
+    appointmentId: id,
+    anyone: z.boolean(),
+    times: waitlistTimesSchema,
+  }),
+  z.object({ type: z.literal('waitlist-leave'), appointmentId: id }),
   z.object({ type: z.literal('offer'), id: id.optional(), input: offerInputSchema }),
   z.object({
     type: z.literal('plan-sell'),
