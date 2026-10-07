@@ -6,6 +6,7 @@ import { holdingSchema, offerSchema } from './plansSchema'
 import { coveredSaleProblem, plansProblem } from './plans'
 import { feedbackProblem, feedbackSchema } from './feedback'
 import { specialSchema, specialsProblem } from './specialsSchema'
+import { taskSchema, tasksProblem } from './tasksSchema'
 import { waitlistEntrySchema } from './waitlistSchema'
 import { waitlistProblem } from './waitlist'
 export { paymentMethodSchema, paymentMethods, processorSchema } from './paymentMethods'
@@ -204,6 +205,8 @@ export const stateSchema = z.object({
   feedback: z.array(feedbackSchema).optional(),
   /** V3: specials a manager planned from a seasonal or local suggestion. Nothing is sent by them. */
   specials: z.array(specialSchema).optional(),
+  /** V3: reminders the team leaves for a day. Nothing is sent by them. */
+  tasks: z.array(taskSchema).optional(),
   /** V1.5: clients waiting for an earlier or a free time. */
   waitlist: z.array(waitlistEntrySchema).optional(),
 })
@@ -500,6 +503,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
   if (feedback) throw new Error(feedback)
   const specials = specialsProblem(s)
   if (specials) throw new Error(specials)
+  const tasks = tasksProblem(s)
+  if (tasks) throw new Error(tasks)
   const waitlist = waitlistProblem(s)
   if (waitlist) throw new Error(waitlist)
   try {

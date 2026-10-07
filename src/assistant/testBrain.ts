@@ -21,16 +21,33 @@ export function testModeBrain(today: string, locale = 'en-GB'): Brain {
 }
 
 const HELP =
-  'In test mode I can answer a few things from your records: your morning brief, anything unusual, who is drifting away, what is on today or tomorrow, who is at a time ("who\'s my 10 o\'clock?"), who is due back, takings, money owed, plans running low, low stock, and a brief on a client ("tell me about Maya"). I can prepare changes for you to approve: "book Jamie with Maya for a facial on Thursday at 3pm", "cancel Nina Patel", "Theo is off sick today", or an invitation ("invite Maya back"). Owners and managers can also ask "how did we do today?", "how was the week?", and for specials to run.'
+  'In test mode I can answer a few things from your records: your morning brief, anything unusual, who is drifting away, what is on today or tomorrow, who is at a time ("who\'s my 10 o\'clock?"), who is on the waitlist, who is due back, takings, money owed, plans running low, low stock, and a brief on a client ("tell me about Maya"). I can prepare changes for you to approve: "book Jamie with Maya for a facial on Thursday at 3pm", "cancel Nina Patel", "Theo is off sick today", "offer Thursday at 2pm to Priya", a reminder ("remind me on Friday to call the supplier"), or an invitation ("invite Maya back"). Owners and managers can also ask "how did we do today?", "how was the week?", and for specials to run.'
 
 const MANAGERS_ONLY = 'That is for owners and managers.'
 
 type Step = { text?: string; calls: ToolCall[] }
 type Result = { name: string; input: Record<string, unknown>; ok: boolean; data: unknown }
 
+/**
+ * The question being asked. A short follow-up ("and tomorrow?", "and after her?") is read against
+ * the conversation so far, the way a person would understand it.
+ */
 function lastQuestion(request: BrainRequest) {
-  const users = request.messages.filter((m) => m.role === 'user')
-  return (users[users.length - 1]?.text ?? '').trim()
+  const { messages } = request
+  const latestAt = messages.map((m) => m.role).lastIndexOf('user')
+  const latest = messages[latestAt]?.role === 'user' ? messages[latestAt].text.trim() : ''
+  const earlier = messages.slice(0, latestAt)
+  const before = earlier.filter((m) => m.role === 'user').at(-1)
+  const answer = earlier.filter((m) => m.role === 'assistant' && m.text).at(-1)
+  const q = latest.toLowerCase()
+  if (!before || before.role !== 'user' || !/^(and|what about|how about)\b/.test(q)) return latest
+  if (/\btomorrow\b/.test(q))
+    return `${before.text.replace(/\btoday\b/gi, '').replace(/[?.!\s]+$/, '')} tomorrow?`
+  if (/\b(after|next)\b/.test(q) && answer?.role === 'assistant') {
+    const next = /has [A-Z][\w' -]+? at (\d{2}:\d{2})/.exec(answer.text ?? '')
+    if (next) return `Who's at ${next[1]}?`
+  }
+  return latest
 }
 
 /** The skill calls since the latest question, paired with what each returned. */
@@ -139,6 +156,19 @@ function firstStep(question: string, today: string, offered: Set<string>): Step 
     return offered.has('cancel_visit')
       ? call('find_client', { name: cancelName(question)! })
       : say('Your role cannot cancel visits.')
+  if (/^\s*(please\s+)?remind (me|us|the team)\b/.test(q)) {
+    const text = reminderText(question)
+    if (!text) return say('What should I remind you about? Say "remind me on Friday to…".')
+    return offered.has('add_reminder')
+      ? call('add_reminder', { text, dueDate: dayIn(q, today) })
+      : say('Your role cannot leave reminders.')
+  }
+  if (/\b(reminders?|to-?dos?|to do list)\b/.test(q))
+    return offered.has('reminders') ? call('reminders') : say('Your role cannot see reminders.')
+  if (/\b(wait ?list|waiting list)\b/.test(q) || /^\s*offer\b/.test(q))
+    return offered.has('waitlist_matches')
+      ? call('waitlist_matches')
+      : say('Your role cannot see the waitlist.')
   if (ABSENT.test(q) && !/^\s*(book|cancel)\b/.test(q))
     return need('cover_absence', call('catalogue'))
   if (/\b(how did we do|close (the|my) day|end of (the )?day|wrap up|today go)\b/.test(q))
@@ -157,7 +187,13 @@ function firstStep(question: string, today: string, offered: Set<string>): Step 
     return need('special_ideas', call('special_ideas'))
   }
   if (/\b(brief|summary|morning|overview)\b/.test(q) && !clientName(question))
-    return { calls: [...call('morning_brief').calls, ...call('unusual').calls] }
+    return {
+      calls: [
+        ...call('morning_brief').calls,
+        ...call('unusual').calls,
+        ...(offered.has('reminders') ? call('reminders').calls : []),
+      ],
+    }
   if (/\b(unusual|warning|warnings|worry|wrong|odd|problems?)\b/.test(q)) return call('unusual')
   if (/\b(drifting|slipping|lost|losing|lapsing|missing)\b/.test(q)) return call('drifting_clients')
   if (/\btomorrow\b/.test(q)) return call('day_overview', { date: addDays(today, 1) })
@@ -191,8 +227,13 @@ function nextStep(
   const brief = results.find((r) => r.name === 'morning_brief')
   if (brief?.ok) {
     const notices = results.find((r) => r.name === 'unusual')
+    const reminders = results.find((r) => r.name === 'reminders')
     return say(
-      [describeMorning(brief.data as Morning, day), describeNotices(notices?.data as Notice[])]
+      [
+        describeMorning(brief.data as Morning, day),
+        describeNotices(notices?.data as Notice[]),
+        reminders?.ok ? describeReminders(reminders.data as Reminders, true) : '',
+      ]
         .filter(Boolean)
         .join(' '),
     )
@@ -238,6 +279,55 @@ function nextStep(
         `Specials to consider. ${lines.join(' ')} Say "plan the" and its name and I will prepare it for you to approve.`,
       )
     }
+    case 'waitlist_matches': {
+      const list = last.data as Waiting[]
+      if (/^\s*offer\b/.test(q) && offered.has('offer_from_waitlist')) {
+        const entry = list.find((e) => q.includes(e.client.split(' ')[0].toLowerCase()))
+        if (!entry)
+          return say(
+            list.length
+              ? `Who should I offer it to? Waiting: ${list.map((e) => e.client).join(', ')}.`
+              : 'Nobody is on the waitlist right now.',
+          )
+        const at = clockTime(q)
+        const date =
+          /\btomorrow\b/.test(q) || WEEKDAYS.some((d) => q.includes(d)) ? dayIn(q, today) : null
+        const opening = entry.openings.find(
+          (o) => (at === null || o.startMinutes === at) && (!date || o.date === date),
+        )
+        if (!opening)
+          return say(
+            `That time is not free for ${entry.client}'s ${entry.service}.${entry.openings.length ? ` Free: ${entry.openings.map((o) => `${day(o.date)} at ${o.time} with ${firstName(o.professional)}`).join('; ')}.` : ''}`,
+          )
+        return call('offer_from_waitlist', {
+          entryId: entry.entryId,
+          date: opening.date,
+          startMinutes: opening.startMinutes,
+          staffId: opening.staffId,
+        })
+      }
+      if (!list.length) return say('Nobody is on the waitlist right now.')
+      const lines = list.slice(0, 5).map((e) => {
+        const who = e.professional ? ` with ${firstName(e.professional)}` : ''
+        const free = e.openings[0]
+          ? `first free ${day(e.openings[0].date)} at ${e.openings[0].time} with ${firstName(e.openings[0].professional)}`
+          : 'nothing free yet'
+        return `${e.client}, ${e.service}${who}, ${e.suits} (${free})`
+      })
+      return say(
+        `${list.length} waiting: ${lines.join('; ')}. Say "offer" with a name and a time and I will write the offer for you to approve.`,
+      )
+    }
+    case 'reminders':
+      return say(
+        describeReminders(last.data as Reminders, false) || 'You have no reminders waiting.',
+      )
+    case 'add_reminder':
+      return say('I have prepared the reminder below. Approve it to save it; nothing is sent.')
+    case 'offer_from_waitlist':
+      return say(
+        'I have written the offer below. Approve it to save it in the Inbox for a final look; nothing has gone to the client yet.',
+      )
     case 'plan_special':
       return say(
         'I have prepared the special below. Approve it to plan it. Nothing is sent and no prices change; you tell clients from the Inbox.',
@@ -333,6 +423,46 @@ type Morning = {
   usualYesterdayTakings?: string | null
 }
 type Notice = { title: string; detail: string }
+type Reminder = { text: string; day: string; overdue: boolean }
+type Reminders = { due: Reminder[]; coming: Reminder[] }
+
+/** Today's reminders, and for the full list the next few coming up. */
+function describeReminders(r: Reminders, todayOnly: boolean) {
+  const due = r.due.map((x) => (x.overdue ? `${x.text} (from ${x.day})` : x.text))
+  const parts = due.length ? [`Reminders for today: ${due.join('; ')}.`] : []
+  if (!todayOnly && r.coming.length)
+    parts.push(`Coming up: ${r.coming.map((x) => `${x.day}, ${x.text}`).join('; ')}.`)
+  return parts.join(' ')
+}
+
+/** "Remind me on Friday to call the supplier": the thing to do, as a short sentence. */
+function reminderText(question: string) {
+  const found = /\bto\s+(.{2,200}?)[?.!\s]*$/i
+    .exec(
+      question
+        .replace(
+          /\b(on|this|next)?\s*(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi,
+          ' ',
+        )
+        .replace(/\s+/g, ' '),
+    )?.[1]
+    ?.trim()
+  return found ? found[0].toUpperCase() + found.slice(1) : undefined
+}
+type Waiting = {
+  entryId: string
+  client: string
+  service: string
+  professional?: string
+  suits: string
+  openings: {
+    date: string
+    startMinutes: number
+    staffId: string
+    time: string
+    professional: string
+  }[]
+}
 type Idea = {
   signalId: string
   title: string

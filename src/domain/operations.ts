@@ -280,6 +280,7 @@ export function permissionFor(command: { type: string }) {
   if (['closure', 'remove-closure'].includes(command.type)) return 'hours'
   if (command.type === 'message-queue') return 'message.queue'
   if (command.type === 'special-plan' || command.type === 'special-stop') return 'special'
+  if (command.type === 'task-add' || command.type === 'task-done') return 'task'
   return command.type
 }
 export const commandPermission = permissionFor

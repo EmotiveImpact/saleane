@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { ArrowRight, Check, Leaf } from 'lucide-react'
 import { useStore } from '../state/context'
-import { dateLabel, money, timeLabel } from '../domain/format'
+import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import { drifting, gapInvitation, gapSuggestions, morningBrief, unusual } from '../domain/insights'
+import { can } from '../domain/operations'
+import { dueTasks } from '../domain/tasks'
 import { Button, photos } from '../design'
 import type { BookingDefaults } from './BookingDialog'
 import './smart-insights.css'
@@ -22,6 +24,8 @@ export function SmartInsights({ onBook }: { onBook: (defaults: BookingDefaults) 
   const [drafting, setDrafting] = useState<string | null>(null)
   const [saved, setSaved] = useState<string[]>([])
   const [error, setError] = useState('')
+  const [reminder, setReminder] = useState('')
+  const [reminderDay, setReminderDay] = useState('')
   const locale = state.organisation.locale
   const managers = role === 'owner' || role === 'manager'
   const brief = morningBrief(state, today)
@@ -29,6 +33,8 @@ export function SmartInsights({ onBook }: { onBook: (defaults: BookingDefaults) 
   const drifters = drifting(state, today)
   const offers = gapSuggestions(state, today)
   const weekday = dateLabel(today, locale).split(' ')[0]
+  const reminders = dueTasks(state, today)
+  const canRemind = can(role, 'task')
 
   const headline = notices.some((n) => n.kind === 'quiet-day')
     ? 'Tomorrow has room to fill.'
@@ -79,6 +85,85 @@ export function SmartInsights({ onBook }: { onBook: (defaults: BookingDefaults) 
             </li>
           ))}
         </ul>
+      )}
+      {(reminders.length > 0 || canRemind) && (
+        <div className="insight-drifting insight-reminders">
+          <h3>Reminders</h3>
+          {reminders.length > 0 && (
+            <ul>
+              {reminders.map((r) => (
+                <li key={r.id}>
+                  <span>
+                    <strong>{r.text}</strong>
+                    <small>
+                      {r.dueDate < today ? `From ${dateLabel(r.dueDate, locale)}` : 'Today'}
+                      {r.createdBy ? `, left by ${r.createdBy.split(' ')[0]}` : ''}
+                    </small>
+                  </span>
+                  {canRemind && (
+                    <Button
+                      variant="quiet"
+                      onClick={async () => {
+                        setError('')
+                        const result = await commit({ type: 'task-done', taskId: r.id })
+                        if (!result.ok) setError(result.error)
+                      }}
+                    >
+                      <Check size={14} aria-hidden="true" /> Done
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {canRemind && (
+            <form
+              className="insight-remind"
+              onSubmit={async (event) => {
+                event.preventDefault()
+                setError('')
+                const result = await commit({
+                  type: 'task-add',
+                  input: { text: reminder.trim(), dueDate: reminderDay || today },
+                })
+                if (!result.ok) return setError(result.error)
+                setReminder('')
+              }}
+            >
+              <label>
+                <span className="sr-only">Reminder</span>
+                <input
+                  required
+                  minLength={2}
+                  maxLength={200}
+                  placeholder="Add a reminder"
+                  value={reminder}
+                  onChange={(e) => setReminder(e.target.value)}
+                />
+              </label>
+              <label>
+                <span className="sr-only">Day</span>
+                <select
+                  value={reminderDay || today}
+                  onChange={(e) => setReminderDay(e.target.value)}
+                >
+                  {Array.from({ length: 7 }, (_, n) => addDays(today, n)).map((d, n) => (
+                    <option key={d} value={d}>
+                      {n === 0
+                        ? 'Today'
+                        : n === 1
+                          ? 'Tomorrow'
+                          : dateLabel(d, locale).split(' ')[0]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Button type="submit" variant="light">
+                Add
+              </Button>
+            </form>
+          )}
+        </div>
       )}
       {drifters.length > 0 && (
         <div className="insight-drifting">

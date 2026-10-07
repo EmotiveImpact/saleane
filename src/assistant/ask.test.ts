@@ -166,4 +166,74 @@ describe("A manager's day through Ask Saleane", () => {
       'That is for owners and managers.',
     )
   })
+
+  it('understands short follow-ups from the conversation so far', async () => {
+    const follow = (history: { from: 'you' | 'saleane'; text: string }[], text: string) =>
+      askSaleane({ state: s, role: 'owner', personId: 'p1', text, history, usage: undefined, at })
+    const first = await ask("What's on today?")
+    const tomorrow = await follow(
+      [
+        { from: 'you', text: "What's on today?" },
+        { from: 'saleane', text: first.text },
+      ],
+      'and tomorrow?',
+    )
+    expect(tomorrow.text).toMatch(/Wednesday 7 October/)
+    const two = await ask("Who's my 2pm?")
+    expect(two.text).toMatch(/After that, Sophia has Isabel Wilson at 16:00\./)
+    const after = await follow(
+      [
+        { from: 'you', text: "Who's my 2pm?" },
+        { from: 'saleane', text: two.text },
+      ],
+      'and after her?',
+    )
+    expect(after.text).toMatch(/^16:00: Isabel Wilson/)
+  })
+
+  it('lists who is waiting with their first free time, and writes an offer only once approved', async () => {
+    const list = await ask('Anyone on the waitlist?')
+    expect(list.text).toMatch(/^3 waiting: Charlotte Hayes, Skin Renewal Facial with Maya/)
+    const offer = await ask('Offer Emily Wednesday at 9am')
+    if (offer.status !== 'answered') throw new Error('refused')
+    expect(offer.proposals[0].summary).toMatch(
+      /^Offer Emily Clarke Deep Restore Massage on Wednesday 7 October at 09:00 with .*nothing is sent/,
+    )
+    const done = dispatch(s, commandSchema.parse(offer.proposals[0].effect), 'Owner', at)
+    if (!done.ok) throw new Error(done.error)
+    const drafts = (state: typeof s) => (state.operations?.messages ?? []).length
+    expect(drafts(done.state)).toBe(drafts(s) + 1)
+    expect(done.state.operations?.messages.at(-1)?.status).toBe('draft')
+    expect((await ask('Offer Emily Friday at 6pm')).text).toMatch(/^That time is not free/)
+    expect((await ask('Anyone on the waitlist?', 'practitioner')).text).toBe(
+      'Your role cannot see the waitlist.',
+    )
+  })
+
+  it('leaves a reminder once approved, and brings it up in the morning brief', async () => {
+    const result = await ask('Remind me today to order more towels')
+    if (result.status !== 'answered') throw new Error('refused')
+    expect(result.proposals[0].summary).toBe(
+      'Remind the team on Tuesday 6 October: Order more towels',
+    )
+    const done = dispatch(s, commandSchema.parse(result.proposals[0].effect), 'Owner', at)
+    if (!done.ok) throw new Error(done.error)
+    const brief = await askSaleane({
+      state: done.state,
+      role: 'owner',
+      personId: 'p1',
+      text: 'Give me my morning brief',
+      usage: undefined,
+      at,
+    })
+    expect(brief.text).toMatch(/Reminders for today: Order more towels\./)
+  })
+
+  it('follows up what it mentioned first with one tap', async () => {
+    const offer = await ask('Offer Charlotte today at 12:15')
+    if (offer.status !== 'answered') throw new Error('refused')
+    expect(offer.proposals[0].summary).toMatch(
+      /^Offer Charlotte Hayes Skin Renewal Facial on Tuesday 6 October at 12:15 with Maya Lewis/,
+    )
+  })
 })

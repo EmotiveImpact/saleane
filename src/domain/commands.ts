@@ -16,6 +16,7 @@ import { runSwitchingCommand } from './switching'
 import { coverVisit, runPlanCommand, stampPlanActors } from './plans'
 import { recordFeedback, repeatedFeedback } from './feedback'
 import { planSpecial, stopSpecial } from './specials'
+import { addTask, completeTask } from './tasks'
 import {
   closeForCancelledVisit,
   fillFromWaitlist,
@@ -569,6 +570,12 @@ export function execute(
       recordId = planSpecial(next, command.input, now, makeId)
     } else if (command.type === 'special-stop') {
       recordId = stopSpecial(next, command.specialId, businessDate(s, now))
+    } else if (command.type === 'task-add') {
+      recordId = addTask(next, command.input, businessDate(s, now), now, makeId)
+    } else if (command.type === 'task-done') {
+      const task = (s.tasks ?? []).find((x) => x.id === command.taskId)
+      if (task?.doneAt) return { ok: true, state: s, recordId: task.id }
+      recordId = completeTask(next, command.taskId, now)
     } else if (
       command.type === 'offer' ||
       command.type === 'plan-sell' ||
@@ -609,6 +616,8 @@ export function dispatch(
       e.actor = actorName
     })
   stampPlanActors(s, result.state, actorName)
+  const tasks = new Set((s.tasks ?? []).map((x) => x.id))
+  for (const task of result.state.tasks ?? []) if (!tasks.has(task.id)) task.createdBy = actorName
   const counted = new Set((s.tillCounts ?? []).map((c) => c.id))
   for (const count of result.state.tillCounts ?? [])
     if (!counted.has(count.id)) count.actor = actorName

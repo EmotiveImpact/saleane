@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { offerInputSchema } from './plansSchema'
 import { specialInputSchema } from './specialsSchema'
+import { taskInputSchema } from './tasksSchema'
 import { waitlistInputSchema, waitlistTimesSchema } from './waitlistSchema'
 import { feedbackInputSchema } from './feedback'
 import {
@@ -325,6 +326,8 @@ export const commandSchema = z.discriminatedUnion('type', [
   }),
   // V3: planning a special records it; nothing is sent and no price changes.
   z.object({ type: z.literal('special-plan'), input: specialInputSchema }),
+  z.object({ type: z.literal('task-add'), input: taskInputSchema }),
+  z.object({ type: z.literal('task-done'), taskId: id }),
   z.object({ type: z.literal('special-stop'), specialId: id }),
   ...operatingCommandSchema.options,
 ])

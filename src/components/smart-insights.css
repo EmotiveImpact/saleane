@@ -89,3 +89,32 @@
   color: var(--danger);
   font-size: var(--text-meta);
 }
+.insight-reminders li {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+.insight-remind {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.insight-remind label:first-child {
+  flex: 1 1 160px;
+}
+.insight-remind input,
+.insight-remind select {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-inner);
+  background: var(--palette-white);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-meta);
+}
+.insight-reminders li > span {
+  flex: 1;
+}

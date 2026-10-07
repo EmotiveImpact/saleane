@@ -18,6 +18,8 @@ import {
 } from '../domain/insights'
 import { GUEST_CANCEL_CUTOFF_HOURS, visitStart } from '../domain/guest'
 import { holdings, planStanding } from '../domain/plans'
+import { dueTasks, openTasks } from '../domain/tasks'
+import { openingFree, openings, serviceLabel, timesLabel, waiting } from '../domain/waitlist'
 import {
   currentSpecials,
   resultSentence,
@@ -642,6 +644,100 @@ export function askSaleaneSkills(): Skill<AskContext, Command>[] {
         return {
           summary: `Cancel ${name(s, 'clients', visit.clientId)}'s ${visit.bookedServiceName ?? name(s, 'services', visit.serviceId)} on ${dateLabel(visit.date, s.organisation.locale)} at ${time(ctx, visit.startMinutes)} (${input.reason}).${feeNote}`,
           effect,
+        }
+      },
+    }),
+    readSkill<AskContext, Record<string, never>>({
+      name: 'reminders',
+      description:
+        "The team's reminders: those due today or overdue, and the next few coming up. Reminders are notes for the team; nothing is sent by them.",
+      input: z.object({}).strict(),
+      allowed: studio,
+      run(ctx) {
+        const s = ctx.state
+        const show = (t: ReturnType<typeof openTasks>[number]) => ({
+          text: t.text,
+          day: dateLabel(t.dueDate, s.organisation.locale),
+          overdue: t.dueDate < ctx.today,
+          by: t.createdBy,
+        })
+        const due = dueTasks(s, ctx.today)
+        return {
+          due: due.map(show),
+          coming: openTasks(s)
+            .filter((t) => t.dueDate > ctx.today)
+            .slice(0, 5)
+            .map(show),
+        }
+      },
+    }),
+    actionSkill<AskContext, { text: string; dueDate: string }, Command>({
+      name: 'add_reminder',
+      description:
+        'Leave a reminder for a day, such as "call the supplier" on Friday. It shows in the morning brief and on Today that day. Nothing is sent.',
+      input: z.object({ text: z.string().trim().min(2).max(200), dueDate: isoDate }).strict(),
+      allowed: (ctx) => studio(ctx) && can(ctx.role, 'task'),
+      propose(ctx, input) {
+        if (input.dueDate < ctx.today) throw new SkillRefusal('That day has passed.')
+        return {
+          summary: `Remind the team on ${dateLabel(input.dueDate, ctx.state.organisation.locale)}: ${input.text}`,
+          effect: commandSchema.parse({ type: 'task-add', input }),
+        }
+      },
+    }),
+    readSkill<AskContext, { serviceId?: string }>({
+      name: 'waitlist_matches',
+      description:
+        'Clients on the waitlist, what they want and when it suits them, with the earliest times free for each (up to three). Optionally only those waiting for one service.',
+      input: z.object({ serviceId: z.string().min(1).optional() }).strict(),
+      allowed: studio,
+      run(ctx, { serviceId }) {
+        const s = ctx.state
+        return waiting(s, ctx.now)
+          .filter((e) => !serviceId || e.serviceId === serviceId)
+          .map((e) => ({
+            entryId: e.id,
+            client: name(s, 'clients', e.clientId),
+            service: serviceLabel(s, e),
+            professional: e.staffId ? name(s, 'staff', e.staffId) : undefined,
+            suits: timesLabel(e.times),
+            until: dateLabel(e.toDate, s.organisation.locale),
+            note: e.note || undefined,
+            openings: openings(s, e, ctx.now, 3).map((o) => ({
+              ...o,
+              day: dateLabel(o.date, s.organisation.locale),
+              time: time(ctx, o.startMinutes),
+              professional: name(s, 'staff', o.staffId),
+            })),
+          }))
+      },
+    }),
+    actionSkill<
+      AskContext,
+      { entryId: string; date: string; startMinutes: number; staffId: string },
+      Command
+    >({
+      name: 'offer_from_waitlist',
+      description:
+        'Write an offer of a free time to a client on the waitlist. The offer waits in the Inbox for the team to approve before it is sent.',
+      input: z
+        .object({
+          entryId: z.string().min(1),
+          date: isoDate,
+          startMinutes: z.number().int().min(0).max(1439),
+          staffId: z.string().min(1),
+        })
+        .strict(),
+      allowed: (ctx) => studio(ctx) && can(ctx.role, 'waitlist-offer'),
+      propose(ctx, input) {
+        const s = ctx.state
+        const entry = waiting(s, ctx.now).find((e) => e.id === input.entryId)
+        if (!entry) throw new SkillRefusal('That client is no longer waiting.')
+        if (!openingFree(s, entry, input, ctx.now))
+          throw new SkillRefusal('That time is no longer free for this request.')
+        return {
+          summary: `Offer ${name(s, 'clients', entry.clientId)} ${serviceLabel(s, entry)} on ${dateLabel(input.date, s.organisation.locale)} at ${time(ctx, input.startMinutes)} with ${name(s, 'staff', input.staffId)}. The offer waits in the Inbox for you to approve; nothing is sent until then.`,
+          effect: commandSchema.parse({ type: 'waitlist-offer', ...input }),
         }
       },
     }),
