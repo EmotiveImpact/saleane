@@ -81,7 +81,7 @@ async function keyboard(page, steps = 60) {
         style.textDecorationLine.includes('underline') ||
         // A search input inside a pill shows its ring on the pill around it.
         (() => {
-          const field = el.closest('.search-field')
+          const field = el.closest('.search-field, .treatment-search')
           if (!field) return false
           const ring = getComputedStyle(field)
           return ring.outlineStyle !== 'none' && parseFloat(ring.outlineWidth) > 0

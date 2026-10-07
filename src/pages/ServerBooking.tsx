@@ -10,6 +10,7 @@ import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import { Button, ErrorMessage, TimeChoices } from '../design'
 import { BotCheck } from '../components/BotCheck'
 import { BookingFrame } from '../components/BookingFrame'
+import { TreatmentPicker } from '../components/TreatmentPicker'
 import { PriceSentence } from '../components/PriceSentence'
 import { BeforeYouArrive } from '../components/BeforeYouArrive'
 import { AddToCalendar } from '../components/AddToCalendar'
@@ -118,6 +119,10 @@ function BookingFlow({
   const journalKey = `saleane.guest-confirmation:${base}`
   const [recovery] = useState(() => readPendingBooking(journalKey))
   const [attempt, setAttempt] = useState<PendingBooking | null>(recovery.value)
+  const [picked, setPicked] = useState(false)
+  // With one kind of treatment the list opens straight away, chosen as before;
+  // otherwise nothing is chosen until the guest picks.
+  const ready = picked || new Set(services.map((s) => s.category)).size < 2
   const [step, setStep] = useState(recovery.value ? 4 : 1),
     [serviceId, setServiceId] = useState(recovery.value?.serviceId ?? services[0]?.id ?? ''),
     [staffId, setStaffId] = useState(recovery.value?.staffId ?? 'any'),
@@ -408,13 +413,17 @@ function BookingFlow({
             <fieldset disabled={pending || !!recovery.error} className="booking-operation-fields">
               {step === 1 && (
                 <>
-                  <div className="service-choices">
-                    {services.map((s) => (
+                  <TreatmentPicker
+                    treatments={services}
+                    value={serviceId}
+                    resume={picked}
+                    renderChoice={(s) => (
                       <button
                         key={s.id}
-                        aria-pressed={s.id === serviceId}
-                        className={`service-choice ${s.id === serviceId ? 'selected' : ''}`}
+                        aria-pressed={ready && s.id === serviceId}
+                        className={`service-choice ${ready && s.id === serviceId ? 'selected' : ''}`}
                         onClick={() => {
+                          setPicked(true)
                           setServiceId(s.id)
                           setStaffId('any')
                         }}
@@ -432,14 +441,18 @@ function BookingFlow({
                         </span>
                         <strong>{money(fullPriceMinor(s, tax), org)}</strong>
                       </button>
-                    ))}
-                  </div>
-                  <div className="booking-next">
-                    <span>{service.name}</span>
-                    <Button onClick={() => setStep(2)}>
-                      Choose a time <ArrowRight size={17} />
-                    </Button>
-                  </div>
+                    )}
+                    footer={
+                      ready && (
+                        <div className="booking-next">
+                          <span>{service.name}</span>
+                          <Button onClick={() => setStep(2)}>
+                            Choose a time <ArrowRight size={17} />
+                          </Button>
+                        </div>
+                      )
+                    }
+                  />
                 </>
               )}
               {step === 2 && (

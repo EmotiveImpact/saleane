@@ -8,6 +8,7 @@ import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import { Avatar, Button, DateStrip, ErrorMessage, TimeChoices } from '../design'
 import { operations } from '../domain/operations'
 import { BookingFrame } from '../components/BookingFrame'
+import { TreatmentPicker } from '../components/TreatmentPicker'
 import { PriceSentence } from '../components/PriceSentence'
 import { BeforeYouArrive } from '../components/BeforeYouArrive'
 import { AddToCalendar } from '../components/AddToCalendar'
@@ -18,7 +19,10 @@ import { fullPriceMinor } from '../domain/priceSentence'
 export function BrandedBooking() {
   const { state, commit, region, changeRegion, saving } = useStore()
   const [step, setStep] = useState(1)
-  const [category, setCategory] = useState('All')
+  const [picked, setPicked] = useState(false)
+  // With one kind of treatment the list opens straight away, chosen as before;
+  // otherwise nothing is chosen until the guest picks.
+  const ready = picked || new Set(state.services.map((s) => s.category)).size < 2
   const [serviceId, setServiceId] = useState(state.services[0].id)
   // 'any' lets the guest take the first professional free at the time they choose.
   const [staffId, setStaffId] = useState('any')
@@ -223,70 +227,63 @@ export function BrandedBooking() {
             </p>
             {step === 1 && (
               <>
-                <div className="segment-tabs booking-categories" aria-label="Treatment category">
-                  {['All', 'Skin', 'Body', 'Hair'].map((value) => (
+                <TreatmentPicker
+                  treatments={state.services}
+                  value={serviceId}
+                  resume={picked}
+                  renderChoice={(s) => (
                     <button
-                      className={category === value ? 'active' : ''}
-                      aria-pressed={category === value}
-                      onClick={() => setCategory(value)}
-                      key={value}
+                      key={s.id}
+                      aria-pressed={ready && serviceId === s.id}
+                      className={`service-choice ${ready && serviceId === s.id ? 'selected' : ''}`}
+                      onClick={() => {
+                        setPicked(true)
+                        setServiceId(s.id)
+                        setStaffId('any')
+                        setStart(null)
+                      }}
                     >
-                      {value}
-                    </button>
-                  ))}
-                </div>
-                <div className="service-choices">
-                  {state.services
-                    .filter((s) => category === 'All' || s.category === category)
-                    .map((s) => (
-                      <button
-                        key={s.id}
-                        aria-pressed={serviceId === s.id}
-                        className={`service-choice ${serviceId === s.id ? 'selected' : ''}`}
-                        onClick={() => {
-                          setServiceId(s.id)
-                          setStaffId('any')
-                          setStart(null)
-                        }}
-                      >
-                        <div>
-                          <span className="service-category">{s.category}</span>
-                          <h3>{s.name}</h3>
-                          <p>{s.description}</p>
-                          <span className="service-time">
-                            <Clock3 size={14} />
-                            {s.durationMinutes} minutes
-                          </span>
-                          <PriceSentence
-                            service={s}
-                            organisation={state.organisation}
-                            tax={tax}
-                            simulated
-                          />
-                        </div>
-                        <span>
-                          <strong>{money(fullPrice(s), state.organisation)}</strong>
-                          <span className="selection-circle">
-                            {serviceId === s.id && <Check size={14} />}
-                          </span>
+                      <div>
+                        <span className="service-category">{s.category}</span>
+                        <h3>{s.name}</h3>
+                        <p>{s.description}</p>
+                        <span className="service-time">
+                          <Clock3 size={14} />
+                          {s.durationMinutes} minutes
                         </span>
-                      </button>
-                    ))}
-                </div>
-                <div className="booking-next">
-                  <span>
-                    {service.name}
-                    <strong>{money(fullPrice(service), state.organisation)}</strong>
-                  </span>
-                  <Button
-                    onClick={() => {
-                      setStep(2)
-                      setCategory('All')
-                    }}
-                  >
-                    Choose a time <ArrowRight size={17} />
-                  </Button>
-                </div>
+                        <PriceSentence
+                          service={s}
+                          organisation={state.organisation}
+                          tax={tax}
+                          simulated
+                        />
+                      </div>
+                      <span>
+                        <strong>{money(fullPrice(s), state.organisation)}</strong>
+                        <span className="selection-circle">
+                          {ready && serviceId === s.id && <Check size={14} />}
+                        </span>
+                      </span>
+                    </button>
+                  )}
+                  footer={
+                    ready && (
+                      <div className="booking-next">
+                        <span>
+                          {service.name}
+                          <strong>{money(fullPrice(service), state.organisation)}</strong>
+                        </span>
+                        <Button
+                          onClick={() => {
+                            setStep(2)
+                          }}
+                        >
+                          Choose a time <ArrowRight size={17} />
+                        </Button>
+                      </div>
+                    )
+                  }
+                />
               </>
             )}
             {step === 2 && (

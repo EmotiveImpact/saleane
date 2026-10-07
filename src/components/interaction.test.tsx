@@ -15,6 +15,11 @@ function show(route = '/today') {
   )
 }
 
+async function chooseFacial(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: /^Skin/ }))
+  await user.click(screen.getByRole('button', { name: /Skin Renewal Facial/ }))
+}
+
 describe('connected operator journeys', () => {
   it('moves a visit with keyboard time choices and follows it to its new calendar day', async () => {
     const user = userEvent.setup()
@@ -156,9 +161,26 @@ describe('connected operator journeys', () => {
     expect(screen.queryByRole('textbox', { name: 'Good to remember' })).not.toBeInTheDocument()
     expect(screen.getByText('Client details updated')).toBeInTheDocument()
   })
+  it('opens treatments by kind, or by search, before a treatment is chosen', async () => {
+    const user = userEvent.setup()
+    show('/booking')
+    expect(screen.queryByRole('button', { name: 'Choose a time' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /^Hair/ }))
+    expect(screen.getByRole('button', { name: /Signature Cut/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Skin Renewal Facial/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Choose a time' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'All kinds of treatment' }))
+    await user.type(screen.getByRole('searchbox', { name: 'Search treatments' }), 'massage')
+    expect(screen.getByRole('button', { name: /Lymphatic Massage/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Deep Restore Massage/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Signature Cut/ })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /Deep Restore Massage/ }))
+    expect(screen.getByRole('button', { name: 'Choose a time' })).toBeInTheDocument()
+  })
   it('completes public booking with marketing left off and exposes it in the calendar', async () => {
     const user = userEvent.setup()
     show('/booking')
+    await chooseFacial(user)
     await user.click(screen.getByRole('button', { name: 'Choose a time' }))
     await user.click(screen.getByRole('radio', { name: '09:00' }))
     await user.click(screen.getByRole('button', { name: 'Your details' }))
@@ -181,6 +203,7 @@ describe('connected operator journeys', () => {
   it('books anyone available in the afternoon and gives the visit to a professional free then', async () => {
     const user = userEvent.setup()
     show('/booking')
+    await chooseFacial(user)
     await user.click(screen.getByRole('button', { name: 'Choose a time' }))
     expect(screen.getByRole('button', { name: /Anyone available/ })).toHaveAttribute(
       'aria-pressed',
