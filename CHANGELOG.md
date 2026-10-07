@@ -12,6 +12,37 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - A guest with an upcoming visit can ask from their private visit link to come in sooner, choosing whether anyone will do and which times suit. They can change or withdraw it, and their visit stays as it is until they agree to a move. Cancelling the visit ends the request.
 - Taking someone off the list keeps the request with a reason. Requests are in the client's data export, its preview and the erasure review, and are kept 90 days after their dates end, then wait for an owner or manager to approve deletion or keep them longer; nothing is deleted automatically.
 
+## 2026-10-07 · Sidebar tidy and a booking page spacing fix
+
+- The sidebar line "A considered way to run a remarkable business." now sits directly under the SALEANE name at the top of the sidebar instead of at the foot. Phones use the navigation menu, which never carried the line.
+- The "Your booking page" link in the sidebar and the phone menu no longer has an arrow. It opens in the same tab, so no meaning is lost.
+- On phones, the real guest booking page showed its welcome as "Care,considered." and "just for you.Thoughtful" because the hidden line breaks had no space beside them. Both now read with a space.
+
+## 2026-10-07 · A smoother booking page and the house photographs
+
+Look and flow only; booking rules, holds, prices and deposits are unchanged.
+
+- On phones and narrow screens, the studio photo greets guests on the first step only; later steps open straight on the task, and each step starts at the top of the page.
+- Times show one part of the day at a time (Morning, Afternoon, Evening, each with its count), opening on the part that holds the chosen time or else the earliest. The staff booking dialogs still show the full day.
+- On phones, the bar with the treatment, price and Continue button stays at the bottom of the screen while the guest scrolls.
+- The chosen time and chosen day use the studio's own colour instead of black, here and in the staff app.
+- The owner's 12 chosen house photographs (AI-generated, fictional rooms and details, from the photo set in #15) are in the app, matching the prototype: the sunlit treatment room in the Today greeting, a cup of tea on "Saleane noticed", a calm studio strip on Calendar, window light above Clients, the studio entrance on the booking pages, and on Business a "Your booking page" card (reception and one photo per treatment) beside a "Closing up" card in late-afternoon light that counts today's visits still to check out from real records. Empty pages ("No clients found", page not found) carry stacked towels. The manicure photo is ready for nail treatments; the demo studios have none yet.
+- The demo booking page offers "Anyone available" first when more than one professional does the treatment, combining their times; the visit goes to the first professional free at the chosen time. The real guest page already offered "No preference · first available".
+
+## 2026-10-07 · Lumane · Assistant engine and first Ask Saleane skills
+
+**Status: built locally on 7 October 2026, in review; no real AI connected yet.** Everything runs with a test-mode brain that recognises a few plain questions and answers from the studio record, so nothing is sent to an AI supplier and nothing costs money. Talking (voice), guest chat and the ChatGPT and Claude connection come later.
+
+- Lumane is a separate engine in `lumane/`, built so other products can reuse it. A test makes sure it never imports anything from SALEANE.
+- Skills are either read skills, which answer from the studio's own records, or action skills, which only propose a change. A proposal does nothing until a person approves it, and it expires after 30 minutes.
+- Every request is checked against the studio's monthly allowance (typed requests, talking time, guest chats), a per-person hourly limit and a daily spending ceiling before any AI is called. When a limit is reached the AI is simply not called; there is no silent cheaper fallback. A new month starts from zero.
+- Each question has a cap on how many steps the AI can take, and every answer, proposal and refusal is written to an audit trail.
+- The first Ask Saleane skills cover the day overview, finding a client, a client brief, who is due back, takings and low stock (owners and managers only), money owed and plans running low. Drafting a message and moving a visit are proposals: a draft stays unsent until someone sends it from the Inbox, a move checks the diary for clashes, and marketing drafts are refused without consent.
+- Practitioners get no Ask Saleane skills yet; theirs will be built on `PractitionerView` so they never see a whole studio.
+- An "Ask Saleane" button in the header opens a side panel for owners, managers and reception. It answers what is on today or tomorrow, who is due back, takings, money owed, plans running low, low stock and a brief on a client, and can prepare an invitation for a client to come back. The invitation appears as a suggestion with Approve and Not now; approving saves it as an unsent draft in the Inbox through the same checks as any desk change. The panel shows how many of the month's 300 questions are used.
+- Voices are kept apart from the brain. SALEANE has one default voice; a studio can choose the voice guests hear, and each person can choose their own for talking to the assistant. Guests always hear the studio's voice. The shortlist is a set of candidates for the side-by-side trial of OpenAI and ElevenLabs; no voice is connected yet.
+- Signed in, the server answers and keeps each studio's monthly use in the database (schema version 7), so the allowance holds across restarts. Suggestions stay on the server for 30 minutes, only the person who asked can approve them, and each is decided once; suggesting, approving and declining are recorded in the audit log. In the browser demo the panel works the same way against the demo record.
+
 ## 2026-10-07 · V1.5 · Private client feedback and ratings
 
 **Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** The feedback request joins the message outbox like any other message; with no provider connected it waits there unsent.

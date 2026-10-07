@@ -8,12 +8,12 @@ import {
   Search,
   Settings2,
   Users,
-  ArrowUpRight,
   Menu,
   X,
   Info,
   Mail,
   Hourglass,
+  Sparkles,
 } from 'lucide-react'
 import { useStore } from './state/context'
 import { useStudioColours } from './state/studioColours'
@@ -41,6 +41,9 @@ const Waitlist = lazy(() =>
 )
 const Feedback = lazy(() =>
   import('./pages/Feedback').then((module) => ({ default: module.Feedback })),
+)
+const AskSaleane = lazy(() =>
+  import('./components/AskSaleane').then((module) => ({ default: module.AskSaleane })),
 )
 const DesignLanguage = lazy(() =>
   import('./pages/DesignLanguage').then((module) => ({ default: module.DesignLanguage })),
@@ -73,6 +76,7 @@ function WorkspaceApp() {
     .join('')
   const location = useLocation()
   const [search, setSearch] = useState(false)
+  const [asking, setAsking] = useState(false)
   const navigate = useNavigate()
   const openSettings = (section: string) => navigate(`/settings?section=${section}`)
   const [mobileNav, setMobileNav] = useState(false)
@@ -128,17 +132,23 @@ function WorkspaceApp() {
         Skip to content
       </a>
       <aside className="sidebar" aria-label="Workspace navigation">
-        <div className="sidebar-brand">
-          <Link to="/today" className="wordmark" onClick={() => setMobileNav(false)}>
-            SALEANE
-          </Link>
-          <button
-            className="mobile-nav-close icon-button"
-            aria-label="Close navigation"
-            onClick={() => setMobileNav(false)}
-          >
-            <X size={20} />
-          </button>
+        <div className="sidebar-masthead">
+          <div className="sidebar-brand">
+            <Link to="/today" className="wordmark" onClick={() => setMobileNav(false)}>
+              SALEANE
+            </Link>
+            <button
+              className="mobile-nav-close icon-button"
+              aria-label="Close navigation"
+              onClick={() => setMobileNav(false)}
+            >
+              <X size={20} />
+            </button>
+          </div>
+          <p className="sidebar-tagline">
+            A considered way to run
+            <br /> a remarkable business.
+          </p>
         </div>
         <button className="workspace-switch" onClick={() => openSettings('workspace')}>
           <span className="workspace-monogram">{initials}</span>
@@ -176,8 +186,7 @@ function WorkspaceApp() {
             <img src="/images/saleane-studio-warm-small.jpg" alt="" />
           </Link>
           <Link to="/booking" className="public-booking-link">
-            <span>Your booking page</span>
-            <ArrowUpRight size={16} />
+            Your booking page
           </Link>
           <div className="sidebar-footer">
             <span>
@@ -188,10 +197,6 @@ function WorkspaceApp() {
               <Settings2 size={18} />
             </Link>
           </div>
-          <p>
-            A considered way to run
-            <br /> a remarkable business.
-          </p>
         </div>
       </aside>
       {mobileNav && (
@@ -209,7 +214,7 @@ function WorkspaceApp() {
               </NavLink>
             ))}
             <Link to="/booking" onClick={() => setMobileNav(false)}>
-              Your booking page <ArrowUpRight size={17} />
+              Your booking page
             </Link>
           </nav>
         </Modal>
@@ -231,6 +236,10 @@ function WorkspaceApp() {
             <span>{pageName}</span>
           </div>
           <div>
+            <button className="ask-button" onClick={() => setAsking(true)}>
+              <Sparkles size={17} />
+              <span>Ask Saleane</span>
+            </button>
             <button className="global-search" onClick={() => setSearch(true)}>
               <Search size={17} />
               <span>Find a client</span>
@@ -301,7 +310,7 @@ function WorkspaceApp() {
             <Route
               path="*"
               element={
-                <div className="empty">
+                <div className="empty empty-photo">
                   <h1>This page isn’t here.</h1>
                   <Link to="/today">Return to Today</Link>
                 </div>
@@ -326,6 +335,11 @@ function WorkspaceApp() {
         </main>
       </div>
       {search && <SearchDialog onClose={() => setSearch(false)} />}
+      {asking && (
+        <Suspense fallback={null}>
+          <AskSaleane onClose={() => setAsking(false)} />
+        </Suspense>
+      )}
     </div>
   )
 }

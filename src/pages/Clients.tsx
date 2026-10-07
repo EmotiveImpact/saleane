@@ -6,7 +6,17 @@ import { useStore } from '../state/context'
 import { directoryRows, queryDirectory } from '../domain/directory'
 import type { DirectorySegment, DirectorySort } from '../domain/directory'
 import { addDays, money } from '../domain/format'
-import { Avatar, Button, Empty, ErrorMessage, Modal, PageHeader, SegmentedControl } from '../design'
+import {
+  Avatar,
+  Button,
+  Empty,
+  ErrorMessage,
+  Modal,
+  PageHeader,
+  PhotoStrip,
+  SegmentedControl,
+  photos,
+} from '../design'
 import { ClientImport } from '../components/ClientImport'
 
 export function Clients() {
@@ -71,6 +81,7 @@ export function Clients() {
   }
   return (
     <>
+      <PhotoStrip src={photos.windowLight} />
       <PageHeader
         variant="compact"
         eyebrow="Clients"
@@ -214,7 +225,7 @@ export function Clients() {
           </table>
         </div>
         {!result.total && (
-          <Empty title="No clients found">
+          <Empty photo title="No clients found">
             Try a name, email or phone number, or choose another segment.
           </Empty>
         )}

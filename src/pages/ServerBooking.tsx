@@ -7,7 +7,7 @@ import { contactSchema } from '../domain/commandSchema'
 import { useStore } from '../state/context'
 import type { BusinessState } from '../domain/model'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
-import { Button, ErrorMessage, TimeChoices } from '../design'
+import { Button, ErrorMessage, TimeChoices, photos } from '../design'
 import { BotCheck } from '../components/BotCheck'
 import { PriceSentence } from '../components/PriceSentence'
 import { BeforeYouArrive } from '../components/BeforeYouArrive'
@@ -147,6 +147,10 @@ function BookingFlow({
     [manageUrl, setManageUrl] = useState('')
   const service = services.find((s) => s.id === serviceId),
     professional = staff.find((s) => s.id === staffId)
+  // Each step starts at the top, so a guest on a phone isn't left at the foot of the last one.
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0 })
+  }, [step, confirmed])
   useEffect(() => {
     if (!serviceId || step !== 2) return
     let active = true
@@ -303,24 +307,25 @@ function BookingFlow({
           ? 'Fictional sample studio. Reservations and deposits are simulated.'
           : 'Local booking preview. Pay at the studio; online payments and emails are not connected yet.'}
       </section>
-      <div className="public-booking-layout">
+      <div
+        // On phones the photo greets the guest on the first step only.
+        className={`public-booking-layout ${step > 1 || confirmed ? 'booking-past-welcome' : ''}`}
+      >
         <aside className="booking-story">
           <img
             className="booking-story-image"
-            src="/images/saleane-studio-warm.jpg"
-            alt="A fictional studio in warm natural light"
+            src={photos.entrance}
+            alt="A fictional studio entrance in soft morning light"
           />
           <div className="booking-story-copy">
             <Leaf size={28} />
             <h1>
               Care,
-              <br />
-              considered.
+              <br /> considered.
             </h1>
             <p>
               A little time, just for you.
-              <br />
-              Thoughtful treatments. Familiar faces.
+              <br /> Thoughtful treatments. Familiar faces.
             </p>
             <div className="story-location">
               <MapPin size={17} />
@@ -535,6 +540,7 @@ function BookingFlow({
                           }))}
                           value={start}
                           onChange={setStart}
+                          tabs
                         />
                       )}
                       {!loadingTimes && !times.length && date < addDays(today, 365) && (
