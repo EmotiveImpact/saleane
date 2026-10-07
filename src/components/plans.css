@@ -91,3 +91,22 @@ fieldset.checkout-plans > label {
     justify-content: flex-start;
   }
 }
+/* V1.5: a gift card or voucher applied at checkout. */
+.checkout-gift {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0;
+}
+.checkout-gift-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  margin-top: 6px;
+}
+.checkout-gift-row input {
+  flex: 1;
+  min-width: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}

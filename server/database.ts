@@ -173,6 +173,15 @@ export const migrations: Migration[] = [
         ) STRICT;
       `),
   },
+  {
+    version: 8,
+    // V1.5: a gift card paying part of a visit whose rest is charged to a card.
+    up: (connection) =>
+      connection.exec(`
+        ALTER TABLE payment_attempts ADD COLUMN gift_card_id TEXT;
+        ALTER TABLE payment_attempts ADD COLUMN gift_card_minor INTEGER NOT NULL DEFAULT 0 CHECK(gift_card_minor>=0);
+      `),
+  },
 ]
 export const SCHEMA_VERSION = migrations[migrations.length - 1].version
 

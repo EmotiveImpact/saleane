@@ -105,11 +105,17 @@ async function localStudio() {
   await run(owner, { type: 'protection', settings: { saveCard: true, feePercent: 50 } })
   return { owner, serviceId, staffId, slug: (await workspace(owner)).slug }
 }
-async function book(slug: string, serviceId: string, staffId: string, date = '2026-10-06') {
+async function book(
+  slug: string,
+  serviceId: string,
+  staffId: string,
+  date = '2026-10-06',
+  startMinutes = 600,
+) {
   const held = await api.inject({
     method: 'POST',
     url: `/api/public/${slug}/holds`,
-    payload: { serviceId, staffId, date, startMinutes: 600 },
+    payload: { serviceId, staffId, date, startMinutes },
   })
   expect(held.statusCode, held.body).toBe(201)
   const booked = await api.inject({
@@ -286,6 +292,74 @@ describe('card payments (PILOT-02)', () => {
     })
     expect(tapped.json<Attempt>().status).toBe('succeeded')
     expect((await workspace(owner)).state.sales).toHaveLength(1)
+  })
+
+  it('charges a card reader for what a gift card leaves, and records both on the receipt', async () => {
+    const { owner, serviceId, staffId, slug } = await localStudio()
+    const { appointmentId } = await book(slug, serviceId, staffId)
+    const giftCardId = await run(owner, {
+      type: 'gift-card-sell',
+      input: {
+        kind: 'money',
+        valueMinor: 3000,
+        purchaserName: 'Lee Buyer',
+        recipientName: '',
+        message: '',
+      },
+      method: 'cash',
+    })
+    await run(owner, { type: 'arrive', appointmentId })
+    const base = { appointmentId, purpose: 'balance', route: 'reader', readerId: 'test-reader' }
+    // A gift card amount without the card, or more than it holds, is refused before any charge.
+    expect((await pay(owner, { ...base, amountMinor: 6500, giftCardMinor: 3000 })).statusCode).toBe(
+      422,
+    )
+    expect(
+      (await pay(owner, { ...base, amountMinor: 5500, giftCardId, giftCardMinor: 4000 }))
+        .statusCode,
+    ).not.toBe(200)
+    const response = await pay(owner, {
+      ...base,
+      amountMinor: 6500,
+      giftCardId,
+      giftCardMinor: 3000,
+    })
+    expect(response.statusCode, response.body).toBe(200)
+    const attempt = response.json<Attempt>()
+    // While the reader waits, the card's share is held: it cannot be cancelled or spent elsewhere.
+    const cancel = await send(owner, {
+      type: 'gift-card-cancel',
+      giftCardId,
+      reason: 'Changed their mind',
+      refundMinor: 0,
+    })
+    expect(cancel.statusCode, cancel.body).toBe(409)
+    const other = await book(slug, serviceId, staffId, '2026-10-06', 780)
+    await run(owner, { type: 'arrive', appointmentId: other.appointmentId })
+    const elsewhere = await send(owner, {
+      type: 'checkout',
+      appointmentId: other.appointmentId,
+      tipMinor: 0,
+      method: 'cash',
+      giftCardId,
+      giftCardMinor: 3000,
+    })
+    expect(elsewhere.statusCode, elsewhere.body).toBe(409)
+    expect(elsewhere.body).toContain('held for a card payment')
+    await api.inject({
+      method: 'POST',
+      url: `/api/workspaces/${owner.orgId}/payments/${attempt.id}/test-tap`,
+      headers: headers(owner),
+      payload: { approve: true },
+    })
+    const { state } = await workspace(owner)
+    expect(state.sales.find((x) => x.appointmentId === appointmentId)).toMatchObject({
+      method: 'card',
+      giftCardId,
+      giftCardMinor: 3000,
+      balanceMinor: 6500,
+    })
+    expect(state.giftCards![0].redemptions).toHaveLength(1)
   })
 
   it('takes a missed-visit fee within the studio policy, then refunds it to the card', async () => {
