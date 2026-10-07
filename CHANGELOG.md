@@ -2,6 +2,22 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · In review · Browser demo
+
+**Status: in review; nothing deployed. The demo link is a private claude.ai page.**
+
+- `npm run demo:build` writes one HTML file that runs the real app and server code inside a browser tab, with two fictional sample studios and the owner already signed in.
+- The London studio runs as a real studio in test mode, so a guest can pay a deposit on the test payment page and messages appear in the Inbox. It starts on today's date without the sample's payment history. New York stays a sample studio.
+- Each studio starts with two sample plans, a five-visit package and a monthly membership, each already held by one client, so the plan screens and the plan choice at checkout have something to show.
+- Each studio also starts with eight private sample ratings from recent visits, so Business > Feedback shows averages, a split by professional and guests' notes.
+- The Ask Saleane button works in the demo in test mode: it answers from the studio's own records, and an invitation it prepares is saved as an unsent draft only after approval.
+- The house photographs travel inside the demo file, so the new booking page and the photos across the app show as they do in the real app.
+- The waitlist works in the demo with the three sample clients waiting; booking a suggested time for one of them fills it straight away.
+- Gift cards work in the demo. London's two sample cards show as paid in cash, because a real studio cannot hold simulated card payments.
+- Booking confirmations and reminders appear in test mode for the demo's studios. Nothing is sent or charged. The real app still never sends from sample studios.
+- Changes stay in that browser. Passwords use a simple stand-in there, so the demo is for showing, never for real data.
+- Checked in Chromium at desktop and phone width: Today, Calendar, Clients, Inbox, Business, Settings, a full guest booking, the guest manage page and a checkout receipt. Not checked in Safari or Firefox.
+
 ## 2026-10-07 · V1.5 · Gift cards and vouchers
 
 **Status: built locally on 7 October 2026, in review; nothing deployed and no money taken.** SALEANE records gift card payments and refunds; it does not take or return money itself. [Evidence](docs/evidence/V15-GIFT.md).
