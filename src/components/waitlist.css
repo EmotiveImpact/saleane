@@ -1,0 +1,105 @@
+/* V1.5: the waitlist. */
+.waitlist-page {
+  display: grid;
+  gap: 18px;
+}
+.waitlist-totals {
+  margin-bottom: 0;
+}
+.waitlist-cards {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.waitlist-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 18px;
+  padding: 16px 18px;
+  background: var(--stone);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.waitlist-card-copy {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  min-width: 0;
+}
+.waitlist-card-copy small {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.waitlist-card-copy .ops-tag {
+  justify-self: start;
+  margin-top: 6px;
+}
+.waitlist-openings {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  min-width: 0;
+}
+.waitlist-openings > p {
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+}
+.waitlist-openings ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.waitlist-openings > .button {
+  justify-self: start;
+}
+.waitlist-time {
+  display: grid;
+  gap: 2px;
+  padding: 10px 14px;
+  min-height: 44px;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+button.waitlist-time {
+  cursor: pointer;
+}
+button.waitlist-time:hover {
+  border-color: var(--brand-ink);
+}
+.waitlist-time small {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.waitlist-form,
+.waitlist-fill,
+.waitlist-done {
+  display: grid;
+  gap: 18px;
+}
+.waitlist-closed {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.client-waitlist > .button {
+  margin-top: 14px;
+}
+@media (max-width: 760px) {
+  .waitlist-card {
+    grid-template-columns: 1fr;
+  }
+}
+/* On a client's page the panel sits in a narrow column. */
+.client-waitlist .waitlist-card {
+  grid-template-columns: 1fr;
+}

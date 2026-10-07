@@ -15,6 +15,13 @@ import { availableAllocation } from './allocation'
 import { runSwitchingCommand } from './switching'
 import { coverVisit, runPlanCommand, stampPlanActors } from './plans'
 import { recordFeedback, repeatedFeedback } from './feedback'
+import {
+  closeForCancelledVisit,
+  fillFromWaitlist,
+  followMovedVisit,
+  runWaitlistCommand,
+  waitlistUnchanged,
+} from './waitlist'
 
 export type CommandResult =
   { ok: true; state: BusinessState; recordId: string } | { ok: false; error: string }
@@ -259,6 +266,7 @@ export function execute(
         title: input.source === 'rebook' ? 'Next visit booked' : 'Appointment booked',
         detail: `${service.name} · ${dateLabel(input.date, org.locale)} at ${timeLabel(input.startMinutes, org.locale)}. ${operations(s).mode === 'sandbox' ? 'Deposit simulated; no payment taken.' : 'No payment collected. Any required deposit remains outstanding.'}${input.channel ? ` Booked through your ${channelLabel(input.channel)} link.` : ''}`,
       })
+      if (input.waitlistId) fillFromWaitlist(next, input.waitlistId, appointment, now, 'book')
       recordId = appointment.id
     } else if (
       command.type === 'reschedule' ||
@@ -311,6 +319,9 @@ export function execute(
           allocationChange: { from, to },
           detail: `${dateLabel(from.date, org.locale)} at ${timeLabel(from.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === from.staffId)!.name} → ${dateLabel(to.date, org.locale)} at ${timeLabel(to.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === to.staffId)!.name}. Booked service and deposit retained; no message sent.`,
         })
+        if (command.waitlistId)
+          fillFromWaitlist(next, command.waitlistId, appointment, now, 'move', from.date)
+        followMovedVisit(s, next, appointment, now)
       } else {
         const status = command.type === 'cancel' ? 'cancelled' : 'no_show'
         if (appointment.status === status) return { ok: true, state: s, recordId: appointment.id }
@@ -322,6 +333,7 @@ export function execute(
         if (reason.length < 2 || reason.length > 300)
           throw new Error('Enter an operational reason between 2 and 300 characters.')
         appointment.status = status
+        if (status === 'cancelled') closeForCancelledVisit(s, next, appointment.id, now)
         const paid = depositPaid(s, appointment.id)
         const deposit =
           command.type === 'cancel' && command.deposit && paid
@@ -522,6 +534,16 @@ export function execute(
       command.type === 'balance-settle'
     ) {
       recordId = runSwitchingCommand(next, command, now, makeId, addEvent, createClient)
+    } else if (
+      command.type === 'waitlist-add' ||
+      command.type === 'waitlist-remove' ||
+      command.type === 'waitlist-offer' ||
+      command.type === 'waitlist-join' ||
+      command.type === 'waitlist-leave'
+    ) {
+      const same = waitlistUnchanged(s, command, now)
+      if (same) return { ok: true, state: s, recordId: same }
+      recordId = runWaitlistCommand(next, command, now, makeId, addEvent)
     } else if (command.type === 'feedback') {
       const same = repeatedFeedback(s, command)
       if (same) return { ok: true, state: s, recordId: same.id }

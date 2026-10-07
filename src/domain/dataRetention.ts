@@ -24,6 +24,7 @@ export const RETENTION_REGISTER: RetentionRule[] = [
     period: 'Until withdrawn, then 2 more years as evidence',
   },
   { record: 'Unsent messages (drafts, queued, suppressed)', period: '90 days' },
+  { record: 'Waitlist requests', period: '90 days after the requested dates end' },
   {
     record: 'Receipts, payments, deposits, refunds and booked visit terms',
     period: '6 years in the UK, 7 years in the US',

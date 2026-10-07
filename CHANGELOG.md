@@ -12,9 +12,20 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Each studio also starts with eight private sample ratings from recent visits, so Business > Feedback shows averages, a split by professional and guests' notes.
 - The Ask Saleane button works in the demo in test mode: it answers from the studio's own records, and an invitation it prepares is saved as an unsent draft only after approval.
 - The house photographs travel inside the demo file, so the new booking page and the photos across the app show as they do in the real app.
+- The waitlist works in the demo with the three sample clients waiting; booking a suggested time for one of them fills it straight away.
 - Booking confirmations and reminders appear in test mode for the demo's studios. Nothing is sent or charged. The real app still never sends from sample studios.
 - Changes stay in that browser. Passwords use a simple stand-in there, so the demo is for showing, never for real data.
 - Checked in Chromium at desktop and phone width: Today, Calendar, Clients, Inbox, Business, Settings, a full guest booking, the guest manage page and a checkout receipt. Not checked in Safari or Firefox.
+
+## 2026-10-07 · V1.5 · Waitlist
+
+**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** The waitlist never contacts anyone by itself: an offer is an Inbox draft the team approves.
+
+- A new Waitlist page (in the main menu, for owners, managers and reception) lists everyone waiting, longest first, with the earliest three times that suit each person read live from the diary, so a cancellation shows at once as a time someone could take. It counts how many times were filled from the list in the last 30 days and what those visits were worth.
+- Choosing a time offers two things: book it for them (or, for a guest who already has a later visit, move that visit earlier), or write an offer. An offer becomes a draft in the Inbox saying the time is not held and the first to answer gets it.
+- The desk adds someone from the page or the client's page: the service, a professional or anyone, a window of dates (up to 90 days), mornings, afternoons or evenings, and a note. One open request per client and service.
+- A guest with an upcoming visit can ask from their private visit link to come in sooner, choosing whether anyone will do and which times suit. They can change or withdraw it, and their visit stays as it is until they agree to a move. Cancelling the visit ends the request.
+- Taking someone off the list keeps the request with a reason. Requests are in the client's data export, its preview and the erasure review, and are kept 90 days after their dates end, then wait for an owner or manager to approve deletion or keep them longer; nothing is deleted automatically.
 
 ## 2026-10-07 · Sidebar tidy and a booking page spacing fix
 

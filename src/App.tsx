@@ -12,11 +12,13 @@ import {
   X,
   Info,
   Mail,
+  Hourglass,
   Sparkles,
 } from 'lucide-react'
 import { useStore } from './state/context'
 import { useStudioColours } from './state/studioColours'
 import { operations } from './domain/operations'
+import { staleOffer } from './domain/waitlist'
 import { Avatar, Modal } from './design'
 import { SearchDialog } from './components/SearchDialog'
 import { Today } from './pages/Today'
@@ -34,6 +36,9 @@ const ServerBooking = lazy(() =>
 const Manage = lazy(() => import('./pages/Manage').then((module) => ({ default: module.Manage })))
 const Inbox = lazy(() => import('./pages/Inbox').then((module) => ({ default: module.Inbox })))
 const Money = lazy(() => import('./pages/Money').then((module) => ({ default: module.Money })))
+const Waitlist = lazy(() =>
+  import('./pages/Waitlist').then((module) => ({ default: module.Waitlist })),
+)
 const Feedback = lazy(() =>
   import('./pages/Feedback').then((module) => ({ default: module.Feedback })),
 )
@@ -48,12 +53,14 @@ import { PractitionerDay } from './pages/PractitionerDay'
 import { ManageVisit } from './pages/ManageVisit'
 import { TestPayment } from './pages/TestPayment'
 import { Pricing } from './pages/Pricing'
+import { useClock } from './state/clock'
 import './account.css'
 
 const navigation = [
   { to: '/today', label: 'Today', icon: Home },
   { to: '/calendar', label: 'Calendar', icon: CalendarDays },
   { to: '/clients', label: 'Clients', icon: Users },
+  { to: '/waitlist', label: 'Waitlist', icon: Hourglass },
   { to: '/inbox', label: 'Inbox', icon: Mail },
   { to: '/business', label: 'Business', icon: ChartNoAxesCombined },
   { to: '/settings', label: 'Settings', icon: Settings2 },
@@ -74,7 +81,11 @@ function WorkspaceApp() {
   const openSettings = (section: string) => navigate(`/settings?section=${section}`)
   const [mobileNav, setMobileNav] = useState(false)
   useStudioColours(state.organisation.id)
-  const drafts = operations(state).messages.filter((m) => m.status === 'draft').length
+  // Waitlist offers whose time has gone are not counted as waiting for approval.
+  const clock = useClock()
+  const drafts = operations(state).messages.filter(
+    (m) => m.status === 'draft' && !staleOffer(state, m.id, clock),
+  ).length
   useEffect(() => {
     document.title = `SALEANE — ${state.organisation.name}`
   }, [state.organisation.name])
@@ -286,6 +297,7 @@ function WorkspaceApp() {
             <Route path="/clients" element={<Clients />} />
             <Route path="/clients/:clientId" element={<ClientRelationship />} />
             <Route path="/inbox" element={<Inbox />} />
+            <Route path="/waitlist" element={<Waitlist />} />
             <Route
               path="/business"
               element={role === 'reception' ? <Navigate to="/settings" replace /> : <Business />}
