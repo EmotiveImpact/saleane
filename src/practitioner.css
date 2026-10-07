@@ -109,11 +109,203 @@
   margin-top: 28px;
   font-size: var(--text-small);
 }
+
+/* Pocket view: "Next up", the day as a list, and "Before you begin" for one visit. */
+.practitioner-main .practitioner-days .button {
+  min-width: var(--target);
+  min-height: var(--target);
+}
+.practitioner-next {
+  margin: 0 0 22px;
+}
+.practitioner-next h2,
+.practitioner-eyebrow,
+.practitioner-brief dt {
+  font-family: var(--font-display);
+  font-size: var(--text-meta);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+.practitioner-next h2 {
+  margin: 0 0 8px;
+}
+.practitioner-next-card {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 24px;
+  padding: 20px 24px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.practitioner-next-card:hover {
+  background: var(--sage-soft);
+}
+.practitioner-next-when {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+}
+.practitioner-next-when strong {
+  font-family: var(--font-editorial);
+  font-size: 34px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.practitioner-next-when span {
+  padding: 3px 8px;
+  border-radius: var(--radius-inner);
+  background: var(--sage);
+  font-size: var(--text-meta);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.practitioner-next-who {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.practitioner-next-who strong {
+  font-family: var(--font-editorial);
+  font-size: var(--text-title-m);
+  font-weight: 500;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.practitioner-next-who small {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.practitioner-next-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-small);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.practitioner-next-done {
+  padding: 16px 20px;
+  border-radius: var(--radius);
+  background: var(--sage-soft);
+}
+.practitioner-eyebrow {
+  margin: 0 0 4px;
+}
+.practitioner-grid .section-heading .practitioner-eyebrow {
+  margin-top: 0;
+}
+.practitioner-client .section-heading h2 {
+  font-family: var(--font-editorial);
+  font-size: var(--text-title-m);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+.practitioner-client h2:focus {
+  outline: none;
+}
+.practitioner-client h2:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 4px;
+}
+.practitioner-back {
+  display: none;
+}
+.practitioner-brief {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  margin-bottom: 0;
+}
+.practitioner-brief > div {
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  background: var(--sage-soft);
+}
+.practitioner-brief dt {
+  margin-bottom: 4px;
+}
+.practitioner-brief dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
 @media (max-width: 860px) {
   .practitioner-header,
   .practitioner-main {
     padding-left: 20px;
     padding-right: 20px;
+  }
+  .practitioner-day-heading .page-actions {
+    align-self: stretch;
+  }
+  .practitioner-days {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(var(--target), 64px) minmax(0, 1fr) minmax(var(--target), 64px);
+  }
+  .practitioner-next-card {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 6px 18px;
+    padding: 18px;
+  }
+  .practitioner-next-open {
+    grid-column: 1 / -1;
+    justify-content: space-between;
+    min-height: var(--target);
+    margin-top: 8px;
+    border-top: 1px solid var(--line);
+  }
+  .practitioner-visit {
+    min-height: 72px;
+  }
+  /* On a phone no brief is showing beside the list, so no row reads as chosen. */
+  .practitioner-main[data-open='day'] .practitioner-visit[aria-pressed='true']:not(:hover) {
+    background: transparent;
+  }
+  /*
+   * A chosen visit replaces the day on a phone; "Back to your day" returns to the list. The
+   * page title stays for assistive technology so the page keeps its one main heading.
+   */
+  .practitioner-main[data-open='visit'] .practitioner-day-heading {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .practitioner-main[data-open='visit'] .practitioner-day-heading .page-actions,
+  .practitioner-main[data-open='visit'] .practitioner-next,
+  .practitioner-main[data-open='visit'] .practitioner-list,
+  .practitioner-main[data-open='day'] .practitioner-client {
+    display: none;
+  }
+  .practitioner-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: var(--target);
+    margin-top: 10px;
+    padding: 0 6px;
+    border: 0;
+    border-radius: var(--radius-control);
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-weight: 600;
+  }
+  .practitioner-back:hover {
+    background: var(--sage-soft);
   }
   .practitioner-grid {
     grid-template-columns: 1fr;
@@ -131,5 +323,22 @@
   }
   .practitioner-visit .status {
     grid-column: 2;
+  }
+}
+@media (max-width: 400px) {
+  .practitioner-header,
+  .practitioner-main {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .practitioner-header {
+    gap: 12px;
+  }
+  .practitioner-next-card {
+    padding: 16px;
+    gap: 6px 14px;
+  }
+  .practitioner-next-when strong {
+    font-size: 28px;
   }
 }

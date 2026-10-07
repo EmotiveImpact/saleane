@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, NotebookPen, Sun } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ChevronRight, NotebookPen, Sun } from 'lucide-react'
 import { useStore } from '../state/context'
 import { api, ApiError } from '../state/api'
 import type { PractitionerWorkspace, RemoteWorkspace } from '../state/api'
@@ -14,12 +14,18 @@ import { practitionerViewSchema } from '../domain/practitioner'
 import type { PractitionerView } from '../domain/practitioner'
 import type { Command } from '../domain/commands'
 import { addDays, dateLabel, timeLabel } from '../domain/format'
+import { firstName, nextUp, previousWithYou, untilLabel, venueMinutes } from '../domain/pocket'
 import { Avatar, Button, Empty, ErrorMessage, PageHeader, Status } from '../design'
 import '../practitioner.css'
+
+/** Matches the single-column breakpoint in practitioner.css. */
+const narrow = () => window.matchMedia?.('(max-width: 860px)').matches ?? false
 
 /**
  * LOCAL-01: an assigned practitioner's own day. The server sends only their visits and the
  * minimal client details those visits need; this screen never holds the studio record.
+ * On a phone it is a pocket view: "Next up" first, then the day, and a visit opens a short
+ * "Before you begin" brief in place of the list.
  */
 export function PractitionerDay() {
   const { orgId = '' } = useParams()
@@ -35,6 +41,16 @@ export function PractitionerDay() {
   const [journal] = useState(() => readPendingKeys(PENDING_PRACTITIONER_KEY))
   const pending = useRef(journal.keys)
   const path = `/api/workspaces/${encodeURIComponent(orgId)}`
+  // Pocket view: on a phone a chosen visit replaces the list until "Back to your day".
+  const [open, setOpen] = useState(false)
+  const opener = useRef('')
+  const briefHeading = useRef<HTMLHeadingElement>(null)
+  // The studio clock moves on between treatments, so "Next up" refreshes every half minute.
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30_000)
+    return () => clearInterval(timer)
+  }, [])
 
   async function load() {
     const next = await api<PractitionerWorkspace | RemoteWorkspace>(path)
@@ -158,10 +174,38 @@ export function PractitionerDay() {
 
   const { organisation, staff, window } = record
   const locale = organisation.locale
+  const isToday = date === record.today
   const visits = record.appointments.filter((a) => a.date === date)
   const visit = visits.find((a) => a.id === selected) ?? visits[0]
   const client = visit && record.clients.find((c) => c.id === visit.clientId)
-  const firstName = staff.name.split(' ')[0]
+  const minutes = venueMinutes(organisation.timeZone, now)
+  const next = isToday ? nextUp(visits, minutes) : undefined
+  const nextClient = next && record.clients.find((c) => c.id === next.clientId)
+  const earlier = visit && client ? previousWithYou(record, visit, client) : null
+  const clientName = (id: string) => record.clients.find((c) => c.id === id)?.name ?? 'Client'
+
+  function changeDay(target: string) {
+    setDate(target)
+    setSelected('')
+    setOpen(false)
+    setNotice('')
+  }
+  function openVisit(id: string) {
+    setSelected(id)
+    setOpen(true)
+    setNotice('')
+    opener.current = id
+    // On a phone the visit replaces the list, so take focus to it; on a wide screen both stay.
+    if (narrow()) requestAnimationFrame(() => briefHeading.current?.focus())
+  }
+  function closeVisit() {
+    setOpen(false)
+    const id = opener.current
+    requestAnimationFrame(() =>
+      document.querySelector<HTMLButtonElement>(`[data-visit="${CSS.escape(id)}"]`)?.focus(),
+    )
+  }
+
   return (
     <div className="practitioner-layout">
       <header className="practitioner-header">
@@ -175,54 +219,88 @@ export function PractitionerDay() {
           </small>
         </span>
       </header>
-      <main id="main-content" className="practitioner-main">
-        <PageHeader
-          variant="editorial"
-          eyebrow={
-            <>
-              <Sun size={16} />
-              {dateLabel(date, locale)}
-              {date === record.today ? ' · Today' : ''}
-            </>
-          }
-          title={date === record.today ? `Your day, ${firstName}.` : 'Your visits'}
-          description="Your own visits and the notes that help you look after each client."
-          actions={
-            <div className="practitioner-days" role="group" aria-label="Choose a day">
-              <Button
-                variant="secondary"
-                aria-label="Previous day"
-                disabled={date <= window.from}
-                onClick={() => setDate(addDays(date, -1))}
-              >
-                <ArrowLeft size={16} />
-              </Button>
-              <Button
-                variant="secondary"
-                disabled={date === record.today}
-                onClick={() => setDate(record.today)}
-              >
-                Today
-              </Button>
-              <Button
-                variant="secondary"
-                aria-label="Next day"
-                disabled={date >= window.to}
-                onClick={() => setDate(addDays(date, 1))}
-              >
-                <ArrowRight size={16} />
-              </Button>
-            </div>
-          }
-        />
+      <main id="main-content" className="practitioner-main" data-open={open ? 'visit' : 'day'}>
+        <div className="practitioner-day-heading">
+          <PageHeader
+            variant="editorial"
+            eyebrow={
+              <>
+                <Sun size={16} />
+                {dateLabel(date, locale)}
+                {isToday ? ' · Today' : ''}
+              </>
+            }
+            title={isToday ? `Your day, ${firstName(staff.name)}.` : 'Your visits'}
+            description="Your own visits and the notes that help you look after each client."
+            actions={
+              <div className="practitioner-days" role="group" aria-label="Choose a day">
+                <Button
+                  variant="secondary"
+                  aria-label="Previous day"
+                  disabled={date <= window.from}
+                  onClick={() => changeDay(addDays(date, -1))}
+                >
+                  <ArrowLeft size={18} />
+                </Button>
+                <Button
+                  variant="secondary"
+                  disabled={isToday}
+                  onClick={() => changeDay(record.today)}
+                >
+                  Today
+                </Button>
+                <Button
+                  variant="secondary"
+                  aria-label="Next day"
+                  disabled={date >= window.to}
+                  onClick={() => changeDay(addDays(date, 1))}
+                >
+                  <ArrowRight size={18} />
+                </Button>
+              </div>
+            }
+          />
+        </div>
         <ErrorMessage error={error} />
         {notice && (
           <p className="practitioner-notice" role="status">
             {notice}
           </p>
         )}
+        {isToday && visits.length > 0 && (
+          <section className="practitioner-next" aria-labelledby="next-heading">
+            <h2 id="next-heading">Next up</h2>
+            {next ? (
+              <button
+                className="practitioner-next-card"
+                data-visit={next.id}
+                onClick={() => openVisit(next.id)}
+              >
+                <span className="practitioner-next-when">
+                  <strong>{timeLabel(next.startMinutes, locale)}</strong>
+                  <span>{untilLabel(next.startMinutes, minutes)}</span>
+                </span>
+                <span className="practitioner-next-who">
+                  <strong>{firstName(nextClient?.name ?? 'Client')}</strong>
+                  <span>{next.serviceName}</span>
+                  <small>
+                    {[next.resourceName, `${next.durationMinutes} min`].filter(Boolean).join(' · ')}
+                  </small>
+                </span>
+                <span className="practitioner-next-open">
+                  Before you begin
+                  <ChevronRight size={18} aria-hidden="true" />
+                </span>
+              </button>
+            ) : (
+              <p className="practitioner-next-done">
+                That is everything assigned to you today. Thank you.
+              </p>
+            )}
+          </section>
+        )}
         <div className="practitioner-grid">
-          <section className="surface" aria-labelledby="visits-heading">
+          <section className="surface practitioner-list" aria-labelledby="visits-heading">
             <div className="section-heading">
               <div>
                 <h2 id="visits-heading">Assigned to you</h2>
@@ -235,37 +313,32 @@ export function PractitionerDay() {
             </div>
             {visits.length ? (
               <ul className="practitioner-visits" aria-labelledby="visits-heading">
-                {visits.map((a) => {
-                  const person = record.clients.find((c) => c.id === a.clientId)
-                  return (
-                    <li key={a.id}>
-                      <button
-                        className="practitioner-visit"
-                        aria-pressed={visit?.id === a.id}
-                        onClick={() => {
-                          setSelected(a.id)
-                          setNotice('')
-                        }}
-                      >
-                        <span className="agenda-time">
-                          {timeLabel(a.startMinutes, locale)}
-                          <small>{a.durationMinutes} min</small>
+                {visits.map((a) => (
+                  <li key={a.id}>
+                    <button
+                      className="practitioner-visit"
+                      data-visit={a.id}
+                      aria-pressed={visit?.id === a.id}
+                      onClick={() => openVisit(a.id)}
+                    >
+                      <span className="agenda-time">
+                        {timeLabel(a.startMinutes, locale)}
+                        <small>{a.durationMinutes} min</small>
+                      </span>
+                      <span className="agenda-client">
+                        <Avatar small identity={a.clientId} name={clientName(a.clientId)} />
+                        <span>
+                          <strong>{clientName(a.clientId)}</strong>
+                          <small>
+                            {a.serviceName}
+                            {a.resourceName ? ` · ${a.resourceName}` : ''}
+                          </small>
                         </span>
-                        <span className="agenda-client">
-                          <Avatar small identity={a.clientId} name={person?.name ?? 'Client'} />
-                          <span>
-                            <strong>{person?.name ?? 'Client'}</strong>
-                            <small>
-                              {a.serviceName}
-                              {a.resourceName ? ` · ${a.resourceName}` : ''}
-                            </small>
-                          </span>
-                        </span>
-                        <Status status={a.status} />
-                      </button>
-                    </li>
-                  )
-                })}
+                      </span>
+                      <Status status={a.status} />
+                    </button>
+                  </li>
+                ))}
               </ul>
             ) : (
               <Empty title="A little breathing room">
@@ -275,13 +348,22 @@ export function PractitionerDay() {
           </section>
           {visit && client && (
             <section className="surface practitioner-client" aria-labelledby="client-heading">
+              <button className="practitioner-back" onClick={closeVisit}>
+                <ArrowLeft size={18} aria-hidden="true" />
+                Back to your day
+              </button>
               <div className="section-heading">
                 <div>
-                  <h2 id="client-heading">{client.name}</h2>
+                  <p className="practitioner-eyebrow">Before you begin</p>
+                  <h2 id="client-heading" ref={briefHeading} tabIndex={-1}>
+                    {client.name}
+                  </h2>
                   <p>
                     {timeLabel(visit.startMinutes, locale)} · {visit.serviceName}
+                    {visit.resourceName ? ` · ${visit.resourceName}` : ''}
                   </p>
                 </div>
+                <Status status={visit.status} />
               </div>
               {visit.status === 'confirmed' && visit.date === record.today && (
                 <Button
@@ -289,15 +371,29 @@ export function PractitionerDay() {
                   onClick={() =>
                     void save(
                       { type: 'arrive', appointmentId: visit.id },
-                      `${client.name.split(' ')[0]} is marked as in the studio.`,
+                      `${firstName(client.name)} is marked as in the studio.`,
                     )
                   }
                 >
-                  Welcome {client.name.split(' ')[0]}
+                  Welcome {firstName(client.name)}
                 </Button>
               )}
-              <h3>Preferences</h3>
-              <p className="subtle">{client.preferences || 'No preferences recorded yet.'}</p>
+              <dl className="practitioner-brief">
+                <div>
+                  <dt>Good to remember</dt>
+                  <dd>{client.preferences || 'Nothing recorded yet.'}</dd>
+                </div>
+                <div>
+                  <dt>Last time with you</dt>
+                  <dd>
+                    {earlier
+                      ? `${dateLabel(earlier.date, locale)} · ${earlier.serviceName}`
+                      : earlier === null
+                        ? 'No earlier visit with you on record.'
+                        : 'Further back than this view reaches.'}
+                  </dd>
+                </div>
+              </dl>
               <h3>Notes</h3>
               <form
                 className="practitioner-note"
@@ -332,7 +428,7 @@ export function PractitionerDay() {
                 </Button>
               </form>
               {client.notes.length ? (
-                <ul className="practitioner-notes">
+                <ul className="practitioner-notes" aria-label={`Notes about ${client.name}`}>
                   {client.notes.map((n) => (
                     <li key={n.id}>
                       <p>{n.detail}</p>

@@ -265,3 +265,84 @@ describe('assigned practitioner access (LOCAL-01)', () => {
     expect((await run(maya, full.revision, change, key)).statusCode).toBe(404)
   })
 })
+
+// Pocket view: the one extra field, a client's last completed visit with this practitioner.
+describe('the previous visit in the practitioner view', () => {
+  const today = '2026-10-06'
+  function expected(full: BusinessState, staffId: string, clientId: string) {
+    const last = full.appointments
+      .filter(
+        (a) =>
+          a.staffId === staffId &&
+          a.clientId === clientId &&
+          a.status === 'completed' &&
+          a.date < today,
+      )
+      .sort((a, b) => b.date.localeCompare(a.date) || b.startMinutes - a.startMinutes)[0]
+    if (!last) return null
+    const name = last.bookedServiceName ?? full.services.find((s) => s.id === last.serviceId)!.name
+    return { date: last.date, serviceName: name }
+  }
+
+  it('is their own last completed visit with each served client, even beyond the window', async () => {
+    const owner = await register('owner@example.invalid')
+    const maya = await practitioner(owner, 'maya@example.invalid', 'staff-maya')
+    const full = await studio(owner)
+    const record = (await view(maya)).practitioner
+    expect(record.clients.length).toBeGreaterThan(0)
+    let beyondWindow = 0
+    let otherMoreRecent = 0
+    for (const client of record.clients) {
+      expect(client.previousVisit).toEqual(expected(full, 'staff-maya', client.id))
+      if (!client.previousVisit) continue
+      expect(Object.keys(client.previousVisit).sort()).toEqual(['date', 'serviceName'])
+      if (client.previousVisit.date < record.window.from) beyondWindow++
+      // Another professional's more recent visit with the same client is never substituted.
+      if (
+        full.appointments.some(
+          (a) =>
+            a.clientId === client.id &&
+            a.staffId !== 'staff-maya' &&
+            a.status === 'completed' &&
+            a.date < today &&
+            a.date > client.previousVisit!.date,
+        )
+      )
+        otherMoreRecent++
+    }
+    // The sample studio exercises both the reason the field exists and its boundary.
+    expect(beyondWindow).toBeGreaterThan(0)
+    expect(otherMoreRecent).toBeGreaterThan(0)
+    // Clients Maya served only outside her window, or never served, still do not appear.
+    const served = new Set(record.appointments.map((a) => a.clientId))
+    expect(record.clients.every((c) => served.has(c.id))).toBe(true)
+    const body = JSON.stringify(record)
+    for (const client of full.clients)
+      if (!served.has(client.id)) expect(body).not.toContain(`"${client.id}"`)
+    for (const field of ['priceMinor', 'resourceId', 'saleId', 'staffId'])
+      expect(body).not.toContain(`"${field}"`)
+  })
+
+  it('follows the linked professional and stays denied across studios and after removal', async () => {
+    const owner = await register('owner@example.invalid')
+    const maya = await practitioner(owner, 'maya@example.invalid', 'staff-maya')
+    const full = await studio(owner)
+    const elsewhere = await register('second-owner@example.invalid')
+    const foreign = await get({ ...maya, orgId: elsewhere.orgId })
+    expect(foreign.statusCode).toBe(404)
+    expect(foreign.body).not.toContain('previousVisit')
+
+    const role = (payload: Record<string, unknown>) =>
+      post(owner, '/membership', { accountId: maya.userId, ...payload })
+    expect((await role({ role: 'practitioner', staffId: 'staff-sophia' })).statusCode).toBe(200)
+    const sophia = (await view(maya)).practitioner
+    expect(sophia.clients.length).toBeGreaterThan(0)
+    for (const client of sophia.clients)
+      expect(client.previousVisit).toEqual(expected(full, 'staff-sophia', client.id))
+
+    expect((await role({ role: 'remove' })).statusCode).toBe(200)
+    const removed = await get(maya)
+    expect(removed.statusCode).toBe(404)
+    expect(removed.body).not.toContain('previousVisit')
+  })
+})
