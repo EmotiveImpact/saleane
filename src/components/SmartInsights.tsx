@@ -1,7 +1,8 @@
-import { ArrowRight, Leaf } from 'lucide-react'
+import { useState } from 'react'
+import { ArrowRight, Check, Leaf } from 'lucide-react'
 import { useStore } from '../state/context'
 import { dateLabel, money, timeLabel } from '../domain/format'
-import { drifting, gapSuggestions, morningBrief, unusual } from '../domain/insights'
+import { drifting, gapInvitation, gapSuggestions, morningBrief, unusual } from '../domain/insights'
 import { Button } from '../design'
 import type { BookingDefaults } from './BookingDialog'
 import './smart-insights.css'
@@ -17,7 +18,10 @@ const hours = (minutes: number) => {
  * until someone chooses to book.
  */
 export function SmartInsights({ onBook }: { onBook: (defaults: BookingDefaults) => void }) {
-  const { state, today, role } = useStore()
+  const { state, today, role, commit } = useStore()
+  const [drafting, setDrafting] = useState<string | null>(null)
+  const [saved, setSaved] = useState<string[]>([])
+  const [error, setError] = useState('')
   const locale = state.organisation.locale
   const managers = role === 'owner' || role === 'manager'
   const brief = morningBrief(state, today)
@@ -86,6 +90,47 @@ export function SmartInsights({ onBook }: { onBook: (defaults: BookingDefaults) 
                       {d.usualWeeks ? `, usually every ${d.usualWeeks}` : ''}
                     </small>
                   </span>
+                  {offer && offer.marketingConsent && drafting === d.clientId && (
+                    <div className="insight-draft">
+                      <p>{gapInvitation(state, offer, today, (m) => timeLabel(m, locale)).body}</p>
+                      <div>
+                        <Button
+                          onClick={async () => {
+                            setError('')
+                            const result = await commit({
+                              type: 'message',
+                              input: {
+                                clientId: offer.clientId,
+                                purpose: 'marketing',
+                                ...gapInvitation(state, offer, today, (m) => timeLabel(m, locale)),
+                              },
+                            })
+                            if (!result.ok) return setError(result.error)
+                            setSaved((list) => [...list, d.clientId])
+                            setDrafting(null)
+                          }}
+                        >
+                          Save as unsent draft
+                        </Button>
+                        <Button variant="quiet" onClick={() => setDrafting(null)}>
+                          Not now
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  {saved.includes(d.clientId) && (
+                    <small role="status" className="insight-saved">
+                      <Check size={13} aria-hidden="true" /> Invitation saved in the Inbox, unsent.
+                    </small>
+                  )}
+                  {offer &&
+                    offer.marketingConsent &&
+                    drafting !== d.clientId &&
+                    !saved.includes(d.clientId) && (
+                      <Button variant="quiet" onClick={() => setDrafting(d.clientId)}>
+                        Prepare an invitation
+                      </Button>
+                    )}
                   {offer && (
                     <Button
                       variant="light"
@@ -113,9 +158,14 @@ export function SmartInsights({ onBook }: { onBook: (defaults: BookingDefaults) 
           )}
         </div>
       )}
+      {error && (
+        <p role="alert" className="insight-error">
+          {error}
+        </p>
+      )}
       <small className="insight-source">
         Based on your visit history and calendar. Nothing is sent or changed until you choose to
-        book.
+        book or save an invitation.
       </small>
     </section>
   )

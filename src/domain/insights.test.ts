@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { addDays } from './format'
-import { drifting, gapSuggestions, morningBrief, unusual } from './insights'
+import { drifting, gapInvitation, gapSuggestions, morningBrief, unusual } from './insights'
 import type { Appointment, BusinessState } from './model'
 import { seed } from './seed'
+import { report } from './selectors'
 
 const today = '2026-10-06'
 const tomorrow = addDays(today, 1)
@@ -106,5 +107,35 @@ describe('Smart insights', () => {
     expect(new Set(suggestions.map((g) => g.clientId)).size).toBe(suggestions.length)
     const times = suggestions.map((g) => `${g.staffId} ${g.date} ${g.startMinutes}`)
     expect(new Set(times).size).toBe(times.length)
+  })
+})
+
+describe('quiet gap invitations and staff rebooking', () => {
+  it('writes a short invitation that names the time and promises nothing is booked yet', () => {
+    const [offer] = gapSuggestions(base, today, '2026-10-06T08:00:00.000Z')
+    const label = (m: number) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`
+    const text = gapInvitation(base, offer, today, label)
+    const first = offer.name.split(' ')[0]
+    expect(text.subject).toContain(first)
+    expect(text.body).toContain(label(offer.startMinutes))
+    expect(text.body).toContain(offer.date === today ? 'today' : 'tomorrow')
+    expect(text.body).toContain('reply to this message and we will book you in')
+  })
+
+  it("counts each professional's rebooked visits so the studio rate adds up", () => {
+    const s = structuredClone(base)
+    const done = s.appointments.find((a) => a.status === 'completed' && a.date <= today)!
+    s.appointments.push({
+      ...done,
+      id: 'test-rebooked',
+      date: addDays(today, 28),
+      status: 'confirmed',
+      rebookedFromId: done.id,
+    })
+    const r = report(s, 30)
+    expect(r.byStaff.find((row) => row.staff.id === done.staffId)?.rebooked).toBe(1)
+    const total = r.byStaff.reduce((sum, row) => sum + row.rebooked, 0)
+    for (const row of r.byStaff) expect(row.rebooked).toBeLessThanOrEqual(row.visits)
+    expect(r.rebookRate).toBe(r.completed ? total / r.completed : null)
   })
 })

@@ -61,3 +61,31 @@
   display: block;
   margin-top: 4px;
 }
+.insight-draft {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--palette-white);
+  border-radius: var(--radius-inner);
+}
+.insight-draft p {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-meta);
+  line-height: 1.5;
+}
+.insight-draft > div {
+  display: flex;
+  gap: 8px;
+}
+.insight-saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.insight-error {
+  margin: 12px 0 0;
+  color: var(--danger);
+  font-size: var(--text-meta);
+}

@@ -315,3 +315,23 @@ export function gapSuggestions(
   }
   return suggestions
 }
+
+/**
+ * A short invitation for a gap suggestion, for the desk to read and approve. It is saved as an
+ * unsent draft; only someone sending it from the Inbox can send it.
+ */
+export function gapInvitation(
+  s: BusinessState,
+  offer: GapSuggestion,
+  today: string,
+  timeLabel: (minutes: number) => string,
+) {
+  const first = offer.name.split(' ')[0]
+  const person = s.staff.find((p) => p.id === offer.staffId)?.name.split(' ')[0] ?? 'We'
+  const service = s.services.find((x) => x.id === offer.serviceId)?.name ?? 'a visit'
+  const when = `${offer.date === today ? 'today' : 'tomorrow'} at ${timeLabel(offer.startMinutes)}`
+  return {
+    subject: `A time for you ${offer.date === today ? 'today' : 'tomorrow'}, ${first}`,
+    body: `Hello ${first}, it has been a little while. ${person} has ${when} free for your ${service}. If you would like it, reply to this message and we will book you in.`,
+  }
+}

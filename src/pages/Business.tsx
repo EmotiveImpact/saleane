@@ -183,18 +183,24 @@ export function Business() {
         </section>
         <section className="surface detail-panel">
           <h2>The people behind it</h2>
-          {data.byStaff.map(({ staff, revenue, visits }) => (
+          {data.byStaff.map(({ staff, revenue, visits, rebooked }) => (
             <div className="staff-performance" key={staff.id}>
               <Avatar small identity={staff.id} name={staff.name} tone={staff.tone} />
               <span>
                 <strong>{staff.name}</strong>
-                <small>{visits} completed visits</small>
+                <small>
+                  {visits} completed visits
+                  {visits > 0 && ` · ${Math.round((rebooked / visits) * 100)}% rebooked`}
+                </small>
               </span>
               <strong>{money(revenue, state.organisation)}</strong>
             </div>
           ))}
           <p className="subtle">
-            Service revenue only. Commissions and payroll are a later version.
+            Service revenue only.
+            {data.rebookRate !== null &&
+              ` Rebooked means the next visit was booked at checkout; the studio as a whole rebooked ${Math.round(data.rebookRate * 100)}%.`}{' '}
+            Commissions and payroll are a later version.
           </p>
         </section>
       </div>

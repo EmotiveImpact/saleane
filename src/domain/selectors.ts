@@ -44,12 +44,12 @@ export function report(s: BusinessState, days: number) {
   const tips = sales.reduce((sum, sale) => sum + sale.tipMinor, 0)
   const booked = appointments.reduce((sum, a) => sum + a.bookedPriceMinor, 0)
   const minutes = appointments.reduce((sum, a) => sum + a.bookedDurationMinutes, 0)
-  const rebooked = completed.filter((a) =>
+  const wasRebooked = (a: (typeof completed)[number]) =>
     s.appointments.some(
       (next) =>
         next.rebookedFromId === a.id && next.status !== 'cancelled' && next.status !== 'no_show',
-    ),
-  ).length
+    )
+  const rebooked = completed.filter(wasRebooked).length
   const byDay = Array.from({ length: days }, (_, i) => {
     const date = addDays(from, i)
     return {
@@ -76,6 +76,7 @@ export function report(s: BusinessState, days: number) {
       )
       .reduce((sum, sale) => sum + serviceRevenue(sale), 0),
     visits: completed.filter((a) => a.staffId === staff.id).length,
+    rebooked: completed.filter((a) => a.staffId === staff.id && wasRebooked(a)).length,
   }))
   const capacity = byDay.reduce((sum, day) => sum + availableMinutes(s, day.date), 0)
   return {

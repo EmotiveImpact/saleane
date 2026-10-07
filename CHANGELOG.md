@@ -10,6 +10,8 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - It points out what looks unusual against the studio's own recent weeks: a quiet day tomorrow, more cancellations or missed visits than usual, takings down on the week (owners and managers only), a client with two missed visits who is booked today or tomorrow, and low stock (owners and managers only). A studio without enough history sees nothing rather than a false alarm.
 - "Drifting away" lists clients who have gone longer than their own usual gap without booking (five weeks when there are too few visits to tell), longest overdue first, each with an open time today or tomorrow with their usual professional and treatment. Two clients are never offered the same person at overlapping times. The offer opens the usual booking dialog for the desk to confirm.
 - Ask Saleane answers "give me my morning brief", "anything unusual?" and "who is drifting away?" from the same rules.
+- Filling quiet gaps: next to each open-time offer, "Prepare an invitation" shows a short, friendly message naming the time. The owner reads it and chooses "Save as unsent draft" or "Not now"; a saved invitation waits in the Inbox for approval like any other draft, only for clients who allow marketing messages, and nothing is sent.
+- Staff targets, first step: Business shows each professional's rebooking rate (completed visits where the next visit was booked at checkout) beside the studio's overall rate.
 
 ## 2026-10-07 · Lumane · Assistant engine and first Ask Saleane skills
 
