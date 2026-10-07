@@ -196,3 +196,15 @@ export function staffDay(s: BusinessState, staffId: string, date: string, minimu
     .reduce((sum, segment) => sum + segment.to - segment.from, 0)
   return { working, start, end, segments, visits: visits.length, freeMinutes }
 }
+
+/** The client's usual gap between visits, in whole weeks, when there is enough history. */
+export function usualWeeks(dates: string[]) {
+  const sorted = [...new Set(dates)].sort()
+  if (sorted.length < 2) return null
+  const gaps = sorted
+    .slice(1)
+    .map((d, i) => (Date.parse(d) - Date.parse(sorted[i])) / 86_400_000)
+    .sort((a, b) => a - b)
+  const weeks = Math.round(gaps[Math.floor(gaps.length / 2)] / 7)
+  return weeks >= 2 && weeks <= 12 ? weeks : null
+}

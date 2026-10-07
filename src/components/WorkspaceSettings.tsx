@@ -4,12 +4,53 @@ import { Download, RotateCcw } from 'lucide-react'
 import { useStore } from '../state/context'
 import { storageKey } from '../state/storage'
 import { Button, ErrorMessage, Modal } from '../design'
+import { firstColours, readColours, saveColours, secondColours } from '../state/studioColours'
+import type { StudioColours } from '../state/studioColours'
+
+function ColourChoice({
+  legend,
+  options,
+  value,
+  onChange,
+}: {
+  legend: string
+  options: readonly { name: string; value: string }[]
+  value: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <fieldset className="colour-choice">
+      <legend>{legend}</legend>
+      <div>
+        {options.map((option) => (
+          <label key={option.value} className="colour-swatch">
+            <input
+              type="radio"
+              name={legend}
+              value={option.value}
+              checked={value === option.value}
+              onChange={() => onChange(option.value)}
+            />
+            <span style={{ background: option.value }} aria-hidden="true" />
+            {option.name}
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  )
+}
 
 export function WorkspaceSettings({ onClose }: { onClose: () => void }) {
   const { state, reset, region, changeRegion, mode, role, reload, enterDemo } = useStore()
   const [confirmReset, setConfirmReset] = useState(false),
     [pending, setPending] = useState(false),
-    [error, setError] = useState('')
+    [error, setError] = useState(''),
+    [colours, setColours] = useState(() => readColours(state.organisation.id))
+  const canStyle = mode === 'demo' || role === 'owner' || role === 'manager'
+  function choose(next: StudioColours) {
+    setColours(next)
+    saveColours(state.organisation.id, next)
+  }
   function download() {
     let saved = JSON.stringify(state, null, 2)
     if (mode === 'demo')
@@ -57,12 +98,33 @@ export function WorkspaceSettings({ onClose }: { onClose: () => void }) {
           <>
             <p>
               Accounts and studio records are saved on this computer’s local server. Your access:{' '}
-              {role}. Live payment and email providers remain unconfigured.
+              {role}. Card payments and email sending are not connected yet.
             </p>
             <Link className="button button-secondary" onClick={onClose} to="/business/manage">
               Manage your studio
             </Link>
           </>
+        )}
+        {canStyle && (
+          <section className="studio-colours" aria-labelledby="studio-colours-title">
+            <h3 id="studio-colours-title">Studio colours</h3>
+            <p>
+              Your first colour leads buttons and selections. Your second marks the now line and
+              clients ready to return. Saved in this browser for now.
+            </p>
+            <ColourChoice
+              legend="First colour"
+              options={firstColours}
+              value={colours.first}
+              onChange={(first) => choose({ ...colours, first })}
+            />
+            <ColourChoice
+              legend="Second colour"
+              options={secondColours}
+              value={colours.second}
+              onChange={(second) => choose({ ...colours, second })}
+            />
+          </section>
         )}
         <p>
           This is a local release candidate. Use fictional client details while reviewing. Hosted

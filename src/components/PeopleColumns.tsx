@@ -20,11 +20,17 @@ export function PeopleColumns({
   date,
   selectedId,
   onOpen,
+  onBook,
+  notBefore = 0,
 }: {
   staff: Staff[]
   date: string
   selectedId?: string
   onOpen: (id: string) => void
+  /** When given, free time becomes a button that starts a booking at that time. */
+  onBook?: (staffId: string, startMinutes: number) => void
+  /** Free time that has already passed today stays visible but cannot start a booking. */
+  notBefore?: number
 }) {
   const { state } = useStore()
   const columns = useRef<HTMLDivElement | null>(null)
@@ -77,10 +83,27 @@ export function PeopleColumns({
                 if (segment.kind === 'free')
                   return (
                     <li className="person-free" key={`free-${segment.from}`}>
-                      <span>
-                        Free {from} to {to}
-                      </span>
-                      <small>{duration(segment.to - segment.from)}</small>
+                      {onBook && segment.to - Math.max(segment.from, notBefore) >= 15 ? (
+                        <button
+                          type="button"
+                          onClick={() => onBook(person.id, Math.max(segment.from, notBefore))}
+                          aria-label={`Book with ${person.name} from ${from}`}
+                        >
+                          <span>
+                            Free {from} to {to}
+                          </span>
+                          <small>
+                            {duration(segment.to - segment.from)} <span aria-hidden>· Book</span>
+                          </small>
+                        </button>
+                      ) : (
+                        <>
+                          <span>
+                            Free {from} to {to}
+                          </span>
+                          <small>{duration(segment.to - segment.from)}</small>
+                        </>
+                      )}
                     </li>
                   )
                 if (segment.kind === 'closed')

@@ -1,6 +1,6 @@
 # SALEANE design language
 
-Library 0.3 · introduced 6 October 2026. This is the working reference for building SALEANE screens. It sits beside [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), which records the visual direction, its history and component contracts. When the two disagree on a value, the code in `src/design/` wins and both documents are corrected.
+Library 0.4 · new look built 7 October 2026 (library 0.3 introduced 6 October 2026). This is the working reference for building SALEANE screens. It sits beside [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), which records the visual direction, its history and component contracts. When the two disagree on a value, the code in `src/design/` wins and both documents are corrected.
 
 - **Tokens:** `src/design/tokens.css`
 - **Components:** `src/design/` (import from `'../design'`)
@@ -8,9 +8,9 @@ Library 0.3 · introduced 6 October 2026. This is the working reference for buil
 
 ## Principles
 
-1. **Hospitality before software.** Ivory, sage and a high-contrast Bodoni serif set the tone of a calm, independent studio. Photography belongs to guests and moments of arrival, never to dense operational surfaces.
+1. **Hospitality before software.** A warm off-white ground, the studio's own two colours and a light serif set the tone of a calm, independent studio. Photography belongs to guests and moments of arrival, never to dense operational surfaces.
 2. **Space goes to the work.** The editorial greeting is reserved for Today, guest booking and accounts. Working screens (Calendar, Clients, Inbox, Business, Money, Manage) use the compact header so the content starts near the top.
-3. **Readable at a glance.** Nothing in the workspace renders below 12px. Every text and background pairing reaches WCAG 2.2 AA (4.5:1). Colour never carries meaning alone.
+3. **Readable at a glance.** Nothing in the workspace renders below 12px, except 11px capital eyebrows and table headers, which carry wide tracking and never hold essential information alone. Every text and background pairing reaches WCAG 2.2 AA (4.5:1). Colour never carries meaning alone.
 4. **One measure, one meaning.** A figure shown in more than one place has one name, one definition and a stated period.
 5. **Honest states.** A queued message is not sent, a recorded payment is not processed. Loading, empty, unavailable and error states say what happens next and keep the person's input.
 
@@ -20,21 +20,25 @@ Components use semantic tokens. The raw `--palette-*` values exist so the semant
 
 ### Colour
 
-| Token                         | Value                 | Use                                      |
-| ----------------------------- | --------------------- | ---------------------------------------- |
-| `--ink`                       | `#29392f`             | Primary text and primary actions         |
-| `--ink-deep`                  | `#203329`             | Selected navigation, strongest structure |
-| `--muted`                     | `#656b63`             | Secondary text and metadata              |
-| `--paper`                     | `#ffffff`             | Work surfaces and fields                 |
-| `--mineral`                   | `#faf9f6`             | Application ground                       |
-| `--line` / `--line-strong`    | `#e2e2da` / `#d4d5cc` | Rules; stronger dividers and outlines    |
-| `--field-line`                | `#b9c0b3`             | Form field borders                       |
-| `--sage` / `--sage-soft`      | `#e9eee5` / `#f4f7f2` | Selection, attention, free time          |
-| `--blue` (mist), `--sand`     | `#edf0ef`, `#f1ece3`  | Body and hair service contexts           |
-| `--brass`                     | `#a89a7a`             | Small warm accents only                  |
-| `--focus`                     | `#9a722e`             | Keyboard focus outline                   |
-| `--action` / `--action-hover` | `#29392f` / `#395341` | Primary buttons                          |
-| `--danger` / `--danger-soft`  | `#8c2e24` / `#fcf1ef` | Errors and destructive confirmation      |
+| Token                          | Value                               | Use                                                  |
+| ------------------------------ | ----------------------------------- | ---------------------------------------------------- |
+| `--brand`                      | `#5f8471` (sage) by default         | Studio's first colour: buttons, selection, focus     |
+| `--rose`                       | `#c27286` (soft rose) by default    | Studio's second colour: now line, counts, return due |
+| `--brand-soft` / `--brand-mid` | brand at 10% / 32% on warm white    | Quiet selected fills, free time, chart bars          |
+| `--brand-ink` / `--rose-ink`   | brand 72% / rose 65% mixed with ink | Text in the studio colours (AA on white)             |
+| `--ink`                        | `#2e2b33`                           | Primary text                                         |
+| `--muted` / `--faint`          | `#6b6670` / `#9a949c`               | Secondary text; faint is for non-essential text only |
+| `--paper`                      | `#ffffff`                           | Cards, work surfaces and fields                      |
+| `--mineral` (page)             | `#faf8f5`                           | Application ground                                   |
+| `--side` / `--stone`           | `#f4f1ec` / `#f3f0eb`               | Sidebar; quiet fills and initials avatars            |
+| `--line` / `--line2`           | `#ebe5df` / `#ddd5ce`               | Rules; button and field borders                      |
+| `--sage` (now brand soft)      | follows `--brand-soft`              | Selection, attention, skin and wellbeing             |
+| `--blue` (mist), `--sand`      | `#f7eff1`, `#f3f0eb`                | Body and hair service contexts                       |
+| `--focus`                      | follows `--brand`                   | 2px keyboard focus outline, 3px offset               |
+| `--action` / `--action-hover`  | brand 88% / 76% mixed with ink      | Primary buttons, deepened so white text passes AA    |
+| `--danger` / `--danger-soft`   | `#8c2e24` / `#fcf1ef`               | Errors and destructive confirmation                  |
+
+**Studio colours.** Each studio picks a first and second colour in workspace settings. First: Sage, Heather, Slate, Teal, Clay or Rosewood. Second: Soft rose, Apricot, Lavender, Sky or Olive. Every preset was checked: white on `--action` and `--rose-ink` on white stay at 4.79:1 or above. The choice is saved in this browser only for now, so guests on another device see the house colours until studio settings are stored on the server.
 
 Staff tones pair a background with the ink that reads on it: `--tone-sage-bg/ink`, `--tone-blue-bg/ink`, `--tone-sand-bg/ink`. All checked pairings are listed with live ratios on the library page.
 
@@ -42,19 +46,22 @@ Older one-off tints remain in `src/styles.css`. Replace them with tokens when a 
 
 ### Type
 
-Bodoni Moda Variable for the wordmark and editorial moments. Source Sans 3 Variable for everything read while working. Times and money use tabular figures.
+Financier Display Light (Klim) for headings, names, the greeting and the wordmark. Its licence is not bought yet, so the committed code uses the free Newsreader Variable at weight 300, then Georgia; Financier is only tried locally and its files never enter the repository. Figtree Variable for everything read while working: 360 for body text, 460 for the menu and 560 for emphasis (names in rows, buttons, totals). Body text is 15px with a line height of 1.5. Times and money use tabular figures, and big figures use Figtree 360 rather than the serif.
 
 | Token                  | Size                     | Use                                   |
 | ---------------------- | ------------------------ | ------------------------------------- |
-| `--text-display`       | clamp(29px, 2.8vw, 38px) | Editorial greetings (serif)           |
-| `--text-title-compact` | 26px                     | Compact working-screen titles (serif) |
-| `--text-title-m`       | 24px                     | Panel and side-sheet headings         |
+| `--text-greeting`      | clamp(38px, 4vw, 52px)   | Today greeting (serif)                |
+| `--text-display`       | clamp(34px, 3.4vw, 44px) | Page headings (serif)                 |
+| `--text-title-compact` | 28px                     | Compact working-screen titles (serif) |
+| `--text-title-m`       | 26px                     | Panel and side-sheet headings         |
 | `--text-title-s`       | 19px                     | Section headings                      |
 | `--text-lead`          | 17px                     | Lead paragraphs, card names           |
 | `--text-body`          | 15px                     | Operational text, buttons, fields     |
 | `--text-small`         | 14px                     | Supporting text, table cells          |
 | `--text-meta`          | 13px                     | Labels, secondary detail              |
 | `--text-micro`         | 12px                     | **The floor.** Statuses, timestamps   |
+| `--text-eyebrow`       | 11px                     | Capital eyebrows and table headers    |
+| `--text-stat`          | 34px                     | Big figures (Figtree 360)             |
 
 Display sizes on guest booking and marketing panels may sit outside this scale.
 
@@ -81,6 +88,7 @@ All are exported from `src/design/index.ts`. Interactive primitives use Radix, u
 | `Status`                | native             | Visit state as text plus dot                                                                          |
 | `Avatar`                | native             | Fictional seed portrait or initials on a staff tone; decorative beside a visible name                 |
 | `TimeChoices`           | native radios      | Picking an appointment time; arrow keys select                                                        |
+| `DateStrip`             | native radios      | Picking a day from the next fortnight, each showing how many times it has                             |
 | `Modal`                 | Radix Dialog       | One decision or one record. Focus trapped, Escape closes, focus returns                               |
 | `Empty`, `ErrorMessage` | native             | Empty and failed states with a next step                                                              |
 
@@ -92,6 +100,13 @@ Route links (main navigation, the Business sub-navigation) stay as links. They a
 - **Shared figures.** "Time booked" is booked service minutes over scheduled professional hours, less closures, on both Today (one day) and Business (the chosen period, with today's figure alongside). The wording lives in `src/components/definitions.ts`.
 - **Client timeline.** One entry per visit, dated by when the visit happens. Its booking, moves, arrival, checkout, deposits and refunds appear as steps inside. Notes, consent and relationships stay as their own entries. Grouping is `groupTimeline` in `src/domain/timeline.ts`.
 - **Narrow calendar.** Below 650px the grid becomes one swipeable column per professional, with free time written between visits and a summary row showing each person's free time. The list view remains available from the same toggle. Segments come from `staffDay` in `src/domain/selectors.ts`.
+
+- **Long records.** Lists that grow with time (receipts, client history) show recent items first in slim rows, grouped by day where money is totalled, with a way to see earlier ones. Past visits fold to one line and open in place.
+- **Figures on phones.** Below 650px, metric groups become one slim strip and their detail lines are hidden; the label and value stay.
+- **Nothing lost on small screens.** When a column is hidden at a narrower width, its value moves under the row's name rather than disappearing.
+- **Plain words.** Say what is not connected yet in studio language ("Card payments are not connected yet"), never configuration names or internal codes.
+- **Start where you are.** Free time on the calendar books there, and a dragged visit opens the move step at its new spot. Shortcuts fill in choices; the same checks and confirmation still decide.
+- **Times in groups.** Long runs of times sit under Morning, Afternoon and Evening.
 
 ## Voice
 

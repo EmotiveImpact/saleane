@@ -5,7 +5,7 @@ import { useStore } from '../state/context'
 import { DEMO_DATE } from '../domain/model'
 import { slots } from '../domain/commands'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
-import { Avatar, Button, ErrorMessage } from '../design'
+import { Avatar, Button, DateStrip, ErrorMessage, TimeChoices } from '../design'
 
 export function BrandedBooking() {
   const { state, commit, region, changeRegion, saving } = useStore()
@@ -26,6 +26,23 @@ export function BrandedBooking() {
   const staff = state.staff.find((s) => s.id === staffId)!
   const professionals = state.staff.filter((s) => s.serviceIds.includes(serviceId))
   const times = slots(state, serviceId, staffId, date)
+  // Only work out the fortnight and the next opening while the guest is choosing a time.
+  const fortnight =
+    step === 2
+      ? Array.from({ length: 14 }, (_, i) => {
+          const day = addDays(DEMO_DATE, i)
+          return { date: day, free: slots(state, serviceId, staffId, day).length }
+        })
+      : []
+  const nextOpen = (() => {
+    if (step !== 2 || times.length) return null
+    for (let i = 1; i <= 60; i++) {
+      const day = addDays(date, i)
+      const open = slots(state, serviceId, staffId, day)
+      if (open.length) return { date: day, time: open[0] }
+    }
+    return null
+  })()
   const steps = ['Your treatment', 'A time for you', 'Your details', 'A final look']
   async function confirm() {
     if (start === null || !policy) {
@@ -85,7 +102,7 @@ export function BrandedBooking() {
         <aside className="booking-story">
           <img
             className="booking-story-image"
-            src="/images/saleane-studio-warm.png"
+            src="/images/saleane-studio-warm.jpg"
             alt="Sunlit treatment room with linen, natural stone and olive branches"
           />
           <div className="booking-story-copy">
@@ -285,35 +302,57 @@ export function BrandedBooking() {
                         ))}
                       </div>
                     </fieldset>
-                    <label>
-                      Choose a date
+                    <DateStrip
+                      label="Choose a day"
+                      locale={state.organisation.locale}
+                      days={fortnight}
+                      value={date}
+                      onChange={(next) => {
+                        setDate(next)
+                        setStart(null)
+                      }}
+                    />
+                    <label className="date-strip-other">
+                      Or pick another date
                       <input
                         type="date"
                         value={date}
                         min={DEMO_DATE}
                         max="2027-10-06"
                         onChange={(e) => {
+                          if (!e.target.value) return
                           setDate(e.target.value)
                           setStart(null)
                         }}
                       />
                     </label>
-                    <fieldset className="time-fieldset">
-                      <legend>Available times · {state.organisation.timeZone}</legend>
-                      <div className="time-slots">
-                        {times.map((time) => (
-                          <button
-                            className={`time-slot ${start === time ? 'selected' : ''}`}
-                            aria-pressed={start === time}
-                            onClick={() => setStart(time)}
-                            key={time}
+                    {times.length ? (
+                      <TimeChoices
+                        label={`Times on ${dateLabel(date, state.organisation.locale)} · ${state.organisation.timeZone}`}
+                        times={times.map((value) => ({
+                          value,
+                          label: timeLabel(value, state.organisation.locale),
+                        }))}
+                        value={start}
+                        onChange={setStart}
+                      />
+                    ) : (
+                      <div className="next-available">
+                        <p>{staff.name.split(' ')[0]} has no times left on this day.</p>
+                        {nextOpen && (
+                          <Button
+                            variant="secondary"
+                            onClick={() => {
+                              setDate(nextOpen.date)
+                              setStart(nextOpen.time)
+                            }}
                           >
-                            {timeLabel(time, state.organisation.locale)}
-                          </button>
-                        ))}
+                            Next available: {dateLabel(nextOpen.date, state.organisation.locale)} at{' '}
+                            {timeLabel(nextOpen.time, state.organisation.locale)}
+                          </Button>
+                        )}
                       </div>
-                      {!times.length && <p>No times available. Try another day or professional.</p>}
-                    </fieldset>
+                    )}
                     <div className="booking-next">
                       <Button variant="quiet" onClick={() => setStep(1)}>
                         <ArrowLeft size={16} />

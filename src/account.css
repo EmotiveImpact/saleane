@@ -29,7 +29,14 @@
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(180deg, #f3f0e8f5 0%, #f3f0e8cc 43%, #f3f0e820 65%, #f3f0e8ed 100%);
+  background: linear-gradient(
+    180deg,
+    #f3f0e8f5 0%,
+    #f3f0e8eb 52%,
+    #f3f0e8c2 68%,
+    #f3f0e833 84%,
+    #f3f0e8ed 100%
+  );
 }
 .account-story .account-story-title {
   /* Brand line, styled as a display heading; the form owns the page's one h1. */
@@ -38,7 +45,7 @@
   letter-spacing: -0.035em;
   font-size: clamp(40px, 4.5vw, 72px);
   line-height: 1.06;
-  font-weight: 450;
+  font-weight: var(--weight-editorial);
   margin: 20px 0;
 }
 .account-story p {
@@ -75,7 +82,7 @@
 .account-main label small {
   font-size: var(--text-micro);
   color: var(--muted);
-  font-weight: 400;
+  font-weight: var(--weight-body);
 }
 .account-actions {
   display: flex;
@@ -124,7 +131,7 @@
 }
 .account-workspaces button:hover {
   border-color: var(--ink);
-  background: #f4f5ef;
+  background: var(--stone);
 }
 .business-subnav {
   display: flex;
@@ -141,7 +148,7 @@
 .business-subnav a.active {
   color: var(--ink);
   border-bottom: 2px solid var(--ink);
-  font-weight: 600;
+  font-weight: var(--weight-strong);
 }
 .workspace-connect {
   display: grid;
