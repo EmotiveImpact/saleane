@@ -321,13 +321,11 @@ function BookingFlow({
             <Leaf size={28} />
             <h1>
               Care,
-              <br />
-              considered.
+              <br /> considered.
             </h1>
             <p>
               A little time, just for you.
-              <br />
-              Thoughtful treatments. Familiar faces.
+              <br /> Thoughtful treatments. Familiar faces.
             </p>
             <div className="story-location">
               <MapPin size={17} />

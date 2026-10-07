@@ -8,7 +8,6 @@ import {
   Search,
   Settings2,
   Users,
-  ArrowUpRight,
   Menu,
   X,
   Info,
@@ -125,17 +124,23 @@ function WorkspaceApp() {
         Skip to content
       </a>
       <aside className="sidebar" aria-label="Workspace navigation">
-        <div className="sidebar-brand">
-          <Link to="/today" className="wordmark" onClick={() => setMobileNav(false)}>
-            SALEANE
-          </Link>
-          <button
-            className="mobile-nav-close icon-button"
-            aria-label="Close navigation"
-            onClick={() => setMobileNav(false)}
-          >
-            <X size={20} />
-          </button>
+        <div className="sidebar-masthead">
+          <div className="sidebar-brand">
+            <Link to="/today" className="wordmark" onClick={() => setMobileNav(false)}>
+              SALEANE
+            </Link>
+            <button
+              className="mobile-nav-close icon-button"
+              aria-label="Close navigation"
+              onClick={() => setMobileNav(false)}
+            >
+              <X size={20} />
+            </button>
+          </div>
+          <p className="sidebar-tagline">
+            A considered way to run
+            <br /> a remarkable business.
+          </p>
         </div>
         <button className="workspace-switch" onClick={() => openSettings('workspace')}>
           <span className="workspace-monogram">{initials}</span>
@@ -173,8 +178,7 @@ function WorkspaceApp() {
             <img src="/images/saleane-studio-warm-small.jpg" alt="" />
           </Link>
           <Link to="/booking" className="public-booking-link">
-            <span>Your booking page</span>
-            <ArrowUpRight size={16} />
+            Your booking page
           </Link>
           <div className="sidebar-footer">
             <span>
@@ -185,10 +189,6 @@ function WorkspaceApp() {
               <Settings2 size={18} />
             </Link>
           </div>
-          <p>
-            A considered way to run
-            <br /> a remarkable business.
-          </p>
         </div>
       </aside>
       {mobileNav && (
@@ -206,7 +206,7 @@ function WorkspaceApp() {
               </NavLink>
             ))}
             <Link to="/booking" onClick={() => setMobileNav(false)}>
-              Your booking page <ArrowUpRight size={17} />
+              Your booking page
             </Link>
           </nav>
         </Modal>
