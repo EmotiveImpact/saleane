@@ -116,7 +116,7 @@ export function Today() {
             Add your services, professionals and spaces, then set opening hours. Your first
             appointment brings the day to life.
           </p>
-          <Link className="button button-primary" to="/business/manage">
+          <Link className="button button-primary" to="/settings">
             Set up your studio <ArrowRight size={16} />
           </Link>
         </section>

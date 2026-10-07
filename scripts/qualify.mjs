@@ -26,7 +26,7 @@ const demoRoutes = [
   '/inbox',
   '/business',
   '/business/money',
-  '/business/manage',
+  '/settings',
   '/booking',
   '/design-language',
   '/account',

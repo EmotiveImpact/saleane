@@ -13,6 +13,7 @@ export function Tabs<T extends string>({
   onChange,
   tabs,
   disabled = false,
+  orientation = 'horizontal',
   children,
 }: {
   label: string
@@ -20,10 +21,17 @@ export function Tabs<T extends string>({
   onChange: (value: T) => void
   tabs: { value: T; label: ReactNode }[]
   disabled?: boolean
+  /** Vertical lists sit beside the panel, as on the Settings page. */
+  orientation?: 'horizontal' | 'vertical'
   children: ReactNode
 }) {
   return (
-    <RadixTabs.Root value={value} onValueChange={(next) => onChange(next as T)}>
+    <RadixTabs.Root
+      className={`tabs tabs-${orientation}`}
+      orientation={orientation}
+      value={value}
+      onValueChange={(next) => onChange(next as T)}
+    >
       <RadixTabs.List className="tabs-list" aria-label={label}>
         {tabs.map((tab) => (
           <RadixTabs.Trigger

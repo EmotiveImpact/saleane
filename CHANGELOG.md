@@ -2,11 +2,14 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
-## In review · Inbox layout chosen in settings
+## In review · A full Settings page
 
-**Status: draft pull request, not merged.** Layout only.
+**Status: draft pull request, not merged.** Layout and navigation only; studio records save exactly as before.
 
-- The Inbox "View" switch has left the Inbox page. Each person now chooses "Two columns, like email" (the default) or "List with a side panel" under Inbox layout in workspace settings. The choice is kept in this browser and the Inbox follows it at once.
+- Settings is now a page in the main menu instead of a small pop-up. Sections sit down the side: Your preferences, Studio details, Colours & booking page, Services, Team, Spaces & equipment, Hours & closures, Data & privacy and This workspace.
+- "Manage studio" under Business has moved into Settings; old links to it open Settings. Reception, who could not see Business, now land on Settings.
+- Your preferences holds the Inbox layout: "Two columns, like email" (the default) or "List with a side panel", chosen per person and kept in this browser. The switch on the Inbox page is gone.
+- The studio card, your name in the top bar, "About this version" and "Open recovery controls" each open the matching Settings section. The address names the section, so a link can open it directly.
 
 ## 2026-10-07 · Merged · The new look: fonts, studio colours and a Clients directory for hundreds
 
