@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { seed } from './seed'
-import { dispatch, execute } from './commands'
+import { dispatch, execute, slots } from './commands'
 import type { Command } from './commands'
 import { DEMO_DATE, parseState } from './model'
 import type { BusinessState } from './model'
@@ -182,6 +182,48 @@ describe('consultations (V1.5)', () => {
       makeId,
     )
     expect(later.ok || later.error).toBe('Record a consultation once it has happened.')
+  })
+
+  it('books from a consultation only for a treatment talked about, or any when none was chosen', () => {
+    let s = record(seed('UK')).state
+    const free = slots(s, 'service-cut', 'staff-theo', addDays(DEMO_DATE, 2))[0]
+    const id = clientConsultations(s, 'client-1')[0].id
+    const cut = execute(
+      s,
+      {
+        type: 'book',
+        input: {
+          clientId: 'client-1',
+          serviceId: 'service-cut',
+          staffId: 'staff-theo',
+          date: addDays(DEMO_DATE, 2),
+          startMinutes: free,
+          source: 'desk',
+          consultationId: id,
+        },
+      },
+      NOW,
+      makeId,
+    )
+    expect(cut.ok || cut.error).toMatch(/about other treatments/)
+    s = record(s, { content: { ...content, serviceIds: [] } }).state
+    const open = clientConsultations(s, 'client-1').find((c) => c.id !== id)!
+    const any = run(s, {
+      type: 'book',
+      input: {
+        clientId: 'client-1',
+        serviceId: 'service-cut',
+        staffId: 'staff-theo',
+        date: addDays(DEMO_DATE, 2),
+        startMinutes: free,
+        source: 'desk',
+        consultationId: open.id,
+      },
+    })
+    expect(any.state.appointments.find((a) => a.id === any.recordId)!.consultation).toEqual({
+      id: open.id,
+      version: 1,
+    })
   })
 
   it('lets the desk record consultations, not practitioners on their own', () => {

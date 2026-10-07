@@ -51,7 +51,9 @@ export function ClientConsultations({ clientId }: { clientId: string }) {
       </header>
       {list.map((c) => {
         const v = latestVersion(c)
-        const booked = state.appointments.filter((a) => a.consultation?.id === c.id).length
+        const fromIt = state.appointments.filter((a) => a.consultation?.id === c.id)
+        const booked = fromIt.filter((a) => a.consultation!.version === v.version).length
+        const earlier = fromIt.length - booked
         return (
           <article key={c.id} className="consultation">
             <h3>
@@ -76,7 +78,12 @@ export function ClientConsultations({ clientId }: { clientId: string }) {
             {v.notes && <p className="subtle">{v.notes}</p>}
             <p className="subtle">
               Version {v.version}, saved by {v.savedBy || 'the studio'}
-              {booked ? ` · ${booked === 1 ? 'one visit' : `${booked} visits`} booked from it` : ''}
+              {booked
+                ? ` · ${booked === 1 ? 'one visit' : `${booked} visits`} booked from this version`
+                : ''}
+              {earlier
+                ? ` · ${earlier === 1 ? 'one visit' : `${earlier} visits`} from an earlier version`
+                : ''}
             </p>
             {c.versions.length > 1 && (
               <details>

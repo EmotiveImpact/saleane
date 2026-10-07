@@ -32,13 +32,17 @@ export function BookingDialog({
 }) {
   const { state, commit, today, blocked, saving, role } = useStore()
   const sandbox = operations(state).mode === 'sandbox'
-  const services = state.services.filter((item) => !item.archived)
-  const [pending, setPending] = useState(false)
-  const busy = pending || saving
-  const [clientId, setClientId] = useState(defaults.clientId ?? '')
   const consultation = defaults.consultationId
     ? consultationsList(state).find((c) => c.id === defaults.consultationId)
     : undefined
+  // A visit booked from a consultation is for one of the treatments talked about, when any were.
+  const agreed = consultation ? latestVersion(consultation).serviceIds : []
+  const services = state.services.filter(
+    (item) => !item.archived && (!agreed.length || agreed.includes(item.id)),
+  )
+  const [pending, setPending] = useState(false)
+  const busy = pending || saving
+  const [clientId, setClientId] = useState(defaults.clientId ?? '')
   const call = defaults.callId
     ? operations(state).missedCalls?.find((c) => c.id === defaults.callId)
     : undefined

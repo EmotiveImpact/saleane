@@ -279,7 +279,7 @@ export function execute(
       if (input.consultationId && input.source === 'online')
         throw new Error('Only the studio can book from a consultation.')
       const consultation = input.consultationId
-        ? consultationForBooking(s, input.consultationId, client.id)
+        ? consultationForBooking(s, input.consultationId, client.id, service.id)
         : undefined
       const appointment: Appointment = {
         id: makeId(),

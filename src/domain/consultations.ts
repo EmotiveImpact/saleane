@@ -126,10 +126,21 @@ export function runConsultationCommand(
 }
 
 /** The version a new booking carries, after checking the consultation is this client's. */
-export function consultationForBooking(s: BusinessState, consultationId: string, clientId: string) {
+export function consultationForBooking(
+  s: BusinessState,
+  consultationId: string,
+  clientId: string,
+  serviceId: string,
+) {
   const c = consultationsList(s).find((x) => x.id === consultationId)
   if (!c || c.clientId !== clientId) throw new Error('That consultation is not on this client.')
-  return { id: c.id, version: latestVersion(c).version }
+  const current = latestVersion(c)
+  // With no treatments chosen, the plan can lead to any of them.
+  if (current.serviceIds.length && !current.serviceIds.includes(serviceId))
+    throw new Error(
+      'This consultation was about other treatments. Choose one of them, or update it first.',
+    )
+  return { id: c.id, version: current.version }
 }
 
 /** Fills in who saved each new version. */
