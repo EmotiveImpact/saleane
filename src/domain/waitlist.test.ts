@@ -494,6 +494,26 @@ describe('waitlist', () => {
     ).toBe(false)
   })
 
+  it('offers a guest’s own visit under the name it was booked with', () => {
+    const { s, visit } = withLaterVisit()
+    const joined = apply(s, {
+      type: 'waitlist-join',
+      appointmentId: visit.id,
+      anyone: true,
+      times: [],
+    })
+    joined.services.find((item) => item.id === visit.serviceId)!.name = 'Renamed facial'
+    const entry = waiting(joined).find((e) => e.appointmentId === visit.id)!
+    const offered = apply(joined, {
+      type: 'waitlist-offer',
+      entryId: entry.id,
+      ...openings(joined, entry, now)[0],
+    })
+    const body = operations(offered).messages.at(-1)!.body
+    expect(body).toContain(visit.bookedServiceName!)
+    expect(body).not.toContain('Renamed facial')
+  })
+
   it('stops offering once a request has had the most offers it can keep', () => {
     const s = seed('UK')
     const entry = waiting(s)[0]

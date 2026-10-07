@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Hourglass, Plus } from 'lucide-react'
 import { useStore } from '../state/context'
+import { useClock } from '../state/clock'
 import { businessDate, can } from '../domain/operations'
 import { isOpen, openings, timesLabel, waitlistList } from '../domain/waitlist'
 import type { Opening } from '../domain/waitlist'
@@ -205,7 +206,6 @@ export function WaitlistCard({
 }) {
   const { state } = useStore()
   const allowed = useWaitlistAllowed()
-  const now = new Date().toISOString()
   const org = state.organisation
   const [chosen, setChosen] = useState<Opening | null>(null)
   const [removing, setRemoving] = useState(false)
@@ -215,11 +215,7 @@ export function WaitlistCard({
   const visit = state.appointments.find((a) => a.id === entry.appointmentId)
   // The search is the heaviest work on the page, so it runs again only when the studio changes or
   // the minute moves on, checked against the real clock so a time already started is never shown.
-  const [clock, setClock] = useState(now)
-  useEffect(() => {
-    const tick = window.setInterval(() => setClock(new Date().toISOString()), 60_000)
-    return () => window.clearInterval(tick)
-  }, [])
+  const clock = useClock()
   const times = useMemo(() => openings(state, entry, clock), [state, entry, clock])
   const when = (o: Opening) =>
     `${dateLabel(o.date, org.locale)} at ${timeLabel(o.startMinutes, org.locale)}`

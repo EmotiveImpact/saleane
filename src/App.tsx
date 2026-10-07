@@ -50,6 +50,7 @@ import { PractitionerDay } from './pages/PractitionerDay'
 import { ManageVisit } from './pages/ManageVisit'
 import { TestPayment } from './pages/TestPayment'
 import { Pricing } from './pages/Pricing'
+import { useClock } from './state/clock'
 import './account.css'
 
 const navigation = [
@@ -77,8 +78,9 @@ function WorkspaceApp() {
   const [mobileNav, setMobileNav] = useState(false)
   useStudioColours(state.organisation.id)
   // Waitlist offers whose time has gone are not counted as waiting for approval.
+  const clock = useClock()
   const drafts = operations(state).messages.filter(
-    (m) => m.status === 'draft' && !staleOffer(state, m.id, new Date().toISOString()),
+    (m) => m.status === 'draft' && !staleOffer(state, m.id, clock),
   ).length
   useEffect(() => {
     document.title = `SALEANE — ${state.organisation.name}`

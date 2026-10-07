@@ -443,7 +443,10 @@ export function runWaitlistCommand(
   if (!openingFree(next, entry, opening, now))
     throw new Error('That time is no longer free for this request. Choose another.')
   const client = next.clients.find((c) => c.id === entry.clientId)!
-  const service = next.services.find((item) => item.id === entry.serviceId)!
+  // A guest asking to come in sooner is offered the visit they booked, under its booked name.
+  const booked = next.appointments.find((item) => item.id === entry.appointmentId)
+  const serviceName =
+    booked?.bookedServiceName ?? next.services.find((item) => item.id === entry.serviceId)!.name
   const person = next.staff.find((p) => p.id === opening.staffId)!
   const org = next.organisation
   const when = `${dateLabel(opening.date, org.locale)} at ${timeLabel(opening.startMinutes, org.locale)}`
@@ -454,7 +457,7 @@ export function runWaitlistCommand(
     ...(entry.appointmentId ? { appointmentId: entry.appointmentId } : {}),
     purpose: 'appointment' as const,
     subject: `A time has opened at ${org.name}`,
-    body: `Hello ${client.name.split(' ')[0]},\n\nYou asked us to let you know if a time opened for ${service.name}. ${person.name} is free on ${when}.${entry.appointmentId ? ' We can move your visit to this time if you would like.' : ''}\n\nReply to this message or call us to take it. It is not held for you, so the first to answer gets it.\n\n${org.name}`,
+    body: `Hello ${client.name.split(' ')[0]},\n\nYou asked us to let you know if a time opened for ${serviceName}. ${person.name} is free on ${when}.${entry.appointmentId ? ' We can move your visit to this time if you would like.' : ''}\n\nReply to this message or call us to take it. It is not held for you, so the first to answer gets it.\n\n${org.name}`,
     status: 'draft' as const,
     createdAt: now,
     actor: 'Local operator',
@@ -466,7 +469,7 @@ export function runWaitlistCommand(
     appointmentId: entry.appointmentId,
     type: 'message',
     title: 'Waitlist offer drafted',
-    detail: `${service.name} with ${person.name}, ${when}. Waiting in the Inbox for approval; delivery is unconfigured.`,
+    detail: `${serviceName} with ${person.name}, ${when}. Waiting in the Inbox for approval; delivery is unconfigured.`,
   })
   return message.id
 }

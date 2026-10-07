@@ -10,6 +10,7 @@ import type { BusinessState } from '../domain/model'
 import { useInboxView } from '../state/inboxView'
 import { isWaitlistOffer, staleOffer } from '../domain/waitlist'
 import { SentMessages } from '../components/AppointmentMessages'
+import { useClock } from '../state/clock'
 import '../components/management.css'
 
 type QueuedMessage = ReturnType<typeof operations>['messages'][number]
@@ -28,6 +29,7 @@ const statusLabel = {
 } as const
 
 export function Inbox() {
+  const clock = useClock()
   const { state, commit, blocked, role, session } = useStore()
   const config = operations(state)
   const [filter, setFilter] = useState<'all' | 'draft' | 'queued' | 'suppressed'>('all')
@@ -137,8 +139,7 @@ export function Inbox() {
     const recipient = state.clients.find((item) => item.id === message.clientId)
     const visit = state.appointments.find((item) => item.id === message.appointmentId)
     // A waitlist offer whose request ended or whose time has gone cannot be approved.
-    const stale =
-      message.status === 'draft' ? staleOffer(state, message.id, new Date().toISOString()) : null
+    const stale = message.status === 'draft' ? staleOffer(state, message.id, clock) : null
     const missingConsent = message.purpose === 'marketing' && !recipient?.marketingConsent
     const earlier = config.messages.filter(
       (item) =>
