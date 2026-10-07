@@ -10,7 +10,7 @@ Recorded 7 October 2026 in Chromium (Playwright) against the built app (`npm run
 - **A reaction:** on Grace's page, recording her waiting test as a reaction with "Redness and itching" makes her Friday visit read "Reacted to a patch test on Monday 5 October", and Today now lists only her, as "Reaction recorded".
 - **On the visit:** Ellie Brooks's Thursday colour shows "Patch test clear on Sunday 27 September" in the appointment panel.
 - **Settings › Services:** Gloss & Tone reads "Needs a patch test", its edit form has the box ticked, and the Patch tests rules (48 hours, 6 months, reminders on) save; the months were changed to 12.
-- **Booking page:** Gloss & Tone says "Needs a patch test at least 48 hours before".
+- **Booking page:** after choosing Hair, Gloss & Tone says "Needs a patch test at least 48 hours before".
 - **390px:** the panel fits with no sideways scroll.
 - No console errors throughout. The full sweep (`scripts/qualify.mjs`, whose Today and client pages now include the patch test panels) reports 111 pages with zero axe violations, no sideways scroll and no missing focus; the only console errors are the expected 401s on the signed-out demo account page.
 
