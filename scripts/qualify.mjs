@@ -33,6 +33,7 @@ const demoRoutes = [
   '/settings?section=plans',
   '/business/feedback',
   '/business/stock',
+  '/business/pay',
   '/booking',
   '/design-language',
   '/account',

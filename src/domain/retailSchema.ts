@@ -55,6 +55,8 @@ export const counterSaleSchema = z.object({
   id,
   organisationId: id,
   clientId: id.optional(),
+  /** Who made the sale, for their commission. */
+  staffId: id.optional(),
   receiptNumber: z.string().min(1).max(40),
   currency: z.enum(['GBP', 'USD']),
   retail: saleRetailSchema,

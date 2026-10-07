@@ -1,0 +1,85 @@
+/* V2: commission and tips per person. */
+.pay-range {
+  margin: 12px 0 0;
+  color: var(--muted);
+}
+.pay-record {
+  flex-wrap: wrap;
+}
+.pay-figures {
+  display: flex;
+  gap: 20px;
+  margin: 0;
+}
+.pay-figures div {
+  display: grid;
+  justify-items: end;
+}
+.pay-figures dt {
+  font-size: var(--text-micro);
+  color: var(--muted);
+}
+.pay-figures dd {
+  margin: 2px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+.pay-lines {
+  margin: 0 0 18px;
+  padding: 14px 18px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.pay-sums {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.pay-lines ul,
+.pay-history ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.pay-lines li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.pay-lines li:first-child {
+  border-top: 0;
+}
+.pay-lines li span:first-child {
+  min-width: 0;
+}
+.pay-lines strong,
+.pay-lines small,
+.pay-history small {
+  display: block;
+}
+.pay-lines small,
+.pay-history small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: var(--text-micro);
+}
+.pay-history h3 {
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+  margin-bottom: 6px;
+}
+.pay-history li {
+  padding: 6px 0;
+}
+@media (max-width: 640px) {
+  .pay-figures {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .pay-figures div {
+    justify-items: start;
+  }
+}

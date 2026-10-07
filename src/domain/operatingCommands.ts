@@ -1,6 +1,6 @@
 import type { BusinessState, RelationshipEvent } from './model'
 import type { OperatingCommand } from './commandSchema'
-import { SCHEDULE_HISTORY_LIMIT, operations, stock } from './operations'
+import { PAY_RATE_LIMIT, SCHEDULE_HISTORY_LIMIT, operations, stock } from './operations'
 import { restockReturn } from './retail'
 import { assertSchedulePreserved, scheduleChanges, scheduleSnapshot } from './schedule'
 
@@ -438,6 +438,22 @@ export function runOperatingCommand(
     if (old) o.products[o.products.indexOf(old)] = product
     else o.products.push(product)
     recordId = product.id
+  } else if (command.type === 'pay-rate') {
+    if (!next.staff.some((p) => p.id === command.staffId))
+      throw new Error('Choose someone on the team.')
+    o.payRates ??= []
+    if (o.payRates.length >= PAY_RATE_LIMIT) throw new Error('Too many pay rate changes to keep.')
+    const rate = {
+      id: makeId(),
+      staffId: command.staffId,
+      serviceBps: command.serviceBps,
+      productBps: command.productBps,
+      from: command.from,
+      createdAt: now,
+      actor: 'Local operator',
+    }
+    o.payRates.push(rate)
+    recordId = rate.id
   } else if (command.type === 'stock') {
     const product = o.products.find((p) => p.id === command.productId)
     if (!product || product.archived) throw new Error('Choose an active product.')

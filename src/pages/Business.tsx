@@ -223,7 +223,10 @@ export function Business() {
               <strong>{money(revenue, state.organisation)}</strong>
             </div>
           ))}
-          <p className="subtle">Service revenue only. Commissions come next in this version.</p>
+          <p className="subtle">
+            Service revenue only. Commission and tips per person are on{' '}
+            <Link to="/business/pay">Pay</Link>.
+          </p>
         </section>
       </div>
       <div className="business-photos">

@@ -145,6 +145,13 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('product'), id: id.optional(), input: productInputSchema }),
   z.object({
+    type: z.literal('pay-rate'),
+    staffId: id,
+    serviceBps: z.number().int().min(0).max(10000),
+    productBps: z.number().int().min(0).max(10000),
+    from: z.iso.date(),
+  }),
+  z.object({
     type: z.literal('stock'),
     productId: id,
     quantity: z
@@ -270,6 +277,8 @@ export const commandSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('counter-sale'),
     clientId: id.optional(),
+    /** V2: who made the sale, for their commission. */
+    staffId: id.optional(),
     products: retailItemsSchema.refine((items) => items.length > 0, 'Add a product.'),
     method,
     reference: z.string().trim().max(150).optional(),

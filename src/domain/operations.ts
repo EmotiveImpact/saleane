@@ -123,6 +123,22 @@ export const openingBalanceSchema = z.object({
 })
 export type OpeningBalance = z.infer<typeof openingBalanceSchema>
 
+/**
+ * V2: what one person earns as commission, from a date onwards. A change adds a new row, so past
+ * pay periods keep the rate that applied then. Basis points: 4000 is 40%.
+ */
+export const PAY_RATE_LIMIT = 2000
+export const payRateSchema = z.object({
+  id,
+  staffId: id,
+  serviceBps: z.number().int().min(0).max(10000),
+  productBps: z.number().int().min(0).max(10000),
+  from: z.iso.date(),
+  createdAt: z.iso.datetime(),
+  actor: z.string(),
+})
+export type PayRate = z.infer<typeof payRateSchema>
+
 export const operationsSchema = z.object({
   mode: z.enum(['sandbox', 'local']),
   bookingEnabled: z.boolean(),
@@ -185,6 +201,8 @@ export const operationsSchema = z.object({
   imports: z.array(importBatchSchema).optional(),
   /** Credit or money owed that the previous system held for a client (PILOT-03). */
   balances: z.array(openingBalanceSchema).optional(),
+  /** V2: commission rates per person, kept as a history. */
+  payRates: z.array(payRateSchema).max(PAY_RATE_LIMIT).optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 export type Role = 'owner' | 'manager' | 'reception' | 'practitioner'
@@ -299,7 +317,7 @@ export function can(role: Role, action: string) {
   // Feedback comes only from the guest's own private link (V1.5).
   if (action === 'feedback') return false
   if (role === 'owner') return true
-  if (['membership', 'restore', 'organisation', 'tax'].includes(action)) return false
+  if (['membership', 'restore', 'organisation', 'tax', 'pay-rate'].includes(action)) return false
   if (role === 'manager') return true
   if (
     [

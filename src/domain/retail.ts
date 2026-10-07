@@ -177,6 +177,7 @@ export function retailProblem(s: BusinessState): string | null {
       sale.organisationId !== s.organisation.id ||
       sale.currency !== s.organisation.currency ||
       (sale.clientId && !s.clients.some((c) => c.id === sale.clientId)) ||
+      (sale.staffId && !s.staff.some((p) => p.id === sale.staffId)) ||
       sale.totalMinor !== retailCharge(sale.retail) ||
       sandbox !== sale.method.startsWith('demo_') ||
       (sale.method === 'external_card' && !sale.reference?.trim()) ||
@@ -250,6 +251,7 @@ export function sellAtCounter(
   next: BusinessState,
   command: {
     clientId?: string
+    staffId?: string
     products: RetailItems
     method: CounterSale['method']
     reference?: string
@@ -259,6 +261,8 @@ export function sellAtCounter(
 ) {
   if (command.clientId && !next.clients.some((c) => c.id === command.clientId))
     throw new Error('Client does not belong to this workspace.')
+  if (command.staffId && !next.staff.some((p) => p.id === command.staffId && !p.archived))
+    throw new Error('Choose someone on the team.')
   if (command.method === 'external_card' && !command.reference?.trim())
     throw new Error('Enter the card terminal reference.')
   const retail = priceRetail(next, command.products)!
@@ -267,6 +271,7 @@ export function sellAtCounter(
     id: makeId(),
     organisationId: next.organisation.id,
     ...(command.clientId ? { clientId: command.clientId } : {}),
+    ...(command.staffId ? { staffId: command.staffId } : {}),
     receiptNumber: `SC-${next.counterSales.length + 1}`,
     currency: next.organisation.currency,
     retail,

@@ -60,6 +60,7 @@ export function CounterSales() {
       .refunds.filter((r) => r.counterSaleId === saleId)
       .reduce((sum, r) => sum + r.amountMinor, 0)
   const clientName = (id?: string) => state.clients.find((c) => c.id === id)?.name
+  const staffName = (id?: string) => state.staff.find((p) => p.id === id)?.name
   return (
     <section className="surface ops-panel" aria-labelledby="counter-heading">
       <header>
@@ -93,6 +94,7 @@ export function CounterSales() {
                     {dateLabel(sale.paidAt.slice(0, 10), org.locale)} · {sale.receiptNumber} ·{' '}
                     {METHOD_LABEL[sale.method]}
                     {clientName(sale.clientId) ? ` · ${clientName(sale.clientId)}` : ''}
+                    {staffName(sale.staffId) ? ` · sold by ${staffName(sale.staffId)}` : ''}
                     {back ? ` · ${money(back, org, true)} given back` : ''}
                   </small>
                 </div>
@@ -174,6 +176,7 @@ function SellDialog({
   const { run, pending, error, setError } = useRun()
   const [items, setItems] = useState<RetailItems>([])
   const [clientId, setClientId] = useState('')
+  const [staffId, setStaffId] = useState('')
   const [method, setMethod] = useState<Method>(sandbox ? 'demo_cash' : 'cash')
   const [reference, setReference] = useState('')
   const [collected, setCollected] = useState(false)
@@ -200,6 +203,7 @@ function SellDialog({
       await run({
         type: 'counter-sale',
         ...(clientId ? { clientId } : {}),
+        ...(staffId ? { staffId } : {}),
         products: items,
         method,
         ...(reference.trim() ? { reference: reference.trim() } : {}),
@@ -228,6 +232,19 @@ function SellDialog({
                 .map((client) => (
                   <option key={client.id} value={client.id}>
                     {client.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label>
+            Sold by
+            <select value={staffId} onChange={(e) => setStaffId(e.target.value)}>
+              <option value="">Not recorded</option>
+              {state.staff
+                .filter((person) => !person.archived)
+                .map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {person.name}
                   </option>
                 ))}
             </select>

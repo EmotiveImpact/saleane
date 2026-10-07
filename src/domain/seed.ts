@@ -361,7 +361,29 @@ export function seed(region: Region): BusinessState {
     ]
   })
   seedStock(state, uk)
+  seedPay(state)
   return parseState(state, region)
+}
+
+/** V2: commission rates for the demo team, so Pay has figures to show. Fictional. */
+function seedPay(state: BusinessState) {
+  const o = (state.operations ??= defaultOperations('sandbox'))
+  const rates: [string, number, number, string][] = [
+    // person, services %, products %, from
+    ['staff-maya', 40, 10, '2026-01-01'],
+    ['staff-sophia', 35, 10, '2026-01-01'],
+    ['staff-theo', 30, 10, '2026-01-01'],
+    ['staff-theo', 35, 10, '2026-09-01'],
+  ]
+  o.payRates = rates.map(([staffId, services, products, from], i) => ({
+    id: `pay-rate-${i + 1}`,
+    staffId,
+    serviceBps: services * 100,
+    productBps: products * 100,
+    from,
+    createdAt: `${from}T09:00:00.000Z`,
+    actor: 'Owner · demo fixture',
+  }))
 }
 
 /**
@@ -436,6 +458,7 @@ function seedStock(state: BusinessState, uk: boolean) {
       id: 'counter-sale-1',
       organisationId: state.organisation.id,
       clientId: 'client-5',
+      staffId: 'staff-sophia',
       receiptNumber: 'SC-1',
       currency: state.organisation.currency,
       retail: {

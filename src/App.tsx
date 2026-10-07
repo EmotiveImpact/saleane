@@ -26,6 +26,7 @@ import { Clients } from './pages/Clients'
 import { ClientRelationship } from './pages/ClientRelationship'
 import { Business } from './pages/Business'
 import { Stock } from './pages/Stock'
+import { Pay } from './pages/Pay'
 import { BrandedBooking } from './pages/BrandedBooking'
 const Account = lazy(() =>
   import('./pages/Account').then((module) => ({ default: module.Account })),
@@ -277,7 +278,10 @@ function WorkspaceApp() {
               <NavLink to="/business/money">Money</NavLink>
               <NavLink to="/business/stock">Stock</NavLink>
               {(role === 'owner' || role === 'manager') && (
-                <NavLink to="/business/feedback">Feedback</NavLink>
+                <>
+                  <NavLink to="/business/pay">Pay</NavLink>
+                  <NavLink to="/business/feedback">Feedback</NavLink>
+                </>
               )}
             </nav>
           )}
@@ -295,6 +299,16 @@ function WorkspaceApp() {
             <Route path="/business/money" element={<Money />} />
             <Route path="/business/feedback" element={<Feedback />} />
             <Route path="/business/stock" element={<Stock />} />
+            <Route
+              path="/business/pay"
+              element={
+                role === 'owner' || role === 'manager' ? (
+                  <Pay />
+                ) : (
+                  <Navigate to="/business" replace />
+                )
+              }
+            />
             <Route path="/settings" element={<Manage accessPanel={<AccessPanel />} />} />
             <Route path="/business/manage" element={<Navigate to="/settings" replace />} />
             <Route path="/design-language" element={<DesignLanguage />} />

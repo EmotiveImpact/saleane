@@ -413,9 +413,12 @@ export function parseState(value: unknown, region: Region): BusinessState {
       o.refunds,
       o.imports ?? [],
       o.balances ?? [],
+      o.payRates ?? [],
     ])
       if (new Set(rows.map((r) => r.id)).size !== rows.length)
         throw new Error('Duplicate operating record IDs.')
+    for (const rate of o.payRates ?? [])
+      if (!exists(s.staff, rate.staffId)) throw new Error('Missing pay rate professional.')
     for (const closure of o.closures)
       if (closure.staffId && !exists(s.staff, closure.staffId))
         throw new Error('Missing closure professional.')
