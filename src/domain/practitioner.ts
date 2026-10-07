@@ -6,6 +6,7 @@ import { addDays } from './format'
 import { ownRating } from './feedback'
 import { clearFrom, patchTests, visitPatchTest } from './patchTests'
 import { answerText, versionOf, visitForms } from './forms'
+import { visitConsultation } from './consultations'
 
 /**
  * LOCAL-01: what an assigned practitioner may read and change.
@@ -84,6 +85,17 @@ export const practitionerViewSchema = z
                 })
                 .strict(),
             )
+            .optional(),
+          /** V1.5: what was agreed at the consultation this visit was booked from. */
+          consultation: z
+            .object({
+              heldOn: z.iso.date(),
+              version: z.number().int(),
+              wants: z.string(),
+              plan: z.string(),
+              changedSince: z.boolean(),
+            })
+            .strict()
             .optional(),
         })
         .strict(),
@@ -221,6 +233,20 @@ export function practitionerView(
       ...(a.status === 'confirmed' && a.guestHereAt ? { guestHere: true as const } : {}),
       patchTest: patchFor(a),
       ...formsForVisit(s, a),
+      ...(() => {
+        const carried = visitConsultation(s, a)
+        return carried
+          ? {
+              consultation: {
+                heldOn: carried.consultation.heldOn,
+                version: carried.version.version,
+                wants: carried.version.wants,
+                plan: carried.version.plan,
+                changedSince: carried.changedSince,
+              },
+            }
+          : {}
+      })(),
     })),
     clients: s.clients
       .filter((c) => clientIds.has(c.id))
