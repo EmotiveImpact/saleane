@@ -86,10 +86,15 @@ function makeTestModeStudio(orgId: string) {
   )
   if (!row) return
   const state = JSON.parse(row.state) as {
-    operations: { mode: string; refunds: unknown[] }
+    operations: {
+      mode: string
+      refunds: unknown[]
+      movements?: { saleId?: string; counterSaleId?: string }[]
+    }
     sales: unknown[]
     payments: unknown[]
     events: { saleId?: string; type?: string }[]
+    counterSales?: unknown[]
   }
   state.operations.mode = 'local'
   // A real studio follows the real calendar, so move the sample's 6 October day to today.
@@ -105,6 +110,12 @@ function makeTestModeStudio(orgId: string) {
   }
   Object.assign(state, move(state))
   state.operations.refunds = []
+  // Product sales belong to the stripped receipts, so their stock movements go with them.
+  if (state.operations.movements)
+    state.operations.movements = state.operations.movements.filter(
+      (movement) => !movement.saleId && !movement.counterSaleId,
+    )
+  if (state.counterSales) state.counterSales = []
   state.sales = []
   state.payments = []
   state.events = state.events.filter((event) => !event.saleId)
