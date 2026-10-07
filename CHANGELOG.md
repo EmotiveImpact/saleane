@@ -2,6 +2,14 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · In review · Browser demo
+
+**Status: in review; nothing deployed. The demo link is a private claude.ai page.**
+
+- `npm run demo:build` writes one HTML file that runs the real app and server code inside a browser tab, with two fictional sample studios and the owner already signed in.
+- Changes stay in that browser. Passwords use a simple stand-in there, so the demo is for showing, never for real data.
+- Checked in Chromium at desktop and phone width: Today, Calendar, Clients, Inbox, Business, Settings, a full guest booking, the guest manage page and a checkout receipt. Not checked in Safari or Firefox.
+
 ## 2026-10-07 · Merged · Booked prices keep their tax
 
 **Status: merged into main on 7 October 2026; nothing deployed or charged.**

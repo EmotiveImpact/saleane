@@ -1,0 +1,49 @@
+.demo-note {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  z-index: 1000;
+  max-width: min(300px, calc(100vw - 24px));
+  border: 1px solid rgba(60, 72, 60, 0.16);
+  border-radius: 14px;
+  background: rgba(252, 250, 245, 0.96);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 18px rgba(40, 45, 38, 0.12);
+  color: #2f3a33;
+  font:
+    12px/1.45 'Figtree Variable',
+    system-ui,
+    sans-serif;
+}
+.demo-note summary {
+  padding: 5px 12px;
+  cursor: pointer;
+  color: #4f6a56;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  list-style: none;
+}
+.demo-note summary::-webkit-details-marker {
+  display: none;
+}
+.demo-note[open] {
+  padding-bottom: 12px;
+}
+.demo-note p {
+  margin: 0 12px 8px;
+}
+.demo-note button {
+  margin: 0 12px;
+  padding: 6px 10px;
+  border: 1px solid rgba(60, 72, 60, 0.2);
+  border-radius: 999px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+@media print {
+  .demo-note {
+    display: none;
+  }
+}
