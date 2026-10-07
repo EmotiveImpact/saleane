@@ -525,4 +525,28 @@ describe('waitlist', () => {
       valueMinor: visit.bookedPriceMinor,
     })
   })
+
+  it('keeps an offer’s wording tied to the time it was checked for', () => {
+    const s = seed('UK')
+    const entry = waiting(s)[0]
+    const offered = apply(s, {
+      type: 'waitlist-offer',
+      entryId: entry.id,
+      ...openings(s, entry, now)[0],
+    })
+    const message = operations(offered).messages.at(-1)!
+    const edit = run(offered, {
+      type: 'message',
+      id: message.id,
+      input: {
+        clientId: message.clientId,
+        purpose: message.purpose,
+        subject: message.subject,
+        body: 'Another time entirely.',
+        ...(message.appointmentId ? { appointmentId: message.appointmentId } : {}),
+      },
+    })
+    expect(edit.ok).toBe(false)
+    if (!edit.ok) expect(edit.error).toContain('cannot be edited')
+  })
 })

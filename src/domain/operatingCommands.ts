@@ -2,7 +2,7 @@ import type { BusinessState, RelationshipEvent } from './model'
 import type { OperatingCommand } from './commandSchema'
 import { SCHEDULE_HISTORY_LIMIT, operations, stock } from './operations'
 import { assertSchedulePreserved, scheduleChanges, scheduleSnapshot } from './schedule'
-import { staleOffer } from './waitlist'
+import { isWaitlistOffer, staleOffer } from './waitlist'
 
 export function assertMethod(
   s: BusinessState,
@@ -188,6 +188,9 @@ export function runOperatingCommand(
     const old = command.id ? o.messages.find((m) => m.id === command.id) : undefined
     if (command.id && !old) throw new Error('Message does not belong to this workspace.')
     if (old?.status === 'queued') throw new Error('A queued message cannot be edited.')
+    // An offer is checked against the time it names, so its wording is not changed by hand.
+    if (old && isWaitlistOffer(next, old.id))
+      throw new Error('A waitlist offer cannot be edited. Write a new one from the waitlist.')
     if (old && (old.clientId !== command.input.clientId || old.purpose !== command.input.purpose))
       throw new Error('Keep the client and purpose of an existing draft unchanged.')
     const message = {

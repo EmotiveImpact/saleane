@@ -8,6 +8,7 @@ import { dateLabel, timeLabel } from '../domain/format'
 import { Avatar, Button, ErrorMessage, Modal, PageHeader, SegmentedControl } from '../design'
 import type { BusinessState } from '../domain/model'
 import { useInboxView } from '../state/inboxView'
+import { isWaitlistOffer } from '../domain/waitlist'
 import { SentMessages } from '../components/AppointmentMessages'
 import '../components/management.css'
 
@@ -195,7 +196,7 @@ export function Inbox() {
               {pending === message.id ? 'Queueing…' : 'Approve and queue'}
             </Button>
           )}
-          {message.status !== 'queued' && (
+          {message.status !== 'queued' && !isWaitlistOffer(state, message.id) && (
             <Button
               variant="secondary"
               aria-label={`Edit draft ${message.subject}`}

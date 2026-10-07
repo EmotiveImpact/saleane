@@ -244,6 +244,11 @@ function retireOffers(next: BusinessState, entry: WaitlistEntry) {
     if (ids.has(message.id) && message.status !== 'suppressed') message.status = 'suppressed'
 }
 
+/** Whether a message was written as a waitlist offer (its wording names one checked time). */
+export function isWaitlistOffer(s: BusinessState, messageId: string) {
+  return waitlistList(s).some((e) => e.offers?.some((o) => o.messageId === messageId))
+}
+
 /** Whether a message is an offer from a request that has since ended (approving it is refused). */
 export function withdrawnOffer(s: BusinessState, messageId: string) {
   return waitlistList(s).some(
