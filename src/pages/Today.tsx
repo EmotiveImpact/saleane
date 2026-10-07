@@ -12,6 +12,7 @@ import type { Appointment, Client } from '../domain/model'
 import { Agenda } from '../components/Agenda'
 import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
+import { PatchTestsDue } from '../components/PatchTests'
 import type { BookingDefaults } from '../components/BookingDialog'
 
 function greeting(minutes: number) {
@@ -165,6 +166,7 @@ export function Today() {
           )}
         </section>
         <aside className="today-aside">
+          <PatchTestsDue />
           <section className="intelligence-panel">
             <div
               className="intelligence-photo"

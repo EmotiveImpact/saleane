@@ -36,6 +36,7 @@ export function PractitionerDay() {
   const [date, setDate] = useState('')
   const [selected, setSelected] = useState('')
   const [note, setNote] = useState('')
+  const [tested, setTested] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [saving, setSaving] = useState(false)
@@ -402,7 +403,116 @@ export function PractitionerDay() {
                         : 'Further back than this view reaches.'}
                   </dd>
                 </div>
+                {visit.patchTest && (
+                  <div>
+                    <dt>Patch test</dt>
+                    <dd>{visit.patchTest.label}.</dd>
+                  </div>
+                )}
               </dl>
+              {(visit.patchTest || client.patchTests.length > 0) && (
+                <>
+                  <h3>Patch tests</h3>
+                  {client.patchTests.length > 0 && (
+                    <ul
+                      className="practitioner-notes"
+                      aria-label={`Patch tests for ${client.name}`}
+                    >
+                      {client.patchTests.map((t) => (
+                        <li key={t.id}>
+                          <p>
+                            {t.product} ·{' '}
+                            {t.outcome === 'clear'
+                              ? 'clear'
+                              : t.outcome === 'reaction'
+                                ? 'a reaction'
+                                : 'result to record'}
+                          </p>
+                          <small>{dateLabel(t.testedAt.slice(0, 10), locale, true)}</small>
+                          {!t.outcome && (
+                            <span className="practitioner-actions">
+                              <Button
+                                variant="secondary"
+                                disabled={saving}
+                                onClick={() =>
+                                  void save(
+                                    {
+                                      type: 'patch-test-result',
+                                      patchTestId: t.id,
+                                      outcome: 'clear',
+                                      notes: '',
+                                    },
+                                    'The patch test is recorded as clear.',
+                                  )
+                                }
+                              >
+                                Clear
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                disabled={saving}
+                                onClick={() =>
+                                  void save(
+                                    {
+                                      type: 'patch-test-result',
+                                      patchTestId: t.id,
+                                      outcome: 'reaction',
+                                      notes: '',
+                                    },
+                                    'The reaction is recorded. Reception will see it before the visit.',
+                                  )
+                                }
+                              >
+                                A reaction
+                              </Button>
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <form
+                    className="practitioner-note"
+                    onSubmit={async (event) => {
+                      event.preventDefault()
+                      const product = tested.trim()
+                      if (product.length < 2) return
+                      if (
+                        await save(
+                          {
+                            type: 'patch-test',
+                            input: {
+                              clientId: client.id,
+                              testedAt: new Date().toISOString(),
+                              product,
+                              staffId: record.staff.id,
+                              notes: '',
+                            },
+                          },
+                          'Your patch test is recorded. Record the result once you check the skin.',
+                        )
+                      )
+                        setTested('')
+                    }}
+                  >
+                    <label htmlFor="practitioner-patch">Record a patch test you just did</label>
+                    <input
+                      id="practitioner-patch"
+                      value={tested}
+                      maxLength={150}
+                      placeholder="Product or shade tested"
+                      onChange={(e) => setTested(e.target.value)}
+                    />
+                    <Button
+                      type="submit"
+                      variant="secondary"
+                      disabled={saving || tested.trim().length < 2}
+                    >
+                      Save patch test
+                    </Button>
+                  </form>
+                </>
+              )}
               <h3>Notes</h3>
               <form
                 className="practitioner-note"

@@ -1,0 +1,60 @@
+/* V1.5: patch tests. */
+.patch-list {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+.patch-list > li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--stone);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.patch-list > li > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.patch-list small {
+  color: var(--muted);
+  font-size: var(--text-small);
+  overflow-wrap: anywhere;
+}
+.patch-list small .ops-tag {
+  color: var(--ink);
+}
+.patch-next,
+.patch-visit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin: 0 0 14px;
+  font-size: var(--text-small);
+}
+.patch-visit a {
+  color: var(--brand-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.patch-result {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.patch-result label {
+  display: grid;
+  gap: 6px;
+  font-size: var(--text-small);
+}
+@media (max-width: 640px) {
+  .patch-list > li {
+    flex-direction: column;
+  }
+}

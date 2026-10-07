@@ -14,6 +14,7 @@ import '../components/plans.css'
 import { Avatar, Button, ErrorMessage, Modal, Status, TimeChoices } from '../design'
 import { BookingDialog } from './BookingDialog'
 import { CardCheckout, VisitCardPanel } from './CardPayments'
+import { VisitPatchTest } from './PatchTests'
 
 export function AppointmentDialog({
   appointmentId,
@@ -854,6 +855,9 @@ export function AppointmentDialog({
               {resource.name} · {appointment.bookedBufferMinutes} minute turnaround
             </p>
           </div>
+          {['confirmed', 'arrived'].includes(appointment.status) && (
+            <VisitPatchTest appointment={appointment} />
+          )}
           <div className="preference-note">
             <span>Good to remember</span>
             <p>{client.preferences || 'No preferences recorded yet.'}</p>

@@ -1,6 +1,11 @@
 import { MapPin } from 'lucide-react'
 import '../guest-extras.css'
 
+/** What a guest is told when their treatment needs a patch test. */
+function patchTestNote(hours: number) {
+  return `This treatment needs a quick patch test at least ${hours} hours before. If you have not had one with us recently, we will be in touch to arrange it.`
+}
+
 /**
  * The studio's "before you arrive" notes: one studio-wide (directions, parking, how long to
  * allow) and one for the booked service. Plain text written by the studio; nothing clinical.
@@ -9,11 +14,16 @@ import '../guest-extras.css'
 export function BeforeYouArrive({
   studioNote,
   serviceNote,
+  patchTestHours,
 }: {
   studioNote?: string
   serviceNote?: string
+  /** V1.5: set when the treatment needs a patch test, to say how far ahead. */
+  patchTestHours?: number
 }) {
-  const notes = [studioNote, serviceNote].map((note) => note?.trim() ?? '').filter(Boolean)
+  const notes = [studioNote, serviceNote, patchTestHours ? patchTestNote(patchTestHours) : '']
+    .map((note) => note?.trim() ?? '')
+    .filter(Boolean)
   if (!notes.length) return null
   return (
     <section className="before-arrive" aria-labelledby="before-arrive-heading">
