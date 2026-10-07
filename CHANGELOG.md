@@ -2,6 +2,14 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · In review · Booked prices keep their tax
+
+**Status: built and checked locally; nothing deployed or charged.**
+
+- Each new visit stores the studio's tax setting at the moment it is booked, and checkout uses it. A guest pays the all-in price they were shown, even if the studio changes its tax setting before the visit (owner decision, 7 October 2026).
+- Visits booked before this change keep following the studio's current setting.
+- The checkout panel now says "Tax follows the setting in place when this visit was booked."
+
 ## 2026-10-07 · Merged · Small extras
 
 **Status: built and checked locally; nothing deployed, nothing sent or charged.**

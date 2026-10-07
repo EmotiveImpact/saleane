@@ -278,14 +278,16 @@ describe('honest manual money and immutable receipts', () => {
     )
   })
   it('calculates inclusive tax, a bounded discount, tips and deposit application in minor units', () => {
-    const b = booked()
+    const b = booked(
+      apply(local(), { type: 'tax', label: 'Configured VAT', rateBps: 2000, inclusive: true })
+        .state,
+    )
     let s = apply(b.state, {
       type: 'deposit',
       appointmentId: b.recordId,
       amountMinor: 2500,
       method: 'cash',
     }).state
-    s = apply(s, { type: 'tax', label: 'Configured VAT', rateBps: 2000, inclusive: true }).state
     s = apply(s, { type: 'arrive', appointmentId: b.recordId }).state
     const settled = apply(s, {
       type: 'checkout',
@@ -318,14 +320,15 @@ describe('honest manual money and immutable receipts', () => {
     expect(changed.state.sales[0]).toEqual(sale)
   })
   it('adds exclusive tax once and never taxes tips', () => {
-    const b = booked()
-    let s = apply(b.state, {
-      type: 'tax',
-      label: 'Configured sales tax',
-      rateBps: 825,
-      inclusive: false,
-    }).state
-    s = apply(s, { type: 'arrive', appointmentId: b.recordId }).state
+    const b = booked(
+      apply(local(), {
+        type: 'tax',
+        label: 'Configured sales tax',
+        rateBps: 825,
+        inclusive: false,
+      }).state,
+    )
+    const s = apply(b.state, { type: 'arrive', appointmentId: b.recordId }).state
     const sale = apply(s, {
       type: 'checkout',
       appointmentId: b.recordId,
@@ -335,6 +338,48 @@ describe('honest manual money and immutable receipts', () => {
     expect(sale.taxMinor).toBe(784)
     expect(sale.totalMinor).toBe(11284)
     expect(serviceRevenue(sale)).toBe(9500)
+  })
+  it('settles a visit at the tax basis it was booked under, whatever changes later', () => {
+    // Booked with no tax, then the studio adds 8.25% sales tax: the guest pays what they were shown.
+    const before = booked()
+    let s = apply(before.state, {
+      type: 'tax',
+      label: 'Sales tax',
+      rateBps: 825,
+      inclusive: false,
+    }).state
+    // A visit booked after the change carries the new basis.
+    const after = booked(s, { startMinutes: input.startMinutes + 120 })
+    s = after.state
+    s = apply(s, { type: 'arrive', appointmentId: before.recordId }).state
+    s = apply(s, { type: 'arrive', appointmentId: after.recordId }).state
+    s = apply(s, {
+      type: 'checkout',
+      appointmentId: before.recordId,
+      tipMinor: 0,
+      method: 'cash',
+    }).state
+    s = apply(s, {
+      type: 'checkout',
+      appointmentId: after.recordId,
+      tipMinor: 0,
+      method: 'cash',
+    }).state
+    const [first, second] = s.sales
+    expect(first.taxMinor).toBe(0)
+    expect(first.totalMinor).toBe(first.serviceMinor)
+    expect(second.taxMinor).toBe(784)
+    // Visits saved before the snapshot existed still follow the current setting.
+    const legacy = structuredClone(after.state)
+    delete legacy.appointments.find((a) => a.id === before.recordId)!.bookedTax
+    const arrived = apply(legacy, { type: 'arrive', appointmentId: before.recordId }).state
+    const sale = apply(arrived, {
+      type: 'checkout',
+      appointmentId: before.recordId,
+      tipMinor: 0,
+      method: 'cash',
+    }).state.sales[0]
+    expect(sale.taxMinor).toBe(784)
   })
   it('rejects refunds beyond the original total and repeated references never duplicate funds', () => {
     const done = completed(),
