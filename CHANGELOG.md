@@ -2,11 +2,11 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
-## In review · Inbox View switch beside "Write a draft"
+## In review · Inbox layout chosen in settings
 
 **Status: draft pull request, not merged.** Layout only.
 
-- The Inbox "View" switch (Two columns, List with side panel) now sits on the same line as "Write a draft" at the top of the page, instead of on a line of its own above the messages. On a phone it sits just above the button.
+- The Inbox "View" switch has left the Inbox page. Each person now chooses "Two columns, like email" (the default) or "List with a side panel" under Inbox layout in workspace settings. The choice is kept in this browser and the Inbox follows it at once.
 
 ## 2026-10-07 · Merged · The new look: fonts, studio colours and a Clients directory for hundreds
 

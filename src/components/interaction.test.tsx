@@ -267,17 +267,15 @@ describe('local operating surfaces', () => {
     )
   })
 
-  it('opens the inbox in two columns and remembers a switch to the side panel', async () => {
+  it('opens the inbox in two columns and lets each person choose the side panel in settings', async () => {
     const user = userEvent.setup()
     show('/inbox')
-    const columns = await screen.findByRole('button', { name: 'Two columns' })
-    expect(columns).toHaveAttribute('aria-pressed', 'true')
-    await user.click(screen.getByRole('button', { name: 'List with side panel' }))
+    expect(await screen.findByText('Choose a message to read it here.')).toBeInTheDocument()
+    await user.click(screen.getAllByRole('button', { name: /Workspace settings/ })[0])
+    expect(screen.getByRole('radio', { name: 'Two columns, like email' })).toBeChecked()
+    await user.click(screen.getByRole('radio', { name: 'List with a side panel' }))
     expect(localStorage.getItem('saleane-inbox-view:demo')).toBe('panel')
-    expect(screen.getByRole('button', { name: 'List with side panel' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
+    expect(screen.queryByText('Choose a message to read it here.')).not.toBeInTheDocument()
   })
 
   it('requires refund provenance confirmation and retains the settled receipt', async () => {

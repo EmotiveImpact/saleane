@@ -558,35 +558,6 @@
 }
 
 /* Inbox: two columns by default, or a full-width list with a side panel. */
-.inbox-view {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-right: 8px;
-  font-size: var(--text-meta);
-  color: var(--muted);
-}
-.inbox-view > span {
-  margin-right: 4px;
-}
-.inbox-view button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 34px;
-  padding: 6px 14px;
-  border: 1px solid var(--line2);
-  border-radius: var(--radius-pill);
-  background: var(--paper);
-  color: var(--ink);
-  font: inherit;
-  cursor: pointer;
-}
-.inbox-view button[aria-pressed='true'] {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: #fff;
-}
 .inbox-card {
   margin-top: 18px;
   padding: 0;
@@ -796,9 +767,6 @@
   }
   .inbox-pane {
     padding: 18px;
-  }
-  .inbox-view button {
-    padding: 6px 10px;
   }
   .inbox-pane-header {
     flex-wrap: wrap;

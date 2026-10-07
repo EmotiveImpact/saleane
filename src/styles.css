@@ -4338,3 +4338,7 @@ fieldset {
   outline: 2px solid var(--focus);
   outline-offset: 3px;
 }
+
+.layout-choice .colour-swatch {
+  padding: 8px 16px;
+}

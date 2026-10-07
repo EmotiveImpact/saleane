@@ -6,6 +6,8 @@ import { storageKey } from '../state/storage'
 import { Button, ErrorMessage, Modal } from '../design'
 import { firstColours, readColours, saveColours, secondColours } from '../state/studioColours'
 import type { StudioColours } from '../state/studioColours'
+import { readInboxView, saveInboxView } from '../state/inboxView'
+import type { InboxView } from '../state/inboxView'
 
 function ColourChoice({
   legend,
@@ -41,15 +43,20 @@ function ColourChoice({
 }
 
 export function WorkspaceSettings({ onClose }: { onClose: () => void }) {
-  const { state, reset, region, changeRegion, mode, role, reload, enterDemo } = useStore()
+  const { state, reset, region, changeRegion, mode, role, reload, enterDemo, session } = useStore()
   const [confirmReset, setConfirmReset] = useState(false),
     [pending, setPending] = useState(false),
     [error, setError] = useState(''),
-    [colours, setColours] = useState(() => readColours(state.organisation.id))
+    [colours, setColours] = useState(() => readColours(state.organisation.id)),
+    [inboxView, setInboxView] = useState(() => readInboxView(session?.user.id))
   const canStyle = mode === 'demo' || role === 'owner' || role === 'manager'
   function choose(next: StudioColours) {
     setColours(next)
     saveColours(state.organisation.id, next)
+  }
+  function chooseInboxView(next: InboxView) {
+    setInboxView(next)
+    saveInboxView(session?.user.id, next)
   }
   function download() {
     let saved = JSON.stringify(state, null, 2)
@@ -126,6 +133,32 @@ export function WorkspaceSettings({ onClose }: { onClose: () => void }) {
             />
           </section>
         )}
+        <section className="studio-colours" aria-labelledby="inbox-view-title">
+          <h3 id="inbox-view-title">Inbox layout</h3>
+          <p>Your own choice, saved in this browser.</p>
+          <fieldset className="colour-choice layout-choice">
+            <legend className="sr-only">Inbox layout</legend>
+            <div>
+              {(
+                [
+                  ['columns', 'Two columns, like email'],
+                  ['panel', 'List with a side panel'],
+                ] as const
+              ).map(([value, label]) => (
+                <label key={value} className="colour-swatch">
+                  <input
+                    type="radio"
+                    name="inbox-view"
+                    value={value}
+                    checked={inboxView === value}
+                    onChange={() => chooseInboxView(value)}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        </section>
         <p>
           This is a local release candidate. Use fictional client details while reviewing. Hosted
           operations, payment settlement and message delivery are later release gates.
