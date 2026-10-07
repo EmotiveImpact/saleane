@@ -1,13 +1,6 @@
 import { z } from 'zod'
 import { parseState } from './model'
-import {
-  businessDate,
-  hoursFor,
-  instantFor,
-  operations,
-  staffHoursFor,
-  visitTax,
-} from './operations'
+import { businessDate, operations, visitTax } from './operations'
 import { bookingSchema, commandSchema, contactSchema } from './commandSchema'
 import type { Command, ContactInput } from './commandSchema'
 import { assertMethod, paymentDetail, runOperatingCommand } from './operatingCommands'
@@ -17,89 +10,13 @@ import { recordTillCount } from './tillCount'
 export { commandSchema } from './commandSchema'
 export type { Command, BookingInput, ContactInput } from './commandSchema'
 import type { Appointment, BusinessState, RelationshipEvent } from './model'
-import { addDays, dateLabel, money, timeLabel } from './format'
-
-const civilDate = z.iso.date()
+import { dateLabel, money, timeLabel } from './format'
+import { availableAllocation } from './allocation'
+import { runSwitchingCommand } from './switching'
 
 export type CommandResult =
   { ok: true; state: BusinessState; recordId: string } | { ok: false; error: string }
 
-function availableAllocation(
-  s: BusinessState,
-  serviceId: string,
-  staffId: string,
-  date: string,
-  start: number,
-  duration: number,
-  buffer: number,
-  resourceType: string,
-  excludeId?: string,
-  now = new Date().toISOString(),
-  preferredResourceId?: string,
-): string | null {
-  const staff = s.staff.find((item) => item.id === staffId)
-  if (
-    !staff ||
-    staff.archived ||
-    !staff.serviceIds.includes(serviceId) ||
-    !civilDate.safeParse(date).success ||
-    date < businessDate(s, now) ||
-    !Number.isInteger(start) ||
-    start < 0 ||
-    start % 15 !== 0
-  )
-    return null
-  const end = start + duration + buffer
-  const h = hoursFor(s, date),
-    ph = staffHoursFor(s, staffId, date)
-  if (
-    !h ||
-    !ph ||
-    h.closed ||
-    ph.closed ||
-    start < Math.max(h.open, ph.open) ||
-    end > Math.min(h.close, ph.close)
-  )
-    return null
-  if (
-    operations(s).closures.some(
-      (c) =>
-        c.date === date &&
-        (!c.staffId || c.staffId === staffId) &&
-        start < c.endMinutes &&
-        end > c.startMinutes,
-    )
-  )
-    return null
-  try {
-    const instant = instantFor(s, date, start)
-    const finish = instantFor(s, end === 1440 ? addDays(date, 1) : date, end % 1440)
-    if (Date.parse(finish) - Date.parse(instant) !== (duration + buffer) * 60000) return null
-    if (operations(s).mode === 'local' && Date.parse(instant) < Date.parse(now)) return null
-  } catch {
-    return null
-  }
-
-  const overlapping = s.appointments.filter(
-    (a) =>
-      a.date === date &&
-      a.id !== excludeId &&
-      a.status !== 'cancelled' &&
-      a.status !== 'no_show' &&
-      start < a.startMinutes + a.bookedDurationMinutes + a.bookedBufferMinutes &&
-      end > a.startMinutes,
-  )
-  if (overlapping.some((a) => a.staffId === staffId)) return null
-  return (
-    s.resources.find(
-      (resource) =>
-        !resource.archived &&
-        (!preferredResourceId || resource.id === preferredResourceId) &&
-        resource.type === resourceType &&
-        !overlapping.some((a) => a.resourceId === resource.id),
-    )?.id ?? null
-  )
-}
 export function availableResource(
   s: BusinessState,
   serviceId: string,
@@ -579,6 +496,13 @@ export function execute(
       recordId = client.id
     } else if (command.type === 'till-count') {
       recordId = recordTillCount(next, command, now, businessDate(s, now), makeId)
+    } else if (
+      command.type === 'import-services' ||
+      command.type === 'import-appointments' ||
+      command.type === 'import-balances' ||
+      command.type === 'balance-settle'
+    ) {
+      recordId = runSwitchingCommand(next, command, now, makeId, addEvent, createClient)
     } else {
       recordId = runOperatingCommand(next, command, now, makeId, addEvent)
     }
@@ -614,7 +538,17 @@ export function dispatch(
   const counted = new Set((s.tillCounts ?? []).map((c) => c.id))
   for (const count of result.state.tillCounts ?? [])
     if (!counted.has(count.id)) count.actor = actorName
-  for (const key of ['messages', 'movements', 'refunds', 'scheduleHistory'] as const) {
+  const settled = new Set((operations(s).balances ?? []).filter((b) => b.settled).map((b) => b.id))
+  for (const balance of operations(result.state).balances ?? [])
+    if (balance.settled && !settled.has(balance.id)) balance.settled.actor = actorName
+  for (const key of [
+    'messages',
+    'movements',
+    'refunds',
+    'scheduleHistory',
+    'imports',
+    'balances',
+  ] as const) {
     const ids = new Set((operations(s)[key] ?? []).map((r) => r.id))
     const records = operations(result.state)[key] ?? []
     records

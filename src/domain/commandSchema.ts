@@ -23,6 +23,7 @@ const money = z.number().int().nonnegative().max(100_000_000)
 const method = paymentMethodSchema
 /** Set only by the server when a payment provider took the money; the API refuses it from a page. */
 const processor = processorSchema.optional()
+const importSource = z.string().trim().min(2).max(100)
 export const contactSchema = clientSchema
   .pick({ name: true, email: true, phone: true, marketingConsent: true })
   .extend({
@@ -154,6 +155,65 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     clientId: id,
     contact: contactSchema,
     preferences: z.string().trim().max(1000),
+  }),
+  // PILOT-03: moving from another system. Each import is reviewed row by row before it is sent.
+  z.object({
+    type: z.literal('import-services'),
+    source: importSource,
+    services: z
+      .array(
+        serviceSchema
+          .omit({ id: true, organisationId: true, archived: true, prepNote: true })
+          .extend({ staffIds: z.array(id).max(100) }),
+      )
+      .min(1)
+      .max(200),
+    reviewed: z.literal(true),
+  }),
+  z.object({
+    type: z.literal('import-appointments'),
+    source: importSource,
+    appointments: z
+      .array(
+        z.object({
+          clientId: id.optional(),
+          contact: contactSchema.optional(),
+          serviceId: id,
+          staffId: id,
+          date: z.iso.date(),
+          startMinutes: z.number().int().min(0).max(1439),
+          /** The price the guest was quoted in the old system, kept as booked. */
+          priceMinor: money,
+          /** A deposit the guest already paid to the old system. */
+          depositPaidMinor: money,
+          /** The old system's booking reference, when it has one. */
+          reference: z.string().trim().max(40).optional(),
+        }),
+      )
+      .min(1)
+      .max(200),
+    reviewed: z.literal(true),
+  }),
+  z.object({
+    type: z.literal('import-balances'),
+    source: importSource,
+    balances: z
+      .array(
+        z.object({
+          clientId: id,
+          kind: z.enum(['credit', 'owed']),
+          amountMinor: money.refine((n) => n > 0),
+          note: z.string().trim().max(200),
+        }),
+      )
+      .min(1)
+      .max(500),
+    reviewed: z.literal(true),
+  }),
+  z.object({
+    type: z.literal('balance-settle'),
+    balanceId: id,
+    note: z.string().trim().min(2).max(200),
   }),
   z.object({
     type: z.literal('import-clients'),

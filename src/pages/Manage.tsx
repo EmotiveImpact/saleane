@@ -13,6 +13,7 @@ import {
   Store,
   Users,
   CreditCard,
+  ArrowRightLeft,
 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { useStore } from '../state/context'
@@ -31,6 +32,7 @@ import { MessageSettings } from '../components/AppointmentMessages'
 import { GuestNotesSettings } from '../components/GuestNotesSettings'
 import { ShareBookingPage } from '../components/ShareBookingPage'
 import { PaymentSettings } from '../components/CardPayments'
+import { SwitchingSettings } from '../components/Switching'
 import '../components/management.css'
 
 const sections = [
@@ -44,6 +46,7 @@ const sections = [
   { id: 'resource', label: 'Spaces & equipment', icon: Armchair },
   { id: 'hours', label: 'Hours & closures', icon: CalendarDays },
   { id: 'privacy', label: 'Data & privacy', icon: ShieldCheck },
+  { id: 'switching', label: 'Switching over', icon: ArrowRightLeft },
   { id: 'workspace', label: 'This workspace', icon: Store },
 ] as const
 type SectionId = (typeof sections)[number]['id']
@@ -260,6 +263,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
             {section === 'payments' && <PaymentSettings />}
             {section === 'workspace' && <WorkspaceSection onReset={() => setReplaced(true)} />}
             {section === 'privacy' && <StudioPrivacy />}
+            {section === 'switching' && <SwitchingSettings />}
             {section === 'business' && (
               <section className="surface ops-panel">
                 <header>

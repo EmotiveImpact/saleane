@@ -24,6 +24,7 @@ import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
 import { ClientMessagePreferences, SentMessages } from '../components/AppointmentMessages'
 import { ClientCards } from '../components/CardPayments'
+import { CarriedBalances } from '../components/Switching'
 import { ClientPrivacy } from '../components/Privacy'
 
 // A booking's detail opens with the service, date and time already shown in
@@ -631,6 +632,7 @@ export function ClientRelationship() {
             <ClientMessagePreferences client={client} />
           </section>
           <ClientCards clientId={client.id} />
+          <CarriedBalances clientId={client.id} />
           <SentMessages clientId={client.id} />
           <ClientPrivacy clientId={client.id} />
         </aside>

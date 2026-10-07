@@ -163,7 +163,9 @@ export function planMessages(
       if (a.status !== 'confirmed') continue
       if (settings.confirmations && !told.some((row) => row.slot === slot)) {
         if (told.length || (moved && now - moved < RECENT_MS)) add('changed', channel)
-        else if (now - Date.parse(a.createdAt) < RECENT_MS) add('confirmation', channel)
+        // A visit carried over from another system was confirmed there already (PILOT-03).
+        else if (a.source !== 'import' && now - Date.parse(a.createdAt) < RECENT_MS)
+          add('confirmation', channel)
       }
       if (settings.reminders && !mine.some((row) => row.kind === 'reminder' && row.slot === slot)) {
         const opens = start - settings.hoursBefore * HOUR
