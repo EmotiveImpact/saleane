@@ -288,6 +288,54 @@ describe('card payments (PILOT-02)', () => {
     expect((await workspace(owner)).state.sales).toHaveLength(1)
   })
 
+  it('charges a card reader for what a gift card leaves, and records both on the receipt', async () => {
+    const { owner, serviceId, staffId, slug } = await localStudio()
+    const { appointmentId } = await book(slug, serviceId, staffId)
+    const giftCardId = await run(owner, {
+      type: 'gift-card-sell',
+      input: {
+        kind: 'money',
+        valueMinor: 3000,
+        purchaserName: 'Lee Buyer',
+        recipientName: '',
+        message: '',
+      },
+      method: 'cash',
+    })
+    await run(owner, { type: 'arrive', appointmentId })
+    const base = { appointmentId, purpose: 'balance', route: 'reader', readerId: 'test-reader' }
+    // A gift card amount without the card, or more than it holds, is refused before any charge.
+    expect((await pay(owner, { ...base, amountMinor: 6500, giftCardMinor: 3000 })).statusCode).toBe(
+      422,
+    )
+    expect(
+      (await pay(owner, { ...base, amountMinor: 5500, giftCardId, giftCardMinor: 4000 }))
+        .statusCode,
+    ).not.toBe(200)
+    const response = await pay(owner, {
+      ...base,
+      amountMinor: 6500,
+      giftCardId,
+      giftCardMinor: 3000,
+    })
+    expect(response.statusCode, response.body).toBe(200)
+    const attempt = response.json<Attempt>()
+    await api.inject({
+      method: 'POST',
+      url: `/api/workspaces/${owner.orgId}/payments/${attempt.id}/test-tap`,
+      headers: headers(owner),
+      payload: { approve: true },
+    })
+    const { state } = await workspace(owner)
+    expect(state.sales[0]).toMatchObject({
+      method: 'card',
+      giftCardId,
+      giftCardMinor: 3000,
+      balanceMinor: 6500,
+    })
+    expect(state.giftCards![0].redemptions).toHaveLength(1)
+  })
+
   it('takes a missed-visit fee within the studio policy, then refunds it to the card', async () => {
     const { owner, serviceId, staffId, slug } = await localStudio()
     const { appointmentId, token } = await book(slug, serviceId, staffId)

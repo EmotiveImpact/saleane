@@ -261,7 +261,7 @@ export function GiftCards() {
         >
           <GiftCardFace card={soldCard} />
           <div className="ops-actions">
-            <Button onClick={() => window.print()}>Print</Button>
+            <Button onClick={printCard}>Print</Button>
             <Button variant="secondary" onClick={() => setDialog(null)}>
               Done
             </Button>
@@ -474,6 +474,17 @@ export function GiftCards() {
         )}
     </div>
   )
+}
+
+/** Prints only the card, then leaves printing as it was for every other page. */
+function printCard() {
+  document.body.classList.add('printing-gift')
+  const done = () => {
+    document.body.classList.remove('printing-gift')
+    window.removeEventListener('afterprint', done)
+  }
+  window.addEventListener('afterprint', done)
+  window.print()
 }
 
 /** The card as the guest would see it, for reading out or printing. */

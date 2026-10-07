@@ -213,11 +213,14 @@ export function CardCheckout({
   amountMinor,
   tipMinor,
   discountMinor,
+  giftCard,
 }: {
   appointmentId: string
   amountMinor: number
   tipMinor: number
   discountMinor: number
+  /** V1.5: a gift card paying part of the visit; the card is charged the rest. */
+  giftCard?: { id: string; amountMinor: number }
 }) {
   const { state, blocked } = useStore()
   const { reply, error: loadError } = usePayments({ appointmentId })
@@ -284,6 +287,7 @@ export function CardCheckout({
             amountMinor,
             tipMinor,
             discountMinor,
+            ...(giftCard ? { giftCardId: giftCard.id, giftCardMinor: giftCard.amountMinor } : {}),
           })
         }}
       >

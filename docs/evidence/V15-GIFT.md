@@ -11,7 +11,7 @@ Recorded 7 October 2026 in Chromium (Playwright) against the built app (`npm run
 - **Cancel:** the owner cancels the £75 card, returning £75 by demo card; the card reads "Cancelled · £0.00 left" with the refund and reason in its history. A used-up card offers no actions.
 - No console errors throughout. The full sweep (`scripts/qualify.mjs`, now including the Gift cards page) reports 111 pages with zero axe violations, no sideways scroll and no missing focus; the only console errors are the expected 401s on the signed-out demo account page.
 
-Screenshots: [gift cards page](V15-GIFT-page.png), [selling](V15-GIFT-sell.png), [card ready](V15-GIFT-ready.png), [code applied at checkout](V15-GIFT-checkout.png), [receipt](V15-GIFT-receipt.png), [history](V15-GIFT-history.png), [cancelled with refund](V15-GIFT-cancelled.png), [page at 390px](V15-GIFT-390.png).
+Screenshots: [gift cards page](V15-GIFT-page.png), [selling](V15-GIFT-sell.png), [card ready](V15-GIFT-ready.png), [code applied at checkout](V15-GIFT-checkout.png), [receipt](V15-GIFT-receipt.png), [receipt in Money](V15-GIFT-money-receipt.png), [history](V15-GIFT-history.png), [cancelled with refund](V15-GIFT-cancelled.png), [page at 390px](V15-GIFT-390.png).
 
 ## Automated checks
 
@@ -19,7 +19,7 @@ Screenshots: [gift cards page](V15-GIFT-page.png), [selling](V15-GIFT-sell.png),
 
 ## Limits
 
-- Cards are sold and spent at the desk. Guests cannot buy one online yet; that needs a card provider, which stays in test mode.
+- When the studio takes cards through SALEANE, a saved card or card reader is charged only what the gift card leaves (`server/payments.test.ts`, test provider only). Cards are sold and spent at the desk. Guests cannot buy one online yet; that needs a card provider, which stays in test mode.
 - A card can pay for any visit. A voucher names a treatment and holds its price on the day it was sold, so if the price rises the guest pays the difference.
 - Money on a card counts as takings only when it pays for a visit. A refund on a receipt returns only what was paid at the desk, not the card's share, and the card's share does not go back onto the card.
 - SALEANE records payments and refunds for cards; it does not take or return money itself.

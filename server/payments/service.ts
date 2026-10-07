@@ -24,6 +24,8 @@ export type AttemptRow = {
   currency: 'GBP' | 'USD'
   tip_minor: number
   discount_minor: number
+  gift_card_id: string | null
+  gift_card_minor: number
   save_card: number
   refund_of: string | null
   reason: string | null
@@ -53,12 +55,13 @@ export type CardRow = {
   removed_at: number | null
 }
 
-/** The amount still owed at checkout, with the tip and discount the desk entered. */
+/** The amount still owed at checkout, with the tip, discount and any gift card the desk entered. */
 export function balanceDue(
   s: BusinessState,
   appointmentId: string,
   tipMinor: number,
   discountMinor: number,
+  giftCardMinor = 0,
 ) {
   const a = s.appointments.find((item) => item.id === appointmentId)
   if (!a) return null
@@ -70,7 +73,7 @@ export function balanceDue(
     depositMinor: deposit,
     tax: visitTax(s, a),
   })
-  return totalMinor - deposit
+  return totalMinor - deposit - giftCardMinor
 }
 
 /**
@@ -111,13 +114,16 @@ export function createPayments(ctx: Context, provider: PaymentProvider) {
       | 'ledger_id'
       | 'created_at'
       | 'updated_at'
-    >,
+      | 'gift_card_id'
+      | 'gift_card_minor'
+    > &
+      Partial<Pick<AttemptRow, 'gift_card_id' | 'gift_card_minor'>>,
   ) => {
     const id = randomUUID()
     const time = now()
     db.run(
-      `INSERT INTO payment_attempts(id,organisation_id,appointment_id,client_id,purpose,route,amount_minor,currency,tip_minor,discount_minor,save_card,refund_of,reason,provider,status,request_key,actor_id,created_at,updated_at)
-       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,'started',?,?,?,?)`,
+      `INSERT INTO payment_attempts(id,organisation_id,appointment_id,client_id,purpose,route,amount_minor,currency,tip_minor,discount_minor,gift_card_id,gift_card_minor,save_card,refund_of,reason,provider,status,request_key,actor_id,created_at,updated_at)
+       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'started',?,?,?,?)`,
       id,
       row.organisation_id,
       row.appointment_id,
@@ -128,6 +134,8 @@ export function createPayments(ctx: Context, provider: PaymentProvider) {
       row.currency,
       row.tip_minor,
       row.discount_minor,
+      row.gift_card_id ?? null,
+      row.gift_card_minor ?? 0,
       row.save_card,
       row.refund_of,
       row.reason,
@@ -164,13 +172,24 @@ export function createPayments(ctx: Context, provider: PaymentProvider) {
     if (row.purpose === 'balance') {
       if (s.sales.some((sale) => sale.appointmentId === row.appointment_id))
         throw new Error('The visit had already been checked out.')
-      if (balanceDue(s, row.appointment_id, row.tip_minor, row.discount_minor) !== row.amount_minor)
+      if (
+        balanceDue(
+          s,
+          row.appointment_id,
+          row.tip_minor,
+          row.discount_minor,
+          row.gift_card_minor,
+        ) !== row.amount_minor
+      )
         throw new Error('The visit’s total changed while the card was being charged.')
       return {
         type: 'checkout',
         appointmentId: row.appointment_id,
         tipMinor: row.tip_minor,
         discountMinor: row.discount_minor,
+        ...(row.gift_card_id
+          ? { giftCardId: row.gift_card_id, giftCardMinor: row.gift_card_minor }
+          : {}),
         ...base,
       }
     }

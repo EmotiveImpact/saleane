@@ -145,7 +145,6 @@ export function AppointmentDialog({
     setGiftAmount(minorInput(Math.min(standing.balanceMinor, beforeGift)))
     setGiftError('')
     setCollected(false)
-    if (method === 'card') setMethod('cash')
   }
   const needsConfirm = !sandbox && total > 0
   const tipPreset = (percent: number) => Math.round((appointment.bookedPriceMinor * percent) / 100)
@@ -760,7 +759,7 @@ export function AppointmentDialog({
                     </>
                   ) : (
                     <>
-                      {cardTaking && !chosenPlan && !gift && (
+                      {cardTaking && !chosenPlan && (
                         <option value="card">Card through SALEANE</option>
                       )}
                       <option value="cash">Cash received</option>
@@ -824,6 +823,7 @@ export function AppointmentDialog({
               amountMinor={total}
               tipMinor={Number.isFinite(tipMinor) ? tipMinor : 0}
               discountMinor={Number.isFinite(discountMinor) ? discountMinor : 0}
+              giftCard={gift && giftMinor > 0 ? { id: gift.id, amountMinor: giftMinor } : undefined}
             />
           )}
           <ErrorMessage error={error} />

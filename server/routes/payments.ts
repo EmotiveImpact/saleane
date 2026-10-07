@@ -79,6 +79,9 @@ const staffPay = z
     amountMinor: money.refine((v) => v > 0),
     tipMinor: money.default(0),
     discountMinor: money.default(0),
+    /** V1.5: a gift card paying part of the balance; the card is charged the rest. */
+    giftCardId: z.string().min(1).max(150).optional(),
+    giftCardMinor: money.default(0),
     readerId: z.string().min(1).max(100).optional(),
   })
   .strict()
@@ -338,13 +341,21 @@ export function paymentRoutes(payments: Payments) {
         if (data.purpose === 'balance') {
           if (fresh.state.sales.some((sale) => sale.appointmentId === a.id))
             fail(409, 'This visit has already been checked out.')
-          expected = balanceDue(fresh.state, a.id, data.tipMinor, data.discountMinor) ?? 0
+          if (!!data.giftCardId !== data.giftCardMinor > 0)
+            fail(422, 'Name the gift card and the amount it pays together.')
+          expected =
+            balanceDue(fresh.state, a.id, data.tipMinor, data.discountMinor, data.giftCardMinor) ??
+            0
+          // The rehearsal checks the gift card can pay its share now.
           if (expected > 0)
             rehearse(fresh, {
               type: 'checkout',
               appointmentId: a.id,
               tipMinor: data.tipMinor,
               discountMinor: data.discountMinor,
+              ...(data.giftCardId
+                ? { giftCardId: data.giftCardId, giftCardMinor: data.giftCardMinor }
+                : {}),
               ...placeholder,
             })
         } else if (data.purpose === 'deposit') {
@@ -395,6 +406,9 @@ export function paymentRoutes(payments: Payments) {
           currency: fresh.state.organisation.currency,
           tip_minor: data.purpose === 'balance' ? data.tipMinor : 0,
           discount_minor: data.purpose === 'balance' ? data.discountMinor : 0,
+          ...(data.purpose === 'balance' && data.giftCardId
+            ? { gift_card_id: data.giftCardId, gift_card_minor: data.giftCardMinor }
+            : {}),
           save_card: 0,
           refund_of: null,
           // Kept so a check after an unclear answer repeats the request exactly.

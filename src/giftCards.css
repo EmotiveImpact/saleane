@@ -120,15 +120,16 @@
     gap: 2px;
   }
 }
+/* Only while the gift card's own Print button is printing; other pages print as usual. */
 @media print {
-  body * {
+  body.printing-gift * {
     visibility: hidden;
   }
-  .gift-face,
-  .gift-face * {
+  body.printing-gift .gift-face,
+  body.printing-gift .gift-face * {
     visibility: visible;
   }
-  .gift-face {
+  body.printing-gift .gift-face {
     position: fixed;
     inset: 20mm;
     height: auto;
