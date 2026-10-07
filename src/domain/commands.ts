@@ -265,7 +265,7 @@ export function execute(
         title: input.source === 'rebook' ? 'Next visit booked' : 'Appointment booked',
         detail: `${service.name} · ${dateLabel(input.date, org.locale)} at ${timeLabel(input.startMinutes, org.locale)}. ${operations(s).mode === 'sandbox' ? 'Deposit simulated; no payment taken.' : 'No payment collected. Any required deposit remains outstanding.'}${input.channel ? ` Booked through your ${channelLabel(input.channel)} link.` : ''}`,
       })
-      if (input.waitlistId) fillFromWaitlist(next, input.waitlistId, appointment, now)
+      if (input.waitlistId) fillFromWaitlist(next, input.waitlistId, appointment, now, 'book')
       recordId = appointment.id
     } else if (
       command.type === 'reschedule' ||
@@ -318,7 +318,7 @@ export function execute(
           allocationChange: { from, to },
           detail: `${dateLabel(from.date, org.locale)} at ${timeLabel(from.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === from.staffId)!.name} → ${dateLabel(to.date, org.locale)} at ${timeLabel(to.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === to.staffId)!.name}. Booked service and deposit retained; no message sent.`,
         })
-        if (command.waitlistId) fillFromWaitlist(next, command.waitlistId, appointment, now)
+        if (command.waitlistId) fillFromWaitlist(next, command.waitlistId, appointment, now, 'move')
       } else {
         const status = command.type === 'cancel' ? 'cancelled' : 'no_show'
         if (appointment.status === status) return { ok: true, state: s, recordId: appointment.id }

@@ -22,6 +22,6 @@ Screenshots: [waitlist page](V15-WAITLIST-page.png), [offer written](V15-WAITLIS
 
 - SALEANE never contacts anyone from the waitlist by itself. An offer is a draft the team approves in the Inbox; with no provider connected, approved messages wait unsent.
 - An offer does not hold the time; the first to answer gets it, and the desk books or moves the visit.
-- Openings are searched up to 31 days ahead on a 15-minute grid, and the earliest three are shown.
+- Openings are searched across the whole requested window (at most 90 days) on a 15-minute grid, and the earliest three are shown. For a guest with a visit, times are checked with the length and room their visit was booked with.
 - Removing a request is a status change with a reason; nothing is deleted. Requests are kept 90 days after their dates end, then wait for an owner or manager to approve deletion or keep them longer.
 - Safari and Firefox were not checked.

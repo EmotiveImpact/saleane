@@ -24,8 +24,6 @@ type AddEvent = (
 
 export type Opening = { date: string; startMinutes: number; staffId: string }
 
-/** How far ahead the openings search looks, so a long window stays quick to read. */
-const SEARCH_DAYS = 31
 const LABEL: Record<WaitlistTime, string> = {
   morning: 'mornings',
   afternoon: 'afternoons',
@@ -44,19 +42,45 @@ export function timesLabel(times: readonly WaitlistTime[]) {
   return times.map((t) => LABEL[t]).join(' or ')
 }
 
+/**
+ * Whether the entry's service fits at this time. For a guest asking to come in sooner, it is their
+ * own visit that would move, so it is checked with that visit's booked length, buffer and room
+ * type, ignoring the visit's current place, exactly as the reschedule will be.
+ */
 function free(
   s: BusinessState,
-  serviceId: string,
+  entry: WaitlistEntry,
   staffId: string,
   date: string,
   start: number,
   now: string,
 ) {
-  const service = s.services.find((item) => item.id === serviceId)
+  const visit = entry.appointmentId
+    ? s.appointments.find((a) => a.id === entry.appointmentId && a.status === 'confirmed')
+    : undefined
+  if (visit) {
+    const room = s.resources.find((r) => r.id === visit.resourceId)
+    return room
+      ? availableAllocation(
+          s,
+          visit.serviceId,
+          staffId,
+          date,
+          start,
+          visit.bookedDurationMinutes,
+          visit.bookedBufferMinutes,
+          visit.bookedResourceType ?? room.type,
+          visit.id,
+          now,
+        )
+      : null
+  }
+  if (entry.appointmentId) return null
+  const service = s.services.find((item) => item.id === entry.serviceId)
   return service && !service.archived
     ? availableAllocation(
         s,
-        serviceId,
+        entry.serviceId,
         staffId,
         date,
         start,
@@ -84,12 +108,13 @@ export function openings(s: BusinessState, entry: WaitlistEntry, now: string, li
       person.serviceIds.includes(entry.serviceId) &&
       (!entry.staffId || person.id === entry.staffId),
   )
-  for (let day = 0; day < SEARCH_DAYS && found.length < limit; day++) {
+  // The whole window is searched (at most WAITLIST_MAX_DAYS), stopping at the first `limit` times.
+  for (let day = 0; day < WAITLIST_MAX_DAYS && found.length < limit; day++) {
     const date = addDays(first, day)
     if (date > entry.toDate) break
     for (let start = 0; start < 1440 && found.length < limit; start += 15) {
       if (entry.times.length && !entry.times.includes(timeOfDay(start))) continue
-      const person = team.find((p) => free(s, entry.serviceId, p.id, date, start, now))
+      const person = team.find((p) => free(s, entry, p.id, date, start, now))
       if (person) found.push({ date, startMinutes: start, staffId: person.id })
     }
   }
@@ -104,7 +129,7 @@ export function openingFree(s: BusinessState, entry: WaitlistEntry, opening: Ope
     opening.date <= entry.toDate &&
     (!entry.staffId || entry.staffId === opening.staffId) &&
     (!entry.times.length || entry.times.includes(timeOfDay(opening.startMinutes))) &&
-    !!free(s, entry.serviceId, opening.staffId, opening.date, opening.startMinutes, now)
+    !!free(s, entry, opening.staffId, opening.date, opening.startMinutes, now)
   )
 }
 
@@ -337,13 +362,24 @@ export function fillFromWaitlist(
   waitlistId: string,
   appointment: Appointment,
   now: string,
+  how: 'book' | 'move',
 ) {
   const entry = entryFor(next, waitlistId)
   if (entry.status !== 'waiting') throw new Error('This waitlist entry is no longer waiting.')
   if (entry.clientId !== appointment.clientId || entry.serviceId !== appointment.serviceId)
     throw new Error('This waitlist entry is for another client or service.')
-  if (entry.appointmentId && entry.appointmentId !== appointment.id)
+  if (how === 'book' && entry.appointmentId)
     throw new Error('This guest already has a visit; move it rather than booking another.')
+  if (how === 'move' && entry.appointmentId !== appointment.id)
+    throw new Error('Only the visit this request was made for can be moved to fill it.')
+  // Counted as filled only when the time is one the client asked for.
+  if (
+    appointment.date < entry.fromDate ||
+    appointment.date > entry.toDate ||
+    (entry.staffId && entry.staffId !== appointment.staffId) ||
+    (entry.times.length && !entry.times.includes(timeOfDay(appointment.startMinutes)))
+  )
+    throw new Error('That time is outside what this client asked for on the waitlist.')
   entry.status = 'booked'
   entry.closedAt = now
   entry.outcomeAppointmentId = appointment.id

@@ -4,8 +4,9 @@ import { execute } from './commands'
 import type { Command } from './commands'
 import type { BusinessState } from './model'
 import { parseState } from './model'
+import { addDays } from './format'
 import { can, operations } from './operations'
-import { openings, timeOfDay, waiting, waitlistSummary } from './waitlist'
+import { openingFree, openings, timeOfDay, waiting, waitlistSummary } from './waitlist'
 import type { WaitlistInput } from './waitlistSchema'
 import { guestView } from './guest'
 import { clientExport, erasureReview, previewClientExport } from './privacy'
@@ -287,5 +288,95 @@ describe('waitlist', () => {
     )
     expect(JSON.stringify(erasureReview(s, entry.clientId, '2026-10-06'))).toContain('Waitlist')
     expect(RETENTION_REGISTER.some((r) => r.record === 'Waitlist requests')).toBe(true)
+  })
+
+  it('searches the whole window, not only the first month', () => {
+    let s = seed('UK')
+    // Theo is away for the first 40 days; the only times are later in the window.
+    for (let day = 0; day < 40; day++)
+      s = apply(s, {
+        type: 'closure',
+        input: {
+          date: addDays('2026-10-07', day),
+          staffId: 'staff-theo',
+          startMinutes: 0,
+          endMinutes: 1440,
+          reason: 'Away',
+        },
+      })
+    s = apply(s, {
+      type: 'waitlist-add',
+      input: {
+        ...wish,
+        clientId: 'client-2',
+        serviceId: 'service-cut',
+        staffId: 'staff-theo',
+        toDate: '2026-12-05',
+        times: [],
+      },
+    })
+    const found = openings(s, s.waitlist!.at(-1)!, now)
+    expect(found).toHaveLength(3)
+    expect(found[0].date).toBe(addDays('2026-10-07', 40))
+  })
+
+  it('offers a guest only times their own booked visit fits, ignoring its current place', () => {
+    const { s: booked, visit } = withLaterVisit()
+    // The visit was booked at three hours; the service has since become shorter.
+    const s = structuredClone(booked)
+    s.appointments.find((a) => a.id === visit.id)!.bookedDurationMinutes = 180
+    const joined = apply(s, {
+      type: 'waitlist-join',
+      appointmentId: visit.id,
+      anyone: false,
+      times: [],
+    })
+    const entry = joined.waitlist!.at(-1)!
+    const found = openings(joined, entry, now, 10)
+    expect(found.length).toBeGreaterThan(0)
+    for (const opening of found) {
+      expect(openingFree(joined, entry, opening, now)).toBe(true)
+      expect(
+        run(joined, {
+          type: 'reschedule',
+          appointmentId: visit.id,
+          waitlistId: entry.id,
+          ...opening,
+        }).ok,
+      ).toBe(true)
+    }
+  })
+
+  it('counts a request as filled only by a time it asked for', () => {
+    const s = apply(seed('UK'), { type: 'waitlist-add', input: { ...wish, staffId: 'staff-maya' } })
+    const entry = s.waitlist!.at(-1)!
+    const book = (change: { date: string; startMinutes: number; staffId: string }) =>
+      run(s, {
+        type: 'book',
+        input: {
+          clientId: 'client-1',
+          serviceId: 'service-facial',
+          source: 'desk',
+          waitlistId: entry.id,
+          ...change,
+        },
+      })
+    // Outside the dates, with someone else, or in the afternoon when only mornings suit.
+    expect(book({ date: '2026-10-22', startMinutes: 600, staffId: 'staff-maya' }).ok).toBe(false)
+    expect(book({ date: '2026-10-08', startMinutes: 600, staffId: 'staff-sophia' }).ok).toBe(false)
+    expect(book({ date: '2026-10-08', startMinutes: 840, staffId: 'staff-maya' }).ok).toBe(false)
+    expect(book({ date: '2026-10-08', startMinutes: 600, staffId: 'staff-maya' }).ok).toBe(true)
+    // An unrelated visit of the same client cannot be moved to fill a request made at the desk.
+    const { s: other, visit } = withLaterVisit(s)
+    expect(
+      run(other, {
+        type: 'reschedule',
+        appointmentId: visit.id,
+        waitlistId: entry.id,
+        date: '2026-10-08',
+        startMinutes: 600,
+        staffId: 'staff-maya',
+      }).ok,
+    ).toBe(false)
   })
 })
