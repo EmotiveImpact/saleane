@@ -88,9 +88,18 @@ export function Metric({
     </div>
   )
 }
-export function Empty({ title, children }: { title: string; children?: ReactNode }) {
+export function Empty({
+  title,
+  children,
+  photo = false,
+}: {
+  title: string
+  children?: ReactNode
+  /** A quiet photograph above the words, for a page with nothing to show yet. */
+  photo?: boolean
+}) {
   return (
-    <div className="empty">
+    <div className={`empty ${photo ? 'empty-photo' : ''}`}>
       <h3>{title}</h3>
       <p>{children}</p>
     </div>

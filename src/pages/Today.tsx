@@ -6,7 +6,7 @@ import { availableMinutes, bookedTimeShare, dayAppointments, dueClients } from '
 import { bookedTimeDefinition } from '../components/definitions'
 import { slots } from '../domain/commands'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
-import { Avatar, Button, Metric } from '../design'
+import { Avatar, Button, Metric, photos } from '../design'
 import { businessMinutes } from '../domain/operations'
 import type { Appointment, Client } from '../domain/model'
 import { Agenda } from '../components/Agenda'
@@ -86,7 +86,11 @@ export function Today() {
             </Link>
           </div>
         </div>
-        <div className="greeting-photo" aria-hidden="true" />
+        <div
+          className="greeting-photo"
+          aria-hidden="true"
+          style={{ backgroundImage: `url(${photos.sunlitRoom})` }}
+        />
       </section>
       <div className="metrics-band">
         <Metric
@@ -162,6 +166,11 @@ export function Today() {
         </section>
         <aside className="today-aside">
           <section className="intelligence-panel">
+            <div
+              className="intelligence-photo"
+              aria-hidden="true"
+              style={{ backgroundImage: `url(${photos.tea})` }}
+            />
             <div className="intelligence-symbol">
               <Leaf size={22} />
               <span>Saleane noticed</span>

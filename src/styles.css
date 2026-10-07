@@ -555,7 +555,7 @@ fieldset {
 }
 .greeting-photo {
   min-height: 250px;
-  background: url('/images/saleane-studio-warm.jpg') center 60% / cover no-repeat;
+  background: center 60% / cover no-repeat;
 }
 .date-caption {
   display: flex;
@@ -4100,8 +4100,8 @@ fieldset {
   background: linear-gradient(
     180deg,
     rgba(246, 243, 232, 0.96) 0%,
-    rgba(246, 243, 232, 0.8) 27%,
-    transparent 67%,
+    rgba(246, 243, 232, 0.86) 42%,
+    transparent 74%,
     rgba(246, 243, 232, 0.95) 100%
   );
 }
@@ -4409,4 +4409,124 @@ fieldset {
 
 .layout-choice .colour-swatch {
   padding: 8px 16px;
+}
+
+/* House photographs (src/design/photos.ts): quiet, wide and never the point of the page. */
+.photo-strip {
+  height: 120px;
+  margin-bottom: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+.intelligence-photo {
+  height: 140px;
+  margin-bottom: var(--space-4);
+  border-radius: var(--radius-inner);
+  background: center 60% / cover no-repeat;
+}
+.empty-photo::before {
+  content: '';
+  display: block;
+  width: 112px;
+  height: 112px;
+  margin: 0 auto var(--space-4);
+  border-radius: var(--radius-round);
+  background: url('/images/library/details/towels-stacked.webp') center / cover no-repeat;
+}
+.business-photos {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: var(--space-5);
+  margin-top: var(--space-5);
+}
+.booking-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.booking-preview .section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.booking-preview .section-heading p {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.booking-preview-hero {
+  height: 200px;
+  border-radius: var(--radius-inner);
+  background: center 45% / cover no-repeat;
+}
+.booking-preview-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.booking-preview-tiles span {
+  display: block;
+  aspect-ratio: 1;
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-inner);
+  background-size: cover;
+  background-position: center;
+}
+.booking-preview-tiles strong,
+.booking-preview-tiles small {
+  display: block;
+}
+.booking-preview-tiles strong {
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+}
+.booking-preview-tiles small {
+  color: var(--muted);
+  font-size: var(--text-micro);
+  font-variant-numeric: tabular-nums;
+}
+.closing-up {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.closing-up-photo {
+  height: 200px;
+  border-radius: var(--radius-inner);
+  background: center / cover no-repeat;
+}
+.closing-up-eyebrow {
+  color: var(--brand-ink);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-strong);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.closing-up h2 {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: 28px;
+}
+.closing-up p {
+  color: var(--muted);
+}
+@media (max-width: 1100px) {
+  .business-photos {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .booking-preview-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 650px) {
+  .photo-strip {
+    height: 84px;
+    margin-bottom: var(--space-4);
+  }
 }

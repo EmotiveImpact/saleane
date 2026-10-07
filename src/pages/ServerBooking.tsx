@@ -7,7 +7,7 @@ import { contactSchema } from '../domain/commandSchema'
 import { useStore } from '../state/context'
 import type { BusinessState } from '../domain/model'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
-import { Button, ErrorMessage, TimeChoices } from '../design'
+import { Button, ErrorMessage, TimeChoices, photos } from '../design'
 import { BotCheck } from '../components/BotCheck'
 import { PriceSentence } from '../components/PriceSentence'
 import { BeforeYouArrive } from '../components/BeforeYouArrive'
@@ -314,8 +314,8 @@ function BookingFlow({
         <aside className="booking-story">
           <img
             className="booking-story-image"
-            src="/images/saleane-studio-warm.jpg"
-            alt="A fictional studio in warm natural light"
+            src={photos.entrance}
+            alt="A fictional studio entrance in soft morning light"
           />
           <div className="booking-story-copy">
             <Leaf size={28} />

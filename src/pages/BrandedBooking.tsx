@@ -14,7 +14,7 @@ import { useStore } from '../state/context'
 import { DEMO_DATE } from '../domain/model'
 import { slots } from '../domain/commands'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
-import { Avatar, Button, DateStrip, ErrorMessage, TimeChoices } from '../design'
+import { Avatar, Button, DateStrip, ErrorMessage, TimeChoices, photos } from '../design'
 import { operations } from '../domain/operations'
 import { PriceSentence } from '../components/PriceSentence'
 import { BeforeYouArrive } from '../components/BeforeYouArrive'
@@ -143,8 +143,8 @@ export function BrandedBooking() {
         <aside className="booking-story">
           <img
             className="booking-story-image"
-            src="/images/saleane-studio-warm.jpg"
-            alt="Sunlit treatment room with linen, natural stone and olive branches"
+            src={photos.entrance}
+            alt="The studio entrance in soft morning light"
           />
           <div className="booking-story-copy">
             <Leaf size={28} />

@@ -5,7 +5,16 @@ import { useStore } from '../state/context'
 import { businessMinutes, can, hoursFor } from '../domain/operations'
 import { dayAppointments, staffDay } from '../domain/selectors'
 import { addDays, dateLabel, timeLabel } from '../domain/format'
-import { Avatar, Button, Empty, Status, PageHeader, SegmentedControl } from '../design'
+import {
+  Avatar,
+  Button,
+  Empty,
+  Status,
+  PageHeader,
+  PhotoStrip,
+  SegmentedControl,
+  photos,
+} from '../design'
 import { Agenda } from '../components/Agenda'
 import { PeopleColumns } from '../components/PeopleColumns'
 import { AppointmentDialog } from '../components/AppointmentDialog'
@@ -110,6 +119,7 @@ export function Calendar() {
           </Button>
         }
       />
+      <PhotoStrip src={photos.calmStudio} />
       <section className="surface calendar-surface">
         <div className="calendar-toolbar">
           <div className="date-controls">
