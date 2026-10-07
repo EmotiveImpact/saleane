@@ -18,6 +18,7 @@ import {
 import { useStore } from './state/context'
 import { useStudioColours } from './state/studioColours'
 import { operations } from './domain/operations'
+import { staleOffer } from './domain/waitlist'
 import { Avatar, Modal } from './design'
 import { SearchDialog } from './components/SearchDialog'
 import { Today } from './pages/Today'
@@ -75,7 +76,10 @@ function WorkspaceApp() {
   const openSettings = (section: string) => navigate(`/settings?section=${section}`)
   const [mobileNav, setMobileNav] = useState(false)
   useStudioColours(state.organisation.id)
-  const drafts = operations(state).messages.filter((m) => m.status === 'draft').length
+  // Waitlist offers whose time has gone are not counted as waiting for approval.
+  const drafts = operations(state).messages.filter(
+    (m) => m.status === 'draft' && !staleOffer(state, m.id, new Date().toISOString()),
+  ).length
   useEffect(() => {
     document.title = `SALEANE — ${state.organisation.name}`
   }, [state.organisation.name])
