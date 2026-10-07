@@ -297,6 +297,30 @@ describe('patch tests', () => {
     expect(planMessages(local(retested), now, []).filter((m) => m.kind === 'patch_test')).toEqual(
       [],
     )
+    // A reminder the guest acted on, before their new test reacted, does not stand in for a new one.
+    const actedOn = recorded.map((m) => ({
+      ...m,
+      status: 'delivered' as const,
+      createdAt: '2026-10-05T09:00:00.000Z',
+    }))
+    const pendingTest = apply(seed('UK'), test('client-9', '2026-10-05T12:00:00.000Z'))
+    const reactedAfter = apply(pendingTest, {
+      type: 'patch-test-result',
+      patchTestId: patchTests(pendingTest).at(-1)!.id,
+      outcome: 'reaction',
+      notes: '',
+    })
+    expect(
+      planMessages(local(reactedAfter), now, actedOn).filter((m) => m.kind === 'patch_test'),
+    ).toEqual([
+      expect.objectContaining({ dedupeKey: expect.stringMatching(/:again-1$/) }),
+      expect.objectContaining({ dedupeKey: expect.stringMatching(/:again-1$/) }),
+    ])
+    // One sent after the reaction does count.
+    const afterReaction = actedOn.map((m) => ({ ...m, createdAt: '2026-10-06T09:00:00.000Z' }))
+    expect(
+      planMessages(local(reactedAfter), now, afterReaction).filter((m) => m.kind === 'patch_test'),
+    ).toEqual([])
     // A new test that has run out by the visit does not stop the reminder.
     const stale = apply(
       apply(

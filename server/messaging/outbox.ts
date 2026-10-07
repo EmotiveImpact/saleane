@@ -59,8 +59,10 @@ export function createOutbox(ctx: Context, providers: Providers) {
       const org = ctx.systemOrg(id)
       if (!org) continue
       const recorded = db
-        .all<Pick<OutboxRow, 'appointment_id' | 'kind' | 'channel' | 'slot' | 'status'>>(
-          'SELECT appointment_id,kind,channel,slot,status FROM outbox WHERE organisation_id=?',
+        .all<
+          Pick<OutboxRow, 'appointment_id' | 'kind' | 'channel' | 'slot' | 'status' | 'created_at'>
+        >(
+          'SELECT appointment_id,kind,channel,slot,status,created_at FROM outbox WHERE organisation_id=?',
           id,
         )
         .map((row) => ({
@@ -69,6 +71,7 @@ export function createOutbox(ctx: Context, providers: Providers) {
           channel: row.channel,
           slot: row.slot,
           status: row.status,
+          createdAt: new Date(row.created_at).toISOString(),
         }))
       const time = now()
       for (const message of planMessages(org.state, new Date(time).toISOString(), recorded))

@@ -46,6 +46,8 @@ export type RecordedMessage = {
   channel: MessageChannel
   slot: string
   status: OutboxStatus
+  /** When it was queued, so a reminder from before a reaction does not stand in for a new one. */
+  createdAt?: string
 }
 export type PlannedMessage = {
   dedupeKey: string
@@ -135,6 +137,12 @@ function wantsTest(s: BusinessState, a: Appointment, startIso: string) {
       !t.result &&
       countsForVisit(s, t, startIso),
   )
+}
+
+/** When the reaction now standing in the way of this visit was recorded, if there is one. */
+function reactedAt(s: BusinessState, a: Appointment) {
+  const standing = visitPatchTest(s, a)
+  return standing?.state === 'reaction' ? (standing.test?.result?.at ?? null) : null
 }
 
 /** A visit's time and place, so a moved visit is told about again. */
@@ -248,11 +256,16 @@ export function planMessages(
       }
       // One reminder per visit and channel, even if the visit moves afterwards. One that was
       // skipped (a test was recorded, or the visit moved) may be asked for again, under a new key
-      // so the outbox takes it. A failed one is not: its retries were already spent.
+      // so the outbox takes it. A failed one is not: its retries were already spent. Once a test
+      // shows a reaction, reminders from before it no longer count: the guest needs a new test.
       const patchRows = mine.filter((row) => row.kind === 'patch_test')
+      const since = reactedAt(s, a)
+      const current = patchRows.filter(
+        (row) => !since || !row.createdAt || Date.parse(row.createdAt) > Date.parse(since),
+      )
       if (
         patchTestReminderDue(s, a, start, now) &&
-        patchRows.every((row) => row.status === 'skipped')
+        current.every((row) => row.status === 'skipped')
       )
         add('patch_test', channel, patchRows.length)
       if (settings.reminders && !mine.some((row) => row.kind === 'reminder' && row.slot === slot)) {
