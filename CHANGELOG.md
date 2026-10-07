@@ -7,8 +7,20 @@ Released entries describe observed implementation. An explicitly in-progress ent
 **Status: in review; nothing deployed. The demo link is a private claude.ai page.**
 
 - `npm run demo:build` writes one HTML file that runs the real app and server code inside a browser tab, with two fictional sample studios and the owner already signed in.
+- Booking confirmations and reminders appear in test mode for the demo's sample studios, so they can be seen in the Inbox and on client pages. Nothing is sent. The real app still never sends from sample studios.
 - Changes stay in that browser. Passwords use a simple stand-in there, so the demo is for showing, never for real data.
 - Checked in Chromium at desktop and phone width: Today, Calendar, Clients, Inbox, Business, Settings, a full guest booking, the guest manage page and a checkout receipt. Not checked in Safari or Firefox.
+
+## 2026-10-07 · PILOT-01 · Appointment messages
+
+**Status: built and checked locally in test mode; nothing deployed and nothing sent.** No email or text provider has been chosen.
+
+- Real studios now confirm each booking, tell the guest about a new time or a cancellation, and send a reminder before the visit, by email and text. Each message carries its own private link to view, add to calendar or cancel the visit.
+- Settings has a new "Messages to guests" section: confirmations on or off, reminders on or off, when the reminder goes (2 hours, the day before or two days before), and email and text on or off. Owners and managers can change it.
+- A client's profile has "Appointment emails" and "Appointment texts" switches, separate from marketing. Changing them is recorded on the client's timeline.
+- The Inbox and each client profile list what was sent for them, with honest labels: "Test mode, not sent", "With the provider, no receipt yet", "Delivered" (only on a provider receipt), "Not delivered", "Unclear, check before resending" and "Not sent". Owners and managers can send a failed or unclear message again.
+- Test mode is the default and sends nothing. Postmark (email) and Twilio (texts) adapters are written and tested against simulated answers, ready for when accounts exist. Sample studios never send.
+- Texts go only to numbers saved with a country code. Messages never include marketing.
 
 ## 2026-10-07 · Merged · Booked prices keep their tax
 

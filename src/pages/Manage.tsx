@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import {
   Armchair,
+  BellRing,
   Building2,
   CalendarDays,
   Palette,
@@ -25,6 +26,7 @@ import { Avatar, Button, ErrorMessage, Modal, PageHeader, Tabs } from '../design
 import { AffectedVisits, ScheduleHistory } from '../components/ScheduleImpact'
 import { StudioPrivacy } from '../components/Privacy'
 import { BrandSection, PreferencesSection, WorkspaceSection } from '../components/SettingsSections'
+import { MessageSettings } from '../components/AppointmentMessages'
 import { GuestNotesSettings } from '../components/GuestNotesSettings'
 import { ShareBookingPage } from '../components/ShareBookingPage'
 import '../components/management.css'
@@ -33,6 +35,7 @@ const sections = [
   { id: 'preferences', label: 'Your preferences', icon: SlidersHorizontal },
   { id: 'business', label: 'Studio details', icon: Building2 },
   { id: 'brand', label: 'Colours & booking page', icon: Palette },
+  { id: 'messages', label: 'Messages to guests', icon: BellRing },
   { id: 'service', label: 'Services', icon: Scissors },
   { id: 'staff', label: 'Team', icon: Users },
   { id: 'resource', label: 'Spaces & equipment', icon: Armchair },
@@ -250,6 +253,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
           <div>
             {section === 'preferences' && <PreferencesSection />}
             {section === 'brand' && <BrandSection />}
+            {section === 'messages' && <MessageSettings />}
             {section === 'workspace' && <WorkspaceSection onReset={() => setReplaced(true)} />}
             {section === 'privacy' && <StudioPrivacy />}
             {section === 'business' && (

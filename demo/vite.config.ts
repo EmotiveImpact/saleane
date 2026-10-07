@@ -5,7 +5,7 @@ import { defineConfig } from 'vite'
 import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { execFileSync } from 'node:child_process'
-import { readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 const here = (path: string) => fileURLToPath(new URL(path, import.meta.url))
@@ -34,6 +34,36 @@ function inlineImages(): Plugin {
   }
 }
 
+/**
+ * Sample studios never send messages in the real server. The demo only has sample studios, so here
+ * they produce test-mode messages (never sent anywhere) to show what a real studio would see.
+ */
+function sampleMessages(): Plugin {
+  const swaps: Record<string, [string, string][]> = {
+    '/server/messaging/outbox.ts': [
+      [
+        "json_extract(state,'$.operations.mode')='local'",
+        "json_extract(state,'$.operations.mode') IN ('local','sandbox')",
+      ],
+      ["operations(org.state).mode !== 'local'", 'false'],
+    ],
+    '/src/domain/reminders.ts': [["if (operations(s).mode !== 'local') return []", '']],
+  }
+  return {
+    name: 'saleane-demo-sample-messages',
+    enforce: 'pre',
+    transform(code, id) {
+      const file = Object.keys(swaps).find((name) => id.endsWith(name))
+      if (!file) return null
+      for (const [from, to] of swaps[file]) {
+        if (!code.includes(from)) throw new Error(`Demo build: ${file} no longer contains ${from}`)
+        code = code.replace(from, to)
+      }
+      return code
+    },
+  }
+}
+
 /** Folds the built script and stylesheet into index.html so the demo is a single file. */
 function singleFile(): Plugin {
   return {
@@ -41,6 +71,8 @@ function singleFile(): Plugin {
     apply: 'build',
     closeBundle() {
       const out = here('./dist/')
+      // A failed build still closes; leave its own error as the one reported.
+      if (!existsSync(out + 'index.html')) return
       let html = readFileSync(out + 'index.html', 'utf8')
       const assets = readdirSync(out + 'assets')
       html = html.replace(
@@ -74,7 +106,7 @@ export default defineConfig({
   root: here('.'),
   base: './',
   publicDir: false,
-  plugins: [inlineImages(), react(), singleFile()],
+  plugins: [inlineImages(), sampleMessages(), react(), singleFile()],
   resolve: {
     alias: [
       { find: 'node:sqlite', replacement: here('./shims/sqlite.ts') },

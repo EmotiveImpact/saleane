@@ -105,3 +105,8 @@ export function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
   for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i]
   return diff === 0
 }
+
+/** Only provider receipts are signed, and the demo never talks to a provider. */
+export function createHmac(): never {
+  throw new Error('Signed provider receipts are not available in the demo.')
+}

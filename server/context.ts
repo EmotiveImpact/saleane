@@ -7,6 +7,8 @@ import { digest, equalToken, passwordHash, token } from './auth'
 import { COOKIE, SESSION_MS, fail, header, sessionToken } from './http'
 import { turnstileFromEnv } from './turnstile'
 import type { Turnstile } from './turnstile'
+import type { Providers } from './messaging/providers'
+import { providersFromEnv } from './messaging/providers'
 import { parseState } from '../src/domain/model'
 import type { BusinessState } from '../src/domain/model'
 import { availableResource } from '../src/domain/commands'
@@ -106,6 +108,10 @@ export type ApiOptions = {
   allowRegistration?: boolean
   /** Bot check for public holds. Omitted reads TURNSTILE_* from the environment; null disables. */
   turnstile?: Turnstile | null
+  /** Message providers. Omitted reads SALEANE_EMAIL_PROVIDER and friends; unset is test mode. */
+  providers?: Providers
+  /** Runs the message outbox on this interval. Omitted leaves it to be run by hand (tests). */
+  outboxIntervalMs?: number
 }
 
 /** Shared request authority: database, clock, sessions, tenant lookup, holds and audit. */
@@ -125,6 +131,7 @@ export function createContext(options: ApiOptions) {
   const now = options.now ?? Date.now
   const dummyHash = passwordHash(token())
   const turnstile = options.turnstile === undefined ? turnstileFromEnv() : options.turnstile
+  const messaging = options.providers ?? providersFromEnv(process.env, allowedOrigin)
   const rates = new Map<string, { count: number; expires: number }>()
   const address = (request: IncomingMessage) => request.socket?.remoteAddress ?? 'local'
   // Holds last minutes, so a per-process salt keeps stored visitor keys from revealing addresses.
@@ -398,6 +405,7 @@ export function createContext(options: ApiOptions) {
     address,
     visitorFor,
     turnstile,
+    messaging,
     actorFor,
     signIn,
     memberships,

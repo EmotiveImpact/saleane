@@ -38,6 +38,14 @@ export function resetDemo() {
   }
 }
 
+/** Runs the message outbox in test mode after a change, as the local server does on a timer. */
+function sendSoon() {
+  void api.outbox
+    .tick()
+    .then(persist)
+    .catch(() => {})
+}
+
 async function call(
   method: string,
   url: string,
@@ -55,7 +63,10 @@ async function call(
     const pair = line.split(';')[0]
     cookie = /Max-Age=0/.test(line) || pair.endsWith('=') ? '' : pair
   }
-  if (!['GET', 'HEAD'].includes(method)) persist()
+  if (!['GET', 'HEAD'].includes(method)) {
+    persist()
+    sendSoon()
+  }
   return result
 }
 

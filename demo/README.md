@@ -13,6 +13,8 @@ What it does:
 
 - Opens signed in as the owner of two fictional sample studios, Atelier House London and New York.
 - Saves changes in that browser only. "Start the demo again" in the Demo note clears them.
+- Lets the sample studios produce test-mode confirmations and reminders (never sent), which the real
+  server skips for samples, so the Inbox and client pages show them.
 - Rewrites links the server writes, such as a guest's manage link, to point into the demo page.
 
 What it is not:
