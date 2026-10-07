@@ -291,3 +291,66 @@
   align-items: center;
   gap: 8px;
 }
+/* V1.5: the studio's forms, before the visit. */
+.guest-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 26px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.guest-form h2 {
+  margin: 0;
+  font-family: var(--font-editorial);
+  font-weight: var(--weight-editorial);
+}
+.guest-form p {
+  margin: 0;
+}
+.guest-form form {
+  display: grid;
+  gap: 16px;
+  justify-items: start;
+}
+.guest-form .guest-comment {
+  width: 100%;
+}
+.guest-form-choice {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.guest-form-choice legend {
+  margin-bottom: 8px;
+  font-weight: var(--weight-strong);
+}
+.guest-form-choice > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+.guest-form-choice label {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-weight: var(--weight-body);
+}
+.guest-form-choice input[type='radio'] {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  flex: none;
+  accent-color: var(--ink);
+}
+.guest-form-agree {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+}
+.guest-form .guest-comment input {
+  font: inherit;
+  font-weight: var(--weight-body);
+}

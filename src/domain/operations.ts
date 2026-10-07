@@ -414,12 +414,14 @@ export function permissionFor(command: { type: string }) {
   if (command.type === 'special-plan' || command.type === 'special-stop') return 'special'
   if (command.type === 'task-add' || command.type === 'task-done') return 'task'
   if (command.type === 'missed-call-done') return 'missed-call'
+  if (command.type === 'form-save' || command.type === 'form-archive') return 'forms'
   return command.type
 }
 export const commandPermission = permissionFor
 export function can(role: Role, action: string) {
   // Feedback, a guest's own waitlist choices and "I've arrived" come only from their private link.
-  if (['feedback', 'waitlist-join', 'waitlist-leave', 'guest-here'].includes(action)) return false
+  if (['feedback', 'waitlist-join', 'waitlist-leave', 'guest-here', 'form-submit'].includes(action))
+    return false
   if (role === 'owner') return true
   if (
     [
@@ -462,6 +464,7 @@ export function can(role: Role, action: string) {
       'gift-card-extend',
       'gift-card-cancel',
       'patch-test-settings',
+      'forms',
     ].includes(action)
   )
     return false

@@ -10,6 +10,7 @@ import {
   patchTestResultSchema,
   patchTestSettingsSchema,
 } from './patchTestsSchema'
+import { formAnswersSchema, formContentSchema, formSettingsSchema } from './formsSchema'
 import { feedbackInputSchema } from './feedback'
 import {
   GUEST_NOTE_LIMIT,
@@ -400,6 +401,15 @@ export const commandSchema = z.discriminatedUnion('type', [
     times: waitlistTimesSchema,
   }),
   z.object({ type: z.literal('waitlist-leave'), appointmentId: id }),
+  // V1.5: ordinary guest forms. The studio sets them up; answers come only from the guest's link.
+  z.object({
+    type: z.literal('form-save'),
+    id: id.optional(),
+    content: formContentSchema,
+    settings: formSettingsSchema,
+  }),
+  z.object({ type: z.literal('form-archive'), formId: id, archived: z.boolean() }),
+  z.object({ type: z.literal('form-submit'), appointmentId: id }).extend(formAnswersSchema.shape),
   // V1.5: "I've arrived", from the guest's own private link only.
   z.object({ type: z.literal('guest-here'), appointmentId: id }),
   // V1.5: a call the studio missed, written down to call back; and saying it was called back.

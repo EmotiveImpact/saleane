@@ -1,10 +1,11 @@
 import { z } from 'zod'
 import { appointmentSchema, organisationSchema } from './model'
-import type { BusinessState } from './model'
+import type { Appointment, BusinessState } from './model'
 import type { Command } from './commandSchema'
 import { addDays } from './format'
 import { ownRating } from './feedback'
 import { clearFrom, patchTests, visitPatchTest } from './patchTests'
+import { answerText, versionOf, visitForms } from './forms'
 
 /**
  * LOCAL-01: what an assigned practitioner may read and change.
@@ -68,6 +69,22 @@ export const practitionerViewSchema = z
             })
             .strict()
             .nullable(),
+          /**
+           * V1.5: what the guest said on the studio's forms for an upcoming visit: questions and
+           * answers only, not the name they typed to agree.
+           */
+          forms: z
+            .array(
+              z
+                .object({
+                  title: z.string(),
+                  answers: z
+                    .array(z.object({ question: z.string(), answer: z.string() }).strict())
+                    .max(20),
+                })
+                .strict(),
+            )
+            .optional(),
         })
         .strict(),
     ),
@@ -122,6 +139,25 @@ function windowFor(today: string) {
 function assigned(s: BusinessState, staffId: string, today: string) {
   const { from, to } = windowFor(today)
   return s.appointments.filter((a) => a.staffId === staffId && a.date >= from && a.date <= to)
+}
+
+/** The answers a guest gave on forms for an upcoming visit, for the person looking after them. */
+function formsForVisit(s: BusinessState, a: Appointment) {
+  if (a.status !== 'confirmed' && a.status !== 'arrived') return {}
+  const forms = visitForms(s, a).flatMap(({ form, answer }) => {
+    if (!answer) return []
+    const content = versionOf(form, answer.version)!.content
+    return [
+      {
+        title: content.title,
+        answers: content.questions.flatMap((q) => {
+          const value = answer.answers.find((x) => x.questionId === q.id)?.value
+          return value ? [{ question: q.label, answer: answerText(value, q.kind) }] : []
+        }),
+      },
+    ]
+  })
+  return forms.length ? { forms } : {}
 }
 
 /** Builds the practitioner's read model from the studio record. The server is the only caller. */
@@ -184,6 +220,7 @@ export function practitionerView(
       status: a.status,
       ...(a.status === 'confirmed' && a.guestHereAt ? { guestHere: true as const } : {}),
       patchTest: patchFor(a),
+      ...formsForVisit(s, a),
     })),
     clients: s.clients
       .filter((c) => clientIds.has(c.id))

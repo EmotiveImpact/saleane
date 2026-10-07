@@ -1,5 +1,6 @@
 import type { Appointment, BusinessState, Client } from './model'
 import type { MissedCall } from './missedCallsSchema'
+import { formsWaiting } from './forms'
 import { businessDate, businessMinutes, instantFor, operations } from './operations'
 import { dateLabel, timeLabel } from './format'
 import { GUEST_CANCEL_CUTOFF_HOURS } from './guest'
@@ -604,6 +605,11 @@ export function composeMessage(
   const greeting = client ? `Hello ${firstName(client.name)},` : 'Hello,'
   const arrival = org.arrivalNote?.trim()
   const prep = s.services.find((x) => x.id === a.serviceId)?.prepNote?.trim()
+  // V1.5: ordinary forms the visit still waits for, filled in from the same private link.
+  const forms = formsWaiting(s, a).map((item) => item.current.content.title)
+  const formLine = forms.length
+    ? `Before your visit, please fill in ${forms.length === 1 ? 'a short form' : `${forms.length} short forms`} (${forms.join(', ')}) from the link below.`
+    : ''
   // With online booking off, the link would lead nowhere, so ask the guest to get in touch.
   const bookLine = operations(s).bookingEnabled
     ? `Book when it suits you: ${BOOK_LINK}`
@@ -629,7 +635,9 @@ export function composeMessage(
             ? ''
             : kind === 'due_back'
               ? ` ${bookLine}`
-              : ` Manage your visit: ${MANAGE_LINK}`
+              : forms.length && kind !== 'patch_test'
+                ? ` Before you come, please fill in a short form: ${MANAGE_LINK}`
+                : ` Manage your visit: ${MANAGE_LINK}`
     return { subject: '', body: `${lead}${tail} Reply STOP to stop texts.` }
   }
   const subject = {
@@ -682,6 +690,7 @@ export function composeMessage(
   } else if (kind !== 'cancelled' && kind !== 'aftercare' && kind !== 'due_back') {
     if (arrival) lines.push('', `Before you arrive: ${arrival}`)
     if (prep) lines.push('', prep)
+    if (formLine && kind !== 'patch_test') lines.push('', formLine)
     lines.push('', policy, `View, add to your calendar or cancel: ${MANAGE_LINK}`)
   }
   lines.push('', `${org.name}`)

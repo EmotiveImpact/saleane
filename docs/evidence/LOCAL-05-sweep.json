@@ -1,6 +1,6 @@
 {
   "environment": "Chromium 141.0.7390.37 / http://127.0.0.1:5173",
-  "recordedAt": "2026-10-07T20:57:40.502Z",
+  "recordedAt": "2026-10-07T21:34:40.569Z",
   "results": [
     {
       "mode": "demo",
@@ -167,6 +167,19 @@
       "document": 1280,
       "keyboard": {
         "focusable": 21,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/settings?section=forms",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 23,
         "missing": []
       },
       "errors": []
@@ -422,6 +435,15 @@
     },
     {
       "mode": "demo",
+      "route": "/settings?section=forms",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "demo",
       "route": "/business/feedback",
       "width": 390,
       "violations": [],
@@ -623,6 +645,15 @@
     {
       "mode": "demo",
       "route": "/settings?section=plans",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/settings?section=forms",
       "width": 320,
       "violations": [],
       "viewport": 320,
@@ -892,6 +923,19 @@
     },
     {
       "mode": "local studio",
+      "route": "/settings?section=forms",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 24,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "local studio",
       "route": "/business/feedback",
       "width": 1280,
       "violations": [],
@@ -983,7 +1027,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-1019ea9b",
+      "route": "/book/qualify-studio-6d22f263",
       "width": 1280,
       "violations": [],
       "viewport": 1280,
@@ -1126,6 +1170,15 @@
     },
     {
       "mode": "local studio",
+      "route": "/settings?section=forms",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "local studio",
       "route": "/business/feedback",
       "width": 390,
       "violations": [],
@@ -1189,7 +1242,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-1019ea9b",
+      "route": "/book/qualify-studio-6d22f263",
       "width": 390,
       "violations": [],
       "viewport": 390,
@@ -1324,6 +1377,15 @@
     },
     {
       "mode": "local studio",
+      "route": "/settings?section=forms",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "local studio",
       "route": "/business/feedback",
       "width": 320,
       "violations": [],
@@ -1387,7 +1449,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-1019ea9b",
+      "route": "/book/qualify-studio-6d22f263",
       "width": 320,
       "violations": [],
       "viewport": 320,
@@ -1831,6 +1893,24 @@
         "H2 Packages & memberships",
         "H2 A steady foundation."
       ],
+      "landmarks": [
+        "aside Workspace navigation",
+        "nav",
+        "header",
+        "section About this version",
+        "main",
+        "header",
+        "aside",
+        "footer"
+      ]
+    },
+    {
+      "mode": "demo",
+      "route": "/settings?section=forms",
+      "title": "SALEANE — Atelier House",
+      "lang": "en-GB",
+      "h1": ["Your studio, considered."],
+      "headings": ["H1 Your studio, considered.", "H2 Guest forms", "H2 A steady foundation."],
       "landmarks": [
         "aside Workspace navigation",
         "nav",
@@ -2367,6 +2447,24 @@
     },
     {
       "mode": "local studio",
+      "route": "/settings?section=forms",
+      "title": "SALEANE — Qualify Studio",
+      "lang": "en-GB",
+      "h1": ["Your studio, considered."],
+      "headings": ["H1 Your studio, considered.", "H2 Guest forms", "H2 A steady foundation."],
+      "landmarks": [
+        "aside Workspace navigation",
+        "nav",
+        "header",
+        "section About this version",
+        "main",
+        "header",
+        "aside",
+        "footer"
+      ]
+    },
+    {
+      "mode": "local studio",
       "route": "/business/feedback",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
@@ -2520,7 +2618,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-1019ea9b",
+      "route": "/book/qualify-studio-6d22f263",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
       "h1": ["Care, considered."],
@@ -2544,7 +2642,7 @@
     }
   ],
   "summary": {
-    "pages": 135,
+    "pages": 141,
     "withViolations": 0,
     "overflowing": 0,
     "focusMissing": 0,
