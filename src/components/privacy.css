@@ -88,3 +88,28 @@
     grid-template-columns: 1fr;
   }
 }
+.privacy-retention {
+  margin: 0;
+  display: grid;
+  gap: 0;
+}
+.privacy-retention > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.privacy-retention dt {
+  color: var(--ink);
+}
+.privacy-retention dd {
+  margin: 0;
+  color: var(--muted);
+}
+@media (max-width: 560px) {
+  .privacy-retention > div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
