@@ -50,15 +50,17 @@ export function Status({ status }: { status: string }) {
   const text =
     status === 'confirmed'
       ? 'Upcoming'
-      : status === 'arrived'
-        ? 'In the studio'
-        : status === 'completed'
-          ? 'Completed'
-          : status === 'cancelled'
-            ? 'Cancelled'
-            : status === 'no_show'
-              ? 'Missed visit'
-              : status
+      : status === 'here'
+        ? 'Says they’re here'
+        : status === 'arrived'
+          ? 'In the studio'
+          : status === 'completed'
+            ? 'Completed'
+            : status === 'cancelled'
+              ? 'Cancelled'
+              : status === 'no_show'
+                ? 'Missed visit'
+                : status
   return (
     <span className={`status status-${status}`}>
       <span />

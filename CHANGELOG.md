@@ -2,6 +2,16 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · V1.5 · Missed-call text-back and "I've arrived"
+
+**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-ARRIVALS.md).
+
+- Today has a Missed calls panel for the desk: calls nobody could answer, newest first, matched to a client by their number, with how many times they rang, a Call link and "Called back" to take them off the list. Reception can write a call down by typing the number as people say it (07700 900123 or +44 7700 900123). Practitioners do not see it.
+- If the studio switches it on (Settings › Messages to guests, off by default), a missed caller gets one text within 15 minutes: sorry we missed you, we will call back, and the booking link. At most one a day per number, never after someone has called back, and never to a client who asked for no texts. With no provider configured it stays in test mode.
+- A studio whose phone line runs through Twilio can point its call-ended callback at SALEANE, so unanswered calls are written down on their own. Each callback is checked against Twilio's signature. This has not been tried with a real Twilio account.
+- Calls matched to a client are in their data export and erasure review. Nothing on the list is removed automatically.
+- On the day of a visit, from half an hour before, a guest's private link shows "I've arrived". Tapping it tells the desk: Today, the calendar, the visit and the practitioner's own day show "Says they're here" until the desk welcomes them. Moving the visit clears it. Today and the calendar look for changes like these every 30 seconds while they are on screen, so nobody needs to reload.
+
 ## 2026-10-07 · V1.5 · Birthday and "we miss you"
 
 **Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-BIRTHDAY.md).

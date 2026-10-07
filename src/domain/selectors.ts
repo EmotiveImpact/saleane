@@ -1,5 +1,5 @@
 import { businessDate, hoursFor, operations, staffHoursFor } from './operations'
-import type { BusinessState, Client } from './model'
+import type { Appointment, BusinessState, Client } from './model'
 import { addDays } from './format'
 import { dueBackOn, lastCompletedVisit } from './dueBack'
 import { retailByProduct, retailRevenue } from './retail'
@@ -223,4 +223,9 @@ export function usualWeeks(dates: string[]) {
     .sort((a, b) => a - b)
   const weeks = Math.round(gaps[Math.floor(gaps.length / 2)] / 7)
   return weeks >= 2 && weeks <= 12 ? weeks : null
+}
+
+/** The status to show for a visit: "here" once the guest has tapped "I've arrived" (V1.5). */
+export function shownStatus(a: Pick<Appointment, 'status' | 'guestHereAt'>) {
+  return a.status === 'confirmed' && a.guestHereAt ? 'here' : a.status
 }

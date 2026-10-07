@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { BusinessState } from './model'
 import { reminderSettingsSchema } from './reminderSettings'
 import { patchTestSettingsSchema } from './patchTestsSchema'
+import { MISSED_CALL_LIMIT, missedCallSchema } from './missedCallsSchema'
 import { paymentMethodSchema, processorSchema } from './paymentMethods'
 import { RENT_LIMIT, RENT_PAYMENT_LIMIT, rentPaymentSchema, rentalSchema } from './rentSchema'
 import {
@@ -284,6 +285,8 @@ export const operationsSchema = z.object({
   leaveAllowances: z.array(z.object({ staffId: id, days: z.number().min(0).max(366) })).optional(),
   /** V1.5: how long before a visit a patch test is needed and how long a clear one lasts. */
   patchTests: patchTestSettingsSchema.optional(),
+  /** V1.5: calls the studio missed, to call back and, if switched on, to text back. */
+  missedCalls: z.array(missedCallSchema).max(MISSED_CALL_LIMIT).optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 export type Role = 'owner' | 'manager' | 'reception' | 'practitioner'
@@ -410,12 +413,13 @@ export function permissionFor(command: { type: string }) {
   if (command.type === 'message-queue') return 'message.queue'
   if (command.type === 'special-plan' || command.type === 'special-stop') return 'special'
   if (command.type === 'task-add' || command.type === 'task-done') return 'task'
+  if (command.type === 'missed-call-done') return 'missed-call'
   return command.type
 }
 export const commandPermission = permissionFor
 export function can(role: Role, action: string) {
-  // Feedback and a guest's own waitlist choices come only from their private link (V1.5).
-  if (['feedback', 'waitlist-join', 'waitlist-leave'].includes(action)) return false
+  // Feedback, a guest's own waitlist choices and "I've arrived" come only from their private link.
+  if (['feedback', 'waitlist-join', 'waitlist-leave', 'guest-here'].includes(action)) return false
   if (role === 'owner') return true
   if (
     [

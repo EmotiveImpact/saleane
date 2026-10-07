@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, ArrowUpRight, Plus, Printer } from 'lucide-react'
 import { useStore } from '../state/context'
+import { useLiveRefresh } from '../state/useLive'
 import { availableMinutes, bookedTimeShare, dayAppointments, dueClients } from '../domain/selectors'
 import { bookedTimeDefinition } from '../components/definitions'
 import { dateLabel, money } from '../domain/format'
@@ -14,6 +15,7 @@ import { Specials } from '../components/Specials'
 import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
 import { PatchTestsDue } from '../components/PatchTests'
+import { MissedCalls } from '../components/MissedCalls'
 import type { BookingDefaults } from '../components/BookingDialog'
 
 function greeting(minutes: number) {
@@ -44,6 +46,7 @@ function daySummary(day: Appointment[], clients: Client[], all: Appointment[]) {
 
 export function Today() {
   const { state, today, session } = useStore()
+  useLiveRefresh()
   const [appointmentId, setAppointmentId] = useState('')
   const [booking, setBooking] = useState<BookingDefaults | null>(null)
   const [hideCompleted, setHideCompleted] = useState(false)
@@ -158,6 +161,7 @@ export function Today() {
           )}
         </section>
         <aside className="today-aside">
+          <MissedCalls />
           <PatchTestsDue />
           <SmartInsights onBook={setBooking} />
           <Specials />

@@ -20,6 +20,8 @@ export const reminderSettingsSchema = z
     /** V1.5: a "we miss you" email after a long gap. Absent means on, after 90 days. */
     missYou: z.boolean().optional(),
     missYouDays: z.union([z.literal(60), z.literal(90), z.literal(120), z.literal(180)]).optional(),
+    /** V1.5: one text with the booking link to a caller the studio missed. Absent means off. */
+    missedCall: z.boolean().optional(),
   })
   .strict()
 export type ReminderSettings = z.infer<typeof reminderSettingsSchema>
@@ -35,5 +37,6 @@ export const defaultReminderSettings: ReminderSettings = {
   birthday: true,
   missYou: true,
   missYouDays: 90,
+  missedCall: false,
 }
 export const missYouDayChoices = [60, 90, 120, 180] as const
