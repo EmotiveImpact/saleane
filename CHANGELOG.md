@@ -11,9 +11,21 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Each studio starts with two sample plans, a five-visit package and a monthly membership, each already held by one client, so the plan screens and the plan choice at checkout have something to show.
 - Each studio also starts with eight private sample ratings from recent visits, so Business > Feedback shows averages, a split by professional and guests' notes.
 - The Ask Saleane button works in the demo in test mode: it answers from the studio's own records, and an invitation it prepares is saved as an unsent draft only after approval.
+- The house photographs travel inside the demo file, so the new booking page and the photos across the app show as they do in the real app.
 - Booking confirmations and reminders appear in test mode for the demo's studios. Nothing is sent or charged. The real app still never sends from sample studios.
 - Changes stay in that browser. Passwords use a simple stand-in there, so the demo is for showing, never for real data.
 - Checked in Chromium at desktop and phone width: Today, Calendar, Clients, Inbox, Business, Settings, a full guest booking, the guest manage page and a checkout receipt. Not checked in Safari or Firefox.
+
+## 2026-10-07 · A smoother booking page and the house photographs
+
+Look and flow only; booking rules, holds, prices and deposits are unchanged.
+
+- On phones and narrow screens, the studio photo greets guests on the first step only; later steps open straight on the task, and each step starts at the top of the page.
+- Times show one part of the day at a time (Morning, Afternoon, Evening, each with its count), opening on the part that holds the chosen time or else the earliest. The staff booking dialogs still show the full day.
+- On phones, the bar with the treatment, price and Continue button stays at the bottom of the screen while the guest scrolls.
+- The chosen time and chosen day use the studio's own colour instead of black, here and in the staff app.
+- The owner's 12 chosen house photographs (AI-generated, fictional rooms and details, from the photo set in #15) are in the app, matching the prototype: the sunlit treatment room in the Today greeting, a cup of tea on "Saleane noticed", a calm studio strip on Calendar, window light above Clients, the studio entrance on the booking pages, and on Business a "Your booking page" card (reception and one photo per treatment) beside a "Closing up" card in late-afternoon light that counts today's visits still to check out from real records. Empty pages ("No clients found", page not found) carry stacked towels. The manicure photo is ready for nail treatments; the demo studios have none yet.
+- The demo booking page offers "Anyone available" first when more than one professional does the treatment, combining their times; the visit goes to the first professional free at the chosen time. The real guest page already offered "No preference · first available".
 
 ## 2026-10-07 · Lumane · Assistant engine and first Ask Saleane skills
 

@@ -20,7 +20,8 @@ function inlineImages(): Plugin {
       const bytes = name.endsWith('.png')
         ? execFileSync('convert', [file, '-resize', '1600x1600>', '-quality', '82', 'jpg:-'])
         : readFileSync(file)
-      cache.set(name, `data:image/jpeg;base64,${bytes.toString('base64')}`)
+      const type = name.endsWith('.webp') ? 'webp' : 'jpeg'
+      cache.set(name, `data:image/${type};base64,${bytes.toString('base64')}`)
     }
     return cache.get(name)!
   }
@@ -37,7 +38,11 @@ function inlineImages(): Plugin {
           "window.history.replaceState(null, '', `${window.saleaneDemoBase}/",
         )
       if (!moved.includes('/images/')) return moved === code ? null : moved
-      return moved.replace(/\/images\/([\w.-]+\.(?:jpg|png))/g, (_, name: string) => dataUri(name))
+      return moved
+        .replace(/\/images\/([\w./-]+\.(?:jpg|png|webp))/g, (_, name: string) => dataUri(name))
+        .replace(/\$\{library\}\/([\w./-]+\.webp)/g, (_, name: string) =>
+          dataUri(`library/${name}`),
+        )
     },
   }
 }
