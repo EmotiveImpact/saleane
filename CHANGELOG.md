@@ -10,6 +10,12 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - "Manage studio" under Business has moved into Settings; old links to it open Settings. Reception, who could not see Business, now land on Settings.
 - Your preferences holds the Inbox layout: "Two columns, like email" (the default) or "List with a side panel", chosen per person and kept in this browser. The switch on the Inbox page is gone.
 - The studio card, your name in the top bar, "About this version" and "Open recovery controls" each open the matching Settings section. The address names the section, so a link can open it directly.
+- Accessibility fixes for regressions the new look brought in, found by the WCAG 2.2 A/AA sweep (`scripts/qualify.mjs`), which is back to zero violations across 63 page checks:
+  - Today: completed visits are now quieted by a softer text colour rather than fading the whole row, so they keep enough contrast.
+  - Calendar: free gaps shorter than a comfortable tap (24px) are no longer separate buttons; they are booked from New appointment. On phones, free-time buttons are named by what they show, with the person's name for screen readers.
+  - Inbox: the empty-view heading sits at the right level. Money: receipt rows are named by what they show.
+  - Clients and Inbox: the search pill shows a clear focus ring for keyboard users.
+  - The sweep no longer opens the old Settings pop-up, which this change removes; the Settings page is covered by the page checks.
 
 ## 2026-10-07 · Merged · The new look: fonts, studio colours and a Clients directory for hundreds
 

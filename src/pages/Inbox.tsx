@@ -322,11 +322,11 @@ export function Inbox() {
           {!messages.length && (
             <div className="ops-no-records">
               <FilePenLine size={27} />
-              <h3>
+              <h2>
                 {filter === 'all' && !query
                   ? 'A little space to be thoughtful.'
                   : 'Nothing in this view.'}
-              </h3>
+              </h2>
               <p>
                 {filter === 'all' && !query
                   ? 'Write an appointment update or a consent-aware marketing draft. It stays here until you decide the next step.'

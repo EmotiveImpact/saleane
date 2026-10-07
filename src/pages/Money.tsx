@@ -252,7 +252,6 @@ export function Money() {
                       type="button"
                       className="receipt-row"
                       key={sale.id}
-                      aria-label={`View receipt for ${clientName(sale.appointmentId)}, ${format(sale.totalMinor)}`}
                       onClick={() => {
                         setReceiptId(sale.id)
                         setRefund(false)
@@ -260,6 +259,7 @@ export function Money() {
                       }}
                     >
                       <span className="receipt-row-copy">
+                        <span className="sr-only">View receipt for </span>
                         <strong>{clientName(sale.appointmentId)}</strong>
                         <small>
                           {serviceName(sale.appointmentId)} · {methodLabel(sale.method)}
