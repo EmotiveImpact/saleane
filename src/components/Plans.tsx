@@ -419,8 +419,8 @@ export function ClientPlans({ clientId }: { clientId: string }) {
     if (!dialog) return
     if (dialog.kind === 'end') {
       const refundMinor = parseMinor(refund, 0)
-      if (!Number.isFinite(refundMinor)) {
-        setError('Enter the amount returned with up to two decimal places.')
+      if (!Number.isFinite(refundMinor) || refundMinor < 0) {
+        setError('Enter the amount returned, zero or more, with up to two decimal places.')
         return
       }
       if (refundMinor > 0 && !pay.ready) {
