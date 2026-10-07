@@ -87,6 +87,38 @@ export const taxSchema = z.object({
 })
 export type Tax = z.infer<typeof taxSchema>
 
+export const importKinds = ['clients', 'services', 'appointments', 'balances'] as const
+export const importBatchSchema = z.object({
+  id,
+  kind: z.enum(importKinds),
+  source: z.string().trim().min(2).max(100),
+  createdAt: z.iso.datetime(),
+  actor: z.string(),
+  /** The records this import created, so the log can say what still stands. */
+  recordIds: z.array(id).max(500),
+  /** Money the imported rows carry: visit prices, or balances held. */
+  totalMinor: money,
+  /** Deposits already paid to the previous system, for an appointment import. */
+  depositsMinor: money.optional(),
+})
+export type ImportBatch = z.infer<typeof importBatchSchema>
+export const openingBalanceSchema = z.object({
+  id,
+  clientId: id,
+  importId: id,
+  /** `credit` is the studio's to give back or use; `owed` is the client's to pay. */
+  kind: z.enum(['credit', 'owed']),
+  amountMinor: money.refine((v) => v > 0),
+  note: z.string().trim().max(200),
+  createdAt: z.iso.datetime(),
+  actor: z.string(),
+  /** Set once staff record that the balance was used, paid or returned. Never deleted. */
+  settled: z
+    .object({ at: z.iso.datetime(), actor: z.string(), note: z.string().trim().min(2).max(200) })
+    .optional(),
+})
+export type OpeningBalance = z.infer<typeof openingBalanceSchema>
+
 export const operationsSchema = z.object({
   mode: z.enum(['sandbox', 'local']),
   bookingEnabled: z.boolean(),
@@ -136,6 +168,10 @@ export const operationsSchema = z.object({
   reminders: reminderSettingsSchema.optional(),
   /** No-show protection (PILOT-02). Absent means no card is asked for and no fee applies. */
   protection: protectionSchema.optional(),
+  /** Reviewed imports from the studio's previous system, kept as a log (PILOT-03). */
+  imports: z.array(importBatchSchema).optional(),
+  /** Credit or money owed that the previous system held for a client (PILOT-03). */
+  balances: z.array(openingBalanceSchema).optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 export type Role = 'owner' | 'manager' | 'reception' | 'practitioner'
@@ -258,6 +294,9 @@ export function can(role: Role, action: string) {
       'product',
       'message.queue',
       'import-clients',
+      'import-services',
+      'import-appointments',
+      'import-balances',
       'reminders',
       'fee',
       'protection',

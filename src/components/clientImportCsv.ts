@@ -44,9 +44,7 @@ export function readCsv(source: string): string[][] {
     if (row.some((value) => value.trim() !== '')) records.push(row)
     row = []
     if (records.length > CLIENT_IMPORT_MAX_ROWS + 1)
-      throw new Error(
-        'Import at most 500 client rows at a time. Split this file and review each part.',
-      )
+      throw new Error('Import at most 500 rows at a time. Split this file and review each part.')
   }
   for (let i = 0; i < input.length; i++) {
     const character = input[i]

@@ -29,6 +29,7 @@ const demoRoutes = [
   '/settings',
   '/settings?section=messages',
   '/settings?section=payments',
+  '/settings?section=switching',
   '/booking',
   '/design-language',
   '/account',
