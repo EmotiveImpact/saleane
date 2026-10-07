@@ -12,9 +12,21 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Changes stay in that browser. Passwords use a simple stand-in there, so the demo is for showing, never for real data.
 - Checked in Chromium at desktop and phone width: Today, Calendar, Clients, Inbox, Business, Settings, a full guest booking, the guest manage page and a checkout receipt. Not checked in Safari or Firefox.
 
+## 2026-10-07 · PILOT-03 · Switching over from another system
+
+**Status: built and checked locally; nothing deployed.** No data from a real studio was used.
+
+- Settings has a new "Switching over" section that walks a studio across in four steps: clients, services, upcoming visits and balances. Each step reads a CSV file exported from the old system, shows every row as ready, already here or to fix (with the reason), and adds up the totals so the owner can check them against the old system's own report before anything is saved.
+- Services arrive with their length, price, deposit, category and who gives them. A name already in SALEANE is left alone.
+- Upcoming visits keep the price the guest was quoted, as the full amount with any tax inside it, and any deposit they already paid. They are matched to clients by email, even when the old system spells a name differently (a new guest is added once, however many visits they bring), and each must fit the team's hours, time away and the rooms and chairs free, without clashing with another visit. Past times are refused. The old system already confirmed them, so SALEANE sends no new confirmation; reminders follow the studio's settings, including for a visit brought across after its reminder time has opened.
+- A deposit paid to the old system is recorded as "Paid before switching" with the old reference. It is taken off the bill at checkout like any deposit, never counted in the till, and can never be chosen as a payment method at the desk.
+- Credit a client holds, or money they owe, is kept as a carried-over balance on the client's page and in a new Money tab. SALEANE does not take it off a bill by itself; the desk applies it and closes it with a note, and it stays on record. Client data exports include it.
+- "What has come across" lists every import, client imports included, with who did it, how many records, the money involved and how many visits or balances are still open.
+- Only owners and managers can bring records across; the desk can close a balance. Practitioners see none of it.
+
 ## 2026-10-07 · PILOT-02 · Saved cards, card payments and deposits
 
-**Status: built and checked locally in test mode; nothing deployed and nothing charged.** No payment provider has been chosen.
+**Status: merged into main on 7 October 2026 (#23); test mode, nothing deployed and nothing charged.** No payment provider has been chosen.
 
 - A guest can pay their deposit from the private link to their visit, and save a card for later visits when the studio offers it. The card is typed on the payment provider's own page; SALEANE never sees or stores the number. Guests see the studio's terms, word for word, before they save a card, and those terms are kept with the card.
 - At checkout, "Card through SALEANE" charges the client's saved card or sends the amount to a card reader. The visit is checked out only when the provider confirms the payment, and a repeated click or a dropped connection cannot charge twice.

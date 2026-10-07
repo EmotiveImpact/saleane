@@ -83,7 +83,8 @@ export const appointmentSchema = z.object({
   date: civilDate,
   startMinutes: z.number().int().min(0).max(1439),
   status: z.enum(['confirmed', 'arrived', 'completed', 'cancelled', 'no_show']),
-  source: z.enum(['desk', 'online', 'rebook']),
+  /** `import` marks a visit booked in the studio's previous system and carried over (PILOT-03). */
+  source: z.enum(['desk', 'online', 'rebook', 'import']),
   /** Where an online guest came from, when they followed a shared booking link. */
   channel: z.enum(bookingChannels).optional(),
   createdAt: z.iso.datetime(),
@@ -334,11 +335,22 @@ export function parseState(value: unknown, region: Region): BusinessState {
       (record.method === 'card' && !record.reference?.trim())
     )
       throw new Error('A card payment must carry its provider reference.')
+  // A deposit paid to the old system arrives only with a carried-over visit (PILOT-03).
+  for (const payment of s.payments)
+    if (
+      payment.method === 'previous_system' &&
+      (payment.kind !== 'deposit' ||
+        appointmentById.get(payment.appointmentId)?.source !== 'import' ||
+        !payment.reference?.trim())
+    )
+      throw new Error('A carried-over deposit must belong to an imported visit.')
+  if (s.sales.some((sale) => sale.method === 'previous_system'))
+    throw new Error('A receipt cannot be settled by the previous system.')
   const sandbox = !s.operations || s.operations.mode === 'sandbox'
   if (
     [...s.sales, ...s.payments].some(
       (record) =>
-        sandbox !== record.method.startsWith('demo_') ||
+        (record.method !== 'previous_system' && sandbox !== record.method.startsWith('demo_')) ||
         (record.method === 'external_card' && !record.reference?.trim()),
     )
   )
@@ -372,7 +384,15 @@ export function parseState(value: unknown, region: Region): BusinessState {
       throw new Error('Invalid relationship edge.')
   if (s.operations) {
     const o = s.operations
-    for (const rows of [o.closures, o.products, o.movements, o.messages, o.refunds])
+    for (const rows of [
+      o.closures,
+      o.products,
+      o.movements,
+      o.messages,
+      o.refunds,
+      o.imports ?? [],
+      o.balances ?? [],
+    ])
       if (new Set(rows.map((r) => r.id)).size !== rows.length)
         throw new Error('Duplicate operating record IDs.')
     for (const closure of o.closures)
@@ -426,6 +446,9 @@ export function parseState(value: unknown, region: Region): BusinessState {
           : true
       if (!shapeFits || !subjectFits) throw new Error('Invalid schedule history.')
     }
+    for (const balance of o.balances ?? [])
+      if (!exists(s.clients, balance.clientId) || !exists(o.imports ?? [], balance.importId))
+        throw new Error('Invalid carried-over balance.')
     for (const refund of o.refunds)
       if (
         !!refund.saleId === !!refund.paymentId ||

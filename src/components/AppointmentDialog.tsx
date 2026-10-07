@@ -252,6 +252,7 @@ export function AppointmentDialog({
                 cash: 'Cash',
                 external_card: 'External card',
                 card: sale.processor?.live ? 'Card' : 'Test card, no money moved',
+                previous_system: 'Previous system',
               }[sale.method]
             }
           </div>

@@ -11,6 +11,7 @@ import { Button, ErrorMessage, Modal, Status, PageHeader, SegmentedControl } fro
 import '../components/management.css'
 import { TillCount } from '../components/TillCount'
 import { CardRefund } from '../components/CardPayments'
+import { CarriedBalances } from '../components/Switching'
 
 const methodLabel = (method: string) =>
   ({
@@ -19,13 +20,17 @@ const methodLabel = (method: string) =>
     cash: 'Cash recorded',
     external_card: 'External card recorded',
     card: 'Card through SALEANE',
+    previous_system: 'Paid before switching',
   })[method] ?? method
 
 export function Money() {
   const { state, commit, blocked, role, session } = useStore()
   const config = operations(state)
   const sandbox = config.mode === 'sandbox'
-  const [tab, setTab] = useState<'receipts' | 'funds' | 'deposits' | 'refunds'>('receipts')
+  const [tab, setTab] = useState<'receipts' | 'funds' | 'deposits' | 'refunds' | 'carried'>(
+    'receipts',
+  )
+  const carried = !!config.balances?.length
   const [receiptId, setReceiptId] = useState('')
   const [refund, setRefund] = useState(false)
   const [depositId, setDepositId] = useState('')
@@ -205,7 +210,15 @@ export function Money() {
         <div>
           <span>{sandbox ? 'Simulated funds received' : 'Funds recorded'}</span>
           <strong>{format(received)}</strong>
-          <small>Deposits and settlements counted once</small>
+          <small>
+            {state.payments.some((p) => p.method === 'previous_system')
+              ? `Includes ${format(
+                  state.payments
+                    .filter((p) => p.method === 'previous_system')
+                    .reduce((total, p) => total + p.amountMinor, 0),
+                )} paid to your old system before switching`
+              : 'Deposits and settlements counted once'}
+          </small>
         </div>
         <div>
           <span>Unapplied deposits</span>
@@ -231,6 +244,7 @@ export function Money() {
           { value: 'funds', label: 'Recorded funds' },
           { value: 'deposits', label: 'Deposit review' },
           { value: 'refunds', label: 'Refund records' },
+          ...(carried ? [{ value: 'carried' as const, label: 'Carried over' }] : []),
         ]}
       />
       <p className="ops-save-note" role="status">
@@ -247,7 +261,9 @@ export function Money() {
                     ? 'Funds ledger'
                     : tab === 'deposits'
                       ? 'Deposits to follow through'
-                      : 'Refund history'}
+                      : tab === 'carried'
+                        ? 'Balances from your old system'
+                        : 'Refund history'}
               </h2>
               <p>
                 {tab === 'receipts'
@@ -256,7 +272,9 @@ export function Money() {
                     ? 'Recorded payment methods and references. This is not a bank statement.'
                     : tab === 'deposits'
                       ? 'A cancellation keeps its deposit history; it does not decide a refund or fee.'
-                      : 'Separate records preserve the original receipt.'}
+                      : tab === 'carried'
+                        ? 'Credit and money owed brought across when you switched. Close each one once it is used, paid or returned.'
+                        : 'Separate records preserve the original receipt.'}
               </p>
             </div>
             <ReceiptText size={22} />
@@ -423,6 +441,7 @@ export function Money() {
               )}
             </>
           )}
+          {tab === 'carried' && <CarriedBalances />}
           {tab === 'refunds' && (
             <>
               {config.refunds

@@ -163,12 +163,15 @@ export function planMessages(
       if (a.status !== 'confirmed') continue
       if (settings.confirmations && !told.some((row) => row.slot === slot)) {
         if (told.length || (moved && now - moved < RECENT_MS)) add('changed', channel)
-        else if (now - Date.parse(a.createdAt) < RECENT_MS) add('confirmation', channel)
+        // A visit carried over from another system was confirmed there already (PILOT-03).
+        else if (a.source !== 'import' && now - Date.parse(a.createdAt) < RECENT_MS)
+          add('confirmation', channel)
       }
       if (settings.reminders && !mine.some((row) => row.kind === 'reminder' && row.slot === slot)) {
         const opens = start - settings.hoursBefore * HOUR
         // Booked or moved after the reminder time: the confirmation already did this job.
-        const settled = Math.max(Date.parse(a.createdAt), moved)
+        // A carried-over visit was booked in the old system long before, so only a move counts.
+        const settled = Math.max(a.source === 'import' ? 0 : Date.parse(a.createdAt), moved)
         if (now >= opens && settled < opens && start - now >= REMINDER_FLOOR_MS)
           add('reminder', channel)
       }

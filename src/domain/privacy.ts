@@ -42,6 +42,7 @@ const METHOD = {
   cash: 'Cash received at the studio',
   external_card: 'Card taken on an external terminal',
   card: 'Card processed by the payment provider',
+  previous_system: 'Paid to the studio’s previous booking system',
 } as const
 const THIRD_PARTY = 'Linked to another client. Their details are withheld as third-party data.'
 const clock = (minutes: number) =>
@@ -190,6 +191,17 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
               ? 'Introduced another client'
               : 'Introduced by another client',
         since: r.createdAt,
+      })),
+    // PILOT-03: credit or money owed brought across from the studio's previous system.
+    carriedOver: (ops.balances ?? [])
+      .filter((b) => b.clientId === client.id)
+      .map((b) => ({
+        kind: b.kind,
+        amountMinor: b.amountMinor,
+        note: b.note,
+        from: ops.imports?.find((batch) => batch.id === b.importId)?.source ?? 'Previous system',
+        recordedAt: b.createdAt,
+        ...(b.settled ? { closedAt: b.settled.at, closedNote: b.settled.note } : {}),
       })),
   }
 }
@@ -447,6 +459,12 @@ export function clientExportText(file: ClientExport, locale = 'en-GB') {
     ...file.refunds.map(
       (r) =>
         `${r.receiptNumber} · ${amount(r.amountMinor, cur, locale)} · ${r.recordedAt.slice(0, 10)} · ${r.reason}`,
+    ),
+    '',
+    `CARRIED OVER FROM A PREVIOUS SYSTEM (${file.carriedOver.length})`,
+    ...file.carriedOver.map(
+      (b) =>
+        `${b.kind === 'credit' ? 'Credit' : 'Owed'} · ${amount(b.amountMinor, cur, locale)} · from ${b.from} · ${b.closedAt ? `closed ${b.closedAt.slice(0, 10)}` : 'open'}`,
     ),
     '',
     `MESSAGES (${file.messages.length}), none sent`,

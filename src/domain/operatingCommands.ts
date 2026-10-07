@@ -10,6 +10,8 @@ export function assertMethod(
   processor?: { provider: string; live: boolean },
 ) {
   const sandbox = operations(s).mode === 'sandbox'
+  if (method === 'previous_system')
+    throw new Error('A deposit paid to a previous system arrives only through a reviewed import.')
   if ((method === 'card') !== !!processor)
     throw new Error('Card payments are taken through the payment screen, not recorded by hand.')
   if (method === 'card' && !reference?.trim())
@@ -438,7 +440,16 @@ export function runOperatingCommand(
         detail: 'Marketing preference recorded. No message delivered.',
       })
     recordId = client.id
-  } else {
+  } else if (command.type === 'import-clients') {
+    const batch = {
+      id: makeId(),
+      kind: 'clients' as const,
+      source: command.source || 'Reviewed contact file',
+      createdAt: now,
+      actor: 'Local operator',
+      recordIds: [] as string[],
+      totalMinor: 0,
+    }
     for (const contact of command.contacts) {
       if (contact.marketingConsent)
         throw new Error(
@@ -473,8 +484,11 @@ export function runOperatingCommand(
         title: 'Client imported after review',
         detail: `Source: ${command.source ?? 'Reviewed contact file'}. Contact details imported. Marketing remains off; no historical visits or payment details imported.`,
       })
+      batch.recordIds.push(client.id)
       recordId = client.id
     }
+    // PILOT-03: logged with the other imports so the switch can be checked in one place.
+    o.imports = [...(o.imports ?? []), batch]
   }
   return recordId
 }
