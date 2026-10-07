@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { missedCallSources } from './missedCallsSchema'
 import { offerInputSchema } from './plansSchema'
 import { specialInputSchema } from './specialsSchema'
 import { taskInputSchema } from './tasksSchema'
@@ -395,6 +396,15 @@ export const commandSchema = z.discriminatedUnion('type', [
     times: waitlistTimesSchema,
   }),
   z.object({ type: z.literal('waitlist-leave'), appointmentId: id }),
+  // V1.5: "I've arrived", from the guest's own private link only.
+  z.object({ type: z.literal('guest-here'), appointmentId: id }),
+  // V1.5: a call the studio missed, written down to call back; and saying it was called back.
+  z.object({
+    type: z.literal('missed-call'),
+    number: z.string().trim().min(3).max(30),
+    source: z.enum(missedCallSources).optional(),
+  }),
+  z.object({ type: z.literal('missed-call-done'), callId: id }),
   z.object({ type: z.literal('offer'), id: id.optional(), input: offerInputSchema }),
   z.object({
     type: z.literal('plan-sell'),

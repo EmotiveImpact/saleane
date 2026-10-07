@@ -23,6 +23,8 @@ import {
 } from './patchTests'
 import { referenceTaken } from './references'
 import { recordFeedback, repeatedFeedback } from './feedback'
+import { guestHereWindow } from './guest'
+import { markCalledBack, recordMissedCall } from './missedCalls'
 import { planSpecial, stopSpecial } from './specials'
 import { addTask, completeTask } from './tasks'
 import { priceRetail, recordRetailMovements, retailCharge, sellAtCounter } from './retail'
@@ -345,6 +347,9 @@ export function execute(
         }
         const to = { ...input, resourceId }
         Object.assign(appointment, to)
+        // "I've arrived" was about the old time; a guest tells the desk again on the new day.
+        if (from.date !== to.date || from.startMinutes !== to.startMinutes)
+          delete appointment.guestHereAt
         addEvent({
           clientId: appointment.clientId,
           appointmentId: appointment.id,
@@ -633,6 +638,34 @@ export function execute(
       const same = waitlistUnchanged(s, command, now)
       if (same) return { ok: true, state: s, recordId: same }
       recordId = runWaitlistCommand(next, command, now, makeId, addEvent)
+    } else if (command.type === 'guest-here') {
+      const appointment = next.appointments.find((a) => a.id === command.appointmentId)
+      if (!appointment) throw new Error('Appointment does not belong to this workspace.')
+      // Telling the desk twice, or after the desk has welcomed them, changes nothing.
+      if (appointment.guestHereAt || appointment.status === 'arrived')
+        return { ok: true, state: s, recordId: appointment.id }
+      const here = guestHereWindow(s, appointment.id, Date.parse(now))
+      if (!here.open)
+        throw new Error(
+          here.reason === 'early'
+            ? 'You can tell us you have arrived from 30 minutes before your visit.'
+            : 'This visit can no longer be checked in online. Please speak to the desk.',
+        )
+      appointment.guestHereAt = now
+      addEvent({
+        clientId: appointment.clientId,
+        appointmentId: appointment.id,
+        type: 'arrived',
+        title: 'Said they have arrived',
+        detail: 'The guest tapped “I’ve arrived” on their private link. The desk welcomes them.',
+      })
+      recordId = appointment.id
+    } else if (command.type === 'missed-call') {
+      recordId = recordMissedCall(next, command, now, makeId)
+    } else if (command.type === 'missed-call-done') {
+      const call = (operations(s).missedCalls ?? []).find((c) => c.id === command.callId)
+      if (call?.calledBackAt) return { ok: true, state: s, recordId: call.id }
+      recordId = markCalledBack(next, command.callId, now)
     } else if (command.type === 'feedback') {
       const same = repeatedFeedback(s, command)
       if (same) return { ok: true, state: s, recordId: same.id }
@@ -707,6 +740,12 @@ export function dispatch(
   const sold = new Set((s.counterSales ?? []).map((sale) => sale.id))
   for (const sale of result.state.counterSales ?? []) if (!sold.has(sale.id)) sale.actor = actorName
   stampGiftCardActors(s, result.state, actorName)
+  const known = new Map((operations(s).missedCalls ?? []).map((c) => [c.id, c]))
+  for (const call of operations(result.state).missedCalls ?? []) {
+    const before = known.get(call.id)
+    if (!before) call.actor = actorName
+    if (call.calledBackAt && !before?.calledBackAt) call.calledBackBy = actorName
+  }
   stampPatchTestActors(s, result.state, actorName)
   const counted = new Set((s.tillCounts ?? []).map((c) => c.id))
   for (const count of result.state.tillCounts ?? [])

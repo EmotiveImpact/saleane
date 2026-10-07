@@ -238,6 +238,26 @@ export const migrations: Migration[] = [
         ]),
       ),
   },
+  {
+    version: 13,
+    // V1.5: one text with the booking link to a caller the studio missed.
+    up: (connection) =>
+      connection.exec(
+        outboxWithKinds([
+          'confirmation',
+          'changed',
+          'reminder',
+          'cancelled',
+          'feedback',
+          'patch_test',
+          'aftercare',
+          'due_back',
+          'birthday',
+          'miss_you',
+          'missed_call',
+        ]),
+      ),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the

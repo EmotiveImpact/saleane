@@ -252,3 +252,23 @@
   font: inherit;
   font-weight: var(--weight-body);
 }
+/* V1.5: "I've arrived" on the day of the visit. */
+.guest-here {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  margin-bottom: 22px;
+  padding: 18px 20px;
+  border-radius: var(--radius);
+  background: var(--sage);
+}
+.guest-here h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 1.15rem;
+}
+.guest-here p {
+  margin: 0;
+}

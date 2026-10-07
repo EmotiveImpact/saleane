@@ -13,6 +13,7 @@ import { daySheetRoutes } from './routes/daysheet'
 import { privacyRoutes } from './routes/privacy'
 import { messagingRoutes } from './routes/messaging'
 import { createOutbox } from './messaging/outbox'
+import { recordPhoneCall } from './messaging/calls'
 import type { Outbox } from './messaging/outbox'
 import { paymentRoutes } from './routes/payments'
 import { assistantRoutes } from './routes/assistant'
@@ -94,6 +95,28 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
         if (!receipts) fail(403, 'This receipt could not be verified.')
         for (const receipt of receipts!) outbox.record(receipt)
         reply(200, { ok: true })
+        return
+      }
+      // V1.5: the studio's phone line says how a call ended. A missed one is written down for the
+      // desk to call back, and may bring one text with the booking link.
+      const voice = /^\/api\/hooks\/twilio\/voice\/([a-z0-9-]{1,80})$/.exec(url.pathname)
+      if (voice) {
+        if (method !== 'POST') fail(405, 'Use POST.')
+        const body = (await readBody(request, true)) as string
+        const call = outbox.providers.voice?.(voice[1], {
+          url: url.toString(),
+          headers: request.headers as Record<string, string | undefined>,
+          body,
+        })
+        if (!call) fail(403, 'This call could not be verified.')
+        if (call!.missed && recordPhoneCall(ctx, voice[1], call!.from)) outbox.soon()
+        response.statusCode = 200
+        response.setHeader('Content-Type', 'text/xml; charset=utf-8')
+        response.end(
+          call!.missed
+            ? '<?xml version="1.0" encoding="UTF-8"?><Response><Say>Sorry we missed your call. We will call you back as soon as we can.</Say></Response>'
+            : '<?xml version="1.0" encoding="UTF-8"?><Response/>',
+        )
         return
       }
       if (url.pathname === '/api/hooks/stripe') {

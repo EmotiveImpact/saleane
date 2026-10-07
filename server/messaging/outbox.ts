@@ -7,6 +7,9 @@ import {
   channelsFor,
   clientSlot,
   composeClientMessage,
+  composeMissedCallText,
+  missedCallSlot,
+  missedCallTextDue,
   isClientKind,
   missYouDue,
   dueBackDue,
@@ -139,6 +142,24 @@ export function createOutbox(ctx: Context, providers: Providers) {
         finish(fresh, 'skipped', { detail })
         return null
       }
+      if (org && fresh.kind === 'missed_call') {
+        // V1.5: a caller may not be a client at all. Checked again now: called back meanwhile,
+        // switched off, too late, or the number belongs to a client who asked for no texts.
+        const call = (operations(org.state).missedCalls ?? []).find(
+          (c) => c.number === fresh.recipient && missedCallSlot(org.state, c) === fresh.slot,
+        )
+        if (!call || !missedCallTextDue(org.state, call, new Date(now()).toISOString()))
+          return skip('Called back, turned off or too late before it went out.')
+        const text = composeMissedCallText(org.state)
+        return send(
+          fresh,
+          org,
+          fresh.recipient,
+          '',
+          text.body,
+          text.body.replaceAll(BOOK_LINK, `${ctx.allowedOrigin}/book/${org.slug}`),
+        )
+      }
       if (!org || !client) return skip('The visit is no longer in the studio record.')
       if (operations(org.state).mode !== 'local') return skip('Sample studios never send.')
       // V1.5: a birthday or "we miss you" is about the guest, not a visit. Checked again now.
@@ -199,29 +220,52 @@ export function createOutbox(ctx: Context, providers: Providers) {
           ? client.email.trim()
           : textNumber(client.phone)
       if (!to) return skip('The client has no address for this channel now.')
-      const provider = providers[fresh.channel]
-      db.run(
-        "UPDATE outbox SET status='unknown',provider=?,attempts=attempts+1,detail=?,recipient=?,subject=?,body=?,updated_at=? WHERE id=?",
-        provider.name,
-        'Sending was interrupted. Check before sending again.',
+      return send(
+        fresh,
+        org,
         to,
         current?.subject ?? fresh.subject,
         current?.body ?? fresh.body,
-        now(),
-        fresh.id,
+        body,
       )
-      return {
-        row: { ...fresh, recipient: to, provider: provider.name, attempts: fresh.attempts + 1 },
-        message: {
-          id: fresh.id,
-          channel: fresh.channel,
-          to,
-          subject: current?.subject ?? fresh.subject,
-          body,
-          fromName: org.state.organisation.name,
-        },
-      }
     })
+
+  /**
+   * Marks a claimed message "unknown" with the words and address it is about to go with, and
+   * hands back what the provider needs. Only `stored` is kept: the private link in `sending` is
+   * never written down.
+   */
+  const send = (
+    fresh: OutboxRow,
+    org: NonNullable<ReturnType<Context['systemOrg']>>,
+    to: string,
+    subject: string,
+    stored: string,
+    sending: string,
+  ) => {
+    const provider = providers[fresh.channel]
+    db.run(
+      "UPDATE outbox SET status='unknown',provider=?,attempts=attempts+1,detail=?,recipient=?,subject=?,body=?,updated_at=? WHERE id=?",
+      provider.name,
+      'Sending was interrupted. Check before sending again.',
+      to,
+      subject,
+      stored,
+      now(),
+      fresh.id,
+    )
+    return {
+      row: { ...fresh, recipient: to, provider: provider.name, attempts: fresh.attempts + 1 },
+      message: {
+        id: fresh.id,
+        channel: fresh.channel,
+        to,
+        subject,
+        body: sending,
+        fromName: org.state.organisation.name,
+      },
+    }
+  }
 
   const deliver = async () => {
     const due = db.all<OutboxRow>(

@@ -53,6 +53,7 @@ const kindLabel: Record<MessageKind, string> = {
   due_back: 'Due back',
   birthday: 'Birthday',
   miss_you: 'We miss you',
+  missed_call: 'Missed call',
 }
 const providerLabel: Record<string, string> = {
   test: 'test mode',
@@ -181,6 +182,14 @@ export function MessageSettings() {
               ))}
             </select>
           </label>
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={draft.missedCall === true}
+              onChange={(e) => set('missedCall', e.target.checked)}
+            />
+            When you miss a call, text the caller once with your booking link
+          </label>
           <label>
             When the reminder goes
             <select
@@ -224,7 +233,8 @@ export function MessageSettings() {
         <p className="subtle">
           These are service messages about a visit, which a client can turn off on their profile.
           Due back, birthday and &ldquo;we miss you&rdquo; emails go only to guests who agreed to
-          hear from you, by email only.{' '}
+          hear from you, by email only. A missed-call text goes within 15 minutes of the call, at
+          most once a day to each number, and never to a client who asked for no texts.{' '}
           {mode === 'demo' ? 'The demo studio never sends anything.' : ''}
         </p>
         <ErrorMessage error={error} />

@@ -58,6 +58,8 @@ export const practitionerViewSchema = z
           durationMinutes: z.number().int().positive(),
           bufferMinutes: z.number().int().nonnegative(),
           status: appointmentSchema.shape.status,
+          /** V1.5: the guest tapped "I've arrived" and has not been welcomed yet. */
+          guestHere: z.literal(true).optional(),
           /** V1.5: for a treatment that needs one, where the guest's patch test stands. */
           patchTest: z
             .object({
@@ -180,6 +182,7 @@ export function practitionerView(
       durationMinutes: a.bookedDurationMinutes,
       bufferMinutes: a.bookedBufferMinutes,
       status: a.status,
+      ...(a.status === 'confirmed' && a.guestHereAt ? { guestHere: true as const } : {}),
       patchTest: patchFor(a),
     })),
     clients: s.clients

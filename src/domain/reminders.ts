@@ -1,4 +1,5 @@
 import type { Appointment, BusinessState, Client } from './model'
+import type { MissedCall } from './missedCallsSchema'
 import { businessDate, businessMinutes, instantFor, operations } from './operations'
 import { dateLabel, timeLabel } from './format'
 import { GUEST_CANCEL_CUTOFF_HOURS } from './guest'
@@ -48,13 +49,14 @@ export const messageKinds = [
   'due_back',
   'birthday',
   'miss_you',
+  'missed_call',
 ] as const
 export type MessageKind = (typeof messageKinds)[number]
 /** Messages about the guest rather than one visit. Their rows carry no appointment. */
 export const clientKinds = ['birthday', 'miss_you'] as const
 export type ClientKind = (typeof clientKinds)[number]
 /** Messages about one visit. */
-export type VisitKind = Exclude<MessageKind, ClientKind>
+export type VisitKind = Exclude<MessageKind, ClientKind | 'missed_call'>
 export const isClientKind = (kind: string): kind is ClientKind =>
   (clientKinds as readonly string[]).includes(kind)
 export const messageChannels = ['email', 'sms'] as const
@@ -261,6 +263,50 @@ export function clientSlot(s: BusinessState, client: Client, kind: ClientKind, n
   return kind === 'birthday'
     ? businessDate(s, nowIso).slice(0, 4)
     : (latestGuestVisit(s, client.id)?.id ?? '')
+}
+
+/** A missed caller is texted back only soon after they rang, while it still makes sense. */
+export const TEXT_BACK_MS = 15 * 60000
+
+/** Clients whose mobile number is this one. */
+export function clientsWithNumber(s: BusinessState, number: string) {
+  return s.clients.filter((c) => textNumber(c.phone) === number)
+}
+
+/**
+ * Whether a caller the studio missed may get one text now: the studio switched it on and sends
+ * texts, nobody has called them back, they rang in the last 15 minutes, and no client with that
+ * number asked not to get texts. Checked again just before sending.
+ */
+export function missedCallTextDue(s: BusinessState, call: MissedCall, nowIso: string) {
+  const settings = reminderSettings(s)
+  const since = Date.parse(nowIso) - Date.parse(call.lastAt)
+  return (
+    operations(s).mode === 'local' &&
+    settings.missedCall === true &&
+    settings.sms &&
+    !call.calledBackAt &&
+    since >= 0 &&
+    since < TEXT_BACK_MS &&
+    !clientsWithNumber(s, call.number).some((c) => c.noTextReminders)
+  )
+}
+
+/** One text per number per day on the studio's clock, however often they ring. */
+export function missedCallSlot(s: BusinessState, call: MissedCall) {
+  return `${call.number}@${businessDate(s, call.at)}`
+}
+
+/** The words of the text to a missed caller. Short, warm and with a way to stop. */
+export function composeMissedCallText(s: BusinessState) {
+  const org = s.organisation
+  const book = operations(s).bookingEnabled
+    ? ` If it was about a visit, you can book here: ${BOOK_LINK}`
+    : ''
+  return {
+    subject: '',
+    body: `${org.name}: sorry we missed your call. We will call you back as soon as we can.${book} Reply STOP to stop texts.`,
+  }
 }
 
 /** A patch test reminder goes no earlier than this before the visit. */
@@ -476,6 +522,22 @@ export function planMessages(
         ...composeClientMessage(s, client, kind),
       })
     }
+  }
+  // V1.5: one text back to a caller the studio missed, if the studio switched it on.
+  for (const call of operations(s).missedCalls ?? []) {
+    if (!missedCallTextDue(s, call, nowIso)) continue
+    const slot = missedCallSlot(s, call)
+    if (recorded.some((row) => row.kind === 'missed_call' && row.slot === slot)) continue
+    plan.push({
+      dedupeKey: `call:missed_call:sms:${slot}`,
+      appointmentId: '',
+      clientId: call.clientId ?? '',
+      kind: 'missed_call',
+      channel: 'sms',
+      slot,
+      recipient: call.number,
+      ...composeMissedCallText(s),
+    })
   }
   return plan
 }

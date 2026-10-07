@@ -233,6 +233,16 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
         recordedAt: b.createdAt,
         ...(b.settled ? { closedAt: b.settled.at, closedNote: b.settled.note } : {}),
       })),
+    // V1.5: calls from this client's number that the studio missed, and when it called back.
+    missedCalls: (ops.missedCalls ?? [])
+      .filter((c) => c.clientId === client.id)
+      .map((c) => ({
+        from: c.number,
+        firstCall: c.at,
+        lastCall: c.lastAt,
+        calls: c.calls,
+        ...(c.calledBackAt ? { calledBackAt: c.calledBackAt } : {}),
+      })),
     // V1.5: the private feedback this client gave about their visits.
     feedback: (state.feedback ?? [])
       .filter((f) => f.clientId === client.id)
@@ -488,6 +498,11 @@ export function erasureReview(
         label: 'Unsent messages (drafts, queued and suppressed)',
         count: ops.messages.filter((m) => m.clientId === client.id).length,
         reason: 'None was ever sent, so no delivery record depends on them.',
+      },
+      {
+        label: 'Missed calls from their number',
+        count: (ops.missedCalls ?? []).filter((c) => c.clientId === client.id).length,
+        reason: 'Only for calling them back. Not linked to money.',
       },
       {
         label: 'Waitlist requests',

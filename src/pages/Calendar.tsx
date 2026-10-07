@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Plus, LayoutGrid, List } from 'lucide-react'
 import { useStore } from '../state/context'
 import { businessMinutes, can, hoursFor } from '../domain/operations'
-import { dayAppointments, staffDay } from '../domain/selectors'
+import { dayAppointments, shownStatus, staffDay } from '../domain/selectors'
 import { addDays, dateLabel, timeLabel } from '../domain/format'
 import {
   Avatar,
@@ -408,7 +408,7 @@ export function Calendar() {
                         >
                           <span>
                             {timeLabel(a.startMinutes, state.organisation.locale)}{' '}
-                            <Status status={a.status} />
+                            <Status status={shownStatus(a)} />
                           </span>{' '}
                           <strong>{client.name}</strong> <small>{service.name}</small>
                         </button>

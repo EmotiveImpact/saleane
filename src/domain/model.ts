@@ -129,6 +129,8 @@ export const appointmentSchema = z.object({
   bookedServiceName: z.string().optional(),
   /** Tax basis at booking; null when the studio charged no tax then. Older visits omit it. */
   bookedTax: taxSchema.nullable().optional(),
+  /** V1.5: when the guest tapped "I've arrived" on their private link. The desk still welcomes them. */
+  guestHereAt: z.iso.datetime().optional(),
 })
 export const saleSchema = z.object({
   ...scoped,

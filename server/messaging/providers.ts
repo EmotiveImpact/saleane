@@ -43,7 +43,16 @@ export type Providers = {
   sms: MessageProvider
   /** Verifies and reads a receipt for the named provider; null when it is not genuine. */
   receipt: (provider: string, request: ReceiptRequest) => Receipt[] | null
+  /**
+   * V1.5: verifies how a call to the studio's phone line ended, for missed-call text-back. Only
+   * Twilio, and only when it sends the studio's texts. Null when it is not genuine.
+   */
+  voice?: (slug: string, request: ReceiptRequest) => VoiceCall | null
 }
+/** A call to the studio's line that has ended. `missed` when nobody picked up. */
+export type VoiceCall = { from: string; missed: boolean }
+/** Twilio's <Dial> outcomes that mean the studio did not speak to the caller. */
+const MISSED_DIAL = new Set(['busy', 'no-answer', 'failed', 'canceled'])
 type Fetch = typeof fetch
 
 export function testProvider(channel: MessageChannel): MessageProvider {
@@ -215,9 +224,18 @@ export function providersFromEnv(
     twilioToken = authToken
     sms = twilioProvider({ accountSid, authToken, from, statusCallback: twilioCallback, fetcher })
   } else if (smsName !== 'test') throw new Error(`Unknown text provider "${smsName}".`)
+  const voiceBase = `${origin.replace(/\/$/, '')}/api/hooks/twilio/voice/`
   return {
     email,
     sms,
+    voice(slug, request) {
+      if (!twilioToken) return null
+      const params = new URLSearchParams(request.body)
+      const expected = twilioSignature(twilioToken, voiceBase + slug, params)
+      if (!sameText(request.headers['x-twilio-signature'], expected)) return null
+      const status = params.get('DialCallStatus') ?? params.get('CallStatus') ?? ''
+      return { from: params.get('From') ?? '', missed: MISSED_DIAL.has(status) }
+    },
     receipt(provider, request) {
       if (provider === 'twilio' && twilioToken) {
         const params = new URLSearchParams(request.body)
