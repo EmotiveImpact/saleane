@@ -68,7 +68,7 @@ const CASH = new Set(['cash', 'demo_cash'])
  * The venue day a payment or refund belongs to. The sample studio's clock stands still on its
  * demo day, so anything recorded during a demo session after that day belongs to the demo day.
  */
-function recordDay(s: BusinessState, instant: string) {
+export function recordDay(s: BusinessState, instant: string) {
   const day = venueDate(s.organisation.timeZone, instant)
   if (operations(s).mode !== 'sandbox') return day
   const demoDay = businessDate(s)
@@ -127,7 +127,14 @@ export function cashForDay(s: BusinessState, date: string) {
     planRows
       .filter((r) => r.in === incoming && CASH.has(r.method) && recordDay(s, r.at) === date)
       .reduce((sum, r) => sum + r.amount, 0)
-  return { cashIn: cashIn + planCash(true), cashRefunded: cashRefunded + planCash(false) }
+  // Cash taken for products sold without a visit (V2).
+  const counterCash = (s.counterSales ?? [])
+    .filter((sale) => CASH.has(sale.method) && recordDay(s, sale.paidAt) === date)
+    .reduce((sum, sale) => sum + sale.totalMinor, 0)
+  return {
+    cashIn: cashIn + planCash(true) + counterCash,
+    cashRefunded: cashRefunded + planCash(false),
+  }
 }
 
 export function expectedCash(s: BusinessState, date: string, openingFloatMinor: number) {

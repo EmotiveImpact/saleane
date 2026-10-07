@@ -27,6 +27,10 @@ import { Calendar } from './pages/Calendar'
 import { Clients } from './pages/Clients'
 import { ClientRelationship } from './pages/ClientRelationship'
 import { Business } from './pages/Business'
+import { Stock } from './pages/Stock'
+import { Pay } from './pages/Pay'
+import { Rota } from './pages/Rota'
+import { Accounts } from './pages/Accounts'
 import { BrandedBooking } from './pages/BrandedBooking'
 const Account = lazy(() =>
   import('./pages/Account').then((module) => ({ default: module.Account })),
@@ -299,9 +303,15 @@ function WorkspaceApp() {
                 Overview
               </NavLink>
               <NavLink to="/business/money">Money</NavLink>
+              <NavLink to="/business/stock">Stock</NavLink>
+              <NavLink to="/business/rota">Rota</NavLink>
               {role !== 'practitioner' && <NavLink to="/business/gift-cards">Gift cards</NavLink>}
               {(role === 'owner' || role === 'manager') && (
-                <NavLink to="/business/feedback">Feedback</NavLink>
+                <>
+                  <NavLink to="/business/pay">Pay</NavLink>
+                  <NavLink to="/business/accounts">Accounts</NavLink>
+                  <NavLink to="/business/feedback">Feedback</NavLink>
+                </>
               )}
             </nav>
           )}
@@ -319,6 +329,31 @@ function WorkspaceApp() {
             />
             <Route path="/business/money" element={<Money />} />
             <Route path="/business/feedback" element={<Feedback />} />
+            <Route path="/business/stock" element={<Stock />} />
+            <Route
+              path="/business/accounts"
+              element={
+                role === 'owner' || role === 'manager' ? (
+                  <Accounts />
+                ) : (
+                  <Navigate to="/business" replace />
+                )
+              }
+            />
+            <Route
+              path="/business/rota"
+              element={role === 'practitioner' ? <Navigate to="/today" replace /> : <Rota />}
+            />
+            <Route
+              path="/business/pay"
+              element={
+                role === 'owner' || role === 'manager' ? (
+                  <Pay />
+                ) : (
+                  <Navigate to="/business" replace />
+                )
+              }
+            />
             <Route path="/business/gift-cards" element={<GiftCards />} />
             <Route path="/settings" element={<Manage accessPanel={<AccessPanel />} />} />
             <Route path="/business/manage" element={<Navigate to="/settings" replace />} />

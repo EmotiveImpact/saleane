@@ -182,6 +182,11 @@ export const migrations: Migration[] = [
         ALTER TABLE payment_attempts ADD COLUMN gift_card_minor INTEGER NOT NULL DEFAULT 0 CHECK(gift_card_minor>=0);
       `),
   },
+  {
+    version: 9,
+    // V2: a card checkout remembers the products added, so the receipt matches what was charged.
+    up: (connection) => connection.exec('ALTER TABLE payment_attempts ADD COLUMN products TEXT;'),
+  },
 ]
 export const SCHEMA_VERSION = migrations[migrations.length - 1].version
 

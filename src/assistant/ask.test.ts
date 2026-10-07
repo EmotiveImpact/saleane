@@ -76,8 +76,10 @@ describe('Smart insights through Ask Saleane', () => {
     )
   })
 
-  it('says when nothing looks unusual', async () => {
-    expect((await ask('Anything unusual?')).text).toBe('Nothing looks unusual right now.')
+  it('mentions only what is unusual: in the sample studio, one product running low', async () => {
+    expect((await ask('Anything unusual?')).text).toBe(
+      'Enzyme Peel, professional size is running low: At or below the level where you reorder.',
+    )
   })
 })
 

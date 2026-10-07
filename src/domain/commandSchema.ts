@@ -18,11 +18,17 @@ import {
 import {
   closureInputSchema,
   messageInputSchema,
+  payRulesInputSchema,
   protectionSchema,
   productInputSchema,
+  timeOffInputSchema,
   weeklyHoursSchema,
 } from './operations'
 import { tillCountCommandSchema } from './tillCount'
+import { retailItemsSchema } from './retailSchema'
+import { rentMethods, rentalInputSchema } from './rentSchema'
+import { orderLinesSchema, supplierInputSchema } from './purchasingSchema'
+import { accountingProviders, accountingSettingsSchema } from './accountsSchema'
 import { reminderSettingsSchema } from './reminderSettings'
 const id = z.string().min(1).max(150)
 const money = z.number().int().nonnegative().max(100_000_000)
@@ -113,6 +119,10 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     /** The receipt refunded; or, with `paymentId`, a deposit or fee payment (PILOT-02). */
     saleId: id.optional(),
     paymentId: id.optional(),
+    /** V2: a walk-in sale of products. */
+    counterSaleId: id.optional(),
+    /** V2: products the guest brought back that go back on the shelf. */
+    restock: retailItemsSchema.optional(),
     amountMinor: money.refine((n) => n > 0),
     reason: z.string().trim().min(3).max(300),
     reference: z.string().trim().min(1).max(150),
@@ -145,6 +155,54 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     inclusive: z.boolean(),
   }),
   z.object({ type: z.literal('product'), id: id.optional(), input: productInputSchema }),
+  z.object({ type: z.literal('time-off'), input: timeOffInputSchema }),
+  z.object({ type: z.literal('rental'), input: rentalInputSchema }),
+  z.object({ type: z.literal('supplier'), id: id.optional(), input: supplierInputSchema }),
+  z.object({
+    type: z.literal('purchase-order'),
+    supplierId: id,
+    lines: orderLinesSchema,
+    note: z.string().trim().max(300).optional(),
+  }),
+  z.object({
+    type: z.literal('receive-order'),
+    orderId: id,
+    received: z
+      .array(z.object({ productId: id, quantity: z.number().int().min(0).max(10000) }))
+      .min(1)
+      .max(50),
+  }),
+  z.object({ type: z.literal('cancel-order'), orderId: id }),
+  z.object({ type: z.literal('accounting-settings'), settings: accountingSettingsSchema }),
+  z.object({
+    type: z.literal('accounting-export'),
+    provider: z.enum(accountingProviders),
+    from: z.iso.date(),
+    to: z.iso.date(),
+  }),
+  z.object({ type: z.literal('end-rental'), rentalId: id, to: z.iso.date() }),
+  z.object({
+    type: z.literal('rent-payment'),
+    rentalId: id,
+    periodStart: z.iso.date(),
+    amountMinor: money.refine((n) => n > 0),
+    method: z.enum(rentMethods),
+    reference: z.string().trim().max(150).optional(),
+  }),
+  z.object({ type: z.literal('cancel-time-off'), timeOffId: id }),
+  z.object({
+    type: z.literal('leave-allowance'),
+    staffId: id,
+    days: z.number().min(0).max(366).multipleOf(0.5),
+  }),
+  z.object({ type: z.literal('pay-rules'), rules: payRulesInputSchema }),
+  z.object({
+    type: z.literal('pay-rate'),
+    staffId: id,
+    serviceBps: z.number().int().min(0).max(10000),
+    productBps: z.number().int().min(0).max(10000),
+    from: z.iso.date(),
+  }),
   z.object({
     type: z.literal('stock'),
     productId: id,
@@ -265,11 +323,23 @@ export const commandSchema = z.discriminatedUnion('type', [
     processor,
     /** V1.5: a package or membership pays for the visit; the guest pays any tip at the desk. */
     holdingId: id.optional(),
+    /** V2: products the guest buys with the visit, at their catalogue price. */
+    products: retailItemsSchema.optional(),
     /** V1.5: a gift card or voucher pays part or all of what is due. */
     giftCardId: id.optional(),
     giftCardMinor: money.optional(),
   }),
   z.object({ type: z.literal('note'), clientId: id, text: z.string().trim().min(2).max(1000) }),
+  // V2: products sold to someone without a visit.
+  z.object({
+    type: z.literal('counter-sale'),
+    clientId: id.optional(),
+    /** V2: who made the sale, for their commission. */
+    staffId: id.optional(),
+    products: retailItemsSchema.refine((items) => items.length > 0, 'Add a product.'),
+    method,
+    reference: z.string().trim().max(150).optional(),
+  }),
   z.object({ type: z.literal('client'), contact: contactSchema, referredById: id.optional() }),
   z.object({ type: z.literal('consent'), clientId: id, consent: z.boolean() }),
   tillCountCommandSchema,

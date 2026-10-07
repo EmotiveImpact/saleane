@@ -183,6 +183,12 @@ export function Business() {
           <span>Tips recorded in this period</span>
           <strong>{money(data.tips, state.organisation)}</strong>
           <small>Reported separately from service revenue.</small>
+          <div className="insight-rule" />
+          <span>Products sold with visits</span>
+          <strong>{money(data.retail, state.organisation)}</strong>
+          <small>
+            Before tax, separate from service revenue. <Link to="/business/stock">See stock</Link>
+          </small>
         </section>
       </div>
       <div className="business-tables">
@@ -224,7 +230,7 @@ export function Business() {
             Service revenue only.
             {data.rebookRate !== null &&
               ` Rebooked means the next visit was booked at checkout; the studio as a whole rebooked ${Math.round(data.rebookRate * 100)}%.`}{' '}
-            Commissions and payroll are a later version.
+            Commission and tips per person are on <Link to="/business/pay">Pay</Link>.
           </p>
         </section>
       </div>

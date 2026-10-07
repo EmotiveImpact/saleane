@@ -1,6 +1,8 @@
 import { businessDate, hoursFor, operations, staffHoursFor } from './operations'
 import type { BusinessState, Client } from './model'
 import { addDays } from './format'
+import { retailByProduct, retailRevenue } from './retail'
+import { recordDay } from './tillCount'
 
 export function dayAppointments(s: BusinessState, date = businessDate(s)) {
   return s.appointments
@@ -42,6 +44,12 @@ export function report(s: BusinessState, days: number) {
   const sales = s.sales.filter((sale) => completed.some((a) => a.id === sale.appointmentId))
   const revenue = sales.reduce((sum, sale) => sum + serviceRevenue(sale), 0)
   const tips = sales.reduce((sum, sale) => sum + sale.tipMinor, 0)
+  // V2: products sold with these visits or without one, without tax, kept apart from service revenue.
+  const counter = (s.counterSales ?? []).filter((sale) => {
+    const day = recordDay(s, sale.paidAt)
+    return day >= from && day <= businessDate(s)
+  })
+  const retail = [...sales, ...counter].reduce((sum, sale) => sum + retailRevenue(sale), 0)
   const booked = appointments.reduce((sum, a) => sum + a.bookedPriceMinor, 0)
   const minutes = appointments.reduce((sum, a) => sum + a.bookedDurationMinutes, 0)
   const wasRebooked = (a: (typeof completed)[number]) =>
@@ -83,10 +91,14 @@ export function report(s: BusinessState, days: number) {
     from,
     revenue,
     tips,
+    retail,
+    retailByProduct: retailByProduct([...sales, ...counter]),
     booked,
     completed: completed.length,
     utilisation: capacity ? minutes / capacity : 0,
-    tax: sales.reduce((sum, sale) => sum + (sale.taxMinor ?? 0), 0),
+    tax:
+      sales.reduce((sum, sale) => sum + (sale.taxMinor ?? 0) + (sale.retail?.taxMinor ?? 0), 0) +
+      counter.reduce((sum, sale) => sum + sale.retail.taxMinor, 0),
     refunds: operations(s)
       .refunds.filter((refund) => sales.some((sale) => sale.id === refund.saleId))
       .reduce((sum, refund) => sum + refund.amountMinor, 0),

@@ -31,8 +31,8 @@ describe('Smart insights', () => {
     expect(brief.yesterday.takingsMinor).toBeGreaterThan(0)
   })
 
-  it('stays quiet on an ordinary day', () => {
-    expect(unusual(base, today)).toEqual([])
+  it('stays quiet on an ordinary day, apart from the sample studio running low on a product', () => {
+    expect(unusual(base, today).map((x) => x.kind)).toEqual(['low-stock'])
   })
 
   it('notices a quiet day ahead only against enough history', () => {
