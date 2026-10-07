@@ -203,6 +203,31 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
         recordedAt: b.createdAt,
         ...(b.settled ? { closedAt: b.settled.at, closedNote: b.settled.note } : {}),
       })),
+    // V1.5: packages and memberships this client bought, with what was paid, used and returned.
+    plans: (state.holdings ?? [])
+      .filter((h) => h.clientId === client.id)
+      .map((h) => ({
+        kind: h.kind,
+        name: h.name,
+        startedOn: h.startedOn,
+        ...(h.endsOn ? { endsOn: h.endsOn } : {}),
+        ...(h.paidUntil ? { paidUntil: h.paidUntil } : {}),
+        status: h.status,
+        payments: h.payments.map((p) => ({
+          amountMinor: p.amountMinor,
+          method: METHOD[p.method],
+          recordedAt: p.recordedAt,
+        })),
+        visitsUsed: h.uses.map((u) => ({
+          visit: ref.get(u.appointmentId),
+          valueMinor: u.valueMinor,
+        })),
+        refunds: h.refunds.map((r) => ({
+          amountMinor: r.amountMinor,
+          reason: r.reason,
+          recordedAt: r.createdAt,
+        })),
+      })),
   }
 }
 export type ClientExport = ReturnType<typeof clientExport>
@@ -465,6 +490,16 @@ export function clientExportText(file: ClientExport, locale = 'en-GB') {
     ...file.carriedOver.map(
       (b) =>
         `${b.kind === 'credit' ? 'Credit' : 'Owed'} · ${amount(b.amountMinor, cur, locale)} · from ${b.from} · ${b.closedAt ? `closed ${b.closedAt.slice(0, 10)}` : 'open'}`,
+    ),
+    '',
+    `PACKAGES AND MEMBERSHIPS (${file.plans.length})`,
+    ...file.plans.map(
+      (p) =>
+        `${p.name} · ${p.kind} · from ${p.startedOn} · paid ${amount(
+          p.payments.reduce((sum, x) => sum + x.amountMinor, 0),
+          cur,
+          locale,
+        )} · ${p.visitsUsed.length} visits used · ${p.status}`,
     ),
     '',
     `MESSAGES (${file.messages.length}), none sent`,
