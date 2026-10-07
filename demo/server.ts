@@ -7,7 +7,7 @@ import { DEMO_DATE } from '../src/domain/model'
 import { exportDatabase, initSqlite } from './shims/sqlite'
 
 const ORIGIN = 'http://saleane.demo'
-const STORE = 'saleane.demo.database.v2'
+const STORE = 'saleane.demo.database.v3'
 export const DEMO_EMAIL = 'owner@atelier.demo'
 export const DEMO_PASSWORD = 'saleane-demo-2026'
 
@@ -16,7 +16,7 @@ let api: ApiHandler
 
 function saved(): Uint8Array | undefined {
   try {
-    localStorage.removeItem('saleane.demo.database.v1')
+    for (const old of ['v1', 'v2']) localStorage.removeItem(`saleane.demo.database.${old}`)
     const text = localStorage.getItem(STORE)
     return text ? Buffer.from(text, 'base64') : undefined
   } catch {
@@ -110,6 +110,69 @@ function makeTestModeStudio(orgId: string) {
   api.database.run('UPDATE organisations SET state=? WHERE id=?', JSON.stringify(state), orgId)
 }
 
+type DemoState = {
+  revision: number
+  services: { id: string; name: string; priceMinor: number }[]
+  clients: { id: string }[]
+  appointments: { clientId: string; status: string }[]
+  offers?: { id: string; name: string }[]
+}
+
+/** Two sample plans per studio, each already held by one client, so the plan screens show something. */
+async function seedPlans(orgId: string, csrf: string, sample: boolean) {
+  let state = (await call('GET', `/api/workspaces/${orgId}`)).json<{ state: DemoState }>().state
+  let n = 0
+  const send = async (command: Record<string, unknown>) => {
+    const result = await call(
+      'POST',
+      `/api/workspaces/${orgId}/commands`,
+      JSON.stringify({ revision: state.revision, command }),
+      { 'x-csrf-token': csrf, 'idempotency-key': `demo-plans-${orgId}-${n++}` },
+    )
+    if (result.statusCode !== 200) throw new Error(`Demo plans: ${result.body}`)
+    state = result.json<{ state: DemoState }>().state
+  }
+  const facial = state.services.find((s) => /facial/i.test(s.name)) ?? state.services[0]
+  const massages = state.services.filter((s) => /massage/i.test(s.name))
+  if (!facial) return
+  const round = (minor: number) => Math.round(minor / 500) * 500
+  await send({
+    type: 'offer',
+    input: {
+      kind: 'package',
+      name: `${facial.name}, course of five`,
+      serviceIds: [facial.id],
+      visits: 5,
+      priceMinor: round(facial.priceMinor * 5 * 0.85),
+      discountPercent: 0,
+      validMonths: 6,
+      archived: false,
+    },
+  })
+  await send({
+    type: 'offer',
+    input: {
+      kind: 'membership',
+      name: 'Monthly ritual',
+      serviceIds: (massages.length ? massages : [facial]).map((s) => s.id),
+      visits: 1,
+      priceMinor: round((massages[0] ?? facial).priceMinor * 0.9),
+      discountPercent: 10,
+      validMonths: 1,
+      archived: false,
+    },
+  })
+  // Clients with a visit still to come, so the plan can be used at checkout.
+  const upcoming = [
+    ...new Set(state.appointments.filter((a) => a.status === 'confirmed').map((a) => a.clientId)),
+  ]
+  const method = sample ? 'demo_card' : 'cash'
+  for (const [index, offer] of (state.offers ?? []).entries()) {
+    const clientId = upcoming[index] ?? state.clients[index]?.id
+    if (clientId) await send({ type: 'plan-sell', offerId: offer.id, clientId, method })
+  }
+}
+
 async function seed() {
   const register = await call(
     'POST',
@@ -131,7 +194,8 @@ async function seed() {
   if (register.statusCode !== 201) throw new Error(`Demo setup failed: ${register.body}`)
   const { csrf, orgId } = register.json<{ csrf: string; orgId: string }>()
   makeTestModeStudio(orgId)
-  await call(
+  await seedPlans(orgId, csrf, false).catch((error: unknown) => console.warn(error))
+  const created = await call(
     'POST',
     '/api/workspaces',
     JSON.stringify({
@@ -146,6 +210,10 @@ async function seed() {
     }),
     { 'x-csrf-token': csrf },
   )
+  if (created.statusCode === 201)
+    await seedPlans(created.json<{ orgId: string }>().orgId, csrf, true).catch((error: unknown) =>
+      console.warn(error),
+    )
 }
 
 let appBase = ''

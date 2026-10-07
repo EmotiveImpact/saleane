@@ -2,6 +2,8 @@ import { z } from 'zod'
 import { operationsSchema, taxSchema, weeklyHoursSchema } from './operations'
 import { tillCountProblem, tillCountSchema } from './tillCount'
 import { paymentMethodSchema, processorSchema } from './paymentMethods'
+import { holdingSchema, offerSchema } from './plansSchema'
+import { coveredSaleProblem, plansProblem } from './plans'
 export { paymentMethodSchema, paymentMethods, processorSchema } from './paymentMethods'
 
 export const DEMO_DATE = '2026-10-06'
@@ -117,6 +119,9 @@ export const saleSchema = z.object({
   method: paymentMethodSchema,
   reference: z.string().max(150).optional(),
   processor: processorSchema.optional(),
+  /** V1.5: the plan that paid for the visit, and how much of it this visit used. */
+  holdingId: id.optional(),
+  coveredMinor: minor.optional(),
 })
 export const paymentSchema = z.object({
   ...scoped,
@@ -156,6 +161,7 @@ export const eventSchema = z.object({
     'refund',
     'deposit',
     'profile',
+    'plan',
   ]),
   allocationChange: z.object({ from: allocationSchema, to: allocationSchema }).optional(),
   title: z.string(),
@@ -186,6 +192,9 @@ export const stateSchema = z.object({
   operations: operationsSchema.optional(),
   /** End-of-day till counts, append-only. Optional so records saved before them still load. */
   tillCounts: z.array(tillCountSchema).optional(),
+  /** V1.5: packages and memberships on sale, and the ones clients hold. */
+  offers: z.array(offerSchema).optional(),
+  holdings: z.array(holdingSchema).optional(),
 })
 export type BusinessState = z.infer<typeof stateSchema>
 export type Client = z.infer<typeof clientSchema>
@@ -274,7 +283,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
           (sale.discountMinor ?? 0) +
           (sale.taxInclusive ? 0 : (sale.taxMinor ?? 0)) +
           sale.tipMinor ||
-      sale.balanceMinor !== sale.totalMinor - sale.depositAppliedMinor
+      sale.balanceMinor !== sale.totalMinor - sale.depositAppliedMinor - (sale.coveredMinor ?? 0) ||
+      coveredSaleProblem(sale)
     )
       throw new Error('Invalid sale ledger.')
   }
@@ -467,12 +477,14 @@ export function parseState(value: unknown, region: Region): BusinessState {
     for (const sale of s.sales)
       if (
         o.refunds.filter((r) => r.saleId === sale.id).reduce((sum, r) => sum + r.amountMinor, 0) >
-        sale.totalMinor
+        sale.totalMinor - (sale.coveredMinor ?? 0)
       )
         throw new Error('Refunds exceed the receipt total.')
   }
   for (const count of s.tillCounts ?? [])
     if (tillCountProblem(count)) throw new Error('Invalid till count.')
+  const plans = plansProblem(s)
+  if (plans) throw new Error(plans)
   try {
     new Intl.DateTimeFormat('en', { timeZone: org.timeZone }).format(new Date())
   } catch {

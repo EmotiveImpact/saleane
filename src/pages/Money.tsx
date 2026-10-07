@@ -12,6 +12,7 @@ import '../components/management.css'
 import { TillCount } from '../components/TillCount'
 import { CardRefund } from '../components/CardPayments'
 import { CarriedBalances } from '../components/Switching'
+import { PlansLedger } from '../components/Plans'
 
 const methodLabel = (method: string) =>
   ({
@@ -27,10 +28,11 @@ export function Money() {
   const { state, commit, blocked, role, session } = useStore()
   const config = operations(state)
   const sandbox = config.mode === 'sandbox'
-  const [tab, setTab] = useState<'receipts' | 'funds' | 'deposits' | 'refunds' | 'carried'>(
-    'receipts',
-  )
+  const [tab, setTab] = useState<
+    'receipts' | 'funds' | 'deposits' | 'refunds' | 'carried' | 'plans'
+  >('receipts')
   const carried = !!config.balances?.length
+  const plans = !!state.holdings?.length
   const [receiptId, setReceiptId] = useState('')
   const [refund, setRefund] = useState(false)
   const [depositId, setDepositId] = useState('')
@@ -245,6 +247,7 @@ export function Money() {
           { value: 'deposits', label: 'Deposit review' },
           { value: 'refunds', label: 'Refund records' },
           ...(carried ? [{ value: 'carried' as const, label: 'Carried over' }] : []),
+          ...(plans ? [{ value: 'plans' as const, label: 'Plans' }] : []),
         ]}
       />
       <p className="ops-save-note" role="status">
@@ -263,7 +266,9 @@ export function Money() {
                       ? 'Deposits to follow through'
                       : tab === 'carried'
                         ? 'Balances from your old system'
-                        : 'Refund history'}
+                        : tab === 'plans'
+                          ? 'Packages and memberships'
+                          : 'Refund history'}
               </h2>
               <p>
                 {tab === 'receipts'
@@ -274,7 +279,9 @@ export function Money() {
                       ? 'A cancellation keeps its deposit history; it does not decide a refund or fee.'
                       : tab === 'carried'
                         ? 'Credit and money owed brought across when you switched. Close each one once it is used, paid or returned.'
-                        : 'Separate records preserve the original receipt.'}
+                        : tab === 'plans'
+                          ? 'What clients have paid for plans, what they have used and what is still to come.'
+                          : 'Separate records preserve the original receipt.'}
               </p>
             </div>
             <ReceiptText size={22} />
@@ -442,6 +449,7 @@ export function Money() {
             </>
           )}
           {tab === 'carried' && <CarriedBalances />}
+          {tab === 'plans' && <PlansLedger />}
           {tab === 'refunds' && (
             <>
               {config.refunds
