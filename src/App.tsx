@@ -91,11 +91,10 @@ function WorkspaceApp() {
   useStudioColours(state.organisation.id)
   // Waitlist offers whose time has gone are not counted as waiting for approval.
   const clock = useClock()
+  // Read again each minute too, so a waitlist time that has passed stops counting.
   const noticed = useMemo(
     () => nudges(state, role, today, clock).length,
-    // Read again when the record or the day changes, not on every tick of the clock.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state, role, today],
+    [state, role, today, clock],
   )
   const drafts = operations(state).messages.filter(
     (m) => m.status === 'draft' && !staleOffer(state, m.id, clock),

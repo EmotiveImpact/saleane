@@ -77,6 +77,8 @@ export function coverPlan(
 
   const locale = s.organisation.locale
   const day = dateLabel(date, locale)
+  // Neutral wording: the reason someone is off is theirs to share, and the plan may be for a later day.
+  const when = date === today ? 'today' : `on ${day}`
   const name = (id: string) => s.staff.find((p) => p.id === id)?.name ?? 'another professional'
   const client = (a: Appointment) => s.clients.find((c) => c.id === a.clientId)
   const service = (a: Appointment) =>
@@ -101,7 +103,7 @@ export function coverPlan(
         appointmentId: m.appointment.id,
         purpose: 'appointment',
         subject: `Your ${service(m.appointment)} on ${day}`,
-        body: `Hello ${first(guest.name)}, ${first(person.name)} is unwell today, so ${first(name(m.toStaffId))} will look after you instead, at the same time: ${timeLabel(m.appointment.startMinutes, locale)}. If you would rather wait for ${first(person.name)}, reply and we will find you another day.`,
+        body: `Hello ${first(guest.name)}, ${first(person.name)} is not in ${when}, so ${first(name(m.toStaffId))} will look after you instead, at the same time: ${timeLabel(m.appointment.startMinutes, locale)}. If you would rather wait for ${first(person.name)}, reply and we will find you another day.`,
       },
     })
   }
@@ -115,7 +117,7 @@ export function coverPlan(
         appointmentId: a.id,
         purpose: 'appointment',
         subject: `Your ${service(a)} on ${day}`,
-        body: `Hello ${first(guest.name)}, ${first(person.name)} is unwell today and nobody else is free to do your ${service(a)} at ${timeLabel(a.startMinutes, locale)}. We are sorry. Reply with a day that suits you and we will move it for you.`,
+        body: `Hello ${first(guest.name)}, ${first(person.name)} is not in ${when} and nobody else is free to do your ${service(a)} at ${timeLabel(a.startMinutes, locale)}. We are sorry. Reply with a day that suits you and we will move it for you.`,
       },
     })
   }

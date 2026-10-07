@@ -57,6 +57,9 @@ describe('covering for someone who is off', () => {
     )
     expect(drafts).toHaveLength(visits.length)
     expect(drafts.every((m) => m.status === 'draft')).toBe(true)
+    // Neutral wording: no reason for the absence is given to guests.
+    expect(drafts.every((m) => /Theo is not in today/.test(m.body))).toBe(true)
+    expect(drafts.some((m) => /\b(unwell|sick|ill)\b/i.test(m.body))).toBe(false)
     expect(slots(after, 'service-cut', 'staff-theo', today, now)).toEqual([])
   })
 
