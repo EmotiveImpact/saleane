@@ -56,7 +56,18 @@ export const clientSchema = z.object({
   /** The client asked not to receive appointment emails or texts (PILOT-01). Absent means allowed. */
   noEmailReminders: z.boolean().optional(),
   noTextReminders: z.boolean().optional(),
+  /** V1.5: month and day only ("03-14"), never the year, for a birthday email. */
+  birthday: z
+    .string()
+    .regex(/^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/)
+    .refine((value) => birthdayIsReal(value), 'Choose a real date.')
+    .optional(),
 })
+/** Whether a "MM-DD" birthday exists in some year (29 February does). */
+export function birthdayIsReal(value: string) {
+  const [month, day] = value.split('-').map(Number)
+  return day <= new Date(Date.UTC(2024, month, 0)).getUTCDate()
+}
 export const serviceSchema = z.object({
   ...scoped,
   name: z.string().trim().min(2).max(100),

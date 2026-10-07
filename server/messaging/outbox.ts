@@ -3,7 +3,12 @@ import {
   BOOK_LINK,
   MANAGE_LINK,
   aftercareDue,
+  birthdayDue,
   channelsFor,
+  clientSlot,
+  composeClientMessage,
+  isClientKind,
+  missYouDue,
   dueBackDue,
   composeMessage,
   planMessages,
@@ -64,13 +69,17 @@ export function createOutbox(ctx: Context, providers: Providers) {
       if (!org) continue
       const recorded = db
         .all<
-          Pick<OutboxRow, 'appointment_id' | 'kind' | 'channel' | 'slot' | 'status' | 'created_at'>
+          Pick<
+            OutboxRow,
+            'appointment_id' | 'client_id' | 'kind' | 'channel' | 'slot' | 'status' | 'created_at'
+          >
         >(
-          'SELECT appointment_id,kind,channel,slot,status,created_at FROM outbox WHERE organisation_id=?',
+          'SELECT appointment_id,client_id,kind,channel,slot,status,created_at FROM outbox WHERE organisation_id=?',
           id,
         )
         .map((row) => ({
           appointmentId: row.appointment_id,
+          clientId: row.client_id,
           kind: row.kind,
           channel: row.channel,
           slot: row.slot,
@@ -125,43 +134,60 @@ export function createOutbox(ctx: Context, providers: Providers) {
       )
       if (!fresh) return null
       const org = ctx.systemOrg(fresh.organisation_id)
-      const visit = org?.state.appointments.find((a) => a.id === fresh.appointment_id)
       const client = org?.state.clients.find((c) => c.id === fresh.client_id)
       const skip = (detail: string) => {
         finish(fresh, 'skipped', { detail })
         return null
       }
-      if (!org || !visit || !client) return skip('The visit is no longer in the studio record.')
+      if (!org || !client) return skip('The visit is no longer in the studio record.')
       if (operations(org.state).mode !== 'local') return skip('Sample studios never send.')
-      const after = ['feedback', 'aftercare', 'due_back'].includes(fresh.kind)
-      const wanted = fresh.kind === 'cancelled' ? 'cancelled' : after ? 'completed' : 'confirmed'
-      if (visit.status !== wanted || visitSlot(visit) !== fresh.slot)
-        return skip('The visit changed before this went out.')
-      if (
-        fresh.kind === 'feedback' &&
-        !feedbackDue(org.state, visit, visitStart(org.state, visit.id), now())
-      )
-        return skip('Answered, turned off or too late before it went out.')
-      if (
-        fresh.kind === 'patch_test' &&
-        !patchTestReminderDue(org.state, visit, visitStart(org.state, visit.id), now())
-      )
-        return skip('A patch test was recorded, or it was too late, before it went out.')
-      if (fresh.kind === 'aftercare' && !aftercareDue(org.state, visit, now()))
-        return skip('Turned off, advice removed or too late before it went out.')
-      if (fresh.kind === 'due_back' && !dueBackDue(org.state, visit, new Date(now()).toISOString()))
-        return skip('Booked again, turned off or no longer agreed before it went out.')
-      if (fresh.kind !== 'cancelled' && !channelsFor(org.state, client).includes(fresh.channel))
-        return skip('Turned off for this client or studio before it went out.')
-      // The studio's rules may have changed since this was queued: say what they are now.
-      const current = ['patch_test', 'aftercare', 'due_back'].includes(fresh.kind)
-        ? composeMessage(org.state, visit, fresh.kind, fresh.channel)
-        : null
+      // V1.5: a birthday or "we miss you" is about the guest, not a visit. Checked again now.
+      const kind = fresh.kind
+      let current: { subject: string; body: string } | null = null
+      let visitId = ''
+      if (isClientKind(kind)) {
+        const nowIso = new Date(now()).toISOString()
+        const due = kind === 'birthday' ? birthdayDue : missYouDue
+        if (
+          !due(org.state, client, nowIso) ||
+          clientSlot(org.state, client, kind, nowIso) !== fresh.slot ||
+          !channelsFor(org.state, client).includes(fresh.channel)
+        )
+          return skip('Turned off, booked again or no longer agreed before it went out.')
+        current = composeClientMessage(org.state, client, kind)
+      } else {
+        const visit = org.state.appointments.find((a) => a.id === fresh.appointment_id)
+        if (!visit) return skip('The visit is no longer in the studio record.')
+        const after = ['feedback', 'aftercare', 'due_back'].includes(kind)
+        const wanted = kind === 'cancelled' ? 'cancelled' : after ? 'completed' : 'confirmed'
+        if (visit.status !== wanted || visitSlot(visit) !== fresh.slot)
+          return skip('The visit changed before this went out.')
+        if (
+          kind === 'feedback' &&
+          !feedbackDue(org.state, visit, visitStart(org.state, visit.id), now())
+        )
+          return skip('Answered, turned off or too late before it went out.')
+        if (
+          kind === 'patch_test' &&
+          !patchTestReminderDue(org.state, visit, visitStart(org.state, visit.id), now())
+        )
+          return skip('A patch test was recorded, or it was too late, before it went out.')
+        if (kind === 'aftercare' && !aftercareDue(org.state, visit, now()))
+          return skip('Turned off, advice removed or too late before it went out.')
+        if (kind === 'due_back' && !dueBackDue(org.state, visit, new Date(now()).toISOString()))
+          return skip('Booked again, turned off or no longer agreed before it went out.')
+        if (kind !== 'cancelled' && !channelsFor(org.state, client).includes(fresh.channel))
+          return skip('Turned off for this client or studio before it went out.')
+        // The studio's rules may have changed since this was queued: say what they are now.
+        if (kind === 'patch_test' || kind === 'aftercare' || kind === 'due_back')
+          current = composeMessage(org.state, visit, kind, fresh.channel)
+        visitId = visit.id
+      }
       let body = current?.body ?? fresh.body
       body = body.replaceAll(BOOK_LINK, `${ctx.allowedOrigin}/book/${org.slug}`)
       if (body.includes(MANAGE_LINK)) {
         try {
-          body = body.replaceAll(MANAGE_LINK, issueGuestLink(ctx, org, visit.id, 'message').url)
+          body = body.replaceAll(MANAGE_LINK, issueGuestLink(ctx, org, visitId, 'message').url)
         } catch {
           return skip('The visit is too close or too far past for a manage link.')
         }

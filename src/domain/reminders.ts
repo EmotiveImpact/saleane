@@ -10,8 +10,10 @@ import { addDays } from './format'
 import {
   DEFAULT_RETURN_DAYS,
   dueBackOn,
+  agreedEverywhere,
   hasVisitAhead,
   isLatestVisit,
+  latestGuestVisit,
   sameGuest,
   returnWeeksFor,
 } from './dueBack'
@@ -26,6 +28,7 @@ import {
  */
 export {
   defaultReminderSettings,
+  missYouDayChoices,
   reminderHourChoices,
   reminderSettingsSchema,
 } from './reminderSettings'
@@ -43,8 +46,17 @@ export const messageKinds = [
   'patch_test',
   'aftercare',
   'due_back',
+  'birthday',
+  'miss_you',
 ] as const
 export type MessageKind = (typeof messageKinds)[number]
+/** Messages about the guest rather than one visit. Their rows carry no appointment. */
+export const clientKinds = ['birthday', 'miss_you'] as const
+export type ClientKind = (typeof clientKinds)[number]
+/** Messages about one visit. */
+export type VisitKind = Exclude<MessageKind, ClientKind>
+export const isClientKind = (kind: string): kind is ClientKind =>
+  (clientKinds as readonly string[]).includes(kind)
 export const messageChannels = ['email', 'sms'] as const
 export type MessageChannel = (typeof messageChannels)[number]
 /** Where a link to manage the visit goes. The outbox swaps it for a fresh private link. */
@@ -55,6 +67,8 @@ export const BOOK_LINK = '{{book_link}}'
 /** A message the outbox has already recorded, enough to avoid sending it twice. */
 export type RecordedMessage = {
   appointmentId: string
+  /** Needed for messages about the guest rather than a visit. */
+  clientId?: string
   kind: MessageKind
   channel: MessageChannel
   slot: string
@@ -162,20 +176,91 @@ export function dueBackDue(s: BusinessState, a: Appointment, nowIso: string) {
     !returnWeeksFor(s, a) ||
     !client ||
     // A guest who said no under any of their records has said no.
-    s.clients.some((c) => sameGuest(s, client.id).has(c.id) && !c.marketingConsent) ||
+    !agreedEverywhere(s, client.id) ||
     !isLatestVisit(s, a) ||
     hasVisitAhead(s, a.clientId)
   )
     return false
   const today = businessDate(s, nowIso)
   const due = dueBackOn(s, a)
-  const minutes = businessMinutes(s, nowIso)
   return (
     today >= addDays(due, -DUE_BACK_EARLY_DAYS) &&
     today <= addDays(due, DUE_BACK_LATE_DAYS) &&
-    minutes >= DAYTIME.from &&
-    minutes < DAYTIME.to
+    daytime(s, nowIso)
   )
+}
+
+function daytime(s: BusinessState, nowIso: string) {
+  const minutes = businessMinutes(s, nowIso)
+  return minutes >= DAYTIME.from && minutes < DAYTIME.to
+}
+
+/** The day a "MM-DD" birthday falls on in a year: 29 February is the 28th in other years. */
+export function birthdayIn(birthday: string, year: number) {
+  const leap = new Date(Date.UTC(year, 1, 29)).getUTCMonth() === 1
+  return `${year}-${birthday === '02-29' && !leap ? '02-28' : birthday}`
+}
+
+/**
+ * Whether a guest may get a birthday email now: switched on, the guest shared the date and agreed
+ * to hear from the studio, it is that day on the studio's clock, in the daytime. When one guest has
+ * several records, only the first with a birthday sends, so they get one email.
+ */
+export function birthdayDue(s: BusinessState, client: Client, nowIso: string) {
+  if (reminderSettings(s).birthday === false || !client.birthday) return false
+  if (!agreedEverywhere(s, client.id)) return false
+  const ids = sameGuest(s, client.id)
+  const first = s.clients
+    .filter((c) => ids.has(c.id) && c.birthday)
+    .sort((a, b) => a.id.localeCompare(b.id))[0]
+  if (first?.id !== client.id) return false
+  const today = businessDate(s, nowIso)
+  return today === birthdayIn(client.birthday, Number(today.slice(0, 4))) && daytime(s, nowIso)
+}
+
+/** A "we miss you" note may go for this long once the gap is reached, never for old gaps in bulk. */
+const MISS_YOU_WINDOW_DAYS = 30
+
+/**
+ * The first day a guest may be told "we miss you": the studio's gap (90 days by default) after
+ * their last visit, and never while a due back note could still be on its way.
+ */
+export function missYouFrom(s: BusinessState, last: Appointment) {
+  // The setting is offered as months (60 days is "two months"), so count calendar months.
+  const months = (reminderSettings(s).missYouDays ?? 90) / 30
+  const afterDueBack = addDays(dueBackOn(s, last), DUE_BACK_LATE_DAYS + 14)
+  const afterGap = addMonths(last.date, months)
+  return afterGap > afterDueBack ? afterGap : afterDueBack
+}
+
+/** The same day some months later, or the month's last day when it is shorter (31 Aug + 3 is 30 Nov). */
+export function addMonths(date: string, months: number) {
+  const [year, month, day] = date.split('-').map(Number)
+  const last = new Date(Date.UTC(year, month - 1 + months + 1, 0)).getUTCDate()
+  return new Date(Date.UTC(year, month - 1 + months, Math.min(day, last)))
+    .toISOString()
+    .slice(0, 10)
+}
+
+/**
+ * Whether a guest may get one "we miss you" email now, for their current gap: switched on, they
+ * agreed to hear, nothing is booked, the gap is reached and less than a month old, in the daytime.
+ * Sent from the record that holds the last visit, so a guest with several records gets one.
+ */
+export function missYouDue(s: BusinessState, client: Client, nowIso: string) {
+  if (reminderSettings(s).missYou === false || !agreedEverywhere(s, client.id)) return false
+  const last = latestGuestVisit(s, client.id)
+  if (!last || last.clientId !== client.id || hasVisitAhead(s, client.id)) return false
+  const from = missYouFrom(s, last)
+  const today = businessDate(s, nowIso)
+  return today >= from && today < addDays(from, MISS_YOU_WINDOW_DAYS) && daytime(s, nowIso)
+}
+
+/** Which birthday or gap a client message is about, so each goes once. */
+export function clientSlot(s: BusinessState, client: Client, kind: ClientKind, nowIso: string) {
+  return kind === 'birthday'
+    ? businessDate(s, nowIso).slice(0, 4)
+    : (latestGuestVisit(s, client.id)?.id ?? '')
 }
 
 /** A patch test reminder goes no earlier than this before the visit. */
@@ -302,7 +387,7 @@ export function planMessages(
     if (start <= now) continue
     const rows = byVisit.get(a.id) ?? []
     const moved = lastMoved(s, a.id)
-    const add = (kind: MessageKind, channel: MessageChannel, attempt = 0) => {
+    const add = (kind: VisitKind, channel: MessageChannel, attempt = 0) => {
       const recipient = channel === 'email' ? client.email : textNumber(client.phone)
       if (!recipient) return
       const text = composeMessage(s, a, kind, channel)
@@ -363,8 +448,78 @@ export function planMessages(
       }
     }
   }
+  // V1.5: messages about the guest rather than one visit, by email only, once per birthday or gap.
+  for (const client of s.clients) {
+    if (!channelsFor(s, client).includes('email') || !client.email) continue
+    const due: Record<ClientKind, boolean> = {
+      birthday: birthdayDue(s, client, nowIso),
+      miss_you: missYouDue(s, client, nowIso),
+    }
+    const ids = sameGuest(s, client.id)
+    for (const kind of clientKinds) {
+      if (!due[kind]) continue
+      const slot = clientSlot(s, client, kind, nowIso)
+      if (
+        recorded.some(
+          (row) => row.kind === kind && row.slot === slot && ids.has(row.clientId ?? ''),
+        )
+      )
+        continue
+      plan.push({
+        dedupeKey: `${client.id}:${kind}:email:${slot}`,
+        appointmentId: '',
+        clientId: client.id,
+        kind,
+        channel: 'email',
+        slot,
+        recipient: client.email,
+        ...composeClientMessage(s, client, kind),
+      })
+    }
+  }
   return plan
 }
+
+/** The words of a message about the guest rather than one visit. Warm, short, never pushy. */
+export function composeClientMessage(s: BusinessState, client: Client, kind: ClientKind) {
+  const org = s.organisation
+  const bookLine = operations(s).bookingEnabled
+    ? `Book when it suits you: ${BOOK_LINK}`
+    : 'Call us or reply to book when it suits you.'
+  const subject = {
+    birthday: `Happy birthday from ${org.name}`,
+    miss_you: `We miss you at ${org.name}`,
+  }[kind]
+  const opening = {
+    birthday: `Everyone at ${org.name} wishes you a very happy birthday. We hope it is a lovely day.`,
+    miss_you: `It has been a little while since your last visit, and we would love to see you again whenever you are ready.`,
+  }[kind]
+  // A guest who already has a visit booked is simply wished a happy birthday.
+  const invite = {
+    birthday: hasVisitAhead(s, client.id)
+      ? `We look forward to seeing you soon.`
+      : operations(s).bookingEnabled
+        ? `If you fancy a treat this month: ${BOOK_LINK}`
+        : 'If you fancy a treat this month, call us or reply to book.',
+    miss_you: bookLine,
+  }[kind]
+  const body = [
+    `Hello ${firstName(client.name)},`,
+    '',
+    opening,
+    '',
+    invite,
+    '',
+    STOP_LINE,
+    '',
+    org.name,
+  ].join('\n')
+  return { subject, body }
+}
+
+/** Every message sent because a guest agreed to hear from the studio says why, and how to stop. */
+const STOP_LINE =
+  'You are hearing this because you said we could keep in touch. To stop these, reply to this email or tell us at your next visit.'
 
 function firstName(name: string) {
   return name.trim().split(/\s+/)[0] ?? name
@@ -374,7 +529,7 @@ function firstName(name: string) {
 export function composeMessage(
   s: BusinessState,
   a: Appointment,
-  kind: MessageKind,
+  kind: VisitKind,
   channel: MessageChannel,
 ) {
   const org = s.organisation
@@ -443,11 +598,7 @@ export function composeMessage(
       `If anything feels wrong, please call us. For anything urgent, contact a medical professional.`,
     )
   } else if (kind === 'due_back') {
-    lines.push(
-      bookLine,
-      '',
-      `You are hearing this because you said we could keep in touch. To stop these, reply to this email or tell us at your next visit.`,
-    )
+    lines.push(bookLine, '', STOP_LINE)
   } else
     lines.push(
       `${service}${withWhom}`,

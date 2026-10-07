@@ -653,6 +653,21 @@ export function runOperatingCommand(
     }
     o.movements.push(movement)
     recordId = movement.id
+  } else if (command.type === 'client-birthday') {
+    const client = next.clients.find((c) => c.id === command.clientId)
+    if (!client) throw new Error('Client does not belong to this workspace.')
+    // Saving the same date again changes nothing and adds nothing to the timeline.
+    if ((client.birthday ?? null) !== command.birthday) {
+      if (command.birthday) client.birthday = command.birthday
+      else delete client.birthday
+      addEvent({
+        clientId: client.id,
+        type: 'profile',
+        title: command.birthday ? 'Birthday recorded' : 'Birthday removed',
+        detail: 'Month and day only.',
+      })
+    }
+    recordId = client.id
   } else if (command.type === 'client-edit') {
     const client = next.clients.find((c) => c.id === command.clientId)
     if (!client) throw new Error('Client does not belong to this workspace.')
