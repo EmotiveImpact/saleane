@@ -12,6 +12,8 @@ import { parseMinor } from '../domain/money'
 import { Avatar, Button, ErrorMessage, Modal, PageHeader, Tabs } from '../design'
 import { AffectedVisits, ScheduleHistory } from '../components/ScheduleImpact'
 import { StudioPrivacy } from '../components/Privacy'
+import { GuestNotesSettings } from '../components/GuestNotesSettings'
+import { ShareBookingPage } from '../components/ShareBookingPage'
 import '../components/management.css'
 
 const sections = [
@@ -398,6 +400,12 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                   </div>
                 </form>
               </section>
+            )}
+            {section === 'business' && (
+              <>
+                <ShareBookingPage />
+                <GuestNotesSettings />
+              </>
             )}
             {section === 'service' && (
               <section className="surface ops-panel">

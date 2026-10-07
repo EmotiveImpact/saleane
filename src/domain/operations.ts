@@ -104,6 +104,7 @@ export const operationsSchema = z.object({
       amountMinor: money.refine((v) => v > 0),
       reason: z.string().trim().min(3).max(300),
       reference: z.string().trim().min(1).max(150),
+      method: z.enum(['demo_card', 'demo_cash', 'cash', 'external_card']).optional(),
       createdAt: z.iso.datetime(),
       actor: z.string(),
     }),
@@ -175,6 +176,10 @@ function localParts(instant: number, timeZone: string) {
 }
 /** Rejects nonexistent and repeated local times instead of silently shifting an appointment. */
 export function instantFor(s: BusinessState, date: string, minute: number) {
+  return instantIn(s.organisation.timeZone, date, minute)
+}
+/** The UTC instant of a civil time in a time zone; throws for times the clocks skip or repeat. */
+export function instantIn(timeZone: string, date: string, minute: number) {
   if (
     !civilDate.safeParse(date).success ||
     !Number.isInteger(minute) ||
@@ -186,12 +191,12 @@ export function instantFor(s: BusinessState, date: string, minute: number) {
   const offsets = new Set(
     [-36, -12, 0, 12, 36].map((h) => {
       const probe = target + h * 3600000
-      return localParts(probe, s.organisation.timeZone) - probe
+      return localParts(probe, timeZone) - probe
     }),
   )
   const matches = [...offsets]
     .map((offset) => target - offset)
-    .filter((instant) => localParts(instant, s.organisation.timeZone) === target)
+    .filter((instant) => localParts(instant, timeZone) === target)
   if (matches.length !== 1)
     throw new Error(
       'This local time is unavailable because the clocks change. Choose another time.',
@@ -215,7 +220,7 @@ export function stock(s: BusinessState, productId: string) {
     .reduce((sum, m) => sum + m.quantity, 0)
 }
 export function permissionFor(command: { type: string }) {
-  if (['service', 'staff', 'resource'].includes(command.type)) return 'catalogue'
+  if (['service', 'staff', 'resource', 'guest-notes'].includes(command.type)) return 'catalogue'
   if (['closure', 'remove-closure'].includes(command.type)) return 'hours'
   if (command.type === 'message-queue') return 'message.queue'
   return command.type

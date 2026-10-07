@@ -7,6 +7,7 @@ import { businessDate, operations } from '../../src/domain/operations'
 import { HOLD_LIMITS, holdInput, guestContact } from '../context'
 import type { Context, Route, HoldAllocation, HoldRow } from '../context'
 import { issueGuestLink } from './guest'
+import { bookingChannel } from '../../src/domain/bookingChannel'
 
 /** Public booking routes. These never return clients, histories or money. Returns false when the request belongs to another module. */
 export async function publicRoutes(ctx: Context, route: Route): Promise<boolean> {
@@ -18,7 +19,8 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
     if (path.length === 3 && method === 'GET') {
       const org = publicOrg(slug),
         state = org.state,
-        sample = operations(state).mode === 'sandbox'
+        sample = operations(state).mode === 'sandbox',
+        tax = operations(state).tax
       reply(200, {
         organisation: state.organisation,
         services: state.services
@@ -37,6 +39,11 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
         sample,
         depositPolicy: sample ? 'simulated' : 'pay_at_studio',
         paymentCollectionConfigured: false,
+        // Only the rate and basis, so each service can show its full price including any tax.
+        tax:
+          tax && tax.rateBps > 0
+            ? { label: tax.label, rateBps: tax.rateBps, inclusive: tax.inclusive }
+            : null,
         botCheck: operations(state).botCheck && turnstile ? { siteKey: turnstile.siteKey } : null,
       })
       return true
@@ -162,6 +169,8 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
           hold: z.string().min(32).max(100),
           contact: guestContact,
           policy: z.literal(true),
+          // The `from` value of a shared booking link. Unknown values are ignored, not refused.
+          from: z.unknown().optional(),
         })
         .strict()
         .parse(body)
@@ -212,6 +221,7 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
             startMinutes: allocation.startMinutes,
             contact: data.contact,
             source: 'online',
+            channel: bookingChannel(data.from),
           },
         })
         const result = dispatch(org.state, command, 'Guest booking', new Date(now()).toISOString())

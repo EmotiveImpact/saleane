@@ -99,7 +99,7 @@ function WorkspaceApp() {
     )
   if (location.pathname === '/booking')
     return mode === 'server' ? (
-      <Navigate to={`/book/${slug}`} replace />
+      <Navigate to={`/book/${slug}${location.search}`} replace />
     ) : (
       <BrandedBooking key={state.organisation.id} />
     )

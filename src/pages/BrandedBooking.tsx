@@ -6,6 +6,13 @@ import { DEMO_DATE } from '../domain/model'
 import { slots } from '../domain/commands'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import { Avatar, Button, DateStrip, ErrorMessage, TimeChoices } from '../design'
+import { operations } from '../domain/operations'
+import { PriceSentence } from '../components/PriceSentence'
+import { BeforeYouArrive } from '../components/BeforeYouArrive'
+import { AddToCalendar } from '../components/AddToCalendar'
+import { visitUid } from '../domain/calendarFile'
+import { bookingChannel } from '../domain/bookingChannel'
+import { fullPriceMinor } from '../domain/priceSentence'
 
 export function BrandedBooking() {
   const { state, commit, region, changeRegion, saving } = useStore()
@@ -44,6 +51,8 @@ export function BrandedBooking() {
     return null
   })()
   const steps = ['Your treatment', 'A time for you', 'Your details', 'A final look']
+  const tax = operations(state).tax
+  const fullPrice = (s: { priceMinor: number }) => fullPriceMinor(s, tax)
   async function confirm() {
     if (start === null || !policy) {
       setError('Choose a time and acknowledge the demo booking policy.')
@@ -58,6 +67,8 @@ export function BrandedBooking() {
         startMinutes: start,
         contact: { name, email, phone, marketingConsent: consent },
         source: 'online',
+        // Where the guest came from, when they followed one of the studio's shared links.
+        channel: bookingChannel(new URLSearchParams(window.location.search).get('from')),
       },
     })
     if (!result.ok) {
@@ -144,12 +155,31 @@ export function BrandedBooking() {
               </p>
               <div className="confirmation-details">
                 <span>
-                  Service total<strong>{money(service.priceMinor, state.organisation)}</strong>
+                  Service total<strong>{money(fullPrice(service), state.organisation)}</strong>
                 </span>
                 <span>
                   Demo deposit<strong>{money(service.depositMinor, state.organisation)}</strong>
                 </span>
               </div>
+              <BeforeYouArrive
+                studioNote={state.organisation.arrivalNote}
+                serviceNote={service.prepNote}
+              />
+              {start !== null && (
+                <AddToCalendar
+                  visit={{
+                    uid: visitUid(confirmedId),
+                    serviceName: service.name,
+                    studioName: state.organisation.name,
+                    date,
+                    startMinutes: start,
+                    durationMinutes: service.durationMinutes,
+                    timeZone: state.organisation.timeZone,
+                    location: state.organisation.address || state.organisation.locationName,
+                    description: `With ${staff.name.split(' ')[0]}.`,
+                  }}
+                />
+              )}
               <p className="subtle">
                 No money was taken and no email was sent. This fictional booking is saved in this
                 browser’s workspace.
@@ -251,9 +281,15 @@ export function BrandedBooking() {
                                 <Clock3 size={14} />
                                 {s.durationMinutes} minutes
                               </span>
+                              <PriceSentence
+                                service={s}
+                                organisation={state.organisation}
+                                tax={tax}
+                                simulated
+                              />
                             </div>
                             <span>
-                              <strong>{money(s.priceMinor, state.organisation)}</strong>
+                              <strong>{money(fullPrice(s), state.organisation)}</strong>
                               <span className="selection-circle">
                                 {serviceId === s.id && <Check size={14} />}
                               </span>
@@ -264,7 +300,7 @@ export function BrandedBooking() {
                     <div className="booking-next">
                       <span>
                         {service.name}
-                        <strong>{money(service.priceMinor, state.organisation)}</strong>
+                        <strong>{money(fullPrice(service), state.organisation)}</strong>
                       </span>
                       <Button
                         onClick={() => {
@@ -445,7 +481,7 @@ export function BrandedBooking() {
                       </p>
                       <div className="receipt-line">
                         <span>Service total</span>
-                        <strong>{money(service.priceMinor, state.organisation)}</strong>
+                        <strong>{money(fullPrice(service), state.organisation)}</strong>
                       </div>
                       <div className="receipt-line">
                         <span>Demo deposit today</span>
@@ -454,7 +490,7 @@ export function BrandedBooking() {
                       <div className="receipt-line subtle">
                         <span>Remaining at visit</span>
                         <span>
-                          {money(service.priceMinor - service.depositMinor, state.organisation)}
+                          {money(fullPrice(service) - service.depositMinor, state.organisation)}
                         </span>
                       </div>
                       <div className="detail-divider" />

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { useStore } from '../state/context'
 import { bookedTimeShare, dueClients, report } from '../domain/selectors'
 import { bookedTimeDefinition } from '../components/definitions'
+import { RetentionPanel } from '../components/RetentionPanel'
 import { dateLabel, money } from '../domain/format'
 import { Avatar, Button, Metric, PageHeader, SegmentedControl } from '../design'
 
@@ -197,6 +198,7 @@ export function Business() {
           </p>
         </section>
       </div>
+      <RetentionPanel days={days} />
       <div className="metric-definitions">
         <button
           className="text-link"

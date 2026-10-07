@@ -9,6 +9,13 @@ import type { BusinessState } from '../domain/model'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import { Button, ErrorMessage, TimeChoices } from '../design'
 import { BotCheck } from '../components/BotCheck'
+import { PriceSentence } from '../components/PriceSentence'
+import { BeforeYouArrive } from '../components/BeforeYouArrive'
+import { AddToCalendar } from '../components/AddToCalendar'
+import { visitUid } from '../domain/calendarFile'
+import { bookingChannel } from '../domain/bookingChannel'
+import { fullPriceMinor } from '../domain/priceSentence'
+import type { PriceTax } from '../domain/priceSentence'
 import '../guest.css'
 
 const pendingBookingSchema = z.object({
@@ -36,6 +43,14 @@ function readPendingBooking(key: string) {
     }
   }
 }
+/** The `from` value of a shared booking link, such as ?from=google. */
+function urlChannel() {
+  try {
+    return new URLSearchParams(window.location.search).get('from') ?? undefined
+  } catch {
+    return undefined
+  }
+}
 type Catalog = {
   organisation: BusinessState['organisation']
   services: BusinessState['services']
@@ -43,6 +58,7 @@ type Catalog = {
   today: string
   sample: boolean
   botCheck?: { siteKey: string } | null
+  tax?: PriceTax
 }
 export function ServerBooking() {
   const { slug } = useParams(),
@@ -95,7 +111,7 @@ function BookingFlow({
   pending: boolean
   setPending: (value: boolean) => void
 }) {
-  const { organisation: org, services, staff, today, sample, botCheck } = catalog
+  const { organisation: org, services, staff, today, sample, botCheck, tax } = catalog
   const store = useStore(),
     navigate = useNavigate()
   const journalKey = `saleane.guest-confirmation:${base}`
@@ -227,7 +243,11 @@ function BookingFlow({
       setAttempt(submitted)
       const result = await api<{ appointmentId: string; manage?: { url: string } }>(
         `${base}/book`,
-        { method: 'POST', body: submitted.payload },
+        {
+          method: 'POST',
+          // Where the guest came from, when they followed one of the studio's shared links.
+          body: { ...submitted.payload, from: bookingChannel(urlChannel()) },
+        },
       )
       setManageUrl(result.manage?.url ?? '')
       setConfirmed(result.appointmentId)
@@ -326,6 +346,21 @@ function BookingFlow({
                 {dateLabel(date, org.locale)} at {timeLabel(start!, org.locale)}
               </p>
               <p>Booking reference: {confirmed.slice(-8).toUpperCase()}</p>
+              <BeforeYouArrive studioNote={org.arrivalNote} serviceNote={service?.prepNote} />
+              {service && start !== null && (
+                <AddToCalendar
+                  visit={{
+                    uid: visitUid(confirmed),
+                    serviceName: service.name,
+                    studioName: org.name,
+                    date,
+                    startMinutes: start,
+                    durationMinutes: service.durationMinutes,
+                    timeZone: org.timeZone,
+                    location: org.address || org.locationName,
+                  }}
+                />
+              )}
               <p className="subtle">
                 {sample
                   ? 'This is a fictional sample reservation.'
@@ -434,9 +469,14 @@ function BookingFlow({
                               <span className="service-category">{s.category}</span>
                               <h3>{s.name}</h3>
                               <p>{s.description}</p>
-                              <small>{s.durationMinutes} minutes</small>
+                              <PriceSentence
+                                service={s}
+                                organisation={org}
+                                tax={tax}
+                                simulated={sample}
+                              />
                             </span>
-                            <strong>{money(s.priceMinor, org)}</strong>
+                            <strong>{money(fullPriceMinor(s, tax), org)}</strong>
                           </button>
                         ))}
                       </div>
@@ -617,7 +657,7 @@ function BookingFlow({
                         </p>
                         <div className="receipt-line">
                           <span>Service total</span>
-                          <strong>{money(service.priceMinor, org)}</strong>
+                          <strong>{money(fullPriceMinor(service, tax), org)}</strong>
                         </div>
                         <div className="receipt-line">
                           <span>{sample ? 'Simulated deposit' : 'Online payment'}</span>

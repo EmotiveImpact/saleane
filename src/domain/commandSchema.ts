@@ -1,11 +1,19 @@
 import { z } from 'zod'
-import { clientSchema, resourceSchema, serviceSchema, staffSchema } from './model'
+import {
+  GUEST_NOTE_LIMIT,
+  bookingChannels,
+  clientSchema,
+  resourceSchema,
+  serviceSchema,
+  staffSchema,
+} from './model'
 import {
   closureInputSchema,
   messageInputSchema,
   productInputSchema,
   weeklyHoursSchema,
 } from './operations'
+import { tillCountCommandSchema } from './tillCount'
 const id = z.string().min(1).max(150)
 const money = z.number().int().nonnegative().max(100_000_000)
 const method = z.enum(['demo_card', 'demo_cash', 'cash', 'external_card'])
@@ -31,6 +39,7 @@ export const bookingSchema = z.object({
   clientId: id.optional(),
   contact: contactSchema.optional(),
   source: z.enum(['desk', 'online', 'rebook']),
+  channel: z.enum(bookingChannels).optional(),
   rebookedFromId: id.optional(),
 })
 export const operatingCommandSchema = z.discriminatedUnion('type', [
@@ -44,6 +53,18 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     botCheck: z.boolean().optional(),
   }),
   z.object({ type: z.literal('hours'), hours: weeklyHoursSchema }),
+  // Guest-facing "before you arrive" notes; an empty note removes it.
+  z.object({
+    type: z.literal('guest-notes'),
+    arrivalNote: z.string().trim().max(GUEST_NOTE_LIMIT),
+    prepNotes: z
+      .array(z.object({ serviceId: id, note: z.string().trim().max(GUEST_NOTE_LIMIT) }))
+      .max(500)
+      .refine(
+        (rows) => new Set(rows.map((row) => row.serviceId)).size === rows.length,
+        'Each service appears once.',
+      ),
+  }),
   z.object({ type: z.literal('closure'), input: closureInputSchema }),
   z.object({ type: z.literal('remove-closure'), closureId: id }),
   z.object({
@@ -69,6 +90,8 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     amountMinor: money.refine((n) => n > 0),
     reason: z.string().trim().min(3).max(300),
     reference: z.string().trim().min(1).max(150),
+    /** How the money went back. Older refunds lack it; the till count then follows the receipt. */
+    method: method.optional(),
   }),
   z.object({
     type: z.literal('deposit'),
@@ -144,6 +167,7 @@ export const commandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('note'), clientId: id, text: z.string().trim().min(2).max(1000) }),
   z.object({ type: z.literal('client'), contact: contactSchema, referredById: id.optional() }),
   z.object({ type: z.literal('consent'), clientId: id, consent: z.boolean() }),
+  tillCountCommandSchema,
   ...operatingCommandSchema.options,
 ])
 export type BookingInput = z.infer<typeof bookingSchema>
