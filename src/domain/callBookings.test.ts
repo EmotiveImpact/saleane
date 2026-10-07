@@ -115,6 +115,14 @@ describe('booking from a missed call', () => {
     expect(missing.ok || missing.error).toBe('That call is not on the list.')
   })
 
+  it('counts calls from today and the six days before', () => {
+    const { s, known } = local()
+    const booked = run(s, booking(s, { clientId: 'client-2', callId: known }))
+    // 10:00 in London six and seven days later.
+    expect(callsBookedThisWeek(booked.state, '2026-10-12T09:00:00.000Z')).toBe(1)
+    expect(callsBookedThisWeek(booked.state, '2026-10-13T09:00:00.000Z')).toBe(0)
+  })
+
   it('does not count a cancelled visit as a call that became a booking', () => {
     const { s, known } = local()
     const booked = run(s, booking(s, { clientId: 'client-2', callId: known }))

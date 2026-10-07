@@ -129,7 +129,8 @@ export function linkCallToVisit(
 
 /** Calls in the last week that became a booked visit, for the desk to see the list working. */
 export function callsBookedThisWeek(s: BusinessState, nowIso?: string) {
-  const since = addDays(businessDate(s, nowIso), -MISSED_CALL_DAYS)
+  // Today and the six days before it.
+  const since = addDays(businessDate(s, nowIso), -6)
   return (operations(s).missedCalls ?? []).filter(
     (call) =>
       call.appointmentId &&
