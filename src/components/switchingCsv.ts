@@ -2,7 +2,7 @@ import { contactSchema } from '../domain/commandSchema'
 import type { Command, ContactInput } from '../domain/commands'
 import type { BusinessState, Service } from '../domain/model'
 import { parseMinor } from '../domain/money'
-import { alreadyBooked, heldVisit, placeImportedVisit } from '../domain/switching'
+import { alreadyBooked, clientsByEmail, heldVisit, placeImportedVisit } from '../domain/switching'
 import type { ImportedVisit } from '../domain/switching'
 import { readCsv } from './clientImportCsv'
 
@@ -284,11 +284,7 @@ export function previewAppointmentsCsv(
       return problem(record, cells, 'reference: Use at most 40 characters.')
     const email = file.at(values, 'email').toLowerCase()
     const name = file.at(values, 'name')
-    const matches = state.clients.filter(
-      (c) =>
-        c.email.toLowerCase() === email &&
-        (!name || c.name.trim().toLowerCase() === name.toLowerCase()),
-    )
+    const matches = clientsByEmail(state.clients, email, name)
     let clientId: string | undefined
     let contact: ContactInput | undefined
     let who: string
@@ -300,7 +296,10 @@ export function previewAppointmentsCsv(
       )
     if (matches.length === 1) {
       clientId = matches[0].id
-      who = matches[0].name
+      who =
+        name && matches[0].name.trim().toLowerCase() !== name.toLowerCase()
+          ? `${matches[0].name}, listed as ${name}`
+          : matches[0].name
     } else {
       const parsed = contactSchema.safeParse({
         name,
@@ -316,9 +315,9 @@ export function previewAppointmentsCsv(
             .map((issue) => String(issue.path[0] ?? 'details'))
             .join(' and ')} too, or import clients first.`,
         )
-      const key = `${parsed.data.name.toLowerCase()}\u0000${parsed.data.email}`
-      contact = newGuests.get(key) ?? parsed.data
-      newGuests.set(key, contact)
+      // One new guest per email, however their name is spelt across rows.
+      contact = newGuests.get(parsed.data.email) ?? parsed.data
+      newGuests.set(parsed.data.email, contact)
       who = `${parsed.data.name} (new client)`
     }
     if (clientId && alreadyBooked(state, clientId, date, start))
@@ -369,11 +368,7 @@ export function previewBalancesCsv(
       )
     const email = file.at(values, 'email').toLowerCase()
     const name = file.at(values, 'name')
-    const matches = state.clients.filter(
-      (c) =>
-        c.email.toLowerCase() === email &&
-        (!name || c.name.trim().toLowerCase() === name.toLowerCase()),
-    )
+    const matches = clientsByEmail(state.clients, email, name)
     if (matches.length !== 1)
       return problem(
         record,

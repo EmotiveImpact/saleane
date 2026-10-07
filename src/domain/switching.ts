@@ -94,6 +94,18 @@ export function heldVisit(
   }
 }
 
+/**
+ * The clients an imported row's email points to. One client with that email is that client, even
+ * if the old system spells the name differently; the name only chooses between several clients
+ * who share an email.
+ */
+export function clientsByEmail(clients: Client[], email: string, name = '') {
+  const target = email.trim().toLowerCase()
+  const byEmail = clients.filter((c) => c.email.toLowerCase() === target)
+  if (byEmail.length <= 1 || !name.trim()) return byEmail
+  return byEmail.filter((c) => c.name.trim().toLowerCase() === name.trim().toLowerCase())
+}
+
 /** True when this client already has a visit at this time, so an import would repeat it. */
 export function alreadyBooked(s: BusinessState, clientId: string, date: string, start: number) {
   return s.appointments.some(
@@ -180,12 +192,10 @@ export function runSwitchingCommand(
       if (row.clientId && !client) throw new Error('Client does not belong to this workspace.')
       // Several visits for one new guest share the client added by the first of them.
       const contact = row.contact
-      if (!client && contact)
-        client = next.clients.find(
-          (c) =>
-            c.email.toLowerCase() === contact.email.trim().toLowerCase() &&
-            c.name.toLowerCase() === contact.name.trim().toLowerCase(),
-        )
+      if (!client && contact) {
+        const found = clientsByEmail(next.clients, contact.email, contact.name)
+        if (found.length === 1) client = found[0]
+      }
       if (!client && row.contact) {
         if (row.contact.marketingConsent)
           throw new Error('Clients arrive with marketing off. Record consent individually.')
@@ -225,7 +235,8 @@ export function runSwitchingCommand(
         bookedBufferMinutes: service.bufferMinutes,
         bookedResourceType: service.resourceType,
         bookedServiceName: service.name,
-        bookedTax: o.tax ?? null,
+        // The quoted price is what the guest expects to pay in full, so any tax is inside it.
+        bookedTax: o.tax ? { ...o.tax, inclusive: true } : null,
       }
       next.appointments.push(appointment)
       if (row.depositPaidMinor > 0)

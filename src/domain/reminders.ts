@@ -170,7 +170,8 @@ export function planMessages(
       if (settings.reminders && !mine.some((row) => row.kind === 'reminder' && row.slot === slot)) {
         const opens = start - settings.hoursBefore * HOUR
         // Booked or moved after the reminder time: the confirmation already did this job.
-        const settled = Math.max(Date.parse(a.createdAt), moved)
+        // A carried-over visit was booked in the old system long before, so only a move counts.
+        const settled = Math.max(a.source === 'import' ? 0 : Date.parse(a.createdAt), moved)
         if (now >= opens && settled < opens && start - now >= REMINDER_FLOOR_MS)
           add('reminder', channel)
       }

@@ -283,6 +283,51 @@ describe('bringing records across', () => {
     expect(cashForDay(s, '2026-10-06').cashIn).toBe(6500)
   })
 
+  it('keeps the quoted price as the full bill when the studio adds tax on top', () => {
+    let s = apply(local(), { type: 'tax', label: 'VAT', rateBps: 2000, inclusive: false })
+    s = apply(s, {
+      type: 'import-appointments',
+      source: 'Fresha',
+      reviewed: true,
+      appointments: [{ ...visit, date: '2026-10-06', startMinutes: 600, clientId: 'client-1' }],
+    })
+    const a = s.appointments.find((x) => x.source === 'import')!
+    s = apply(s, { type: 'arrive', appointmentId: a.id })
+    s = apply(s, { type: 'checkout', appointmentId: a.id, tipMinor: 0, method: 'cash' })
+    expect(s.sales.find((x) => x.appointmentId === a.id)).toMatchObject({
+      totalMinor: 8500,
+      taxInclusive: true,
+    })
+  })
+
+  it('reminds a guest whose visit arrives inside the reminder window', () => {
+    const s = apply(local(), {
+      type: 'import-appointments',
+      source: 'Fresha',
+      reviewed: true,
+      // Imported at 08:00 UTC, exactly when the 24-hour reminder for 09:00 London opened.
+      appointments: [{ ...visit, date: '2026-10-07', startMinutes: 540, clientId: 'client-1' }],
+    })
+    const plan = planMessages(s, '2026-10-06T10:00:00.000Z', [])
+    expect(plan.map((m) => m.kind)).toContain('reminder')
+    expect(plan.map((m) => m.kind)).not.toContain('confirmation')
+  })
+
+  it('matches a client by email even when the old system spells the name differently', () => {
+    const preview = previewAppointmentsCsv(
+      [
+        'date,time,service,professional,email,name,phone',
+        '08/10/2026,10:05,Skin Renewal Facial,Maya Lewis,amelia.carter@example.com,Amelia Carter-Jones,',
+        '08/10/2026,13:00,Skin Renewal Facial,Maya Lewis,new.guest@example.com,New Guest,+44 7700 900999',
+        '09/10/2026,13:00,Skin Renewal Facial,Maya Lewis,new.guest@example.com,New G.,+44 7700 900999',
+      ].join('\n'),
+      local(),
+      now,
+    )
+    expect(preview.rows[0]).toMatchObject({ status: 'ready', value: { clientId: 'client-1' } })
+    expect(preview.rows[2].value?.contact).toBe(preview.rows[1].value?.contact)
+  })
+
   it('never lets the old system be used as a payment method at the desk', () => {
     const s = apply(local(), {
       type: 'import-appointments',
