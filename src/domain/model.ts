@@ -14,6 +14,8 @@ import { consentRecordSchema, consentWordingSchema } from './consentSchema'
 import { consentProblem } from './consent'
 import { consultationSchema, visitConsultationSchema } from './consultationsSchema'
 import { consultationsProblem } from './consultations'
+import { replySchema, savedReplySchema } from './inboxSchema'
+import { inboxProblem } from './inbox'
 import { feedbackProblem, feedbackSchema } from './feedback'
 import { specialSchema, specialsProblem } from './specialsSchema'
 import { taskSchema, tasksProblem } from './tasksSchema'
@@ -290,6 +292,9 @@ export const stateSchema = z.object({
   consentRecords: z.array(consentRecordSchema).optional(),
   /** V1.5: consultations held with guests, each change kept as a version. */
   consultations: z.array(consultationSchema).optional(),
+  /** V1.5: what guests wrote back, and the studio's saved replies to start a message from. */
+  replies: z.array(replySchema).optional(),
+  savedReplies: z.array(savedReplySchema).optional(),
 })
 export type BusinessState = z.infer<typeof stateSchema>
 export type Client = z.infer<typeof clientSchema>
@@ -618,6 +623,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
   if (consent) throw new Error(consent)
   const consultations = consultationsProblem(s)
   if (consultations) throw new Error(consultations)
+  const inbox = inboxProblem(s)
+  if (inbox) throw new Error(inbox)
   const specials = specialsProblem(s)
   if (specials) throw new Error(specials)
   const tasks = tasksProblem(s)

@@ -692,6 +692,62 @@ export function seed(region: Region): BusinessState {
   ]
   const ellie = state.appointments.find((a) => a.id === 'visit-gloss-ellie')
   if (ellie) ellie.consultation = { id: 'consult-ellie', version: 2 }
+  // V1.5: a few replies in the inbox. Ellie texted last night and nobody has read it yet; a
+  // number the studio does not know asked about Saturday; Amelia's thank-you has been read.
+  const client = (id: string) => state.clients.find((c) => c.id === id)!
+  state.replies = [
+    {
+      ...scope,
+      id: 'reply-amelia',
+      clientId: 'client-1',
+      channel: 'email',
+      from: client('client-1').email,
+      body: 'Thank you, see you then. Could I have the quiet room again if it is free?',
+      receivedAt: `${addDays(DEMO_DATE, -2)}T10:12:00.000Z`,
+      providerRef: 'sample-email-1',
+      actor: 'Email line',
+      readAt: `${addDays(DEMO_DATE, -2)}T10:40:00.000Z`,
+      readBy: 'Maya · demo operator',
+    },
+    {
+      ...scope,
+      id: 'reply-ellie',
+      clientId: 'client-3',
+      channel: 'sms',
+      from: client('client-3').phone.replace(/\s/g, ''),
+      body: 'Hi! Could I come half an hour later on Thursday? Same gloss please. Ellie',
+      receivedAt: `${addDays(DEMO_DATE, -1)}T19:48:00.000Z`,
+      providerRef: 'sample-text-1',
+      actor: 'Text line',
+    },
+    {
+      ...scope,
+      id: 'reply-unknown',
+      channel: 'sms',
+      from: uk ? '+447700900999' : '+12125550199',
+      body: 'Hello, do you have anything on Saturday morning for a cut and finish?',
+      receivedAt: `${DEMO_DATE}T07:31:00.000Z`,
+      providerRef: 'sample-text-2',
+      actor: 'Text line',
+    },
+  ]
+  state.savedReplies = [
+    {
+      id: 'saved-thanks',
+      name: 'Thanks, back soon',
+      body: 'Thank you for your message. We will come back to you as soon as we can.',
+    },
+    {
+      id: 'saved-move',
+      name: 'Moving a visit',
+      body: 'Of course. We can move you to a time that suits. Let us know which day works best and we will change it for you.',
+    },
+    {
+      id: 'saved-late',
+      name: 'Running late',
+      body: 'Thank you for letting us know. We will hold your time for 15 minutes. If you will be later than that, reply and we will find you a new time.',
+    },
+  ]
   return parseState(state, region)
 }
 

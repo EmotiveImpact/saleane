@@ -27,6 +27,8 @@ function view(row: OutboxRow) {
     attempts: row.attempts,
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
+    // V1.5: a message written in the inbox names itself in its slot.
+    ...(row.kind === 'message' ? { messageId: row.slot.slice('message:'.length) } : {}),
   }
 }
 

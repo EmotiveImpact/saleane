@@ -75,6 +75,8 @@ export const messageInputSchema = z.object({
   clientId: id,
   appointmentId: id.optional(),
   purpose: z.enum(['appointment', 'marketing']),
+  /** V1.5: how it goes once approved. Absent means email, as drafts written before it did. */
+  channel: z.enum(['email', 'sms']).optional(),
   subject: z.string().trim().min(1).max(150),
   body: z.string().trim().min(1).max(3000),
 })
@@ -240,6 +242,11 @@ export const operationsSchema = z.object({
       status: z.enum(['draft', 'queued', 'suppressed']),
       createdAt: z.iso.datetime(),
       actor: z.string(),
+      /**
+       * V1.5: when it was approved for the outbox to send. Messages queued before the outbox took
+       * them have none, and stay queued and unsent rather than going out unexpectedly.
+       */
+      approvedAt: z.iso.datetime().optional(),
     }),
   ),
   refunds: z.array(
@@ -417,6 +424,9 @@ export function permissionFor(command: { type: string }) {
   if (command.type === 'form-save' || command.type === 'form-archive') return 'forms'
   if (command.type === 'consent-wording') return 'consent-wording'
   if (command.type === 'consultation-save') return 'consultation'
+  if (['reply-note', 'replies-read', 'reply-link'].includes(command.type)) return 'message'
+  if (command.type === 'saved-reply-save' || command.type === 'saved-reply-remove')
+    return 'saved-replies'
   return command.type
 }
 export const commandPermission = permissionFor
@@ -431,6 +441,8 @@ export function can(role: Role, action: string) {
       'guest-here',
       'form-submit',
       'guest-consent-stop',
+      // V1.5: a guest's reply arrives only from the studio's email or text line.
+      'reply-received',
     ].includes(action)
   )
     return false
@@ -456,6 +468,7 @@ export function can(role: Role, action: string) {
       'stock',
       'product',
       'message.queue',
+      'saved-replies',
       'import-clients',
       'import-services',
       'import-appointments',
