@@ -3,8 +3,17 @@ import type { OperatingCommand } from './commandSchema'
 import { SCHEDULE_HISTORY_LIMIT, operations, stock } from './operations'
 import { assertSchedulePreserved, scheduleChanges, scheduleSnapshot } from './schedule'
 
-export function assertMethod(s: BusinessState, method: string, reference?: string) {
+export function assertMethod(
+  s: BusinessState,
+  method: string,
+  reference?: string,
+  processor?: { provider: string; live: boolean },
+) {
   const sandbox = operations(s).mode === 'sandbox'
+  if ((method === 'card') !== !!processor)
+    throw new Error('Card payments are taken through the payment screen, not recorded by hand.')
+  if (method === 'card' && !reference?.trim())
+    throw new Error('A card payment needs the payment provider’s reference.')
   if (sandbox !== method.startsWith('demo_'))
     throw new Error(
       sandbox
@@ -15,6 +24,14 @@ export function assertMethod(s: BusinessState, method: string, reference?: strin
     throw new Error(
       'Enter the external terminal receipt reference. SALEANE has not charged the card.',
     )
+}
+/** How a recorded payment reached the studio, in plain words for the client's timeline. */
+export function paymentDetail(method: string, processor?: { provider: string; live: boolean }) {
+  if (processor)
+    return processor.live
+      ? 'Paid by card through the payment provider.'
+      : 'Test card payment: the provider is in test mode and no money moved.'
+  return `Payment recorded as ${method === 'cash' ? 'cash received' : 'already paid at an external terminal'}. SALEANE did not process a payment.`
 }
 export function runOperatingCommand(
   next: BusinessState,
@@ -203,7 +220,7 @@ export function runOperatingCommand(
     const a = next.appointments.find((a) => a.id === command.appointmentId)
     if (!a || !['confirmed', 'arrived'].includes(a.status))
       throw new Error('A deposit can be recorded only for an upcoming or arrived appointment.')
-    assertMethod(next, command.method, command.reference)
+    assertMethod(next, command.method, command.reference, command.processor)
     const existing =
       command.reference &&
       next.payments.find(
@@ -232,6 +249,7 @@ export function runOperatingCommand(
       recordedAt: now,
       method: command.method,
       reference: command.reference,
+      ...(command.processor ? { processor: command.processor } : {}),
     }
     next.payments.push(payment)
     recordId = payment.id
@@ -239,18 +257,74 @@ export function runOperatingCommand(
       clientId: a.clientId,
       appointmentId: a.id,
       type: 'deposit',
-      title: 'Deposit recorded',
+      title: command.processor ? 'Deposit paid by card' : 'Deposit recorded',
       detail:
         o.mode === 'sandbox'
           ? 'Simulated deposit recorded. No money collected.'
-          : `Payment recorded as ${command.method === 'cash' ? 'cash received' : 'already paid at an external terminal'}. SALEANE did not process a payment.`,
+          : paymentDetail(command.method, command.processor),
     })
+  } else if (command.type === 'fee') {
+    const a = next.appointments.find((a) => a.id === command.appointmentId)
+    if (!a || !['no_show', 'cancelled'].includes(a.status))
+      throw new Error('A fee applies only to a missed or cancelled visit.')
+    assertMethod(next, command.method, command.reference, command.processor)
+    if (command.reference && next.payments.some((p) => p.reference === command.reference)) {
+      const existing = next.payments.find(
+        (p) => p.appointmentId === a.id && p.kind === 'fee' && p.reference === command.reference,
+      )
+      if (!existing || existing.amountMinor !== command.amountMinor)
+        throw new Error('This payment reference is already recorded for another payment.')
+      return existing.id
+    }
+    const taken = next.payments
+      .filter((p) => p.appointmentId === a.id && p.kind !== 'settlement')
+      .reduce((sum, p) => sum + p.amountMinor, 0)
+    if (taken + command.amountMinor > a.bookedPriceMinor)
+      throw new Error('The fee and deposit together cannot exceed the booked price.')
+    const payment = {
+      ...scope,
+      id: makeId(),
+      appointmentId: a.id,
+      kind: 'fee' as const,
+      amountMinor: command.amountMinor,
+      currency: next.organisation.currency,
+      recordedAt: now,
+      method: command.method,
+      reference: command.reference,
+      ...(command.processor ? { processor: command.processor } : {}),
+    }
+    next.payments.push(payment)
+    recordId = payment.id
+    addEvent({
+      clientId: a.clientId,
+      appointmentId: a.id,
+      type: 'deposit',
+      title: a.status === 'no_show' ? 'No-show fee taken' : 'Late cancellation fee taken',
+      detail:
+        o.mode === 'sandbox'
+          ? 'Simulated fee recorded. No money collected.'
+          : paymentDetail(command.method, command.processor),
+    })
+  } else if (command.type === 'protection') {
+    o.protection = { ...command.settings }
+    recordId = next.organisation.id
   } else if (command.type === 'refund') {
-    const sale = next.sales.find((s) => s.id === command.saleId)
-    if (!sale) throw new Error('Receipt does not belong to this workspace.')
-    const existing = o.refunds.find(
-      (r) => r.saleId === sale.id && r.reference === command.reference,
+    if (!!command.saleId === !!command.paymentId)
+      throw new Error('Choose the receipt or the payment being refunded.')
+    const sale = command.saleId ? next.sales.find((s) => s.id === command.saleId) : undefined
+    const paid = command.paymentId
+      ? next.payments.find((p) => p.id === command.paymentId && p.kind !== 'settlement')
+      : undefined
+    if (!sale && !paid) throw new Error('Receipt does not belong to this workspace.')
+    // A deposit still counts toward the visit's checkout, so it is returned only once it is off.
+    if (
+      paid?.kind === 'deposit' &&
+      next.appointments.find((a) => a.id === paid.appointmentId)?.status !== 'cancelled'
     )
+      throw new Error('Refund a deposit after the visit is cancelled.')
+    const same = (r: { saleId?: string; paymentId?: string }) =>
+      sale ? r.saleId === sale.id : r.paymentId === paid!.id
+    const existing = o.refunds.find((r) => same(r) && r.reference === command.reference)
     if (existing) {
       if (existing.amountMinor !== command.amountMinor)
         throw new Error('This reference already records a different refund.')
@@ -259,32 +333,40 @@ export function runOperatingCommand(
     if (o.refunds.some((r) => r.reference === command.reference))
       throw new Error('This refund reference already belongs to another receipt.')
     if (
-      o.refunds.filter((r) => r.saleId === sale.id).reduce((sum, r) => sum + r.amountMinor, 0) +
-        command.amountMinor >
-      sale.totalMinor
+      o.refunds.filter(same).reduce((sum, r) => sum + r.amountMinor, 0) + command.amountMinor >
+      (sale ? sale.totalMinor : paid!.amountMinor)
     )
       throw new Error('This refund would exceed the remaining receipt total.')
-    if (command.method) assertMethod(next, command.method, command.reference)
+    if (command.method) assertMethod(next, command.method, command.reference, command.processor)
+    else if (command.processor) throw new Error('A card refund names its method.')
     const refund = {
       id: makeId(),
-      saleId: sale.id,
+      ...(sale ? { saleId: sale.id } : { paymentId: paid!.id }),
       amountMinor: command.amountMinor,
       reason: command.reason,
       reference: command.reference,
       ...(command.method ? { method: command.method } : {}),
+      ...(command.processor ? { processor: command.processor } : {}),
       createdAt: now,
       actor: 'Local operator',
     }
     o.refunds.push(refund)
     recordId = refund.id
-    const a = next.appointments.find((a) => a.id === sale.appointmentId)!
+    const a = next.appointments.find((a) => a.id === (sale ?? paid)!.appointmentId)!
     addEvent({
       clientId: a.clientId,
       appointmentId: a.id,
-      saleId: sale.id,
+      ...(sale ? { saleId: sale.id } : {}),
       type: 'refund',
-      title: o.mode === 'sandbox' ? 'Simulated refund recorded' : 'External refund recorded',
-      detail: `${command.reason}. Reference ${command.reference}. This record did not transfer funds.`,
+      title:
+        o.mode === 'sandbox'
+          ? 'Simulated refund recorded'
+          : command.processor
+            ? 'Refunded to the card'
+            : 'External refund recorded',
+      detail: command.processor
+        ? `${command.reason}. ${command.processor.live ? 'Returned by the payment provider' : 'Test refund: no money moved'}. Reference ${command.reference}.`
+        : `${command.reason}. Reference ${command.reference}. This record did not transfer funds.`,
     })
   } else if (command.type === 'product') {
     const old = o.products.find((p) => p.id === command.id)

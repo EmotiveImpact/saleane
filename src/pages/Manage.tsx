@@ -12,6 +12,7 @@ import {
   SlidersHorizontal,
   Store,
   Users,
+  CreditCard,
 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { useStore } from '../state/context'
@@ -29,6 +30,7 @@ import { BrandSection, PreferencesSection, WorkspaceSection } from '../component
 import { MessageSettings } from '../components/AppointmentMessages'
 import { GuestNotesSettings } from '../components/GuestNotesSettings'
 import { ShareBookingPage } from '../components/ShareBookingPage'
+import { PaymentSettings } from '../components/CardPayments'
 import '../components/management.css'
 
 const sections = [
@@ -36,6 +38,7 @@ const sections = [
   { id: 'business', label: 'Studio details', icon: Building2 },
   { id: 'brand', label: 'Colours & booking page', icon: Palette },
   { id: 'messages', label: 'Messages to guests', icon: BellRing },
+  { id: 'payments', label: 'Payments', icon: CreditCard },
   { id: 'service', label: 'Services', icon: Scissors },
   { id: 'staff', label: 'Team', icon: Users },
   { id: 'resource', label: 'Spaces & equipment', icon: Armchair },
@@ -254,6 +257,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
             {section === 'preferences' && <PreferencesSection />}
             {section === 'brand' && <BrandSection />}
             {section === 'messages' && <MessageSettings />}
+            {section === 'payments' && <PaymentSettings />}
             {section === 'workspace' && <WorkspaceSection onReset={() => setReplaced(true)} />}
             {section === 'privacy' && <StudioPrivacy />}
             {section === 'business' && (

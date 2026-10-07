@@ -28,7 +28,10 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
       ok: true,
       database: 'sqlite',
       localOnly: true,
-      services: { email: ctx.messaging.email.live || ctx.messaging.sms.live, payments: false },
+      services: {
+        email: ctx.messaging.email.live || ctx.messaging.sms.live,
+        payments: ctx.paymentProvider.live,
+      },
     })
     return true
   }
@@ -39,7 +42,10 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
       csrf: actor.csrf,
       workspaces: memberships(actor),
       localOnly: true,
-      services: { email: ctx.messaging.email.live || ctx.messaging.sms.live, payments: false },
+      services: {
+        email: ctx.messaging.email.live || ctx.messaging.sms.live,
+        payments: ctx.paymentProvider.live,
+      },
     })
     return true
   }
