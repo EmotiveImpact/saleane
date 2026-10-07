@@ -2,6 +2,25 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · Calendar: Today, Week and Month
+
+**Status: merged on Edem's word on 7 October 2026; nothing deployed.** Look and navigation only; booking, moving and checkout are unchanged.
+
+- Calendar still lands on today. A Today, Week and Month switch at the top replaces the separate Today button and the week icon, and the arrows step a day, a week or a month to match. Today shows as chosen only while today is on screen, so it always takes you back.
+- The new month view shows every day of the month with how full it is, how many visits it holds and its first three visits. Tapping a day, or "more", opens that day's timeline; tapping a visit opens its details. On phones each day shows its number and how full it is.
+- The grid and list choice for a day now shows only on the day view, and the day's cancelled and missed visits list shows only there too.
+
+## 2026-10-07 · The guest booking page, redesigned
+
+**Status: merged on Edem's word on 7 October 2026; nothing deployed.** Look and layout only; booking rules, holds, prices and deposits are unchanged.
+
+- On computers and tablets the studio photograph now fills the left side from the top of the page and holds still while the guest scrolls, all the way to the bottom. Before, it stopped short and slid away at the end of the page.
+- The welcome ("Care, considered.", a short line and the studio's location) sits where the photograph softens into a feathered, edgeless blur at its foot, so it reads clearly on any image with no box or hard edge. The studio's name sits in a matching soft fade at the top. The leaf icon is gone.
+- On phones the photograph opens the page with the welcome card on it; from the second step only the studio's name stays at the top.
+- The studio's team now see a separate dark preview bar above the page, with "See it as a guest" and "Back to workspace" (and the demo market). "See it as a guest" shows the page exactly as a guest sees it, with only a small "Leave guest view" button in the corner. Guests never see the bar; on the real guest page it appears only to someone signed in to the studio. The honest note about simulated bookings stays for everyone.
+- Choosing a treatment now starts with the kinds of treatment (for example Skin, Body, Hair), each with a photograph and how many treatments it holds; picking one shows just those treatments, with a way back to all kinds. A search box above searches every treatment by name, kind and description. Nothing is chosen until the guest picks, so the Continue bar appears only then. A studio with a single kind of treatment goes straight to its list, as before.
+- The demo booking page now uses the demo studio's own name instead of always "Atelier House".
+
 ## 2026-10-07 · In review · Browser demo
 
 **Status: in review; nothing deployed. The demo link is a private claude.ai page.**
