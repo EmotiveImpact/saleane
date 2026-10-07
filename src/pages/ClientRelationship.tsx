@@ -27,6 +27,7 @@ import { ClientMessagePreferences, SentMessages } from '../components/Appointmen
 import { ClientCards } from '../components/CardPayments'
 import { CarriedBalances } from '../components/Switching'
 import { ClientPlans } from '../components/Plans'
+import { ClientWaitlist } from '../components/Waitlist'
 import { ClientPrivacy } from '../components/Privacy'
 
 // A booking's detail opens with the service, date and time already shown in
@@ -641,6 +642,7 @@ export function ClientRelationship() {
             <ClientMessagePreferences client={client} />
           </section>
           <ClientPlans clientId={client.id} />
+          <ClientWaitlist clientId={client.id} />
           <ClientCards clientId={client.id} />
           <CarriedBalances clientId={client.id} />
           <SentMessages clientId={client.id} />

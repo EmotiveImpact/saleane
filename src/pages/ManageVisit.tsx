@@ -9,6 +9,7 @@ import { BeforeYouArrive } from '../components/BeforeYouArrive'
 import { AddToCalendar } from '../components/AddToCalendar'
 import { GuestPayment } from '../components/GuestPayment'
 import { GuestFeedback } from '../components/GuestFeedback'
+import { GuestWaitlist } from '../components/GuestWaitlist'
 import { returnNote, returnedToken } from '../state/guestReturn'
 import '../guest.css'
 
@@ -205,6 +206,7 @@ export function ManageVisit() {
             />
           </>
         )}
+        {!done && <GuestWaitlist token={token} view={view} onChange={setView} />}
         <ErrorMessage error={error} />
         {done && (
           <p className="guest-notice" role="status">

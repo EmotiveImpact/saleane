@@ -24,6 +24,7 @@ const demoRoutes = [
   '/clients',
   '/clients/client-1',
   '/inbox',
+  '/waitlist',
   '/business',
   '/business/money',
   '/settings',

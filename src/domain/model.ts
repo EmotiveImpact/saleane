@@ -9,6 +9,8 @@ import { counterSaleSchema, saleRetailSchema } from './retailSchema'
 import { retailCharge, retailProblem } from './retail'
 import { rentProblem } from './rent'
 import { purchasingProblem } from './purchasing'
+import { waitlistEntrySchema } from './waitlistSchema'
+import { waitlistProblem } from './waitlist'
 export { paymentMethodSchema, paymentMethods, processorSchema } from './paymentMethods'
 
 export const DEMO_DATE = '2026-10-06'
@@ -169,6 +171,7 @@ export const eventSchema = z.object({
     'deposit',
     'profile',
     'plan',
+    'waitlist',
   ]),
   allocationChange: z.object({ from: allocationSchema, to: allocationSchema }).optional(),
   title: z.string(),
@@ -206,6 +209,8 @@ export const stateSchema = z.object({
   feedback: z.array(feedbackSchema).optional(),
   /** V2: products sold without a visit. */
   counterSales: z.array(counterSaleSchema).optional(),
+  /** V1.5: clients waiting for an earlier or a free time. */
+  waitlist: z.array(waitlistEntrySchema).optional(),
 })
 export type BusinessState = z.infer<typeof stateSchema>
 export type Client = z.infer<typeof clientSchema>
@@ -524,6 +529,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
   if (rent) throw new Error(rent)
   const purchasing = purchasingProblem(s)
   if (purchasing) throw new Error(purchasing)
+  const waitlist = waitlistProblem(s)
+  if (waitlist) throw new Error(waitlist)
   try {
     new Intl.DateTimeFormat('en', { timeZone: org.timeZone }).format(new Date())
   } catch {
