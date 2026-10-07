@@ -139,7 +139,7 @@ describe('client export', () => {
     expect(preview.excluded.join(' ')).toMatch(/passwords/i)
     expect(preview.excluded.join(' ')).toMatch(/audit log/i)
     expect(preview.notes.join(' ')).toMatch(/Read them before sending/)
-    expect(clientExportText(file)).toContain('MESSAGES (1), none sent')
+    expect(clientExportText(file)).toContain('MESSAGES (1)')
   })
 
   it('refuses a client from elsewhere', () => {

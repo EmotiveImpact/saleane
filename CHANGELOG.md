@@ -2,6 +2,16 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-08 · V1.5 · The inbox
+
+**Status: built locally on 8 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-INBOX.md).
+
+- The Inbox now shows one conversation per guest: what the studio wrote, what went out on its own (confirmations, reminders and the rest) and what the guest wrote back. Filters show new replies and drafts to approve.
+- Guests' replies to the studio's text line or email address arrive in the right conversation once those lines are connected. A reply from an address or number nobody has can be matched to a client. The desk can note a reply given by phone or in person. Opening a conversation marks its replies read, with who read them.
+- A message can be written for email or text, started from a saved reply, and approved in the same step. In a studio of its own, an approved message goes out once through the same outbox as reminders, and the conversation shows what became of it. In test mode nothing is sent and it says so. Sample studios never send. Messages approved before this change stay queued and unsent.
+- Settings › Messages has saved replies, looked after by owners and managers.
+- Guests' replies are in their data export, text export and erasure review. Messages approved for sending are kept when erasure is reviewed, because they may have gone out.
+
 ## 2026-10-07 · V1.5 · Consultations
 
 **Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-CONSULT.md).

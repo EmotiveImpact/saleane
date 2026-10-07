@@ -39,6 +39,7 @@ import { SwitchingSettings } from '../components/Switching'
 import { PlanSettings } from '../components/Plans'
 import { FormSettings } from '../components/GuestForms'
 import { EmailNewsWording } from '../components/EmailConsent'
+import { SavedReplies } from '../components/SavedReplies'
 import '../components/management.css'
 
 const sections = [
@@ -277,6 +278,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
             {section === 'messages' && (
               <>
                 <MessageSettings />
+                <SavedReplies />
                 <EmailNewsWording />
               </>
             )}

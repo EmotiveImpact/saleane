@@ -13,7 +13,7 @@ import { daySheetRoutes } from './routes/daysheet'
 import { privacyRoutes } from './routes/privacy'
 import { messagingRoutes } from './routes/messaging'
 import { createOutbox } from './messaging/outbox'
-import { recordPhoneCall } from './messaging/calls'
+import { recordPhoneCall, recordReply } from './messaging/calls'
 import type { Outbox } from './messaging/outbox'
 import { paymentRoutes } from './routes/payments'
 import { assistantRoutes } from './routes/assistant'
@@ -117,6 +117,31 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
             ? '<?xml version="1.0" encoding="UTF-8"?><Response><Say>Sorry we missed your call. We will call you back as soon as we can.</Say></Response>'
             : '<?xml version="1.0" encoding="UTF-8"?><Response/>',
         )
+        return
+      }
+      // V1.5: a guest's reply to the studio's text line or email address, kept for the inbox.
+      const inbound =
+        /^\/api\/hooks\/(?:(twilio)\/sms|(postmark)\/inbound)\/([a-z0-9-]{1,80})$/.exec(
+          url.pathname,
+        )
+      if (inbound) {
+        if (method !== 'POST') fail(405, 'Use POST.')
+        const provider = inbound[1] ?? inbound[2]
+        const body = (await readBody(request, true)) as string
+        const replies = outbox.providers.inbound?.(provider, inbound[3], {
+          url: url.toString(),
+          headers: request.headers as Record<string, string | undefined>,
+          body,
+        })
+        if (!replies) fail(403, 'This message could not be verified.')
+        for (const reply of replies!)
+          recordReply(ctx, inbound[3], provider === 'twilio' ? 'sms' : 'email', reply)
+        if (provider === 'twilio') {
+          // No automatic answer: the team replies from the inbox.
+          response.statusCode = 200
+          response.setHeader('Content-Type', 'text/xml; charset=utf-8')
+          response.end('<?xml version="1.0" encoding="UTF-8"?><Response/>')
+        } else reply(200, { ok: true })
         return
       }
       if (url.pathname === '/api/hooks/stripe') {

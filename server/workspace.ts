@@ -82,6 +82,7 @@ export function createWorkspace(input: WorkspaceInput): BusinessState {
     state.formResponses ?? [],
     state.consentRecords ?? [],
     state.consultations ?? [],
+    state.replies ?? [],
   ]) {
     for (const row of collection) row.organisationId = organisationId
   }

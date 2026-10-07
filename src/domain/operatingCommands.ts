@@ -281,6 +281,8 @@ export function runOperatingCommand(
       throw new Error('A waitlist offer cannot be edited. Write a new one from the waitlist.')
     if (old && (old.clientId !== command.input.clientId || old.purpose !== command.input.purpose))
       throw new Error('Keep the client and purpose of an existing draft unchanged.')
+    if (command.input.purpose === 'marketing' && command.input.channel === 'sms')
+      throw new Error('Email news goes by email only. Choose email for a marketing message.')
     const message = {
       ...command.input,
       id: command.id ?? makeId(),
@@ -291,6 +293,8 @@ export function runOperatingCommand(
     if (old) Object.assign(old, message)
     else o.messages.push(message)
     recordId = message.id
+    // V1.5: written and approved in one step from the inbox.
+    if (command.approve) approveMessage(next, old ?? o.messages[o.messages.length - 1], now)
     addEvent({
       clientId: client.id,
       appointmentId: command.input.appointmentId,
@@ -301,16 +305,7 @@ export function runOperatingCommand(
   } else if (command.type === 'message-queue') {
     const message = o.messages.find((m) => m.id === command.messageId)
     if (!message) throw new Error('Message does not belong to this workspace.')
-    const stale = staleOffer(next, message.id, now)
-    if (stale) throw new Error(stale)
-    if (
-      message.purpose === 'marketing' &&
-      !next.clients.find((c) => c.id === message.clientId)?.marketingConsent
-    )
-      throw new Error(
-        'This client has not consented to email marketing. Appointment updates are a separate purpose.',
-      )
-    message.status = 'queued'
+    approveMessage(next, message, now)
     recordId = message.id
   } else if (command.type === 'deposit') {
     const a = next.appointments.find((a) => a.id === command.appointmentId)
@@ -764,4 +759,42 @@ export function runOperatingCommand(
     o.imports = [...(o.imports ?? []), batch]
   }
   return recordId
+}
+
+type DraftMessage = NonNullable<BusinessState['operations']>['messages'][number]
+/** Approves a draft for the outbox, after checking it may go and has somewhere to go. */
+function approveMessage(next: BusinessState, message: DraftMessage, now: string) {
+  const stale = staleOffer(next, message.id, now)
+  if (stale) throw new Error(stale)
+  if (
+    message.purpose === 'marketing' &&
+    !next.clients.find((c) => c.id === message.clientId)?.marketingConsent
+  )
+    throw new Error(
+      'This client has not consented to email marketing. Appointment updates are a separate purpose.',
+    )
+  if (message.approvedAt) throw new Error('This message is already approved.')
+  // V1.5: the outbox sends it, so it needs somewhere to go now.
+  const to = next.clients.find((c) => c.id === message.clientId)!
+  if (
+    message.channel === 'sms'
+      ? !/^\+[1-9]\d{7,14}$/.test(to.phone.replace(/[\s().-]/g, ''))
+      : !to.email.trim()
+  )
+    throw new Error(
+      message.channel === 'sms'
+        ? 'This client has no mobile number with its country code. Add one, or send by email.'
+        : 'This client has no email address. Add one, or send by text.',
+    )
+  if (
+    message.purpose === 'appointment' &&
+    (message.channel === 'sms' ? to.noTextReminders : to.noEmailReminders)
+  )
+    throw new Error(
+      message.channel === 'sms'
+        ? 'This client asked for no appointment texts. Send by email, or change their preferences first.'
+        : 'This client asked for no appointment emails. Send by text, or change their preferences first.',
+    )
+  message.status = 'queued'
+  message.approvedAt = now
 }

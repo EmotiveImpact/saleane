@@ -11,6 +11,8 @@ import {
   missedCallSlot,
   missedCallTextDue,
   isClientKind,
+  messageSlot,
+  appointmentMessagesOff,
   missYouDue,
   dueBackDue,
   composeMessage,
@@ -162,6 +164,20 @@ export function createOutbox(ctx: Context, providers: Providers) {
       }
       if (!org || !client) return skip('The visit is no longer in the studio record.')
       if (operations(org.state).mode !== 'local') return skip('Sample studios never send.')
+      if (fresh.kind === 'message') {
+        // V1.5: written in the inbox. Checked again now: still queued, still agreed, still reachable.
+        const message = operations(org.state).messages.find((m) => messageSlot(m.id) === fresh.slot)
+        if (!message || message.status !== 'queued')
+          return skip('Stopped or changed before it went out.')
+        if (message.purpose === 'marketing' && !client.marketingConsent)
+          return skip('Email news was no longer agreed before it went out.')
+        if (message.purpose === 'appointment' && appointmentMessagesOff(client, fresh.channel))
+          return skip('Turned off for this client before it went out.')
+        const to = fresh.channel === 'email' ? client.email.trim() : textNumber(client.phone)
+        if (!to) return skip('The client has no address for this channel now.')
+        const body = message.body.replaceAll(BOOK_LINK, `${ctx.allowedOrigin}/book/${org.slug}`)
+        return send(fresh, org, to, message.subject, message.body, body)
+      }
       // V1.5: a birthday or "we miss you" is about the guest, not a visit. Checked again now.
       const kind = fresh.kind
       let current: { subject: string; body: string } | null = null

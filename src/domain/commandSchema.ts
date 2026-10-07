@@ -39,6 +39,7 @@ import { accountingProviders, accountingSettingsSchema } from './accountsSchema'
 import { reminderSettingsSchema } from './reminderSettings'
 import { CONSENT_TEXT_LIMIT } from './consentSchema'
 import { consultationContentSchema } from './consultationsSchema'
+import { REPLY_TEXT_LIMIT, noteWays, savedReplyInputSchema } from './inboxSchema'
 const id = z.string().min(1).max(150)
 const money = z.number().int().nonnegative().max(100_000_000)
 const method = paymentMethodSchema
@@ -132,7 +133,13 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     id: id.optional(),
     input: resourceSchema.omit({ id: true, organisationId: true }),
   }),
-  z.object({ type: z.literal('message'), id: id.optional(), input: messageInputSchema }),
+  z.object({
+    type: z.literal('message'),
+    id: id.optional(),
+    input: messageInputSchema,
+    /** V1.5: approve it for sending in the same step, as the inbox's send button does. */
+    approve: z.boolean().optional(),
+  }),
   z.object({ type: z.literal('message-queue'), messageId: id }),
   // PILOT-01: the studio's confirmation and reminder settings.
   z.object({ type: z.literal('reminders'), settings: reminderSettingsSchema }),
@@ -397,6 +404,28 @@ export const commandSchema = z.discriminatedUnion('type', [
     heldOn: z.iso.date(),
     content: consultationContentSchema,
   }),
+  // V1.5: the inbox. A guest's reply arrives only from the studio's email or text line.
+  z.object({
+    type: z.literal('reply-received'),
+    channel: z.enum(['email', 'sms']),
+    from: z.string().trim().min(1).max(320),
+    body: z.string().max(20000),
+    providerRef: z.string().max(200).optional(),
+  }),
+  z.object({
+    type: z.literal('reply-note'),
+    clientId: id,
+    how: z.enum(noteWays),
+    body: z.string().trim().min(1).max(REPLY_TEXT_LIMIT),
+  }),
+  z.object({ type: z.literal('replies-read'), replyIds: z.array(id).min(1).max(200) }),
+  z.object({ type: z.literal('reply-link'), replyId: id, clientId: id }),
+  z.object({
+    type: z.literal('saved-reply-save'),
+    id: id.optional(),
+    input: savedReplyInputSchema,
+  }),
+  z.object({ type: z.literal('saved-reply-remove'), id }),
   tillCountCommandSchema,
   // Sent only through a guest's private link, never by the studio.
   z.object({ type: z.literal('feedback'), appointmentId: id }).extend(feedbackInputSchema.shape),
