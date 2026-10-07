@@ -178,6 +178,8 @@ describe('guest extras', () => {
       'organisation',
       'payment',
       'visit',
+      // V1.5: only whether this guest asked to come in sooner, never who else is waiting.
+      'waitlist',
     ])
     expect(Object.keys(view.organisation).sort()).toEqual([
       'address',
