@@ -204,7 +204,9 @@ export function AppointmentDialog({
       setError('Confirm that the balance has already been received outside Saleane.')
       return
     }
-    if (method === 'external_card' && !reference.trim()) {
+    // With nothing left to pay the payment fields are hidden; the visit closes at nothing due.
+    const nothingDue = total === 0
+    if (method === 'external_card' && !nothingDue && !reference.trim()) {
       setError('Enter the external card payment reference.')
       return
     }
@@ -216,11 +218,11 @@ export function AppointmentDialog({
       type: 'checkout',
       appointmentId,
       tipMinor,
-      // A provider card takes no part when nothing is left to pay; the visit closes at nothing due.
-      method: method === 'card' ? 'cash' : method,
+      // A provider card is charged only through its own screen, and a terminal only when money is due.
+      method: method === 'card' || (nothingDue && method === 'external_card') ? 'cash' : method,
       ...(chosenPlan ? { holdingId: chosenPlan.holding.id } : { discountMinor }),
       ...(gift && giftMinor > 0 ? { giftCardId: gift.id, giftCardMinor: giftMinor } : {}),
-      reference: reference.trim() || undefined,
+      reference: (!nothingDue && reference.trim()) || undefined,
     })
   }
   function changeMode(next: typeof mode) {
