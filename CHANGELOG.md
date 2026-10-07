@@ -2,7 +2,17 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
-## 2026-10-06 · In review · Competitive position in the plan
+## 2026-10-07 · In review · Small extras
+
+**Status: built and checked locally; nothing deployed, nothing sent or charged.**
+
+- Business page: "Who comes back" with new-client return, returning clients, lapsed clients and rebooking per professional, each with its definition.
+- Money page: end-of-day till count against the cash on record. It records only; it does not bank, move or reconcile money.
+- Booking pages: one all-in price sentence per treatment, a "before you arrive" card, and add to calendar on the confirmation and the guest manage page.
+- Manage studio: arrival and preparation notes, and shareable booking links for Google and Instagram that record where a guest came from.
+- Practitioners: a phone-first day with "Next up" and "Before you begin". Evidence: [EXTRAS](docs/evidence/EXTRAS.md).
+
+## 2026-10-06 · Merged · Competitive position in the plan
 
 **Status: documentation only; no product behaviour changes.**
 

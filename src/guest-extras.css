@@ -95,3 +95,12 @@
     padding: 16px;
   }
 }
+/* The server booking page wraps a service's text in a span, which the shared price-column rule
+   would right-align. Keep the text block reading from the left, like the demo page. */
+.service-choice > span:first-child {
+  flex: 1;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: flex-start;
+  text-align: left;
+}
