@@ -3,7 +3,7 @@ import '../guest-extras.css'
 
 /** What a guest is told when their treatment needs a patch test. */
 function patchTestNote(hours: number) {
-  return `This treatment needs a quick patch test at least ${hours} hours before. If you have not had one with us recently, we will be in touch to arrange it.`
+  return `This treatment needs a quick patch test at least ${hours} hours before. If you have not had one with us recently, please call or pop in to arrange one.`
 }
 
 /**
