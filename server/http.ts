@@ -43,7 +43,8 @@ export function sessionToken(request: IncomingMessage): string | undefined {
     .find((part) => part.startsWith(`${COOKIE}=`))
     ?.slice(COOKIE.length + 1)
 }
-export async function readBody(request: IncomingMessage): Promise<unknown> {
+/** Reads a bounded body as JSON, or as text when `raw` is set (provider receipts). */
+export async function readBody(request: IncomingMessage, raw = false): Promise<unknown> {
   const length = Number(header(request, 'content-length'))
   if (Number.isFinite(length) && length > BODY_LIMIT) {
     request.resume()
@@ -78,7 +79,8 @@ export async function readBody(request: IncomingMessage): Promise<unknown> {
     }
     const onEnd = () => {
       try {
-        finish(undefined, JSON.parse(Buffer.concat(chunks).toString('utf8')))
+        const text = Buffer.concat(chunks).toString('utf8')
+        finish(undefined, raw ? text : JSON.parse(text))
       } catch {
         finish(new HttpError(400, 'Use a valid JSON request.'))
       }

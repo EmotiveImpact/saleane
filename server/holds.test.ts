@@ -346,3 +346,32 @@ describe('optional Turnstile bot check', () => {
     ).toBe(TURNSTILE_TEST_KEYS.siteKey)
   })
 })
+
+describe('tax during a hold', () => {
+  it('refuses to confirm a held time once the studio tax changes, so the shown price stands', async () => {
+    const owner = await register()
+    const held = (await hold(owner.slug)).json<{ hold: string }>().hold
+    const changed = await command(owner, owner.state.revision, {
+      type: 'tax',
+      label: 'VAT',
+      rateBps: 2000,
+      inclusive: false,
+    })
+    expect(changed.statusCode, changed.body).toBe(200)
+    const refused = await book(owner.slug, held)
+    expect(refused.statusCode).toBe(409)
+    expect(refused.json().error).toMatch(/changed during the reservation/)
+    // A fresh hold under the new setting books normally.
+    const again = (await hold(owner.slug, { startMinutes: 720 })).json<{ hold: string }>().hold
+    expect((await book(owner.slug, again)).statusCode).toBe(200)
+  })
+  it('still confirms holds made before the tax setting was kept with them', async () => {
+    const { slug } = await register()
+    const held = (await hold(slug)).json<{ hold: string }>().hold
+    const row = api.database.get<{ input: string }>('SELECT input FROM booking_holds')!
+    const legacy = JSON.parse(row.input) as Record<string, unknown>
+    delete legacy.tax
+    api.database.run('UPDATE booking_holds SET input=?', JSON.stringify(legacy))
+    expect((await book(slug, held)).statusCode).toBe(200)
+  })
+})

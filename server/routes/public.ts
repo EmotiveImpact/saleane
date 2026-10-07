@@ -148,6 +148,7 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
           price: service.priceMinor,
           deposit: service.depositMinor,
           resourceType: service.resourceType,
+          tax: operations(org.state).tax ?? null,
         }
         db.run(
           'INSERT INTO booking_holds(token_hash,id,organisation_id,input,expires_at,visitor) VALUES(?,?,?,?,?,?)',
@@ -204,7 +205,9 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
           service.bufferMinutes !== allocation.buffer ||
           service.priceMinor !== allocation.price ||
           service.depositMinor !== allocation.deposit ||
-          service.resourceType !== allocation.resourceType
+          service.resourceType !== allocation.resourceType ||
+          (allocation.tax !== undefined &&
+            canonical(operations(org.state).tax ?? null) !== canonical(allocation.tax))
         )
           fail(
             409,

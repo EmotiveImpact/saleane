@@ -13,6 +13,26 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - The owner's 12 chosen house photographs (AI-generated, fictional rooms and details, from the photo set in #15) are in the app, matching the prototype: the sunlit treatment room in the Today greeting, a cup of tea on "Saleane noticed", a calm studio strip on Calendar, window light above Clients, the studio entrance on the booking pages, and on Business a "Your booking page" card (reception and one photo per treatment) beside a "Closing up" card in late-afternoon light that counts today's visits still to check out from real records. Empty pages ("No clients found", page not found) carry stacked towels. The manicure photo is ready for nail treatments; the demo studios have none yet.
 - The demo booking page offers "Anyone available" first when more than one professional does the treatment, combining their times; the visit goes to the first professional free at the chosen time. The real guest page already offered "No preference · first available".
 
+## 2026-10-07 · PILOT-01 · Appointment messages
+
+**Status: built and checked locally in test mode; nothing deployed and nothing sent.** No email or text provider has been chosen.
+
+- Real studios now confirm each booking, tell the guest about a new time or a cancellation, and send a reminder before the visit, by email and text. Each message carries its own private link to view, add to calendar or cancel the visit.
+- Settings has a new "Messages to guests" section: confirmations on or off, reminders on or off, when the reminder goes (2 hours, the day before or two days before), and email and text on or off. Owners and managers can change it.
+- A client's profile has "Appointment emails" and "Appointment texts" switches, separate from marketing. Changing them is recorded on the client's timeline.
+- The Inbox and each client profile list what was sent for them, with honest labels: "Test mode, not sent", "With the provider, no receipt yet", "Delivered" (only on a provider receipt), "Not delivered", "Unclear, check before resending" and "Not sent". Owners and managers can send a failed or unclear message again.
+- Test mode is the default and sends nothing. Postmark (email) and Twilio (texts) adapters are written and tested against simulated answers, ready for when accounts exist. Sample studios never send.
+- Texts go only to numbers saved with a country code. Messages never include marketing.
+
+## 2026-10-07 · Merged · Booked prices keep their tax
+
+**Status: merged into main on 7 October 2026; nothing deployed or charged.**
+
+- Each new visit stores the studio's tax setting at the moment it is booked, and checkout uses it. A guest pays the all-in price they were shown, even if the studio changes its tax setting before the visit (owner decision, 7 October 2026).
+- Visits booked before this change keep following the studio's current setting.
+- A time held on the public booking page also remembers the tax setting. If the studio changes it before the guest confirms, the guest is asked to choose the time again, as already happens when the price changes.
+- The checkout panel now says "Tax follows the setting in place when this visit was booked."
+
 ## 2026-10-07 · Merged · A full Settings page
 
 **Status: merged into main on 7 October 2026; not deployed.** Layout and navigation only; studio records save exactly as before.

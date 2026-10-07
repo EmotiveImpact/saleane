@@ -14,6 +14,7 @@ import {
   weeklyHoursSchema,
 } from './operations'
 import { tillCountCommandSchema } from './tillCount'
+import { reminderSettingsSchema } from './reminderSettings'
 const id = z.string().min(1).max(150)
 const money = z.number().int().nonnegative().max(100_000_000)
 const method = z.enum(['demo_card', 'demo_cash', 'cash', 'external_card'])
@@ -84,6 +85,15 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('message'), id: id.optional(), input: messageInputSchema }),
   z.object({ type: z.literal('message-queue'), messageId: id }),
+  // PILOT-01: the studio's confirmation and reminder settings.
+  z.object({ type: z.literal('reminders'), settings: reminderSettingsSchema }),
+  // PILOT-01: a client's own wish about appointment emails and texts.
+  z.object({
+    type: z.literal('contact-preferences'),
+    clientId: id,
+    email: z.boolean(),
+    sms: z.boolean(),
+  }),
   z.object({
     type: z.literal('refund'),
     saleId: id,

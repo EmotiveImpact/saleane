@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { BusinessState } from './model'
+import { reminderSettingsSchema } from './reminderSettings'
 
 const id = z.string().min(1).max(150)
 const money = z.number().int().nonnegative().max(100_000_000)
@@ -69,6 +70,13 @@ export const productInputSchema = z.object({
   reorderAt: z.number().int().nonnegative().max(10000),
   archived: z.boolean(),
 })
+export const taxSchema = z.object({
+  label: z.string().max(40),
+  rateBps: z.number().int().min(0).max(10000),
+  inclusive: z.boolean(),
+})
+export type Tax = z.infer<typeof taxSchema>
+
 export const operationsSchema = z.object({
   mode: z.enum(['sandbox', 'local']),
   bookingEnabled: z.boolean(),
@@ -110,13 +118,9 @@ export const operationsSchema = z.object({
     }),
   ),
   scheduleHistory: z.array(scheduleChangeSchema).max(SCHEDULE_HISTORY_LIMIT).optional(),
-  tax: z
-    .object({
-      label: z.string().max(40),
-      rateBps: z.number().int().min(0).max(10000),
-      inclusive: z.boolean(),
-    })
-    .optional(),
+  tax: taxSchema.optional(),
+  /** Appointment confirmations and reminders (PILOT-01). Absent means the defaults apply. */
+  reminders: reminderSettingsSchema.optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 export type Role = 'owner' | 'manager' | 'reception' | 'practitioner'
@@ -239,9 +243,20 @@ export function can(role: Role, action: string) {
       'product',
       'message.queue',
       'import-clients',
+      'reminders',
     ].includes(action)
   )
     return false
   if (role === 'reception') return true
   return ['read', 'arrive', 'note'].includes(action)
+}
+
+/**
+ * The tax a visit is settled under: the basis in force when it was booked, so a guest pays the
+ * price they were shown even if the studio's tax setting changes later (owner decision, 7 October
+ * 2026). Visits booked before this snapshot existed follow the studio's current setting.
+ */
+export function visitTax(s: BusinessState, appointment: { bookedTax?: Tax | null }) {
+  if (appointment.bookedTax === undefined) return operations(s).tax
+  return appointment.bookedTax ?? undefined
 }

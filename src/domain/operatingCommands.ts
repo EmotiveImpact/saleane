@@ -136,6 +136,25 @@ export function runOperatingCommand(
   if (command.type === 'tax') {
     o.tax = { label: command.label, rateBps: command.rateBps, inclusive: command.inclusive }
     recordId = next.organisation.id
+  } else if (command.type === 'reminders') {
+    o.reminders = { ...command.settings }
+    recordId = next.organisation.id
+  } else if (command.type === 'contact-preferences') {
+    const client = next.clients.find((c) => c.id === command.clientId)
+    if (!client) throw new Error('Client does not belong to this workspace.')
+    const was = { email: !client.noEmailReminders, sms: !client.noTextReminders }
+    if (command.email) delete client.noEmailReminders
+    else client.noEmailReminders = true
+    if (command.sms) delete client.noTextReminders
+    else client.noTextReminders = true
+    if (was.email !== command.email || was.sms !== command.sms)
+      addEvent({
+        clientId: client.id,
+        type: 'consent',
+        title: 'Appointment messages updated',
+        detail: `Appointment emails ${command.email ? 'on' : 'off'}, texts ${command.sms ? 'on' : 'off'}. Marketing preference unchanged.`,
+      })
+    recordId = client.id
   } else if (command.type === 'message') {
     const client = next.clients.find((c) => c.id === command.input.clientId)
     if (!client) throw new Error('Client does not belong to this workspace.')

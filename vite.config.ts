@@ -12,6 +12,7 @@ export default defineConfig(({ isSsrBuild }) => ({
         const api = createApiHandler({
           origin: process.env.APP_ORIGIN ?? 'http://127.0.0.1:5173',
           databasePath: process.env.DB_PATH,
+          outboxIntervalMs: 30000,
         })
         server.middlewares.use((request, response, next) => {
           if (request.url?.startsWith('/api/')) void api(request, response, next)

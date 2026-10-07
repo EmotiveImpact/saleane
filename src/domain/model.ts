@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { operationsSchema, weeklyHoursSchema } from './operations'
+import { operationsSchema, taxSchema, weeklyHoursSchema } from './operations'
 import { tillCountProblem, tillCountSchema } from './tillCount'
 
 export const DEMO_DATE = '2026-10-06'
@@ -36,6 +36,9 @@ export const clientSchema = z.object({
   preferences: z.string().max(1000),
   marketingConsent: z.boolean(),
   createdAt: z.iso.datetime(),
+  /** The client asked not to receive appointment emails or texts (PILOT-01). Absent means allowed. */
+  noEmailReminders: z.boolean().optional(),
+  noTextReminders: z.boolean().optional(),
 })
 export const serviceSchema = z.object({
   ...scoped,
@@ -89,6 +92,8 @@ export const appointmentSchema = z.object({
   bookedBufferMinutes: z.number().int().nonnegative(),
   bookedResourceType: z.enum(['treatment', 'chair']).optional(),
   bookedServiceName: z.string().optional(),
+  /** Tax basis at booking; null when the studio charged no tax then. Older visits omit it. */
+  bookedTax: taxSchema.nullable().optional(),
 })
 export const saleSchema = z.object({
   ...scoped,

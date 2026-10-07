@@ -41,7 +41,7 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         ...workspaceView(org, org.state, today),
         today,
         mode: operations(org.state).mode,
-        deliveryConfigured: false,
+        deliveryConfigured: ctx.messaging.email.live || ctx.messaging.sms.live,
         paymentsConfigured: false,
       })
       return true
