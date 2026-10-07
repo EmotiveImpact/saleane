@@ -1,0 +1,9 @@
+{
+  "name": "saleane-browser-demo",
+  "private": true,
+  "type": "module",
+  "description": "Build-only dependencies for the self-contained browser demo. Not part of the app.",
+  "dependencies": {
+    "sql.js": "1.14.2"
+  }
+}
