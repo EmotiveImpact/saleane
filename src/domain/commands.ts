@@ -4,6 +4,7 @@ import { businessDate, hoursFor, instantFor, operations, staffHoursFor } from '.
 import { bookingSchema, commandSchema, contactSchema } from './commandSchema'
 import type { Command, ContactInput } from './commandSchema'
 import { assertMethod, runOperatingCommand } from './operatingCommands'
+import { channelLabel } from './bookingChannel'
 import { checkoutTotals } from './money'
 import { recordTillCount } from './tillCount'
 export { commandSchema } from './commandSchema'
@@ -280,6 +281,8 @@ export function execute(
       if (!client) throw new Error('Choose a client or enter their details.')
       if (input.source === 'rebook' && !input.rebookedFromId)
         throw new Error('Rebooking requires a linked completed visit.')
+      if (input.channel && input.source !== 'online')
+        throw new Error('Only an online booking records where the guest came from.')
       if (input.rebookedFromId && input.source !== 'rebook')
         throw new Error('Use the rebooking workflow to link a previous visit.')
       if (input.rebookedFromId) {
@@ -299,6 +302,7 @@ export function execute(
         startMinutes: input.startMinutes,
         status: 'confirmed',
         source: input.source,
+        ...(input.channel ? { channel: input.channel } : {}),
         createdAt: now,
         rebookedFromId: input.rebookedFromId,
         bookedPriceMinor: service.priceMinor,
@@ -326,7 +330,7 @@ export function execute(
         appointmentId: appointment.id,
         type: 'booked',
         title: input.source === 'rebook' ? 'Next visit booked' : 'Appointment booked',
-        detail: `${service.name} · ${dateLabel(input.date, org.locale)} at ${timeLabel(input.startMinutes, org.locale)}. ${operations(s).mode === 'sandbox' ? 'Deposit simulated; no payment taken.' : 'No payment collected. Any required deposit remains outstanding.'}`,
+        detail: `${service.name} · ${dateLabel(input.date, org.locale)} at ${timeLabel(input.startMinutes, org.locale)}. ${operations(s).mode === 'sandbox' ? 'Deposit simulated; no payment taken.' : 'No payment collected. Any required deposit remains outstanding.'}${input.channel ? ` Booked through your ${channelLabel(input.channel)} link.` : ''}`,
       })
       recordId = appointment.id
     } else if (
