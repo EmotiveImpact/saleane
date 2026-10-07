@@ -1,6 +1,13 @@
 import { z } from 'zod'
 import { parseState } from './model'
-import { businessDate, hoursFor, instantFor, operations, staffHoursFor } from './operations'
+import {
+  businessDate,
+  hoursFor,
+  instantFor,
+  operations,
+  staffHoursFor,
+  visitTax,
+} from './operations'
 import { bookingSchema, commandSchema, contactSchema } from './commandSchema'
 import type { Command, ContactInput } from './commandSchema'
 import { assertMethod, runOperatingCommand } from './operatingCommands'
@@ -311,6 +318,7 @@ export function execute(
         bookedBufferMinutes: service.bufferMinutes,
         bookedResourceType: service.resourceType,
         bookedServiceName: service.name,
+        bookedTax: operations(s).tax ?? null,
       }
       next.appointments.push(appointment)
       // Simulated deposit receipt is deliberately separate from the service-price snapshot.
@@ -450,7 +458,7 @@ export function execute(
         const discount = command.discountMinor ?? 0
         if (discount > appointment.bookedPriceMinor)
           throw new Error('Discount cannot exceed the booked service price.')
-        const tax = operations(s).tax
+        const tax = visitTax(s, appointment)
         const { taxMinor, totalMinor: total } = checkoutTotals({
           priceMinor: appointment.bookedPriceMinor,
           discountMinor: discount,

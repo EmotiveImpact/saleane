@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { ArrowUpRight, Check, CreditCard } from 'lucide-react'
 import { useStore } from '../state/context'
 import { GuestLinkPanel } from './GuestLinkPanel'
-import { can, operations } from '../domain/operations'
+import { can, operations, visitTax } from '../domain/operations'
 import type { Command } from '../domain/commands'
 import { depositPaid, rescheduleSlots } from '../domain/commands'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
@@ -81,7 +81,7 @@ export function AppointmentDialog({
   const deposit = depositPaid(state, appointmentId)
   const tipMinor = parseMinor(tip, 0)
   const discountMinor = parseMinor(discount, 0)
-  const tax = config.tax
+  const tax = visitTax(state, appointment)
   const { taxMinor, balanceMinor: total } = checkoutTotals({
     priceMinor: appointment.bookedPriceMinor,
     discountMinor: Number.isFinite(discountMinor) ? discountMinor : 0,
@@ -566,8 +566,10 @@ export function AppointmentDialog({
             <strong>{money(total, state.organisation, true)}</strong>
           </div>
           <p className="subtle demo-note">
-            {tax ? 'Tax uses the workspace configuration. ' : 'Service tax is not configured. '}Tips
-            are separate from service revenue.{' '}
+            {tax
+              ? 'Tax follows the setting in place when this visit was booked. '
+              : 'No tax applies to this visit. '}
+            Tips are separate from service revenue.{' '}
             {sandbox
               ? 'No real payment will be taken.'
               : 'Only record funds already received. Card payments are not connected yet.'}

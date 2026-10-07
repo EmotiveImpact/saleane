@@ -69,6 +69,13 @@ export const productInputSchema = z.object({
   reorderAt: z.number().int().nonnegative().max(10000),
   archived: z.boolean(),
 })
+export const taxSchema = z.object({
+  label: z.string().max(40),
+  rateBps: z.number().int().min(0).max(10000),
+  inclusive: z.boolean(),
+})
+export type Tax = z.infer<typeof taxSchema>
+
 export const operationsSchema = z.object({
   mode: z.enum(['sandbox', 'local']),
   bookingEnabled: z.boolean(),
@@ -110,13 +117,7 @@ export const operationsSchema = z.object({
     }),
   ),
   scheduleHistory: z.array(scheduleChangeSchema).max(SCHEDULE_HISTORY_LIMIT).optional(),
-  tax: z
-    .object({
-      label: z.string().max(40),
-      rateBps: z.number().int().min(0).max(10000),
-      inclusive: z.boolean(),
-    })
-    .optional(),
+  tax: taxSchema.optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 export type Role = 'owner' | 'manager' | 'reception' | 'practitioner'
@@ -244,4 +245,14 @@ export function can(role: Role, action: string) {
     return false
   if (role === 'reception') return true
   return ['read', 'arrive', 'note'].includes(action)
+}
+
+/**
+ * The tax a visit is settled under: the basis in force when it was booked, so a guest pays the
+ * price they were shown even if the studio's tax setting changes later (owner decision, 7 October
+ * 2026). Visits booked before this snapshot existed follow the studio's current setting.
+ */
+export function visitTax(s: BusinessState, appointment: { bookedTax?: Tax | null }) {
+  if (appointment.bookedTax === undefined) return operations(s).tax
+  return appointment.bookedTax ?? undefined
 }

@@ -11,7 +11,7 @@ import { parseState } from '../src/domain/model'
 import type { BusinessState } from '../src/domain/model'
 import { availableResource } from '../src/domain/commands'
 import { operations } from '../src/domain/operations'
-import type { Role } from '../src/domain/operations'
+import type { Role, Tax } from '../src/domain/operations'
 
 export const emailSchema = z.email().trim().toLowerCase().max(254)
 export const accountDetails = z.object({
@@ -73,6 +73,8 @@ export type HoldAllocation = z.infer<typeof holdInput> & {
   price: number
   deposit: number
   resourceType: string
+  /** The tax setting shown when the time was held. Absent on holds made before it was kept. */
+  tax?: Tax | null
 }
 export type HoldRow = {
   id: string
