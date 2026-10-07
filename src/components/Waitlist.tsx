@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Hourglass, Plus } from 'lucide-react'
@@ -214,9 +214,13 @@ export function WaitlistCard({
   const person = (id?: string) => state.staff.find((p) => p.id === id)?.name ?? 'anyone'
   const visit = state.appointments.find((a) => a.id === entry.appointmentId)
   // The search is the heaviest work on the page, so it runs again only when the studio changes or
-  // the clock passes the next ten minutes.
-  const tenMinutes = `${now.slice(0, 15)}0:00.000Z`
-  const times = useMemo(() => openings(state, entry, tenMinutes), [state, entry, tenMinutes])
+  // the minute moves on, checked against the real clock so a time already started is never shown.
+  const [clock, setClock] = useState(now)
+  useEffect(() => {
+    const tick = window.setInterval(() => setClock(new Date().toISOString()), 60_000)
+    return () => window.clearInterval(tick)
+  }, [])
+  const times = useMemo(() => openings(state, entry, clock), [state, entry, clock])
   const when = (o: Opening) =>
     `${dateLabel(o.date, org.locale)} at ${timeLabel(o.startMinutes, org.locale)}`
   const heading = `${showClient ? `${client?.name ?? 'Client'} · ` : ''}${service?.name ?? 'Service'}`

@@ -477,6 +477,38 @@ describe('waitlist', () => {
     expect(run(offered, { type: 'message-queue', messageId }).ok).toBe(true)
   })
 
+  it('lets a guest ask to come in sooner after their service leaves the menu', () => {
+    const { s, visit } = withLaterVisit()
+    const archived = structuredClone(s)
+    archived.services.find((item) => item.id === visit.serviceId)!.archived = true
+    const joined = apply(archived, {
+      type: 'waitlist-join',
+      appointmentId: visit.id,
+      anyone: false,
+      times: [],
+    })
+    expect(waiting(joined).some((e) => e.appointmentId === visit.id)).toBe(true)
+    // A new request from the desk still needs a service that is offered.
+    expect(
+      run(archived, { type: 'waitlist-add', input: { ...wish, clientId: 'client-2' } }).ok,
+    ).toBe(false)
+  })
+
+  it('stops offering once a request has had the most offers it can keep', () => {
+    const s = seed('UK')
+    const entry = waiting(s)[0]
+    const opening = openings(s, entry, now)[0]
+    const full = structuredClone(s)
+    full.waitlist!.find((e) => e.id === entry.id)!.offers = Array.from({ length: 50 }, (_, i) => ({
+      at: now,
+      ...opening,
+      messageId: `old-${i}`,
+    }))
+    const result = run(full, { type: 'waitlist-offer', entryId: entry.id, ...opening })
+    expect(result.ok).toBe(false)
+    expect(!result.ok && result.error).toMatch(/already had 50 offers/)
+  })
+
   it('keeps a guest’s chosen professional in step when the desk moves their visit to someone else', () => {
     const { s, visit } = withLaterVisit()
     const joined = apply(s, {

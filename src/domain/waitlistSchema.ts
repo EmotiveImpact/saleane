@@ -13,6 +13,8 @@ export const WAITLIST_TIMES = ['morning', 'afternoon', 'evening'] as const
 export type WaitlistTime = (typeof WAITLIST_TIMES)[number]
 /** The longest window a client can wait for, from its first day to its last. */
 export const WAITLIST_MAX_DAYS = 90
+/** Offers kept on one request; a request offered this many times is better taken off and asked again. */
+export const WAITLIST_MAX_OFFERS = 50
 
 export const waitlistInputSchema = z
   .object({
@@ -51,7 +53,7 @@ export const waitlistEntrySchema = z
     /** The visit that filled the wish: booked for it, or the guest's own visit moved earlier. */
     outcomeAppointmentId: id.optional(),
     removedReason: z.string().max(300).optional(),
-    offers: z.array(waitlistOfferSchema).max(50).optional(),
+    offers: z.array(waitlistOfferSchema).max(WAITLIST_MAX_OFFERS).optional(),
   })
   .extend(waitlistInputSchema.shape)
 export type WaitlistEntry = z.infer<typeof waitlistEntrySchema>

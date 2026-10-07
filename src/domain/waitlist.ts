@@ -3,7 +3,7 @@ import type { Appointment, BusinessState, RelationshipEvent } from './model'
 import { availableAllocation } from './allocation'
 import { addDays, dateLabel, timeLabel } from './format'
 import { businessDate, hoursFor, operations, staffHoursFor } from './operations'
-import { WAITLIST_MAX_DAYS } from './waitlistSchema'
+import { WAITLIST_MAX_DAYS, WAITLIST_MAX_OFFERS } from './waitlistSchema'
 import type { WaitlistEntry, WaitlistInput, WaitlistTime } from './waitlistSchema'
 
 /**
@@ -177,7 +177,10 @@ function checkInput(s: BusinessState, input: WaitlistInput, now: string) {
   const client = s.clients.find((c) => c.id === input.clientId)
   if (!client) throw new Error('Client does not belong to this workspace.')
   const service = s.services.find((item) => item.id === input.serviceId)
-  if (!service || service.archived) throw new Error('Choose a service offered here.')
+  // A guest asking to come in sooner keeps their booked visit even if the service has since been
+  // taken off the menu; only a new request from the desk needs a service still offered.
+  if (!service || (service.archived && !input.appointmentId))
+    throw new Error('Choose a service offered here.')
   if (input.staffId) {
     const person = s.staff.find((p) => p.id === input.staffId)
     if (!person || person.archived || !person.serviceIds.includes(service.id))
@@ -433,6 +436,10 @@ export function runWaitlistCommand(
     startMinutes: command.startMinutes,
     staffId: command.staffId,
   }
+  if ((entry.offers?.length ?? 0) >= WAITLIST_MAX_OFFERS)
+    throw new Error(
+      `This request has already had ${WAITLIST_MAX_OFFERS} offers. Take it off the waitlist and add it again to keep offering.`,
+    )
   if (!openingFree(next, entry, opening, now))
     throw new Error('That time is no longer free for this request. Choose another.')
   const client = next.clients.find((c) => c.id === entry.clientId)!
