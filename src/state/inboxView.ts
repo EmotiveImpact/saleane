@@ -9,8 +9,12 @@ export type InboxView = 'columns' | 'panel'
 
 const key = (userId?: string) => `saleane-inbox-view:${userId ?? 'demo'}`
 const event = 'saleane:inbox-view'
+/** This visit's choices, so a choice still applies when the browser will not store it. */
+const chosen = new Map<string, InboxView>()
 
 export function readInboxView(userId?: string): InboxView {
+  const remembered = chosen.get(key(userId))
+  if (remembered) return remembered
   try {
     return localStorage.getItem(key(userId)) === 'panel' ? 'panel' : 'columns'
   } catch {
@@ -19,6 +23,7 @@ export function readInboxView(userId?: string): InboxView {
 }
 
 export function saveInboxView(userId: string | undefined, view: InboxView) {
+  chosen.set(key(userId), view)
   try {
     localStorage.setItem(key(userId), view)
   } catch {

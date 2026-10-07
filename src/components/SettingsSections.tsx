@@ -134,7 +134,7 @@ export function BrandSection() {
   )
 }
 
-export function WorkspaceSection() {
+export function WorkspaceSection({ onReset }: { onReset?: () => void } = {}) {
   const { state, reset, region, changeRegion, mode, role, reload, enterDemo } = useStore()
   const [confirmReset, setConfirmReset] = useState(false),
     [pending, setPending] = useState(false),
@@ -238,6 +238,7 @@ export function WorkspaceSection() {
                 onClick={() => {
                   reset()
                   setConfirmReset(false)
+                  onReset?.()
                 }}
               >
                 Reset this demo

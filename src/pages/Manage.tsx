@@ -91,6 +91,14 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
   const [hours, setHours] = useState(() => config.hours.map((day) => ({ ...day })))
   const [draft, setDraft] = useState<Command | null>(null)
   const [customHours, setCustomHours] = useState(false)
+  // A demo reset replaces the records under this page, so unsaved copies are taken afresh.
+  const [replaced, setReplaced] = useState(false)
+  if (replaced) {
+    setReplaced(false)
+    setHours(config.hours.map((day) => ({ ...day })))
+    setEditor(null)
+    setDraft(null)
+  }
   const hoursImpact = useMemo(() => previewImpact(state, { type: 'hours', hours }), [state, hours])
   const editorImpact = useMemo(() => previewImpact(state, draft), [state, draft])
   const locale = state.organisation.locale
@@ -242,7 +250,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
           <div>
             {section === 'preferences' && <PreferencesSection />}
             {section === 'brand' && <BrandSection />}
-            {section === 'workspace' && <WorkspaceSection />}
+            {section === 'workspace' && <WorkspaceSection onReset={() => setReplaced(true)} />}
             {section === 'privacy' && <StudioPrivacy />}
             {section === 'business' && (
               <section className="surface ops-panel">
