@@ -122,17 +122,23 @@ function WorkspaceApp() {
         Skip to content
       </a>
       <aside className="sidebar" aria-label="Workspace navigation">
-        <div className="sidebar-brand">
-          <Link to="/today" className="wordmark" onClick={() => setMobileNav(false)}>
-            SALEANE
-          </Link>
-          <button
-            className="mobile-nav-close icon-button"
-            aria-label="Close navigation"
-            onClick={() => setMobileNav(false)}
-          >
-            <X size={20} />
-          </button>
+        <div className="sidebar-masthead">
+          <div className="sidebar-brand">
+            <Link to="/today" className="wordmark" onClick={() => setMobileNav(false)}>
+              SALEANE
+            </Link>
+            <button
+              className="mobile-nav-close icon-button"
+              aria-label="Close navigation"
+              onClick={() => setMobileNav(false)}
+            >
+              <X size={20} />
+            </button>
+          </div>
+          <p className="sidebar-tagline">
+            A considered way to run
+            <br /> a remarkable business.
+          </p>
         </div>
         <button className="workspace-switch" onClick={() => openSettings('workspace')}>
           <span className="workspace-monogram">{initials}</span>
@@ -182,10 +188,6 @@ function WorkspaceApp() {
               <Settings2 size={18} />
             </Link>
           </div>
-          <p>
-            A considered way to run
-            <br /> a remarkable business.
-          </p>
         </div>
       </aside>
       {mobileNav && (

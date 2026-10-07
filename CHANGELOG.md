@@ -2,6 +2,12 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## In review · Sidebar tagline under the name
+
+**Status: pull request, not merged.**
+
+- The sidebar line "A considered way to run a remarkable business." now sits directly under the SALEANE name at the top of the sidebar instead of at the foot. Phones use the navigation menu, which is unchanged.
+
 ## 2026-10-07 · A smoother booking page and the house photographs
 
 Look and flow only; booking rules, holds, prices and deposits are unchanged.
