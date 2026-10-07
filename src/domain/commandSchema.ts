@@ -22,6 +22,7 @@ import {
 import { tillCountCommandSchema } from './tillCount'
 import { retailItemsSchema } from './retailSchema'
 import { rentMethods, rentalInputSchema } from './rentSchema'
+import { orderLinesSchema, supplierInputSchema } from './purchasingSchema'
 import { reminderSettingsSchema } from './reminderSettings'
 const id = z.string().min(1).max(150)
 const money = z.number().int().nonnegative().max(100_000_000)
@@ -148,6 +149,22 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('product'), id: id.optional(), input: productInputSchema }),
   z.object({ type: z.literal('time-off'), input: timeOffInputSchema }),
   z.object({ type: z.literal('rental'), input: rentalInputSchema }),
+  z.object({ type: z.literal('supplier'), id: id.optional(), input: supplierInputSchema }),
+  z.object({
+    type: z.literal('purchase-order'),
+    supplierId: id,
+    lines: orderLinesSchema,
+    note: z.string().trim().max(300).optional(),
+  }),
+  z.object({
+    type: z.literal('receive-order'),
+    orderId: id,
+    received: z
+      .array(z.object({ productId: id, quantity: z.number().int().min(0).max(10000) }))
+      .min(1)
+      .max(50),
+  }),
+  z.object({ type: z.literal('cancel-order'), orderId: id }),
   z.object({ type: z.literal('end-rental'), rentalId: id, to: z.iso.date() }),
   z.object({
     type: z.literal('rent-payment'),

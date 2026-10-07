@@ -8,6 +8,7 @@ import { feedbackProblem, feedbackSchema } from './feedback'
 import { counterSaleSchema, saleRetailSchema } from './retailSchema'
 import { retailCharge, retailProblem } from './retail'
 import { rentProblem } from './rent'
+import { purchasingProblem } from './purchasing'
 export { paymentMethodSchema, paymentMethods, processorSchema } from './paymentMethods'
 
 export const DEMO_DATE = '2026-10-06'
@@ -417,6 +418,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
       o.payRates ?? [],
       o.timeOff ?? [],
       o.rentals ?? [],
+      o.suppliers ?? [],
+      o.purchaseOrders ?? [],
       o.rentPayments ?? [],
     ])
       if (new Set(rows.map((r) => r.id)).size !== rows.length)
@@ -519,6 +522,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
   if (retail) throw new Error(retail)
   const rent = rentProblem(s)
   if (rent) throw new Error(rent)
+  const purchasing = purchasingProblem(s)
+  if (purchasing) throw new Error(purchasing)
   try {
     new Intl.DateTimeFormat('en', { timeZone: org.timeZone }).format(new Date())
   } catch {

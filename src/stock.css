@@ -111,3 +111,55 @@
     width: 100%;
   }
 }
+/* V2: orders from suppliers. */
+.orders-suggested,
+.orders-suppliers {
+  margin-top: 8px;
+}
+.orders-suggested h3,
+.orders-suppliers h3 {
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+  margin: 12px 0 4px;
+}
+.orders-closed,
+.orders-suppliers ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.orders-closed li {
+  padding: 6px 0;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.orders-suppliers li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.orders-suppliers li:first-child {
+  border-top: 0;
+}
+.orders-suppliers li strong,
+.orders-suppliers li small {
+  display: block;
+}
+.orders-suppliers li small {
+  color: var(--muted);
+  font-size: var(--text-micro);
+}
+.orders-text {
+  margin: 0;
+  padding: 12px 14px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-family: var(--font-display);
+  font-size: var(--text-small);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

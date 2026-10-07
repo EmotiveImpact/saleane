@@ -2,6 +2,15 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · V2 · Reordering from suppliers
+
+**Status: built locally on 7 October 2026, in review; nothing deployed. SALEANE never sends an order to a supplier.**
+
+- Stock has a new "Orders from suppliers" section. Owners and managers keep a list of suppliers, and each product can name its supplier and how many are usually ordered.
+- When products run low, the section suggests an order for each supplier with the usual quantity, leaving out anything already on order. "Prepare order" fills in the order, shows it in plain words to paste into an email or read out, and records it once the studio confirms it has placed it.
+- When a delivery arrives, the desk says how many of each product came and they go on the shelf against the order. An order can be cancelled; received and cancelled orders stay on record with who closed them.
+- The ledger checks that each delivery matches what the order says arrived.
+
 ## 2026-10-07 · V2 · Chair and room rent
 
 **Status: built locally on 7 October 2026, in review; nothing deployed. SALEANE records rent paid to the studio and collects nothing.**

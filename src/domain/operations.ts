@@ -3,6 +3,12 @@ import type { BusinessState } from './model'
 import { reminderSettingsSchema } from './reminderSettings'
 import { paymentMethodSchema, processorSchema } from './paymentMethods'
 import { RENT_LIMIT, RENT_PAYMENT_LIMIT, rentPaymentSchema, rentalSchema } from './rentSchema'
+import {
+  ORDER_LIMIT,
+  SUPPLIER_LIMIT,
+  purchaseOrderSchema,
+  supplierSchema,
+} from './purchasingSchema'
 
 const id = z.string().min(1).max(150)
 const money = z.number().int().nonnegative().max(100_000_000)
@@ -75,6 +81,9 @@ export const productInputSchema = z.object({
   forSale: z.boolean().optional(),
   /** V2: what the studio pays the supplier for one, for stock value. Never shown to guests. */
   costMinor: money.optional(),
+  /** V2: who the studio orders it from, and how many it usually orders. */
+  supplierId: id.optional(),
+  reorderQuantity: z.number().int().min(1).max(10000).optional(),
 })
 export const protectionSchema = z
   .object({
@@ -195,6 +204,8 @@ export const operationsSchema = z.object({
       counterSaleId: id.optional(),
       /** V2: the refund a `returned` movement came back with. */
       refundId: id.optional(),
+      /** V2: the supplier order a delivery arrived on. */
+      purchaseOrderId: id.optional(),
     }),
   ),
   messages: z.array(
@@ -237,6 +248,8 @@ export const operationsSchema = z.object({
   /** V2: holidays, sickness and other days away, and each person's yearly holiday allowance. */
   timeOff: z.array(timeOffSchema).max(TIME_OFF_LIMIT).optional(),
   /** V2: chairs and rooms rented to self-employed people, and the rent they have paid. */
+  suppliers: z.array(supplierSchema).max(SUPPLIER_LIMIT).optional(),
+  purchaseOrders: z.array(purchaseOrderSchema).max(ORDER_LIMIT).optional(),
   rentals: z.array(rentalSchema).max(RENT_LIMIT).optional(),
   rentPayments: z.array(rentPaymentSchema).max(RENT_PAYMENT_LIMIT).optional(),
   leaveAllowances: z.array(z.object({ staffId: id, days: z.number().min(0).max(366) })).optional(),
@@ -392,6 +405,10 @@ export function can(role: Role, action: string) {
       'rental',
       'end-rental',
       'rent-payment',
+      'supplier',
+      'purchase-order',
+      'receive-order',
+      'cancel-order',
     ].includes(action)
   )
     return false

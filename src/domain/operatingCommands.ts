@@ -11,6 +11,7 @@ import {
 } from './operations'
 import { daysBetween } from './timeOff'
 import { isPeriodStart } from './rent'
+import { cancelOrder, placeOrder, receiveOrder, saveSupplier } from './purchasing'
 import { RENT_LIMIT, RENT_PAYMENT_LIMIT } from './rentSchema'
 import { restockReturn } from './retail'
 import { assertSchedulePreserved, scheduleChanges, scheduleSnapshot } from './schedule'
@@ -493,11 +494,24 @@ export function runOperatingCommand(
       )
     )
       throw new Error('This SKU already belongs to another product.')
+    if (
+      command.input.supplierId &&
+      !(o.suppliers ?? []).some((x) => x.id === command.input.supplierId)
+    )
+      throw new Error('Choose a supplier from the list.')
     const product = { ...command.input, id: command.id ?? makeId() }
     // Replaced whole, so a cleared optional field such as the cost price really clears.
     if (old) o.products[o.products.indexOf(old)] = product
     else o.products.push(product)
     recordId = product.id
+  } else if (command.type === 'supplier') {
+    recordId = saveSupplier(next, command, makeId)
+  } else if (command.type === 'purchase-order') {
+    recordId = placeOrder(next, command, now, makeId).id
+  } else if (command.type === 'receive-order') {
+    recordId = receiveOrder(next, command, now, makeId)
+  } else if (command.type === 'cancel-order') {
+    recordId = cancelOrder(next, command.orderId, now)
   } else if (command.type === 'rental') {
     const { staffId, resourceId, space } = command.input
     if (!next.staff.some((p) => p.id === staffId && !p.archived))

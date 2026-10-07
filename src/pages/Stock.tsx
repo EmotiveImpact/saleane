@@ -11,6 +11,8 @@ import { report } from '../domain/selectors'
 import { sellable, stockSummary } from '../domain/retail'
 import type { Product } from '../domain/retail'
 import { CounterSales } from '../components/CounterSales'
+import { SupplierOrders } from '../components/SupplierOrders'
+import { suppliers } from '../domain/purchasing'
 import { Button, Empty, ErrorMessage, Modal, PageHeader, SegmentedControl } from '../design'
 import '../components/management.css'
 import '../stock.css'
@@ -30,6 +32,8 @@ type ProductForm = {
   reorderAt: number
   forSale: boolean
   archived: boolean
+  supplierId: string
+  reorderQuantity: string
 }
 
 const MOVEMENT_COPY: Record<MovementKind, { title: string; field: string; note: string }> = {
@@ -125,8 +129,21 @@ export function Stock() {
             reorderAt: product.reorderAt,
             forSale: product.forSale !== false,
             archived: product.archived,
+            supplierId: product.supplierId ?? '',
+            reorderQuantity:
+              product.reorderQuantity === undefined ? '' : String(product.reorderQuantity),
           }
-        : { name: '', sku: '', price: '', cost: '', reorderAt: 2, forSale: true, archived: false },
+        : {
+            name: '',
+            sku: '',
+            price: '',
+            cost: '',
+            reorderAt: 2,
+            forSale: true,
+            archived: false,
+            supplierId: '',
+            reorderQuantity: '',
+          },
     })
     setError('')
   }
@@ -147,6 +164,14 @@ export function Stock() {
       setError('Enter what you pay the supplier, with up to two decimal places, or leave it empty.')
       return
     }
+    const reorderQuantity = form.reorderQuantity.trim() ? Number(form.reorderQuantity) : undefined
+    if (
+      reorderQuantity !== undefined &&
+      (!Number.isInteger(reorderQuantity) || reorderQuantity < 1)
+    ) {
+      setError('Enter how many you usually order as a whole number, or leave it empty.')
+      return
+    }
     const input = {
       name: form.name.trim(),
       sku: form.sku.trim(),
@@ -155,6 +180,8 @@ export function Stock() {
       archived: form.archived,
       forSale: form.forSale,
       ...(costMinor >= 0 ? { costMinor } : {}),
+      ...(form.supplierId ? { supplierId: form.supplierId } : {}),
+      ...(reorderQuantity !== undefined ? { reorderQuantity } : {}),
     }
     if (await run({ type: 'product', ...(editing.id ? { id: editing.id } : {}), input }))
       setEditing(null)
@@ -336,6 +363,7 @@ export function Stock() {
           </Empty>
         )}
       </section>
+      <SupplierOrders />
       {history.length > 0 && (
         <section className="surface ops-panel" aria-labelledby="history-heading">
           <header>
@@ -439,6 +467,33 @@ export function Stock() {
                   value={form.reorderAt}
                   onChange={(e) => change({ reorderAt: Number(e.target.value) })}
                 />
+              </label>
+              <label>
+                Usually order
+                <input
+                  type="number"
+                  min={1}
+                  max={10000}
+                  value={form.reorderQuantity}
+                  onChange={(e) => change({ reorderQuantity: e.target.value })}
+                />
+                <small>Optional. Suggested on new orders.</small>
+              </label>
+              <label>
+                Supplier
+                <select
+                  value={form.supplierId}
+                  onChange={(e) => change({ supplierId: e.target.value })}
+                >
+                  <option value="">None yet</option>
+                  {suppliers(state)
+                    .filter((x) => !x.archived || x.id === form.supplierId)
+                    .map((x) => (
+                      <option key={x.id} value={x.id}>
+                        {x.name}
+                      </option>
+                    ))}
+                </select>
               </label>
               <label>
                 Code or SKU

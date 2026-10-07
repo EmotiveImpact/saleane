@@ -602,6 +602,11 @@ export function dispatch(
   const counted = new Set((s.tillCounts ?? []).map((c) => c.id))
   for (const count of result.state.tillCounts ?? [])
     if (!counted.has(count.id)) count.actor = actorName
+  const closed = new Set(
+    (operations(s).purchaseOrders ?? []).filter((x) => x.closedAt).map((x) => x.id),
+  )
+  for (const order of operations(result.state).purchaseOrders ?? [])
+    if (order.closedAt && !closed.has(order.id)) order.closedBy = actorName
   const cancelled = new Set(
     (operations(s).timeOff ?? []).filter((t) => t.cancelledAt).map((t) => t.id),
   )
@@ -621,6 +626,7 @@ export function dispatch(
     'timeOff',
     'rentals',
     'rentPayments',
+    'purchaseOrders',
   ] as const) {
     const ids = new Set((operations(s)[key] ?? []).map((r) => r.id))
     const records = operations(result.state)[key] ?? []

@@ -361,10 +361,51 @@ export function seed(region: Region): BusinessState {
     ]
   })
   seedStock(state, uk)
+  seedSuppliers(state)
   seedPay(state)
   seedTimeOff(state, uk)
   seedRent(state, uk)
   return parseState(state, region)
+}
+
+/** V2: two fictional suppliers, products linked to them and one order not yet arrived. */
+function seedSuppliers(state: BusinessState) {
+  const o = (state.operations ??= defaultOperations('sandbox'))
+  o.suppliers = [
+    {
+      id: 'supplier-skin',
+      name: 'Meadowline Skin Supply',
+      email: 'orders@meadowline.example',
+      note: 'Order by Thursday for Monday delivery.',
+    },
+    { id: 'supplier-pro', name: 'Studio Pro Wholesale', phone: '+44 20 7946 0000' },
+  ]
+  const from: Record<string, [string, number?]> = {
+    'product-cleansing-balm': ['supplier-skin', 6],
+    'product-hydrating-serum': ['supplier-skin', 6],
+    'product-mineral-spf': ['supplier-skin', 12],
+    'product-body-oil': ['supplier-skin'],
+    'product-hair-mask': ['supplier-pro'],
+    'product-massage-oil': ['supplier-pro', 4],
+    'product-enzyme-peel': ['supplier-pro', 2],
+  }
+  for (const product of o.products) {
+    const link = from[product.id]
+    if (!link) continue
+    product.supplierId = link[0]
+    if (link[1]) product.reorderQuantity = link[1]
+  }
+  o.purchaseOrders = [
+    {
+      id: 'order-1',
+      number: 'PO-1',
+      supplierId: 'supplier-pro',
+      lines: [{ productId: 'product-hair-mask', quantity: 6 }],
+      status: 'ordered',
+      createdAt: '2026-10-02T10:00:00.000Z',
+      actor: 'Maya · demo fixture',
+    },
+  ]
 }
 
 /** V2: Theo rents the styling chair by the week from 21 September; two weeks paid, this week owed. */
