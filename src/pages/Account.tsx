@@ -132,7 +132,9 @@ export function Account() {
           src="/images/saleane-studio-warm.jpg"
           alt="A calm fictional studio with natural light"
         />
-        <small>Local V1 workspace · payments and email not connected</small>
+        <small>
+          Local V1 workspace · payments and email not connected · <Link to="/pricing">Pricing</Link>
+        </small>
       </aside>
       <main className="account-main">
         <Link className="back-link" to="/today">
