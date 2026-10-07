@@ -9,7 +9,7 @@ Recorded 7 October 2026 in Chromium (Playwright) against the built app (`npm run
 - **Adding a product:** the form for name, sold at the till or not, price, cost, reorder level and code.
 - **Checkout:** Amelia Carter's facial (£95, £25 deposit) with a Hydrating Serum (£48) added: £118.00 to collect, and the receipt lists the serum. In an earlier run with two serums and a Cleansing Balm the total was £198.00 (95 + 96 + 32 − 25); the quantity buttons stop at what is in stock. Stock then showed each product down by what was sold, marked "Sold" against the receipt number with Amelia's name.
 - The Stock page at 390px: totals two by two, no sideways scroll.
-- No console errors on any of the above.
+- No console errors on any of the above. The full sweep (`scripts/qualify.mjs`, now including Stock) reports 105 pages with zero violations and no sideways scroll; the only console errors are the expected 401s on the signed-out demo account page.
 
 Screenshots: [Stock](V2-STOCK-page.png), [count](V2-STOCK-count.png), [add a product](V2-STOCK-add.png), [checkout](V2-STOCK-checkout.png), [receipt](V2-STOCK-receipt.png), [Stock at 390px](V2-STOCK-390.png).
 
