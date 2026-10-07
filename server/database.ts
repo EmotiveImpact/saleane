@@ -258,6 +258,27 @@ export const migrations: Migration[] = [
         ]),
       ),
   },
+  {
+    version: 14,
+    // V1.5: a message the studio wrote and approved in the inbox, sent once by the outbox.
+    up: (connection) =>
+      connection.exec(
+        outboxWithKinds([
+          'confirmation',
+          'changed',
+          'reminder',
+          'cancelled',
+          'feedback',
+          'patch_test',
+          'aftercare',
+          'due_back',
+          'birthday',
+          'miss_you',
+          'missed_call',
+          'message',
+        ]),
+      ),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the

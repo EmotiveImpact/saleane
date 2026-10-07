@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { BellRing, Mail, MessageSquareText, RotateCcw } from 'lucide-react'
 import { useStore } from '../state/context'
@@ -12,49 +12,11 @@ import {
   missYouDayChoices,
   textNumber,
 } from '../domain/reminders'
-import type {
-  MessageChannel,
-  MessageKind,
-  OutboxStatus,
-  ReminderSettings,
-} from '../domain/reminders'
+import type { ReminderSettings } from '../domain/reminders'
 import { Button, ErrorMessage } from '../design'
 import type { Client } from '../domain/model'
+import { kindLabel, useSentMessages } from './sentMessages'
 
-export type SentMessage = {
-  id: string
-  appointmentId: string
-  clientId: string
-  kind: MessageKind
-  channel: MessageChannel
-  recipient: string
-  subject: string
-  body: string
-  status: OutboxStatus
-  provider: string | null
-  detail: string | null
-  createdAt: string
-  updatedAt: string
-}
-type ProviderMode = { name: string; live: boolean }
-type OutboxReply = {
-  messages: SentMessage[]
-  providers: { email: ProviderMode; sms: ProviderMode }
-}
-
-const kindLabel: Record<MessageKind, string> = {
-  confirmation: 'Booking confirmation',
-  changed: 'New time',
-  reminder: 'Reminder',
-  cancelled: 'Cancellation',
-  feedback: 'How was your visit?',
-  patch_test: 'Patch test needed',
-  aftercare: 'Aftercare',
-  due_back: 'Due back',
-  birthday: 'Birthday',
-  miss_you: 'We miss you',
-  missed_call: 'Missed call',
-}
 const providerLabel: Record<string, string> = {
   test: 'test mode',
   postmark: 'Postmark',
@@ -277,35 +239,6 @@ function ProviderNote() {
       </div>
     </div>
   )
-}
-
-/** The outbox for one studio, or one client. Reads only; staff can ask a failed message to go again. */
-function useSentMessages(clientId?: string) {
-  const { mode, state, session } = useStore()
-  const [reply, setReply] = useState<OutboxReply | null>(null)
-  const [error, setError] = useState('')
-  const [refresh, setRefresh] = useState(0)
-  const orgId = state.organisation.id
-  const signedIn = mode === 'server' && !!session
-  useEffect(() => {
-    if (!signedIn) return
-    let active = true
-    api<OutboxReply>(
-      `/api/workspaces/${encodeURIComponent(orgId)}/outbox${clientId ? `?clientId=${encodeURIComponent(clientId)}` : ''}`,
-    )
-      .then((next) => {
-        if (!active) return
-        setReply(next)
-        setError('')
-      })
-      .catch((e: unknown) => {
-        if (active) setError(e instanceof Error ? e.message : 'Sent messages could not be loaded.')
-      })
-    return () => {
-      active = false
-    }
-  }, [orgId, clientId, signedIn, state.revision, refresh])
-  return { reply, error, load: () => setRefresh((n) => n + 1), available: signedIn }
 }
 
 export function SentMessages({ clientId }: { clientId?: string }) {

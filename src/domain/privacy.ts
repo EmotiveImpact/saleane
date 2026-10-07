@@ -33,10 +33,12 @@ export function canPrivacy(role: Role, action: PrivacyAction) {
   return (PRIVACY_ROLES[action] as readonly Role[]).includes(role)
 }
 
-/** Status words for a message that SALEANE has never delivered. */
+/** Status words for a message written in the inbox, as the studio record knows it. */
 const MESSAGE_STATUS = {
   draft: 'Draft. Not sent.',
   queued: 'Queued in SALEANE. Not sent: no delivery service is configured.',
+  approved:
+    'Approved for sending. The studio’s sent messages list shows whether it went out, and in test mode nothing does.',
   suppressed: 'Suppressed after marketing consent was withdrawn. Not sent.',
 } as const
 const METHOD = {
@@ -225,7 +227,8 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
         delivery:
           m.status === 'suppressed' && withdrawnOffer(state, m.id)
             ? 'Withdrawn before it was sent: the waitlist request it offered a time for had ended. Not sent.'
-            : MESSAGE_STATUS[m.status],
+            : MESSAGE_STATUS[m.status === 'queued' && m.approvedAt ? 'approved' : m.status],
+        ...(m.channel === 'sms' ? { channel: 'text' } : {}),
         ...(visitRef(m.appointmentId) ? { visit: visitRef(m.appointmentId) } : {}),
       })),
     connections: state.relationships
@@ -369,6 +372,19 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
           ...(content?.agreement ? { agreed: content.agreement, agreedAs: r.agreedName } : {}),
         }
       }),
+    // V1.5: what they wrote back to the studio, as it arrived, or as the team noted it.
+    replies: (state.replies ?? [])
+      .filter((r) => r.clientId === client.id)
+      .map((r) => ({
+        receivedAt: r.receivedAt,
+        how:
+          r.channel === 'desk'
+            ? `Noted by ${r.actor} (${r.from === 'elsewhere' ? 'answered another way' : `by ${r.from}`})`
+            : r.channel === 'sms'
+              ? `Text from ${r.from}`
+              : `Email from ${r.from}`,
+        words: r.body,
+      })),
     // V1.5: consultations held with them, every version, and the visits booked from each.
     consultations: (state.consultations ?? [])
       .filter((c) => c.clientId === client.id)
@@ -415,7 +431,8 @@ export function previewClientExport(file: ClientExport): ExportPreview {
       { label: 'Payments and deposits', count: file.payments.length },
       { label: 'Refunds', count: file.refunds.length },
       { label: 'Timeline entries', count: file.timeline.length },
-      { label: 'Messages, none of them sent', count: file.messages.length },
+      { label: 'Messages written in the inbox', count: file.messages.length },
+      { label: 'Replies they sent, as written', count: file.replies.length },
       { label: 'Client connections, type only', count: file.connections.length },
       { label: 'Private feedback they gave', count: file.feedback.length },
       { label: 'Waitlist requests', count: file.waitlist.length },
@@ -428,7 +445,7 @@ export function previewClientExport(file: ClientExport): ExportPreview {
     notes: [
       'Notes, preferences, feedback comments and message text are included as written. Read them before sending, in case they mention someone else.',
       'Staff names appear where they recorded an entry or looked after a visit.',
-      'Messages show their real status. SALEANE has no delivery service configured, so none was sent.',
+      'Messages show their status in the studio record. One approved for sending may have gone out; in test mode nothing does.',
       ...(file.studio.sandbox
         ? ['This is the fictional sandbox. Its money and people are not real.']
         : []),
@@ -477,7 +494,8 @@ export function previewStudioExport(file: StudioExport): ExportPreview {
       { label: 'Payments and deposits', count: r.payments.length },
       { label: 'Refunds', count: r.operations.refunds.length },
       { label: 'Timeline entries', count: r.events.length },
-      { label: 'Messages, none of them sent', count: r.operations.messages.length },
+      { label: 'Messages written in the inbox', count: r.operations.messages.length },
+      { label: 'Guests’ replies, as written', count: (r.replies ?? []).length },
       { label: 'Client connections', count: r.relationships.length },
       { label: 'Private guest feedback, comments as written', count: (r.feedback ?? []).length },
       { label: 'Waitlist requests', count: (r.waitlist ?? []).length },
@@ -562,8 +580,13 @@ export function erasureReview(
       },
       {
         label: 'Unsent messages (drafts, queued and suppressed)',
-        count: ops.messages.filter((m) => m.clientId === client.id).length,
+        count: ops.messages.filter((m) => m.clientId === client.id && !m.approvedAt).length,
         reason: 'None was ever sent, so no delivery record depends on them.',
+      },
+      {
+        label: 'Replies they sent',
+        count: (state.replies ?? []).filter((r) => r.clientId === client.id).length,
+        reason: 'Their own words to the studio. Not linked to money.',
       },
       {
         label: 'Missed calls from their number',
@@ -620,6 +643,12 @@ export function erasureReview(
         count: (state.patchTests ?? []).filter((t) => t.clientId === client.id).length,
         reason:
           'Shows the studio checked for a reaction before a treatment, in case of a later complaint or claim.',
+      },
+      {
+        label: 'Messages approved for sending',
+        count: operations(state).messages.filter((m) => m.clientId === client.id && m.approvedAt)
+          .length,
+        reason: 'They may have gone out, so what the studio sent stays on record.',
       },
       {
         label: 'Consultations',
@@ -778,8 +807,11 @@ export function clientExportText(file: ClientExport, locale = 'en-GB') {
       ),
     ]),
     '',
-    `MESSAGES (${file.messages.length}), none sent`,
+    `MESSAGES (${file.messages.length})`,
     ...file.messages.map((m) => `${m.createdAt.slice(0, 10)} · ${m.subject} · ${m.delivery}`),
+    '',
+    `REPLIES (${file.replies.length})`,
+    ...file.replies.map((r) => `${r.receivedAt.slice(0, 10)} · ${r.how} · ${r.words}`),
     '',
     `CONNECTIONS (${file.connections.length})`,
     ...file.connections.map((c) => `${c.role} · since ${c.since.slice(0, 10)}`),

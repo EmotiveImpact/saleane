@@ -48,7 +48,15 @@ export type Providers = {
    * Twilio, and only when it sends the studio's texts. Null when it is not genuine.
    */
   voice?: (slug: string, request: ReceiptRequest) => VoiceCall | null
+  /**
+   * V1.5: verifies a guest's reply that came in on the studio's text line (Twilio) or email
+   * address (Postmark inbound), for the inbox. Null when it is not genuine or the line is not
+   * connected; an empty list when it carries nothing to keep.
+   */
+  inbound?: (provider: string, slug: string, request: ReceiptRequest) => InboundReply[] | null
 }
+/** A guest's reply as it arrived, before it is matched to a client. */
+export type InboundReply = { from: string; body: string; providerRef: string }
 /** A call to the studio's line that has ended. `missed` when nobody picked up. */
 export type VoiceCall = { from: string; missed: boolean }
 /** Twilio's <Dial> outcomes that mean the studio did not speak to the caller. */
@@ -225,6 +233,16 @@ export function providersFromEnv(
     sms = twilioProvider({ accountSid, authToken, from, statusCallback: twilioCallback, fetcher })
   } else if (smsName !== 'test') throw new Error(`Unknown text provider "${smsName}".`)
   const voiceBase = `${origin.replace(/\/$/, '')}/api/hooks/twilio/voice/`
+  const textBase = `${origin.replace(/\/$/, '')}/api/hooks/twilio/sms/`
+  /** Postmark sends the webhook's basic-auth credentials, set as user:secret in its URL. */
+  const postmarkGenuine = (request: ReceiptRequest) => {
+    if (!postmarkSecret) return false
+    const auth = request.headers.authorization ?? ''
+    const supplied = auth.startsWith('Basic ')
+      ? Buffer.from(auth.slice(6), 'base64').toString('utf8').split(':').slice(1).join(':')
+      : ''
+    return sameText(supplied, postmarkSecret)
+  }
   return {
     email,
     sms,
@@ -235,6 +253,35 @@ export function providersFromEnv(
       if (!sameText(request.headers['x-twilio-signature'], expected)) return null
       const status = params.get('DialCallStatus') ?? params.get('CallStatus') ?? ''
       return { from: params.get('From') ?? '', missed: MISSED_DIAL.has(status) }
+    },
+    inbound(provider, slug, request) {
+      if (provider === 'twilio' && twilioToken) {
+        const params = new URLSearchParams(request.body)
+        const expected = twilioSignature(twilioToken, textBase + slug, params)
+        if (!sameText(request.headers['x-twilio-signature'], expected)) return null
+        const from = params.get('From') ?? '',
+          ref = params.get('MessageSid') ?? ''
+        if (!from || !ref) return []
+        return [{ from, body: params.get('Body') ?? '', providerRef: ref }]
+      }
+      if (provider === 'postmark' && postmarkGenuine(request)) {
+        let event: Record<string, unknown>
+        try {
+          event = JSON.parse(request.body) as Record<string, unknown>
+        } catch {
+          return null
+        }
+        const full = event.FromFull as { Email?: unknown } | undefined
+        const from = typeof full?.Email === 'string' ? full.Email : String(event.From ?? '')
+        const ref = typeof event.MessageID === 'string' ? event.MessageID : ''
+        if (!from || !ref) return []
+        // The guest's new words without the quoted message below them, when Postmark finds it.
+        const body = [event.StrippedTextReply, event.TextBody].find(
+          (text): text is string => typeof text === 'string' && !!text.trim(),
+        )
+        return [{ from, body: body ?? '', providerRef: ref }]
+      }
+      return null
     },
     receipt(provider, request) {
       if (provider === 'twilio' && twilioToken) {
@@ -257,12 +304,7 @@ export function providersFromEnv(
         return []
       }
       if (provider === 'postmark' && postmarkSecret) {
-        // Postmark sends the webhook's basic-auth credentials, set as user:secret in its URL.
-        const auth = request.headers.authorization ?? ''
-        const supplied = auth.startsWith('Basic ')
-          ? Buffer.from(auth.slice(6), 'base64').toString('utf8').split(':').slice(1).join(':')
-          : ''
-        if (!sameText(supplied, postmarkSecret)) return null
+        if (!postmarkGenuine(request)) return null
         let event: Record<string, unknown>
         try {
           event = JSON.parse(request.body) as Record<string, unknown>

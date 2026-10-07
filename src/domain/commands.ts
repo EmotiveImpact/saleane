@@ -36,6 +36,7 @@ import {
   stampConsultationActors,
   unchangedConsultation,
 } from './consultations'
+import { inboxUnchanged, runInboxCommand, stampInboxActors } from './inbox'
 import { guestHereWindow } from './guest'
 import { callForBooking, linkCallToVisit, markCalledBack, recordMissedCall } from './missedCalls'
 import { planSpecial, stopSpecial } from './specials'
@@ -741,6 +742,17 @@ export function execute(
       const unchanged = unchangedConsultation(s, command)
       if (unchanged) return { ok: true, state: s, recordId: unchanged }
       recordId = runConsultationCommand(next, command, now, makeId, addEvent)
+    } else if (
+      command.type === 'reply-received' ||
+      command.type === 'reply-note' ||
+      command.type === 'replies-read' ||
+      command.type === 'reply-link' ||
+      command.type === 'saved-reply-save' ||
+      command.type === 'saved-reply-remove'
+    ) {
+      const unchanged = inboxUnchanged(s, command)
+      if (unchanged) return { ok: true, state: s, recordId: unchanged }
+      recordId = runInboxCommand(next, command, now, makeId, addEvent)
     } else {
       recordId = runOperatingCommand(next, command, now, makeId, addEvent)
     }
@@ -791,6 +803,7 @@ export function dispatch(
   stampFormActors(s, result.state, actorName)
   stampConsentActors(s, result.state, actorName)
   stampConsultationActors(s, result.state, actorName)
+  stampInboxActors(s, result.state, actorName)
   const counted = new Set((s.tillCounts ?? []).map((c) => c.id))
   for (const count of result.state.tillCounts ?? [])
     if (!counted.has(count.id)) count.actor = actorName

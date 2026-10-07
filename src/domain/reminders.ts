@@ -51,13 +51,14 @@ export const messageKinds = [
   'birthday',
   'miss_you',
   'missed_call',
+  'message',
 ] as const
 export type MessageKind = (typeof messageKinds)[number]
 /** Messages about the guest rather than one visit. Their rows carry no appointment. */
 export const clientKinds = ['birthday', 'miss_you'] as const
 export type ClientKind = (typeof clientKinds)[number]
 /** Messages about one visit. */
-export type VisitKind = Exclude<MessageKind, ClientKind | 'missed_call'>
+export type VisitKind = Exclude<MessageKind, ClientKind | 'missed_call' | 'message'>
 export const isClientKind = (kind: string): kind is ClientKind =>
   (clientKinds as readonly string[]).includes(kind)
 export const messageChannels = ['email', 'sms'] as const
@@ -540,8 +541,40 @@ export function planMessages(
       ...composeMissedCallText(s),
     })
   }
+  // V1.5: a message the studio wrote in the inbox, once, as it was approved. Only one approved
+  // lately: one approved while the studio was not yet sending stays queued rather than going out.
+  for (const message of operations(s).messages) {
+    if (message.status !== 'queued' || !message.approvedAt) continue
+    if (now - Date.parse(message.approvedAt) > RECENT_MS) continue
+    const slot = messageSlot(message.id)
+    if (recorded.some((row) => row.kind === 'message' && row.slot === slot)) continue
+    const client = s.clients.find((c) => c.id === message.clientId)
+    if (!client || (message.purpose === 'marketing' && !client.marketingConsent)) continue
+    const channel = message.channel ?? 'email'
+    if (message.purpose === 'appointment' && appointmentMessagesOff(client, channel)) continue
+    const recipient = channel === 'email' ? client.email.trim() : textNumber(client.phone)
+    if (!recipient) continue
+    plan.push({
+      dedupeKey: `${message.id}:message:${channel}`,
+      appointmentId: message.appointmentId ?? '',
+      clientId: client.id,
+      kind: 'message',
+      channel,
+      slot,
+      recipient,
+      subject: message.subject,
+      body: message.body,
+    })
+  }
   return plan
 }
+
+/** Whether a client asked for no appointment messages on this channel. */
+export const appointmentMessagesOff = (client: Client, channel: MessageChannel) =>
+  channel === 'email' ? !!client.noEmailReminders : !!client.noTextReminders
+
+/** The outbox slot of a message written in the inbox, which names the message. */
+export const messageSlot = (messageId: string) => `message:${messageId}`
 
 /** The words of a message about the guest rather than one visit. Warm, short, never pushy. */
 export function composeClientMessage(s: BusinessState, client: Client, kind: ClientKind) {

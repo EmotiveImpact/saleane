@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { StoreProvider } from '../state/StoreProvider'
@@ -319,10 +319,52 @@ describe('local operating surfaces', () => {
     )
   })
 
+  it('reads a guest’s reply, answers by text from a saved reply and matches an unknown number', async () => {
+    const user = userEvent.setup()
+    show('/inbox')
+    expect((await screen.findByText('New replies')).parentElement).toHaveTextContent('New replies2')
+    await user.click(screen.getByRole('button', { name: /Ellie Brooks/ }))
+    const thread = await screen.findByRole('list', { name: 'Conversation with Ellie Brooks' })
+    expect(within(thread).getByText(/half an hour later on Thursday/)).toBeInTheDocument()
+    const stored = () => JSON.parse(localStorage.getItem('saleane.demo.v1.UK')!)
+    await waitFor(() =>
+      expect(
+        stored().replies.find((r: { id: string }) => r.id === 'reply-ellie').readAt,
+      ).toBeTruthy(),
+    )
+    await user.click(screen.getByRole('button', { name: 'Write to Ellie' }))
+    await user.selectOptions(screen.getByLabelText('Send by'), 'sms')
+    expect(screen.queryByLabelText('Subject')).not.toBeInTheDocument()
+    await user.selectOptions(screen.getByLabelText('Start from a saved reply'), 'saved-move')
+    expect(screen.getByLabelText('Message')).toHaveValue(
+      'Of course. We can move you to a time that suits. Let us know which day works best and we will change it for you.',
+    )
+    await user.click(screen.getByRole('button', { name: 'Approve and queue' }))
+    expect(
+      await screen.findByText(
+        'Approved and queued. Sending is not connected in this sample, so nothing was sent.',
+      ),
+    ).toBeInTheDocument()
+    expect(stored().operations.messages.at(-1)).toMatchObject({
+      clientId: 'client-3',
+      channel: 'sms',
+      status: 'queued',
+    })
+    await user.click(screen.getByRole('button', { name: /\+44 7700 900999/ }))
+    await user.selectOptions(screen.getByLabelText('This is'), 'client-6')
+    await user.click(screen.getByRole('button', { name: 'Match to this client' }))
+    expect(
+      await screen.findByText('Matched. The conversation is now with the client.'),
+    ).toBeInTheDocument()
+    expect(stored().replies.find((r: { id: string }) => r.id === 'reply-unknown').clientId).toBe(
+      'client-6',
+    )
+  })
+
   it('opens the inbox in two columns and lets each person choose the side panel on the Settings page', async () => {
     const user = userEvent.setup()
     show('/inbox')
-    expect(await screen.findByText('Choose a message to read it here.')).toBeInTheDocument()
+    expect(await screen.findByRole('list', { name: /Conversation with/ })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /your preferences/ }))
     expect(await screen.findByRole('tab', { name: 'Your preferences' })).toHaveAttribute(
       'aria-selected',
@@ -333,7 +375,7 @@ describe('local operating surfaces', () => {
     expect(localStorage.getItem('saleane-inbox-view:demo')).toBe('panel')
     await user.click(screen.getAllByRole('link', { name: /Inbox/ })[0])
     expect(await screen.findByRole('heading', { name: 'A considered word.' })).toBeInTheDocument()
-    expect(screen.queryByText('Choose a message to read it here.')).not.toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: /Conversation with/ })).not.toBeInTheDocument()
   })
 
   it('requires refund provenance confirmation and retains the settled receipt', async () => {
