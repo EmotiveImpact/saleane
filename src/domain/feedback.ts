@@ -124,12 +124,13 @@ const average = (values: number[]) =>
   values.length ? Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10 : null
 
 /**
- * The start of the last `days` studio days: midnight in the studio's own time zone, so the period
+ * The start of the last `days` studio days, today included: midnight in the studio's own time zone, so the period
  * neither shifts with the reader's clock nor gains or loses hours outside UTC. On the rare day the
  * clocks skip midnight, the day starts at the first hour that exists.
  */
 export function feedbackSince(s: BusinessState, days: number) {
-  const day = addDays(businessDate(s), -days)
+  // Today counts as the first of the `days`, as in the other reports.
+  const day = addDays(businessDate(s), 1 - days)
   for (const minute of [0, 60, 120])
     try {
       return new Date(instantFor(s, day, minute)).toISOString()

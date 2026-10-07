@@ -9,7 +9,13 @@ import { feedbackSince, feedbackSummary, ownRating, withoutFeedback } from './fe
 import { planMessages } from './reminders'
 import { practitionerView } from './practitioner'
 import { guestView } from './guest'
-import { clientExport, erasureReview, previewClientExport } from './privacy'
+import {
+  clientExport,
+  erasureReview,
+  previewClientExport,
+  previewStudioExport,
+  studioExport,
+} from './privacy'
 import { RETENTION_REGISTER } from './dataRetention'
 
 // V1.5: private guest feedback after a visit.
@@ -96,10 +102,10 @@ describe('who sees what', () => {
     )
     expect(feedbackSummary(s, '2999-01-01T00:00:00.000Z').count).toBe(0)
     // Periods start at midnight in the studio's own time zone (London is on summer time).
-    expect(feedbackSince(s, 30)).toBe('2026-09-05T23:00:00.000Z')
+    expect(feedbackSince(s, 30)).toBe('2026-09-06T23:00:00.000Z')
     const la = structuredClone(s)
     la.organisation.timeZone = 'America/Los_Angeles'
-    expect(feedbackSince(la, 30)).toBe('2026-09-06T07:00:00.000Z')
+    expect(feedbackSince(la, 30)).toBe('2026-09-07T07:00:00.000Z')
   })
 
   it('gives a practitioner their own average only once three guests have rated them', () => {
@@ -152,6 +158,11 @@ describe('who sees what', () => {
       count: s.feedback!.filter((f) => f.clientId === row.clientId).length,
     })
     expect(RETENTION_REGISTER.some((r) => r.record.startsWith('Private guest feedback'))).toBe(true)
+    expect(
+      previewStudioExport(studioExport(s, {} as never)).sections.find((x) =>
+        x.label.startsWith('Private guest feedback'),
+      )?.count,
+    ).toBe(s.feedback!.length)
   })
 })
 

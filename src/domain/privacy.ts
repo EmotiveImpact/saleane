@@ -320,6 +320,7 @@ export function previewStudioExport(file: StudioExport): ExportPreview {
       { label: 'Timeline entries', count: r.events.length },
       { label: 'Messages, none of them sent', count: r.operations.messages.length },
       { label: 'Client connections', count: r.relationships.length },
+      { label: 'Private guest feedback, comments as written', count: (r.feedback ?? []).length },
       {
         label: 'Services, professionals and spaces',
         count: r.services.length + r.staff.length + r.resources.length,
@@ -332,6 +333,11 @@ export function previewStudioExport(file: StudioExport): ExportPreview {
     excluded: STUDIO_EXPORT_EXCLUDED,
     notes: [
       'This file holds every client’s personal details. Store it somewhere private and share it only with people entitled to see it.',
+      ...((r.feedback ?? []).length
+        ? [
+            'It includes guests’ private feedback comments as written, which only owners and managers normally see.',
+          ]
+        : []),
       'Record identifiers are kept so the file can be imported or reconciled later.',
       ...(file.studio.sandbox
         ? ['This is the fictional sandbox. Its money and people are not real.']
