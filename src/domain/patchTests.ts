@@ -47,6 +47,16 @@ export type PatchTestStanding = {
  * clear test was done after it; otherwise a clear test in the window counts, then a test awaiting
  * its result, then one done too close to the visit.
  */
+/** Whether a test is recent enough and early enough to count for a visit starting then. */
+export function countsForVisit(s: BusinessState, test: PatchTest, startIso: string) {
+  const settings = patchTestSettings(s)
+  const start = Date.parse(startIso)
+  return (
+    addMonths(localDate(s, test.testedAt), settings.validMonths) >= localDate(s, startIso) &&
+    start - Date.parse(test.testedAt) >= settings.hoursBefore * HOUR
+  )
+}
+
 export function patchTestStanding(
   s: BusinessState,
   clientId: string,

@@ -291,6 +291,19 @@ describe('patch tests', () => {
     expect(planMessages(local(retested), now, []).filter((m) => m.kind === 'patch_test')).toEqual(
       [],
     )
+    // A new test that has run out by the visit does not stop the reminder.
+    const stale = apply(
+      apply(
+        seed('UK'),
+        test('client-9', '2026-02-01T10:00:00.000Z', {
+          result: { outcome: 'reaction', notes: '' },
+        }),
+      ),
+      test('client-9', '2026-03-01T10:00:00.000Z'),
+    )
+    expect(planMessages(local(stale), now, []).filter((m) => m.kind === 'patch_test')).toHaveLength(
+      2,
+    )
     const off = structuredClone(s)
     off.operations = {
       ...off.operations!,

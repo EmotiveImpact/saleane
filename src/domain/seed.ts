@@ -524,7 +524,7 @@ export function seed(region: Region): BusinessState {
       result: {
         outcome: 'clear' as const,
         notes: 'No redness after 48 hours.',
-        at: `${addDays(DEMO_DATE, -7)}T10:00:00.000Z`,
+        at: `${addDays(DEMO_DATE, -7)}T11:00:00.000Z`,
         actor: 'Theo Bennett · demo fixture',
       },
     },

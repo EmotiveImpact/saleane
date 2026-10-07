@@ -5,7 +5,7 @@ import { GUEST_CANCEL_CUTOFF_HOURS } from './guest'
 import { FEEDBACK_WINDOW_MS } from './feedback'
 import { defaultReminderSettings } from './reminderSettings'
 import type { ReminderSettings } from './reminderSettings'
-import { patchTestSettings, patchTests, visitPatchTest } from './patchTests'
+import { countsForVisit, patchTestSettings, patchTests, visitPatchTest } from './patchTests'
 
 /**
  * PILOT-01: appointment confirmations and reminders by email and text.
@@ -119,16 +119,22 @@ export function patchTestReminderDue(s: BusinessState, a: Appointment, start: nu
     settings.remind &&
     start - now <= PATCH_TEST_LEAD_MS &&
     start - now > settings.hoursBefore * HOUR &&
-    wantsTest(s, a)
+    wantsTest(s, a, new Date(start).toISOString())
   )
 }
-/** No test that counts, or a reaction with no new test done since. */
-function wantsTest(s: BusinessState, a: Appointment) {
+/** No test that counts, or a reaction with no new test since that could count for this visit. */
+function wantsTest(s: BusinessState, a: Appointment, startIso: string) {
   const standing = visitPatchTest(s, a)
   if (standing?.state === 'needed') return true
   if (standing?.state !== 'reaction' || !standing.test) return false
   const after = standing.test.testedAt
-  return !patchTests(s).some((t) => t.clientId === a.clientId && t.testedAt > after && !t.result)
+  return !patchTests(s).some(
+    (t) =>
+      t.clientId === a.clientId &&
+      t.testedAt > after &&
+      !t.result &&
+      countsForVisit(s, t, startIso),
+  )
 }
 
 /** A visit's time and place, so a moved visit is told about again. */
