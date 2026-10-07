@@ -2,9 +2,9 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
-## In review · A full Settings page
+## 2026-10-07 · Merged · A full Settings page
 
-**Status: draft pull request, not merged.** Layout and navigation only; studio records save exactly as before.
+**Status: merged into main on 7 October 2026; not deployed.** Layout and navigation only; studio records save exactly as before.
 
 - Settings is now a page in the main menu instead of a small pop-up. Sections sit down the side: Your preferences, Studio details, Colours & booking page, Services, Team, Spaces & equipment, Hours & closures, Data & privacy and This workspace.
 - "Manage studio" under Business has moved into Settings; old links to it open Settings. Reception, who could not see Business, now land on Settings.
@@ -16,6 +16,14 @@ Released entries describe observed implementation. An explicitly in-progress ent
   - Inbox: the empty-view heading sits at the right level. Money: receipt rows are named by what they show.
   - Clients and Inbox: the search pill shows a clear focus ring for keyboard users.
   - The sweep no longer opens the old Settings pop-up, which this change removes; the Settings page is covered by the page checks.
+
+## 2026-10-07 · In review · Retention decisions recorded
+
+**Status: decisions recorded; nothing is deleted.**
+
+- The owner decided the privacy rules and retention periods (contacts and notes 2 years after the last visit, marketing consent until withdrawn plus 2 years, unsent messages 90 days, money records 6 years UK and 7 years US, staff 6 years after leaving, audit log 6 years, backups 35 days). See [PRIVACY.md](docs/PRIVACY.md).
+- Nothing is deleted automatically. A record that reaches the end of its period waits for an owner or manager, who either approves deleting it or keeps it longer by months or years (years by default); no deletion step is built yet.
+- The Manage page shows the periods under "How long records are kept", and the erasure review wording now reflects the decisions.
 
 ## 2026-10-07 · Merged · The new look: fonts, studio colours and a Clients directory for hundreds
 
