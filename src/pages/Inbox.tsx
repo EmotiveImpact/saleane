@@ -237,23 +237,44 @@ export function Inbox() {
         title="A considered word."
         description="Prepare client messages with their relationship and permissions in view."
         actions={
-          <Button
-            disabled={!allowedDraft || !state.clients.length}
-            onClick={() => {
-              setError('')
-              setNotice('')
-              if (editingId) {
-                setSubject('')
-                setBody('')
-                setAppointmentId('')
-                setEditingId(undefined)
-              }
-              setComposing(true)
-            }}
-          >
-            <Plus size={17} />
-            Write a draft
-          </Button>
+          <>
+            <div className="inbox-view" role="group" aria-label="View">
+              <span>View</span>
+              <button
+                type="button"
+                aria-pressed={view === 'columns'}
+                onClick={() => chooseView('columns')}
+              >
+                <Columns2 size={15} />
+                Two columns
+              </button>
+              <button
+                type="button"
+                aria-pressed={view === 'panel'}
+                onClick={() => chooseView('panel')}
+              >
+                <List size={15} />
+                List with side panel
+              </button>
+            </div>
+            <Button
+              disabled={!allowedDraft || !state.clients.length}
+              onClick={() => {
+                setError('')
+                setNotice('')
+                if (editingId) {
+                  setSubject('')
+                  setBody('')
+                  setAppointmentId('')
+                  setEditingId(undefined)
+                }
+                setComposing(true)
+              }}
+            >
+              <Plus size={17} />
+              Write a draft
+            </Button>
+          </>
         }
       />
       <div className="ops-banner">
@@ -265,21 +286,6 @@ export function Inbox() {
             no incoming conversations are imported.
           </p>
         </div>
-      </div>
-      <div className="inbox-view" role="group" aria-label="View">
-        <span>View</span>
-        <button
-          type="button"
-          aria-pressed={view === 'columns'}
-          onClick={() => chooseView('columns')}
-        >
-          <Columns2 size={15} />
-          Two columns
-        </button>
-        <button type="button" aria-pressed={view === 'panel'} onClick={() => chooseView('panel')}>
-          <List size={15} />
-          List with side panel
-        </button>
       </div>
       <section className={`surface inbox-card inbox-${view} ${opened ? 'is-open' : ''}`}>
         <div className="inbox-list">

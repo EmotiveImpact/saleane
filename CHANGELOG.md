@@ -2,6 +2,12 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## In review · Inbox View switch beside "Write a draft"
+
+**Status: draft pull request, not merged.** Layout only.
+
+- The Inbox "View" switch (Two columns, List with side panel) now sits on the same line as "Write a draft" at the top of the page, instead of on a line of its own above the messages. On a phone it sits just above the button.
+
 ## 2026-10-07 · Merged · The new look: fonts, studio colours and a Clients directory for hundreds
 
 **Status: merged into main on 7 October 2026 with the design tightening pass below; not deployed.** Look and wording only; bookings, money and messages behave as before.

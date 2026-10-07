@@ -561,9 +561,8 @@
 .inbox-view {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   gap: 6px;
-  margin: 18px 0 12px;
+  margin-right: 8px;
   font-size: var(--text-meta);
   color: var(--muted);
 }
@@ -589,6 +588,7 @@
   color: #fff;
 }
 .inbox-card {
+  margin-top: 18px;
   padding: 0;
   overflow: hidden;
 }
