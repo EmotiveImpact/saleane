@@ -12,6 +12,8 @@ import { formResponseSchema, formSchema } from './formsSchema'
 import { formsProblem } from './forms'
 import { consentRecordSchema, consentWordingSchema } from './consentSchema'
 import { consentProblem } from './consent'
+import { consultationSchema, visitConsultationSchema } from './consultationsSchema'
+import { consultationsProblem } from './consultations'
 import { feedbackProblem, feedbackSchema } from './feedback'
 import { specialSchema, specialsProblem } from './specialsSchema'
 import { taskSchema, tasksProblem } from './tasksSchema'
@@ -158,6 +160,8 @@ export const appointmentSchema = z.object({
   bookedTax: taxSchema.nullable().optional(),
   /** V1.5: when the guest tapped "I've arrived" on their private link. The desk still welcomes them. */
   guestHereAt: z.iso.datetime().optional(),
+  /** V1.5: the consultation this visit was booked from, at the version agreed then. */
+  consultation: visitConsultationSchema.optional(),
 })
 export const saleSchema = z.object({
   ...scoped,
@@ -230,6 +234,7 @@ export const eventSchema = z.object({
     'gift_card',
     'patch_test',
     'form',
+    'consultation',
   ]),
   allocationChange: z.object({ from: allocationSchema, to: allocationSchema }).optional(),
   title: z.string(),
@@ -283,6 +288,8 @@ export const stateSchema = z.object({
   /** V1.5: the studio's wording for email news by version, and every permission change. */
   consentWording: z.array(consentWordingSchema).max(500).optional(),
   consentRecords: z.array(consentRecordSchema).optional(),
+  /** V1.5: consultations held with guests, each change kept as a version. */
+  consultations: z.array(consultationSchema).optional(),
 })
 export type BusinessState = z.infer<typeof stateSchema>
 export type Client = z.infer<typeof clientSchema>
@@ -609,6 +616,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
   if (forms) throw new Error(forms)
   const consent = consentProblem(s)
   if (consent) throw new Error(consent)
+  const consultations = consultationsProblem(s)
+  if (consultations) throw new Error(consultations)
   const specials = specialsProblem(s)
   if (specials) throw new Error(specials)
   const tasks = tasksProblem(s)

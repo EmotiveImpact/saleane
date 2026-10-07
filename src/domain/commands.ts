@@ -30,6 +30,12 @@ import {
   runConsentCommand,
   stampConsentActors,
 } from './consent'
+import {
+  consultationForBooking,
+  runConsultationCommand,
+  stampConsultationActors,
+  unchangedConsultation,
+} from './consultations'
 import { guestHereWindow } from './guest'
 import { callForBooking, linkCallToVisit, markCalledBack, recordMissedCall } from './missedCalls'
 import { planSpecial, stopSpecial } from './specials'
@@ -270,6 +276,11 @@ export function execute(
         if (input.source === 'online') throw new Error('Only the desk can book for a missed call.')
         callForBooking(s, input.callId, client.id)
       }
+      if (input.consultationId && input.source === 'online')
+        throw new Error('Only the studio can book from a consultation.')
+      const consultation = input.consultationId
+        ? consultationForBooking(s, input.consultationId, client.id, service.id)
+        : undefined
       const appointment: Appointment = {
         id: makeId(),
         organisationId: org.id,
@@ -292,6 +303,7 @@ export function execute(
         bookedResourceType: service.resourceType,
         bookedServiceName: service.name,
         bookedTax: operations(s).tax ?? null,
+        ...(consultation ? { consultation } : {}),
       }
       next.appointments.push(appointment)
       // Simulated deposit receipt is deliberately separate from the service-price snapshot.
@@ -725,6 +737,10 @@ export function execute(
       const unchanged = consentUnchanged(s, command)
       if (unchanged) return { ok: true, state: s, recordId: unchanged }
       recordId = runConsentCommand(next, command, now, addEvent)
+    } else if (command.type === 'consultation-save') {
+      const unchanged = unchangedConsultation(s, command)
+      if (unchanged) return { ok: true, state: s, recordId: unchanged }
+      recordId = runConsultationCommand(next, command, now, makeId, addEvent)
     } else {
       recordId = runOperatingCommand(next, command, now, makeId, addEvent)
     }
@@ -774,6 +790,7 @@ export function dispatch(
   stampPatchTestActors(s, result.state, actorName)
   stampFormActors(s, result.state, actorName)
   stampConsentActors(s, result.state, actorName)
+  stampConsultationActors(s, result.state, actorName)
   const counted = new Set((s.tillCounts ?? []).map((c) => c.id))
   for (const count of result.state.tillCounts ?? [])
     if (!counted.has(count.id)) count.actor = actorName

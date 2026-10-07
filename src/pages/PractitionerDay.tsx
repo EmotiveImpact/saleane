@@ -415,6 +415,22 @@ export function PractitionerDay() {
                     <dd>{visit.patchTest.label}.</dd>
                   </div>
                 )}
+                {visit.consultation && (
+                  <div>
+                    <dt>Agreed at consultation</dt>
+                    <dd>
+                      {visit.consultation.plan}
+                      {visit.consultation.wants && (
+                        <small>They wanted: {visit.consultation.wants}</small>
+                      )}
+                      <small>
+                        {dateLabel(visit.consultation.heldOn, locale)}, version{' '}
+                        {visit.consultation.version}
+                        {visit.consultation.changedSince ? '. Updated since this was booked.' : '.'}
+                      </small>
+                    </dd>
+                  </div>
+                )}
                 {visit.forms?.flatMap((form) =>
                   form.answers.map((row) => (
                     <div key={`${form.title} ${row.question}`}>

@@ -33,15 +33,19 @@ export const versionOf = (form: GuestForm, version: number) =>
 const HEALTH =
   /\b(medical|medication|medicines?|allerg\w*|pregnan\w*|health|illness\w*|disease\w*|diagnos\w*|surgery|surgeries|prescri\w*|epilep\w*|diabet\w*|blood pressure|heart conditions?|skin conditions?|medical conditions?)\b/i
 
+/** The first health word in some text, or null when it reads as ordinary. */
+export const healthWordIn = (text: string) => HEALTH.exec(text)?.[0] ?? null
+
 /** The first health word in a form, or null when it reads as an ordinary form. */
 export function healthWord(content: FormContent) {
-  const text = [
-    content.title,
-    content.intro,
-    content.agreement,
-    ...content.questions.flatMap((q) => [q.label, ...(q.options ?? [])]),
-  ].join('\n')
-  return HEALTH.exec(text)?.[0] ?? null
+  return healthWordIn(
+    [
+      content.title,
+      content.intro,
+      content.agreement,
+      ...content.questions.flatMap((q) => [q.label, ...(q.options ?? [])]),
+    ].join('\n'),
+  )
 }
 
 const sameContent = (a: FormContent, b: FormContent) => JSON.stringify(a) === JSON.stringify(b)

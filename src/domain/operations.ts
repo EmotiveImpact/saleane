@@ -416,6 +416,7 @@ export function permissionFor(command: { type: string }) {
   if (command.type === 'missed-call-done') return 'missed-call'
   if (command.type === 'form-save' || command.type === 'form-archive') return 'forms'
   if (command.type === 'consent-wording') return 'consent-wording'
+  if (command.type === 'consultation-save') return 'consultation'
   return command.type
 }
 export const commandPermission = permissionFor

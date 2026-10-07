@@ -1,0 +1,74 @@
+/* V1.5: consultations on a client's page. */
+.consultation {
+  display: grid;
+  gap: 6px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.consultation h3,
+.consultation p {
+  margin: 0;
+}
+.consultation h3 {
+  font-size: var(--text-body);
+}
+.consultation-label {
+  display: block;
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+.consultation details ol {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+.consultation summary {
+  cursor: pointer;
+  font-size: var(--text-meta);
+}
+.consultation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.consultation-form {
+  display: grid;
+  gap: 14px;
+}
+.consultation-form > label {
+  display: grid;
+  gap: 7px;
+}
+.consultation-services {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.consultation-services legend {
+  margin-bottom: 6px;
+  font-weight: var(--weight-strong);
+}
+.consultation-services > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+}
+.consultation-services label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-weight: var(--weight-body);
+}
+.consultation-services input {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  flex: none;
+  accent-color: var(--ink);
+}

@@ -38,6 +38,7 @@ import { orderLinesSchema, supplierInputSchema } from './purchasingSchema'
 import { accountingProviders, accountingSettingsSchema } from './accountsSchema'
 import { reminderSettingsSchema } from './reminderSettings'
 import { CONSENT_TEXT_LIMIT } from './consentSchema'
+import { consultationContentSchema } from './consultationsSchema'
 const id = z.string().min(1).max(150)
 const money = z.number().int().nonnegative().max(100_000_000)
 const method = paymentMethodSchema
@@ -74,6 +75,8 @@ export const bookingSchema = z.object({
   callId: id.optional(),
   /** V1.5: the version of the email news wording the guest was shown, when they ticked it. */
   consentVersion: z.number().int().min(1).optional(),
+  /** V1.5: the consultation this visit comes from; the booking keeps its current version. */
+  consultationId: id.optional(),
 })
 export const operatingCommandSchema = z.discriminatedUnion('type', [
   z.object({
@@ -385,6 +388,15 @@ export const commandSchema = z.discriminatedUnion('type', [
     text: z.string().trim().min(10).max(CONSENT_TEXT_LIMIT),
   }),
   z.object({ type: z.literal('guest-consent-stop'), appointmentId: id }),
+  z.object({
+    type: z.literal('consultation-save'),
+    /** Present to save a new version of an existing consultation. */
+    id: id.optional(),
+    clientId: id,
+    staffId: id.optional(),
+    heldOn: z.iso.date(),
+    content: consultationContentSchema,
+  }),
   tillCountCommandSchema,
   // Sent only through a guest's private link, never by the studio.
   z.object({ type: z.literal('feedback'), appointmentId: id }).extend(feedbackInputSchema.shape),
