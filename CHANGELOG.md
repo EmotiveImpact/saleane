@@ -2,6 +2,16 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · V1.5 · Waitlist
+
+**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** The waitlist never contacts anyone by itself: an offer is an Inbox draft the team approves.
+
+- A new Waitlist page (in the main menu, for owners, managers and reception) lists everyone waiting, longest first, with the earliest three times that suit each person read live from the diary, so a cancellation shows at once as a time someone could take. It counts how many times were filled from the list in the last 30 days and what those visits were worth.
+- Choosing a time offers two things: book it for them (or, for a guest who already has a later visit, move that visit earlier), or write an offer. An offer becomes a draft in the Inbox saying the time is not held and the first to answer gets it.
+- The desk adds someone from the page or the client's page: the service, a professional or anyone, a window of dates (up to 90 days), mornings, afternoons or evenings, and a note. One open request per client and service.
+- A guest with an upcoming visit can ask from their private visit link to come in sooner, choosing whether anyone will do and which times suit. They can change or withdraw it, and their visit stays as it is until they agree to a move. Cancelling the visit ends the request.
+- Taking someone off the list keeps the request with a reason. Requests are in the client's data export, its preview and the erasure review, and are kept 90 days after their dates end, then wait for an owner or manager to approve deletion or keep them longer; nothing is deleted automatically.
+
 ## 2026-10-07 · V1.5 · Private client feedback and ratings
 
 **Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** The feedback request joins the message outbox like any other message; with no provider connected it waits there unsent.

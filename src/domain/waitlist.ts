@@ -1,0 +1,398 @@
+import type { Command } from './commandSchema'
+import type { Appointment, BusinessState, RelationshipEvent } from './model'
+import { availableAllocation } from './allocation'
+import { addDays, dateLabel, timeLabel } from './format'
+import { businessDate, operations } from './operations'
+import { WAITLIST_MAX_DAYS } from './waitlistSchema'
+import type { WaitlistEntry, WaitlistInput, WaitlistTime } from './waitlistSchema'
+
+/**
+ * V1.5: the waitlist, the first half of "from cancellation to filled slot". Openings are read live
+ * from the diary, so a cancellation shows at once as a time someone waiting could take. The team
+ * either books it for them, moves the guest's own later visit into it, or writes an offer that waits
+ * in the Inbox for approval; SALEANE never contacts anyone by itself here.
+ */
+type WaitlistCommand = Extract<
+  Command,
+  {
+    type: 'waitlist-add' | 'waitlist-remove' | 'waitlist-offer' | 'waitlist-join' | 'waitlist-leave'
+  }
+>
+type AddEvent = (
+  event: Omit<RelationshipEvent, 'id' | 'organisationId' | 'occurredAt' | 'actor'>,
+) => void
+
+export type Opening = { date: string; startMinutes: number; staffId: string }
+
+/** How far ahead the openings search looks, so a long window stays quick to read. */
+const SEARCH_DAYS = 31
+const LABEL: Record<WaitlistTime, string> = {
+  morning: 'mornings',
+  afternoon: 'afternoons',
+  evening: 'evenings',
+}
+
+export const waitlistList = (s: BusinessState) => s.waitlist ?? []
+export const waiting = (s: BusinessState) => waitlistList(s).filter((e) => e.status === 'waiting')
+
+/** Morning is before noon, afternoon until 5pm, evening after. */
+export function timeOfDay(startMinutes: number): WaitlistTime {
+  return startMinutes < 720 ? 'morning' : startMinutes < 1020 ? 'afternoon' : 'evening'
+}
+export function timesLabel(times: readonly WaitlistTime[]) {
+  if (!times.length || times.length === 3) return 'any time'
+  return times.map((t) => LABEL[t]).join(' or ')
+}
+
+function free(
+  s: BusinessState,
+  serviceId: string,
+  staffId: string,
+  date: string,
+  start: number,
+  now: string,
+) {
+  const service = s.services.find((item) => item.id === serviceId)
+  return service && !service.archived
+    ? availableAllocation(
+        s,
+        serviceId,
+        staffId,
+        date,
+        start,
+        service.durationMinutes,
+        service.bufferMinutes,
+        service.resourceType,
+        undefined,
+        now,
+      )
+    : null
+}
+
+/**
+ * The earliest times this client could take, from today or the window's first day to its last,
+ * with the professional they asked for or anyone who offers the service.
+ */
+export function openings(s: BusinessState, entry: WaitlistEntry, now: string, limit = 3) {
+  const found: Opening[] = []
+  if (entry.status !== 'waiting') return found
+  const today = businessDate(s, now)
+  const first = entry.fromDate > today ? entry.fromDate : today
+  const team = s.staff.filter(
+    (person) =>
+      !person.archived &&
+      person.serviceIds.includes(entry.serviceId) &&
+      (!entry.staffId || person.id === entry.staffId),
+  )
+  for (let day = 0; day < SEARCH_DAYS && found.length < limit; day++) {
+    const date = addDays(first, day)
+    if (date > entry.toDate) break
+    for (let start = 0; start < 1440 && found.length < limit; start += 15) {
+      if (entry.times.length && !entry.times.includes(timeOfDay(start))) continue
+      const person = team.find((p) => free(s, entry.serviceId, p.id, date, start, now))
+      if (person) found.push({ date, startMinutes: start, staffId: person.id })
+    }
+  }
+  return found
+}
+
+/** Whether this exact time is still free for the entry's service with that professional. */
+export function openingFree(s: BusinessState, entry: WaitlistEntry, opening: Opening, now: string) {
+  return (
+    entry.status === 'waiting' &&
+    opening.date >= entry.fromDate &&
+    opening.date <= entry.toDate &&
+    (!entry.staffId || entry.staffId === opening.staffId) &&
+    (!entry.times.length || entry.times.includes(timeOfDay(opening.startMinutes))) &&
+    !!free(s, entry.serviceId, opening.staffId, opening.date, opening.startMinutes, now)
+  )
+}
+
+function checkInput(s: BusinessState, input: WaitlistInput, now: string) {
+  const client = s.clients.find((c) => c.id === input.clientId)
+  if (!client) throw new Error('Client does not belong to this workspace.')
+  const service = s.services.find((item) => item.id === input.serviceId)
+  if (!service || service.archived) throw new Error('Choose a service offered here.')
+  if (input.staffId) {
+    const person = s.staff.find((p) => p.id === input.staffId)
+    if (!person || person.archived || !person.serviceIds.includes(service.id))
+      throw new Error('Choose someone who offers this service, or anyone.')
+  }
+  const today = businessDate(s, now)
+  if (input.fromDate < today) throw new Error('The window cannot start in the past.')
+  if (input.toDate < input.fromDate) throw new Error('The last day must be on or after the first.')
+  if (input.toDate > addDays(input.fromDate, WAITLIST_MAX_DAYS - 1))
+    throw new Error(`Keep the window to ${WAITLIST_MAX_DAYS} days or fewer.`)
+  if (input.appointmentId) {
+    const visit = s.appointments.find((a) => a.id === input.appointmentId)
+    if (
+      !visit ||
+      visit.clientId !== client.id ||
+      visit.status !== 'confirmed' ||
+      visit.serviceId !== service.id
+    )
+      throw new Error('Choose an upcoming visit of this client for this service.')
+    if (input.toDate >= visit.date) throw new Error('The window must end before their visit.')
+  }
+  return { client, service }
+}
+
+function add(
+  next: BusinessState,
+  input: WaitlistInput,
+  source: WaitlistEntry['source'],
+  now: string,
+  makeId: () => string,
+  addEvent: AddEvent,
+) {
+  const { client, service } = checkInput(next, input, now)
+  next.waitlist ??= []
+  if (
+    next.waitlist.some(
+      (e) =>
+        e.status === 'waiting' && e.clientId === input.clientId && e.serviceId === input.serviceId,
+    )
+  )
+    throw new Error(
+      `${client.name} is already waiting for ${service.name}. Change or remove that first.`,
+    )
+  const entry: WaitlistEntry = {
+    ...input,
+    note: input.note.trim(),
+    id: makeId(),
+    organisationId: next.organisation.id,
+    createdAt: now,
+    source,
+    status: 'waiting',
+  }
+  next.waitlist.push(entry)
+  const locale = next.organisation.locale
+  const who = input.staffId
+    ? ` with ${next.staff.find((p) => p.id === input.staffId)!.name}`
+    : ' with anyone'
+  addEvent({
+    clientId: client.id,
+    appointmentId: input.appointmentId,
+    type: 'waitlist',
+    title: source === 'guest' ? 'Asked to come in sooner' : 'Added to the waitlist',
+    detail: `${service.name}${who}, ${dateLabel(input.fromDate, locale)} to ${dateLabel(input.toDate, locale)}, ${timesLabel(input.times)}. Nobody is contacted until the team chooses to.`,
+  })
+  return entry.id
+}
+
+function entryFor(next: BusinessState, entryId: string) {
+  const entry = next.waitlist?.find((e) => e.id === entryId)
+  if (!entry) throw new Error('This waitlist entry is not in the studio record.')
+  return entry
+}
+
+function remove(entry: WaitlistEntry, reason: string, now: string, addEvent: AddEvent) {
+  if (entry.status === 'removed') return entry.id
+  if (entry.status !== 'waiting') throw new Error('This entry has already been booked.')
+  entry.status = 'removed'
+  entry.closedAt = now
+  entry.removedReason = reason
+  addEvent({
+    clientId: entry.clientId,
+    appointmentId: entry.appointmentId,
+    type: 'waitlist',
+    title: 'Taken off the waitlist',
+    detail: reason,
+  })
+  return entry.id
+}
+
+/**
+ * The entry a repeated request would leave exactly as it is, so `execute` can return the state
+ * untouched (no new revision) for a retry or a double tap.
+ */
+export function waitlistUnchanged(s: BusinessState, command: WaitlistCommand, now: string) {
+  const rows = waitlistList(s)
+  if (command.type === 'waitlist-remove')
+    return rows.find((e) => e.id === command.entryId && e.status === 'removed')?.id
+  if (command.type === 'waitlist-leave')
+    return rows.some((e) => e.status === 'waiting' && e.appointmentId === command.appointmentId)
+      ? undefined
+      : command.appointmentId
+  const input = command.type === 'waitlist-add' ? command.input : joinInput(s, command, now)
+  if (!input) return undefined
+  return rows.find(
+    (e) =>
+      e.status === 'waiting' &&
+      e.clientId === input.clientId &&
+      e.serviceId === input.serviceId &&
+      e.appointmentId === input.appointmentId &&
+      e.staffId === input.staffId &&
+      e.fromDate === input.fromDate &&
+      e.toDate === input.toDate &&
+      e.times.join() === input.times.join() &&
+      e.note === input.note.trim(),
+  )?.id
+}
+
+/** What a guest's "tell me if something sooner comes up" asks for, or null if it cannot apply. */
+function joinInput(
+  s: BusinessState,
+  command: { type: string; appointmentId?: string; anyone?: boolean; times?: WaitlistTime[] },
+  now: string,
+): WaitlistInput | null {
+  if (command.type !== 'waitlist-join') return null
+  const visit = s.appointments.find((a) => a.id === command.appointmentId)
+  if (!visit || visit.status !== 'confirmed') return null
+  const today = businessDate(s, now)
+  const last = addDays(visit.date, -1)
+  const cap = addDays(today, WAITLIST_MAX_DAYS - 1)
+  if (last < today) return null
+  return {
+    clientId: visit.clientId,
+    serviceId: visit.serviceId,
+    ...(command.anyone ? {} : { staffId: visit.staffId }),
+    fromDate: today,
+    toDate: last > cap ? cap : last,
+    times: command.times ?? [],
+    note: '',
+    appointmentId: visit.id,
+  }
+}
+
+export function runWaitlistCommand(
+  next: BusinessState,
+  command: WaitlistCommand,
+  now: string,
+  makeId: () => string,
+  addEvent: AddEvent,
+) {
+  if (command.type === 'waitlist-add')
+    return add(next, command.input, 'desk', now, makeId, addEvent)
+  if (command.type === 'waitlist-join') {
+    // From the guest's own visit page: the same service, before their visit, from today.
+    const input = joinInput(next, command, now)
+    if (!input) {
+      const visit = next.appointments.find((a) => a.id === command.appointmentId)
+      throw new Error(
+        visit?.status === 'confirmed'
+          ? 'Your visit is too soon for an earlier time.'
+          : 'The waitlist is open for upcoming visits only.',
+      )
+    }
+    // Changing their answer replaces the earlier one.
+    const earlier = (next.waitlist ?? []).find(
+      (e) => e.status === 'waiting' && e.appointmentId === input.appointmentId,
+    )
+    if (earlier) remove(earlier, 'The guest changed what times suit them.', now, addEvent)
+    return add(next, input, 'guest', now, makeId, addEvent)
+  }
+  if (command.type === 'waitlist-leave') {
+    const entry = (next.waitlist ?? []).find(
+      (e) => e.status === 'waiting' && e.appointmentId === command.appointmentId,
+    )
+    if (!entry) throw new Error('You are not on the waitlist for this visit.')
+    return remove(entry, 'The guest no longer wants an earlier time.', now, addEvent)
+  }
+  const entry = entryFor(next, command.entryId)
+  if (command.type === 'waitlist-remove') return remove(entry, command.reason, now, addEvent)
+  // waitlist-offer: a draft for the team to approve in the Inbox; nothing is sent from here.
+  const opening = {
+    date: command.date,
+    startMinutes: command.startMinutes,
+    staffId: command.staffId,
+  }
+  if (!openingFree(next, entry, opening, now))
+    throw new Error('That time is no longer free for this request. Choose another.')
+  const client = next.clients.find((c) => c.id === entry.clientId)!
+  const service = next.services.find((item) => item.id === entry.serviceId)!
+  const person = next.staff.find((p) => p.id === opening.staffId)!
+  const org = next.organisation
+  const when = `${dateLabel(opening.date, org.locale)} at ${timeLabel(opening.startMinutes, org.locale)}`
+  next.operations = structuredClone(operations(next))
+  const message = {
+    id: makeId(),
+    clientId: client.id,
+    ...(entry.appointmentId ? { appointmentId: entry.appointmentId } : {}),
+    purpose: 'appointment' as const,
+    subject: `A time has opened at ${org.name}`,
+    body: `Hello ${client.name.split(' ')[0]},\n\nYou asked us to let you know if a time opened for ${service.name}. ${person.name} is free on ${when}.${entry.appointmentId ? ' We can move your visit to this time if you would like.' : ''}\n\nReply to this message or call us to take it. It is not held for you, so the first to answer gets it.\n\n${org.name}`,
+    status: 'draft' as const,
+    createdAt: now,
+    actor: 'Local operator',
+  }
+  next.operations.messages.push(message)
+  entry.offers = [...(entry.offers ?? []), { at: now, ...opening, messageId: message.id }]
+  addEvent({
+    clientId: client.id,
+    appointmentId: entry.appointmentId,
+    type: 'message',
+    title: 'Waitlist offer drafted',
+    detail: `${service.name} with ${person.name}, ${when}. Waiting in the Inbox for approval; delivery is unconfigured.`,
+  })
+  return message.id
+}
+
+/**
+ * Closes a waiting entry when its client is booked into a time, or their own later visit is moved
+ * earlier, from the waitlist. Called inside `execute` after the visit is saved.
+ */
+export function fillFromWaitlist(
+  next: BusinessState,
+  waitlistId: string,
+  appointment: Appointment,
+  now: string,
+) {
+  const entry = entryFor(next, waitlistId)
+  if (entry.status !== 'waiting') throw new Error('This waitlist entry is no longer waiting.')
+  if (entry.clientId !== appointment.clientId || entry.serviceId !== appointment.serviceId)
+    throw new Error('This waitlist entry is for another client or service.')
+  if (entry.appointmentId && entry.appointmentId !== appointment.id)
+    throw new Error('This guest already has a visit; move it rather than booking another.')
+  entry.status = 'booked'
+  entry.closedAt = now
+  entry.outcomeAppointmentId = appointment.id
+}
+
+/** A guest's wish to come in sooner ends if the visit it was for is cancelled. */
+export function closeForCancelledVisit(next: BusinessState, appointmentId: string, now: string) {
+  for (const entry of next.waitlist ?? [])
+    if (entry.status === 'waiting' && entry.appointmentId === appointmentId) {
+      entry.status = 'removed'
+      entry.closedAt = now
+      entry.removedReason = 'Their visit was cancelled.'
+    }
+}
+
+/** parseState check: entries match the studio's clients, services and visits. */
+export function waitlistProblem(s: BusinessState) {
+  const rows = waitlistList(s)
+  if (new Set(rows.map((r) => r.id)).size !== rows.length) return 'Duplicate waitlist IDs.'
+  for (const row of rows) {
+    if (
+      row.organisationId !== s.organisation.id ||
+      !s.clients.some((c) => c.id === row.clientId) ||
+      !s.services.some((item) => item.id === row.serviceId) ||
+      (row.staffId && !s.staff.some((p) => p.id === row.staffId))
+    )
+      return 'A waitlist entry does not match the studio record.'
+    if (
+      row.appointmentId &&
+      !s.appointments.some((a) => a.id === row.appointmentId && a.clientId === row.clientId)
+    )
+      return 'A waitlist entry does not match its visit.'
+    if (row.status === 'booked') {
+      const visit = s.appointments.find((a) => a.id === row.outcomeAppointmentId)
+      if (!visit || visit.clientId !== row.clientId) return 'A filled waitlist entry has no visit.'
+    }
+  }
+  return null
+}
+
+/** For the waitlist page: who is waiting, and how many times it has filled since `since`. */
+export function waitlistSummary(s: BusinessState, since: string) {
+  const filled = waitlistList(s).filter((e) => e.status === 'booked' && (e.closedAt ?? '') >= since)
+  const visits = filled
+    .map((e) => s.appointments.find((a) => a.id === e.outcomeAppointmentId))
+    .filter((a): a is Appointment => !!a && a.status !== 'cancelled' && a.status !== 'no_show')
+  return {
+    waiting: waiting(s).length,
+    filled: visits.length,
+    valueMinor: visits.reduce((sum, a) => sum + a.bookedPriceMinor, 0),
+  }
+}

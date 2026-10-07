@@ -1,3 +1,4 @@
+import type { WaitlistTime } from './waitlistSchema'
 import { DEMO_DATE, parseState } from './model'
 import type { Appointment, BusinessState, Region } from './model'
 import { addDays, dateLabel, timeLabel } from './format'
@@ -359,5 +360,51 @@ export function seed(region: Region): BusinessState {
       },
     ]
   })
+  // V1.5: a few clients waiting for a time, so the waitlist shows openings straight away.
+  const wishes: [string, string, string | undefined, string, string, WaitlistTime[], string][] = [
+    [
+      'client-13',
+      'service-facial',
+      'staff-maya',
+      DEMO_DATE,
+      addDays(DEMO_DATE, 14),
+      ['afternoon', 'evening'],
+      'Works until 3pm on weekdays.',
+    ],
+    [
+      'client-14',
+      'service-restore',
+      undefined,
+      addDays(DEMO_DATE, 1),
+      addDays(DEMO_DATE, 8),
+      ['morning'],
+      '',
+    ],
+    [
+      'client-15',
+      'service-cut',
+      'staff-theo',
+      addDays(DEMO_DATE, 2),
+      addDays(DEMO_DATE, 25),
+      [],
+      'Happy to take a cancellation at short notice.',
+    ],
+  ]
+  state.waitlist = wishes.map(
+    ([clientId, serviceId, staffId, fromDate, toDate, times, note], n) => ({
+      ...scope,
+      id: `waitlist-${n + 1}`,
+      clientId,
+      serviceId,
+      ...(staffId ? { staffId } : {}),
+      fromDate,
+      toDate,
+      times,
+      note,
+      source: 'desk' as const,
+      status: 'waiting' as const,
+      createdAt: `${addDays(DEMO_DATE, -2)}T10:00:00.000Z`,
+    }),
+  )
   return parseState(state, region)
 }

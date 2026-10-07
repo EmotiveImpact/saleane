@@ -13,6 +13,7 @@ import {
   X,
   Info,
   Mail,
+  Hourglass,
 } from 'lucide-react'
 import { useStore } from './state/context'
 import { useStudioColours } from './state/studioColours'
@@ -34,6 +35,9 @@ const ServerBooking = lazy(() =>
 const Manage = lazy(() => import('./pages/Manage').then((module) => ({ default: module.Manage })))
 const Inbox = lazy(() => import('./pages/Inbox').then((module) => ({ default: module.Inbox })))
 const Money = lazy(() => import('./pages/Money').then((module) => ({ default: module.Money })))
+const Waitlist = lazy(() =>
+  import('./pages/Waitlist').then((module) => ({ default: module.Waitlist })),
+)
 const Feedback = lazy(() =>
   import('./pages/Feedback').then((module) => ({ default: module.Feedback })),
 )
@@ -51,6 +55,7 @@ const navigation = [
   { to: '/today', label: 'Today', icon: Home },
   { to: '/calendar', label: 'Calendar', icon: CalendarDays },
   { to: '/clients', label: 'Clients', icon: Users },
+  { to: '/waitlist', label: 'Waitlist', icon: Hourglass },
   { to: '/inbox', label: 'Inbox', icon: Mail },
   { to: '/business', label: 'Business', icon: ChartNoAxesCombined },
   { to: '/settings', label: 'Settings', icon: Settings2 },
@@ -277,6 +282,7 @@ function WorkspaceApp() {
             <Route path="/clients" element={<Clients />} />
             <Route path="/clients/:clientId" element={<ClientRelationship />} />
             <Route path="/inbox" element={<Inbox />} />
+            <Route path="/waitlist" element={<Waitlist />} />
             <Route
               path="/business"
               element={role === 'reception' ? <Navigate to="/settings" replace /> : <Business />}

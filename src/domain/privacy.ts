@@ -213,6 +213,25 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
         comment: f.comment,
         givenAt: f.createdAt,
       })),
+    // V1.5: times this client asked to be told about, and how each request ended.
+    waitlist: (state.waitlist ?? [])
+      .filter((e) => e.clientId === client.id)
+      .map((e) => ({
+        service: state.services.find((item) => item.id === e.serviceId)?.name ?? 'Service',
+        with: e.staffId
+          ? (state.staff.find((p) => p.id === e.staffId)?.name ?? 'Professional')
+          : 'Anyone',
+        fromDate: e.fromDate,
+        toDate: e.toDate,
+        times: e.times,
+        note: e.note,
+        askedBy: e.source === 'guest' ? 'The client' : 'The studio',
+        askedAt: e.createdAt,
+        status: e.status,
+        ...(e.closedAt ? { closedAt: e.closedAt } : {}),
+        ...(e.removedReason ? { reason: e.removedReason } : {}),
+        offersDrafted: (e.offers ?? []).length,
+      })),
     // V1.5: packages and memberships this client bought, with what was paid, used and returned.
     plans: (state.holdings ?? [])
       .filter((h) => h.clientId === client.id)
@@ -264,6 +283,7 @@ export function previewClientExport(file: ClientExport): ExportPreview {
       { label: 'Messages, none of them sent', count: file.messages.length },
       { label: 'Client connections, type only', count: file.connections.length },
       { label: 'Private feedback they gave', count: file.feedback.length },
+      { label: 'Waitlist requests', count: file.waitlist.length },
     ],
     excluded: CLIENT_EXPORT_EXCLUDED,
     notes: [
@@ -321,6 +341,7 @@ export function previewStudioExport(file: StudioExport): ExportPreview {
       { label: 'Messages, none of them sent', count: r.operations.messages.length },
       { label: 'Client connections', count: r.relationships.length },
       { label: 'Private guest feedback, comments as written', count: (r.feedback ?? []).length },
+      { label: 'Waitlist requests', count: (r.waitlist ?? []).length },
       {
         label: 'Services, professionals and spaces',
         count: r.services.length + r.staff.length + r.resources.length,
@@ -399,6 +420,11 @@ export function erasureReview(
         label: 'Unsent messages (drafts, queued and suppressed)',
         count: ops.messages.filter((m) => m.clientId === client.id).length,
         reason: 'None was ever sent, so no delivery record depends on them.',
+      },
+      {
+        label: 'Waitlist requests',
+        count: (state.waitlist ?? []).filter((e) => e.clientId === client.id).length,
+        reason: 'Only for arranging an earlier or free time. Not linked to money.',
       },
       {
         label: 'Private feedback (ratings and comments)',
@@ -519,6 +545,12 @@ export function clientExportText(file: ClientExport, locale = 'en-GB') {
     ...file.feedback.map(
       (f) =>
         `${f.givenAt.slice(0, 10)} · visit ${f.visitRating}/5 · care ${f.practitionerRating}/5${f.comment ? ` · ${f.comment}` : ''}`,
+    ),
+    '',
+    `WAITLIST REQUESTS (${file.waitlist.length})`,
+    ...file.waitlist.map(
+      (e) =>
+        `${e.service} with ${e.with} · ${e.fromDate} to ${e.toDate} · ${e.status}${e.note ? ` · ${e.note}` : ''}`,
     ),
     '',
     `PACKAGES AND MEMBERSHIPS (${file.plans.length})`,
