@@ -247,7 +247,7 @@ describe('local operating surfaces', () => {
     await user.type(screen.getByLabelText('Subject'), 'A future invitation')
     await user.type(screen.getByLabelText('Message'), 'We would love to welcome you back.')
     await user.click(screen.getByRole('button', { name: 'Save draft' }))
-    expect(screen.getByRole('button', { name: 'Queue for later delivery' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Approve and queue' })).toBeDisabled()
     await user.click(screen.getByRole('button', { name: 'Edit draft A future invitation' }))
     expect(screen.getByLabelText('Client')).toBeDisabled()
     expect(screen.getByLabelText('Purpose')).toBeDisabled()
@@ -264,6 +264,19 @@ describe('local operating surfaces', () => {
     })
     expect(saved.clients.find((c: { id: string }) => c.id === 'client-4').marketingConsent).toBe(
       false,
+    )
+  })
+
+  it('opens the inbox in two columns and remembers a switch to the side panel', async () => {
+    const user = userEvent.setup()
+    show('/inbox')
+    const columns = await screen.findByRole('button', { name: 'Two columns' })
+    expect(columns).toHaveAttribute('aria-pressed', 'true')
+    await user.click(screen.getByRole('button', { name: 'List with side panel' }))
+    expect(localStorage.getItem('saleane-inbox-view:demo')).toBe('panel')
+    expect(screen.getByRole('button', { name: 'List with side panel' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
     )
   })
 
