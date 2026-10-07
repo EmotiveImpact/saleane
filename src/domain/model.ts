@@ -73,6 +73,18 @@ export const serviceSchema = z.object({
   prepNote: z.string().max(GUEST_NOTE_LIMIT).optional(),
   /** V1.5: guests need a clear patch test before this treatment, such as a colour. */
   patchTest: z.boolean().optional(),
+  /** V2: a different price at another location. Absent means the same price everywhere. */
+  locationPrices: z
+    .array(z.object({ locationId: id, priceMinor: minor }))
+    .max(20)
+    .refine((rows) => new Set(rows.map((r) => r.locationId)).size === rows.length)
+    .optional(),
+  /** V2: locations where this treatment is not offered. Absent means offered everywhere. */
+  notOfferedAt: z
+    .array(id)
+    .max(20)
+    .refine((ids) => new Set(ids).size === ids.length)
+    .optional(),
 })
 export const staffSchema = z.object({
   ...scoped,
@@ -164,6 +176,8 @@ const allocationSchema = z.object({
   startMinutes: z.number().int().min(0).max(1439),
   staffId: id,
   resourceId: id,
+  /** V2: where the visit was, when a move took it to another location. */
+  locationId: id.optional(),
 })
 export const eventSchema = z.object({
   ...scoped,
@@ -511,7 +525,9 @@ export function parseState(value: unknown, region: Region): BusinessState {
               ? change.before === null && !!change.after && 'date' in change.after
               : change.kind === 'closure-removed'
                 ? !!change.before && 'date' in change.before && change.after === null
-                : [change.before, change.after].every((v) => !!v && 'archived' in v)
+                : change.kind === 'resource-moved'
+                  ? [change.before, change.after].every((v) => !!v && 'locationId' in v)
+                  : [change.before, change.after].every((v) => !!v && 'archived' in v)
       // Professionals and rooms are archived, never deleted, so their history keeps its link.
       const subjectFits = change.kind.startsWith('staff')
         ? !!change.subjectId && exists(s.staff, change.subjectId)

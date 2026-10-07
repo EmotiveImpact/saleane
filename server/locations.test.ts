@@ -82,6 +82,15 @@ describe('booking at another location', () => {
       },
     } as Command)
     const nia = state.staff.find((p) => p.name === 'Nia Fictional')!.id
+    // The facial costs more in Islington.
+    const facial = state.services.find((x) => x.id === 'service-facial')!
+    const { id: _id, organisationId: _org, ...facialInput } = facial
+    void [_id, _org]
+    await run(owner, {
+      type: 'service',
+      id: facial.id,
+      input: { ...facialInput, locationPrices: [{ locationId: islington, priceMinor: 12500 }] },
+    } as Command)
     const { slug } = await studio(owner)
 
     const page = (await api.inject({ url: `/api/public/${slug}` })).json<{
@@ -132,6 +141,6 @@ describe('booking at another location', () => {
     const visit = (await studio(owner)).state.appointments.find(
       (a) => a.id === booked.json<{ appointmentId: string }>().appointmentId,
     )!
-    expect(visit).toMatchObject({ locationId: islington, staffId: nia })
+    expect(visit).toMatchObject({ locationId: islington, staffId: nia, bookedPriceMinor: 12500 })
   })
 })

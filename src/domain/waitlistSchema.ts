@@ -27,6 +27,8 @@ export const waitlistInputSchema = z
     serviceId: id,
     /** Absent: anyone who offers the service. */
     staffId: id.optional(),
+    /** V2: the location the guest would like to come to. Absent: any location. */
+    locationId: id.optional(),
     fromDate: civilDate,
     toDate: civilDate,
     /** Empty: any time of day. */

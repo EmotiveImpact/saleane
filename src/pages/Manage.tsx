@@ -38,7 +38,7 @@ import { PaymentSettings } from '../components/CardPayments'
 import { SwitchingSettings } from '../components/Switching'
 import { PlanSettings } from '../components/Plans'
 import { LocationsSettings } from '../components/LocationsSettings'
-import { hasLocations, places, resourceLocation } from '../domain/locations'
+import { hasLocations, placeOf, places, resourceLocation } from '../domain/locations'
 import '../components/management.css'
 
 const sections = [
@@ -128,6 +128,17 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
   const resource = state.resources.find((item) => item.id === editor?.id)
   const allowed = (action: string) => !blocked && can(role, action)
   const multiSite = hasLocations(state)
+  /** " · £120.00 at Islington · not at Marylebone", for the list of treatments. */
+  const menuSummary = (item: (typeof state.services)[number]) =>
+    [
+      ...(item.locationPrices ?? []).map(
+        (r) =>
+          `${money(r.priceMinor, state.organisation)} at ${placeOf(state, r.locationId)?.name ?? ''}`,
+      ),
+      ...(item.notOfferedAt ?? []).map((id) => `not at ${placeOf(state, id)?.name ?? ''}`),
+    ]
+      .map((part) => ` · ${part}`)
+      .join('')
   async function save(command: Command, message: string, close = false) {
     if (pending || !allowed(permissionFor(command))) return
     setPending(true)
@@ -154,6 +165,23 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
     setCustomHours(!!state.staff.find((item) => item.id === id)?.hours)
     setEditor({ kind, id })
   }
+  /** V2: a treatment's price at each other location, and where it is left off the menu. */
+  function menuAtPlaces(data: FormData) {
+    if (!multiSite) return {}
+    const locationPrices = places(state)
+      .filter((place) => !place.main && String(data.get(`price-${place.id}`) ?? '').trim())
+      .map((place) => ({
+        locationId: place.id,
+        priceMinor: parseMinor(data.get(`price-${place.id}`)),
+      }))
+    const notOfferedAt = places(state)
+      .filter((place) => data.get(`offered-${place.id}`) !== 'on')
+      .map((place) => place.id)
+    return {
+      ...(locationPrices.length ? { locationPrices } : {}),
+      ...(notOfferedAt.length ? { notOfferedAt } : {}),
+    }
+  }
   function commandFrom(editor: Editor, data: FormData, custom = customHours): Command {
     const archived = data.get('archived') === 'on'
     if (editor.kind === 'service')
@@ -171,6 +199,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
           resourceType: text(data, 'resourceType') as 'treatment' | 'chair',
           patchTest: data.get('patchTest') === 'on',
           archived,
+          ...menuAtPlaces(data),
         },
       }
     if (editor.kind === 'staff') {
@@ -497,6 +526,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                         <small>
                           {item.category} · {item.durationMinutes} min + {item.bufferMinutes} min
                           turnaround{item.patchTest ? ' · Needs a patch test' : ''}
+                          {multiSite ? menuSummary(item) : ''}
                         </small>
                         <small>{item.description}</small>
                       </div>
@@ -853,6 +883,41 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                       defaultValue={(service?.depositMinor ?? 0) / 100}
                     />
                   </label>
+                  {multiSite && (
+                    <fieldset className="ops-wide service-places">
+                      <legend>At each location</legend>
+                      {places(state).map((place) => (
+                        <div className="service-place" key={place.id}>
+                          <label className="ops-check">
+                            <input
+                              type="checkbox"
+                              name={`offered-${place.id}`}
+                              defaultChecked={!service?.notOfferedAt?.includes(place.id)}
+                            />
+                            Offered at {place.name}
+                          </label>
+                          {!place.main && (
+                            <label>
+                              Price at {place.name} ({state.organisation.currency})
+                              <input
+                                name={`price-${place.id}`}
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="Same price"
+                                defaultValue={
+                                  service?.locationPrices?.find((r) => r.locationId === place.id)
+                                    ? service.locationPrices.find((r) => r.locationId === place.id)!
+                                        .priceMinor / 100
+                                    : ''
+                                }
+                              />
+                            </label>
+                          )}
+                        </div>
+                      ))}
+                    </fieldset>
+                  )}
                   <label className="ops-check ops-wide">
                     <input type="checkbox" name="patchTest" defaultChecked={!!service?.patchTest} />
                     Needs a patch test, such as a colour. Guests need a clear test before this

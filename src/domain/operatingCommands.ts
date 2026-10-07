@@ -1,6 +1,6 @@
 import type { BusinessState, RelationshipEvent } from './model'
 import type { OperatingCommand } from './commandSchema'
-import { placeOf, places } from './locations'
+import { hasLocations, placeField, placeOf, places } from './locations'
 import {
   PAY_RATE_LIMIT,
   PAY_RULES_LIMIT,
@@ -193,10 +193,29 @@ export function runOperatingCommand(
     if (command.type === 'service') {
       if (command.input.depositMinor > command.input.priceMinor)
         throw new Error('Deposit cannot exceed the service price.')
+      // V2: prices and availability at other locations name real ones, never the main location,
+      // whose price is the service price itself.
+      const known = new Set(places(next, true).map((p) => p.id))
+      const main = next.organisation.locationId
+      for (const row of command.input.locationPrices ?? []) {
+        if (!known.has(row.locationId) || row.locationId === main)
+          throw new Error('Choose one of your other locations for each price.')
+        if (command.input.depositMinor > row.priceMinor)
+          throw new Error('Deposit cannot exceed the price at any location.')
+      }
+      if ((command.input.notOfferedAt ?? []).some((place) => !known.has(place)))
+        throw new Error('Choose one of your locations.')
+      if (places(next).every((p) => command.input.notOfferedAt?.includes(p.id)))
+        throw new Error('Offer the treatment at one location at least, or archive it.')
       if (command.input.durationMinutes + command.input.bufferMinutes > 1440)
         throw new Error('A service must fit within one day.')
-      if (old) Object.assign(old, record)
-      else next.services.push({ ...command.input, ...scope, id: record.id })
+      if (old) {
+        Object.assign(old, record)
+        if (!command.input.locationPrices?.length)
+          delete (old as { locationPrices?: unknown }).locationPrices
+        if (!command.input.notOfferedAt?.length)
+          delete (old as { notOfferedAt?: unknown }).notOfferedAt
+      } else next.services.push({ ...command.input, ...scope, id: record.id })
     } else if (command.type === 'staff') {
       for (const day of command.input.hours ?? []) {
         const site = day.locationId && placeOf(next, day.locationId)
@@ -660,8 +679,17 @@ export function runOperatingCommand(
       throw new Error('Received stock must increase the quantity.')
     if (['consumed', 'retail'].includes(command.reason) && command.quantity > 0)
       throw new Error('Usage and retail movements must reduce the quantity.')
-    if (stock(next, product.id) + command.quantity < 0)
-      throw new Error('There is not enough stock for this movement.')
+    const place = command.locationId ?? next.organisation.locationId
+    const site = placeOf(next, place)
+    // A closed location can still be counted down to empty, never restocked.
+    if (!site || (site.archived && command.quantity > 0))
+      throw new Error('Choose an open location.')
+    if (stock(next, product.id, place) + command.quantity < 0)
+      throw new Error(
+        hasLocations(next)
+          ? `There is not enough ${product.name} at ${site.name} for this.`
+          : 'There is not enough stock for this movement.',
+      )
     const movement = {
       id: makeId(),
       productId: product.id,
@@ -671,9 +699,43 @@ export function runOperatingCommand(
       appointmentId: command.appointmentId,
       createdAt: now,
       actor: 'Local operator',
+      ...placeField(next, place),
     }
     o.movements.push(movement)
     recordId = movement.id
+  } else if (command.type === 'stock-move') {
+    const product = o.products.find((p) => p.id === command.productId)
+    if (!product || product.archived) throw new Error('Choose an active product.')
+    const from = placeOf(next, command.from),
+      to = placeOf(next, command.to)
+    if (!from || !to) throw new Error('Choose two of your locations.')
+    if (from.id === to.id) throw new Error('Choose two different locations.')
+    if (to.archived) throw new Error(`${to.name} is closed. Choose an open location.`)
+    const left = stock(next, product.id, from.id)
+    if (left < command.quantity)
+      throw new Error(
+        left > 0
+          ? `Only ${left} ${product.name} at ${from.name}.`
+          : `There is no ${product.name} at ${from.name}.`,
+      )
+    const transferId = makeId()
+    const note = command.note?.trim() || `Moved from ${from.name} to ${to.name}`
+    for (const [place, quantity] of [
+      [from.id, -command.quantity],
+      [to.id, command.quantity],
+    ] as const)
+      o.movements.push({
+        id: makeId(),
+        productId: product.id,
+        quantity,
+        reason: 'moved',
+        note,
+        createdAt: now,
+        actor: 'Local operator',
+        transferId,
+        ...placeField(next, place),
+      })
+    recordId = transferId
   } else if (command.type === 'client-edit') {
     const client = next.clients.find((c) => c.id === command.clientId)
     if (!client) throw new Error('Client does not belong to this workspace.')

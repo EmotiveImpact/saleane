@@ -3,10 +3,12 @@ import { dispatch, execute, slots } from './commands'
 import type { Command } from './commands'
 import type { BusinessState } from './model'
 import { parseState } from './model'
-import { can, hoursFor, operations, permissionFor } from './operations'
+import { can, hoursFor, operations, permissionFor, stock } from './operations'
 import { createWorkspace } from './workspace'
 import { seed } from './seed'
-import { hasLocations, places, roomWithPlace, staffLocationOn } from './locations'
+import { atPlace, hasLocations, places, roomWithPlace, staffLocationOn } from './locations'
+import { availableMinutes } from './selectors'
+import { openings } from './waitlist'
 import { composeMessage } from './reminders'
 import { scheduleImpact } from './schedule'
 import type { OperatingCommand } from './commandSchema'
@@ -175,5 +177,166 @@ describe('several locations', () => {
     const day = structuredClone(s)
     day.staff.find((p) => p.id === 'staff-maya')!.hours![4].locationId = 'nowhere'
     expect(() => parseState(day, 'UK')).toThrow('missing location')
+  })
+})
+
+describe('finishing several locations', () => {
+  const wednesday = '2026-10-07'
+  const facialOn = (date: string, locationId?: string) =>
+    ({
+      type: 'book',
+      input: {
+        serviceId: 'service-facial',
+        staffId: 'staff-maya',
+        date,
+        startMinutes: 600,
+        clientId: 'client-1',
+        source: 'desk',
+        ...(locationId ? { locationId } : {}),
+      },
+    }) as Command
+
+  it('moves a visit to another location, keeping its price, and says so on the timeline', () => {
+    const { s: start, islington } = twoSites()
+    const s = apply(start, facialOn(wednesday))
+    const visit = s.appointments.at(-1)!
+    expect(visit.locationId).toBe(s.organisation.locationId)
+    const move = (locationId?: string) =>
+      ({
+        type: 'reschedule',
+        appointmentId: visit.id,
+        date: thursday,
+        startMinutes: 600,
+        staffId: 'staff-maya',
+        ...(locationId ? { locationId } : {}),
+      }) as Command
+    // On Thursday Maya is in Islington, so the visit can only follow her there.
+    expect(run(s, move()).ok).toBe(false)
+    const moved = apply(s, move(islington))
+    const after = moved.appointments.find((a) => a.id === visit.id)!
+    expect(after).toMatchObject({ locationId: islington, resourceId: 'room-two' })
+    expect(after.bookedPriceMinor).toBe(visit.bookedPriceMinor)
+    const event = moved.events.at(-1)!
+    expect(event.detail).toContain('at Islington')
+    expect(event.allocationChange?.to.locationId).toBe(islington)
+    expect(() => parseState(moved, 'UK')).not.toThrow()
+  })
+
+  it('keeps stock at each location, moves it between them and sells from the right shelf', () => {
+    const { s: start, islington } = twoSites()
+    const main = start.organisation.locationId
+    let s = apply(start, {
+      type: 'product',
+      input: { name: 'Calming balm', sku: 'CB', priceMinor: 3200, reorderAt: 1, archived: false },
+    } as Command)
+    const balm = operations(s).products.at(-1)!.id
+    s = apply(s, {
+      type: 'stock',
+      productId: balm,
+      quantity: 5,
+      reason: 'received',
+      note: 'Delivery',
+    } as Command)
+    expect(stock(s, balm, main)).toBe(5)
+    expect(stock(s, balm, islington)).toBe(0)
+    const moveStock = (quantity: number, from = main, to = islington) =>
+      ({ type: 'stock-move', productId: balm, from, to, quantity }) as Command
+    s = apply(s, moveStock(2))
+    expect([stock(s, balm, main), stock(s, balm, islington), stock(s, balm)]).toEqual([3, 2, 5])
+    expect(run(s, moveStock(3, islington, main)).ok).toBe(false)
+    expect(run(s, moveStock(1, main, main)).ok).toBe(false)
+    const sell = (quantity: number) =>
+      run(s, {
+        type: 'counter-sale',
+        locationId: islington,
+        products: [{ productId: balm, quantity }],
+        method: 'cash',
+      } as Command)
+    const short = sell(3)
+    expect(short.ok).toBe(false)
+    if (!short.ok) expect(short.error).toContain('at Islington')
+    const sold = sell(2)
+    expect(sold.ok).toBe(true)
+    if (!sold.ok) return
+    expect(stock(sold.state, balm, islington)).toBe(0)
+    expect(stock(sold.state, balm, main)).toBe(3)
+    expect(sold.state.counterSales!.at(-1)!.locationId).toBe(islington)
+    // A move that does not balance is rejected by the ledger.
+    const broken = structuredClone(sold.state)
+    broken.operations!.movements.find((m) => m.reason === 'moved' && m.quantity > 0)!.quantity = 3
+    expect(() => parseState(broken, 'UK')).toThrow('Invalid stock move')
+    // Reception cannot move stock, as with deliveries and counts.
+    expect(can('reception', permissionFor({ type: 'stock-move' }))).toBe(false)
+  })
+
+  it('charges a location’s own price and leaves a treatment off a location’s menu', () => {
+    const { s, islington } = twoSites()
+    const facial = s.services.find((x) => x.id === 'service-facial')!
+    const { id: _id, organisationId: _org, ...input } = facial
+    void [_id, _org]
+    const edit = (more: Record<string, unknown>) =>
+      ({ type: 'service', id: facial.id, input: { ...input, ...more } }) as Command
+    const priced = apply(
+      s,
+      edit({ locationPrices: [{ locationId: islington, priceMinor: 12000 }] }),
+    )
+    expect(apply(priced, facialOn(thursday)).appointments.at(-1)!.bookedPriceMinor).toBe(12000)
+    expect(apply(priced, facialOn(wednesday)).appointments.at(-1)!.bookedPriceMinor).toBe(
+      facial.priceMinor,
+    )
+    const main = s.organisation.locationId
+    expect(run(s, edit({ locationPrices: [{ locationId: main, priceMinor: 1 }] })).ok).toBe(false)
+    expect(run(s, edit({ notOfferedAt: [main, islington] })).ok).toBe(false)
+    const offMenu = apply(s, edit({ notOfferedAt: [islington] }))
+    expect(slots(offMenu, 'service-facial', 'staff-maya', thursday, now)).toEqual([])
+    expect(slots(offMenu, 'service-facial', 'staff-maya', wednesday, now)).toContain(600)
+  })
+
+  it('remembers which location a waitlist request is for', () => {
+    const { s: start, islington } = twoSites()
+    const s = apply(start, {
+      type: 'waitlist-add',
+      input: {
+        clientId: 'client-1',
+        serviceId: 'service-facial',
+        fromDate: wednesday,
+        toDate: '2026-10-10',
+        times: [],
+        note: '',
+        locationId: islington,
+      },
+    } as Command)
+    const entry = s.waitlist!.at(-1)!
+    expect(entry.locationId).toBe(islington)
+    const found = openings(s, entry, now, 5)
+    expect(found.length).toBeGreaterThan(0)
+    for (const opening of found)
+      expect(staffLocationOn(s, opening.staffId, opening.date)).toBe(islington)
+  })
+
+  it('splits figures and open time by location', () => {
+    const { s: start, islington } = twoSites()
+    const s = apply(start, facialOn(thursday))
+    const main = s.organisation.locationId
+    expect(availableMinutes(s, thursday, islington)).toBeGreaterThan(0)
+    expect(availableMinutes(s, thursday, islington) + availableMinutes(s, thursday, main)).toBe(
+      availableMinutes(s, thursday),
+    )
+    expect(atPlace(s, islington).appointments.every((a) => a.locationId === islington)).toBe(true)
+    expect(atPlace(s, main).appointments.some((a) => a.locationId === islington)).toBe(false)
+  })
+
+  it('records location changes in the schedule history', () => {
+    const { s, islington } = twoSites()
+    const history = operations(s).scheduleHistory ?? []
+    expect(
+      history.some((h) => h.kind === 'resource-moved' && h.summary.includes('Islington')),
+    ).toBe(true)
+    expect(
+      history.some(
+        (h) => h.kind === 'staff-hours' && h.summary.includes('Thursday at Islington, was'),
+      ),
+    ).toBe(true)
+    void islington
   })
 })

@@ -171,6 +171,7 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('purchase-order'),
     supplierId: id,
+    locationId: id.optional(),
     lines: orderLinesSchema,
     note: z.string().trim().max(300).optional(),
   }),
@@ -225,6 +226,17 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     reason: z.enum(['received', 'consumed', 'adjustment', 'retail']),
     note: z.string().trim().min(2).max(300),
     appointmentId: id.optional(),
+    /** V2: the location whose shelf this changes. Absent means the main location. */
+    locationId: id.optional(),
+  }),
+  // V2: stock taken from one location to another.
+  z.object({
+    type: z.literal('stock-move'),
+    productId: id,
+    from: id,
+    to: id,
+    quantity: z.number().int().min(1).max(100000),
+    note: z.string().trim().max(300).optional(),
   }),
   z.object({
     type: z.literal('client-edit'),
@@ -309,6 +321,8 @@ export const commandSchema = z.discriminatedUnion('type', [
     date: z.iso.date(),
     startMinutes: z.number().int().min(0).max(1439),
     staffId: id,
+    /** V2: move the visit to another location. Absent keeps it where it is. */
+    locationId: id.optional(),
   }),
   z.object({
     type: z.literal('cancel'),
@@ -346,6 +360,8 @@ export const commandSchema = z.discriminatedUnion('type', [
     clientId: id.optional(),
     /** V2: who made the sale, for their commission. */
     staffId: id.optional(),
+    /** V2: where it was sold. Absent means the main location. */
+    locationId: id.optional(),
     products: retailItemsSchema.refine((items) => items.length > 0, 'Add a product.'),
     method,
     reference: z.string().trim().max(150).optional(),

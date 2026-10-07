@@ -15,7 +15,7 @@ import { AddToCalendar } from '../components/AddToCalendar'
 import { visitUid } from '../domain/calendarFile'
 import { bookingChannel } from '../domain/bookingChannel'
 import { fullPriceMinor } from '../domain/priceSentence'
-import { places, staffPlaces } from '../domain/locations'
+import { offeredAt, places, pricesVary, serviceAt, staffPlaces } from '../domain/locations'
 import { LocationChoice } from '../components/LocationChoice'
 import { patchTestSettings } from '../domain/patchTests'
 
@@ -33,7 +33,11 @@ export function BrandedBooking() {
   const [start, setStart] = useState<number | null>(null)
   // V2: where the visit is, when the studio has more than one location.
   const locations = places(state)
-  const [locationId, setLocationId] = useState(locations[0].id)
+  const [locationId, setLocationId] = useState(
+    // V2: a location's own booking link opens with it chosen.
+    locations.find((l) => l.id === new URLSearchParams(window.location.search).get('location'))
+      ?.id ?? locations[0].id,
+  )
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -48,7 +52,11 @@ export function BrandedBooking() {
   const offered =
     locations.length < 2
       ? locations
-      : locations.filter((l) => qualified.some((p) => staffPlaces(state, p.id).includes(l.id)))
+      : locations.filter(
+          (l) =>
+            offeredAt(service, l.id) &&
+            qualified.some((p) => staffPlaces(state, p.id).includes(l.id)),
+        )
   const where = offered.find((l) => l.id === locationId) ?? offered[0] ?? locations[0]
   const professionals =
     locations.length < 2
@@ -96,6 +104,11 @@ export function BrandedBooking() {
   }, [step, confirmedId])
   const tax = operations(state).tax
   const fullPrice = (s: { priceMinor: number }) => fullPriceMinor(s, tax)
+  // V2: the treatment as priced where the guest is coming.
+  const booked = serviceAt(service, where.id)
+  /** The lowest price across locations, for a list that says "From". */
+  const lowest = (s: (typeof state.services)[number]) =>
+    Math.min(s.priceMinor, ...(s.locationPrices ?? []).map((r) => r.priceMinor))
   async function confirm() {
     if (start === null || !policy) {
       setError('Choose a time and acknowledge the demo booking policy.')
@@ -161,7 +174,7 @@ export function BrandedBooking() {
           </p>
           <div className="confirmation-details">
             <span>
-              Service total<strong>{money(fullPrice(service), state.organisation)}</strong>
+              Service total<strong>{money(fullPrice(booked), state.organisation)}</strong>
             </span>
             <span>
               Demo deposit<strong>{money(service.depositMinor, state.organisation)}</strong>
@@ -280,14 +293,17 @@ export function BrandedBooking() {
                           {s.durationMinutes} minutes
                         </span>
                         <PriceSentence
-                          service={s}
+                          service={{ ...s, priceMinor: lowest(s) }}
                           organisation={state.organisation}
                           tax={tax}
                           simulated
                         />
                       </div>
                       <span>
-                        <strong>{money(fullPrice(s), state.organisation)}</strong>
+                        <strong>
+                          {locations.length > 1 && pricesVary(s) ? 'From ' : ''}
+                          {money(fullPrice({ priceMinor: lowest(s) }), state.organisation)}
+                        </strong>
                         <span className="selection-circle">
                           {ready && serviceId === s.id && <Check size={14} />}
                         </span>
@@ -299,7 +315,7 @@ export function BrandedBooking() {
                       <div className="booking-next">
                         <span>
                           {service.name}
-                          <strong>{money(fullPrice(service), state.organisation)}</strong>
+                          <strong>{money(fullPrice(booked), state.organisation)}</strong>
                         </span>
                         <Button
                           onClick={() => {
@@ -517,7 +533,7 @@ export function BrandedBooking() {
                   </p>
                   <div className="receipt-line">
                     <span>Service total</span>
-                    <strong>{money(fullPrice(service), state.organisation)}</strong>
+                    <strong>{money(fullPrice(booked), state.organisation)}</strong>
                   </div>
                   <div className="receipt-line">
                     <span>Demo deposit today</span>
@@ -526,7 +542,7 @@ export function BrandedBooking() {
                   <div className="receipt-line subtle">
                     <span>Remaining at visit</span>
                     <span>
-                      {money(fullPrice(service) - service.depositMinor, state.organisation)}
+                      {money(fullPrice(booked) - service.depositMinor, state.organisation)}
                     </span>
                   </div>
                   <div className="detail-divider" />

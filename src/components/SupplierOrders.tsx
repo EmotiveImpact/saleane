@@ -8,6 +8,7 @@ import { dateLabel } from '../domain/format'
 import { orderText, suggestedOrders, suppliers } from '../domain/purchasing'
 import type { PurchaseOrder, Supplier } from '../domain/purchasingSchema'
 import { products } from '../domain/retail'
+import { hasLocations, placeOf, places } from '../domain/locations'
 import { Button, ErrorMessage, Modal } from '../design'
 
 /**
@@ -140,6 +141,9 @@ export function SupplierOrders() {
               <div className="ops-record-copy">
                 <strong>
                   {order.number} · {supplierName(order.supplierId)}
+                  {hasLocations(state)
+                    ? ` · to ${placeOf(state, order.locationId)?.name ?? ''}`
+                    : ''}
                 </strong>
                 <small>
                   {order.lines.map((l) => `${l.quantity} × ${productName(l.productId)}`).join(', ')}{' '}
@@ -283,6 +287,9 @@ function OrderDialog({
   const [supplierId, setSupplierId] = useState(initial.supplierId)
   const [lines, setLines] = useState<Line[]>(initial.lines)
   const [note, setNote] = useState('')
+  // V2: where the delivery goes, when the studio has more than one location.
+  const multiSite = hasLocations(state)
+  const [placeId, setPlaceId] = useState(state.organisation.locationId)
   const [placed, setPlaced] = useState(false)
   const stocked = products(state).filter((p) => !p.archived)
   const name = (id: string) => stocked.find((p) => p.id === id)?.name ?? 'Product'
@@ -310,6 +317,7 @@ function OrderDialog({
         supplierId,
         lines: chosen,
         ...(note.trim() ? { note: note.trim() } : {}),
+        ...(placeId !== state.organisation.locationId ? { locationId: placeId } : {}),
       })
     )
       onDone(`Order ${number} recorded as placed. Say when it arrives.`)
@@ -373,6 +381,18 @@ function OrderDialog({
               </select>
             </label>
           )}
+          {multiSite && (
+            <label className="ops-wide">
+              Deliver to
+              <select value={placeId} onChange={(e) => setPlaceId(e.target.value)}>
+                {places(state).map((place) => (
+                  <option key={place.id} value={place.id}>
+                    {place.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className="ops-wide">
             Note (optional)
             <input value={note} maxLength={300} onChange={(e) => setNote(e.target.value)} />
@@ -385,6 +405,7 @@ function OrderDialog({
               supplierId,
               lines: lines.filter((l) => l.quantity > 0),
               note: note.trim() || undefined,
+              locationId: placeId,
             })}
           </pre>
         )}

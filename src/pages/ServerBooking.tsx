@@ -15,6 +15,7 @@ import { PriceSentence } from '../components/PriceSentence'
 import { BeforeYouArrive } from '../components/BeforeYouArrive'
 import { AddToCalendar } from '../components/AddToCalendar'
 import { LocationChoice } from '../components/LocationChoice'
+import { offeredAt, pricesVary, serviceAt } from '../domain/locations'
 import type { LocationOption } from '../components/LocationChoice'
 import { visitUid } from '../domain/calendarFile'
 import { bookingChannel } from '../domain/bookingChannel'
@@ -135,12 +136,25 @@ function BookingFlow({
     [serviceId, setServiceId] = useState(recovery.value?.serviceId ?? services[0]?.id ?? ''),
     [staffId, setStaffId] = useState(recovery.value?.staffId ?? 'any'),
     [date, setDate] = useState(recovery.value?.date ?? addDays(today, 1)),
-    [chosenLocation, setLocationId] = useState(recovery.value?.locationId ?? locations[0]?.id ?? '')
+    [chosenLocation, setLocationId] = useState(
+      recovery.value?.locationId ??
+        // V2: a location's own booking link opens with it chosen.
+        locations.find((l) => l.id === new URLSearchParams(window.location.search).get('location'))
+          ?.id ??
+        locations[0]?.id ??
+        '',
+    )
   // Only places where someone does the chosen treatment are offered.
-  const offered = locations.filter((l) =>
-    staff.some(
-      (p) => p.serviceIds.includes(serviceId) && (!p.locationIds || p.locationIds.includes(l.id)),
-    ),
+  /** The lowest price across locations, for a list that says "From" (V2). */
+  const lowest = (s: Catalog['services'][number]) =>
+    Math.min(s.priceMinor, ...(s.locationPrices ?? []).map((r) => r.priceMinor))
+  const chosenService = services.find((s) => s.id === serviceId)
+  const offered = locations.filter(
+    (l) =>
+      (!chosenService || offeredAt(chosenService, l.id)) &&
+      staff.some(
+        (p) => p.serviceIds.includes(serviceId) && (!p.locationIds || p.locationIds.includes(l.id)),
+      ),
   )
   const locationId = offered.some((l) => l.id === chosenLocation)
     ? chosenLocation
@@ -479,13 +493,16 @@ function BookingFlow({
                             </p>
                           )}
                           <PriceSentence
-                            service={s}
+                            service={{ ...s, priceMinor: lowest(s) }}
                             organisation={org}
                             tax={tax}
                             simulated={sample}
                           />
                         </span>
-                        <strong>{money(fullPriceMinor(s, tax), org)}</strong>
+                        <strong>
+                          {locations.length > 1 && pricesVary(s) ? 'From ' : ''}
+                          {money(fullPriceMinor({ priceMinor: lowest(s) }, tax), org)}
+                        </strong>
                       </button>
                     )}
                     footer={
@@ -684,7 +701,9 @@ function BookingFlow({
                     </p>
                     <div className="receipt-line">
                       <span>Service total</span>
-                      <strong>{money(fullPriceMinor(service, tax), org)}</strong>
+                      <strong>
+                        {money(fullPriceMinor(serviceAt(service, place?.id), tax), org)}
+                      </strong>
                     </div>
                     <div className="receipt-line">
                       <span>{sample ? 'Simulated deposit' : 'Online payment'}</span>

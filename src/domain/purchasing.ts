@@ -1,5 +1,6 @@
 import type { BusinessState } from './model'
 import { operations } from './operations'
+import { hasLocations, placeField, placeOf } from './locations'
 import { ORDER_LIMIT, SUPPLIER_LIMIT } from './purchasingSchema'
 import type { PurchaseOrder } from './purchasingSchema'
 import { products, stockSummary } from './retail'
@@ -63,8 +64,10 @@ export function suggestedOrders(s: BusinessState) {
 /** Plain words to paste into an email or read out on the phone. */
 export function orderText(
   s: BusinessState,
-  order: Pick<PurchaseOrder, 'number' | 'supplierId' | 'lines' | 'note'>,
+  order: Pick<PurchaseOrder, 'number' | 'supplierId' | 'lines' | 'note' | 'locationId'>,
 ) {
+  // V2: with several locations the supplier needs to know where to deliver.
+  const site = hasLocations(s) || order.locationId ? placeOf(s, order.locationId) : undefined
   const supplier = suppliers(s).find((x) => x.id === order.supplierId)
   const name = (id: string) => products(s).find((p) => p.id === id)
   return [
@@ -75,6 +78,7 @@ export function orderText(
       const product = name(line.productId)
       return `${line.quantity} × ${product?.name ?? 'Product'}${product?.sku ? ` (${product.sku})` : ''}`
     }),
+    ...(site ? ['', `Please deliver to ${site.name}, ${site.address}`] : []),
     ...(order.note ? ['', order.note] : []),
   ]
     .filter((line, i, all) => line || (i > 0 && all[i - 1]))
@@ -108,7 +112,12 @@ export function saveSupplier(
 
 export function placeOrder(
   next: BusinessState,
-  command: { supplierId: string; lines: { productId: string; quantity: number }[]; note?: string },
+  command: {
+    supplierId: string
+    lines: { productId: string; quantity: number }[]
+    note?: string
+    locationId?: string
+  },
   now: string,
   makeId: () => string,
 ) {
@@ -118,6 +127,10 @@ export function placeOrder(
   for (const line of command.lines)
     if (!o.products.some((p) => p.id === line.productId && !p.archived))
       throw new Error('Choose products that are still stocked.')
+  if (command.locationId) {
+    const site = placeOf(next, command.locationId)
+    if (!site || site.archived) throw new Error('Choose an open location for the delivery.')
+  }
   o.purchaseOrders ??= []
   if (o.purchaseOrders.length >= ORDER_LIMIT) throw new Error('Too many orders to keep.')
   const order: PurchaseOrder = {
@@ -126,6 +139,7 @@ export function placeOrder(
     supplierId: command.supplierId,
     lines: command.lines,
     ...(command.note ? { note: command.note } : {}),
+    ...placeField(next, command.locationId),
     status: 'ordered',
     createdAt: now,
     actor: 'Local operator',
@@ -163,6 +177,7 @@ export function receiveOrder(
         createdAt: now,
         actor: 'Local operator',
         purchaseOrderId: order.id,
+        ...placeField(next, order.locationId),
       })
   order.status = 'received'
   order.received = command.received

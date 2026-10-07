@@ -3,7 +3,8 @@ import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { PackageOpen, Plus } from 'lucide-react'
 import { useStore } from '../state/context'
-import { can, operations } from '../domain/operations'
+import { can, operations, stock } from '../domain/operations'
+import { hasLocations, placeOf, places } from '../domain/locations'
 import type { Command } from '../domain/commands'
 import { dateLabel, money } from '../domain/format'
 import { minorInput, parseMinor } from '../domain/money'
@@ -23,7 +24,7 @@ import '../stock.css'
  * Owners and managers record deliveries and counts; everyone at the desk can see what is in stock.
  */
 type Filter = 'all' | 'sale' | 'treatments' | 'low'
-type MovementKind = 'received' | 'consumed' | 'count'
+type MovementKind = 'received' | 'consumed' | 'count' | 'move'
 type ProductForm = {
   name: string
   sku: string
@@ -48,6 +49,11 @@ const MOVEMENT_COPY: Record<MovementKind, { title: string; field: string; note: 
     field: 'How many are on the shelf now',
     note: 'Shelf count',
   },
+  move: {
+    title: 'Move to another location',
+    field: 'How many to move',
+    note: '',
+  },
 }
 const REASON_LABEL = {
   received: 'Delivery',
@@ -55,6 +61,7 @@ const REASON_LABEL = {
   retail: 'Sold',
   adjustment: 'Count corrected',
   returned: 'Brought back',
+  moved: 'Moved',
 } as const
 
 function useRun() {
@@ -87,15 +94,25 @@ export function Stock() {
   const [moving, setMoving] = useState<{ product: Product; kind: MovementKind } | null>(null)
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
+  // V2: with several locations, the shelf is shown for one location or all of them together.
+  const multiSite = hasLocations(state)
+  const sites = places(state)
+  const [where, setWhere] = useState('all')
+  const place = multiSite && where !== 'all' ? where : undefined
+  const [at, setAt] = useState(org.locationId)
+  const [to, setTo] = useState('')
   const { run, pending, error, setError } = useRun()
   const canStock = !blocked && can(role, 'stock')
   const canEdit = !blocked && can(role, 'product')
   // Costs and stock value are for owners and managers, like the rest of the business figures.
   const seesCost = can(role, 'product')
-  const rows = stockSummary(state)
+  const rows = stockSummary(state, place)
+  /** "Marylebone 3 · Islington 2", for the all-locations view. */
+  const split = (productId: string) =>
+    sites.map((site) => `${site.name} ${stock(state, productId, site.id)}`).join(' · ')
   const active = rows.filter((row) => !row.product.archived)
   const low = active.filter((row) => row.low)
-  const sold = report(state, 30)
+  const sold = report(state, 30, place)
   const value = active.reduce((sum, row) => sum + Math.max(0, row.valueMinor ?? 0), 0)
   const shown = rows
     .filter((row) =>
@@ -187,6 +204,9 @@ export function Stock() {
       setEditing(null)
   }
   function openMovement(product: Product, kind: MovementKind) {
+    const from = place ?? org.locationId
+    setAt(from)
+    setTo(sites.find((site) => site.id !== from)?.id ?? '')
     setMoving({ product, kind })
     setAmount('')
     setNote(MOVEMENT_COPY[kind].note)
@@ -200,7 +220,25 @@ export function Stock() {
       setError('Enter a whole number.')
       return
     }
-    const onHand = rows.find((r) => r.product.id === moving.product.id)?.onHand ?? 0
+    if (moving.kind === 'move') {
+      if (count < 1) {
+        setError('Enter a number above zero.')
+        return
+      }
+      if (
+        await run({
+          type: 'stock-move',
+          productId: moving.product.id,
+          from: at,
+          to,
+          quantity: count,
+          ...(note.trim() ? { note: note.trim() } : {}),
+        })
+      )
+        setMoving(null)
+      return
+    }
+    const onHand = stock(state, moving.product.id, at)
     const quantity =
       moving.kind === 'received' ? count : moving.kind === 'consumed' ? -count : count - onHand
     if (quantity === 0) {
@@ -218,13 +256,15 @@ export function Stock() {
         quantity,
         reason: moving.kind === 'count' ? 'adjustment' : moving.kind,
         note: note.trim(),
+        ...(at !== org.locationId ? { locationId: at } : {}),
       })
     )
       setMoving(null)
   }
 
   const form = editing?.form
-  const onHandNow = moving ? (rows.find((r) => r.product.id === moving.product.id)?.onHand ?? 0) : 0
+  const onHandNow = moving ? stock(state, moving.product.id, at) : 0
+  const placeName = (id?: string) => placeOf(state, id)?.name ?? ''
   return (
     <div className="stock-page">
       <PageHeader
@@ -284,6 +324,19 @@ export function Stock() {
           </div>
           <PackageOpen size={21} aria-hidden="true" />
         </header>
+        {multiSite && (
+          <label className="stock-where">
+            Location
+            <select value={where} onChange={(e) => setWhere(e.target.value)}>
+              <option value="all">All locations</option>
+              {sites.map((site) => (
+                <option key={site.id} value={site.id}>
+                  {site.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <SegmentedControl
           label="Show"
           className="ops-switch"
@@ -311,6 +364,7 @@ export function Stock() {
                     {seesCost && valueMinor !== undefined
                       ? ` · ${money(valueMinor, org, true)} at cost`
                       : ''}
+                    {multiSite && !place ? ` · ${split(product.id)}` : ''}
                   </small>
                 </div>
                 {product.archived ? (
@@ -318,9 +372,12 @@ export function Stock() {
                 ) : (
                   isLow && <span className="ops-tag stock-low">Running low</span>
                 )}
-                <span className="stock-count" aria-label={`${onHand} in stock`}>
+                <span
+                  className="stock-count"
+                  aria-label={`${onHand} in stock${place ? ` at ${placeName(place)}` : ''}`}
+                >
                   {onHand}
-                  <small>in stock</small>
+                  <small>{place ? `at ${placeName(place)}` : 'in stock'}</small>
                 </span>
                 {(canStock || canEdit) && (
                   <div className="stock-actions">
@@ -338,6 +395,15 @@ export function Stock() {
                         <Button variant="quiet" onClick={() => openMovement(product, 'count')}>
                           Count
                         </Button>
+                        {multiSite && (
+                          <Button
+                            variant="quiet"
+                            aria-label={`Move ${product.name} to another location`}
+                            onClick={() => openMovement(product, 'move')}
+                          >
+                            Move
+                          </Button>
+                        )}
                       </>
                     )}
                     {canEdit && (
@@ -381,6 +447,7 @@ export function Stock() {
                   </strong>
                   <small>
                     {dateLabel(movement.createdAt.slice(0, 10), org.locale)} · {movement.actor}
+                    {multiSite ? ` · ${placeName(movement.locationId)}` : ''}
                     {movement.note ? ` · ${movement.note}` : ''}
                     {movement.appointmentId &&
                     state.appointments.some((a) => a.id === movement.appointmentId) ? (
@@ -534,10 +601,43 @@ export function Stock() {
             if (!pending) setMoving(null)
           }}
           title={MOVEMENT_COPY[moving.kind].title}
-          description={`${moving.product.name}. ${onHandNow} in stock now.`}
+          description={`${moving.product.name}. ${onHandNow} in stock${multiSite ? ` at ${placeName(at)}` : ''} now.`}
         >
           <form onSubmit={saveMovement} className="plan-form">
             <div className="ops-fields">
+              {multiSite && (
+                <label>
+                  {moving.kind === 'move' ? 'From' : 'Location'}
+                  <select
+                    value={at}
+                    onChange={(e) => {
+                      setAt(e.target.value)
+                      if (e.target.value === to)
+                        setTo(sites.find((site) => site.id !== e.target.value)?.id ?? '')
+                    }}
+                  >
+                    {sites.map((site) => (
+                      <option key={site.id} value={site.id}>
+                        {site.name} ({stock(state, moving.product.id, site.id)})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {moving.kind === 'move' && (
+                <label>
+                  To
+                  <select value={to} onChange={(e) => setTo(e.target.value)}>
+                    {sites
+                      .filter((site) => site.id !== at)
+                      .map((site) => (
+                        <option key={site.id} value={site.id}>
+                          {site.name}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              )}
               <label>
                 {MOVEMENT_COPY[moving.kind].field}
                 <input
@@ -554,9 +654,10 @@ export function Stock() {
                 Note
                 <input
                   value={note}
-                  required
-                  minLength={2}
+                  required={moving.kind !== 'move'}
+                  minLength={moving.kind === 'move' ? undefined : 2}
                   maxLength={300}
+                  placeholder={moving.kind === 'move' ? 'Optional' : undefined}
                   onChange={(e) => setNote(e.target.value)}
                 />
               </label>

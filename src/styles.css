@@ -4431,3 +4431,8 @@ fieldset {
     margin-bottom: var(--space-4);
   }
 }
+
+/* V2: figures for one location. */
+.business-where select {
+  min-width: min(13rem, 100%);
+}

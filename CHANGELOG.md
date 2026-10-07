@@ -11,6 +11,12 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - When a studio has more than one location, guests choose where they would like to come first, on both the live booking page and the demo one. Only places where someone does the chosen treatment are offered, and only the people who work there that day are shown. Reminders, the guest's own visit page, the day sheet and the practitioner's day name the visit's location and address.
 - The calendar has an "All locations" filter, booking from the desk or through Ask Saleane only offers times at the place the person is working that day, and Today shows where each person is.
 - Changing hours, rooms or someone's location is checked against booked visits first: a visit that would end up at a closed location, in a room at another location, or with someone working elsewhere is listed and the change is refused.
+- A visit can move to another location. It keeps its booked price, and the timeline says where it moved from and to.
+- Stock is kept per location. Stock can be filtered by location, stock can be moved between locations, and deliveries, counts, walk-in sales and supplier orders each say where. Products sold with a visit come off that location's shelf, and the ledger checks every move balances.
+- A treatment can cost more or less at another location, or be left off a location's menu. Guests see the price where they are coming, and a list where prices differ says "From".
+- Business figures, including time booked, can be filtered by location.
+- Each location has its own booking link that opens with it chosen.
+- A waitlist request can be for one location, and the schedule history records rooms and people moving between locations.
 - A studio with one location works exactly as before.
 
 ## 2026-10-07 · V3 · Smart insights, first pass

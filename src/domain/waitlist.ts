@@ -5,6 +5,7 @@ import { addDays, dateLabel, timeLabel } from './format'
 import { businessDate, hoursFor, operations, staffHoursFor } from './operations'
 import { WAITLIST_MAX_DAYS, WAITLIST_MAX_OFFERS } from './waitlistSchema'
 import type { WaitlistEntry, WaitlistInput, WaitlistTime } from './waitlistSchema'
+import { placeOf, staffLocationOn } from './locations'
 
 /**
  * V1.5: the waitlist, the first half of "from cancellation to filled slot". Openings are read live
@@ -60,10 +61,14 @@ export const waiting = (s: BusinessState, now = new Date().toISOString()) =>
  */
 export function serviceLabel(s: BusinessState, entry: WaitlistEntry) {
   const booked = s.appointments.find((a) => a.id === entry.appointmentId)
+  // V2: a request for one location says which, as "Skin Renewal Facial at Islington".
+  const where = entry.locationId
+    ? ` at ${placeOf(s, entry.locationId)?.name ?? 'another location'}`
+    : ''
   return (
-    booked?.bookedServiceName ??
-    s.services.find((item) => item.id === entry.serviceId)?.name ??
-    'Service'
+    (booked?.bookedServiceName ??
+      s.services.find((item) => item.id === entry.serviceId)?.name ??
+      'Service') + where
   )
 }
 
@@ -126,6 +131,9 @@ function free(
         service.resourceType,
         undefined,
         now,
+        undefined,
+        undefined,
+        entry.locationId,
       )
     : null
 }
@@ -152,15 +160,24 @@ export function openings(s: BusinessState, entry: WaitlistEntry, now: string, li
     if (date > last) break
     // Only the hours someone on the team is working that day are tried, so a full diary over a long
     // window costs a few thousand checks rather than every quarter hour of every day.
-    const studio = hoursFor(s, date)
-    if (!studio || studio.closed) continue
+    // V2: each person works at one location a day; a request for one location only looks there.
     const working = team
-      .map((p) => ({ p, h: staffHoursFor(s, p.id, date) }))
-      .filter(({ h }) => h && !h.closed)
-      .map(({ p, h }) => ({
+      .map((p) => {
+        const place = staffLocationOn(s, p.id, date)
+        return { p, place, h: staffHoursFor(s, p.id, date), studio: hoursFor(s, date, place) }
+      })
+      .filter(
+        ({ h, studio, place }) =>
+          h &&
+          !h.closed &&
+          studio &&
+          !studio.closed &&
+          (!entry.locationId || entry.locationId === place),
+      )
+      .map(({ p, h, studio }) => ({
         p,
-        open: Math.max(studio.open, h.open),
-        close: Math.min(studio.close, h.close),
+        open: Math.max(studio!.open, h.open),
+        close: Math.min(studio!.close, h.close),
       }))
       .filter((w) => w.open < w.close)
     if (!working.length) continue
@@ -201,6 +218,10 @@ function checkInput(s: BusinessState, input: WaitlistInput, now: string) {
     const person = s.staff.find((p) => p.id === input.staffId)
     if (!person || person.archived || !person.serviceIds.includes(service.id))
       throw new Error('Choose someone who offers this service, or anyone.')
+  }
+  if (input.locationId) {
+    const site = placeOf(s, input.locationId)
+    if (!site || site.archived) throw new Error('Choose one of your open locations, or any.')
   }
   const today = businessDate(s, now)
   if (input.fromDate < today) throw new Error('The window cannot start in the past.')

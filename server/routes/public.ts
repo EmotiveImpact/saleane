@@ -9,7 +9,7 @@ import { HOLD_LIMITS, holdInput, guestContact } from '../context'
 import type { Context, Route, HoldAllocation, HoldRow } from '../context'
 import { issueGuestLink } from './guest'
 import { bookingChannel } from '../../src/domain/bookingChannel'
-import { places, staffPlaces } from '../../src/domain/locations'
+import { places, serviceAt, staffLocationOn, staffPlaces } from '../../src/domain/locations'
 
 /** Public booking routes. These never return clients, histories or money. Returns false when the request belongs to another module. */
 export async function publicRoutes(ctx: Context, route: Route): Promise<boolean> {
@@ -155,12 +155,14 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
         const blocked = withHolds(org),
           allocation = chooseStaff(blocked, data)
         const service = org.state.services.find((service) => service.id === data.serviceId)!
+        // V2: the price where the visit will be, which can differ between locations.
+        const place = data.locationId ?? staffLocationOn(org.state, allocation.staffId, data.date)
         const input: HoldAllocation = {
           ...data,
           ...allocation,
           duration: service.durationMinutes,
           buffer: service.bufferMinutes,
-          price: service.priceMinor,
+          price: serviceAt(service, place).priceMinor,
           deposit: service.depositMinor,
           resourceType: service.resourceType,
           tax: operations(org.state).tax ?? null,
@@ -218,7 +220,11 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
           !service ||
           service.durationMinutes !== allocation.duration ||
           service.bufferMinutes !== allocation.buffer ||
-          service.priceMinor !== allocation.price ||
+          serviceAt(
+            service,
+            allocation.locationId ??
+              staffLocationOn(org.state, allocation.staffId, allocation.date),
+          ).priceMinor !== allocation.price ||
           service.depositMinor !== allocation.deposit ||
           service.resourceType !== allocation.resourceType ||
           (allocation.tax !== undefined &&

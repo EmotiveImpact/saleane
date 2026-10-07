@@ -223,6 +223,17 @@ function weekDifference(before: WeeklyHours, after: WeeklyHours, locale: string)
     })
     .filter(Boolean)
 }
+/** Days a person's location changed (V2), as "Thursday at Islington, was Marylebone". */
+function placeDifference(s: BusinessState, before: WeeklyHours, after: WeeklyHours) {
+  const main = s.organisation.locationId
+  return weekOrder
+    .map((day) => {
+      const a = before.find((h) => h.day === day)?.locationId ?? main,
+        b = after.find((h) => h.day === day)?.locationId ?? main
+      return a === b ? '' : `${weekdays[day]} at ${placeOf(s, b)?.name}, was ${placeOf(s, a)?.name}`
+    })
+    .filter(Boolean)
+}
 function closureText(s: BusinessState, c: Closure) {
   const locale = s.organisation.locale
   const who = c.staffId
@@ -288,7 +299,10 @@ export function scheduleChanges(
       next = after.staff.find((p) => p.id === subjectId)
     if (!old || !next) return []
     if (JSON.stringify(old.hours ?? null) !== JSON.stringify(next.hours ?? null)) {
-      const changed = weekDifference(old.hours ?? was.hours, next.hours ?? now.hours, locale)
+      const changed = [
+        ...weekDifference(old.hours ?? was.hours, next.hours ?? now.hours, locale),
+        ...placeDifference(after, old.hours ?? was.hours, next.hours ?? now.hours),
+      ]
       const basis = !next.hours
         ? ' They now follow the venue opening hours.'
         : !old.hours
@@ -316,6 +330,15 @@ export function scheduleChanges(
   if (command.type === 'resource') {
     const old = before.resources.find((r) => r.id === subjectId),
       next = after.resources.find((r) => r.id === subjectId)
+    const main = after.organisation.locationId
+    if (old && next && (old.locationId ?? main) !== (next.locationId ?? main))
+      entries.push({
+        kind: 'resource-moved',
+        subjectId,
+        summary: `${next.name} moved from ${placeOf(after, old.locationId)?.name} to ${placeOf(after, next.locationId)?.name}.`,
+        before: { locationId: old.locationId ?? main },
+        after: { locationId: next.locationId ?? main },
+      })
     if (old && next && !!old.archived !== !!next.archived)
       entries.push({
         kind: next.archived ? 'resource-archived' : 'resource-restored',

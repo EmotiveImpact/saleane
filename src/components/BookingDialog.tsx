@@ -1,5 +1,5 @@
 import { useId, useState } from 'react'
-import { hasLocations, placeOf, staffLocationOn } from '../domain/locations'
+import { hasLocations, placeOf, serviceAt, staffLocationOn } from '../domain/locations'
 import { Check, CalendarDays, Search } from 'lucide-react'
 import { useStore } from '../state/context'
 import { operations, can } from '../domain/operations'
@@ -317,7 +317,13 @@ export function BookingDialog({
           </div>
           <div className="receipt-line">
             <span>Service total</span>
-            <strong>{money(service.priceMinor, state.organisation)}</strong>
+            <strong>
+              {money(
+                serviceAt(service, staffId ? staffLocationOn(state, staffId, date) : undefined)
+                  .priceMinor,
+                state.organisation,
+              )}
+            </strong>
           </div>
           <div className="receipt-line subtle">
             <span>{sandbox ? 'Simulated deposit' : 'Deposit requested'}</span>

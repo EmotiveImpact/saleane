@@ -3,6 +3,7 @@ import type { BusinessState, Client } from './model'
 import { addDays } from './format'
 import { retailByProduct, retailRevenue } from './retail'
 import { recordDay } from './tillCount'
+import { atPlace, staffLocationOn } from './locations'
 
 export function dayAppointments(s: BusinessState, date = businessDate(s)) {
   return s.appointments
@@ -31,7 +32,9 @@ export function dueClients(s: BusinessState): Client[] {
     )
   })
 }
-export function report(s: BusinessState, days: number) {
+/** Figures for the last `days` days, for the whole studio or one location (V2). */
+export function report(whole: BusinessState, days: number, locationId?: string) {
+  const s = locationId ? atPlace(whole, locationId) : whole
   const from = addDays(businessDate(s), 1 - days)
   const appointments = s.appointments.filter(
     (a) =>
@@ -86,7 +89,10 @@ export function report(s: BusinessState, days: number) {
     visits: completed.filter((a) => a.staffId === staff.id).length,
     rebooked: completed.filter((a) => a.staffId === staff.id && wasRebooked(a)).length,
   }))
-  const capacity = byDay.reduce((sum, day) => sum + availableMinutes(s, day.date), 0)
+  const capacity = byDay.reduce(
+    (sum, day) => sum + availableMinutes(whole, day.date, locationId),
+    0,
+  )
   return {
     from,
     revenue,
@@ -115,17 +121,25 @@ export function serviceRevenue(sale: BusinessState['sales'][number]) {
   )
 }
 /** Share of open professional time taken by booked service minutes on one day. */
-export function bookedTimeShare(s: BusinessState, date: string) {
-  const capacity = availableMinutes(s, date)
-  const minutes = dayAppointments(s, date).reduce((sum, a) => sum + a.bookedDurationMinutes, 0)
+export function bookedTimeShare(s: BusinessState, date: string, locationId?: string) {
+  const capacity = availableMinutes(s, date, locationId)
+  const minutes = dayAppointments(s, date)
+    .filter((a) => !locationId || a.locationId === locationId)
+    .reduce((sum, a) => sum + a.bookedDurationMinutes, 0)
   return capacity ? minutes / capacity : 0
 }
-export function availableMinutes(s: BusinessState, date: string) {
-  const h = hoursFor(s, date)
-  if (!h || h.closed) return 0
+/**
+ * Open professional minutes on a day. With a location (V2), only the people working there that
+ * day, within its hours; otherwise everyone, each within the hours of where they work.
+ */
+export function availableMinutes(s: BusinessState, date: string, locationId?: string) {
   return s.staff
     .filter((person) => !person.archived)
     .reduce((sum, person) => {
+      const place = staffLocationOn(s, person.id, date)
+      if (locationId && place !== locationId) return sum
+      const h = hoursFor(s, date, place)
+      if (!h || h.closed) return sum
       const ph = staffHoursFor(s, person.id, date)
       const start = Math.max(h.open, ph.open),
         end = Math.min(h.close, ph.close)

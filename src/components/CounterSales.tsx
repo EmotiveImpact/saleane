@@ -7,6 +7,7 @@ import type { Command } from '../domain/commands'
 import { dateLabel, money } from '../domain/format'
 import { minorInput, parseMinor } from '../domain/money'
 import { priceRetail, retailCharge, returnable } from '../domain/retail'
+import { hasLocations, placeOf, places } from '../domain/locations'
 import type { CounterSale, RetailItems } from '../domain/retailSchema'
 import { Button, ErrorMessage, Modal } from '../design'
 import { CheckoutProducts } from './CheckoutProducts'
@@ -95,6 +96,7 @@ export function CounterSales() {
                     {METHOD_LABEL[sale.method]}
                     {clientName(sale.clientId) ? ` · ${clientName(sale.clientId)}` : ''}
                     {staffName(sale.staffId) ? ` · sold by ${staffName(sale.staffId)}` : ''}
+                    {hasLocations(state) ? ` · ${placeOf(state, sale.locationId)?.name ?? ''}` : ''}
                     {back ? ` · ${money(back, org, true)} given back` : ''}
                   </small>
                 </div>
@@ -177,13 +179,16 @@ function SellDialog({
   const [items, setItems] = useState<RetailItems>([])
   const [clientId, setClientId] = useState('')
   const [staffId, setStaffId] = useState('')
+  // V2: which location's shelf the products come off.
+  const multiSite = hasLocations(state)
+  const [placeId, setPlaceId] = useState(org.locationId)
   const [method, setMethod] = useState<Method>(sandbox ? 'demo_cash' : 'cash')
   const [reference, setReference] = useState('')
   const [collected, setCollected] = useState(false)
   let retail: ReturnType<typeof priceRetail>
   let problem = ''
   try {
-    retail = priceRetail(state, items)
+    retail = priceRetail(state, items, placeId)
   } catch (caught) {
     problem = caught instanceof Error ? caught.message : 'Check the products.'
   }
@@ -204,6 +209,7 @@ function SellDialog({
         type: 'counter-sale',
         ...(clientId ? { clientId } : {}),
         ...(staffId ? { staffId } : {}),
+        ...(placeId !== org.locationId ? { locationId: placeId } : {}),
         products: items,
         method,
         ...(reference.trim() ? { reference: reference.trim() } : {}),
@@ -236,6 +242,18 @@ function SellDialog({
                 ))}
             </select>
           </label>
+          {multiSite && (
+            <label>
+              Location
+              <select value={placeId} onChange={(e) => setPlaceId(e.target.value)}>
+                {places(state).map((place) => (
+                  <option key={place.id} value={place.id}>
+                    {place.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label>
             Sold by
             <select value={staffId} onChange={(e) => setStaffId(e.target.value)}>

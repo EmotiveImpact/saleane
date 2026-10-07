@@ -5,6 +5,7 @@ import { useStore } from '../state/context'
 import { GuestLinkPanel } from './GuestLinkPanel'
 import { can, operations, visitTax } from '../domain/operations'
 import type { Command } from '../domain/commands'
+import { hasLocations, places, staffLocationOn } from '../domain/locations'
 import { depositPaid, rescheduleSlots } from '../domain/commands'
 import { addDays, dateLabel, fullDateLabel, money, timeLabel } from '../domain/format'
 import { checkoutTotals, minorInput, parseMinor } from '../domain/money'
@@ -63,6 +64,9 @@ export function AppointmentDialog({
   )
   const [date, setDate] = useState(proposal?.date ?? appointment?.date ?? today)
   const [staffId, setStaffId] = useState(proposal?.staffId ?? appointment?.staffId ?? '')
+  // V2: a visit can move to another location when the studio has more than one.
+  const [placeId, setPlaceId] = useState(appointment?.locationId ?? '')
+  const multiSite = hasLocations(state)
   const [start, setStart] = useState<number | null>(
     proposal?.startMinutes ?? appointment?.startMinutes ?? null,
   )
@@ -124,7 +128,7 @@ export function AppointmentDialog({
   let retail: ReturnType<typeof priceRetail>
   let retailError = ''
   try {
-    retail = priceRetail(state, items)
+    retail = priceRetail(state, items, appointment.locationId)
   } catch (problem) {
     retailError = problem instanceof Error ? problem.message : 'Check the products.'
   }
@@ -163,7 +167,8 @@ export function AppointmentDialog({
   }
   const needsConfirm = !sandbox && total > 0
   const tipPreset = (percent: number) => Math.round((appointment.bookedPriceMinor * percent) / 100)
-  const available = mode === 'move' ? rescheduleSlots(state, appointmentId, staffId, date) : []
+  const available =
+    mode === 'move' ? rescheduleSlots(state, appointmentId, staffId, date, undefined, placeId) : []
   // Keep the existing booked allocation available for an unchanged visit.
   if (
     mode === 'move' &&
@@ -251,7 +256,17 @@ export function AppointmentDialog({
       setError('Choose an available time.')
       return
     }
-    if (!(await run({ type: 'reschedule', appointmentId, date, staffId, startMinutes: start })))
+    const elsewhere = placeId && placeId !== appointment!.locationId ? { locationId: placeId } : {}
+    if (
+      !(await run({
+        type: 'reschedule',
+        appointmentId,
+        date,
+        staffId,
+        startMinutes: start,
+        ...elsewhere,
+      }))
+    )
       return
     setMode('details')
     setNotice('Appointment saved. Booked service and deposit history retained. No message sent.')
@@ -425,6 +440,26 @@ export function AppointmentDialog({
                 }}
               />
             </label>
+            {multiSite && (
+              <label>
+                Location
+                <select
+                  value={placeId}
+                  disabled={busy}
+                  onChange={(e) => {
+                    setPlaceId(e.target.value)
+                    setStart(null)
+                    setError('')
+                  }}
+                >
+                  {places(state).map((place) => (
+                    <option key={place.id} value={place.id}>
+                      {place.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <label>
               Professional
               <select
@@ -437,7 +472,14 @@ export function AppointmentDialog({
                 }}
               >
                 {state.staff
-                  .filter((person) => !person.archived && person.serviceIds.includes(service.id))
+                  .filter(
+                    (person) =>
+                      !person.archived &&
+                      person.serviceIds.includes(service.id) &&
+                      (!multiSite ||
+                        person.id === staffId ||
+                        staffLocationOn(state, person.id, date) === placeId),
+                  )
                   .map((person) => (
                     <option key={person.id} value={person.id}>
                       {person.name}

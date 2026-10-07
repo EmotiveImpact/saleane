@@ -61,6 +61,8 @@ const scheduleValueSchema = z.union([
   weeklyHoursSchema,
   closureInputSchema.and(z.object({ id })),
   z.object({ archived: z.boolean() }),
+  /** V2: where a room is. */
+  z.object({ locationId: id }),
 ])
 /**
  * LOCAL-04: who changed the schedule, when, and what it was before and after. Optional so older
@@ -79,6 +81,7 @@ export const scheduleChangeSchema = z.object({
     'staff-restored',
     'resource-archived',
     'resource-restored',
+    'resource-moved',
   ]),
   /** The professional, room or closure the change was about; absent for venue hours. */
   subjectId: id.optional(),
@@ -234,8 +237,11 @@ export const operationsSchema = z.object({
       id,
       productId: id,
       quantity: z.number().int().min(-100000).max(100000),
-      /** `returned` puts a product a guest brought back on the shelf, with its refund (V2). */
-      reason: z.enum(['received', 'consumed', 'adjustment', 'retail', 'returned']),
+      /**
+       * `returned` puts a product a guest brought back on the shelf, with its refund (V2). `moved`
+       * takes stock from one location to another, as a pair sharing a `transferId`.
+       */
+      reason: z.enum(['received', 'consumed', 'adjustment', 'retail', 'returned', 'moved']),
       note: z.string().max(300),
       createdAt: z.iso.datetime(),
       actor: z.string(),
@@ -248,6 +254,10 @@ export const operationsSchema = z.object({
       refundId: id.optional(),
       /** V2: the supplier order a delivery arrived on. */
       purchaseOrderId: id.optional(),
+      /** V2: where the stock is. Absent means the main location. */
+      locationId: id.optional(),
+      /** V2: the two halves of moving stock between locations. */
+      transferId: id.optional(),
     }),
   ),
   messages: z.array(
@@ -417,9 +427,14 @@ export function staffHoursFor(s: BusinessState, staffId: string, date: string) {
   const usual = usualHoursFor(s, staffId, date)
   return timeOffOn(s, staffId, date) ? { ...usual, closed: true } : usual
 }
-export function stock(s: BusinessState, productId: string) {
+/** What is on the shelf: at one location when given (V2), otherwise across the studio. */
+export function stock(s: BusinessState, productId: string, locationId?: string) {
   return operations(s)
-    .movements.filter((m) => m.productId === productId)
+    .movements.filter(
+      (m) =>
+        m.productId === productId &&
+        (!locationId || (m.locationId ?? s.organisation.locationId) === locationId),
+    )
     .reduce((sum, m) => sum + m.quantity, 0)
 }
 export function permissionFor(command: { type: string }) {
@@ -431,6 +446,7 @@ export function permissionFor(command: { type: string }) {
     )
   )
     return 'hours'
+  if (command.type === 'stock-move') return 'stock'
   if (command.type === 'message-queue') return 'message.queue'
   if (command.type === 'special-plan' || command.type === 'special-stop') return 'special'
   if (command.type === 'task-add' || command.type === 'task-done') return 'task'

@@ -35,6 +35,8 @@ export const purchaseOrderSchema = z.object({
   supplierId: id,
   lines: orderLinesSchema,
   note: z.string().max(300).optional(),
+  /** V2: where the delivery goes. Absent means the main location. */
+  locationId: id.optional(),
   status: z.enum(['ordered', 'received', 'cancelled']),
   createdAt: z.iso.datetime(),
   actor: z.string(),

@@ -2,7 +2,7 @@ import { z } from 'zod'
 import type { BusinessState } from './model'
 import { businessDate, hoursFor, instantFor, operations, staffHoursFor } from './operations'
 import { addDays } from './format'
-import { placeOf, resourceLocation, staffLocationOn } from './locations'
+import { offeredAt, placeOf, resourceLocation, staffLocationOn } from './locations'
 
 const civilDate = z.iso.date()
 
@@ -31,6 +31,14 @@ export function availableAllocation(
   const place = locationId ?? staffLocationOn(s, staffId, date)
   const site = placeOf(s, place)
   if (!site || (site.archived && !excludeId)) return null
+  // A treatment can be left off a location's menu; visits already booked there keep their place.
+  const service = s.services.find((item) => item.id === serviceId)
+  if (
+    service &&
+    !offeredAt(service, place) &&
+    s.appointments.find((a) => a.id === excludeId)?.locationId !== place
+  )
+    return null
   const staff = s.staff.find((item) => item.id === staffId)
   if (
     !staff ||
