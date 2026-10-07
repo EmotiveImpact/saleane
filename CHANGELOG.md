@@ -2,6 +2,15 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · V2 · Walk-in product sales and returns
+
+**Status: built locally on 7 October 2026, in review; nothing deployed and no money moved.**
+
+- Stock has a "Sold without a visit" section for someone who pops in for a product. The desk picks products and how many, can link a client, and records how it was paid: cash or the studio's own card terminal (a reference is required for the terminal). SALEANE records the sale and does not take the money. Each sale gets its own receipt number (SC-1, SC-2 and so on) and takes the products out of stock on that receipt.
+- Owners and managers can give money back on a walk-in sale and say how many of each product went back on the shelf. A refund on a visit receipt with products can now put them back too. Stock shows these as "Brought back" against the refund.
+- Money lists walk-in sales among the day's receipts, the till count includes their cash, Business counts them in products sold and tax, and the client's data export lists products bought without a visit.
+- The ledger checks that every walk-in sale matches the stock that left, that no more comes back than was sold, and that refunds never exceed what was paid.
+
 ## 2026-10-07 · V2 · Stock and products at the till
 
 **Status: built locally on 7 October 2026, in review; nothing deployed and no card charged outside test mode.**

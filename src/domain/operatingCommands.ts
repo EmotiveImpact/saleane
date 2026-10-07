@@ -1,6 +1,7 @@
 import type { BusinessState, RelationshipEvent } from './model'
 import type { OperatingCommand } from './commandSchema'
 import { SCHEDULE_HISTORY_LIMIT, operations, stock } from './operations'
+import { restockReturn } from './retail'
 import { assertSchedulePreserved, scheduleChanges, scheduleSnapshot } from './schedule'
 
 export function assertMethod(
@@ -310,6 +311,54 @@ export function runOperatingCommand(
   } else if (command.type === 'protection') {
     o.protection = { ...command.settings }
     recordId = next.organisation.id
+  } else if (command.type === 'refund' && command.counterSaleId) {
+    // V2: money back for products sold without a visit, with any products put back on the shelf.
+    if (command.saleId || command.paymentId) throw new Error('Choose one receipt to refund.')
+    const sale = (next.counterSales ?? []).find((x) => x.id === command.counterSaleId)
+    if (!sale) throw new Error('Receipt does not belong to this workspace.')
+    const existing = o.refunds.find(
+      (r) => r.counterSaleId === sale.id && r.reference === command.reference,
+    )
+    if (existing) {
+      if (existing.amountMinor !== command.amountMinor)
+        throw new Error('This reference already records a different refund.')
+      return existing.id
+    }
+    if (o.refunds.some((r) => r.reference === command.reference))
+      throw new Error('This refund reference already belongs to another receipt.')
+    if (
+      o.refunds
+        .filter((r) => r.counterSaleId === sale.id)
+        .reduce((sum, r) => sum + r.amountMinor, 0) +
+        command.amountMinor >
+      sale.totalMinor
+    )
+      throw new Error('This refund would exceed the remaining receipt total.')
+    if (command.processor || command.method === 'card')
+      throw new Error('Return walk-in sales in cash or on your own card terminal.')
+    const method = command.method ?? sale.method
+    assertMethod(next, method, command.reference)
+    const refund = {
+      id: makeId(),
+      counterSaleId: sale.id,
+      amountMinor: command.amountMinor,
+      reason: command.reason,
+      reference: command.reference,
+      method,
+      createdAt: now,
+      actor: 'Local operator',
+    }
+    o.refunds.push(refund)
+    if (command.restock?.length)
+      restockReturn(next, sale.id, refund.id, command.restock, now, makeId)
+    recordId = refund.id
+    if (sale.clientId)
+      addEvent({
+        clientId: sale.clientId,
+        type: 'refund',
+        title: o.mode === 'sandbox' ? 'Simulated refund recorded' : 'External refund recorded',
+        detail: `${command.reason}. Receipt ${sale.receiptNumber}. Reference ${command.reference}. This record did not transfer funds.`,
+      })
   } else if (command.type === 'refund') {
     if (!!command.saleId === !!command.paymentId)
       throw new Error('Choose the receipt or the payment being refunded.')
@@ -353,6 +402,10 @@ export function runOperatingCommand(
       actor: 'Local operator',
     }
     o.refunds.push(refund)
+    if (command.restock?.length) {
+      if (!sale) throw new Error('Only products on a receipt can come back.')
+      restockReturn(next, sale.id, refund.id, command.restock, now, makeId)
+    }
     recordId = refund.id
     const a = next.appointments.find((a) => a.id === (sale ?? paid)!.appointmentId)!
     addEvent({

@@ -46,3 +46,22 @@ export const saleRetailSchema = z.object({
   taxLabel: z.string().max(40),
 })
 export type SaleRetail = z.infer<typeof saleRetailSchema>
+
+/**
+ * V2: products sold to someone without a visit, such as a guest popping in for a cleanser. Paid
+ * at the desk in cash or on the studio's own card terminal; a client is optional.
+ */
+export const counterSaleSchema = z.object({
+  id,
+  organisationId: id,
+  clientId: id.optional(),
+  receiptNumber: z.string().min(1).max(40),
+  currency: z.enum(['GBP', 'USD']),
+  retail: saleRetailSchema,
+  totalMinor: minor,
+  paidAt: z.iso.datetime(),
+  method: z.enum(['demo_card', 'demo_cash', 'cash', 'external_card']),
+  reference: z.string().max(150).optional(),
+  actor: z.string(),
+})
+export type CounterSale = z.infer<typeof counterSaleSchema>

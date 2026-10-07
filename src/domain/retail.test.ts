@@ -309,3 +309,114 @@ describe('client exports', () => {
     expect(receipt.products).toEqual([{ name: 'Cleansing Balm', quantity: 2, unitMinor: 3200 }])
   })
 })
+
+describe('selling without a visit', () => {
+  const sell = (s: BusinessState, products: { productId: string; quantity: number }[]) =>
+    run(s, {
+      type: 'counter-sale',
+      clientId: 'client-2',
+      products,
+      method: 'cash',
+    } as Command)
+
+  it('records a walk-in sale, takes stock, counts the cash and joins the client timeline', () => {
+    const { s, balmId } = stocked()
+    const result = sell(s, [{ productId: balmId, quantity: 2 }])
+    expect(result.ok).toBe(true)
+    const after = result.ok ? result.state : s
+    const sale = after.counterSales!.at(-1)!
+    expect(sale).toMatchObject({ receiptNumber: 'SC-1', totalMinor: 6400, clientId: 'client-2' })
+    expect(stock(after, balmId)).toBe(3)
+    expect(after.operations!.movements.at(-1)).toMatchObject({
+      reason: 'retail',
+      quantity: -2,
+      counterSaleId: sale.id,
+    })
+    expect(cashForDay(after, '2026-10-06').cashIn).toBe(6400)
+    expect(report(after, 7).retail).toBe(6400)
+    expect(after.events.at(-1)).toMatchObject({ clientId: 'client-2', title: 'Bought products' })
+    expect(
+      clientExport(after, 'client-2', { generatedAt: now, generatedBy: 'T' }).productPurchases,
+    ).toHaveLength(1)
+  })
+
+  it('refuses a card through SALEANE, an empty basket and more than is in stock', () => {
+    const { s, balmId } = stocked()
+    expect(
+      run(s, {
+        type: 'counter-sale',
+        products: [{ productId: balmId, quantity: 1 }],
+        method: 'card',
+        reference: 'x',
+      } as Command).ok,
+    ).toBe(false)
+    expect(sell(s, []).ok).toBe(false)
+    expect(sell(s, [{ productId: balmId, quantity: 9 }]).ok).toBe(false)
+  })
+
+  it('lets reception sell without a visit but not give money back', () => {
+    expect(can('reception', permissionFor({ type: 'counter-sale' }))).toBe(true)
+    expect(can('practitioner', permissionFor({ type: 'counter-sale' }))).toBe(false)
+    expect(can('reception', permissionFor({ type: 'refund' }))).toBe(false)
+  })
+})
+
+describe('products coming back', () => {
+  it('refunds a walk-in sale and puts the product back on the shelf, once', () => {
+    const { s: start, balmId } = stocked()
+    const s = apply(start, {
+      type: 'counter-sale',
+      products: [{ productId: balmId, quantity: 2 }],
+      method: 'cash',
+    } as Command)
+    const saleId = s.counterSales![0].id
+    const refund = {
+      type: 'refund',
+      counterSaleId: saleId,
+      amountMinor: 3200,
+      reason: 'Wrong shade',
+      reference: 'R-1',
+      method: 'cash',
+      restock: [{ productId: balmId, quantity: 1 }],
+    } as Command
+    const after = apply(s, refund)
+    expect(stock(after, balmId)).toBe(4)
+    expect(after.operations!.movements.at(-1)).toMatchObject({
+      reason: 'returned',
+      quantity: 1,
+      counterSaleId: saleId,
+    })
+    expect(cashForDay(after, '2026-10-06')).toMatchObject({ cashIn: 6400, cashRefunded: 3200 })
+    // The same refund again changes nothing.
+    expect(stock(apply(after, refund), balmId)).toBe(4)
+    // Never more back than was sold, nor more money than was paid.
+    expect(
+      run(after, {
+        ...refund,
+        reference: 'R-2',
+        restock: [{ productId: balmId, quantity: 2 }],
+      } as Command).ok,
+    ).toBe(false)
+    expect(run(after, { ...refund, reference: 'R-3', amountMinor: 3300 } as Command).ok).toBe(false)
+  })
+
+  it('puts products from a visit receipt back with its refund', () => {
+    const { s: start, balmId } = stocked()
+    const { s, a } = visitToday(start)
+    const sold = apply(s, checkout(a.id, [{ productId: balmId, quantity: 1 }]))
+    const saleId = sold.sales.at(-1)!.id
+    const after = apply(sold, {
+      type: 'refund',
+      saleId,
+      amountMinor: 3200,
+      reason: 'Did not suit',
+      reference: 'R-9',
+      method: 'cash',
+      restock: [{ productId: balmId, quantity: 1 }],
+    } as Command)
+    expect(stock(after, balmId)).toBe(5)
+    const tampered = structuredClone(after)
+    tampered.operations!.movements.at(-1)!.refundId = 'missing'
+    expect(() => parseState(tampered, 'UK')).toThrow('with its refund')
+  })
+})

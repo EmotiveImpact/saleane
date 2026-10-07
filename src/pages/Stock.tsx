@@ -10,6 +10,7 @@ import { minorInput, parseMinor } from '../domain/money'
 import { report } from '../domain/selectors'
 import { sellable, stockSummary } from '../domain/retail'
 import type { Product } from '../domain/retail'
+import { CounterSales } from '../components/CounterSales'
 import { Button, Empty, ErrorMessage, Modal, PageHeader, SegmentedControl } from '../design'
 import '../components/management.css'
 import '../stock.css'
@@ -49,6 +50,7 @@ const REASON_LABEL = {
   consumed: 'Used in treatment',
   retail: 'Sold',
   adjustment: 'Count corrected',
+  returned: 'Brought back',
 } as const
 
 function useRun() {
@@ -242,6 +244,7 @@ export function Stock() {
           <p>{low.map((row) => `${row.product.name} (${row.onHand} left)`).join(', ')}.</p>
         </section>
       )}
+      <CounterSales />
       <section className="surface ops-panel" aria-labelledby="products-heading">
         <header>
           <div>

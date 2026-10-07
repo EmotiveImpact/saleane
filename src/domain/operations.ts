@@ -136,13 +136,18 @@ export const operationsSchema = z.object({
       id,
       productId: id,
       quantity: z.number().int().min(-100000).max(100000),
-      reason: z.enum(['received', 'consumed', 'adjustment', 'retail']),
+      /** `returned` puts a product a guest brought back on the shelf, with its refund (V2). */
+      reason: z.enum(['received', 'consumed', 'adjustment', 'retail', 'returned']),
       note: z.string().max(300),
       createdAt: z.iso.datetime(),
       actor: z.string(),
       appointmentId: id.optional(),
       /** V2: the receipt that sold it, for a `retail` movement made at checkout. */
       saleId: id.optional(),
+      /** V2: the walk-in sale that sold it, when it was sold without a visit. */
+      counterSaleId: id.optional(),
+      /** V2: the refund a `returned` movement came back with. */
+      refundId: id.optional(),
     }),
   ),
   messages: z.array(
@@ -159,6 +164,8 @@ export const operationsSchema = z.object({
       /** A refund returns money from one receipt, or from one deposit or fee payment (PILOT-02). */
       saleId: id.optional(),
       paymentId: id.optional(),
+      /** V2: or from a walk-in sale of products. */
+      counterSaleId: id.optional(),
       amountMinor: money.refine((v) => v > 0),
       reason: z.string().trim().min(3).max(300),
       reference: z.string().trim().min(1).max(150),

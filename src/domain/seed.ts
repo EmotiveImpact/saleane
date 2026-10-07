@@ -428,6 +428,40 @@ function seedStock(state: BusinessState, uk: boolean) {
     ],
     ['history-hair-4', [['hair-mask', 1]]],
   ]
+  // A guest who popped in for body oil without a visit.
+  const oil = o.products.find((p) => p.id === 'product-body-oil')!
+  const counterLine = { productId: oil.id, name: oil.name, quantity: 1, unitMinor: oil.priceMinor }
+  state.counterSales = [
+    {
+      id: 'counter-sale-1',
+      organisationId: state.organisation.id,
+      clientId: 'client-5',
+      receiptNumber: 'SC-1',
+      currency: state.organisation.currency,
+      retail: {
+        lines: [counterLine],
+        subtotalMinor: oil.priceMinor,
+        taxMinor: 0,
+        taxRateBps: 0,
+        taxInclusive: false,
+        taxLabel: '',
+      },
+      totalMinor: oil.priceMinor,
+      paidAt: '2026-10-03T15:00:00.000Z',
+      method: 'demo_cash',
+      actor: 'Front desk · demo fixture',
+    },
+  ]
+  o.movements.push({
+    id: 'movement-sold-counter-1',
+    productId: oil.id,
+    quantity: -1,
+    reason: 'retail',
+    note: 'Sold without a visit on receipt SC-1',
+    createdAt: '2026-10-03T15:00:00.000Z',
+    actor: 'Front desk · demo fixture',
+    counterSaleId: 'counter-sale-1',
+  })
   for (const [appointmentId, items] of bought) {
     const sale = state.sales.find((x) => x.appointmentId === appointmentId)
     const settlement = state.payments.find((p) => p.saleId === sale?.id)

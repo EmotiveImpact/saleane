@@ -108,6 +108,10 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     /** The receipt refunded; or, with `paymentId`, a deposit or fee payment (PILOT-02). */
     saleId: id.optional(),
     paymentId: id.optional(),
+    /** V2: a walk-in sale of products. */
+    counterSaleId: id.optional(),
+    /** V2: products the guest brought back that go back on the shelf. */
+    restock: retailItemsSchema.optional(),
     amountMinor: money.refine((n) => n > 0),
     reason: z.string().trim().min(3).max(300),
     reference: z.string().trim().min(1).max(150),
@@ -262,6 +266,14 @@ export const commandSchema = z.discriminatedUnion('type', [
     products: retailItemsSchema.optional(),
   }),
   z.object({ type: z.literal('note'), clientId: id, text: z.string().trim().min(2).max(1000) }),
+  // V2: products sold to someone without a visit.
+  z.object({
+    type: z.literal('counter-sale'),
+    clientId: id.optional(),
+    products: retailItemsSchema.refine((items) => items.length > 0, 'Add a product.'),
+    method,
+    reference: z.string().trim().max(150).optional(),
+  }),
   z.object({ type: z.literal('client'), contact: contactSchema, referredById: id.optional() }),
   z.object({ type: z.literal('consent'), clientId: id, consent: z.boolean() }),
   tillCountCommandSchema,

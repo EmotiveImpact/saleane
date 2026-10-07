@@ -15,7 +15,7 @@ import { availableAllocation } from './allocation'
 import { runSwitchingCommand } from './switching'
 import { coverVisit, runPlanCommand, stampPlanActors } from './plans'
 import { recordFeedback, repeatedFeedback } from './feedback'
-import { priceRetail, recordRetailMovements, retailCharge } from './retail'
+import { priceRetail, recordRetailMovements, retailCharge, sellAtCounter } from './retail'
 
 export type CommandResult =
   { ok: true; state: BusinessState; recordId: string } | { ok: false; error: string }
@@ -540,6 +540,19 @@ export function execute(
       command.type === 'balance-settle'
     ) {
       recordId = runSwitchingCommand(next, command, now, makeId, addEvent, createClient)
+    } else if (command.type === 'counter-sale') {
+      if (command.method === 'card' || command.method === 'previous_system')
+        throw new Error('Take a walk-in sale in cash or on your own card terminal.')
+      assertMethod(s, command.method, command.reference)
+      const sale = sellAtCounter(next, { ...command, method: command.method }, now, makeId)
+      if (sale.clientId)
+        addEvent({
+          clientId: sale.clientId,
+          type: 'checkout',
+          title: 'Bought products',
+          detail: `${sale.retail.lines.map((line) => `${line.quantity > 1 ? `${line.quantity} × ` : ''}${line.name}`).join(', ')} on receipt ${sale.receiptNumber}, without a visit.`,
+        })
+      recordId = sale.id
     } else if (command.type === 'feedback') {
       const same = repeatedFeedback(s, command)
       if (same) return { ok: true, state: s, recordId: same.id }
@@ -584,6 +597,8 @@ export function dispatch(
       e.actor = actorName
     })
   stampPlanActors(s, result.state, actorName)
+  const sold = new Set((s.counterSales ?? []).map((sale) => sale.id))
+  for (const sale of result.state.counterSales ?? []) if (!sold.has(sale.id)) sale.actor = actorName
   const counted = new Set((s.tillCounts ?? []).map((c) => c.id))
   for (const count of result.state.tillCounts ?? [])
     if (!counted.has(count.id)) count.actor = actorName

@@ -5,7 +5,7 @@ import { paymentMethodSchema, processorSchema } from './paymentMethods'
 import { holdingSchema, offerSchema } from './plansSchema'
 import { coveredSaleProblem, plansProblem } from './plans'
 import { feedbackProblem, feedbackSchema } from './feedback'
-import { saleRetailSchema } from './retailSchema'
+import { counterSaleSchema, saleRetailSchema } from './retailSchema'
 import { retailCharge, retailProblem } from './retail'
 export { paymentMethodSchema, paymentMethods, processorSchema } from './paymentMethods'
 
@@ -202,6 +202,8 @@ export const stateSchema = z.object({
   holdings: z.array(holdingSchema).optional(),
   /** V1.5: private guest feedback, one per completed visit. Owners and managers only. */
   feedback: z.array(feedbackSchema).optional(),
+  /** V2: products sold without a visit. */
+  counterSales: z.array(counterSaleSchema).optional(),
 })
 export type BusinessState = z.infer<typeof stateSchema>
 export type Client = z.infer<typeof clientSchema>
@@ -227,6 +229,7 @@ export function parseState(value: unknown, region: Region): BusinessState {
     s.events,
     s.relationships,
     s.tillCounts ?? [],
+    s.counterSales ?? [],
   ]
   for (const collection of collections) {
     if (new Set(collection.map((item) => item.id)).size !== collection.length)
@@ -469,7 +472,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
         throw new Error('Invalid carried-over balance.')
     for (const refund of o.refunds)
       if (
-        !!refund.saleId === !!refund.paymentId ||
+        [refund.saleId, refund.paymentId, refund.counterSaleId].filter(Boolean).length !== 1 ||
+        (refund.counterSaleId && !exists(s.counterSales ?? [], refund.counterSaleId)) ||
         (refund.saleId && !exists(s.sales, refund.saleId)) ||
         (refund.paymentId && !exists(s.payments, refund.paymentId)) ||
         (refund.method === 'card') !== !!refund.processor
