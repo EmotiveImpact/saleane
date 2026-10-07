@@ -233,6 +233,12 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     note: z.string().trim().min(2).max(300),
     appointmentId: id.optional(),
   }),
+  // V1.5: month and day only; null removes it.
+  z.object({
+    type: z.literal('client-birthday'),
+    clientId: id,
+    birthday: clientSchema.shape.birthday.unwrap().nullable(),
+  }),
   z.object({
     type: z.literal('client-edit'),
     clientId: id,

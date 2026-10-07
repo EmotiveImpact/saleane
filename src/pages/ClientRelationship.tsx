@@ -30,6 +30,7 @@ import { ClientPlans } from '../components/Plans'
 import { ClientWaitlist } from '../components/Waitlist'
 import { ClientPatchTests } from '../components/PatchTests'
 import { ClientPrivacy } from '../components/Privacy'
+import { ClientBirthday } from '../components/ClientBirthday'
 
 // A booking's detail opens with the service, date and time already shown in
 // the visit heading; only the sentence after it (payment state) is new.
@@ -642,6 +643,7 @@ export function ClientRelationship() {
             </p>
             <ClientMessagePreferences client={client} />
           </section>
+          <ClientBirthday key={client.id} client={client} />
           <ClientPlans clientId={client.id} />
           <ClientPatchTests clientId={client.id} />
           <ClientWaitlist clientId={client.id} />

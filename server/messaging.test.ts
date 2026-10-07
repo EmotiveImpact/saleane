@@ -559,6 +559,59 @@ describe('appointment messages (PILOT-01)', () => {
     })
   })
 
+  it('wishes a guest who agreed a happy birthday once, from no visit in particular', async () => {
+    const { serviceId, staffId, slug, owner } = await localStudio()
+    const keen = { ...contact, marketingConsent: true }
+    await book(slug, serviceId, staffId, '2026-10-08', keen)
+    await api.outbox.tick()
+    const { state } = await workspace(owner)
+    const guest = state.clients.find((c) => c.email === keen.email)!
+    await run(owner, { type: 'client-birthday', clientId: guest.id, birthday: '10-07' })
+    sent = []
+    // 7 October, 09:30 in London.
+    clock = Date.parse('2026-10-07T08:30:00.000Z')
+    await signIn(owner)
+    await api.outbox.tick()
+    expect(sent.map((m) => [m.subject, m.to])).toEqual([
+      ['Happy birthday from Linden Studio', keen.email],
+    ])
+    expect(sent[0].body).toContain(`${origin}/book/${slug}`)
+    expect(rows().find((r) => r.kind === 'birthday')).toMatchObject({
+      appointment_id: '',
+      client_id: guest.id,
+      slot: '2026',
+    })
+    sent = []
+    clock = Date.parse('2026-10-07T12:00:00.000Z')
+    await api.outbox.tick()
+    expect(sent.map((m) => m.subject)).not.toContain('Happy birthday from Linden Studio')
+  })
+
+  it('skips a we miss you note when the guest books before it goes', async () => {
+    const { serviceId, staffId, slug, owner } = await localStudio()
+    const keen = { ...contact, marketingConsent: true }
+    const { appointmentId } = await book(slug, serviceId, staffId, '2026-10-06', keen)
+    await api.outbox.tick()
+    await api.outbox.tick()
+    clock = Date.parse('2026-10-06T10:05:00.000Z')
+    await signIn(owner)
+    await run(owner, { type: 'arrive', appointmentId })
+    await run(owner, { type: 'checkout', appointmentId, tipMinor: 0, method: 'cash' })
+    await api.outbox.tick()
+    // 4 January 2027, 10:00 in London: 90 days after the visit.
+    clock = Date.parse('2027-01-04T10:00:00.000Z')
+    api.outbox.plan()
+    expect(rows().find((r) => r.kind === 'miss_you')).toMatchObject({ status: 'pending' })
+    await book(slug, serviceId, staffId, '2027-01-12', keen)
+    sent = []
+    await api.outbox.deliver()
+    expect(sent.map((m) => m.subject)).not.toContain('We miss you at Linden Studio')
+    expect(rows().find((r) => r.kind === 'miss_you')).toMatchObject({
+      status: 'skipped',
+      detail: 'Turned off, booked again or no longer agreed before it went out.',
+    })
+  })
+
   it('retries a busy provider, stops at a refusal, and never resends an unclear one by itself', async () => {
     const { serviceId, staffId, slug, owner } = await localStudio()
     await book(slug, serviceId, staffId)

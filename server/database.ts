@@ -219,6 +219,25 @@ export const migrations: Migration[] = [
         ]),
       ),
   },
+  {
+    version: 12,
+    // V1.5: a birthday email and a "we miss you" email, about the guest rather than one visit.
+    up: (connection) =>
+      connection.exec(
+        outboxWithKinds([
+          'confirmation',
+          'changed',
+          'reminder',
+          'cancelled',
+          'feedback',
+          'patch_test',
+          'aftercare',
+          'due_back',
+          'birthday',
+          'miss_you',
+        ]),
+      ),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the

@@ -56,7 +56,7 @@ describe('numbered schema migrations', () => {
     expect(reopened.all('SELECT text FROM fixture_notes')).toEqual([{ text: 'kept' }])
     reopened.close()
   })
-  it('widens the outbox for aftercare and due back, keeping messages already recorded', () => {
+  it('widens the outbox for aftercare, due back, birthdays and we miss you, keeping messages', () => {
     const path = file()
     const before = new LocalDatabase(
       path,
@@ -96,10 +96,14 @@ describe('numbered schema migrations', () => {
     const after = new LocalDatabase(path)
     after.run(insert, ...row('m2', 'due_back'))
     after.run(insert, ...row('m3', 'aftercare'))
+    after.run(insert, ...row('m4', 'birthday'))
+    after.run(insert, ...row('m5', 'miss_you'))
     expect(after.all('SELECT id,kind FROM outbox ORDER BY id')).toEqual([
       { id: 'm1', kind: 'patch_test' },
       { id: 'm2', kind: 'due_back' },
       { id: 'm3', kind: 'aftercare' },
+      { id: 'm4', kind: 'birthday' },
+      { id: 'm5', kind: 'miss_you' },
     ])
     after.close()
   })

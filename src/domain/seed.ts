@@ -50,6 +50,8 @@ export function seed(region: Region): BusinessState {
       preferences,
       marketingConsent: i % 4 !== 3,
       createdAt,
+      // V1.5: a few guests shared their birthday, month and day only.
+      ...(i === 0 ? { birthday: '10-09' } : i === 4 ? { birthday: '03-14' } : {}),
     })),
     services: [
       {
