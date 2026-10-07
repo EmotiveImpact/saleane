@@ -342,3 +342,13 @@
     font-size: 28px;
   }
 }
+
+/* V1.5: the practitioner's own average from guests' private ratings. */
+.practitioner-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 18px;
+  color: var(--muted);
+  font-size: var(--text-small);
+}

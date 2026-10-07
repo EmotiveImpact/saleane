@@ -330,5 +330,34 @@ export function seed(region: Region): BusinessState {
     occurredAt: '2026-07-07T12:00:00.000Z',
     actor: 'Front desk · demo fixture',
   })
+  // V1.5: private feedback from a few recent guests, so the owner's feedback page has substance.
+  const answers: [string, number, number, string][] = [
+    ['history-skin-1', 5, 5, 'Maya remembered exactly what worked last time. My skin feels calm.'],
+    ['history-skin-2', 5, 5, ''],
+    ['history-skin-3', 4, 5, 'Lovely as ever. The room was a little cool to start.'],
+    ['history-skin-5', 5, 4, ''],
+    ['history-body-1', 5, 5, 'Sophia was wonderful. I slept so well that night.'],
+    ['history-body-2', 4, 4, ''],
+    ['history-body-4', 3, 4, 'Started ten minutes late, but the treatment itself was very good.'],
+    ['history-hair-4', 5, 5, 'Best cut I have had in years.'],
+    ['history-hair-8', 4, 5, ''],
+  ]
+  state.feedback = answers.flatMap(([appointmentId, visitRating, practitionerRating, comment]) => {
+    const a = state.appointments.find((item) => item.id === appointmentId)
+    if (!a || a.status !== 'completed') return []
+    return [
+      {
+        ...scope,
+        id: `feedback-${appointmentId}`,
+        appointmentId,
+        clientId: a.clientId,
+        staffId: a.staffId,
+        visitRating,
+        practitionerRating,
+        comment,
+        createdAt: `${addDays(a.date, 1)}T09:00:00.000Z`,
+      },
+    ]
+  })
   return parseState(state, region)
 }

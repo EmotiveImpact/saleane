@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { offerInputSchema } from './plansSchema'
+import { feedbackInputSchema } from './feedback'
 import {
   GUEST_NOTE_LIMIT,
   bookingChannels,
@@ -261,6 +262,8 @@ export const commandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('client'), contact: contactSchema, referredById: id.optional() }),
   z.object({ type: z.literal('consent'), clientId: id, consent: z.boolean() }),
   tillCountCommandSchema,
+  // Sent only through a guest's private link, never by the studio.
+  z.object({ type: z.literal('feedback'), appointmentId: id }).extend(feedbackInputSchema.shape),
   z.object({ type: z.literal('offer'), id: id.optional(), input: offerInputSchema }),
   z.object({
     type: z.literal('plan-sell'),

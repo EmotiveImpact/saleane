@@ -13,6 +13,7 @@ import {
   visitStart,
 } from '../../src/domain/guest'
 import type { Context, Org, Route } from '../context'
+import { feedbackForVisit, feedbackInputSchema, feedbackOpen } from '../../src/domain/feedback'
 import { guestPaymentFor } from '../payments/service'
 
 const INVALID = 'This link is no longer valid. Contact the studio to manage your visit.'
@@ -124,6 +125,41 @@ export async function guestRoutes(ctx: Context, route: Route): Promise<boolean> 
     const data = z.object({ token: tokenSchema }).strict().parse(body)
     const { org, appointmentId } = open(data.token)
     reply(200, guestView(org.state, appointmentId, now(), guestPaymentFor(ctx, org, appointmentId)))
+    return true
+  }
+  if (path[2] === 'feedback') {
+    rateLimit(request, 'guest-write', 10, 5 * 60000)
+    const data = z
+      .object({ token: tokenSchema })
+      .extend(feedbackInputSchema.shape)
+      .strict()
+      .parse(body)
+    const view = db.transaction(() => {
+      const { org, appointmentId } = open(data.token)
+      const already = feedbackForVisit(org.state, appointmentId)
+      if (
+        !already &&
+        !feedbackOpen(org.state, appointmentId, visitStart(org.state, appointmentId), now())
+      )
+        fail(409, 'Feedback for this visit is not open.')
+      const result = dispatch(
+        org.state,
+        {
+          type: 'feedback',
+          appointmentId,
+          visitRating: data.visitRating,
+          practitionerRating: data.practitionerRating,
+          comment: data.comment,
+        },
+        'Guest (private link)',
+        new Date(now()).toISOString(),
+      )
+      if (!result.ok) fail(409, result.error)
+      if (result.state !== org.state)
+        persist(org, result.state, null, 'guest.feedback', appointmentId)
+      return guestView(result.state, appointmentId, now())
+    })
+    reply(200, view)
     return true
   }
   if (path[2] === 'cancel') {

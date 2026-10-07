@@ -1,7 +1,14 @@
 import { randomUUID } from 'node:crypto'
-import { MANAGE_LINK, channelsFor, planMessages, visitSlot } from '../../src/domain/reminders'
+import {
+  MANAGE_LINK,
+  channelsFor,
+  planMessages,
+  feedbackDue,
+  visitSlot,
+} from '../../src/domain/reminders'
 import type { MessageChannel, MessageKind, OutboxStatus } from '../../src/domain/reminders'
 import { operations } from '../../src/domain/operations'
+import { visitStart } from '../../src/domain/guest'
 import type { Context } from '../context'
 import { issueGuestLink } from '../routes/guest'
 import type { Providers, Receipt } from './providers'
@@ -117,9 +124,19 @@ export function createOutbox(ctx: Context, providers: Providers) {
       }
       if (!org || !visit || !client) return skip('The visit is no longer in the studio record.')
       if (operations(org.state).mode !== 'local') return skip('Sample studios never send.')
-      const wanted = fresh.kind === 'cancelled' ? 'cancelled' : 'confirmed'
+      const wanted =
+        fresh.kind === 'cancelled'
+          ? 'cancelled'
+          : fresh.kind === 'feedback'
+            ? 'completed'
+            : 'confirmed'
       if (visit.status !== wanted || visitSlot(visit) !== fresh.slot)
         return skip('The visit changed before this went out.')
+      if (
+        fresh.kind === 'feedback' &&
+        !feedbackDue(org.state, visit, visitStart(org.state, visit.id), now())
+      )
+        return skip('Answered, turned off or too late before it went out.')
       if (fresh.kind !== 'cancelled' && !channelsFor(org.state, client).includes(fresh.channel))
         return skip('Turned off for this client or studio before it went out.')
       let body = fresh.body

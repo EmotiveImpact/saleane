@@ -46,6 +46,7 @@ const kindLabel: Record<MessageKind, string> = {
   changed: 'New time',
   reminder: 'Reminder',
   cancelled: 'Cancellation',
+  feedback: 'How was your visit?',
 }
 const providerLabel: Record<string, string> = {
   test: 'test mode',
@@ -110,6 +111,14 @@ export function MessageSettings() {
               onChange={(e) => set('reminders', e.target.checked)}
             />
             Send a reminder before each visit
+          </label>
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={draft.feedback !== false}
+              onChange={(e) => set('feedback', e.target.checked)}
+            />
+            After checkout, email a private &ldquo;how was your visit?&rdquo; request
           </label>
           <label>
             When the reminder goes

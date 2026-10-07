@@ -2,6 +2,16 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · V1.5 · Private client feedback and ratings
+
+**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** The feedback request joins the message outbox like any other message; with no provider connected it waits there unsent.
+
+- After checkout, a guest with an email address is queued one private "How was your visit?" message, two hours later (never more than two days after checkout, and never once the visit is a week old). Studios can turn it off in Settings, Messages.
+- The guest's private visit link shows a short form once the visit is complete: stars for the visit and for the person who looked after them, and an optional comment. One answer per visit; sending the same answer twice lands once, and an answer cannot be changed afterwards. The guest sees a thank-you with their own ratings, never anyone else's.
+- Business has a new Feedback page for owners and managers only, with the number of visits rated, the average for visits and for the team, each professional's average and the latest answers with comments, over 30 days, 90 days or all time.
+- A practitioner's day shows only their own average. New ratings join it in groups of at least three different guests, so a change in the average reflects a group, not one guest. As with any average, a group in which every guest gave the same score (all fives, say) shows that score. Reception and practitioners never receive individual answers.
+- Feedback is private and never published. Public reviews remain a separate, neutral request to the studio's Google page. A client's data export (and its preview) and erasure review include the feedback they gave. Feedback is kept for 2 years after it was given, then waits for an owner or manager to approve deletion or keep it longer; nothing is deleted automatically.
+
 ## 2026-10-07 · V1.5 · Packages and memberships
 
 **Status: built locally on 7 October 2026, in review; nothing deployed.** Plan payments are recorded by the desk (cash or the studio's own card terminal); paying for a plan by card through SALEANE and automatic monthly renewal come in a later stage.
