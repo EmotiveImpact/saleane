@@ -333,6 +333,24 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
         result: t.result?.outcome ?? 'not recorded',
         resultNotes: t.result?.notes ?? '',
       })),
+    // V1.5: forms they filled in, with the questions as they were asked.
+    forms: (state.formResponses ?? [])
+      .filter((r) => r.clientId === client.id)
+      .map((r) => {
+        const form = (state.forms ?? []).find((f) => f.id === r.formId)
+        const content = form?.versions.find((v) => v.version === r.version)?.content
+        return {
+          ...(ref.has(r.appointmentId) ? { visit: ref.get(r.appointmentId) } : {}),
+          form: content?.title ?? 'Form',
+          version: r.version,
+          submittedAt: r.submittedAt,
+          answers: (content?.questions ?? []).map((q) => ({
+            question: q.label,
+            answer: r.answers.find((a) => a.questionId === q.id)?.value ?? '',
+          })),
+          ...(content?.agreement ? { agreed: content.agreement, agreedAs: r.agreedName } : {}),
+        }
+      }),
   }
 }
 export type ClientExport = ReturnType<typeof clientExport>
@@ -363,6 +381,7 @@ export function previewClientExport(file: ClientExport): ExportPreview {
       { label: 'Waitlist requests', count: file.waitlist.length },
       { label: 'Gift cards and vouchers they bought', count: file.giftCards.length },
       { label: 'Patch tests', count: file.patchTests.length },
+      { label: 'Forms they filled in, answers as written', count: file.forms.length },
     ],
     excluded: CLIENT_EXPORT_EXCLUDED,
     notes: [
@@ -423,6 +442,7 @@ export function previewStudioExport(file: StudioExport): ExportPreview {
       { label: 'Waitlist requests', count: (r.waitlist ?? []).length },
       { label: 'Gift cards and vouchers', count: (r.giftCards ?? []).length },
       { label: 'Patch tests', count: (r.patchTests ?? []).length },
+      { label: 'Guest forms and their answers', count: (r.formResponses ?? []).length },
       {
         label: 'Services, professionals and spaces',
         count: r.services.length + r.staff.length + r.resources.length,
@@ -559,6 +579,11 @@ export function erasureReview(
           'Shows the studio checked for a reaction before a treatment, in case of a later complaint or claim.',
       },
       {
+        label: 'Forms they filled in',
+        count: (state.formResponses ?? []).filter((r) => r.clientId === client.id).length,
+        reason: 'Shows what they told the studio and agreed to before a visit.',
+      },
+      {
         label: 'Booked visit terms',
         count: visits.length,
         reason: 'Receipts, deposits and the diary depend on the original service, price and time.',
@@ -682,6 +707,12 @@ export function clientExportText(file: ClientExport, locale = 'en-GB') {
       (t) =>
         `${t.testedOn} · ${t.product} · by ${t.doneBy} · ${t.result}${t.resultNotes ? ` · ${t.resultNotes}` : ''}${t.notes ? ` · ${t.notes}` : ''}`,
     ),
+    '',
+    `FORMS (${file.forms.length})`,
+    ...file.forms.flatMap((f) => [
+      `${f.submittedAt.slice(0, 10)} · ${f.form} (version ${f.version})${f.agreedAs ? ` · agreed as ${f.agreedAs}` : ''}`,
+      ...f.answers.map((a) => `  ${a.question}: ${a.answer || '–'}`),
+    ]),
     '',
     `MESSAGES (${file.messages.length}), none sent`,
     ...file.messages.map((m) => `${m.createdAt.slice(0, 10)} · ${m.subject} · ${m.delivery}`),

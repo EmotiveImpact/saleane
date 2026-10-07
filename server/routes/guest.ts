@@ -15,6 +15,7 @@ import {
 import type { Context, Org, Route } from '../context'
 import { feedbackForVisit, feedbackInputSchema, feedbackOpen } from '../../src/domain/feedback'
 import { waitlistTimesSchema } from '../../src/domain/waitlistSchema'
+import { formAnswersSchema } from '../../src/domain/formsSchema'
 import { guestPaymentFor } from '../payments/service'
 
 const INVALID = 'This link is no longer valid. Contact the studio to manage your visit.'
@@ -159,6 +160,40 @@ export async function guestRoutes(ctx: Context, route: Route): Promise<boolean> 
       if (result.state !== org.state)
         persist(org, result.state, null, 'guest.feedback', appointmentId)
       return guestView(result.state, appointmentId, now())
+    })
+    reply(200, view)
+    return true
+  }
+  if (path[2] === 'form') {
+    rateLimit(request, 'guest-write', 10, 5 * 60000)
+    const data = z
+      .object({ token: tokenSchema })
+      .extend(formAnswersSchema.shape)
+      .strict()
+      .parse(body)
+    const view = db.transaction(() => {
+      const { org, appointmentId } = open(data.token)
+      const result = dispatch(
+        org.state,
+        {
+          type: 'form-submit',
+          appointmentId,
+          formId: data.formId,
+          version: data.version,
+          answers: data.answers,
+          agreedName: data.agreedName,
+        },
+        'Guest (private link)',
+        new Date(now()).toISOString(),
+      )
+      if (!result.ok) fail(409, result.error)
+      if (result.state !== org.state) persist(org, result.state, null, 'guest.form', appointmentId)
+      return guestView(
+        result.state,
+        appointmentId,
+        now(),
+        guestPaymentFor(ctx, { ...org, state: result.state }, appointmentId),
+      )
     })
     reply(200, view)
     return true
