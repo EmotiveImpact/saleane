@@ -34,6 +34,7 @@ const demoRoutes = [
   '/business/feedback',
   '/business/stock',
   '/business/pay',
+  '/business/rota',
   '/booking',
   '/design-language',
   '/account',

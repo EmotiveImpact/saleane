@@ -1,6 +1,14 @@
 import type { BusinessState, RelationshipEvent } from './model'
 import type { OperatingCommand } from './commandSchema'
-import { PAY_RATE_LIMIT, SCHEDULE_HISTORY_LIMIT, operations, stock } from './operations'
+import {
+  PAY_RATE_LIMIT,
+  SCHEDULE_HISTORY_LIMIT,
+  TIME_OFF_DAYS,
+  TIME_OFF_LIMIT,
+  operations,
+  stock,
+} from './operations'
+import { daysBetween } from './timeOff'
 import { restockReturn } from './retail'
 import { assertSchedulePreserved, scheduleChanges, scheduleSnapshot } from './schedule'
 
@@ -45,9 +53,15 @@ export function runOperatingCommand(
     event: Omit<RelationshipEvent, 'id' | 'organisationId' | 'occurredAt' | 'actor'>,
   ) => void,
 ) {
-  const scheduling = ['hours', 'closure', 'remove-closure', 'staff', 'resource'].includes(
-    command.type,
-  )
+  const scheduling = [
+    'hours',
+    'closure',
+    'remove-closure',
+    'staff',
+    'resource',
+    'time-off',
+    'cancel-time-off',
+  ].includes(command.type)
   // Guest notes change only text guests read; an empty note removes it.
   if (command.type === 'guest-notes') {
     const services = command.prepNotes.map(({ serviceId, note }) => {
@@ -91,6 +105,45 @@ export function runOperatingCommand(
     const closure = { ...command.input, id: makeId() }
     o.closures.push(closure)
     recordId = closure.id
+  } else if (command.type === 'time-off') {
+    const { staffId, from, to } = command.input
+    if (!next.staff.some((p) => p.id === staffId && !p.archived))
+      throw new Error('Choose someone on the team.')
+    if (daysBetween(from, to) + 1 > TIME_OFF_DAYS)
+      throw new Error(`Record up to ${TIME_OFF_DAYS} days at a time.`)
+    o.timeOff ??= []
+    if (o.timeOff.length >= TIME_OFF_LIMIT) throw new Error('Too much time off to keep.')
+    if (
+      o.timeOff.some((t) => !t.cancelledAt && t.staffId === staffId && t.from <= to && t.to >= from)
+    )
+      throw new Error('This overlaps time off already recorded for them.')
+    const away = {
+      id: makeId(),
+      staffId,
+      from,
+      to,
+      kind: command.input.kind,
+      ...(command.input.note ? { note: command.input.note } : {}),
+      createdAt: now,
+      actor: 'Local operator',
+    }
+    o.timeOff.push(away)
+    recordId = away.id
+  } else if (command.type === 'cancel-time-off') {
+    const away = o.timeOff?.find((t) => t.id === command.timeOffId)
+    if (!away) throw new Error('Time off not found.')
+    if (away.cancelledAt) throw new Error('This time off is already cancelled.')
+    away.cancelledAt = now
+    away.cancelledBy = 'Local operator'
+    recordId = away.id
+  } else if (command.type === 'leave-allowance') {
+    if (!next.staff.some((p) => p.id === command.staffId))
+      throw new Error('Choose someone on the team.')
+    o.leaveAllowances = [
+      ...(o.leaveAllowances ?? []).filter((a) => a.staffId !== command.staffId),
+      { staffId: command.staffId, days: command.days },
+    ]
+    recordId = command.staffId
   } else if (command.type === 'remove-closure') {
     if (!o.closures.some((c) => c.id === command.closureId)) throw new Error('Closure not found.')
     o.closures = o.closures.filter((c) => c.id !== command.closureId)
@@ -135,11 +188,15 @@ export function runOperatingCommand(
     command.type === 'remove-closure' ||
     command.type === 'service' ||
     command.type === 'staff' ||
-    command.type === 'resource'
+    command.type === 'resource' ||
+    command.type === 'time-off' ||
+    command.type === 'cancel-time-off' ||
+    command.type === 'leave-allowance'
   ) {
     if (scheduling) {
       // Removing time away only frees time, so it can never strand a visit.
-      if (command.type !== 'remove-closure') assertSchedulePreserved(before, next, now)
+      if (command.type !== 'remove-closure' && command.type !== 'cancel-time-off')
+        assertSchedulePreserved(before, next, now)
       const entries = scheduleChanges(before, next, command, recordId).map((entry) => ({
         ...entry,
         id: makeId(),

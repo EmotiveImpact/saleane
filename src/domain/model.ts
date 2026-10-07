@@ -414,11 +414,21 @@ export function parseState(value: unknown, region: Region): BusinessState {
       o.imports ?? [],
       o.balances ?? [],
       o.payRates ?? [],
+      o.timeOff ?? [],
     ])
       if (new Set(rows.map((r) => r.id)).size !== rows.length)
         throw new Error('Duplicate operating record IDs.')
     for (const rate of o.payRates ?? [])
       if (!exists(s.staff, rate.staffId)) throw new Error('Missing pay rate professional.')
+    for (const away of o.timeOff ?? [])
+      if (!exists(s.staff, away.staffId) || away.to < away.from)
+        throw new Error('Invalid time off.')
+    const allowances = o.leaveAllowances ?? []
+    if (
+      allowances.some((a) => !exists(s.staff, a.staffId)) ||
+      new Set(allowances.map((a) => a.staffId)).size !== allowances.length
+    )
+      throw new Error('Invalid holiday allowance.')
     for (const closure of o.closures)
       if (closure.staffId && !exists(s.staff, closure.staffId))
         throw new Error('Missing closure professional.')

@@ -1,0 +1,103 @@
+/* V2: the week's rota, time away and holiday allowances. */
+.rota-head {
+  align-items: center;
+  flex-wrap: wrap;
+}
+.rota-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.rota-scroll {
+  overflow-x: auto;
+  margin: 8px 0 14px;
+  border-radius: var(--radius);
+}
+.rota-scroll:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+.rota-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: separate;
+  border-spacing: 4px;
+  table-layout: fixed;
+}
+.rota-table th {
+  font-size: var(--text-micro);
+  font-weight: var(--weight-strong);
+  color: var(--muted);
+  text-align: left;
+  padding: 4px 8px;
+}
+.rota-table th[scope='row'] {
+  width: 170px;
+  color: var(--ink);
+  font-size: var(--text-small);
+}
+.rota-table th.rota-today {
+  color: var(--ink);
+}
+.rota-person {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rota-table td {
+  padding: 10px 8px;
+  border-radius: 10px;
+  vertical-align: top;
+  font-size: var(--text-small);
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
+.rota-table td strong,
+.rota-table td small {
+  display: block;
+}
+.rota-table td small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: var(--text-micro);
+}
+.rota-table td.rota-working {
+  background: var(--sage-soft);
+}
+.rota-table td.rota-away {
+  background: var(--rose-soft);
+  border-color: transparent;
+  color: var(--rose-ink);
+}
+.rota-table td.rota-off,
+.rota-table td.rota-closed {
+  color: var(--muted);
+  background: transparent;
+}
+.rota-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 22px;
+  margin-top: 22px;
+}
+.rota-columns > * {
+  margin: 0;
+}
+.rota-over {
+  color: var(--rose-ink);
+}
+.rota-clashes {
+  padding: 14px 16px;
+  background: var(--rose-soft);
+  border-radius: var(--radius);
+  color: var(--rose-ink);
+}
+.rota-clashes ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+@media (max-width: 640px) {
+  .rota-columns {
+    grid-template-columns: 1fr;
+  }
+}

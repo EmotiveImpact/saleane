@@ -127,6 +127,36 @@ export type OpeningBalance = z.infer<typeof openingBalanceSchema>
  * V2: what one person earns as commission, from a date onwards. A change adds a new row, so past
  * pay periods keep the rate that applied then. Basis points: 4000 is 40%.
  */
+/**
+ * V2: a person away for whole days, such as a holiday or sick leave. They are not booked on those
+ * days. Cancelling keeps the record, marked with who cancelled it and when.
+ */
+export const TIME_OFF_LIMIT = 2000
+export const TIME_OFF_DAYS = 62
+export const timeOffKinds = ['holiday', 'sick', 'other'] as const
+export const timeOffInputSchema = z
+  .object({
+    staffId: id,
+    from: z.iso.date(),
+    to: z.iso.date(),
+    kind: z.enum(timeOffKinds),
+    note: z.string().trim().max(150).optional(),
+  })
+  .refine((t) => t.to >= t.from, 'Time off must end on or after the day it starts.')
+export const timeOffSchema = z.object({
+  id,
+  staffId: id,
+  from: z.iso.date(),
+  to: z.iso.date(),
+  kind: z.enum(timeOffKinds),
+  note: z.string().max(150).optional(),
+  createdAt: z.iso.datetime(),
+  actor: z.string(),
+  cancelledAt: z.iso.datetime().optional(),
+  cancelledBy: z.string().optional(),
+})
+export type TimeOff = z.infer<typeof timeOffSchema>
+
 export const PAY_RATE_LIMIT = 2000
 export const payRateSchema = z.object({
   id,
@@ -203,6 +233,9 @@ export const operationsSchema = z.object({
   balances: z.array(openingBalanceSchema).optional(),
   /** V2: commission rates per person, kept as a history. */
   payRates: z.array(payRateSchema).max(PAY_RATE_LIMIT).optional(),
+  /** V2: holidays, sickness and other days away, and each person's yearly holiday allowance. */
+  timeOff: z.array(timeOffSchema).max(TIME_OFF_LIMIT).optional(),
+  leaveAllowances: z.array(z.object({ staffId: id, days: z.number().min(0).max(366) })).optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 export type Role = 'owner' | 'manager' | 'reception' | 'practitioner'
@@ -293,12 +326,24 @@ export function hoursFor(s: BusinessState, date: string) {
   const day = new Date(`${date}T12:00:00Z`).getUTCDay()
   return operations(s).hours.find((h) => h.day === day)!
 }
-export function staffHoursFor(s: BusinessState, staffId: string, date: string) {
+/** A person's usual hours for a day from their weekly pattern, ignoring time off. */
+export function usualHoursFor(s: BusinessState, staffId: string, date: string) {
   const person = s.staff.find((p) => p.id === staffId)
   return (
     person?.hours?.find((h) => h.day === new Date(`${date}T12:00:00Z`).getUTCDay()) ??
     hoursFor(s, date)
   )
+}
+/** Time off that covers a day for one person, if any (V2). */
+export function timeOffOn(s: BusinessState, staffId: string, date: string) {
+  return (operations(s).timeOff ?? []).find(
+    (t) => !t.cancelledAt && t.staffId === staffId && t.from <= date && t.to >= date,
+  )
+}
+/** The hours a person can be booked on a day: their usual hours, closed while they are away. */
+export function staffHoursFor(s: BusinessState, staffId: string, date: string) {
+  const usual = usualHoursFor(s, staffId, date)
+  return timeOffOn(s, staffId, date) ? { ...usual, closed: true } : usual
 }
 export function stock(s: BusinessState, productId: string) {
   return operations(s)
@@ -308,7 +353,12 @@ export function stock(s: BusinessState, productId: string) {
 export function permissionFor(command: { type: string }) {
   if (['service', 'staff', 'resource', 'guest-notes', 'offer'].includes(command.type))
     return 'catalogue'
-  if (['closure', 'remove-closure'].includes(command.type)) return 'hours'
+  if (
+    ['closure', 'remove-closure', 'time-off', 'cancel-time-off', 'leave-allowance'].includes(
+      command.type,
+    )
+  )
+    return 'hours'
   if (command.type === 'message-queue') return 'message.queue'
   return command.type
 }

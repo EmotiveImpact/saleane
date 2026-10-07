@@ -27,6 +27,7 @@ import { ClientRelationship } from './pages/ClientRelationship'
 import { Business } from './pages/Business'
 import { Stock } from './pages/Stock'
 import { Pay } from './pages/Pay'
+import { Rota } from './pages/Rota'
 import { BrandedBooking } from './pages/BrandedBooking'
 const Account = lazy(() =>
   import('./pages/Account').then((module) => ({ default: module.Account })),
@@ -277,6 +278,7 @@ function WorkspaceApp() {
               </NavLink>
               <NavLink to="/business/money">Money</NavLink>
               <NavLink to="/business/stock">Stock</NavLink>
+              <NavLink to="/business/rota">Rota</NavLink>
               {(role === 'owner' || role === 'manager') && (
                 <>
                   <NavLink to="/business/pay">Pay</NavLink>
@@ -299,6 +301,10 @@ function WorkspaceApp() {
             <Route path="/business/money" element={<Money />} />
             <Route path="/business/feedback" element={<Feedback />} />
             <Route path="/business/stock" element={<Stock />} />
+            <Route
+              path="/business/rota"
+              element={role === 'practitioner' ? <Navigate to="/today" replace /> : <Rota />}
+            />
             <Route
               path="/business/pay"
               element={

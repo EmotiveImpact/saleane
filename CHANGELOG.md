@@ -2,6 +2,16 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · V2 · Rota, holidays and time off
+
+**Status: built locally on 7 October 2026, in review; nothing deployed.**
+
+- Business has a new Rota page. It shows the week for each person from their usual hours, how many visits they have each day, and who is on holiday, off sick or away. Owners, managers and reception can see it.
+- Owners and managers add time off for whole days (holiday, sick or away, with an optional note) and can cancel it. Cancelled time off stays on record with who cancelled it.
+- Nobody can be booked while they are away, online or at the desk, and the time counts as unavailable in Business figures.
+- Time off is refused while it would leave a booked visit stranded. The form lists those visits before saving, so the desk moves them first; nothing is moved or cancelled automatically.
+- Each person can have a yearly holiday allowance. The page shows the working days of holiday booked this year and how many are left, and a holiday over New Year counts each day in its own year.
+
 ## 2026-10-07 · V2 · Commission and tips per person
 
 **Status: built locally on 7 October 2026, in review; nothing deployed. SALEANE works out what each person has earned and pays nobody.**

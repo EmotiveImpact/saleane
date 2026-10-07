@@ -16,6 +16,7 @@ import {
   messageInputSchema,
   protectionSchema,
   productInputSchema,
+  timeOffInputSchema,
   weeklyHoursSchema,
 } from './operations'
 import { tillCountCommandSchema } from './tillCount'
@@ -144,6 +145,13 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     inclusive: z.boolean(),
   }),
   z.object({ type: z.literal('product'), id: id.optional(), input: productInputSchema }),
+  z.object({ type: z.literal('time-off'), input: timeOffInputSchema }),
+  z.object({ type: z.literal('cancel-time-off'), timeOffId: id }),
+  z.object({
+    type: z.literal('leave-allowance'),
+    staffId: id,
+    days: z.number().min(0).max(366).multipleOf(0.5),
+  }),
   z.object({
     type: z.literal('pay-rate'),
     staffId: id,

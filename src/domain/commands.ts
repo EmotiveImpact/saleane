@@ -602,6 +602,11 @@ export function dispatch(
   const counted = new Set((s.tillCounts ?? []).map((c) => c.id))
   for (const count of result.state.tillCounts ?? [])
     if (!counted.has(count.id)) count.actor = actorName
+  const cancelled = new Set(
+    (operations(s).timeOff ?? []).filter((t) => t.cancelledAt).map((t) => t.id),
+  )
+  for (const away of operations(result.state).timeOff ?? [])
+    if (away.cancelledAt && !cancelled.has(away.id)) away.cancelledBy = actorName
   const settled = new Set((operations(s).balances ?? []).filter((b) => b.settled).map((b) => b.id))
   for (const balance of operations(result.state).balances ?? [])
     if (balance.settled && !settled.has(balance.id)) balance.settled.actor = actorName
@@ -613,6 +618,7 @@ export function dispatch(
     'imports',
     'balances',
     'payRates',
+    'timeOff',
   ] as const) {
     const ids = new Set((operations(s)[key] ?? []).map((r) => r.id))
     const records = operations(result.state)[key] ?? []

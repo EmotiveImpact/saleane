@@ -362,7 +362,29 @@ export function seed(region: Region): BusinessState {
   })
   seedStock(state, uk)
   seedPay(state)
+  seedTimeOff(state, uk)
   return parseState(state, region)
+}
+
+/** V2: holidays and a sick day for the demo team, with yearly allowances. Fictional. */
+function seedTimeOff(state: BusinessState, uk: boolean) {
+  const o = (state.operations ??= defaultOperations('sandbox'))
+  const away: [string, string, string, 'holiday' | 'sick', string?][] = [
+    ['staff-maya', '2026-08-10', '2026-08-14', 'holiday'],
+    ['staff-theo', '2026-09-30', '2026-09-30', 'sick'],
+    ['staff-sophia', '2026-10-19', '2026-10-23', 'holiday', 'Family wedding'],
+  ]
+  o.timeOff = away.map(([staffId, from, to, kind, note], i) => ({
+    id: `time-off-${i + 1}`,
+    staffId,
+    from,
+    to,
+    kind,
+    ...(note ? { note } : {}),
+    createdAt: '2026-07-01T09:00:00.000Z',
+    actor: 'Owner · demo fixture',
+  }))
+  o.leaveAllowances = state.staff.map((person) => ({ staffId: person.id, days: uk ? 28 : 15 }))
 }
 
 /** V2: commission rates for the demo team, so Pay has figures to show. Fictional. */
