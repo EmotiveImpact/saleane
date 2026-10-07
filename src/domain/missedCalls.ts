@@ -97,6 +97,47 @@ export function recordMissedCall(
   return call.id
 }
 
+/**
+ * Checks a desk booking may answer this missed call: the call is on the list, has no visit yet,
+ * and the visit is for the caller (the client matched by number, when there is one).
+ */
+export function callForBooking(s: BusinessState, callId: string, clientId: string) {
+  const call = (operations(s).missedCalls ?? []).find((c) => c.id === callId)
+  if (!call) throw new Error('That call is not on the list.')
+  if (call.appointmentId) throw new Error('A visit is already booked for that call.')
+  if (call.clientId && call.clientId !== clientId)
+    throw new Error('That call came from another client. Book it for them, or start a new booking.')
+  return call
+}
+
+/** Links a call to the visit booked for it. Booking counts as calling back. */
+export function linkCallToVisit(
+  next: BusinessState,
+  callId: string,
+  appointmentId: string,
+  clientId: string,
+  now: string,
+) {
+  const call = (operations(next).missedCalls ?? []).find((c) => c.id === callId)!
+  call.appointmentId = appointmentId
+  call.clientId ??= clientId
+  if (!call.calledBackAt) {
+    call.calledBackAt = now
+    call.calledBackBy = 'Local operator'
+  }
+}
+
+/** Calls in the last week that became a booked visit, for the desk to see the list working. */
+export function callsBookedThisWeek(s: BusinessState, nowIso?: string) {
+  const since = addDays(businessDate(s, nowIso), -MISSED_CALL_DAYS)
+  return (operations(s).missedCalls ?? []).filter(
+    (call) =>
+      call.appointmentId &&
+      businessDate(s, call.at) >= since &&
+      s.appointments.some((a) => a.id === call.appointmentId && a.status !== 'cancelled'),
+  ).length
+}
+
 /** Someone called them back. Saying so twice changes nothing. */
 export function markCalledBack(next: BusinessState, callId: string, now: string) {
   const call = (operations(next).missedCalls ?? []).find((c) => c.id === callId)

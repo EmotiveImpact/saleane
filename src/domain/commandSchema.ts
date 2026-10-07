@@ -68,6 +68,8 @@ export const bookingSchema = z.object({
   rebookedFromId: id.optional(),
   /** V1.5: the waitlist request this booking fills. */
   waitlistId: id.optional(),
+  /** V1.5: the missed call this booking answers. */
+  callId: id.optional(),
 })
 export const operatingCommandSchema = z.discriminatedUnion('type', [
   z.object({

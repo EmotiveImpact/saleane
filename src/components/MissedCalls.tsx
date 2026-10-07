@@ -5,11 +5,12 @@ import { PhoneMissed } from 'lucide-react'
 import { useStore } from '../state/context'
 import { useClock } from '../state/clock'
 import { businessDate, can } from '../domain/operations'
-import { numberLabel, openMissedCalls } from '../domain/missedCalls'
+import { callsBookedThisWeek, numberLabel, openMissedCalls } from '../domain/missedCalls'
 import { reminderSettings } from '../domain/reminders'
 import { dateLabel } from '../domain/format'
 import { Button, ErrorMessage } from '../design'
 import { useRun } from './usePayment'
+import { BookingDialog } from './BookingDialog'
 import './patchTests.css'
 
 /**
@@ -22,12 +23,15 @@ export function MissedCalls() {
   const clock = useClock()
   const [number, setNumber] = useState('')
   const [notice, setNotice] = useState('')
+  const [booking, setBooking] = useState<{ callId: string; clientId?: string } | null>(null)
   const { run, pending, error, setError } = useRun()
   if (!can(role, 'missed-call')) return null
   const allowed = !blocked
   const org = state.organisation
   const today = businessDate(state, clock)
   const calls = openMissedCalls(state, clock)
+  const booked = callsBookedThisWeek(state, clock)
+  const canBook = allowed && can(role, 'book')
   const textBack = reminderSettings(state).missedCall === true && reminderSettings(state).sms
   const when = (iso: string) => {
     const time = new Intl.DateTimeFormat(org.locale, {
@@ -97,6 +101,19 @@ export function MissedCalls() {
                   <a className="button button-secondary" href={`tel:${call.number}`}>
                     Call
                   </a>
+                  {canBook && (
+                    <Button
+                      variant="secondary"
+                      disabled={pending}
+                      onClick={() => {
+                        setNotice('')
+                        setBooking({ callId: call.id, clientId: call.clientId })
+                      }}
+                      aria-label={`Book a visit for ${who}`}
+                    >
+                      Book
+                    </Button>
+                  )}
                   <Button
                     variant="quiet"
                     disabled={!allowed || pending}
@@ -112,6 +129,11 @@ export function MissedCalls() {
         </ul>
       ) : (
         <p className="subtle">No calls waiting for a call back.</p>
+      )}
+      {booked > 0 && (
+        <p className="subtle">
+          {booked === 1 ? 'One call' : `${booked} calls`} this week became a booked visit.
+        </p>
       )}
       {allowed && (
         <form className="missed-form" onSubmit={(event) => void add(event)} aria-busy={pending}>
@@ -136,6 +158,12 @@ export function MissedCalls() {
         <p className="ops-save-note" role="status">
           {notice}
         </p>
+      )}
+      {booking && (
+        <BookingDialog
+          defaults={{ callId: booking.callId, clientId: booking.clientId }}
+          onClose={() => setBooking(null)}
+        />
       )}
     </section>
   )
