@@ -54,6 +54,19 @@ export function isOpen(s: BusinessState, entry: WaitlistEntry, now = new Date().
 export const waiting = (s: BusinessState, now = new Date().toISOString()) =>
   waitlistList(s).filter((e) => isOpen(s, e, now))
 
+/**
+ * The treatment a request is for, as the client knows it: a guest asking to come in sooner sees
+ * the name their visit was booked under, even if the menu has since been renamed.
+ */
+export function serviceLabel(s: BusinessState, entry: WaitlistEntry) {
+  const booked = s.appointments.find((a) => a.id === entry.appointmentId)
+  return (
+    booked?.bookedServiceName ??
+    s.services.find((item) => item.id === entry.serviceId)?.name ??
+    'Service'
+  )
+}
+
 /** Morning is before noon, afternoon until 5pm, evening after. */
 export function timeOfDay(startMinutes: number): WaitlistTime {
   return startMinutes < 720 ? 'morning' : startMinutes < 1020 ? 'afternoon' : 'evening'
@@ -444,9 +457,7 @@ export function runWaitlistCommand(
     throw new Error('That time is no longer free for this request. Choose another.')
   const client = next.clients.find((c) => c.id === entry.clientId)!
   // A guest asking to come in sooner is offered the visit they booked, under its booked name.
-  const booked = next.appointments.find((item) => item.id === entry.appointmentId)
-  const serviceName =
-    booked?.bookedServiceName ?? next.services.find((item) => item.id === entry.serviceId)!.name
+  const serviceName = serviceLabel(next, entry)
   const person = next.staff.find((p) => p.id === opening.staffId)!
   const org = next.organisation
   const when = `${dateLabel(opening.date, org.locale)} at ${timeLabel(opening.startMinutes, org.locale)}`

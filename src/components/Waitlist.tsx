@@ -5,7 +5,7 @@ import { Hourglass, Plus } from 'lucide-react'
 import { useStore } from '../state/context'
 import { useClock } from '../state/clock'
 import { businessDate, can } from '../domain/operations'
-import { isOpen, openings, timesLabel, waitlistList } from '../domain/waitlist'
+import { isOpen, openings, serviceLabel, timesLabel, waitlistList } from '../domain/waitlist'
 import type { Opening } from '../domain/waitlist'
 import { WAITLIST_MAX_DAYS, WAITLIST_TIMES } from '../domain/waitlistSchema'
 import type { WaitlistEntry, WaitlistInput, WaitlistTime } from '../domain/waitlistSchema'
@@ -210,7 +210,7 @@ export function WaitlistCard({
   const [chosen, setChosen] = useState<Opening | null>(null)
   const [removing, setRemoving] = useState(false)
   const client = state.clients.find((c) => c.id === entry.clientId)
-  const service = state.services.find((s) => s.id === entry.serviceId)
+  const serviceName = serviceLabel(state, entry)
   const person = (id?: string) => state.staff.find((p) => p.id === id)?.name ?? 'anyone'
   const visit = state.appointments.find((a) => a.id === entry.appointmentId)
   // The search is the heaviest work on the page, so it runs again only when the studio changes or
@@ -219,14 +219,14 @@ export function WaitlistCard({
   const times = useMemo(() => openings(state, entry, clock), [state, entry, clock])
   const when = (o: Opening) =>
     `${dateLabel(o.date, org.locale)} at ${timeLabel(o.startMinutes, org.locale)}`
-  const heading = `${showClient ? `${client?.name ?? 'Client'} · ` : ''}${service?.name ?? 'Service'}`
+  const heading = `${showClient ? `${client?.name ?? 'Client'} · ` : ''}${serviceName}`
   return (
     <li className="waitlist-card">
       <div className="waitlist-card-copy">
         <strong>
           {showClient && client ? (
             <>
-              <Link to={`/clients/${client.id}`}>{client.name}</Link> · {service?.name}
+              <Link to={`/clients/${client.id}`}>{client.name}</Link> · {serviceName}
             </>
           ) : (
             heading
@@ -280,7 +280,7 @@ export function WaitlistCard({
           <Button variant="quiet" onClick={() => setRemoving(true)}>
             Take off the list
             <span className="sr-only">
-              : {client?.name}, {service?.name}
+              : {client?.name}, {serviceName}
             </span>
           </Button>
         )}
@@ -313,7 +313,7 @@ function FillDialog({
   const { run, pending, error } = useRun()
   const [done, setDone] = useState('')
   const client = state.clients.find((c) => c.id === entry.clientId)!
-  const service = state.services.find((s) => s.id === entry.serviceId)
+  const serviceName = serviceLabel(state, entry)
   const person = state.staff.find((p) => p.id === opening.staffId)?.name
   const moving = !!entry.appointmentId
   async function fill() {
@@ -349,7 +349,7 @@ function FillDialog({
         if (!pending) onClose()
       }}
       title={`${label} for ${client.name}`}
-      description={`${service?.name} with ${person}.`}
+      description={`${serviceName} with ${person}.`}
     >
       {done ? (
         <div className="waitlist-done">
@@ -465,7 +465,7 @@ export function ClientWaitlist({ clientId }: { clientId: string }) {
         <ul className="waitlist-closed">
           {closed.map((e) => (
             <li key={e.id}>
-              {state.services.find((s) => s.id === e.serviceId)?.name}:{' '}
+              {serviceLabel(state, e)}:{' '}
               {e.status === 'booked'
                 ? 'filled'
                 : e.status === 'removed'

@@ -6,7 +6,14 @@ import type { BusinessState } from './model'
 import { parseState } from './model'
 import { addDays } from './format'
 import { can, operations } from './operations'
-import { openingFree, openings, timeOfDay, waiting, waitlistSummary } from './waitlist'
+import {
+  openingFree,
+  openings,
+  serviceLabel,
+  timeOfDay,
+  waiting,
+  waitlistSummary,
+} from './waitlist'
 import type { WaitlistInput } from './waitlistSchema'
 import { guestView } from './guest'
 import { clientExport, erasureReview, previewClientExport } from './privacy'
@@ -50,8 +57,8 @@ describe('waitlist', () => {
   it('seeds people waiting, and shows times that suit each of them', () => {
     const s = seed('UK')
     expect(parseState(structuredClone(s), 'UK')).toBeTruthy()
-    expect(waiting(s)).toHaveLength(3)
-    for (const entry of waiting(s)) {
+    expect(waiting(s, now)).toHaveLength(3)
+    for (const entry of waiting(s, now)) {
       const found = openings(s, entry, now)
       expect(found.length).toBeGreaterThan(0)
       for (const o of found) {
@@ -136,7 +143,7 @@ describe('waitlist', () => {
 
   it('writes an offer as an Inbox draft and never sends it', () => {
     const s = seed('UK')
-    const entry = waiting(s)[0]
+    const entry = waiting(s, now)[0]
     const opening = openings(s, entry, now)[0]
     const next = apply(s, { type: 'waitlist-offer', entryId: entry.id, ...opening })
     const message = operations(next).messages.at(-1)!
@@ -156,7 +163,7 @@ describe('waitlist', () => {
 
   it('takes someone off the list, keeping the request and the reason', () => {
     const s = seed('UK')
-    const entry = waiting(s)[0]
+    const entry = waiting(s, now)[0]
     const command: Command = {
       type: 'waitlist-remove',
       entryId: entry.id,
@@ -200,10 +207,10 @@ describe('waitlist', () => {
     })
     // Changing their answer replaces the request rather than adding another.
     const changed = apply(joined, { ...join, anyone: true, times: ['evening'] } as Command)
-    expect(waiting(changed).filter((e) => e.appointmentId === visit.id)).toHaveLength(1)
-    expect(waiting(changed).find((e) => e.appointmentId === visit.id)!.staffId).toBeUndefined()
+    expect(waiting(changed, now).filter((e) => e.appointmentId === visit.id)).toHaveLength(1)
+    expect(waiting(changed, now).find((e) => e.appointmentId === visit.id)!.staffId).toBeUndefined()
     const left = apply(changed, { type: 'waitlist-leave', appointmentId: visit.id })
-    expect(waiting(left).some((e) => e.appointmentId === visit.id)).toBe(false)
+    expect(waiting(left, now).some((e) => e.appointmentId === visit.id)).toBe(false)
     expect(guestView(left, visit.id, Date.parse(now)).waitlist).toEqual({ joined: null })
     // Only the guest's private link may do this; no staff role can act for them.
     for (const role of ['owner', 'manager', 'reception', 'practitioner'] as const) {
@@ -296,7 +303,7 @@ describe('waitlist', () => {
 
   it('appears in the client’s export, erasure review and the retention register', () => {
     const s = seed('UK')
-    const entry = waiting(s)[0]
+    const entry = waiting(s, now)[0]
     const file = clientExport(s, entry.clientId, {} as never)
     expect(file.waitlist).toHaveLength(1)
     expect(previewClientExport(file).sections).toContainEqual(
@@ -427,7 +434,7 @@ describe('waitlist', () => {
     const s = seed('UK')
     const entry = s.waitlist![0]
     entry.toDate = '2026-10-05'
-    expect(waiting(s).map((e) => e.id)).not.toContain(entry.id)
+    expect(waiting(s, now).map((e) => e.id)).not.toContain(entry.id)
     expect(openings(s, entry, now)).toEqual([])
     expect(waitlistSummary(s, '2026-10-01T00:00:00.000Z').waiting).toBe(2)
     // The client can ask again for the same service.
@@ -436,7 +443,7 @@ describe('waitlist', () => {
       input: { ...wish, clientId: entry.clientId, serviceId: entry.serviceId },
     })
     expect(again.waitlist!.find((e) => e.id === entry.id)!.status).toBe('waiting')
-    expect(waiting(again).filter((e) => e.clientId === entry.clientId)).toHaveLength(1)
+    expect(waiting(again, now).filter((e) => e.clientId === entry.clientId)).toHaveLength(1)
   })
 
   it('never moves a guest later, even after the desk moved their visit earlier', () => {
@@ -473,7 +480,7 @@ describe('waitlist', () => {
 
   it('withdraws unsent offers when a request ends, and refuses to approve them', () => {
     const s = seed('UK')
-    const entry = waiting(s)[0]
+    const entry = waiting(s, now)[0]
     const offered = apply(s, {
       type: 'waitlist-offer',
       entryId: entry.id,
@@ -503,7 +510,7 @@ describe('waitlist', () => {
       anyone: false,
       times: [],
     })
-    expect(waiting(joined).some((e) => e.appointmentId === visit.id)).toBe(true)
+    expect(waiting(joined, now).some((e) => e.appointmentId === visit.id)).toBe(true)
     // A new request from the desk still needs a service that is offered.
     expect(
       run(archived, { type: 'waitlist-add', input: { ...wish, clientId: 'client-2' } }).ok,
@@ -519,7 +526,7 @@ describe('waitlist', () => {
       times: [],
     })
     joined.services.find((item) => item.id === visit.serviceId)!.name = 'Renamed facial'
-    const entry = waiting(joined).find((e) => e.appointmentId === visit.id)!
+    const entry = waiting(joined, now).find((e) => e.appointmentId === visit.id)!
     const offered = apply(joined, {
       type: 'waitlist-offer',
       entryId: entry.id,
@@ -528,11 +535,12 @@ describe('waitlist', () => {
     const body = operations(offered).messages.at(-1)!.body
     expect(body).toContain(visit.bookedServiceName!)
     expect(body).not.toContain('Renamed facial')
+    expect(serviceLabel(joined, entry)).toBe(visit.bookedServiceName)
   })
 
   it('stops offering once a request has had the most offers it can keep', () => {
     const s = seed('UK')
-    const entry = waiting(s)[0]
+    const entry = waiting(s, now)[0]
     const opening = openings(s, entry, now)[0]
     const full = structuredClone(s)
     full.waitlist!.find((e) => e.id === entry.id)!.offers = Array.from({ length: 50 }, (_, i) => ({
@@ -560,7 +568,9 @@ describe('waitlist', () => {
       startMinutes: visit.startMinutes,
       staffId: 'staff-sophia',
     })
-    expect(waiting(moved).find((e) => e.appointmentId === visit.id)!.staffId).toBe('staff-sophia')
+    expect(waiting(moved, now).find((e) => e.appointmentId === visit.id)!.staffId).toBe(
+      'staff-sophia',
+    )
 
     // A request whose dates have passed keeps the professional the guest chose.
     const ended = structuredClone(joined)
@@ -579,7 +589,7 @@ describe('waitlist', () => {
 
   it('checks an offer again when it is approved, and exports a withdrawn one honestly', () => {
     const s = seed('UK')
-    const entry = waiting(s)[0]
+    const entry = waiting(s, now)[0]
     const opening = openings(s, entry, now)[0]
     const offered = apply(s, { type: 'waitlist-offer', entryId: entry.id, ...opening })
     const messageId = offered.waitlist!.find((e) => e.id === entry.id)!.offers![0].messageId
@@ -637,7 +647,7 @@ describe('waitlist', () => {
 
   it('keeps an offer’s wording tied to the time it was checked for', () => {
     const s = seed('UK')
-    const entry = waiting(s)[0]
+    const entry = waiting(s, now)[0]
     const offered = apply(s, {
       type: 'waitlist-offer',
       entryId: entry.id,
