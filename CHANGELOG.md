@@ -4,7 +4,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-07 · Lumane · Assistant engine and first Ask Saleane skills
 
-**Status: engine core built locally on 7 October 2026, in review; no screen, no server route and no real AI connected yet.** Everything runs with a test-mode brain that answers from a script, so nothing is sent to an AI supplier and nothing costs money.
+**Status: built locally on 7 October 2026, in review; no real AI connected yet.** Everything runs with a test-mode brain that recognises a few plain questions and answers from the studio record, so nothing is sent to an AI supplier and nothing costs money. Talking (voice), guest chat and the ChatGPT and Claude connection come later.
 
 - Lumane is a separate engine in `lumane/`, built so other products can reuse it. A test makes sure it never imports anything from SALEANE.
 - Skills are either read skills, which answer from the studio's own records, or action skills, which only propose a change. A proposal does nothing until a person approves it, and it expires after 30 minutes.
@@ -12,6 +12,8 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Each question has a cap on how many steps the AI can take, and every answer, proposal and refusal is written to an audit trail.
 - The first Ask Saleane skills cover the day overview, finding a client, a client brief, who is due back, takings and low stock (owners and managers only), money owed and plans running low. Drafting a message and moving a visit are proposals: a draft stays unsent until someone sends it from the Inbox, a move checks the diary for clashes, and marketing drafts are refused without consent.
 - Practitioners get no Ask Saleane skills yet; theirs will be built on `PractitionerView` so they never see a whole studio.
+- An "Ask Saleane" button in the header opens a side panel for owners, managers and reception. It answers what is on today or tomorrow, who is due back, takings, money owed, plans running low, low stock and a brief on a client, and can prepare an invitation for a client to come back. The invitation appears as a suggestion with Approve and Not now; approving saves it as an unsent draft in the Inbox through the same checks as any desk change. The panel shows how many of the month's 300 questions are used.
+- Signed in, the server answers and keeps each studio's monthly use in the database (schema version 7), so the allowance holds across restarts. Suggestions stay on the server for 30 minutes, only the person who asked can approve them, and each is decided once; suggesting, approving and declining are recorded in the audit log. In the browser demo the panel works the same way against the demo record.
 
 ## 2026-10-07 · V1.5 · Private client feedback and ratings
 
