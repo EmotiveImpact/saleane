@@ -1,6 +1,7 @@
 import type { z } from 'zod'
 import type { Appointment, BusinessState, RelationshipEvent } from './model'
 import { formContentSchema, FORM_LIMIT, FORM_RESPONSE_LIMIT } from './formsSchema'
+import { instantFor } from './operations'
 import type {
   FormAnswers,
   FormContent,
@@ -165,12 +166,19 @@ export function runFormCommand(
     const form = formsList(next).find((f) => f.id === command.formId)
     if (!form) throw new Error('That form is not in this studio.')
     if (command.archived) form.archived = true
-    else delete form.archived
+    else if (form.archived) {
+      if (formsList(next).filter((f) => !f.archived).length >= FORM_LIMIT)
+        throw new Error(`A studio can have up to ${FORM_LIMIT} forms in use.`)
+      delete form.archived
+    }
     return form.id
   }
   const a = next.appointments.find((x) => x.id === command.appointmentId)
   if (!a) throw new Error('This visit is not in the studio record.')
-  if (a.status !== 'confirmed' && a.status !== 'arrived')
+  if (
+    (a.status !== 'confirmed' && a.status !== 'arrived') ||
+    Date.parse(instantFor(next, a.date, a.startMinutes)) <= Date.parse(now)
+  )
     throw new Error('Forms can be filled in before the visit only.')
   const form = formsList(next).find((f) => f.id === command.formId)
   if (!form || form.archived || !coversService(form, a.serviceId))
@@ -245,9 +253,12 @@ export function formsProblem(s: BusinessState) {
   if (new Set(rows.map((r) => r.id)).size !== rows.length) return 'Duplicate form answer IDs.'
   if (new Set(rows.map((r) => `${r.formId} ${r.appointmentId}`)).size !== rows.length)
     return 'A visit has a form answered twice.'
+  // Indexed once: this runs after every change, and both lists can be long.
+  const formById = new Map(forms.map((f) => [f.id, f]))
+  const visitById = new Map(s.appointments.map((a) => [a.id, a]))
   for (const row of rows) {
-    const form = forms.find((f) => f.id === row.formId)
-    const a = s.appointments.find((x) => x.id === row.appointmentId)
+    const form = formById.get(row.formId)
+    const a = visitById.get(row.appointmentId)
     if (row.organisationId !== s.organisation.id) return 'Foreign workspace record.'
     if (!form || !versionOf(form, row.version) || !a || a.clientId !== row.clientId)
       return 'A form answer does not match its visit.'

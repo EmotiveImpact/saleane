@@ -144,6 +144,29 @@ describe('guest forms', () => {
     expect(tryWith({ answers: [{ questionId: 'q-other', value: 'x' }] })).toMatch(/check the form/)
   })
 
+  it('takes a form only before the visit starts', () => {
+    const { s, formId } = local()
+    const a = upcoming(s)
+    const late = execute(s, submit(a.id, formId), '2026-10-30T08:00:00.000Z', makeId)
+    expect(late.ok || late.error).toBe('Forms can be filled in before the visit only.')
+    expect(guestView(s, a.id, Date.parse('2026-10-30T08:00:00.000Z')).forms).toBeUndefined()
+  })
+
+  it('keeps to the limit of forms in use when one is asked for again', () => {
+    const start = local()
+    const { formId } = start
+    let s = start.s
+    s = run(s, { type: 'form-archive', formId, archived: true }).state
+    for (let i = 0; i < 30; i++)
+      s = run(s, {
+        type: 'form-save',
+        content: { ...content, title: `Form ${i}` },
+        settings: { serviceIds: [], when: 'once' },
+      }).state
+    const again = execute(s, { type: 'form-archive', formId, archived: false }, NOW, makeId)
+    expect(again.ok || again.error).toMatch(/up to 30 forms/)
+  })
+
   it('makes a new version when the words change, and keeps old answers on theirs', () => {
     const { s, formId } = local()
     const a = upcoming(s)

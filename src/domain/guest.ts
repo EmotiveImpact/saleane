@@ -304,7 +304,9 @@ export function guestView(
           })(),
         }
       : {}),
-    ...((a.status === 'confirmed' || a.status === 'arrived') && visitForms(s, a).length
+    ...((a.status === 'confirmed' || a.status === 'arrived') &&
+    visitStart(s, a.id) > now &&
+    visitForms(s, a).length
       ? {
           forms: visitForms(s, a).map((item) => ({
             formId: item.form.id,
