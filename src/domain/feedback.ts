@@ -11,7 +11,7 @@ import { businessDate, instantFor } from './operations'
  * separate, neutral request to the studio's Google page; nothing here is ever published.
  */
 export const FEEDBACK_COMMENT_LIMIT = 1000
-/** A practitioner's own average shows once this many different guests have rated them. */
+/** A practitioner's average, and each later change to it, needs this many different guests. */
 export const PRACTITIONER_AVERAGE_MIN = 3
 /** Feedback can be given for this long after the visit starts (the private link's lifetime). */
 export const FEEDBACK_WINDOW_MS = 7 * 24 * 60 * 60000
@@ -171,17 +171,27 @@ export function feedbackSummary(s: BusinessState, since?: string) {
 }
 
 /**
- * A practitioner's own average and count, or a null average until enough different guests have
- * rated, so one regular's answers can never be read back from the average.
+ * A practitioner's own average and how many ratings it includes. Ratings join in groups that each
+ * hold at least three different guests, oldest first, so neither the first average nor any later
+ * change can be traced back to one guest's score: comparing the figure before and after an update
+ * reveals only a group's average. Until the first group is complete the average is null.
  */
 export function ownRating(s: BusinessState, staffId: string) {
-  const mine = feedbackList(s).filter((r) => r.staffId === staffId)
+  const mine = feedbackList(s)
+    .filter((r) => r.staffId === staffId)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))
+  const released: Feedback[] = []
+  let group: Feedback[] = []
+  for (const row of mine) {
+    group.push(row)
+    if (new Set(group.map((r) => r.clientId)).size >= PRACTITIONER_AVERAGE_MIN) {
+      released.push(...group)
+      group = []
+    }
+  }
   return {
-    count: mine.length,
-    average:
-      new Set(mine.map((r) => r.clientId)).size >= PRACTITIONER_AVERAGE_MIN
-        ? average(mine.map((r) => r.practitionerRating))
-        : null,
+    count: released.length,
+    average: released.length ? average(released.map((r) => r.practitionerRating)) : null,
   }
 }
 

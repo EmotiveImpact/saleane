@@ -112,22 +112,77 @@ describe('who sees what', () => {
     expect(feedbackDay(la, '2026-10-06T03:30:00.000Z')).toBe('2026-10-05')
   })
 
-  it('gives a practitioner their own average only once three guests have rated them', () => {
+  it('gives a practitioner their own average only in groups of three guests', () => {
     const s = seed('UK')
-    expect(ownRating(s, 'staff-maya')).toEqual({ count: 4, average: 4.8 })
-    expect(ownRating(s, 'staff-theo')).toEqual({ count: 2, average: null })
+    const maya = ownRating(s, 'staff-maya')
+    expect(maya.average).not.toBeNull()
+    expect(ownRating(s, 'staff-theo')).toEqual({ count: 0, average: null })
     const view = practitionerView(s, 'staff-maya', '2026-10-06')
-    expect(view.rating).toEqual({ count: 4, average: 4.8 })
+    expect(view.rating).toEqual(maya)
     expect(JSON.stringify(view)).not.toContain('remembered exactly')
+
+    // Synthetic answers about one practitioner, in the order they were given.
+    const base = s.feedback!.find((f) => f.staffId === 'staff-maya')!
+    const rated = (rows: [string, number][]) => {
+      const next = structuredClone(s)
+      next.feedback = rows.map(([clientId, practitionerRating], n) => ({
+        ...base,
+        id: `r-${n}`,
+        clientId,
+        practitionerRating,
+        createdAt: `2026-10-0${n + 1}T10:00:00.000Z`,
+      }))
+      return ownRating(next, 'staff-maya')
+    }
     // One regular rating three visits is still one guest, so no average yet.
-    const regular = structuredClone(s)
-    regular.feedback = regular.feedback!.filter((f) => f.staffId !== 'staff-maya')
-    for (const [n, f] of s
-      .feedback!.filter((r) => r.staffId === 'staff-maya')
-      .slice(0, 3)
-      .entries())
-      regular.feedback.push({ ...f, id: `same-${n}`, clientId: 'one-guest' })
-    expect(ownRating(regular, 'staff-maya')).toEqual({ count: 3, average: null })
+    expect(
+      rated([
+        ['a', 4],
+        ['a', 4],
+        ['a', 4],
+      ]),
+    ).toEqual({ count: 0, average: null })
+    expect(
+      rated([
+        ['a', 3],
+        ['b', 4],
+        ['c', 5],
+      ]),
+    ).toEqual({ count: 3, average: 4 })
+    // A fourth guest's score cannot be read from a change: it waits for two more guests.
+    expect(
+      rated([
+        ['a', 3],
+        ['b', 4],
+        ['c', 5],
+        ['d', 1],
+      ]),
+    ).toEqual({ count: 3, average: 4 })
+    expect(
+      rated([
+        ['a', 3],
+        ['b', 4],
+        ['c', 5],
+        ['d', 1],
+        ['e', 5],
+      ]),
+    ).toEqual({
+      count: 3,
+      average: 4,
+    })
+    expect(
+      rated([
+        ['a', 3],
+        ['b', 4],
+        ['c', 5],
+        ['d', 1],
+        ['e', 5],
+        ['f', 3],
+      ]),
+    ).toEqual({
+      count: 6,
+      average: 3.5,
+    })
   })
 
   it('shows the guest only their own ratings, and only after a completed visit', () => {

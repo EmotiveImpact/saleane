@@ -263,11 +263,11 @@ export function PractitionerDay() {
           />
         </div>
         <ErrorMessage error={error} />
-        {record.rating && record.rating.count > 0 && (
+        {record.rating && (
           <p className="practitioner-rating">
             <Star size={16} aria-hidden="true" />
             {record.rating.average !== null
-              ? `Guests rate how you look after them ${record.rating.average.toFixed(1)} out of 5, from ${record.rating.count} private ${record.rating.count === 1 ? 'rating' : 'ratings'}.`
+              ? `Guests rate how you look after them ${record.rating.average.toFixed(1)} out of 5, from ${record.rating.count} private ratings. New ratings are added once ${PRACTITIONER_AVERAGE_MIN} more guests have answered, so no one answer stands out.`
               : `Your average from guests' private ratings appears once ${PRACTITIONER_AVERAGE_MIN} guests have rated you.`}
           </p>
         )}
