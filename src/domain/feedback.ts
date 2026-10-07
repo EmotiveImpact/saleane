@@ -172,9 +172,10 @@ export function feedbackSummary(s: BusinessState, since?: string) {
 
 /**
  * A practitioner's own average and how many ratings it includes. Ratings join in groups that each
- * hold at least three different guests, oldest first, so neither the first average nor any later
- * change can be traced back to one guest's score: comparing the figure before and after an update
- * reveals only a group's average. Until the first group is complete the average is null.
+ * hold at least three different guests, oldest first, so comparing the figure before and after an
+ * update reveals only a group's average, not one guest's score. As with any average, a group whose
+ * guests all gave the same score shows that score; the average is kept plain rather than adding
+ * noise. Until the first group is complete the average is null.
  */
 export function ownRating(s: BusinessState, staffId: string) {
   const mine = feedbackList(s)
