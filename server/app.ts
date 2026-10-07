@@ -11,6 +11,9 @@ import { publicRoutes } from './routes/public'
 import { guestRoutes } from './routes/guest'
 import { daySheetRoutes } from './routes/daysheet'
 import { privacyRoutes } from './routes/privacy'
+import { messagingRoutes } from './routes/messaging'
+import { createOutbox } from './messaging/outbox'
+import type { Outbox } from './messaging/outbox'
 
 export type { ApiOptions } from './context'
 export type { InjectOptions, InjectResponse } from './http'
@@ -20,12 +23,13 @@ export type ApiHandler = ((
   next?: () => void,
 ) => Promise<void>) & {
   database: LocalDatabase
+  outbox: Outbox
   close: () => void
   inject: (request: InjectOptions) => Promise<InjectResponse>
 }
 
 // Route modules are tried in order; each claims its own paths and returns false otherwise.
-const routes = [
+const baseRoutes = [
   authRoutes,
   privacyRoutes,
   workspaceRoutes,
@@ -37,6 +41,9 @@ const routes = [
 export function createApiHandler(options: ApiOptions): ApiHandler {
   const ctx = createContext(options)
   const { origin, allowedOrigin, db, rateLimit } = ctx
+  const outbox = createOutbox(ctx, ctx.messaging)
+  const routes = [messagingRoutes(outbox), ...baseRoutes]
+  if (options.outboxIntervalMs) outbox.start(options.outboxIntervalMs)
 
   const handler = (async (
     request: IncomingMessage,
@@ -62,6 +69,22 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
       rateLimit(request, 'api', 180, 60000)
       const method = request.method ?? 'GET'
       const url = new URL(request.url!, allowedOrigin)
+      // Provider delivery receipts come from the provider, not a SALEANE page, and prove
+      // themselves by signature instead of by origin and session.
+      const hook = /^\/api\/hooks\/(postmark|twilio)$/.exec(url.pathname)
+      if (hook) {
+        if (method !== 'POST') fail(405, 'Use POST.')
+        const body = (await readBody(request, true)) as string
+        const receipts = outbox.providers.receipt(hook[1], {
+          url: url.toString(),
+          headers: request.headers as Record<string, string | undefined>,
+          body,
+        })
+        if (!receipts) fail(403, 'This receipt could not be verified.')
+        for (const receipt of receipts!) outbox.record(receipt)
+        reply(200, { ok: true })
+        return
+      }
       const path = url.pathname
         .split('/')
         .filter(Boolean)
@@ -84,7 +107,12 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
         body = await readBody(request)
       }
       const route: Route = { request, response, method, url, path, body, reply }
-      for (const handle of routes) if (await handle(ctx, route)) return
+      for (const handle of routes)
+        if (await handle(ctx, route)) {
+          // A booking, move or cancellation may need a message; send it soon, not next interval.
+          if (method !== 'GET' && options.outboxIntervalMs) outbox.soon()
+          return
+        }
       fail(404, 'This endpoint was not found.')
     } catch (error) {
       const status =
@@ -100,7 +128,11 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     }
   }) as ApiHandler
   handler.database = db
-  handler.close = () => db.close()
+  handler.outbox = outbox
+  handler.close = () => {
+    outbox.stop()
+    db.close()
+  }
   handler.inject = (input) => inject(handler, allowedOrigin, input)
   return handler
 }

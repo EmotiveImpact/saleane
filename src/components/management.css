@@ -838,3 +838,94 @@
     height: 120px;
   }
 }
+
+/* PILOT-01: confirmations and reminders the outbox handled. */
+.sent-messages {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+}
+.sent-messages header h2 {
+  margin: 0;
+}
+.sent-messages header p {
+  margin: var(--space-1) 0 0;
+  color: var(--muted);
+}
+.sent-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sent-item details {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface, #fff);
+}
+.sent-item summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  list-style: none;
+}
+.sent-item summary::-webkit-details-marker {
+  display: none;
+}
+.sent-item summary:focus-visible {
+  outline: 2px solid var(--focus, currentColor);
+  outline-offset: 2px;
+}
+.sent-channel {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--sage);
+}
+.sent-text {
+  display: grid;
+  min-width: 0;
+}
+.sent-text small {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.sent-body {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+  padding: 0 var(--space-3) var(--space-3);
+}
+.sent-body p {
+  margin: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.message-settings {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.message-settings legend {
+  margin-bottom: var(--space-1);
+  font-weight: var(--weight-strong);
+}
+@media (max-width: 520px) {
+  .sent-item summary {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .sent-item summary .ops-tag {
+    grid-column: 2;
+    justify-self: start;
+  }
+}

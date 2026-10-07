@@ -76,6 +76,37 @@ export const migrations: Migration[] = [
         CREATE INDEX guest_links_visit ON guest_links(organisation_id,appointment_id);
       `),
   },
+  {
+    version: 4,
+    // PILOT-01: the message outbox, and manage links that a sent message carries.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE outbox (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          dedupe_key TEXT NOT NULL, appointment_id TEXT NOT NULL, client_id TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK(kind IN ('confirmation','changed','reminder','cancelled')),
+          channel TEXT NOT NULL CHECK(channel IN ('email','sms')), slot TEXT NOT NULL,
+          recipient TEXT NOT NULL, subject TEXT NOT NULL, body TEXT NOT NULL,
+          status TEXT NOT NULL CHECK(status IN ('pending','test','accepted','delivered','failed','unknown','skipped')),
+          provider TEXT, provider_ref TEXT, detail TEXT, attempts INTEGER NOT NULL DEFAULT 0,
+          next_attempt_at INTEGER NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+          UNIQUE(organisation_id,dedupe_key)
+        ) STRICT;
+        CREATE INDEX outbox_due ON outbox(status,next_attempt_at);
+        CREATE INDEX outbox_visit ON outbox(organisation_id,appointment_id);
+        CREATE INDEX outbox_recent ON outbox(organisation_id,created_at);
+        CREATE UNIQUE INDEX outbox_provider_ref ON outbox(provider,provider_ref) WHERE provider_ref IS NOT NULL;
+        CREATE TABLE guest_links_next (
+          token_hash TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          appointment_id TEXT NOT NULL, origin TEXT NOT NULL CHECK(origin IN ('booking','desk','message')),
+          created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, revoked_at INTEGER
+        ) STRICT;
+        INSERT INTO guest_links_next SELECT token_hash,organisation_id,appointment_id,origin,created_at,expires_at,revoked_at FROM guest_links;
+        DROP TABLE guest_links;
+        ALTER TABLE guest_links_next RENAME TO guest_links;
+        CREATE INDEX guest_links_visit ON guest_links(organisation_id,appointment_id);
+      `),
+  },
 ]
 export const SCHEMA_VERSION = migrations[migrations.length - 1].version
 

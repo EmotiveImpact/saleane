@@ -80,7 +80,7 @@ export function createLocalServer(options: {
 }): { server: Server; api: ApiHandler } {
   const root = resolve(options.staticRoot ?? 'dist')
   protectDatabase(root, options.databasePath)
-  const api = createApiHandler(options)
+  const api = createApiHandler({ outboxIntervalMs: 30000, ...options })
   const expectedHost = new URL(options.origin).host
   // Cloudflare's script and frame are allowed only when the bot check keys are configured.
   const challenges = turnstileFromEnv() ? ' https://challenges.cloudflare.com' : ''

@@ -1,6 +1,6 @@
 # SALEANE local authority
 
-This is a local V1 candidate. The application runs on one address with a Node HTTP API and SQLite on the same computer. The server, rather than a browser tab, owns signed-in workspace changes. Browser demo mode remains separate. No payment, email or SMS provider is connected.
+This is a local V1 candidate. The application runs on one address with a Node HTTP API and SQLite on the same computer. The server, rather than a browser tab, owns signed-in workspace changes. Browser demo mode remains separate. No payment provider is connected. Appointment emails and texts run through an outbox that stays in test mode, sending nothing, until a provider is configured (below).
 
 ## Run and configuration
 
@@ -17,6 +17,20 @@ Optional bot check: set both `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` (Cl
 
 The standalone host binds only `127.0.0.1`. It does not implement TLS, a reverse proxy, public hosting, background jobs or remote access. HTTPS origins require a separately qualified TLS host. `createApiHandler({origin,databasePath,now?,allowRegistration?})` is callable Node request/response middleware; registration can be disabled through its options. `.inject()` exercises the same handler without listening on a network port. `.close()` releases SQLite. Development middleware and standalone hosting must not run duplicate application servers.
 
+### Appointment messages (PILOT-01)
+
+The server plans booking confirmations, new-time notices, reminders and cancellation notices for real (non-sample) studios every 30 seconds and shortly after any change. Each message is recorded once in the `outbox` table, keyed by visit, kind, channel and visit time, so a restart or repeat pass cannot send it twice. Before it leaves, the visit and the client's choices are checked again; a visit that changed is skipped. The row is marked "unclear" before the provider is called, so a crash mid-send never causes a silent second copy. Busy providers are retried up to three times; an unclear outcome waits for staff to choose "Send again". Only a verified provider receipt marks a message delivered. The stored text keeps a placeholder where the private manage link goes; each message gets a fresh link (the newest four message links per visit stay open, and a desk or booking link still closes them all).
+
+| Setting                                                  | Default | Purpose                                                                                                           |
+| -------------------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------- |
+| `SALEANE_EMAIL_PROVIDER`                                 | `test`  | `test` writes emails down and sends nothing; `postmark` sends through Postmark.                                   |
+| `POSTMARK_SERVER_TOKEN`, `SALEANE_EMAIL_FROM`            | unset   | Required for `postmark`; the from address must be a verified Postmark sender.                                     |
+| `POSTMARK_WEBHOOK_SECRET`                                | unset   | Basic-auth password set on the Postmark delivery and bounce webhook pointing at `/api/hooks/postmark`.            |
+| `SALEANE_SMS_PROVIDER`                                   | `test`  | `test` writes texts down and sends nothing; `twilio` sends through Twilio.                                        |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM` | unset   | Required for `twilio`. `TWILIO_FROM` is a sending number or a Messaging Service SID (`MG…`). Receipts are signed. |
+
+Naming a live provider without all of its keys stops the server at start rather than falling back. The Postmark and Twilio adapters follow each provider's published API and are covered by tests with simulated responses; they have not yet run against a real account. Receipts need a public HTTPS address, so they only arrive once the app is hosted.
+
 ## Authority and request contract
 
 Passwords use salted scrypt; session cookies carry random tokens whose hashes are stored in SQLite. Cookies are HttpOnly, SameSite Strict and expire after 12 hours; HTTPS uses Secure. A password change revokes all previous sessions. Authenticated writes require `X-CSRF-Token` from registration, login or `GET /api/session`. All writes require the exact Origin and JSON. Host validation, cross-site rejection, request limits, bounded JSON bodies and generic server errors apply. No authentication secret appears in workspace or audit responses.
@@ -31,28 +45,31 @@ Owner access governs team changes, organisation identity and tax policy. Manager
 
 All paths below start with `/api`. Dates use `YYYY-MM-DD`; amounts are integer minor units. Success and error responses are JSON. Signed-in routes require the session cookie; writes also require CSRF. No endpoint sends an invitation or message.
 
-| Method and path                         | Contract                                                                                                                                                                                  |
-| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /health`                           | SQLite/local status and provider configuration flags.                                                                                                                                     |
-| `GET /session`                          | Account, CSRF, authorised workspace summaries; 401 when signed out.                                                                                                                       |
-| `POST /auth/register`                   | `{name,email,password,workspace}` or `{name,email,password,invitation}`; returns `{orgId,csrf}` and cookie.                                                                               |
-| `POST /auth/login`                      | `{email,password}`; rotates a session and returns CSRF/cookie.                                                                                                                            |
-| `POST /auth/logout`                     | `{}`; revokes this session.                                                                                                                                                               |
-| `POST /auth/password`                   | `{current,password}`; revokes previous sessions and returns new CSRF/cookie.                                                                                                              |
-| `POST /workspaces`                      | `{workspace}`; creates another organisation for this owner.                                                                                                                               |
-| `GET /workspaces/:orgId`                | Validated state, role, slug, market-local business date and configuration flags. Foreign organisations return 404.                                                                        |
-| `POST /workspaces/:orgId/commands`      | Revision/idempotency contract above.                                                                                                                                                      |
-| `GET /workspaces/:orgId/team`           | Owner-only members and pending invitation summaries; no invitation tokens.                                                                                                                |
-| `POST /workspaces/:orgId/invitations`   | Owner-only `{email,role}`; manager/reception roles enabled. Returns a manually shareable, 48-hour invitation URL with `delivery:'not_sent'`.                                              |
-| `POST /invitations/accept`              | Signed-in `{invitation}`; accepts only for the matching account email.                                                                                                                    |
-| `POST /workspaces/:orgId/membership`    | Owner-only `{accountId,role}`; manager/reception/remove; cannot remove or downgrade the owner.                                                                                            |
-| `GET /workspaces/:orgId/audit`          | Owner/manager latest 200 scoped events; no command payloads, credentials or raw invitation tokens.                                                                                        |
-| `POST /workspaces/:orgId/messages/send` | 503: delivery is unconfigured; queued drafts remain local.                                                                                                                                |
-| `GET /public/:slug`                     | Enabled public booking catalogue, professionals, business date and explicit deposit/provider policy. No client, relationship, appointment or ledger state.                                |
-| `GET /public/:slug/availability`        | Query `serviceId,staffId,date`; `staffId=any` permits no preference; returns available start-minute values.                                                                               |
-| `POST /public/:slug/holds`              | `{serviceId,staffId,date,startMinutes,replaces?,botCheck?}`; returns a five-minute random hold token and expiry. Token hash only is stored. See hold protection below.                    |
-| `POST /public/:slug/holds/release`      | `{hold}`; returns `{released}`; frees only this organisation's unconsumed reservation.                                                                                                    |
-| `POST /public/:slug/book`               | `{hold,contact:{name,email,phone,marketingConsent},policy:true}`; atomically consumes the hold, creates the appointment and returns its ID. Same-token/contact retry replays the receipt. |
+| Method and path                              | Contract                                                                                                                                                                                  |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /health`                                | SQLite/local status and provider configuration flags.                                                                                                                                     |
+| `GET /session`                               | Account, CSRF, authorised workspace summaries; 401 when signed out.                                                                                                                       |
+| `POST /auth/register`                        | `{name,email,password,workspace}` or `{name,email,password,invitation}`; returns `{orgId,csrf}` and cookie.                                                                               |
+| `POST /auth/login`                           | `{email,password}`; rotates a session and returns CSRF/cookie.                                                                                                                            |
+| `POST /auth/logout`                          | `{}`; revokes this session.                                                                                                                                                               |
+| `POST /auth/password`                        | `{current,password}`; revokes previous sessions and returns new CSRF/cookie.                                                                                                              |
+| `POST /workspaces`                           | `{workspace}`; creates another organisation for this owner.                                                                                                                               |
+| `GET /workspaces/:orgId`                     | Validated state, role, slug, market-local business date and configuration flags. Foreign organisations return 404.                                                                        |
+| `POST /workspaces/:orgId/commands`           | Revision/idempotency contract above.                                                                                                                                                      |
+| `GET /workspaces/:orgId/team`                | Owner-only members and pending invitation summaries; no invitation tokens.                                                                                                                |
+| `POST /workspaces/:orgId/invitations`        | Owner-only `{email,role}`; manager/reception roles enabled. Returns a manually shareable, 48-hour invitation URL with `delivery:'not_sent'`.                                              |
+| `POST /invitations/accept`                   | Signed-in `{invitation}`; accepts only for the matching account email.                                                                                                                    |
+| `POST /workspaces/:orgId/membership`         | Owner-only `{accountId,role}`; manager/reception/remove; cannot remove or downgrade the owner.                                                                                            |
+| `GET /workspaces/:orgId/audit`               | Owner/manager latest 200 scoped events; no command payloads, credentials or raw invitation tokens.                                                                                        |
+| `POST /workspaces/:orgId/messages/send`      | 503: delivery is unconfigured; queued drafts remain local.                                                                                                                                |
+| `GET /workspaces/:orgId/outbox`              | Owner, manager or reception. Query `clientId?`, `limit?` (1–200). Latest appointment messages with status and provider mode; the private link is never returned.                          |
+| `POST /workspaces/:orgId/outbox/:id/retry`   | Owner or manager. Sends a failed or unclear message again, after the same checks.                                                                                                         |
+| `POST /hooks/postmark`, `POST /hooks/twilio` | Provider delivery receipts. Verified by Postmark basic auth or Twilio signature; no session or Origin.                                                                                    |
+| `GET /public/:slug`                          | Enabled public booking catalogue, professionals, business date and explicit deposit/provider policy. No client, relationship, appointment or ledger state.                                |
+| `GET /public/:slug/availability`             | Query `serviceId,staffId,date`; `staffId=any` permits no preference; returns available start-minute values.                                                                               |
+| `POST /public/:slug/holds`                   | `{serviceId,staffId,date,startMinutes,replaces?,botCheck?}`; returns a five-minute random hold token and expiry. Token hash only is stored. See hold protection below.                    |
+| `POST /public/:slug/holds/release`           | `{hold}`; returns `{released}`; frees only this organisation's unconsumed reservation.                                                                                                    |
+| `POST /public/:slug/book`                    | `{hold,contact:{name,email,phone,marketingConsent},policy:true}`; atomically consumes the hold, creates the appointment and returns its ID. Same-token/contact retry replays the receipt. |
 
 Workspace input is `{name,region:'UK'|'US',locationName,address?,timeZone?,sample?}`. UK uses Europe/London; US accepts supported American time zones and defaults to America/New_York. `sample:false` is the default: a new business starts with no fictional clients, services, appointments, money or inventory. `sample:true` creates an isolated sandbox fixture owned by the new account. It cannot become a live workspace by changing browser state.
 

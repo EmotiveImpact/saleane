@@ -16,16 +16,23 @@ import type { Context, Org, Route } from '../context'
 
 const INVALID = 'This link is no longer valid. Contact the studio to manage your visit.'
 const tokenSchema = z.string().min(32).max(100)
+/** An email and a text each for the latest two messages. */
+const MESSAGE_LINKS = 4
 
 /**
  * Issues a private manage link for one visit and revokes every earlier one for it, so only the
  * newest link works. Must run inside the caller's transaction. The raw token is returned once.
+ *
+ * Links sent in confirmations and reminders (origin 'message') leave other links alone, so the
+ * booking page's link keeps working when the email arrives; only the newest MESSAGE_LINKS of them
+ * stay open. A desk or booking link still replaces every link, which is how the studio shuts a
+ * leaked one.
  */
 export function issueGuestLink(
   ctx: Context,
   org: Org,
   appointmentId: string,
-  origin: 'booking' | 'desk',
+  origin: 'booking' | 'desk' | 'message',
 ) {
   const { db, now, allowedOrigin } = ctx
   const time = now()
@@ -34,12 +41,24 @@ export function issueGuestLink(
     visitStart(org.state, appointmentId) + GUEST_LINK_AFTER_VISIT_MS,
   )
   if (expiresAt <= time) fail(409, 'This visit is too far in the past for a manage link.')
-  db.run(
-    'UPDATE guest_links SET revoked_at=? WHERE organisation_id=? AND appointment_id=? AND revoked_at IS NULL',
-    time,
-    org.id,
-    appointmentId,
-  )
+  if (origin !== 'message')
+    db.run(
+      'UPDATE guest_links SET revoked_at=? WHERE organisation_id=? AND appointment_id=? AND revoked_at IS NULL',
+      time,
+      org.id,
+      appointmentId,
+    )
+  else
+    db.run(
+      `UPDATE guest_links SET revoked_at=? WHERE organisation_id=? AND appointment_id=? AND revoked_at IS NULL AND origin='message'
+       AND token_hash NOT IN (SELECT token_hash FROM guest_links WHERE organisation_id=? AND appointment_id=? AND revoked_at IS NULL AND origin='message' ORDER BY created_at DESC LIMIT ?)`,
+      time,
+      org.id,
+      appointmentId,
+      org.id,
+      appointmentId,
+      MESSAGE_LINKS - 1,
+    )
   const raw = token()
   db.run(
     'INSERT INTO guest_links(token_hash,organisation_id,appointment_id,origin,created_at,expires_at) VALUES(?,?,?,?,?,?)',

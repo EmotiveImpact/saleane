@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { BusinessState } from './model'
+import { reminderSettingsSchema } from './reminderSettings'
 
 const id = z.string().min(1).max(150)
 const money = z.number().int().nonnegative().max(100_000_000)
@@ -118,6 +119,8 @@ export const operationsSchema = z.object({
   ),
   scheduleHistory: z.array(scheduleChangeSchema).max(SCHEDULE_HISTORY_LIMIT).optional(),
   tax: taxSchema.optional(),
+  /** Appointment confirmations and reminders (PILOT-01). Absent means the defaults apply. */
+  reminders: reminderSettingsSchema.optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 export type Role = 'owner' | 'manager' | 'reception' | 'practitioner'
@@ -240,6 +243,7 @@ export function can(role: Role, action: string) {
       'product',
       'message.queue',
       'import-clients',
+      'reminders',
     ].includes(action)
   )
     return false
