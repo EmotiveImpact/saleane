@@ -2639,24 +2639,6 @@ fieldset {
 .nav-overlay {
   display: none;
 }
-.public-booking {
-  background: white;
-  min-height: 100vh;
-}
-.booking-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 88px;
-  padding: 16px 5vw;
-  border-bottom: 1px solid var(--line);
-  gap: 20px;
-}
-.public-brand {
-  display: flex;
-  gap: 14px;
-  align-items: center;
-}
 .atelier-monogram {
   font-family: var(--font-display);
   letter-spacing: -0.07em;
@@ -2668,127 +2650,6 @@ fieldset {
   border: 1px solid var(--line2);
   font-size: var(--text-title-s);
   font-weight: var(--weight-strong);
-}
-.public-brand > span:nth-child(2) {
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: var(--weight-strong);
-  letter-spacing: -0.03em;
-}
-.public-brand small {
-  display: block;
-  font-family: var(--font-display);
-  color: var(--muted);
-  font-size: var(--text-micro);
-  letter-spacing: 0;
-  margin-top: 3px;
-}
-.booking-header > div {
-  display: flex;
-  align-items: center;
-  gap: 30px;
-}
-.booking-header select {
-  font-size: var(--text-micro);
-  width: 152px;
-  min-height: 34px;
-  padding: 6px;
-}
-.booking-header > div a {
-  font-size: var(--text-micro);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.booking-demo-banner {
-  font-size: var(--text-micro);
-  padding: 9px 5vw;
-  background: var(--stone);
-  color: var(--muted);
-}
-.public-booking-layout {
-  display: grid;
-  grid-template-columns: 43% 57%;
-  max-width: 1800px;
-  margin: 0 auto;
-}
-.booking-story {
-  position: sticky;
-  top: 0;
-  min-height: calc(100vh - 121px);
-  height: calc(100vh - 121px);
-  background: var(--stone);
-  color: var(--brand-ink);
-  overflow: hidden;
-  padding: 65px 12% 26px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-.booking-story-copy {
-  position: relative;
-  z-index: 2;
-}
-.booking-story-copy > svg {
-  color: var(--brand-ink);
-  margin-bottom: 30px;
-}
-.booking-story h1 {
-  font-size: clamp(55px, 6.7vw, 93px);
-  line-height: 1.03;
-  letter-spacing: -0.04em;
-  font-weight: var(--weight-editorial);
-  margin-bottom: 30px;
-}
-.booking-story p {
-  font-size: var(--text-lead);
-  line-height: 1.8;
-  color: var(--brand-ink);
-}
-.story-location {
-  display: flex;
-  gap: 9px;
-  align-items: center;
-  margin-top: 39px;
-  font-size: var(--text-meta);
-  color: var(--brand-ink);
-}
-.story-footer {
-  display: flex;
-  gap: 16px;
-  justify-content: space-between;
-  font-size: var(--text-micro);
-  color: var(--brand-ink);
-  z-index: 2;
-  position: relative;
-}
-.story-motif {
-  position: absolute;
-  right: -190px;
-  bottom: 14px;
-  height: 470px;
-  width: 470px;
-  opacity: 0.33;
-  transform: rotate(-14deg);
-}
-.story-motif span {
-  position: absolute;
-  border-radius: 48% 48% 0 0;
-  border: 1px solid var(--line2);
-  width: 100%;
-  height: 100%;
-}
-.story-motif span:nth-child(2) {
-  width: 82%;
-  height: 82%;
-  left: 9%;
-  bottom: 0;
-}
-.story-motif span:nth-child(3) {
-  width: 64%;
-  height: 64%;
-  left: 18%;
-  bottom: 0;
 }
 .booking-main {
   padding: 40px clamp(28px, 5vw, 85px) 25px;
@@ -3036,12 +2897,7 @@ fieldset {
   border-color: var(--brand);
 }
 
-/* Booking on a phone: the welcome photo shows once, and the next step stays in reach. */
-@media (max-width: 900px) {
-  .booking-past-welcome .booking-story {
-    display: none;
-  }
-}
+/* Booking on a phone: the next step stays in reach. */
 @media (max-width: 650px) {
   .booking-main .booking-next {
     position: sticky;
@@ -3263,9 +3119,6 @@ fieldset {
     gap: 20px;
     align-items: start;
   }
-  .booking-story {
-    padding: 60px 10% 25px;
-  }
   .booking-main {
     padding: 30px;
   }
@@ -3316,19 +3169,6 @@ fieldset {
   }
   .relationship-stats > div:nth-child(n + 3) {
     border-top: 1px solid var(--line);
-  }
-  .public-booking-layout {
-    grid-template-columns: 38% 62%;
-  }
-  .booking-story h1 {
-    font-size: 56px;
-  }
-  .booking-story p {
-    font-size: var(--text-small);
-  }
-  .story-footer {
-    flex-direction: column;
-    gap: 3px;
   }
   .booking-steps button {
     flex-direction: column;
@@ -3760,79 +3600,10 @@ fieldset {
   .workspace-warning {
     padding: 15px 18px;
   }
-  .booking-header {
-    min-height: 75px;
-    padding: 13px 20px;
-    flex-wrap: wrap;
-    gap: 13px;
-  }
-  .public-brand {
-    gap: 11px;
-  }
-  .public-brand > span:nth-child(2) {
-    font-size: var(--text-body);
-  }
   .atelier-monogram {
     width: 33px;
     height: 33px;
     font-size: var(--text-body);
-  }
-  .booking-header > div {
-    gap: 13px;
-  }
-  .booking-header > div a {
-    font-size: 0;
-  }
-  .booking-header > div a svg {
-    width: 19px;
-    height: 19px;
-  }
-  .booking-header select {
-    width: 118px;
-    font-size: var(--text-micro);
-  }
-  .booking-demo-banner {
-    font-size: var(--text-micro);
-    padding: 8px 20px;
-  }
-  .public-booking-layout {
-    grid-template-columns: 1fr;
-  }
-  .booking-story {
-    position: relative;
-    top: auto;
-    min-height: 0;
-    height: auto;
-    padding: 30px 25px;
-  }
-  .booking-story-copy > svg {
-    display: none;
-  }
-  .booking-story h1 {
-    font-size: 47px;
-    margin-bottom: 14px;
-  }
-  .booking-story h1 br {
-    display: none;
-  }
-  .booking-story p {
-    font-size: var(--text-meta);
-  }
-  .booking-story p br {
-    display: none;
-  }
-  .story-location {
-    margin-top: 17px;
-    font-size: var(--text-micro);
-  }
-  .story-footer {
-    display: none;
-  }
-  .story-motif {
-    height: 260px;
-    width: 260px;
-    right: -125px;
-    bottom: -20px;
   }
   .booking-main {
     padding: 25px 20px;
@@ -4101,32 +3872,7 @@ fieldset {
 }
 
 /* The source board supplies the identity; operational text stays functional. */
-.booking-story-image {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: 62% center;
-}
-.booking-story::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    180deg,
-    rgba(246, 243, 232, 0.96) 0%,
-    rgba(246, 243, 232, 0.86) 42%,
-    transparent 74%,
-    rgba(246, 243, 232, 0.95) 100%
-  );
-}
-.public-brand > span:nth-child(2) {
-  font-family: var(--font-editorial);
-  font-weight: var(--weight-editorial);
-  font-size: 22px;
-  letter-spacing: 0.025em;
-}
+
 .atelier-monogram,
 .workspace-monogram {
   font-family: var(--font-editorial);
@@ -4174,26 +3920,11 @@ fieldset {
   .metric:first-child {
     padding: 14px;
   }
-  .booking-story {
-    min-height: 370px;
-  }
-  .booking-story h1 {
-    font-size: 51px;
-  }
-  .booking-story-copy > svg {
-    margin-bottom: 14px;
-  }
 }
 
 .avatar-photo {
   background-image: url('/images/fictional-client-portraits.png');
   background-size: 200% 200%;
-}
-.story-location {
-  width: fit-content;
-  padding: 8px 10px;
-  background: rgba(250, 249, 243, 0.93);
-  border-radius: var(--radius-inner);
 }
 
 .business-insight .button-light {

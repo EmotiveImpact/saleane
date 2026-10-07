@@ -2,6 +2,17 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## In review · The guest booking page, redesigned
+
+**Status: pull request, not merged.** Look and layout only; booking rules, holds, prices and deposits are unchanged.
+
+- On computers and tablets the studio photograph now fills the left side from the top of the page and holds still while the guest scrolls, all the way to the bottom. Before, it stopped short and slid away at the end of the page.
+- The welcome ("Care, considered.", a short line and the studio's location) sits on a softly frosted card at the foot of the photograph, so it reads clearly on any image, and the photograph is shown at full strength instead of washed out. The studio's name sits on a matching frosted tab at the top. The leaf icon is gone.
+- On phones the photograph opens the page with the welcome card on it; from the second step only the studio's name stays at the top.
+- The studio's team now see a separate dark preview bar above the page, with "See it as a guest" and "Back to workspace" (and the demo market). "See it as a guest" shows the page exactly as a guest sees it, with only a small "Leave guest view" button in the corner. Guests never see the bar; on the real guest page it appears only to someone signed in to the studio. The honest note about simulated bookings stays for everyone.
+- The demo booking page now uses the demo studio's own name instead of always "Atelier House".
+- A test about the offline day sheet used a fixed time that has now passed, so it failed on every branch from 7 October; it now uses a time a minute ahead of the real clock.
+
 ## 2026-10-07 · V1.5 · Waitlist
 
 **Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** The waitlist never contacts anyone by itself: an offer is an Inbox draft the team approves.
