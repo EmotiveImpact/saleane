@@ -5,6 +5,7 @@ import type { BusinessState } from './model'
 import { parseState } from './model'
 import { can } from './operations'
 import { seed } from './seed'
+import { addDays } from './format'
 import { patchTestsDue, patchTests, visitPatchTest } from './patchTests'
 import { planMessages, composeMessage } from './reminders'
 import { practitionerRefusal, practitionerView } from './practitioner'
@@ -151,6 +152,45 @@ describe('patch tests', () => {
     expect(run(s, test('client-unknown', '2026-10-06T07:00:00.000Z')).ok).toBe(false)
   })
 
+  it('calls a test clear only after the full wait, but takes a reaction straight away', () => {
+    const pending = apply(seed('UK'), test('client-9', '2026-10-06T07:00:00.000Z'))
+    const id = patchTests(pending).at(-1)!.id
+    const early = run(
+      pending,
+      { type: 'patch-test-result', patchTestId: id, outcome: 'clear', notes: '' },
+      '2026-10-07T07:00:00.000Z',
+    )
+    expect(early.ok).toBe(false)
+    if (!early.ok) expect(early.error).toContain('48 hours')
+    expect(
+      run(
+        pending,
+        { type: 'patch-test-result', patchTestId: id, outcome: 'reaction', notes: 'Redness' },
+        '2026-10-06T07:30:00.000Z',
+      ).ok,
+    ).toBe(true)
+    expect(
+      run(
+        pending,
+        { type: 'patch-test-result', patchTestId: id, outcome: 'clear', notes: '' },
+        '2026-10-08T07:00:00.000Z',
+      ).ok,
+    ).toBe(true)
+    // The same rule when the result comes with the test.
+    const withClear = test('client-9', '2026-10-05T09:00:00.000Z', {
+      result: { outcome: 'clear', notes: '' },
+    })
+    expect(run(seed('UK'), withClear).ok).toBe(false)
+    expect(
+      run(
+        seed('UK'),
+        test('client-9', '2026-10-05T09:00:00.000Z', {
+          result: { outcome: 'reaction', notes: '' },
+        }),
+      ).ok,
+    ).toBe(true)
+  })
+
   it('lets practitioners record tests for their own clients, and only managers set the rules', () => {
     const s = seed('UK')
     expect(can('practitioner', 'patch-test')).toBe(true)
@@ -170,6 +210,18 @@ describe('patch tests', () => {
       },
     } as Partial<Command>)
     expect(practitionerRefusal(s, 'staff-theo', forSomeoneElse, '2026-10-06')).toMatch('you did')
+    // Grace's waiting test was done by Theo; another practitioner on her visit cannot answer it.
+    const graceTest = patchTests(s).find((t) => t.clientId === 'client-6')!
+    const someoneElses = structuredClone(s)
+    someoneElses.patchTests!.find((t) => t.id === graceTest.id)!.staffId = 'staff-maya'
+    const result: Command = {
+      type: 'patch-test-result',
+      patchTestId: graceTest.id,
+      outcome: 'reaction',
+      notes: '',
+    }
+    expect(practitionerRefusal(s, 'staff-theo', result, '2026-10-06')).toBeNull()
+    expect(practitionerRefusal(someoneElses, 'staff-theo', result, '2026-10-06')).toMatch('you did')
     const view = practitionerView(s, 'staff-theo', '2026-10-06')
     expect(view.appointments.find((a) => a.id === 'visit-gloss-luca')?.patchTest).toMatchObject({
       state: 'needed',
@@ -205,6 +257,14 @@ describe('patch tests', () => {
     expect(plan[0].body).toContain('needs a quick patch test at least 48 hours before')
     const recorded = plan.map((m) => ({ ...m, status: 'test' as const }))
     expect(planMessages(s, now, recorded).filter((m) => m.kind === 'patch_test')).toEqual([])
+    // Moving the visit a day later does not send the reminder again.
+    const moved = structuredClone(s)
+    const luca = visit(moved, 'visit-gloss-luca')
+    luca.date = addDays(luca.date, 1)
+    expect(planMessages(moved, now, recorded).filter((m) => m.kind === 'patch_test')).toEqual([])
+    // One that could not go out does not count.
+    const failed = recorded.map((m) => ({ ...m, status: 'failed' as const }))
+    expect(planMessages(moved, now, failed).filter((m) => m.kind === 'patch_test')).toHaveLength(2)
     const tested = structuredClone(apply(seed('UK'), test('client-9', '2026-10-06T07:30:00.000Z')))
     tested.operations = { ...tested.operations!, mode: 'local' }
     expect(planMessages(tested, now, []).filter((m) => m.kind === 'patch_test')).toEqual([])

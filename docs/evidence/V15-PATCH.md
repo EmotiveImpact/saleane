@@ -5,7 +5,8 @@ Recorded 7 October 2026 in Chromium (Playwright) against the built app (`npm run
 ## What was exercised
 
 - **Today (owner):** "Patch tests to sort" lists the two Gloss & Tone visits in the next fortnight that are not in order: Grace Chen on Friday, whose test from Monday has no result yet, and Luca Evans on Saturday, who has no test.
-- **Record a test:** on Luca's page the Patch tests panel says his Saturday colour needs a test at least 48 hours before. "Record a patch test" with the product, who did it and where it was placed saves a test with its result to come; "Record the result" then "Clear" with "No redness" makes his Saturday visit read "Patch test clear on Tuesday 6 October".
+- **Record a test:** on Luca's page the Patch tests panel says his Saturday colour needs a test at least 48 hours before. In "Record a patch test" the "Skin checked?" choice offers "Clear (after 48 hours)", greyed out, for a test done today. With the date moved back three days it offers "Yes, clear"; saving that with "No redness" makes his Saturday visit read "Patch test clear on Sunday 4 October".
+- **The 48 hour wait:** a test recorded today for another client shows its result to come. "Record the result" keeps Clear greyed out and says "It can be called clear from Thursday 8 October, 15:00. Record a reaction straight away if one shows." A reaction can be recorded at once.
 - **A reaction:** on Grace's page, recording her waiting test as a reaction with "Redness and itching" makes her Friday visit read "Reacted to a patch test on Monday 5 October", and Today now lists only her, as "Reaction recorded".
 - **On the visit:** Ellie Brooks's Thursday colour shows "Patch test clear on Sunday 27 September" in the appointment panel.
 - **Settings › Services:** Gloss & Tone reads "Needs a patch test", its edit form has the box ticked, and the Patch tests rules (48 hours, 6 months, reminders on) save; the months were changed to 12.
@@ -17,13 +18,14 @@ Screenshots: [Today](V15-PATCH-today.png), [test needed](V15-PATCH-needed.png), 
 
 ## Automated checks
 
-`src/domain/patchTests.test.ts` covers: where each sample colour visit stands and which ones Today lists; recording a test and its result on the timeline with who did each; a test too close to the visit and a clear test that has run out; a reaction stopping arrival until a later clear test, while other treatments are never stopped; refusing a test in the future, a second different result and an unknown client, with a repeated identical result changing nothing; practitioners limited to their own clients and their own tests, and only owners and managers changing the rules; the studio rules; the reminder planned once on each channel, not again once recorded, not after a test, not within 48 hours of the visit and not when turned off; the export and erasure review; and ledger checks for another studio's or an unknown client's test.
+`src/domain/patchTests.test.ts` covers: where each sample colour visit stands and which ones Today lists; recording a test and its result on the timeline with who did each; a test too close to the visit and a clear test that has run out; a reaction stopping arrival until a later clear test, while other treatments are never stopped; a test called clear only once the full 48 hours have passed, while a reaction is taken straight away, both for a result recorded later and one recorded with the test; refusing a test in the future, a second different result and an unknown client, with a repeated identical result changing nothing; practitioners limited to their own clients and their own tests, including recording results only for tests they did, and only owners and managers changing the rules; the studio rules; the reminder planned once on each channel, not again once recorded or when the visit moves (unless the first one failed), not after a test, not within 48 hours of the visit and not when turned off; the export and erasure review; and ledger checks for another studio's or an unknown client's test.
 
 `server/practitioner.test.ts` checks a practitioner records a test for their own client through the API and is refused for another client, as someone else, or for the studio rules. `server/messaging.test.ts` checks a local studio plans the patch test message on both channels for a colour booking, and skips it when a test is recorded before it goes out (migration 9 lets the outbox hold this kind of message).
 
 ## Limits
 
 - A salon record, not a clinical one. It holds the product, the date, who did it, where it was placed and what was seen. It does not hold medical history, and the form says so.
+- A test can be called clear only once the studio's waiting time (48 hours by default) has passed since it went on.
 - Only a recorded reaction stops a visit. A missing, waiting or too-close test is shown to the team, who decide.
 - The reminder asks the guest to call or pop in; guests cannot book a patch test online yet.
 - With no email or text provider configured the reminder stays in test mode and is not sent.

@@ -6,6 +6,7 @@ import { useStore } from '../state/context'
 import { useClock } from '../state/clock'
 import { businessDate, businessMinutes, can, instantFor, operations } from '../domain/operations'
 import {
+  clearFrom,
   localDate,
   patchTestSettings,
   patchTests,
@@ -40,6 +41,10 @@ const shortState: Record<PatchTestState, string> = {
   needed: 'Patch test needed',
   reaction: 'Reaction recorded',
 }
+function whenLabel(s: Parameters<typeof localDate>[0], instant: string) {
+  const locale = s.organisation.locale
+  return `${dateLabel(localDate(s, instant), locale)}, ${timeLabel(businessMinutes(s, instant), locale)}`
+}
 function toMinutes(value: string) {
   const [h, m] = value.split(':').map(Number)
   return h * 60 + m
@@ -63,9 +68,18 @@ export function PatchTestForm({ clientId, onClose }: { clientId: string; onClose
     team.find((p) => p.serviceIds.some((id) => colour.has(id)))?.id ?? '',
   )
   const [notes, setNotes] = useState('')
-  const [outcome, setOutcome] = useState<'' | 'clear' | 'reaction'>('')
+  const [picked, setOutcome] = useState<'' | 'clear' | 'reaction'>('')
   const [resultNotes, setResultNotes] = useState('')
   const { run, pending, error, setError } = useRun()
+  const tooSoon = (() => {
+    try {
+      const testedAt = instantFor(state, date, toMinutes(time))
+      return Date.parse(now) < Date.parse(clearFrom(state, testedAt))
+    } catch {
+      return false
+    }
+  })()
+  const outcome = tooSoon && picked === 'clear' ? '' : picked
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     let testedAt: string
@@ -147,7 +161,9 @@ export function PatchTestForm({ clientId, onClose }: { clientId: string; onClose
               onChange={(e) => setOutcome(e.target.value as '' | 'clear' | 'reaction')}
             >
               <option value="">Not yet</option>
-              <option value="clear">Yes, clear</option>
+              <option value="clear" disabled={tooSoon}>
+                {tooSoon ? `Clear (after ${settings.hoursBefore} hours)` : 'Yes, clear'}
+              </option>
               <option value="reaction">Yes, a reaction</option>
             </select>
           </label>
@@ -192,6 +208,10 @@ export function PatchTestForm({ clientId, onClose }: { clientId: string; onClose
 
 /** Records what the skin did for a test whose result is still to come. */
 function ResultButtons({ test }: { test: PatchTest }) {
+  const { state } = useStore()
+  const now = useClock()
+  const from = clearFrom(state, test.testedAt)
+  const early = Date.parse(now) < Date.parse(from)
   const { run, pending, error } = useRun()
   const [notes, setNotes] = useState('')
   const [open, setOpen] = useState(false)
@@ -209,7 +229,7 @@ function ResultButtons({ test }: { test: PatchTest }) {
       </label>
       <div className="ops-actions">
         <Button
-          disabled={pending}
+          disabled={pending || early}
           onClick={() =>
             void run({
               type: 'patch-test-result',
@@ -239,6 +259,12 @@ function ResultButtons({ test }: { test: PatchTest }) {
           Cancel
         </Button>
       </div>
+      {early && (
+        <p className="ops-help">
+          It can be called clear from {whenLabel(state, from)}. Record a reaction straight away if
+          one shows.
+        </p>
+      )}
       <ErrorMessage error={error} />
     </div>
   )

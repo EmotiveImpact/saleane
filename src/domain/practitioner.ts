@@ -4,7 +4,7 @@ import type { BusinessState } from './model'
 import type { Command } from './commandSchema'
 import { addDays } from './format'
 import { ownRating } from './feedback'
-import { patchTests, visitPatchTest } from './patchTests'
+import { clearFrom, patchTests, visitPatchTest } from './patchTests'
 
 /**
  * LOCAL-01: what an assigned practitioner may read and change.
@@ -97,6 +97,10 @@ export const practitionerViewSchema = z
                 testedAt: z.iso.datetime(),
                 product: z.string(),
                 outcome: z.enum(['clear', 'reaction']).nullable(),
+                /** Whether this practitioner did the test, so they can record its result. */
+                yours: z.boolean(),
+                /** The earliest moment the test can be called clear. */
+                clearFrom: z.iso.datetime(),
               })
               .strict(),
           ),
@@ -199,6 +203,8 @@ export function practitionerView(
             testedAt: t.testedAt,
             product: t.product,
             outcome: t.result?.outcome ?? null,
+            yours: t.staffId === staffId,
+            clearFrom: clearFrom(s, t.testedAt),
           })),
       })),
   })
@@ -232,9 +238,9 @@ export function practitionerRefusal(
   }
   if (command.type === 'patch-test-result') {
     const test = patchTests(s).find((t) => t.id === command.patchTestId)
-    return test && visits.some((a) => a.clientId === test.clientId)
-      ? null
-      : 'This client is not in your assigned visits.'
+    if (!test || !visits.some((a) => a.clientId === test.clientId))
+      return 'This client is not in your assigned visits.'
+    return test.staffId === staffId ? null : 'Record results only for the patch tests you did.'
   }
   return 'Your role cannot make this change.'
 }

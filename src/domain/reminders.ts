@@ -234,7 +234,10 @@ export function planMessages(
       }
       if (
         patchTestReminderDue(s, a, start, now) &&
-        !mine.some((row) => row.kind === 'patch_test' && row.slot === slot)
+        // One reminder per visit and channel, even if the visit moves afterwards.
+        !mine.some(
+          (row) => row.kind === 'patch_test' && !['skipped', 'failed'].includes(row.status),
+        )
       )
         add('patch_test', channel)
       if (settings.reminders && !mine.some((row) => row.kind === 'reminder' && row.slot === slot)) {

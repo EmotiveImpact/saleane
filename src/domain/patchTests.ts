@@ -159,6 +159,7 @@ export function runPatchTestCommand(
       throw new Error('A patch test cannot be recorded before it is done.')
     if (command.result && Date.parse(input.testedAt) > Date.parse(now))
       throw new Error('Record the result once the skin has been checked.')
+    if (command.result) resultProblem(next, input.testedAt, command.result.outcome, now)
     const test: PatchTest = {
       ...input,
       testedAt: new Date(input.testedAt).toISOString(),
@@ -182,6 +183,7 @@ export function runPatchTestCommand(
   if (test.result) throw new Error('A result is already recorded. Record a new test instead.')
   if (Date.parse(test.testedAt) > Date.parse(now))
     throw new Error('Record the result once the skin has been checked.')
+  resultProblem(next, test.testedAt, command.outcome, now)
   test.result = { outcome: command.outcome, notes: command.notes, at: now, actor: '' }
   addEvent({
     clientId: test.clientId,
@@ -190,6 +192,22 @@ export function runPatchTestCommand(
     detail: `${test.product}, tested ${dateLabel(localDate(next, test.testedAt), org.locale)}.`,
   })
   return test.id
+}
+/** When a test can be called clear: once the studio's full waiting time has passed. */
+export function clearFrom(s: BusinessState, testedAt: string) {
+  return new Date(Date.parse(testedAt) + patchTestSettings(s).hoursBefore * 3600000).toISOString()
+}
+/** A reaction can be recorded as soon as it shows; clear only after the full wait. */
+function resultProblem(
+  s: BusinessState,
+  testedAt: string,
+  outcome: 'clear' | 'reaction',
+  now: string,
+) {
+  if (outcome === 'clear' && Date.parse(now) < Date.parse(clearFrom(s, testedAt)))
+    throw new Error(
+      `A test can be called clear once ${patchTestSettings(s).hoursBefore} hours have passed. Record a reaction straight away if one shows.`,
+    )
 }
 function resultTitle(outcome: 'clear' | 'reaction') {
   return outcome === 'clear' ? 'Patch test clear' : 'Reaction to a patch test'

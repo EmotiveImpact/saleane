@@ -16,6 +16,7 @@ import type { Command } from '../domain/commands'
 import { addDays, dateLabel, timeLabel } from '../domain/format'
 import { firstName, nextUp, previousWithYou, untilLabel, venueMinutes } from '../domain/pocket'
 import { PRACTITIONER_AVERAGE_MIN } from '../domain/feedback'
+import { venueDate } from '../domain/tillCount'
 import { Avatar, Button, Empty, ErrorMessage, PageHeader, Status } from '../design'
 import '../practitioner.css'
 
@@ -184,6 +185,11 @@ export function PractitionerDay() {
   const next = isToday ? nextUp(visits, minutes) : undefined
   const nextClient = next && record.clients.find((c) => c.id === next.clientId)
   const earlier = visit && client ? previousWithYou(record, visit, client) : null
+  const clearLabel = (instant: string) =>
+    `${dateLabel(venueDate(organisation.timeZone, instant), locale, true)}, ${timeLabel(
+      venueMinutes(organisation.timeZone, Date.parse(instant)),
+      locale,
+    )}`
   const clientName = (id: string) => record.clients.find((c) => c.id === id)?.name ?? 'Client'
 
   function changeDay(target: string) {
@@ -428,12 +434,17 @@ export function PractitionerDay() {
                                 ? 'a reaction'
                                 : 'result to record'}
                           </p>
-                          <small>{dateLabel(t.testedAt.slice(0, 10), locale, true)}</small>
-                          {!t.outcome && (
+                          <small>
+                            {dateLabel(venueDate(organisation.timeZone, t.testedAt), locale, true)}
+                            {!t.outcome &&
+                              now < Date.parse(t.clearFrom) &&
+                              ` · can be called clear from ${clearLabel(t.clearFrom)}`}
+                          </small>
+                          {!t.outcome && t.yours && (
                             <span className="practitioner-actions">
                               <Button
                                 variant="secondary"
-                                disabled={saving}
+                                disabled={saving || now < Date.parse(t.clearFrom)}
                                 onClick={() =>
                                   void save(
                                     {
