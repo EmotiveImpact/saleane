@@ -1,5 +1,9 @@
 # SALEANE product contract
 
+## Photo library candidate set · 7 October 2026
+
+40 generated photographic candidates are prepared for review, with original PNGs, WebP exports in the requested aspect ratios, a numbered gallery and commercial-use/provenance notes. People and premises are fictional. Existing studio imagery and client portraits are preserved. Status: awaiting the user's selection of 8 to 12 images; integration into the app skin is not implemented by this asset increment. This does not alter production acceptance or release status.
+
 **Contract revision:** 0.4 · **Updated:** 6 October 2026 · **Markets:** United Kingdom and United States.
 
 This is the build contract for core Saleane. Requirements distinguish the executable local V1 candidate from production V1 acceptance. A completed local demo does not satisfy a server/provider/legal gate. Canonical brand spelling is **SALEANE**, without an accent.
