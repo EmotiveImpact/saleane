@@ -33,6 +33,7 @@ const demoRoutes = [
   '/booking',
   '/design-language',
   '/account',
+  '/pricing',
 ]
 
 async function axe(page) {

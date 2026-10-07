@@ -12,9 +12,18 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Changes stay in that browser. Passwords use a simple stand-in there, so the demo is for showing, never for real data.
 - Checked in Chromium at desktop and phone width: Today, Calendar, Clients, Inbox, Business, Settings, a full guest booking, the guest manage page and a checkout receipt. Not checked in Safari or Firefox.
 
+## 2026-10-07 · PILOT-04 · One clear published price
+
+**Status: built and checked locally; nothing deployed and no billing connected.** The figure shown, £49 / $59 a month per studio, is the recommended price awaiting the owner's confirmation.
+
+- A new public page at /pricing shows one monthly price per studio, for the United Kingdom (plus VAT) or the United States (plus any sales tax), guessed from the browser's language and switchable.
+- It lists everything included, with no feature held back for a dearer plan, and three promises: no commission on a studio's clients, no locked tiers and no fee to leave.
+- Costs outside SALEANE are named plainly: the payment provider's card fee and text messages, each passed on with nothing added. Emails are included.
+- The sign-in page links to it. The price lives in one place, so changing it changes the page and its tests together.
+
 ## 2026-10-07 · PILOT-03 · Switching over from another system
 
-**Status: built and checked locally; nothing deployed.** No data from a real studio was used.
+**Status: merged into main on 7 October 2026 (#24); nothing deployed.** No data from a real studio was used.
 
 - Settings has a new "Switching over" section that walks a studio across in four steps: clients, services, upcoming visits and balances. Each step reads a CSV file exported from the old system, shows every row as ready, already here or to fix (with the reason), and adds up the totals so the owner can check them against the old system's own report before anything is saved.
 - Services arrive with their length, price, deposit, category and who gives them. A name already in SALEANE is left alone.

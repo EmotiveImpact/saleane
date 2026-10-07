@@ -68,6 +68,9 @@ function DemoNote() {
       <p>
         Sign in again with {DEMO_EMAIL} and the password {DEMO_PASSWORD}.
       </p>
+      <p>
+        <a href="/pricing">See the price page</a>
+      </p>
       <button
         type="button"
         onClick={() => {

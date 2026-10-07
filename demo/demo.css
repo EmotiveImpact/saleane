@@ -32,6 +32,9 @@
 .demo-note p {
   margin: 0 12px 8px;
 }
+.demo-note a {
+  color: #4f6a56;
+}
 .demo-note button {
   margin: 0 12px;
   padding: 6px 10px;

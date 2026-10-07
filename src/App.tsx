@@ -41,6 +41,7 @@ import { AccessPanel } from './components/AccessPanel'
 import { PractitionerDay } from './pages/PractitionerDay'
 import { ManageVisit } from './pages/ManageVisit'
 import { TestPayment } from './pages/TestPayment'
+import { Pricing } from './pages/Pricing'
 import './account.css'
 
 const navigation = [
@@ -80,6 +81,7 @@ function WorkspaceApp() {
   if (location.pathname === '/account' || location.pathname === '/join') return <Account />
   if (location.pathname === '/manage') return <ManageVisit />
   if (location.pathname === '/pay/test') return <TestPayment />
+  if (location.pathname === '/pricing') return <Pricing />
   if (location.pathname.startsWith('/practice/'))
     return (
       <Routes>
