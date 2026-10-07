@@ -9,6 +9,7 @@ import { seed } from '../domain/seed'
 import { DEMO_DATE } from '../domain/model'
 import { execute } from '../domain/commands'
 import { practitionerView } from '../domain/practitioner'
+import { dateLabel } from '../domain/format'
 
 vi.mock('../state/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../state/api')>()),
@@ -56,6 +57,7 @@ beforeEach(() => {
 })
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.useRealTimers()
   vi.resetAllMocks()
 })
 
@@ -129,4 +131,68 @@ test('sends a desk or management role to the studio workspace instead', async ()
   view()
   await screen.findByText('Studio workspace')
   await waitFor(() => expect(openWorkspace).toHaveBeenCalledWith(orgId))
+})
+
+test('pocket view: next up first, then a brief before the visit and back to the day', async () => {
+  // 10:45 in London: Amelia's 09:30 facial is over, Noor's 11:00 facial is next.
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-10-06T09:45:00Z'))
+  // Behave as a phone, where the brief replaces the list.
+  vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('max-width') }))
+  const user = userEvent.setup()
+  const noor = mine.find((a) => a.clientId === 'client-4' && a.date === DEMO_DATE)!
+  const person = studio.clients.find((c) => c.id === 'client-4')!
+  vi.mocked(api).mockResolvedValue(record() as never)
+  view()
+  const next = await screen.findByRole('region', { name: 'Next up' })
+  const card = within(next).getByRole('button')
+  expect(card).toHaveTextContent('11:00')
+  expect(card).toHaveTextContent('In 15 min')
+  expect(card).toHaveTextContent('Noor')
+  expect(card).not.toHaveTextContent(person.name)
+  expect(card).toHaveTextContent('Skin Renewal Facial')
+  expect(card).toHaveTextContent('Treatment room 1')
+
+  await user.click(card)
+  const brief = screen.getByRole('region', { name: person.name })
+  await waitFor(() => expect(within(brief).getByRole('heading', { level: 2 })).toHaveFocus())
+  expect(within(brief).getByText('Good to remember').nextSibling).toHaveTextContent(
+    person.preferences,
+  )
+  // Her last visit with Maya, not Sophia's more recent massage.
+  const last = studio.appointments
+    .filter(
+      (a) =>
+        a.clientId === 'client-4' &&
+        a.staffId === 'staff-maya' &&
+        a.status === 'completed' &&
+        a.date < DEMO_DATE,
+    )
+    .sort((a, b) => b.date.localeCompare(a.date))[0]
+  expect(
+    studio.appointments.some(
+      (a) => a.clientId === 'client-4' && a.staffId !== 'staff-maya' && a.date > last.date,
+    ),
+  ).toBe(true)
+  expect(within(brief).getByText('Last time with you').nextSibling).toHaveTextContent(
+    `${dateLabel(last.date, 'en-GB')} · Skin Renewal Facial`,
+  )
+  expect(within(brief).getByLabelText('Add a note for the studio')).toBeInTheDocument()
+
+  await user.click(within(brief).getByRole('button', { name: 'Back to your day' }))
+  await waitFor(() => expect(card).toHaveFocus())
+  expect(card.dataset.visit).toBe(noor.id)
+})
+
+test('pocket view: moves between days with buttons and a today shortcut', async () => {
+  const user = userEvent.setup()
+  vi.mocked(api).mockResolvedValue(record() as never)
+  view()
+  await screen.findByRole('region', { name: 'Next up' })
+  await user.click(screen.getByRole('button', { name: 'Previous day' }))
+  expect(screen.queryByRole('region', { name: 'Next up' })).not.toBeInTheDocument()
+  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Your visits')
+  await user.click(screen.getByRole('button', { name: 'Today' }))
+  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Your day, Maya.')
+  expect(screen.getByRole('button', { name: 'Today' })).toBeDisabled()
 })
