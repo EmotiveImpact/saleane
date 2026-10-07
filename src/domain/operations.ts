@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { BusinessState } from './model'
 import { reminderSettingsSchema } from './reminderSettings'
+import { patchTestSettingsSchema } from './patchTestsSchema'
 import { paymentMethodSchema, processorSchema } from './paymentMethods'
 import { RENT_LIMIT, RENT_PAYMENT_LIMIT, rentPaymentSchema, rentalSchema } from './rentSchema'
 import {
@@ -281,6 +282,8 @@ export const operationsSchema = z.object({
   rentals: z.array(rentalSchema).max(RENT_LIMIT).optional(),
   rentPayments: z.array(rentPaymentSchema).max(RENT_PAYMENT_LIMIT).optional(),
   leaveAllowances: z.array(z.object({ staffId: id, days: z.number().min(0).max(366) })).optional(),
+  /** V1.5: how long before a visit a patch test is needed and how long a clear one lasts. */
+  patchTests: patchTestSettingsSchema.optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 export type Role = 'owner' | 'manager' | 'reception' | 'practitioner'
@@ -451,11 +454,12 @@ export function can(role: Role, action: string) {
       'accounting-export',
       'gift-card-extend',
       'gift-card-cancel',
+      'patch-test-settings',
     ].includes(action)
   )
     return false
   if (role === 'reception') return true
-  return ['read', 'arrive', 'note'].includes(action)
+  return ['read', 'arrive', 'note', 'patch-test', 'patch-test-result'].includes(action)
 }
 
 /**

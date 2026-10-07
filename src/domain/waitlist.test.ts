@@ -38,6 +38,12 @@ const wish: WaitlistInput = {
   note: ' Short notice is fine ',
 }
 /** Amelia's facial with Maya next week, for a guest who would like to come in sooner. */
+/** The sample colour visits later this week, cancelled so Theo can be away for weeks. */
+function withoutColourVisits(s = seed('UK')) {
+  for (const a of s.appointments.filter((x) => x.serviceId === 'service-gloss'))
+    s = apply(s, { type: 'cancel', appointmentId: a.id, reason: 'Moved to another studio' })
+  return s
+}
 function withLaterVisit(s = seed('UK')) {
   const next = apply(s, {
     type: 'book',
@@ -320,7 +326,7 @@ describe('waitlist', () => {
   })
 
   it('finds nothing in a long window when the professional is away throughout', () => {
-    let s = seed('UK')
+    let s = withoutColourVisits()
     for (let day = 0; day < 90; day++)
       s = apply(s, {
         type: 'closure',
@@ -347,7 +353,7 @@ describe('waitlist', () => {
   })
 
   it('searches the whole window, not only the first month', () => {
-    let s = seed('UK')
+    let s = withoutColourVisits()
     // Theo is away for the first 40 days; the only times are later in the window.
     for (let day = 0; day < 40; day++)
       s = apply(s, {

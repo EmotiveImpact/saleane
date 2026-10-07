@@ -100,6 +100,19 @@ export function seed(region: Region): BusinessState {
         depositMinor: 2000,
         resourceType: 'chair',
       },
+      {
+        ...scope,
+        id: 'service-gloss',
+        name: 'Gloss & Tone',
+        category: 'Hair',
+        description: 'A soft, glossy refresh of your colour, with a blow-dry to finish.',
+        durationMinutes: 45,
+        bufferMinutes: 15,
+        priceMinor: uk ? 6500 : 8500,
+        depositMinor: 1500,
+        resourceType: 'chair',
+        patchTest: true,
+      },
     ],
     staff: [
       {
@@ -123,7 +136,7 @@ export function seed(region: Region): BusinessState {
         id: 'staff-theo',
         name: 'Theo Bennett',
         role: 'Hair & styling',
-        serviceIds: ['service-cut'],
+        serviceIds: ['service-cut', 'service-gloss'],
         tone: 'sand',
       },
     ],
@@ -468,6 +481,70 @@ export function seed(region: Region): BusinessState {
       extensions: [],
       status: 'active' as const,
       refunds: [],
+    },
+  ]
+  // V1.5: three colour visits later this week: one guest is clear, one is waiting for the result
+  // and one has no patch test yet, so the desk and the reminder have something to show.
+  const later = (days: number) => addDays(DEMO_DATE, days)
+  visit(
+    'visit-gloss-ellie',
+    3,
+    'service-gloss',
+    'staff-theo',
+    'chair-one',
+    later(2),
+    600,
+    'confirmed',
+  )
+  visit(
+    'visit-gloss-grace',
+    6,
+    'service-gloss',
+    'staff-theo',
+    'chair-one',
+    later(3),
+    600,
+    'confirmed',
+  )
+  visit(
+    'visit-gloss-luca',
+    9,
+    'service-gloss',
+    'staff-theo',
+    'chair-one',
+    later(4),
+    600,
+    'confirmed',
+  )
+  const tested = (days: number) => `${addDays(DEMO_DATE, -days)}T10:30:00.000Z`
+  state.patchTests = [
+    {
+      ...scope,
+      id: 'patch-1',
+      clientId: 'client-3',
+      testedAt: tested(9),
+      product: 'Gloss toner 9.1 with 2% developer',
+      staffId: 'staff-theo',
+      notes: '',
+      recordedAt: tested(9),
+      actor: 'Theo Bennett · demo fixture',
+      result: {
+        outcome: 'clear' as const,
+        notes: 'No redness after 48 hours.',
+        at: `${addDays(DEMO_DATE, -7)}T11:00:00.000Z`,
+        actor: 'Theo Bennett · demo fixture',
+      },
+    },
+    {
+      ...scope,
+      id: 'patch-2',
+      clientId: 'client-6',
+      testedAt: tested(1),
+      product: 'Gloss toner 8.3 with 2% developer',
+      staffId: 'staff-theo',
+      notes: 'Behind the left ear.',
+      recordedAt: tested(1),
+      actor: 'Theo Bennett · demo fixture',
     },
   ]
   return parseState(state, region)

@@ -59,6 +59,7 @@ type Catalog = {
   staff: BusinessState['staff']
   today: string
   sample: boolean
+  patchTestHours?: number
   botCheck?: { siteKey: string } | null
   tax?: PriceTax
 }
@@ -310,7 +311,11 @@ function BookingFlow({
             {dateLabel(date, org.locale)} at {timeLabel(start!, org.locale)}
           </p>
           <p>Booking reference: {confirmed.slice(-8).toUpperCase()}</p>
-          <BeforeYouArrive studioNote={org.arrivalNote} serviceNote={service?.prepNote} />
+          <BeforeYouArrive
+            studioNote={org.arrivalNote}
+            serviceNote={service?.prepNote}
+            patchTestHours={service?.patchTest ? (catalog.patchTestHours ?? 48) : undefined}
+          />
           {service && start !== null && (
             <AddToCalendar
               visit={{
@@ -432,6 +437,12 @@ function BookingFlow({
                           <span className="service-category">{s.category}</span>
                           <h3>{s.name}</h3>
                           <p>{s.description}</p>
+                          {s.patchTest && (
+                            <p className="service-patch">
+                              Needs a patch test at least {catalog.patchTestHours ?? 48} hours
+                              before
+                            </p>
+                          )}
                           <PriceSentence
                             service={s}
                             organisation={org}

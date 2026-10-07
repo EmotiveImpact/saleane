@@ -47,6 +47,7 @@ const kindLabel: Record<MessageKind, string> = {
   reminder: 'Reminder',
   cancelled: 'Cancellation',
   feedback: 'How was your visit?',
+  patch_test: 'Patch test needed',
 }
 const providerLabel: Record<string, string> = {
   test: 'test mode',
