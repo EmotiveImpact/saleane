@@ -58,7 +58,10 @@ export function PatchTestForm({ clientId, onClose }: { clientId: string; onClose
   const [date, setDate] = useState(today)
   const [time, setTime] = useState(clockTime(Math.floor(businessMinutes(state, now) / 5) * 5))
   const [product, setProduct] = useState('')
-  const [staffId, setStaffId] = useState(team.find((p) => p.serviceIds.length)?.id ?? '')
+  const colour = new Set(state.services.filter((x) => x.patchTest).map((x) => x.id))
+  const [staffId, setStaffId] = useState(
+    team.find((p) => p.serviceIds.some((id) => colour.has(id)))?.id ?? '',
+  )
   const [notes, setNotes] = useState('')
   const [outcome, setOutcome] = useState<'' | 'clear' | 'reaction'>('')
   const [resultNotes, setResultNotes] = useState('')
@@ -288,11 +291,10 @@ export function ClientPatchTests({ clientId }: { clientId: string }) {
       </header>
       {next?.standing && (
         <p className="patch-next">
-          <span className={tagClass[next.standing.state]}>{shortState[next.standing.state]}</span>
           <span>
             For {dateLabel(next.a.date, org.locale)} at {timeLabel(next.a.startMinutes, org.locale)}
-            : {next.standing.label}.
           </span>
+          <span className={tagClass[next.standing.state]}>{next.standing.label}</span>
         </p>
       )}
       {tests.length > 0 && (
@@ -342,14 +344,11 @@ export function VisitPatchTest({ appointment }: { appointment: Appointment }) {
   const standing = visitPatchTest(state, appointment)
   if (!standing) return null
   return (
-    <p className={`patch-visit is-${standing.state}`}>
-      <span className={tagClass[standing.state]}>{shortState[standing.state]}</span>
-      <span>
-        {standing.label}.{' '}
-        {standing.state !== 'clear' && (
-          <Link to={`/clients/${appointment.clientId}`}>Open their patch tests</Link>
-        )}
-      </span>
+    <p className="patch-visit">
+      <span className={tagClass[standing.state]}>{standing.label}</span>
+      {standing.state !== 'clear' && (
+        <Link to={`/clients/${appointment.clientId}`}>Open their patch tests</Link>
+      )}
     </p>
   )
 }
@@ -371,20 +370,20 @@ export function PatchTestsDue() {
         </div>
         <Droplet size={21} aria-hidden="true" />
       </header>
-      <ul className="patch-list">
+      <ul className="patch-list is-compact">
         {rows.map(({ appointment: a, standing }) => (
           <li key={a.id}>
+            <span className={tagClass[standing.state]}>{shortState[standing.state]}</span>
             <div>
               <Link to={`/clients/${a.clientId}`}>
                 <strong>{state.clients.find((c) => c.id === a.clientId)?.name ?? 'Client'}</strong>
               </Link>
               <small>
                 {a.bookedServiceName ?? state.services.find((s) => s.id === a.serviceId)?.name} ·{' '}
-                {dateLabel(a.date, org.locale)} at {timeLabel(a.startMinutes, org.locale)}
+                {dateLabel(a.date, org.locale, true)}, {timeLabel(a.startMinutes, org.locale)}
               </small>
               <small>{standing.label}.</small>
             </div>
-            <span className={tagClass[standing.state]}>{shortState[standing.state]}</span>
           </li>
         ))}
       </ul>

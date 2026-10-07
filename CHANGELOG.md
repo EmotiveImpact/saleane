@@ -2,9 +2,23 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · V1.5 · Patch tests
+
+**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** A salon record and a reminder, not a clinical record. [Evidence](docs/evidence/V15-PATCH.md).
+
+- A treatment can be marked as needing a patch test, such as a colour (Settings › Services). The sample studio has a new Gloss & Tone colour service with three visits later in the week.
+- Each client page has a Patch tests panel: what was tested, when, by whom, where it was placed and, once the skin is checked, clear or a reaction with what was seen. Tests are kept side by side and never deleted.
+- Each colour visit shows where the guest stands: clear, result to record, test too close to the visit, test needed, or a reaction. Owners and managers set how many hours before the visit a test must be done (48 by default) and how long a clear one counts (6 months by default).
+- A recorded reaction stops the guest being welcomed for that treatment until a later clear test is recorded. Nothing else is blocked.
+- Today shows booked treatments in the next two weeks whose patch test is not in order.
+- A guest booked for such a treatment with no test that counts gets one message asking them to arrange a test, up to two weeks before and only while there is still time. It follows their usual email and text choices and the studio can turn it off. It is checked again just before it goes, so a test recorded meanwhile stops it. With no provider configured it stays in test mode.
+- Practitioners see the patch test status of their own visits and can record a test they did and its result for their own clients only.
+- The booking page tells guests which treatments need a patch test and how far ahead.
+- Patch tests are in the client's data export and listed as kept in the erasure review.
+
 ## 2026-10-07 · V1.5 · Gift cards and vouchers
 
-**Status: built locally on 7 October 2026, in review; nothing deployed and no money taken.** SALEANE records gift card payments and refunds; it does not take or return money itself. [Evidence](docs/evidence/V15-GIFT.md).
+**Status: built locally on 7 October 2026 and merged (#34); nothing deployed and no money taken.** SALEANE records gift card payments and refunds; it does not take or return money itself. [Evidence](docs/evidence/V15-GIFT.md).
 
 - A new Gift cards page under Business (owners, managers and reception) sells gift cards for an amount, or vouchers for a treatment at its price on the day. Each gets a 12-character code that is easy to read out, and the page shows the card as the guest would see it, ready to print. Cards last two years in the UK and five in the US, up to and including the anniversary.
 - At checkout the desk types a code, in any case and with or without dashes, and chooses how much to take from the card, up to what it holds and what is due after any deposit or plan. The guest pays the rest as usual, including by card through SALEANE when the studio takes cards (a saved card or a card reader is charged only the rest, and the gift card's share is held while that payment is under way, so it cannot be spent or cancelled elsewhere). The receipt, the receipt in Money and the client's timeline show what the card paid and what is left on it; a package or membership's share now shows on the Money receipt too.

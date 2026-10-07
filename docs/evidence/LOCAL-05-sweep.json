@@ -1,6 +1,6 @@
 {
   "environment": "Chromium 141.0.7390.37 / http://127.0.0.1:5173",
-  "recordedAt": "2026-10-06T21:05:52.885Z",
+  "recordedAt": "2026-10-07T13:46:13.148Z",
   "results": [
     {
       "mode": "demo",
@@ -10,7 +10,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 33,
+        "focusable": 40,
         "missing": []
       },
       "errors": []
@@ -23,7 +23,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 19,
+        "focusable": 27,
         "missing": []
       },
       "errors": []
@@ -36,7 +36,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 49,
+        "focusable": 38,
         "missing": []
       },
       "errors": []
@@ -49,360 +49,13 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 20,
+        "focusable": 41,
         "missing": []
       },
       "errors": []
     },
     {
       "mode": "demo",
-      "route": "/inbox",
-      "width": 1280,
-      "violations": [],
-      "viewport": 1280,
-      "document": 1280,
-      "keyboard": {
-        "focusable": 20,
-        "missing": []
-      },
-      "errors": []
-    },
-    {
-      "mode": "demo",
-      "route": "/business",
-      "width": 1280,
-      "violations": [],
-      "viewport": 1280,
-      "document": 1280,
-      "keyboard": {
-        "focusable": 24,
-        "missing": []
-      },
-      "errors": []
-    },
-    {
-      "mode": "demo",
-      "route": "/business/money",
-      "width": 1280,
-      "violations": [],
-      "viewport": 1280,
-      "document": 1280,
-      "keyboard": {
-        "focusable": 35,
-        "missing": []
-      },
-      "errors": []
-    },
-    {
-      "mode": "demo",
-      "route": "/business/manage",
-      "width": 1280,
-      "violations": [],
-      "viewport": 1280,
-      "document": 1280,
-      "keyboard": {
-        "focusable": 31,
-        "missing": []
-      },
-      "errors": []
-    },
-    {
-      "mode": "demo",
-      "route": "/booking",
-      "width": 1280,
-      "violations": [],
-      "viewport": 1280,
-      "document": 1280,
-      "keyboard": {
-        "focusable": 14,
-        "missing": []
-      },
-      "errors": []
-    },
-    {
-      "mode": "demo",
-      "route": "/design-language",
-      "width": 1280,
-      "violations": [],
-      "viewport": 1280,
-      "document": 1280,
-      "keyboard": {
-        "focusable": 28,
-        "missing": []
-      },
-      "errors": []
-    },
-    {
-      "mode": "demo",
-      "route": "/account",
-      "width": 1280,
-      "violations": [],
-      "viewport": 1280,
-      "document": 1280,
-      "keyboard": {
-        "focusable": 7,
-        "missing": []
-      },
-      "errors": [
-        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
-      ]
-    },
-    {
-      "mode": "demo",
-      "route": "/today",
-      "width": 390,
-      "violations": [],
-      "viewport": 390,
-      "document": 390,
-      "errors": []
-    },
-    {
-      "mode": "demo",
-      "route": "/calendar",
-      "width": 390,
-      "violations": [],
-      "viewport": 390,
-      "document": 390,
-      "errors": []
-    },
-    {
-      "mode": "demo",
-      "route": "/clients",
-      "width": 390,
-      "violations": [],
-      "viewport": 390,
-      "document": 390,
-      "errors": []
-    },
-    {
-      "mode": "demo",
-      "route": "/clients/client-1",
-      "width": 390,
-      "violations": [],
-      "viewport": 390,
-      "document": 390,
-      "errors": []
-    },
-    {
-      "mode": "demo",
-      "route": "/inbox",
-      "width": 390,
-      "violations": [],
-      "viewport": 390,
-      "document": 390,
-      "errors": []
-    },
-    {
-      "mode": "demo",
-      "route": "/business",
-      "width": 390,
-      "violations": [],
-      "viewport": 390,
-      "document": 390,
-      "errors": []
-    },
-    {
-      "mode": "demo",
-      "route": "/business/money",
-      "width": 390,
-      "violations": [],
-      "viewport": 390,
-      "document": 390,
-      "errors": []
-    },
-    {
-      "mode": "demo",
-      "route": "/business/manage",
-      "width": 390,
-      "violations": [],
-      "viewport": 390,
-      "document": 390,
-      "errors": []
-    },
-    {
-      "mode": "demo",
-      "route": "/booking",
-      "width": 390,
-      "violations": [],
-      "viewport": 390,
-      "document": 390,
-      "errors": []
-    },
-    {
-      "mode": "demo",
-      "route": "/design-language",
-      "width": 390,
-      "violations": [],
-      "viewport": 390,
-      "document": 390,
-      "errors": []
-    },
-    {
-      "mode": "demo",
-      "route": "/account",
-      "width": 390,
-      "violations": [],
-      "viewport": 390,
-      "document": 390,
-      "errors": [
-        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
-      ]
-    },
-    {
-      "mode": "demo",
-      "route": "/today",
-      "width": 320,
-      "violations": [],
-      "viewport": 320,
-      "document": 320,
-      "errors": []
-    },
-    {
-      "mode": "demo",
-      "route": "/calendar",
-      "width": 320,
-      "violations": [],
-      "viewport": 320,
-      "document": 320,
-      "errors": []
-    },
-    {
-      "mode": "demo",
-      "route": "/clients",
-      "width": 320,
-      "violations": [],
-      "viewport": 320,
-      "document": 320,
-      "errors": []
-    },
-    {
-      "mode": "demo",
-      "route": "/clients/client-1",
-      "width": 320,
-      "violations": [],
-      "viewport": 320,
-      "document": 320,
-      "errors": []
-    },
-    {
-      "mode": "demo",
-      "route": "/inbox",
-      "width": 320,
-      "violations": [],
-      "viewport": 320,
-      "document": 320,
-      "errors": []
-    },
-    {
-      "mode": "demo",
-      "route": "/business",
-      "width": 320,
-      "violations": [],
-      "viewport": 320,
-      "document": 320,
-      "errors": []
-    },
-    {
-      "mode": "demo",
-      "route": "/business/money",
-      "width": 320,
-      "violations": [],
-      "viewport": 320,
-      "document": 320,
-      "errors": []
-    },
-    {
-      "mode": "demo",
-      "route": "/business/manage",
-      "width": 320,
-      "violations": [],
-      "viewport": 320,
-      "document": 320,
-      "errors": []
-    },
-    {
-      "mode": "demo",
-      "route": "/booking",
-      "width": 320,
-      "violations": [],
-      "viewport": 320,
-      "document": 320,
-      "errors": []
-    },
-    {
-      "mode": "demo",
-      "route": "/design-language",
-      "width": 320,
-      "violations": [],
-      "viewport": 320,
-      "document": 320,
-      "errors": []
-    },
-    {
-      "mode": "demo",
-      "route": "/account",
-      "width": 320,
-      "violations": [],
-      "viewport": 320,
-      "document": 320,
-      "errors": [
-        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
-      ]
-    },
-    {
-      "mode": "local studio",
-      "route": "/today",
-      "width": 1280,
-      "violations": [],
-      "viewport": 1280,
-      "document": 1280,
-      "keyboard": {
-        "focusable": 34,
-        "missing": []
-      },
-      "errors": []
-    },
-    {
-      "mode": "local studio",
-      "route": "/calendar",
-      "width": 1280,
-      "violations": [],
-      "viewport": 1280,
-      "document": 1280,
-      "keyboard": {
-        "focusable": 19,
-        "missing": []
-      },
-      "errors": []
-    },
-    {
-      "mode": "local studio",
-      "route": "/clients",
-      "width": 1280,
-      "violations": [],
-      "viewport": 1280,
-      "document": 1280,
-      "keyboard": {
-        "focusable": 50,
-        "missing": []
-      },
-      "errors": []
-    },
-    {
-      "mode": "local studio",
-      "route": "/clients/client-1",
-      "width": 1280,
-      "violations": [],
-      "viewport": 1280,
-      "document": 1280,
-      "keyboard": {
-        "focusable": 20,
-        "missing": []
-      },
-      "errors": []
-    },
-    {
-      "mode": "local studio",
       "route": "/inbox",
       "width": 1280,
       "violations": [],
@@ -415,21 +68,603 @@
       "errors": []
     },
     {
-      "mode": "local studio",
+      "mode": "demo",
+      "route": "/waitlist",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 34,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "demo",
       "route": "/business",
       "width": 1280,
       "violations": [],
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 25,
+        "focusable": 32,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/business/money",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 34,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/settings",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 44,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/settings?section=messages",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 26,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/settings?section=payments",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 22,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/settings?section=switching",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 24,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/settings?section=plans",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 21,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/business/feedback",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 32,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/business/gift-cards",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 26,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/booking",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 15,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/design-language",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 31,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/account",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 8,
+        "missing": []
+      },
+      "errors": [
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ]
+    },
+    {
+      "mode": "demo",
+      "route": "/pricing",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 4,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/today",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/calendar",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/clients",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/clients/client-1",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/inbox",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/waitlist",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/business",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/business/money",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/settings",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/settings?section=messages",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/settings?section=payments",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/settings?section=switching",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/settings?section=plans",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/business/feedback",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/business/gift-cards",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/booking",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/design-language",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/account",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": [
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ]
+    },
+    {
+      "mode": "demo",
+      "route": "/pricing",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/today",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/calendar",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/clients",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/clients/client-1",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/inbox",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/waitlist",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/business",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/business/money",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/settings",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/settings?section=messages",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/settings?section=payments",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/settings?section=switching",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/settings?section=plans",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/business/feedback",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/business/gift-cards",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/booking",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/design-language",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/account",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": [
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ]
+    },
+    {
+      "mode": "demo",
+      "route": "/pricing",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/today",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 41,
         "missing": []
       },
       "errors": []
     },
     {
       "mode": "local studio",
-      "route": "/business/money",
+      "route": "/calendar",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 28,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/clients",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 39,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/clients/client-1",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 42,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/inbox",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 22,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/waitlist",
       "width": 1280,
       "violations": [],
       "viewport": 1280,
@@ -442,26 +677,143 @@
     },
     {
       "mode": "local studio",
-      "route": "/business/manage",
+      "route": "/business",
       "width": 1280,
       "violations": [],
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 32,
+        "focusable": 33,
         "missing": []
       },
       "errors": []
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-dfb4e3a1",
+      "route": "/business/money",
       "width": 1280,
       "violations": [],
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 7,
+        "focusable": 34,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/settings",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 45,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/settings?section=messages",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 27,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/settings?section=payments",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 23,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/settings?section=switching",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 25,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/settings?section=plans",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 22,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/business/feedback",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 33,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/business/gift-cards",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 27,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/pricing",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 4,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/book/qualify-studio-027fd7fa",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 8,
         "missing": []
       },
       "errors": []
@@ -474,7 +826,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 5,
+        "focusable": 6,
         "missing": []
       },
       "errors": []
@@ -526,6 +878,15 @@
     },
     {
       "mode": "local studio",
+      "route": "/waitlist",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "local studio",
       "route": "/business",
       "width": 390,
       "violations": [],
@@ -544,7 +905,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/business/manage",
+      "route": "/settings",
       "width": 390,
       "violations": [],
       "viewport": 390,
@@ -553,7 +914,70 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-dfb4e3a1",
+      "route": "/settings?section=messages",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/settings?section=payments",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/settings?section=switching",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/settings?section=plans",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/business/feedback",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/business/gift-cards",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/pricing",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/book/qualify-studio-027fd7fa",
       "width": 390,
       "violations": [],
       "viewport": 390,
@@ -616,6 +1040,15 @@
     },
     {
       "mode": "local studio",
+      "route": "/waitlist",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "local studio",
       "route": "/business",
       "width": 320,
       "violations": [],
@@ -634,7 +1067,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/business/manage",
+      "route": "/settings",
       "width": 320,
       "violations": [],
       "viewport": 320,
@@ -643,7 +1076,70 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-dfb4e3a1",
+      "route": "/settings?section=messages",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/settings?section=payments",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/settings?section=switching",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/settings?section=plans",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/business/feedback",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/business/gift-cards",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/pricing",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/book/qualify-studio-027fd7fa",
       "width": 320,
       "violations": [],
       "viewport": 320,
@@ -664,13 +1160,6 @@
     {
       "mode": "demo",
       "dialog": "search",
-      "violations": [],
-      "focusEscaped": false,
-      "escapeCloses": true
-    },
-    {
-      "mode": "demo",
-      "dialog": "settings",
       "violations": [],
       "focusEscaped": false,
       "escapeCloses": true
@@ -699,13 +1188,6 @@
     {
       "mode": "local studio",
       "dialog": "search",
-      "violations": [],
-      "focusEscaped": false,
-      "escapeCloses": true
-    },
-    {
-      "mode": "local studio",
-      "dialog": "settings",
       "violations": [],
       "focusEscaped": false,
       "escapeCloses": true
@@ -806,10 +1288,11 @@
       "route": "/today",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": ["A good day begins here."],
+      "h1": ["Good afternoon."],
       "headings": [
-        "H1 A good day begins here.",
+        "H1 Good afternoon.",
         "H2 The day ahead",
+        "H2 Patch tests to sort",
         "H2 Make room for a familiar face.",
         "H2 Your people today"
       ],
@@ -820,6 +1303,7 @@
         "section About this version",
         "main",
         "aside",
+        "header",
         "footer"
       ]
     },
@@ -855,6 +1339,7 @@
         "header",
         "section About this version",
         "main",
+        "nav Client pages",
         "footer"
       ]
     },
@@ -866,17 +1351,17 @@
       "h1": ["Amelia Carter"],
       "headings": [
         "H1 Amelia Carter",
+        "H2 A year with the studio",
         "H2 The relationship timeline",
         "H3 Skin Renewal Facial with Maya",
-        "H3 Deep Restore Massage with Sophia",
-        "H3 Skin Renewal Facial with Maya",
-        "H3 Skin Renewal Facial with Maya",
-        "H3 Deep Restore Massage with Sophia",
-        "H3 Skin Renewal Facial with Maya",
-        "H3 Signature Cut & Finish with Theo",
-        "H3 Deep Restore Massage with Sophia",
-        "H3 Skin Renewal Facial with Maya",
-        "H3 A familiar rhythm"
+        "H3 1 Oct 2026Deep Restore Massage with Soph",
+        "H3 29 Sept 2026Skin Renewal Facial with May",
+        "H3 22 Sept 2026Skin Renewal Facial with May",
+        "H3 17 Sept 2026Deep Restore Massage with So",
+        "H3 15 Sept 2026Skin Renewal Facial with May",
+        "H3 12 Sept 2026Signature Cut & Finish with ",
+        "H3 10 Sept 2026Deep Restore Massage with So",
+        "H3 8 Sept 2026Skin Renewal Facial with Maya"
       ],
       "landmarks": [
         "aside Workspace navigation",
@@ -885,6 +1370,8 @@
         "section About this version",
         "main",
         "aside",
+        "header",
+        "header",
         "footer"
       ]
     },
@@ -894,12 +1381,23 @@
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
       "h1": ["A considered word."],
-      "headings": [
-        "H1 A considered word.",
-        "H2 Your message queue",
-        "H3 A little space to be thoughtful.",
-        "H2 Relevant, and welcome."
-      ],
+      "headings": ["H1 A considered word.", "H2 A little space to be thoughtful."],
+      "landmarks": [
+        "aside Workspace navigation",
+        "nav",
+        "header",
+        "section About this version",
+        "main",
+        "footer"
+      ]
+    },
+    {
+      "mode": "demo",
+      "route": "/waitlist",
+      "title": "SALEANE — Atelier House",
+      "lang": "en-GB",
+      "h1": ["Who would take a time."],
+      "headings": ["H1 Who would take a time.", "H2 Waiting"],
       "landmarks": [
         "aside Workspace navigation",
         "nav",
@@ -907,7 +1405,6 @@
         "section About this version",
         "main",
         "header",
-        "aside",
         "footer"
       ]
     },
@@ -922,7 +1419,10 @@
         "H2 Revenue has a rhythm.",
         "H2 The next chapter is in your relationship",
         "H2 What people come for",
-        "H2 The people behind it"
+        "H2 The people behind it",
+        "H2 Your booking page",
+        "H2 Before you close.",
+        "H2 Who comes back"
       ],
       "landmarks": [
         "aside Workspace navigation",
@@ -931,6 +1431,7 @@
         "section About this version",
         "main",
         "nav Business sections",
+        "header",
         "footer"
       ]
     },
@@ -943,7 +1444,15 @@
       "headings": [
         "H1 Money, clearly.",
         "H2 A record of every settled visit",
-        "H2 The numbers should agree."
+        "H3 Wednesday 7 October£95.00",
+        "H3 Tuesday 6 October£195.00",
+        "H3 Monday 5 October£185.00",
+        "H3 Sunday 4 October£185.00",
+        "H3 Saturday 3 October£95.00",
+        "H2 The numbers should agree.",
+        "H2 End-of-day till count",
+        "H3 Expected in the till",
+        "H3 Counts for Tuesday 6 October"
       ],
       "landmarks": [
         "aside Workspace navigation",
@@ -953,20 +1462,28 @@
         "main",
         "nav Business sections",
         "header",
+        "section Wednesday 7 October",
+        "section Tuesday 6 October",
+        "section Monday 5 October",
+        "section Sunday 4 October",
+        "section Saturday 3 October",
         "aside",
+        "header",
         "footer"
       ]
     },
     {
       "mode": "demo",
-      "route": "/business/manage",
+      "route": "/settings",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": ["Your business, considered."],
+      "h1": ["Your studio, considered."],
       "headings": [
-        "H1 Your business, considered.",
+        "H1 Your studio, considered.",
         "H2 Business details",
         "H2 Checkout tax",
+        "H2 Share your booking page",
+        "H2 Before you arrive",
         "H2 A steady foundation."
       ],
       "landmarks": [
@@ -975,10 +1492,136 @@
         "header",
         "section About this version",
         "main",
-        "nav Business sections",
+        "header",
+        "header",
         "header",
         "header",
         "aside",
+        "footer"
+      ]
+    },
+    {
+      "mode": "demo",
+      "route": "/settings?section=messages",
+      "title": "SALEANE — Atelier House",
+      "lang": "en-GB",
+      "h1": ["Your studio, considered."],
+      "headings": [
+        "H1 Your studio, considered.",
+        "H2 Messages to guests",
+        "H2 A steady foundation."
+      ],
+      "landmarks": [
+        "aside Workspace navigation",
+        "nav",
+        "header",
+        "section About this version",
+        "main",
+        "header",
+        "aside",
+        "footer"
+      ]
+    },
+    {
+      "mode": "demo",
+      "route": "/settings?section=payments",
+      "title": "SALEANE — Atelier House",
+      "lang": "en-GB",
+      "h1": ["Your studio, considered."],
+      "headings": ["H1 Your studio, considered.", "H2 Payments", "H2 A steady foundation."],
+      "landmarks": [
+        "aside Workspace navigation",
+        "nav",
+        "header",
+        "section About this version",
+        "main",
+        "header",
+        "aside",
+        "footer"
+      ]
+    },
+    {
+      "mode": "demo",
+      "route": "/settings?section=switching",
+      "title": "SALEANE — Atelier House",
+      "lang": "en-GB",
+      "h1": ["Your studio, considered."],
+      "headings": [
+        "H1 Your studio, considered.",
+        "H2 Moving from another system",
+        "H3 Clients",
+        "H3 Services",
+        "H3 Upcoming visits",
+        "H3 Balances",
+        "H3 What has come across",
+        "H2 A steady foundation."
+      ],
+      "landmarks": [
+        "aside Workspace navigation",
+        "nav",
+        "header",
+        "section About this version",
+        "main",
+        "header",
+        "aside",
+        "footer"
+      ]
+    },
+    {
+      "mode": "demo",
+      "route": "/settings?section=plans",
+      "title": "SALEANE — Atelier House",
+      "lang": "en-GB",
+      "h1": ["Your studio, considered."],
+      "headings": [
+        "H1 Your studio, considered.",
+        "H2 Packages & memberships",
+        "H2 A steady foundation."
+      ],
+      "landmarks": [
+        "aside Workspace navigation",
+        "nav",
+        "header",
+        "section About this version",
+        "main",
+        "header",
+        "aside",
+        "footer"
+      ]
+    },
+    {
+      "mode": "demo",
+      "route": "/business/feedback",
+      "title": "SALEANE — Atelier House",
+      "lang": "en-GB",
+      "h1": ["What guests tell you."],
+      "headings": ["H1 What guests tell you.", "H2 By professional", "H2 Latest answers"],
+      "landmarks": [
+        "aside Workspace navigation",
+        "nav",
+        "header",
+        "section About this version",
+        "main",
+        "nav Business sections",
+        "header",
+        "header",
+        "footer"
+      ]
+    },
+    {
+      "mode": "demo",
+      "route": "/business/gift-cards",
+      "title": "SALEANE — Atelier House",
+      "lang": "en-GB",
+      "h1": ["Gift cards and vouchers."],
+      "headings": ["H1 Gift cards and vouchers."],
+      "landmarks": [
+        "aside Workspace navigation",
+        "nav",
+        "header",
+        "section About this version",
+        "main",
+        "nav Business sections",
         "footer"
       ]
     },
@@ -994,7 +1637,8 @@
         "H3 Skin Renewal Facial",
         "H3 Lymphatic Massage",
         "H3 Deep Restore Massage",
-        "H3 Signature Cut & Finish"
+        "H3 Signature Cut & Finish",
+        "H3 Gloss & Tone"
       ],
       "landmarks": [
         "header",
@@ -1044,14 +1688,31 @@
       "landmarks": ["aside", "main"]
     },
     {
+      "mode": "demo",
+      "route": "/pricing",
+      "title": "SALEANE — Atelier House",
+      "lang": "en-GB",
+      "h1": ["One price. Everything included."],
+      "headings": [
+        "H1 One price. Everything included.",
+        "H2 What the price never hides",
+        "H3 No commission on your clients",
+        "H3 No locked tiers",
+        "H3 No fee to leave",
+        "H2 Costs outside SALEANE"
+      ],
+      "landmarks": ["header", "main", "section The price", "footer"]
+    },
+    {
       "mode": "local studio",
       "route": "/today",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": ["Welcome, Qualification."],
+      "h1": ["Good afternoon, Qualification."],
       "headings": [
-        "H1 Welcome, Qualification.",
+        "H1 Good afternoon, Qualification.",
         "H2 The day ahead",
+        "H2 Patch tests to sort",
         "H2 Make room for a familiar face.",
         "H2 Your people today"
       ],
@@ -1062,6 +1723,7 @@
         "section About this version",
         "main",
         "aside",
+        "header",
         "footer"
       ]
     },
@@ -1097,6 +1759,7 @@
         "header",
         "section About this version",
         "main",
+        "nav Client pages",
         "footer"
       ]
     },
@@ -1108,17 +1771,17 @@
       "h1": ["Amelia Carter"],
       "headings": [
         "H1 Amelia Carter",
+        "H2 A year with the studio",
         "H2 The relationship timeline",
         "H3 Skin Renewal Facial with Maya",
-        "H3 Deep Restore Massage with Sophia",
-        "H3 Skin Renewal Facial with Maya",
-        "H3 Skin Renewal Facial with Maya",
-        "H3 Deep Restore Massage with Sophia",
-        "H3 Skin Renewal Facial with Maya",
-        "H3 Signature Cut & Finish with Theo",
-        "H3 Deep Restore Massage with Sophia",
-        "H3 Skin Renewal Facial with Maya",
-        "H3 A familiar rhythm"
+        "H3 1 Oct 2026Deep Restore Massage with Soph",
+        "H3 29 Sept 2026Skin Renewal Facial with May",
+        "H3 22 Sept 2026Skin Renewal Facial with May",
+        "H3 17 Sept 2026Deep Restore Massage with So",
+        "H3 15 Sept 2026Skin Renewal Facial with May",
+        "H3 12 Sept 2026Signature Cut & Finish with ",
+        "H3 10 Sept 2026Deep Restore Massage with So",
+        "H3 8 Sept 2026Skin Renewal Facial with Maya"
       ],
       "landmarks": [
         "aside Workspace navigation",
@@ -1127,6 +1790,9 @@
         "section About this version",
         "main",
         "aside",
+        "header",
+        "header",
+        "header",
         "footer"
       ]
     },
@@ -1138,9 +1804,8 @@
       "h1": ["A considered word."],
       "headings": [
         "H1 A considered word.",
-        "H2 Your message queue",
-        "H3 A little space to be thoughtful.",
-        "H2 Relevant, and welcome."
+        "H2 A little space to be thoughtful.",
+        "H2 Sent for you"
       ],
       "landmarks": [
         "aside Workspace navigation",
@@ -1149,7 +1814,23 @@
         "section About this version",
         "main",
         "header",
-        "aside",
+        "footer"
+      ]
+    },
+    {
+      "mode": "local studio",
+      "route": "/waitlist",
+      "title": "SALEANE — Qualify Studio",
+      "lang": "en-GB",
+      "h1": ["Who would take a time."],
+      "headings": ["H1 Who would take a time.", "H2 Waiting"],
+      "landmarks": [
+        "aside Workspace navigation",
+        "nav",
+        "header",
+        "section About this version",
+        "main",
+        "header",
         "footer"
       ]
     },
@@ -1164,7 +1845,10 @@
         "H2 Revenue has a rhythm.",
         "H2 The next chapter is in your relationship",
         "H2 What people come for",
-        "H2 The people behind it"
+        "H2 The people behind it",
+        "H2 Your booking page",
+        "H2 Before you close.",
+        "H2 Who comes back"
       ],
       "landmarks": [
         "aside Workspace navigation",
@@ -1173,6 +1857,7 @@
         "section About this version",
         "main",
         "nav Business sections",
+        "header",
         "footer"
       ]
     },
@@ -1185,7 +1870,15 @@
       "headings": [
         "H1 Money, clearly.",
         "H2 A record of every settled visit",
-        "H2 The numbers should agree."
+        "H3 Wednesday 7 October£95.00",
+        "H3 Tuesday 6 October£195.00",
+        "H3 Monday 5 October£185.00",
+        "H3 Sunday 4 October£185.00",
+        "H3 Saturday 3 October£95.00",
+        "H2 The numbers should agree.",
+        "H2 End-of-day till count",
+        "H3 Expected in the till",
+        "H3 Counts for Tuesday 6 October"
       ],
       "landmarks": [
         "aside Workspace navigation",
@@ -1195,20 +1888,28 @@
         "main",
         "nav Business sections",
         "header",
+        "section Wednesday 7 October",
+        "section Tuesday 6 October",
+        "section Monday 5 October",
+        "section Sunday 4 October",
+        "section Saturday 3 October",
         "aside",
+        "header",
         "footer"
       ]
     },
     {
       "mode": "local studio",
-      "route": "/business/manage",
+      "route": "/settings",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": ["Your business, considered."],
+      "h1": ["Your studio, considered."],
       "headings": [
-        "H1 Your business, considered.",
+        "H1 Your studio, considered.",
         "H2 Business details",
         "H2 Checkout tax",
+        "H2 Share your booking page",
+        "H2 Before you arrive",
         "H2 A steady foundation."
       ],
       "landmarks": [
@@ -1217,7 +1918,8 @@
         "header",
         "section About this version",
         "main",
-        "nav Business sections",
+        "header",
+        "header",
         "header",
         "header",
         "aside",
@@ -1226,17 +1928,159 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-dfb4e3a1",
+      "route": "/settings?section=messages",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": ["Care,considered."],
+      "h1": ["Your studio, considered."],
       "headings": [
-        "H1 Care,considered.",
+        "H1 Your studio, considered.",
+        "H2 Messages to guests",
+        "H2 A steady foundation."
+      ],
+      "landmarks": [
+        "aside Workspace navigation",
+        "nav",
+        "header",
+        "section About this version",
+        "main",
+        "header",
+        "aside",
+        "footer"
+      ]
+    },
+    {
+      "mode": "local studio",
+      "route": "/settings?section=payments",
+      "title": "SALEANE — Qualify Studio",
+      "lang": "en-GB",
+      "h1": ["Your studio, considered."],
+      "headings": ["H1 Your studio, considered.", "H2 Payments", "H2 A steady foundation."],
+      "landmarks": [
+        "aside Workspace navigation",
+        "nav",
+        "header",
+        "section About this version",
+        "main",
+        "header",
+        "aside",
+        "footer"
+      ]
+    },
+    {
+      "mode": "local studio",
+      "route": "/settings?section=switching",
+      "title": "SALEANE — Qualify Studio",
+      "lang": "en-GB",
+      "h1": ["Your studio, considered."],
+      "headings": [
+        "H1 Your studio, considered.",
+        "H2 Moving from another system",
+        "H3 Clients",
+        "H3 Services",
+        "H3 Upcoming visits",
+        "H3 Balances",
+        "H3 What has come across",
+        "H2 A steady foundation."
+      ],
+      "landmarks": [
+        "aside Workspace navigation",
+        "nav",
+        "header",
+        "section About this version",
+        "main",
+        "header",
+        "aside",
+        "footer"
+      ]
+    },
+    {
+      "mode": "local studio",
+      "route": "/settings?section=plans",
+      "title": "SALEANE — Qualify Studio",
+      "lang": "en-GB",
+      "h1": ["Your studio, considered."],
+      "headings": [
+        "H1 Your studio, considered.",
+        "H2 Packages & memberships",
+        "H2 A steady foundation."
+      ],
+      "landmarks": [
+        "aside Workspace navigation",
+        "nav",
+        "header",
+        "section About this version",
+        "main",
+        "header",
+        "aside",
+        "footer"
+      ]
+    },
+    {
+      "mode": "local studio",
+      "route": "/business/feedback",
+      "title": "SALEANE — Qualify Studio",
+      "lang": "en-GB",
+      "h1": ["What guests tell you."],
+      "headings": ["H1 What guests tell you.", "H2 By professional", "H2 Latest answers"],
+      "landmarks": [
+        "aside Workspace navigation",
+        "nav",
+        "header",
+        "section About this version",
+        "main",
+        "nav Business sections",
+        "header",
+        "header",
+        "footer"
+      ]
+    },
+    {
+      "mode": "local studio",
+      "route": "/business/gift-cards",
+      "title": "SALEANE — Qualify Studio",
+      "lang": "en-GB",
+      "h1": ["Gift cards and vouchers."],
+      "headings": ["H1 Gift cards and vouchers."],
+      "landmarks": [
+        "aside Workspace navigation",
+        "nav",
+        "header",
+        "section About this version",
+        "main",
+        "nav Business sections",
+        "footer"
+      ]
+    },
+    {
+      "mode": "local studio",
+      "route": "/pricing",
+      "title": "SALEANE — Qualify Studio",
+      "lang": "en-GB",
+      "h1": ["One price. Everything included."],
+      "headings": [
+        "H1 One price. Everything included.",
+        "H2 What the price never hides",
+        "H3 No commission on your clients",
+        "H3 No locked tiers",
+        "H3 No fee to leave",
+        "H2 Costs outside SALEANE"
+      ],
+      "landmarks": ["header", "main", "section The price", "footer"]
+    },
+    {
+      "mode": "local studio",
+      "route": "/book/qualify-studio-027fd7fa",
+      "title": "SALEANE — Qualify Studio",
+      "lang": "en-GB",
+      "h1": ["Care, considered."],
+      "headings": [
+        "H1 Care, considered.",
         "H2 What brings you in?",
         "H3 Skin Renewal Facial",
         "H3 Lymphatic Massage",
         "H3 Deep Restore Massage",
-        "H3 Signature Cut & Finish"
+        "H3 Signature Cut & Finish",
+        "H3 Gloss & Tone"
       ],
       "landmarks": [
         "header",
@@ -1258,7 +2102,7 @@
     }
   ],
   "summary": {
-    "pages": 63,
+    "pages": 111,
     "withViolations": 0,
     "overflowing": 0,
     "focusMissing": 0,
