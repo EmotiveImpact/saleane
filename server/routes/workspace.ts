@@ -9,6 +9,7 @@ import { emailSchema, roleSchema } from '../context'
 import type { Context, Route } from '../context'
 import { practitionerRefusal } from '../../src/domain/practitioner'
 import { openingFree, staleOffer } from '../../src/domain/waitlist'
+import { giftCardHoldProblem } from '../payments/service'
 import { workspaceView } from '../projections'
 import type { Reader } from '../projections'
 import { issueGuestLink, revokeGuestLinks } from './guest'
@@ -157,6 +158,8 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         }
         const result = dispatch(org.state, command, actor.name, new Date(now()).toISOString())
         if (!result.ok) fail(422, result.error)
+        const held = giftCardHoldProblem(ctx, org.id, result.state)
+        if (held) fail(409, held)
         if (result.state.revision !== org.state.revision)
           persist(org, result.state, actor.id, command.type, result.recordId)
         db.run(

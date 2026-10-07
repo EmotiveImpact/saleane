@@ -307,6 +307,8 @@ export function can(role: Role, action: string) {
       'protection',
       'plan-cancel',
       'special',
+      'gift-card-extend',
+      'gift-card-cancel',
     ].includes(action)
   )
     return false

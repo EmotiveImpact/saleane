@@ -40,6 +40,9 @@ const Money = lazy(() => import('./pages/Money').then((module) => ({ default: mo
 const Waitlist = lazy(() =>
   import('./pages/Waitlist').then((module) => ({ default: module.Waitlist })),
 )
+const GiftCards = lazy(() =>
+  import('./pages/GiftCards').then((module) => ({ default: module.GiftCards })),
+)
 const Feedback = lazy(() =>
   import('./pages/Feedback').then((module) => ({ default: module.Feedback })),
 )
@@ -296,6 +299,7 @@ function WorkspaceApp() {
                 Overview
               </NavLink>
               <NavLink to="/business/money">Money</NavLink>
+              {role !== 'practitioner' && <NavLink to="/business/gift-cards">Gift cards</NavLink>}
               {(role === 'owner' || role === 'manager') && (
                 <NavLink to="/business/feedback">Feedback</NavLink>
               )}
@@ -315,6 +319,7 @@ function WorkspaceApp() {
             />
             <Route path="/business/money" element={<Money />} />
             <Route path="/business/feedback" element={<Feedback />} />
+            <Route path="/business/gift-cards" element={<GiftCards />} />
             <Route path="/settings" element={<Manage accessPanel={<AccessPanel />} />} />
             <Route path="/business/manage" element={<Navigate to="/settings" replace />} />
             <Route path="/design-language" element={<DesignLanguage />} />
