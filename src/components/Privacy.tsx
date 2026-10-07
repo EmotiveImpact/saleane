@@ -13,6 +13,7 @@ import {
   studioExport,
 } from '../domain/privacy'
 import type { ClientExport, ErasureReview, ExportPreview, StudioExport } from '../domain/privacy'
+import { RETENTION_REGISTER } from '../domain/dataRetention'
 import { Button, ErrorMessage, Modal } from '../design'
 import './privacy.css'
 
@@ -206,8 +207,8 @@ export function ClientPrivacy({ clientId }: { clientId: string }) {
       {requests.map((r) => (
         <p className="privacy-request" key={r.occurredAt}>
           <strong>Erasure request recorded</strong> on {dateFormat.format(new Date(r.occurredAt))}
-          {r.actor ? ` by ${r.actor}` : ''}. Waiting for a retention decision; nothing has been
-          deleted.
+          {r.actor ? ` by ${r.actor}` : ''}. Nothing is deleted until an owner or manager approves
+          it.
         </p>
       ))}
       {allowed ? (
@@ -520,10 +521,26 @@ export function StudioPrivacy() {
         ) : (
           <p className="ops-help">No exports or erasure requests yet.</p>
         )}
-        <p className="ops-help">
-          Retention periods are proposals awaiting your decision with an adviser. SALEANE deletes
-          nothing automatically.
-        </p>
+      </section>
+      <section className="surface ops-panel" aria-labelledby="retention-heading">
+        <header>
+          <div>
+            <h2 id="retention-heading">How long records are kept</h2>
+            <p>
+              When a record reaches the end of its period it waits for an owner or manager, who
+              either approves deleting it or keeps it longer by months or years. SALEANE never
+              deletes anything on its own.
+            </p>
+          </div>
+        </header>
+        <dl className="privacy-retention">
+          {RETENTION_REGISTER.map((rule) => (
+            <div key={rule.record}>
+              <dt>{rule.record}</dt>
+              <dd>{rule.period}</dd>
+            </div>
+          ))}
+        </dl>
       </section>
     </>
   )

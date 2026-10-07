@@ -296,8 +296,8 @@ export type ErasureReview = {
 }
 
 /**
- * What an erasure request would touch once the owner has decided a retention policy. This only
- * describes; SALEANE deletes nothing until those decisions are recorded with an adviser.
+ * What an erasure request would touch. This only describes; SALEANE deletes nothing until an
+ * owner or manager approves it (see dataRetention.ts).
  */
 export function erasureReview(
   state: BusinessState,
@@ -350,8 +350,7 @@ export function erasureReview(
       {
         label: 'Receipts',
         count: sales.length,
-        reason:
-          'Tax and accounting records. The retention period needs your adviser’s confirmation.',
+        reason: 'Tax and accounting records, kept 6 years in the UK and 7 years in the US.',
       },
       {
         label: 'Payments and deposits',
@@ -383,7 +382,7 @@ export function erasureReview(
     upcomingVisits,
     marketingConsent: client.marketingConsent,
     decisions: [
-      'How long each kind of record is kept (see the proposed retention register).',
+      'An owner or manager approves the deletion; nothing is removed automatically.',
       'Whether the name on kept receipts stays or is replaced with a reference.',
       'How the studio confirms a request really comes from the client.',
       ...(upcomingVisits
