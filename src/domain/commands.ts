@@ -17,6 +17,7 @@ import { coverVisit, runPlanCommand, stampPlanActors } from './plans'
 import { runGiftCardCommand, spendGiftCard, stampGiftCardActors } from './giftCards'
 import { referenceTaken } from './references'
 import { recordFeedback, repeatedFeedback } from './feedback'
+import { priceRetail, recordRetailMovements, retailCharge, sellAtCounter } from './retail'
 import {
   closeForCancelledVisit,
   fillFromWaitlist,
@@ -410,14 +411,17 @@ export function execute(
         // A plan's price already includes any tax, so its share is tax-inclusive.
         const bookedTax = visitTax(s, appointment)
         const tax = plan && bookedTax ? { ...bookedTax, inclusive: true } : bookedTax
-        const { taxMinor, totalMinor: total } = checkoutTotals({
+        const { taxMinor, totalMinor: serviceTotal } = checkoutTotals({
           priceMinor: appointment.bookedPriceMinor,
           discountMinor: discount,
           tipMinor: command.tipMinor,
           depositMinor: deposit,
           tax,
         })
-        if (deposit > total)
+        // Products are priced at today's catalogue and tax, and must be in stock.
+        const retail = priceRetail(s, command.products)
+        const total = serviceTotal + retailCharge(retail)
+        if (deposit > serviceTotal)
           throw new Error(
             'The discount leaves a balance below the recorded deposit. Review the deposit before checkout.',
           )
@@ -460,9 +464,19 @@ export function execute(
           method: command.method,
           ...(command.processor ? { processor: command.processor } : {}),
           ...(plan ? { holdingId: plan.holding.id, coveredMinor: plan.valueMinor } : {}),
+          ...(retail ? { retail } : {}),
           ...(gift ? { giftCardId: gift.card.id, giftCardMinor: giftMinor } : {}),
         }
         next.sales.push(sale)
+        if (retail)
+          recordRetailMovements(
+            next,
+            sale,
+            retail,
+            now,
+            makeId,
+            operations(s).mode === 'sandbox' ? 'Maya · demo operator' : 'Local operator',
+          )
         next.payments.push({
           id: makeId(),
           organisationId: org.id,
@@ -484,6 +498,10 @@ export function execute(
           type: 'checkout',
           title: 'Visit completed',
           detail: `${
+            retail
+              ? `Bought ${retail.lines.map((line) => `${line.quantity > 1 ? `${line.quantity} × ` : ''}${line.name}`).join(', ')}. `
+              : ''
+          }${
             plan
               ? `Paid by ${plan.holding.name}${plan.holding.visits ? ` (${plan.visitsLeft} ${plan.visitsLeft === 1 ? 'visit' : 'visits'} left${plan.holding.kind === 'membership' ? ' this month' : ''})` : ''}. `
               : ''
@@ -566,6 +584,19 @@ export function execute(
       command.type === 'balance-settle'
     ) {
       recordId = runSwitchingCommand(next, command, now, makeId, addEvent, createClient)
+    } else if (command.type === 'counter-sale') {
+      if (command.method === 'card' || command.method === 'previous_system')
+        throw new Error('Take a walk-in sale in cash or on your own card terminal.')
+      assertMethod(s, command.method, command.reference)
+      const sale = sellAtCounter(next, { ...command, method: command.method }, now, makeId)
+      if (sale.clientId)
+        addEvent({
+          clientId: sale.clientId,
+          type: 'checkout',
+          title: 'Bought products',
+          detail: `${sale.retail.lines.map((line) => `${line.quantity > 1 ? `${line.quantity} × ` : ''}${line.name}`).join(', ')} on receipt ${sale.receiptNumber}, without a visit.`,
+        })
+      recordId = sale.id
     } else if (
       command.type === 'waitlist-add' ||
       command.type === 'waitlist-remove' ||
@@ -627,10 +658,22 @@ export function dispatch(
       e.actor = actorName
     })
   stampPlanActors(s, result.state, actorName)
+  const sold = new Set((s.counterSales ?? []).map((sale) => sale.id))
+  for (const sale of result.state.counterSales ?? []) if (!sold.has(sale.id)) sale.actor = actorName
   stampGiftCardActors(s, result.state, actorName)
   const counted = new Set((s.tillCounts ?? []).map((c) => c.id))
   for (const count of result.state.tillCounts ?? [])
     if (!counted.has(count.id)) count.actor = actorName
+  const closed = new Set(
+    (operations(s).purchaseOrders ?? []).filter((x) => x.closedAt).map((x) => x.id),
+  )
+  for (const order of operations(result.state).purchaseOrders ?? [])
+    if (order.closedAt && !closed.has(order.id)) order.closedBy = actorName
+  const cancelled = new Set(
+    (operations(s).timeOff ?? []).filter((t) => t.cancelledAt).map((t) => t.id),
+  )
+  for (const away of operations(result.state).timeOff ?? [])
+    if (away.cancelledAt && !cancelled.has(away.id)) away.cancelledBy = actorName
   const settled = new Set((operations(s).balances ?? []).filter((b) => b.settled).map((b) => b.id))
   for (const balance of operations(result.state).balances ?? [])
     if (balance.settled && !settled.has(balance.id)) balance.settled.actor = actorName
@@ -641,6 +684,13 @@ export function dispatch(
     'scheduleHistory',
     'imports',
     'balances',
+    'payRates',
+    'payRules',
+    'timeOff',
+    'rentals',
+    'rentPayments',
+    'purchaseOrders',
+    'accountingExports',
   ] as const) {
     const ids = new Set((operations(s)[key] ?? []).map((r) => r.id))
     const records = operations(result.state)[key] ?? []

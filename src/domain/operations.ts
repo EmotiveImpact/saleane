@@ -2,6 +2,18 @@ import { z } from 'zod'
 import type { BusinessState } from './model'
 import { reminderSettingsSchema } from './reminderSettings'
 import { paymentMethodSchema, processorSchema } from './paymentMethods'
+import { RENT_LIMIT, RENT_PAYMENT_LIMIT, rentPaymentSchema, rentalSchema } from './rentSchema'
+import {
+  ACCOUNTING_EXPORT_LIMIT,
+  accountingExportSchema,
+  accountingSettingsSchema,
+} from './accountsSchema'
+import {
+  ORDER_LIMIT,
+  SUPPLIER_LIMIT,
+  purchaseOrderSchema,
+  supplierSchema,
+} from './purchasingSchema'
 
 const id = z.string().min(1).max(150)
 const money = z.number().int().nonnegative().max(100_000_000)
@@ -70,6 +82,13 @@ export const productInputSchema = z.object({
   priceMinor: money,
   reorderAt: z.number().int().nonnegative().max(10000),
   archived: z.boolean(),
+  /** V2: sold at the till. `false` marks a product only used in treatments. Absent means sold. */
+  forSale: z.boolean().optional(),
+  /** V2: what the studio pays the supplier for one, for stock value. Never shown to guests. */
+  costMinor: money.optional(),
+  /** V2: who the studio orders it from, and how many it usually orders. */
+  supplierId: id.optional(),
+  reorderQuantity: z.number().int().min(1).max(10000).optional(),
 })
 export const protectionSchema = z
   .object({
@@ -119,6 +138,71 @@ export const openingBalanceSchema = z.object({
 })
 export type OpeningBalance = z.infer<typeof openingBalanceSchema>
 
+/**
+ * V2: what one person earns as commission, from a date onwards. A change adds a new row, so past
+ * pay periods keep the rate that applied then. Basis points: 4000 is 40%.
+ */
+/**
+ * V2: a person away for whole days, such as a holiday or sick leave. They are not booked on those
+ * days. Cancelling keeps the record, marked with who cancelled it and when.
+ */
+export const TIME_OFF_LIMIT = 2000
+export const TIME_OFF_DAYS = 62
+export const timeOffKinds = ['holiday', 'sick', 'other'] as const
+export const timeOffInputSchema = z
+  .object({
+    staffId: id,
+    from: z.iso.date(),
+    to: z.iso.date(),
+    kind: z.enum(timeOffKinds),
+    note: z.string().trim().max(150).optional(),
+  })
+  .refine((t) => t.to >= t.from, 'Time off must end on or after the day it starts.')
+export const timeOffSchema = z.object({
+  id,
+  staffId: id,
+  from: z.iso.date(),
+  to: z.iso.date(),
+  kind: z.enum(timeOffKinds),
+  note: z.string().max(150).optional(),
+  createdAt: z.iso.datetime(),
+  actor: z.string(),
+  cancelledAt: z.iso.datetime().optional(),
+  cancelledBy: z.string().optional(),
+})
+export type TimeOff = z.infer<typeof timeOffSchema>
+
+export const PAY_RATE_LIMIT = 2000
+export const payRateSchema = z.object({
+  id,
+  staffId: id,
+  serviceBps: z.number().int().min(0).max(10000),
+  productBps: z.number().int().min(0).max(10000),
+  from: z.iso.date(),
+  createdAt: z.iso.datetime(),
+  actor: z.string(),
+})
+export type PayRate = z.infer<typeof payRateSchema>
+
+/** V2: how the studio treats money given back and tips, kept as a history like the rates. */
+export const tipSharing = ['person', 'pool'] as const
+export const tipPoolPeriods = ['day', 'week', 'month'] as const
+export const payRulesInputSchema = z.object({
+  /** Money given back comes off the commission ('commission'), or the studio absorbs it ('studio'). */
+  refunds: z.enum(['commission', 'studio']),
+  /** Tips go to the person who did the job, or into a pot shared by everyone who worked. */
+  tips: z.enum(tipSharing),
+  pool: z.enum(tipPoolPeriods),
+  from: z.iso.date(),
+})
+export const payRulesSchema = payRulesInputSchema.extend({
+  id,
+  createdAt: z.iso.datetime(),
+  actor: z.string(),
+})
+export type PayRules = z.infer<typeof payRulesSchema>
+export const PAY_RULES_LIMIT = 500
+
 export const operationsSchema = z.object({
   mode: z.enum(['sandbox', 'local']),
   bookingEnabled: z.boolean(),
@@ -132,11 +216,20 @@ export const operationsSchema = z.object({
       id,
       productId: id,
       quantity: z.number().int().min(-100000).max(100000),
-      reason: z.enum(['received', 'consumed', 'adjustment', 'retail']),
+      /** `returned` puts a product a guest brought back on the shelf, with its refund (V2). */
+      reason: z.enum(['received', 'consumed', 'adjustment', 'retail', 'returned']),
       note: z.string().max(300),
       createdAt: z.iso.datetime(),
       actor: z.string(),
       appointmentId: id.optional(),
+      /** V2: the receipt that sold it, for a `retail` movement made at checkout. */
+      saleId: id.optional(),
+      /** V2: the walk-in sale that sold it, when it was sold without a visit. */
+      counterSaleId: id.optional(),
+      /** V2: the refund a `returned` movement came back with. */
+      refundId: id.optional(),
+      /** V2: the supplier order a delivery arrived on. */
+      purchaseOrderId: id.optional(),
     }),
   ),
   messages: z.array(
@@ -153,6 +246,8 @@ export const operationsSchema = z.object({
       /** A refund returns money from one receipt, or from one deposit or fee payment (PILOT-02). */
       saleId: id.optional(),
       paymentId: id.optional(),
+      /** V2: or from a walk-in sale of products. */
+      counterSaleId: id.optional(),
       amountMinor: money.refine((v) => v > 0),
       reason: z.string().trim().min(3).max(300),
       reference: z.string().trim().min(1).max(150),
@@ -172,6 +267,20 @@ export const operationsSchema = z.object({
   imports: z.array(importBatchSchema).optional(),
   /** Credit or money owed that the previous system held for a client (PILOT-03). */
   balances: z.array(openingBalanceSchema).optional(),
+  /** V2: commission rates per person, kept as a history. */
+  payRates: z.array(payRateSchema).max(PAY_RATE_LIMIT).optional(),
+  payRules: z.array(payRulesSchema).max(PAY_RULES_LIMIT).optional(),
+  /** V2: holidays, sickness and other days away, and each person's yearly holiday allowance. */
+  timeOff: z.array(timeOffSchema).max(TIME_OFF_LIMIT).optional(),
+  /** V2: chairs and rooms rented to self-employed people, and the rent they have paid. */
+  suppliers: z.array(supplierSchema).max(SUPPLIER_LIMIT).optional(),
+  purchaseOrders: z.array(purchaseOrderSchema).max(ORDER_LIMIT).optional(),
+  /** V2: the accounting software and account codes, and batches prepared for it. */
+  accounting: accountingSettingsSchema.optional(),
+  accountingExports: z.array(accountingExportSchema).max(ACCOUNTING_EXPORT_LIMIT).optional(),
+  rentals: z.array(rentalSchema).max(RENT_LIMIT).optional(),
+  rentPayments: z.array(rentPaymentSchema).max(RENT_PAYMENT_LIMIT).optional(),
+  leaveAllowances: z.array(z.object({ staffId: id, days: z.number().min(0).max(366) })).optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 export type Role = 'owner' | 'manager' | 'reception' | 'practitioner'
@@ -262,12 +371,24 @@ export function hoursFor(s: BusinessState, date: string) {
   const day = new Date(`${date}T12:00:00Z`).getUTCDay()
   return operations(s).hours.find((h) => h.day === day)!
 }
-export function staffHoursFor(s: BusinessState, staffId: string, date: string) {
+/** A person's usual hours for a day from their weekly pattern, ignoring time off. */
+export function usualHoursFor(s: BusinessState, staffId: string, date: string) {
   const person = s.staff.find((p) => p.id === staffId)
   return (
     person?.hours?.find((h) => h.day === new Date(`${date}T12:00:00Z`).getUTCDay()) ??
     hoursFor(s, date)
   )
+}
+/** Time off that covers a day for one person, if any (V2). */
+export function timeOffOn(s: BusinessState, staffId: string, date: string) {
+  return (operations(s).timeOff ?? []).find(
+    (t) => !t.cancelledAt && t.staffId === staffId && t.from <= date && t.to >= date,
+  )
+}
+/** The hours a person can be booked on a day: their usual hours, closed while they are away. */
+export function staffHoursFor(s: BusinessState, staffId: string, date: string) {
+  const usual = usualHoursFor(s, staffId, date)
+  return timeOffOn(s, staffId, date) ? { ...usual, closed: true } : usual
 }
 export function stock(s: BusinessState, productId: string) {
   return operations(s)
@@ -277,7 +398,12 @@ export function stock(s: BusinessState, productId: string) {
 export function permissionFor(command: { type: string }) {
   if (['service', 'staff', 'resource', 'guest-notes', 'offer'].includes(command.type))
     return 'catalogue'
-  if (['closure', 'remove-closure'].includes(command.type)) return 'hours'
+  if (
+    ['closure', 'remove-closure', 'time-off', 'cancel-time-off', 'leave-allowance'].includes(
+      command.type,
+    )
+  )
+    return 'hours'
   if (command.type === 'message-queue') return 'message.queue'
   return command.type
 }
@@ -286,7 +412,18 @@ export function can(role: Role, action: string) {
   // Feedback and a guest's own waitlist choices come only from their private link (V1.5).
   if (['feedback', 'waitlist-join', 'waitlist-leave'].includes(action)) return false
   if (role === 'owner') return true
-  if (['membership', 'restore', 'organisation', 'tax'].includes(action)) return false
+  if (
+    [
+      'membership',
+      'restore',
+      'organisation',
+      'tax',
+      'pay-rate',
+      'pay-rules',
+      'accounting-settings',
+    ].includes(action)
+  )
+    return false
   if (role === 'manager') return true
   if (
     [
@@ -304,6 +441,14 @@ export function can(role: Role, action: string) {
       'fee',
       'protection',
       'plan-cancel',
+      'rental',
+      'end-rental',
+      'rent-payment',
+      'supplier',
+      'purchase-order',
+      'receive-order',
+      'cancel-order',
+      'accounting-export',
       'gift-card-extend',
       'gift-card-cancel',
     ].includes(action)

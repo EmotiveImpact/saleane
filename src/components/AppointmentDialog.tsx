@@ -9,6 +9,9 @@ import { depositPaid, rescheduleSlots } from '../domain/commands'
 import { addDays, dateLabel, fullDateLabel, money, timeLabel } from '../domain/format'
 import { checkoutTotals, minorInput, parseMinor } from '../domain/money'
 import { coverPreview, holdings, memberDiscountPercent, plansForVisit } from '../domain/plans'
+import { priceRetail, retailCharge } from '../domain/retail'
+import type { RetailItems } from '../domain/retailSchema'
+import { CheckoutProducts, ReceiptProducts } from './CheckoutProducts'
 import { findGiftCard, giftCards, giftStanding } from '../domain/giftCards'
 import '../components/plans.css'
 import { Avatar, Button, ErrorMessage, Modal, Status, TimeChoices } from '../design'
@@ -44,6 +47,8 @@ export function AppointmentDialog({
   const [giftAmount, setGiftAmount] = useState('')
   const [giftError, setGiftError] = useState('')
   const [checkout, setCheckout] = useState(false)
+  // V2: products the guest is buying with the visit.
+  const [items, setItems] = useState<RetailItems>([])
   const [tip, setTip] = useState('0')
   const [otherTip, setOtherTip] = useState(false)
   const [method, setMethod] = useState<
@@ -115,9 +120,17 @@ export function AppointmentDialog({
     depositMinor: deposit,
     tax,
   })
+  let retail: ReturnType<typeof priceRetail>
+  let retailError = ''
+  try {
+    retail = priceRetail(state, items)
+  } catch (problem) {
+    retailError = problem instanceof Error ? problem.message : 'Check the products.'
+  }
   const gift = giftCards(state).find((c) => c.id === giftId)
   const giftLeft = gift ? giftStanding(gift, today).balanceMinor : 0
-  const beforeGift = Math.max(0, dueMinor - coveredMinor)
+  // A gift card can pay for products as well as the visit.
+  const beforeGift = Math.max(0, dueMinor - coveredMinor) + retailCharge(retail)
   // Typed amounts are kept within what the card holds and what is due.
   const giftMinor = gift
     ? Math.min(Math.max(0, parseMinor(giftAmount, 0) || 0), giftLeft, beforeGift)
@@ -221,6 +234,7 @@ export function AppointmentDialog({
       // A provider card is charged only through its own screen, and a terminal only when money is due.
       method: method === 'card' || (nothingDue && method === 'external_card') ? 'cash' : method,
       ...(chosenPlan ? { holdingId: chosenPlan.holding.id } : { discountMinor }),
+      ...(items.length ? { products: items } : {}),
       ...(gift && giftMinor > 0 ? { giftCardId: gift.id, giftCardMinor: giftMinor } : {}),
       reference: (!nothingDue && reference.trim()) || undefined,
     })
@@ -280,7 +294,7 @@ export function AppointmentDialog({
               ? 'Receipt saved. The payment provider confirmed the card payment.'
               : 'Local receipt saved. No payment provider was contacted.'
           : checkout
-            ? 'Review the service, deposit and optional tip before recording payment.'
+            ? 'Review the service, any products, the deposit and an optional tip before recording payment.'
             : `${dateLabel(appointment.date, state.organisation.locale)} at ${timeLabel(appointment.startMinutes, state.organisation.locale)}`
       }
     >
@@ -343,6 +357,7 @@ export function AppointmentDialog({
               <span>{money(sale.taxMinor, state.organisation, true)}</span>
             </div>
           )}
+          {sale.retail && <ReceiptProducts retail={sale.retail} />}
           <div className="receipt-line">
             <span>Tip</span>
             <span>{money(sale.tipMinor, state.organisation, true)}</span>
@@ -626,6 +641,16 @@ export function AppointmentDialog({
               </label>
             </>
           )}
+          <CheckoutProducts
+            items={items}
+            retail={retail}
+            disabled={busy}
+            onChange={(next) => {
+              setItems(next)
+              setCollected(false)
+              setError('')
+            }}
+          />
           <fieldset className="time-fieldset">
             <legend>Optional tip</legend>
             <div className="tip-options">
@@ -676,6 +701,7 @@ export function AppointmentDialog({
               </label>
             )}
           </fieldset>
+          <ErrorMessage error={retailError} />
           {gift ? (
             <div className="checkout-gift">
               <div className="receipt-line">
@@ -827,6 +853,7 @@ export function AppointmentDialog({
               amountMinor={total}
               tipMinor={Number.isFinite(tipMinor) ? tipMinor : 0}
               discountMinor={Number.isFinite(discountMinor) ? discountMinor : 0}
+              products={items}
               giftCard={gift && giftMinor > 0 ? { id: gift.id, amountMinor: giftMinor } : undefined}
             />
           )}
@@ -836,7 +863,10 @@ export function AppointmentDialog({
               Back
             </Button>
             {!byCard && (
-              <Button disabled={!allowed('checkout') || (needsConfirm && !collected)} onClick={pay}>
+              <Button
+                disabled={!allowed('checkout') || (needsConfirm && !collected) || !!retailError}
+                onClick={pay}
+              >
                 <CreditCard size={16} />
                 {busy ? 'Recording…' : sandbox ? 'Record demo payment' : 'Record payment'}
               </Button>

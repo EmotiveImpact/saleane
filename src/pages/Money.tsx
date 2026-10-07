@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Banknote, ChevronRight, ReceiptText, ShieldCheck } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { returnable } from '../domain/retail'
 import { useStore } from '../state/context'
 import { depositPaid } from '../domain/commands'
 import { operations, can } from '../domain/operations'
@@ -94,16 +95,31 @@ export function Money() {
         service.id ===
         state.appointments.find((appointment) => appointment.id === appointmentId)?.serviceId,
     )?.name ?? 'Visit'
-  const receiptDays = Object.entries(
-    state.sales
-      .slice()
-      .sort((a, b) => b.paidAt.localeCompare(a.paidAt))
-      .reduce<Record<string, typeof state.sales>>((days, sale) => {
-        const day = sale.paidAt.slice(0, 10)
-        ;(days[day] ??= []).push(sale)
-        return days
-      }, {}),
-  )
+  // V2: products sold without a visit appear on their day beside the visit receipts.
+  const counterByDay = (state.counterSales ?? []).reduce<
+    Record<string, NonNullable<typeof state.counterSales>>
+  >((days, sale) => {
+    ;(days[sale.paidAt.slice(0, 10)] ??= []).push(sale)
+    return days
+  }, {})
+  const visitDays = state.sales.reduce<Record<string, typeof state.sales>>((days, sale) => {
+    ;(days[sale.paidAt.slice(0, 10)] ??= []).push(sale)
+    return days
+  }, {})
+  const receiptDays = [...new Set([...Object.keys(visitDays), ...Object.keys(counterByDay)])]
+    .sort((a, b) => b.localeCompare(a))
+    .map(
+      (day) =>
+        [
+          day,
+          (visitDays[day] ?? []).sort((a, b) => b.paidAt.localeCompare(a.paidAt)),
+          counterByDay[day] ?? [],
+        ] as const,
+    )
+  const counterRefunded = (counterSaleId: string) =>
+    operations(state)
+      .refunds.filter((r) => r.counterSaleId === counterSaleId)
+      .reduce((sum, r) => sum + r.amountMinor, 0)
   const clientName = (appointmentId: string) =>
     state.clients.find(
       (client) =>
@@ -127,12 +143,20 @@ export function Money() {
       setError('Confirm the provenance of this refund first.')
       return
     }
+    // V2: products the guest brought back, to go back on the shelf.
+    const restock = returnable(state, receipt.id)
+      .map((line) => ({
+        productId: line.productId,
+        quantity: Number(data.get(`back-${line.productId}`) ?? 0),
+      }))
+      .filter((item) => Number.isInteger(item.quantity) && item.quantity > 0)
     setPending(true)
     setError('')
     try {
       const result = await commit({
         type: 'refund',
         saleId: receipt.id,
+        ...(restock.length ? { restock } : {}),
         amountMinor: parseMinor(data.get('amount')),
         reason: String(data.get('reason') ?? '').trim(),
         reference: String(data.get('reference') ?? '').trim(),
@@ -292,12 +316,32 @@ export function Money() {
           </header>
           {tab === 'receipts' && (
             <>
-              {receiptDays.slice(0, shownDays).map(([day, sales]) => (
+              {receiptDays.slice(0, shownDays).map(([day, sales, counter]) => (
                 <section className="receipt-day" key={day} aria-label={dateLabel(day, locale)}>
                   <h3 className="receipt-day-heading">
                     <span>{dateLabel(day, locale)}</span>
-                    <span>{format(sales.reduce((total, sale) => total + sale.totalMinor, 0))}</span>
+                    <span>
+                      {format(
+                        [...sales, ...counter].reduce((total, sale) => total + sale.totalMinor, 0),
+                      )}
+                    </span>
                   </h3>
+                  {counter.map((sale) => (
+                    <Link className="receipt-row" key={sale.id} to="/business/stock">
+                      <span className="receipt-row-copy">
+                        <strong>Products without a visit</strong>
+                        <small>
+                          {sale.retail.lines.map((line) => line.name).join(', ')} ·{' '}
+                          {methodLabel(sale.method)} · {sale.receiptNumber}
+                          {counterRefunded(sale.id) > 0
+                            ? ` · ${format(counterRefunded(sale.id))} refunded`
+                            : ''}
+                        </small>
+                      </span>
+                      <span className="ops-record-money">{format(sale.totalMinor)}</span>
+                      <ChevronRight size={16} />
+                    </Link>
+                  ))}
                   {sales.map((sale) => (
                     <button
                       type="button"
@@ -331,7 +375,7 @@ export function Money() {
                   Show earlier receipts
                 </Button>
               )}
-              {!state.sales.length && (
+              {!receiptDays.length && (
                 <EmptyMoney
                   title="The first receipt starts with a visit."
                   detail="Complete checkout from an arrived appointment to record a sale."
@@ -546,6 +590,24 @@ export function Money() {
                 <strong>{format(receipt.taxMinor)}</strong>
               </div>
             )}
+            {receipt.retail?.lines.map((line) => (
+              <div key={line.productId}>
+                <span>
+                  {line.quantity > 1 ? `${line.quantity} × ` : ''}
+                  {line.name}
+                </span>
+                <strong>{format(line.quantity * line.unitMinor)}</strong>
+              </div>
+            ))}
+            {!!receipt.retail?.taxMinor && (
+              <div>
+                <span>
+                  {receipt.retail.taxLabel || 'Tax'} on products
+                  {receipt.retail.taxInclusive ? ' (included)' : ''}
+                </span>
+                <strong>{format(receipt.retail.taxMinor)}</strong>
+              </div>
+            )}
             <div>
               <span>Tip</span>
               <strong>{format(receipt.tipMinor)}</strong>
@@ -668,6 +730,20 @@ export function Money() {
                   Reason
                   <textarea name="reason" required minLength={3} maxLength={300} rows={2} />
                 </label>
+                {returnable(state, receipt.id)
+                  .filter((line) => line.left > 0)
+                  .map((line) => (
+                    <label key={line.productId}>
+                      {line.name} back on the shelf
+                      <input
+                        name={`back-${line.productId}`}
+                        type="number"
+                        min={0}
+                        max={line.left}
+                        defaultValue={0}
+                      />
+                    </label>
+                  ))}
               </div>
               <label className="ops-check">
                 <input type="checkbox" name="confirmed" required />

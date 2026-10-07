@@ -270,6 +270,50 @@ describe('card payments (PILOT-02)', () => {
     expect((await pay(owner, body)).statusCode).toBe(409)
   })
 
+  it('charges the card for products bought with the visit and takes them out of stock', async () => {
+    const { owner, serviceId, staffId, slug } = await localStudio()
+    const { appointmentId, token } = await book(slug, serviceId, staffId)
+    await guestPays(token)
+    await run(owner, {
+      type: 'product',
+      input: { name: 'Cleansing Balm', sku: '', priceMinor: 3200, reorderAt: 1, archived: false },
+    })
+    const productId = (await workspace(owner)).state.operations!.products[0].id
+    await run(owner, {
+      type: 'stock',
+      productId,
+      quantity: 2,
+      reason: 'received',
+      note: 'Delivery',
+    })
+    await run(owner, { type: 'arrive', appointmentId })
+    const tooMany = await pay(owner, {
+      appointmentId,
+      purpose: 'balance',
+      route: 'saved_card',
+      amountMinor: 7500 + 9600,
+      products: [{ productId, quantity: 3 }],
+    })
+    expect(tooMany.statusCode).toBe(422)
+    // 9500 less the 2000 deposit, plus two balms.
+    const body = {
+      appointmentId,
+      purpose: 'balance',
+      route: 'saved_card',
+      amountMinor: 7500 + 6400,
+      products: [{ productId, quantity: 2 }],
+    }
+    const paid = await pay(owner, body)
+    expect(paid.statusCode, paid.body).toBe(200)
+    expect(paid.json<Attempt>().status).toBe('succeeded')
+    const { state } = await workspace(owner)
+    expect(state.sales[0]).toMatchObject({ method: 'card', balanceMinor: 13900 })
+    expect(state.sales[0].retail!.subtotalMinor).toBe(6400)
+    expect(
+      state.operations!.movements.filter((m) => m.productId === productId).map((m) => m.quantity),
+    ).toEqual([2, -2])
+  })
+
   it('waits for a card reader and records the sale only when it is approved', async () => {
     const { owner, serviceId, staffId, slug } = await localStudio()
     const { appointmentId } = await book(slug, serviceId, staffId)

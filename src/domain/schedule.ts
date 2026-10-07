@@ -1,7 +1,15 @@
 import type { Appointment, BusinessState } from './model'
 import type { OperatingCommand } from './commandSchema'
 import { dateLabel, timeLabel } from './format'
-import { businessDate, hoursFor, instantFor, operations, staffHoursFor } from './operations'
+import {
+  businessDate,
+  hoursFor,
+  instantFor,
+  operations,
+  staffHoursFor,
+  timeOffOn,
+} from './operations'
+import { TIME_OFF_LABEL } from './timeOff'
 import type { Operations } from './operations'
 
 /**
@@ -65,6 +73,8 @@ export function scheduleConflict(s: BusinessState, a: Appointment): string | nul
   const venue = hoursFor(s, a.date),
     own = staffHoursFor(s, a.staffId, a.date)
   if (venue.closed) return 'The venue would be closed that day'
+  const away = timeOffOn(s, a.staffId, a.date)
+  if (away) return `${staffName} would be away (${TIME_OFF_LABEL[away.kind].toLowerCase()})`
   if (own.closed) return `${staffName} would not be working that day`
   const treatmentEnd = a.startMinutes + a.bookedDurationMinutes
   const end = treatmentEnd + a.bookedBufferMinutes
@@ -130,6 +140,11 @@ function proposed(s: BusinessState, command: OperatingCommand) {
   const o = next.operations!
   if (command.type === 'hours') o.hours = command.hours
   else if (command.type === 'closure') o.closures.push({ ...command.input, id: 'proposed' })
+  else if (command.type === 'time-off')
+    o.timeOff = [
+      ...(o.timeOff ?? []),
+      { ...command.input, id: 'proposed', createdAt: new Date(0).toISOString(), actor: '' },
+    ]
   else if (command.type === 'staff' || command.type === 'resource') {
     const rows: { id: string }[] = command.type === 'staff' ? next.staff : next.resources
     const old = command.id ? rows.find((r) => r.id === command.id) : undefined

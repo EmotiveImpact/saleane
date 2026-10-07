@@ -2,6 +2,73 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · V2 · Accountant exports
+
+**Status: built locally on 7 October 2026, in review; nothing deployed. Nothing is sent to Xero or QuickBooks.**
+
+- Business has a new Accounts page for owners and managers. For this month or last month it shows the takings, tax, tips and money given back, day by day, with three spreadsheets for the accountant: money in and out, sales by receipt, and a tax summary. Demo and test payments are marked as such.
+- The owner chooses Xero or QuickBooks and fills in the account codes the accountant gives them. "Prepare" turns each day with takings into a balanced journal in that software's own format, shows a preview, and keeps a record of the batch with who prepared it. It is marked test mode and nothing is sent.
+- Spreadsheet cells that start with a formula sign are kept as plain text.
+
+## 2026-10-07 · V2 · Reordering from suppliers
+
+**Status: built locally on 7 October 2026, in review; nothing deployed. SALEANE never sends an order to a supplier.**
+
+- Stock has a new "Orders from suppliers" section. Owners and managers keep a list of suppliers, and each product can name its supplier and how many are usually ordered.
+- When products run low, the section suggests an order for each supplier with the usual quantity, leaving out anything already on order. "Prepare order" fills in the order, shows it in plain words to paste into an email or read out, and records it once the studio confirms it has placed it.
+- When a delivery arrives, the desk says how many of each product came and they go on the shelf against the order. An order can be cancelled; received and cancelled orders stay on record with who closed them.
+- The ledger checks that each delivery matches what the order says arrived.
+
+## 2026-10-07 · V2 · Chair and room rent
+
+**Status: built locally on 7 October 2026, in review; nothing deployed. SALEANE records rent paid to the studio and collects nothing.**
+
+- Pay has a new section for self-employed people who rent a chair or room. Owners and managers set up a rental (who, chair or room, which one, the rent, weekly or monthly, from which day) and end it when it stops. Ended rentals and their payments stay on record.
+- Rent is due at the start of each week or month. Monthly rent keeps the same day, moving to the last day in shorter months. The section shows the latest periods as paid or owed and the total still owed.
+- Rent paid in cash, by bank transfer or on the studio's own card terminal is recorded against its period, with a reference for transfers and card payments. More than was due cannot be recorded, nor rent that is not yet due.
+- Someone renting earns no commission on those days. Reception is not sent rent or commission records.
+
+## 2026-10-07 · V2 · Rota, holidays and time off
+
+**Status: built locally on 7 October 2026, in review; nothing deployed.**
+
+- Business has a new Rota page. It shows the week for each person from their usual hours, how many visits they have each day, and who is on holiday, off sick or away. Owners, managers and reception can see it.
+- Owners and managers add time off for whole days (holiday, sick or away, with an optional note) and can cancel it. Cancelled time off stays on record with who cancelled it.
+- Nobody can be booked while they are away, online or at the desk, and the time counts as unavailable in Business figures.
+- Time off is refused while it would leave a booked visit stranded. The form lists those visits before saving, so the desk moves them first; nothing is moved or cancelled automatically.
+- Each person can have a yearly holiday allowance. The page shows the working days of holiday booked this year and how many are left, and a holiday over New Year counts each day in its own year.
+
+## 2026-10-07 · V2 · Commission and tips per person
+
+**Status: built locally on 7 October 2026, in review; nothing deployed. SALEANE works out what each person has earned and pays nobody.**
+
+- Business has a new Pay page for owners and managers. For this month or last month it shows each person's visits, commission on services and on products, tips and what they are owed, with a line-by-line breakdown and a spreadsheet download for payroll.
+- Commission is counted without tax and after discounts. Tips go in full to the person who did the visit. Money given back comes off in the month it is given back, in proportion to what the receipt was for and at the rate it was earned on; the tip stays with the person.
+- The owner can change two pay settings from a chosen date, with earlier settings kept. Money given back can come off the commission (the default) or be paid by the studio. Tips can go to the person who did the job (the default) or into a shared pot, split equally to the penny between everyone who did a visit that day, week or month. The studio never keeps any of the tips, in line with UK and US tips law.
+- Only the owner sets rates. Each change starts on a chosen date and earlier rates are kept, so past months keep their figures unless the new date reaches back into them. Managers can see the rates; reception is never sent them.
+- A walk-in product sale can name who sold it, and that person earns the product commission.
+- The spreadsheet guards against names that would run as formulas.
+
+## 2026-10-07 · V2 · Walk-in product sales and returns
+
+**Status: built locally on 7 October 2026, in review; nothing deployed and no money moved.**
+
+- Stock has a "Sold without a visit" section for someone who pops in for a product. The desk picks products and how many, can link a client, and records how it was paid: cash or the studio's own card terminal (a reference is required for the terminal). SALEANE records the sale and does not take the money. Each sale gets its own receipt number (SC-1, SC-2 and so on) and takes the products out of stock on that receipt.
+- Owners and managers can give money back on a walk-in sale and say how many of each product went back on the shelf. A refund on a visit receipt with products can now put them back too. Stock shows these as "Brought back" against the refund.
+- Money lists walk-in sales among the day's receipts, the till count includes their cash, Business counts them in products sold and tax, and the client's data export lists products bought without a visit.
+- The ledger checks that every walk-in sale matches the stock that left, that no more comes back than was sold, and that refunds never exceed what was paid.
+
+## 2026-10-07 · V2 · Stock and products at the till
+
+**Status: built locally on 7 October 2026, in review; nothing deployed and no card charged outside test mode.**
+
+- Business has a new Stock page. Owners and managers add products, mark the ones only used in treatments, and record deliveries, use in treatments and shelf counts. Each change is kept with who made it; nothing is deleted. Reception can see what is in stock but not change it.
+- The page shows what is on the shelf, what is running low against each product's reorder level, products sold in the last 30 days and, for owners and managers, the stock's value at cost.
+- At checkout the desk can add products to the visit. Each is priced at its catalogue price with the studio's current tax, must be in stock, and leaves stock on the same receipt. The receipt keeps the name and price as sold, so a later price change never rewrites it. Plans and discounts cover the service only; the guest pays for products.
+- Card payments through SALEANE (saved card or reader) include the products and the server prices them again before charging. A repeated checkout takes stock once.
+- Business shows products sold beside service revenue, kept apart from it. Receipts in Money, the client timeline and the client's data export list the products.
+- The ledger checks that every receipt's products match the stock that left, line by line.
+
 ## 2026-10-07 · Calendar: Today, Week and Month
 
 **Status: merged on Edem's word on 7 October 2026; nothing deployed.** Look and navigation only; booking, moving and checkout are unchanged.

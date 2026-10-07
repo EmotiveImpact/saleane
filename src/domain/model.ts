@@ -7,6 +7,10 @@ import { coveredSaleProblem, plansProblem } from './plans'
 import { giftCardSchema } from './giftCardsSchema'
 import { giftCardsProblem, refundableOnReceipt } from './giftCards'
 import { feedbackProblem, feedbackSchema } from './feedback'
+import { counterSaleSchema, saleRetailSchema } from './retailSchema'
+import { retailCharge, retailProblem } from './retail'
+import { rentProblem } from './rent'
+import { purchasingProblem } from './purchasing'
 import { waitlistEntrySchema } from './waitlistSchema'
 import { waitlistProblem } from './waitlist'
 export { paymentMethodSchema, paymentMethods, processorSchema } from './paymentMethods'
@@ -127,6 +131,8 @@ export const saleSchema = z.object({
   /** V1.5: the plan that paid for the visit, and how much of it this visit used. */
   holdingId: id.optional(),
   coveredMinor: minor.optional(),
+  /** V2: products bought with the visit. They add to the total; plans and discounts never cover them. */
+  retail: saleRetailSchema.optional(),
   /** V1.5: the gift card that paid part or all of what was due, and how much it paid. */
   giftCardId: id.optional(),
   giftCardMinor: minor.optional(),
@@ -207,6 +213,8 @@ export const stateSchema = z.object({
   holdings: z.array(holdingSchema).optional(),
   /** V1.5: private guest feedback, one per completed visit. Owners and managers only. */
   feedback: z.array(feedbackSchema).optional(),
+  /** V2: products sold without a visit. */
+  counterSales: z.array(counterSaleSchema).optional(),
   /** V1.5: clients waiting for an earlier or a free time. */
   waitlist: z.array(waitlistEntrySchema).optional(),
   /** V1.5: gift cards and vouchers sold here. */
@@ -236,6 +244,7 @@ export function parseState(value: unknown, region: Region): BusinessState {
     s.events,
     s.relationships,
     s.tillCounts ?? [],
+    s.counterSales ?? [],
   ]
   for (const collection of collections) {
     if (new Set(collection.map((item) => item.id)).size !== collection.length)
@@ -298,6 +307,7 @@ export function parseState(value: unknown, region: Region): BusinessState {
         sale.serviceMinor -
           (sale.discountMinor ?? 0) +
           (sale.taxInclusive ? 0 : (sale.taxMinor ?? 0)) +
+          retailCharge(sale.retail) +
           sale.tipMinor ||
       sale.balanceMinor !==
         sale.totalMinor -
@@ -422,9 +432,28 @@ export function parseState(value: unknown, region: Region): BusinessState {
       o.refunds,
       o.imports ?? [],
       o.balances ?? [],
+      o.payRates ?? [],
+      o.payRules ?? [],
+      o.timeOff ?? [],
+      o.rentals ?? [],
+      o.suppliers ?? [],
+      o.purchaseOrders ?? [],
+      o.accountingExports ?? [],
+      o.rentPayments ?? [],
     ])
       if (new Set(rows.map((r) => r.id)).size !== rows.length)
         throw new Error('Duplicate operating record IDs.')
+    for (const rate of o.payRates ?? [])
+      if (!exists(s.staff, rate.staffId)) throw new Error('Missing pay rate professional.')
+    for (const away of o.timeOff ?? [])
+      if (!exists(s.staff, away.staffId) || away.to < away.from)
+        throw new Error('Invalid time off.')
+    const allowances = o.leaveAllowances ?? []
+    if (
+      allowances.some((a) => !exists(s.staff, a.staffId)) ||
+      new Set(allowances.map((a) => a.staffId)).size !== allowances.length
+    )
+      throw new Error('Invalid holiday allowance.')
     for (const closure of o.closures)
       if (closure.staffId && !exists(s.staff, closure.staffId))
         throw new Error('Missing closure professional.')
@@ -481,7 +510,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
         throw new Error('Invalid carried-over balance.')
     for (const refund of o.refunds)
       if (
-        !!refund.saleId === !!refund.paymentId ||
+        [refund.saleId, refund.paymentId, refund.counterSaleId].filter(Boolean).length !== 1 ||
+        (refund.counterSaleId && !exists(s.counterSales ?? [], refund.counterSaleId)) ||
         (refund.saleId && !exists(s.sales, refund.saleId)) ||
         (refund.paymentId && !exists(s.payments, refund.paymentId)) ||
         (refund.method === 'card') !== !!refund.processor
@@ -509,6 +539,12 @@ export function parseState(value: unknown, region: Region): BusinessState {
   if (gifts) throw new Error(gifts)
   const feedback = feedbackProblem(s)
   if (feedback) throw new Error(feedback)
+  const retail = retailProblem(s)
+  if (retail) throw new Error(retail)
+  const rent = rentProblem(s)
+  if (rent) throw new Error(rent)
+  const purchasing = purchasingProblem(s)
+  if (purchasing) throw new Error(purchasing)
   const waitlist = waitlistProblem(s)
   if (waitlist) throw new Error(waitlist)
   try {

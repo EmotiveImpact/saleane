@@ -8,6 +8,7 @@ import type { Context, Org, Route } from '../context'
 import { TEST_CARDS } from '../payments/providers'
 import { balanceDue, feeAllowed, giftCardHoldProblem, guestPaymentFor } from '../payments/service'
 import type { AttemptRow, CardRow, Payments } from '../payments/service'
+import { retailItemsSchema } from '../../src/domain/retailSchema'
 import { openGuestLink, tokenSchema } from './guest'
 
 const keySchema = /^[A-Za-z0-9._:-]{8,100}$/
@@ -80,6 +81,8 @@ const staffPay = z
     amountMinor: money.refine((v) => v > 0),
     tipMinor: money.default(0),
     discountMinor: money.default(0),
+    /** V2: products bought with the visit, for a balance payment. */
+    products: retailItemsSchema.optional(),
     /** V1.5: a gift card paying part of the balance; the card is charged the rest. */
     giftCardId: z.string().min(1).max(150).optional(),
     giftCardMinor: money.default(0),
@@ -344,9 +347,20 @@ export function paymentRoutes(payments: Payments) {
             fail(409, 'This visit has already been checked out.')
           if (!!data.giftCardId !== data.giftCardMinor > 0)
             fail(422, 'Name the gift card and the amount it pays together.')
-          expected =
-            balanceDue(fresh.state, a.id, data.tipMinor, data.discountMinor, data.giftCardMinor) ??
-            0
+          // Pricing the products also checks they are on sale and in stock.
+          try {
+            expected =
+              balanceDue(
+                fresh.state,
+                a.id,
+                data.tipMinor,
+                data.discountMinor,
+                data.giftCardMinor,
+                data.products,
+              ) ?? 0
+          } catch (error) {
+            return fail(422, error instanceof Error ? error.message : 'Check the products.')
+          }
           // The rehearsal checks the gift card can pay its share now.
           if (expected > 0) {
             const after = rehearse(fresh, {
@@ -354,6 +368,7 @@ export function paymentRoutes(payments: Payments) {
               appointmentId: a.id,
               tipMinor: data.tipMinor,
               discountMinor: data.discountMinor,
+              ...(data.products?.length ? { products: data.products } : {}),
               ...(data.giftCardId
                 ? { giftCardId: data.giftCardId, giftCardMinor: data.giftCardMinor }
                 : {}),
@@ -410,6 +425,9 @@ export function paymentRoutes(payments: Payments) {
           currency: fresh.state.organisation.currency,
           tip_minor: data.purpose === 'balance' ? data.tipMinor : 0,
           discount_minor: data.purpose === 'balance' ? data.discountMinor : 0,
+          ...(data.purpose === 'balance' && data.products?.length
+            ? { products: data.products }
+            : {}),
           ...(data.purpose === 'balance' && data.giftCardId
             ? { gift_card_id: data.giftCardId, gift_card_minor: data.giftCardMinor }
             : {}),
