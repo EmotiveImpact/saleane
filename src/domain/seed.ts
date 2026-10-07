@@ -1,6 +1,7 @@
 import { DEMO_DATE, parseState } from './model'
 import type { Appointment, BusinessState, Region } from './model'
 import { addDays, dateLabel, timeLabel } from './format'
+import { defaultOperations } from './operations'
 
 export function seed(region: Region): BusinessState {
   const uk = region === 'UK'
@@ -359,5 +360,105 @@ export function seed(region: Region): BusinessState {
       },
     ]
   })
+  seedStock(state, uk)
   return parseState(state, region)
+}
+
+/**
+ * V2: a small shelf of products, a delivery, products used in treatments and two receipts that
+ * included products, so Stock and the Business figures have something real to show.
+ */
+function seedStock(state: BusinessState, uk: boolean) {
+  const o = (state.operations ??= defaultOperations('sandbox'))
+  const price = (gbp: number, usd: number) => (uk ? gbp : usd) * 100
+  const shelf: [string, string, number, number, number, number, number, boolean?][] = [
+    // id, name, price £, price $, cost £, delivered, reorder at, for sale
+    ['cleansing-balm', 'Calming Cleansing Balm', 32, 38, 12, 10, 4],
+    ['hydrating-serum', 'Hydrating Serum', 48, 56, 18, 6, 4],
+    ['mineral-spf', 'Daily Mineral SPF 30', 28, 34, 10, 12, 5],
+    ['hair-mask', 'Restorative Hair Mask', 26, 30, 9, 8, 3],
+    ['body-oil', 'Nourishing Body Oil', 38, 44, 14, 5, 3],
+    ['massage-oil', 'Massage Oil, 1 litre', 0, 0, 22, 4, 2, false],
+    ['enzyme-peel', 'Enzyme Peel, professional size', 0, 0, 30, 2, 2, false],
+  ]
+  for (const [id, name, gbp, usd, cost, delivered, reorderAt, forSale = true] of shelf) {
+    o.products.push({
+      id: `product-${id}`,
+      name,
+      sku: id.toUpperCase(),
+      priceMinor: price(gbp, usd),
+      reorderAt,
+      archived: false,
+      forSale,
+      costMinor: price(cost, Math.round(cost * 1.2)),
+    })
+    o.movements.push({
+      id: `movement-received-${id}`,
+      productId: `product-${id}`,
+      quantity: delivered,
+      reason: 'received',
+      note: 'September delivery',
+      createdAt: '2026-09-15T10:00:00.000Z',
+      actor: 'Front desk · demo fixture',
+    })
+  }
+  const used: [string, string, number][] = [
+    ['massage-oil', 'history-body-1', 1],
+    ['enzyme-peel', 'history-skin-2', 1],
+  ]
+  for (const [product, appointmentId, quantity] of used)
+    if (state.appointments.some((a) => a.id === appointmentId))
+      o.movements.push({
+        id: `movement-used-${product}-${appointmentId}`,
+        productId: `product-${product}`,
+        quantity: -quantity,
+        reason: 'consumed',
+        note: 'Used in treatment',
+        createdAt: '2026-09-20T12:00:00.000Z',
+        actor: 'Front desk · demo fixture',
+        appointmentId,
+      })
+  const bought: [string, [string, number][]][] = [
+    [
+      'history-skin-1',
+      [
+        ['hydrating-serum', 1],
+        ['mineral-spf', 1],
+      ],
+    ],
+    ['history-hair-4', [['hair-mask', 1]]],
+  ]
+  for (const [appointmentId, items] of bought) {
+    const sale = state.sales.find((x) => x.appointmentId === appointmentId)
+    const settlement = state.payments.find((p) => p.saleId === sale?.id)
+    if (!sale || !settlement) continue
+    const lines = items.map(([product, quantity]) => {
+      const item = o.products.find((p) => p.id === `product-${product}`)!
+      return { productId: item.id, name: item.name, quantity, unitMinor: item.priceMinor }
+    })
+    const subtotalMinor = lines.reduce((sum, line) => sum + line.quantity * line.unitMinor, 0)
+    sale.retail = {
+      lines,
+      subtotalMinor,
+      taxMinor: 0,
+      taxRateBps: 0,
+      taxInclusive: false,
+      taxLabel: '',
+    }
+    sale.totalMinor += subtotalMinor
+    sale.balanceMinor += subtotalMinor
+    settlement.amountMinor += subtotalMinor
+    for (const line of lines)
+      o.movements.push({
+        id: `movement-sold-${line.productId}-${appointmentId}`,
+        productId: line.productId,
+        quantity: -line.quantity,
+        reason: 'retail',
+        note: 'Sold with the visit',
+        createdAt: sale.paidAt,
+        actor: 'Front desk · demo fixture',
+        appointmentId,
+        saleId: sale.id,
+      })
+  }
 }

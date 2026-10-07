@@ -542,6 +542,24 @@ export function Money() {
                 <strong>{format(receipt.taxMinor)}</strong>
               </div>
             )}
+            {receipt.retail?.lines.map((line) => (
+              <div key={line.productId}>
+                <span>
+                  {line.quantity > 1 ? `${line.quantity} × ` : ''}
+                  {line.name}
+                </span>
+                <strong>{format(line.quantity * line.unitMinor)}</strong>
+              </div>
+            ))}
+            {!!receipt.retail?.taxMinor && (
+              <div>
+                <span>
+                  {receipt.retail.taxLabel || 'Tax'} on products
+                  {receipt.retail.taxInclusive ? ' (included)' : ''}
+                </span>
+                <strong>{format(receipt.retail.taxMinor)}</strong>
+              </div>
+            )}
             <div>
               <span>Tip</span>
               <strong>{format(receipt.tipMinor)}</strong>

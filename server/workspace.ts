@@ -55,7 +55,8 @@ export function createWorkspace(input: WorkspaceInput): BusinessState {
     address: input.address ?? '',
     timeZone: zone,
   }
-  state.operations = defaultOperations('sandbox')
+  // The sample keeps its demo shelf of products (V2) and otherwise starts from the defaults.
+  state.operations ??= defaultOperations('sandbox')
   for (const collection of [
     state.clients,
     state.services,

@@ -2,6 +2,17 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · V2 · Stock and products at the till
+
+**Status: built locally on 7 October 2026, in review; nothing deployed and no card charged outside test mode.**
+
+- Business has a new Stock page. Owners and managers add products, mark the ones only used in treatments, and record deliveries, use in treatments and shelf counts. Each change is kept with who made it; nothing is deleted. Reception can see what is in stock but not change it.
+- The page shows what is on the shelf, what is running low against each product's reorder level, products sold in the last 30 days and, for owners and managers, the stock's value at cost.
+- At checkout the desk can add products to the visit. Each is priced at its catalogue price with the studio's current tax, must be in stock, and leaves stock on the same receipt. The receipt keeps the name and price as sold, so a later price change never rewrites it. Plans and discounts cover the service only; the guest pays for products.
+- Card payments through SALEANE (saved card or reader) include the products and the server prices them again before charging. A repeated checkout takes stock once.
+- Business shows products sold beside service revenue, kept apart from it. Receipts in Money, the client timeline and the client's data export list the products.
+- The ledger checks that every receipt's products match the stock that left, line by line.
+
 ## 2026-10-07 · V1.5 · Private client feedback and ratings
 
 **Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** The feedback request joins the message outbox like any other message; with no provider connected it waits there unsent.

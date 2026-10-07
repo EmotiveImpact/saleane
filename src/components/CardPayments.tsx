@@ -213,11 +213,14 @@ export function CardCheckout({
   amountMinor,
   tipMinor,
   discountMinor,
+  products = [],
 }: {
   appointmentId: string
   amountMinor: number
   tipMinor: number
   discountMinor: number
+  /** V2: products bought with the visit; the server prices them again before charging. */
+  products?: { productId: string; quantity: number }[]
 }) {
   const { state, blocked } = useStore()
   const { reply, error: loadError } = usePayments({ appointmentId })
@@ -284,6 +287,7 @@ export function CardCheckout({
             amountMinor,
             tipMinor,
             discountMinor,
+            ...(products.length ? { products } : {}),
           })
         }}
       >

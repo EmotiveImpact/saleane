@@ -5,6 +5,8 @@ import { paymentMethodSchema, processorSchema } from './paymentMethods'
 import { holdingSchema, offerSchema } from './plansSchema'
 import { coveredSaleProblem, plansProblem } from './plans'
 import { feedbackProblem, feedbackSchema } from './feedback'
+import { saleRetailSchema } from './retailSchema'
+import { retailCharge, retailProblem } from './retail'
 export { paymentMethodSchema, paymentMethods, processorSchema } from './paymentMethods'
 
 export const DEMO_DATE = '2026-10-06'
@@ -123,6 +125,8 @@ export const saleSchema = z.object({
   /** V1.5: the plan that paid for the visit, and how much of it this visit used. */
   holdingId: id.optional(),
   coveredMinor: minor.optional(),
+  /** V2: products bought with the visit. They add to the total; plans and discounts never cover them. */
+  retail: saleRetailSchema.optional(),
 })
 export const paymentSchema = z.object({
   ...scoped,
@@ -285,6 +289,7 @@ export function parseState(value: unknown, region: Region): BusinessState {
         sale.serviceMinor -
           (sale.discountMinor ?? 0) +
           (sale.taxInclusive ? 0 : (sale.taxMinor ?? 0)) +
+          retailCharge(sale.retail) +
           sale.tipMinor ||
       sale.balanceMinor !== sale.totalMinor - sale.depositAppliedMinor - (sale.coveredMinor ?? 0) ||
       coveredSaleProblem(sale)
@@ -490,6 +495,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
   if (plans) throw new Error(plans)
   const feedback = feedbackProblem(s)
   if (feedback) throw new Error(feedback)
+  const retail = retailProblem(s)
+  if (retail) throw new Error(retail)
   try {
     new Intl.DateTimeFormat('en', { timeZone: org.timeZone }).format(new Date())
   } catch {

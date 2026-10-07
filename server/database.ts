@@ -162,6 +162,11 @@ export const migrations: Migration[] = [
         CREATE UNIQUE INDEX outbox_provider_ref ON outbox(provider,provider_ref) WHERE provider_ref IS NOT NULL;
       `),
   },
+  {
+    version: 7,
+    // V2: a card checkout remembers the products added, so the receipt matches what was charged.
+    up: (connection) => connection.exec('ALTER TABLE payment_attempts ADD COLUMN products TEXT;'),
+  },
 ]
 export const SCHEMA_VERSION = migrations[migrations.length - 1].version
 

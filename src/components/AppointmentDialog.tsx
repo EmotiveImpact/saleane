@@ -9,6 +9,9 @@ import { depositPaid, rescheduleSlots } from '../domain/commands'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import { checkoutTotals, minorInput, parseMinor } from '../domain/money'
 import { coverPreview, holdings, memberDiscountPercent, plansForVisit } from '../domain/plans'
+import { priceRetail, retailCharge } from '../domain/retail'
+import type { RetailItems } from '../domain/retailSchema'
+import { CheckoutProducts, ReceiptProducts } from './CheckoutProducts'
 import '../components/plans.css'
 import { Avatar, Button, ErrorMessage, Modal, Status, TimeChoices } from '../design'
 import { BookingDialog } from './BookingDialog'
@@ -38,6 +41,8 @@ export function AppointmentDialog({
   // V1.5: the package or membership paying for this visit ('' pays as usual).
   const [holdingId, setHoldingId] = useState<string | null>(null)
   const [checkout, setCheckout] = useState(false)
+  // V2: products the guest is buying with the visit.
+  const [items, setItems] = useState<RetailItems>([])
   const [tip, setTip] = useState('0')
   const [otherTip, setOtherTip] = useState(false)
   const [method, setMethod] = useState<
@@ -110,7 +115,14 @@ export function AppointmentDialog({
     depositMinor: deposit,
     tax,
   })
-  const total = dueMinor - coveredMinor
+  let retail: ReturnType<typeof priceRetail>
+  let retailError = ''
+  try {
+    retail = priceRetail(state, items)
+  } catch (problem) {
+    retailError = problem instanceof Error ? problem.message : 'Check the products.'
+  }
+  const total = dueMinor - coveredMinor + retailCharge(retail)
   const needsConfirm = !sandbox && total > 0
   const tipPreset = (percent: number) => Math.round((appointment.bookedPriceMinor * percent) / 100)
   const available = mode === 'move' ? rescheduleSlots(state, appointmentId, staffId, date) : []
@@ -182,6 +194,7 @@ export function AppointmentDialog({
       tipMinor,
       method,
       ...(chosenPlan ? { holdingId: chosenPlan.holding.id } : { discountMinor }),
+      ...(items.length ? { products: items } : {}),
       reference: reference.trim() || undefined,
     })
   }
@@ -240,7 +253,7 @@ export function AppointmentDialog({
               ? 'Receipt saved. The payment provider confirmed the card payment.'
               : 'Local receipt saved. No payment provider was contacted.'
           : checkout
-            ? 'Review the service, deposit and optional tip before recording payment.'
+            ? 'Review the service, any products, the deposit and an optional tip before recording payment.'
             : `${dateLabel(appointment.date, state.organisation.locale)} at ${timeLabel(appointment.startMinutes, state.organisation.locale)}`
       }
     >
@@ -301,6 +314,7 @@ export function AppointmentDialog({
               <span>{money(sale.taxMinor, state.organisation, true)}</span>
             </div>
           )}
+          {sale.retail && <ReceiptProducts retail={sale.retail} />}
           <div className="receipt-line">
             <span>Tip</span>
             <span>{money(sale.tipMinor, state.organisation, true)}</span>
@@ -575,6 +589,16 @@ export function AppointmentDialog({
               </label>
             </>
           )}
+          <CheckoutProducts
+            items={items}
+            retail={retail}
+            disabled={busy}
+            onChange={(next) => {
+              setItems(next)
+              setCollected(false)
+              setError('')
+            }}
+          />
           <fieldset className="time-fieldset">
             <legend>Optional tip</legend>
             <div className="tip-options">
@@ -625,6 +649,7 @@ export function AppointmentDialog({
               </label>
             )}
           </fieldset>
+          <ErrorMessage error={retailError} />
           {(total > 0 || !chosenPlan) && (
             <>
               <label>
@@ -706,6 +731,7 @@ export function AppointmentDialog({
               amountMinor={total}
               tipMinor={Number.isFinite(tipMinor) ? tipMinor : 0}
               discountMinor={Number.isFinite(discountMinor) ? discountMinor : 0}
+              products={items}
             />
           )}
           <ErrorMessage error={error} />
@@ -714,7 +740,10 @@ export function AppointmentDialog({
               Back
             </Button>
             {!byCard && (
-              <Button disabled={!allowed('checkout') || (needsConfirm && !collected)} onClick={pay}>
+              <Button
+                disabled={!allowed('checkout') || (needsConfirm && !collected) || !!retailError}
+                onClick={pay}
+              >
                 <CreditCard size={16} />
                 {busy ? 'Recording…' : sandbox ? 'Record demo payment' : 'Record payment'}
               </Button>

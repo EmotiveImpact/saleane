@@ -15,6 +15,7 @@ import { availableAllocation } from './allocation'
 import { runSwitchingCommand } from './switching'
 import { coverVisit, runPlanCommand, stampPlanActors } from './plans'
 import { recordFeedback, repeatedFeedback } from './feedback'
+import { priceRetail, recordRetailMovements, retailCharge } from './retail'
 
 export type CommandResult =
   { ok: true; state: BusinessState; recordId: string } | { ok: false; error: string }
@@ -389,14 +390,17 @@ export function execute(
         // A plan's price already includes any tax, so its share is tax-inclusive.
         const bookedTax = visitTax(s, appointment)
         const tax = plan && bookedTax ? { ...bookedTax, inclusive: true } : bookedTax
-        const { taxMinor, totalMinor: total } = checkoutTotals({
+        const { taxMinor, totalMinor: serviceTotal } = checkoutTotals({
           priceMinor: appointment.bookedPriceMinor,
           discountMinor: discount,
           tipMinor: command.tipMinor,
           depositMinor: deposit,
           tax,
         })
-        if (deposit > total)
+        // Products are priced at today's catalogue and tax, and must be in stock.
+        const retail = priceRetail(s, command.products)
+        const total = serviceTotal + retailCharge(retail)
+        if (deposit > serviceTotal)
           throw new Error(
             'The discount leaves a balance below the recorded deposit. Review the deposit before checkout.',
           )
@@ -421,8 +425,18 @@ export function execute(
           method: command.method,
           ...(command.processor ? { processor: command.processor } : {}),
           ...(plan ? { holdingId: plan.holding.id, coveredMinor: plan.valueMinor } : {}),
+          ...(retail ? { retail } : {}),
         }
         next.sales.push(sale)
+        if (retail)
+          recordRetailMovements(
+            next,
+            sale,
+            retail,
+            now,
+            makeId,
+            operations(s).mode === 'sandbox' ? 'Maya · demo operator' : 'Local operator',
+          )
         next.payments.push({
           id: makeId(),
           organisationId: org.id,
@@ -444,6 +458,10 @@ export function execute(
           type: 'checkout',
           title: 'Visit completed',
           detail: `${
+            retail
+              ? `Bought ${retail.lines.map((line) => `${line.quantity > 1 ? `${line.quantity} × ` : ''}${line.name}`).join(', ')}. `
+              : ''
+          }${
             plan
               ? `Paid by ${plan.holding.name}${plan.holding.visits ? ` (${plan.visitsLeft} ${plan.visitsLeft === 1 ? 'visit' : 'visits'} left${plan.holding.kind === 'membership' ? ' this month' : ''})` : ''}. `
               : ''

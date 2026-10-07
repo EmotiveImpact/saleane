@@ -381,7 +381,8 @@ export function runOperatingCommand(
     )
       throw new Error('This SKU already belongs to another product.')
     const product = { ...command.input, id: command.id ?? makeId() }
-    if (old) Object.assign(old, product)
+    // Replaced whole, so a cleared optional field such as the cost price really clears.
+    if (old) o.products[o.products.indexOf(old)] = product
     else o.products.push(product)
     recordId = product.id
   } else if (command.type === 'stock') {

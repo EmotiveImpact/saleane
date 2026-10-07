@@ -135,6 +135,15 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
       taxIncluded: !!s.taxInclusive,
       tipMinor: s.tipMinor,
       depositAppliedMinor: s.depositAppliedMinor,
+      ...(s.retail
+        ? {
+            products: s.retail.lines.map((line) => ({
+              name: line.name,
+              quantity: line.quantity,
+              unitMinor: line.unitMinor,
+            })),
+          }
+        : {}),
       totalMinor: s.totalMinor,
       balanceMinor: s.balanceMinor,
       ...(s.reference ? { reference: s.reference } : {}),
@@ -494,7 +503,11 @@ export function clientExportText(file: ClientExport, locale = 'en-GB') {
     `RECEIPTS (${file.receipts.length})`,
     ...file.receipts.map(
       (r) =>
-        `${r.receiptNumber} · ${r.visit} · ${r.paidAt.slice(0, 10)} · total ${amount(r.totalMinor, cur, locale)} · ${r.method}`,
+        `${r.receiptNumber} · ${r.visit} · ${r.paidAt.slice(0, 10)} · total ${amount(r.totalMinor, cur, locale)} · ${r.method}${
+          r.products
+            ? ` · products: ${r.products.map((p) => `${p.quantity} × ${p.name} at ${amount(p.unitMinor, cur, locale)}`).join(', ')}`
+            : ''
+        }`,
     ),
     '',
     `PAYMENTS AND DEPOSITS (${file.payments.length})`,

@@ -70,6 +70,10 @@ export const productInputSchema = z.object({
   priceMinor: money,
   reorderAt: z.number().int().nonnegative().max(10000),
   archived: z.boolean(),
+  /** V2: sold at the till. `false` marks a product only used in treatments. Absent means sold. */
+  forSale: z.boolean().optional(),
+  /** V2: what the studio pays the supplier for one, for stock value. Never shown to guests. */
+  costMinor: money.optional(),
 })
 export const protectionSchema = z
   .object({
@@ -137,6 +141,8 @@ export const operationsSchema = z.object({
       createdAt: z.iso.datetime(),
       actor: z.string(),
       appointmentId: id.optional(),
+      /** V2: the receipt that sold it, for a `retail` movement made at checkout. */
+      saleId: id.optional(),
     }),
   ),
   messages: z.array(

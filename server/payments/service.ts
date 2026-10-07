@@ -7,6 +7,9 @@ import { cardPolicy, guestPayment } from '../../src/domain/guest'
 import { feeAllowed } from '../../src/domain/fees'
 export { feeAllowed }
 import { operations, visitTax } from '../../src/domain/operations'
+import { priceRetail, retailCharge } from '../../src/domain/retail'
+import { retailItemsSchema } from '../../src/domain/retailSchema'
+import type { RetailItems } from '../../src/domain/retailSchema'
 import type { BusinessState } from '../../src/domain/model'
 import type { Context, Org } from '../context'
 import { HOSTED_MINUTES } from './providers'
@@ -24,6 +27,8 @@ export type AttemptRow = {
   currency: 'GBP' | 'USD'
   tip_minor: number
   discount_minor: number
+  /** V2: the products added at checkout, as JSON; null when none. */
+  products: string | null
   save_card: number
   refund_of: string | null
   reason: string | null
@@ -53,12 +58,18 @@ export type CardRow = {
   removed_at: number | null
 }
 
-/** The amount still owed at checkout, with the tip and discount the desk entered. */
+/** The products a card checkout attempt carries. */
+export function attemptProducts(row: Pick<AttemptRow, 'products'>): RetailItems | undefined {
+  return row.products ? retailItemsSchema.parse(JSON.parse(row.products)) : undefined
+}
+
+/** The amount still owed at checkout, with the tip, discount and products the desk entered. */
 export function balanceDue(
   s: BusinessState,
   appointmentId: string,
   tipMinor: number,
   discountMinor: number,
+  products?: RetailItems,
 ) {
   const a = s.appointments.find((item) => item.id === appointmentId)
   if (!a) return null
@@ -70,7 +81,7 @@ export function balanceDue(
     depositMinor: deposit,
     tax: visitTax(s, a),
   })
-  return totalMinor - deposit
+  return totalMinor + retailCharge(priceRetail(s, products)) - deposit
 }
 
 /**
@@ -111,13 +122,14 @@ export function createPayments(ctx: Context, provider: PaymentProvider) {
       | 'ledger_id'
       | 'created_at'
       | 'updated_at'
-    >,
+      | 'products'
+    > & { products?: RetailItems },
   ) => {
     const id = randomUUID()
     const time = now()
     db.run(
-      `INSERT INTO payment_attempts(id,organisation_id,appointment_id,client_id,purpose,route,amount_minor,currency,tip_minor,discount_minor,save_card,refund_of,reason,provider,status,request_key,actor_id,created_at,updated_at)
-       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,'started',?,?,?,?)`,
+      `INSERT INTO payment_attempts(id,organisation_id,appointment_id,client_id,purpose,route,amount_minor,currency,tip_minor,discount_minor,products,save_card,refund_of,reason,provider,status,request_key,actor_id,created_at,updated_at)
+       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'started',?,?,?,?)`,
       id,
       row.organisation_id,
       row.appointment_id,
@@ -128,6 +140,7 @@ export function createPayments(ctx: Context, provider: PaymentProvider) {
       row.currency,
       row.tip_minor,
       row.discount_minor,
+      row.products?.length ? JSON.stringify(row.products) : null,
       row.save_card,
       row.refund_of,
       row.reason,
@@ -164,13 +177,18 @@ export function createPayments(ctx: Context, provider: PaymentProvider) {
     if (row.purpose === 'balance') {
       if (s.sales.some((sale) => sale.appointmentId === row.appointment_id))
         throw new Error('The visit had already been checked out.')
-      if (balanceDue(s, row.appointment_id, row.tip_minor, row.discount_minor) !== row.amount_minor)
+      const products = attemptProducts(row)
+      if (
+        balanceDue(s, row.appointment_id, row.tip_minor, row.discount_minor, products) !==
+        row.amount_minor
+      )
         throw new Error('The visit’s total changed while the card was being charged.')
       return {
         type: 'checkout',
         appointmentId: row.appointment_id,
         tipMinor: row.tip_minor,
         discountMinor: row.discount_minor,
+        ...(products ? { products } : {}),
         ...base,
       }
     }

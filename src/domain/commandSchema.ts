@@ -19,6 +19,7 @@ import {
   weeklyHoursSchema,
 } from './operations'
 import { tillCountCommandSchema } from './tillCount'
+import { retailItemsSchema } from './retailSchema'
 import { reminderSettingsSchema } from './reminderSettings'
 const id = z.string().min(1).max(150)
 const money = z.number().int().nonnegative().max(100_000_000)
@@ -257,6 +258,8 @@ export const commandSchema = z.discriminatedUnion('type', [
     processor,
     /** V1.5: a package or membership pays for the visit; the guest pays any tip at the desk. */
     holdingId: id.optional(),
+    /** V2: products the guest buys with the visit, at their catalogue price. */
+    products: retailItemsSchema.optional(),
   }),
   z.object({ type: z.literal('note'), clientId: id, text: z.string().trim().min(2).max(1000) }),
   z.object({ type: z.literal('client'), contact: contactSchema, referredById: id.optional() }),
