@@ -69,6 +69,41 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Business shows products sold beside service revenue, kept apart from it. Receipts in Money, the client timeline and the client's data export list the products.
 - The ledger checks that every receipt's products match the stock that left, line by line.
 
+## 2026-10-07 · Calendar: Today, Week and Month
+
+**Status: merged on Edem's word on 7 October 2026; nothing deployed.** Look and navigation only; booking, moving and checkout are unchanged.
+
+- Calendar still lands on today. A Today, Week and Month switch at the top replaces the separate Today button and the week icon, and the arrows step a day, a week or a month to match. Today shows as chosen only while today is on screen, so it always takes you back.
+- The new month view shows every day of the month with how full it is, how many visits it holds and its first three visits. Tapping a day, or "more", opens that day's timeline; tapping a visit opens its details. On phones each day shows its number and how full it is.
+- The grid and list choice for a day now shows only on the day view, and the day's cancelled and missed visits list shows only there too.
+
+## 2026-10-07 · The guest booking page, redesigned
+
+**Status: merged on Edem's word on 7 October 2026; nothing deployed.** Look and layout only; booking rules, holds, prices and deposits are unchanged.
+
+- On computers and tablets the studio photograph now fills the left side from the top of the page and holds still while the guest scrolls, all the way to the bottom. Before, it stopped short and slid away at the end of the page.
+- The welcome ("Care, considered.", a short line and the studio's location) sits where the photograph softens into a feathered, edgeless blur at its foot, so it reads clearly on any image with no box or hard edge. The studio's name sits in a matching soft fade at the top. The leaf icon is gone.
+- On phones the photograph opens the page with the welcome card on it; from the second step only the studio's name stays at the top.
+- The studio's team now see a separate dark preview bar above the page, with "See it as a guest" and "Back to workspace" (and the demo market). "See it as a guest" shows the page exactly as a guest sees it, with only a small "Leave guest view" button in the corner. Guests never see the bar; on the real guest page it appears only to someone signed in to the studio. The honest note about simulated bookings stays for everyone.
+- Choosing a treatment now starts with the kinds of treatment (for example Skin, Body, Hair), each with a photograph and how many treatments it holds; picking one shows just those treatments, with a way back to all kinds. A search box above searches every treatment by name, kind and description. Nothing is chosen until the guest picks, so the Continue bar appears only then. A studio with a single kind of treatment goes straight to its list, as before.
+- The demo booking page now uses the demo studio's own name instead of always "Atelier House".
+
+## 2026-10-07 · In review · Browser demo
+
+**Status: in review; nothing deployed. The demo link is a private claude.ai page.**
+
+- `npm run demo:build` writes one HTML file that runs the real app and server code inside a browser tab, with two fictional sample studios and the owner already signed in.
+- The London studio runs as a real studio in test mode, so a guest can pay a deposit on the test payment page and messages appear in the Inbox. It starts on today's date without the sample's payment history. New York stays a sample studio.
+- Each studio starts with two sample plans, a five-visit package and a monthly membership, each already held by one client, so the plan screens and the plan choice at checkout have something to show.
+- Each studio also starts with eight private sample ratings from recent visits, so Business > Feedback shows averages, a split by professional and guests' notes.
+- The Ask Saleane button works in the demo in test mode: it answers from the studio's own records, and an invitation it prepares is saved as an unsent draft only after approval.
+- The house photographs travel inside the demo file, so the new booking page and the photos across the app show as they do in the real app.
+- The waitlist works in the demo with the three sample clients waiting; booking a suggested time for one of them fills it straight away.
+- Gift cards work in the demo. London's two sample cards show as paid in cash, because a real studio cannot hold simulated card payments.
+- Booking confirmations and reminders appear in test mode for the demo's studios. Nothing is sent or charged. The real app still never sends from sample studios.
+- Changes stay in that browser. Passwords use a simple stand-in there, so the demo is for showing, never for real data.
+- Checked in Chromium at desktop and phone width: Today, Calendar, Clients, Inbox, Business, Settings, a full guest booking, the guest manage page and a checkout receipt. Not checked in Safari or Firefox.
+
 ## 2026-10-07 · V1.5 · Gift cards and vouchers
 
 **Status: built locally on 7 October 2026, in review; nothing deployed and no money taken.** SALEANE records gift card payments and refunds; it does not take or return money itself. [Evidence](docs/evidence/V15-GIFT.md).
