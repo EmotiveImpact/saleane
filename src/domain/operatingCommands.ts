@@ -1,4 +1,5 @@
 import type { BusinessState, RelationshipEvent } from './model'
+import { isReviewUrl } from './model'
 import type { OperatingCommand } from './commandSchema'
 import {
   PAY_RATE_LIMIT,
@@ -114,6 +115,12 @@ export function runOperatingCommand(
     })
     o.bookingEnabled = command.bookingEnabled
     if (command.botCheck !== undefined) o.botCheck = command.botCheck
+    if (command.reviewUrl !== undefined) {
+      if (!command.reviewUrl) delete next.organisation.reviewUrl
+      else if (!isReviewUrl(command.reviewUrl))
+        throw new Error('Enter the review page as a full web address starting with https://.')
+      else next.organisation.reviewUrl = command.reviewUrl
+    }
     recordId = next.organisation.id
   } else if (command.type === 'hours') {
     o.hours = command.hours

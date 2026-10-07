@@ -189,6 +189,9 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
         input: {
           name: text(data, 'name'),
           type: text(data, 'resourceType') as 'treatment' | 'chair',
+          ...(numeric(data, 'restMinutes') > 0
+            ? { restMinutes: numeric(data, 'restMinutes') }
+            : {}),
           archived,
         },
       }
@@ -296,6 +299,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                         timeZone: text(data, 'timeZone'),
                         bookingEnabled: data.get('bookingEnabled') === 'on',
                         botCheck: data.get('botCheck') === 'on',
+                        reviewUrl: text(data, 'reviewUrl'),
                       },
                       'Business settings saved.',
                     )
@@ -330,6 +334,21 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                         maxLength={300}
                         defaultValue={state.organisation.address}
                       />
+                    </label>
+                    <label className="ops-wide">
+                      Public review page (optional)
+                      <input
+                        name="reviewUrl"
+                        type="url"
+                        inputMode="url"
+                        maxLength={300}
+                        placeholder="https://g.page/r/your-studio/review"
+                        defaultValue={state.organisation.reviewUrl ?? ''}
+                      />
+                      <small>
+                        Every guest is invited to leave a public review here after their visit, in
+                        the same words whatever they told you privately.
+                      </small>
                     </label>
                     <label>
                       Venue time zone
@@ -574,6 +593,9 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                         <strong>{item.name}</strong>
                         <small>
                           {item.type === 'treatment' ? 'Treatment space' : 'Styling chair'}
+                          {item.restMinutes
+                            ? ` · rests ${item.restMinutes} minutes after each visit`
+                            : ''}
                         </small>
                       </div>
                       <div className="ops-record-controls">
@@ -968,6 +990,23 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                     <option value="treatment">Treatment space</option>
                     <option value="chair">Styling chair</option>
                   </select>
+                </label>
+              )}
+              {editor.kind === 'resource' && (
+                <label>
+                  Resting time after each visit
+                  <select name="restMinutes" defaultValue={String(resource?.restMinutes ?? 0)}>
+                    {[0, 10, 15, 20, 30, 45, 60, 90, 120].map((m) => (
+                      <option key={m} value={m}>
+                        {m ? `${m} minutes empty` : 'None'}
+                      </option>
+                    ))}
+                  </select>
+                  <small>
+                    The space stays empty this long after each visit, for airing, cooling or a deep
+                    clean. The professional is free to work elsewhere. Visits already booked stay as
+                    they are.
+                  </small>
                 </label>
               )}
               {editor.kind === 'closure' && (

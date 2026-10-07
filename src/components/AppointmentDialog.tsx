@@ -897,6 +897,7 @@ export function AppointmentDialog({
             </p>
             <p>
               {resource.name} · {appointment.bookedBufferMinutes} minute turnaround
+              {resource.restMinutes ? ` · room rests ${resource.restMinutes} minutes` : ''}
             </p>
           </div>
           {['confirmed', 'arrived'].includes(appointment.status) && (

@@ -140,6 +140,14 @@ export const guestViewSchema = z
       })
       .strict()
       .optional(),
+    /**
+     * V1.5: the studio's public review page, after a completed visit. Offered the same way to
+     * every guest, whatever feedback they gave.
+     */
+    review: z
+      .object({ url: z.string().max(300) })
+      .strict()
+      .optional(),
     /** V1.5: private feedback after a completed visit. Only the guest's own ratings come back. */
     feedback: z
       .object({
@@ -277,6 +285,9 @@ export function guestView(
             }
           })(),
         }
+      : {}),
+    ...(a.status === 'completed' && s.organisation.reviewUrl
+      ? { review: { url: s.organisation.reviewUrl } }
       : {}),
     ...(a.status === 'completed'
       ? {

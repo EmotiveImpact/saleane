@@ -272,3 +272,22 @@
 .guest-here p {
   margin: 0;
 }
+/* V1.5: the same public review invitation for every guest after a visit. */
+.guest-review {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  margin-top: 26px;
+  margin-bottom: 22px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.guest-review h2,
+.guest-review p {
+  margin: 0;
+}
+.guest-review .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}

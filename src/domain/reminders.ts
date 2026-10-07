@@ -673,6 +673,12 @@ export function composeMessage(
       '',
       `Rate your visit${professional ? ` and ${professional}` : ''}, and add a note if you like. Only the studio's owner and managers read what you write: ${MANAGE_LINK}`,
     )
+    // V1.5: the same invitation to every guest, whatever they go on to tell the studio.
+    if (org.reviewUrl)
+      lines.push(
+        '',
+        `If you would like to tell others about your visit, you can also leave a public review: ${org.reviewUrl}`,
+      )
   } else if (kind !== 'cancelled' && kind !== 'aftercare' && kind !== 'due_back') {
     if (arrival) lines.push('', `Before you arrive: ${arrival}`)
     if (prep) lines.push('', prep)

@@ -207,3 +207,38 @@ describe('private guest feedback (V1.5)', () => {
     expect(rating.count).toBeGreaterThanOrEqual(1)
   })
 })
+
+describe('public review link (V1.5)', () => {
+  it('offers every guest the same link after their visit, whatever they rated', async () => {
+    const owner = await register()
+    let { state } = await studio(owner)
+    const saved = await run(owner, state.revision, {
+      type: 'organisation',
+      name: state.organisation.name,
+      locationName: state.organisation.locationName,
+      address: state.organisation.address,
+      timeZone: state.organisation.timeZone,
+      bookingEnabled: true,
+      reviewUrl: 'https://reviews.example.invalid/reference',
+    })
+    expect(saved.statusCode, saved.body).toBe(200)
+    const review = { url: 'https://reviews.example.invalid/reference' }
+    const { token } = await completed(owner)
+    expect((await visit(token)).json<GuestView>().review).toEqual(review)
+    // A low private rating changes nothing about the invitation.
+    const sent = await feedback(token, { visitRating: 1, practitionerRating: 1 })
+    expect(sent.statusCode, sent.body).toBe(200)
+    expect(sent.json<GuestView>().review).toEqual(review)
+    state = (await studio(owner)).state
+    const refused = await run(owner, state.revision, {
+      type: 'organisation',
+      name: state.organisation.name,
+      locationName: state.organisation.locationName,
+      address: state.organisation.address,
+      timeZone: state.organisation.timeZone,
+      bookingEnabled: true,
+      reviewUrl: 'javascript:alert(1)',
+    })
+    expect(refused.statusCode).toBe(422)
+  })
+})

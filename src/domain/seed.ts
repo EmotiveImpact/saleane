@@ -22,6 +22,8 @@ export function seed(region: Region): BusinessState {
       locationId: uk ? 'loc-london' : 'loc-nyc',
       locationName: uk ? 'Marylebone, London' : 'SoHo, New York',
       address: uk ? '24 Devonshire Place, London W1G' : '48 Mercer Street, New York, NY',
+      // V1.5: a fictional public review page, offered to every guest after their visit.
+      reviewUrl: 'https://reviews.example.com/atelier-house',
     },
     clients: [
       ['Amelia Carter', 'Prefers the quiet treatment room. Usually visits on Tuesdays.'],

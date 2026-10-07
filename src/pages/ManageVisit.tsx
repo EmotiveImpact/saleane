@@ -11,6 +11,7 @@ import { GuestPayment } from '../components/GuestPayment'
 import { GuestFeedback } from '../components/GuestFeedback'
 import { GuestWaitlist } from '../components/GuestWaitlist'
 import { GuestHere } from '../components/GuestHere'
+import { GuestReview } from '../components/GuestReview'
 import { returnNote, returnedToken } from '../state/guestReturn'
 import '../guest.css'
 
@@ -187,6 +188,7 @@ export function ManageVisit() {
         )}
         {!done && <GuestHere token={token} view={view} onChange={setView} />}
         <GuestFeedback token={token} view={view} onChange={setView} />
+        <GuestReview view={view} />
         {view.payment && !done && (
           <GuestPayment token={token} payment={view.payment} organisation={org} />
         )}

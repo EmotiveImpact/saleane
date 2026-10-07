@@ -31,6 +31,15 @@ const scoped = { id, organisationId: id }
 export const bookingChannels = ['google', 'instagram'] as const
 export type BookingChannel = (typeof bookingChannels)[number]
 export const GUEST_NOTE_LIMIT = 400
+/** A public review address must be a secure web address. */
+export function isReviewUrl(value: string) {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && !!url.hostname && !url.username && !url.password
+  } catch {
+    return false
+  }
+}
 
 export const organisationSchema = z.object({
   id,
@@ -44,6 +53,15 @@ export const organisationSchema = z.object({
   address: z.string(),
   /** Shown to guests before they arrive: directions, parking, how long to allow. Not clinical. */
   arrivalNote: z.string().max(GUEST_NOTE_LIMIT).optional(),
+  /**
+   * V1.5: where guests can leave a public review (a Google review link, say). Offered the same way
+   * to every guest after a visit, whatever they told the studio privately.
+   */
+  reviewUrl: z
+    .string()
+    .max(300)
+    .refine(isReviewUrl, 'Use a full web address starting with https://.')
+    .optional(),
 })
 export const clientSchema = z.object({
   ...scoped,
@@ -104,6 +122,11 @@ export const resourceSchema = z.object({
   name: z.string().trim().min(2).max(100),
   type: z.enum(['treatment', 'chair']),
   archived: z.boolean().optional(),
+  /**
+   * V1.5: minutes the room rests empty after each visit (airing, cooling, a deep clean). Only the
+   * room waits; the professional is free. Absent means none.
+   */
+  restMinutes: z.number().int().min(5).max(120).multipleOf(5).optional(),
 })
 export const appointmentSchema = z.object({
   ...scoped,
