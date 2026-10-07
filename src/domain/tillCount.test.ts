@@ -87,6 +87,50 @@ describe('end-of-day till count', () => {
     expect(cashForDay(both2.state, '2026-10-05')).toEqual({ cashIn: 0, cashRefunded: 0 })
   })
 
+  it('follows how each refund was returned, whatever the receipt was paid with', () => {
+    const cash = checkedOut('cash')
+    const card = checkedOut('external_card', cash.state, 720)
+    const cashSale = card.state.sales.find((s) => s.method === 'cash')!
+    const cardSale = card.state.sales.find((s) => s.method === 'external_card')!
+    // Money back on a card receipt, handed over from the till.
+    let s = apply(card.state, {
+      type: 'refund',
+      saleId: cardSale.id,
+      amountMinor: 700,
+      reason: 'Returned in cash',
+      reference: 'Cash at desk 1',
+      method: 'cash',
+    }).state
+    // Money back on a cash receipt, sent by bank transfer.
+    s = apply(s, {
+      type: 'refund',
+      saleId: cashSale.id,
+      amountMinor: 300,
+      reason: 'Sent by bank transfer',
+      reference: 'Bank transfer 1',
+      method: 'external_card',
+    }).state
+    expect(cashForDay(s, '2026-10-06').cashRefunded).toBe(700)
+    expect(s.operations?.refunds.map((r) => r.method)).toEqual(['cash', 'external_card'])
+  })
+
+  it('refuses a simulated refund method in a local studio', () => {
+    const cash = checkedOut('cash')
+    const result = execute(
+      cash.state,
+      {
+        type: 'refund',
+        saleId: cash.state.sales[0].id,
+        amountMinor: 100,
+        reason: 'Wrong method',
+        reference: 'Wrong 1',
+        method: 'demo_cash',
+      },
+      now,
+    )
+    expect(result.ok).toBe(false)
+  })
+
   it('uses the studio time zone for the day boundary', () => {
     const s = checkedOut('cash').state
     // 23:30 UTC on 5 October is 00:30 on 6 October in London (BST).

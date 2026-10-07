@@ -150,4 +150,13 @@ describe('retention figures', () => {
     for (const figure of [r.newClientReturn, r.returningClients])
       if (figure.rate !== null) expect(figure.rate).toBeGreaterThanOrEqual(0)
   })
+
+  it('stops counting a confirmed visit as ahead once it has ended today', () => {
+    const s = studio()
+    s.visit({ clientId: 'client-1', date: day(-10) })
+    // An unmarked 09:00 visit today, an hour long.
+    s.visit({ clientId: 'client-1', date: today, startMinutes: 540, status: 'confirmed' })
+    expect(retention(s, 7, today, 9 * 60 + 30).returningClients.count).toBe(1)
+    expect(retention(s, 7, today, 17 * 60).returningClients.count).toBe(0)
+  })
 })

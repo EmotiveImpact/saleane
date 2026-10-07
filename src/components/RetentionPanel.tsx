@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { useStore } from '../state/context'
 import { retention } from '../domain/retention'
 import type { Rate } from '../domain/retention'
 import { dateLabel } from '../domain/format'
+import { venueMinutes } from '../domain/pocket'
 import { Avatar, Metric } from '../design'
 import './retention.css'
 
@@ -19,7 +21,9 @@ const percent = (figure: Rate) =>
  */
 export function RetentionPanel({ days }: { days: number }) {
   const { state, today } = useStore()
-  const r = retention(state, days, today)
+  // The studio's clock when the page opened, so a visit that has already ended is not "ahead".
+  const [now] = useState(() => Date.now())
+  const r = retention(state, days, today, venueMinutes(state.organisation.timeZone, now))
   const locale = state.organisation.locale
   const previous = `${dateLabel(r.previousFrom, locale, true)} to ${dateLabel(r.previousTo, locale, true)}`
   return (

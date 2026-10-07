@@ -90,6 +90,8 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     amountMinor: money.refine((n) => n > 0),
     reason: z.string().trim().min(3).max(300),
     reference: z.string().trim().min(1).max(150),
+    /** How the money went back. Older refunds lack it; the till count then follows the receipt. */
+    method: method.optional(),
   }),
   z.object({
     type: z.literal('deposit'),

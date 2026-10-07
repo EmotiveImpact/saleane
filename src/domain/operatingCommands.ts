@@ -245,12 +245,14 @@ export function runOperatingCommand(
       sale.totalMinor
     )
       throw new Error('This refund would exceed the remaining receipt total.')
+    if (command.method) assertMethod(next, command.method, command.reference)
     const refund = {
       id: makeId(),
       saleId: sale.id,
       amountMinor: command.amountMinor,
       reason: command.reason,
       reference: command.reference,
+      ...(command.method ? { method: command.method } : {}),
       createdAt: now,
       actor: 'Local operator',
     }

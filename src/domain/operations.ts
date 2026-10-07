@@ -104,6 +104,7 @@ export const operationsSchema = z.object({
       amountMinor: money.refine((v) => v > 0),
       reason: z.string().trim().min(3).max(300),
       reference: z.string().trim().min(1).max(150),
+      method: z.enum(['demo_card', 'demo_cash', 'cash', 'external_card']).optional(),
       createdAt: z.iso.datetime(),
       actor: z.string(),
     }),

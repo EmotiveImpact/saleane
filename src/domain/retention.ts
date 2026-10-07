@@ -30,9 +30,15 @@ const later = (a: Appointment, b: Appointment) =>
   a.date > b.date || (a.date === b.date && a.startMinutes > b.startMinutes)
 const daysBetween = (from: string, to: string) =>
   Math.round((Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / 86_400_000)
-/** Booked and still ahead: a confirmed visit, or one in the studio now, on or after today. */
-const upcoming = (a: Appointment, today: string) =>
-  (a.status === 'confirmed' || a.status === 'arrived') && a.date >= today
+/**
+ * Booked and still ahead: a client in the studio now, or a confirmed visit that has not yet
+ * ended. Today's visits are compared with the studio's clock, so an unmarked morning no-show
+ * stops counting once its end time has passed.
+ */
+const upcoming = (a: Appointment, today: string, nowMinutes: number) =>
+  a.status === 'arrived' ||
+  (a.status === 'confirmed' &&
+    (a.date > today || (a.date === today && a.startMinutes + a.bookedDurationMinutes > nowMinutes)))
 
 function median(values: number[]) {
   const sorted = [...values].sort((a, b) => a - b)
@@ -40,7 +46,13 @@ function median(values: number[]) {
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2
 }
 
-export function retention(s: BusinessState, days: number, today: string): Retention {
+export function retention(
+  s: BusinessState,
+  days: number,
+  today: string,
+  /** Minutes past midnight on the studio's clock. Defaults to the start of the day. */
+  nowMinutes = 0,
+): Retention {
   const from = addDays(today, 1 - days)
   const previousTo = addDays(from, -1)
   const previousFrom = addDays(from, -days)
@@ -77,7 +89,7 @@ export function retention(s: BusinessState, days: number, today: string): Retent
       .filter((a) => a.status === 'completed')
       .sort((a, b) => a.date.localeCompare(b.date) || a.startMinutes - b.startMinutes)
     const first = done[0]
-    const ahead = visits.some((a) => upcoming(a, today))
+    const ahead = visits.some((a) => upcoming(a, today, nowMinutes))
 
     // New-client return: first ever completed visit in the period, then any later visit that
     // happened or is still booked.
@@ -88,7 +100,7 @@ export function retention(s: BusinessState, days: number, today: string): Retent
           (a) =>
             a.id !== first.id &&
             later(a, first) &&
-            (a.status === 'completed' || upcoming(a, today)),
+            (a.status === 'completed' || upcoming(a, today, nowMinutes)),
         )
       )
         newReturned++

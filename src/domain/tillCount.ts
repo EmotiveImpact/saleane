@@ -77,8 +77,8 @@ function recordDay(s: BusinessState, instant: string) {
 
 /**
  * Cash on record for one venue day: cash payments (deposits and settlements, including tips)
- * recorded that day, and refunds recorded that day against a cash receipt. Refund records do not
- * carry their own method, so a refund counts as cash when the receipt it returns was paid in cash.
+ * recorded that day, and cash refunds recorded that day. A refund records how the money went
+ * back; an older refund without that counts as cash when its receipt was settled in cash.
  */
 export function cashForDay(s: BusinessState, date: string) {
   const cashIn = s.payments
@@ -86,7 +86,11 @@ export function cashForDay(s: BusinessState, date: string) {
     .reduce((sum, p) => sum + p.amountMinor, 0)
   const cashSales = new Set(s.sales.filter((sale) => CASH.has(sale.method)).map((sale) => sale.id))
   const cashRefunded = operations(s)
-    .refunds.filter((r) => cashSales.has(r.saleId) && recordDay(s, r.createdAt) === date)
+    .refunds.filter(
+      (r) =>
+        (r.method ? CASH.has(r.method) : cashSales.has(r.saleId)) &&
+        recordDay(s, r.createdAt) === date,
+    )
     .reduce((sum, r) => sum + r.amountMinor, 0)
   return { cashIn, cashRefunded }
 }
