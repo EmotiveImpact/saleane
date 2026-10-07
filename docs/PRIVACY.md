@@ -42,10 +42,10 @@ Decided by the owner on 7 October 2026. The periods live in code in `src/domain/
 | Public booking holds                                         | Five minutes (enforced by expiry); rows not yet purged | Security; legitimate interests                                 |
 | Request receipts (idempotency)                               | Not yet set; bounded period after the request          | Integrity of money and bookings                                |
 
-**Deletion needs approval.** Reaching the end of a period never deletes anything by itself. An owner or manager approves each deletion (`DELETION_APPROVERS` in `src/domain/dataRetention.ts`). Reception and practitioners cannot.
+**At the end of a period, an owner or manager decides.** Reaching the end of a period never deletes anything by itself. An owner or manager either approves the deletion or keeps the record longer by a number of months or years, with years as the default (`DELETION_APPROVERS` and `extendRetention` in `src/domain/dataRetention.ts`). Reception and practitioners cannot do either.
 
 ## Erasure
 
 The erasure review shows what a decided policy could remove (contact details, preferences, notes, unsent messages, connection links) and what must stay with its reason (receipts, payments, refunds, booked visit terms, consent history, audit history). Recording a request adds an audit row and shows it on the client. Withdrawing email marketing uses the existing consent command, which suppresses queued marketing messages; drafts stay unsent drafts.
 
-Decided on 7 October 2026: notes are included word for word with a warning, one open erasure request per client, and deletion only with owner or manager approval. Before any destructive step is built, decide: whether the name on kept receipts stays or becomes a reference; how a request is verified; how upcoming visits are handled; how erasure is reapplied after a backup restore; and how to answer within the legal deadline.
+Decided on 7 October 2026: notes are included word for word with a warning, one open erasure request per client, and at the end of a period an owner or manager either approves deletion or extends it by months or years. Before any destructive step is built, decide: whether the name on kept receipts stays or becomes a reference; how a request is verified; how upcoming visits are handled; how erasure is reapplied after a backup restore; and how to answer within the legal deadline.

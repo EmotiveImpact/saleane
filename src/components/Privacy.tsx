@@ -527,8 +527,9 @@ export function StudioPrivacy() {
           <div>
             <h2 id="retention-heading">How long records are kept</h2>
             <p>
-              When a record reaches the end of its period it waits for an owner or manager to
-              approve deleting it. SALEANE never deletes anything on its own.
+              When a record reaches the end of its period it waits for an owner or manager, who
+              either approves deleting it or keeps it longer by months or years. SALEANE never
+              deletes anything on its own.
             </p>
           </div>
         </header>
