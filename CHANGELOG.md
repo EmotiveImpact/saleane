@@ -2,6 +2,13 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · V1.5 · Neutral review requests and room resting time
+
+**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-REVIEWS.md).
+
+- A studio can add its public review page (Settings › Studio details). After a completed visit, every guest's private page invites them, in the same words, to leave a public review, and the feedback email gains one line with the link. It never asks for a good review and is never held back because of a private rating. Only https addresses are accepted.
+- A room or chair can rest for 10 to 120 minutes after each visit (Settings › Spaces & equipment), for airing, cooling or a deep clean. New bookings and moves leave it empty for that long before and after each visit and use another free room instead; the professional stays free. Visits already booked stay as they are.
+
 ## 2026-10-07 · V1.5 · Missed-call text-back and "I've arrived"
 
 **Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-ARRIVALS.md).

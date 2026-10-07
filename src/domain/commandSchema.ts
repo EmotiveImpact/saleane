@@ -78,6 +78,8 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     timeZone: z.string().min(1).max(80),
     bookingEnabled: z.boolean(),
     botCheck: z.boolean().optional(),
+    /** V1.5: the public review page; empty removes it. Absent leaves it as it is. */
+    reviewUrl: z.string().trim().max(300).optional(),
   }),
   z.object({ type: z.literal('hours'), hours: weeklyHoursSchema }),
   // Guest-facing "before you arrive" notes; an empty note removes it.

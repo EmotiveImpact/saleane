@@ -1,4 +1,5 @@
 import type { BusinessState, RelationshipEvent } from './model'
+import { isReviewUrl } from './model'
 import type { OperatingCommand } from './commandSchema'
 import {
   PAY_RATE_LIMIT,
@@ -114,6 +115,12 @@ export function runOperatingCommand(
     })
     o.bookingEnabled = command.bookingEnabled
     if (command.botCheck !== undefined) o.botCheck = command.botCheck
+    if (command.reviewUrl !== undefined) {
+      if (!command.reviewUrl) delete next.organisation.reviewUrl
+      else if (!isReviewUrl(command.reviewUrl))
+        throw new Error('Enter the review page as a full web address starting with https://.')
+      else next.organisation.reviewUrl = command.reviewUrl
+    }
     recordId = next.organisation.id
   } else if (command.type === 'hours') {
     o.hours = command.hours
@@ -197,8 +204,11 @@ export function runOperatingCommand(
         if (!command.input.hours) delete (old as { hours?: unknown }).hours
       } else next.staff.push({ ...command.input, ...scope, id: record.id })
     } else {
-      if (old) Object.assign(old, record)
-      else next.resources.push({ ...command.input, ...scope, id: record.id })
+      if (old) {
+        Object.assign(old, record)
+        // The form sends every field, so no resting time means None.
+        if (!command.input.restMinutes) delete (old as { restMinutes?: number }).restMinutes
+      } else next.resources.push({ ...command.input, ...scope, id: record.id })
     }
     recordId = record.id
   }
