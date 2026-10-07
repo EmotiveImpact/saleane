@@ -193,7 +193,8 @@ describe('the offline day sheet in the signed-in client (OFF-01)', () => {
     await waitFor(() => expect(view.store.connection).toBe('offline'))
     expect(view.store.daySheet?.sheet.generatedAt).toBe(before)
     // Reachable again: the session, studio and a fresh sheet load before the workspace returns.
-    // A minute ahead of the real clock, so it differs from the first sheet and has not expired.
+    // A minute ahead of the real clock: newer than the saved sheet and not yet expired, whatever
+    // the date the suite runs on.
     const fresh = sheetAt(new Date(Date.now() + 60_000).toISOString())
     serve({ sheet: () => json(fresh) })
     fetchMock.mockClear()

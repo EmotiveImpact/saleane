@@ -33,6 +33,7 @@ const demoRoutes = [
   '/settings?section=switching',
   '/settings?section=plans',
   '/business/feedback',
+  '/business/gift-cards',
   '/booking',
   '/design-language',
   '/account',
