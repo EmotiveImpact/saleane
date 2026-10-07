@@ -49,6 +49,9 @@ export function ManageVisit() {
     if (!token) return
     ;(async () => {
       try {
+        // Coming back without paying closes the provider's page, so the guest can start again.
+        if (/payment=(cancelled|declined)/.test(window.location.search))
+          await api('/api/guest/pay/cancel', { method: 'POST', body: { token } }).catch(() => null)
         const first = await load()
         // A payment confirmation can arrive a moment after the guest returns; look once more.
         if (paymentNote && (first.payment?.pending || first.payment?.depositDueMinor))

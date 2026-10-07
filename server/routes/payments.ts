@@ -175,6 +175,24 @@ export function paymentRoutes(payments: Payments) {
       return true
     }
 
+    // Coming back from the provider's page without paying closes it, so the guest can start again.
+    if (path[1] === 'guest' && path[2] === 'pay' && path[3] === 'cancel' && path.length === 4) {
+      if (method !== 'POST') fail(405, 'Use POST.')
+      rateLimit(request, 'guest-pay', 10, 5 * 60000)
+      const data = z.object({ token: tokenSchema }).strict().parse(body)
+      const { org, appointmentId } = openGuestLink(ctx, data.token)
+      const open = db.all<AttemptRow>(
+        "SELECT * FROM payment_attempts WHERE organisation_id=? AND appointment_id=? AND route='hosted' AND status='started'",
+        org.id,
+        appointmentId,
+      )
+      for (const row of open)
+        if (!row.provider_ref || (await provider.closeHosted(row.provider_ref)))
+          payments.update(row.id, { status: 'failed', detail: 'The guest left the payment page.' })
+      reply(200, { ok: true })
+      return true
+    }
+
     // The test payment page stands in for the provider's page while payments are in test mode.
     if (path[1] === 'test-payments' && path.length === 3) {
       if (provider.name !== 'test') fail(404, 'This endpoint was not found.')
@@ -302,12 +320,15 @@ export function paymentRoutes(payments: Payments) {
         const a = payments.visit(fresh, data.appointmentId)
         if (
           db.get(
-            "SELECT id FROM payment_attempts WHERE organisation_id=? AND appointment_id=? AND route IN ('saved_card','reader') AND status IN ('started','processing')",
+            "SELECT id FROM payment_attempts WHERE organisation_id=? AND appointment_id=? AND route IN ('saved_card','reader') AND status IN ('started','processing','unknown')",
             fresh.id,
             a.id,
           )
         )
-          fail(409, 'A card payment for this visit is already under way.')
+          fail(
+            409,
+            'A card payment for this visit is already under way or unclear. Finish or check that one first.',
+          )
         const placeholder = {
           method: 'card' as const,
           reference: 'rehearsal',
@@ -353,6 +374,11 @@ export function paymentRoutes(payments: Payments) {
         if (expected <= 0) fail(409, 'Nothing is left to pay on this visit.')
         if (expected !== data.amountMinor)
           fail(409, 'The amount changed. Check the total and try again.')
+        const service =
+          a.bookedServiceName ??
+          fresh.state.services.find((x) => x.id === a.serviceId)?.name ??
+          'Visit'
+        const description = `${service} at ${fresh.state.organisation.name}${data.purpose === 'fee' ? ' (missed visit fee)' : ''}`
         let card: CardRow | undefined
         if (data.route === 'saved_card') {
           card = payments.cards(fresh.id, a.clientId)[0]
@@ -371,19 +397,16 @@ export function paymentRoutes(payments: Payments) {
           discount_minor: data.purpose === 'balance' ? data.discountMinor : 0,
           save_card: 0,
           refund_of: null,
-          reason: null,
+          // Kept so a check after an unclear answer repeats the request exactly.
+          reason: description,
           request_key: key!,
           actor_id: actor.id,
         })
         ctx.audit(fresh, actor.id, `payment.${data.purpose}.started`, row.id)
-        const service =
-          a.bookedServiceName ??
-          fresh.state.services.find((x) => x.id === a.serviceId)?.name ??
-          'Visit'
         return {
           row,
           card,
-          description: `${service} at ${fresh.state.organisation.name}${data.purpose === 'fee' ? ' (missed visit fee)' : ''}`,
+          description,
           replayed: false as const,
         }
       })
@@ -413,6 +436,48 @@ export function paymentRoutes(payments: Payments) {
               readerId: data.readerId!,
             })
       reply(200, attemptView(payments.settle(row, outcome)!, provider.live))
+      return true
+    }
+
+    // An unclear answer is asked again with the same attempt, which the provider treats as the
+    // same request: it reports what happened the first time and never charges twice.
+    if (path[3] === 'payments' && path.length === 6 && path[5] === 'check' && method === 'POST') {
+      const row = payments.get(path[4])
+      if (!row || row.organisation_id !== org.id) fail(404, 'This payment was not found.')
+      if (row!.status !== 'unknown') {
+        reply(200, attemptView(row!, provider.live))
+        return true
+      }
+      if (!can(org.role, row!.purpose === 'balance' ? 'checkout' : row!.purpose))
+        fail(403, 'Your role cannot check this payment.')
+      let outcome
+      if (row!.route === 'refund') {
+        const [kind, target] = (row!.refund_of ?? '').split(':')
+        const { item } = cardRefundable(
+          org.state,
+          kind === 'sale' ? { saleId: target } : { paymentId: target },
+        )
+        outcome = await provider.refund({
+          attemptId: row!.id,
+          paymentRef: item.reference!,
+          amountMinor: row!.amount_minor,
+        })
+      } else if (row!.route === 'saved_card') {
+        const card = payments.cards(org.id, row!.client_id)[0]
+        if (!card) fail(409, 'The saved card was removed. Check the provider’s dashboard instead.')
+        outcome = await provider.chargeSaved({
+          attemptId: row!.id,
+          amountMinor: row!.amount_minor,
+          currency: row!.currency,
+          description: row!.reason ?? '',
+          card: {
+            customerRef: card!.customer_ref,
+            methodRef: card!.method_ref,
+            last4: card!.last4,
+          },
+        })
+      } else fail(409, 'Check this payment in the provider’s dashboard.')
+      reply(200, attemptView(payments.settle(row!, outcome!)!, provider.live))
       return true
     }
 
@@ -464,12 +529,15 @@ export function paymentRoutes(payments: Payments) {
         const refundOf = data.saleId ? `sale:${data.saleId}` : `payment:${data.paymentId}`
         if (
           db.get(
-            "SELECT id FROM payment_attempts WHERE organisation_id=? AND refund_of=? AND status IN ('started','processing')",
+            "SELECT id FROM payment_attempts WHERE organisation_id=? AND refund_of=? AND status IN ('started','processing','unknown')",
             fresh.id,
             refundOf,
           )
         )
-          fail(409, 'A refund for this payment is already under way.')
+          fail(
+            409,
+            'A refund for this payment is already under way or unclear. Check that one first.',
+          )
         if (data.amountMinor > remaining)
           fail(409, 'This is more than is left to refund on this card payment.')
         rehearse(fresh, {

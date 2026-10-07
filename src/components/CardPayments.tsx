@@ -128,6 +128,19 @@ function useCharge(onDone: () => void) {
       setBusy(false)
     }
   }
+  /** Asks the provider again about an unclear answer, as the same request; it never charges twice. */
+  async function check(id = attempt?.id) {
+    if (!id) return
+    setBusy(true)
+    setError('')
+    try {
+      await settle(await api<Attempt>(`${base}/payments/${id}/check`, { method: 'POST', body: {} }))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'The payment provider could not be asked again.')
+    } finally {
+      setBusy(false)
+    }
+  }
   async function tap(approve: boolean) {
     if (!attempt) return
     setBusy(true)
@@ -144,17 +157,19 @@ function useCharge(onDone: () => void) {
       setBusy(false)
     }
   }
-  return { attempt, error, busy, charge, tap, clear: () => setAttempt(null) }
+  return { attempt, error, busy, charge, check, tap, clear: () => setAttempt(null) }
 }
 
 function AttemptState({
   attempt,
   busy,
   onTap,
+  onCheck,
 }: {
   attempt: Attempt
   busy: boolean
   onTap: (approve: boolean) => void
+  onCheck: () => void
 }) {
   const { state } = useStore()
   return (
@@ -182,6 +197,11 @@ function AttemptState({
           )}
         </>
       )}
+      {attempt.status === 'unknown' && attempt.route !== 'reader' && (
+        <Button variant="secondary" disabled={busy} onClick={onCheck}>
+          Check again
+        </Button>
+      )}
       {attempt.status === 'succeeded' && attempt.testMode && <p>Test mode: no money moved.</p>}
     </div>
   )
@@ -201,7 +221,7 @@ export function CardCheckout({
 }) {
   const { state, blocked } = useStore()
   const { reply, error: loadError } = usePayments({ appointmentId })
-  const { attempt, error, busy, charge, tap } = useCharge(() => undefined)
+  const { attempt, error, busy, charge, check, tap } = useCharge(() => undefined)
   const [route, setRoute] = useState('')
   if (!reply) return <ErrorMessage error={loadError} />
   const options = [
@@ -243,7 +263,14 @@ export function CardCheckout({
           </label>
         ))}
       </fieldset>
-      {attempt && <AttemptState attempt={attempt} busy={busy} onTap={(ok) => void tap(ok)} />}
+      {attempt && (
+        <AttemptState
+          attempt={attempt}
+          busy={busy}
+          onTap={(ok) => void tap(ok)}
+          onCheck={() => void check()}
+        />
+      )}
       <ErrorMessage error={error} />
       <Button
         disabled={blocked || busy || waiting || !chosen || amountMinor <= 0}
@@ -278,7 +305,7 @@ export function CardCheckout({
 export function VisitCardPanel({ appointmentId }: { appointmentId: string }) {
   const { state, role, blocked } = useStore()
   const { reply, error: loadError, load } = usePayments({ appointmentId })
-  const { attempt, error, busy, charge } = useCharge(load)
+  const { attempt, error, busy, charge, check } = useCharge(load)
   const [fee, setFee] = useState('')
   if (!reply?.available) return loadError ? <ErrorMessage error={loadError} /> : null
   const card = reply.cards[0]
@@ -355,7 +382,14 @@ export function VisitCardPanel({ appointmentId }: { appointmentId: string }) {
           {!card && <p className="subtle">A fee needs a saved card.</p>}
         </div>
       )}
-      {attempt && <AttemptState attempt={attempt} busy={busy} onTap={() => undefined} />}
+      {attempt && (
+        <AttemptState
+          attempt={attempt}
+          busy={busy}
+          onTap={() => undefined}
+          onCheck={() => void check()}
+        />
+      )}
       <ErrorMessage error={error} />
       {attention.length > 0 && (
         <ul className="card-attention">
@@ -365,6 +399,11 @@ export function VisitCardPanel({ appointmentId }: { appointmentId: string }) {
                 {purposeLabel[a.purpose]}: {statusLabel[a.status]}
               </strong>
               {a.detail && <span>{a.detail}</span>}
+              {a.status === 'unknown' && a.route !== 'reader' && (
+                <Button variant="quiet" disabled={busy || blocked} onClick={() => void check(a.id)}>
+                  Check again
+                </Button>
+              )}
             </li>
           ))}
         </ul>
@@ -560,7 +599,7 @@ export function CardRefund({
   onDone: () => void
 }) {
   const { state, blocked, role } = useStore()
-  const { attempt, error, busy, charge } = useCharge(onDone)
+  const { attempt, error, busy, charge, check } = useCharge(onDone)
   const [amount, setAmount] = useState(minorInput(maxMinor))
   const [reason, setReason] = useState('')
   const amountMinor = parseMinor(amount, 0)
@@ -610,7 +649,14 @@ export function CardRefund({
           />
         </label>
       </div>
-      {attempt && <AttemptState attempt={attempt} busy={busy} onTap={() => undefined} />}
+      {attempt && (
+        <AttemptState
+          attempt={attempt}
+          busy={busy}
+          onTap={() => undefined}
+          onCheck={() => void check()}
+        />
+      )}
       <ErrorMessage error={error} />
       <div className="ops-actions">
         <Button type="submit" disabled={!valid || busy || blocked || !can(role, 'refund')}>

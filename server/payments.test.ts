@@ -186,6 +186,27 @@ describe('card payments (PILOT-02)', () => {
     expect(again.statusCode).toBe(409)
   })
 
+  it('opens one payment page at a time, and a guest who leaves it can start again', async () => {
+    const { serviceId, staffId, slug } = await localStudio()
+    const { token } = await book(slug, serviceId, staffId, '2026-10-09')
+    const open = () =>
+      api.inject({
+        method: 'POST',
+        url: '/api/guest/pay',
+        payload: { token, purpose: 'deposit', saveCard: false },
+      })
+    expect((await open()).statusCode).toBe(200)
+    expect((await guestView(token)).payment!.pending).toBe(true)
+    expect((await open()).statusCode).toBe(409)
+    const left = await api.inject({
+      method: 'POST',
+      url: '/api/guest/pay/cancel',
+      payload: { token },
+    })
+    expect(left.statusCode).toBe(200)
+    expect((await open()).statusCode).toBe(200)
+  })
+
   it('records nothing when the test card declines', async () => {
     const { owner, serviceId, staffId, slug } = await localStudio()
     const { token } = await book(slug, serviceId, staffId, '2026-10-09')
@@ -462,6 +483,47 @@ describe('Stripe adapter (unverified against a live account)', () => {
       reference: 'pi_reader',
       processor: { provider: 'stripe', live: false },
     })
+  })
+
+  it('treats a Stripe server error as unclear, blocks a second charge, and checks with the same key', async () => {
+    const keys: string[] = []
+    let answer = 500
+    const provider = stripeProvider({
+      secretKey: 'sk_test_fictional',
+      webhookSecret: secret,
+      now: () => clock,
+      fetcher: async (_url, init) => {
+        keys.push((init!.headers as Record<string, string>)['Idempotency-Key'])
+        return answer === 500
+          ? new Response(JSON.stringify({ error: { type: 'api_error' } }), { status: 500 })
+          : new Response(JSON.stringify({ id: 'pi_once', status: 'succeeded' }), { status: 200 })
+      },
+    })
+    start(provider)
+    const { owner, serviceId, staffId, slug } = await localStudio()
+    const { appointmentId } = await book(slug, serviceId, staffId)
+    await run(owner, { type: 'arrive', appointmentId })
+    api.database.run(
+      `INSERT INTO saved_cards(id,organisation_id,client_id,provider,customer_ref,method_ref,brand,last4,exp_month,exp_year,agreed,created_at)
+       VALUES('card-1',?,?,'stripe','cus_1','pm_1','Visa','4242',12,2029,'Fictional terms',?)`,
+      owner.orgId,
+      (await workspace(owner)).state.appointments.find((a) => a.id === appointmentId)!.clientId,
+      clock,
+    )
+    const body = { appointmentId, purpose: 'balance', route: 'saved_card', amountMinor: 9500 }
+    const first = (await pay(owner, body)).json<Attempt>()
+    expect(first.status).toBe('unknown')
+    expect((await pay(owner, body)).statusCode).toBe(409)
+    answer = 200
+    const checked = await api.inject({
+      method: 'POST',
+      url: `/api/workspaces/${owner.orgId}/payments/${first.id}/check`,
+      headers: headers(owner),
+      payload: {},
+    })
+    expect(checked.json<Attempt>().status).toBe('succeeded')
+    expect(keys).toEqual([first.id, first.id])
+    expect((await workspace(owner)).state.sales).toHaveLength(1)
   })
 
   it('refuses to start Stripe without its keys', () => {

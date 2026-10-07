@@ -9,6 +9,7 @@ export { feeAllowed }
 import { operations, visitTax } from '../../src/domain/operations'
 import type { BusinessState } from '../../src/domain/model'
 import type { Context, Org } from '../context'
+import { HOSTED_MINUTES } from './providers'
 import type { PayOutcome, PaymentEvent, PaymentProvider, SavedCardDetails } from './providers'
 
 export type Purpose = 'deposit' | 'balance' | 'fee' | 'save_card' | 'refund'
@@ -291,10 +292,14 @@ export function guestPaymentFor(ctx: Context, org: Org, appointmentId: string) {
     a.clientId,
     ctx.paymentProvider.name,
   )
+  // An open payment page, a payment being confirmed, or an unclear answer all block a second
+  // page, so a guest cannot pay the same deposit twice from two tabs.
   const pending = !!ctx.db.get(
-    "SELECT id FROM payment_attempts WHERE organisation_id=? AND appointment_id=? AND purpose IN ('deposit','save_card') AND status='processing'",
+    `SELECT id FROM payment_attempts WHERE organisation_id=? AND appointment_id=? AND purpose IN ('deposit','save_card')
+     AND (status IN ('processing','unknown') OR (status='started' AND created_at>?))`,
     org.id,
     appointmentId,
+    ctx.now() - (HOSTED_MINUTES + 1) * 60000,
   )
   return guestPayment(org.state, appointmentId, ctx.now(), {
     testMode: !ctx.paymentProvider.live,

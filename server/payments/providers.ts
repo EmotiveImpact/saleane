@@ -73,6 +73,8 @@ export type PaymentProvider = {
   }) => Promise<PayOutcome>
   /** Detaches a saved card from the provider's customer, so it can never be charged again. */
   removeCard: (methodRef: string) => Promise<boolean>
+  /** Closes a guest's unpaid payment page. False when it can no longer be closed (it was paid). */
+  closeHosted: (providerRef: string) => Promise<boolean>
   /** Verifies a webhook and reads its events; null when it is not genuine. */
   events: (request: {
     headers: Record<string, string | undefined>
@@ -115,6 +117,9 @@ export function testPaymentProvider(origin: string): PaymentProvider {
     async removeCard() {
       return true
     },
+    async closeHosted() {
+      return true
+    },
     // Test events come from SALEANE's own test page, never from a webhook.
     async events() {
       return null
@@ -124,6 +129,8 @@ export function testPaymentProvider(origin: string): PaymentProvider {
 
 type Fetch = typeof fetch
 const TIMEOUT_MS = 20000
+/** How long a guest's payment page stays open. */
+export const HOSTED_MINUTES = 30
 
 /** Stripe: Checkout for guests, saved cards off-session, server-driven Terminal readers, refunds. */
 export function stripeProvider(config: {
@@ -181,6 +188,15 @@ export function stripeProvider(config: {
           }
         : { status: 'unknown', detail: 'The connection dropped before the provider answered.' }
     if (result.status >= 200 && result.status < 300) return read(result.json)
+    // A server error or a clash with a request still running may follow a completed charge;
+    // only the same idempotency key can safely find out.
+    const kind = (result.json.error as { type?: string } | undefined)?.type
+    if (result.status >= 500 || result.status === 409 || kind === 'idempotency_error')
+      return {
+        status: 'unknown',
+        detail:
+          'The payment provider did not give a clear answer. Check again before trying anything else.',
+      }
     return {
       status: 'failed',
       detail: message(result.json, `Refused by the provider (${result.status}).`),
@@ -239,6 +255,8 @@ export function stripeProvider(config: {
         success_url: input.returnUrl,
         cancel_url: input.cancelUrl,
         'metadata[attempt]': input.attemptId,
+        // Stripe's shortest life for a payment page; an unpaid page closes on its own after it.
+        expires_at: String(Math.floor(now() / 1000) + HOSTED_MINUTES * 60),
         ...(customer ? { customer } : { customer_email: input.email }),
       }
       if (input.mode === 'payment') {
@@ -319,6 +337,10 @@ export function stripeProvider(config: {
             : { status: 'failed', detail: 'The provider could not refund this payment.' },
       )
     },
+    async closeHosted(providerRef) {
+      const result = await call(`checkout/sessions/${encodeURIComponent(providerRef)}/expire`, {})
+      return !('error' in result) && result.status === 200
+    },
     async removeCard(methodRef) {
       const result = await call(`payment_methods/${encodeURIComponent(methodRef)}/detach`, {})
       return !('error' in result) && result.status === 200
@@ -382,6 +404,15 @@ export function stripeProvider(config: {
                 { error: object.last_payment_error ?? object.last_setup_error },
                 'The card was declined.',
               ),
+            },
+          ]
+        case 'checkout.session.expired':
+          return [
+            {
+              attemptId,
+              providerRef: id,
+              status: 'failed',
+              detail: 'The payment page closed unpaid.',
             },
           ]
         case 'refund.updated':
