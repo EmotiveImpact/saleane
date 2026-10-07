@@ -7,11 +7,19 @@ import { dateLabel, money, timeLabel } from '../domain/format'
 import { Button, ErrorMessage, Status } from '../design'
 import { BeforeYouArrive } from '../components/BeforeYouArrive'
 import { AddToCalendar } from '../components/AddToCalendar'
+import { GuestPayment } from '../components/GuestPayment'
+import { returnNote, returnedToken } from '../state/guestReturn'
 import '../guest.css'
 
-/** The token stays in the address fragment, which browsers never send to a server. */
+/**
+ * The token stays in the address fragment, which browsers never send to a server. Coming back
+ * from the payment page, it is read from this tab's storage instead and put back in the address.
+ */
 function linkToken() {
-  return window.location.hash.slice(1)
+  const token = window.location.hash.slice(1) || returnedToken()
+  if (token && !window.location.hash)
+    window.history.replaceState(null, '', `/manage${window.location.search}#${token}`)
+  return token
 }
 
 /**
@@ -27,6 +35,7 @@ export function ManageVisit() {
   const [confirming, setConfirming] = useState(false)
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
+  const [paymentNote] = useState(() => returnNote(window.location.search))
 
   async function load() {
     const next = guestViewSchema.parse(
@@ -40,7 +49,10 @@ export function ManageVisit() {
     if (!token) return
     ;(async () => {
       try {
-        await load()
+        const first = await load()
+        // A payment confirmation can arrive a moment after the guest returns; look once more.
+        if (paymentNote && (first.payment?.pending || first.payment?.depositDueMinor))
+          setTimeout(() => void load().catch(() => null), 4000)
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Your visit could not be loaded.')
       }
@@ -142,6 +154,15 @@ export function ManageVisit() {
             <dt>With</dt>
             <dd>{visit.professional}</dd>
           </div>
+          {deposit.paidMinor > 0 && (
+            <div>
+              <dt>Deposit</dt>
+              <dd>
+                {paid} paid
+                {deposit.simulated && <small>Simulated in the sample studio</small>}
+              </dd>
+            </div>
+          )}
           <div>
             <dt>Status</dt>
             <dd>
@@ -149,6 +170,18 @@ export function ManageVisit() {
             </dd>
           </div>
         </dl>
+        {paymentNote && (
+          <p className="guest-notice" role="status">
+            {paymentNote.startsWith('Thank you') &&
+            !view.payment?.pending &&
+            !view.payment?.depositDueMinor
+              ? 'Thank you. That went through.'
+              : paymentNote}
+          </p>
+        )}
+        {view.payment && !done && (
+          <GuestPayment token={token} payment={view.payment} organisation={org} />
+        )}
         {visit.status === 'confirmed' && (
           <>
             <BeforeYouArrive studioNote={arrival.studioNote} serviceNote={arrival.serviceNote} />
@@ -211,8 +244,8 @@ export function ManageVisit() {
           )
         )}
         <p className="guest-footnote">
-          To move your visit, contact the studio. This private link was not sent by email; keep it
-          to yourself.
+          To move your visit, contact the studio. This link is private to you; please keep it to
+          yourself.
         </p>
       </section>
     </main>

@@ -40,6 +40,7 @@ const DesignLanguage = lazy(() =>
 import { AccessPanel } from './components/AccessPanel'
 import { PractitionerDay } from './pages/PractitionerDay'
 import { ManageVisit } from './pages/ManageVisit'
+import { TestPayment } from './pages/TestPayment'
 import './account.css'
 
 const navigation = [
@@ -78,6 +79,7 @@ function WorkspaceApp() {
       : (navigation.find((n) => location.pathname.startsWith(n.to))?.label ?? 'Today')
   if (location.pathname === '/account' || location.pathname === '/join') return <Account />
   if (location.pathname === '/manage') return <ManageVisit />
+  if (location.pathname === '/pay/test') return <TestPayment />
   if (location.pathname.startsWith('/practice/'))
     return (
       <Routes>
@@ -233,7 +235,9 @@ function WorkspaceApp() {
               ? 'Fictional demo. Records are saved in this browser.'
               : state.operations?.mode === 'sandbox'
                 ? 'Local sample studio. Fictional appointments and simulated payments.'
-                : 'Local studio. Payments are recorded by hand and email sending is not connected yet.'}
+                : session?.services.payments || session?.services.email
+                  ? 'Local studio. Connected services are named in Settings.'
+                  : 'Local studio. Messages and card payments run in test mode: nothing is sent or charged.'}
           </span>
           <button onClick={() => openSettings('workspace')}>About this version</button>
         </section>

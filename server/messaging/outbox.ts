@@ -1,10 +1,8 @@
 import { randomUUID } from 'node:crypto'
-import { parseState } from '../../src/domain/model'
-import type { BusinessState } from '../../src/domain/model'
 import { MANAGE_LINK, channelsFor, planMessages, visitSlot } from '../../src/domain/reminders'
 import type { MessageChannel, MessageKind, OutboxStatus } from '../../src/domain/reminders'
 import { operations } from '../../src/domain/operations'
-import type { Context, Org } from '../context'
+import type { Context } from '../context'
 import { issueGuestLink } from '../routes/guest'
 import type { Providers, Receipt } from './providers'
 
@@ -34,22 +32,6 @@ export const MAX_ATTEMPTS = 3
 const RETRY_MS = [60000, 5 * 60000]
 const BATCH = 50
 
-function loadOrg(ctx: Context, id: string): Org | null {
-  const row = ctx.db.get<{ id: string; slug: string; state: string }>(
-    'SELECT id,slug,state FROM organisations WHERE id=?',
-    id,
-  )
-  if (!row) return null
-  const raw = JSON.parse(row.state) as BusinessState
-  return {
-    id: row.id,
-    slug: row.slug,
-    state: parseState(raw, raw.organisation.region),
-    role: 'owner',
-    staffId: null,
-  }
-}
-
 /**
  * The outbox: plans confirmations and reminders from studio records, then hands each one to the
  * configured provider exactly once. Messages live in their own table rather than the studio
@@ -65,7 +47,7 @@ export function createOutbox(ctx: Context, providers: Providers) {
       "SELECT id FROM organisations WHERE json_extract(state,'$.operations.mode')='local'",
     )
     for (const { id } of orgs) {
-      const org = loadOrg(ctx, id)
+      const org = ctx.systemOrg(id)
       if (!org) continue
       const recorded = db
         .all<Pick<OutboxRow, 'appointment_id' | 'kind' | 'channel' | 'slot' | 'status'>>(
@@ -126,7 +108,7 @@ export function createOutbox(ctx: Context, providers: Providers) {
         row.id,
       )
       if (!fresh) return null
-      const org = loadOrg(ctx, fresh.organisation_id)
+      const org = ctx.systemOrg(fresh.organisation_id)
       const visit = org?.state.appointments.find((a) => a.id === fresh.appointment_id)
       const client = org?.state.clients.find((c) => c.id === fresh.client_id)
       const skip = (detail: string) => {

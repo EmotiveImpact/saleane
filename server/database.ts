@@ -107,6 +107,36 @@ export const migrations: Migration[] = [
         CREATE INDEX guest_links_visit ON guest_links(organisation_id,appointment_id);
       `),
   },
+  {
+    version: 5,
+    // PILOT-02: each card payment, saved card and card refund the provider handles.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE payment_attempts (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          appointment_id TEXT NOT NULL, client_id TEXT NOT NULL,
+          purpose TEXT NOT NULL CHECK(purpose IN ('deposit','balance','fee','save_card','refund')),
+          route TEXT NOT NULL CHECK(route IN ('hosted','saved_card','reader','refund')),
+          amount_minor INTEGER NOT NULL CHECK(amount_minor>=0), currency TEXT NOT NULL,
+          tip_minor INTEGER NOT NULL DEFAULT 0, discount_minor INTEGER NOT NULL DEFAULT 0,
+          save_card INTEGER NOT NULL DEFAULT 0, refund_of TEXT, reason TEXT,
+          provider TEXT NOT NULL, provider_ref TEXT,
+          status TEXT NOT NULL CHECK(status IN ('started','processing','succeeded','failed','unknown','review')),
+          detail TEXT, ledger_id TEXT, request_key TEXT, actor_id TEXT,
+          created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+        ) STRICT;
+        CREATE INDEX payment_attempts_visit ON payment_attempts(organisation_id,appointment_id);
+        CREATE UNIQUE INDEX payment_attempts_key ON payment_attempts(organisation_id,actor_id,request_key) WHERE request_key IS NOT NULL;
+        CREATE TABLE saved_cards (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          client_id TEXT NOT NULL, provider TEXT NOT NULL, customer_ref TEXT NOT NULL, method_ref TEXT NOT NULL,
+          brand TEXT NOT NULL, last4 TEXT NOT NULL, exp_month INTEGER NOT NULL, exp_year INTEGER NOT NULL,
+          agreed TEXT NOT NULL, created_at INTEGER NOT NULL, removed_at INTEGER,
+          UNIQUE(organisation_id,provider,method_ref)
+        ) STRICT;
+        CREATE INDEX saved_cards_client ON saved_cards(organisation_id,client_id);
+      `),
+  },
 ]
 export const SCHEMA_VERSION = migrations[migrations.length - 1].version
 

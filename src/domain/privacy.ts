@@ -41,6 +41,7 @@ const METHOD = {
   demo_cash: 'Demo cash (fictional, no money moved)',
   cash: 'Cash received at the studio',
   external_card: 'Card taken on an external terminal',
+  card: 'Card processed by the payment provider',
 } as const
 const THIRD_PARTY = 'Linked to another client. Their details are withheld as third-party data.'
 const clock = (minutes: number) =>
@@ -75,6 +76,13 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
     .filter((s) => ref.has(s.appointmentId))
     .sort((a, b) => a.paidAt.localeCompare(b.paidAt))
   const receipt = (saleId?: string) => sales.find((s) => s.id === saleId)?.receiptNumber
+  /** The client's visit a refund belongs to, through its receipt or its deposit or fee payment. */
+  const refundVisit = (r: { saleId?: string; paymentId?: string }) => {
+    const visit = r.saleId
+      ? sales.find((s) => s.id === r.saleId)?.appointmentId
+      : state.payments.find((p) => p.id === r.paymentId)?.appointmentId
+    return visit && ref.has(visit) ? visit : undefined
+  }
   const events = state.events
     .filter((e) => e.clientId === client.id)
     .sort((a, b) => a.occurredAt.localeCompare(b.occurredAt))
@@ -142,10 +150,10 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
         ...(p.reference ? { reference: p.reference } : {}),
       })),
     refunds: ops.refunds
-      .filter((r) => sales.some((s) => s.id === r.saleId))
+      .filter((r) => refundVisit(r))
       .map((r) => ({
-        visit: ref.get(sales.find((s) => s.id === r.saleId)!.appointmentId)!,
-        receiptNumber: receipt(r.saleId) ?? 'Not numbered',
+        visit: ref.get(refundVisit(r)!)!,
+        receiptNumber: receipt(r.saleId) ?? (r.paymentId ? 'Deposit or fee' : 'Not numbered'),
         amountMinor: r.amountMinor,
         reason: r.reason,
         reference: r.reference,
@@ -359,7 +367,11 @@ export function erasureReview(
       },
       {
         label: 'Refunds',
-        count: ops.refunds.filter((r) => sales.some((s) => s.id === r.saleId)).length,
+        count: ops.refunds.filter(
+          (r) =>
+            sales.some((s) => s.id === r.saleId) ||
+            state.payments.some((p) => p.id === r.paymentId && visitIds.has(p.appointmentId)),
+        ).length,
         reason: 'Part of the money history for each receipt.',
       },
       {
