@@ -321,7 +321,7 @@ export function execute(
         })
         if (command.waitlistId)
           fillFromWaitlist(next, command.waitlistId, appointment, now, 'move', from.date)
-        followMovedVisit(next, appointment)
+        followMovedVisit(s, next, appointment, now)
       } else {
         const status = command.type === 'cancel' ? 'cancelled' : 'no_show'
         if (appointment.status === status) return { ok: true, state: s, recordId: appointment.id }

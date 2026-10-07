@@ -274,9 +274,21 @@ export function staleOffer(s: BusinessState, messageId: string, now: string) {
  * After the desk moves a guest's visit to another professional, a request to come in sooner with
  * "their" professional follows the visit, so it matches what the guest's page shows.
  */
-export function followMovedVisit(next: BusinessState, appointment: Appointment) {
+export function followMovedVisit(
+  before: BusinessState,
+  next: BusinessState,
+  appointment: Appointment,
+  now: string,
+) {
+  // Only a request still open before the move follows it; a closed one keeps what the guest chose.
+  const open = new Set(
+    waitlistList(before)
+      .filter((e) => isOpen(before, e, now))
+      .map((e) => e.id),
+  )
   for (const entry of next.waitlist ?? [])
     if (
+      open.has(entry.id) &&
       entry.status === 'waiting' &&
       entry.appointmentId === appointment.id &&
       entry.staffId &&

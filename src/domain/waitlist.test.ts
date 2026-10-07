@@ -466,6 +466,20 @@ describe('waitlist', () => {
       staffId: 'staff-sophia',
     })
     expect(waiting(moved).find((e) => e.appointmentId === visit.id)!.staffId).toBe('staff-sophia')
+
+    // A request whose dates have passed keeps the professional the guest chose.
+    const ended = structuredClone(joined)
+    const request = ended.waitlist!.find((e) => e.appointmentId === visit.id)!
+    request.toDate = '2026-10-05'
+    const chosen = request.staffId
+    const movedLater = apply(ended, {
+      type: 'reschedule',
+      appointmentId: visit.id,
+      date: visit.date,
+      startMinutes: visit.startMinutes,
+      staffId: 'staff-sophia',
+    })
+    expect(movedLater.waitlist!.find((e) => e.id === request.id)!.staffId).toBe(chosen)
   })
 
   it('checks an offer again when it is approved, and exports a withdrawn one honestly', () => {
