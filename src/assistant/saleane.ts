@@ -1,0 +1,329 @@
+import { z } from 'zod'
+import { actionSkill, readSkill, SkillRefusal } from '../../lumane'
+import type { Allowance, Skill } from '../../lumane'
+import { commandSchema, rescheduleResource } from '../domain/commands'
+import type { Command } from '../domain/commands'
+import { addDays, money, timeLabel } from '../domain/format'
+import type { BusinessState } from '../domain/model'
+import { businessDate, can, operations, stock } from '../domain/operations'
+import type { Role } from '../domain/operations'
+import { holdings, planStanding } from '../domain/plans'
+import {
+  clientStats,
+  dayAppointments,
+  dueClients,
+  report,
+  staffDay,
+  usualWeeks,
+} from '../domain/selectors'
+
+/**
+ * Ask Saleane: SALEANE's skills for the Lumane assistant engine.
+ *
+ * This first set is for owners, managers and reception, who already read the whole studio.
+ * Practitioners only ever receive their own `PractitionerView` (LOCAL-01), so their assistant
+ * will be built on that view rather than by filtering the whole studio here.
+ *
+ * Read skills answer from the studio record. Action skills return a SALEANE command that is
+ * carried out only after a person approves it, through the same permission and revision checks
+ * as the desk. A drafted message is saved unsent; nothing here sends, charges or books anything.
+ */
+export type AskContext = { state: BusinessState; role: Role; today: string }
+
+/** Plan allowances. Every amount here costs the business at most about half what the plan earns. */
+export const ALLOWANCES = {
+  included: {
+    monthly: { typed: 300, talkSeconds: 30 * 60, guestChats: 200 },
+    dailySpendCeilingMinor: 150,
+    perPersonHourly: 30,
+    maxTalkSessionSeconds: 10 * 60,
+  },
+  plus: {
+    monthly: { typed: 800, talkSeconds: 150 * 60, guestChats: 500 },
+    dailySpendCeilingMinor: 400,
+    perPersonHourly: 30,
+    maxTalkSessionSeconds: 10 * 60,
+  },
+} satisfies Record<string, Allowance>
+
+export const INSTRUCTIONS = `You are Ask Saleane, the assistant inside SALEANE for a beauty, spa or wellness studio.
+Write in warm, plain British English for a busy owner or receptionist. Lead with the answer. Keep it short.
+Only state facts the skills return. If a skill has no answer, say so; never guess names, times or amounts.
+You can only propose changes. Every proposal waits for a person to approve it. Never say a message was sent,
+a payment was taken or a visit was moved: say what you have prepared for them to approve.
+Only offer marketing messages to clients who agreed to them. Never share one client's details with another.`
+
+const studio = (ctx: AskContext) => ctx.role !== 'practitioner' && can(ctx.role, 'read')
+const managers = (ctx: AskContext) => ctx.role === 'owner' || ctx.role === 'manager'
+const cash = (ctx: AskContext, minor: number) => money(minor, ctx.state.organisation)
+const time = (ctx: AskContext, minutes: number) => timeLabel(minutes, ctx.state.organisation.locale)
+const name = (s: BusinessState, kind: 'clients' | 'services' | 'staff' | 'resources', id: string) =>
+  s[kind].find((item) => item.id === id)?.name ?? 'Unknown'
+
+const isoDate = z.iso.date()
+
+export function askSaleaneSkills(): Skill<AskContext, Command>[] {
+  return [
+    readSkill<AskContext, { date?: string }>({
+      name: 'day_overview',
+      description:
+        "The studio's visits for a day (today unless a date is given): times, clients, first visits, who is free and when.",
+      input: z.object({ date: isoDate.optional() }).strict(),
+      allowed: studio,
+      run(ctx, { date = ctx.today }) {
+        const s = ctx.state
+        const visits = dayAppointments(s, date).map((a) => ({
+          appointmentId: a.id,
+          time: time(ctx, a.startMinutes),
+          client: name(s, 'clients', a.clientId),
+          clientId: a.clientId,
+          service: a.bookedServiceName ?? name(s, 'services', a.serviceId),
+          professional: name(s, 'staff', a.staffId),
+          room: name(s, 'resources', a.resourceId),
+          status: a.status,
+          firstVisit: !s.appointments.some(
+            (b) => b.clientId === a.clientId && b.status === 'completed' && b.date < date,
+          ),
+        }))
+        const free = s.staff
+          .filter((p) => !p.archived)
+          .map((p) => ({ person: p, day: staffDay(s, p.id, date, 30) }))
+          .filter(({ day }) => day.working)
+          .map(({ person, day }) => ({
+            professional: person.name,
+            staffId: person.id,
+            freeTimes: day.segments
+              .filter((seg) => seg.kind === 'free')
+              .map((seg) => `${time(ctx, seg.from)} to ${time(ctx, seg.to)}`),
+          }))
+        return { date, visits, free }
+      },
+    }),
+    readSkill<AskContext, { name: string }>({
+      name: 'find_client',
+      description: 'Find clients by part of their name. Returns ids for the other skills.',
+      input: z.object({ name: z.string().trim().min(2).max(100) }).strict(),
+      allowed: studio,
+      run(ctx, input) {
+        const query = input.name.toLowerCase()
+        return ctx.state.clients
+          .filter((c) => c.name.toLowerCase().includes(query))
+          .slice(0, 8)
+          .map((c) => ({ clientId: c.id, name: c.name }))
+      },
+    }),
+    readSkill<AskContext, { clientId: string }>({
+      name: 'client_brief',
+      description:
+        'A short brief on one client before their visit: preferences, last and next visit, plans and whether they agreed to marketing.',
+      input: z.object({ clientId: z.string().min(1) }).strict(),
+      allowed: studio,
+      run(ctx, { clientId }) {
+        const s = ctx.state
+        const client = s.clients.find((c) => c.id === clientId)
+        if (!client) throw new SkillRefusal('There is no client with that id.')
+        const stats = clientStats(s, clientId)
+        const visit = (a: typeof stats.last) =>
+          a && {
+            date: a.date,
+            time: time(ctx, a.startMinutes),
+            service: a.bookedServiceName ?? name(s, 'services', a.serviceId),
+            professional: name(s, 'staff', a.staffId),
+          }
+        return {
+          name: client.name,
+          preferences: client.preferences,
+          completedVisits: stats.visits,
+          lastVisit: visit(stats.last),
+          nextVisit: visit(stats.next),
+          marketingConsent: client.marketingConsent,
+          plans: holdings(s)
+            .filter((h) => h.clientId === clientId)
+            .map((h) => ({ name: h.name, ...pick(planStanding(h, ctx.today)) })),
+        }
+      },
+    }),
+    readSkill<AskContext, Record<string, never>>({
+      name: 'due_back',
+      description:
+        'Regulars who have not been in for four weeks or more and have nothing booked, with their usual gap and marketing consent. Use to fill a gap in the diary.',
+      input: z.object({}).strict(),
+      allowed: studio,
+      run(ctx) {
+        const s = ctx.state
+        return dueClients(s).map((c) => {
+          const dates = s.appointments
+            .filter((a) => a.clientId === c.id && a.status === 'completed')
+            .map((a) => a.date)
+          return {
+            clientId: c.id,
+            name: c.name,
+            lastVisit: clientStats(s, c.id).last?.date,
+            usualWeeks: usualWeeks(dates),
+            marketingConsent: c.marketingConsent,
+          }
+        })
+      },
+    }),
+    readSkill<AskContext, { days: number }>({
+      name: 'takings',
+      description:
+        'Service takings, tips, completed visits and rebooking rate over the last few days (1 for today).',
+      input: z.object({ days: z.number().int().min(1).max(90) }).strict(),
+      allowed: managers,
+      run(ctx, { days }) {
+        const r = report(ctx.state, days)
+        const top = [...r.byService].sort((a, b) => b.revenue - a.revenue)[0]
+        return {
+          from: r.from,
+          to: ctx.today,
+          takings: cash(ctx, r.revenue),
+          tips: cash(ctx, r.tips),
+          completedVisits: r.completed,
+          rebookRate: r.rebookRate === null ? null : `${Math.round(r.rebookRate * 100)}%`,
+          topService: top?.revenue ? top.service.name : null,
+        }
+      },
+    }),
+    readSkill<AskContext, Record<string, never>>({
+      name: 'money_owed',
+      description: 'Money clients still owe the studio, brought across from its previous system.',
+      input: z.object({}).strict(),
+      allowed: studio,
+      run(ctx) {
+        return (operations(ctx.state).balances ?? [])
+          .filter((b) => b.kind === 'owed' && !b.settled)
+          .map((b) => ({
+            client: name(ctx.state, 'clients', b.clientId),
+            clientId: b.clientId,
+            amount: cash(ctx, b.amountMinor),
+            note: b.note,
+          }))
+      },
+    }),
+    readSkill<AskContext, Record<string, never>>({
+      name: 'plans_running_low',
+      description:
+        'Packages and memberships with one visit or fewer left, or a package ending within two weeks.',
+      input: z.object({}).strict(),
+      allowed: studio,
+      run(ctx) {
+        const soon = addDays(ctx.today, 14)
+        return holdings(ctx.state)
+          .map((h) => ({ h, standing: planStanding(h, ctx.today) }))
+          .filter(
+            ({ h, standing }) =>
+              standing.state === 'active' &&
+              (standing.visitsLeft <= 1 ||
+                (h.kind === 'package' && !!h.endsOn && h.endsOn <= soon)),
+          )
+          .map(({ h, standing }) => ({
+            client: name(ctx.state, 'clients', h.clientId),
+            clientId: h.clientId,
+            plan: h.name,
+            visitsLeft: standing.visitsLeft,
+            endsOn: h.endsOn ?? null,
+          }))
+      },
+    }),
+    readSkill<AskContext, Record<string, never>>({
+      name: 'low_stock',
+      description: 'Products at or below the level where the studio reorders.',
+      input: z.object({}).strict(),
+      allowed: managers,
+      run(ctx) {
+        return operations(ctx.state)
+          .products.filter((p) => !p.archived)
+          .map((p) => ({
+            product: p.name,
+            inStock: stock(ctx.state, p.id),
+            reorderAt: p.reorderAt,
+          }))
+          .filter((p) => p.inStock <= p.reorderAt)
+      },
+    }),
+    actionSkill<
+      AskContext,
+      {
+        clientId: string
+        purpose: 'appointment' | 'marketing'
+        subject: string
+        body: string
+        appointmentId?: string
+      },
+      Command
+    >({
+      name: 'draft_message',
+      description:
+        "Prepare a message to one client and save it unsent in the Inbox. Use purpose 'marketing' for invitations and offers, 'appointment' for messages about a booked visit.",
+      input: z
+        .object({
+          clientId: z.string().min(1),
+          appointmentId: z.string().min(1).optional(),
+          purpose: z.enum(['appointment', 'marketing']),
+          subject: z.string().trim().min(1).max(150),
+          body: z.string().trim().min(1).max(3000),
+        })
+        .strict(),
+      allowed: (ctx) => studio(ctx) && can(ctx.role, 'message'),
+      propose(ctx, input) {
+        const client = ctx.state.clients.find((c) => c.id === input.clientId)
+        if (!client) throw new SkillRefusal('There is no client with that id.')
+        if (input.purpose === 'marketing' && !client.marketingConsent)
+          throw new SkillRefusal(`${client.name} has not agreed to marketing messages.`)
+        const effect = commandSchema.parse({ type: 'message', input })
+        return {
+          summary: `Save a draft to ${client.name}: "${input.subject}". It stays unsent until you send it from the Inbox.`,
+          effect,
+        }
+      },
+    }),
+    actionSkill<
+      AskContext,
+      { appointmentId: string; date: string; startMinutes: number; staffId?: string },
+      Command
+    >({
+      name: 'move_visit',
+      description:
+        'Move a confirmed visit to a new day and time, optionally with another professional. startMinutes is minutes after midnight.',
+      input: z
+        .object({
+          appointmentId: z.string().min(1),
+          date: isoDate,
+          startMinutes: z.number().int().min(0).max(1439),
+          staffId: z.string().min(1).optional(),
+        })
+        .strict(),
+      allowed: (ctx) => studio(ctx) && can(ctx.role, 'reschedule'),
+      propose(ctx, input) {
+        const s = ctx.state
+        const visit = s.appointments.find((a) => a.id === input.appointmentId)
+        if (!visit || visit.status !== 'confirmed')
+          throw new SkillRefusal('Only a confirmed visit can be moved.')
+        const staffId = input.staffId ?? visit.staffId
+        const room = rescheduleResource(s, visit.id, staffId, input.date, input.startMinutes)
+        if (!room) throw new SkillRefusal('That time is not free for this visit.')
+        const effect = commandSchema.parse({
+          type: 'reschedule',
+          appointmentId: visit.id,
+          date: input.date,
+          startMinutes: input.startMinutes,
+          staffId,
+          resourceId: room,
+        })
+        return {
+          summary: `Move ${name(s, 'clients', visit.clientId)}'s ${visit.bookedServiceName ?? name(s, 'services', visit.serviceId)} to ${input.date} at ${time(ctx, input.startMinutes)} with ${name(s, 'staff', staffId)}.`,
+          effect,
+        }
+      },
+    }),
+  ]
+}
+
+function pick(standing: ReturnType<typeof planStanding>) {
+  return { state: standing.state, visitsLeft: standing.visitsLeft }
+}
+
+export function askContext(state: BusinessState, role: Role, now?: string): AskContext {
+  return { state, role, today: businessDate(state, now) }
+}

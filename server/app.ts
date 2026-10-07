@@ -15,6 +15,7 @@ import { messagingRoutes } from './routes/messaging'
 import { createOutbox } from './messaging/outbox'
 import type { Outbox } from './messaging/outbox'
 import { paymentRoutes } from './routes/payments'
+import { assistantRoutes } from './routes/assistant'
 import { createPayments } from './payments/service'
 import type { Payments } from './payments/service'
 
@@ -47,7 +48,12 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   const { origin, allowedOrigin, db, rateLimit } = ctx
   const outbox = createOutbox(ctx, ctx.messaging)
   const payments = createPayments(ctx, ctx.paymentProvider)
-  const routes = [messagingRoutes(outbox), paymentRoutes(payments), ...baseRoutes]
+  const routes = [
+    messagingRoutes(outbox),
+    paymentRoutes(payments),
+    assistantRoutes(),
+    ...baseRoutes,
+  ]
   if (options.outboxIntervalMs) outbox.start(options.outboxIntervalMs)
 
   const handler = (async (

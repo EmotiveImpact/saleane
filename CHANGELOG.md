@@ -10,9 +10,24 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - The London studio runs as a real studio in test mode, so a guest can pay a deposit on the test payment page and messages appear in the Inbox. It starts on today's date without the sample's payment history. New York stays a sample studio.
 - Each studio starts with two sample plans, a five-visit package and a monthly membership, each already held by one client, so the plan screens and the plan choice at checkout have something to show.
 - Each studio also starts with eight private sample ratings from recent visits, so Business > Feedback shows averages, a split by professional and guests' notes.
+- The Ask Saleane button works in the demo in test mode: it answers from the studio's own records, and an invitation it prepares is saved as an unsent draft only after approval.
 - Booking confirmations and reminders appear in test mode for the demo's studios. Nothing is sent or charged. The real app still never sends from sample studios.
 - Changes stay in that browser. Passwords use a simple stand-in there, so the demo is for showing, never for real data.
 - Checked in Chromium at desktop and phone width: Today, Calendar, Clients, Inbox, Business, Settings, a full guest booking, the guest manage page and a checkout receipt. Not checked in Safari or Firefox.
+
+## 2026-10-07 · Lumane · Assistant engine and first Ask Saleane skills
+
+**Status: built locally on 7 October 2026, in review; no real AI connected yet.** Everything runs with a test-mode brain that recognises a few plain questions and answers from the studio record, so nothing is sent to an AI supplier and nothing costs money. Talking (voice), guest chat and the ChatGPT and Claude connection come later.
+
+- Lumane is a separate engine in `lumane/`, built so other products can reuse it. A test makes sure it never imports anything from SALEANE.
+- Skills are either read skills, which answer from the studio's own records, or action skills, which only propose a change. A proposal does nothing until a person approves it, and it expires after 30 minutes.
+- Every request is checked against the studio's monthly allowance (typed requests, talking time, guest chats), a per-person hourly limit and a daily spending ceiling before any AI is called. When a limit is reached the AI is simply not called; there is no silent cheaper fallback. A new month starts from zero.
+- Each question has a cap on how many steps the AI can take, and every answer, proposal and refusal is written to an audit trail.
+- The first Ask Saleane skills cover the day overview, finding a client, a client brief, who is due back, takings and low stock (owners and managers only), money owed and plans running low. Drafting a message and moving a visit are proposals: a draft stays unsent until someone sends it from the Inbox, a move checks the diary for clashes, and marketing drafts are refused without consent.
+- Practitioners get no Ask Saleane skills yet; theirs will be built on `PractitionerView` so they never see a whole studio.
+- An "Ask Saleane" button in the header opens a side panel for owners, managers and reception. It answers what is on today or tomorrow, who is due back, takings, money owed, plans running low, low stock and a brief on a client, and can prepare an invitation for a client to come back. The invitation appears as a suggestion with Approve and Not now; approving saves it as an unsent draft in the Inbox through the same checks as any desk change. The panel shows how many of the month's 300 questions are used.
+- Voices are kept apart from the brain. SALEANE has one default voice; a studio can choose the voice guests hear, and each person can choose their own for talking to the assistant. Guests always hear the studio's voice. The shortlist is a set of candidates for the side-by-side trial of OpenAI and ElevenLabs; no voice is connected yet.
+- Signed in, the server answers and keeps each studio's monthly use in the database (schema version 7), so the allowance holds across restarts. Suggestions stay on the server for 30 minutes, only the person who asked can approve them, and each is decided once; suggesting, approving and declining are recorded in the audit log. In the browser demo the panel works the same way against the demo record.
 
 ## 2026-10-07 · V1.5 · Private client feedback and ratings
 

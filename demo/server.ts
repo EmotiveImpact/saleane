@@ -7,7 +7,7 @@ import { DEMO_DATE } from '../src/domain/model'
 import { exportDatabase, initSqlite } from './shims/sqlite'
 
 const ORIGIN = 'http://saleane.demo'
-const STORE = 'saleane.demo.database.v4'
+const STORE = 'saleane.demo.database.v5'
 export const DEMO_EMAIL = 'owner@atelier.demo'
 export const DEMO_PASSWORD = 'saleane-demo-2026'
 
@@ -16,7 +16,8 @@ let api: ApiHandler
 
 function saved(): Uint8Array | undefined {
   try {
-    for (const old of ['v1', 'v2', 'v3']) localStorage.removeItem(`saleane.demo.database.${old}`)
+    for (const old of ['v1', 'v2', 'v3', 'v4'])
+      localStorage.removeItem(`saleane.demo.database.${old}`)
     const text = localStorage.getItem(STORE)
     return text ? Buffer.from(text, 'base64') : undefined
   } catch {
