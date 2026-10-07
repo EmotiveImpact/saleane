@@ -9,6 +9,7 @@ import { dateLabel, money } from '../domain/format'
 import { parseMinor } from '../domain/money'
 import { Button, ErrorMessage, Modal, Status, PageHeader } from '../design'
 import '../components/management.css'
+import { TillCount } from '../components/TillCount'
 
 const methodLabel = (method: string) =>
   ({
@@ -408,6 +409,7 @@ export function Money() {
           <p>Live payment services remain unconfigured.</p>
         </aside>
       </div>
+      <TillCount />
       {receipt && (
         <Modal
           open
