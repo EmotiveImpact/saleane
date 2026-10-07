@@ -37,7 +37,7 @@ Every V1 job in the long view ([ROADMAP](ROADMAP.md#the-long-view)) has a workin
 ## The short path from here to 1.0
 
 1. Edem confirms the providers already recommended (Postmark, Twilio, Stripe) and the published price.
-2. When hosting is unparked: Neon (Postgres) and a host, then provider test environments end to end.
+2. When hosting is unparked: choose the host, the production Postgres database (Neon is one option under evaluation, not yet approved) and the hosted sign-in, using residency, availability and cost evidence; then run each provider's test environment end to end.
 3. One real, non-clinical studio runs a supervised pilot: switching import, daily operation, reconciliation each day, and a restore drill.
 4. Edem approves the release, and the version becomes 1.0.
 
