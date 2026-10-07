@@ -15,6 +15,12 @@ import { availableAllocation } from './allocation'
 import { runSwitchingCommand } from './switching'
 import { coverVisit, runPlanCommand, stampPlanActors } from './plans'
 import { runGiftCardCommand, spendGiftCard, stampGiftCardActors } from './giftCards'
+import {
+  patchTestBlocksVisit,
+  repeatedPatchResult,
+  runPatchTestCommand,
+  stampPatchTestActors,
+} from './patchTests'
 import { referenceTaken } from './references'
 import { recordFeedback, repeatedFeedback } from './feedback'
 import {
@@ -367,6 +373,8 @@ export function execute(
           return { ok: true, state: s, recordId: appointment.id }
         if (appointment.status !== 'confirmed' || appointment.date !== businessDate(s, now))
           throw new Error('Only a confirmed visit on the venue’s current day can arrive.')
+        const blocked = patchTestBlocksVisit(s, appointment)
+        if (blocked) throw new Error(blocked)
         appointment.status = 'arrived'
         addEvent({
           clientId: appointment.clientId,
@@ -593,6 +601,14 @@ export function execute(
       command.type === 'gift-card-cancel'
     ) {
       recordId = runGiftCardCommand(next, command, now, makeId, addEvent)
+    } else if (
+      command.type === 'patch-test' ||
+      command.type === 'patch-test-result' ||
+      command.type === 'patch-test-settings'
+    ) {
+      const same = command.type === 'patch-test-result' && repeatedPatchResult(s, command)
+      if (same) return { ok: true, state: s, recordId: same.id }
+      recordId = runPatchTestCommand(next, command, now, makeId, addEvent)
     } else {
       recordId = runOperatingCommand(next, command, now, makeId, addEvent)
     }
@@ -628,6 +644,7 @@ export function dispatch(
     })
   stampPlanActors(s, result.state, actorName)
   stampGiftCardActors(s, result.state, actorName)
+  stampPatchTestActors(s, result.state, actorName)
   const counted = new Set((s.tillCounts ?? []).map((c) => c.id))
   for (const count of result.state.tillCounts ?? [])
     if (!counted.has(count.id)) count.actor = actorName

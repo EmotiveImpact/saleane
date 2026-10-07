@@ -281,6 +281,17 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
         spentMinor: c.redemptions.reduce((sum, r) => sum + r.amountMinor, 0),
         returnedMinor: c.refunds.reduce((sum, r) => sum + r.amountMinor, 0),
       })),
+    // V1.5: patch tests done for this client and what was seen.
+    patchTests: (state.patchTests ?? [])
+      .filter((t) => t.clientId === client.id)
+      .map((t) => ({
+        testedAt: t.testedAt,
+        product: t.product,
+        notes: t.notes,
+        doneBy: state.staff.find((p) => p.id === t.staffId)?.name ?? t.actor,
+        result: t.result?.outcome ?? 'not recorded',
+        resultNotes: t.result?.notes ?? '',
+      })),
   }
 }
 export type ClientExport = ReturnType<typeof clientExport>
@@ -309,6 +320,7 @@ export function previewClientExport(file: ClientExport): ExportPreview {
       { label: 'Private feedback they gave', count: file.feedback.length },
       { label: 'Waitlist requests', count: file.waitlist.length },
       { label: 'Gift cards and vouchers they bought', count: file.giftCards.length },
+      { label: 'Patch tests', count: file.patchTests.length },
     ],
     excluded: CLIENT_EXPORT_EXCLUDED,
     notes: [
@@ -368,6 +380,7 @@ export function previewStudioExport(file: StudioExport): ExportPreview {
       { label: 'Private guest feedback, comments as written', count: (r.feedback ?? []).length },
       { label: 'Waitlist requests', count: (r.waitlist ?? []).length },
       { label: 'Gift cards and vouchers', count: (r.giftCards ?? []).length },
+      { label: 'Patch tests', count: (r.patchTests ?? []).length },
       {
         label: 'Services, professionals and spaces',
         count: r.services.length + r.staff.length + r.resources.length,
@@ -493,6 +506,12 @@ export function erasureReview(
           'Money held for whoever has the card. Its balance and spending must stay accountable.',
       },
       {
+        label: 'Patch tests',
+        count: (state.patchTests ?? []).filter((t) => t.clientId === client.id).length,
+        reason:
+          'Shows the studio checked for a reaction before a treatment, in case of a later complaint or claim.',
+      },
+      {
         label: 'Booked visit terms',
         count: visits.length,
         reason: 'Receipts, deposits and the diary depend on the original service, price and time.',
@@ -599,6 +618,12 @@ export function clientExportText(file: ClientExport, locale = 'en-GB') {
     ...file.giftCards.map(
       (c) =>
         `${c.treatment ? `${c.treatment} voucher` : 'Gift card'} · ${amount(c.valueMinor, cur, locale)}${c.recipientName ? ` for ${c.recipientName}` : ''} · ${c.issuedOn} to ${c.expiresOn} · spent ${amount(c.spentMinor, cur, locale)} · ${c.status}`,
+    ),
+    '',
+    `PATCH TESTS (${file.patchTests.length})`,
+    ...file.patchTests.map(
+      (t) =>
+        `${t.testedAt.slice(0, 10)} · ${t.product} · by ${t.doneBy} · ${t.result}${t.resultNotes ? ` · ${t.resultNotes}` : ''}${t.notes ? ` · ${t.notes}` : ''}`,
     ),
     '',
     `MESSAGES (${file.messages.length}), none sent`,

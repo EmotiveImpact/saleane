@@ -4,6 +4,7 @@ import {
   channelsFor,
   planMessages,
   feedbackDue,
+  patchTestReminderDue,
   visitSlot,
 } from '../../src/domain/reminders'
 import type { MessageChannel, MessageKind, OutboxStatus } from '../../src/domain/reminders'
@@ -137,6 +138,11 @@ export function createOutbox(ctx: Context, providers: Providers) {
         !feedbackDue(org.state, visit, visitStart(org.state, visit.id), now())
       )
         return skip('Answered, turned off or too late before it went out.')
+      if (
+        fresh.kind === 'patch_test' &&
+        !patchTestReminderDue(org.state, visit, visitStart(org.state, visit.id), now())
+      )
+        return skip('A patch test was recorded, or it was too late, before it went out.')
       if (fresh.kind !== 'cancelled' && !channelsFor(org.state, client).includes(fresh.channel))
         return skip('Turned off for this client or studio before it went out.')
       let body = fresh.body

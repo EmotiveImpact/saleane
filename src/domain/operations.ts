@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { BusinessState } from './model'
 import { reminderSettingsSchema } from './reminderSettings'
+import { patchTestSettingsSchema } from './patchTestsSchema'
 import { paymentMethodSchema, processorSchema } from './paymentMethods'
 
 const id = z.string().min(1).max(150)
@@ -172,6 +173,8 @@ export const operationsSchema = z.object({
   imports: z.array(importBatchSchema).optional(),
   /** Credit or money owed that the previous system held for a client (PILOT-03). */
   balances: z.array(openingBalanceSchema).optional(),
+  /** V1.5: how long before a visit a patch test is needed and how long a clear one lasts. */
+  patchTests: patchTestSettingsSchema.optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 export type Role = 'owner' | 'manager' | 'reception' | 'practitioner'
@@ -306,11 +309,12 @@ export function can(role: Role, action: string) {
       'plan-cancel',
       'gift-card-extend',
       'gift-card-cancel',
+      'patch-test-settings',
     ].includes(action)
   )
     return false
   if (role === 'reception') return true
-  return ['read', 'arrive', 'note'].includes(action)
+  return ['read', 'arrive', 'note', 'patch-test', 'patch-test-result'].includes(action)
 }
 
 /**
