@@ -9,6 +9,8 @@ import { giftCardsProblem, refundableOnReceipt } from './giftCards'
 import { patchTestsProblem } from './patchTests'
 import { patchTestSchema } from './patchTestsSchema'
 import { feedbackProblem, feedbackSchema } from './feedback'
+import { specialSchema, specialsProblem } from './specialsSchema'
+import { taskSchema, tasksProblem } from './tasksSchema'
 import { counterSaleSchema, saleRetailSchema } from './retailSchema'
 import { retailCharge, retailProblem } from './retail'
 import { rentProblem } from './rent'
@@ -218,6 +220,10 @@ export const stateSchema = z.object({
   holdings: z.array(holdingSchema).optional(),
   /** V1.5: private guest feedback, one per completed visit. Owners and managers only. */
   feedback: z.array(feedbackSchema).optional(),
+  /** V3: specials a manager planned from a seasonal or local suggestion. Nothing is sent by them. */
+  specials: z.array(specialSchema).optional(),
+  /** V3: reminders the team leaves for a day. Nothing is sent by them. */
+  tasks: z.array(taskSchema).optional(),
   /** V2: products sold without a visit. */
   counterSales: z.array(counterSaleSchema).optional(),
   /** V1.5: clients waiting for an earlier or a free time. */
@@ -548,6 +554,10 @@ export function parseState(value: unknown, region: Region): BusinessState {
   if (patch) throw new Error(patch)
   const feedback = feedbackProblem(s)
   if (feedback) throw new Error(feedback)
+  const specials = specialsProblem(s)
+  if (specials) throw new Error(specials)
+  const tasks = tasksProblem(s)
+  if (tasks) throw new Error(tasks)
   const retail = retailProblem(s)
   if (retail) throw new Error(retail)
   const rent = rentProblem(s)

@@ -70,6 +70,8 @@ export function createWorkspace(input: WorkspaceInput): BusinessState {
     state.feedback ?? [],
     state.counterSales ?? [],
     state.waitlist ?? [],
+    state.specials ?? [],
+    state.tasks ?? [],
     state.giftCards ?? [],
     state.patchTests ?? [],
   ]) {
