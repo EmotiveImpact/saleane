@@ -10,7 +10,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - The guest's private visit link shows a short form once the visit is complete: stars for the visit and for the person who looked after them, and an optional comment. One answer per visit; sending the same answer twice lands once, and an answer cannot be changed afterwards. The guest sees a thank-you with their own ratings, never anyone else's.
 - Business has a new Feedback page for owners and managers only, with the number of visits rated, the average for visits and for the team, each professional's average and the latest answers with comments, over 30 days, 90 days or all time.
 - A practitioner's day shows only their own average, once at least three guests have rated them, so no single guest's score can be picked out. Reception and practitioners never receive individual answers.
-- Feedback is private and never published. Public reviews remain a separate, neutral request to the studio's Google page. A client's data export includes the feedback they gave.
+- Feedback is private and never published. Public reviews remain a separate, neutral request to the studio's Google page. A client's data export (and its preview) and erasure review include the feedback they gave. Feedback is kept for 2 years after it was given, then waits for an owner or manager to approve deletion or keep it longer; nothing is deleted automatically.
 
 ## 2026-10-07 · V1.5 · Packages and memberships
 

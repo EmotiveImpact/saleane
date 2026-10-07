@@ -5,11 +5,12 @@ import type { Command } from './commands'
 import type { BusinessState } from './model'
 import { parseState } from './model'
 import { can, defaultOperations } from './operations'
-import { feedbackSummary, ownRating, withoutFeedback } from './feedback'
+import { feedbackSince, feedbackSummary, ownRating, withoutFeedback } from './feedback'
 import { planMessages } from './reminders'
 import { practitionerView } from './practitioner'
 import { guestView } from './guest'
-import { clientExport, erasureReview } from './privacy'
+import { clientExport, erasureReview, previewClientExport } from './privacy'
+import { RETENTION_REGISTER } from './dataRetention'
 
 // V1.5: private guest feedback after a visit.
 const now = '2026-10-06T12:00:00.000Z'
@@ -94,6 +95,11 @@ describe('who sees what', () => {
       s.feedback!.filter((f) => f.createdAt >= latest).length,
     )
     expect(feedbackSummary(s, '2999-01-01T00:00:00.000Z').count).toBe(0)
+    // Periods start at midnight in the studio's own time zone (London is on summer time).
+    expect(feedbackSince(s, 30)).toBe('2026-09-05T23:00:00.000Z')
+    const la = structuredClone(s)
+    la.organisation.timeZone = 'America/Los_Angeles'
+    expect(feedbackSince(la, 30)).toBe('2026-09-06T07:00:00.000Z')
   })
 
   it('gives a practitioner their own average only once three guests have rated them', () => {
@@ -140,6 +146,12 @@ describe('who sees what', () => {
         item.label.startsWith('Private feedback'),
       )?.count,
     ).toBe(s.feedback!.filter((f) => f.clientId === row.clientId).length)
+    const preview = previewClientExport(clientExport(s, row.clientId, {} as never))
+    expect(preview.sections).toContainEqual({
+      label: 'Private feedback they gave',
+      count: s.feedback!.filter((f) => f.clientId === row.clientId).length,
+    })
+    expect(RETENTION_REGISTER.some((r) => r.record.startsWith('Private guest feedback'))).toBe(true)
   })
 })
 

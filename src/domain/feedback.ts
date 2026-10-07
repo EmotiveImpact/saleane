@@ -1,5 +1,7 @@
 import { z } from 'zod'
 import type { BusinessState } from './model'
+import { addDays } from './format'
+import { businessDate, instantFor } from './operations'
 
 /**
  * V1.5: private client feedback. After a completed visit the guest can rate the visit and the
@@ -120,6 +122,22 @@ export function feedbackProblem(s: BusinessState) {
 
 const average = (values: number[]) =>
   values.length ? Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10 : null
+
+/**
+ * The start of the last `days` studio days: midnight in the studio's own time zone, so the period
+ * neither shifts with the reader's clock nor gains or loses hours outside UTC. On the rare day the
+ * clocks skip midnight, the day starts at the first hour that exists.
+ */
+export function feedbackSince(s: BusinessState, days: number) {
+  const day = addDays(businessDate(s), -days)
+  for (const minute of [0, 60, 120])
+    try {
+      return new Date(instantFor(s, day, minute)).toISOString()
+    } catch {
+      continue
+    }
+  return `${day}T00:00:00.000Z`
+}
 
 /** Averages for the owner's feedback page: the studio, then each professional. */
 export function feedbackSummary(s: BusinessState, since?: string) {

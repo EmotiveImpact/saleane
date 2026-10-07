@@ -263,10 +263,11 @@ export function previewClientExport(file: ClientExport): ExportPreview {
       { label: 'Timeline entries', count: file.timeline.length },
       { label: 'Messages, none of them sent', count: file.messages.length },
       { label: 'Client connections, type only', count: file.connections.length },
+      { label: 'Private feedback they gave', count: file.feedback.length },
     ],
     excluded: CLIENT_EXPORT_EXCLUDED,
     notes: [
-      'Notes, preferences and message text are included as written. Read them before sending, in case they mention someone else.',
+      'Notes, preferences, feedback comments and message text are included as written. Read them before sending, in case they mention someone else.',
       'Staff names appear where they recorded an entry or looked after a visit.',
       'Messages show their real status. SALEANE has no delivery service configured, so none was sent.',
       ...(file.studio.sandbox

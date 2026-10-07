@@ -2,9 +2,8 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MessageSquareQuote, Star } from 'lucide-react'
 import { useStore } from '../state/context'
-import { feedbackList, feedbackSummary } from '../domain/feedback'
-import { addDays, dateLabel } from '../domain/format'
-import { businessDate } from '../domain/operations'
+import { feedbackList, feedbackSince, feedbackSummary } from '../domain/feedback'
+import { dateLabel } from '../domain/format'
 import { Avatar, Empty, PageHeader, SegmentedControl } from '../design'
 import '../components/management.css'
 import '../feedback.css'
@@ -21,8 +20,7 @@ const score = (value: number | null) => (value === null ? 'None yet' : `${value.
 export function Feedback() {
   const { state, role } = useStore()
   const [period, setPeriod] = useState<Period>(90)
-  // Counted from the studio's own day, so the period does not shift with the reader's clock.
-  const since = period ? `${addDays(businessDate(state), -period)}T00:00:00.000Z` : undefined
+  const since = period ? feedbackSince(state, period) : undefined
   if (role !== 'owner' && role !== 'manager')
     return (
       <div className="feedback-page">
