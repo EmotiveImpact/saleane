@@ -16,7 +16,7 @@ Screenshots: [adding a location](V2-LOCATIONS-add.png), [locations list](V2-LOCA
 
 ## Automated checks
 
-`src/domain/locations.test.ts`: a one-location studio unchanged; times offered only where the person works that day and only in rooms at that place; reminders naming the visit's location and address; a location's own opening hours; refusing a change that would strand a booked visit; refusing a duplicate name, a room at a closed location, and anyone but the owner; the ledger rejecting a visit, room or working day that names a missing location. `server/locations.test.ts`: the live booking page lists both locations and where each person works, availability at Islington, a hold and a booking that lands at Islington with Nia.
+`src/domain/locations.test.ts`: a one-location studio unchanged; times offered only where the person works that day and only in rooms at that place, and a booking without a chosen location (from the desk or Ask Saleane) going where the person works that day; reminders naming the visit's location and address; a location's own opening hours; refusing a change that would strand a booked visit; refusing a duplicate name, a room at a closed location, and anyone but the owner; the ledger rejecting a visit, room or working day that names a missing location. `server/locations.test.ts`: the live booking page lists both locations and where each person works, availability at Islington, a hold and a booking that lands at Islington with Nia.
 
 ## Limits
 

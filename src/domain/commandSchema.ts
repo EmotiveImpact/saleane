@@ -1,7 +1,14 @@
 import { z } from 'zod'
 import { offerInputSchema } from './plansSchema'
+import { specialInputSchema } from './specialsSchema'
+import { taskInputSchema } from './tasksSchema'
 import { waitlistInputSchema, waitlistTimesSchema } from './waitlistSchema'
 import { giftCardInputSchema } from './giftCardsSchema'
+import {
+  patchTestInputSchema,
+  patchTestResultSchema,
+  patchTestSettingsSchema,
+} from './patchTestsSchema'
 import { feedbackInputSchema } from './feedback'
 import {
   GUEST_NOTE_LIMIT,
@@ -391,6 +398,21 @@ export const commandSchema = z.discriminatedUnion('type', [
     method: method.optional(),
     reference: z.string().trim().max(150).optional(),
   }),
+  // Ask Saleane: several desk changes approved together, applied together or not at all. Only
+  // moving, cancelling, closing time and unsent drafts, so no money moves in a batch.
+  z.object({
+    type: z.literal('batch'),
+    label: z.string().trim().min(2).max(200),
+    commands: z
+      .array(z.looseObject({ type: z.enum(['reschedule', 'cancel', 'closure', 'message']) }))
+      .min(1)
+      .max(40),
+  }),
+  // V3: planning a special records it; nothing is sent and no price changes.
+  z.object({ type: z.literal('special-plan'), input: specialInputSchema }),
+  z.object({ type: z.literal('task-add'), input: taskInputSchema }),
+  z.object({ type: z.literal('task-done'), taskId: id }),
+  z.object({ type: z.literal('special-stop'), specialId: id }),
   z.object({
     type: z.literal('gift-card-sell'),
     input: giftCardInputSchema,
@@ -406,6 +428,21 @@ export const commandSchema = z.discriminatedUnion('type', [
     method: method.optional(),
     reference: z.string().trim().max(150).optional(),
   }),
+  z.object({
+    type: z.literal('patch-test'),
+    input: patchTestInputSchema,
+    /** For a test done earlier whose skin has already been checked. */
+    result: z
+      .object({ outcome: patchTestResultSchema, notes: z.string().trim().max(300) })
+      .optional(),
+  }),
+  z.object({
+    type: z.literal('patch-test-result'),
+    patchTestId: id,
+    outcome: patchTestResultSchema,
+    notes: z.string().trim().max(300),
+  }),
+  z.object({ type: z.literal('patch-test-settings'), settings: patchTestSettingsSchema }),
   ...operatingCommandSchema.options,
 ])
 export type BookingInput = z.infer<typeof bookingSchema>

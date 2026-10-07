@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { parseState } from './model'
 import { businessDate, operations, visitTax } from './operations'
+import { staffLocationOn } from './locations'
 import { bookingSchema, commandSchema, contactSchema } from './commandSchema'
 import type { Command, ContactInput } from './commandSchema'
 import { assertMethod, paymentDetail, runOperatingCommand } from './operatingCommands'
@@ -15,8 +16,16 @@ import { availableAllocation } from './allocation'
 import { runSwitchingCommand } from './switching'
 import { coverVisit, runPlanCommand, stampPlanActors } from './plans'
 import { runGiftCardCommand, spendGiftCard, stampGiftCardActors } from './giftCards'
+import {
+  patchTestBlocksVisit,
+  repeatedPatchResult,
+  runPatchTestCommand,
+  stampPatchTestActors,
+} from './patchTests'
 import { referenceTaken } from './references'
 import { recordFeedback, repeatedFeedback } from './feedback'
+import { planSpecial, stopSpecial } from './specials'
+import { addTask, completeTask } from './tasks'
 import { priceRetail, recordRetailMovements, retailCharge, sellAtCounter } from './retail'
 import {
   closeForCancelledVisit,
@@ -151,6 +160,22 @@ export function execute(
 ): CommandResult {
   try {
     const command = commandSchema.parse(rawCommand)
+    if (command.type === 'batch') {
+      let current = s
+      let recordId = ''
+      for (const part of command.commands) {
+        const result = execute(current, part as Command, now, makeId)
+        if (!result.ok) return result
+        current = result.state
+        recordId = result.recordId
+      }
+      if (current === s) return { ok: true, state: s, recordId }
+      return {
+        ok: true,
+        state: parseState({ ...current, revision: s.revision + 1 }, s.organisation.region),
+        recordId,
+      }
+    }
     const next = structuredClone(s)
     const org = s.organisation
     const addEvent = (
@@ -196,7 +221,8 @@ export function execute(
       const input = bookingSchema.parse(command.input)
       if (input.source === 'online' && !operations(s).bookingEnabled)
         throw new Error('Online booking is currently closed.')
-      const locationId = input.locationId ?? org.locationId
+      // Without a chosen location, the visit is wherever the person works that day.
+      const chosenPlace = input.locationId
       const staffId =
         input.staffId === 'any'
           ? availableProfessionals(
@@ -205,7 +231,7 @@ export function execute(
               input.date,
               input.startMinutes,
               now,
-              locationId,
+              chosenPlace,
             ).find(
               (person) =>
                 !input.resourceId ||
@@ -217,12 +243,13 @@ export function execute(
                   input.startMinutes,
                   now,
                   input.resourceId,
-                  locationId,
+                  chosenPlace,
                 ),
             )?.id
           : input.staffId
       if (!staffId)
         throw new Error('That time is no longer available. Choose another time or professional.')
+      const locationId = chosenPlace ?? staffLocationOn(s, staffId, input.date)
       const resourceId = availableResource(
         s,
         input.serviceId,
@@ -388,6 +415,8 @@ export function execute(
           return { ok: true, state: s, recordId: appointment.id }
         if (appointment.status !== 'confirmed' || appointment.date !== businessDate(s, now))
           throw new Error('Only a confirmed visit on the venue’s current day can arrive.')
+        const blocked = patchTestBlocksVisit(s, appointment)
+        if (blocked) throw new Error(blocked)
         appointment.status = 'arrived'
         addEvent({
           clientId: appointment.clientId,
@@ -631,6 +660,16 @@ export function execute(
       const same = repeatedFeedback(s, command)
       if (same) return { ok: true, state: s, recordId: same.id }
       recordId = recordFeedback(next, command, now, makeId)
+    } else if (command.type === 'special-plan') {
+      recordId = planSpecial(next, command.input, now, makeId)
+    } else if (command.type === 'special-stop') {
+      recordId = stopSpecial(next, command.specialId, businessDate(s, now))
+    } else if (command.type === 'task-add') {
+      recordId = addTask(next, command.input, businessDate(s, now), now, makeId)
+    } else if (command.type === 'task-done') {
+      const task = (s.tasks ?? []).find((x) => x.id === command.taskId)
+      if (task?.doneAt) return { ok: true, state: s, recordId: task.id }
+      recordId = completeTask(next, command.taskId, now)
     } else if (
       command.type === 'offer' ||
       command.type === 'plan-sell' ||
@@ -644,6 +683,14 @@ export function execute(
       command.type === 'gift-card-cancel'
     ) {
       recordId = runGiftCardCommand(next, command, now, makeId, addEvent)
+    } else if (
+      command.type === 'patch-test' ||
+      command.type === 'patch-test-result' ||
+      command.type === 'patch-test-settings'
+    ) {
+      const same = command.type === 'patch-test-result' && repeatedPatchResult(s, command)
+      if (same) return { ok: true, state: s, recordId: same.id }
+      recordId = runPatchTestCommand(next, command, now, makeId, addEvent)
     } else {
       recordId = runOperatingCommand(next, command, now, makeId, addEvent)
     }
@@ -678,9 +725,12 @@ export function dispatch(
       e.actor = actorName
     })
   stampPlanActors(s, result.state, actorName)
+  const tasks = new Set((s.tasks ?? []).map((x) => x.id))
+  for (const task of result.state.tasks ?? []) if (!tasks.has(task.id)) task.createdBy = actorName
   const sold = new Set((s.counterSales ?? []).map((sale) => sale.id))
   for (const sale of result.state.counterSales ?? []) if (!sold.has(sale.id)) sale.actor = actorName
   stampGiftCardActors(s, result.state, actorName)
+  stampPatchTestActors(s, result.state, actorName)
   const counted = new Set((s.tillCounts ?? []).map((c) => c.id))
   for (const count of result.state.tillCounts ?? [])
     if (!counted.has(count.id)) count.actor = actorName

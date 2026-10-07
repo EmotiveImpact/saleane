@@ -9,9 +9,37 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Settings has a new Locations section. The owner adds further locations with a name, address, an optional "before you arrive" note and, if different, their own opening hours. A location can be closed for good; its history stays.
 - Each room or chair belongs to one location, and each person works at one location on a given day, set on their weekly hours under Team.
 - When a studio has more than one location, guests choose where they would like to come first, on both the live booking page and the demo one. Only places where someone does the chosen treatment are offered, and only the people who work there that day are shown. Reminders, the guest's own visit page, the day sheet and the practitioner's day name the visit's location and address.
-- The calendar has an "All locations" filter, booking from the desk only offers times at the place the person is working that day, and Today shows where each person is.
+- The calendar has an "All locations" filter, booking from the desk or through Ask Saleane only offers times at the place the person is working that day, and Today shows where each person is.
 - Changing hours, rooms or someone's location is checked against booked visits first: a visit that would end up at a closed location, in a room at another location, or with someone working elsewhere is listed and the change is refused.
 - A studio with one location works exactly as before.
+
+## 2026-10-07 · V3 · Smart insights, first pass
+
+**Status: built locally on 7 October 2026, in review; nothing deployed, sent or changed automatically.** Every insight is worked out from the studio's own records by fixed rules that can be explained; no AI service is involved.
+
+- Today's "Saleane noticed" panel now gives a short brief: visits and hours booked against a usual day of the same weekday over the last four weeks, and (for owners and managers) yesterday's takings against usual.
+- It points out what looks unusual against the studio's own recent weeks: a quiet day tomorrow, more cancellations or missed visits than usual, takings down on the week (owners and managers only), a client with two missed visits who is booked today or tomorrow, and low stock (owners and managers only). A studio without enough history sees nothing rather than a false alarm.
+- "Drifting away" lists clients who have gone longer than their own usual gap without booking (five weeks when there are too few visits to tell), longest overdue first, each with an open time today or tomorrow with their usual professional and treatment. Two clients are never offered the same person at overlapping times. The offer opens the usual booking dialog for the desk to confirm.
+- Ask Saleane answers "give me my morning brief", "anything unusual?" and "who is drifting away?" from the same rules.
+- Filling quiet gaps: next to each open-time offer, "Prepare an invitation" shows a short, friendly message naming the time. The owner reads it and chooses "Save as unsent draft" or "Not now"; a saved invitation waits in the Inbox for approval like any other draft, only for clients who allow marketing messages, and nothing is sent.
+- Staff targets, first step: Business shows each professional's rebooking rate (completed visits where the next visit was booked at checkout) beside the studio's overall rate.
+- Specials, the assistant manager (owners and managers): Today suggests specials from the time of year (Diwali, Christmas parties, Mother's Day, Eid, prom and wedding season and more), long bank-holiday weekends, school holidays, the weather and local events. Each shows its dates, the reason, how much open time there is for it and a starting idea. "Plan this special" only records it: nothing is sent and no prices change. Planned specials then show how their days compared with the same length of time before, and Ask Saleane answers "any specials we should run?", "plan the Diwali special" (for approval) and "did our specials work?". Every source is in test mode: the calendar and the GOV.UK bank holiday list are bundled copies, and school dates, weather and events are sample data behind adapters a live feed can replace.
+- A manager's day in Ask Saleane: "who's my 10 o'clock?" answers with the guest, what to know before they arrive and who is next; "book Jamie with Maya for a facial on Thursday afternoon" lists open times, and with a time prepares the booking for approval (price and any deposit shown); "cancel Nina Patel" prepares the cancellation and says whether the studio's fee policy would allow a fee, which is never charged automatically; "Theo is off sick today" plans the whole day for one approval (each upcoming visit moved to someone free at the same time who does the treatment, guests nobody can see asked to pick a new day, a short note to every guest saved unsent, and the rest of Theo's day closed so nobody books him); "how did we do today?" closes the day with takings against a usual day, rebooking, who left without a next visit and a first look at tomorrow; "how was the week?" compares the last seven days with the four weeks before and explains the quietest day from the record. A one-approval plan is applied together or not at all, can only move, cancel, close time and save unsent drafts, and every change in it is checked against the person's role.
+- Ask Saleane speaks first and remembers the conversation: opening it shows what it noticed (a waitlist client who could take a time free today or tomorrow, today's reminders, anything unusual), each with a one-tap follow-up, and the header button shows a small dot when there is something to mention. Short follow-ups such as "and tomorrow?" or "and after her?" are understood from the last few lines. "Anyone on the waitlist?" lists who is waiting with their first free time, and "offer Emily Wednesday at 9am" prepares the offer for approval, saved to the Inbox unsent. Reminders: "remind me on Friday to call the supplier" prepares one for approval, it appears in the morning brief and on Today that day, and the desk can add and tick off reminders on Today. Nothing is sent by any of these.
+
+## 2026-10-07 · V1.5 · Patch tests
+
+**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** A salon record and a reminder, not a clinical record. [Evidence](docs/evidence/V15-PATCH.md).
+
+- A treatment can be marked as needing a patch test, such as a colour (Settings › Services). The sample studio has a new Gloss & Tone colour service with three visits later in the week.
+- Each client page has a Patch tests panel: what was tested, when, by whom, where it was placed and, once the skin is checked, clear or a reaction with what was seen. A test can be called clear only once the studio's waiting time has passed; a reaction can be recorded straight away. Tests are kept side by side and never deleted.
+- Each colour visit shows where the guest stands: clear, result to record, test too close to the visit, test needed, or a reaction. Owners and managers set how many hours before the visit a test must be done (48 by default) and how long a clear one counts (6 months by default).
+- A recorded reaction stops the guest being welcomed for that treatment until a later clear test is recorded. Nothing else is blocked.
+- Today shows booked treatments in the next two weeks whose patch test is not in order.
+- A guest booked for such a treatment with no test that counts gets one message asking them to arrange a test, up to two weeks before and only while there is still time. It follows their usual email and text choices and the studio can turn it off. It is checked again just before it goes, so a test recorded meanwhile stops it. With no provider configured it stays in test mode.
+- Practitioners see the patch test status of their own visits and can record a test they did, and its result, for their own clients only.
+- The booking page tells guests which treatments need a patch test and how far ahead.
+- Patch tests are in the client's data export and listed as kept in the erasure review.
 
 ## 2026-10-07 · V2 · Accountant exports
 
@@ -115,9 +143,11 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Changes stay in that browser. Passwords use a simple stand-in there, so the demo is for showing, never for real data.
 - Checked in Chromium at desktop and phone width: Today, Calendar, Clients, Inbox, Business, Settings, a full guest booking, the guest manage page and a checkout receipt. Not checked in Safari or Firefox.
 
+> > > > > > > origin/main
+
 ## 2026-10-07 · V1.5 · Gift cards and vouchers
 
-**Status: built locally on 7 October 2026, in review; nothing deployed and no money taken.** SALEANE records gift card payments and refunds; it does not take or return money itself. [Evidence](docs/evidence/V15-GIFT.md).
+**Status: built locally on 7 October 2026 and merged (#34); nothing deployed and no money taken.** SALEANE records gift card payments and refunds; it does not take or return money itself. [Evidence](docs/evidence/V15-GIFT.md).
 
 - A new Gift cards page under Business (owners, managers and reception) sells gift cards for an amount, or vouchers for a treatment at its price on the day. Each gets a 12-character code that is easy to read out, and the page shows the card as the guest would see it, ready to print. Cards last two years in the UK and five in the US, up to and including the anniversary.
 - At checkout the desk types a code, in any case and with or without dashes, and chooses how much to take from the card, up to what it holds and what is due after any deposit or plan. The guest pays the rest as usual, including by card through SALEANE when the studio takes cards (a saved card or a card reader is charged only the rest, and the gift card's share is held while that payment is under way, so it cannot be spent or cancelled elsewhere). The receipt, the receipt in Money and the client's timeline show what the card paid and what is left on it; a package or membership's share now shows on the Money receipt too.

@@ -104,7 +104,9 @@ describe('booking at another location', () => {
         })
         .then((r) => r.json<{ times: number[] }>().times)
     // Nia only works in Islington, so she has no times at the main location.
-    expect(await times({ staffId: nia })).toEqual([])
+    const main = page.locations[0].id
+    expect(await times({ staffId: nia, locationId: main })).toEqual([])
+    expect(await times({ staffId: nia })).toContain(600)
     expect(await times({ staffId: nia, locationId: islington })).toContain(600)
 
     const hold = await api.inject({

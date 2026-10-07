@@ -345,4 +345,45 @@ describe('the previous visit in the practitioner view', () => {
     expect(removed.statusCode).toBe(404)
     expect(removed.body).not.toContain('previousVisit')
   })
+
+  it('records patch tests only for their own clients, as the one who did them (V1.5)', async () => {
+    const owner = await register('owner@example.invalid')
+    const theo = await practitioner(owner, 'theo@example.invalid', 'staff-theo', 'Theo Bennett')
+    const before = await view(theo)
+    expect(
+      before.practitioner.appointments.find((a) => a.id === 'visit-gloss-luca')?.patchTest,
+    ).toMatchObject({ state: 'needed' })
+    const input = {
+      clientId: 'client-9',
+      testedAt: '2026-10-06T07:55:00.000Z',
+      product: 'Gloss toner 7.1',
+      staffId: 'staff-theo',
+      notes: '',
+    }
+    let revision = (await studio(owner)).revision
+    const notTheirs = await run(theo, revision, {
+      type: 'patch-test',
+      input: { ...input, clientId: 'client-1' },
+    })
+    expect(notTheirs.statusCode).toBe(403)
+    const someoneElse = await run(theo, revision, {
+      type: 'patch-test',
+      input: { ...input, staffId: 'staff-maya' },
+    })
+    expect(someoneElse.statusCode).toBe(403)
+    const done = await run(theo, revision, { type: 'patch-test', input })
+    expect(done.statusCode, done.body).toBe(200)
+    const after = done.json<{ practitioner: PractitionerView }>().practitioner
+    expect(after.clients.find((c) => c.id === 'client-9')?.patchTests).toEqual([
+      expect.objectContaining({ product: 'Gloss toner 7.1', outcome: null }),
+    ])
+    const full = await studio(owner)
+    revision = full.revision
+    expect(full.patchTests?.at(-1)).toMatchObject({ clientId: 'client-9', actor: 'Theo Bennett' })
+    const settings = await run(theo, revision, {
+      type: 'patch-test-settings',
+      settings: { hoursBefore: 24, validMonths: 6, remind: true },
+    })
+    expect(settings.statusCode).toBe(403)
+  })
 })

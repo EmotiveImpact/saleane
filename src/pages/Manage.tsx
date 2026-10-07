@@ -32,6 +32,7 @@ import { StudioPrivacy } from '../components/Privacy'
 import { BrandSection, PreferencesSection, WorkspaceSection } from '../components/SettingsSections'
 import { MessageSettings } from '../components/AppointmentMessages'
 import { GuestNotesSettings } from '../components/GuestNotesSettings'
+import { PatchTestRules } from '../components/PatchTests'
 import { ShareBookingPage } from '../components/ShareBookingPage'
 import { PaymentSettings } from '../components/CardPayments'
 import { SwitchingSettings } from '../components/Switching'
@@ -168,6 +169,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
           priceMinor: parseMinor(data.get('price')),
           depositMinor: parseMinor(data.get('deposit')),
           resourceType: text(data, 'resourceType') as 'treatment' | 'chair',
+          patchTest: data.get('patchTest') === 'on',
           archived,
         },
       }
@@ -494,7 +496,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                         <strong>{item.name}</strong>
                         <small>
                           {item.category} · {item.durationMinutes} min + {item.bufferMinutes} min
-                          turnaround
+                          turnaround{item.patchTest ? ' · Needs a patch test' : ''}
                         </small>
                         <small>{item.description}</small>
                       </div>
@@ -515,6 +517,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                 )}
               </section>
             )}
+            {section === 'service' && <PatchTestRules />}
             {section === 'staff' && (
               <>
                 <section className="surface ops-panel">
@@ -849,6 +852,11 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                       required
                       defaultValue={(service?.depositMinor ?? 0) / 100}
                     />
+                  </label>
+                  <label className="ops-check ops-wide">
+                    <input type="checkbox" name="patchTest" defaultChecked={!!service?.patchTest} />
+                    Needs a patch test, such as a colour. Guests need a clear test before this
+                    treatment.
                   </label>
                 </>
               )}

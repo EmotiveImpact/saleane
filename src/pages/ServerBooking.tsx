@@ -63,6 +63,7 @@ type Catalog = {
   staff: (BusinessState['staff'][number] & { locationIds?: string[] })[]
   today: string
   sample: boolean
+  patchTestHours?: number
   botCheck?: { siteKey: string } | null
   tax?: PriceTax
   /** V2: open locations, main first. Older servers send none. */
@@ -345,7 +346,11 @@ function BookingFlow({
               {where.address ? `, ${where.address}` : ''}
             </p>
           )}
-          <BeforeYouArrive studioNote={where.arrivalNote} serviceNote={service?.prepNote} />
+          <BeforeYouArrive
+            studioNote={where.arrivalNote}
+            serviceNote={service?.prepNote}
+            patchTestHours={service?.patchTest ? (catalog.patchTestHours ?? 48) : undefined}
+          />
           {service && start !== null && (
             <AddToCalendar
               visit={{
@@ -467,6 +472,12 @@ function BookingFlow({
                           <span className="service-category">{s.category}</span>
                           <h3>{s.name}</h3>
                           <p>{s.description}</p>
+                          {s.patchTest && (
+                            <p className="service-patch">
+                              Needs a patch test at least {catalog.patchTestHours ?? 48} hours
+                              before
+                            </p>
+                          )}
                           <PriceSentence
                             service={s}
                             organisation={org}

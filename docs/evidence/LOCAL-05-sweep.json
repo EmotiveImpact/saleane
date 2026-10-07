@@ -1,6 +1,6 @@
 {
   "environment": "Chromium 141.0.7390.37 / http://127.0.0.1:5173",
-  "recordedAt": "2026-10-07T13:31:25.029Z",
+  "recordedAt": "2026-10-07T15:35:52.937Z",
   "results": [
     {
       "mode": "demo",
@@ -10,7 +10,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 38,
+        "focusable": 40,
         "missing": []
       },
       "errors": []
@@ -49,7 +49,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 40,
+        "focusable": 41,
         "missing": []
       },
       "errors": []
@@ -114,7 +114,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 43,
+        "focusable": 44,
         "missing": []
       },
       "errors": []
@@ -257,7 +257,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 14,
+        "focusable": 9,
         "missing": []
       },
       "errors": []
@@ -729,7 +729,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 39,
+        "focusable": 41,
         "missing": []
       },
       "errors": []
@@ -768,7 +768,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 41,
+        "focusable": 42,
         "missing": []
       },
       "errors": []
@@ -833,7 +833,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 44,
+        "focusable": 45,
         "missing": []
       },
       "errors": []
@@ -983,7 +983,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-e1722a17",
+      "route": "/book/qualify-studio-546a83ad",
       "width": 1280,
       "violations": [],
       "viewport": 1280,
@@ -1189,7 +1189,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-e1722a17",
+      "route": "/book/qualify-studio-546a83ad",
       "width": 390,
       "violations": [],
       "viewport": 390,
@@ -1387,7 +1387,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-e1722a17",
+      "route": "/book/qualify-studio-546a83ad",
       "width": 320,
       "violations": [],
       "viewport": 320,
@@ -1540,6 +1540,7 @@
       "headings": [
         "H1 Good afternoon.",
         "H2 The day ahead",
+        "H2 Patch tests to sort",
         "H2 Make room for a familiar face.",
         "H2 Your people today"
       ],
@@ -1550,6 +1551,7 @@
         "section About this version",
         "main",
         "aside",
+        "header",
         "footer"
       ]
     },
@@ -1616,6 +1618,7 @@
         "section About this version",
         "main",
         "aside",
+        "header",
         "header",
         "footer"
       ]
@@ -1977,18 +1980,10 @@
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
       "h1": ["Care, considered."],
-      "headings": [
-        "H1 Care, considered.",
-        "H2 What brings you in?",
-        "H3 Skin Renewal Facial",
-        "H3 Lymphatic Massage",
-        "H3 Deep Restore Massage",
-        "H3 Signature Cut & Finish"
-      ],
+      "headings": ["H1 Care, considered.", "H2 What brings you in?"],
       "landmarks": [
-        "header",
-        "section About this booking page",
-        "aside",
+        "section Studio preview",
+        "aside Welcome to Atelier House",
         "main",
         "nav Booking progress",
         "footer"
@@ -2057,6 +2052,7 @@
       "headings": [
         "H1 Good afternoon, Qualification.",
         "H2 The day ahead",
+        "H2 Patch tests to sort",
         "H2 Make room for a familiar face.",
         "H2 Your people today"
       ],
@@ -2067,6 +2063,7 @@
         "section About this version",
         "main",
         "aside",
+        "header",
         "footer"
       ]
     },
@@ -2133,6 +2130,7 @@
         "section About this version",
         "main",
         "aside",
+        "header",
         "header",
         "header",
         "footer"
@@ -2512,22 +2510,14 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-e1722a17",
+      "route": "/book/qualify-studio-546a83ad",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
       "h1": ["Care, considered."],
-      "headings": [
-        "H1 Care, considered.",
-        "H2 What brings you in?",
-        "H3 Skin Renewal Facial",
-        "H3 Lymphatic Massage",
-        "H3 Deep Restore Massage",
-        "H3 Signature Cut & Finish"
-      ],
+      "headings": ["H1 Care, considered.", "H2 What brings you in?"],
       "landmarks": [
-        "header",
-        "section About this booking page",
-        "aside",
+        "section Studio preview",
+        "aside Welcome to Qualify Studio",
         "main",
         "nav Booking progress",
         "footer"

@@ -17,6 +17,7 @@ import { bookingChannel } from '../domain/bookingChannel'
 import { fullPriceMinor } from '../domain/priceSentence'
 import { places, staffPlaces } from '../domain/locations'
 import { LocationChoice } from '../components/LocationChoice'
+import { patchTestSettings } from '../domain/patchTests'
 
 export function BrandedBooking() {
   const { state, commit, region, changeRegion, saving } = useStore()
@@ -166,7 +167,11 @@ export function BrandedBooking() {
               Demo deposit<strong>{money(service.depositMinor, state.organisation)}</strong>
             </span>
           </div>
-          <BeforeYouArrive studioNote={where.arrivalNote} serviceNote={service.prepNote} />
+          <BeforeYouArrive
+            studioNote={where.arrivalNote}
+            serviceNote={service.prepNote}
+            patchTestHours={service.patchTest ? patchTestSettings(state).hoursBefore : undefined}
+          />
           {start !== null && (
             <AddToCalendar
               visit={{
@@ -264,6 +269,12 @@ export function BrandedBooking() {
                         <span className="service-category">{s.category}</span>
                         <h3>{s.name}</h3>
                         <p>{s.description}</p>
+                        {s.patchTest && (
+                          <p className="service-patch">
+                            Needs a patch test at least {patchTestSettings(state).hoursBefore} hours
+                            before
+                          </p>
+                        )}
                         <span className="service-time">
                           <Clock3 size={14} />
                           {s.durationMinutes} minutes

@@ -26,8 +26,9 @@ export function availableAllocation(
   step = 15,
   locationId?: string,
 ): string | null {
-  // V2: a visit is at one location; the person must work there that day and the room be there.
-  const place = locationId ?? s.organisation.locationId
+  // V2: a visit is at one location (by default where the person works that day); the person must
+  // work there that day and the room be there.
+  const place = locationId ?? staffLocationOn(s, staffId, date)
   const site = placeOf(s, place)
   if (!site || (site.archived && !excludeId)) return null
   const staff = s.staff.find((item) => item.id === staffId)

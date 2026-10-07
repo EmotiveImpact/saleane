@@ -494,6 +494,19 @@ fieldset {
 .ask-button:hover {
   border-color: var(--field-line);
 }
+.ask-button {
+  position: relative;
+}
+.ask-dot {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  background: var(--brand);
+  border: 2px solid var(--panel);
+  border-radius: 50%;
+}
 .operator-button {
   display: flex;
   align-items: center;
@@ -2879,6 +2892,9 @@ fieldset {
 .service-category {
   font-size: var(--text-micro);
   color: var(--muted);
+}
+.service-choice p.service-patch {
+  color: var(--ink);
 }
 .service-choice h3 {
   font-size: 18px;

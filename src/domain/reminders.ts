@@ -6,6 +6,7 @@ import { GUEST_CANCEL_CUTOFF_HOURS } from './guest'
 import { FEEDBACK_WINDOW_MS } from './feedback'
 import { defaultReminderSettings } from './reminderSettings'
 import type { ReminderSettings } from './reminderSettings'
+import { countsForVisit, patchTestSettings, patchTests, visitPatchTest } from './patchTests'
 
 /**
  * PILOT-01: appointment confirmations and reminders by email and text.
@@ -31,6 +32,7 @@ export const messageKinds = [
   'reminder',
   'cancelled',
   'feedback',
+  'patch_test',
 ] as const
 export type MessageKind = (typeof messageKinds)[number]
 export const messageChannels = ['email', 'sms'] as const
@@ -45,6 +47,8 @@ export type RecordedMessage = {
   channel: MessageChannel
   slot: string
   status: OutboxStatus
+  /** When it was queued, so a reminder from before a reaction does not stand in for a new one. */
+  createdAt?: string
 }
 export type PlannedMessage = {
   dedupeKey: string
@@ -101,6 +105,45 @@ export function feedbackDue(s: BusinessState, a: Appointment, start: number, now
     now < start + FEEDBACK_WINDOW_MS &&
     !s.feedback?.some((f) => f.appointmentId === a.id)
   )
+}
+
+/** A patch test reminder goes no earlier than this before the visit. */
+const PATCH_TEST_LEAD_MS = 14 * 24 * HOUR
+
+/**
+ * Whether a booked visit's "please come in for a patch test" message may go now: the treatment
+ * needs one, the guest has none that counts, and there is still time to do it before the visit.
+ * Checked when planning and again just before sending, so a test recorded meanwhile stops it.
+ */
+export function patchTestReminderDue(s: BusinessState, a: Appointment, start: number, now: number) {
+  const settings = patchTestSettings(s)
+  return (
+    a.status === 'confirmed' &&
+    settings.remind &&
+    start - now <= PATCH_TEST_LEAD_MS &&
+    start - now > settings.hoursBefore * HOUR &&
+    wantsTest(s, a, new Date(start).toISOString())
+  )
+}
+/** No test that counts, or a reaction with no new test since that could count for this visit. */
+function wantsTest(s: BusinessState, a: Appointment, startIso: string) {
+  const standing = visitPatchTest(s, a)
+  if (standing?.state === 'needed') return true
+  if (standing?.state !== 'reaction' || !standing.test) return false
+  const after = standing.test.testedAt
+  return !patchTests(s).some(
+    (t) =>
+      t.clientId === a.clientId &&
+      t.testedAt > after &&
+      !t.result &&
+      countsForVisit(s, t, startIso),
+  )
+}
+
+/** When the reaction now standing in the way of this visit was recorded, if there is one. */
+function reactedAt(s: BusinessState, a: Appointment) {
+  const standing = visitPatchTest(s, a)
+  return standing?.state === 'reaction' ? (standing.test?.result?.at ?? null) : null
 }
 
 /** A visit's time and place, so a moved visit is told about again. */
@@ -180,12 +223,12 @@ export function planMessages(
     if (start <= now) continue
     const rows = byVisit.get(a.id) ?? []
     const moved = lastMoved(s, a.id)
-    const add = (kind: MessageKind, channel: MessageChannel) => {
+    const add = (kind: MessageKind, channel: MessageChannel, attempt = 0) => {
       const recipient = channel === 'email' ? client.email : textNumber(client.phone)
       if (!recipient) return
       const text = composeMessage(s, a, kind, channel)
       plan.push({
-        dedupeKey: `${a.id}:${kind}:${channel}:${slot}`,
+        dedupeKey: `${a.id}:${kind}:${channel}:${slot}${attempt ? `:again-${attempt}` : ''}`,
         appointmentId: a.id,
         clientId: client.id,
         kind,
@@ -212,6 +255,25 @@ export function planMessages(
         else if (a.source !== 'import' && now - Date.parse(a.createdAt) < RECENT_MS)
           add('confirmation', channel)
       }
+      // One reminder per visit and channel, even if the visit moves afterwards. One that was
+      // skipped (a test was recorded, or the visit moved) may be asked for again, under a new key
+      // so the outbox takes it. A failed one is not: its retries were already spent. Once a test
+      // shows a reaction, reminders from before it no longer count: the guest needs a new test.
+      const patchRows = mine.filter((row) => row.kind === 'patch_test')
+      const since = reactedAt(s, a)
+      // One still waiting to go out serves the new round too, so the guest is not told twice.
+      const current = patchRows.filter(
+        (row) =>
+          !since ||
+          !row.createdAt ||
+          ['pending', 'unknown'].includes(row.status) ||
+          Date.parse(row.createdAt) > Date.parse(since),
+      )
+      if (
+        patchTestReminderDue(s, a, start, now) &&
+        current.every((row) => row.status === 'skipped')
+      )
+        add('patch_test', channel, patchRows.length)
       if (settings.reminders && !mine.some((row) => row.kind === 'reminder' && row.slot === slot)) {
         const opens = start - settings.hoursBefore * HOUR
         // Booked or moved after the reminder time: the confirmation already did this job.
@@ -256,6 +318,7 @@ export function composeMessage(
       reminder: `${org.name}: a reminder of ${service}${withWhom}, ${when}.`,
       cancelled: `${org.name}: your ${service} on ${when} is cancelled.`,
       feedback: `${org.name}: thank you for visiting. How was it? Tell us privately:`,
+      patch_test: `${org.name}: your ${service} on ${when} needs a quick patch test at least ${patchTestSettings(s).hoursBefore} hours before. Please call or pop in to arrange one.`,
     }[kind]
     const tail =
       kind === 'cancelled'
@@ -271,6 +334,7 @@ export function composeMessage(
     reminder: `See you soon at ${org.name}`,
     cancelled: `Your visit to ${org.name} is cancelled`,
     feedback: `How was your visit to ${org.name}?`,
+    patch_test: `A quick patch test before your visit to ${org.name}`,
   }[kind]
   const opening = {
     confirmation: `Thank you for booking. Here are your details.`,
@@ -278,6 +342,7 @@ export function composeMessage(
     reminder: `A gentle reminder of your visit.`,
     cancelled: `Your visit below has been cancelled. Nothing else is needed from you.`,
     feedback: `Thank you for visiting us. We would love to know how it went.`,
+    patch_test: `Your treatment below needs a quick patch test at least ${patchTestSettings(s).hoursBefore} hours before, and we need a new one for you. It takes a few minutes: please call us or pop in to arrange it.`,
   }[kind]
   const lines = [
     greeting,

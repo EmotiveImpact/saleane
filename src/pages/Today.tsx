@@ -1,18 +1,20 @@
 import { useState } from 'react'
 import { hasLocations, placeOf, staffLocationOn } from '../domain/locations'
 import { Link } from 'react-router-dom'
-import { ArrowRight, ArrowUpRight, Plus, Leaf, Printer } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, Plus, Printer } from 'lucide-react'
 import { useStore } from '../state/context'
 import { availableMinutes, bookedTimeShare, dayAppointments, dueClients } from '../domain/selectors'
 import { bookedTimeDefinition } from '../components/definitions'
-import { slots } from '../domain/commands'
-import { addDays, dateLabel, money, timeLabel } from '../domain/format'
+import { dateLabel, money } from '../domain/format'
 import { Avatar, Button, Metric, photos } from '../design'
 import { businessMinutes } from '../domain/operations'
 import type { Appointment, Client } from '../domain/model'
 import { Agenda } from '../components/Agenda'
+import { SmartInsights } from '../components/SmartInsights'
+import { Specials } from '../components/Specials'
 import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
+import { PatchTestsDue } from '../components/PatchTests'
 import type { BookingDefaults } from '../components/BookingDialog'
 
 function greeting(minutes: number) {
@@ -49,24 +51,6 @@ export function Today() {
   const day = dayAppointments(state)
   const multiSite = hasLocations(state)
   const due = dueClients(state)
-  const tomorrow = addDays(today, 1)
-  const professional = state.staff.find(
-    (p) =>
-      !p.archived &&
-      p.serviceIds.some((id) => state.services.some((s) => s.id === id && !s.archived)),
-  )
-  const service = state.services.find((s) => !s.archived && professional?.serviceIds.includes(s.id))
-  const available =
-    professional && service
-      ? slots(
-          state,
-          service.id,
-          professional.id,
-          tomorrow,
-          undefined,
-          staffLocationOn(state, professional.id, tomorrow),
-        )
-      : []
   const booked = day.reduce((sum, a) => sum + a.bookedPriceMinor, 0)
   const completed = day.filter((a) => a.status === 'completed').length
   const changed = state.appointments.filter(
@@ -176,63 +160,9 @@ export function Today() {
           )}
         </section>
         <aside className="today-aside">
-          <section className="intelligence-panel">
-            <div
-              className="intelligence-photo"
-              aria-hidden="true"
-              style={{ backgroundImage: `url(${photos.tea})` }}
-            />
-            <div className="intelligence-symbol">
-              <Leaf size={22} />
-              <span>Saleane noticed</span>
-            </div>
-            <h2>
-              Make room for
-              <br /> a familiar face.
-            </h2>
-            <p>
-              {due.length
-                ? `${due.length} clients last visited at least four weeks ago and haven’t booked their next visit.`
-                : state.appointments.some((a) => a.status === 'completed')
-                  ? 'Every returning client has a visit in the calendar. A good rhythm to keep.'
-                  : 'No return visits to review yet. Relationship history will grow with each completed visit.'}
-            </p>
-            <div className="insight-fact">
-              <span>
-                {professional
-                  ? `Tomorrow with ${professional.name.split(' ')[0]}`
-                  : 'Your next opening'}
-              </span>
-              <strong>
-                {available.length
-                  ? `${timeLabel(available[0], state.organisation.locale)} available`
-                  : 'No bookable times'}
-              </strong>
-              <small>
-                {service
-                  ? `${service.name} · ${service.durationMinutes} minutes`
-                  : 'Add your services and people to begin'}
-              </small>
-            </div>
-            {due.length > 0 && available.length > 0 && (
-              <Button
-                variant="light"
-                onClick={() =>
-                  setBooking({
-                    clientId: due[0].id,
-                    serviceId: service?.id,
-                    staffId: professional?.id,
-                    date: tomorrow,
-                  })
-                }
-              >
-                Review a return visit <ArrowRight size={16} />
-              </Button>
-            )}
-            <small className="insight-source">
-              Based on visit history and calendar availability. No outreach sent.
-            </small>
-          </section>
+          <PatchTestsDue />
+          <SmartInsights onBook={setBooking} />
+          <Specials />
           <section className="team-panel">
             <div className="section-heading">
               <h2>Your people today</h2>

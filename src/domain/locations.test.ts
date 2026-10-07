@@ -94,9 +94,13 @@ describe('several locations', () => {
     expect(staffLocationOn(s, 'staff-maya', thursday)).toBe(islington)
     expect(staffLocationOn(s, 'staff-maya', '2026-10-07')).toBe(s.organisation.locationId)
     // On Thursday Maya is in Islington, so the main location has no times with her.
-    expect(slots(s, 'service-facial', 'staff-maya', thursday, now)).toEqual([])
+    const main = s.organisation.locationId
+    expect(slots(s, 'service-facial', 'staff-maya', thursday, now, main)).toEqual([])
+    expect(run(s, facial(main)).ok).toBe(false)
     expect(slots(s, 'service-facial', 'staff-maya', thursday, now, islington)).toContain(600)
-    expect(run(s, facial()).ok).toBe(false)
+    // Without a chosen location (the desk, Ask Saleane), times and the visit follow where she works.
+    expect(slots(s, 'service-facial', 'staff-maya', thursday, now)).toContain(600)
+    expect(apply(s, facial()).appointments.at(-1)!.locationId).toBe(islington)
     const booked = apply(s, facial(islington)).appointments.at(-1)!
     expect(booked).toMatchObject({ locationId: islington, resourceId: 'room-two' })
     // Islington has one treatment room, so a second facial at the same time does not fit there.

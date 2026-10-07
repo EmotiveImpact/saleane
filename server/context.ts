@@ -14,6 +14,7 @@ import { paymentProviderFromEnv } from './payments/providers'
 import { parseState } from '../src/domain/model'
 import type { BusinessState } from '../src/domain/model'
 import { availableResource } from '../src/domain/commands'
+import { staffLocationOn } from '../src/domain/locations'
 import { operations } from '../src/domain/operations'
 import type { Role, Tax } from '../src/domain/operations'
 
@@ -336,7 +337,8 @@ export function createContext(options: ApiOptions) {
       state.appointments.push({
         id: hold.id,
         organisationId: org.id,
-        locationId: allocation.locationId ?? state.organisation.locationId,
+        locationId:
+          allocation.locationId ?? staffLocationOn(state, allocation.staffId, allocation.date),
         clientId: 'ephemeral-hold',
         serviceId: allocation.serviceId,
         staffId: allocation.staffId,
