@@ -2,6 +2,17 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · Lumane · Assistant engine and first Ask Saleane skills
+
+**Status: engine core built locally on 7 October 2026, in review; no screen, no server route and no real AI connected yet.** Everything runs with a test-mode brain that answers from a script, so nothing is sent to an AI supplier and nothing costs money.
+
+- Lumane is a separate engine in `lumane/`, built so other products can reuse it. A test makes sure it never imports anything from SALEANE.
+- Skills are either read skills, which answer from the studio's own records, or action skills, which only propose a change. A proposal does nothing until a person approves it, and it expires after 30 minutes.
+- Every request is checked against the studio's monthly allowance (typed requests, talking time, guest chats), a per-person hourly limit and a daily spending ceiling before any AI is called. When a limit is reached the AI is simply not called; there is no silent cheaper fallback. A new month starts from zero.
+- Each question has a cap on how many steps the AI can take, and every answer, proposal and refusal is written to an audit trail.
+- The first Ask Saleane skills cover the day overview, finding a client, a client brief, who is due back, takings and low stock (owners and managers only), money owed and plans running low. Drafting a message and moving a visit are proposals: a draft stays unsent until someone sends it from the Inbox, a move checks the diary for clashes, and marketing drafts are refused without consent.
+- Practitioners get no Ask Saleane skills yet; theirs will be built on `PractitionerView` so they never see a whole studio.
+
 ## 2026-10-07 · V1.5 · Private client feedback and ratings
 
 **Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** The feedback request joins the message outbox like any other message; with no provider connected it waits there unsent.
