@@ -2,9 +2,9 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
-## In review · The new look: fonts, studio colours and a Clients directory for hundreds
+## 2026-10-07 · Merged · The new look: fonts, studio colours and a Clients directory for hundreds
 
-**Status: built on the design tightening pass below, not merged, not deployed.** Look and wording only; bookings, money and messages behave as before.
+**Status: merged into main on 7 October 2026 with the design tightening pass below; not deployed.** Look and wording only; bookings, money and messages behave as before.
 
 - New type: Figtree for all working text (360 body, 460 menu, 560 emphasis) and a light serif for headings and names. Financier Display Light is the chosen heading font, but its licence is not bought, so the committed code uses the free Newsreader at 300, then Georgia. Bodoni Moda, Source Sans 3 and Manrope are removed.
 - A warm off-white ground, a warm sidebar, white cards with 20px corners, pill buttons and a sticky, translucent top bar. No dark panels: the Business insight card is now light.
@@ -16,11 +16,11 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - The Inbox opens in two columns, like email: the queue on the left (All, To approve, Queued, Not sent, and search) and the chosen message on the right, with that client's earlier queued messages above it and the draft in a dashed outline with "Approve and queue" and "Edit". A View switch offers "List with side panel" instead, and each person's choice is remembered in this browser. On a phone the list comes first, then the message with an "All messages" link back. Nothing is labelled sent: queued messages read "Queued, not sent", because texting and email are not connected.
 - Lighter, sunlit photographs in JPEG (242 KB and 48 KB) replace the larger PNG on the workspace, sign-in and booking pages.
 - The design library page now resolves colours mixed with `color-mix()` before measuring contrast, and lists the studio colours.
-- Tests: four new directory tests (paging 412 clients, search, agreement with Today's "ready to return", sorting). The offline day sheet test now accepts a date before the saved time, which it shows when the computer's date differs from the studio's; it failed on main for the same reason.
+- Tests: four new directory tests (paging 412 clients, search, agreement with Today's "ready to return", sorting). One Inbox test covers the remembered view.
 
-## In review · Design tightening pass and faster flows
+## 2026-10-07 · Merged · Design tightening pass and faster flows
 
-**Status: draft pull request, not merged.** Look and wording only; bookings, money and messages behave as before.
+**Status: merged into main on 7 October 2026; not deployed.** Look and wording only; bookings, money and messages behave as before.
 
 - Fixed the Money and Inbox section switches, which had lost their styling in the design library pass and showed as plain grey buttons.
 - Money receipts are grouped by day with a day total and slim rows, five days at a time with "Show earlier receipts". Internal record codes are no longer shown.
@@ -44,6 +44,14 @@ Second pass, for speed at the desk and for guests (same draft). Bookings still p
 - The demo booking page shows the next fortnight with how many times each day has, and a "Next available" shortcut when a day is full. The live booking page offers "Try" the next day when a day is full.
 - Checkout reads in order: service, deposit, discount, tip, payment, total. A custom tip sits behind "Other".
 - Search is titled "Search clients", matches phone numbers and shows each person's next visit.
+
+## 2026-10-07 · Merged · Competitive position in the plan
+
+**Status: documentation only; no product behaviour changes.**
+
+- Roadmap gains a Competitive position section from the Mindbody comparison: memberships and packages lead V1.5, a narrow consented missed-call text-back joins V1.5 ahead of the V4 concierge, no marketplace stays a firm rule, and booking from Google search or Instagram is listed as an idea to validate.
+- The same section records the one-line promise, the four moments (before, during, checkout, after), the cancellation-to-filled-slot workflow, focused navigation and the pilot test of less effort, fewer mistakes and better continuity.
+- Vision states the no-marketplace rule plainly and adds a short "Where SALEANE competes" section.
 
 ## 2026-10-06 · Merged · LOCAL-05 qualification pass
 
@@ -85,7 +93,7 @@ Second pass, for speed at the desk and for guests (same draft). Bookings still p
 
 ## In review · LOCAL-02 guest manage and cancel
 
-**Status: draft pull request, not merged.** Schema migration 3 adds `guest_links`. Live services stay unconfigured; nothing is emailed or refunded automatically.
+**Status: merged into main on 7 October 2026; not deployed.** Schema migration 3 adds `guest_links`. Live services stay unconfigured; nothing is emailed or refunded automatically.
 
 - A confirmed online booking returns a private link (`/manage#…`) shown on the confirmation page, labelled as not sent. The desk can create a new link for any upcoming visit from the appointment panel, which stops every earlier link, or stop all links.
 - A link is a random token stored only as a hash, scoped to one visit in one studio. It expires 120 days after issue or seven days after the visit starts, whichever is sooner, and every failure returns the same message. The token lives in the address fragment, so it is not sent in server requests' paths or Referer headers. Restoring a backup revokes all links.

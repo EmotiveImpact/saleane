@@ -150,9 +150,9 @@ describe('the offline day sheet in the signed-in client (OFF-01)', () => {
     })
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent(/Offline/)
+    // The fictional sandbox keeps a fixed date, so on any other real day the saved time also names its date.
     expect(alert).toHaveTextContent(
-      // The sandbox sheet is always 6 October; on any other real day the time carries its date.
-      /Showing the day sheet saved at (?:\w{3} \d{1,2} \w{3}, )?\d\d:\d\d, valid until .+\. Changes are paused\./,
+      /Showing the day sheet saved at (\w{3} \d{1,2} \w{3}, )?\d\d:\d\d, valid until .+\. Changes are paused\./,
     )
     expect(screen.queryByRole('button', { name: 'New appointment' })).not.toBeInTheDocument()
     expect(screen.getByRole('table')).toHaveTextContent(state.clients[0].name.split(' ')[0])

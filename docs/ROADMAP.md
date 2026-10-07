@@ -26,19 +26,33 @@ Do not rebuild the authority and booking foundations: they already operate local
 
 ## The long view
 
-| Version                           | Product outcome                                 | Connected scope                                                                                         | Dependency / exit gate                                                                                                                         |
-| --------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| V1.0 · Run the Day                | Keep today’s promises and book the next visit   | Organisation, team, rooms, services, calendar, clients, branded booking, deposits, checkout, rebooking  | Reliable tenant and money loop; safe operating procedures                                                                                      |
-| V1.5 · Own the Relationship       | Remember and recover the client journey         | Non-clinical forms, consultations, versioned consent, packages, memberships, inbox, wait-list recovery  | Purpose-based communications; financial liability rules; explicit form/data classification                                                     |
-| V2 · Run the Business             | Operate profitably across people and places     | Inventory, consumption, retail, commissions, staff performance, multi-location, accounting exports      | Stock and commission ledgers reconcile; no cross-location or cross-currency leakage                                                            |
-| V3 · Saleane Intelligence         | Turn trustworthy facts into better decisions    | Daily brief, anomalies, churn/rebooking opportunities, schedule optimisation, natural-language analysis | Metric catalogue, data lineage, evaluation set, permissions and human approval for writes                                                      |
-| V4 · Saleane Concierge            | Handle routine conversations safely             | Phone, SMS, web and messaging with constrained booking/payment/customer-service tools                   | Identity checks; purpose/channel consent; interruption and handoff; command limits; provider and cost controls                                 |
-| V5 · Saleane Network              | Support groups and an extensible platform       | Multi-brand groups, scoped benchmarking, APIs, partners, deeper automation                              | Explicit sharing rights; anonymisation assessment; stable API versions and group permissions                                                   |
-| Separate track · Saleane Clinical | Support qualifying clinical/aesthetic workflows | Clinical data, clinical consent, charts and specialised audits                                          | Jurisdiction and entity assessment; specialist clinical/legal review; segregated data/permissions; appropriate contracts and security evidence |
+| Version                           | Product outcome                                 | Connected scope                                                                                                                                 | Dependency / exit gate                                                                                                                         |
+| --------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| V1.0 · Run the Day                | Keep today’s promises and book the next visit   | Organisation, team, rooms, services, calendar, clients, branded booking, deposits, checkout, rebooking                                          | Reliable tenant and money loop; safe operating procedures                                                                                      |
+| V1.5 · Own the Relationship       | Remember and recover the client journey         | **Memberships and packages first**, then non-clinical forms, consultations, versioned consent, inbox, missed-call text-back, wait-list recovery | Purpose-based communications; financial liability rules; explicit form/data classification                                                     |
+| V2 · Run the Business             | Operate profitably across people and places     | Inventory, consumption, retail, commissions, staff performance, multi-location, accounting exports                                              | Stock and commission ledgers reconcile; no cross-location or cross-currency leakage                                                            |
+| V3 · Saleane Intelligence         | Turn trustworthy facts into better decisions    | Daily brief, anomalies, churn/rebooking opportunities, schedule optimisation, natural-language analysis                                         | Metric catalogue, data lineage, evaluation set, permissions and human approval for writes                                                      |
+| V4 · Saleane Concierge            | Handle routine conversations safely             | Phone, SMS, web and messaging with constrained booking/payment/customer-service tools                                                           | Identity checks; purpose/channel consent; interruption and handoff; command limits; provider and cost controls                                 |
+| V5 · Saleane Network              | Support groups and an extensible platform       | Multi-brand groups, scoped benchmarking, APIs, partners, deeper automation                                                                      | Explicit sharing rights; anonymisation assessment; stable API versions and group permissions                                                   |
+| Separate track · Saleane Clinical | Support qualifying clinical/aesthetic workflows | Clinical data, clinical consent, charts and specialised audits                                                                                  | Jurisdiction and entity assessment; specialist clinical/legal review; segregated data/permissions; appropriate contracts and security evidence |
+
+## Competitive position
+
+Reviewed on 6 October 2026 against Mindbody ([comparison](https://claude.ai/artifact/HcnwCc2gJEZb7GmwGpcifU)). SALEANE shares the category's basic jobs (booking, payments, client records) but is not becoming Mindbody, which is built around classes, a commission marketplace, tiered pricing and chains. The closest rivals are Mangomint and Boulevard; Fresha and Phorest matter in the UK. The user accepted these changes to the plan:
+
+1. **Memberships and packages lead V1.5.** Recurring income is the main reason studios stay with their software. Build them first in V1.5, with the existing liability, redemption and refund rules.
+2. **A narrow missed-call text-back arrives in V1.5**, well before the full V4 concierge. When a call is missed, the client receives a consented text with the studio's booking link. It needs a qualified SMS provider, purpose/channel consent and delivery receipts; it never claims a message was sent without a receipt.
+3. **No marketplace remains a firm rule.** No consumer marketplace, commission on clients or competitor promotion.
+4. **Fair discovery is an idea to validate:** booking straight from Google search and an Instagram booking button, both landing on the studio's own branded booking.
+5. **One promise, shown in ordinary work:** "SALEANE helps a small, high-touch studio run every visit well, and turn good visits into lasting client relationships." Every feature should show up in one of four moments: before the visit (the right practitioner and room, preferences easy to find), during the day (delays, changes and open tasks visible without searching), at checkout (payment, balances and the next visit connected) and afterwards (who needs attention, why, and the permitted next step).
+6. **A signature workflow to aim for: from cancellation to filled slot.** A cancellation identifies the free practitioner and room, finds suitable consenting clients, lets the team approve an invitation and measures whether the slot was filled. This is a V1.5 target built on the waitlist, consent and delivery receipts, not a shipped capability.
+7. **Keep navigation focused.** Today, Calendar, Clients, Inbox and Business stay the main sections; new modules live inside them rather than adding to the sidebar.
+8. **The test that matters:** can one real studio run its day with less effort, fewer mistakes and better continuity for its clients than with its current software? Mindbody stays a serious benchmark, but the pilot is judged on this.
+9. **Steer away from** class timetables and gym features, feature sprawl, locked pricing tiers, long contracts and exit fees.
 
 ## Ideas to validate, rather than commitments
 
-A waiting-list invitation that starts with a real empty slot; an owner brief that explains a shortfall with receipt-level evidence; a guest booking link that retains the business’s identity; a consultation that carries its version into a visit; a small group’s shared services with location-specific pricing; a stock suggestion tied to booked consumption.
+Booking from Google search and an Instagram button that land on the studio's own branded booking; a waiting-list invitation that starts with a real empty slot; an owner brief that explains a shortfall with receipt-level evidence; a guest booking link that retains the business’s identity; a consultation that carries its version into a visit; a small group’s shared services with location-specific pricing; a stock suggestion tied to booked consumption.
 
 The sequence matters: a polished inbox without consent and delivery history is not relationship ownership. An AI conversation without authorised commands is not an operating system.
 
@@ -74,23 +88,23 @@ The experimental server draft at `f73d084` is superseded by the verified Node/SQ
 
 ## Original feature disposition
 
-| Original idea                                                  | Release and rationale                | Dependency retained now                                           |
-| -------------------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------- |
-| Compact Today, calendar side preview, client timeline          | Foundation and V1                    | Shared IDs, event sources, accessible progressive disclosure      |
-| Services/people/rooms/hours, move/cancel/no-show               | V1                                   | Capability versus membership, immutable booked snapshots          |
-| Branded booking, no preference, deposit, guest manage          | V1                                   | Same availability, holds, verified own-booking authority          |
-| Checkout, tax, discounts, tips, refunds and receipts           | V1                                   | Versioned money/policy, authority limits, provider reconciliation |
-| Migration, export, offline daily continuity                    | V1 pilot gates                       | Scoped source mappings, minimal read-only cache, retention        |
-| Forms/waivers and consultation                                 | V1.5 non-clinical only               | Version/classification/acceptance; clinical content excluded      |
-| Memberships/packages/gift cards                                | V1.5                                 | Liability, redemption, expiry/refund and imported-balance rules   |
-| Inbox, waitlist, aftercare/feedback, reactivation              | V1.5                                 | Purpose/channel consent, dispatch receipts, reviewed offers       |
-| Retail and professional/backbar stock                          | V2                                   | Product/stock movement, sale/consumption reference and reversal   |
-| Commission, renters and staff performance                      | V2                                   | Employment model is explicit; no full payroll promise             |
-| Multi-location, deeper accounting export                       | V2                                   | Tenant/location/currency from V1                                  |
-| Recurring and multi-practitioner visits; Apple/Google calendar | V2 scheduling track                  | Exception/segment model, sync authority and revocation            |
-| Personal cadence, owner questions, schedule optimisation       | V3                                   | Defined metrics, evidence and approval-led commands               |
-| Phone/SMS/web/WhatsApp concierge                               | V4; channel qualification separately | Identity, opt-out, bounded tools, handoff and usage costs         |
-| Groups, APIs and benchmarking                                  | V5                                   | Explicit sharing, aggregation and stable versions                 |
-| Health forms, treatment-response notes, clinical photos        | Separate Clinical programme          | Later instruction supersedes early mixed examples                 |
+| Original idea                                                   | Release and rationale                | Dependency retained now                                           |
+| --------------------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------- |
+| Compact Today, calendar side preview, client timeline           | Foundation and V1                    | Shared IDs, event sources, accessible progressive disclosure      |
+| Services/people/rooms/hours, move/cancel/no-show                | V1                                   | Capability versus membership, immutable booked snapshots          |
+| Branded booking, no preference, deposit, guest manage           | V1                                   | Same availability, holds, verified own-booking authority          |
+| Checkout, tax, discounts, tips, refunds and receipts            | V1                                   | Versioned money/policy, authority limits, provider reconciliation |
+| Migration, export, offline daily continuity                     | V1 pilot gates                       | Scoped source mappings, minimal read-only cache, retention        |
+| Forms/waivers and consultation                                  | V1.5 non-clinical only               | Version/classification/acceptance; clinical content excluded      |
+| Memberships/packages/gift cards                                 | V1.5, first                          | Liability, redemption, expiry/refund and imported-balance rules   |
+| Inbox, missed-call text-back, waitlist, aftercare, reactivation | V1.5                                 | Purpose/channel consent, dispatch receipts, reviewed offers       |
+| Retail and professional/backbar stock                           | V2                                   | Product/stock movement, sale/consumption reference and reversal   |
+| Commission, renters and staff performance                       | V2                                   | Employment model is explicit; no full payroll promise             |
+| Multi-location, deeper accounting export                        | V2                                   | Tenant/location/currency from V1                                  |
+| Recurring and multi-practitioner visits; Apple/Google calendar  | V2 scheduling track                  | Exception/segment model, sync authority and revocation            |
+| Personal cadence, owner questions, schedule optimisation        | V3                                   | Defined metrics, evidence and approval-led commands               |
+| Phone/SMS/web/WhatsApp concierge                                | V4; channel qualification separately | Identity, opt-out, bounded tools, handoff and usage costs         |
+| Groups, APIs and benchmarking                                   | V5                                   | Explicit sharing, aggregation and stable versions                 |
+| Health forms, treatment-response notes, clinical photos         | Separate Clinical programme          | Later instruction supersedes early mixed examples                 |
 
 No calendar dates are committed. The source workbook's illustrative 12–16-week schedule depended on an unverified team assumption; it is not a delivery promise. Final price, pilot and provider remain decisions supported by the research closure register.
