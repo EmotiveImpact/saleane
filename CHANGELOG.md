@@ -2,6 +2,14 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · V2 · Accountant exports
+
+**Status: built locally on 7 October 2026, in review; nothing deployed. Nothing is sent to Xero or QuickBooks.**
+
+- Business has a new Accounts page for owners and managers. For this month or last month it shows the takings, tax, tips and money given back, day by day, with three spreadsheets for the accountant: money in and out, sales by receipt, and a tax summary. Demo and test payments are marked as such.
+- The owner chooses Xero or QuickBooks and fills in the account codes the accountant gives them. "Prepare" turns each day with takings into a balanced journal in that software's own format, shows a preview, and keeps a record of the batch with who prepared it. It is marked test mode and nothing is sent.
+- Spreadsheet cells that start with a formula sign are kept as plain text.
+
 ## 2026-10-07 · V2 · Reordering from suppliers
 
 **Status: built locally on 7 October 2026, in review; nothing deployed. SALEANE never sends an order to a supplier.**

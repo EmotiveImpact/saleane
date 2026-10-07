@@ -425,6 +425,7 @@ export function parseState(value: unknown, region: Region): BusinessState {
       o.rentals ?? [],
       o.suppliers ?? [],
       o.purchaseOrders ?? [],
+      o.accountingExports ?? [],
       o.rentPayments ?? [],
     ])
       if (new Set(rows.map((r) => r.id)).size !== rows.length)

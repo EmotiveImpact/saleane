@@ -12,6 +12,7 @@ import {
 import { daysBetween } from './timeOff'
 import { isPeriodStart } from './rent'
 import { cancelOrder, placeOrder, receiveOrder, saveSupplier } from './purchasing'
+import { prepareAccountingExport } from './accounts'
 import { RENT_LIMIT, RENT_PAYMENT_LIMIT } from './rentSchema'
 import { restockReturn } from './retail'
 import { assertSchedulePreserved, scheduleChanges, scheduleSnapshot } from './schedule'
@@ -510,6 +511,11 @@ export function runOperatingCommand(
     if (old) o.products[o.products.indexOf(old)] = product
     else o.products.push(product)
     recordId = product.id
+  } else if (command.type === 'accounting-settings') {
+    o.accounting = command.settings
+    recordId = next.organisation.id
+  } else if (command.type === 'accounting-export') {
+    recordId = prepareAccountingExport(next, command, now, makeId)
   } else if (command.type === 'supplier') {
     recordId = saveSupplier(next, command, makeId)
   } else if (command.type === 'purchase-order') {

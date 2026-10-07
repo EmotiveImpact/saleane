@@ -366,6 +366,7 @@ export function seed(region: Region): BusinessState {
   seedPay(state)
   seedTimeOff(state, uk)
   seedRent(state, uk)
+  seedAccounting(state, uk)
   // V1.5: a few clients waiting for a time, so the waitlist shows openings straight away.
   const wishes: [string, string, string | undefined, string, string, WaitlistTime[], string][] = [
     [
@@ -453,6 +454,25 @@ function seedSuppliers(state: BusinessState) {
       actor: 'Maya · demo fixture',
     },
   ]
+}
+
+/** V2: example account codes so the demo can prepare a test batch. Real codes come from the accountant. */
+function seedAccounting(state: BusinessState, uk: boolean) {
+  const o = (state.operations ??= defaultOperations('sandbox'))
+  o.accounting = {
+    provider: uk ? 'xero' : 'quickbooks',
+    codes: {
+      services: '200',
+      products: '210',
+      tax: uk ? '820' : '2200',
+      tips: '825',
+      plans: '205',
+      rent: '260',
+      fees: '270',
+      refunds: '215',
+      clearing: '610',
+    },
+  }
 }
 
 /** V2: Theo rents the styling chair by the week from 21 September; two weeks paid, this week owed. */

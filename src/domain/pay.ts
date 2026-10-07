@@ -5,6 +5,7 @@ import { retailRevenue } from './retail'
 import { serviceRevenue } from './selectors'
 import { recordDay } from './tillCount'
 import { rentalOn } from './rent'
+import { csvCell } from './csv'
 
 /**
  * V2: commission and tips per person for a pay period. SALEANE works out what each person has
@@ -187,11 +188,7 @@ export function payPeriod(s: BusinessState, from: string, to: string): PaySummar
 /** A plain spreadsheet for payroll or the accountant. */
 export function payCsv(rows: PaySummary[], from: string, to: string, currency: string) {
   const amount = (minor: number) => (minor / 100).toFixed(2)
-  // A leading = + - or @ would run as a formula in a spreadsheet, so it is kept as text.
-  const cell = (raw: string) => {
-    const value = /^[=+\-@]/.test(raw) ? `'${raw}` : raw
-    return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value
-  }
+  const cell = csvCell
   const header = [
     'Person',
     'From',

@@ -24,6 +24,7 @@ import { tillCountCommandSchema } from './tillCount'
 import { retailItemsSchema } from './retailSchema'
 import { rentMethods, rentalInputSchema } from './rentSchema'
 import { orderLinesSchema, supplierInputSchema } from './purchasingSchema'
+import { accountingProviders, accountingSettingsSchema } from './accountsSchema'
 import { reminderSettingsSchema } from './reminderSettings'
 const id = z.string().min(1).max(150)
 const money = z.number().int().nonnegative().max(100_000_000)
@@ -168,6 +169,13 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
       .max(50),
   }),
   z.object({ type: z.literal('cancel-order'), orderId: id }),
+  z.object({ type: z.literal('accounting-settings'), settings: accountingSettingsSchema }),
+  z.object({
+    type: z.literal('accounting-export'),
+    provider: z.enum(accountingProviders),
+    from: z.iso.date(),
+    to: z.iso.date(),
+  }),
   z.object({ type: z.literal('end-rental'), rentalId: id, to: z.iso.date() }),
   z.object({
     type: z.literal('rent-payment'),

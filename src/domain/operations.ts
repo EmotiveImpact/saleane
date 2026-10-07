@@ -4,6 +4,11 @@ import { reminderSettingsSchema } from './reminderSettings'
 import { paymentMethodSchema, processorSchema } from './paymentMethods'
 import { RENT_LIMIT, RENT_PAYMENT_LIMIT, rentPaymentSchema, rentalSchema } from './rentSchema'
 import {
+  ACCOUNTING_EXPORT_LIMIT,
+  accountingExportSchema,
+  accountingSettingsSchema,
+} from './accountsSchema'
+import {
   ORDER_LIMIT,
   SUPPLIER_LIMIT,
   purchaseOrderSchema,
@@ -250,6 +255,9 @@ export const operationsSchema = z.object({
   /** V2: chairs and rooms rented to self-employed people, and the rent they have paid. */
   suppliers: z.array(supplierSchema).max(SUPPLIER_LIMIT).optional(),
   purchaseOrders: z.array(purchaseOrderSchema).max(ORDER_LIMIT).optional(),
+  /** V2: the accounting software and account codes, and batches prepared for it. */
+  accounting: accountingSettingsSchema.optional(),
+  accountingExports: z.array(accountingExportSchema).max(ACCOUNTING_EXPORT_LIMIT).optional(),
   rentals: z.array(rentalSchema).max(RENT_LIMIT).optional(),
   rentPayments: z.array(rentPaymentSchema).max(RENT_PAYMENT_LIMIT).optional(),
   leaveAllowances: z.array(z.object({ staffId: id, days: z.number().min(0).max(366) })).optional(),
@@ -384,7 +392,12 @@ export function can(role: Role, action: string) {
   // Feedback and a guest's own waitlist choices come only from their private link (V1.5).
   if (['feedback', 'waitlist-join', 'waitlist-leave'].includes(action)) return false
   if (role === 'owner') return true
-  if (['membership', 'restore', 'organisation', 'tax', 'pay-rate'].includes(action)) return false
+  if (
+    ['membership', 'restore', 'organisation', 'tax', 'pay-rate', 'accounting-settings'].includes(
+      action,
+    )
+  )
+    return false
   if (role === 'manager') return true
   if (
     [
@@ -409,6 +422,7 @@ export function can(role: Role, action: string) {
       'purchase-order',
       'receive-order',
       'cancel-order',
+      'accounting-export',
     ].includes(action)
   )
     return false
