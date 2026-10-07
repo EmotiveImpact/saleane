@@ -575,7 +575,9 @@ describe('appointment messages (PILOT-01)', () => {
     expect(sent.map((m) => [m.subject, m.to])).toEqual([
       ['Happy birthday from Linden Studio', keen.email],
     ])
-    expect(sent[0].body).toContain(`${origin}/book/${slug}`)
+    // Already booked for tomorrow, so simply a happy birthday with no invitation.
+    expect(sent[0].body).toContain('We look forward to seeing you soon.')
+    expect(sent[0].body).not.toContain('{{')
     expect(rows().find((r) => r.kind === 'birthday')).toMatchObject({
       appointment_id: '',
       client_id: guest.id,
@@ -598,8 +600,8 @@ describe('appointment messages (PILOT-01)', () => {
     await run(owner, { type: 'arrive', appointmentId })
     await run(owner, { type: 'checkout', appointmentId, tipMinor: 0, method: 'cash' })
     await api.outbox.tick()
-    // 4 January 2027, 10:00 in London: 90 days after the visit.
-    clock = Date.parse('2027-01-04T10:00:00.000Z')
+    // 6 January 2027, 10:00 in London: three months after the visit.
+    clock = Date.parse('2027-01-06T10:00:00.000Z')
     api.outbox.plan()
     expect(rows().find((r) => r.kind === 'miss_you')).toMatchObject({ status: 'pending' })
     await book(slug, serviceId, staffId, '2027-01-12', keen)

@@ -6,6 +6,7 @@ import type { BusinessState } from './model'
 import { can, defaultOperations, permissionFor } from './operations'
 import {
   BOOK_LINK,
+  addMonths,
   birthdayDue,
   birthdayIn,
   composeClientMessage,
@@ -52,6 +53,16 @@ describe('birthday email', () => {
     expect(plan[0].body).toContain('To stop these, reply to this email')
     const recorded: RecordedMessage[] = plan.map((m) => ({ ...m, status: 'skipped' }))
     expect(kinds(s, '2026-10-09T12:00:00.000Z', recorded)).not.toContain('client-1:birthday:2026')
+  })
+
+  it('only wishes a happy birthday, with no invitation, when a visit is already booked', () => {
+    const s = local()
+    const visit = s.appointments.find((a) => a.status === 'confirmed')!
+    s.appointments.push({ ...visit, id: 'visit-soon', clientId: 'client-1', date: '2026-10-20' })
+    expect(birthdayDue(s, noor(s), birthday)).toBe(true)
+    const body = composeClientMessage(s, noor(s), 'birthday').body
+    expect(body).toContain('We look forward to seeing you soon.')
+    expect(body).not.toContain(BOOK_LINK)
   })
 
   it('needs agreement on every record, the setting, and one record per guest', () => {
@@ -120,23 +131,24 @@ describe('we miss you', () => {
 
   it('goes once, from three months after the last visit, for a month', () => {
     const s = lapsed('2026-07-01')
-    expect(missYouFrom(s, s.appointments.at(-1)!)).toBe('2026-09-29')
-    expect(missYouDue(s, noor(s), '2026-09-28T10:00:00.000Z')).toBe(false)
-    const plan = planMessages(s, '2026-09-29T10:00:00.000Z', []).filter(
+    expect(missYouFrom(s, s.appointments.at(-1)!)).toBe('2026-10-01')
+    expect(missYouDue(s, noor(s), '2026-09-30T10:00:00.000Z')).toBe(false)
+    const plan = planMessages(s, '2026-10-01T10:00:00.000Z', []).filter(
       (m) => m.kind === 'miss_you',
     )
     expect(plan.map((m) => [m.clientId, m.slot])).toEqual([['client-1', 'visit-last']])
     expect(plan[0].subject).toBe(`We miss you at ${s.organisation.name}`)
     expect(plan[0].body).toContain(BOOK_LINK)
     const recorded: RecordedMessage[] = plan.map((m) => ({ ...m, status: 'test' }))
-    expect(kinds(s, '2026-10-01T10:00:00.000Z', recorded)).toEqual([])
+    expect(kinds(s, '2026-10-03T10:00:00.000Z', recorded)).toEqual([])
     // A long-lapsed guest is not swept up when the studio first switches it on.
-    expect(missYouDue(s, noor(s), '2026-10-29T10:00:00.000Z')).toBe(false)
+    expect(missYouDue(s, noor(s), '2026-10-30T10:00:00.000Z')).toBe(true)
+    expect(missYouDue(s, noor(s), '2026-10-31T10:00:00.000Z')).toBe(false)
   })
 
   it('waits for nothing booked, agreement and the setting, and follows the chosen gap', () => {
     const s = lapsed('2026-07-01')
-    const at = '2026-09-30T10:00:00.000Z'
+    const at = '2026-10-02T10:00:00.000Z'
     expect(missYouDue(s, noor(s), at)).toBe(true)
     const booked = structuredClone(s)
     booked.appointments.push({
@@ -154,7 +166,9 @@ describe('we miss you', () => {
     expect(missYouDue(off, noor(off), at)).toBe(false)
     const sooner = structuredClone(s)
     sooner.operations!.reminders = { ...sooner.operations!.reminders!, missYouDays: 60 }
-    expect(missYouFrom(sooner, sooner.appointments.at(-1)!)).toBe('2026-08-30')
+    expect(missYouFrom(sooner, sooner.appointments.at(-1)!)).toBe('2026-09-01')
+    expect(addMonths('2026-08-31', 3)).toBe('2026-11-30')
+    expect(addMonths('2026-11-30', 3)).toBe('2027-02-28')
   })
 
   it('never lands while a due back note could still be on its way', () => {

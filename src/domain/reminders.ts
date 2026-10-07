@@ -226,10 +226,20 @@ const MISS_YOU_WINDOW_DAYS = 30
  * their last visit, and never while a due back note could still be on its way.
  */
 export function missYouFrom(s: BusinessState, last: Appointment) {
-  const days = reminderSettings(s).missYouDays ?? 90
+  // The setting is offered as months (60 days is "two months"), so count calendar months.
+  const months = (reminderSettings(s).missYouDays ?? 90) / 30
   const afterDueBack = addDays(dueBackOn(s, last), DUE_BACK_LATE_DAYS + 14)
-  const afterGap = addDays(last.date, days)
+  const afterGap = addMonths(last.date, months)
   return afterGap > afterDueBack ? afterGap : afterDueBack
+}
+
+/** The same day some months later, or the month's last day when it is shorter (31 Aug + 3 is 30 Nov). */
+export function addMonths(date: string, months: number) {
+  const [year, month, day] = date.split('-').map(Number)
+  const last = new Date(Date.UTC(year, month - 1 + months + 1, 0)).getUTCDate()
+  return new Date(Date.UTC(year, month - 1 + months, Math.min(day, last)))
+    .toISOString()
+    .slice(0, 10)
 }
 
 /**
@@ -484,10 +494,13 @@ export function composeClientMessage(s: BusinessState, client: Client, kind: Cli
     birthday: `Everyone at ${org.name} wishes you a very happy birthday. We hope it is a lovely day.`,
     miss_you: `It has been a little while since your last visit, and we would love to see you again whenever you are ready.`,
   }[kind]
+  // A guest who already has a visit booked is simply wished a happy birthday.
   const invite = {
-    birthday: operations(s).bookingEnabled
-      ? `If you fancy a treat this month: ${BOOK_LINK}`
-      : 'If you fancy a treat this month, call us or reply to book.',
+    birthday: hasVisitAhead(s, client.id)
+      ? `We look forward to seeing you soon.`
+      : operations(s).bookingEnabled
+        ? `If you fancy a treat this month: ${BOOK_LINK}`
+        : 'If you fancy a treat this month, call us or reply to book.',
     miss_you: bookLine,
   }[kind]
   const body = [

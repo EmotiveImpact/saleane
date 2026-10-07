@@ -49,7 +49,8 @@ Screenshots: [client birthday](V15-BIRTHDAY-client.png), [message settings](V15-
 
 ## Limits
 
-- Email only, and only to guests who agreed to hear from the studio. No offer or discount is attached.
+- Email only, and only to guests who agreed to hear from the studio. No offer or discount is attached. A guest with a visit already booked is simply wished a happy birthday, with no invitation to book.
+- The gap is counted in calendar months: three months after 1 July is 1 October.
 - The birthday is entered by the studio on the client page; guests cannot add it themselves yet. The year is never stored.
 - Stopping is by replying or telling the studio, who untick the agreement; there is no one-click unsubscribe link yet.
 - With no email provider configured both stay in test mode and are not sent.

@@ -7,7 +7,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 **Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-BIRTHDAY.md).
 
 - Each client page has a Birthday panel: month and day only, never the year. Recording or removing it goes on the client's timeline. Owners, managers and reception can change it; practitioners never see it.
-- A guest who agreed to hear from the studio and shared their birthday gets one birthday email on the day, in the daytime on the studio's clock, with a gentle link to book. 29 February birthdays get theirs on the 28th in other years.
+- A guest who agreed to hear from the studio and shared their birthday gets one birthday email on the day, in the daytime on the studio's clock, with a gentle link to book (or none, if they already have a visit booked). 29 February birthdays get theirs on the 28th in other years.
 - A guest who agreed gets one "we miss you" email once they have gone three months without a visit (the studio can choose two, three, four or six), and never while a due back email could still be on its way. It only goes in the month after the gap is reached, so switching it on does not email every long-lapsed guest at once. Anything booked stops it, including just before it goes.
 - Both are email only, say why the guest is hearing and how to stop, treat records with the same email as one guest, and can each be turned off in Settings › Messages to guests. With no provider configured they stay in test mode.
 - Birthdays are in the client's data export.
