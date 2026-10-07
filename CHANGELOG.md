@@ -2,6 +2,14 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · In review · Retention decisions recorded
+
+**Status: decisions recorded; nothing is deleted.**
+
+- The owner decided the privacy rules and retention periods (contacts and notes 2 years after the last visit, marketing consent until withdrawn plus 2 years, unsent messages 90 days, money records 6 years UK and 7 years US, staff 6 years after leaving, audit log 6 years, backups 35 days). See [PRIVACY.md](docs/PRIVACY.md).
+- Nothing is deleted automatically. A record that reaches the end of its period waits for an owner or manager, who either approves deleting it or keeps it longer by months or years (years by default); no deletion step is built yet.
+- The Manage page shows the periods under "How long records are kept", and the erasure review wording now reflects the decisions.
+
 ## 2026-10-07 · Merged · The new look: fonts, studio colours and a Clients directory for hundreds
 
 **Status: merged into main on 7 October 2026 with the design tightening pass below; not deployed.** Look and wording only; bookings, money and messages behave as before.
