@@ -308,6 +308,17 @@ describe('appointment messages (PILOT-01)', () => {
       'A patch test was recorded, or it was too late, before it went out.',
       'A patch test was recorded, or it was too late, before it went out.',
     ])
+    // That test then shows a reaction, so the guest is asked again for a new one.
+    const after = await workspace(owner)
+    const patchTestId = after.state.patchTests!.find((t) => t.clientId === clientId)!.id
+    await run(owner, { type: 'patch-test-result', patchTestId, outcome: 'reaction', notes: '' })
+    api.outbox.plan()
+    expect(
+      rows()
+        .filter((r) => r.kind === 'patch_test' && r.status === 'pending')
+        .map((r) => r.channel)
+        .sort(),
+    ).toEqual(['email', 'sms'])
   })
 
   it('asks for private feedback once after checkout, and not once the guest has answered', async () => {

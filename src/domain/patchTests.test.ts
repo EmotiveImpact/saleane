@@ -264,7 +264,11 @@ describe('patch tests', () => {
     expect(planMessages(moved, now, recorded).filter((m) => m.kind === 'patch_test')).toEqual([])
     // One that could not go out does not count.
     const failed = recorded.map((m) => ({ ...m, status: 'failed' as const }))
-    expect(planMessages(moved, now, failed).filter((m) => m.kind === 'patch_test')).toHaveLength(2)
+    const retry = planMessages(moved, now, failed).filter((m) => m.kind === 'patch_test')
+    expect(retry).toHaveLength(2)
+    // A new key, so the outbox does not ignore it as a repeat of the failed one.
+    expect(retry.map((m) => m.dedupeKey)).not.toContain(recorded[0].dedupeKey)
+    expect(retry[0].dedupeKey).toMatch(/:again-1$/)
     const tested = structuredClone(apply(seed('UK'), test('client-9', '2026-10-06T07:30:00.000Z')))
     tested.operations = { ...tested.operations!, mode: 'local' }
     expect(planMessages(tested, now, []).filter((m) => m.kind === 'patch_test')).toEqual([])

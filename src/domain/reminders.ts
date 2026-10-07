@@ -214,12 +214,12 @@ export function planMessages(
     if (start <= now) continue
     const rows = byVisit.get(a.id) ?? []
     const moved = lastMoved(s, a.id)
-    const add = (kind: MessageKind, channel: MessageChannel) => {
+    const add = (kind: MessageKind, channel: MessageChannel, attempt = 0) => {
       const recipient = channel === 'email' ? client.email : textNumber(client.phone)
       if (!recipient) return
       const text = composeMessage(s, a, kind, channel)
       plan.push({
-        dedupeKey: `${a.id}:${kind}:${channel}:${slot}`,
+        dedupeKey: `${a.id}:${kind}:${channel}:${slot}${attempt ? `:again-${attempt}` : ''}`,
         appointmentId: a.id,
         clientId: client.id,
         kind,
@@ -246,14 +246,14 @@ export function planMessages(
         else if (a.source !== 'import' && now - Date.parse(a.createdAt) < RECENT_MS)
           add('confirmation', channel)
       }
+      // One reminder per visit and channel, even if the visit moves afterwards. One that was
+      // skipped or failed may be asked for again, under a new key so the outbox takes it.
+      const patchRows = mine.filter((row) => row.kind === 'patch_test')
       if (
         patchTestReminderDue(s, a, start, now) &&
-        // One reminder per visit and channel, even if the visit moves afterwards.
-        !mine.some(
-          (row) => row.kind === 'patch_test' && !['skipped', 'failed'].includes(row.status),
-        )
+        !patchRows.some((row) => !['skipped', 'failed'].includes(row.status))
       )
-        add('patch_test', channel)
+        add('patch_test', channel, patchRows.length)
       if (settings.reminders && !mine.some((row) => row.kind === 'reminder' && row.slot === slot)) {
         const opens = start - settings.hoursBefore * HOUR
         // Booked or moved after the reminder time: the confirmation already did this job.
