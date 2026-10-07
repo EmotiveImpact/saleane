@@ -178,6 +178,35 @@ describe('connected operator journeys', () => {
     ).toBe(false)
     expect(saved.appointments.some((a: { source: string }) => a.source === 'online')).toBe(true)
   })
+  it('books anyone available in the afternoon and gives the visit to a professional free then', async () => {
+    const user = userEvent.setup()
+    show('/booking')
+    await user.click(screen.getByRole('button', { name: 'Choose a time' }))
+    expect(screen.getByRole('button', { name: /Anyone available/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.queryByRole('radio', { name: '14:00' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /Afternoon/ }))
+    await user.click(screen.getByRole('radio', { name: '14:00' }))
+    await user.click(screen.getByRole('button', { name: 'Your details' }))
+    await user.type(screen.getByRole('textbox', { name: 'Full name' }), 'Robin Anyone')
+    await user.type(screen.getByRole('textbox', { name: 'Email' }), 'robin@example.com')
+    await user.type(
+      screen.getByRole('textbox', { name: 'Phone with country code' }),
+      '+44 7700 900222',
+    )
+    await user.click(screen.getByRole('button', { name: 'Review your visit' }))
+    await user.click(screen.getByRole('checkbox', { name: /I understand this is a demo/ }))
+    await user.click(screen.getByRole('button', { name: 'Confirm demo visit' }))
+    const saved = JSON.parse(localStorage.getItem('saleane.demo.v1.UK')!)
+    const robin = saved.clients.find((c: { name: string }) => c.name === 'Robin Anyone')
+    const visit = saved.appointments.find((a: { clientId: string }) => a.clientId === robin.id)
+    expect(visit.startMinutes).toBe(840)
+    expect(saved.staff.find((p: { id: string }) => p.id === visit.staffId).serviceIds).toContain(
+      visit.serviceId,
+    )
+  })
 })
 
 describe('local operating surfaces', () => {

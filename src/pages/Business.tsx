@@ -5,8 +5,16 @@ import { useStore } from '../state/context'
 import { bookedTimeShare, dueClients, report } from '../domain/selectors'
 import { bookedTimeDefinition } from '../components/definitions'
 import { RetentionPanel } from '../components/RetentionPanel'
-import { dateLabel, money } from '../domain/format'
-import { Avatar, Button, Metric, PageHeader, SegmentedControl } from '../design'
+import { addDays, dateLabel, money, timeLabel } from '../domain/format'
+import {
+  Avatar,
+  Button,
+  Metric,
+  PageHeader,
+  SegmentedControl,
+  photos,
+  treatmentPhoto,
+} from '../design'
 
 export function Business() {
   const { state, today } = useStore()
@@ -15,6 +23,22 @@ export function Business() {
   const data = report(state, days)
   const due = dueClients(state)
   const maxRevenue = Math.max(...data.byDay.map((d) => d.revenue), 1)
+  // Today's close: visits still open, and who the studio sees first tomorrow.
+  const live = (a: (typeof state.appointments)[number]) =>
+    a.status !== 'cancelled' && a.status !== 'no_show'
+  const todays = state.appointments.filter((a) => a.date === today && live(a))
+  const first = state.appointments
+    .filter((a) => a.date === addDays(today, 1) && live(a))
+    .sort((a, b) => a.startMinutes - b.startMinutes)[0]
+  const closing = {
+    total: todays.length,
+    open: todays.filter((a) => a.status !== 'completed').length,
+    settled: todays.length > 0 && todays.every((a) => a.status === 'completed'),
+    tomorrow: first && {
+      name: state.clients.find((c) => c.id === first.clientId)?.name.split(' ')[0] ?? 'a guest',
+      start: first.startMinutes,
+    },
+  }
   function exportReport() {
     const rows = [
       ['date', 'completed_service_revenue_minor', 'currency'],
@@ -201,6 +225,69 @@ export function Business() {
             {data.rebookRate !== null &&
               ` Rebooked means the next visit was booked at checkout; the studio as a whole rebooked ${Math.round(data.rebookRate * 100)}%.`}{' '}
             Commissions and payroll are a later version.
+          </p>
+        </section>
+      </div>
+      <div className="business-photos">
+        <section className="surface detail-panel booking-preview">
+          <div className="section-heading">
+            <div>
+              <h2>Your booking page</h2>
+              <p>What guests see before they book.</p>
+            </div>
+            <Link className="button button-secondary" to="/booking">
+              Open the page
+            </Link>
+          </div>
+          <div
+            className="booking-preview-hero"
+            style={{ backgroundImage: `url(${photos.reception})` }}
+            role="img"
+            aria-label="A fictional reception in morning light"
+          />
+          <ul className="booking-preview-tiles">
+            {state.services.slice(0, 4).map((service, i, shown) => {
+              const photo = treatmentPhoto(
+                service.category,
+                shown.slice(0, i).filter((s) => s.category === service.category).length,
+              )
+              return (
+                <li key={service.id}>
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      backgroundImage: `url(${photo.src})`,
+                      backgroundPosition: photo.position,
+                    }}
+                  />
+                  <strong>{service.name}</strong>
+                  <small>
+                    {service.durationMinutes} minutes ·{' '}
+                    {money(service.priceMinor, state.organisation)}
+                  </small>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+        <section className="surface detail-panel closing-up">
+          <div
+            className="closing-up-photo"
+            style={{ backgroundImage: `url(${photos.endOfDay})` }}
+            role="img"
+            aria-label="A fictional treatment room in late afternoon light"
+          />
+          <span className="closing-up-eyebrow">Closing up</span>
+          <h2>{closing.settled ? 'The day is settled.' : 'Before you close.'}</h2>
+          <p>
+            {closing.total === 0
+              ? 'No visits were booked today.'
+              : closing.settled
+                ? `All ${closing.total} of today’s visits are checked out.`
+                : `${closing.open} of today’s ${closing.total} visits still to check out.`}{' '}
+            {closing.tomorrow
+              ? `Tomorrow starts with ${closing.tomorrow.name} at ${timeLabel(closing.tomorrow.start, state.organisation.locale)}.`
+              : 'Nothing is booked for tomorrow yet.'}
           </p>
         </section>
       </div>

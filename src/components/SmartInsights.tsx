@@ -3,7 +3,7 @@ import { ArrowRight, Check, Leaf } from 'lucide-react'
 import { useStore } from '../state/context'
 import { dateLabel, money, timeLabel } from '../domain/format'
 import { drifting, gapInvitation, gapSuggestions, morningBrief, unusual } from '../domain/insights'
-import { Button } from '../design'
+import { Button, photos } from '../design'
 import type { BookingDefaults } from './BookingDialog'
 import './smart-insights.css'
 
@@ -56,6 +56,11 @@ export function SmartInsights({ onBook }: { onBook: (defaults: BookingDefaults) 
 
   return (
     <section className="intelligence-panel" aria-labelledby="smart-insights-title">
+      <div
+        className="intelligence-photo"
+        aria-hidden="true"
+        style={{ backgroundImage: `url(${photos.tea})` }}
+      />
       <div className="intelligence-symbol">
         <Leaf size={22} />
         <span>Saleane noticed</span>

@@ -5,7 +5,7 @@ import { useStore } from '../state/context'
 import { availableMinutes, bookedTimeShare, dayAppointments, dueClients } from '../domain/selectors'
 import { bookedTimeDefinition } from '../components/definitions'
 import { dateLabel, money } from '../domain/format'
-import { Avatar, Button, Metric } from '../design'
+import { Avatar, Button, Metric, photos } from '../design'
 import { businessMinutes } from '../domain/operations'
 import type { Appointment, Client } from '../domain/model'
 import { Agenda } from '../components/Agenda'
@@ -77,7 +77,11 @@ export function Today() {
             </Link>
           </div>
         </div>
-        <div className="greeting-photo" aria-hidden="true" />
+        <div
+          className="greeting-photo"
+          aria-hidden="true"
+          style={{ backgroundImage: `url(${photos.sunlitRoom})` }}
+        />
       </section>
       <div className="metrics-band">
         <Metric
