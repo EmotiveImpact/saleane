@@ -80,11 +80,20 @@ export function runOperatingCommand(
       if (!service) throw new Error('Service does not belong to this workspace.')
       return { service, note }
     })
+    const aftercare = (command.aftercareNotes ?? []).map(({ serviceId, note }) => {
+      const service = next.services.find((item) => item.id === serviceId)
+      if (!service) throw new Error('Service does not belong to this workspace.')
+      return { service, note }
+    })
     if (command.arrivalNote) next.organisation.arrivalNote = command.arrivalNote
     else delete next.organisation.arrivalNote
     for (const { service, note } of services) {
       if (note) service.prepNote = note
       else delete service.prepNote
+    }
+    for (const { service, note } of aftercare) {
+      if (note) service.aftercareNote = note
+      else delete service.aftercareNote
     }
     return next.organisation.id
   }
@@ -209,13 +218,15 @@ export function runOperatingCommand(
         throw new Error('Offer the treatment at one location at least, or archive it.')
       if (command.input.durationMinutes + command.input.bufferMinutes > 1440)
         throw new Error('A service must fit within one day.')
+      const { returnWeeks, ...input } = command.input
+      const weeks = returnWeeks ? { returnWeeks } : {}
       if (old) {
-        Object.assign(old, record)
-        if (!command.input.locationPrices?.length)
+        Object.assign(old, { ...input, ...weeks, ...scope, id: record.id })
+        if (returnWeeks === null) delete (old as { returnWeeks?: number }).returnWeeks
+        if (!input.locationPrices?.length)
           delete (old as { locationPrices?: unknown }).locationPrices
-        if (!command.input.notOfferedAt?.length)
-          delete (old as { notOfferedAt?: unknown }).notOfferedAt
-      } else next.services.push({ ...command.input, ...scope, id: record.id })
+        if (!input.notOfferedAt?.length) delete (old as { notOfferedAt?: unknown }).notOfferedAt
+      } else next.services.push({ ...input, ...weeks, ...scope, id: record.id })
     } else if (command.type === 'staff') {
       for (const day of command.input.hours ?? []) {
         const site = day.locationId && placeOf(next, day.locationId)

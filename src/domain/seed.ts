@@ -63,6 +63,8 @@ export function seed(region: Region): BusinessState {
         priceMinor: uk ? 9500 : 12500,
         depositMinor: 2500,
         resourceType: 'treatment',
+        aftercareNote:
+          'Skip make-up, exfoliants and very hot water for the rest of today, and wear sun cream tomorrow.',
       },
       {
         ...scope,
@@ -112,6 +114,9 @@ export function seed(region: Region): BusinessState {
         depositMinor: 1500,
         resourceType: 'chair',
         patchTest: true,
+        aftercareNote:
+          'Wait two days before washing your hair, then use a colour-safe shampoo and cool water.',
+        returnWeeks: 6,
       },
     ],
     staff: [

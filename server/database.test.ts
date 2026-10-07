@@ -56,6 +56,53 @@ describe('numbered schema migrations', () => {
     expect(reopened.all('SELECT text FROM fixture_notes')).toEqual([{ text: 'kept' }])
     reopened.close()
   })
+  it('widens the outbox for aftercare and due back, keeping messages already recorded', () => {
+    const path = file()
+    const before = new LocalDatabase(
+      path,
+      migrations.filter((migration) => migration.version <= 10),
+    )
+    before.run(
+      'INSERT INTO organisations(id,slug,state,revision,created_at) VALUES(?,?,?,?,?)',
+      'org-1',
+      'linden',
+      JSON.stringify({ organisation: { id: 'org-1' }, revision: 0 }),
+      0,
+      1,
+    )
+    const row = (id: string, kind: string) =>
+      [
+        id,
+        'org-1',
+        `key-${id}`,
+        'visit-1',
+        'client-1',
+        kind,
+        'email',
+        'slot',
+        'a@example.invalid',
+        'S',
+        'B',
+        'test',
+        1,
+        1,
+        1,
+      ] as const
+    const insert =
+      'INSERT INTO outbox(id,organisation_id,dedupe_key,appointment_id,client_id,kind,channel,slot,recipient,subject,body,status,next_attempt_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+    before.run(insert, ...row('m1', 'patch_test'))
+    expect(() => before.run(insert, ...row('m2', 'due_back'))).toThrow()
+    before.close()
+    const after = new LocalDatabase(path)
+    after.run(insert, ...row('m2', 'due_back'))
+    after.run(insert, ...row('m3', 'aftercare'))
+    expect(after.all('SELECT id,kind FROM outbox ORDER BY id')).toEqual([
+      { id: 'm1', kind: 'patch_test' },
+      { id: 'm2', kind: 'due_back' },
+      { id: 'm3', kind: 'aftercare' },
+    ])
+    after.close()
+  })
   it('rolls a failed step back and leaves the last good version', () => {
     const path = file()
     new LocalDatabase(path).close()

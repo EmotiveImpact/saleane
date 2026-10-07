@@ -19,6 +19,16 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - A waitlist request can be for one location, and the schedule history records rooms and people moving between locations.
 - A studio with one location works exactly as before.
 
+## 2026-10-07 · V1.5 · Due back and aftercare
+
+**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-DUEBACK.md).
+
+- Each treatment can carry aftercare advice (Settings › Studio details, "Before and after a visit"). Half an hour after checkout the guest gets it by email, once, up to two days later. The sample facial and Gloss & Tone have some.
+- A treatment can say when guests are usually back, in weeks (Settings › Services, "Usually back after"). Gloss & Tone in the sample studio is six weeks.
+- A guest who agreed to hear from the studio gets one "time for your next visit?" email from three days before that date until two weeks after, in the daytime on the studio's clock, with a link to the booking page (or a request to get in touch when online booking is off). It does not go if they have anything booked, have had a later visit, or said no under any record with the same email. It is checked again just before it goes, so a booking made meanwhile stops it. The email says why they are getting it and how to stop.
+- Both are email only, follow the studio's and the client's email choices, and can each be turned off in Settings › Messages to guests. With no provider configured they stay in test mode.
+- The due back list on Today follows each treatment's own return time, with four weeks as before when none is set.
+
 ## 2026-10-07 · V3 · Smart insights, first pass
 
 **Status: built locally on 7 October 2026, in review; nothing deployed, sent or changed automatically.** Every insight is worked out from the studio's own records by fixed rules that can be explained; no AI service is involved.

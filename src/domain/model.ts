@@ -85,6 +85,10 @@ export const serviceSchema = z.object({
     .max(20)
     .refine((ids) => new Set(ids).size === ids.length)
     .optional(),
+  /** V1.5: practical care advice emailed after the visit, such as "Avoid hot water for a day". */
+  aftercareNote: z.string().max(GUEST_NOTE_LIMIT).optional(),
+  /** V1.5: how many weeks until a guest usually comes back for this, for a "due back" nudge. */
+  returnWeeks: z.number().int().min(1).max(52).optional(),
 })
 export const staffSchema = z.object({
   ...scoped,

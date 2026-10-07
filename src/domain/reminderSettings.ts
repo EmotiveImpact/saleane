@@ -11,6 +11,10 @@ export const reminderSettingsSchema = z
     sms: z.boolean(),
     /** V1.5: a private "how was your visit?" email after checkout. Absent means on. */
     feedback: z.boolean().optional(),
+    /** V1.5: care advice the day of the visit, for treatments that have some. Absent means on. */
+    aftercare: z.boolean().optional(),
+    /** V1.5: a "you're due back" email to guests who agreed to hear from the studio. Absent means on. */
+    dueBack: z.boolean().optional(),
   })
   .strict()
 export type ReminderSettings = z.infer<typeof reminderSettingsSchema>
@@ -21,4 +25,6 @@ export const defaultReminderSettings: ReminderSettings = {
   email: true,
   sms: true,
   feedback: true,
+  aftercare: true,
+  dueBack: true,
 }
