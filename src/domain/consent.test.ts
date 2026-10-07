@@ -71,6 +71,18 @@ describe('versioned consent for email news (V1.5)', () => {
     ).toBe(2)
   })
 
+  it('refuses a tick on the booking page that does not say which words were read', () => {
+    const result = execute(seed('UK'), { type: 'book', input: online(true) }, NOW, makeId)
+    expect(result.ok || result.error).toMatch(/changed how it asks about email news/)
+  })
+
+  it('keeps the sample studio’s words when it is renamed', () => {
+    const s = seed('UK')
+    const words = wordingFor(s, 1)?.text
+    s.organisation.name = 'A Different Name'
+    expect(wordingFor(parseState(s, 'UK'), 1)?.text).toBe(words)
+  })
+
   it('keeps earlier words when the studio changes them, and ignores a save with no change', () => {
     let s = seed('UK')
     const text = 'News and offers from us now and then. Stop whenever you like.'

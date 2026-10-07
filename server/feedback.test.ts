@@ -339,7 +339,10 @@ describe('versioned consent for email news (V1.5)', () => {
     const page = (await api.inject({ url: `/api/public/${slug}` })).json<{
       emailNews: { version: number; text: string }
     }>()
-    expect(page.emailNews.version).toBe(1)
+    expect(page.emailNews).toEqual({
+      version: 1,
+      text: 'I’d like occasional email news and offers from Reference Studio. I can stop them at any time.',
+    })
     const held = await api.inject({
       method: 'POST',
       url: `/api/public/${slug}/holds`,
@@ -351,16 +354,20 @@ describe('versioned consent for email news (V1.5)', () => {
       },
     })
     expect(held.statusCode, held.body).toBe(201)
-    const booked = await api.inject({
-      method: 'POST',
-      url: `/api/public/${slug}/book`,
-      payload: {
-        hold: held.json<{ hold: string }>().hold,
-        contact: { ...contact, email: 'news.guest@example.invalid', marketingConsent: true },
-        policy: true,
-        emailNewsVersion: page.emailNews.version,
-      },
-    })
+    const send = (extra: Record<string, unknown>) =>
+      api.inject({
+        method: 'POST',
+        url: `/api/public/${slug}/book`,
+        payload: {
+          hold: held.json<{ hold: string }>().hold,
+          contact: { ...contact, email: 'news.guest@example.invalid', marketingConsent: true },
+          policy: true,
+          ...extra,
+        },
+      })
+    // A tick that does not say which words were read is refused, and the time stays held.
+    expect((await send({})).statusCode).toBe(422)
+    const booked = await send({ emailNewsVersion: page.emailNews.version })
     expect(booked.statusCode, booked.body).toBe(200)
     const { appointmentId, manage } = booked.json<{ appointmentId: string; manage: Manage }>()
     let { state } = await studio(owner)

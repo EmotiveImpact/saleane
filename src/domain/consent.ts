@@ -116,7 +116,8 @@ export function recordConsentChanges(
     let wordingVersion: number | undefined
     if (client.marketingConsent) {
       const shown = command.type === 'book' ? command.input.consentVersion : undefined
-      if (shown !== undefined && shown !== current.version)
+      // A guest's own tick must say which words they read; the desk records what the guest told them.
+      if ((online && shown === undefined) || (shown !== undefined && shown !== current.version))
         throw new Error(
           'The studio has just changed how it asks about email news. Please read it again.',
         )

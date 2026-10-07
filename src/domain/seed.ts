@@ -3,6 +3,7 @@ import { DEMO_DATE, parseState } from './model'
 import type { Appointment, BusinessState, Region } from './model'
 import { addDays, dateLabel, timeLabel } from './format'
 import { defaultOperations } from './operations'
+import { standardWording } from './consent'
 
 export function seed(region: Region): BusinessState {
   const uk = region === 'UK'
@@ -619,7 +620,8 @@ export function seed(region: Region): BusinessState {
   ]
   // V1.5: one guest agreed to email news on the booking page; another agreed at the desk and later
   // stopped it from their visit link. The others were recorded before these records began. Version
-  // 1 is SALEANE's standard wording, frozen in the studio's own name when someone next agrees.
+  // 1, SALEANE's standard wording, is kept in the studio's name so a rename cannot rewrite it.
+  state.consentWording = [{ version: 1, text: standardWording(state.organisation.name) }]
   state.consentRecords = [
     {
       ...scope,

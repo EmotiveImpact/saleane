@@ -275,6 +275,11 @@ function BookingFlow({
     } catch (e) {
       if (e instanceof ApiError && [400, 409, 422].includes(e.status)) {
         setAttempt(null)
+        // The studio changed its words for email news: the guest reads them again and re-ticks.
+        if (/email news/.test(e.message)) {
+          setConsent(false)
+          setStep(3)
+        }
         try {
           sessionStorage.removeItem(journalKey)
         } catch {
