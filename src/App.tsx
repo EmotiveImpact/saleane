@@ -34,6 +34,9 @@ const ServerBooking = lazy(() =>
 const Manage = lazy(() => import('./pages/Manage').then((module) => ({ default: module.Manage })))
 const Inbox = lazy(() => import('./pages/Inbox').then((module) => ({ default: module.Inbox })))
 const Money = lazy(() => import('./pages/Money').then((module) => ({ default: module.Money })))
+const Feedback = lazy(() =>
+  import('./pages/Feedback').then((module) => ({ default: module.Feedback })),
+)
 const DesignLanguage = lazy(() =>
   import('./pages/DesignLanguage').then((module) => ({ default: module.DesignLanguage })),
 )
@@ -262,6 +265,9 @@ function WorkspaceApp() {
                 Overview
               </NavLink>
               <NavLink to="/business/money">Money</NavLink>
+              {(role === 'owner' || role === 'manager') && (
+                <NavLink to="/business/feedback">Feedback</NavLink>
+              )}
             </nav>
           )}
           <Routes>
@@ -276,6 +282,7 @@ function WorkspaceApp() {
               element={role === 'reception' ? <Navigate to="/settings" replace /> : <Business />}
             />
             <Route path="/business/money" element={<Money />} />
+            <Route path="/business/feedback" element={<Feedback />} />
             <Route path="/settings" element={<Manage accessPanel={<AccessPanel />} />} />
             <Route path="/business/manage" element={<Navigate to="/settings" replace />} />
             <Route path="/design-language" element={<DesignLanguage />} />

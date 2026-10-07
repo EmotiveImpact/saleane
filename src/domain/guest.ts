@@ -3,6 +3,7 @@ import { GUEST_NOTE_LIMIT, appointmentSchema, organisationSchema } from './model
 import { visitUid } from './calendarFile'
 import type { BusinessState } from './model'
 import { instantFor, operations } from './operations'
+import { feedbackForVisit, feedbackOpen } from './feedback'
 
 /**
  * LOCAL-02: what a guest holding a private manage link may see and do.
@@ -120,6 +121,17 @@ export const guestViewSchema = z
       .strict(),
     /** PILOT-02: paying the deposit or saving a card. Absent when there is nothing to do. */
     payment: guestPaymentSchema.nullable().optional(),
+    /** V1.5: private feedback after a completed visit. Only the guest's own ratings come back. */
+    feedback: z
+      .object({
+        open: z.boolean(),
+        given: z
+          .object({ visitRating: z.number().int(), practitionerRating: z.number().int() })
+          .strict()
+          .nullable(),
+      })
+      .strict()
+      .optional(),
   })
   .strict()
 export type GuestView = z.infer<typeof guestViewSchema>
@@ -191,5 +203,18 @@ export function guestView(
     },
     cancellation,
     ...(payment === undefined ? {} : { payment }),
+    ...(a.status === 'completed'
+      ? {
+          feedback: {
+            open: feedbackOpen(s, a.id, visitStart(s, a.id), now),
+            given: (() => {
+              const row = feedbackForVisit(s, a.id)
+              return row
+                ? { visitRating: row.visitRating, practitionerRating: row.practitionerRating }
+                : null
+            })(),
+          },
+        }
+      : {}),
   })
 }

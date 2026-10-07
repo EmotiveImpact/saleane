@@ -18,6 +18,7 @@ export const RETENTION_REGISTER: RetentionRule[] = [
   { record: 'Client contact details', period: '2 years after the last visit' },
   { record: '“Good to remember” and relationship notes', period: '2 years after the last visit' },
   { record: 'Client connections', period: '2 years after the last visit' },
+  { record: 'Private guest feedback (ratings and comments)', period: '2 years after it was given' },
   {
     record: 'Email marketing consent and withdrawals',
     period: 'Until withdrawn, then 2 more years as evidence',

@@ -203,6 +203,16 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
         recordedAt: b.createdAt,
         ...(b.settled ? { closedAt: b.settled.at, closedNote: b.settled.note } : {}),
       })),
+    // V1.5: the private feedback this client gave about their visits.
+    feedback: (state.feedback ?? [])
+      .filter((f) => f.clientId === client.id)
+      .map((f) => ({
+        visit: ref.get(f.appointmentId),
+        visitRating: f.visitRating,
+        practitionerRating: f.practitionerRating,
+        comment: f.comment,
+        givenAt: f.createdAt,
+      })),
     // V1.5: packages and memberships this client bought, with what was paid, used and returned.
     plans: (state.holdings ?? [])
       .filter((h) => h.clientId === client.id)
@@ -253,10 +263,11 @@ export function previewClientExport(file: ClientExport): ExportPreview {
       { label: 'Timeline entries', count: file.timeline.length },
       { label: 'Messages, none of them sent', count: file.messages.length },
       { label: 'Client connections, type only', count: file.connections.length },
+      { label: 'Private feedback they gave', count: file.feedback.length },
     ],
     excluded: CLIENT_EXPORT_EXCLUDED,
     notes: [
-      'Notes, preferences and message text are included as written. Read them before sending, in case they mention someone else.',
+      'Notes, preferences, feedback comments and message text are included as written. Read them before sending, in case they mention someone else.',
       'Staff names appear where they recorded an entry or looked after a visit.',
       'Messages show their real status. SALEANE has no delivery service configured, so none was sent.',
       ...(file.studio.sandbox
@@ -309,6 +320,7 @@ export function previewStudioExport(file: StudioExport): ExportPreview {
       { label: 'Timeline entries', count: r.events.length },
       { label: 'Messages, none of them sent', count: r.operations.messages.length },
       { label: 'Client connections', count: r.relationships.length },
+      { label: 'Private guest feedback, comments as written', count: (r.feedback ?? []).length },
       {
         label: 'Services, professionals and spaces',
         count: r.services.length + r.staff.length + r.resources.length,
@@ -321,6 +333,11 @@ export function previewStudioExport(file: StudioExport): ExportPreview {
     excluded: STUDIO_EXPORT_EXCLUDED,
     notes: [
       'This file holds every client’s personal details. Store it somewhere private and share it only with people entitled to see it.',
+      ...((r.feedback ?? []).length
+        ? [
+            'It includes guests’ private feedback comments as written, which only owners and managers normally see.',
+          ]
+        : []),
       'Record identifiers are kept so the file can be imported or reconciled later.',
       ...(file.studio.sandbox
         ? ['This is the fictional sandbox. Its money and people are not real.']
@@ -382,6 +399,12 @@ export function erasureReview(
         label: 'Unsent messages (drafts, queued and suppressed)',
         count: ops.messages.filter((m) => m.clientId === client.id).length,
         reason: 'None was ever sent, so no delivery record depends on them.',
+      },
+      {
+        label: 'Private feedback (ratings and comments)',
+        count: (state.feedback ?? []).filter((f) => f.clientId === client.id).length,
+        reason:
+          'What the person told the studio privately. Not linked to money; the averages would no longer count it.',
       },
       {
         label: 'Client connections',
@@ -490,6 +513,12 @@ export function clientExportText(file: ClientExport, locale = 'en-GB') {
     ...file.carriedOver.map(
       (b) =>
         `${b.kind === 'credit' ? 'Credit' : 'Owed'} · ${amount(b.amountMinor, cur, locale)} · from ${b.from} · ${b.closedAt ? `closed ${b.closedAt.slice(0, 10)}` : 'open'}`,
+    ),
+    '',
+    `FEEDBACK GIVEN (${file.feedback.length})`,
+    ...file.feedback.map(
+      (f) =>
+        `${f.givenAt.slice(0, 10)} · visit ${f.visitRating}/5 · care ${f.practitionerRating}/5${f.comment ? ` · ${f.comment}` : ''}`,
     ),
     '',
     `PACKAGES AND MEMBERSHIPS (${file.plans.length})`,
