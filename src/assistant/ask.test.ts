@@ -59,3 +59,24 @@ describe('Ask Saleane in test mode', () => {
     expect((await ask('What is the weather like?')).text).toMatch(/In test mode/)
   })
 })
+
+describe('Smart insights through Ask Saleane', () => {
+  it('gives the morning brief, with takings only for managers', async () => {
+    const owner = await ask('Give me my morning brief')
+    expect(owner.text).toMatch(/^Tuesday 6 October: 12 visits/)
+    expect(owner.text).toMatch(/Yesterday took £/)
+    const desk = await ask('Give me my morning brief', 'reception')
+    expect(desk.text).toMatch(/^Tuesday 6 October: 12 visits/)
+    expect(desk.text).not.toMatch(/£/)
+  })
+
+  it('lists clients drifting away', async () => {
+    expect((await ask('Who is drifting away?')).text).toMatch(
+      /clients are drifting away: Jamie Morgan/,
+    )
+  })
+
+  it('says when nothing looks unusual', async () => {
+    expect((await ask('Anything unusual?')).text).toBe('Nothing looks unusual right now.')
+  })
+})
