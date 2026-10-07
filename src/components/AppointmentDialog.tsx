@@ -91,7 +91,6 @@ export function AppointmentDialog({
   const sale = state.sales.find((s) => s.appointmentId === appointmentId)
   // PILOT-02: a signed-in local studio can take a card through the payment provider.
   const cardTaking = storeMode === 'server' && !sandbox
-  const byCard = cardTaking && method === 'card'
   const deposit = depositPaid(state, appointmentId)
   const tipMinor = parseMinor(tip, 0)
   const coverable = deposit ? [] : plansForVisit(state, appointment, today)
@@ -124,6 +123,8 @@ export function AppointmentDialog({
     ? Math.min(Math.max(0, parseMinor(giftAmount, 0) || 0), giftLeft, beforeGift)
     : 0
   const total = beforeGift - giftMinor
+  // Nothing is charged to a card when a plan or gift card leaves nothing to pay.
+  const byCard = cardTaking && method === 'card' && total > 0
   function applyGift() {
     const card = findGiftCard(state, giftCode)
     const standing = card && giftStanding(card, today)
@@ -215,7 +216,8 @@ export function AppointmentDialog({
       type: 'checkout',
       appointmentId,
       tipMinor,
-      method,
+      // A provider card takes no part when nothing is left to pay; the visit closes at nothing due.
+      method: method === 'card' ? 'cash' : method,
       ...(chosenPlan ? { holdingId: chosenPlan.holding.id } : { discountMinor }),
       ...(gift && giftMinor > 0 ? { giftCardId: gift.id, giftCardMinor: giftMinor } : {}),
       reference: reference.trim() || undefined,

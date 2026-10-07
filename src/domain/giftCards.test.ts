@@ -238,6 +238,38 @@ describe('gift cards and vouchers', () => {
     expect(giftCards(s)[0].refunds[0].reference).toMatch(/^DEMO-/)
   })
 
+  it('shares payment and refund references with visit payments and receipts', () => {
+    let s = apply(local(), sellMoney(5000, { method: 'external_card', reference: 'T-100' }))
+    const v = visitToday(s, 600)
+    const checkout: Command = {
+      type: 'checkout',
+      appointmentId: v.a.id,
+      tipMinor: 0,
+      method: 'external_card',
+      reference: 'T-100',
+    }
+    expect(run(v.s, checkout).ok).toBe(false)
+    s = apply(v.s, { ...checkout, reference: 'T-101' })
+    s = apply(s, {
+      type: 'gift-card-cancel',
+      giftCardId: giftCards(s)[0].id,
+      reason: 'Changed mind',
+      refundMinor: 1000,
+      method: 'cash',
+      reference: 'R-9',
+    })
+    const refund: Command = {
+      type: 'refund',
+      saleId: s.sales.at(-1)!.id,
+      amountMinor: 500,
+      reason: 'Unhappy',
+      reference: 'R-9',
+      method: 'cash',
+    }
+    expect(run(s, refund).ok).toBe(false)
+    expect(run(s, { ...refund, reference: 'R-10' }).ok).toBe(true)
+  })
+
   it('counts cash taken and returned for cards in the till', () => {
     const s0 = local()
     const before = cashForDay(s0, '2026-10-06')

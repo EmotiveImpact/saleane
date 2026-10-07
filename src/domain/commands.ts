@@ -15,6 +15,7 @@ import { availableAllocation } from './allocation'
 import { runSwitchingCommand } from './switching'
 import { coverVisit, runPlanCommand, stampPlanActors } from './plans'
 import { runGiftCardCommand, spendGiftCard, stampGiftCardActors } from './giftCards'
+import { referenceTaken } from './references'
 import { recordFeedback, repeatedFeedback } from './feedback'
 import {
   closeForCancelledVisit,
@@ -380,7 +381,7 @@ export function execute(
         )
           throw new Error('Enter a valid tip up to twice the service price.')
         assertMethod(s, command.method, command.reference, command.processor)
-        if (command.reference && s.payments.some((p) => p.reference === command.reference))
+        if (referenceTaken(s, command.reference))
           throw new Error(
             'This payment reference is already recorded. Review the existing receipt.',
           )

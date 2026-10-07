@@ -5,6 +5,7 @@ import { GIFT_CODE_ALPHABET } from './giftCardsSchema'
 import { assertMethod } from './operatingCommands'
 import { businessDate, operations } from './operations'
 import { addMonths } from './plans'
+import { referenceTaken, refundReferenceTaken } from './references'
 import { fullDateLabel, money } from './format'
 
 /**
@@ -121,26 +122,6 @@ export function spendGiftCard(
     at: now,
   })
   return { card, leftMinor: standing.balanceMinor - amountMinor }
-}
-
-/** A payment reference names one payment, wherever it was taken. */
-export function referenceTaken(s: BusinessState, reference?: string) {
-  const ref = reference?.trim()
-  return (
-    !!ref &&
-    (s.payments.some((p) => p.reference === ref) ||
-      (s.holdings ?? []).some((h) => h.payments.some((p) => p.reference === ref)) ||
-      giftCards(s).some((c) => c.payment.reference === ref))
-  )
-}
-/** A refund reference names one refund, wherever it was recorded. */
-export function refundReferenceTaken(s: BusinessState, reference: string) {
-  const ref = reference.trim()
-  return (
-    operations(s).refunds.some((r) => r.reference === ref) ||
-    (s.holdings ?? []).some((h) => h.refunds.some((r) => r.reference === ref)) ||
-    giftCards(s).some((c) => c.refunds.some((r) => r.reference === ref))
-  )
 }
 
 function paidWith(method: string, mode: string) {

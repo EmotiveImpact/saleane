@@ -4,6 +4,7 @@ import type { Holding, Offer } from './plansSchema'
 import { assertMethod } from './operatingCommands'
 import { businessDate, operations } from './operations'
 import { dateLabel, money } from './format'
+import { referenceTaken, refundReferenceTaken } from './references'
 
 /**
  * V1.5: packages and memberships. A package is a number of visits bought at one price and used
@@ -302,11 +303,7 @@ export function runPlanCommand(
     if (!command.method || !reference)
       throw new Error('Say how the money was returned and give its reference.')
     assertMethod(next, command.method, reference)
-    if (
-      operations(next).refunds.some((r) => r.reference === reference) ||
-      holdings(next).some((h) => h.refunds.some((r) => r.reference === reference)) ||
-      (next.giftCards ?? []).some((c) => c.refunds.some((r) => r.reference === reference))
-    )
+    if (refundReferenceTaken(next, reference))
       throw new Error('This refund reference is already recorded. Review the existing record.')
     holding.refunds.push({
       id: refundId,
@@ -340,12 +337,7 @@ function assertNameFree(list: Offer[], input: { name: string; archived: boolean 
 /** A payment reference names one payment, as at checkout and for deposits. */
 function assertReferenceFree(s: BusinessState, reference?: string) {
   const ref = reference?.trim()
-  if (
-    ref &&
-    (s.payments.some((p) => p.reference === ref) ||
-      holdings(s).some((h) => h.payments.some((p) => p.reference === ref)) ||
-      (s.giftCards ?? []).some((c) => c.payment.reference === ref))
-  )
+  if (ref && referenceTaken(s, ref))
     throw new Error('This payment reference is already recorded. Review the existing payment.')
 }
 function addDaysBefore(date: string) {
