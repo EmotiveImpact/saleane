@@ -111,3 +111,39 @@
 .rota-over {
   color: var(--rose-ink);
 }
+
+.pay-choice {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  border: 0;
+}
+
+.pay-choice legend {
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.pay-choice > label {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  line-height: 1.4;
+}
+
+.pay-choice > label input {
+  margin-top: 0.2rem;
+  flex: none;
+}
+
+.pay-choice .pay-pool {
+  display: grid;
+  gap: 0.35rem;
+  max-width: 14rem;
+  margin-left: 1.6rem;
+}
+
+.pay-choice small {
+  color: var(--muted, inherit);
+}

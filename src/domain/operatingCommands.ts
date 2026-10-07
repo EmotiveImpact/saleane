@@ -2,6 +2,7 @@ import type { BusinessState, RelationshipEvent } from './model'
 import type { OperatingCommand } from './commandSchema'
 import {
   PAY_RATE_LIMIT,
+  PAY_RULES_LIMIT,
   SCHEDULE_HISTORY_LIMIT,
   TIME_OFF_DAYS,
   TIME_OFF_LIMIT,
@@ -586,6 +587,13 @@ export function runOperatingCommand(
     }
     o.rentPayments.push(payment)
     recordId = payment.id
+  } else if (command.type === 'pay-rules') {
+    o.payRules ??= []
+    if (o.payRules.length >= PAY_RULES_LIMIT)
+      throw new Error('Too many pay setting changes to keep.')
+    const rules = { id: makeId(), ...command.rules, createdAt: now, actor: 'Local operator' }
+    o.payRules.push(rules)
+    recordId = rules.id
   } else if (command.type === 'pay-rate') {
     if (!next.staff.some((p) => p.id === command.staffId))
       throw new Error('Choose someone on the team.')

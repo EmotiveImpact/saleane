@@ -24,3 +24,21 @@ Screenshots: [Pay](V2-PAY-page.png), [rates](V2-PAY-rates.png), [Pay at 390px](V
 - A month is not locked once paid. A rate back-dated into a paid month changes that month's figures; the rate history shows when and by whom.
 - Practitioners cannot see their own earnings yet.
 - Safari and Firefox were not checked.
+
+## Pay settings (added 7 October 2026)
+
+- **Pay, "Tips and money given back" (owner only):** the window offers money given back coming off the commission (the default) or being paid by the studio, and tips going to the person who did the job (the default) or into a shared pot split each day, week or month. It says the studio never keeps any tips. Saving "shared pot, weekly, from 1 September" showed "From Tuesday 1 September: Money given back comes off the commission in the month it is given back. Tips are shared equally between everyone who did a visit that week (Monday to Sunday)." The section's explanation changed to match.
+- The demo studio has no tips recorded, so the pot itself is shown by the automated checks rather than on screen.
+- axe finds no violations with the window open. Pay at 390px has no sideways scroll, and there were no console errors.
+
+Screenshot: [pay settings](V2-PAY-settings.png).
+
+Automated checks in `src/domain/pay.test.ts`:
+
+- The defaults apply until changed.
+- When the studio pays for money given back, commission stays whole.
+- A £10.01 pot is shared 500/501 between two people, adding up exactly.
+- Week and month pots have the right first and last days.
+- Only the owner can change the settings, and who changed them is recorded.
+
+Limit: the pot is split equally between people who did at least one visit in it, not by hours worked.

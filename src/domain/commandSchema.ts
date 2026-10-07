@@ -15,6 +15,7 @@ import {
 import {
   closureInputSchema,
   messageInputSchema,
+  payRulesInputSchema,
   protectionSchema,
   productInputSchema,
   timeOffInputSchema,
@@ -191,6 +192,7 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     staffId: id,
     days: z.number().min(0).max(366).multipleOf(0.5),
   }),
+  z.object({ type: z.literal('pay-rules'), rules: payRulesInputSchema }),
   z.object({
     type: z.literal('pay-rate'),
     staffId: id,

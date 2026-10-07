@@ -6,7 +6,15 @@ import { parseState } from './model'
 import { can, permissionFor } from './operations'
 import { createWorkspace } from './workspace'
 import { seed } from './seed'
-import { payCsv, payPeriod, rateFor, rateHistory, withoutPayRates } from './pay'
+import {
+  payCsv,
+  payPeriod,
+  poolRange,
+  rateFor,
+  rateHistory,
+  rulesFor,
+  withoutPayRates,
+} from './pay'
 
 // V2: commission and tips per person.
 const now = '2026-10-06T08:00:00.000Z'
@@ -44,7 +52,7 @@ function studio() {
   return { s, balmId }
 }
 /** A £95 facial with Maya today, welcomed and paid with a tip and products. */
-function paidVisit(s: BusinessState, balmId: string, tipMinor = 1000) {
+function paidVisit(s: BusinessState, balmId: string, tipMinor = 1000, staffId = 'staff-maya') {
   s = apply(s, {
     type: 'import-appointments',
     source: 'Test',
@@ -53,9 +61,9 @@ function paidVisit(s: BusinessState, balmId: string, tipMinor = 1000) {
       {
         clientId: 'client-1',
         serviceId: 'service-facial',
-        staffId: 'staff-maya',
+        staffId,
         date: day,
-        startMinutes: 600,
+        startMinutes: staffId === 'staff-maya' ? 600 : 720,
         priceMinor: 9500,
         depositPaidMinor: 0,
       },
@@ -162,6 +170,48 @@ describe('commission and tips', () => {
     expect(maya(later, '2026-11-01', '2026-11-30').commissionMinor).toBeLessThan(0)
   })
 
+  it('can let the studio pay for money given back instead of the commission', () => {
+    const { s: start, balmId } = studio()
+    const { s: paid, sale } = paidVisit(start, balmId)
+    const refund = {
+      type: 'refund',
+      saleId: sale.id,
+      amountMinor: 3200,
+      reason: 'Did not suit',
+      reference: 'R-1',
+      method: 'cash',
+    } as Command
+    expect(rulesFor(paid, day)).toEqual({ refunds: 'commission', tips: 'person', pool: 'week' })
+    const absorbed = apply(
+      apply(paid, {
+        type: 'pay-rules',
+        rules: { refunds: 'studio', tips: 'person', pool: 'week', from: '2026-10-01' },
+      } as Command),
+      refund,
+    )
+    expect(maya(absorbed)).toMatchObject({ commissionMinor: 3800 + 320, givenBackMinor: 0 })
+  })
+
+  it('can share tips equally between everyone who did a visit, to the penny', () => {
+    const { s: start, balmId } = studio()
+    let s = apply(start, {
+      type: 'pay-rules',
+      rules: { refunds: 'commission', tips: 'pool', pool: 'day', from: '2026-10-01' },
+    } as Command)
+    s = paidVisit(s, balmId, 1001).s
+    s = paidVisit(s, balmId, 0, 'staff-sophia').s
+    const rows = payPeriod(s, '2026-10-01', day)
+    const tips = Object.fromEntries(rows.map((r) => [r.staff.id, r.tipsMinor]))
+    expect(tips['staff-maya'] + tips['staff-sophia']).toBe(1001)
+    expect([tips['staff-maya'], tips['staff-sophia']].sort()).toEqual([500, 501])
+    expect(rows.reduce((t, r) => t + r.tipsMinor, 0)).toBe(1001)
+    expect(maya(s).lines.find((l) => l.kind === 'tips')?.label).toBe(
+      'Shared tips for the day, split 2 ways',
+    )
+    expect(poolRange('2026-10-07', 'week')).toEqual({ from: '2026-10-05', to: '2026-10-11' })
+    expect(poolRange('2026-02-10', 'month')).toEqual({ from: '2026-02-01', to: '2026-02-28' })
+  })
+
   it('lets only the owner change rates and records who did', () => {
     expect(can('owner', permissionFor({ type: 'pay-rate' }))).toBe(true)
     for (const role of ['manager', 'reception', 'practitioner'] as const)
@@ -170,6 +220,14 @@ describe('commission and tips', () => {
     expect(result.ok && result.state.operations!.payRates!.at(-1)!.actor).toBe('Ava · owner')
     expect(run(local(), rate('nobody', 4000, 1000)).ok).toBe(false)
     expect(run(local(), rate('staff-maya', 10001, 0)).ok).toBe(false)
+    for (const role of ['manager', 'reception', 'practitioner'] as const)
+      expect(can(role, permissionFor({ type: 'pay-rules' }))).toBe(false)
+    const rules = {
+      type: 'pay-rules',
+      rules: { refunds: 'studio', tips: 'pool', pool: 'month', from: day },
+    } as Command
+    const set = dispatch(local(), rules, 'Ava · owner', now)
+    expect(set.ok && set.state.operations!.payRules!.at(-1)!.actor).toBe('Ava · owner')
   })
 
   it('leaves the rates out of what reception reads', () => {

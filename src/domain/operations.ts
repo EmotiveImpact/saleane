@@ -184,6 +184,25 @@ export const payRateSchema = z.object({
 })
 export type PayRate = z.infer<typeof payRateSchema>
 
+/** V2: how the studio treats money given back and tips, kept as a history like the rates. */
+export const tipSharing = ['person', 'pool'] as const
+export const tipPoolPeriods = ['day', 'week', 'month'] as const
+export const payRulesInputSchema = z.object({
+  /** Money given back comes off the commission ('commission'), or the studio absorbs it ('studio'). */
+  refunds: z.enum(['commission', 'studio']),
+  /** Tips go to the person who did the job, or into a pot shared by everyone who worked. */
+  tips: z.enum(tipSharing),
+  pool: z.enum(tipPoolPeriods),
+  from: z.iso.date(),
+})
+export const payRulesSchema = payRulesInputSchema.extend({
+  id,
+  createdAt: z.iso.datetime(),
+  actor: z.string(),
+})
+export type PayRules = z.infer<typeof payRulesSchema>
+export const PAY_RULES_LIMIT = 500
+
 export const operationsSchema = z.object({
   mode: z.enum(['sandbox', 'local']),
   bookingEnabled: z.boolean(),
@@ -250,6 +269,7 @@ export const operationsSchema = z.object({
   balances: z.array(openingBalanceSchema).optional(),
   /** V2: commission rates per person, kept as a history. */
   payRates: z.array(payRateSchema).max(PAY_RATE_LIMIT).optional(),
+  payRules: z.array(payRulesSchema).max(PAY_RULES_LIMIT).optional(),
   /** V2: holidays, sickness and other days away, and each person's yearly holiday allowance. */
   timeOff: z.array(timeOffSchema).max(TIME_OFF_LIMIT).optional(),
   /** V2: chairs and rooms rented to self-employed people, and the rent they have paid. */
@@ -393,9 +413,15 @@ export function can(role: Role, action: string) {
   if (['feedback', 'waitlist-join', 'waitlist-leave'].includes(action)) return false
   if (role === 'owner') return true
   if (
-    ['membership', 'restore', 'organisation', 'tax', 'pay-rate', 'accounting-settings'].includes(
-      action,
-    )
+    [
+      'membership',
+      'restore',
+      'organisation',
+      'tax',
+      'pay-rate',
+      'pay-rules',
+      'accounting-settings',
+    ].includes(action)
   )
     return false
   if (role === 'manager') return true

@@ -1,6 +1,6 @@
 {
   "environment": "Chromium 141.0.7390.37 / http://127.0.0.1:5173",
-  "recordedAt": "2026-10-07T12:13:33.778Z",
+  "recordedAt": "2026-10-07T12:46:42.766Z",
   "results": [
     {
       "mode": "demo",
@@ -205,7 +205,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 36,
+        "focusable": 37,
         "missing": []
       },
       "errors": []
@@ -893,7 +893,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 37,
+        "focusable": 38,
         "missing": []
       },
       "errors": []
@@ -939,7 +939,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-16749a71",
+      "route": "/book/qualify-studio-a7949e04",
       "width": 1280,
       "violations": [],
       "viewport": 1280,
@@ -1136,7 +1136,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-16749a71",
+      "route": "/book/qualify-studio-a7949e04",
       "width": 390,
       "violations": [],
       "viewport": 390,
@@ -1325,7 +1325,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-16749a71",
+      "route": "/book/qualify-studio-a7949e04",
       "width": 320,
       "violations": [],
       "viewport": 320,
@@ -2416,7 +2416,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-16749a71",
+      "route": "/book/qualify-studio-a7949e04",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
       "h1": ["Care, considered."],

@@ -421,6 +421,7 @@ export function parseState(value: unknown, region: Region): BusinessState {
       o.imports ?? [],
       o.balances ?? [],
       o.payRates ?? [],
+      o.payRules ?? [],
       o.timeOff ?? [],
       o.rentals ?? [],
       o.suppliers ?? [],

@@ -645,6 +645,7 @@ export function dispatch(
     'imports',
     'balances',
     'payRates',
+    'payRules',
     'timeOff',
     'rentals',
     'rentPayments',

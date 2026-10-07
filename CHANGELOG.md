@@ -44,6 +44,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 - Business has a new Pay page for owners and managers. For this month or last month it shows each person's visits, commission on services and on products, tips and what they are owed, with a line-by-line breakdown and a spreadsheet download for payroll.
 - Commission is counted without tax and after discounts. Tips go in full to the person who did the visit. Money given back comes off in the month it is given back, in proportion to what the receipt was for and at the rate it was earned on; the tip stays with the person.
+- The owner can change two pay settings from a chosen date, with earlier settings kept. Money given back can come off the commission (the default) or be paid by the studio. Tips can go to the person who did the job (the default) or into a shared pot, split equally to the penny between everyone who did a visit that day, week or month. The studio never keeps any of the tips, in line with UK and US tips law.
 - Only the owner sets rates. Each change starts on a chosen date and earlier rates are kept, so past months keep their figures unless the new date reaches back into them. Managers can see the rates; reception is never sent them.
 - A walk-in product sale can name who sold it, and that person earns the product commission.
 - The spreadsheet guards against names that would run as formulas.
