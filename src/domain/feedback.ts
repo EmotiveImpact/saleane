@@ -9,7 +9,7 @@ import type { BusinessState } from './model'
  * separate, neutral request to the studio's Google page; nothing here is ever published.
  */
 export const FEEDBACK_COMMENT_LIMIT = 1000
-/** A practitioner's own average shows once this many guests have rated them. */
+/** A practitioner's own average shows once this many different guests have rated them. */
 export const PRACTITIONER_AVERAGE_MIN = 3
 /** Feedback can be given for this long after the visit starts (the private link's lifetime). */
 export const FEEDBACK_WINDOW_MS = 7 * 24 * 60 * 60000
@@ -134,13 +134,16 @@ export function feedbackSummary(s: BusinessState, since?: string) {
   }
 }
 
-/** A practitioner's own average and count, or a null average until enough guests have rated. */
+/**
+ * A practitioner's own average and count, or a null average until enough different guests have
+ * rated, so one regular's answers can never be read back from the average.
+ */
 export function ownRating(s: BusinessState, staffId: string) {
   const mine = feedbackList(s).filter((r) => r.staffId === staffId)
   return {
     count: mine.length,
     average:
-      mine.length >= PRACTITIONER_AVERAGE_MIN
+      new Set(mine.map((r) => r.clientId)).size >= PRACTITIONER_AVERAGE_MIN
         ? average(mine.map((r) => r.practitionerRating))
         : null,
   }

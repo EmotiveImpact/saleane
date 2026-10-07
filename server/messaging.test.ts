@@ -263,6 +263,64 @@ describe('appointment messages (PILOT-01)', () => {
     expect(sent).toEqual([])
   })
 
+  it('asks for private feedback once after checkout, and not once the guest has answered', async () => {
+    const { serviceId, staffId, slug, owner } = await localStudio()
+    const { appointmentId } = await book(slug, serviceId, staffId, '2026-10-06')
+    await api.outbox.tick()
+    await api.outbox.tick()
+    clock = Date.parse('2026-10-06T10:05:00.000Z')
+    await signIn(owner)
+    await run(owner, { type: 'arrive', appointmentId })
+    await run(owner, { type: 'checkout', appointmentId, tipMinor: 0, method: 'cash' })
+    sent = []
+    clock = Date.parse('2026-10-06T12:10:00.000Z')
+    await api.outbox.tick()
+    expect(sent.map((m) => [m.channel, m.subject])).toEqual([
+      ['email', 'How was your visit to Linden Studio?'],
+    ])
+    const token = /\/manage#([A-Za-z0-9_-]+)/.exec(sent[0].body)![1]
+    const answered = await api.inject({
+      method: 'POST',
+      url: '/api/guest/feedback',
+      payload: { token, visitRating: 5, practitionerRating: 5, comment: '' },
+    })
+    expect(answered.statusCode, answered.body).toBe(200)
+    sent = []
+    await api.outbox.tick()
+    expect(sent).toEqual([])
+  })
+
+  it('skips a feedback request the guest answered before it went out', async () => {
+    const { serviceId, staffId, slug, owner } = await localStudio()
+    const { appointmentId, manage } = await book(slug, serviceId, staffId, '2026-10-06')
+    await api.outbox.tick()
+    await api.outbox.tick()
+    clock = Date.parse('2026-10-06T10:05:00.000Z')
+    await signIn(owner)
+    await run(owner, { type: 'arrive', appointmentId })
+    await run(owner, { type: 'checkout', appointmentId, tipMinor: 0, method: 'cash' })
+    clock = Date.parse('2026-10-06T12:10:00.000Z')
+    api.outbox.plan()
+    const answered = await api.inject({
+      method: 'POST',
+      url: '/api/guest/feedback',
+      payload: {
+        token: manage.url.split('#')[1],
+        visitRating: 4,
+        practitionerRating: 5,
+        comment: '',
+      },
+    })
+    expect(answered.statusCode, answered.body).toBe(200)
+    sent = []
+    await api.outbox.deliver()
+    expect(sent).toEqual([])
+    expect(rows().find((r) => r.kind === 'feedback')).toMatchObject({
+      status: 'skipped',
+      detail: 'Already answered, or turned off before it went out.',
+    })
+  })
+
   it('retries a busy provider, stops at a refusal, and never resends an unclear one by itself', async () => {
     const { serviceId, staffId, slug, owner } = await localStudio()
     await book(slug, serviceId, staffId)

@@ -105,6 +105,15 @@ describe('who sees what', () => {
     const view = practitionerView(s, 'staff-maya', '2026-10-06')
     expect(view.rating).toEqual({ count: 4, average: 4.8 })
     expect(JSON.stringify(view)).not.toContain('remembered exactly')
+    // One regular rating three visits is still one guest, so no average yet.
+    const regular = structuredClone(s)
+    regular.feedback = regular.feedback!.filter((f) => f.staffId !== 'staff-maya')
+    for (const [n, f] of s
+      .feedback!.filter((r) => r.staffId === 'staff-maya')
+      .slice(0, 3)
+      .entries())
+      regular.feedback.push({ ...f, id: `same-${n}`, clientId: 'one-guest' })
+    expect(ownRating(regular, 'staff-maya')).toEqual({ count: 3, average: null })
   })
 
   it('shows the guest only their own ratings, and only after a completed visit', () => {
