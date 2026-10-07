@@ -7,6 +7,7 @@ import { coveredSaleProblem, plansProblem } from './plans'
 import { feedbackProblem, feedbackSchema } from './feedback'
 import { counterSaleSchema, saleRetailSchema } from './retailSchema'
 import { retailCharge, retailProblem } from './retail'
+import { rentProblem } from './rent'
 export { paymentMethodSchema, paymentMethods, processorSchema } from './paymentMethods'
 
 export const DEMO_DATE = '2026-10-06'
@@ -415,6 +416,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
       o.balances ?? [],
       o.payRates ?? [],
       o.timeOff ?? [],
+      o.rentals ?? [],
+      o.rentPayments ?? [],
     ])
       if (new Set(rows.map((r) => r.id)).size !== rows.length)
         throw new Error('Duplicate operating record IDs.')
@@ -514,6 +517,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
   if (feedback) throw new Error(feedback)
   const retail = retailProblem(s)
   if (retail) throw new Error(retail)
+  const rent = rentProblem(s)
+  if (rent) throw new Error(rent)
   try {
     new Intl.DateTimeFormat('en', { timeZone: org.timeZone }).format(new Date())
   } catch {

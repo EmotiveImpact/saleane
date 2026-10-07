@@ -7,6 +7,8 @@ import { addDays, dateLabel, money } from '../domain/format'
 import { payCsv, payPeriod, rateFor, rateHistory } from '../domain/pay'
 import type { PaySummary } from '../domain/pay'
 import type { Staff } from '../domain/model'
+import { rentalOn } from '../domain/rent'
+import { RentPanel } from '../components/RentPanel'
 import { Avatar, Button, ErrorMessage, Modal, PageHeader, SegmentedControl } from '../design'
 import '../components/management.css'
 import '../stock.css'
@@ -159,9 +161,11 @@ export function Pay() {
                     <strong>{row.staff.name}</strong>
                     <small>
                       {row.visits} {row.visits === 1 ? 'visit' : 'visits'} ·{' '}
-                      {rate
-                        ? `${percent(rate.serviceBps)} on services, ${percent(rate.productBps)} on products`
-                        : 'No commission rate set'}
+                      {rentalOn(state, row.staff.id, to)
+                        ? 'Rents a chair or room, keeps own takings'
+                        : rate
+                          ? `${percent(rate.serviceBps)} on services, ${percent(rate.productBps)} on products`
+                          : 'No commission rate set'}
                     </small>
                   </div>
                   <dl className="pay-figures">
@@ -247,6 +251,7 @@ export function Pay() {
           })}
         </div>
       </section>
+      <RentPanel from={from} to={to} />
       {rating && (
         <RateDialog
           staff={rating}

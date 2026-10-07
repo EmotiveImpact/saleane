@@ -21,6 +21,7 @@ import {
 } from './operations'
 import { tillCountCommandSchema } from './tillCount'
 import { retailItemsSchema } from './retailSchema'
+import { rentMethods, rentalInputSchema } from './rentSchema'
 import { reminderSettingsSchema } from './reminderSettings'
 const id = z.string().min(1).max(150)
 const money = z.number().int().nonnegative().max(100_000_000)
@@ -146,6 +147,16 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('product'), id: id.optional(), input: productInputSchema }),
   z.object({ type: z.literal('time-off'), input: timeOffInputSchema }),
+  z.object({ type: z.literal('rental'), input: rentalInputSchema }),
+  z.object({ type: z.literal('end-rental'), rentalId: id, to: z.iso.date() }),
+  z.object({
+    type: z.literal('rent-payment'),
+    rentalId: id,
+    periodStart: z.iso.date(),
+    amountMinor: money.refine((n) => n > 0),
+    method: z.enum(rentMethods),
+    reference: z.string().trim().max(150).optional(),
+  }),
   z.object({ type: z.literal('cancel-time-off'), timeOffId: id }),
   z.object({
     type: z.literal('leave-allowance'),

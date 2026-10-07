@@ -363,7 +363,41 @@ export function seed(region: Region): BusinessState {
   seedStock(state, uk)
   seedPay(state)
   seedTimeOff(state, uk)
+  seedRent(state, uk)
   return parseState(state, region)
+}
+
+/** V2: Theo rents the styling chair by the week from 21 September; two weeks paid, this week owed. */
+function seedRent(state: BusinessState, uk: boolean) {
+  const o = (state.operations ??= defaultOperations('sandbox'))
+  const amountMinor = (uk ? 180 : 220) * 100
+  o.rentals = [
+    {
+      id: 'rental-theo',
+      staffId: 'staff-theo',
+      space: 'chair',
+      resourceId: 'chair-one',
+      amountMinor,
+      every: 'week',
+      from: '2026-09-21',
+      createdAt: '2026-09-15T09:00:00.000Z',
+      actor: 'Owner · demo fixture',
+    },
+  ]
+  const paid: [string, 'cash' | 'bank_transfer'][] = [
+    ['2026-09-21', 'cash'],
+    ['2026-09-28', 'bank_transfer'],
+  ]
+  o.rentPayments = paid.map(([periodStart, method], i) => ({
+    id: `rent-payment-${i + 1}`,
+    rentalId: 'rental-theo',
+    periodStart,
+    amountMinor,
+    method,
+    ...(method === 'bank_transfer' ? { reference: `THEO-RENT-${i + 1}` } : {}),
+    paidAt: `${periodStart}T10:00:00.000Z`,
+    actor: 'Front desk · demo fixture',
+  }))
 }
 
 /** V2: holidays and a sick day for the demo team, with yearly allowances. Fictional. */

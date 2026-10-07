@@ -2,6 +2,15 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · V2 · Chair and room rent
+
+**Status: built locally on 7 October 2026, in review; nothing deployed. SALEANE records rent paid to the studio and collects nothing.**
+
+- Pay has a new section for self-employed people who rent a chair or room. Owners and managers set up a rental (who, chair or room, which one, the rent, weekly or monthly, from which day) and end it when it stops. Ended rentals and their payments stay on record.
+- Rent is due at the start of each week or month. Monthly rent keeps the same day, moving to the last day in shorter months. The section shows the latest periods as paid or owed and the total still owed.
+- Rent paid in cash, by bank transfer or on the studio's own card terminal is recorded against its period, with a reference for transfers and card payments. More than was due cannot be recorded, nor rent that is not yet due.
+- Someone renting earns no commission on those days. Reception is not sent rent or commission records.
+
 ## 2026-10-07 · V2 · Rota, holidays and time off
 
 **Status: built locally on 7 October 2026, in review; nothing deployed.**

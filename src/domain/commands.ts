@@ -619,6 +619,8 @@ export function dispatch(
     'balances',
     'payRates',
     'timeOff',
+    'rentals',
+    'rentPayments',
   ] as const) {
     const ids = new Set((operations(s)[key] ?? []).map((r) => r.id))
     const records = operations(result.state)[key] ?? []

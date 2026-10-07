@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { BusinessState } from './model'
 import { reminderSettingsSchema } from './reminderSettings'
 import { paymentMethodSchema, processorSchema } from './paymentMethods'
+import { RENT_LIMIT, RENT_PAYMENT_LIMIT, rentPaymentSchema, rentalSchema } from './rentSchema'
 
 const id = z.string().min(1).max(150)
 const money = z.number().int().nonnegative().max(100_000_000)
@@ -235,6 +236,9 @@ export const operationsSchema = z.object({
   payRates: z.array(payRateSchema).max(PAY_RATE_LIMIT).optional(),
   /** V2: holidays, sickness and other days away, and each person's yearly holiday allowance. */
   timeOff: z.array(timeOffSchema).max(TIME_OFF_LIMIT).optional(),
+  /** V2: chairs and rooms rented to self-employed people, and the rent they have paid. */
+  rentals: z.array(rentalSchema).max(RENT_LIMIT).optional(),
+  rentPayments: z.array(rentPaymentSchema).max(RENT_PAYMENT_LIMIT).optional(),
   leaveAllowances: z.array(z.object({ staffId: id, days: z.number().min(0).max(366) })).optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
@@ -385,6 +389,9 @@ export function can(role: Role, action: string) {
       'fee',
       'protection',
       'plan-cancel',
+      'rental',
+      'end-rental',
+      'rent-payment',
     ].includes(action)
   )
     return false

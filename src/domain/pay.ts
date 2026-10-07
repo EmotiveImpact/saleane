@@ -4,11 +4,13 @@ import type { PayRate } from './operations'
 import { retailRevenue } from './retail'
 import { serviceRevenue } from './selectors'
 import { recordDay } from './tillCount'
+import { rentalOn } from './rent'
 
 /**
  * V2: commission and tips per person for a pay period. SALEANE works out what each person has
  * earned; it does not pay anyone. Services and products are counted without tax and after any
- * discount. Tips go in full to the person who did the visit.
+ * discount. Tips go in full to the person who did the visit. People renting a chair or room are
+ * self-employed: their visits on rental days earn no commission here.
  */
 
 /** The rate one person is on for a day: the latest change starting on or before it. */
@@ -71,6 +73,8 @@ export function payPeriod(s: BusinessState, from: string, to: string): PaySummar
   for (const sale of s.sales) {
     const appointment = s.appointments.find((a) => a.id === sale.appointmentId)
     if (!appointment || appointment.status !== 'completed' || !inPeriod(appointment.date)) continue
+    // Someone renting a chair or room is self-employed and keeps their own takings.
+    if (rentalOn(s, appointment.staffId, appointment.date)) continue
     const rate = rateFor(s, appointment.staffId, appointment.date)
     const servicesMinor = serviceRevenue(sale)
     const productsMinor = retailRevenue(sale)
@@ -90,7 +94,7 @@ export function payPeriod(s: BusinessState, from: string, to: string): PaySummar
 
   for (const sale of s.counterSales ?? []) {
     const date = recordDay(s, sale.paidAt)
-    if (!sale.staffId || !inPeriod(date)) continue
+    if (!sale.staffId || !inPeriod(date) || rentalOn(s, sale.staffId, date)) continue
     const rate = rateFor(s, sale.staffId, date)
     const productsMinor = retailRevenue(sale)
     push(sale.staffId, {
@@ -121,6 +125,7 @@ export function payPeriod(s: BusinessState, from: string, to: string): PaySummar
       if (!visit) continue
       staffId = visit.appointment.staffId
       earnedOn = visit.appointment.date
+      if (rentalOn(s, staffId, earnedOn)) continue
       servicesMinor = serviceRevenue(visit.sale)
       productsMinor = retailRevenue(visit.sale)
       total = visit.sale.totalMinor
@@ -130,6 +135,7 @@ export function payPeriod(s: BusinessState, from: string, to: string): PaySummar
       if (!sale?.staffId) continue
       staffId = sale.staffId
       earnedOn = recordDay(s, sale.paidAt)
+      if (rentalOn(s, staffId, earnedOn)) continue
       productsMinor = retailRevenue(sale)
       total = sale.totalMinor
       receipt = sale.receiptNumber
@@ -215,10 +221,11 @@ export function payCsv(rows: PaySummary[], from: string, to: string, currency: s
   return [header.join(','), ...body].join('\n') + '\n'
 }
 
-/** Commission rates are for owners and managers; reception reads the studio without them. */
+/** Commission rates and chair rent are for owners and managers; reception reads the studio without them. */
 export function withoutPayRates(s: BusinessState): BusinessState {
-  if (!s.operations?.payRates) return s
-  const { payRates: _hidden, ...operations } = s.operations
-  void _hidden
+  const o = s.operations
+  if (!o?.payRates && !o?.rentals && !o?.rentPayments) return s
+  const { payRates: _rates, rentals: _rentals, rentPayments: _paid, ...operations } = o
+  void [_rates, _rentals, _paid]
   return { ...s, operations }
 }

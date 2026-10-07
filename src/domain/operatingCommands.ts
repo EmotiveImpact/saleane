@@ -5,10 +5,13 @@ import {
   SCHEDULE_HISTORY_LIMIT,
   TIME_OFF_DAYS,
   TIME_OFF_LIMIT,
+  businessDate,
   operations,
   stock,
 } from './operations'
 import { daysBetween } from './timeOff'
+import { isPeriodStart } from './rent'
+import { RENT_LIMIT, RENT_PAYMENT_LIMIT } from './rentSchema'
 import { restockReturn } from './retail'
 import { assertSchedulePreserved, scheduleChanges, scheduleSnapshot } from './schedule'
 
@@ -495,6 +498,68 @@ export function runOperatingCommand(
     if (old) o.products[o.products.indexOf(old)] = product
     else o.products.push(product)
     recordId = product.id
+  } else if (command.type === 'rental') {
+    const { staffId, resourceId, space } = command.input
+    if (!next.staff.some((p) => p.id === staffId && !p.archived))
+      throw new Error('Choose someone on the team.')
+    const resource = resourceId && next.resources.find((r) => r.id === resourceId)
+    if (resourceId && (!resource || resource.archived))
+      throw new Error('Choose a chair or room that is in use.')
+    if (resource && resource.type !== (space === 'chair' ? 'chair' : 'treatment'))
+      throw new Error(`That is not a ${space}.`)
+    if (
+      (o.rentals ?? []).some((r) => r.staffId === staffId && (!r.to || r.to >= command.input.from))
+    )
+      throw new Error('They already have a rental. End it before starting another.')
+    o.rentals ??= []
+    if (o.rentals.length >= RENT_LIMIT) throw new Error('Too many rentals to keep.')
+    const rental = {
+      id: makeId(),
+      ...command.input,
+      createdAt: now,
+      actor: 'Local operator',
+    }
+    o.rentals.push(rental)
+    recordId = rental.id
+  } else if (command.type === 'end-rental') {
+    const rental = o.rentals?.find((r) => r.id === command.rentalId)
+    if (!rental) throw new Error('Rental not found.')
+    if (rental.to) throw new Error('This rental has already ended.')
+    if (command.to < rental.from) throw new Error('The last day cannot be before it started.')
+    if ((o.rentPayments ?? []).some((p) => p.rentalId === rental.id && p.periodStart > command.to))
+      throw new Error('Rent is already recorded after that day.')
+    rental.to = command.to
+    recordId = rental.id
+  } else if (command.type === 'rent-payment') {
+    const rental = o.rentals?.find((r) => r.id === command.rentalId)
+    if (!rental) throw new Error('Rental not found.')
+    if (!isPeriodStart(rental, command.periodStart))
+      throw new Error('Choose one of the rent periods.')
+    if (command.periodStart > businessDate(next, now)) throw new Error('That rent is not due yet.')
+    const paid = (o.rentPayments ?? [])
+      .filter((p) => p.rentalId === rental.id && p.periodStart === command.periodStart)
+      .reduce((sum, p) => sum + p.amountMinor, 0)
+    if (paid + command.amountMinor > rental.amountMinor)
+      throw new Error(
+        `Only ${rental.amountMinor - paid > 0 ? 'the rest of the rent' : 'nothing more'} is due for that period.`,
+      )
+    if (command.method !== 'cash' && !command.reference?.trim())
+      throw new Error('Enter the transfer or terminal reference.')
+    o.rentPayments ??= []
+    if (o.rentPayments.length >= RENT_PAYMENT_LIMIT)
+      throw new Error('Too many rent payments to keep.')
+    const payment = {
+      id: makeId(),
+      rentalId: rental.id,
+      periodStart: command.periodStart,
+      amountMinor: command.amountMinor,
+      method: command.method,
+      ...(command.reference?.trim() ? { reference: command.reference.trim() } : {}),
+      paidAt: now,
+      actor: 'Local operator',
+    }
+    o.rentPayments.push(payment)
+    recordId = payment.id
   } else if (command.type === 'pay-rate') {
     if (!next.staff.some((p) => p.id === command.staffId))
       throw new Error('Choose someone on the team.')
