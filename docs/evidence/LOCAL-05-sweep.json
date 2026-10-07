@@ -1536,9 +1536,7 @@
       "route": "/today",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": [
-        "Good afternoon."
-      ],
+      "h1": ["Good afternoon."],
       "headings": [
         "H1 Good afternoon.",
         "H2 The day ahead",
@@ -1562,13 +1560,8 @@
       "route": "/calendar",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": [
-        "Calendar"
-      ],
-      "headings": [
-        "H1 Calendar",
-        "H2 Tuesday 6 October"
-      ],
+      "h1": ["Calendar"],
+      "headings": ["H1 Calendar", "H2 Tuesday 6 October"],
       "landmarks": [
         "aside Workspace navigation",
         "nav",
@@ -1586,12 +1579,8 @@
       "route": "/clients",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": [
-        "Relationships, remembered."
-      ],
-      "headings": [
-        "H1 Relationships, remembered."
-      ],
+      "h1": ["Relationships, remembered."],
+      "headings": ["H1 Relationships, remembered."],
       "landmarks": [
         "aside Workspace navigation",
         "nav",
@@ -1607,9 +1596,7 @@
       "route": "/clients/client-1",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": [
-        "Amelia Carter"
-      ],
+      "h1": ["Amelia Carter"],
       "headings": [
         "H1 Amelia Carter",
         "H2 A year with the studio",
@@ -1641,13 +1628,8 @@
       "route": "/inbox",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": [
-        "A considered word."
-      ],
-      "headings": [
-        "H1 A considered word.",
-        "H2 A little space to be thoughtful."
-      ],
+      "h1": ["A considered word."],
+      "headings": ["H1 A considered word.", "H2 A little space to be thoughtful."],
       "landmarks": [
         "aside Workspace navigation",
         "nav",
@@ -1662,13 +1644,8 @@
       "route": "/waitlist",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": [
-        "Who would take a time."
-      ],
-      "headings": [
-        "H1 Who would take a time.",
-        "H2 Waiting"
-      ],
+      "h1": ["Who would take a time."],
+      "headings": ["H1 Who would take a time.", "H2 Waiting"],
       "landmarks": [
         "aside Workspace navigation",
         "nav",
@@ -1684,9 +1661,7 @@
       "route": "/business",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": [
-        "A clearer view."
-      ],
+      "h1": ["A clearer view."],
       "headings": [
         "H1 A clearer view.",
         "H2 Revenue has a rhythm.",
@@ -1713,9 +1688,7 @@
       "route": "/business/money",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": [
-        "Money, clearly."
-      ],
+      "h1": ["Money, clearly."],
       "headings": [
         "H1 Money, clearly.",
         "H2 A record of every settled visit",
@@ -1752,9 +1725,7 @@
       "route": "/settings",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": [
-        "Your studio, considered."
-      ],
+      "h1": ["Your studio, considered."],
       "headings": [
         "H1 Your studio, considered.",
         "H2 Business details",
@@ -1782,9 +1753,7 @@
       "route": "/settings?section=messages",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": [
-        "Your studio, considered."
-      ],
+      "h1": ["Your studio, considered."],
       "headings": [
         "H1 Your studio, considered.",
         "H2 Messages to guests",
@@ -1806,14 +1775,8 @@
       "route": "/settings?section=payments",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": [
-        "Your studio, considered."
-      ],
-      "headings": [
-        "H1 Your studio, considered.",
-        "H2 Payments",
-        "H2 A steady foundation."
-      ],
+      "h1": ["Your studio, considered."],
+      "headings": ["H1 Your studio, considered.", "H2 Payments", "H2 A steady foundation."],
       "landmarks": [
         "aside Workspace navigation",
         "nav",
@@ -1830,9 +1793,7 @@
       "route": "/settings?section=switching",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": [
-        "Your studio, considered."
-      ],
+      "h1": ["Your studio, considered."],
       "headings": [
         "H1 Your studio, considered.",
         "H2 Moving from another system",
@@ -1859,9 +1820,7 @@
       "route": "/settings?section=plans",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": [
-        "Your studio, considered."
-      ],
+      "h1": ["Your studio, considered."],
       "headings": [
         "H1 Your studio, considered.",
         "H2 Packages & memberships",
@@ -1883,14 +1842,8 @@
       "route": "/business/feedback",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": [
-        "What guests tell you."
-      ],
-      "headings": [
-        "H1 What guests tell you.",
-        "H2 By professional",
-        "H2 Latest answers"
-      ],
+      "h1": ["What guests tell you."],
+      "headings": ["H1 What guests tell you.", "H2 By professional", "H2 Latest answers"],
       "landmarks": [
         "aside Workspace navigation",
         "nav",
@@ -1908,9 +1861,7 @@
       "route": "/business/stock",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": [
-        "What is on the shelf."
-      ],
+      "h1": ["What is on the shelf."],
       "headings": [
         "H1 What is on the shelf.",
         "H2 Time to reorder",
@@ -1940,14 +1891,8 @@
       "route": "/business/pay",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": [
-        "What the team has earned."
-      ],
-      "headings": [
-        "H1 What the team has earned.",
-        "H2 Each person",
-        "H2 Chair and room rent"
-      ],
+      "h1": ["What the team has earned."],
+      "headings": ["H1 What the team has earned.", "H2 Each person", "H2 Chair and room rent"],
       "landmarks": [
         "aside Workspace navigation",
         "nav",
@@ -1965,9 +1910,7 @@
       "route": "/business/rota",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": [
-        "Who is in, and who is away."
-      ],
+      "h1": ["Who is in, and who is away."],
       "headings": [
         "H1 Who is in, and who is away.",
         "H2 Week of Monday 5 October",
@@ -1993,9 +1936,7 @@
       "route": "/business/accounts",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": [
-        "For your accountant."
-      ],
+      "h1": ["For your accountant."],
       "headings": [
         "H1 For your accountant.",
         "H2 Spreadsheets",
@@ -2021,12 +1962,8 @@
       "route": "/business/gift-cards",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": [
-        "Gift cards and vouchers."
-      ],
-      "headings": [
-        "H1 Gift cards and vouchers."
-      ],
+      "h1": ["Gift cards and vouchers."],
+      "headings": ["H1 Gift cards and vouchers."],
       "landmarks": [
         "aside Workspace navigation",
         "nav",
@@ -2042,13 +1979,8 @@
       "route": "/booking",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": [
-        "Care, considered."
-      ],
-      "headings": [
-        "H1 Care, considered.",
-        "H2 What brings you in?"
-      ],
+      "h1": ["Care, considered."],
+      "headings": ["H1 Care, considered.", "H2 What brings you in?"],
       "landmarks": [
         "section Studio preview",
         "aside Welcome to Atelier House",
@@ -2062,9 +1994,7 @@
       "route": "/design-language",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": [
-        "Design language"
-      ],
+      "h1": ["Design language"],
       "headings": [
         "H1 Design language",
         "H2 Principles",
@@ -2093,25 +2023,16 @@
       "route": "/account",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": [
-        "Welcome back."
-      ],
-      "headings": [
-        "H1 Welcome back."
-      ],
-      "landmarks": [
-        "aside",
-        "main"
-      ]
+      "h1": ["Welcome back."],
+      "headings": ["H1 Welcome back."],
+      "landmarks": ["aside", "main"]
     },
     {
       "mode": "demo",
       "route": "/pricing",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": [
-        "One price. Everything included."
-      ],
+      "h1": ["One price. Everything included."],
       "headings": [
         "H1 One price. Everything included.",
         "H2 What the price never hides",
@@ -2120,21 +2041,14 @@
         "H3 No fee to leave",
         "H2 Costs outside SALEANE"
       ],
-      "landmarks": [
-        "header",
-        "main",
-        "section The price",
-        "footer"
-      ]
+      "landmarks": ["header", "main", "section The price", "footer"]
     },
     {
       "mode": "local studio",
       "route": "/today",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": [
-        "Good afternoon, Qualification."
-      ],
+      "h1": ["Good afternoon, Qualification."],
       "headings": [
         "H1 Good afternoon, Qualification.",
         "H2 The day ahead",
@@ -2158,13 +2072,8 @@
       "route": "/calendar",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": [
-        "Calendar"
-      ],
-      "headings": [
-        "H1 Calendar",
-        "H2 Tuesday 6 October"
-      ],
+      "h1": ["Calendar"],
+      "headings": ["H1 Calendar", "H2 Tuesday 6 October"],
       "landmarks": [
         "aside Workspace navigation",
         "nav",
@@ -2182,12 +2091,8 @@
       "route": "/clients",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": [
-        "Relationships, remembered."
-      ],
-      "headings": [
-        "H1 Relationships, remembered."
-      ],
+      "h1": ["Relationships, remembered."],
+      "headings": ["H1 Relationships, remembered."],
       "landmarks": [
         "aside Workspace navigation",
         "nav",
@@ -2203,9 +2108,7 @@
       "route": "/clients/client-1",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": [
-        "Amelia Carter"
-      ],
+      "h1": ["Amelia Carter"],
       "headings": [
         "H1 Amelia Carter",
         "H2 A year with the studio",
@@ -2238,9 +2141,7 @@
       "route": "/inbox",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": [
-        "A considered word."
-      ],
+      "h1": ["A considered word."],
       "headings": [
         "H1 A considered word.",
         "H2 A little space to be thoughtful.",
@@ -2261,13 +2162,8 @@
       "route": "/waitlist",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": [
-        "Who would take a time."
-      ],
-      "headings": [
-        "H1 Who would take a time.",
-        "H2 Waiting"
-      ],
+      "h1": ["Who would take a time."],
+      "headings": ["H1 Who would take a time.", "H2 Waiting"],
       "landmarks": [
         "aside Workspace navigation",
         "nav",
@@ -2283,9 +2179,7 @@
       "route": "/business",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": [
-        "A clearer view."
-      ],
+      "h1": ["A clearer view."],
       "headings": [
         "H1 A clearer view.",
         "H2 Revenue has a rhythm.",
@@ -2312,9 +2206,7 @@
       "route": "/business/money",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": [
-        "Money, clearly."
-      ],
+      "h1": ["Money, clearly."],
       "headings": [
         "H1 Money, clearly.",
         "H2 A record of every settled visit",
@@ -2351,9 +2243,7 @@
       "route": "/settings",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": [
-        "Your studio, considered."
-      ],
+      "h1": ["Your studio, considered."],
       "headings": [
         "H1 Your studio, considered.",
         "H2 Business details",
@@ -2381,9 +2271,7 @@
       "route": "/settings?section=messages",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": [
-        "Your studio, considered."
-      ],
+      "h1": ["Your studio, considered."],
       "headings": [
         "H1 Your studio, considered.",
         "H2 Messages to guests",
@@ -2405,14 +2293,8 @@
       "route": "/settings?section=payments",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": [
-        "Your studio, considered."
-      ],
-      "headings": [
-        "H1 Your studio, considered.",
-        "H2 Payments",
-        "H2 A steady foundation."
-      ],
+      "h1": ["Your studio, considered."],
+      "headings": ["H1 Your studio, considered.", "H2 Payments", "H2 A steady foundation."],
       "landmarks": [
         "aside Workspace navigation",
         "nav",
@@ -2429,9 +2311,7 @@
       "route": "/settings?section=switching",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": [
-        "Your studio, considered."
-      ],
+      "h1": ["Your studio, considered."],
       "headings": [
         "H1 Your studio, considered.",
         "H2 Moving from another system",
@@ -2458,9 +2338,7 @@
       "route": "/settings?section=plans",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": [
-        "Your studio, considered."
-      ],
+      "h1": ["Your studio, considered."],
       "headings": [
         "H1 Your studio, considered.",
         "H2 Packages & memberships",
@@ -2482,14 +2360,8 @@
       "route": "/business/feedback",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": [
-        "What guests tell you."
-      ],
-      "headings": [
-        "H1 What guests tell you.",
-        "H2 By professional",
-        "H2 Latest answers"
-      ],
+      "h1": ["What guests tell you."],
+      "headings": ["H1 What guests tell you.", "H2 By professional", "H2 Latest answers"],
       "landmarks": [
         "aside Workspace navigation",
         "nav",
@@ -2507,9 +2379,7 @@
       "route": "/business/stock",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": [
-        "What is on the shelf."
-      ],
+      "h1": ["What is on the shelf."],
       "headings": [
         "H1 What is on the shelf.",
         "H2 Time to reorder",
@@ -2539,14 +2409,8 @@
       "route": "/business/pay",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": [
-        "What the team has earned."
-      ],
-      "headings": [
-        "H1 What the team has earned.",
-        "H2 Each person",
-        "H2 Chair and room rent"
-      ],
+      "h1": ["What the team has earned."],
+      "headings": ["H1 What the team has earned.", "H2 Each person", "H2 Chair and room rent"],
       "landmarks": [
         "aside Workspace navigation",
         "nav",
@@ -2564,9 +2428,7 @@
       "route": "/business/rota",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": [
-        "Who is in, and who is away."
-      ],
+      "h1": ["Who is in, and who is away."],
       "headings": [
         "H1 Who is in, and who is away.",
         "H2 Week of Monday 5 October",
@@ -2592,9 +2454,7 @@
       "route": "/business/accounts",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": [
-        "For your accountant."
-      ],
+      "h1": ["For your accountant."],
       "headings": [
         "H1 For your accountant.",
         "H2 Spreadsheets",
@@ -2620,12 +2480,8 @@
       "route": "/business/gift-cards",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": [
-        "Gift cards and vouchers."
-      ],
-      "headings": [
-        "H1 Gift cards and vouchers."
-      ],
+      "h1": ["Gift cards and vouchers."],
+      "headings": ["H1 Gift cards and vouchers."],
       "landmarks": [
         "aside Workspace navigation",
         "nav",
@@ -2641,9 +2497,7 @@
       "route": "/pricing",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": [
-        "One price. Everything included."
-      ],
+      "h1": ["One price. Everything included."],
       "headings": [
         "H1 One price. Everything included.",
         "H2 What the price never hides",
@@ -2652,25 +2506,15 @@
         "H3 No fee to leave",
         "H2 Costs outside SALEANE"
       ],
-      "landmarks": [
-        "header",
-        "main",
-        "section The price",
-        "footer"
-      ]
+      "landmarks": ["header", "main", "section The price", "footer"]
     },
     {
       "mode": "local studio",
       "route": "/book/qualify-studio-546a83ad",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": [
-        "Care, considered."
-      ],
-      "headings": [
-        "H1 Care, considered.",
-        "H2 What brings you in?"
-      ],
+      "h1": ["Care, considered."],
+      "headings": ["H1 Care, considered.", "H2 What brings you in?"],
       "landmarks": [
         "section Studio preview",
         "aside Welcome to Qualify Studio",
@@ -2684,16 +2528,9 @@
       "route": "/account",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": [
-        "Your studios"
-      ],
-      "headings": [
-        "H1 Your studios"
-      ],
-      "landmarks": [
-        "aside",
-        "main"
-      ]
+      "h1": ["Your studios"],
+      "headings": ["H1 Your studios"],
+      "landmarks": ["aside", "main"]
     }
   ],
   "summary": {
