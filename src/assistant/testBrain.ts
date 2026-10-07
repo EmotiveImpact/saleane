@@ -21,7 +21,7 @@ export function testModeBrain(today: string, locale = 'en-GB'): Brain {
 }
 
 const HELP =
-  'In test mode I can answer a few things from your records: what is on today or tomorrow, who is due back, takings, money owed, plans running low, low stock, and a brief on a client ("tell me about Maya"). I can also prepare an invitation for a client to come back ("invite Maya back") for you to approve.'
+  'In test mode I can answer a few things from your records: your morning brief, anything unusual, who is drifting away, what is on today or tomorrow, who is due back, takings, money owed, plans running low, low stock, and a brief on a client ("tell me about Maya"). I can also prepare an invitation for a client to come back ("invite Maya back") for you to approve.'
 
 const MANAGERS_ONLY = 'That is for owners and managers.'
 
@@ -85,6 +85,10 @@ function firstStep(question: string, today: string, offered: Set<string>): Step 
     return offered.has('draft_message')
       ? call('find_client', { name: clientName(question)! })
       : say('Your role cannot prepare messages.')
+  if (/\b(brief|summary|morning|overview)\b/.test(q) && !clientName(question))
+    return { calls: [...call('morning_brief').calls, ...call('unusual').calls] }
+  if (/\b(unusual|warning|warnings|worry|wrong|odd|problems?)\b/.test(q)) return call('unusual')
+  if (/\b(drifting|slipping|lost|losing|lapsing|missing)\b/.test(q)) return call('drifting_clients')
   if (/\btomorrow\b/.test(q)) return call('day_overview', { date: addDays(today, 1) })
   if (/\b(today|on today|my day|diary|schedule|day look)\b/.test(q)) return call('day_overview')
   if (/\b(due back|due|lapsed|haven't been|not been|fill|gap|quiet)\b/.test(q))
@@ -110,6 +114,15 @@ function nextStep(
 ): Step {
   const last = results[results.length - 1]
   if (!last.ok) return say(String(last.data))
+  const brief = results.find((r) => r.name === 'morning_brief')
+  if (brief?.ok) {
+    const notices = results.find((r) => r.name === 'unusual')
+    return say(
+      [describeMorning(brief.data as Morning, day), describeNotices(notices?.data as Notice[])]
+        .filter(Boolean)
+        .join(' '),
+    )
+  }
   const q = question.toLowerCase()
   switch (last.name) {
     case 'find_client': {
@@ -139,6 +152,22 @@ function nextStep(
       return say(
         'I have prepared the invitation below. Nothing has been sent: approve it to save it as an unsent draft in the Inbox.',
       )
+    case 'unusual':
+      return say(describeNotices(last.data as Notice[]) || 'Nothing looks unusual right now.')
+    case 'drifting_clients': {
+      const list = last.data as Drifting[]
+      if (!list.length) return say('Nobody is drifting away right now.')
+      const lines = list.slice(0, 5).map((d) => {
+        const usual = d.usualWeeks ? `, usually every ${d.usualWeeks}` : ''
+        const offer = d.openTime
+          ? `; ${d.openTime.professional} is free ${day(d.openTime.date)} at ${d.openTime.time}`
+          : ''
+        return `${d.name} (${d.weeksSince} weeks${usual}${offer})`
+      })
+      return say(
+        `${list.length} ${list.length === 1 ? 'client is' : 'clients are'} drifting away: ${lines.join('; ')}. Say "invite" and a name and I will prepare a message.`,
+      )
+    }
     case 'day_overview':
       return say(describeDay(last.data as Day, day))
     case 'due_back': {
@@ -192,6 +221,48 @@ function nextStep(
     default:
       return say(HELP)
   }
+}
+
+type Morning = {
+  date: string
+  visits: number
+  firstVisits: number
+  bookedMinutes: number
+  usualBookedMinutes: number | null
+  openMinutes: number
+  yesterdayTakings?: string
+  usualYesterdayTakings?: string | null
+}
+type Notice = { title: string; detail: string }
+type Drifting = {
+  name: string
+  weeksSince: number
+  usualWeeks: number | null
+  openTime?: { date: string; time: string; professional: string; service: string }
+}
+
+const hours = (minutes: number) => {
+  const h = Math.round(minutes / 30) / 2
+  return `${h} ${h === 1 ? 'hour' : 'hours'}`
+}
+
+function describeMorning(m: Morning, day: (date: string) => string) {
+  const parts = [
+    m.visits
+      ? `${day(m.date)}: ${m.visits} ${m.visits === 1 ? 'visit' : 'visits'}, ${hours(m.bookedMinutes)} booked${m.usualBookedMinutes ? ` (a usual ${day(m.date).split(' ')[0]} has about ${hours(m.usualBookedMinutes)})` : ''}${m.firstVisits ? `, ${m.firstVisits} first ${m.firstVisits === 1 ? 'visit' : 'visits'}` : ''}.`
+      : `Nothing is booked for ${day(m.date)} yet.`,
+  ]
+  if (m.openMinutes >= 60) parts.push(`${hours(m.openMinutes)} of the team's time is still open.`)
+  if (m.yesterdayTakings)
+    parts.push(
+      `Yesterday took ${m.yesterdayTakings}${m.usualYesterdayTakings ? `, against about ${m.usualYesterdayTakings} usually` : ''}.`,
+    )
+  return parts.join(' ')
+}
+
+function describeNotices(notices: Notice[] | undefined) {
+  if (!notices?.length) return ''
+  return notices.map((n) => `${n.title}: ${n.detail}`).join(' ')
 }
 
 type Visit = {

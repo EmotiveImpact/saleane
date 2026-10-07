@@ -7,6 +7,7 @@ import { addDays, money, timeLabel } from '../domain/format'
 import type { BusinessState } from '../domain/model'
 import { businessDate, can, operations, stock } from '../domain/operations'
 import type { Role } from '../domain/operations'
+import { drifting, gapSuggestions, morningBrief, unusual } from '../domain/insights'
 import { holdings, planStanding } from '../domain/plans'
 import {
   clientStats,
@@ -224,6 +225,72 @@ export function askSaleaneSkills(): Skill<AskContext, Command>[] {
             visitsLeft: standing.visitsLeft,
             endsOn: h.endsOn ?? null,
           }))
+      },
+    }),
+    readSkill<AskContext, Record<string, never>>({
+      name: 'morning_brief',
+      description:
+        "Today's brief: visits, first visits, hours booked against a usual day of the week, open time, and (for owners and managers) yesterday's takings against usual.",
+      input: z.object({}).strict(),
+      allowed: studio,
+      run(ctx) {
+        const b = morningBrief(ctx.state, ctx.today)
+        return {
+          date: b.date,
+          visits: b.visits,
+          firstVisits: b.firstVisits,
+          bookedMinutes: b.bookedMinutes,
+          usualBookedMinutes: b.usualBookedMinutes && Math.round(b.usualBookedMinutes),
+          openMinutes: b.openMinutes,
+          ...(managers(ctx) && {
+            yesterdayTakings: cash(ctx, b.yesterday.takingsMinor),
+            usualYesterdayTakings:
+              b.yesterday.usualTakingsMinor === null
+                ? null
+                : cash(ctx, Math.round(b.yesterday.usualTakingsMinor)),
+          }),
+        }
+      },
+    }),
+    readSkill<AskContext, Record<string, never>>({
+      name: 'unusual',
+      description:
+        "Anything that looks unusual against the studio's own recent weeks: a quiet day ahead, more cancellations, takings down, a client who keeps missing visits, low stock.",
+      input: z.object({}).strict(),
+      allowed: studio,
+      run(ctx) {
+        return unusual(ctx.state, ctx.today)
+          .filter((n) => managers(ctx) || !n.managersOnly)
+          .map(({ title, detail, clientId }) => ({ title, detail, clientId }))
+      },
+    }),
+    readSkill<AskContext, Record<string, never>>({
+      name: 'drifting_clients',
+      description:
+        'Clients who have gone longer than their own usual gap without booking, longest overdue first, with an open time today or tomorrow to offer when there is one.',
+      input: z.object({}).strict(),
+      allowed: studio,
+      run(ctx) {
+        const offers = gapSuggestions(ctx.state, ctx.today)
+        return drifting(ctx.state, ctx.today)
+          .slice(0, 10)
+          .map((d) => {
+            const offer = offers.find((o) => o.clientId === d.clientId)
+            return {
+              clientId: d.clientId,
+              name: d.name,
+              lastVisit: d.lastVisit,
+              weeksSince: d.weeksSince,
+              usualWeeks: d.usualWeeks,
+              marketingConsent: d.marketingConsent,
+              openTime: offer && {
+                date: offer.date,
+                time: time(ctx, offer.startMinutes),
+                professional: name(ctx.state, 'staff', offer.staffId),
+                service: name(ctx.state, 'services', offer.serviceId),
+              },
+            }
+          })
       },
     }),
     readSkill<AskContext, Record<string, never>>({
