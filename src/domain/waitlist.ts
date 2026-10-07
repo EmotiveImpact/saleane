@@ -505,8 +505,9 @@ export function waitlistProblem(s: BusinessState) {
 /** For the waitlist page: who is waiting, and how many times it has filled since `since`. */
 export function waitlistSummary(s: BusinessState, since: string, now = new Date().toISOString()) {
   const filled = waitlistList(s).filter((e) => e.status === 'booked' && (e.closedAt ?? '') >= since)
-  const visits = filled
-    .map((e) => s.appointments.find((a) => a.id === e.outcomeAppointmentId))
+  // A visit moved earlier twice fills two requests but is still one visit, counted once.
+  const visits = [...new Set(filled.map((e) => e.outcomeAppointmentId))]
+    .map((id) => s.appointments.find((a) => a.id === id))
     .filter((a): a is Appointment => !!a && a.status !== 'cancelled' && a.status !== 'no_show')
   return {
     waiting: waiting(s, now).length,

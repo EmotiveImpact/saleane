@@ -498,4 +498,31 @@ describe('waitlist', () => {
     expect(sent.delivery).toContain('waitlist request')
     expect(sent.delivery).not.toContain('consent')
   })
+
+  it('counts a visit moved earlier twice once in the summary', () => {
+    const { s, visit } = withLaterVisit()
+    let next = s
+    for (const date of ['2026-10-12', '2026-10-09']) {
+      next = apply(next, {
+        type: 'waitlist-join',
+        appointmentId: visit.id,
+        anyone: false,
+        times: [],
+      })
+      const entry = next.waitlist!.at(-1)!
+      next = apply(next, {
+        type: 'reschedule',
+        appointmentId: visit.id,
+        waitlistId: entry.id,
+        date,
+        startMinutes: 600,
+        staffId: 'staff-maya',
+      })
+    }
+    expect(next.waitlist!.filter((e) => e.status === 'booked')).toHaveLength(2)
+    expect(waitlistSummary(next, '2026-10-01T00:00:00.000Z')).toMatchObject({
+      filled: 1,
+      valueMinor: visit.bookedPriceMinor,
+    })
+  })
 })
