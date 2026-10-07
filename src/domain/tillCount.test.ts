@@ -134,6 +134,9 @@ describe('end-of-day till count', () => {
     demoCash.recordedAt = '2026-10-06T10:00:00.000Z'
     const result = apply(s, count({ countedMinor: 0, bankingMinor: 0 }))
     expect(result.state.tillCounts![0].cashInMinor).toBe(demoCash.amountMinor)
+    // The demo clock stands still: simulated cash recorded in a later session is the demo day's.
+    demoCash.recordedAt = '2027-01-15T10:00:00.000Z'
+    expect(cashForDay(s, '2026-10-06').cashIn).toBe(demoCash.amountMinor)
   })
 
   it('refuses impossible counts and a future day', () => {

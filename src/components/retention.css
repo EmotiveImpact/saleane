@@ -33,10 +33,10 @@
 }
 .retention-table-wrap {
   margin-top: var(--space-6);
-  overflow-x: auto;
 }
 .retention-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: var(--text-small);
 }
@@ -68,8 +68,10 @@
   font-weight: 500;
 }
 .retention-table th:first-child {
+  width: 40%;
   text-align: left;
   padding-left: 0;
+  overflow-wrap: anywhere;
 }
 .retention-table td:last-child {
   padding-right: 0;

@@ -20,7 +20,12 @@ export function TillCount() {
   const org = state.organisation
   const [date, setDate] = useState(today)
   const counts = tillCountsFor(state, date)
-  const [float, setFloat] = useState('')
+  // Start from the float of the day's latest count, so a recount only needs the new cash figures.
+  const floatFor = (day: string) => {
+    const latest = tillCountsFor(state, day)[0]
+    return latest ? (latest.openingFloatMinor / 100).toFixed(2) : ''
+  }
+  const [float, setFloat] = useState(() => floatFor(today))
   const [counted, setCounted] = useState('')
   const [banking, setBanking] = useState('')
   const [note, setNote] = useState('')
@@ -107,7 +112,9 @@ export function TillCount() {
                 max={today}
                 required
                 onChange={(e) => {
-                  setDate(e.target.value || today)
+                  const day = e.target.value || today
+                  setDate(day)
+                  setFloat(floatFor(day))
                   setNotice('')
                   setError('')
                 }}

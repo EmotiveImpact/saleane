@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import type { BusinessState } from './model'
-import { operations } from './operations'
+import { businessDate, operations } from './operations'
 import { money } from './format'
 
 /**
@@ -65,18 +65,28 @@ export function venueDate(timeZone: string, instant: string) {
 const CASH = new Set(['cash', 'demo_cash'])
 
 /**
+ * The venue day a payment or refund belongs to. The sample studio's clock stands still on its
+ * demo day, so anything recorded during a demo session after that day belongs to the demo day.
+ */
+function recordDay(s: BusinessState, instant: string) {
+  const day = venueDate(s.organisation.timeZone, instant)
+  if (operations(s).mode !== 'sandbox') return day
+  const demoDay = businessDate(s)
+  return day > demoDay ? demoDay : day
+}
+
+/**
  * Cash on record for one venue day: cash payments (deposits and settlements, including tips)
  * recorded that day, and refunds recorded that day against a cash receipt. Refund records do not
  * carry their own method, so a refund counts as cash when the receipt it returns was paid in cash.
  */
 export function cashForDay(s: BusinessState, date: string) {
-  const zone = s.organisation.timeZone
   const cashIn = s.payments
-    .filter((p) => CASH.has(p.method) && venueDate(zone, p.recordedAt) === date)
+    .filter((p) => CASH.has(p.method) && recordDay(s, p.recordedAt) === date)
     .reduce((sum, p) => sum + p.amountMinor, 0)
   const cashSales = new Set(s.sales.filter((sale) => CASH.has(sale.method)).map((sale) => sale.id))
   const cashRefunded = operations(s)
-    .refunds.filter((r) => cashSales.has(r.saleId) && venueDate(zone, r.createdAt) === date)
+    .refunds.filter((r) => cashSales.has(r.saleId) && recordDay(s, r.createdAt) === date)
     .reduce((sum, r) => sum + r.amountMinor, 0)
   return { cashIn, cashRefunded }
 }
