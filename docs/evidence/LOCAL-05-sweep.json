@@ -1,6 +1,6 @@
 {
   "environment": "Chromium 141.0.7390.37 / http://127.0.0.1:5173",
-  "recordedAt": "2026-10-07T16:03:31.451Z",
+  "recordedAt": "2026-10-07T19:13:57.336Z",
   "results": [
     {
       "mode": "demo",
@@ -10,7 +10,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 40,
+        "focusable": 50,
         "missing": []
       },
       "errors": []
@@ -23,7 +23,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 27,
+        "focusable": 22,
         "missing": []
       },
       "errors": []
@@ -49,7 +49,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 41,
+        "focusable": 43,
         "missing": []
       },
       "errors": []
@@ -127,7 +127,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 28,
+        "focusable": 31,
         "missing": []
       },
       "errors": []
@@ -729,7 +729,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 41,
+        "focusable": 50,
         "missing": []
       },
       "errors": []
@@ -742,7 +742,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 28,
+        "focusable": 22,
         "missing": []
       },
       "errors": []
@@ -768,7 +768,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 42,
+        "focusable": 44,
         "missing": []
       },
       "errors": []
@@ -846,7 +846,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 29,
+        "focusable": 32,
         "missing": []
       },
       "errors": []
@@ -983,7 +983,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-eaca0201",
+      "route": "/book/qualify-studio-d07fb3ae",
       "width": 1280,
       "violations": [],
       "viewport": 1280,
@@ -1189,7 +1189,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-eaca0201",
+      "route": "/book/qualify-studio-d07fb3ae",
       "width": 390,
       "violations": [],
       "viewport": 390,
@@ -1387,7 +1387,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-eaca0201",
+      "route": "/book/qualify-studio-d07fb3ae",
       "width": 320,
       "violations": [],
       "viewport": 320,
@@ -1542,6 +1542,9 @@
         "H2 The day ahead",
         "H2 Patch tests to sort",
         "H2 Make room for a familiar face.",
+        "H3 Reminders",
+        "H3 Drifting away",
+        "H2 Specials to consider",
         "H2 Your people today"
       ],
       "landmarks": [
@@ -2054,6 +2057,9 @@
         "H2 The day ahead",
         "H2 Patch tests to sort",
         "H2 Make room for a familiar face.",
+        "H3 Reminders",
+        "H3 Drifting away",
+        "H2 Specials to consider",
         "H2 Your people today"
       ],
       "landmarks": [
@@ -2510,7 +2516,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-eaca0201",
+      "route": "/book/qualify-studio-d07fb3ae",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
       "h1": ["Care, considered."],

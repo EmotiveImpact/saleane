@@ -101,6 +101,7 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
       phone: client.phone,
       goodToRemember: client.preferences,
       clientSince: client.createdAt,
+      ...(client.birthday ? { birthday: client.birthday } : {}),
     },
     consent: {
       emailMarketing: client.marketingConsent,

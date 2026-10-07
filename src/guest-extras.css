@@ -176,3 +176,25 @@
 .guest-notes-service legend + * {
   clear: both;
 }
+.birthday-form {
+  display: grid;
+  gap: 10px;
+}
+.birthday-form fieldset {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.birthday-form label {
+  display: grid;
+  gap: 6px;
+}
+#client-birthday-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

@@ -15,6 +15,11 @@ export const reminderSettingsSchema = z
     aftercare: z.boolean().optional(),
     /** V1.5: a "you're due back" email to guests who agreed to hear from the studio. Absent means on. */
     dueBack: z.boolean().optional(),
+    /** V1.5: a birthday email to guests who agreed to hear and shared the date. Absent means on. */
+    birthday: z.boolean().optional(),
+    /** V1.5: a "we miss you" email after a long gap. Absent means on, after 90 days. */
+    missYou: z.boolean().optional(),
+    missYouDays: z.union([z.literal(60), z.literal(90), z.literal(120), z.literal(180)]).optional(),
   })
   .strict()
 export type ReminderSettings = z.infer<typeof reminderSettingsSchema>
@@ -27,4 +32,8 @@ export const defaultReminderSettings: ReminderSettings = {
   feedback: true,
   aftercare: true,
   dueBack: true,
+  birthday: true,
+  missYou: true,
+  missYouDays: 90,
 }
+export const missYouDayChoices = [60, 90, 120, 180] as const

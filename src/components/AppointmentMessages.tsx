@@ -9,6 +9,7 @@ import {
   outboxStatusLabel,
   reminderHourChoices,
   reminderSettings,
+  missYouDayChoices,
   textNumber,
 } from '../domain/reminders'
 import type {
@@ -50,6 +51,8 @@ const kindLabel: Record<MessageKind, string> = {
   patch_test: 'Patch test needed',
   aftercare: 'Aftercare',
   due_back: 'Due back',
+  birthday: 'Birthday',
+  miss_you: 'We miss you',
 }
 const providerLabel: Record<string, string> = {
   test: 'test mode',
@@ -139,6 +142,45 @@ export function MessageSettings() {
             />
             Email guests who agreed to hear from you when they are due back
           </label>
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={draft.birthday !== false}
+              onChange={(e) => set('birthday', e.target.checked)}
+            />
+            Wish guests who agreed, and shared the date, a happy birthday
+          </label>
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={draft.missYou !== false}
+              onChange={(e) => set('missYou', e.target.checked)}
+            />
+            Send one &ldquo;we miss you&rdquo; email to guests who agreed, after a long gap
+          </label>
+          <label>
+            A long gap is
+            <select
+              value={draft.missYouDays ?? 90}
+              disabled={draft.missYou === false}
+              onChange={(e) =>
+                set('missYouDays', Number(e.target.value) as ReminderSettings['missYouDays'])
+              }
+            >
+              {missYouDayChoices.map((days) => (
+                <option key={days} value={days}>
+                  {days === 60
+                    ? 'Two months'
+                    : days === 90
+                      ? 'Three months'
+                      : days === 120
+                        ? 'Four months'
+                        : 'Six months'}{' '}
+                  without a visit
+                </option>
+              ))}
+            </select>
+          </label>
           <label>
             When the reminder goes
             <select
@@ -181,7 +223,8 @@ export function MessageSettings() {
         </fieldset>
         <p className="subtle">
           These are service messages about a visit, which a client can turn off on their profile.
-          The due back note goes only to guests who agreed to hear from you, by email only.{' '}
+          Due back, birthday and &ldquo;we miss you&rdquo; emails go only to guests who agreed to
+          hear from you, by email only.{' '}
           {mode === 'demo' ? 'The demo studio never sends anything.' : ''}
         </p>
         <ErrorMessage error={error} />
