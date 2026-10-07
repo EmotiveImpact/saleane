@@ -1,7 +1,7 @@
 import type { Appointment, BusinessState } from './model'
 import { operations } from './operations'
 import type { Role } from './operations'
-import { serviceLabel, withdrawnOffer } from './waitlist'
+import { isOpen, serviceLabel, withdrawnOffer } from './waitlist'
 
 /**
  * LOCAL-03 (PRD GOV-01): data exports and erasure review.
@@ -231,7 +231,11 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
         note: e.note,
         askedBy: e.source === 'guest' ? 'The client' : 'The studio',
         askedAt: e.createdAt,
-        status: e.status,
+        // A request whose dates passed is kept as waiting in the record but is no longer open.
+        status:
+          e.status === 'waiting' && !isOpen(state, e, meta.generatedAt)
+            ? ('dates passed' as const)
+            : e.status,
         ...(e.closedAt ? { closedAt: e.closedAt } : {}),
         ...(e.removedReason ? { reason: e.removedReason } : {}),
         offersDrafted: (e.offers ?? []).length,

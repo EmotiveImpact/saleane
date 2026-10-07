@@ -280,6 +280,12 @@ describe('waitlist', () => {
     request.toDate = '2026-10-05'
     const later = apply(ended, { type: 'cancel', appointmentId: visit.id, reason: 'Away' })
     expect(later.waitlist!.find((e) => e.id === request.id)!.status).toBe('waiting')
+    // The client's export says the dates passed rather than that they are still waiting.
+    expect(
+      clientExport(later, 'client-1', { generatedAt: now, generatedBy: 'Test' }).waitlist.map(
+        (e) => e.status,
+      ),
+    ).toContain('dates passed')
   })
 
   it('takes each time of day once', () => {
