@@ -71,7 +71,8 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
       const result = db.transaction(() => {
         const org = orgFor(orgId, actor)
         reader = org
-        if (!can(org.role, permissionFor(data.command)))
+        const parts = data.command.type === 'batch' ? data.command.commands : [data.command]
+        if (parts.some((part) => !can(org.role, permissionFor(part))))
           fail(403, 'Your role cannot make this change.')
         if (org.role === 'practitioner') {
           const refusal = practitionerRefusal(
@@ -130,6 +131,29 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
           // Approving a waitlist offer checks its time again, including guests holding it.
           const stale = staleOffer(withHolds(org), command.messageId, new Date(now()).toISOString())
           if (stale) fail(409, stale)
+        } else if (command.type === 'batch') {
+          // Each move in a batch respects online holds exactly as a single move does.
+          const held = withHolds(org)
+          const at = new Date(now()).toISOString()
+          command = {
+            ...command,
+            commands: command.commands.map((part) => {
+              if (part.type !== 'reschedule') return part
+              const move = part as Extract<Command, { type: 'reschedule' }>
+              const resourceId = rescheduleResource(
+                held,
+                move.appointmentId,
+                move.staffId,
+                move.date,
+                move.startMinutes,
+                at,
+                move.resourceId,
+              )
+              if (!resourceId)
+                fail(409, 'A time in this plan is reserved or unavailable. Ask again.')
+              return { ...move, resourceId }
+            }),
+          }
         }
         const result = dispatch(org.state, command, actor.name, new Date(now()).toISOString())
         if (!result.ok) fail(422, result.error)

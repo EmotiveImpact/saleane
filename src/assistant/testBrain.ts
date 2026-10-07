@@ -15,13 +15,13 @@ export function testModeBrain(today: string, locale = 'en-GB'): Brain {
       const offered = new Set(request.tools.map((t) => t.name))
       if (!results.length)
         return { ...firstStep(lastQuestion(request), today, offered), costMinor: 0 }
-      return { ...nextStep(lastQuestion(request), results, offered, day), costMinor: 0 }
+      return { ...nextStep(lastQuestion(request), results, offered, day, today), costMinor: 0 }
     },
   }
 }
 
 const HELP =
-  'In test mode I can answer a few things from your records: your morning brief, anything unusual, who is drifting away, what is on today or tomorrow, who is due back, takings, money owed, plans running low, low stock, and a brief on a client ("tell me about Maya"). I can also prepare an invitation for a client to come back ("invite Maya back") for you to approve. Owners and managers can ask for specials to run and how planned ones went.'
+  'In test mode I can answer a few things from your records: your morning brief, anything unusual, who is drifting away, what is on today or tomorrow, who is at a time ("who\'s my 10 o\'clock?"), who is due back, takings, money owed, plans running low, low stock, and a brief on a client ("tell me about Maya"). I can prepare changes for you to approve: "book Jamie with Maya for a facial on Thursday at 3pm", "cancel Nina Patel", "Theo is off sick today", or an invitation ("invite Maya back"). Owners and managers can also ask "how did we do today?", "how was the week?", and for specials to run.'
 
 const MANAGERS_ONLY = 'That is for owners and managers.'
 
@@ -76,11 +76,77 @@ function clientName(question: string) {
   return found && !NOT_NAMES.test(found) ? found : undefined
 }
 
+const ABSENT =
+  /(\boff sick\b|\bis off\b|'s off\b|\bis (sick|ill|unwell)\b|\bnot coming in\b|\bcan'?t come in\b|\bcalled in sick\b)/
+
+/** A clock time in the question, in minutes after midnight: "10 o'clock", "2pm", "at 3", "14:30". */
+function clockTime(q: string) {
+  const m =
+    /\b(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm|o'?clock)\b/.exec(q) ??
+    /\bat (\d{1,2})(?:[:.](\d{2}))?\b/.exec(q) ??
+    /\b(\d{1,2})[:.](\d{2})\b/.exec(q)
+  if (!m) return null
+  let hour = Number(m[1])
+  const minutes = Number(m[2] ?? 0)
+  if (hour > 23 || minutes > 59) return null
+  if (m[3] === 'pm' && hour < 12) hour += 12
+  else if (m[3] === 'am' && hour === 12) hour = 0
+  else if (m[3] !== 'am' && hour >= 1 && hour <= 7) hour += 12
+  return hour * 60 + minutes
+}
+
+const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+
+/** The day the question means: today, tomorrow, or the next named weekday. */
+function dayIn(q: string, today: string) {
+  if (/\btomorrow\b/.test(q)) return addDays(today, 1)
+  const named = WEEKDAYS.findIndex((d) => q.includes(d))
+  if (named < 0) return today
+  const current = new Date(`${today}T12:00:00Z`).getUTCDay()
+  return addDays(today, (named - current + 7) % 7 || 7)
+}
+
+/** "Book Jamie in with Maya…": the client named after "book". */
+function bookingName(question: string) {
+  return /^\s*book\s+([a-z][a-z' -]{1,60}?)\s+(?:in\b|for\b|with\b)/i.exec(question)?.[1].trim()
+}
+
+/** "Cancel Emily's 2pm" or "cancel Jamie Morgan": the client named after "cancel". */
+function cancelName(question: string) {
+  const found =
+    /^\s*cancel\s+([a-z][a-z' -]{1,60}?)(?:'s\b|\s+(?:visit|appointment|booking|for|at|on|because)\b|[?.!]|$)/i
+      .exec(question)?.[1]
+      .trim()
+  return found && !NOT_NAMES.test(found) ? found : undefined
+}
+
 const NOT_NAMES = /^(today|tomorrow|this|the|my|our|us|me|due|it|that)\b/i
 
 function firstStep(question: string, today: string, offered: Set<string>): Step {
   const q = question.toLowerCase()
   const need = (skill: string, step: Step) => (offered.has(skill) ? step : say(MANAGERS_ONLY))
+  const at = clockTime(q)
+  if (/^\s*book\b/.test(q) && bookingName(question))
+    return offered.has('book_visit')
+      ? {
+          calls: [
+            ...call('find_client', { name: bookingName(question)! }).calls,
+            ...call('catalogue').calls,
+          ],
+        }
+      : say('Your role cannot book visits.')
+  if (/^\s*cancel\b/.test(q) && cancelName(question))
+    return offered.has('cancel_visit')
+      ? call('find_client', { name: cancelName(question)! })
+      : say('Your role cannot cancel visits.')
+  if (ABSENT.test(q) && !/^\s*(book|cancel)\b/.test(q))
+    return need('cover_absence', call('catalogue'))
+  if (/\b(how did we do|close (the|my) day|end of (the )?day|wrap up|today go)\b/.test(q))
+    return need('day_recap', call('day_recap'))
+  if (/\b(week|weekly)\b/.test(q) && /\b(how|review|was|why|quiet|go)\b/.test(q))
+    return need('week_review', call('week_review'))
+  if (at !== null && /\b(my|who'?s|who is|at)\b/.test(q) && !/\bbook\b/.test(q))
+    return call('visit_at', { time: at, date: /\btomorrow\b/.test(q) ? addDays(today, 1) : today })
   if (/\b(invite|draft|message|text|email)\b/.test(q) && clientName(question))
     return offered.has('draft_message')
       ? call('find_client', { name: clientName(question)! })
@@ -116,9 +182,12 @@ function nextStep(
   results: Result[],
   offered: Set<string>,
   day: (date: string) => string,
+  today: string,
 ): Step {
   const last = results[results.length - 1]
   if (!last.ok) return say(String(last.data))
+  const flow = managerFlow(question, results, day, today)
+  if (flow) return flow
   const brief = results.find((r) => r.name === 'morning_brief')
   if (brief?.ok) {
     const notices = results.find((r) => r.name === 'unusual')
@@ -324,7 +393,13 @@ type Brief = {
   preferences?: string
   completedVisits: number
   lastVisit?: { date: string; service: string; professional: string }
-  nextVisit?: { date: string; time: string; service: string; professional: string }
+  nextVisit?: {
+    appointmentId: string
+    date: string
+    time: string
+    service: string
+    professional: string
+  }
   marketingConsent: boolean
   plans: { name: string; visitsLeft: number; state: string }[]
 }
@@ -365,5 +440,248 @@ function describeBrief(b: Brief, day: (date: string) => string) {
   for (const p of b.plans.filter((p) => p.state === 'active'))
     parts.push(`${p.name}: ${p.visitsLeft} ${p.visitsLeft === 1 ? 'visit' : 'visits'} left.`)
   parts.push(b.marketingConsent ? 'Happy to hear about offers.' : 'Has not agreed to marketing.')
+  return parts.join(' ')
+}
+
+type Catalogue = {
+  services: { serviceId: string; name: string }[]
+  professionals: { staffId: string; name: string; serviceIds: string[] }[]
+}
+type FreeTimes = {
+  staffId: string
+  professional: string
+  times: { minutes: number; label: string }[]
+}[]
+type VisitAt = {
+  appointmentId: string
+  clientId: string
+  client: string
+  time: string
+  service: string
+  professional: string
+  next?: { time: string; client: string }
+}
+type Recap = {
+  date: string
+  completed: number
+  takings: string
+  usualTakings: string | null
+  rebooked: number
+  notRebooked: { name: string; marketingConsent: boolean }[]
+  cancelled: number
+  missed: number
+  tomorrow: {
+    date: string
+    visits: number
+    firstStart: string | null
+    firstVisitClient: string | null
+    gaps: { name: string; from: string; hours: number }[]
+  }
+}
+type Review = {
+  visits: number
+  usualVisits: number | null
+  takings: string
+  usualTakings: string | null
+  quietest: { date: string; visits: number; usualVisits: number; reasons: string[] } | null
+  ideas: string[]
+}
+
+const STOP = new Set(['and', 'the', 'with', 'for', 'in', 'on', 'at', 'a', 'an', 'my', 'me'])
+const words = (s: string) =>
+  (s.toLowerCase().match(/[a-z']+/g) ?? []).filter((w) => w.length >= 3 && !STOP.has(w))
+const mentions = (q: string, name: string) => words(name).some((w) => new RegExp(`\\b${w}`).test(q))
+const firstName = (name: string) => name.split(' ')[0]
+const partOfDay = (q: string) =>
+  /\bmorning\b/.test(q)
+    ? (m: number) => m < 720
+    : /\bafternoon\b/.test(q)
+      ? (m: number) => m >= 720 && m < 1020
+      : /\bevening\b/.test(q)
+        ? (m: number) => m >= 1020
+        : () => true
+/** Up to four times at least an hour apart, so the choices cover the part of the day. */
+const spread = (times: { minutes: number; label: string }[]) =>
+  times
+    .reduce<typeof times>(
+      (kept, x) =>
+        kept.length && x.minutes - kept[kept.length - 1].minutes < 60 ? kept : [...kept, x],
+      [],
+    )
+    .slice(0, 4)
+const result = <T>(results: Result[], name: string) =>
+  results.find((r) => r.name === name && r.ok)?.data as T | undefined
+
+/** The manager's everyday jobs: someone off, booking, cancelling, a visit by time, and closing. */
+function managerFlow(
+  question: string,
+  results: Result[],
+  day: (date: string) => string,
+  today: string,
+): Step | null {
+  const q = question.toLowerCase()
+  const last = results[results.length - 1]
+
+  if (ABSENT.test(q) && !/^\s*(book|cancel)\b/.test(q)) {
+    if (last.name === 'catalogue') {
+      const person = (last.data as Catalogue).professionals.find((p) =>
+        mentions(q, firstName(p.name)),
+      )
+      if (!person) return say('Which professional is off? Say their first name.')
+      return call('cover_absence', { staffId: person.staffId, date: dayIn(q, today) })
+    }
+    if (last.name === 'cover_absence')
+      return say(
+        'Here is a plan for the day. Nothing changes until you approve it, and the notes to guests are saved unsent for you to send from the Inbox.',
+      )
+  }
+
+  if (/^\s*book\b/.test(q)) {
+    if (last.name === 'free_times') {
+      const free = last.data as FreeTimes
+      const at = clockTime(q.replace(/^\s*book\b/, ''))
+      const exact =
+        at === null ? undefined : free.find((f) => f.times.some((x) => x.minutes === at))
+      const input = results.find((r) => r.name === 'free_times')!.input
+      const found = result<{ clientId: string }[]>(results, 'find_client')!
+      if (exact && at !== null)
+        return call('book_visit', {
+          clientId: found[0].clientId,
+          serviceId: input.serviceId,
+          staffId: exact.staffId,
+          date: input.date,
+          startMinutes: at,
+        })
+      const fits = partOfDay(q)
+      const options = free
+        .map((f) => ({ ...f, times: spread(f.times.filter((x) => fits(x.minutes))) }))
+        .filter((f) => f.times.length)
+      if (!options.length)
+        return say(`Nothing is free then on ${day(String(input.date))}. Try another day.`)
+      const list = options
+        .map((f) => `${firstName(f.professional)} at ${f.times.map((x) => x.label).join(', ')}`)
+        .join('; ')
+      return say(
+        `${at !== null ? 'That time is taken. ' : ''}Free on ${day(String(input.date))}: ${list}. Ask again with a time, such as "book ${firstName(question.split(/\s+/)[1] ?? 'them')} with ${firstName(options[0].professional)} on ${day(String(input.date)).split(' ')[0]} at ${options[0].times[0].label}".`,
+      )
+    }
+    if (last.name === 'book_visit')
+      return say('I have prepared the booking below. Nothing is booked until you approve it.')
+    const found = result<{ clientId: string; name: string }[]>(results, 'find_client')
+    const catalogue = result<Catalogue>(results, 'catalogue')
+    if (found && catalogue) {
+      if (!found.length) return say(`I could not find a client called ${bookingName(question)}.`)
+      if (found.length > 1)
+        return say(`I found ${found.map((c) => c.name).join(', ')}. Which one do you mean?`)
+      const rest = q.slice(q.indexOf(found[0].name.split(' ')[0].toLowerCase()) + 1)
+      const service = catalogue.services.find((x) => mentions(rest, x.name))
+      if (!service)
+        return say(`Which treatment? ${catalogue.services.map((x) => x.name).join(', ')}.`)
+      const person = catalogue.professionals.find(
+        (p) => p.serviceIds.includes(service.serviceId) && mentions(rest, firstName(p.name)),
+      )
+      return call('free_times', {
+        serviceId: service.serviceId,
+        date: dayIn(q, today),
+        ...(person && { staffId: person.staffId }),
+      })
+    }
+  }
+
+  if (/^\s*cancel\b/.test(q)) {
+    if (last.name === 'find_client') {
+      const found = last.data as { clientId: string; name: string }[]
+      if (!found.length) return say(`I could not find a client called ${cancelName(question)}.`)
+      if (found.length > 1)
+        return say(`I found ${found.map((c) => c.name).join(', ')}. Which one do you mean?`)
+      return call('client_brief', { clientId: found[0].clientId })
+    }
+    if (last.name === 'client_brief') {
+      const brief = last.data as Brief
+      if (!brief.nextVisit) return say(`${brief.name} has nothing booked to cancel.`)
+      const reason = /\bbecause\s+(.{2,200})$/i.exec(question)?.[1].replace(/[.!?]$/, '')
+      return call('cancel_visit', {
+        appointmentId: brief.nextVisit.appointmentId,
+        reason: reason ?? 'Client asked to cancel',
+      })
+    }
+    if (last.name === 'cancel_visit')
+      return say(
+        'I have prepared the cancellation below. Nothing changes until you approve it, and no fee is charged unless you choose to.',
+      )
+  }
+
+  const at = result<VisitAt[]>(results, 'visit_at')
+  if (at) {
+    if (last.name === 'visit_at') {
+      if (!at.length) return say('Nothing starts around then.')
+      return call('client_brief', { clientId: at[0].clientId })
+    }
+    if (last.name === 'client_brief') {
+      const v = at[0]
+      const others =
+        at.length > 1
+          ? ` Also then: ${at
+              .slice(1)
+              .map((x) => `${x.client} with ${firstName(x.professional)}`)
+              .join('; ')}.`
+          : ''
+      const next = v.next
+        ? ` After that, ${firstName(v.professional)} has ${v.next.client} at ${v.next.time}.`
+        : ''
+      return say(
+        `${v.time}: ${v.client}, ${v.service} with ${firstName(v.professional)}. ${guestNote(last.data as Brief, day)}${others}${next}`,
+      )
+    }
+  }
+
+  if (last.name === 'day_recap') {
+    const r = last.data as Recap
+    const parts = [
+      r.completed
+        ? `${r.takings} in treatments from ${r.completed} ${r.completed === 1 ? 'visit' : 'visits'}${r.usualTakings ? `, against about ${r.usualTakings} on a usual ${day(r.date).split(' ')[0]}` : ''}. ${r.rebooked} of ${r.completed} booked their next visit.`
+        : `No visits were completed on ${day(r.date)}.`,
+    ]
+    if (r.cancelled || r.missed) parts.push(`${r.cancelled} cancelled and ${r.missed} missed.`)
+    const willing = r.notRebooked.filter((c) => c.marketingConsent)
+    if (r.notRebooked.length)
+      parts.push(
+        `${r.notRebooked.length} left without a next visit${willing.length ? `; ${willing.map((c) => c.name).join(', ')} ${willing.length === 1 ? 'is' : 'are'} happy to hear from you, so say "invite" and a name for a gentle note` : ''}.`,
+      )
+    const t = r.tomorrow
+    parts.push(
+      t.visits
+        ? `Tomorrow: ${t.visits} ${t.visits === 1 ? 'visit' : 'visits'}, starting at ${t.firstStart}${t.firstVisitClient ? ` with ${t.firstVisitClient}'s first visit` : ''}.${t.gaps.length ? ` ${t.gaps.map((g) => `${firstName(g.name)} has ${g.hours} hours free from ${g.from}`).join('; ')}.` : ''}`
+        : 'Nothing is booked for tomorrow yet.',
+    )
+    return say(parts.join(' '))
+  }
+
+  if (last.name === 'week_review') {
+    const r = last.data as Review
+    const parts = [
+      `The last seven days: ${r.takings} from ${r.visits} visits${r.usualTakings ? `, against about ${r.usualTakings} and ${r.usualVisits} visits in a usual week` : ''}.`,
+    ]
+    if (r.quietest)
+      parts.push(
+        `${day(r.quietest.date)} was the quietest against usual, ${r.quietest.visits} ${r.quietest.visits === 1 ? 'visit' : 'visits'} instead of about ${r.quietest.usualVisits}: ${r.quietest.reasons.join('; ')}.`,
+      )
+    else parts.push('No day was much quieter than usual.')
+    if (r.ideas.length) parts.push(`Ideas: ${r.ideas.join(' ')}`)
+    return say(parts.join(' '))
+  }
+  return null
+}
+
+/** What to know before a guest walks in: how well we know them, last visit, preferences, plans. */
+function guestNote(b: Brief, day: (date: string) => string) {
+  const parts = [
+    b.completedVisits
+      ? `${b.completedVisits} ${b.completedVisits === 1 ? 'visit' : 'visits'} so far${b.lastVisit ? `, the last on ${day(b.lastVisit.date)} for ${b.lastVisit.service}` : ''}.`
+      : 'Their first visit.',
+  ]
+  if (b.preferences) parts.push(`Preferences: ${b.preferences}`)
+  for (const p of b.plans.filter((p) => p.state === 'active'))
+    parts.push(`${p.name}: ${p.visitsLeft} ${p.visitsLeft === 1 ? 'visit' : 'visits'} left.`)
   return parts.join(' ')
 }

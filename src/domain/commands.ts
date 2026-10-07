@@ -132,6 +132,22 @@ export function execute(
 ): CommandResult {
   try {
     const command = commandSchema.parse(rawCommand)
+    if (command.type === 'batch') {
+      let current = s
+      let recordId = ''
+      for (const part of command.commands) {
+        const result = execute(current, part as Command, now, makeId)
+        if (!result.ok) return result
+        current = result.state
+        recordId = result.recordId
+      }
+      if (current === s) return { ok: true, state: s, recordId }
+      return {
+        ok: true,
+        state: parseState({ ...current, revision: s.revision + 1 }, s.organisation.region),
+        recordId,
+      }
+    }
     const next = structuredClone(s)
     const org = s.organisation
     const addEvent = (

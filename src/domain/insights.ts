@@ -335,3 +335,173 @@ export function gapInvitation(
     body: `Hello ${first}, it has been a little while. ${person} has ${when} free for your ${service}. If you would like it, reply to this message and we will book you in.`,
   }
 }
+
+export type DayRecap = {
+  date: string
+  completed: number
+  takingsMinor: number
+  /** Takings on the same weekday over the previous four weeks, when there is enough history. */
+  usualTakingsMinor: number | null
+  rebooked: number
+  /** Guests seen today with nothing booked next, and whether they agreed to marketing. */
+  notRebooked: { clientId: string; name: string; marketingConsent: boolean }[]
+  cancelled: number
+  missed: number
+  tomorrow: {
+    date: string
+    visits: number
+    firstStart: number | null
+    firstVisitClient: string | null
+    /** The longest open stretch per professional of 90 minutes or more. */
+    gaps: { staffId: string; name: string; startMinutes: number; minutes: number }[]
+  }
+}
+
+/** Closing the day: what was taken against usual, rebooking, and a first look at tomorrow. */
+export function dayRecap(s: BusinessState, date: string): DayRecap {
+  const done = s.appointments.filter((a) => a.date === date && a.status === 'completed')
+  const rebookedIds = new Set(
+    s.appointments.filter((a) => a.rebookedFromId && live(a)).map((a) => a.rebookedFromId!),
+  )
+  const hasNext = (clientId: string) =>
+    s.appointments.some((a) => a.clientId === clientId && a.date > date && live(a))
+  const notRebooked = [...new Set(done.map((a) => a.clientId))]
+    .filter((id) => !hasNext(id))
+    .map((id) => {
+      const c = s.clients.find((x) => x.id === id)
+      return { clientId: id, name: c?.name ?? 'A guest', marketingConsent: !!c?.marketingConsent }
+    })
+  const tomorrow = addDays(date, 1)
+  const next = dayAppointments(s, tomorrow).filter(live)
+  const firstOf = [...next].sort((a, b) => a.startMinutes - b.startMinutes)[0]
+  const firstVisitClient =
+    firstOf && clientStats(s, firstOf.clientId).visits === 0
+      ? (s.clients.find((c) => c.id === firstOf.clientId)?.name ?? null)
+      : null
+  const gaps = s.staff
+    .filter((p) => !p.archived)
+    .flatMap((p) => {
+      const own = next
+        .filter((a) => a.staffId === p.id)
+        .sort((a, b) => a.startMinutes - b.startMinutes)
+      if (own.length < 2) return []
+      let best = { startMinutes: 0, minutes: 0 }
+      for (let i = 1; i < own.length; i++) {
+        const prev = own[i - 1]
+        const end = prev.startMinutes + prev.bookedDurationMinutes + prev.bookedBufferMinutes
+        const gap = own[i].startMinutes - end
+        if (gap > best.minutes) best = { startMinutes: end, minutes: gap }
+      }
+      return best.minutes >= 90 ? [{ staffId: p.id, name: p.name, ...best }] : []
+    })
+  return {
+    date,
+    completed: done.length,
+    takingsMinor: takingsBetween(s, date, date),
+    usualTakingsMinor: usual(sameWeekdays(s, date).map((d) => takingsBetween(s, d, d))),
+    rebooked: done.filter((a) => rebookedIds.has(a.id)).length,
+    notRebooked,
+    cancelled: s.appointments.filter((a) => a.date === date && a.status === 'cancelled').length,
+    missed: s.appointments.filter((a) => a.date === date && a.status === 'no_show').length,
+    tomorrow: {
+      date: tomorrow,
+      visits: next.length,
+      firstStart: firstOf?.startMinutes ?? null,
+      firstVisitClient,
+      gaps,
+    },
+  }
+}
+
+export type WeekDay = {
+  date: string
+  visits: number
+  takingsMinor: number
+  cancelled: number
+  missed: number
+  usualVisits: number | null
+  usualCancelled: number | null
+}
+export type WeekReview = {
+  from: string
+  to: string
+  visits: number
+  takingsMinor: number
+  /** The four weeks before, averaged, when there is enough history. */
+  usualVisits: number | null
+  usualTakingsMinor: number | null
+  days: WeekDay[]
+  /** The day furthest below its usual, with what the record shows about why. */
+  quietest: (WeekDay & { reasons: string[] }) | null
+  ideas: string[]
+}
+
+/** The last seven days against the four weeks before, with the reasons a quiet day shows. */
+export function weekReview(s: BusinessState, today: string): WeekReview {
+  const from = addDays(today, -6)
+  const visitsOn = (d: string) =>
+    s.appointments.filter((a) => a.date === d && a.status === 'completed').length
+  const count = (d: string, status: Appointment['status']) =>
+    s.appointments.filter((a) => a.date === d && a.status === status).length
+  const open = (d: string) => availableMinutes(s, d) > 0
+  const days: WeekDay[] = Array.from({ length: 7 }, (_, i) => addDays(from, i))
+    .filter(open)
+    .map((date) => {
+      const before = sameWeekdays(s, date)
+      return {
+        date,
+        visits: visitsOn(date),
+        takingsMinor: takingsBetween(s, date, date),
+        cancelled: count(date, 'cancelled'),
+        missed: count(date, 'no_show'),
+        usualVisits: usual(before.map(visitsOn)),
+        usualCancelled:
+          before.length >= 2
+            ? before.map((d) => count(d, 'cancelled')).reduce((a, b) => a + b, 0) / before.length
+            : null,
+      }
+    })
+  const weeks = [1, 2, 3, 4].map((w) => addDays(from, -7 * w))
+  const weekTotal = (start: string, f: (d: string) => number) =>
+    Array.from({ length: 7 }, (_, i) => f(addDays(start, i))).reduce((a, b) => a + b, 0)
+  const usualVisits = usual(weeks.map((w) => weekTotal(w, visitsOn)))
+  const usualTakingsMinor = usual(weeks.map((w) => takingsBetween(s, w, addDays(w, 6))))
+  const below = days
+    .filter((d) => d.usualVisits !== null && d.visits < d.usualVisits * 0.75)
+    .sort((a, b) => a.visits / a.usualVisits! - b.visits / b.usualVisits!)[0]
+  let quietest: WeekReview['quietest'] = null
+  const ideas: string[] = []
+  if (below) {
+    const reasons: string[] = []
+    const weekday = new Intl.DateTimeFormat('en-GB', { weekday: 'long', timeZone: 'UTC' }).format(
+      new Date(`${below.date}T12:00:00Z`),
+    )
+    if (below.usualCancelled !== null && below.cancelled >= Math.max(2, below.usualCancelled * 2)) {
+      reasons.push(
+        `${below.cancelled} cancellations, against about ${Math.round(below.usualCancelled)} usually`,
+      )
+      ideas.push(
+        `Offer ${weekday} cancellations to the waitlist, and consider reminders two days ahead.`,
+      )
+    }
+    if (below.missed >= 2) reasons.push(`${below.missed} missed visits`)
+    const booked = s.appointments.filter((a) => a.date === below.date).length
+    if (!reasons.length && booked < (below.usualVisits ?? 0))
+      reasons.push('fewer bookings were made for it than usual')
+    if (!reasons.length) reasons.push('nothing in the record explains it')
+    if (booked < (below.usualVisits ?? 0))
+      ideas.push(`Open ${weekday} times to drifting clients a few days ahead.`)
+    quietest = { ...below, reasons }
+  }
+  return {
+    from,
+    to: today,
+    visits: days.reduce((sum, d) => sum + d.visits, 0),
+    takingsMinor: takingsBetween(s, from, today),
+    usualVisits,
+    usualTakingsMinor,
+    days,
+    quietest,
+    ideas,
+  }
+}

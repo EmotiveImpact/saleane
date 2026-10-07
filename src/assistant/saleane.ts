@@ -1,13 +1,22 @@
 import { z } from 'zod'
 import { actionSkill, readSkill, SkillRefusal } from '../../lumane'
 import type { Allowance, Skill } from '../../lumane'
-import { commandSchema, rescheduleResource } from '../domain/commands'
+import { availableResource, commandSchema, rescheduleResource, slots } from '../domain/commands'
 import type { Command } from '../domain/commands'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import type { BusinessState } from '../domain/model'
 import { businessDate, can, operations, stock } from '../domain/operations'
 import type { Role } from '../domain/operations'
-import { drifting, gapSuggestions, morningBrief, unusual } from '../domain/insights'
+import { coverPlan } from '../domain/cover'
+import {
+  dayRecap,
+  drifting,
+  gapSuggestions,
+  morningBrief,
+  unusual,
+  weekReview,
+} from '../domain/insights'
+import { GUEST_CANCEL_CUTOFF_HOURS, visitStart } from '../domain/guest'
 import { holdings, planStanding } from '../domain/plans'
 import {
   currentSpecials,
@@ -36,7 +45,7 @@ import {
  * carried out only after a person approves it, through the same permission and revision checks
  * as the desk. A drafted message is saved unsent; nothing here sends, charges or books anything.
  */
-export type AskContext = { state: BusinessState; role: Role; today: string }
+export type AskContext = { state: BusinessState; role: Role; today: string; now: string }
 
 /** Plan allowances. Every amount here costs the business at most about half what the plan earns. */
 export const ALLOWANCES = {
@@ -69,6 +78,8 @@ const name = (s: BusinessState, kind: 'clients' | 'services' | 'staff' | 'resour
   s[kind].find((item) => item.id === id)?.name ?? 'Unknown'
 
 const isoDate = z.iso.date()
+/** An "about" figure to the nearest whole pound or dollar. */
+const roundPounds = (minor: number) => Math.round(minor / 100) * 100
 
 export function askSaleaneSkills(): Skill<AskContext, Command>[] {
   return [
@@ -133,6 +144,7 @@ export function askSaleaneSkills(): Skill<AskContext, Command>[] {
         const stats = clientStats(s, clientId)
         const visit = (a: typeof stats.last) =>
           a && {
+            appointmentId: a.id,
             date: a.date,
             time: time(ctx, a.startMinutes),
             service: a.bookedServiceName ?? name(s, 'services', a.serviceId),
@@ -143,12 +155,103 @@ export function askSaleaneSkills(): Skill<AskContext, Command>[] {
           preferences: client.preferences,
           completedVisits: stats.visits,
           lastVisit: visit(stats.last),
-          nextVisit: visit(stats.next),
+          nextVisit: visit(
+            s.appointments
+              .filter(
+                (a) => a.clientId === clientId && a.status === 'confirmed' && a.date >= ctx.today,
+              )
+              .sort((a, b) => a.date.localeCompare(b.date) || a.startMinutes - b.startMinutes)[0],
+          ),
           marketingConsent: client.marketingConsent,
           plans: holdings(s)
             .filter((h) => h.clientId === clientId)
             .map((h) => ({ name: h.name, ...pick(planStanding(h, ctx.today)) })),
         }
+      },
+    }),
+    readSkill<AskContext, Record<string, never>>({
+      name: 'catalogue',
+      description:
+        "The studio's treatments (with ids, length and price) and professionals (with ids and the treatments they do). Use to turn names into ids.",
+      input: z.object({}).strict(),
+      allowed: studio,
+      run(ctx) {
+        const s = ctx.state
+        return {
+          services: s.services
+            .filter((x) => !x.archived)
+            .map((x) => ({
+              serviceId: x.id,
+              name: x.name,
+              minutes: x.durationMinutes,
+              price: cash(ctx, x.priceMinor),
+            })),
+          professionals: s.staff
+            .filter((p) => !p.archived)
+            .map((p) => ({ staffId: p.id, name: p.name, serviceIds: p.serviceIds })),
+        }
+      },
+    }),
+    readSkill<AskContext, { time: number; date?: string }>({
+      name: 'visit_at',
+      description:
+        'The visit or visits starting at a time of day (minutes after midnight), today unless a date is given, such as "my 10 o\'clock". Returns client ids for client_brief.',
+      input: z
+        .object({ time: z.number().int().min(0).max(1439), date: isoDate.optional() })
+        .strict(),
+      allowed: studio,
+      run(ctx, { time: at, date = ctx.today }) {
+        const s = ctx.state
+        const day = dayAppointments(s, date).filter((a) => a.status !== 'cancelled')
+        const closest = Math.min(...day.map((a) => Math.abs(a.startMinutes - at)))
+        return day
+          .filter((a) => Math.abs(a.startMinutes - at) === closest && closest <= 30)
+          .map((a) => ({
+            appointmentId: a.id,
+            clientId: a.clientId,
+            client: name(s, 'clients', a.clientId),
+            time: time(ctx, a.startMinutes),
+            service: a.bookedServiceName ?? name(s, 'services', a.serviceId),
+            professional: name(s, 'staff', a.staffId),
+            next: day
+              .filter((b) => b.staffId === a.staffId && b.startMinutes > a.startMinutes)
+              .sort((x, y) => x.startMinutes - y.startMinutes)
+              .slice(0, 1)
+              .map((b) => ({
+                time: time(ctx, b.startMinutes),
+                client: name(s, 'clients', b.clientId),
+                clientId: b.clientId,
+              }))[0],
+          }))
+      },
+    }),
+    readSkill<AskContext, { serviceId: string; date: string; staffId?: string }>({
+      name: 'free_times',
+      description:
+        'Open times on a day for a treatment, for one professional or everyone who does it. Times are minutes after midnight.',
+      input: z
+        .object({
+          serviceId: z.string().min(1),
+          date: isoDate,
+          staffId: z.string().min(1).optional(),
+        })
+        .strict(),
+      allowed: studio,
+      run(ctx, { serviceId, date, staffId }) {
+        const s = ctx.state
+        if (!s.services.some((x) => x.id === serviceId && !x.archived))
+          throw new SkillRefusal('There is no treatment with that id.')
+        return s.staff
+          .filter((p) => !p.archived && p.serviceIds.includes(serviceId))
+          .filter((p) => !staffId || p.id === staffId)
+          .map((p) => {
+            const open = slots(s, serviceId, p.id, date, ctx.now)
+            return {
+              staffId: p.id,
+              professional: p.name,
+              times: open.map((m) => ({ minutes: m, label: time(ctx, m) })),
+            }
+          })
       },
     }),
     readSkill<AskContext, Record<string, never>>({
@@ -408,6 +511,189 @@ export function askSaleaneSkills(): Skill<AskContext, Command>[] {
         }
       },
     }),
+    readSkill<AskContext, { date?: string }>({
+      name: 'day_recap',
+      description:
+        'Closing the day: treatments taken against a usual day, how many guests rebooked and who did not, cancellations, and a first look at tomorrow. Owners and managers only.',
+      input: z.object({ date: isoDate.optional() }).strict(),
+      allowed: managers,
+      run(ctx, { date = ctx.today }) {
+        const r = dayRecap(ctx.state, date)
+        return {
+          ...r,
+          takings: cash(ctx, r.takingsMinor),
+          usualTakings:
+            r.usualTakingsMinor === null ? null : cash(ctx, roundPounds(r.usualTakingsMinor)),
+          tomorrow: {
+            ...r.tomorrow,
+            firstStart: r.tomorrow.firstStart === null ? null : time(ctx, r.tomorrow.firstStart),
+            gaps: r.tomorrow.gaps.map((g) => ({
+              name: g.name,
+              from: time(ctx, g.startMinutes),
+              hours: Math.round(g.minutes / 30) / 2,
+            })),
+          },
+        }
+      },
+    }),
+    readSkill<AskContext, Record<string, never>>({
+      name: 'week_review',
+      description:
+        'The last seven days against the four weeks before: visits, takings, the quietest day with what the record shows about why, and ideas. Owners and managers only.',
+      input: z.object({}).strict(),
+      allowed: managers,
+      run(ctx) {
+        const r = weekReview(ctx.state, ctx.today)
+        return {
+          from: r.from,
+          to: r.to,
+          visits: r.visits,
+          usualVisits: r.usualVisits === null ? null : Math.round(r.usualVisits),
+          takings: cash(ctx, r.takingsMinor),
+          usualTakings:
+            r.usualTakingsMinor === null ? null : cash(ctx, roundPounds(r.usualTakingsMinor)),
+          quietest: r.quietest && {
+            date: r.quietest.date,
+            visits: r.quietest.visits,
+            usualVisits: Math.round(r.quietest.usualVisits ?? 0),
+            reasons: r.quietest.reasons,
+          },
+          ideas: r.ideas,
+        }
+      },
+    }),
+    actionSkill<
+      AskContext,
+      { clientId: string; serviceId: string; staffId: string; date: string; startMinutes: number },
+      Command
+    >({
+      name: 'book_visit',
+      description:
+        'Book a visit for an existing client at an open time (from free_times). startMinutes is minutes after midnight.',
+      input: z
+        .object({
+          clientId: z.string().min(1),
+          serviceId: z.string().min(1),
+          staffId: z.string().min(1),
+          date: isoDate,
+          startMinutes: z.number().int().min(0).max(1439),
+        })
+        .strict(),
+      allowed: (ctx) => studio(ctx) && can(ctx.role, 'book'),
+      propose(ctx, input) {
+        const s = ctx.state
+        const client = s.clients.find((c) => c.id === input.clientId)
+        const service = s.services.find((x) => x.id === input.serviceId && !x.archived)
+        if (!client) throw new SkillRefusal('There is no client with that id.')
+        if (!service) throw new SkillRefusal('There is no treatment with that id.')
+        if (input.date < ctx.today) throw new SkillRefusal('That day has passed.')
+        const room = availableResource(
+          s,
+          input.serviceId,
+          input.staffId,
+          input.date,
+          input.startMinutes,
+          ctx.now,
+        )
+        if (!room) throw new SkillRefusal('That time is not free for this treatment.')
+        const effect = commandSchema.parse({
+          type: 'book',
+          input: {
+            clientId: client.id,
+            serviceId: service.id,
+            staffId: input.staffId,
+            date: input.date,
+            startMinutes: input.startMinutes,
+            resourceId: room,
+            source: 'desk',
+          },
+        })
+        const deposit = service.depositMinor
+          ? ` A ${cash(ctx, service.depositMinor)} deposit is due, taken at the desk as usual.`
+          : ''
+        return {
+          summary: `Book ${client.name} for ${service.name} with ${name(s, 'staff', input.staffId)} on ${dateLabel(input.date, s.organisation.locale)} at ${time(ctx, input.startMinutes)}, ${cash(ctx, service.priceMinor)}.${deposit}`,
+          effect,
+        }
+      },
+    }),
+    actionSkill<AskContext, { appointmentId: string; reason: string }, Command>({
+      name: 'cancel_visit',
+      description:
+        "Cancel a confirmed visit, with the reason the client or studio gave. Says whether the studio's late-cancellation policy would allow a fee; any fee is charged separately at the desk.",
+      input: z
+        .object({ appointmentId: z.string().min(1), reason: z.string().trim().min(2).max(300) })
+        .strict(),
+      allowed: (ctx) => studio(ctx) && can(ctx.role, 'cancel'),
+      propose(ctx, input) {
+        const s = ctx.state
+        const visit = s.appointments.find((a) => a.id === input.appointmentId)
+        if (!visit || visit.status !== 'confirmed')
+          throw new SkillRefusal('Only a confirmed visit can be cancelled.')
+        const effect = commandSchema.parse({ type: 'cancel', ...input })
+        // What the studio's fee rule would allow if it were cancelled now (PILOT-02).
+        const percent = operations(s).protection?.feePercent ?? 0
+        const late =
+          Date.parse(ctx.now) >= visitStart(s, visit.id) - GUEST_CANCEL_CUTOFF_HOURS * 3_600_000
+        const fee = percent && late ? Math.floor((visit.bookedPriceMinor * percent) / 100) : 0
+        const feeNote = fee
+          ? ` It is inside the cancellation window, so your policy allows a fee of up to ${cash(ctx, fee)} less any deposit paid, charged separately if you choose.`
+          : ''
+        return {
+          summary: `Cancel ${name(s, 'clients', visit.clientId)}'s ${visit.bookedServiceName ?? name(s, 'services', visit.serviceId)} on ${dateLabel(visit.date, s.organisation.locale)} at ${time(ctx, visit.startMinutes)} (${input.reason}).${feeNote}`,
+          effect,
+        }
+      },
+    }),
+    actionSkill<AskContext, { staffId: string; date?: string }, Command>({
+      name: 'cover_absence',
+      description:
+        'When a professional is off: move each of their upcoming visits that day to someone free at the same time, draft a note to every guest, ask guests nobody can see to pick a new day, and close the rest of their day. One approval carries out the whole plan.',
+      input: z.object({ staffId: z.string().min(1), date: isoDate.optional() }).strict(),
+      allowed: (ctx) =>
+        managers(ctx) && ['reschedule', 'message', 'hours'].every((a) => can(ctx.role, a)),
+      propose(ctx, { staffId, date = ctx.today }) {
+        const s = ctx.state
+        const person = s.staff.find((p) => p.id === staffId && !p.archived)
+        if (!person) throw new SkillRefusal('There is no professional with that id.')
+        if (date < ctx.today) throw new SkillRefusal('That day has passed.')
+        const plan = coverPlan(s, staffId, date, ctx.now)
+        if (!plan.commands.length)
+          throw new SkillRefusal(`${person.name} has nothing left to cover on that day.`)
+        const first = person.name.split(' ')[0]
+        const lines = [
+          ...plan.moves.map(
+            (m) =>
+              `Move ${time(ctx, m.appointment.startMinutes)} ${name(s, 'clients', m.appointment.clientId)} to ${name(s, 'staff', m.toStaffId)}, same time.`,
+          ),
+          ...plan.unplaced.map(
+            (a) =>
+              `${time(ctx, a.startMinutes)} ${name(s, 'clients', a.clientId)}: ${
+                s.staff.some(
+                  (p) => p.id !== staffId && !p.archived && p.serviceIds.includes(a.serviceId),
+                )
+                  ? 'nobody else is free then'
+                  : 'nobody else does this treatment'
+              }, so ask them to choose a new day.`,
+          ),
+          plan.commands.some((c) => c.type === 'message')
+            ? 'Save a short note to each guest as an unsent draft.'
+            : '',
+          plan.commands.some((c) => c.type === 'closure')
+            ? `Close the rest of ${first}'s day so nobody books ${first}.`
+            : '',
+        ].filter(Boolean)
+        const effect = commandSchema.parse({
+          type: 'batch',
+          label: `${first} is off on ${date}`,
+          commands: plan.commands,
+        })
+        return {
+          summary: `Cover for ${first} on ${dateLabel(date, s.organisation.locale)}:\n${lines.join('\n')}`,
+          effect,
+        }
+      },
+    }),
     actionSkill<
       AskContext,
       { appointmentId: string; date: string; startMinutes: number; staffId?: string },
@@ -454,6 +740,10 @@ function pick(standing: ReturnType<typeof planStanding>) {
   return { state: standing.state, visitsLeft: standing.visitsLeft }
 }
 
-export function askContext(state: BusinessState, role: Role, now?: string): AskContext {
-  return { state, role, today: businessDate(state, now) }
+export function askContext(
+  state: BusinessState,
+  role: Role,
+  now = new Date().toISOString(),
+): AskContext {
+  return { state, role, today: businessDate(state, now), now }
 }

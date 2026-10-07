@@ -17,7 +17,12 @@ type Entry =
   | { id: string; from: 'you'; text: string }
   | { id: string; from: 'saleane'; text: string; suggestions: Suggestion[] }
 
-const STARTERS = ["What's on today?", 'Who is due back?', 'How much did we take this week?']
+const STARTERS = [
+  'Give me my morning brief',
+  "Who's my 10 o'clock?",
+  'Anything I should be planning?',
+  'How did we do today?',
+]
 const usageKey = (orgId: string) => `saleane.ask-usage.v1.${orgId}`
 
 /**

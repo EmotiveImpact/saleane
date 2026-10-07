@@ -113,3 +113,57 @@ describe('Specials through Ask Saleane', () => {
     expect(after.text).toMatch(/^Diwali: Starts .*Nothing has been sent/)
   })
 })
+
+describe("A manager's day through Ask Saleane", () => {
+  it('answers "who is my 10 o\'clock" with the guest and what to know', async () => {
+    const result = await ask("Who's my 10 o'clock?")
+    expect(result.text).toMatch(/^09:30: Amelia Carter, Skin Renewal Facial with Maya\./)
+    expect(result.text).toMatch(/Preferences:/)
+  })
+
+  it('offers open times, then prepares a booking for approval', async () => {
+    const options = await ask('Book Jamie in with Maya for a facial on Thursday afternoon')
+    expect(options.text).toMatch(/^Free on Thursday 8 October: Maya at 12:00, 13:00/)
+    const booking = await ask('Book Jamie in with Maya for a facial on Thursday at 3pm')
+    if (booking.status !== 'answered') throw new Error('refused')
+    expect(booking.proposals[0].summary).toMatch(
+      /^Book Jamie Morgan for Skin Renewal Facial with Maya Lewis on Thursday 8 October at 15:00/,
+    )
+    const done = dispatch(s, commandSchema.parse(booking.proposals[0].effect), 'Owner', at)
+    expect(done.ok).toBe(true)
+  })
+
+  it('prepares a cancellation, and nothing changes until it is approved', async () => {
+    const result = await ask('Cancel Nina Patel')
+    if (result.status !== 'answered') throw new Error('refused')
+    expect(result.proposals[0].summary).toMatch(/^Cancel Nina Patel's Deep Restore Massage/)
+    const nina = s.clients.find((c) => c.name === 'Nina Patel')!
+    expect(s.appointments.some((a) => a.clientId === nina.id && a.status === 'cancelled')).toBe(
+      false,
+    )
+  })
+
+  it('plans cover for someone who is off as one approval, for managers only', async () => {
+    const result = await ask('Theo is off sick today')
+    if (result.status !== 'answered') throw new Error('refused')
+    expect(result.proposals[0].summary).toMatch(/^Cover for Theo on Tuesday 6 October:/)
+    const command = commandSchema.parse(result.proposals[0].effect)
+    expect(command.type).toBe('batch')
+    expect(dispatch(s, command, 'Owner', at).ok).toBe(true)
+    expect((await ask('Theo is off sick today', 'reception')).text).toBe(
+      'That is for owners and managers.',
+    )
+  })
+
+  it('closes the day and reviews the week with reasons', async () => {
+    expect((await ask('How did we do today?')).text).toMatch(
+      /^£195 in treatments from 2 visits, against about £181 on a usual Tuesday\./,
+    )
+    expect((await ask('How was the week?')).text).toMatch(
+      /^The last seven days: £1,200 from 13 visits/,
+    )
+    expect((await ask('How did we do today?', 'reception')).text).toBe(
+      'That is for owners and managers.',
+    )
+  })
+})
