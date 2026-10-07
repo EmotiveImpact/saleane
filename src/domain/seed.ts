@@ -2,6 +2,7 @@ import type { WaitlistTime } from './waitlistSchema'
 import { DEMO_DATE, parseState } from './model'
 import type { Appointment, BusinessState, Region } from './model'
 import { addDays, dateLabel, timeLabel } from './format'
+import { defaultOperations } from './operations'
 
 export function seed(region: Region): BusinessState {
   const uk = region === 'UK'
@@ -373,6 +374,12 @@ export function seed(region: Region): BusinessState {
       },
     ]
   })
+  seedStock(state, uk)
+  seedSuppliers(state)
+  seedPay(state)
+  seedTimeOff(state, uk)
+  seedRent(state, uk)
+  seedAccounting(state, uk)
   // V1.5: a few clients waiting for a time, so the waitlist shows openings straight away.
   const wishes: [string, string, string | undefined, string, string, WaitlistTime[], string][] = [
     [
@@ -541,4 +548,272 @@ export function seed(region: Region): BusinessState {
     },
   ]
   return parseState(state, region)
+}
+
+/** V2: two fictional suppliers, products linked to them and one order not yet arrived. */
+function seedSuppliers(state: BusinessState) {
+  const o = (state.operations ??= defaultOperations('sandbox'))
+  o.suppliers = [
+    {
+      id: 'supplier-skin',
+      name: 'Meadowline Skin Supply',
+      email: 'orders@meadowline.example',
+      note: 'Order by Thursday for Monday delivery.',
+    },
+    { id: 'supplier-pro', name: 'Studio Pro Wholesale', phone: '+44 20 7946 0000' },
+  ]
+  const from: Record<string, [string, number?]> = {
+    'product-cleansing-balm': ['supplier-skin', 6],
+    'product-hydrating-serum': ['supplier-skin', 6],
+    'product-mineral-spf': ['supplier-skin', 12],
+    'product-body-oil': ['supplier-skin'],
+    'product-hair-mask': ['supplier-pro'],
+    'product-massage-oil': ['supplier-pro', 4],
+    'product-enzyme-peel': ['supplier-pro', 2],
+  }
+  for (const product of o.products) {
+    const link = from[product.id]
+    if (!link) continue
+    product.supplierId = link[0]
+    if (link[1]) product.reorderQuantity = link[1]
+  }
+  o.purchaseOrders = [
+    {
+      id: 'order-1',
+      number: 'PO-1',
+      supplierId: 'supplier-pro',
+      lines: [{ productId: 'product-hair-mask', quantity: 6 }],
+      status: 'ordered',
+      createdAt: '2026-10-02T10:00:00.000Z',
+      actor: 'Maya · demo fixture',
+    },
+  ]
+}
+
+/** V2: example account codes so the demo can prepare a test batch. Real codes come from the accountant. */
+function seedAccounting(state: BusinessState, uk: boolean) {
+  const o = (state.operations ??= defaultOperations('sandbox'))
+  o.accounting = {
+    provider: uk ? 'xero' : 'quickbooks',
+    codes: {
+      services: '200',
+      products: '210',
+      tax: uk ? '820' : '2200',
+      tips: '825',
+      plans: '205',
+      rent: '260',
+      fees: '270',
+      refunds: '215',
+      clearing: '610',
+    },
+  }
+}
+
+/** V2: Theo rents the styling chair by the week from 21 September; two weeks paid, this week owed. */
+function seedRent(state: BusinessState, uk: boolean) {
+  const o = (state.operations ??= defaultOperations('sandbox'))
+  const amountMinor = (uk ? 180 : 220) * 100
+  o.rentals = [
+    {
+      id: 'rental-theo',
+      staffId: 'staff-theo',
+      space: 'chair',
+      resourceId: 'chair-one',
+      amountMinor,
+      every: 'week',
+      from: '2026-09-21',
+      createdAt: '2026-09-15T09:00:00.000Z',
+      actor: 'Owner · demo fixture',
+    },
+  ]
+  const paid: [string, 'cash' | 'bank_transfer'][] = [
+    ['2026-09-21', 'cash'],
+    ['2026-09-28', 'bank_transfer'],
+  ]
+  o.rentPayments = paid.map(([periodStart, method], i) => ({
+    id: `rent-payment-${i + 1}`,
+    rentalId: 'rental-theo',
+    periodStart,
+    amountMinor,
+    method,
+    ...(method === 'bank_transfer' ? { reference: `THEO-RENT-${i + 1}` } : {}),
+    paidAt: `${periodStart}T10:00:00.000Z`,
+    actor: 'Front desk · demo fixture',
+  }))
+}
+
+/** V2: holidays and a sick day for the demo team, with yearly allowances. Fictional. */
+function seedTimeOff(state: BusinessState, uk: boolean) {
+  const o = (state.operations ??= defaultOperations('sandbox'))
+  const away: [string, string, string, 'holiday' | 'sick', string?][] = [
+    ['staff-maya', '2026-08-10', '2026-08-14', 'holiday'],
+    ['staff-theo', '2026-09-30', '2026-09-30', 'sick'],
+    ['staff-sophia', '2026-10-19', '2026-10-23', 'holiday', 'Family wedding'],
+  ]
+  o.timeOff = away.map(([staffId, from, to, kind, note], i) => ({
+    id: `time-off-${i + 1}`,
+    staffId,
+    from,
+    to,
+    kind,
+    ...(note ? { note } : {}),
+    createdAt: '2026-07-01T09:00:00.000Z',
+    actor: 'Owner · demo fixture',
+  }))
+  o.leaveAllowances = state.staff.map((person) => ({ staffId: person.id, days: uk ? 28 : 15 }))
+}
+
+/** V2: commission rates for the demo team, so Pay has figures to show. Fictional. */
+function seedPay(state: BusinessState) {
+  const o = (state.operations ??= defaultOperations('sandbox'))
+  const rates: [string, number, number, string][] = [
+    // person, services %, products %, from
+    ['staff-maya', 40, 10, '2026-01-01'],
+    ['staff-sophia', 35, 10, '2026-01-01'],
+    ['staff-theo', 30, 10, '2026-01-01'],
+    ['staff-theo', 35, 10, '2026-09-01'],
+  ]
+  o.payRates = rates.map(([staffId, services, products, from], i) => ({
+    id: `pay-rate-${i + 1}`,
+    staffId,
+    serviceBps: services * 100,
+    productBps: products * 100,
+    from,
+    createdAt: `${from}T09:00:00.000Z`,
+    actor: 'Owner · demo fixture',
+  }))
+}
+
+/**
+ * V2: a small shelf of products, a delivery, products used in treatments and two receipts that
+ * included products, so Stock and the Business figures have something real to show.
+ */
+function seedStock(state: BusinessState, uk: boolean) {
+  const o = (state.operations ??= defaultOperations('sandbox'))
+  const price = (gbp: number, usd: number) => (uk ? gbp : usd) * 100
+  const shelf: [string, string, number, number, number, number, number, boolean?][] = [
+    // id, name, price £, price $, cost £, delivered, reorder at, for sale
+    ['cleansing-balm', 'Calming Cleansing Balm', 32, 38, 12, 10, 4],
+    ['hydrating-serum', 'Hydrating Serum', 48, 56, 18, 6, 4],
+    ['mineral-spf', 'Daily Mineral SPF 30', 28, 34, 10, 12, 5],
+    ['hair-mask', 'Restorative Hair Mask', 26, 30, 9, 8, 3],
+    ['body-oil', 'Nourishing Body Oil', 38, 44, 14, 5, 3],
+    ['massage-oil', 'Massage Oil, 1 litre', 0, 0, 22, 4, 2, false],
+    ['enzyme-peel', 'Enzyme Peel, professional size', 0, 0, 30, 2, 2, false],
+  ]
+  for (const [id, name, gbp, usd, cost, delivered, reorderAt, forSale = true] of shelf) {
+    o.products.push({
+      id: `product-${id}`,
+      name,
+      sku: id.toUpperCase(),
+      priceMinor: price(gbp, usd),
+      reorderAt,
+      archived: false,
+      forSale,
+      costMinor: price(cost, Math.round(cost * 1.2)),
+    })
+    o.movements.push({
+      id: `movement-received-${id}`,
+      productId: `product-${id}`,
+      quantity: delivered,
+      reason: 'received',
+      note: 'September delivery',
+      createdAt: '2026-09-15T10:00:00.000Z',
+      actor: 'Front desk · demo fixture',
+    })
+  }
+  const used: [string, string, number][] = [
+    ['massage-oil', 'history-body-1', 1],
+    ['enzyme-peel', 'history-skin-2', 1],
+  ]
+  for (const [product, appointmentId, quantity] of used)
+    if (state.appointments.some((a) => a.id === appointmentId))
+      o.movements.push({
+        id: `movement-used-${product}-${appointmentId}`,
+        productId: `product-${product}`,
+        quantity: -quantity,
+        reason: 'consumed',
+        note: 'Used in treatment',
+        createdAt: '2026-09-20T12:00:00.000Z',
+        actor: 'Front desk · demo fixture',
+        appointmentId,
+      })
+  const bought: [string, [string, number][]][] = [
+    [
+      'history-skin-1',
+      [
+        ['hydrating-serum', 1],
+        ['mineral-spf', 1],
+      ],
+    ],
+    ['history-hair-4', [['hair-mask', 1]]],
+  ]
+  // A guest who popped in for body oil without a visit.
+  const oil = o.products.find((p) => p.id === 'product-body-oil')!
+  const counterLine = { productId: oil.id, name: oil.name, quantity: 1, unitMinor: oil.priceMinor }
+  state.counterSales = [
+    {
+      id: 'counter-sale-1',
+      organisationId: state.organisation.id,
+      clientId: 'client-5',
+      staffId: 'staff-sophia',
+      receiptNumber: 'SC-1',
+      currency: state.organisation.currency,
+      retail: {
+        lines: [counterLine],
+        subtotalMinor: oil.priceMinor,
+        taxMinor: 0,
+        taxRateBps: 0,
+        taxInclusive: false,
+        taxLabel: '',
+      },
+      totalMinor: oil.priceMinor,
+      paidAt: '2026-10-03T15:00:00.000Z',
+      method: 'demo_cash',
+      actor: 'Front desk · demo fixture',
+    },
+  ]
+  o.movements.push({
+    id: 'movement-sold-counter-1',
+    productId: oil.id,
+    quantity: -1,
+    reason: 'retail',
+    note: 'Sold without a visit on receipt SC-1',
+    createdAt: '2026-10-03T15:00:00.000Z',
+    actor: 'Front desk · demo fixture',
+    counterSaleId: 'counter-sale-1',
+  })
+  for (const [appointmentId, items] of bought) {
+    const sale = state.sales.find((x) => x.appointmentId === appointmentId)
+    const settlement = state.payments.find((p) => p.saleId === sale?.id)
+    if (!sale || !settlement) continue
+    const lines = items.map(([product, quantity]) => {
+      const item = o.products.find((p) => p.id === `product-${product}`)!
+      return { productId: item.id, name: item.name, quantity, unitMinor: item.priceMinor }
+    })
+    const subtotalMinor = lines.reduce((sum, line) => sum + line.quantity * line.unitMinor, 0)
+    sale.retail = {
+      lines,
+      subtotalMinor,
+      taxMinor: 0,
+      taxRateBps: 0,
+      taxInclusive: false,
+      taxLabel: '',
+    }
+    sale.totalMinor += subtotalMinor
+    sale.balanceMinor += subtotalMinor
+    settlement.amountMinor += subtotalMinor
+    for (const line of lines)
+      o.movements.push({
+        id: `movement-sold-${line.productId}-${appointmentId}`,
+        productId: line.productId,
+        quantity: -line.quantity,
+        reason: 'retail',
+        note: 'Sold with the visit',
+        createdAt: sale.paidAt,
+        actor: 'Front desk · demo fixture',
+        appointmentId,
+        saleId: sale.id,
+      })
+  }
 }

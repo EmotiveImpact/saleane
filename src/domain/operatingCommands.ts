@@ -1,6 +1,21 @@
 import type { BusinessState, RelationshipEvent } from './model'
 import type { OperatingCommand } from './commandSchema'
-import { SCHEDULE_HISTORY_LIMIT, operations, stock } from './operations'
+import {
+  PAY_RATE_LIMIT,
+  PAY_RULES_LIMIT,
+  SCHEDULE_HISTORY_LIMIT,
+  TIME_OFF_DAYS,
+  TIME_OFF_LIMIT,
+  businessDate,
+  operations,
+  stock,
+} from './operations'
+import { daysBetween } from './timeOff'
+import { isPeriodStart } from './rent'
+import { cancelOrder, placeOrder, receiveOrder, saveSupplier } from './purchasing'
+import { prepareAccountingExport } from './accounts'
+import { RENT_LIMIT, RENT_PAYMENT_LIMIT } from './rentSchema'
+import { restockReturn } from './retail'
 import { assertSchedulePreserved, scheduleChanges, scheduleSnapshot } from './schedule'
 import { isWaitlistOffer, staleOffer } from './waitlist'
 import { otherLedgerRefund, otherLedgerReference, referenceTaken } from './references'
@@ -46,9 +61,15 @@ export function runOperatingCommand(
     event: Omit<RelationshipEvent, 'id' | 'organisationId' | 'occurredAt' | 'actor'>,
   ) => void,
 ) {
-  const scheduling = ['hours', 'closure', 'remove-closure', 'staff', 'resource'].includes(
-    command.type,
-  )
+  const scheduling = [
+    'hours',
+    'closure',
+    'remove-closure',
+    'staff',
+    'resource',
+    'time-off',
+    'cancel-time-off',
+  ].includes(command.type)
   // Guest notes change only text guests read; an empty note removes it.
   if (command.type === 'guest-notes') {
     const services = command.prepNotes.map(({ serviceId, note }) => {
@@ -92,6 +113,45 @@ export function runOperatingCommand(
     const closure = { ...command.input, id: makeId() }
     o.closures.push(closure)
     recordId = closure.id
+  } else if (command.type === 'time-off') {
+    const { staffId, from, to } = command.input
+    if (!next.staff.some((p) => p.id === staffId && !p.archived))
+      throw new Error('Choose someone on the team.')
+    if (daysBetween(from, to) + 1 > TIME_OFF_DAYS)
+      throw new Error(`Record up to ${TIME_OFF_DAYS} days at a time.`)
+    o.timeOff ??= []
+    if (o.timeOff.length >= TIME_OFF_LIMIT) throw new Error('Too much time off to keep.')
+    if (
+      o.timeOff.some((t) => !t.cancelledAt && t.staffId === staffId && t.from <= to && t.to >= from)
+    )
+      throw new Error('This overlaps time off already recorded for them.')
+    const away = {
+      id: makeId(),
+      staffId,
+      from,
+      to,
+      kind: command.input.kind,
+      ...(command.input.note ? { note: command.input.note } : {}),
+      createdAt: now,
+      actor: 'Local operator',
+    }
+    o.timeOff.push(away)
+    recordId = away.id
+  } else if (command.type === 'cancel-time-off') {
+    const away = o.timeOff?.find((t) => t.id === command.timeOffId)
+    if (!away) throw new Error('Time off not found.')
+    if (away.cancelledAt) throw new Error('This time off is already cancelled.')
+    away.cancelledAt = now
+    away.cancelledBy = 'Local operator'
+    recordId = away.id
+  } else if (command.type === 'leave-allowance') {
+    if (!next.staff.some((p) => p.id === command.staffId))
+      throw new Error('Choose someone on the team.')
+    o.leaveAllowances = [
+      ...(o.leaveAllowances ?? []).filter((a) => a.staffId !== command.staffId),
+      { staffId: command.staffId, days: command.days },
+    ]
+    recordId = command.staffId
   } else if (command.type === 'remove-closure') {
     if (!o.closures.some((c) => c.id === command.closureId)) throw new Error('Closure not found.')
     o.closures = o.closures.filter((c) => c.id !== command.closureId)
@@ -136,11 +196,15 @@ export function runOperatingCommand(
     command.type === 'remove-closure' ||
     command.type === 'service' ||
     command.type === 'staff' ||
-    command.type === 'resource'
+    command.type === 'resource' ||
+    command.type === 'time-off' ||
+    command.type === 'cancel-time-off' ||
+    command.type === 'leave-allowance'
   ) {
     if (scheduling) {
       // Removing time away only frees time, so it can never strand a visit.
-      if (command.type !== 'remove-closure') assertSchedulePreserved(before, next, now)
+      if (command.type !== 'remove-closure' && command.type !== 'cancel-time-off')
+        assertSchedulePreserved(before, next, now)
       const entries = scheduleChanges(before, next, command, recordId).map((entry) => ({
         ...entry,
         id: makeId(),
@@ -319,6 +383,54 @@ export function runOperatingCommand(
   } else if (command.type === 'protection') {
     o.protection = { ...command.settings }
     recordId = next.organisation.id
+  } else if (command.type === 'refund' && command.counterSaleId) {
+    // V2: money back for products sold without a visit, with any products put back on the shelf.
+    if (command.saleId || command.paymentId) throw new Error('Choose one receipt to refund.')
+    const sale = (next.counterSales ?? []).find((x) => x.id === command.counterSaleId)
+    if (!sale) throw new Error('Receipt does not belong to this workspace.')
+    const existing = o.refunds.find(
+      (r) => r.counterSaleId === sale.id && r.reference === command.reference,
+    )
+    if (existing) {
+      if (existing.amountMinor !== command.amountMinor)
+        throw new Error('This reference already records a different refund.')
+      return existing.id
+    }
+    if (o.refunds.some((r) => r.reference === command.reference))
+      throw new Error('This refund reference already belongs to another receipt.')
+    if (
+      o.refunds
+        .filter((r) => r.counterSaleId === sale.id)
+        .reduce((sum, r) => sum + r.amountMinor, 0) +
+        command.amountMinor >
+      sale.totalMinor
+    )
+      throw new Error('This refund would exceed the remaining receipt total.')
+    if (command.processor || command.method === 'card')
+      throw new Error('Return walk-in sales in cash or on your own card terminal.')
+    const method = command.method ?? sale.method
+    assertMethod(next, method, command.reference)
+    const refund = {
+      id: makeId(),
+      counterSaleId: sale.id,
+      amountMinor: command.amountMinor,
+      reason: command.reason,
+      reference: command.reference,
+      method,
+      createdAt: now,
+      actor: 'Local operator',
+    }
+    o.refunds.push(refund)
+    if (command.restock?.length)
+      restockReturn(next, sale.id, refund.id, command.restock, now, makeId)
+    recordId = refund.id
+    if (sale.clientId)
+      addEvent({
+        clientId: sale.clientId,
+        type: 'refund',
+        title: o.mode === 'sandbox' ? 'Simulated refund recorded' : 'External refund recorded',
+        detail: `${command.reason}. Receipt ${sale.receiptNumber}. Reference ${command.reference}. This record did not transfer funds.`,
+      })
   } else if (command.type === 'refund') {
     if (!!command.saleId === !!command.paymentId)
       throw new Error('Choose the receipt or the payment being refunded.')
@@ -368,6 +480,10 @@ export function runOperatingCommand(
       actor: 'Local operator',
     }
     o.refunds.push(refund)
+    if (command.restock?.length) {
+      if (!sale) throw new Error('Only products on a receipt can come back.')
+      restockReturn(next, sale.id, refund.id, command.restock, now, makeId)
+    }
     recordId = refund.id
     const a = next.appointments.find((a) => a.id === (sale ?? paid)!.appointmentId)!
     addEvent({
@@ -395,10 +511,114 @@ export function runOperatingCommand(
       )
     )
       throw new Error('This SKU already belongs to another product.')
+    if (
+      command.input.supplierId &&
+      !(o.suppliers ?? []).some((x) => x.id === command.input.supplierId)
+    )
+      throw new Error('Choose a supplier from the list.')
     const product = { ...command.input, id: command.id ?? makeId() }
-    if (old) Object.assign(old, product)
+    // Replaced whole, so a cleared optional field such as the cost price really clears.
+    if (old) o.products[o.products.indexOf(old)] = product
     else o.products.push(product)
     recordId = product.id
+  } else if (command.type === 'accounting-settings') {
+    o.accounting = command.settings
+    recordId = next.organisation.id
+  } else if (command.type === 'accounting-export') {
+    recordId = prepareAccountingExport(next, command, now, makeId)
+  } else if (command.type === 'supplier') {
+    recordId = saveSupplier(next, command, makeId)
+  } else if (command.type === 'purchase-order') {
+    recordId = placeOrder(next, command, now, makeId).id
+  } else if (command.type === 'receive-order') {
+    recordId = receiveOrder(next, command, now, makeId)
+  } else if (command.type === 'cancel-order') {
+    recordId = cancelOrder(next, command.orderId, now)
+  } else if (command.type === 'rental') {
+    const { staffId, resourceId, space } = command.input
+    if (!next.staff.some((p) => p.id === staffId && !p.archived))
+      throw new Error('Choose someone on the team.')
+    const resource = resourceId && next.resources.find((r) => r.id === resourceId)
+    if (resourceId && (!resource || resource.archived))
+      throw new Error('Choose a chair or room that is in use.')
+    if (resource && resource.type !== (space === 'chair' ? 'chair' : 'treatment'))
+      throw new Error(`That is not a ${space}.`)
+    if (
+      (o.rentals ?? []).some((r) => r.staffId === staffId && (!r.to || r.to >= command.input.from))
+    )
+      throw new Error('They already have a rental. End it before starting another.')
+    o.rentals ??= []
+    if (o.rentals.length >= RENT_LIMIT) throw new Error('Too many rentals to keep.')
+    const rental = {
+      id: makeId(),
+      ...command.input,
+      createdAt: now,
+      actor: 'Local operator',
+    }
+    o.rentals.push(rental)
+    recordId = rental.id
+  } else if (command.type === 'end-rental') {
+    const rental = o.rentals?.find((r) => r.id === command.rentalId)
+    if (!rental) throw new Error('Rental not found.')
+    if (rental.to) throw new Error('This rental has already ended.')
+    if (command.to < rental.from) throw new Error('The last day cannot be before it started.')
+    if ((o.rentPayments ?? []).some((p) => p.rentalId === rental.id && p.periodStart > command.to))
+      throw new Error('Rent is already recorded after that day.')
+    rental.to = command.to
+    recordId = rental.id
+  } else if (command.type === 'rent-payment') {
+    const rental = o.rentals?.find((r) => r.id === command.rentalId)
+    if (!rental) throw new Error('Rental not found.')
+    if (!isPeriodStart(rental, command.periodStart))
+      throw new Error('Choose one of the rent periods.')
+    if (command.periodStart > businessDate(next, now)) throw new Error('That rent is not due yet.')
+    const paid = (o.rentPayments ?? [])
+      .filter((p) => p.rentalId === rental.id && p.periodStart === command.periodStart)
+      .reduce((sum, p) => sum + p.amountMinor, 0)
+    if (paid + command.amountMinor > rental.amountMinor)
+      throw new Error(
+        `Only ${rental.amountMinor - paid > 0 ? 'the rest of the rent' : 'nothing more'} is due for that period.`,
+      )
+    if (command.method !== 'cash' && !command.reference?.trim())
+      throw new Error('Enter the transfer or terminal reference.')
+    o.rentPayments ??= []
+    if (o.rentPayments.length >= RENT_PAYMENT_LIMIT)
+      throw new Error('Too many rent payments to keep.')
+    const payment = {
+      id: makeId(),
+      rentalId: rental.id,
+      periodStart: command.periodStart,
+      amountMinor: command.amountMinor,
+      method: command.method,
+      ...(command.reference?.trim() ? { reference: command.reference.trim() } : {}),
+      paidAt: now,
+      actor: 'Local operator',
+    }
+    o.rentPayments.push(payment)
+    recordId = payment.id
+  } else if (command.type === 'pay-rules') {
+    o.payRules ??= []
+    if (o.payRules.length >= PAY_RULES_LIMIT)
+      throw new Error('Too many pay setting changes to keep.')
+    const rules = { id: makeId(), ...command.rules, createdAt: now, actor: 'Local operator' }
+    o.payRules.push(rules)
+    recordId = rules.id
+  } else if (command.type === 'pay-rate') {
+    if (!next.staff.some((p) => p.id === command.staffId))
+      throw new Error('Choose someone on the team.')
+    o.payRates ??= []
+    if (o.payRates.length >= PAY_RATE_LIMIT) throw new Error('Too many pay rate changes to keep.')
+    const rate = {
+      id: makeId(),
+      staffId: command.staffId,
+      serviceBps: command.serviceBps,
+      productBps: command.productBps,
+      from: command.from,
+      createdAt: now,
+      actor: 'Local operator',
+    }
+    o.payRates.push(rate)
+    recordId = rate.id
   } else if (command.type === 'stock') {
     const product = o.products.find((p) => p.id === command.productId)
     if (!product || product.archived) throw new Error('Choose an active product.')

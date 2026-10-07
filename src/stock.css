@@ -1,0 +1,165 @@
+/* V2: the studio's shelf of products. */
+.stock-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin: 22px 0;
+}
+.stock-totals div {
+  padding: 18px 20px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.stock-totals dt {
+  font-size: var(--text-small);
+  color: var(--muted);
+}
+.stock-totals dd {
+  margin: 6px 0 0;
+  font-family: var(--font-editorial);
+  font-size: var(--text-title-m);
+  font-variant-numeric: tabular-nums;
+}
+.stock-totals small {
+  display: block;
+  font-family: var(--font-display);
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: var(--text-micro);
+}
+.stock-reorder {
+  margin-bottom: 22px;
+  padding: 18px 20px;
+  background: var(--rose-soft);
+  border-radius: var(--radius);
+}
+.stock-reorder h2 {
+  font-size: var(--text-body);
+  font-weight: var(--weight-strong);
+  color: var(--rose-ink);
+}
+.stock-reorder p {
+  margin-top: 4px;
+}
+.stock-record {
+  flex-wrap: wrap;
+}
+.stock-count {
+  display: grid;
+  justify-items: end;
+  min-width: 64px;
+  font-family: var(--font-editorial);
+  font-size: var(--text-title-s, 22px);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.stock-count small {
+  font-family: var(--font-display);
+  font-size: var(--text-micro);
+  color: var(--muted);
+}
+.stock-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ops-tag.stock-low {
+  background: var(--rose-soft);
+  color: var(--rose-ink);
+}
+.stock-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.stock-history li {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.stock-history li:first-child {
+  border-top: 0;
+}
+.stock-history-copy {
+  flex: 1;
+  min-width: 0;
+}
+.stock-history-copy strong,
+.stock-history-copy small {
+  display: block;
+}
+.stock-history-copy small {
+  margin-top: 3px;
+  color: var(--muted);
+}
+.stock-change {
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 640px) {
+  .stock-totals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .stock-totals div {
+    padding: 14px 16px;
+  }
+  .stock-actions {
+    width: 100%;
+  }
+}
+/* V2: orders from suppliers. */
+.orders-suggested,
+.orders-suppliers {
+  margin-top: 8px;
+}
+.orders-suggested h3,
+.orders-suppliers h3 {
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+  margin: 12px 0 4px;
+}
+.orders-closed,
+.orders-suppliers ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.orders-closed li {
+  padding: 6px 0;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.orders-suppliers li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.orders-suppliers li:first-child {
+  border-top: 0;
+}
+.orders-suppliers li strong,
+.orders-suppliers li small {
+  display: block;
+}
+.orders-suppliers li small {
+  color: var(--muted);
+  font-size: var(--text-micro);
+}
+.orders-text {
+  margin: 0;
+  padding: 12px 14px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-family: var(--font-display);
+  font-size: var(--text-small);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

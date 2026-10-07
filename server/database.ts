@@ -184,6 +184,11 @@ export const migrations: Migration[] = [
   },
   {
     version: 9,
+    // V2: a card checkout remembers the products added, so the receipt matches what was charged.
+    up: (connection) => connection.exec('ALTER TABLE payment_attempts ADD COLUMN products TEXT;'),
+  },
+  {
+    version: 10,
     // V1.5: the outbox also asks a guest to come in for a patch test before a booked treatment.
     up: (connection) =>
       connection.exec(`

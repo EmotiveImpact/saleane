@@ -1,0 +1,68 @@
+/* V2: products added to a visit at checkout. */
+.checkout-products {
+  display: grid;
+  gap: 8px;
+  border: 0;
+  padding: 0;
+  margin: 4px 0;
+  min-width: 0;
+}
+.checkout-products legend {
+  margin-bottom: 8px;
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+}
+.checkout-product {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+}
+.checkout-product-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.checkout-product-name small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: var(--text-micro);
+}
+.checkout-product strong {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.checkout-product-quantity {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.checkout-product-quantity button,
+.checkout-product-remove {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--ink);
+  cursor: pointer;
+}
+.checkout-product-remove {
+  border-color: transparent;
+  color: var(--muted);
+}
+.checkout-product-quantity button:disabled,
+.checkout-product-remove:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.checkout-product-add select {
+  width: 100%;
+}

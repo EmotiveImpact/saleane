@@ -7,6 +7,9 @@ import { cardPolicy, guestPayment } from '../../src/domain/guest'
 import { feeAllowed } from '../../src/domain/fees'
 export { feeAllowed }
 import { businessDate, operations, visitTax } from '../../src/domain/operations'
+import { priceRetail, retailCharge } from '../../src/domain/retail'
+import { retailItemsSchema } from '../../src/domain/retailSchema'
+import type { RetailItems } from '../../src/domain/retailSchema'
 import type { BusinessState } from '../../src/domain/model'
 import { giftCards, giftStanding } from '../../src/domain/giftCards'
 import { money } from '../../src/domain/format'
@@ -26,6 +29,8 @@ export type AttemptRow = {
   currency: 'GBP' | 'USD'
   tip_minor: number
   discount_minor: number
+  /** V2: the products added at checkout, as JSON; null when none. */
+  products: string | null
   gift_card_id: string | null
   gift_card_minor: number
   save_card: number
@@ -57,13 +62,22 @@ export type CardRow = {
   removed_at: number | null
 }
 
-/** The amount still owed at checkout, with the tip, discount and any gift card the desk entered. */
+/** The products a card checkout attempt carries. */
+export function attemptProducts(row: Pick<AttemptRow, 'products'>): RetailItems | undefined {
+  return row.products ? retailItemsSchema.parse(JSON.parse(row.products)) : undefined
+}
+
+/**
+ * The amount still owed at checkout, with the tip, discount, any gift card and the products the
+ * desk entered.
+ */
 export function balanceDue(
   s: BusinessState,
   appointmentId: string,
   tipMinor: number,
   discountMinor: number,
   giftCardMinor = 0,
+  products?: RetailItems,
 ) {
   const a = s.appointments.find((item) => item.id === appointmentId)
   if (!a) return null
@@ -75,7 +89,7 @@ export function balanceDue(
     depositMinor: deposit,
     tax: visitTax(s, a),
   })
-  return totalMinor - deposit - giftCardMinor
+  return totalMinor + retailCharge(priceRetail(s, products)) - deposit - giftCardMinor
 }
 
 /**
@@ -116,16 +130,16 @@ export function createPayments(ctx: Context, provider: PaymentProvider) {
       | 'ledger_id'
       | 'created_at'
       | 'updated_at'
+      | 'products'
       | 'gift_card_id'
       | 'gift_card_minor'
-    > &
-      Partial<Pick<AttemptRow, 'gift_card_id' | 'gift_card_minor'>>,
+    > & { products?: RetailItems } & Partial<Pick<AttemptRow, 'gift_card_id' | 'gift_card_minor'>>,
   ) => {
     const id = randomUUID()
     const time = now()
     db.run(
-      `INSERT INTO payment_attempts(id,organisation_id,appointment_id,client_id,purpose,route,amount_minor,currency,tip_minor,discount_minor,gift_card_id,gift_card_minor,save_card,refund_of,reason,provider,status,request_key,actor_id,created_at,updated_at)
-       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'started',?,?,?,?)`,
+      `INSERT INTO payment_attempts(id,organisation_id,appointment_id,client_id,purpose,route,amount_minor,currency,tip_minor,discount_minor,products,gift_card_id,gift_card_minor,save_card,refund_of,reason,provider,status,request_key,actor_id,created_at,updated_at)
+       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'started',?,?,?,?)`,
       id,
       row.organisation_id,
       row.appointment_id,
@@ -136,6 +150,7 @@ export function createPayments(ctx: Context, provider: PaymentProvider) {
       row.currency,
       row.tip_minor,
       row.discount_minor,
+      row.products?.length ? JSON.stringify(row.products) : null,
       row.gift_card_id ?? null,
       row.gift_card_minor ?? 0,
       row.save_card,
@@ -174,6 +189,7 @@ export function createPayments(ctx: Context, provider: PaymentProvider) {
     if (row.purpose === 'balance') {
       if (s.sales.some((sale) => sale.appointmentId === row.appointment_id))
         throw new Error('The visit had already been checked out.')
+      const products = attemptProducts(row)
       if (
         balanceDue(
           s,
@@ -181,6 +197,7 @@ export function createPayments(ctx: Context, provider: PaymentProvider) {
           row.tip_minor,
           row.discount_minor,
           row.gift_card_minor,
+          products,
         ) !== row.amount_minor
       )
         throw new Error('The visit’s total changed while the card was being charged.')
@@ -189,6 +206,7 @@ export function createPayments(ctx: Context, provider: PaymentProvider) {
         appointmentId: row.appointment_id,
         tipMinor: row.tip_minor,
         discountMinor: row.discount_minor,
+        ...(products ? { products } : {}),
         ...(row.gift_card_id
           ? { giftCardId: row.gift_card_id, giftCardMinor: row.gift_card_minor }
           : {}),

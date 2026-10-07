@@ -403,7 +403,12 @@ export function ClientRelationship() {
                           {sale && (
                             <div className="timeline-money">
                               <strong>{money(sale.serviceMinor, state.organisation)}</strong>
-                              <span>Service · {money(sale.tipMinor, state.organisation)} tip</span>
+                              <span>
+                                Service · {money(sale.tipMinor, state.organisation)} tip
+                                {sale.retail
+                                  ? ` · bought ${sale.retail.lines.map((line) => line.name).join(', ')}`
+                                  : ''}
+                              </span>
                             </div>
                           )}
                           <div className="timeline-footer">

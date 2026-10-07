@@ -213,12 +213,15 @@ export function CardCheckout({
   amountMinor,
   tipMinor,
   discountMinor,
+  products = [],
   giftCard,
 }: {
   appointmentId: string
   amountMinor: number
   tipMinor: number
   discountMinor: number
+  /** V2: products bought with the visit; the server prices them again before charging. */
+  products?: { productId: string; quantity: number }[]
   /** V1.5: a gift card paying part of the visit; the card is charged the rest. */
   giftCard?: { id: string; amountMinor: number }
 }) {
@@ -287,6 +290,7 @@ export function CardCheckout({
             amountMinor,
             tipMinor,
             discountMinor,
+            ...(products.length ? { products } : {}),
             ...(giftCard ? { giftCardId: giftCard.id, giftCardMinor: giftCard.amountMinor } : {}),
           })
         }}

@@ -67,6 +67,41 @@ function visitToday(s: BusinessState, start: number) {
 }
 
 describe('gift cards and vouchers', () => {
+  it('pays for products bought with the visit as well as the visit', () => {
+    let s = apply(local(), sellMoney(15000))
+    s = apply(s, {
+      type: 'product',
+      input: {
+        name: 'Cleansing Balm',
+        sku: 'BALM',
+        priceMinor: 3200,
+        reorderAt: 1,
+        archived: false,
+      },
+    })
+    const balmId = s.operations!.products[0].id
+    s = apply(s, { type: 'stock', productId: balmId, quantity: 3, reason: 'received', note: 'In' })
+    const visit = visitToday(s, 600)
+    const card = giftCards(visit.s)[0]
+    const checkout = (giftCardMinor: number) =>
+      ({
+        type: 'checkout',
+        appointmentId: visit.a.id,
+        tipMinor: 0,
+        method: 'cash',
+        products: [{ productId: balmId, quantity: 1 }],
+        giftCardId: card.id,
+        giftCardMinor,
+      }) as Command
+    // £95 facial and a £32 balm: the card can pay all £127, but not a penny more.
+    expect(run(visit.s, checkout(12701)).ok).toBe(false)
+    const paid = apply(visit.s, checkout(12700))
+    const sale = paid.sales.at(-1)!
+    expect(sale).toMatchObject({ totalMinor: 12700, giftCardMinor: 12700, balanceMinor: 0 })
+    expect(giftStanding(giftCards(paid)[0], now.slice(0, 10)).balanceMinor).toBe(2300)
+    expect(() => parseState(paid, 'UK')).not.toThrow()
+  })
+
   it('sells a gift card with a readable code that lasts two years in the UK', () => {
     const s = apply(local(), sellMoney(5000))
     const card = giftCards(s)[0]

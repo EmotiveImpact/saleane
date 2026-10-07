@@ -137,11 +137,34 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
       taxIncluded: !!s.taxInclusive,
       tipMinor: s.tipMinor,
       depositAppliedMinor: s.depositAppliedMinor,
+      ...(s.retail
+        ? {
+            products: s.retail.lines.map((line) => ({
+              name: line.name,
+              quantity: line.quantity,
+              unitMinor: line.unitMinor,
+            })),
+          }
+        : {}),
       totalMinor: s.totalMinor,
       balanceMinor: s.balanceMinor,
       ...(s.giftCardMinor ? { paidByGiftCardMinor: s.giftCardMinor } : {}),
       ...(s.reference ? { reference: s.reference } : {}),
     })),
+    /** V2: products bought without a visit. */
+    productPurchases: (state.counterSales ?? [])
+      .filter((sale) => sale.clientId === client.id)
+      .map((sale) => ({
+        receiptNumber: sale.receiptNumber,
+        paidAt: sale.paidAt,
+        method: METHOD[sale.method],
+        products: sale.retail.lines.map((line) => ({
+          name: line.name,
+          quantity: line.quantity,
+          unitMinor: line.unitMinor,
+        })),
+        totalMinor: sale.totalMinor,
+      })),
     payments: state.payments
       .filter((p) => ref.has(p.appointmentId))
       .sort((a, b) => a.recordedAt.localeCompare(b.recordedAt))
@@ -316,6 +339,7 @@ export function previewClientExport(file: ClientExport): ExportPreview {
       { label: 'Consent changes', count: file.consent.history.length },
       { label: 'Visits with their booked terms', count: file.visits.length },
       { label: 'Receipts', count: file.receipts.length },
+      { label: 'Products bought without a visit', count: file.productPurchases.length },
       { label: 'Payments and deposits', count: file.payments.length },
       { label: 'Refunds', count: file.refunds.length },
       { label: 'Timeline entries', count: file.timeline.length },
@@ -575,7 +599,17 @@ export function clientExportText(file: ClientExport, locale = 'en-GB') {
     `RECEIPTS (${file.receipts.length})`,
     ...file.receipts.map(
       (r) =>
-        `${r.receiptNumber} · ${r.visit} · ${r.paidAt.slice(0, 10)} · total ${amount(r.totalMinor, cur, locale)} · ${r.method}`,
+        `${r.receiptNumber} · ${r.visit} · ${r.paidAt.slice(0, 10)} · total ${amount(r.totalMinor, cur, locale)} · ${r.method}${
+          r.products
+            ? ` · products: ${r.products.map((p) => `${p.quantity} × ${p.name} at ${amount(p.unitMinor, cur, locale)}`).join(', ')}`
+            : ''
+        }`,
+    ),
+    '',
+    `PRODUCTS BOUGHT WITHOUT A VISIT (${file.productPurchases.length})`,
+    ...file.productPurchases.map(
+      (p) =>
+        `${p.receiptNumber} · ${p.paidAt.slice(0, 10)} · ${p.products.map((x) => `${x.quantity} × ${x.name}`).join(', ')} · total ${amount(p.totalMinor, cur, locale)} · ${p.method}`,
     ),
     '',
     `PAYMENTS AND DEPOSITS (${file.payments.length})`,
