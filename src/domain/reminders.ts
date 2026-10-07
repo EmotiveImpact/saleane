@@ -5,7 +5,7 @@ import { GUEST_CANCEL_CUTOFF_HOURS } from './guest'
 import { FEEDBACK_WINDOW_MS } from './feedback'
 import { defaultReminderSettings } from './reminderSettings'
 import type { ReminderSettings } from './reminderSettings'
-import { patchTestSettings, visitPatchTest } from './patchTests'
+import { patchTestSettings, patchTests, visitPatchTest } from './patchTests'
 
 /**
  * PILOT-01: appointment confirmations and reminders by email and text.
@@ -119,8 +119,16 @@ export function patchTestReminderDue(s: BusinessState, a: Appointment, start: nu
     settings.remind &&
     start - now <= PATCH_TEST_LEAD_MS &&
     start - now > settings.hoursBefore * HOUR &&
-    visitPatchTest(s, a)?.state === 'needed'
+    wantsTest(s, a)
   )
+}
+/** No test that counts, or a reaction with no new test done since. */
+function wantsTest(s: BusinessState, a: Appointment) {
+  const standing = visitPatchTest(s, a)
+  if (standing?.state === 'needed') return true
+  if (standing?.state !== 'reaction' || !standing.test) return false
+  const after = standing.test.testedAt
+  return !patchTests(s).some((t) => t.clientId === a.clientId && t.testedAt > after && !t.result)
 }
 
 /** A visit's time and place, so a moved visit is told about again. */
@@ -306,7 +314,7 @@ export function composeMessage(
     reminder: `A gentle reminder of your visit.`,
     cancelled: `Your visit below has been cancelled. Nothing else is needed from you.`,
     feedback: `Thank you for visiting us. We would love to know how it went.`,
-    patch_test: `Your treatment below needs a quick patch test at least ${patchTestSettings(s).hoursBefore} hours before, and we don't have a recent one for you. It takes a few minutes: please call us or pop in to arrange it.`,
+    patch_test: `Your treatment below needs a quick patch test at least ${patchTestSettings(s).hoursBefore} hours before, and we need a new one for you. It takes a few minutes: please call us or pop in to arrange it.`,
   }[kind]
   const lines = [
     greeting,

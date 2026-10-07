@@ -9,7 +9,7 @@ import { addDays } from './format'
 import { patchTestsDue, patchTests, visitPatchTest } from './patchTests'
 import { planMessages, composeMessage } from './reminders'
 import { practitionerRefusal, practitionerView } from './practitioner'
-import { clientExport, erasureReview, previewClientExport } from './privacy'
+import { clientExport, clientExportText, erasureReview, previewClientExport } from './privacy'
 
 // V1.5: patch test records and reminders.
 const now = '2026-10-06T08:00:00.000Z'
@@ -272,6 +272,25 @@ describe('patch tests', () => {
     expect(
       planMessages(s, '2026-10-08T11:00:00.000Z', []).filter((m) => m.kind === 'patch_test'),
     ).toEqual([])
+    // A reaction needs a new test, so the guest is asked, until a new one is done.
+    const withReaction = apply(
+      seed('UK'),
+      test('client-9', '2026-10-01T10:00:00.000Z', {
+        result: { outcome: 'reaction', notes: 'Redness' },
+      }),
+    )
+    const local = (state: BusinessState) => {
+      const copy = structuredClone(state)
+      copy.operations = { ...copy.operations!, mode: 'local' }
+      return copy
+    }
+    expect(
+      planMessages(local(withReaction), now, []).filter((m) => m.kind === 'patch_test'),
+    ).toHaveLength(2)
+    const retested = apply(withReaction, test('client-9', '2026-10-06T07:30:00.000Z'))
+    expect(planMessages(local(retested), now, []).filter((m) => m.kind === 'patch_test')).toEqual(
+      [],
+    )
     const off = structuredClone(s)
     off.operations = {
       ...off.operations!,
@@ -289,6 +308,7 @@ describe('patch tests', () => {
     expect(file.patchTests).toEqual([
       expect.objectContaining({ result: 'clear', doneBy: 'Theo Bennett' }),
     ])
+    expect(clientExportText(file)).toContain('2026-09-27 · Gloss toner 9.1')
     expect(previewClientExport(file).sections).toContainEqual({ label: 'Patch tests', count: 1 })
     expect(JSON.stringify(erasureReview(s, 'client-3', '2026-10-06'))).toContain('Patch tests')
   })

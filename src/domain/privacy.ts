@@ -1,5 +1,6 @@
 import type { Appointment, BusinessState } from './model'
 import { operations } from './operations'
+import { localDate } from './patchTests'
 import type { Role } from './operations'
 import { isOpen, serviceLabel, withdrawnOffer } from './waitlist'
 
@@ -286,6 +287,8 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
       .filter((t) => t.clientId === client.id)
       .map((t) => ({
         testedAt: t.testedAt,
+        /** The studio's own date for the test, as shown on the client's page. */
+        testedOn: localDate(state, t.testedAt),
         product: t.product,
         notes: t.notes,
         doneBy: state.staff.find((p) => p.id === t.staffId)?.name ?? t.actor,
@@ -623,7 +626,7 @@ export function clientExportText(file: ClientExport, locale = 'en-GB') {
     `PATCH TESTS (${file.patchTests.length})`,
     ...file.patchTests.map(
       (t) =>
-        `${t.testedAt.slice(0, 10)} · ${t.product} · by ${t.doneBy} · ${t.result}${t.resultNotes ? ` · ${t.resultNotes}` : ''}${t.notes ? ` · ${t.notes}` : ''}`,
+        `${t.testedOn} · ${t.product} · by ${t.doneBy} · ${t.result}${t.resultNotes ? ` · ${t.resultNotes}` : ''}${t.notes ? ` · ${t.notes}` : ''}`,
     ),
     '',
     `MESSAGES (${file.messages.length}), none sent`,
