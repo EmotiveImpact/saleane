@@ -204,8 +204,11 @@ export function runOperatingCommand(
         if (!command.input.hours) delete (old as { hours?: unknown }).hours
       } else next.staff.push({ ...command.input, ...scope, id: record.id })
     } else {
-      if (old) Object.assign(old, record)
-      else next.resources.push({ ...command.input, ...scope, id: record.id })
+      if (old) {
+        Object.assign(old, record)
+        // The form sends every field, so no resting time means None.
+        if (!command.input.restMinutes) delete (old as { restMinutes?: number }).restMinutes
+      } else next.resources.push({ ...command.input, ...scope, id: record.id })
     }
     recordId = record.id
   }

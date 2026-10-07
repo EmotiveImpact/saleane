@@ -180,6 +180,26 @@ describe('room resting time', () => {
         () => 'x',
       ).ok
     expect(save(15)).toBe(true)
+    // Choosing None after a rest clears it.
+    const rested = execute(
+      s,
+      {
+        type: 'resource',
+        id: resource.id,
+        input: { name: resource.name, type: resource.type, restMinutes: 30 },
+      },
+      NOW,
+      () => 'x',
+    )
+    if (!rested.ok) throw new Error(rested.error)
+    const cleared = execute(
+      rested.state,
+      { type: 'resource', id: resource.id, input: { name: resource.name, type: resource.type } },
+      NOW,
+      () => 'x',
+    )
+    if (!cleared.ok) throw new Error(cleared.error)
+    expect(cleared.state.resources[0].restMinutes).toBeUndefined()
     expect(save(7)).toBe(false)
     expect(save(180)).toBe(false)
   })
