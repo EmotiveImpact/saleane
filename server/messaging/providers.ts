@@ -1,0 +1,272 @@
+import { createHmac, timingSafeEqual } from 'node:crypto'
+import type { MessageChannel } from '../../src/domain/reminders'
+
+/**
+ * PILOT-01 provider seam. Each channel has one provider. The default is test mode, which sends
+ * nothing: the outbox keeps the message so the studio can read exactly what would have gone.
+ *
+ * Live adapters are written against each provider's published API but have not been run against
+ * a real account. They switch on only when every key is present, and fail loudly otherwise.
+ */
+export type OutgoingMessage = {
+  id: string
+  channel: MessageChannel
+  to: string
+  subject: string
+  body: string
+  /** Shown as the sender's name on email. */
+  fromName: string
+}
+export type SendResult =
+  | { outcome: 'test' }
+  | { outcome: 'accepted'; providerRef: string }
+  /** The provider refused it. `retry` is true only when the refusal says to try again later. */
+  | { outcome: 'failed'; detail: string; retry: boolean }
+  /** The request may or may not have reached the provider, so sending again could duplicate it. */
+  | { outcome: 'unknown'; detail: string }
+
+export type MessageProvider = {
+  name: 'test' | 'postmark' | 'twilio'
+  live: boolean
+  channel: MessageChannel
+  send: (message: OutgoingMessage) => Promise<SendResult>
+}
+/** A delivery receipt the provider posted back, already verified. */
+export type Receipt = { provider: string; providerRef: string; delivered: boolean; detail?: string }
+export type ReceiptRequest = {
+  url: string
+  headers: Record<string, string | undefined>
+  body: string
+}
+export type Providers = {
+  email: MessageProvider
+  sms: MessageProvider
+  /** Verifies and reads a receipt for the named provider; null when it is not genuine. */
+  receipt: (provider: string, request: ReceiptRequest) => Receipt[] | null
+}
+type Fetch = typeof fetch
+
+export function testProvider(channel: MessageChannel): MessageProvider {
+  return { name: 'test', live: false, channel, send: async () => ({ outcome: 'test' }) }
+}
+
+const TIMEOUT_MS = 15000
+/** Network errors that prove the request never left this computer, so a retry cannot duplicate. */
+const NOT_SENT = new Set(['ENOTFOUND', 'ECONNREFUSED', 'EAI_AGAIN', 'ENETUNREACH'])
+
+async function post(
+  fetcher: Fetch,
+  url: string,
+  init: RequestInit,
+): Promise<{ status: number; json: Record<string, unknown> } | SendResult> {
+  try {
+    const response = await fetcher(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) })
+    let json: Record<string, unknown> = {}
+    try {
+      json = (await response.json()) as Record<string, unknown>
+    } catch {
+      /* Some refusals have no JSON body. */
+    }
+    return { status: response.status, json }
+  } catch (error) {
+    const code = (error as { cause?: { code?: string } })?.cause?.code
+    if (code && NOT_SENT.has(code))
+      return { outcome: 'failed', detail: 'The provider could not be reached.', retry: true }
+    return {
+      outcome: 'unknown',
+      detail: 'The connection dropped before the provider answered. Check its dashboard first.',
+    }
+  }
+}
+const isResult = (value: unknown): value is SendResult =>
+  !!value && typeof value === 'object' && 'outcome' in value
+
+/** Postmark transactional email. https://postmarkapp.com/developer/api/email-api */
+export function postmarkProvider(config: {
+  token: string
+  from: string
+  fetcher?: Fetch
+}): MessageProvider {
+  const fetcher = config.fetcher ?? fetch
+  return {
+    name: 'postmark',
+    live: true,
+    channel: 'email',
+    async send(message) {
+      const result = await post(fetcher, 'https://api.postmarkapp.com/email', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          'X-Postmark-Server-Token': config.token,
+        },
+        body: JSON.stringify({
+          From: `${message.fromName.replace(/["<>]/g, '')} <${config.from}>`,
+          To: message.to,
+          Subject: message.subject,
+          TextBody: message.body,
+          MessageStream: 'outbound',
+          Metadata: { outbox: message.id },
+        }),
+      })
+      if (isResult(result)) return result
+      const errorCode = Number(result.json.ErrorCode ?? -1)
+      if (result.status === 200 && errorCode === 0 && typeof result.json.MessageID === 'string')
+        return { outcome: 'accepted', providerRef: result.json.MessageID }
+      return {
+        outcome: 'failed',
+        detail: String(result.json.Message ?? `Email provider refused it (${result.status}).`),
+        retry: result.status === 429 || result.status >= 500,
+      }
+    },
+  }
+}
+
+/** Twilio Programmable Messaging. https://www.twilio.com/docs/messaging/api/message-resource */
+export function twilioProvider(config: {
+  accountSid: string
+  authToken: string
+  from: string
+  statusCallback?: string
+  fetcher?: Fetch
+}): MessageProvider {
+  const fetcher = config.fetcher ?? fetch
+  return {
+    name: 'twilio',
+    live: true,
+    channel: 'sms',
+    async send(message) {
+      const form = new URLSearchParams({ To: message.to, Body: message.body })
+      // A Messaging Service SID starts with MG; anything else is a sending number.
+      form.set(config.from.startsWith('MG') ? 'MessagingServiceSid' : 'From', config.from)
+      if (config.statusCallback) form.set('StatusCallback', config.statusCallback)
+      const result = await post(
+        fetcher,
+        `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(config.accountSid)}/Messages.json`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Basic ${Buffer.from(`${config.accountSid}:${config.authToken}`).toString('base64')}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: form.toString(),
+        },
+      )
+      if (isResult(result)) return result
+      if (result.status === 201 && typeof result.json.sid === 'string')
+        return { outcome: 'accepted', providerRef: result.json.sid }
+      const code = Number(result.json.code)
+      return {
+        outcome: 'failed',
+        detail:
+          code === 21610
+            ? 'This number has replied STOP, so texts to it are blocked.'
+            : String(result.json.message ?? `Text provider refused it (${result.status}).`),
+        retry: result.status === 429 || result.status >= 500,
+      }
+    },
+  }
+}
+
+/** Twilio signs each callback: base64 HMAC-SHA1 of the URL followed by sorted form pairs. */
+export function twilioSignature(authToken: string, url: string, params: URLSearchParams) {
+  const pairs = [...params.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+  const data = url + pairs.map(([key, value]) => key + value).join('')
+  return createHmac('sha1', authToken).update(data, 'utf8').digest('base64')
+}
+function sameText(a: string | undefined, b: string) {
+  if (!a) return false
+  const left = Buffer.from(a),
+    right = Buffer.from(b)
+  return left.length === right.length && timingSafeEqual(left, right)
+}
+
+/**
+ * Reads providers from the environment. Unset means test mode. Naming a live provider without
+ * all of its keys stops the server rather than quietly falling back to test mode.
+ */
+export function providersFromEnv(
+  env: Record<string, string | undefined> = process.env,
+  origin = 'http://127.0.0.1:5173',
+  fetcher?: Fetch,
+): Providers {
+  const need = (...names: string[]) => {
+    const missing = names.filter((name) => !env[name]?.trim())
+    if (missing.length) throw new Error(`Set ${missing.join(' and ')} to send real messages.`)
+    return names.map((name) => env[name]!.trim())
+  }
+  const emailName = env.SALEANE_EMAIL_PROVIDER?.trim() || 'test'
+  const smsName = env.SALEANE_SMS_PROVIDER?.trim() || 'test'
+  let email = testProvider('email'),
+    sms = testProvider('sms')
+  let postmarkSecret: string | undefined, twilioToken: string | undefined
+  if (emailName === 'postmark') {
+    const [token, from] = need('POSTMARK_SERVER_TOKEN', 'SALEANE_EMAIL_FROM')
+    postmarkSecret = env.POSTMARK_WEBHOOK_SECRET?.trim() || undefined
+    email = postmarkProvider({ token, from, fetcher })
+  } else if (emailName !== 'test') throw new Error(`Unknown email provider "${emailName}".`)
+  const twilioCallback = `${origin.replace(/\/$/, '')}/api/hooks/twilio`
+  if (smsName === 'twilio') {
+    const [accountSid, authToken, from] = need(
+      'TWILIO_ACCOUNT_SID',
+      'TWILIO_AUTH_TOKEN',
+      'TWILIO_FROM',
+    )
+    twilioToken = authToken
+    sms = twilioProvider({ accountSid, authToken, from, statusCallback: twilioCallback, fetcher })
+  } else if (smsName !== 'test') throw new Error(`Unknown text provider "${smsName}".`)
+  return {
+    email,
+    sms,
+    receipt(provider, request) {
+      if (provider === 'twilio' && twilioToken) {
+        const params = new URLSearchParams(request.body)
+        const expected = twilioSignature(twilioToken, twilioCallback, params)
+        if (!sameText(request.headers['x-twilio-signature'], expected)) return null
+        const ref = params.get('MessageSid'),
+          status = params.get('MessageStatus')
+        if (!ref || !status) return []
+        if (status === 'delivered') return [{ provider, providerRef: ref, delivered: true }]
+        if (status === 'undelivered' || status === 'failed')
+          return [
+            {
+              provider,
+              providerRef: ref,
+              delivered: false,
+              detail: `The phone network reported it ${status}${params.get('ErrorCode') ? ` (error ${params.get('ErrorCode')})` : ''}.`,
+            },
+          ]
+        return []
+      }
+      if (provider === 'postmark' && postmarkSecret) {
+        // Postmark sends the webhook's basic-auth credentials, set as user:secret in its URL.
+        const auth = request.headers.authorization ?? ''
+        const supplied = auth.startsWith('Basic ')
+          ? Buffer.from(auth.slice(6), 'base64').toString('utf8').split(':').slice(1).join(':')
+          : ''
+        if (!sameText(supplied, postmarkSecret)) return null
+        let event: Record<string, unknown>
+        try {
+          event = JSON.parse(request.body) as Record<string, unknown>
+        } catch {
+          return null
+        }
+        const ref = typeof event.MessageID === 'string' ? event.MessageID : ''
+        if (!ref) return []
+        if (event.RecordType === 'Delivery')
+          return [{ provider, providerRef: ref, delivered: true }]
+        if (event.RecordType === 'Bounce')
+          return [
+            {
+              provider,
+              providerRef: ref,
+              delivered: false,
+              detail: String(event.Description ?? 'The email bounced.'),
+            },
+          ]
+        return []
+      }
+      return null
+    },
+  }
+}

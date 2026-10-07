@@ -2,6 +2,17 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · PILOT-01 · Appointment messages
+
+**Status: built and checked locally in test mode; nothing deployed and nothing sent.** No email or text provider has been chosen.
+
+- Real studios now confirm each booking, tell the guest about a new time or a cancellation, and send a reminder before the visit, by email and text. Each message carries its own private link to view, add to calendar or cancel the visit.
+- Settings has a new "Messages to guests" section: confirmations on or off, reminders on or off, when the reminder goes (2 hours, the day before or two days before), and email and text on or off. Owners and managers can change it.
+- A client's profile has "Appointment emails" and "Appointment texts" switches, separate from marketing. Changing them is recorded on the client's timeline.
+- The Inbox and each client profile list what was sent for them, with honest labels: "Test mode, not sent", "With the provider, no receipt yet", "Delivered" (only on a provider receipt), "Not delivered", "Unclear, check before resending" and "Not sent". Owners and managers can send a failed or unclear message again.
+- Test mode is the default and sends nothing. Postmark (email) and Twilio (texts) adapters are written and tested against simulated answers, ready for when accounts exist. Sample studios never send.
+- Texts go only to numbers saved with a country code. Messages never include marketing.
+
 ## 2026-10-07 · Merged · Booked prices keep their tax
 
 **Status: merged into main on 7 October 2026; nothing deployed or charged.**

@@ -8,6 +8,7 @@ import { dateLabel, timeLabel } from '../domain/format'
 import { Avatar, Button, ErrorMessage, Modal, PageHeader, SegmentedControl } from '../design'
 import type { BusinessState } from '../domain/model'
 import { useInboxView } from '../state/inboxView'
+import { SentMessages } from '../components/AppointmentMessages'
 import '../components/management.css'
 
 type QueuedMessage = ReturnType<typeof operations>['messages'][number]
@@ -239,10 +240,11 @@ export function Inbox() {
       <div className="ops-banner">
         <MailWarning size={20} />
         <div>
-          <strong>Texting and email aren’t connected yet.</strong>
+          <strong>Drafts you write here are not sent yet.</strong>
           <p>
-            Approved messages wait in the queue and nothing is sent. Queued does not mean sent, and
-            no incoming conversations are imported.
+            Approved drafts wait in the queue. Queued does not mean sent, and no incoming
+            conversations are imported. Booking confirmations and reminders are handled separately,
+            below.
           </p>
         </div>
       </div>
@@ -351,6 +353,7 @@ export function Inbox() {
           </div>
         )}
       </section>
+      <SentMessages />
       {view === 'panel' && panelOpen && selected && (
         <Modal
           open

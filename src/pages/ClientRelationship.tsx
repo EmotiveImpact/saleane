@@ -22,6 +22,7 @@ import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import { Avatar, Button, Empty, ErrorMessage, SegmentedControl, Status } from '../design'
 import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
+import { ClientMessagePreferences, SentMessages } from '../components/AppointmentMessages'
 import { ClientPrivacy } from '../components/Privacy'
 
 // A booking's detail opens with the service, date and time already shown in
@@ -626,7 +627,9 @@ export function ClientRelationship() {
               Appointment updates are separate. Changing this preference records an event; it sends
               no message.
             </p>
+            <ClientMessagePreferences client={client} />
           </section>
+          <SentMessages clientId={client.id} />
           <ClientPrivacy clientId={client.id} />
         </aside>
       </div>

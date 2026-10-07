@@ -36,6 +36,9 @@ export const clientSchema = z.object({
   preferences: z.string().max(1000),
   marketingConsent: z.boolean(),
   createdAt: z.iso.datetime(),
+  /** The client asked not to receive appointment emails or texts (PILOT-01). Absent means allowed. */
+  noEmailReminders: z.boolean().optional(),
+  noTextReminders: z.boolean().optional(),
 })
 export const serviceSchema = z.object({
   ...scoped,
