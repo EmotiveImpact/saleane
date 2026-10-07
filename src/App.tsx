@@ -13,6 +13,7 @@ import {
   X,
   Info,
   Mail,
+  Sparkles,
 } from 'lucide-react'
 import { useStore } from './state/context'
 import { useStudioColours } from './state/studioColours'
@@ -37,6 +38,9 @@ const Inbox = lazy(() => import('./pages/Inbox').then((module) => ({ default: mo
 const Money = lazy(() => import('./pages/Money').then((module) => ({ default: module.Money })))
 const Feedback = lazy(() =>
   import('./pages/Feedback').then((module) => ({ default: module.Feedback })),
+)
+const AskSaleane = lazy(() =>
+  import('./components/AskSaleane').then((module) => ({ default: module.AskSaleane })),
 )
 const DesignLanguage = lazy(() =>
   import('./pages/DesignLanguage').then((module) => ({ default: module.DesignLanguage })),
@@ -67,6 +71,7 @@ function WorkspaceApp() {
     .join('')
   const location = useLocation()
   const [search, setSearch] = useState(false)
+  const [asking, setAsking] = useState(false)
   const navigate = useNavigate()
   const openSettings = (section: string) => navigate(`/settings?section=${section}`)
   const [mobileNav, setMobileNav] = useState(false)
@@ -221,6 +226,10 @@ function WorkspaceApp() {
             <span>{pageName}</span>
           </div>
           <div>
+            <button className="ask-button" onClick={() => setAsking(true)}>
+              <Sparkles size={17} />
+              <span>Ask Saleane</span>
+            </button>
             <button className="global-search" onClick={() => setSearch(true)}>
               <Search size={17} />
               <span>Find a client</span>
@@ -317,6 +326,11 @@ function WorkspaceApp() {
         </main>
       </div>
       {search && <SearchDialog onClose={() => setSearch(false)} />}
+      {asking && (
+        <Suspense fallback={null}>
+          <AskSaleane onClose={() => setAsking(false)} />
+        </Suspense>
+      )}
     </div>
   )
 }

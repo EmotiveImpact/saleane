@@ -164,6 +164,17 @@ export const migrations: Migration[] = [
   },
   {
     version: 7,
+    // Ask Saleane: each studio's assistant use this month, so the allowance holds across restarts.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE assistant_usage (
+          organisation_id TEXT PRIMARY KEY REFERENCES organisations(id),
+          usage TEXT NOT NULL, updated_at INTEGER NOT NULL
+        ) STRICT;
+      `),
+  },
+  {
+    version: 8,
     // V2: a card checkout remembers the products added, so the receipt matches what was charged.
     up: (connection) => connection.exec('ALTER TABLE payment_attempts ADD COLUMN products TEXT;'),
   },
