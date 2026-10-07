@@ -191,28 +191,62 @@ export const migrations: Migration[] = [
     version: 10,
     // V1.5: the outbox also asks a guest to come in for a patch test before a booked treatment.
     up: (connection) =>
-      connection.exec(`
-        CREATE TABLE outbox_next (
-          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
-          dedupe_key TEXT NOT NULL, appointment_id TEXT NOT NULL, client_id TEXT NOT NULL,
-          kind TEXT NOT NULL CHECK(kind IN ('confirmation','changed','reminder','cancelled','feedback','patch_test')),
-          channel TEXT NOT NULL CHECK(channel IN ('email','sms')), slot TEXT NOT NULL,
-          recipient TEXT NOT NULL, subject TEXT NOT NULL, body TEXT NOT NULL,
-          status TEXT NOT NULL CHECK(status IN ('pending','test','accepted','delivered','failed','unknown','skipped')),
-          provider TEXT, provider_ref TEXT, detail TEXT, attempts INTEGER NOT NULL DEFAULT 0,
-          next_attempt_at INTEGER NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
-          UNIQUE(organisation_id,dedupe_key)
-        ) STRICT;
-        INSERT INTO outbox_next SELECT id,organisation_id,dedupe_key,appointment_id,client_id,kind,channel,slot,recipient,subject,body,status,provider,provider_ref,detail,attempts,next_attempt_at,created_at,updated_at FROM outbox;
-        DROP TABLE outbox;
-        ALTER TABLE outbox_next RENAME TO outbox;
-        CREATE INDEX outbox_due ON outbox(status,next_attempt_at);
-        CREATE INDEX outbox_visit ON outbox(organisation_id,appointment_id);
-        CREATE INDEX outbox_recent ON outbox(organisation_id,created_at);
-        CREATE UNIQUE INDEX outbox_provider_ref ON outbox(provider,provider_ref) WHERE provider_ref IS NOT NULL;
-      `),
+      connection.exec(
+        outboxWithKinds([
+          'confirmation',
+          'changed',
+          'reminder',
+          'cancelled',
+          'feedback',
+          'patch_test',
+        ]),
+      ),
+  },
+  {
+    version: 11,
+    // V1.5: aftercare advice after a visit, and a "due back" note to guests who agreed to hear.
+    up: (connection) =>
+      connection.exec(
+        outboxWithKinds([
+          'confirmation',
+          'changed',
+          'reminder',
+          'cancelled',
+          'feedback',
+          'patch_test',
+          'aftercare',
+          'due_back',
+        ]),
+      ),
   },
 ]
+/**
+ * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the
+ * outbox with the same columns, keys and indexes, keeping every row.
+ */
+function outboxWithKinds(kinds: string[]) {
+  return `
+    CREATE TABLE outbox_next (
+      id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+      dedupe_key TEXT NOT NULL, appointment_id TEXT NOT NULL, client_id TEXT NOT NULL,
+      kind TEXT NOT NULL CHECK(kind IN (${kinds.map((kind) => `'${kind}'`).join(',')})),
+      channel TEXT NOT NULL CHECK(channel IN ('email','sms')), slot TEXT NOT NULL,
+      recipient TEXT NOT NULL, subject TEXT NOT NULL, body TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('pending','test','accepted','delivered','failed','unknown','skipped')),
+      provider TEXT, provider_ref TEXT, detail TEXT, attempts INTEGER NOT NULL DEFAULT 0,
+      next_attempt_at INTEGER NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+      UNIQUE(organisation_id,dedupe_key)
+    ) STRICT;
+    INSERT INTO outbox_next SELECT id,organisation_id,dedupe_key,appointment_id,client_id,kind,channel,slot,recipient,subject,body,status,provider,provider_ref,detail,attempts,next_attempt_at,created_at,updated_at FROM outbox;
+    DROP TABLE outbox;
+    ALTER TABLE outbox_next RENAME TO outbox;
+    CREATE INDEX outbox_due ON outbox(status,next_attempt_at);
+    CREATE INDEX outbox_visit ON outbox(organisation_id,appointment_id);
+    CREATE INDEX outbox_recent ON outbox(organisation_id,created_at);
+    CREATE UNIQUE INDEX outbox_provider_ref ON outbox(provider,provider_ref) WHERE provider_ref IS NOT NULL;
+  `
+}
+
 export const SCHEMA_VERSION = migrations[migrations.length - 1].version
 
 export class LocalDatabase {

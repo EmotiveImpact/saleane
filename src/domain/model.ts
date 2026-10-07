@@ -70,6 +70,10 @@ export const serviceSchema = z.object({
   prepNote: z.string().max(GUEST_NOTE_LIMIT).optional(),
   /** V1.5: guests need a clear patch test before this treatment, such as a colour. */
   patchTest: z.boolean().optional(),
+  /** V1.5: practical care advice emailed after the visit, such as "Avoid hot water for a day". */
+  aftercareNote: z.string().max(GUEST_NOTE_LIMIT).optional(),
+  /** V1.5: how many weeks until a guest usually comes back for this, for a "due back" nudge. */
+  returnWeeks: z.number().int().min(1).max(52).optional(),
 })
 export const staffSchema = z.object({
   ...scoped,

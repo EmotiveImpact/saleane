@@ -1,7 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import {
+  BOOK_LINK,
   MANAGE_LINK,
+  aftercareDue,
   channelsFor,
+  dueBackDue,
   composeMessage,
   planMessages,
   feedbackDue,
@@ -129,12 +132,8 @@ export function createOutbox(ctx: Context, providers: Providers) {
       }
       if (!org || !visit || !client) return skip('The visit is no longer in the studio record.')
       if (operations(org.state).mode !== 'local') return skip('Sample studios never send.')
-      const wanted =
-        fresh.kind === 'cancelled'
-          ? 'cancelled'
-          : fresh.kind === 'feedback'
-            ? 'completed'
-            : 'confirmed'
+      const after = ['feedback', 'aftercare', 'due_back'].includes(fresh.kind)
+      const wanted = fresh.kind === 'cancelled' ? 'cancelled' : after ? 'completed' : 'confirmed'
       if (visit.status !== wanted || visitSlot(visit) !== fresh.slot)
         return skip('The visit changed before this went out.')
       if (
@@ -147,14 +146,18 @@ export function createOutbox(ctx: Context, providers: Providers) {
         !patchTestReminderDue(org.state, visit, visitStart(org.state, visit.id), now())
       )
         return skip('A patch test was recorded, or it was too late, before it went out.')
+      if (fresh.kind === 'aftercare' && !aftercareDue(org.state, visit, now()))
+        return skip('Turned off, advice removed or too late before it went out.')
+      if (fresh.kind === 'due_back' && !dueBackDue(org.state, visit, new Date(now()).toISOString()))
+        return skip('Booked again, turned off or no longer agreed before it went out.')
       if (fresh.kind !== 'cancelled' && !channelsFor(org.state, client).includes(fresh.channel))
         return skip('Turned off for this client or studio before it went out.')
       // The studio's rules may have changed since this was queued: say what they are now.
-      const current =
-        fresh.kind === 'patch_test'
-          ? composeMessage(org.state, visit, 'patch_test', fresh.channel)
-          : null
+      const current = ['patch_test', 'aftercare', 'due_back'].includes(fresh.kind)
+        ? composeMessage(org.state, visit, fresh.kind, fresh.channel)
+        : null
       let body = current?.body ?? fresh.body
+      body = body.replaceAll(BOOK_LINK, `${ctx.allowedOrigin}/book/${org.slug}`)
       if (body.includes(MANAGE_LINK)) {
         try {
           body = body.replaceAll(MANAGE_LINK, issueGuestLink(ctx, org, visit.id, 'message').url)

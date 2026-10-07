@@ -77,11 +77,20 @@ export function runOperatingCommand(
       if (!service) throw new Error('Service does not belong to this workspace.')
       return { service, note }
     })
+    const aftercare = (command.aftercareNotes ?? []).map(({ serviceId, note }) => {
+      const service = next.services.find((item) => item.id === serviceId)
+      if (!service) throw new Error('Service does not belong to this workspace.')
+      return { service, note }
+    })
     if (command.arrivalNote) next.organisation.arrivalNote = command.arrivalNote
     else delete next.organisation.arrivalNote
     for (const { service, note } of services) {
       if (note) service.prepNote = note
       else delete service.prepNote
+    }
+    for (const { service, note } of aftercare) {
+      if (note) service.aftercareNote = note
+      else delete service.aftercareNote
     }
     return next.organisation.id
   }
@@ -175,8 +184,12 @@ export function runOperatingCommand(
         throw new Error('Deposit cannot exceed the service price.')
       if (command.input.durationMinutes + command.input.bufferMinutes > 1440)
         throw new Error('A service must fit within one day.')
-      if (old) Object.assign(old, record)
-      else next.services.push({ ...command.input, ...scope, id: record.id })
+      const { returnWeeks, ...input } = command.input
+      const weeks = returnWeeks ? { returnWeeks } : {}
+      if (old) {
+        Object.assign(old, { ...input, ...weeks, ...scope, id: record.id })
+        if (returnWeeks === null) delete (old as { returnWeeks?: number }).returnWeeks
+      } else next.services.push({ ...input, ...weeks, ...scope, id: record.id })
     } else if (command.type === 'staff') {
       if (old) {
         Object.assign(old, record)

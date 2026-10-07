@@ -161,6 +161,9 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
           depositMinor: parseMinor(data.get('deposit')),
           resourceType: text(data, 'resourceType') as 'treatment' | 'chair',
           patchTest: data.get('patchTest') === 'on',
+          returnWeeks: String(data.get('returnWeeks') ?? '').trim()
+            ? numeric(data, 'returnWeeks')
+            : null,
           archived,
         },
       }
@@ -834,6 +837,21 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                       required
                       defaultValue={(service?.depositMinor ?? 0) / 100}
                     />
+                  </label>
+                  <label>
+                    Usually back after (weeks)
+                    <input
+                      name="returnWeeks"
+                      type="number"
+                      min="1"
+                      max="52"
+                      defaultValue={service?.returnWeeks ?? ''}
+                      aria-describedby="return-weeks-help"
+                    />
+                    <small id="return-weeks-help">
+                      Optional. Guests who agreed to hear from you get a gentle note when they are
+                      due.
+                    </small>
                   </label>
                   <label className="ops-check ops-wide">
                     <input type="checkbox" name="patchTest" defaultChecked={!!service?.patchTest} />
