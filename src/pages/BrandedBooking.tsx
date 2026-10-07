@@ -16,6 +16,7 @@ import { visitUid } from '../domain/calendarFile'
 import { bookingChannel } from '../domain/bookingChannel'
 import { fullPriceMinor } from '../domain/priceSentence'
 import { patchTestSettings } from '../domain/patchTests'
+import { currentWording } from '../domain/consent'
 
 export function BrandedBooking() {
   const { state, commit, region, changeRegion, saving } = useStore()
@@ -93,6 +94,7 @@ export function BrandedBooking() {
         source: 'online',
         // Where the guest came from, when they followed one of the studio's shared links.
         channel: bookingChannel(new URLSearchParams(window.location.search).get('from')),
+        ...(consent ? { consentVersion: currentWording(state).version } : {}),
       },
     })
     if (!result.ok) {
@@ -455,7 +457,7 @@ export function BrandedBooking() {
                       checked={consent}
                       onChange={(e) => setConsent(e.target.checked)}
                     />
-                    I’d like occasional email news from Atelier House.
+                    {currentWording(state).text}
                   </label>
                   <p className="subtle">
                     Optional. Your booking doesn’t depend on marketing consent. Use fictional

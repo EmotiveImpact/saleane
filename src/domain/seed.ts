@@ -3,6 +3,7 @@ import { DEMO_DATE, parseState } from './model'
 import type { Appointment, BusinessState, Region } from './model'
 import { addDays, dateLabel, timeLabel } from './format'
 import { defaultOperations } from './operations'
+import { standardWording } from './consent'
 
 export function seed(region: Region): BusinessState {
   const uk = region === 'UK'
@@ -615,6 +616,47 @@ export function seed(region: Region): BusinessState {
       ],
       agreedName: '',
       submittedAt: `${addDays(DEMO_DATE, -1)}T19:12:00.000Z`,
+    },
+  ]
+  // V1.5: one guest agreed to email news on the booking page; another agreed at the desk and later
+  // stopped it from their visit link. The others were recorded before these records began. Version
+  // 1, SALEANE's standard wording, is kept in the studio's name so a rename cannot rewrite it.
+  state.consentWording = [{ version: 1, text: standardWording(state.organisation.name) }]
+  state.consentRecords = [
+    {
+      ...scope,
+      id: 'consent-1',
+      clientId: 'client-1',
+      channel: 'email',
+      purpose: 'marketing',
+      given: true,
+      wordingVersion: 1,
+      source: 'booking page',
+      recordedAt: `${addDays(DEMO_DATE, -30)}T09:41:00.000Z`,
+      actor: 'Guest booking',
+    },
+    {
+      ...scope,
+      id: 'consent-2',
+      clientId: 'client-4',
+      channel: 'email',
+      purpose: 'marketing',
+      given: true,
+      wordingVersion: 1,
+      source: 'desk',
+      recordedAt: `${addDays(DEMO_DATE, -21)}T11:05:00.000Z`,
+      actor: 'Maya · demo operator',
+    },
+    {
+      ...scope,
+      id: 'consent-3',
+      clientId: 'client-4',
+      channel: 'email',
+      purpose: 'marketing',
+      given: false,
+      source: 'guest link',
+      recordedAt: `${addDays(DEMO_DATE, -6)}T20:17:00.000Z`,
+      actor: 'Guest (private link)',
     },
   ]
   return parseState(state, region)

@@ -1,6 +1,7 @@
 import type { Appointment, BusinessState } from './model'
 import { operations } from './operations'
 import { localDate } from './patchTests'
+import { consentRecords, wordingFor } from './consent'
 import type { Role } from './operations'
 import { isOpen, serviceLabel, withdrawnOffer } from './waitlist'
 
@@ -108,6 +109,23 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
       history: events
         .filter((e) => e.type === 'consent')
         .map((e) => ({ occurredAt: e.occurredAt, change: e.title, detail: e.detail })),
+      // V1.5: each permission given or withdrawn, with the words they agreed to and where.
+      records: consentRecords(state)
+        .filter((r) => r.clientId === client.id)
+        .map((r) => ({
+          recordedAt: r.recordedAt,
+          channel: r.channel,
+          purpose: r.purpose,
+          given: r.given,
+          ...(r.wordingVersion
+            ? {
+                wordingVersion: r.wordingVersion,
+                wording: wordingFor(state, r.wordingVersion)?.text ?? '',
+              }
+            : {}),
+          source: r.source,
+          recordedBy: r.actor,
+        })),
     },
     visits: visits.map((a: Appointment) => ({
       visit: ref.get(a.id)!,
@@ -443,6 +461,7 @@ export function previewStudioExport(file: StudioExport): ExportPreview {
       { label: 'Gift cards and vouchers', count: (r.giftCards ?? []).length },
       { label: 'Patch tests', count: (r.patchTests ?? []).length },
       { label: 'Guest forms and their answers', count: (r.formResponses ?? []).length },
+      { label: 'Email permission records', count: (r.consentRecords ?? []).length },
       {
         label: 'Services, professionals and spaces',
         count: r.services.length + r.staff.length + r.resources.length,
@@ -590,7 +609,9 @@ export function erasureReview(
       },
       {
         label: 'Consent history',
-        count: events.filter((e) => e.type === 'consent').length,
+        count:
+          events.filter((e) => e.type === 'consent').length +
+          consentRecords(state).filter((r) => r.clientId === client.id).length,
         reason: 'Shows what the person agreed to and any opt-out, so they are not contacted again.',
       },
       {
@@ -633,6 +654,10 @@ export function clientExportText(file: ClientExport, locale = 'en-GB') {
     `Client since: ${file.subject.clientSince.slice(0, 10)}`,
     `Good to remember: ${file.subject.goodToRemember || 'Nothing recorded'}`,
     `Email marketing: ${file.consent.emailMarketing ? 'agreed' : 'not agreed'}`,
+    ...file.consent.records.map(
+      (r) =>
+        `  ${r.recordedAt.slice(0, 10)} · ${r.given ? `agreed to version ${r.wordingVersion}: “${r.wording}”` : 'withdrawn'} · ${r.source}`,
+    ),
     '',
     `VISITS (${file.visits.length})`,
     ...file.visits.map(

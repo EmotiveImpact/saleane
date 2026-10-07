@@ -1,6 +1,6 @@
 {
   "environment": "Chromium 141.0.7390.37 / http://127.0.0.1:5173",
-  "recordedAt": "2026-10-07T21:34:40.569Z",
+  "recordedAt": "2026-10-07T22:12:42.051Z",
   "results": [
     {
       "mode": "demo",
@@ -127,7 +127,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 32,
+        "focusable": 33,
         "missing": []
       },
       "errors": []
@@ -877,7 +877,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 33,
+        "focusable": 34,
         "missing": []
       },
       "errors": []
@@ -1027,7 +1027,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-6d22f263",
+      "route": "/book/qualify-studio-c7ade96e",
       "width": 1280,
       "violations": [],
       "viewport": 1280,
@@ -1242,7 +1242,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-6d22f263",
+      "route": "/book/qualify-studio-c7ade96e",
       "width": 390,
       "violations": [],
       "viewport": 390,
@@ -1449,7 +1449,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-6d22f263",
+      "route": "/book/qualify-studio-c7ade96e",
       "width": 320,
       "violations": [],
       "viewport": 320,
@@ -1824,6 +1824,7 @@
       "headings": [
         "H1 Your studio, considered.",
         "H2 Messages to guests",
+        "H2 Asking about email news",
         "H2 A steady foundation."
       ],
       "landmarks": [
@@ -1832,6 +1833,7 @@
         "header",
         "section About this version",
         "main",
+        "header",
         "header",
         "aside",
         "footer"
@@ -2365,6 +2367,7 @@
       "headings": [
         "H1 Your studio, considered.",
         "H2 Messages to guests",
+        "H2 Asking about email news",
         "H2 A steady foundation."
       ],
       "landmarks": [
@@ -2373,6 +2376,7 @@
         "header",
         "section About this version",
         "main",
+        "header",
         "header",
         "aside",
         "footer"
@@ -2618,7 +2622,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-6d22f263",
+      "route": "/book/qualify-studio-c7ade96e",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
       "h1": ["Care, considered."],

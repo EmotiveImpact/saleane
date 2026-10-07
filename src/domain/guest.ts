@@ -166,6 +166,8 @@ export const guestViewSchema = z
           .strict(),
       )
       .optional(),
+    /** V1.5: present when this guest gets the studio's email news, so they can stop it here. */
+    emailNews: z.literal(true).optional(),
     /** V1.5: private feedback after a completed visit. Only the guest's own ratings come back. */
     feedback: z
       .object({
@@ -315,6 +317,9 @@ export function guestView(
             done: !!item.answer,
           })),
         }
+      : {}),
+    ...(s.clients.find((c) => c.id === a.clientId)?.marketingConsent
+      ? { emailNews: true as const }
       : {}),
     ...(a.status === 'completed' && s.organisation.reviewUrl
       ? { review: { url: s.organisation.reviewUrl } }
