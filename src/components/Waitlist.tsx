@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { Hourglass, Plus } from 'lucide-react'
 import { useStore } from '../state/context'
 import { businessDate, can } from '../domain/operations'
-import { openings, timesLabel, waitlistList } from '../domain/waitlist'
+import { isOpen, openings, timesLabel, waitlistList } from '../domain/waitlist'
 import type { Opening } from '../domain/waitlist'
 import { WAITLIST_MAX_DAYS, WAITLIST_TIMES } from '../domain/waitlistSchema'
 import type { WaitlistEntry, WaitlistInput, WaitlistTime } from '../domain/waitlistSchema'
@@ -434,10 +434,10 @@ export function ClientWaitlist({ clientId }: { clientId: string }) {
   const allowed = useWaitlistAllowed()
   const [adding, setAdding] = useState(false)
   const rows = waitlistList(state).filter((e) => e.clientId === clientId)
-  const open = rows.filter((e) => e.status === 'waiting')
+  const open = rows.filter((e) => isOpen(state, e))
   const closed = rows
-    .filter((e) => e.status !== 'waiting')
-    .sort((a, b) => (b.closedAt ?? '').localeCompare(a.closedAt ?? ''))
+    .filter((e) => !isOpen(state, e))
+    .sort((a, b) => (b.closedAt ?? b.toDate).localeCompare(a.closedAt ?? a.toDate))
     .slice(0, 3)
   const org = state.organisation
   return (
@@ -463,7 +463,11 @@ export function ClientWaitlist({ clientId }: { clientId: string }) {
           {closed.map((e) => (
             <li key={e.id}>
               {state.services.find((s) => s.id === e.serviceId)?.name}:{' '}
-              {e.status === 'booked' ? 'filled' : `taken off (${e.removedReason})`}
+              {e.status === 'booked'
+                ? 'filled'
+                : e.status === 'removed'
+                  ? `taken off (${e.removedReason})`
+                  : 'its dates passed'}
               {e.closedAt ? `, ${dateLabel(feedbackDay(state, e.closedAt), org.locale)}` : ''}
             </li>
           ))}

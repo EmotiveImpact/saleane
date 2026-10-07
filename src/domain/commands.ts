@@ -318,7 +318,8 @@ export function execute(
           allocationChange: { from, to },
           detail: `${dateLabel(from.date, org.locale)} at ${timeLabel(from.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === from.staffId)!.name} → ${dateLabel(to.date, org.locale)} at ${timeLabel(to.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === to.staffId)!.name}. Booked service and deposit retained; no message sent.`,
         })
-        if (command.waitlistId) fillFromWaitlist(next, command.waitlistId, appointment, now, 'move')
+        if (command.waitlistId)
+          fillFromWaitlist(next, command.waitlistId, appointment, now, 'move', from.date)
       } else {
         const status = command.type === 'cancel' ? 'cancelled' : 'no_show'
         if (appointment.status === status) return { ok: true, state: s, recordId: appointment.id }

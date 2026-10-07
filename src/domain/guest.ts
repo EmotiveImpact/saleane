@@ -5,6 +5,7 @@ import type { BusinessState } from './model'
 import { businessDate, instantFor, operations } from './operations'
 import { addDays } from './format'
 import { WAITLIST_TIMES } from './waitlistSchema'
+import { isOpen } from './waitlist'
 import { feedbackForVisit, feedbackOpen } from './feedback'
 
 /**
@@ -224,7 +225,7 @@ export function guestView(
           waitlist: {
             joined: (() => {
               const entry = (s.waitlist ?? []).find(
-                (e) => e.status === 'waiting' && e.appointmentId === a.id,
+                (e) => isOpen(s, e, new Date(now).toISOString()) && e.appointmentId === a.id,
               )
               return entry ? { anyone: !entry.staffId, times: entry.times } : null
             })(),

@@ -379,4 +379,52 @@ describe('waitlist', () => {
       }).ok,
     ).toBe(false)
   })
+
+  it('stops counting a request once its dates have passed, keeping the record', () => {
+    const s = seed('UK')
+    const entry = s.waitlist![0]
+    entry.toDate = '2026-10-05'
+    expect(waiting(s).map((e) => e.id)).not.toContain(entry.id)
+    expect(openings(s, entry, now)).toEqual([])
+    expect(waitlistSummary(s, '2026-10-01T00:00:00.000Z').waiting).toBe(2)
+    // The client can ask again for the same service.
+    const again = apply(s, {
+      type: 'waitlist-add',
+      input: { ...wish, clientId: entry.clientId, serviceId: entry.serviceId },
+    })
+    expect(again.waitlist!.find((e) => e.id === entry.id)!.status).toBe('waiting')
+    expect(waiting(again).filter((e) => e.clientId === entry.clientId)).toHaveLength(1)
+  })
+
+  it('never moves a guest later, even after the desk moved their visit earlier', () => {
+    const { s, visit } = withLaterVisit()
+    const joined = apply(s, {
+      type: 'waitlist-join',
+      appointmentId: visit.id,
+      anyone: false,
+      times: [],
+    })
+    const entry = joined.waitlist!.at(-1)!
+    // The desk moves the visit from 16 to 9 October without using the waitlist.
+    const moved = apply(joined, {
+      type: 'reschedule',
+      appointmentId: visit.id,
+      date: '2026-10-09',
+      startMinutes: 600,
+      staffId: 'staff-maya',
+    })
+    const found = openings(moved, entry, now, 20)
+    expect(found.length).toBeGreaterThan(0)
+    expect(found.every((o) => o.date < '2026-10-09')).toBe(true)
+    expect(
+      run(moved, {
+        type: 'reschedule',
+        appointmentId: visit.id,
+        waitlistId: entry.id,
+        date: '2026-10-12',
+        startMinutes: 600,
+        staffId: 'staff-maya',
+      }).ok,
+    ).toBe(false)
+  })
 })

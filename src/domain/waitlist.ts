@@ -31,7 +31,28 @@ const LABEL: Record<WaitlistTime, string> = {
 }
 
 export const waitlistList = (s: BusinessState) => s.waitlist ?? []
-export const waiting = (s: BusinessState) => waitlistList(s).filter((e) => e.status === 'waiting')
+
+/**
+ * The last day a time could suit: the end of the window and, for a guest asking to come in sooner,
+ * the day before their visit as it stands now (the desk may have moved it since they asked).
+ */
+export function lastDay(s: BusinessState, entry: WaitlistEntry) {
+  if (!entry.appointmentId) return entry.toDate
+  const visit = s.appointments.find((a) => a.id === entry.appointmentId)
+  if (!visit || visit.status !== 'confirmed') return ''
+  const before = addDays(visit.date, -1)
+  return before < entry.toDate ? before : entry.toDate
+}
+
+/**
+ * Still waiting: not booked or taken off, and with days left that could suit. A request whose
+ * dates have passed keeps its record but no longer counts, so the client can ask again.
+ */
+export function isOpen(s: BusinessState, entry: WaitlistEntry, now = new Date().toISOString()) {
+  return entry.status === 'waiting' && lastDay(s, entry) >= businessDate(s, now)
+}
+export const waiting = (s: BusinessState, now = new Date().toISOString()) =>
+  waitlistList(s).filter((e) => isOpen(s, e, now))
 
 /** Morning is before noon, afternoon until 5pm, evening after. */
 export function timeOfDay(startMinutes: number): WaitlistTime {
@@ -99,8 +120,9 @@ function free(
  */
 export function openings(s: BusinessState, entry: WaitlistEntry, now: string, limit = 3) {
   const found: Opening[] = []
-  if (entry.status !== 'waiting') return found
+  if (!isOpen(s, entry, now)) return found
   const today = businessDate(s, now)
+  const last = lastDay(s, entry)
   const first = entry.fromDate > today ? entry.fromDate : today
   const team = s.staff.filter(
     (person) =>
@@ -111,7 +133,7 @@ export function openings(s: BusinessState, entry: WaitlistEntry, now: string, li
   // The whole window is searched (at most WAITLIST_MAX_DAYS), stopping at the first `limit` times.
   for (let day = 0; day < WAITLIST_MAX_DAYS && found.length < limit; day++) {
     const date = addDays(first, day)
-    if (date > entry.toDate) break
+    if (date > last) break
     for (let start = 0; start < 1440 && found.length < limit; start += 15) {
       if (entry.times.length && !entry.times.includes(timeOfDay(start))) continue
       const person = team.find((p) => free(s, entry, p.id, date, start, now))
@@ -124,9 +146,9 @@ export function openings(s: BusinessState, entry: WaitlistEntry, now: string, li
 /** Whether this exact time is still free for the entry's service with that professional. */
 export function openingFree(s: BusinessState, entry: WaitlistEntry, opening: Opening, now: string) {
   return (
-    entry.status === 'waiting' &&
+    isOpen(s, entry, now) &&
     opening.date >= entry.fromDate &&
-    opening.date <= entry.toDate &&
+    opening.date <= lastDay(s, entry) &&
     (!entry.staffId || entry.staffId === opening.staffId) &&
     (!entry.times.length || entry.times.includes(timeOfDay(opening.startMinutes))) &&
     !!free(s, entry, opening.staffId, opening.date, opening.startMinutes, now)
@@ -175,7 +197,7 @@ function add(
   if (
     next.waitlist.some(
       (e) =>
-        e.status === 'waiting' && e.clientId === input.clientId && e.serviceId === input.serviceId,
+        isOpen(next, e, now) && e.clientId === input.clientId && e.serviceId === input.serviceId,
     )
   )
     throw new Error(
@@ -236,14 +258,14 @@ export function waitlistUnchanged(s: BusinessState, command: WaitlistCommand, no
   if (command.type === 'waitlist-remove')
     return rows.find((e) => e.id === command.entryId && e.status === 'removed')?.id
   if (command.type === 'waitlist-leave')
-    return rows.some((e) => e.status === 'waiting' && e.appointmentId === command.appointmentId)
+    return rows.some((e) => isOpen(s, e, now) && e.appointmentId === command.appointmentId)
       ? undefined
       : command.appointmentId
   const input = command.type === 'waitlist-add' ? command.input : joinInput(s, command, now)
   if (!input) return undefined
   return rows.find(
     (e) =>
-      e.status === 'waiting' &&
+      isOpen(s, e, now) &&
       e.clientId === input.clientId &&
       e.serviceId === input.serviceId &&
       e.appointmentId === input.appointmentId &&
@@ -302,14 +324,14 @@ export function runWaitlistCommand(
     }
     // Changing their answer replaces the earlier one.
     const earlier = (next.waitlist ?? []).find(
-      (e) => e.status === 'waiting' && e.appointmentId === input.appointmentId,
+      (e) => isOpen(next, e, now) && e.appointmentId === input.appointmentId,
     )
     if (earlier) remove(earlier, 'The guest changed what times suit them.', now, addEvent)
     return add(next, input, 'guest', now, makeId, addEvent)
   }
   if (command.type === 'waitlist-leave') {
     const entry = (next.waitlist ?? []).find(
-      (e) => e.status === 'waiting' && e.appointmentId === command.appointmentId,
+      (e) => isOpen(next, e, now) && e.appointmentId === command.appointmentId,
     )
     if (!entry) throw new Error('You are not on the waitlist for this visit.')
     return remove(entry, 'The guest no longer wants an earlier time.', now, addEvent)
@@ -363,6 +385,8 @@ export function fillFromWaitlist(
   appointment: Appointment,
   now: string,
   how: 'book' | 'move',
+  /** For a move, the visit's date before it moved: a request to come in sooner never moves it later. */
+  previousDate?: string,
 ) {
   const entry = entryFor(next, waitlistId)
   if (entry.status !== 'waiting') throw new Error('This waitlist entry is no longer waiting.')
@@ -372,6 +396,8 @@ export function fillFromWaitlist(
     throw new Error('This guest already has a visit; move it rather than booking another.')
   if (how === 'move' && entry.appointmentId !== appointment.id)
     throw new Error('Only the visit this request was made for can be moved to fill it.')
+  if (how === 'move' && previousDate && appointment.date >= previousDate)
+    throw new Error('A request to come in sooner can only move the visit to an earlier day.')
   // Counted as filled only when the time is one the client asked for.
   if (
     appointment.date < entry.fromDate ||
@@ -421,13 +447,13 @@ export function waitlistProblem(s: BusinessState) {
 }
 
 /** For the waitlist page: who is waiting, and how many times it has filled since `since`. */
-export function waitlistSummary(s: BusinessState, since: string) {
+export function waitlistSummary(s: BusinessState, since: string, now = new Date().toISOString()) {
   const filled = waitlistList(s).filter((e) => e.status === 'booked' && (e.closedAt ?? '') >= since)
   const visits = filled
     .map((e) => s.appointments.find((a) => a.id === e.outcomeAppointmentId))
     .filter((a): a is Appointment => !!a && a.status !== 'cancelled' && a.status !== 'no_show')
   return {
-    waiting: waiting(s).length,
+    waiting: waiting(s, now).length,
     filled: visits.length,
     valueMinor: visits.reduce((sum, a) => sum + a.bookedPriceMinor, 0),
   }
