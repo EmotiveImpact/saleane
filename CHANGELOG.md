@@ -2,9 +2,15 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · 1.0 readiness ledger
+
+**Status: documentation only; the version stays 1.0.0-rc.1.**
+
+- [docs/V1_READINESS.md](docs/V1_READINESS.md) checks each 1.0 release gate against the evidence here: every V1 daily job works locally, and what remains needs a pilot studio, provider accounts, hosting or the owner's release approval.
+
 ## 2026-10-07 · PILOT-04 · One clear published price
 
-**Status: built and checked locally; nothing deployed and no billing connected.** The figure shown, £49 / $59 a month per studio, is the recommended price awaiting the owner's confirmation.
+**Status: merged into main on 7 October 2026 (#25); nothing deployed and no billing connected.** The figure shown, £49 / $59 a month per studio, is the recommended price awaiting the owner's confirmation.
 
 - A new public page at /pricing shows one monthly price per studio, for the United Kingdom (plus VAT) or the United States (plus any sales tax), guessed from the browser's language and switchable.
 - It lists everything included, with no feature held back for a dearer plan, and three promises: no commission on a studio's clients, no locked tiers and no fee to leave.
