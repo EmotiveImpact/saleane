@@ -47,11 +47,34 @@ describe('faster everyday flows', () => {
   it('shows the whole week and opens a day from it', async () => {
     const user = userEvent.setup()
     show('/calendar')
-    await user.click(screen.getByRole('radio', { name: 'Week view' }))
+    await user.click(screen.getByRole('radio', { name: 'Week' }))
     expect(screen.getByRole('heading', { name: /Week of Monday 5 October/ })).toBeInTheDocument()
     const tuesday = screen.getByRole('region', { name: 'Tuesday 6 October' })
     expect(within(tuesday).getByRole('button', { name: /Amelia Carter/ })).toBeInTheDocument()
     await user.click(within(tuesday).getByRole('button', { name: /Tue/ }))
+    expect(screen.getByRole('heading', { name: 'Tuesday 6 October' })).toBeInTheDocument()
+  })
+
+  it('lands on today, shows the month, and opens a day or a visit from it', async () => {
+    const user = userEvent.setup()
+    show('/calendar')
+    expect(screen.getByRole('radio', { name: 'Today' })).toBeChecked()
+    await user.click(screen.getByRole('radio', { name: 'Month' }))
+    expect(screen.getByRole('heading', { name: 'October 2026' })).toBeInTheDocument()
+    const tuesday = screen.getByRole('region', { name: 'Tuesday 6 October' })
+    await user.click(within(tuesday).getAllByRole('button', { name: /^\d{2}:\d{2} / })[0])
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    await user.click(screen.getByRole('button', { name: 'Next month' }))
+    expect(screen.getByRole('heading', { name: 'November 2026' })).toBeInTheDocument()
+    await user.click(
+      within(screen.getByRole('region', { name: 'Tuesday 10 November' })).getByRole('button', {
+        name: /^Tuesday 10 November/,
+      }),
+    )
+    expect(screen.getByRole('heading', { name: 'Tuesday 10 November' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Today' })).not.toBeChecked()
+    await user.click(screen.getByRole('radio', { name: 'Today' }))
     expect(screen.getByRole('heading', { name: 'Tuesday 6 October' })).toBeInTheDocument()
   })
 

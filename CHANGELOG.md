@@ -2,6 +2,14 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## In review · Calendar: Today, Week and Month
+
+**Status: pull request, not merged.** Look and navigation only; booking, moving and checkout are unchanged.
+
+- Calendar still lands on today. A Today, Week and Month switch at the top replaces the separate Today button and the week icon, and the arrows step a day, a week or a month to match. Today shows as chosen only while today is on screen, so it always takes you back.
+- The new month view shows every day of the month with how full it is, how many visits it holds and its first three visits. Tapping a day, or "more", opens that day's timeline; tapping a visit opens its details. On phones each day shows its number and how full it is.
+- The grid and list choice for a day now shows only on the day view, and the day's cancelled and missed visits list shows only there too.
+
 ## In review · The guest booking page, redesigned
 
 **Status: pull request, not merged.** Look and layout only; booking rules, holds, prices and deposits are unchanged.
