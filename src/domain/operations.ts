@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { BusinessState } from './model'
 import { reminderSettingsSchema } from './reminderSettings'
+import { paymentMethodSchema, processorSchema } from './paymentMethods'
 
 const id = z.string().min(1).max(150)
 const money = z.number().int().nonnegative().max(100_000_000)
@@ -70,6 +71,15 @@ export const productInputSchema = z.object({
   reorderAt: z.number().int().nonnegative().max(10000),
   archived: z.boolean(),
 })
+export const protectionSchema = z
+  .object({
+    /** Offer guests a way to save a card for their visit. */
+    saveCard: z.boolean(),
+    /** Share of the booked price the studio may charge for a no-show or a late cancellation. */
+    feePercent: z.number().int().min(0).max(100),
+  })
+  .strict()
+export type Protection = z.infer<typeof protectionSchema>
 export const taxSchema = z.object({
   label: z.string().max(40),
   rateBps: z.number().int().min(0).max(10000),
@@ -108,11 +118,14 @@ export const operationsSchema = z.object({
   refunds: z.array(
     z.object({
       id,
-      saleId: id,
+      /** A refund returns money from one receipt, or from one deposit or fee payment (PILOT-02). */
+      saleId: id.optional(),
+      paymentId: id.optional(),
       amountMinor: money.refine((v) => v > 0),
       reason: z.string().trim().min(3).max(300),
       reference: z.string().trim().min(1).max(150),
-      method: z.enum(['demo_card', 'demo_cash', 'cash', 'external_card']).optional(),
+      method: paymentMethodSchema.optional(),
+      processor: processorSchema.optional(),
       createdAt: z.iso.datetime(),
       actor: z.string(),
     }),
@@ -121,6 +134,8 @@ export const operationsSchema = z.object({
   tax: taxSchema.optional(),
   /** Appointment confirmations and reminders (PILOT-01). Absent means the defaults apply. */
   reminders: reminderSettingsSchema.optional(),
+  /** No-show protection (PILOT-02). Absent means no card is asked for and no fee applies. */
+  protection: protectionSchema.optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 export type Role = 'owner' | 'manager' | 'reception' | 'practitioner'
@@ -244,6 +259,8 @@ export function can(role: Role, action: string) {
       'message.queue',
       'import-clients',
       'reminders',
+      'fee',
+      'protection',
     ].includes(action)
   )
     return false

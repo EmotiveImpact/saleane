@@ -3,10 +3,11 @@
 import { createApiHandler } from '../server/app'
 import type { ApiHandler } from '../server/app'
 import { Buffer } from './shims/buffer'
+import { DEMO_DATE } from '../src/domain/model'
 import { exportDatabase, initSqlite } from './shims/sqlite'
 
 const ORIGIN = 'http://saleane.demo'
-const STORE = 'saleane.demo.database.v1'
+const STORE = 'saleane.demo.database.v2'
 export const DEMO_EMAIL = 'owner@atelier.demo'
 export const DEMO_PASSWORD = 'saleane-demo-2026'
 
@@ -15,6 +16,7 @@ let api: ApiHandler
 
 function saved(): Uint8Array | undefined {
   try {
+    localStorage.removeItem('saleane.demo.database.v1')
     const text = localStorage.getItem(STORE)
     return text ? Buffer.from(text, 'base64') : undefined
   } catch {
@@ -70,6 +72,44 @@ async function call(
   return result
 }
 
+/**
+ * London runs as a real studio in test mode, so card payments, deposits and messages behave as a
+ * pilot studio's would. A real studio cannot hold the sample's simulated payments, so its visits
+ * start without payment history; anything paid in the demo is then recorded in test mode.
+ * New York stays a sample studio with simulated payments.
+ */
+function makeTestModeStudio(orgId: string) {
+  const row = api.database.get<{ state: string }>(
+    'SELECT state FROM organisations WHERE id=?',
+    orgId,
+  )
+  if (!row) return
+  const state = JSON.parse(row.state) as {
+    operations: { mode: string; refunds: unknown[] }
+    sales: unknown[]
+    payments: unknown[]
+    events: { saleId?: string; type?: string }[]
+  }
+  state.operations.mode = 'local'
+  // A real studio follows the real calendar, so move the sample's 6 October day to today.
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date())
+  const shift = Date.parse(`${today}T00:00:00Z`) - Date.parse(`${DEMO_DATE}T00:00:00Z`)
+  const move = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(move)
+    if (value && typeof value === 'object')
+      return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, move(item)]))
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}(T[\d:.]+Z)?$/.test(value)) return value
+    const moved = new Date(Date.parse(value.length === 10 ? `${value}T00:00:00Z` : value) + shift)
+    return value.length === 10 ? moved.toISOString().slice(0, 10) : moved.toISOString()
+  }
+  Object.assign(state, move(state))
+  state.operations.refunds = []
+  state.sales = []
+  state.payments = []
+  state.events = state.events.filter((event) => !event.saleId)
+  api.database.run('UPDATE organisations SET state=? WHERE id=?', JSON.stringify(state), orgId)
+}
+
 async function seed() {
   const register = await call(
     'POST',
@@ -89,17 +129,20 @@ async function seed() {
     }),
   )
   if (register.statusCode !== 201) throw new Error(`Demo setup failed: ${register.body}`)
-  const csrf = register.json<{ csrf: string }>().csrf
+  const { csrf, orgId } = register.json<{ csrf: string; orgId: string }>()
+  makeTestModeStudio(orgId)
   await call(
     'POST',
     '/api/workspaces',
     JSON.stringify({
-      name: 'Atelier House New York',
-      region: 'US',
-      locationName: 'West Village',
-      address: '88 Bank Street, New York, NY',
-      timeZone: 'America/New_York',
-      sample: true,
+      workspace: {
+        name: 'Atelier House New York',
+        region: 'US',
+        locationName: 'West Village',
+        address: '88 Bank Street, New York, NY',
+        timeZone: 'America/New_York',
+        sample: true,
+      },
     }),
     { 'x-csrf-token': csrf },
   )
@@ -137,7 +180,7 @@ export async function startDemoServer(base = '') {
 
   // Open the fictional London studio from the server, as a signed-in owner would see it.
   try {
-    if (!sessionStorage.getItem('saleane.workspace')) {
+    if (fresh || !sessionStorage.getItem('saleane.workspace')) {
       const session = (await call('GET', '/api/session')).json<{
         workspaces: { id: string; region: string }[]
       }>()

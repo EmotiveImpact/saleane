@@ -42,7 +42,7 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         today,
         mode: operations(org.state).mode,
         deliveryConfigured: ctx.messaging.email.live || ctx.messaging.sms.live,
-        paymentsConfigured: false,
+        paymentsConfigured: ctx.paymentProvider.live,
       })
       return true
     }
@@ -51,6 +51,12 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         .object({ revision: z.number().int().nonnegative(), command: commandSchema })
         .strict()
         .parse(body)
+      // A card payment enters the record only when the payment provider confirms it.
+      if (
+        ('method' in data.command && data.command.method === 'card') ||
+        'processor' in data.command
+      )
+        fail(403, 'Card payments are taken through the payment screen, not recorded by hand.')
       if (data.command.type === 'organisation' && data.command.botCheck && !ctx.turnstile)
         fail(
           422,

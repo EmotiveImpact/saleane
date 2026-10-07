@@ -11,7 +11,10 @@ npm run demo:build   # writes demo/dist/saleane-demo.html
 
 What it does:
 
-- Opens signed in as the owner of two fictional sample studios, Atelier House London and New York.
+- Opens signed in as the owner of two fictional studios. London runs as a real studio in test mode
+  (card payments, deposits and messages, nothing charged or sent), moved to today's date and without
+  the sample's payment history. New York stays a sample studio with simulated payments.
+- Keeps whole-page moves, such as to the test payment page and back, inside the demo page.
 - Saves changes in that browser only. "Start the demo again" in the Demo note clears them.
 - Lets the sample studios produce test-mode confirmations and reminders (never sent), which the real
   server skips for samples, so the Inbox and client pages show them.

@@ -28,8 +28,16 @@ function inlineImages(): Plugin {
     name: 'saleane-demo-images',
     enforce: 'pre',
     transform(code, id) {
-      if (!/\/src\/.*\.(tsx?|css)$/.test(id) || !code.includes('/images/')) return null
-      return code.replace(/\/images\/([\w.-]+\.(?:jpg|png))/g, (_, name: string) => dataUri(name))
+      if (!/\/src\/.*\.(tsx?|css)$/.test(id)) return null
+      // Whole-page moves (to the test payment page and back) stay inside the single demo page.
+      const moved = code
+        .replaceAll('window.location.assign(', 'window.saleaneDemoGo(')
+        .replaceAll(
+          "window.history.replaceState(null, '', `/",
+          "window.history.replaceState(null, '', `${window.saleaneDemoBase}/",
+        )
+      if (!moved.includes('/images/')) return moved === code ? null : moved
+      return moved.replace(/\/images\/([\w.-]+\.(?:jpg|png))/g, (_, name: string) => dataUri(name))
     },
   }
 }

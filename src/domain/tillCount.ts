@@ -88,7 +88,7 @@ export function cashForDay(s: BusinessState, date: string) {
   const cashRefunded = operations(s)
     .refunds.filter(
       (r) =>
-        (r.method ? CASH.has(r.method) : cashSales.has(r.saleId)) &&
+        (r.method ? CASH.has(r.method) : cashSales.has(r.saleId ?? '')) &&
         recordDay(s, r.createdAt) === date,
     )
     .reduce((sum, r) => sum + r.amountMinor, 0)

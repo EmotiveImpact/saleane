@@ -929,3 +929,110 @@
     justify-self: start;
   }
 }
+
+/* PILOT-02: card payments at checkout, on a visit and on a client profile. */
+.card-checkout,
+.visit-card-panel,
+.card-refund {
+  display: grid;
+  gap: 12px;
+  margin: 14px 0;
+}
+.visit-card-panel {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--paper);
+}
+.visit-card-panel h4,
+.client-cards h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.visit-card-panel p,
+.client-card p {
+  margin: 0;
+}
+.visit-fee {
+  display: grid;
+  gap: 8px;
+}
+.card-test-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-panel);
+  color: var(--muted);
+}
+.card-checkout fieldset {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.card-checkout legend {
+  margin-bottom: 8px;
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+}
+.card-route {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  font-weight: 400;
+}
+.card-route input[type='radio'] {
+  width: 17px;
+  height: 17px;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  flex: none;
+  accent-color: var(--ink);
+}
+.card-attempt {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: var(--radius-panel);
+  background: var(--mineral);
+}
+.card-attempt p {
+  margin: 0;
+}
+.card-attention {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.card-attention li {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+}
+.client-cards {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+}
+.client-card {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}

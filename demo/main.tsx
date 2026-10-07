@@ -34,6 +34,20 @@ function sessionStorageSet(key: string, value: string) {
   }
 }
 
+// The app moves the whole page for card payments; inside the demo those become in-app moves too.
+;(window as unknown as { saleaneDemoBase: string }).saleaneDemoBase = basename
+;(window as unknown as { saleaneDemoGo: (url: string) => void }).saleaneDemoGo = (url) => {
+  const target = new URL(url, location.href)
+  if (target.origin !== location.origin) return location.assign(url)
+  const path =
+    !basename || target.pathname.startsWith(`${basename}/`)
+      ? target.pathname
+      : `${basename}${target.pathname}`
+  history.pushState(null, '', `${path}${target.search}${target.hash}`)
+  dispatchEvent(new PopStateEvent('popstate'))
+  scrollTo(0, 0)
+}
+
 // Plain links such as href="/account" become in-app moves, so they never leave the demo page.
 document.addEventListener('click', (event) => {
   const link = (event.target as Element | null)?.closest?.('a')

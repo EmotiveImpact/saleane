@@ -10,6 +10,7 @@ import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import { checkoutTotals, minorInput, parseMinor } from '../domain/money'
 import { Avatar, Button, ErrorMessage, Modal, Status, TimeChoices } from '../design'
 import { BookingDialog } from './BookingDialog'
+import { CardCheckout, VisitCardPanel } from './CardPayments'
 
 export function AppointmentDialog({
   appointmentId,
@@ -35,9 +36,9 @@ export function AppointmentDialog({
   const [checkout, setCheckout] = useState(false)
   const [tip, setTip] = useState('0')
   const [otherTip, setOtherTip] = useState(false)
-  const [method, setMethod] = useState<'demo_card' | 'demo_cash' | 'cash' | 'external_card'>(
-    sandbox ? 'demo_card' : 'cash',
-  )
+  const [method, setMethod] = useState<
+    'demo_card' | 'demo_cash' | 'cash' | 'external_card' | 'card'
+  >(sandbox ? 'demo_card' : 'cash')
   const [error, setError] = useState('')
   const [rebook, setRebook] = useState(false)
   const appointment = state.appointments.find((a) => a.id === appointmentId)
@@ -78,6 +79,9 @@ export function AppointmentDialog({
       </Modal>
     )
   const sale = state.sales.find((s) => s.appointmentId === appointmentId)
+  // PILOT-02: a signed-in local studio can take a card through the payment provider.
+  const cardTaking = storeMode === 'server' && !sandbox
+  const byCard = cardTaking && method === 'card'
   const deposit = depositPaid(state, appointmentId)
   const tipMinor = parseMinor(tip, 0)
   const discountMinor = parseMinor(discount, 0)
@@ -213,7 +217,9 @@ export function AppointmentDialog({
         sale
           ? sandbox
             ? 'Demo receipt saved to the client relationship.'
-            : 'Local receipt saved. No payment provider was contacted.'
+            : sale.method === 'card'
+              ? 'Receipt saved. The payment provider confirmed the card payment.'
+              : 'Local receipt saved. No payment provider was contacted.'
           : checkout
             ? 'Review the service, deposit and optional tip before recording payment.'
             : `${dateLabel(appointment.date, state.organisation.locale)} at ${timeLabel(appointment.startMinutes, state.organisation.locale)}`
@@ -245,6 +251,7 @@ export function AppointmentDialog({
                 demo_cash: 'Demo cash',
                 cash: 'Cash',
                 external_card: 'External card',
+                card: sale.processor?.live ? 'Card' : 'Test card, no money moved',
               }[sale.method]
             }
           </div>
@@ -281,7 +288,11 @@ export function AppointmentDialog({
           <p className="subtle demo-note">
             {sandbox
               ? 'This is a simulated receipt. No payment provider was contacted.'
-              : 'This receipt records funds handled outside Saleane. No payment provider was contacted.'}
+              : sale.method === 'card'
+                ? sale.processor?.live
+                  ? 'Paid by card through SALEANE. The payment provider confirmed it.'
+                  : 'Paid with a test card. Test mode: no money moved.'
+                : 'This receipt records funds handled outside Saleane. No payment provider was contacted.'}
           </p>
           <div className="rebook-callout">
             <h3>Give the next visit a place.</h3>
@@ -527,13 +538,14 @@ export function AppointmentDialog({
                 </>
               ) : (
                 <>
+                  {cardTaking && <option value="card">Card through SALEANE</option>}
                   <option value="cash">Cash received</option>
                   <option value="external_card">External card payment</option>
                 </>
               )}
             </select>
           </label>
-          {!sandbox && (
+          {!sandbox && !byCard && (
             <>
               <label>
                 Payment reference {method === 'external_card' ? '(required)' : '(optional)'}
@@ -562,7 +574,7 @@ export function AppointmentDialog({
             </div>
           )}
           <div className="receipt-line total">
-            <span>{sandbox ? 'To collect' : 'Balance to record'}</span>
+            <span>{sandbox ? 'To collect' : byCard ? 'To pay by card' : 'Balance to record'}</span>
             <strong>{money(total, state.organisation, true)}</strong>
           </div>
           <p className="subtle demo-note">
@@ -572,17 +584,29 @@ export function AppointmentDialog({
             Tips are separate from service revenue.{' '}
             {sandbox
               ? 'No real payment will be taken.'
-              : 'Only record funds already received. Card payments are not connected yet.'}
+              : byCard
+                ? 'The visit is checked out only when the card payment goes through.'
+                : 'Only record funds already received outside SALEANE.'}
           </p>
+          {byCard && (
+            <CardCheckout
+              appointmentId={appointmentId}
+              amountMinor={total}
+              tipMinor={Number.isFinite(tipMinor) ? tipMinor : 0}
+              discountMinor={Number.isFinite(discountMinor) ? discountMinor : 0}
+            />
+          )}
           <ErrorMessage error={error} />
           <div className="dialog-footer">
             <Button variant="secondary" disabled={busy} onClick={() => setCheckout(false)}>
               Back
             </Button>
-            <Button disabled={!allowed('checkout') || (!sandbox && !collected)} onClick={pay}>
-              <CreditCard size={16} />
-              {busy ? 'Recording…' : sandbox ? 'Record demo payment' : 'Record payment'}
-            </Button>
+            {!byCard && (
+              <Button disabled={!allowed('checkout') || (!sandbox && !collected)} onClick={pay}>
+                <CreditCard size={16} />
+                {busy ? 'Recording…' : sandbox ? 'Record demo payment' : 'Record payment'}
+              </Button>
+            )}
           </div>
         </>
       ) : (
@@ -644,6 +668,7 @@ export function AppointmentDialog({
               )}
             </div>
           )}
+          {cardTaking && <VisitCardPanel appointmentId={appointment.id} />}
           {storeMode === 'server' && appointment.status === 'confirmed' && (
             <GuestLinkPanel appointmentId={appointment.id} />
           )}

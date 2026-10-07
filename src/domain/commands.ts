@@ -10,7 +10,7 @@ import {
 } from './operations'
 import { bookingSchema, commandSchema, contactSchema } from './commandSchema'
 import type { Command, ContactInput } from './commandSchema'
-import { assertMethod, runOperatingCommand } from './operatingCommands'
+import { assertMethod, paymentDetail, runOperatingCommand } from './operatingCommands'
 import { channelLabel } from './bookingChannel'
 import { checkoutTotals } from './money'
 import { recordTillCount } from './tillCount'
@@ -447,7 +447,7 @@ export function execute(
           command.tipMinor > appointment.bookedPriceMinor * 2
         )
           throw new Error('Enter a valid tip up to twice the service price.')
-        assertMethod(s, command.method, command.reference)
+        assertMethod(s, command.method, command.reference, command.processor)
         if (command.reference && s.payments.some((p) => p.reference === command.reference))
           throw new Error(
             'This payment reference is already recorded. Review the existing receipt.',
@@ -489,6 +489,7 @@ export function execute(
           balanceMinor: total - deposit,
           paidAt: now,
           method: command.method,
+          ...(command.processor ? { processor: command.processor } : {}),
         }
         next.sales.push(sale)
         next.payments.push({
@@ -502,6 +503,7 @@ export function execute(
           recordedAt: now,
           method: command.method,
           reference: command.reference,
+          ...(command.processor ? { processor: command.processor } : {}),
         })
         appointment.status = 'completed'
         addEvent({
@@ -513,7 +515,7 @@ export function execute(
           detail:
             operations(s).mode === 'sandbox'
               ? 'Demo receipt recorded. No real money was collected.'
-              : `Payment recorded as ${command.method === 'cash' ? 'cash received' : 'already paid at an external terminal'}. SALEANE did not process a payment.`,
+              : paymentDetail(command.method, command.processor),
         })
         recordId = sale.id
       }

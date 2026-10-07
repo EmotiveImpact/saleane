@@ -2,6 +2,8 @@ import { z } from 'zod'
 import {
   GUEST_NOTE_LIMIT,
   bookingChannels,
+  paymentMethodSchema,
+  processorSchema,
   clientSchema,
   resourceSchema,
   serviceSchema,
@@ -10,6 +12,7 @@ import {
 import {
   closureInputSchema,
   messageInputSchema,
+  protectionSchema,
   productInputSchema,
   weeklyHoursSchema,
 } from './operations'
@@ -17,7 +20,9 @@ import { tillCountCommandSchema } from './tillCount'
 import { reminderSettingsSchema } from './reminderSettings'
 const id = z.string().min(1).max(150)
 const money = z.number().int().nonnegative().max(100_000_000)
-const method = z.enum(['demo_card', 'demo_cash', 'cash', 'external_card'])
+const method = paymentMethodSchema
+/** Set only by the server when a payment provider took the money; the API refuses it from a page. */
+const processor = processorSchema.optional()
 export const contactSchema = clientSchema
   .pick({ name: true, email: true, phone: true, marketingConsent: true })
   .extend({
@@ -96,12 +101,15 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('refund'),
-    saleId: id,
+    /** The receipt refunded; or, with `paymentId`, a deposit or fee payment (PILOT-02). */
+    saleId: id.optional(),
+    paymentId: id.optional(),
     amountMinor: money.refine((n) => n > 0),
     reason: z.string().trim().min(3).max(300),
     reference: z.string().trim().min(1).max(150),
     /** How the money went back. Older refunds lack it; the till count then follows the receipt. */
     method: method.optional(),
+    processor,
   }),
   z.object({
     type: z.literal('deposit'),
@@ -109,7 +117,18 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     amountMinor: money.refine((n) => n > 0),
     method,
     reference: z.string().trim().max(150).optional(),
+    processor,
   }),
+  // PILOT-02: a no-show or late-cancellation fee, charged by card or recorded by hand.
+  z.object({
+    type: z.literal('fee'),
+    appointmentId: id,
+    amountMinor: money.refine((n) => n > 0),
+    method,
+    reference: z.string().trim().max(150).optional(),
+    processor,
+  }),
+  z.object({ type: z.literal('protection'), settings: protectionSchema }),
   z.object({
     type: z.literal('tax'),
     label: z.string().trim().max(40),
@@ -173,6 +192,7 @@ export const commandSchema = z.discriminatedUnion('type', [
     method,
     reference: z.string().trim().max(150).optional(),
     discountMinor: money.optional(),
+    processor,
   }),
   z.object({ type: z.literal('note'), clientId: id, text: z.string().trim().min(2).max(1000) }),
   z.object({ type: z.literal('client'), contact: contactSchema, referredById: id.optional() }),

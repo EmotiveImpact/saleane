@@ -7,13 +7,27 @@ Released entries describe observed implementation. An explicitly in-progress ent
 **Status: in review; nothing deployed. The demo link is a private claude.ai page.**
 
 - `npm run demo:build` writes one HTML file that runs the real app and server code inside a browser tab, with two fictional sample studios and the owner already signed in.
-- Booking confirmations and reminders appear in test mode for the demo's sample studios, so they can be seen in the Inbox and on client pages. Nothing is sent. The real app still never sends from sample studios.
+- The London studio runs as a real studio in test mode, so a guest can pay a deposit on the test payment page and messages appear in the Inbox. It starts on today's date without the sample's payment history. New York stays a sample studio.
+- Booking confirmations and reminders appear in test mode for the demo's studios. Nothing is sent or charged. The real app still never sends from sample studios.
 - Changes stay in that browser. Passwords use a simple stand-in there, so the demo is for showing, never for real data.
 - Checked in Chromium at desktop and phone width: Today, Calendar, Clients, Inbox, Business, Settings, a full guest booking, the guest manage page and a checkout receipt. Not checked in Safari or Firefox.
 
+## 2026-10-07 · PILOT-02 · Saved cards, card payments and deposits
+
+**Status: built and checked locally in test mode; nothing deployed and nothing charged.** No payment provider has been chosen.
+
+- A guest can pay their deposit from the private link to their visit, and save a card for later visits when the studio offers it. The card is typed on the payment provider's own page; SALEANE never sees or stores the number. Guests see the studio's terms, word for word, before they save a card, and those terms are kept with the card.
+- At checkout, "Card through SALEANE" charges the client's saved card or sends the amount to a card reader. The visit is checked out only when the provider confirms the payment, and a repeated click or a dropped connection cannot charge twice.
+- Settings has a new "Payments" section: let guests save a card, and a missed visit and late cancellation fee of up to 25%, 50% or 100% of the booked price. A fee applies only to a missed visit or one cancelled less than 24 hours ahead, comes off any deposit, and is always charged by a person.
+- A visit shows the client's saved card, a deposit still owed, the fee the policy allows, and any card payment that needs a look. A client's profile shows the saved card, what they agreed to, and a way to remove it.
+- Money can refund a card receipt, a card deposit (once the visit is cancelled) or a fee back to the card, through the provider.
+- If money is taken for a visit that changed meanwhile (for example cancelled while the guest was paying), it is not forced onto the record: it is listed as "Taken, needs review" with what happened.
+- Card payments can no longer be typed in as ordinary records; they enter only from the provider.
+- Test mode is the default: a clearly labelled test payment page and a test card reader let the desk and guests rehearse every step, and no money moves. A Stripe adapter (hosted card pages, saved cards, card readers, refunds and signed webhooks) is written and tested against simulated answers, ready for when an account exists. Sample studios never take card payments.
+
 ## 2026-10-07 · PILOT-01 · Appointment messages
 
-**Status: built and checked locally in test mode; nothing deployed and nothing sent.** No email or text provider has been chosen.
+**Status: merged into main on 7 October 2026 (#22); test mode, nothing deployed and nothing sent.** No email or text provider has been chosen.
 
 - Real studios now confirm each booking, tell the guest about a new time or a cancellation, and send a reminder before the visit, by email and text. Each message carries its own private link to view, add to calendar or cancel the visit.
 - Settings has a new "Messages to guests" section: confirmations on or off, reminders on or off, when the reminder goes (2 hours, the day before or two days before), and email and text on or off. Owners and managers can change it.

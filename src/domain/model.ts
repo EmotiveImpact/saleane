@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { operationsSchema, taxSchema, weeklyHoursSchema } from './operations'
 import { tillCountProblem, tillCountSchema } from './tillCount'
+import { paymentMethodSchema, processorSchema } from './paymentMethods'
+export { paymentMethodSchema, paymentMethods, processorSchema } from './paymentMethods'
 
 export const DEMO_DATE = '2026-10-06'
 export const OPEN_MINUTES = 9 * 60
@@ -111,19 +113,22 @@ export const saleSchema = z.object({
   totalMinor: minor,
   balanceMinor: minor,
   paidAt: z.iso.datetime(),
-  method: z.enum(['demo_card', 'demo_cash', 'cash', 'external_card']),
+  method: paymentMethodSchema,
   reference: z.string().max(150).optional(),
+  processor: processorSchema.optional(),
 })
 export const paymentSchema = z.object({
   ...scoped,
   appointmentId: id,
   saleId: id.optional(),
-  kind: z.enum(['deposit', 'settlement']),
+  /** A fee is a no-show or late-cancellation charge (PILOT-02), never part of a sale. */
+  kind: z.enum(['deposit', 'settlement', 'fee']),
   amountMinor: minor,
   currency: z.enum(['GBP', 'USD']),
   recordedAt: z.iso.datetime(),
-  method: z.enum(['demo_card', 'demo_cash', 'cash', 'external_card']),
+  method: paymentMethodSchema,
   reference: z.string().max(150).optional(),
+  processor: processorSchema.optional(),
 })
 const allocationSchema = z.object({
   date: civilDate,
@@ -310,6 +315,25 @@ export function parseState(value: unknown, region: Region): BusinessState {
   }
   for (const payment of s.payments)
     if (payment.kind === 'settlement' && !payment.saleId) throw new Error('Unlinked settlement.')
+  for (const payment of s.payments)
+    if (payment.kind === 'fee') {
+      const a = appointmentById.get(payment.appointmentId)!
+      const charged = (paymentsByAppointment.get(a.id) ?? [])
+        .filter((p) => p.kind !== 'settlement')
+        .reduce((sum, p) => sum + p.amountMinor, 0)
+      if (
+        payment.saleId ||
+        !['no_show', 'cancelled'].includes(a.status) ||
+        charged > a.bookedPriceMinor
+      )
+        throw new Error('Invalid visit fee.')
+    }
+  for (const record of [...s.sales, ...s.payments])
+    if (
+      (record.method === 'card') !== !!record.processor ||
+      (record.method === 'card' && !record.reference?.trim())
+    )
+      throw new Error('A card payment must carry its provider reference.')
   const sandbox = !s.operations || s.operations.mode === 'sandbox'
   if (
     [...s.sales, ...s.payments].some(
@@ -403,7 +427,20 @@ export function parseState(value: unknown, region: Region): BusinessState {
       if (!shapeFits || !subjectFits) throw new Error('Invalid schedule history.')
     }
     for (const refund of o.refunds)
-      if (!exists(s.sales, refund.saleId)) throw new Error('Missing refunded receipt.')
+      if (
+        !!refund.saleId === !!refund.paymentId ||
+        (refund.saleId && !exists(s.sales, refund.saleId)) ||
+        (refund.paymentId && !exists(s.payments, refund.paymentId)) ||
+        (refund.method === 'card') !== !!refund.processor
+      )
+        throw new Error('Missing refunded receipt.')
+    for (const payment of s.payments)
+      if (
+        o.refunds
+          .filter((r) => r.paymentId === payment.id)
+          .reduce((sum, r) => sum + r.amountMinor, 0) > payment.amountMinor
+      )
+        throw new Error('Refunds exceed the payment.')
     for (const sale of s.sales)
       if (
         o.refunds.filter((r) => r.saleId === sale.id).reduce((sum, r) => sum + r.amountMinor, 0) >

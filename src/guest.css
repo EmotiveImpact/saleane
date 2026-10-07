@@ -99,3 +99,82 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+
+/* PILOT-02: deposit and saved card on the guest's page, and the test payment page. */
+.guest-pay {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  padding: 18px 0 20px;
+  margin-bottom: 18px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.guest-pay h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-family: var(--font-editorial);
+  font-weight: 500;
+  font-size: 22px;
+}
+.guest-pay p {
+  margin: 0;
+}
+.guest-pay small,
+.guest-pay-save small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.guest-pay-test {
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--mineral);
+  border: 1px dashed var(--line);
+}
+.guest-pay-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.guest-pay-save {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  font-weight: 400;
+  gap: 10px;
+}
+.guest-pay-save input {
+  margin-top: 4px;
+}
+.test-cards {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0 20px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.test-cards label {
+  display: flex;
+  flex-direction: row;
+  font-weight: 400;
+  align-items: center;
+  gap: 10px;
+}
+
+.test-cards input[type='radio'] {
+  width: 17px;
+  height: 17px;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  flex: none;
+  accent-color: var(--ink);
+}
+.guest-card > .guest-pay-test {
+  margin-bottom: 14px;
+}
