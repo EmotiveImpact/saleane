@@ -265,9 +265,21 @@ describe('appointment messages (PILOT-01)', () => {
 
   it('asks a guest booked for a colour to come in for a patch test, unless one is recorded first', async () => {
     const { serviceId, staffId, slug, owner } = await localStudio()
-    const service = (await workspace(owner)).state.services.find((x) => x.id === serviceId)!
-    const { id: _id, organisationId: _org, ...input } = service
-    await run(owner, { type: 'service', id: serviceId, input: { ...input, patchTest: true } })
+    await run(owner, {
+      type: 'service',
+      id: serviceId,
+      input: {
+        name: 'Restorative facial',
+        description: 'A fictional service',
+        category: 'Skin',
+        durationMinutes: 60,
+        bufferMinutes: 15,
+        priceMinor: 9500,
+        depositMinor: 0,
+        resourceType: 'treatment',
+        patchTest: true,
+      },
+    })
     const { appointmentId } = await book(slug, serviceId, staffId, '2026-10-12')
     api.outbox.plan()
     const planned = rows().filter((r) => r.kind === 'patch_test')
