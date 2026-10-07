@@ -317,8 +317,26 @@ describe('appointment messages (PILOT-01)', () => {
     expect(sent).toEqual([])
     expect(rows().find((r) => r.kind === 'feedback')).toMatchObject({
       status: 'skipped',
-      detail: 'Already answered, or turned off before it went out.',
+      detail: 'Answered, turned off or too late before it went out.',
     })
+  })
+
+  it('skips a feedback request still waiting two days after checkout', async () => {
+    const { serviceId, staffId, slug, owner } = await localStudio()
+    const { appointmentId } = await book(slug, serviceId, staffId, '2026-10-06')
+    await api.outbox.tick()
+    await api.outbox.tick()
+    clock = Date.parse('2026-10-06T10:05:00.000Z')
+    await signIn(owner)
+    await run(owner, { type: 'arrive', appointmentId })
+    await run(owner, { type: 'checkout', appointmentId, tipMinor: 0, method: 'cash' })
+    clock = Date.parse('2026-10-06T12:10:00.000Z')
+    api.outbox.plan()
+    sent = []
+    clock = Date.parse('2026-10-08T12:10:00.000Z')
+    await api.outbox.deliver()
+    expect(sent).toEqual([])
+    expect(rows().find((r) => r.kind === 'feedback')).toMatchObject({ status: 'skipped' })
   })
 
   it('retries a busy provider, stops at a refusal, and never resends an unclear one by itself', async () => {

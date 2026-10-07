@@ -394,6 +394,12 @@ export function erasureReview(
         reason: 'None was ever sent, so no delivery record depends on them.',
       },
       {
+        label: 'Private feedback (ratings and comments)',
+        count: (state.feedback ?? []).filter((f) => f.clientId === client.id).length,
+        reason:
+          'What the person told the studio privately. Not linked to money; the averages would no longer count it.',
+      },
+      {
         label: 'Client connections',
         count: state.relationships.filter(
           (r) => r.fromClientId === client.id || r.toClientId === client.id,

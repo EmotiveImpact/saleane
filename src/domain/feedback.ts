@@ -54,6 +54,20 @@ export function feedbackOpen(
   )
 }
 
+/** The stored answer when a guest sends exactly the same feedback again, so a retry changes nothing. */
+export function repeatedFeedback(
+  s: BusinessState,
+  command: { appointmentId: string } & z.infer<typeof feedbackInputSchema>,
+) {
+  const existing = feedbackForVisit(s, command.appointmentId)
+  return existing &&
+    existing.visitRating === command.visitRating &&
+    existing.practitionerRating === command.practitionerRating &&
+    existing.comment === command.comment.trim()
+    ? existing
+    : undefined
+}
+
 /** Records the guest's feedback. `next` is the working copy inside `execute`. */
 export function recordFeedback(
   next: BusinessState,
@@ -63,17 +77,10 @@ export function recordFeedback(
 ) {
   const a = next.appointments.find((item) => item.id === command.appointmentId)
   if (!a) throw new Error('This visit is not in the studio record.')
-  const existing = feedbackForVisit(next, a.id)
-  if (existing) {
-    // A repeated send of the same answer lands once; a different one cannot replace it.
-    if (
-      existing.visitRating === command.visitRating &&
-      existing.practitionerRating === command.practitionerRating &&
-      existing.comment === command.comment.trim()
-    )
-      return existing.id
+  // A repeated identical send is caught before `execute` copies the state (repeatedFeedback); a
+  // different answer cannot replace the first.
+  if (feedbackForVisit(next, a.id))
     throw new Error('Thank you, your feedback for this visit is already with the studio.')
-  }
   if (a.status !== 'completed') throw new Error('Feedback opens once the visit is complete.')
   next.feedback ??= []
   const row: Feedback = {

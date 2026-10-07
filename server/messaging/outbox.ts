@@ -3,12 +3,12 @@ import {
   MANAGE_LINK,
   channelsFor,
   planMessages,
-  reminderSettings,
+  feedbackDue,
   visitSlot,
 } from '../../src/domain/reminders'
-import { feedbackForVisit } from '../../src/domain/feedback'
 import type { MessageChannel, MessageKind, OutboxStatus } from '../../src/domain/reminders'
 import { operations } from '../../src/domain/operations'
+import { visitStart } from '../../src/domain/guest'
 import type { Context } from '../context'
 import { issueGuestLink } from '../routes/guest'
 import type { Providers, Receipt } from './providers'
@@ -134,9 +134,9 @@ export function createOutbox(ctx: Context, providers: Providers) {
         return skip('The visit changed before this went out.')
       if (
         fresh.kind === 'feedback' &&
-        (feedbackForVisit(org.state, visit.id) || reminderSettings(org.state).feedback === false)
+        !feedbackDue(org.state, visit, visitStart(org.state, visit.id), now())
       )
-        return skip('Already answered, or turned off before it went out.')
+        return skip('Answered, turned off or too late before it went out.')
       if (fresh.kind !== 'cancelled' && !channelsFor(org.state, client).includes(fresh.channel))
         return skip('Turned off for this client or studio before it went out.')
       let body = fresh.body

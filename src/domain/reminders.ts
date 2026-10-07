@@ -85,6 +85,23 @@ const REMINDER_FLOOR_MS = 45 * 60000
 /** A feedback request goes this long after checkout, so it never lands while the guest is still in. */
 const FEEDBACK_DELAY_MS = 2 * HOUR
 
+/**
+ * Whether a completed visit's feedback request may go now: switched on, not yet answered, at least
+ * two hours and at most two days after checkout, and within the private link's lifetime. Checked
+ * when planning and again just before sending, so a late or retried request never goes out.
+ */
+export function feedbackDue(s: BusinessState, a: Appointment, start: number, now: number) {
+  const paidAt = Date.parse(s.sales.find((sale) => sale.appointmentId === a.id)?.paidAt ?? '')
+  return (
+    a.status === 'completed' &&
+    reminderSettings(s).feedback !== false &&
+    now - paidAt >= FEEDBACK_DELAY_MS &&
+    now - paidAt < RECENT_MS &&
+    now < start + FEEDBACK_WINDOW_MS &&
+    !s.feedback?.some((f) => f.appointmentId === a.id)
+  )
+}
+
 /** A visit's time and place, so a moved visit is told about again. */
 export function visitSlot(a: Pick<Appointment, 'date' | 'startMinutes' | 'staffId'>) {
   return `${a.date}T${String(a.startMinutes).padStart(4, '0')}@${a.staffId}`
@@ -143,14 +160,7 @@ export function planMessages(
     const slot = visitSlot(a)
     // V1.5: once a visit is complete, one private feedback request, a little after checkout.
     if (a.status === 'completed') {
-      const paidAt = Date.parse(s.sales.find((sale) => sale.appointmentId === a.id)?.paidAt ?? '')
-      if (
-        settings.feedback === false ||
-        !(now - paidAt >= FEEDBACK_DELAY_MS && now - paidAt < RECENT_MS) ||
-        now >= start + FEEDBACK_WINDOW_MS ||
-        s.feedback?.some((f) => f.appointmentId === a.id)
-      )
-        continue
+      if (!feedbackDue(s, a, start, now)) continue
       // Email only: a text adds cost for a request the guest may ignore.
       if (!channelsFor(s, client).includes('email') || !client.email) continue
       if ((byVisit.get(a.id) ?? []).some((row) => row.kind === 'feedback')) continue

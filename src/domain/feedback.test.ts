@@ -9,7 +9,7 @@ import { feedbackSummary, ownRating, withoutFeedback } from './feedback'
 import { planMessages } from './reminders'
 import { practitionerView } from './practitioner'
 import { guestView } from './guest'
-import { clientExport } from './privacy'
+import { clientExport, erasureReview } from './privacy'
 
 // V1.5: private guest feedback after a visit.
 const now = '2026-10-06T12:00:00.000Z'
@@ -39,10 +39,8 @@ describe('guest feedback', () => {
       staffId: a.staffId,
       comment: 'Very calm, thank you',
     })
-    // The same answer again lands once; a different one cannot replace it.
-    expect(apply(next, { type: 'feedback', appointmentId: a.id, ...answer }).feedback).toHaveLength(
-      next.feedback!.length,
-    )
+    // The same answer again changes nothing, not even the revision; a different one cannot replace it.
+    expect(apply(next, { type: 'feedback', appointmentId: a.id, ...answer })).toBe(next)
     expect(run(next, { type: 'feedback', appointmentId: a.id, ...answer, visitRating: 1 }).ok).toBe(
       false,
     )
@@ -131,12 +129,17 @@ describe('who sees what', () => {
     expect(guestView(s, upcoming.id, start).feedback).toBeUndefined()
   })
 
-  it('puts the client’s own answers in their data export', () => {
+  it('puts the client’s own answers in their data export and erasure review', () => {
     const s = seed('UK')
     const row = s.feedback![0]
     expect(clientExport(s, row.clientId, {} as never).feedback).toContainEqual(
       expect.objectContaining({ visitRating: row.visitRating, comment: row.comment }),
     )
+    expect(
+      erasureReview(s, row.clientId, '2026-10-06').removable.find((item) =>
+        item.label.startsWith('Private feedback'),
+      )?.count,
+    ).toBe(s.feedback!.filter((f) => f.clientId === row.clientId).length)
   })
 })
 
