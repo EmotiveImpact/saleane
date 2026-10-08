@@ -2,6 +2,16 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-08 · V4 · AI receptionist answers texts
+
+**Status: built locally on 8 October 2026, in review; nothing deployed, no AI supplier or text line connected and no text sent.** [Evidence](docs/evidence/V4-RECEPTIONIST.md#answering-texts-stage-2).
+
+- The AI receptionist can also answer texts to the studio's text line, when the studio ticks "Also answer texts to your text line". It is off unless chosen.
+- Its answers go out through the same outbox as reminders, once, and show in the guest's Inbox conversation with what became of them. Nothing is called sent until the text provider accepts it.
+- A free time is offered as a link that opens the booking page with that time already chosen. The guest still holds and confirms it. If the time has gone, the page says so.
+- A guest who asks for a person is told the team will text back; their message is already in the Inbox. The receptionist steps back for an hour once someone from the studio has texted that guest.
+- A text conversation counts as one chat while messages are less than an hour apart.
+
 ## 2026-10-08 · V4 · AI receptionist on the booking page
 
 **Status: built locally on 8 October 2026, in review; nothing deployed, no AI supplier connected and nothing sent outside the computer.** [Evidence](docs/evidence/V4-RECEPTIONIST.md).

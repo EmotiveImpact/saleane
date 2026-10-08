@@ -7,7 +7,11 @@ import { healthWordIn } from '../domain/forms'
  * the same skills a real AI would and writes the answer from what they return. No AI supplier is
  * called, so it costs nothing and sends nothing; it lets the fictional studios try the chat.
  */
-export function receptionistBrain(today: string, locale = 'en-GB'): Brain {
+export function receptionistBrain(
+  today: string,
+  locale = 'en-GB',
+  channel: ReceptionChannel = 'web',
+): Brain {
   void locale
   return {
     name: 'test-mode',
@@ -16,12 +20,20 @@ export function receptionistBrain(today: string, locale = 'en-GB'): Brain {
       const results = toolResults(request.messages)
       const offered = new Set(request.tools.map((t) => t.name))
       const step = results.length
-        ? nextStep(talk, results, offered, today)
-        : firstStep(talk, offered, today)
+        ? nextStep(talk, results, offered, today, channel)
+        : firstStep(talk, offered, today, channel)
       return { ...step, costMinor: 0 }
     },
   }
 }
+
+/** Where the guest is talking: the booking page's chat, or a text to the studio's line. */
+export type ReceptionChannel = 'web' | 'text'
+/** Stands in a text answer for the link that books an offered time; the server fills it in. */
+export const BOOKING_LINK = '[[booking-link]]'
+/** By text the team already has the guest's message and number in the inbox. */
+const TEXT_HANDOVER =
+  'I have passed this to the team. Someone will text you back here as soon as they can.'
 
 export const RECEPTION_HELP =
   'I can tell you about our treatments and prices, our opening hours, and find you a free time to book. I can also pass a message to the team. Try "how much is a facial?" or "any times on Thursday for a haircut?"'
@@ -230,16 +242,24 @@ function intent(talk: Talk) {
   return 'other'
 }
 
-function firstStep(talk: Talk, offered: Set<string>, today: string): Step {
+function firstStep(
+  talk: Talk,
+  offered: Set<string>,
+  today: string,
+  channel: ReceptionChannel,
+): Step {
   void today
   switch (intent(talk)) {
     case 'health':
+      if (channel === 'text')
+        return say(`${HEALTH} They can see your message and will text you back.`)
       return say(
         offered.has('pass_to_team')
           ? `${HEALTH} If you would like, I can pass them a message: tell me your name and an email or phone number.`
           : HEALTH,
       )
     case 'person': {
+      if (channel === 'text') return say(TEXT_HANDOVER)
       if (!offered.has('pass_to_team'))
         return say('I cannot pass on messages here. Please call or email the studio.')
       const everything = talk.guest.join('\n')
@@ -269,7 +289,13 @@ function firstStep(talk: Talk, offered: Set<string>, today: string): Step {
   }
 }
 
-function nextStep(talk: Talk, results: Result[], offered: Set<string>, today: string): Step {
+function nextStep(
+  talk: Talk,
+  results: Result[],
+  offered: Set<string>,
+  today: string,
+  channel: ReceptionChannel,
+): Step {
   const last = results.at(-1)!
   if (!last.ok) {
     if (last.name === 'offer_time' || last.name === 'find_times')
@@ -297,6 +323,10 @@ function nextStep(talk: Talk, results: Result[], offered: Set<string>, today: st
   if (last.name === 'pass_to_team')
     return say(
       'Here is your message. Tap “Send to the team” and they will answer you. Nothing is sent until you do.',
+    )
+  if (last.name === 'offer_time' && channel === 'text')
+    return say(
+      `Here it is: ${(last.data as { summary: string }).summary}. Book it here: ${BOOKING_LINK} Nothing is booked until you confirm on that page.`,
     )
   if (last.name === 'offer_time')
     return say(
