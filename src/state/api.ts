@@ -23,6 +23,8 @@ type WorkspaceRecord = {
   slug: string
   role: WorkspaceAccess['role']
   staffId?: string | null
+  /** V5: the location a general manager runs. */
+  locationId?: string | null
   today: string
   mode: WorkspaceAccess['mode']
 }

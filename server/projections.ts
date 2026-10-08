@@ -8,10 +8,16 @@ import { withoutPayRates } from '../src/domain/pay'
 import { withoutBranchVisits } from '../src/domain/branchVisits'
 import { areaView } from '../src/domain/area'
 import { withoutRequests } from '../src/domain/approvals'
+import { branchOpen, branchView } from '../src/domain/branch'
 import type { AreaView } from '../src/domain/area'
 
 /** Who is reading: the role and linked professional come from the server membership, never the client. */
-export type Reader = { role: Role; staffId: string | null; areaId?: string | null }
+export type Reader = {
+  role: Role
+  staffId: string | null
+  areaId?: string | null
+  locationId?: string | null
+}
 
 export type WorkspaceRecord =
   | { view: 'studio'; state: BusinessState }
@@ -23,6 +29,7 @@ export type WorkspaceRecord =
  * read the whole studio. A practitioner reads only their assigned visits and the minimum client
  * details for them (see src/domain/practitioner.ts); the full record is never sent to them.
  * V5: a regional manager reads only their area's figures and branch visits (src/domain/area.ts).
+ * A general manager reads the studio record less pay rates and other locations' private records.
  * Any other role is refused, so a role added later reads nothing until it is given a view here.
  */
 export function workspaceView(
@@ -38,6 +45,12 @@ export function workspaceView(
       state: withoutRequests(withoutBranchVisits(withoutPayRates(withoutFeedback(state)))),
     }
   if (reader.role === 'owner' || reader.role === 'manager') return { view: 'studio', state }
+  // V5: a general manager runs one location (src/domain/branch.ts).
+  if (reader.role === 'general') {
+    if (!reader.locationId || !branchOpen(state, reader.locationId))
+      return fail(403, 'Your location has closed. Ask the owner to update your access.')
+    return { view: 'studio', state: branchView(state, reader.locationId) }
+  }
   if (reader.role === 'regional') {
     if (!reader.areaId) return fail(403, 'Your access is not linked to a region.')
     try {

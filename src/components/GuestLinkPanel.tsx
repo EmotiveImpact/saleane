@@ -14,7 +14,7 @@ export function GuestLinkPanel({ appointmentId }: { appointmentId: string }) {
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  if (!['owner', 'manager', 'reception'].includes(role)) return null
+  if (!['owner', 'manager', 'reception', 'general'].includes(role)) return null
   const path = `/api/workspaces/${encodeURIComponent(state.organisation.id)}/guest-links`
   async function act(revoke: boolean) {
     setBusy(true)

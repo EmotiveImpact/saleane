@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { leads } from '../domain/operations'
 import { Link } from 'react-router-dom'
 import { MessageSquareQuote, Star } from 'lucide-react'
 import { useStore } from '../state/context'
@@ -21,7 +22,7 @@ export function Feedback() {
   const { state, role } = useStore()
   const [period, setPeriod] = useState<Period>(90)
   const since = period ? feedbackSince(state, period) : undefined
-  if (role !== 'owner' && role !== 'manager')
+  if (!leads(role))
     return (
       <div className="feedback-page">
         <PageHeader variant="compact" title="Guest feedback" description="" />

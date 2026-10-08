@@ -87,7 +87,7 @@ function useRun() {
 }
 
 export function Stock() {
-  const { state, role, blocked } = useStore()
+  const { state, role, blocked, branch } = useStore()
   const org = state.organisation
   const [filter, setFilter] = useState<Filter>('all')
   const [editing, setEditing] = useState<{ id?: string; form: ProductForm } | null>(null)
@@ -97,7 +97,7 @@ export function Stock() {
   // V2: with several locations, the shelf is shown for one location or all of them together.
   const multiSite = hasLocations(state)
   const sites = places(state)
-  const [where, setWhere] = useState('all')
+  const [where, setWhere] = useState(branch ?? 'all')
   const place = multiSite && where !== 'all' ? where : undefined
   const [at, setAt] = useState(org.locationId)
   const [to, setTo] = useState('')

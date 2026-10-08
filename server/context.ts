@@ -18,6 +18,7 @@ import { availableResource } from '../src/domain/commands'
 import { staffLocationOn } from '../src/domain/locations'
 import { operations } from '../src/domain/operations'
 import { areaPlaces } from '../src/domain/area'
+import { branchOpen } from '../src/domain/branch'
 import type { Role, Tax } from '../src/domain/operations'
 
 export const emailSchema = z.email().trim().toLowerCase().max(254)
@@ -50,7 +51,7 @@ export const guestContact = z
     marketingConsent: z.boolean(),
   })
   .strict()
-export const roleSchema = z.enum(['manager', 'reception', 'practitioner', 'regional'])
+export const roleSchema = z.enum(['manager', 'reception', 'practitioner', 'regional', 'general'])
 export type Actor = { id: string; name: string; email: string; csrf: string }
 export type Org = {
   id: string
@@ -60,6 +61,8 @@ export type Org = {
   staffId: string | null
   /** V5: the region a regional manager looks after; null for every other role. */
   areaId: string | null
+  /** V5: the location a general manager runs; null for every other role. */
+  locationId: string | null
 }
 export type OrgRow = {
   id: string
@@ -68,6 +71,7 @@ export type OrgRow = {
   role: Role
   staff_id: string | null
   area_id: string | null
+  location_id: string | null
 }
 export type Invitation = {
   token_hash: string
@@ -76,6 +80,7 @@ export type Invitation = {
   role: Role
   staff_id: string | null
   area_id: string | null
+  location_id: string | null
   expires_at: number
   used_at: number | null
 }
@@ -229,7 +234,7 @@ export function createContext(options: ApiOptions) {
    */
   const orgFor = (orgId: string, actor: Actor, opts: { area?: boolean } = {}): Org => {
     const row = db.get<OrgRow>(
-      'SELECT o.id,o.slug,o.state,m.role,m.staff_id,m.area_id FROM organisations o JOIN memberships m ON m.organisation_id=o.id WHERE o.id=? AND m.account_id=?',
+      'SELECT o.id,o.slug,o.state,m.role,m.staff_id,m.area_id,m.location_id FROM organisations o JOIN memberships m ON m.organisation_id=o.id WHERE o.id=? AND m.account_id=?',
       orgId,
       actor.id,
     )
@@ -246,6 +251,7 @@ export function createContext(options: ApiOptions) {
       role: row!.role,
       staffId: row!.staff_id,
       areaId: row!.area_id,
+      locationId: row!.location_id,
       state: parseState(raw, raw.organisation.region),
     }
   }
@@ -264,6 +270,7 @@ export function createContext(options: ApiOptions) {
       role: 'owner',
       staffId: null,
       areaId: null,
+      locationId: null,
     }
   }
   const publicOrg = (slug: string): Org => {
@@ -276,7 +283,15 @@ export function createContext(options: ApiOptions) {
     const state = parseState(raw, raw.organisation.region)
     if (!operations(state).bookingEnabled)
       fail(404, 'Online booking is not available for this studio.')
-    return { id: row!.id, slug: row!.slug, state, role: 'owner', staffId: null, areaId: null }
+    return {
+      id: row!.id,
+      slug: row!.slug,
+      state,
+      role: 'owner',
+      staffId: null,
+      areaId: null,
+      locationId: null,
+    }
   }
   const audit = (
     org: Org,
@@ -324,6 +339,7 @@ export function createContext(options: ApiOptions) {
       role: 'owner' as const,
       staffId: state.staff[0]?.id ?? null,
       areaId: null,
+      locationId: null,
     }
     audit(org, accountId, 'workspace.created', org.id)
     return org
@@ -426,6 +442,12 @@ export function createContext(options: ApiOptions) {
       fail(422, 'Choose a region with at least one open location.')
     return areaId!
   }
+  /** V5: a general manager's location must be open. */
+  const linkableLocation = (org: Org, locationId: string | undefined) => {
+    if (!locationId) fail(422, 'Choose the location this person runs.')
+    if (!branchOpen(org.state, locationId!)) fail(422, 'Choose an open location.')
+    return locationId!
+  }
   const invitationFor = (raw: string, email: string) => {
     const invite = db.get<Invitation>(
       'SELECT * FROM invitations WHERE token_hash=? AND expires_at>? AND used_at IS NULL',
@@ -438,18 +460,21 @@ export function createContext(options: ApiOptions) {
   }
   const join = (invite: Invitation, accountId: string) => {
     db.run(
-      'INSERT OR IGNORE INTO memberships(organisation_id,account_id,role,staff_id,area_id) VALUES(?,?,?,?,?)',
+      'INSERT OR IGNORE INTO memberships(organisation_id,account_id,role,staff_id,area_id,location_id) VALUES(?,?,?,?,?,?)',
       invite.organisation_id,
       accountId,
       invite.role,
       invite.staff_id,
       invite.area_id,
+      invite.location_id,
     )
     db.run('UPDATE invitations SET used_at=? WHERE token_hash=?', now(), invite.token_hash)
     const actor = db.get<Actor>('SELECT id,name,email FROM accounts WHERE id=?', accountId)!
     const org = orgFor(invite.organisation_id, actor, { area: true })
     // The region may have been removed or emptied since the invitation.
     if (invite.role === 'regional') linkableArea(org, invite.area_id ?? undefined)
+    // The location may have closed since the invitation.
+    if (invite.role === 'general') linkableLocation(org, invite.location_id ?? undefined)
     // The professional may have been archived or linked to someone else since the invitation.
     if (invite.role === 'practitioner')
       linkableProfessional(org, invite.staff_id ?? undefined, accountId)
@@ -483,6 +508,7 @@ export function createContext(options: ApiOptions) {
     chooseStaff,
     linkableProfessional,
     linkableArea,
+    linkableLocation,
     invitationFor,
     join,
   }

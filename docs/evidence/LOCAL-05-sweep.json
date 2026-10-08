@@ -1,6 +1,6 @@
 {
   "environment": "Chromium 141.0.7390.37 / http://127.0.0.1:5173",
-  "recordedAt": "2026-10-08T22:40:37.193Z",
+  "recordedAt": "2026-10-08T23:17:55.510Z",
   "results": [
     {
       "mode": "demo",
@@ -1159,7 +1159,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-d132268a",
+      "route": "/book/qualify-studio-a3c1c9a6",
       "width": 1280,
       "violations": [],
       "viewport": 1280,
@@ -1401,7 +1401,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-d132268a",
+      "route": "/book/qualify-studio-a3c1c9a6",
       "width": 390,
       "violations": [],
       "viewport": 390,
@@ -1635,7 +1635,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-d132268a",
+      "route": "/book/qualify-studio-a3c1c9a6",
       "width": 320,
       "violations": [],
       "viewport": 320,
@@ -1784,9 +1784,9 @@
       "route": "/today",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
-      "h1": ["Good evening."],
+      "h1": ["Good morning."],
       "headings": [
-        "H1 Good evening.",
+        "H1 Good morning.",
         "H2 The day ahead",
         "H2 Missed calls",
         "H2 Patch tests to sort",
@@ -2387,9 +2387,9 @@
       "route": "/today",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
-      "h1": ["Good evening, Qualification."],
+      "h1": ["Good morning, Qualification."],
       "headings": [
-        "H1 Good evening, Qualification.",
+        "H1 Good morning, Qualification.",
         "H2 The day ahead",
         "H2 Missed calls",
         "H2 Patch tests to sort",
@@ -2936,7 +2936,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-d132268a",
+      "route": "/book/qualify-studio-a3c1c9a6",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
       "h1": ["Care, considered."],

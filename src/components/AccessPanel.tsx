@@ -4,6 +4,7 @@ import { api } from '../state/api'
 import { Button, ErrorMessage } from '../design'
 import { regions } from '../domain/group'
 import { areaPlaces } from '../domain/area'
+import { hasLocations, places } from '../domain/locations'
 
 type Team = {
   members: {
@@ -13,12 +14,14 @@ type Team = {
     role: string
     staffId: string | null
     areaId: string | null
+    locationId?: string | null
   }[]
   invitations: {
     email: string
     role: string
     staffId: string | null
     areaId: string | null
+    locationId?: string | null
     expiresAt: number
   }[]
 }
@@ -32,6 +35,7 @@ export function AccessPanel() {
     [inviteRole, setInviteRole] = useState('reception'),
     [inviteStaff, setInviteStaff] = useState(''),
     [inviteArea, setInviteArea] = useState(''),
+    [inviteBranch, setInviteBranch] = useState(''),
     [link, setLink] = useState(''),
     [copied, setCopied] = useState(false)
   const [password, setPassword] = useState(''),
@@ -73,6 +77,11 @@ export function AccessPanel() {
   const areas = regions(state).filter((r) => areaPlaces(state, r.id).ids.size > 0)
   const areaName = (areaId: string | null) =>
     regions(state).find((r) => r.id === areaId)?.name ?? 'a removed region'
+  // V5: a general manager runs one open location: "general:<locationId>". Offered once there are
+  // several locations.
+  const branches = hasLocations(state) ? places(state) : []
+  const branchName = (locationId: string | null | undefined) =>
+    places(state, true).find((p) => p.id === locationId)?.name ?? 'a closed location'
   async function changeMember(accountId: string, choice: string) {
     const [nextRole, linked] = choice.split(':')
     setPending(true)
@@ -85,6 +94,7 @@ export function AccessPanel() {
           role: nextRole,
           ...(linked && nextRole === 'practitioner' ? { staffId: linked } : {}),
           ...(linked && nextRole === 'regional' ? { areaId: linked } : {}),
+          ...(linked && nextRole === 'general' ? { locationId: linked } : {}),
         },
       })
       setTeam(await api<Team>(`${base}/team`))
@@ -123,7 +133,9 @@ export function AccessPanel() {
                             ? `practitioner:${m.staffId}`
                             : m.role === 'regional'
                               ? `regional:${m.areaId}`
-                              : m.role
+                              : m.role === 'general'
+                                ? `general:${m.locationId}`
+                                : m.role
                         }
                         onChange={(e) => void changeMember(m.id, e.target.value)}
                       >
@@ -148,6 +160,16 @@ export function AccessPanel() {
                         {areas.map((r) => (
                           <option key={r.id} value={`regional:${r.id}`}>
                             Regional manager · {r.name}
+                          </option>
+                        ))}
+                        {m.role === 'general' && !branches.some((p) => p.id === m.locationId) && (
+                          <option value={`general:${m.locationId}`}>
+                            General manager · {branchName(m.locationId)}
+                          </option>
+                        )}
+                        {branches.map((p) => (
+                          <option key={p.id} value={`general:${p.id}`}>
+                            General manager · {p.name}
                           </option>
                         ))}
                       </select>
@@ -178,6 +200,7 @@ export function AccessPanel() {
                     role: inviteRole,
                     ...(inviteRole === 'practitioner' ? { staffId: inviteStaff } : {}),
                     ...(inviteRole === 'regional' ? { areaId: inviteArea } : {}),
+                    ...(inviteRole === 'general' ? { locationId: inviteBranch } : {}),
                   },
                 })
                 setLink(result.url)
@@ -206,9 +229,27 @@ export function AccessPanel() {
                   <option value="reception">Reception</option>
                   <option value="manager">Manager</option>
                   <option value="practitioner">Practitioner</option>
+                  {branches.length > 0 && <option value="general">General manager</option>}
                   {areas.length > 0 && <option value="regional">Regional manager</option>}
                 </select>
               </label>
+              {inviteRole === 'general' && (
+                <label>
+                  Runs
+                  <select
+                    required
+                    value={inviteBranch}
+                    onChange={(e) => setInviteBranch(e.target.value)}
+                  >
+                    <option value="">Choose a location</option>
+                    {branches.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               {inviteRole === 'regional' && (
                 <label>
                   Looks after
@@ -249,6 +290,8 @@ export function AccessPanel() {
               clients and checkout. A practitioner sees only their own visits, with each client's
               name, preferences and notes, and can welcome their client and add notes. They see no
               contact details, prices, payments or other diaries.
+              {branches.length > 0 &&
+                ' A general manager runs one location as a manager would: its diary, takings, stock and orders, branch visits and requests. They change nothing at other locations or for the whole business, such as treatments, prices, the team, hours or settings, and do not see pay rates.'}
               {areas.length > 0 &&
                 ' A regional manager sees only their region’s locations: how each is doing, what is booked today, their branch visits, which they can record, and requests for a sign-off, which they can raise and approve up to the owner’s limit. They see no clients, diaries, prices or settings.'}
             </p>
@@ -285,6 +328,7 @@ export function AccessPanel() {
                   {i.email} · {i.role}
                   {i.role === 'practitioner' ? ` · ${professionalName(i.staffId)}` : ''}
                   {i.role === 'regional' ? ` · ${areaName(i.areaId)}` : ''}
+                  {i.role === 'general' ? ` · ${branchName(i.locationId)}` : ''}
                 </p>
               ))}
             </details>
