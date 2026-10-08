@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { receptionistSettingsSchema } from './receptionistSchema'
 import type { BusinessState } from './model'
 import { reminderSettingsSchema } from './reminderSettings'
 import { patchTestSettingsSchema } from './patchTestsSchema'
@@ -294,6 +295,8 @@ export const operationsSchema = z.object({
   patchTests: patchTestSettingsSchema.optional(),
   /** V1.5: calls the studio missed, to call back and, if switched on, to text back. */
   missedCalls: z.array(missedCallSchema).max(MISSED_CALL_LIMIT).optional(),
+  /** V4: the AI receptionist on the booking page. Absent means it is off. */
+  receptionist: receptionistSettingsSchema.optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 export type Role = 'owner' | 'manager' | 'reception' | 'practitioner'
@@ -493,6 +496,7 @@ export function can(role: Role, action: string) {
       'patch-test-settings',
       'forms',
       'consent-wording',
+      'receptionist',
     ].includes(action)
   )
     return false

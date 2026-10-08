@@ -30,9 +30,11 @@ const textNumber = (phone: string) => {
 export const unreadReplies = (s: BusinessState) => repliesList(s).filter((r) => !r.readAt)
 
 /** The one client an address or number belongs to, or undefined when none or several do. */
-export function senderClient(s: BusinessState, channel: 'email' | 'sms', from: string) {
+export function senderClient(s: BusinessState, channel: 'email' | 'sms' | 'chat', from: string) {
+  // A chat leaves an email or a number, whichever the guest gave.
+  const by = channel === 'chat' ? (from.includes('@') ? 'email' : 'sms') : channel
   const matches =
-    channel === 'sms'
+    by === 'sms'
       ? s.clients.filter((c) => textNumber(c.phone) === textNumber(from))
       : s.clients.filter((c) => c.email.trim().toLowerCase() === from.trim().toLowerCase())
   return matches.length === 1 ? matches[0] : undefined
@@ -48,7 +50,7 @@ export function snippet(text: string, max = 140) {
 export type InboxCommand =
   | {
       type: 'reply-received'
-      channel: 'email' | 'sms'
+      channel: 'email' | 'sms' | 'chat'
       from: string
       body: string
       providerRef?: string
@@ -183,7 +185,10 @@ export function runInboxCommand(
     return reply.id
   }
   // A guest's own words, as they arrived. Over-long ones are kept to the limit, never refused.
-  const from = (command.channel === 'sms' ? textNumber(command.from) : null) ?? command.from.trim()
+  const from =
+    (command.channel !== 'email' && !command.from.includes('@')
+      ? textNumber(command.from)
+      : null) ?? command.from.trim()
   const body = command.body.trim().slice(0, REPLY_TEXT_LIMIT) || '(No words, perhaps a picture.)'
   // A sender matched to a client before stays with them, even if their profile has other details.
   const earlier = list
@@ -208,7 +213,12 @@ export function runInboxCommand(
     addEvent({
       clientId: client.id,
       type: 'message',
-      title: command.channel === 'sms' ? 'Text received' : 'Email received',
+      title:
+        command.channel === 'sms'
+          ? 'Text received'
+          : command.channel === 'chat'
+            ? 'Message left with the AI receptionist'
+            : 'Email received',
       detail: snippet(body, 120),
     })
   return reply.id

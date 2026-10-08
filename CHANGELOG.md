@@ -2,6 +2,16 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-08 · V4 · AI receptionist on the booking page
+
+**Status: built locally on 8 October 2026, in review; nothing deployed, no AI supplier connected and nothing sent outside the computer.** [Evidence](docs/evidence/V4-RECEPTIONIST.md).
+
+- A studio can show an AI receptionist on its booking page (Settings › Colours & booking page, owners and managers). It is off until turned on.
+- Guests tap "Ask a question" and can ask about treatments, prices, opening hours and free times. The chat always says it is an AI, never asks about health and never shares anything about other guests.
+- It can offer a free time. Tapping "Choose this time" fills in the booking steps, and the guest holds and confirms the visit as usual. It never books, moves, cancels or takes a payment by itself.
+- When it cannot help, it can prepare a message for the team with the guest's name and an email or phone number. The message reaches the Inbox only when the guest taps "Send to the team". The studio can turn this off.
+- One chat counts once towards the studio's 200 guest chats a month. It runs in test mode with a simple stand-in, so it costs nothing and understands simple questions only.
+
 ## 2026-10-08 · V5 · Access keys for other software
 
 **Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-ACCESS.md). [Guide](docs/CONNECTIONS.md#reading-from-saleane).

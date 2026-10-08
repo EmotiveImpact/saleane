@@ -10,6 +10,7 @@ import { HOLD_LIMITS, holdInput, guestContact } from '../context'
 import type { Context, Route, HoldAllocation, HoldRow } from '../context'
 import { issueGuestLink } from './guest'
 import { bookingChannel } from '../../src/domain/bookingChannel'
+import { isOn } from '../../src/assistant/receptionist'
 
 /** Public booking routes. These never return clients, histories or money. Returns false when the request belongs to another module. */
 export async function publicRoutes(ctx: Context, route: Route): Promise<boolean> {
@@ -51,6 +52,8 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
             ? { label: tax.label, rateBps: tax.rateBps, inclusive: tax.inclusive }
             : null,
         botCheck: operations(state).botCheck && turnstile ? { siteKey: turnstile.siteKey } : null,
+        // V4: whether the AI receptionist chat shows on this page.
+        receptionist: isOn(state),
       })
       return true
     }
