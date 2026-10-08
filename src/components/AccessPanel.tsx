@@ -2,10 +2,24 @@ import { useEffect, useState } from 'react'
 import { useStore } from '../state/context'
 import { api } from '../state/api'
 import { Button, ErrorMessage } from '../design'
+import { regions } from '../domain/group'
 
 type Team = {
-  members: { id: string; name: string; email: string; role: string; staffId: string | null }[]
-  invitations: { email: string; role: string; staffId: string | null; expiresAt: number }[]
+  members: {
+    id: string
+    name: string
+    email: string
+    role: string
+    staffId: string | null
+    areaId: string | null
+  }[]
+  invitations: {
+    email: string
+    role: string
+    staffId: string | null
+    areaId: string | null
+    expiresAt: number
+  }[]
 }
 export function AccessPanel() {
   const { state, role, mode } = useStore()
@@ -16,6 +30,7 @@ export function AccessPanel() {
   const [email, setEmail] = useState(''),
     [inviteRole, setInviteRole] = useState('reception'),
     [inviteStaff, setInviteStaff] = useState(''),
+    [inviteArea, setInviteArea] = useState(''),
     [link, setLink] = useState(''),
     [copied, setCopied] = useState(false)
   const [password, setPassword] = useState(''),
@@ -52,14 +67,23 @@ export function AccessPanel() {
   const professionals = state.staff.filter((person) => !person.archived)
   const professionalName = (staffId: string | null) =>
     state.staff.find((person) => person.id === staffId)?.name ?? 'an archived professional'
+  // V5: a regional manager looks after one region: "regional:<regionId>".
+  const areas = regions(state)
+  const areaName = (areaId: string | null) =>
+    areas.find((r) => r.id === areaId)?.name ?? 'a removed region'
   async function changeMember(accountId: string, choice: string) {
-    const [nextRole, staffId] = choice.split(':')
+    const [nextRole, linked] = choice.split(':')
     setPending(true)
     setError('')
     try {
       await api(`${base}/membership`, {
         method: 'POST',
-        body: { accountId, role: nextRole, ...(staffId ? { staffId } : {}) },
+        body: {
+          accountId,
+          role: nextRole,
+          ...(linked && nextRole === 'practitioner' ? { staffId: linked } : {}),
+          ...(linked && nextRole === 'regional' ? { areaId: linked } : {}),
+        },
       })
       setTeam(await api<Team>(`${base}/team`))
     } catch (e) {
@@ -92,7 +116,13 @@ export function AccessPanel() {
                       <span className="sr-only">Role for {m.name}</span>
                       <select
                         disabled={pending}
-                        value={m.role === 'practitioner' ? `practitioner:${m.staffId}` : m.role}
+                        value={
+                          m.role === 'practitioner'
+                            ? `practitioner:${m.staffId}`
+                            : m.role === 'regional'
+                              ? `regional:${m.areaId}`
+                              : m.role
+                        }
                         onChange={(e) => void changeMember(m.id, e.target.value)}
                       >
                         <option value="manager">Manager</option>
@@ -106,6 +136,16 @@ export function AccessPanel() {
                         {professionals.map((person) => (
                           <option key={person.id} value={`practitioner:${person.id}`}>
                             Practitioner · {person.name}
+                          </option>
+                        ))}
+                        {m.role === 'regional' && !areas.some((r) => r.id === m.areaId) && (
+                          <option value={`regional:${m.areaId}`}>
+                            Regional manager · {areaName(m.areaId)}
+                          </option>
+                        )}
+                        {areas.map((r) => (
+                          <option key={r.id} value={`regional:${r.id}`}>
+                            Regional manager · {r.name}
                           </option>
                         ))}
                       </select>
@@ -135,6 +175,7 @@ export function AccessPanel() {
                     email,
                     role: inviteRole,
                     ...(inviteRole === 'practitioner' ? { staffId: inviteStaff } : {}),
+                    ...(inviteRole === 'regional' ? { areaId: inviteArea } : {}),
                   },
                 })
                 setLink(result.url)
@@ -163,8 +204,26 @@ export function AccessPanel() {
                   <option value="reception">Reception</option>
                   <option value="manager">Manager</option>
                   <option value="practitioner">Practitioner</option>
+                  {areas.length > 0 && <option value="regional">Regional manager</option>}
                 </select>
               </label>
+              {inviteRole === 'regional' && (
+                <label>
+                  Looks after
+                  <select
+                    required
+                    value={inviteArea}
+                    onChange={(e) => setInviteArea(e.target.value)}
+                  >
+                    <option value="">Choose a region</option>
+                    {areas.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               {inviteRole === 'practitioner' && (
                 <label>
                   Works as
@@ -188,6 +247,8 @@ export function AccessPanel() {
               clients and checkout. A practitioner sees only their own visits, with each client's
               name, preferences and notes, and can welcome their client and add notes. They see no
               contact details, prices, payments or other diaries.
+              {areas.length > 0 &&
+                ' A regional manager sees only their region’s locations: how each is doing, what is booked today and their branch visits, which they can record. They see no clients, diaries, prices or settings.'}
             </p>
             <Button type="submit" disabled={pending}>
               Create invitation link
@@ -221,6 +282,7 @@ export function AccessPanel() {
                 <p key={i.email}>
                   {i.email} · {i.role}
                   {i.role === 'practitioner' ? ` · ${professionalName(i.staffId)}` : ''}
+                  {i.role === 'regional' ? ` · ${areaName(i.areaId)}` : ''}
                 </p>
               ))}
             </details>

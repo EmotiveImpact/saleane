@@ -8,6 +8,7 @@ import type { Role } from '../../src/domain/operations'
 import { emailSchema, roleSchema } from '../context'
 import type { Context, Route } from '../context'
 import { practitionerRefusal } from '../../src/domain/practitioner'
+import { areaRefusal } from '../../src/domain/area'
 import { openingFree, staleOffer } from '../../src/domain/waitlist'
 import { giftCardHoldProblem } from '../payments/service'
 import { workspaceView } from '../projections'
@@ -27,13 +28,15 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
     withHolds,
     chooseStaff,
     linkableProfessional,
+    linkableArea,
   } = ctx
   const { request, method, path, body, reply } = route
   if (path[1] === 'workspaces' && path[2]) {
     const actor = actorFor(request, method !== 'GET')
     const orgId = path[2]
     if (path.length === 3 && method === 'GET') {
-      const org = orgFor(orgId, actor)
+      // A regional manager reads here too, through their area's view only.
+      const org = orgFor(orgId, actor, { area: true })
       const today = businessDate(org.state, new Date(now()).toISOString())
       reply(200, {
         id: org.id,
@@ -70,11 +73,17 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
       const fingerprint = digest(canonical(data.command))
       let reader!: Reader
       const result = db.transaction(() => {
-        const org = orgFor(orgId, actor)
+        const org = orgFor(orgId, actor, { area: true })
         reader = org
         const parts = data.command.type === 'batch' ? data.command.commands : [data.command]
         if (parts.some((part) => !can(org.role, permissionFor(part))))
           fail(403, 'Your role cannot make this change.')
+        if (org.role === 'regional') {
+          const refusal = org.areaId
+            ? areaRefusal(org.state, org.areaId, data.command)
+            : 'Your access is not linked to a region.'
+          if (refusal) fail(403, refusal)
+        }
         if (org.role === 'practitioner') {
           const refusal = practitionerRefusal(
             org.state,
@@ -186,11 +195,11 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
       if (org.role !== 'owner') fail(403, 'Only the owner can manage access.')
       reply(200, {
         members: db.all(
-          'SELECT a.id,a.name,a.email,m.role,m.staff_id AS staffId FROM memberships m JOIN accounts a ON a.id=m.account_id WHERE m.organisation_id=? ORDER BY a.name',
+          'SELECT a.id,a.name,a.email,m.role,m.staff_id AS staffId,m.area_id AS areaId FROM memberships m JOIN accounts a ON a.id=m.account_id WHERE m.organisation_id=? ORDER BY a.name',
           org.id,
         ),
         invitations: db.all(
-          'SELECT email,role,staff_id AS staffId,expires_at AS expiresAt FROM invitations WHERE organisation_id=? AND used_at IS NULL AND expires_at>?',
+          'SELECT email,role,staff_id AS staffId,area_id AS areaId,expires_at AS expiresAt FROM invitations WHERE organisation_id=? AND used_at IS NULL AND expires_at>?',
           org.id,
           now(),
         ),
@@ -204,6 +213,7 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
           email: emailSchema,
           role: roleSchema,
           staffId: z.string().min(1).max(100).optional(),
+          areaId: z.string().min(1).max(150).optional(),
         })
         .strict()
         .parse(body)
@@ -220,6 +230,7 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         if (member) fail(409, 'This person already belongs to the workspace.')
         const staffId =
           data.role === 'practitioner' ? linkableProfessional(org, data.staffId) : null
+        const areaId = data.role === 'regional' ? linkableArea(org, data.areaId) : null
         db.run(
           'UPDATE invitations SET used_at=? WHERE organisation_id=? AND email=? AND used_at IS NULL',
           now(),
@@ -227,12 +238,13 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
           data.email,
         )
         db.run(
-          'INSERT INTO invitations(token_hash,organisation_id,email,role,staff_id,created_at,expires_at) VALUES(?,?,?,?,?,?,?)',
+          'INSERT INTO invitations(token_hash,organisation_id,email,role,staff_id,area_id,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?)',
           digest(raw),
           org.id,
           data.email,
           data.role,
           staffId,
+          areaId,
           now(),
           expiresAt,
         )
@@ -250,8 +262,9 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
       const data = z
         .object({
           accountId: z.string().min(1).max(100),
-          role: z.enum(['manager', 'reception', 'practitioner', 'remove']),
+          role: z.enum(['manager', 'reception', 'practitioner', 'regional', 'remove']),
           staffId: z.string().min(1).max(100).optional(),
+          areaId: z.string().min(1).max(150).optional(),
         })
         .strict()
         .parse(body)
@@ -272,11 +285,12 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
           )
         else
           db.run(
-            'UPDATE memberships SET role=?,staff_id=? WHERE organisation_id=? AND account_id=?',
+            'UPDATE memberships SET role=?,staff_id=?,area_id=? WHERE organisation_id=? AND account_id=?',
             data.role,
             data.role === 'practitioner'
               ? linkableProfessional(org, data.staffId, data.accountId)
               : null,
+            data.role === 'regional' ? linkableArea(org, data.areaId) : null,
             org.id,
             data.accountId,
           )

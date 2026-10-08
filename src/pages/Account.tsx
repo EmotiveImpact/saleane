@@ -42,10 +42,18 @@ export function Account() {
     // Session lookup is intentionally once per account-page visit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  /** Practitioners open their own day; every other role opens the studio workspace. */
+  /**
+   * Practitioners open their own day and regional managers their area; every other role opens
+   * the studio workspace.
+   */
   async function open(id: string, current: Session | null) {
-    if (current?.workspaces.find((w) => w.id === id)?.role === 'practitioner') {
+    const role = current?.workspaces.find((w) => w.id === id)?.role
+    if (role === 'practitioner') {
       navigate(`/practice/${encodeURIComponent(id)}`)
+      return
+    }
+    if (role === 'regional') {
+      navigate(`/area/${encodeURIComponent(id)}`)
       return
     }
     await store.openWorkspace(id)

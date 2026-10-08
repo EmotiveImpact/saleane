@@ -16,7 +16,7 @@ import {
   visitScore,
 } from '../domain/branchVisits'
 import { addDays } from '../domain/format'
-import type { Answer, BranchVisit } from '../domain/branchVisitSchema'
+import type { Answer, BranchVisit, Checklist } from '../domain/branchVisitSchema'
 import type { Command } from '../domain/commands'
 import '../components/management.css'
 import '../components/plans.css'
@@ -53,11 +53,6 @@ export function BranchVisits() {
   const [error, setError] = useState('')
   const [pending, setPending] = useState('')
   const open = toPutRight(state)
-  const [shown, setShown] = useState(HISTORY_PAGE)
-  const everyVisit = [...branchVisits(state)].sort(
-    (a, b) => b.date.localeCompare(a.date) || b.recordedAt.localeCompare(a.recordedAt),
-  )
-  const history = everyVisit.slice(0, shown)
   const names = new Map(places(state, true).map((p) => [p.id, p.name]))
   const inUse = checklists(state).filter((c) => !c.archived)
   const day = (date: string) => dateLabel(date, org.locale)
@@ -126,32 +121,13 @@ export function BranchVisits() {
             <p>Lines answered no on a visit, until someone marks them done.</p>
           </div>
         </header>
-        {open.length ? (
-          <ul className="visits-list">
-            {open.map(({ visit, line, place }) => (
-              <li key={`${visit.id}:${line.itemId}`}>
-                <div>
-                  <strong>{line.text}</strong>
-                  <span className="visits-meta">
-                    {place} · {day(visit.date)}
-                  </span>
-                  {line.note && <p>{line.note}</p>}
-                </div>
-                {allowed && (
-                  <Button
-                    variant="secondary"
-                    disabled={!!pending}
-                    onClick={() => void fix(visit.id, line.itemId, line.text)}
-                  >
-                    Put right
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="ops-help">Nothing waiting. Every line answered no has been put right.</p>
-        )}
+        <PutRightList
+          items={open.map(({ visit, line, place }) => ({ visit, line, place }))}
+          day={day}
+          canFix={allowed}
+          pending={!!pending}
+          onFix={(visit, line) => void fix(visit.id, line.itemId, line.text)}
+        />
       </section>
 
       <section className="surface ops-panel" aria-labelledby="places-heading">
@@ -184,59 +160,15 @@ export function BranchVisits() {
             <p>Each kept exactly as it was answered on the day.</p>
           </div>
         </header>
-        {history.length ? (
-          <div className="visits-history">
-            {history.map((visit) => (
-              <details key={visit.id}>
-                <summary>
-                  <strong>
-                    {names.get(visit.locationId) ?? 'A closed location'} · {day(visit.date)}
-                  </strong>
-                  <span className="visits-meta">
-                    {visit.checklistName}: {scoreLine(visit)}
-                  </span>
-                </summary>
-                <ul className="visits-answers">
-                  {visit.answers.map((a) => (
-                    <li key={a.itemId}>
-                      <span className={`visits-answer visits-answer-${a.answer}`}>
-                        {ANSWER_LABEL[a.answer]}
-                      </span>
-                      <div>
-                        {a.text}
-                        {a.note && <small>{a.note}</small>}
-                        {a.fixed && (
-                          <small>
-                            Put right {day(a.fixed.on)}
-                            {a.fixed.actor ? ` by ${a.fixed.actor}` : ''}
-                          </small>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-                {visit.note && <p className="visits-note">{visit.note}</p>}
-                {visit.actor && <p className="ops-help">Recorded by {visit.actor}.</p>}
-              </details>
-            ))}
-            {everyVisit.length > shown && (
-              <div className="ops-actions">
-                <Button variant="secondary" onClick={() => setShown((n) => n + HISTORY_PAGE)}>
-                  Show {Math.min(HISTORY_PAGE, everyVisit.length - shown)} more
-                </Button>
-                <span className="ops-help">
-                  Showing {shown} of {everyVisit.length} visits
-                </span>
-              </div>
-            )}
-          </div>
-        ) : (
-          <p className="ops-help">No visits recorded yet.</p>
-        )}
+        <VisitHistory visits={branchVisits(state)} names={names} day={day} />
       </section>
 
       {form === 'visit' && (
         <VisitForm
+          sites={places(state)}
+          lists={inUse}
+          today={businessDate(state)}
+          commit={commit}
           onClose={() => setForm(null)}
           onSaved={(message) => {
             setNotice(message)
@@ -246,6 +178,7 @@ export function BranchVisits() {
       )}
       {form === 'lists' && (
         <ChecklistEditor
+          commit={commit}
           onClose={() => setForm(null)}
           onSaved={(message) => {
             setNotice(message)
@@ -257,8 +190,113 @@ export function BranchVisits() {
   )
 }
 
-function useSave(onSaved: (message: string) => void) {
-  const { commit } = useStore()
+type OpenLine = { visit: BranchVisit; line: BranchVisit['answers'][number]; place: string }
+
+/** Lines answered no and not yet put right, with a button for those allowed to mark them. */
+export function PutRightList({
+  items,
+  day,
+  canFix,
+  pending,
+  onFix,
+}: {
+  items: OpenLine[]
+  day: (date: string) => string
+  canFix: boolean
+  pending: boolean
+  onFix: (visit: BranchVisit, line: OpenLine['line']) => void
+}) {
+  if (!items.length)
+    return <p className="ops-help">Nothing waiting. Every line answered no has been put right.</p>
+  return (
+    <ul className="visits-list">
+      {items.map(({ visit, line, place }) => (
+        <li key={`${visit.id}:${line.itemId}`}>
+          <div>
+            <strong>{line.text}</strong>
+            <span className="visits-meta">
+              {place} · {day(visit.date)}
+            </span>
+            {line.note && <p>{line.note}</p>}
+          </div>
+          {canFix && (
+            <Button variant="secondary" disabled={pending} onClick={() => onFix(visit, line)}>
+              Put right
+            </Button>
+          )}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/** Past visits, newest first, thirty at a time, each exactly as it was answered. */
+export function VisitHistory({
+  visits,
+  names,
+  day,
+}: {
+  visits: BranchVisit[]
+  names: Map<string, string>
+  day: (date: string) => string
+}) {
+  const [shown, setShown] = useState(HISTORY_PAGE)
+  const everyVisit = [...visits].sort(
+    (a, b) => b.date.localeCompare(a.date) || b.recordedAt.localeCompare(a.recordedAt),
+  )
+  if (!everyVisit.length) return <p className="ops-help">No visits recorded yet.</p>
+  return (
+    <div className="visits-history">
+      {everyVisit.slice(0, shown).map((visit) => (
+        <details key={visit.id}>
+          <summary>
+            <strong>
+              {names.get(visit.locationId) ?? 'A closed location'} · {day(visit.date)}
+            </strong>
+            <span className="visits-meta">
+              {visit.checklistName}: {scoreLine(visit)}
+            </span>
+          </summary>
+          <ul className="visits-answers">
+            {visit.answers.map((a) => (
+              <li key={a.itemId}>
+                <span className={`visits-answer visits-answer-${a.answer}`}>
+                  {ANSWER_LABEL[a.answer]}
+                </span>
+                <div>
+                  {a.text}
+                  {a.note && <small>{a.note}</small>}
+                  {a.fixed && (
+                    <small>
+                      Put right {day(a.fixed.on)}
+                      {a.fixed.actor ? ` by ${a.fixed.actor}` : ''}
+                    </small>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+          {visit.note && <p className="visits-note">{visit.note}</p>}
+          {visit.actor && <p className="ops-help">Recorded by {visit.actor}.</p>}
+        </details>
+      ))}
+      {everyVisit.length > shown && (
+        <div className="ops-actions">
+          <Button variant="secondary" onClick={() => setShown((n) => n + HISTORY_PAGE)}>
+            Show {Math.min(HISTORY_PAGE, everyVisit.length - shown)} more
+          </Button>
+          <span className="ops-help">
+            Showing {shown} of {everyVisit.length} visits
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+type Commit = (command: Command) => Promise<{ ok: true } | { ok: false; error: string }>
+
+function useSave(commit: Commit, onSaved: (message: string) => void) {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
   async function run(command: Command, message: string) {
@@ -277,24 +315,29 @@ function useSave(onSaved: (message: string) => void) {
   return { pending, error, setError, run }
 }
 
-function VisitForm({
+/** Recording one visit. The studio page and a regional manager's area page both use it. */
+export function VisitForm({
+  sites,
+  lists,
+  today,
+  commit,
   onClose,
   onSaved,
 }: {
+  sites: { id: string; name: string }[]
+  lists: Checklist[]
+  today: string
+  commit: Commit
   onClose: () => void
   onSaved: (message: string) => void
 }) {
-  const { state } = useStore()
-  const today = businessDate(state)
-  const sites = places(state)
-  const lists = checklists(state).filter((c) => !c.archived)
   const [locationId, setLocationId] = useState(sites[0]?.id ?? '')
   const [checklistId, setChecklistId] = useState(lists[0]?.id ?? '')
   const [date, setDate] = useState(today)
   const [answers, setAnswers] = useState<Record<string, Answer>>({})
   const [notes, setNotes] = useState<Record<string, string>>({})
   const [note, setNote] = useState('')
-  const { pending, error, run } = useSave(onSaved)
+  const { pending, error, run } = useSave(commit, onSaved)
   const list = lists.find((c) => c.id === checklistId)
   const answered = list ? list.items.filter((i) => answers[i.id]).length : 0
   const place = sites.find((p) => p.id === locationId)
@@ -444,9 +487,11 @@ function VisitForm({
 }
 
 function ChecklistEditor({
+  commit,
   onClose,
   onSaved,
 }: {
+  commit: Commit
   onClose: () => void
   onSaved: (message: string) => void
 }) {
@@ -464,7 +509,7 @@ function ChecklistEditor({
   }
   const [name, setName] = useState(() => draft(checklistId).name)
   const [lines, setLines] = useState(() => draft(checklistId).lines)
-  const { pending, error, setError, run } = useSave(onSaved)
+  const { pending, error, setError, run } = useSave(commit, onSaved)
 
   function pick(id: string) {
     setChecklistId(id)

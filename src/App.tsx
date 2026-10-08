@@ -59,6 +59,7 @@ const DesignLanguage = lazy(() =>
 )
 import { AccessPanel } from './components/AccessPanel'
 import { PractitionerDay } from './pages/PractitionerDay'
+import { AreaHome } from './pages/AreaHome'
 import { ManageVisit } from './pages/ManageVisit'
 import { TestPayment } from './pages/TestPayment'
 import { Pricing } from './pages/Pricing'
@@ -114,6 +115,12 @@ function WorkspaceApp() {
   if (location.pathname === '/manage') return <ManageVisit />
   if (location.pathname === '/pay/test') return <TestPayment />
   if (location.pathname === '/pricing') return <Pricing />
+  if (location.pathname.startsWith('/area/'))
+    return (
+      <Routes>
+        <Route path="/area/:orgId" element={<AreaHome />} />
+      </Routes>
+    )
   if (location.pathname.startsWith('/practice/'))
     return (
       <Routes>

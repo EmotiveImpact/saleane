@@ -393,6 +393,33 @@ export const migrations: Migration[] = [
       `,
       ),
   },
+  {
+    version: 20,
+    // V5: a regional manager looks after one region's locations. SQLite cannot widen the role
+    // check in place, so both tables are rebuilt with the same columns, keys and rows, plus the
+    // region (area_id) a regional manager's access covers.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE memberships_next (
+          organisation_id TEXT NOT NULL REFERENCES organisations(id), account_id TEXT NOT NULL REFERENCES accounts(id),
+          role TEXT NOT NULL CHECK(role IN ('owner','manager','reception','practitioner','regional')), staff_id TEXT,
+          area_id TEXT, CHECK((role='regional')=(area_id IS NOT NULL)),
+          PRIMARY KEY(organisation_id,account_id)
+        ) STRICT;
+        INSERT INTO memberships_next(organisation_id,account_id,role,staff_id) SELECT organisation_id,account_id,role,staff_id FROM memberships;
+        DROP TABLE memberships;
+        ALTER TABLE memberships_next RENAME TO memberships;
+        CREATE TABLE invitations_next (
+          token_hash TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id), email TEXT NOT NULL,
+          role TEXT NOT NULL CHECK(role IN ('manager','reception','practitioner','regional')), staff_id TEXT,
+          created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, used_at INTEGER,
+          area_id TEXT, CHECK((role='regional')=(area_id IS NOT NULL))
+        ) STRICT;
+        INSERT INTO invitations_next(token_hash,organisation_id,email,role,staff_id,created_at,expires_at,used_at) SELECT token_hash,organisation_id,email,role,staff_id,created_at,expires_at,used_at FROM invitations;
+        DROP TABLE invitations;
+        ALTER TABLE invitations_next RENAME TO invitations;
+      `),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the
