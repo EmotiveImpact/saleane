@@ -2,6 +2,14 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-08 · V5 · Access keys for other software
+
+**Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-ACCESS.md). [Guide](docs/CONNECTIONS.md#reading-from-saleane).
+
+- Settings › Connected software has a new Access keys panel for the owner. A key lets other software (an accountant's tool, the studio's own reports) read visits, clients or treatments and the team, whichever the owner ticks.
+- A key can never change anything. It is shown once, kept only as a hash, shows when it was last used, and stops working the moment it is revoked.
+- Sample studios cannot make keys.
+
 ## 2026-10-08 · V5 · Connected software
 
 **Status: built locally on 8 October 2026, in review; nothing deployed and nothing sent outside the computer.** [Evidence](docs/evidence/V5-CONNECTIONS.md). [Guide for the receiving end](docs/CONNECTIONS.md).

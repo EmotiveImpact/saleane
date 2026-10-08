@@ -21,6 +21,7 @@ import { createPayments } from './payments/service'
 import type { Payments } from './payments/service'
 import { connectionTransportFromEnv, createConnections } from './connections'
 import type { Connections } from './connections'
+import { partnerApi } from './partnerApi'
 
 export type { ApiOptions } from './context'
 export type { InjectOptions, InjectResponse } from './http'
@@ -56,7 +57,10 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     ctx,
     options.connectionTransport ?? connectionTransportFromEnv(),
   )
+  const partners = partnerApi()
   const routes = [
+    partners.read,
+    partners.manage,
     connections.routes,
     messagingRoutes(outbox),
     paymentRoutes(payments),
@@ -177,6 +181,8 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
             return fail(400, 'This address is not valid.')
           }
         })
+      // V5: the partner API reads only, and proves itself with a key rather than a session.
+      if (path[1] === 'v1' && method !== 'GET') fail(405, 'This API only reads. Use GET.')
       let body: unknown
       if (!['GET', 'HEAD'].includes(method)) {
         if (

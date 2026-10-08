@@ -42,6 +42,7 @@ import { FormSettings } from '../components/GuestForms'
 import { EmailNewsWording } from '../components/EmailConsent'
 import { SavedReplies } from '../components/SavedReplies'
 import { Connections } from '../components/Connections'
+import { AccessKeys } from '../components/AccessKeys'
 import '../components/management.css'
 
 const sections = [
@@ -288,7 +289,12 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
             {section === 'payments' && <PaymentSettings />}
             {section === 'workspace' && <WorkspaceSection onReset={() => setReplaced(true)} />}
             {section === 'privacy' && <StudioPrivacy />}
-            {section === 'connections' && <Connections />}
+            {section === 'connections' && (
+              <>
+                <Connections />
+                <AccessKeys />
+              </>
+            )}
             {section === 'switching' && <SwitchingSettings />}
             {section === 'plans' && <PlanSettings />}
             {section === 'forms' && <FormSettings />}
