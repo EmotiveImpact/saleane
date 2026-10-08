@@ -423,7 +423,7 @@ export function permissionFor(command: { type: string; approve?: boolean }) {
     )
   )
     return 'hours'
-  if (command.type === 'message-queue') return 'message.queue'
+  if (command.type === 'message-queue' || command.type === 'social-answer') return 'message.queue'
   if (command.type === 'special-plan' || command.type === 'special-stop') return 'special'
   if (command.type === 'task-add' || command.type === 'task-done') return 'task'
   if (command.type === 'missed-call-done') return 'missed-call'

@@ -747,6 +747,7 @@ export function execute(
       command.type === 'reply-note' ||
       command.type === 'replies-read' ||
       command.type === 'reply-link' ||
+      command.type === 'social-answer' ||
       command.type === 'saved-reply-save' ||
       command.type === 'saved-reply-remove'
     ) {

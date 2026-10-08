@@ -1,6 +1,6 @@
 {
   "environment": "Chromium 141.0.7390.37 / http://127.0.0.1:5173",
-  "recordedAt": "2026-10-08T01:58:03.808Z",
+  "recordedAt": "2026-10-08T02:41:27.473Z",
   "results": [
     {
       "mode": "demo",
@@ -1071,7 +1071,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-1fc21e97",
+      "route": "/book/qualify-studio-31da1fd3",
       "width": 1280,
       "violations": [],
       "viewport": 1280,
@@ -1295,7 +1295,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-1fc21e97",
+      "route": "/book/qualify-studio-31da1fd3",
       "width": 390,
       "violations": [],
       "viewport": 390,
@@ -1511,7 +1511,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-1fc21e97",
+      "route": "/book/qualify-studio-31da1fd3",
       "width": 320,
       "violations": [],
       "viewport": 320,
@@ -2734,7 +2734,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-1fc21e97",
+      "route": "/book/qualify-studio-31da1fd3",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
       "h1": ["Care, considered."],

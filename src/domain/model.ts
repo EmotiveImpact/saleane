@@ -14,7 +14,7 @@ import { consentRecordSchema, consentWordingSchema } from './consentSchema'
 import { consentProblem } from './consent'
 import { consultationSchema, visitConsultationSchema } from './consultationsSchema'
 import { consultationsProblem } from './consultations'
-import { replySchema, savedReplySchema } from './inboxSchema'
+import { replySchema, savedReplySchema, socialAnswerSchema } from './inboxSchema'
 import { inboxProblem } from './inbox'
 import { feedbackProblem, feedbackSchema } from './feedback'
 import { specialSchema, specialsProblem } from './specialsSchema'
@@ -295,6 +295,8 @@ export const stateSchema = z.object({
   /** V1.5: what guests wrote back, and the studio's saved replies to start a message from. */
   replies: z.array(replySchema).optional(),
   savedReplies: z.array(savedReplySchema).optional(),
+  /** V4: the team's answers on Instagram, Facebook and WhatsApp. */
+  socialAnswers: z.array(socialAnswerSchema).optional(),
 })
 export type BusinessState = z.infer<typeof stateSchema>
 export type Client = z.infer<typeof clientSchema>

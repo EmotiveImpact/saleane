@@ -358,18 +358,53 @@ export const migrations: Migration[] = [
         CREATE INDEX google_bookings_user ON google_bookings(user_id);
       `),
   },
+  {
+    version: 19,
+    // V4: the team's answers on Instagram, Facebook and WhatsApp go through the outbox, and each
+    // studio's accounts on those apps, so a message that comes in reaches the right studio.
+    up: (connection) =>
+      connection.exec(
+        outboxWithKinds(
+          [
+            'confirmation',
+            'changed',
+            'reminder',
+            'cancelled',
+            'feedback',
+            'patch_test',
+            'aftercare',
+            'due_back',
+            'birthday',
+            'miss_you',
+            'missed_call',
+            'message',
+            'receptionist',
+            'social',
+          ],
+          ['email', 'sms', 'instagram', 'facebook', 'whatsapp'],
+        ) +
+          `
+        CREATE TABLE social_accounts (
+          channel TEXT NOT NULL CHECK(channel IN ('instagram','facebook','whatsapp')),
+          account_id TEXT NOT NULL, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          connected_at INTEGER NOT NULL,
+          PRIMARY KEY(channel,account_id), UNIQUE(organisation_id,channel)
+        ) STRICT;
+      `,
+      ),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the
  * outbox with the same columns, keys and indexes, keeping every row.
  */
-function outboxWithKinds(kinds: string[]) {
+function outboxWithKinds(kinds: string[], channels = ['email', 'sms']) {
   return `
     CREATE TABLE outbox_next (
       id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
       dedupe_key TEXT NOT NULL, appointment_id TEXT NOT NULL, client_id TEXT NOT NULL,
       kind TEXT NOT NULL CHECK(kind IN (${kinds.map((kind) => `'${kind}'`).join(',')})),
-      channel TEXT NOT NULL CHECK(channel IN ('email','sms')), slot TEXT NOT NULL,
+      channel TEXT NOT NULL CHECK(channel IN (${channels.map((c) => `'${c}'`).join(',')})), slot TEXT NOT NULL,
       recipient TEXT NOT NULL, subject TEXT NOT NULL, body TEXT NOT NULL,
       status TEXT NOT NULL CHECK(status IN ('pending','test','accepted','delivered','failed','unknown','skipped')),
       provider TEXT, provider_ref TEXT, detail TEXT, attempts INTEGER NOT NULL DEFAULT 0,
