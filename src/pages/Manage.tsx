@@ -45,6 +45,7 @@ import { Connections } from '../components/Connections'
 import { AccessKeys } from '../components/AccessKeys'
 import { ReceptionistSettings } from '../components/ReceptionistSettings'
 import { GoogleBooking } from '../components/GoogleBooking'
+import { SocialAccounts } from '../components/SocialAccounts'
 import '../components/management.css'
 
 const sections = [
@@ -510,6 +511,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
               <>
                 <ShareBookingPage />
                 <GoogleBooking />
+                <SocialAccounts />
                 <GuestNotesSettings />
               </>
             )}

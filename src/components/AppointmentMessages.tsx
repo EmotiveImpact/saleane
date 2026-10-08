@@ -16,6 +16,7 @@ import type { ReminderSettings } from '../domain/reminders'
 import { Button, ErrorMessage } from '../design'
 import type { Client } from '../domain/model'
 import { kindLabel, useSentMessages } from './sentMessages'
+import { isSocialChannel, socialLabel } from '../domain/inboxSchema'
 
 const providerLabel: Record<string, string> = {
   test: 'test mode',
@@ -303,8 +304,12 @@ export function SentMessages({ clientId }: { clientId?: string }) {
                         {!clientId && client ? ` · ${client.name}` : ''}
                       </strong>
                       <small>
-                        {message.channel === 'email' ? 'Email' : 'Text'} to {message.recipient} ·{' '}
-                        {when(message.createdAt)}
+                        {message.channel === 'email'
+                          ? 'Email'
+                          : isSocialChannel(message.channel)
+                            ? `${socialLabel[message.channel]} message`
+                            : 'Text'}{' '}
+                        to {message.recipient} · {when(message.createdAt)}
                       </small>
                     </span>
                     <span

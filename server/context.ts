@@ -121,6 +121,8 @@ export type ApiOptions = {
   connectionTransport?: ConnectionTransport
   /** V4: Book with Google's partner credentials; read from the environment when left out. */
   googleBooking?: import('./googleBooking').GoogleBookingOptions
+  /** V4: messages to the studio's Instagram, Facebook and WhatsApp accounts. */
+  social?: import('./messaging/meta').SocialOptions
 }
 
 /** Shared request authority: database, clock, sessions, tenant lookup, holds and audit. */

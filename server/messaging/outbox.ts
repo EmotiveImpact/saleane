@@ -12,6 +12,7 @@ import {
   missedCallTextDue,
   isClientKind,
   messageSlot,
+  socialSlot,
   appointmentMessagesOff,
   missYouDue,
   dueBackDue,
@@ -22,12 +23,15 @@ import {
   patchTestReminderDue,
   visitSlot,
 } from '../../src/domain/reminders'
-import type { MessageChannel, MessageKind, OutboxStatus } from '../../src/domain/reminders'
+import type { MessageKind, OutboxChannel, OutboxStatus } from '../../src/domain/reminders'
 import { operations } from '../../src/domain/operations'
+import { socialWindowEnds } from '../../src/domain/inbox'
+import { isSocialChannel } from '../../src/domain/inboxSchema'
 import { answersTexts } from '../../src/assistant/receptionist'
 import { visitStart } from '../../src/domain/guest'
 import type { Context } from '../context'
 import { issueGuestLink } from '../routes/guest'
+import { providerFor } from './providers'
 import type { Providers, Receipt } from './providers'
 
 export type OutboxRow = {
@@ -37,7 +41,7 @@ export type OutboxRow = {
   appointment_id: string
   client_id: string
   kind: MessageKind
-  channel: MessageChannel
+  channel: OutboxChannel
   slot: string
   recipient: string
   subject: string
@@ -175,6 +179,25 @@ export function createOutbox(ctx: Context, providers: Providers) {
           return skip('Too late to answer by the time it could go out.')
         return send(fresh, org, fresh.recipient, '', fresh.body, fresh.body)
       }
+      if (org && fresh.kind === 'social') {
+        // V4: the team's answer on Instagram, Facebook or WhatsApp. Checked again now: still a
+        // studio of its own, the account still connected, and still within the app's day.
+        if (operations(org.state).mode !== 'local') return skip('Sample studios never send.')
+        const answer = (org.state.socialAnswers ?? []).find((a) => socialSlot(a.id) === fresh.slot)
+        if (!answer) return skip('The answer is no longer in the studio record.')
+        if (!isSocialChannel(fresh.channel)) return skip('Not a social app.')
+        const account = db.get<{ account_id: string }>(
+          'SELECT account_id FROM social_accounts WHERE organisation_id=? AND channel=?',
+          org.id,
+          fresh.channel,
+        )
+        if (!account) return skip('The account was disconnected before it went out.')
+        const ends = socialWindowEnds(org.state, fresh.channel, fresh.recipient)
+        if (!ends || now() >= ends) return skip('The app’s day to answer ended before it went out.')
+        return send(fresh, org, fresh.recipient, '', answer.body, answer.body, account.account_id)
+      }
+      if (fresh.channel !== 'email' && fresh.channel !== 'sms')
+        return skip('This message cannot go on a social app.')
       if (!org || !client) return skip('The visit is no longer in the studio record.')
       if (operations(org.state).mode !== 'local') return skip('Sample studios never send.')
       if (fresh.kind === 'message') {
@@ -271,8 +294,10 @@ export function createOutbox(ctx: Context, providers: Providers) {
     subject: string,
     stored: string,
     sending: string,
+    /** V4: the studio's own account a social answer goes from. */
+    account?: string,
   ) => {
-    const provider = providers[fresh.channel]
+    const provider = providerFor(providers, fresh.channel)
     db.run(
       "UPDATE outbox SET status='unknown',provider=?,attempts=attempts+1,detail=?,recipient=?,subject=?,body=?,updated_at=? WHERE id=?",
       provider.name,
@@ -292,6 +317,7 @@ export function createOutbox(ctx: Context, providers: Providers) {
         subject,
         body: sending,
         fromName: org.state.organisation.name,
+        ...(account ? { account } : {}),
       },
     }
   }
@@ -306,7 +332,7 @@ export function createOutbox(ctx: Context, providers: Providers) {
       const claimed = claim(candidate)
       if (!claimed) continue
       const { row, message } = claimed
-      const result = await providers[row.channel].send(message)
+      const result = await providerFor(providers, row.channel).send(message)
       if (result.outcome === 'test') finish(row, 'test', { detail: null })
       else if (result.outcome === 'accepted')
         finish(row, 'accepted', { provider_ref: result.providerRef, detail: null })

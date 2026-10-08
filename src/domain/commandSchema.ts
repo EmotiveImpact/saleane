@@ -40,7 +40,13 @@ import { accountingProviders, accountingSettingsSchema } from './accountsSchema'
 import { reminderSettingsSchema } from './reminderSettings'
 import { CONSENT_TEXT_LIMIT } from './consentSchema'
 import { consultationContentSchema } from './consultationsSchema'
-import { REPLY_TEXT_LIMIT, noteWays, savedReplyInputSchema } from './inboxSchema'
+import {
+  REPLY_TEXT_LIMIT,
+  SOCIAL_ANSWER_LIMIT,
+  noteWays,
+  savedReplyInputSchema,
+  socialChannels,
+} from './inboxSchema'
 const id = z.string().min(1).max(150)
 const money = z.number().int().nonnegative().max(100_000_000)
 const method = paymentMethodSchema
@@ -411,10 +417,17 @@ export const commandSchema = z.discriminatedUnion('type', [
   // V1.5: the inbox. A guest's reply arrives only from the studio's email or text line.
   z.object({
     type: z.literal('reply-received'),
-    channel: z.enum(['email', 'sms', 'chat']),
+    channel: z.enum(['email', 'sms', 'chat', ...socialChannels]),
     from: z.string().trim().min(1).max(320),
     body: z.string().max(20000),
     providerRef: z.string().max(200).optional(),
+    name: z.string().max(200).optional(),
+  }),
+  // V4: the team answers a guest on Instagram, Facebook or WhatsApp, within the app's day.
+  z.object({
+    type: z.literal('social-answer'),
+    replyId: id,
+    body: z.string().max(SOCIAL_ANSWER_LIMIT + 1000),
   }),
   z.object({
     type: z.literal('reply-note'),

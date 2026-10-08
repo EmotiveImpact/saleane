@@ -770,6 +770,37 @@
   gap: 4px;
   font-size: var(--text-meta);
 }
+/* V4: the studio's Instagram, Facebook and WhatsApp accounts. */
+.social-accounts {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.social-accounts .ops-actions {
+  align-items: flex-end;
+}
+/* V4: answering on the app the guest wrote on. */
+.inbox-social {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.inbox-social label {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  font-size: var(--text-meta);
+}
+.inbox-social textarea {
+  width: 100%;
+}
+.inbox-social .ops-help {
+  margin: 0;
+}
 .inbox-row.is-unread .inbox-row-top strong {
   color: var(--brand-ink);
 }
