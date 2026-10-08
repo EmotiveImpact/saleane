@@ -1,6 +1,7 @@
 import type { Command, ContactInput } from './commandSchema'
 import type { Appointment, BusinessState, Client, RelationshipEvent } from './model'
 import { availableAllocation } from './allocation'
+import { staffLocationOn } from './locations'
 import { operations } from './operations'
 import type { ImportBatch } from './operations'
 import { dateLabel, money, timeLabel } from './format'
@@ -77,7 +78,7 @@ export function heldVisit(
   return {
     id,
     organisationId: work.organisation.id,
-    locationId: work.organisation.locationId,
+    locationId: staffLocationOn(work, row.staffId, row.date),
     clientId: '',
     serviceId: service.id,
     staffId: row.staffId,
@@ -218,7 +219,8 @@ export function runSwitchingCommand(
       const appointment: Appointment = {
         id: makeId(),
         organisationId: org.id,
-        locationId: org.locationId,
+        // V2: the visit is where the professional works that day, as its room is.
+        locationId: staffLocationOn(next, row.staffId, row.date),
         clientId: client.id,
         serviceId: service.id,
         staffId: row.staffId,

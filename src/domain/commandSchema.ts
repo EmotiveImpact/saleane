@@ -25,6 +25,7 @@ import {
 } from './model'
 import {
   closureInputSchema,
+  locationInputSchema,
   messageInputSchema,
   payRulesInputSchema,
   protectionSchema,
@@ -68,6 +69,8 @@ export const contactSchema = clientSchema
 export const importContactSchema = contactSchema
 export const bookingSchema = z.object({
   resourceId: id.optional(),
+  /** V2: where the visit is. Absent means the main location. */
+  locationId: id.optional(),
   serviceId: id,
   staffId: id,
   date: z.iso.date(),
@@ -99,6 +102,8 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     reviewUrl: z.string().trim().max(300).optional(),
   }),
   z.object({ type: z.literal('hours'), hours: weeklyHoursSchema }),
+  // V2: a further location; the main one is edited with the organisation.
+  z.object({ type: z.literal('location'), id: id.optional(), input: locationInputSchema }),
   // Guest-facing "before you arrive" notes; an empty note removes it.
   z.object({
     type: z.literal('guest-notes'),
@@ -207,6 +212,7 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('purchase-order'),
     supplierId: id,
+    locationId: id.optional(),
     lines: orderLinesSchema,
     note: z.string().trim().max(300).optional(),
   }),
@@ -261,6 +267,17 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     reason: z.enum(['received', 'consumed', 'adjustment', 'retail']),
     note: z.string().trim().min(2).max(300),
     appointmentId: id.optional(),
+    /** V2: the location whose shelf this changes. Absent means the main location. */
+    locationId: id.optional(),
+  }),
+  // V2: stock taken from one location to another.
+  z.object({
+    type: z.literal('stock-move'),
+    productId: id,
+    from: id,
+    to: id,
+    quantity: z.number().int().min(1).max(100000),
+    note: z.string().trim().max(300).optional(),
   }),
   // V1.5: month and day only; null removes it.
   z.object({
@@ -357,6 +374,8 @@ export const commandSchema = z.discriminatedUnion('type', [
     date: z.iso.date(),
     startMinutes: z.number().int().min(0).max(1439),
     staffId: id,
+    /** V2: move the visit to another location. Absent keeps it where it is. */
+    locationId: id.optional(),
   }),
   z.object({
     type: z.literal('cancel'),
@@ -394,6 +413,8 @@ export const commandSchema = z.discriminatedUnion('type', [
     clientId: id.optional(),
     /** V2: who made the sale, for their commission. */
     staffId: id.optional(),
+    /** V2: where it was sold. Absent means the main location. */
+    locationId: id.optional(),
     products: retailItemsSchema.refine((items) => items.length > 0, 'Add a product.'),
     method,
     reference: z.string().trim().max(150).optional(),

@@ -163,3 +163,17 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* V2: which location's shelf is shown. */
+.stock-where {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0 0.9rem;
+  font-size: 0.9rem;
+}
+.stock-where select {
+  min-width: min(14rem, 100%);
+}

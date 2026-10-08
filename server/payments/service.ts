@@ -89,7 +89,7 @@ export function balanceDue(
     depositMinor: deposit,
     tax: visitTax(s, a),
   })
-  return totalMinor + retailCharge(priceRetail(s, products)) - deposit - giftCardMinor
+  return totalMinor + retailCharge(priceRetail(s, products, a.locationId)) - deposit - giftCardMinor
 }
 
 /**

@@ -1,3 +1,4 @@
+import { roomWithPlace } from './locations'
 import { z } from 'zod'
 import { appointmentSchema, organisationSchema } from './model'
 import type { BusinessState } from './model'
@@ -110,7 +111,7 @@ export function daySheet(s: BusinessState, reader: DaySheetReader, now: string):
         serviceName:
           a.bookedServiceName ?? s.services.find((x) => x.id === a.serviceId)?.name ?? 'Service',
         professionalName: s.staff.find((p) => p.id === a.staffId)?.name ?? '',
-        roomName: s.resources.find((r) => r.id === a.resourceId)?.name ?? '',
+        roomName: roomWithPlace(s, a),
         status: a.status as Exclude<typeof a.status, 'cancelled'>,
         clientName: client?.name ?? 'Client',
         ...(practitioner ? {} : { clientPhone: client?.phone ?? '' }),

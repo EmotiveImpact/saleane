@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { parseState } from './model'
 import { businessDate, operations, visitTax } from './operations'
+import { placeOf, serviceAt, staffLocationOn } from './locations'
 import { bookingSchema, commandSchema, contactSchema } from './commandSchema'
 import type { Command, ContactInput } from './commandSchema'
 import { assertMethod, paymentDetail, runOperatingCommand } from './operatingCommands'
@@ -61,6 +62,7 @@ export function availableResource(
   start: number,
   now = new Date().toISOString(),
   preferredResourceId?: string,
+  locationId?: string,
 ) {
   const service = s.services.find((item) => item.id === serviceId)
   return service && !service.archived
@@ -76,6 +78,8 @@ export function availableResource(
         undefined,
         now,
         preferredResourceId,
+        undefined,
+        locationId,
       )
     : null
 }
@@ -87,6 +91,8 @@ export function rescheduleResource(
   start: number,
   now = new Date().toISOString(),
   preferredResourceId?: string,
+  /** V2: another location to move to. Absent keeps the visit where it is. */
+  locationId?: string,
 ) {
   const appointment = s.appointments.find((item) => item.id === appointmentId)
   const resource = s.resources.find((item) => item.id === appointment?.resourceId)
@@ -103,6 +109,9 @@ export function rescheduleResource(
         appointment.id,
         now,
         preferredResourceId,
+        undefined,
+        // A visit moves to another time at the same location unless another is chosen.
+        locationId ?? appointment.locationId,
       )
     : null
 }
@@ -112,10 +121,12 @@ export function rescheduleSlots(
   staffId: string,
   date: string,
   now = new Date().toISOString(),
+  locationId?: string,
 ) {
   const options: number[] = []
   for (let start = 0; start < 1440; start += 15)
-    if (rescheduleResource(s, appointmentId, staffId, date, start, now)) options.push(start)
+    if (rescheduleResource(s, appointmentId, staffId, date, start, now, undefined, locationId))
+      options.push(start)
   return options
 }
 export function slots(
@@ -124,13 +135,14 @@ export function slots(
   staffId: string,
   date: string,
   now = new Date().toISOString(),
+  locationId?: string,
 ) {
   const options: number[] = []
   for (let start = 0; start < 1440; start += 15)
     if (
       staffId === 'any'
-        ? availableProfessionals(s, serviceId, date, start, now).length > 0
-        : availableResource(s, serviceId, staffId, date, start, now)
+        ? availableProfessionals(s, serviceId, date, start, now, locationId).length > 0
+        : availableResource(s, serviceId, staffId, date, start, now, undefined, locationId)
     )
       options.push(start)
   return options
@@ -141,8 +153,11 @@ export function availableProfessionals(
   date: string,
   start: number,
   now = new Date().toISOString(),
+  locationId?: string,
 ) {
-  return s.staff.filter((person) => availableResource(s, serviceId, person.id, date, start, now))
+  return s.staff.filter((person) =>
+    availableResource(s, serviceId, person.id, date, start, now, undefined, locationId),
+  )
 }
 export function depositPaid(s: BusinessState, appointmentId: string) {
   return s.payments
@@ -226,9 +241,18 @@ export function execute(
       const input = bookingSchema.parse(command.input)
       if (input.source === 'online' && !operations(s).bookingEnabled)
         throw new Error('Online booking is currently closed.')
+      // Without a chosen location, the visit is wherever the person works that day.
+      const chosenPlace = input.locationId
       const staffId =
         input.staffId === 'any'
-          ? availableProfessionals(s, input.serviceId, input.date, input.startMinutes, now).find(
+          ? availableProfessionals(
+              s,
+              input.serviceId,
+              input.date,
+              input.startMinutes,
+              now,
+              chosenPlace,
+            ).find(
               (person) =>
                 !input.resourceId ||
                 availableResource(
@@ -239,11 +263,13 @@ export function execute(
                   input.startMinutes,
                   now,
                   input.resourceId,
+                  chosenPlace,
                 ),
             )?.id
           : input.staffId
       if (!staffId)
         throw new Error('That time is no longer available. Choose another time or professional.')
+      const locationId = chosenPlace ?? staffLocationOn(s, staffId, input.date)
       const resourceId = availableResource(
         s,
         input.serviceId,
@@ -252,6 +278,7 @@ export function execute(
         input.startMinutes,
         now,
         input.resourceId,
+        locationId,
       )
       if (!resourceId)
         throw new Error('That time is no longer available. Choose another time or professional.')
@@ -285,7 +312,7 @@ export function execute(
       const appointment: Appointment = {
         id: makeId(),
         organisationId: org.id,
-        locationId: org.locationId,
+        locationId,
         clientId: client.id,
         serviceId: service.id,
         staffId,
@@ -297,7 +324,7 @@ export function execute(
         ...(input.channel ? { channel: input.channel } : {}),
         createdAt: now,
         rebookedFromId: input.rebookedFromId,
-        bookedPriceMinor: service.priceMinor,
+        bookedPriceMinor: serviceAt(service, locationId).priceMinor,
         bookedDepositMinor: service.depositMinor,
         bookedDurationMinutes: service.durationMinutes,
         bookedBufferMinutes: service.bufferMinutes,
@@ -354,13 +381,17 @@ export function execute(
           input.startMinutes,
           now,
           command.resourceId,
+          command.locationId,
         )
         if (!resourceId)
           throw new Error('That time is no longer available. Choose another time or professional.')
+        const place = command.locationId ?? appointment.locationId
+        const moved = place !== appointment.locationId
         if (
           appointment.date === input.date &&
           appointment.startMinutes === input.startMinutes &&
           appointment.staffId === input.staffId &&
+          !moved &&
           (!command.resourceId || appointment.resourceId === resourceId)
         )
           return { ok: true, state: s, recordId: appointment.id }
@@ -369,8 +400,9 @@ export function execute(
           startMinutes: appointment.startMinutes,
           staffId: appointment.staffId,
           resourceId: appointment.resourceId,
+          ...(moved ? { locationId: appointment.locationId } : {}),
         }
-        const to = { ...input, resourceId }
+        const to = { ...input, resourceId, ...(moved ? { locationId: place } : {}) }
         Object.assign(appointment, to)
         // "I've arrived" was about the old time; a guest tells the desk again on the new day.
         if (from.date !== to.date || from.startMinutes !== to.startMinutes)
@@ -381,7 +413,7 @@ export function execute(
           type: 'rescheduled',
           title: 'Appointment moved',
           allocationChange: { from, to },
-          detail: `${dateLabel(from.date, org.locale)} at ${timeLabel(from.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === from.staffId)!.name} → ${dateLabel(to.date, org.locale)} at ${timeLabel(to.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === to.staffId)!.name}. Booked service and deposit retained; no message sent.`,
+          detail: `${dateLabel(from.date, org.locale)} at ${timeLabel(from.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === from.staffId)!.name}${moved ? ` at ${placeOf(s, from.locationId)?.name}` : ''} → ${dateLabel(to.date, org.locale)} at ${timeLabel(to.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === to.staffId)!.name}${moved ? ` at ${placeOf(s, place)?.name}` : ''}. Booked service, price and deposit retained; no message sent.`,
         })
         if (command.waitlistId)
           fillFromWaitlist(next, command.waitlistId, appointment, now, 'move', from.date)
@@ -475,7 +507,7 @@ export function execute(
           tax,
         })
         // Products are priced at today's catalogue and tax, and must be in stock.
-        const retail = priceRetail(s, command.products)
+        const retail = priceRetail(s, command.products, appointment.locationId)
         const total = serviceTotal + retailCharge(retail)
         if (deposit > serviceTotal)
           throw new Error(

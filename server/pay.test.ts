@@ -101,6 +101,9 @@ describe('commission rates over the API', () => {
     })
     expect(deskView.statusCode).toBe(200)
     expect(deskView.json<{ state: BusinessState }>().state.operations!.payRates).toBeUndefined()
-    expect(deskView.body).not.toContain('4250')
+    // The rate must not appear as a value anywhere. Matching it as a JSON number rather than any
+    // substring stops a random id that happens to contain "4250" failing the test.
+    expect(deskView.body).not.toMatch(/[:[,]4250[,}\]]/)
+    expect(deskView.body).not.toContain('serviceBps')
   })
 })

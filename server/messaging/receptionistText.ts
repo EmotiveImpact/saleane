@@ -11,13 +11,20 @@ import { repliesList, senderClient } from '../../src/domain/inbox'
 import { MANAGE_LINK, textNumber } from '../../src/domain/reminders'
 import type { SocialChannel } from '../../src/domain/inboxSchema'
 import type { SocialMessage } from './meta'
+import type { BusinessState } from '../../src/domain/model'
+import { hasLocations, staffLocationOn } from '../../src/domain/locations'
 
 /** A text conversation stays one chat while its messages are less than an hour apart. */
 const CHAT_WINDOW_MS = 60 * 60000
 const HISTORY_TURNS = 8
 
 /** The booking page with an offered time already chosen. The guest still holds and confirms it. */
-export function bookingLink(origin: string, slug: string, time: ReceptionEffect) {
+export function bookingLink(
+  origin: string,
+  slug: string,
+  time: ReceptionEffect,
+  state?: BusinessState,
+) {
   if (time.kind !== 'time') return `${origin}/book/${slug}`
   const params = new URLSearchParams({
     service: time.serviceId,
@@ -25,6 +32,9 @@ export function bookingLink(origin: string, slug: string, time: ReceptionEffect)
     date: time.date,
     start: String(time.startMinutes),
   })
+  // V2: with several locations, the page opens at the place the person works that day.
+  if (state && hasLocations(state))
+    params.set('location', staffLocationOn(state, time.staffId, time.date))
   return `${origin}/book/${slug}?${params}`
 }
 
@@ -181,7 +191,7 @@ async function answer(
     .replaceAll(
       BOOKING_LINK,
       offered
-        ? bookingLink(ctx.allowedOrigin, org.slug, offered.effect)
+        ? bookingLink(ctx.allowedOrigin, org.slug, offered.effect, org.state)
         : `${ctx.allowedOrigin}/book/${org.slug}`,
     )
     .replaceAll(MANAGE_LINK_SPOT, manage && guest ? MANAGE_LINK : '')

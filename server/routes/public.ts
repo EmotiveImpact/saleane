@@ -10,6 +10,7 @@ import { HOLD_LIMITS, holdInput, guestContact } from '../context'
 import type { Context, Route, HoldAllocation, HoldRow } from '../context'
 import { issueGuestLink } from './guest'
 import { bookingChannel } from '../../src/domain/bookingChannel'
+import { places, serviceAt, staffLocationOn, staffPlaces } from '../../src/domain/locations'
 import { isOn } from '../../src/assistant/receptionist'
 
 /** Public booking routes. These never return clients, histories or money. Returns false when the request belongs to another module. */
@@ -37,7 +38,16 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
             role: person.role,
             serviceIds: person.serviceIds,
             tone: person.tone,
+            // V2: where they work, so a guest choosing a location sees only who is there.
+            locationIds: staffPlaces(state, person.id),
           })),
+        // V2: open locations for the guest to choose from, main first.
+        locations: places(state).map(({ id, name, address, arrivalNote }) => ({
+          id,
+          name,
+          address,
+          ...(arrivalNote ? { arrivalNote } : {}),
+        })),
         today: businessDate(state, new Date(now()).toISOString()),
         sample,
         // V1.5: treatments marked as needing a patch test tell guests how far ahead to have one.
@@ -63,6 +73,7 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
           serviceId: z.string().min(1).max(100),
           staffId: z.string().min(1).max(100),
           date: z.iso.date(),
+          locationId: z.string().min(1).max(150).optional(),
         })
         .parse(Object.fromEntries(url.searchParams))
       const org = publicOrg(slug)
@@ -73,6 +84,7 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
           query.staffId,
           query.date,
           new Date(now()).toISOString(),
+          query.locationId,
         ),
       })
       return true
@@ -149,12 +161,14 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
         const blocked = withHolds(org),
           allocation = chooseStaff(blocked, data)
         const service = org.state.services.find((service) => service.id === data.serviceId)!
+        // V2: the price where the visit will be, which can differ between locations.
+        const place = data.locationId ?? staffLocationOn(org.state, allocation.staffId, data.date)
         const input: HoldAllocation = {
           ...data,
           ...allocation,
           duration: service.durationMinutes,
           buffer: service.bufferMinutes,
-          price: service.priceMinor,
+          price: serviceAt(service, place).priceMinor,
           deposit: service.depositMinor,
           resourceType: service.resourceType,
           tax: operations(org.state).tax ?? null,
@@ -214,7 +228,11 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
           !service ||
           service.durationMinutes !== allocation.duration ||
           service.bufferMinutes !== allocation.buffer ||
-          service.priceMinor !== allocation.price ||
+          serviceAt(
+            service,
+            allocation.locationId ??
+              staffLocationOn(org.state, allocation.staffId, allocation.date),
+          ).priceMinor !== allocation.price ||
           service.depositMinor !== allocation.deposit ||
           service.resourceType !== allocation.resourceType ||
           (allocation.tax !== undefined &&
@@ -233,6 +251,7 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
             resourceId: allocation.resourceId,
             date: allocation.date,
             startMinutes: allocation.startMinutes,
+            ...(allocation.locationId ? { locationId: allocation.locationId } : {}),
             contact: data.contact,
             source: 'online',
             channel: bookingChannel(data.from),

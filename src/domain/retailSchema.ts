@@ -57,6 +57,8 @@ export const counterSaleSchema = z.object({
   clientId: id.optional(),
   /** Who made the sale, for their commission. */
   staffId: id.optional(),
+  /** V2: where it was sold. Absent means the main location. */
+  locationId: id.optional(),
   receiptNumber: z.string().min(1).max(40),
   currency: z.enum(['GBP', 'USD']),
   retail: saleRetailSchema,

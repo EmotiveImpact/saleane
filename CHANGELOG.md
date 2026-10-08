@@ -2,6 +2,25 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · V2 · Several locations
+
+**Status: built locally on 7 October 2026, in review; nothing deployed.**
+
+- Settings has a new Locations section. The owner adds further locations with a name, address, an optional "before you arrive" note and, if different, their own opening hours. A location can be closed for good; its history stays.
+- Each room or chair belongs to one location, and each person works at one location on a given day, set on their weekly hours under Team.
+- When a studio has more than one location, guests choose where they would like to come first, on both the live booking page and the demo one. Only places where someone does the chosen treatment are offered, and only the people who work there that day are shown. Reminders, the guest's own visit page, the day sheet and the practitioner's day name the visit's location and address.
+- The calendar has an "All locations" filter, booking from the desk or through Ask Saleane only offers times at the place the person is working that day, and Today shows where each person is.
+- Changing hours, rooms or someone's location is checked against booked visits first: a visit that would end up at a closed location, in a room at another location, or with someone working elsewhere is listed and the change is refused.
+- A visit can move to another location. It keeps its booked price, and the timeline says where it moved from and to.
+- Stock is kept per location. Stock can be filtered by location, stock can be moved between locations, and deliveries, counts, walk-in sales and supplier orders each say where. Products sold with a visit come off that location's shelf, and the ledger checks every move balances.
+- A treatment can cost more or less at another location, or be left off a location's menu. Guests see the price where they are coming, and a list where prices differ says "From".
+- Business figures, including time booked, can be filtered by location.
+- Each location has its own booking link that opens with it chosen.
+- A waitlist request can be for one location, and the schedule history records rooms and people moving between locations.
+- A booking link the AI receptionist texts a guest opens at the location where the professional works that day.
+- Texts name the location, imported visits go to the location where the professional works that day, and the calendar showing every location spans all their opening hours.
+- A studio with one location works exactly as before.
+
 ## 2026-10-08 · V4 · The AI receptionist helps a guest move or cancel
 
 **Status: built locally on 8 October 2026, in review; nothing deployed, no AI supplier or text line connected and nothing sent.** [Evidence](docs/evidence/V4-RECEPTIONIST.md#moving-or-cancelling-a-visit-stage-6).

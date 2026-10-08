@@ -4,9 +4,17 @@ import { useStore } from '../state/context'
 import { channelLink } from '../domain/bookingChannel'
 import type { BookingChannel } from '../domain/model'
 import { Button } from '../design'
+import { hasLocations, places } from '../domain/locations'
 import '../guest-extras.css'
 
-const links: { channel?: BookingChannel; label: string; guidance: string }[] = [
+type ShareLink = {
+  channel?: BookingChannel
+  label: string
+  guidance: string
+  id: string
+  location?: string
+}
+const links: Omit<ShareLink, 'id'>[] = [
   {
     label: 'Your booking page',
     guidance: 'For your website, emails and anywhere else you share it.',
@@ -30,7 +38,7 @@ const links: { channel?: BookingChannel; label: string; guidance: string }[] = [
  * here connects to Google or Instagram; the owner pastes the link themselves.
  */
 export function ShareBookingPage() {
-  const { mode, slug, role } = useStore()
+  const { mode, slug, role, state } = useStore()
   const [copied, setCopied] = useState('')
   if (!['owner', 'manager'].includes(role)) return null
   const base =
@@ -68,9 +76,20 @@ export function ShareBookingPage() {
         </p>
       )}
       <div className="share-links">
-        {links.map(({ channel, label, guidance }) => {
-          const id = `share-link-${channel ?? 'direct'}`
-          const url = channelLink(base, channel)
+        {[
+          ...links.map((link) => ({ ...link, id: `share-link-${link.channel ?? 'direct'}` })),
+          // V2: a link for each location opens the booking page with that location chosen.
+          ...(hasLocations(state) ? places(state) : []).map((place) => ({
+            label: `For ${place.name}`,
+            guidance: `Opens your booking page with ${place.name} already chosen.`,
+            id: `share-link-location-${place.id}`,
+            location: place.id,
+          })),
+        ].map((link: ShareLink) => {
+          const { channel, label, guidance, id, location } = link
+          const url = location
+            ? `${base}?location=${encodeURIComponent(location)}`
+            : channelLink(base, channel)
           return (
             <div className="share-link" key={id}>
               <label htmlFor={id}>{label}</label>

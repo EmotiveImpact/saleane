@@ -1134,6 +1134,26 @@
 a.receipt-row {
   text-decoration: none;
 }
+
+/* V2: a treatment at each location. */
+.service-places {
+  display: grid;
+  gap: 12px;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.service-places legend {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.service-place {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
+  gap: 8px 16px;
+  align-items: end;
+}
+
 /* V1.5: versioned email news wording and each client's permission history. */
 .consent-wording {
   display: grid;

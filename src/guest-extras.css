@@ -104,6 +104,55 @@
   justify-content: flex-start;
   text-align: left;
 }
+
+/* V2: choosing a location, when a studio has more than one. */
+.location-choices {
+  margin: 0 0 18px;
+  padding: 0;
+  border: 0;
+}
+.location-choices legend {
+  margin-bottom: 8px;
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+.location-choices > div {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: 10px;
+}
+.location-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-inner);
+  background: white;
+  padding: 14px 16px;
+  text-align: left;
+  color: inherit;
+}
+.location-choice.selected {
+  border: 1.5px solid var(--brand-ink);
+  background: var(--brand-soft);
+  padding: 13.5px 15.5px;
+}
+.location-choice svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--brand-ink);
+}
+.location-choice span {
+  display: grid;
+  gap: 2px;
+}
+.location-choice small {
+  color: var(--muted);
+  font-size: var(--text-micro);
+  line-height: 1.4;
+}
+
 .guest-notes-service {
   display: grid;
   gap: 10px;
