@@ -2,6 +2,16 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-08 · V5 · Connected software
+
+**Status: built locally on 8 October 2026, in review; nothing deployed and nothing sent outside the computer.** [Evidence](docs/evidence/V5-CONNECTIONS.md). [Guide for the receiving end](docs/CONNECTIONS.md).
+
+- Settings has a new Connected software section for the owner. It tells other software (a Zapier hook, the studio's own system) when a visit is booked, moved, cancelled, checked out or missed, or a new client is added. The owner chooses the events for each connection.
+- Guest names, email and phone go only to a connection the owner chose to share them with.
+- Each event is signed with a secret shown once. Busy or silent receivers are tried again up to five times; a refusal is not. "What was sent" lists every delivery and what became of it.
+- One connection can be turned off, or all of them at once. Anything still waiting is then not sent. A removed connection keeps its log.
+- Test mode is the default: events are signed and logged as they would be sent, and nothing leaves the computer. Sample studios cannot connect software.
+
 ## 2026-10-08 · V1.5 · The inbox
 
 **Status: built locally on 8 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-INBOX.md).

@@ -16,6 +16,7 @@ import {
   ArrowRightLeft,
   Layers,
   ClipboardList,
+  Plug,
 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { useStore } from '../state/context'
@@ -40,6 +41,7 @@ import { PlanSettings } from '../components/Plans'
 import { FormSettings } from '../components/GuestForms'
 import { EmailNewsWording } from '../components/EmailConsent'
 import { SavedReplies } from '../components/SavedReplies'
+import { Connections } from '../components/Connections'
 import '../components/management.css'
 
 const sections = [
@@ -54,6 +56,7 @@ const sections = [
   { id: 'staff', label: 'Team', icon: Users },
   { id: 'resource', label: 'Spaces & equipment', icon: Armchair },
   { id: 'hours', label: 'Hours & closures', icon: CalendarDays },
+  { id: 'connections', label: 'Connected software', icon: Plug },
   { id: 'privacy', label: 'Data & privacy', icon: ShieldCheck },
   { id: 'switching', label: 'Switching over', icon: ArrowRightLeft },
   { id: 'workspace', label: 'This workspace', icon: Store },
@@ -285,6 +288,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
             {section === 'payments' && <PaymentSettings />}
             {section === 'workspace' && <WorkspaceSection onReset={() => setReplaced(true)} />}
             {section === 'privacy' && <StudioPrivacy />}
+            {section === 'connections' && <Connections />}
             {section === 'switching' && <SwitchingSettings />}
             {section === 'plans' && <PlanSettings />}
             {section === 'forms' && <FormSettings />}

@@ -279,6 +279,33 @@ export const migrations: Migration[] = [
         ]),
       ),
   },
+  {
+    version: 15,
+    // V5: other software the owner connects, and every delivery made to it.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE connections (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          name TEXT NOT NULL, url TEXT NOT NULL, events TEXT NOT NULL CHECK(json_valid(events)),
+          share_contact INTEGER NOT NULL CHECK(share_contact IN (0,1)),
+          secret TEXT NOT NULL, active INTEGER NOT NULL CHECK(active IN (0,1)),
+          removed_at INTEGER, created_by TEXT NOT NULL, created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        ) STRICT;
+        CREATE INDEX connections_org ON connections(organisation_id);
+        CREATE TABLE connection_deliveries (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          connection_id TEXT NOT NULL REFERENCES connections(id), event_id TEXT NOT NULL,
+          event_type TEXT NOT NULL, payload TEXT NOT NULL CHECK(json_valid(payload)),
+          status TEXT NOT NULL CHECK(status IN ('pending','delivered','failed','skipped','unknown','test')),
+          attempts INTEGER NOT NULL DEFAULT 0, next_attempt_at INTEGER NOT NULL,
+          response_status INTEGER, detail TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+          UNIQUE(connection_id,event_id)
+        ) STRICT;
+        CREATE INDEX connection_deliveries_due ON connection_deliveries(status,next_attempt_at);
+        CREATE INDEX connection_deliveries_recent ON connection_deliveries(organisation_id,created_at);
+      `),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the
