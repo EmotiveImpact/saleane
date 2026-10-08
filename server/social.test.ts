@@ -392,6 +392,40 @@ describe('Instagram, Facebook and WhatsApp messages', () => {
     expect(reception()).toHaveLength(1)
   })
 
+  it('moves the receptionist’s answer with the guest, and keeps each account’s chat apart', async () => {
+    const login = await studio()
+    const reception = () =>
+      api.database.all<OutboxRow>(
+        "SELECT * FROM outbox WHERE kind='receptionist' ORDER BY created_at",
+      )
+    await run(login, {
+      type: 'receptionist',
+      settings: { enabled: true, handOver: true, social: true },
+    })
+    await instagram('When are you open?')
+    expect(reception()).toHaveLength(1)
+    // The team answers on this account, so the receptionist steps back here.
+    const asked = (await replies(login)).at(-1)!
+    await run(login, { type: 'social-answer', replyId: asked.id, body: 'Ada here.' })
+    // Matching the sender to Rosa takes the receptionist's answer into her conversation too.
+    await run(login, { type: 'reply-link', replyId: asked.id, clientId })
+    const listed = async (query = '') =>
+      (
+        await api.inject({
+          method: 'GET',
+          url: `/api/workspaces/${login.orgId}/outbox${query}`,
+          headers: headers(login),
+        })
+      ).json<{ messages: { kind: string; clientId: string }[] }>().messages
+    expect((await listed()).find((m) => m.kind === 'receptionist')?.clientId).toBe(clientId)
+    expect((await listed(`?clientId=${clientId}`)).map((m) => m.kind)).toContain('receptionist')
+    // A new account on the same app is a new chat: the same sender id there is answered afresh.
+    await connect(login, 'instagram', '17841400000000002')
+    clock += 60000
+    await instagram('Hello?', '9000001', '17841400000000002')
+    expect(reception()).toHaveLength(2)
+  })
+
   it('refuses health words in an answer', async () => {
     const login = await studio()
     await instagram('Hello')

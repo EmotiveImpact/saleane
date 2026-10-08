@@ -87,22 +87,42 @@ async function answer(
   const time = now()
   const at = new Date(time).toISOString()
   const since = time - CHAT_WINDOW_MS
-  const sent = db.all<{ kind: string; body: string; created_at: number }>(
-    'SELECT kind,body,created_at FROM outbox WHERE organisation_id=? AND recipient=? AND channel=? AND kind IN (?,?) AND created_at>? ORDER BY created_at',
-    org.id,
-    number,
-    channel,
-    'receptionist',
-    person,
-    since,
-  )
+  // On the social apps a sender's id belongs to one account, so only this account's answers count.
+  const ownAccount = (row: { kind: string; slot: string }) => {
+    if (channel === 'sms') return true
+    if (row.kind === 'receptionist')
+      return repliesList(org.state).some(
+        (r) =>
+          r.channel === channel &&
+          r.account === kept.account &&
+          `reception:${r.providerRef}` === row.slot,
+      )
+    return (org.state.socialAnswers ?? []).some(
+      (a) => `social:${a.id}` === row.slot && a.account === kept.account,
+    )
+  }
+  const sent = db
+    .all<{ kind: string; slot: string; body: string; created_at: number }>(
+      'SELECT kind,slot,body,created_at FROM outbox WHERE organisation_id=? AND recipient=? AND channel=? AND kind IN (?,?) AND created_at>? ORDER BY created_at',
+      org.id,
+      number,
+      channel,
+      'receptionist',
+      person,
+      since,
+    )
+    .filter(ownAccount)
   // A person at the studio is already talking with this guest.
   if (sent.some((m) => m.kind === person)) return false
   // Also an answer written in the last hour and not yet in the outbox.
   if (
     channel !== 'sms' &&
     (org.state.socialAnswers ?? []).some(
-      (a) => a.channel === channel && a.to === number && Date.parse(a.answeredAt) > since,
+      (a) =>
+        a.channel === channel &&
+        a.to === number &&
+        a.account === kept.account &&
+        Date.parse(a.answeredAt) > since,
     )
   )
     return false
