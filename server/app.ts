@@ -13,12 +13,20 @@ import { daySheetRoutes } from './routes/daysheet'
 import { privacyRoutes } from './routes/privacy'
 import { messagingRoutes } from './routes/messaging'
 import { createOutbox } from './messaging/outbox'
-import { recordPhoneCall } from './messaging/calls'
+import { recordPhoneCall, recordReply, recordSocialMessage } from './messaging/calls'
+import { metaChallenge, metaGenuine, metaMessages, socialFromEnv } from './messaging/meta'
+import { socialRoutes } from './routes/social'
 import type { Outbox } from './messaging/outbox'
 import { paymentRoutes } from './routes/payments'
 import { assistantRoutes } from './routes/assistant'
+import { receptionistRoutes } from './routes/receptionist'
+import { answerSocial, answerText } from './messaging/receptionistText'
 import { createPayments } from './payments/service'
 import type { Payments } from './payments/service'
+import { connectionTransportFromEnv, createConnections } from './connections'
+import type { Connections } from './connections'
+import { partnerApi } from './partnerApi'
+import { googleBooking, googleBookingFromEnv } from './googleBooking'
 
 export type { ApiOptions } from './context'
 export type { InjectOptions, InjectResponse } from './http'
@@ -30,6 +38,7 @@ export type ApiHandler = ((
   database: LocalDatabase
   outbox: Outbox
   payments: Payments
+  connections: Connections
   close: () => void
   inject: (request: InjectOptions) => Promise<InjectResponse>
 }
@@ -49,13 +58,29 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   const { origin, allowedOrigin, db, rateLimit } = ctx
   const outbox = createOutbox(ctx, ctx.messaging)
   const payments = createPayments(ctx, ctx.paymentProvider)
+  const connections = createConnections(
+    ctx,
+    options.connectionTransport ?? connectionTransportFromEnv(),
+  )
+  const partners = partnerApi()
+  const google = googleBooking(options.googleBooking ?? googleBookingFromEnv(process.env))
+  const social = options.social ?? socialFromEnv(process.env)
   const routes = [
+    partners.read,
+    partners.manage,
+    google.manage,
+    socialRoutes(social),
+    connections.routes,
     messagingRoutes(outbox),
     paymentRoutes(payments),
     assistantRoutes(),
+    receptionistRoutes(),
     ...baseRoutes,
   ]
-  if (options.outboxIntervalMs) outbox.start(options.outboxIntervalMs)
+  if (options.outboxIntervalMs) {
+    outbox.start(options.outboxIntervalMs)
+    connections.start(options.outboxIntervalMs)
+  }
 
   const handler = (async (
     request: IncomingMessage,
@@ -119,6 +144,70 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
         )
         return
       }
+      // V1.5: a guest's reply to the studio's text line or email address, kept for the inbox.
+      const inbound =
+        /^\/api\/hooks\/(?:(twilio)\/sms|(postmark)\/inbound)\/([a-z0-9-]{1,80})$/.exec(
+          url.pathname,
+        )
+      if (inbound) {
+        if (method !== 'POST') fail(405, 'Use POST.')
+        const provider = inbound[1] ?? inbound[2]
+        const body = (await readBody(request, true)) as string
+        const replies = outbox.providers.inbound?.(provider, inbound[3], {
+          url: url.toString(),
+          headers: request.headers as Record<string, string | undefined>,
+          body,
+        })
+        if (!replies) fail(403, 'This message could not be verified.')
+        for (const reply of replies!) {
+          recordReply(ctx, inbound[3], provider === 'twilio' ? 'sms' : 'email', reply)
+          // V4: the AI receptionist answers a kept text when the studio chose it, once, even if
+          // the provider sends it again after a failure; the outbox sends the answer.
+          if (
+            provider === 'twilio' &&
+            (await answerText(ctx, inbound[3], reply)) &&
+            options.outboxIntervalMs
+          )
+            outbox.soon()
+        }
+        if (provider === 'twilio') {
+          // Nothing answered inline: the team, or the AI receptionist through the outbox, replies.
+          response.statusCode = 200
+          response.setHeader('Content-Type', 'text/xml; charset=utf-8')
+          response.end('<?xml version="1.0" encoding="UTF-8"?><Response/>')
+        } else reply(200, { ok: true })
+        return
+      }
+      // V4: Meta posts every message to the studio's Instagram, Facebook or WhatsApp accounts here,
+      // signed with the app secret; it checks the address first with the verify token.
+      if (url.pathname === '/api/hooks/meta') {
+        if (social.mode === 'off') fail(404, 'This endpoint was not found.')
+        if (method === 'GET') {
+          const challenge = metaChallenge(social, url.searchParams)
+          if (challenge === null) fail(403, 'This check could not be verified.')
+          response.statusCode = 200
+          response.setHeader('Content-Type', 'text/plain; charset=utf-8')
+          response.end(challenge)
+          return
+        }
+        if (method !== 'POST') fail(405, 'Use GET or POST.')
+        const body = (await readBody(request, true)) as string
+        if (!metaGenuine(social, body, header(request, 'x-hub-signature-256')))
+          fail(403, 'This message could not be verified.')
+        let payload: unknown
+        try {
+          payload = JSON.parse(body)
+        } catch {
+          fail(400, 'Send JSON.')
+        }
+        for (const message of metaMessages(payload)) {
+          recordSocialMessage(ctx, message)
+          // The AI receptionist answers a kept message when the studio chose that, once.
+          if ((await answerSocial(ctx, message)) && options.outboxIntervalMs) outbox.soon()
+        }
+        reply(200, { ok: true })
+        return
+      }
       if (url.pathname === '/api/hooks/stripe') {
         if (method !== 'POST') fail(405, 'Use POST.')
         const body = (await readBody(request, true)) as string
@@ -131,6 +220,24 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
         reply(200, { ok: true })
         return
       }
+      // V4: Google's Actions Center calls in with partner credentials, not a session or origin.
+      if (
+        await google.partner(
+          ctx,
+          request,
+          method,
+          url.pathname,
+          async () => {
+            try {
+              return JSON.parse(((await readBody(request, true)) as string) || '{}') as unknown
+            } catch {
+              return fail(400, 'Send JSON.')
+            }
+          },
+          reply,
+        )
+      )
+        return
       const path = url.pathname
         .split('/')
         .filter(Boolean)
@@ -141,6 +248,8 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
             return fail(400, 'This address is not valid.')
           }
         })
+      // V5: the partner API reads only, and proves itself with a key rather than a session.
+      if (path[1] === 'v1' && method !== 'GET') fail(405, 'This API only reads. Use GET.')
       let body: unknown
       if (!['GET', 'HEAD'].includes(method)) {
         if (
@@ -156,7 +265,10 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
       for (const handle of routes)
         if (await handle(ctx, route)) {
           // A booking, move or cancellation may need a message; send it soon, not next interval.
-          if (method !== 'GET' && options.outboxIntervalMs) outbox.soon()
+          if (method !== 'GET' && options.outboxIntervalMs) {
+            outbox.soon()
+            connections.soon()
+          }
           return
         }
       fail(404, 'This endpoint was not found.')
@@ -176,8 +288,10 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   handler.database = db
   handler.outbox = outbox
   handler.payments = payments
+  handler.connections = connections
   handler.close = () => {
     outbox.stop()
+    connections.stop()
     db.close()
   }
   handler.inject = (input) => inject(handler, allowedOrigin, input)

@@ -16,6 +16,8 @@ import {
   ArrowRightLeft,
   Layers,
   MapPin,
+  ClipboardList,
+  Plug,
 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { useStore } from '../state/context'
@@ -39,6 +41,14 @@ import { SwitchingSettings } from '../components/Switching'
 import { PlanSettings } from '../components/Plans'
 import { LocationsSettings } from '../components/LocationsSettings'
 import { hasLocations, placeOf, places, resourceLocation } from '../domain/locations'
+import { FormSettings } from '../components/GuestForms'
+import { EmailNewsWording } from '../components/EmailConsent'
+import { SavedReplies } from '../components/SavedReplies'
+import { Connections } from '../components/Connections'
+import { AccessKeys } from '../components/AccessKeys'
+import { ReceptionistSettings } from '../components/ReceptionistSettings'
+import { GoogleBooking } from '../components/GoogleBooking'
+import { SocialAccounts } from '../components/SocialAccounts'
 import '../components/management.css'
 
 const sections = [
@@ -50,9 +60,11 @@ const sections = [
   { id: 'payments', label: 'Payments', icon: CreditCard },
   { id: 'service', label: 'Services', icon: Scissors },
   { id: 'plans', label: 'Packages & memberships', icon: Layers },
+  { id: 'forms', label: 'Guest forms', icon: ClipboardList },
   { id: 'staff', label: 'Team', icon: Users },
   { id: 'resource', label: 'Spaces & equipment', icon: Armchair },
   { id: 'hours', label: 'Hours & closures', icon: CalendarDays },
+  { id: 'connections', label: 'Connected software', icon: Plug },
   { id: 'privacy', label: 'Data & privacy', icon: ShieldCheck },
   { id: 'switching', label: 'Switching over', icon: ArrowRightLeft },
   { id: 'workspace', label: 'This workspace', icon: Store },
@@ -229,6 +241,9 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
         input: {
           name: text(data, 'name'),
           type: text(data, 'resourceType') as 'treatment' | 'chair',
+          ...(numeric(data, 'restMinutes') > 0
+            ? { restMinutes: numeric(data, 'restMinutes') }
+            : {}),
           archived,
           ...(text(data, 'locationId') && text(data, 'locationId') !== state.organisation.locationId
             ? { locationId: text(data, 'locationId') }
@@ -309,14 +324,32 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
         <div className="ops-layout">
           <div>
             {section === 'preferences' && <PreferencesSection />}
-            {section === 'brand' && <BrandSection />}
-            {section === 'messages' && <MessageSettings />}
+            {section === 'brand' && (
+              <>
+                <BrandSection />
+                <ReceptionistSettings />
+              </>
+            )}
+            {section === 'messages' && (
+              <>
+                <MessageSettings />
+                <SavedReplies />
+                <EmailNewsWording />
+              </>
+            )}
             {section === 'payments' && <PaymentSettings />}
             {section === 'workspace' && <WorkspaceSection onReset={() => setReplaced(true)} />}
             {section === 'privacy' && <StudioPrivacy />}
+            {section === 'connections' && (
+              <>
+                <Connections />
+                <AccessKeys />
+              </>
+            )}
             {section === 'switching' && <SwitchingSettings />}
             {section === 'plans' && <PlanSettings />}
             {section === 'locations' && <LocationsSettings />}
+            {section === 'forms' && <FormSettings />}
             {section === 'business' && (
               <section className="surface ops-panel">
                 <header>
@@ -340,6 +373,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                         timeZone: text(data, 'timeZone'),
                         bookingEnabled: data.get('bookingEnabled') === 'on',
                         botCheck: data.get('botCheck') === 'on',
+                        reviewUrl: text(data, 'reviewUrl'),
                       },
                       'Business settings saved.',
                     )
@@ -374,6 +408,21 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                         maxLength={300}
                         defaultValue={state.organisation.address}
                       />
+                    </label>
+                    <label className="ops-wide">
+                      Public review page (optional)
+                      <input
+                        name="reviewUrl"
+                        type="url"
+                        inputMode="url"
+                        maxLength={300}
+                        placeholder="https://g.page/r/your-studio/review"
+                        defaultValue={state.organisation.reviewUrl ?? ''}
+                      />
+                      <small>
+                        Every guest is invited to leave a public review here after their visit, in
+                        the same words whatever they told you privately.
+                      </small>
                     </label>
                     <label>
                       Venue time zone
@@ -505,6 +554,8 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
             {section === 'business' && (
               <>
                 <ShareBookingPage />
+                <GoogleBooking />
+                <SocialAccounts />
                 <GuestNotesSettings />
               </>
             )}
@@ -621,6 +672,9 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                           {item.type === 'treatment' ? 'Treatment space' : 'Styling chair'}
                           {multiSite
                             ? ` · ${places(state, true).find((p) => p.id === resourceLocation(state, item))?.name ?? ''}`
+                            : ''}
+                          {item.restMinutes
+                            ? ` · rests ${item.restMinutes} minutes after each visit`
                             : ''}
                         </small>
                       </div>
@@ -1088,6 +1142,23 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                       </option>
                     ))}
                   </select>
+                </label>
+              )}
+              {editor.kind === 'resource' && (
+                <label>
+                  Resting time after each visit
+                  <select name="restMinutes" defaultValue={String(resource?.restMinutes ?? 0)}>
+                    {[0, 10, 15, 20, 30, 45, 60, 90, 120].map((m) => (
+                      <option key={m} value={m}>
+                        {m ? `${m} minutes empty` : 'None'}
+                      </option>
+                    ))}
+                  </select>
+                  <small>
+                    The space stays empty this long after each visit, for airing, cooling or a deep
+                    clean. The professional is free to work elsewhere. Visits already booked stay as
+                    they are.
+                  </small>
                 </label>
               )}
               {editor.kind === 'closure' && (

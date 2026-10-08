@@ -1,6 +1,8 @@
 import { visitPlace } from './locations'
 import type { Appointment, BusinessState, Client } from './model'
 import type { MissedCall } from './missedCallsSchema'
+import type { SocialChannel } from './inboxSchema'
+import { formsWaiting } from './forms'
 import { businessDate, businessMinutes, instantFor, operations } from './operations'
 import { dateLabel, timeLabel } from './format'
 import { GUEST_CANCEL_CUTOFF_HOURS } from './guest'
@@ -51,17 +53,25 @@ export const messageKinds = [
   'birthday',
   'miss_you',
   'missed_call',
+  'message',
+  'receptionist',
+  'social',
 ] as const
 export type MessageKind = (typeof messageKinds)[number]
 /** Messages about the guest rather than one visit. Their rows carry no appointment. */
 export const clientKinds = ['birthday', 'miss_you'] as const
 export type ClientKind = (typeof clientKinds)[number]
 /** Messages about one visit. */
-export type VisitKind = Exclude<MessageKind, ClientKind | 'missed_call'>
+export type VisitKind = Exclude<
+  MessageKind,
+  ClientKind | 'missed_call' | 'message' | 'receptionist' | 'social'
+>
 export const isClientKind = (kind: string): kind is ClientKind =>
   (clientKinds as readonly string[]).includes(kind)
 export const messageChannels = ['email', 'sms'] as const
 export type MessageChannel = (typeof messageChannels)[number]
+/** Where the outbox can send: the studio's email and text lines, and (V4) its social accounts. */
+export type OutboxChannel = MessageChannel | SocialChannel
 /** Where a link to manage the visit goes. The outbox swaps it for a fresh private link. */
 export const MANAGE_LINK = '{{manage_link}}'
 /** Where a link to book again goes. The outbox swaps it for the studio's public booking page. */
@@ -73,7 +83,7 @@ export type RecordedMessage = {
   /** Needed for messages about the guest rather than a visit. */
   clientId?: string
   kind: MessageKind
-  channel: MessageChannel
+  channel: OutboxChannel
   slot: string
   status: OutboxStatus
   /** When it was queued, so a reminder from before a reaction does not stand in for a new one. */
@@ -84,7 +94,7 @@ export type PlannedMessage = {
   appointmentId: string
   clientId: string
   kind: MessageKind
-  channel: MessageChannel
+  channel: OutboxChannel
   slot: string
   recipient: string
   subject: string
@@ -540,8 +550,60 @@ export function planMessages(
       ...composeMissedCallText(s),
     })
   }
+  // V1.5: a message the studio wrote in the inbox, once, as it was approved. Only one approved
+  // lately: one approved while the studio was not yet sending stays queued rather than going out.
+  for (const message of operations(s).messages) {
+    if (message.status !== 'queued' || !message.approvedAt) continue
+    if (now - Date.parse(message.approvedAt) > RECENT_MS) continue
+    const slot = messageSlot(message.id)
+    if (recorded.some((row) => row.kind === 'message' && row.slot === slot)) continue
+    const client = s.clients.find((c) => c.id === message.clientId)
+    if (!client || (message.purpose === 'marketing' && !client.marketingConsent)) continue
+    const channel = message.channel ?? 'email'
+    if (message.purpose === 'appointment' && appointmentMessagesOff(client, channel)) continue
+    const recipient = channel === 'email' ? client.email.trim() : textNumber(client.phone)
+    if (!recipient) continue
+    plan.push({
+      dedupeKey: `${message.id}:message:${channel}`,
+      appointmentId: message.appointmentId ?? '',
+      clientId: client.id,
+      kind: 'message',
+      channel,
+      slot,
+      recipient,
+      subject: message.subject,
+      body: message.body,
+    })
+  }
+  // V4: the team's answer on Instagram, Facebook or WhatsApp, once, as it was written.
+  for (const answer of s.socialAnswers ?? []) {
+    if (now - Date.parse(answer.answeredAt) > RECENT_MS) continue
+    const slot = socialSlot(answer.id)
+    if (recorded.some((row) => row.kind === 'social' && row.slot === slot)) continue
+    plan.push({
+      dedupeKey: `${answer.id}:social:${answer.channel}`,
+      appointmentId: '',
+      clientId: answer.clientId ?? '',
+      kind: 'social',
+      channel: answer.channel,
+      slot,
+      recipient: answer.to,
+      subject: '',
+      body: answer.body,
+    })
+  }
   return plan
 }
+
+/** The outbox slot of an answer on a social app, which names the answer. */
+export const socialSlot = (answerId: string) => `social:${answerId}`
+
+/** Whether a client asked for no appointment messages on this channel. */
+export const appointmentMessagesOff = (client: Client, channel: MessageChannel) =>
+  channel === 'email' ? !!client.noEmailReminders : !!client.noTextReminders
+
+/** The outbox slot of a message written in the inbox, which names the message. */
+export const messageSlot = (messageId: string) => `message:${messageId}`
 
 /** The words of a message about the guest rather than one visit. Warm, short, never pushy. */
 export function composeClientMessage(s: BusinessState, client: Client, kind: ClientKind) {
@@ -607,6 +669,11 @@ export function composeMessage(
   const place = visitPlace(s, a)
   const arrival = place.arrivalNote?.trim()
   const prep = s.services.find((x) => x.id === a.serviceId)?.prepNote?.trim()
+  // V1.5: ordinary forms the visit still waits for, filled in from the same private link.
+  const forms = formsWaiting(s, a).map((item) => item.current.content.title)
+  const formLine = forms.length
+    ? `Before your visit, please fill in ${forms.length === 1 ? 'a short form' : `${forms.length} short forms`} (${forms.join(', ')}) from the link below.`
+    : ''
   // With online booking off, the link would lead nowhere, so ask the guest to get in touch.
   const bookLine = operations(s).bookingEnabled
     ? `Book when it suits you: ${BOOK_LINK}`
@@ -632,7 +699,9 @@ export function composeMessage(
             ? ''
             : kind === 'due_back'
               ? ` ${bookLine}`
-              : ` Manage your visit: ${MANAGE_LINK}`
+              : forms.length && kind !== 'patch_test'
+                ? ` Before you come, please fill in a short form: ${MANAGE_LINK}`
+                : ` Manage your visit: ${MANAGE_LINK}`
     return { subject: '', body: `${lead}${tail} Reply STOP to stop texts.` }
   }
   const subject = {
@@ -676,9 +745,16 @@ export function composeMessage(
       '',
       `Rate your visit${professional ? ` and ${professional}` : ''}, and add a note if you like. Only the studio's owner and managers read what you write: ${MANAGE_LINK}`,
     )
+    // V1.5: the same invitation to every guest, whatever they go on to tell the studio.
+    if (org.reviewUrl)
+      lines.push(
+        '',
+        `If you would like to tell others about your visit, you can also leave a public review: ${org.reviewUrl}`,
+      )
   } else if (kind !== 'cancelled' && kind !== 'aftercare' && kind !== 'due_back') {
     if (arrival) lines.push('', `Before you arrive: ${arrival}`)
     if (prep) lines.push('', prep)
+    if (formLine && kind !== 'patch_test') lines.push('', formLine)
     lines.push('', policy, `View, add to your calendar or cancel: ${MANAGE_LINK}`)
   }
   lines.push('', `${org.name}`)

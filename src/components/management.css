@@ -207,6 +207,11 @@
 .ops-check input {
   margin-top: 2px;
 }
+/* A tick box among other fields still sits beside its words. */
+.ops-fields > label.ops-check {
+  flex-direction: row;
+  font-weight: var(--weight-body);
+}
 .ops-editor-note {
   background: var(--sage);
   padding: 13px 16px;
@@ -646,7 +651,7 @@
   color: var(--muted);
   font-size: var(--text-meta);
 }
-.inbox-columns .inbox-row .ops-tag {
+.inbox-columns .inbox-row .ops-tag:not(.is-new) {
   display: none;
 }
 .inbox-pane {
@@ -707,14 +712,103 @@
   overflow-wrap: anywhere;
   font-size: var(--text-small);
 }
-.inbox-bubble-current {
+.inbox-thread {
+  list-style: none;
+  margin: 0;
+}
+/* The guest's words sit on the left, the studio's on the right, as in any conversation. */
+.inbox-bubble-theirs {
+  align-self: flex-start;
+}
+.inbox-bubble-theirs.is-unread {
+  border-color: var(--brand-mid);
+  box-shadow: 0 0 0 1px var(--brand-mid);
+}
+.inbox-bubble-theirs.is-unread small {
+  color: var(--brand-ink);
+}
+.inbox-bubble-ours {
   align-self: flex-end;
   background: color-mix(in srgb, var(--brand) 4%, #fff);
 }
-.inbox-bubble-current.is-draft {
+.inbox-bubble-ours.is-automatic {
+  background: var(--paper);
+  border-style: dashed;
+}
+.inbox-bubble-ours.is-automatic p {
+  color: var(--muted);
+}
+.inbox-bubble-ours.is-draft {
   border: 1.5px dashed var(--brand-mid);
 }
-.inbox-bubble-current.is-draft small {
+.inbox-bubble-ours.is-draft small {
+  color: var(--brand-ink);
+}
+.inbox-bubble .subtle {
+  color: var(--muted);
+  font-size: var(--text-micro);
+}
+.inbox-bubble-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.inbox-bubble-actions .ops-help {
+  flex-basis: 100%;
+  margin: 0;
+}
+.inbox-link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+.inbox-link label {
+  display: grid;
+  gap: 4px;
+  font-size: var(--text-meta);
+}
+/* V4: the studio's Instagram, Facebook and WhatsApp accounts. */
+.social-accounts {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.social-accounts .ops-actions {
+  align-items: flex-end;
+}
+/* V4: answering on the app the guest wrote on. */
+.inbox-social {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.inbox-social label {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  font-size: var(--text-meta);
+}
+.inbox-social textarea {
+  width: 100%;
+}
+.inbox-social .ops-help {
+  margin: 0;
+}
+.inbox-row.is-unread .inbox-row-top strong {
+  color: var(--brand-ink);
+}
+.inbox-row.is-unread .inbox-preview {
+  color: var(--ink);
+}
+.ops-tag.is-new {
+  background: var(--brand-soft);
   color: var(--brand-ink);
 }
 .inbox-pane-actions {
@@ -734,8 +828,8 @@
 .inbox-panel .inbox-thread {
   padding: 18px 0;
 }
-.inbox-panel .inbox-bubble-current {
-  align-self: stretch;
+.inbox-panel .inbox-bubble {
+  max-width: 100%;
 }
 @media (max-width: 820px) {
   .inbox-columns {
@@ -1058,4 +1152,171 @@ a.receipt-row {
   grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
   gap: 8px 16px;
   align-items: end;
+}
+
+/* V1.5: versioned email news wording and each client's permission history. */
+.consent-wording {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+}
+.consent-wording label {
+  display: grid;
+  gap: 7px;
+  width: 100%;
+}
+.consent-wording p {
+  margin: 0;
+}
+.consent-earlier {
+  margin-top: 18px;
+}
+.consent-earlier ol,
+.consent-history {
+  display: grid;
+  gap: 10px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.consent-earlier li,
+.consent-history li {
+  display: grid;
+  gap: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.consent-history small,
+.consent-earlier q {
+  color: var(--muted);
+}
+
+/* Saved replies in Settings › Messages. */
+.saved-replies {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+.saved-replies li {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+}
+.saved-replies strong {
+  font-weight: var(--weight-strong);
+}
+.saved-replies p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: var(--text-small);
+  white-space: pre-wrap;
+}
+.saved-reply-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 4px;
+}
+.saved-reply-form {
+  display: grid;
+  gap: 12px;
+}
+.saved-reply-form label {
+  display: grid;
+  gap: 4px;
+}
+@media (max-width: 620px) {
+  .saved-replies li {
+    flex-direction: column;
+  }
+}
+
+/* V5: Settings › Connected software. */
+.connections-mode,
+.connections-secret {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: var(--radius-panel);
+  background: var(--sand);
+}
+.connections-secret {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+.connections-secret p {
+  margin: 0;
+}
+.connections-secret code {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: var(--text-small);
+}
+.connections-list {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+.connections-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+}
+.connections-list strong {
+  margin-right: 8px;
+  font-weight: var(--weight-strong);
+}
+.connections-list p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.connections-url {
+  overflow-wrap: anywhere;
+}
+.connections-list .saved-reply-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.connections-log {
+  margin-top: 20px;
+}
+.connections-log h3 {
+  margin: 0 0 8px;
+  font-size: var(--text-body);
+}
+.connections-log ul {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+.connections-log li {
+  display: grid;
+  grid-template-columns: 2fr 1fr 2fr;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--text-small);
+}
+@media (max-width: 620px) {
+  .connections-list li {
+    flex-direction: column;
+  }
+  .connections-log li {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
 }

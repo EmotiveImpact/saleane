@@ -2448,6 +2448,31 @@ fieldset {
 .booking-client-context > p {
   font-size: var(--text-meta);
 }
+/* V1.5: booking from Today's missed calls list. */
+.booking-call-note {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+.booking-new-client {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  margin: 0 0 22px;
+  padding: 0;
+  border: 0;
+}
+.booking-new-client legend {
+  margin-bottom: 8px;
+  font-weight: var(--weight-strong);
+}
+.booking-new-client .form-grid {
+  width: 100%;
+}
+.booking-new-client small {
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
 .rebook-rhythm {
   grid-column: 1 / -1;
 }

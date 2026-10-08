@@ -17,6 +17,7 @@ import { AddToCalendar } from '../components/AddToCalendar'
 import { LocationChoice } from '../components/LocationChoice'
 import { offeredAt, pricesVary, serviceAt } from '../domain/locations'
 import type { LocationOption } from '../components/LocationChoice'
+import { ReceptionistChat } from '../components/ReceptionistChat'
 import { visitUid } from '../domain/calendarFile'
 import { bookingChannel } from '../domain/bookingChannel'
 import { fullPriceMinor } from '../domain/priceSentence'
@@ -28,6 +29,7 @@ const pendingBookingSchema = z.object({
     hold: z.string().min(32).max(100),
     contact: contactSchema,
     policy: z.literal(true),
+    emailNewsVersion: z.number().int().min(1).optional(),
   }),
   serviceId: z.string(),
   staffId: z.string(),
@@ -65,10 +67,14 @@ type Catalog = {
   today: string
   sample: boolean
   patchTestHours?: number
+  /** V1.5: the studio's current words for email news, by version. */
+  emailNews?: { version: number; text: string }
   botCheck?: { siteKey: string } | null
   tax?: PriceTax
   /** V2: open locations, main first. Older servers send none. */
   locations?: LocationOption[]
+  /** V4: the AI receptionist chat is switched on for this page. */
+  receptionist?: boolean
 }
 export function ServerBooking() {
   const { slug } = useParams(),
@@ -110,6 +116,27 @@ export function ServerBooking() {
     />
   )
 }
+/** The time in a booking link, when it names a treatment, person, date and start this page offers. */
+function linkedTime(
+  search: string,
+  services: Catalog['services'],
+  staff: Catalog['staff'],
+  today: string,
+) {
+  const q = new URLSearchParams(search)
+  const service = services.find((s) => s.id === q.get('service'))
+  const staffId = q.get('staff') ?? 'any'
+  const date = q.get('date') ?? ''
+  const start = Number(q.get('start'))
+  if (!service || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date < today) return null
+  if (
+    staffId !== 'any' &&
+    !staff.some((p) => p.id === staffId && p.serviceIds.includes(service.id))
+  )
+    return null
+  if (!Number.isInteger(start) || start < 0 || start >= 24 * 60) return null
+  return { serviceId: service.id, staffId, date, start }
+}
 function BookingFlow({
   catalog,
   base,
@@ -121,21 +148,27 @@ function BookingFlow({
   pending: boolean
   setPending: (value: boolean) => void
 }) {
-  const { organisation: org, services, staff, today, sample, botCheck, tax } = catalog
+  const { organisation: org, services, staff, today, sample, botCheck, tax, receptionist } = catalog
   const locations = catalog.locations ?? []
   const store = useStore(),
     navigate = useNavigate()
   const journalKey = `saleane.guest-confirmation:${base}`
   const [recovery] = useState(() => readPendingBooking(journalKey))
+  // V4: a link from the AI receptionist opens step 2 with the offered time already chosen.
+  const [linked] = useState(() =>
+    recovery.value ? null : linkedTime(window.location.search, services, staff, today),
+  )
   const [attempt, setAttempt] = useState<PendingBooking | null>(recovery.value)
-  const [picked, setPicked] = useState(false)
+  const [picked, setPicked] = useState(!!linked)
   // With one kind of treatment the list opens straight away, chosen as before;
   // otherwise nothing is chosen until the guest picks.
   const ready = picked || new Set(services.map((s) => s.category)).size < 2
-  const [step, setStep] = useState(recovery.value ? 4 : 1),
-    [serviceId, setServiceId] = useState(recovery.value?.serviceId ?? services[0]?.id ?? ''),
-    [staffId, setStaffId] = useState(recovery.value?.staffId ?? 'any'),
-    [date, setDate] = useState(recovery.value?.date ?? addDays(today, 1)),
+  const [step, setStep] = useState(recovery.value ? 4 : linked ? 2 : 1),
+    [serviceId, setServiceId] = useState(
+      recovery.value?.serviceId ?? linked?.serviceId ?? services[0]?.id ?? '',
+    ),
+    [staffId, setStaffId] = useState(recovery.value?.staffId ?? linked?.staffId ?? 'any'),
+    [date, setDate] = useState(recovery.value?.date ?? linked?.date ?? addDays(today, 1)),
     [chosenLocation, setLocationId] = useState(
       recovery.value?.locationId ??
         // V2: a location's own booking link opens with it chosen.
@@ -171,7 +204,7 @@ function BookingFlow({
       key: '',
       times: [],
     }),
-    [start, setStart] = useState<number | null>(recovery.value?.start ?? null)
+    [start, setStart] = useState<number | null>(recovery.value?.start ?? linked?.start ?? null)
   const queryKey = [serviceId, staffId, date, base, step, locationId].join('|'),
     loadingTimes = availability.key !== queryKey,
     times = loadingTimes ? [] : availability.times
@@ -283,6 +316,7 @@ function BookingFlow({
         hold: hold.hold,
         contact: { name, email, phone, marketingConsent: consent },
         policy: true as const,
+        ...(consent && catalog.emailNews ? { emailNewsVersion: catalog.emailNews.version } : {}),
       },
       serviceId,
       staffId,
@@ -314,6 +348,11 @@ function BookingFlow({
     } catch (e) {
       if (e instanceof ApiError && [400, 409, 422].includes(e.status)) {
         setAttempt(null)
+        // The studio changed its words for email news: the guest reads them again and re-ticks.
+        if (/email news/.test(e.message)) {
+          setConsent(false)
+          setStep(3)
+        }
         try {
           sessionStorage.removeItem(journalKey)
         } catch {
@@ -586,6 +625,11 @@ function BookingFlow({
                       tabs
                     />
                   )}
+                  {!loadingTimes && start !== null && !times.includes(start) && (
+                    <p role="status" className="subtle">
+                      {timeLabel(start, org.locale)} is no longer free. Choose another time.
+                    </p>
+                  )}
                   {!loadingTimes && !times.length && date < addDays(today, 365) && (
                     <Button
                       variant="secondary"
@@ -668,7 +712,8 @@ function BookingFlow({
                         checked={consent}
                         onChange={(e) => setConsent(e.target.checked)}
                       />
-                      I’d like occasional email news from {org.name}.
+                      {catalog.emailNews?.text ??
+                        `I’d like occasional email news from ${org.name}.`}
                     </label>
                     <p className="subtle">
                       Optional. Booking does not depend on marketing consent. Use fictional contact
@@ -749,6 +794,22 @@ function BookingFlow({
               )}
             </fieldset>
             <ErrorMessage error={error} />
+            {receptionist && step <= 2 && !attempt && !hold && (
+              <ReceptionistChat
+                base={base}
+                studio={org.name}
+                onTime={(offered) => {
+                  // The guest finishes booking through the ordinary steps: hold, details, confirm.
+                  setPicked(true)
+                  setServiceId(offered.serviceId)
+                  setStaffId(offered.staffId)
+                  setDate(offered.date)
+                  setStart(offered.startMinutes)
+                  setError('')
+                  setStep(2)
+                }}
+              />
+            )}
           </div>
           <footer className="booking-powered">
             Considered care. Connected by <span className="mini-saleane">SALEANE</span>

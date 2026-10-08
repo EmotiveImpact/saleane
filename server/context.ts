@@ -13,6 +13,7 @@ import type { PaymentProvider } from './payments/providers'
 import { paymentProviderFromEnv } from './payments/providers'
 import { parseState } from '../src/domain/model'
 import type { BusinessState } from '../src/domain/model'
+import type { ConnectionTransport } from './connections'
 import { availableResource } from '../src/domain/commands'
 import { staffLocationOn } from '../src/domain/locations'
 import { operations } from '../src/domain/operations'
@@ -119,6 +120,12 @@ export type ApiOptions = {
   outboxIntervalMs?: number
   /** Card payments. Omitted reads SALEANE_PAYMENTS_PROVIDER; unset is test mode, charging nothing. */
   paymentProvider?: PaymentProvider
+  /** V5: how connected software is reached. Omitted uses fetch with private addresses refused. */
+  connectionTransport?: ConnectionTransport
+  /** V4: Book with Google's partner credentials; read from the environment when left out. */
+  googleBooking?: import('./googleBooking').GoogleBookingOptions
+  /** V4: messages to the studio's Instagram, Facebook and WhatsApp accounts. */
+  social?: import('./messaging/meta').SocialOptions
 }
 
 /** Shared request authority: database, clock, sessions, tenant lookup, holds and audit. */
@@ -307,6 +314,9 @@ export function createContext(options: ApiOptions) {
     audit(org, accountId, 'workspace.created', org.id)
     return org
   }
+  /** Told about every saved change, inside the same transaction, with the record before and after. */
+  const persistListeners: ((org: Org, before: BusinessState, after: BusinessState) => void)[] = []
+  const onPersist = (listener: (typeof persistListeners)[number]) => persistListeners.push(listener)
   const persist = (
     org: Org,
     state: BusinessState,
@@ -324,6 +334,7 @@ export function createContext(options: ApiOptions) {
     )
     if (Number(result.changes) !== 1) fail(409, 'This workspace changed. Reload before saving.')
     audit(org, actorId, action, recordId, parsed.revision)
+    for (const listener of persistListeners) listener(org, org.state, parsed)
   }
   const withHolds = (org: Org, excludeHash = '') => {
     const state = structuredClone(org.state)
@@ -443,6 +454,7 @@ export function createContext(options: ApiOptions) {
     audit,
     insertWorkspace,
     persist,
+    onPersist,
     withHolds,
     chooseStaff,
     linkableProfessional,

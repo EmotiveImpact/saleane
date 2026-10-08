@@ -1,5 +1,7 @@
 import { visitPlace } from './locations'
 import { z } from 'zod'
+import { formContentSchema } from './formsSchema'
+import { visitForms } from './forms'
 import { GUEST_NOTE_LIMIT, appointmentSchema, organisationSchema } from './model'
 import { visitUid } from './calendarFile'
 import type { BusinessState } from './model'
@@ -141,6 +143,32 @@ export const guestViewSchema = z
       })
       .strict()
       .optional(),
+    /**
+     * V1.5: the studio's public review page, after a completed visit. Offered the same way to
+     * every guest, whatever feedback they gave.
+     */
+    review: z
+      .object({ url: z.string().max(300) })
+      .strict()
+      .optional(),
+    /**
+     * V1.5: ordinary forms this visit asks for, before it happens. Answers are not sent back:
+     * `done` says only that the studio has them.
+     */
+    forms: z
+      .array(
+        z
+          .object({
+            formId: z.string(),
+            version: z.number().int(),
+            content: formContentSchema,
+            done: z.boolean(),
+          })
+          .strict(),
+      )
+      .optional(),
+    /** V1.5: present when this guest gets the studio's email news, so they can stop it here. */
+    emailNews: z.literal(true).optional(),
     /** V1.5: private feedback after a completed visit. Only the guest's own ratings come back. */
     feedback: z
       .object({
@@ -280,6 +308,24 @@ export function guestView(
             }
           })(),
         }
+      : {}),
+    ...((a.status === 'confirmed' || a.status === 'arrived') &&
+    visitStart(s, a.id) > now &&
+    visitForms(s, a).length
+      ? {
+          forms: visitForms(s, a).map((item) => ({
+            formId: item.form.id,
+            version: item.current.version,
+            content: item.current.content,
+            done: !!item.answer,
+          })),
+        }
+      : {}),
+    ...(s.clients.find((c) => c.id === a.clientId)?.marketingConsent
+      ? { emailNews: true as const }
+      : {}),
+    ...(a.status === 'completed' && s.organisation.reviewUrl
+      ? { review: { url: s.organisation.reviewUrl } }
       : {}),
     ...(a.status === 'completed'
       ? {

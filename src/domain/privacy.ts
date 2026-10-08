@@ -1,6 +1,8 @@
 import type { Appointment, BusinessState } from './model'
 import { operations } from './operations'
+import { isSocialChannel, socialLabel } from './inboxSchema'
 import { localDate } from './patchTests'
+import { consentRecords, wordingFor } from './consent'
 import type { Role } from './operations'
 import { isOpen, serviceLabel, withdrawnOffer } from './waitlist'
 
@@ -32,10 +34,12 @@ export function canPrivacy(role: Role, action: PrivacyAction) {
   return (PRIVACY_ROLES[action] as readonly Role[]).includes(role)
 }
 
-/** Status words for a message that SALEANE has never delivered. */
+/** Status words for a message written in the inbox, as the studio record knows it. */
 const MESSAGE_STATUS = {
   draft: 'Draft. Not sent.',
   queued: 'Queued in SALEANE. Not sent: no delivery service is configured.',
+  approved:
+    'Approved for sending. The studio’s sent messages list shows whether it went out, and in test mode nothing does.',
   suppressed: 'Suppressed after marketing consent was withdrawn. Not sent.',
 } as const
 const METHOD = {
@@ -108,6 +112,23 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
       history: events
         .filter((e) => e.type === 'consent')
         .map((e) => ({ occurredAt: e.occurredAt, change: e.title, detail: e.detail })),
+      // V1.5: each permission given or withdrawn, with the words they agreed to and where.
+      records: consentRecords(state)
+        .filter((r) => r.clientId === client.id)
+        .map((r) => ({
+          recordedAt: r.recordedAt,
+          channel: r.channel,
+          purpose: r.purpose,
+          given: r.given,
+          ...(r.wordingVersion
+            ? {
+                wordingVersion: r.wordingVersion,
+                wording: wordingFor(state, r.wordingVersion)?.text ?? '',
+              }
+            : {}),
+          source: r.source,
+          recordedBy: r.actor,
+        })),
     },
     visits: visits.map((a: Appointment) => ({
       visit: ref.get(a.id)!,
@@ -207,7 +228,8 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
         delivery:
           m.status === 'suppressed' && withdrawnOffer(state, m.id)
             ? 'Withdrawn before it was sent: the waitlist request it offered a time for had ended. Not sent.'
-            : MESSAGE_STATUS[m.status],
+            : MESSAGE_STATUS[m.status === 'queued' && m.approvedAt ? 'approved' : m.status],
+        ...(m.channel === 'sms' ? { channel: 'text' } : {}),
         ...(visitRef(m.appointmentId) ? { visit: visitRef(m.appointmentId) } : {}),
       })),
     connections: state.relationships
@@ -242,6 +264,9 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
         lastCall: c.lastAt,
         calls: c.calls,
         ...(c.calledBackAt ? { calledBackAt: c.calledBackAt } : {}),
+        ...(c.appointmentId && ref.has(c.appointmentId)
+          ? { bookedVisit: ref.get(c.appointmentId) }
+          : {}),
       })),
     // V1.5: the private feedback this client gave about their visits.
     feedback: (state.feedback ?? [])
@@ -330,6 +355,71 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
         result: t.result?.outcome ?? 'not recorded',
         resultNotes: t.result?.notes ?? '',
       })),
+    // V1.5: forms they filled in, with the questions as they were asked.
+    forms: (state.formResponses ?? [])
+      .filter((r) => r.clientId === client.id)
+      .map((r) => {
+        const form = (state.forms ?? []).find((f) => f.id === r.formId)
+        const content = form?.versions.find((v) => v.version === r.version)?.content
+        return {
+          ...(ref.has(r.appointmentId) ? { visit: ref.get(r.appointmentId) } : {}),
+          form: content?.title ?? 'Form',
+          version: r.version,
+          submittedAt: r.submittedAt,
+          answers: (content?.questions ?? []).map((q) => ({
+            question: q.label,
+            answer: r.answers.find((a) => a.questionId === q.id)?.value ?? '',
+          })),
+          ...(content?.agreement ? { agreed: content.agreement, agreedAs: r.agreedName } : {}),
+        }
+      }),
+    // V1.5: what they wrote back to the studio, as it arrived, or as the team noted it.
+    replies: (state.replies ?? [])
+      .filter((r) => r.clientId === client.id)
+      .map((r) => ({
+        receivedAt: r.receivedAt,
+        how:
+          r.channel === 'desk'
+            ? `Noted by ${r.actor} (${r.from === 'elsewhere' ? 'answered another way' : `by ${r.from}`})`
+            : isSocialChannel(r.channel)
+              ? `${socialLabel[r.channel]} message from ${r.name ? `${r.name}, ` : ''}${r.from}`
+              : r.channel === 'sms'
+                ? `Text from ${r.from}`
+                : r.channel === 'chat'
+                  ? `Left with the AI receptionist, to answer on ${r.from}`
+                  : `Email from ${r.from}`,
+        words: r.body,
+      })),
+    // V4: the team's answers to them on Instagram, Facebook or WhatsApp.
+    answers: (state.socialAnswers ?? [])
+      .filter((a) => a.clientId === client.id)
+      .map((a) => ({
+        answeredAt: a.answeredAt,
+        how: `Answered on ${socialLabel[a.channel]} by ${a.actor}`,
+        words: a.body,
+      })),
+    // V1.5: consultations held with them, every version, and the visits booked from each.
+    consultations: (state.consultations ?? [])
+      .filter((c) => c.clientId === client.id)
+      .map((c) => ({
+        heldOn: c.heldOn,
+        heldBy: state.staff.find((p) => p.id === c.staffId)?.name ?? 'Not recorded',
+        visitsBooked: visits
+          .filter((a) => a.consultation?.id === c.id)
+          .map((a) => ({ visit: ref.get(a.id)!, version: a.consultation!.version })),
+        versions: c.versions.map((v) => ({
+          version: v.version,
+          savedAt: v.savedAt,
+          savedBy: v.savedBy,
+          treatments: v.serviceIds.map(
+            (id) => state.services.find((x) => x.id === id)?.name ?? 'A treatment',
+          ),
+          wants: v.wants,
+          plan: v.plan,
+          quoteMinor: v.quoteMinor,
+          notes: v.notes,
+        })),
+      })),
   }
 }
 export type ClientExport = ReturnType<typeof clientExport>
@@ -354,18 +444,22 @@ export function previewClientExport(file: ClientExport): ExportPreview {
       { label: 'Payments and deposits', count: file.payments.length },
       { label: 'Refunds', count: file.refunds.length },
       { label: 'Timeline entries', count: file.timeline.length },
-      { label: 'Messages, none of them sent', count: file.messages.length },
+      { label: 'Messages written in the inbox', count: file.messages.length },
+      { label: 'Replies they sent, as written', count: file.replies.length },
+      { label: 'Answers sent on Instagram, Facebook or WhatsApp', count: file.answers.length },
       { label: 'Client connections, type only', count: file.connections.length },
       { label: 'Private feedback they gave', count: file.feedback.length },
       { label: 'Waitlist requests', count: file.waitlist.length },
       { label: 'Gift cards and vouchers they bought', count: file.giftCards.length },
       { label: 'Patch tests', count: file.patchTests.length },
+      { label: 'Forms they filled in, answers as written', count: file.forms.length },
+      { label: 'Consultations and what was agreed', count: file.consultations.length },
     ],
     excluded: CLIENT_EXPORT_EXCLUDED,
     notes: [
       'Notes, preferences, feedback comments and message text are included as written. Read them before sending, in case they mention someone else.',
       'Staff names appear where they recorded an entry or looked after a visit.',
-      'Messages show their real status. SALEANE has no delivery service configured, so none was sent.',
+      'Messages show their status in the studio record. One approved for sending may have gone out; in test mode nothing does.',
       ...(file.studio.sandbox
         ? ['This is the fictional sandbox. Its money and people are not real.']
         : []),
@@ -414,12 +508,20 @@ export function previewStudioExport(file: StudioExport): ExportPreview {
       { label: 'Payments and deposits', count: r.payments.length },
       { label: 'Refunds', count: r.operations.refunds.length },
       { label: 'Timeline entries', count: r.events.length },
-      { label: 'Messages, none of them sent', count: r.operations.messages.length },
+      { label: 'Messages written in the inbox', count: r.operations.messages.length },
+      { label: 'Guests’ replies, as written', count: (r.replies ?? []).length },
+      {
+        label: 'Answers on Instagram, Facebook or WhatsApp',
+        count: (r.socialAnswers ?? []).length,
+      },
       { label: 'Client connections', count: r.relationships.length },
       { label: 'Private guest feedback, comments as written', count: (r.feedback ?? []).length },
       { label: 'Waitlist requests', count: (r.waitlist ?? []).length },
       { label: 'Gift cards and vouchers', count: (r.giftCards ?? []).length },
       { label: 'Patch tests', count: (r.patchTests ?? []).length },
+      { label: 'Guest forms and their answers', count: (r.formResponses ?? []).length },
+      { label: 'Email permission records', count: (r.consentRecords ?? []).length },
+      { label: 'Consultations', count: (r.consultations ?? []).length },
       {
         label: 'Services, professionals and spaces',
         count: r.services.length + r.staff.length + r.resources.length,
@@ -496,8 +598,18 @@ export function erasureReview(
       },
       {
         label: 'Unsent messages (drafts, queued and suppressed)',
-        count: ops.messages.filter((m) => m.clientId === client.id).length,
+        count: ops.messages.filter((m) => m.clientId === client.id && !m.approvedAt).length,
         reason: 'None was ever sent, so no delivery record depends on them.',
+      },
+      {
+        label: 'Replies they sent',
+        count: (state.replies ?? []).filter((r) => r.clientId === client.id).length,
+        reason: 'Their own words to the studio. Not linked to money.',
+      },
+      {
+        label: 'Answers sent to them on Instagram, Facebook or WhatsApp',
+        count: (state.socialAnswers ?? []).filter((a) => a.clientId === client.id).length,
+        reason: 'The team’s words to them on those apps. Not linked to money.',
       },
       {
         label: 'Missed calls from their number',
@@ -556,13 +668,32 @@ export function erasureReview(
           'Shows the studio checked for a reaction before a treatment, in case of a later complaint or claim.',
       },
       {
+        label: 'Messages approved for sending',
+        count: operations(state).messages.filter((m) => m.clientId === client.id && m.approvedAt)
+          .length,
+        reason: 'They may have gone out, so what the studio sent stays on record.',
+      },
+      {
+        label: 'Consultations',
+        count: (state.consultations ?? []).filter((c) => c.clientId === client.id).length,
+        reason:
+          'Shows what was agreed before a treatment and the price given, in case of a dispute.',
+      },
+      {
+        label: 'Forms they filled in',
+        count: (state.formResponses ?? []).filter((r) => r.clientId === client.id).length,
+        reason: 'Shows what they told the studio and agreed to before a visit.',
+      },
+      {
         label: 'Booked visit terms',
         count: visits.length,
         reason: 'Receipts, deposits and the diary depend on the original service, price and time.',
       },
       {
         label: 'Consent history',
-        count: events.filter((e) => e.type === 'consent').length,
+        count:
+          events.filter((e) => e.type === 'consent').length +
+          consentRecords(state).filter((r) => r.clientId === client.id).length,
         reason: 'Shows what the person agreed to and any opt-out, so they are not contacted again.',
       },
       {
@@ -605,6 +736,10 @@ export function clientExportText(file: ClientExport, locale = 'en-GB') {
     `Client since: ${file.subject.clientSince.slice(0, 10)}`,
     `Good to remember: ${file.subject.goodToRemember || 'Nothing recorded'}`,
     `Email marketing: ${file.consent.emailMarketing ? 'agreed' : 'not agreed'}`,
+    ...file.consent.records.map(
+      (r) =>
+        `  ${r.recordedAt.slice(0, 10)} · ${r.given ? `agreed to version ${r.wordingVersion}: “${r.wording}”` : 'withdrawn'} · ${r.source}`,
+    ),
     '',
     `VISITS (${file.visits.length})`,
     ...file.visits.map(
@@ -680,8 +815,29 @@ export function clientExportText(file: ClientExport, locale = 'en-GB') {
         `${t.testedOn} · ${t.product} · by ${t.doneBy} · ${t.result}${t.resultNotes ? ` · ${t.resultNotes}` : ''}${t.notes ? ` · ${t.notes}` : ''}`,
     ),
     '',
-    `MESSAGES (${file.messages.length}), none sent`,
+    `FORMS (${file.forms.length})`,
+    ...file.forms.flatMap((f) => [
+      `${f.submittedAt.slice(0, 10)} · ${f.form} (version ${f.version})${f.agreedAs ? ` · agreed as ${f.agreedAs}` : ''}`,
+      ...f.answers.map((a) => `  ${a.question}: ${a.answer || '–'}`),
+    ]),
+    '',
+    `CONSULTATIONS (${file.consultations.length})`,
+    ...file.consultations.flatMap((c) => [
+      `${c.heldOn} · with ${c.heldBy}`,
+      ...c.versions.map(
+        (v) =>
+          `  Version ${v.version}: ${v.plan}${v.wants ? ` · wanted: ${v.wants}` : ''}${v.quoteMinor !== null ? ` · quoted ${amount(v.quoteMinor, cur, locale)}` : ''}`,
+      ),
+    ]),
+    '',
+    `MESSAGES (${file.messages.length})`,
     ...file.messages.map((m) => `${m.createdAt.slice(0, 10)} · ${m.subject} · ${m.delivery}`),
+    '',
+    `REPLIES (${file.replies.length})`,
+    ...file.replies.map((r) => `${r.receivedAt.slice(0, 10)} · ${r.how} · ${r.words}`),
+    '',
+    `ANSWERS ON SOCIAL APPS (${file.answers.length})`,
+    ...file.answers.map((a) => `${a.answeredAt.slice(0, 10)} · ${a.how} · ${a.words}`),
     '',
     `CONNECTIONS (${file.connections.length})`,
     ...file.connections.map((c) => `${c.role} · since ${c.since.slice(0, 10)}`),

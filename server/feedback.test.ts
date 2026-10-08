@@ -207,3 +207,194 @@ describe('private guest feedback (V1.5)', () => {
     expect(rating.count).toBeGreaterThanOrEqual(1)
   })
 })
+
+describe('public review link (V1.5)', () => {
+  it('offers every guest the same link after their visit, whatever they rated', async () => {
+    const owner = await register()
+    let { state } = await studio(owner)
+    const saved = await run(owner, state.revision, {
+      type: 'organisation',
+      name: state.organisation.name,
+      locationName: state.organisation.locationName,
+      address: state.organisation.address,
+      timeZone: state.organisation.timeZone,
+      bookingEnabled: true,
+      reviewUrl: 'https://reviews.example.invalid/reference',
+    })
+    expect(saved.statusCode, saved.body).toBe(200)
+    const review = { url: 'https://reviews.example.invalid/reference' }
+    const { token } = await completed(owner)
+    expect((await visit(token)).json<GuestView>().review).toEqual(review)
+    // A low private rating changes nothing about the invitation.
+    const sent = await feedback(token, { visitRating: 1, practitionerRating: 1 })
+    expect(sent.statusCode, sent.body).toBe(200)
+    expect(sent.json<GuestView>().review).toEqual(review)
+    state = (await studio(owner)).state
+    const refused = await run(owner, state.revision, {
+      type: 'organisation',
+      name: state.organisation.name,
+      locationName: state.organisation.locationName,
+      address: state.organisation.address,
+      timeZone: state.organisation.timeZone,
+      bookingEnabled: true,
+      reviewUrl: 'javascript:alert(1)',
+    })
+    expect(refused.statusCode).toBe(422)
+  })
+})
+
+describe('guest forms (V1.5)', () => {
+  const content = {
+    title: 'Before your facial',
+    intro: '',
+    questions: [
+      {
+        id: 'q-goal',
+        kind: 'choice' as const,
+        label: 'What would you like most?',
+        required: true,
+        options: ['To relax', 'Brighter skin'],
+      },
+    ],
+    agreement: 'I have read the cancellation policy.',
+  }
+  it('takes a form from the guest link and shows it to the desk and the practitioner', async () => {
+    const owner = await register()
+    let { state } = await studio(owner)
+    const saved = await run(owner, state.revision, {
+      type: 'form-save',
+      content,
+      settings: { serviceIds: ['service-facial'], when: 'every_visit' },
+    })
+    expect(saved.statusCode, saved.body).toBe(200)
+    const formId = saved.json<{ recordId: string }>().recordId
+    const booked = await book((await studio(owner)).slug, 990)
+    const token = tokenOf(booked.manage)
+    const before = (await visit(token)).json<GuestView>()
+    expect(before.forms).toEqual([{ formId, version: 1, content, done: false }])
+    const send = (extra: Record<string, unknown> = {}) =>
+      api.inject({
+        method: 'POST',
+        url: '/api/guest/form',
+        payload: {
+          token,
+          formId,
+          version: 1,
+          answers: [{ questionId: 'q-goal', value: 'To relax' }],
+          agreedName: 'L. Guest signature',
+          ...extra,
+        },
+      })
+    expect((await send({ agreedName: '' })).statusCode).toBe(409)
+    const sent = await send()
+    expect(sent.statusCode, sent.body).toBe(200)
+    expect(sent.json<GuestView>().forms?.[0].done).toBe(true)
+    // A retry is safe.
+    expect((await send()).statusCode).toBe(200)
+    state = (await studio(owner)).state
+    expect(state.formResponses?.filter((r) => r.formId === formId)).toEqual([
+      expect.objectContaining({
+        appointmentId: booked.appointmentId,
+        agreedName: 'L. Guest signature',
+      }),
+    ])
+    // The studio cannot answer for the guest, and reception cannot change forms.
+    const forged = await run(owner, state.revision, {
+      type: 'form-submit',
+      appointmentId: booked.appointmentId,
+      formId,
+      version: 1,
+      answers: [{ questionId: 'q-goal', value: 'To relax' }],
+      agreedName: 'Ada',
+    })
+    expect(forged.statusCode).toBe(403)
+    const desk = await member(owner, 'desk2@example.invalid', 'reception')
+    const deskEdit = await run(desk, state.revision, {
+      type: 'form-archive',
+      formId,
+      archived: true,
+    })
+    expect(deskEdit.statusCode).toBe(403)
+    const maya = await member(owner, 'maya2@example.invalid', 'practitioner', 'staff-maya')
+    const mine = await api.inject({ url: `/api/workspaces/${owner.orgId}`, headers: headers(maya) })
+    const visits = mine.json<{
+      practitioner: {
+        appointments: { id: string; forms?: { answers: { answer: string }[] }[] }[]
+      }
+    }>().practitioner.appointments
+    expect(visits.find((a) => a.id === booked.appointmentId)?.forms).toEqual([
+      {
+        title: 'Before your facial',
+        answers: [{ question: 'What would you like most?', answer: 'To relax' }],
+      },
+    ])
+    expect(mine.body).not.toContain('L. Guest signature')
+  })
+})
+
+describe('versioned consent for email news (V1.5)', () => {
+  it('records the words ticked on the booking page and lets the guest stop from their link', async () => {
+    const owner = await register()
+    const { slug } = await studio(owner)
+    const page = (await api.inject({ url: `/api/public/${slug}` })).json<{
+      emailNews: { version: number; text: string }
+    }>()
+    expect(page.emailNews).toEqual({
+      version: 1,
+      text: 'I’d like occasional email news and offers from Reference Studio. I can stop them at any time.',
+    })
+    const held = await api.inject({
+      method: 'POST',
+      url: `/api/public/${slug}/holds`,
+      payload: {
+        serviceId: 'service-facial',
+        staffId: 'staff-maya',
+        date: '2026-10-06',
+        startMinutes: 990,
+      },
+    })
+    expect(held.statusCode, held.body).toBe(201)
+    const send = (extra: Record<string, unknown>) =>
+      api.inject({
+        method: 'POST',
+        url: `/api/public/${slug}/book`,
+        payload: {
+          hold: held.json<{ hold: string }>().hold,
+          contact: { ...contact, email: 'news.guest@example.invalid', marketingConsent: true },
+          policy: true,
+          ...extra,
+        },
+      })
+    // A tick that does not say which words were read is refused, and the time stays held.
+    expect((await send({})).statusCode).toBe(422)
+    const booked = await send({ emailNewsVersion: page.emailNews.version })
+    expect(booked.statusCode, booked.body).toBe(200)
+    const { appointmentId, manage } = booked.json<{ appointmentId: string; manage: Manage }>()
+    let { state } = await studio(owner)
+    const clientId = state.appointments.find((a) => a.id === appointmentId)!.clientId
+    expect(state.consentRecords?.filter((r) => r.clientId === clientId)).toEqual([
+      expect.objectContaining({
+        given: true,
+        wordingVersion: 1,
+        source: 'booking page',
+        actor: 'Guest booking',
+      }),
+    ])
+    // The studio cannot stop it on the guest's behalf through the guest-only command.
+    const forged = await run(owner, state.revision, { type: 'guest-consent-stop', appointmentId })
+    expect(forged.statusCode).toBe(403)
+    const token = tokenOf(manage)
+    expect((await visit(token)).json<GuestView>().emailNews).toBe(true)
+    const stop = () =>
+      api.inject({ method: 'POST', url: '/api/guest/email-news', payload: { token } })
+    const stopped = await stop()
+    expect(stopped.statusCode, stopped.body).toBe(200)
+    expect(stopped.json<GuestView>().emailNews).toBeUndefined()
+    expect((await stop()).statusCode).toBe(200)
+    state = (await studio(owner)).state
+    expect(state.clients.find((c) => c.id === clientId)?.marketingConsent).toBe(false)
+    expect(
+      state.consentRecords?.filter((r) => r.clientId === clientId).map((r) => r.source),
+    ).toEqual(['booking page', 'guest link'])
+  })
+})

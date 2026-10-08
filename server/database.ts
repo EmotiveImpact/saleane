@@ -258,18 +258,153 @@ export const migrations: Migration[] = [
         ]),
       ),
   },
+  {
+    version: 14,
+    // V1.5: a message the studio wrote and approved in the inbox, sent once by the outbox.
+    up: (connection) =>
+      connection.exec(
+        outboxWithKinds([
+          'confirmation',
+          'changed',
+          'reminder',
+          'cancelled',
+          'feedback',
+          'patch_test',
+          'aftercare',
+          'due_back',
+          'birthday',
+          'miss_you',
+          'missed_call',
+          'message',
+        ]),
+      ),
+  },
+  {
+    version: 15,
+    // V5: other software the owner connects, and every delivery made to it.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE connections (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          name TEXT NOT NULL, url TEXT NOT NULL, events TEXT NOT NULL CHECK(json_valid(events)),
+          share_contact INTEGER NOT NULL CHECK(share_contact IN (0,1)),
+          secret TEXT NOT NULL, active INTEGER NOT NULL CHECK(active IN (0,1)),
+          removed_at INTEGER, created_by TEXT NOT NULL, created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        ) STRICT;
+        CREATE INDEX connections_org ON connections(organisation_id);
+        CREATE TABLE connection_deliveries (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          connection_id TEXT NOT NULL REFERENCES connections(id), event_id TEXT NOT NULL,
+          event_type TEXT NOT NULL, payload TEXT NOT NULL CHECK(json_valid(payload)),
+          status TEXT NOT NULL CHECK(status IN ('pending','delivered','failed','skipped','unknown','test')),
+          attempts INTEGER NOT NULL DEFAULT 0, next_attempt_at INTEGER NOT NULL,
+          response_status INTEGER, detail TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+          UNIQUE(connection_id,event_id)
+        ) STRICT;
+        CREATE INDEX connection_deliveries_due ON connection_deliveries(status,next_attempt_at);
+        CREATE INDEX connection_deliveries_recent ON connection_deliveries(organisation_id,created_at);
+      `),
+  },
+  {
+    version: 16,
+    // V5: read-only access keys for other software, stored only as a hash.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE api_keys (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          name TEXT NOT NULL, prefix TEXT NOT NULL UNIQUE, key_hash TEXT NOT NULL,
+          scopes TEXT NOT NULL CHECK(json_valid(scopes)), created_by TEXT NOT NULL,
+          created_at INTEGER NOT NULL, last_used_at INTEGER, revoked_at INTEGER
+        ) STRICT;
+        CREATE INDEX api_keys_org ON api_keys(organisation_id);
+      `),
+  },
+  {
+    version: 17,
+    // V4: the AI receptionist's answer to a guest's text, sent once by the outbox.
+    up: (connection) =>
+      connection.exec(
+        outboxWithKinds([
+          'confirmation',
+          'changed',
+          'reminder',
+          'cancelled',
+          'feedback',
+          'patch_test',
+          'aftercare',
+          'due_back',
+          'birthday',
+          'miss_you',
+          'missed_call',
+          'message',
+          'receptionist',
+        ]),
+      ),
+  },
+  {
+    version: 18,
+    // V4: bookings made inside Google, so Google can look them up, cancel them or repeat a request.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE google_bookings (
+          booking_id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          user_id TEXT NOT NULL, idempotency_token TEXT NOT NULL,
+          slot TEXT NOT NULL CHECK(json_valid(slot)),
+          user_information TEXT NOT NULL CHECK(json_valid(user_information)),
+          created_at INTEGER NOT NULL,
+          UNIQUE(organisation_id,idempotency_token)
+        ) STRICT;
+        CREATE INDEX google_bookings_user ON google_bookings(user_id);
+      `),
+  },
+  {
+    version: 19,
+    // V4: the team's answers on Instagram, Facebook and WhatsApp go through the outbox, and each
+    // studio's accounts on those apps, so a message that comes in reaches the right studio.
+    up: (connection) =>
+      connection.exec(
+        outboxWithKinds(
+          [
+            'confirmation',
+            'changed',
+            'reminder',
+            'cancelled',
+            'feedback',
+            'patch_test',
+            'aftercare',
+            'due_back',
+            'birthday',
+            'miss_you',
+            'missed_call',
+            'message',
+            'receptionist',
+            'social',
+          ],
+          ['email', 'sms', 'instagram', 'facebook', 'whatsapp'],
+        ) +
+          `
+        CREATE TABLE social_accounts (
+          channel TEXT NOT NULL CHECK(channel IN ('instagram','facebook','whatsapp')),
+          account_id TEXT NOT NULL, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          connected_at INTEGER NOT NULL,
+          PRIMARY KEY(channel,account_id), UNIQUE(organisation_id,channel)
+        ) STRICT;
+      `,
+      ),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the
  * outbox with the same columns, keys and indexes, keeping every row.
  */
-function outboxWithKinds(kinds: string[]) {
+function outboxWithKinds(kinds: string[], channels = ['email', 'sms']) {
   return `
     CREATE TABLE outbox_next (
       id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
       dedupe_key TEXT NOT NULL, appointment_id TEXT NOT NULL, client_id TEXT NOT NULL,
       kind TEXT NOT NULL CHECK(kind IN (${kinds.map((kind) => `'${kind}'`).join(',')})),
-      channel TEXT NOT NULL CHECK(channel IN ('email','sms')), slot TEXT NOT NULL,
+      channel TEXT NOT NULL CHECK(channel IN (${channels.map((c) => `'${c}'`).join(',')})), slot TEXT NOT NULL,
       recipient TEXT NOT NULL, subject TEXT NOT NULL, body TEXT NOT NULL,
       status TEXT NOT NULL CHECK(status IN ('pending','test','accepted','delivered','failed','unknown','skipped')),
       provider TEXT, provider_ref TEXT, detail TEXT, attempts INTEGER NOT NULL DEFAULT 0,

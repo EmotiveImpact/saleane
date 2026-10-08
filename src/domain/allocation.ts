@@ -83,24 +83,29 @@ export function availableAllocation(
     return null
   }
 
-  const overlapping = s.appointments.filter(
+  const busy = s.appointments.filter(
     (a) =>
-      a.date === date &&
-      a.id !== excludeId &&
-      a.status !== 'cancelled' &&
-      a.status !== 'no_show' &&
-      start < a.startMinutes + a.bookedDurationMinutes + a.bookedBufferMinutes &&
-      end > a.startMinutes,
+      a.date === date && a.id !== excludeId && a.status !== 'cancelled' && a.status !== 'no_show',
   )
-  if (overlapping.some((a) => a.staffId === staffId)) return null
+  const visitEnd = (a: (typeof busy)[number]) =>
+    a.startMinutes + a.bookedDurationMinutes + a.bookedBufferMinutes
+  if (busy.some((a) => a.staffId === staffId && start < visitEnd(a) && end > a.startMinutes))
+    return null
+  // V1.5: a room with resting time stays empty that long after each visit, before and after this one.
   return (
-    s.resources.find(
-      (resource) =>
-        !resource.archived &&
-        resourceLocation(s, resource) === place &&
-        (!preferredResourceId || resource.id === preferredResourceId) &&
-        resource.type === resourceType &&
-        !overlapping.some((a) => a.resourceId === resource.id),
-    )?.id ?? null
+    s.resources.find((resource) => {
+      if (
+        resource.archived ||
+        (preferredResourceId && resource.id !== preferredResourceId) ||
+        resource.type !== resourceType ||
+        resourceLocation(s, resource) !== place
+      )
+        return false
+      const rest = resource.restMinutes ?? 0
+      return !busy.some(
+        (a) =>
+          a.resourceId === resource.id && start < visitEnd(a) + rest && end + rest > a.startMinutes,
+      )
+    })?.id ?? null
   )
 }

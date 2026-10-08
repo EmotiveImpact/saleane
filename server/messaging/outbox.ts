@@ -11,6 +11,9 @@ import {
   missedCallSlot,
   missedCallTextDue,
   isClientKind,
+  messageSlot,
+  socialSlot,
+  appointmentMessagesOff,
   missYouDue,
   dueBackDue,
   composeMessage,
@@ -20,11 +23,15 @@ import {
   patchTestReminderDue,
   visitSlot,
 } from '../../src/domain/reminders'
-import type { MessageChannel, MessageKind, OutboxStatus } from '../../src/domain/reminders'
+import type { MessageKind, OutboxChannel, OutboxStatus } from '../../src/domain/reminders'
 import { operations } from '../../src/domain/operations'
+import { socialWindowEnds } from '../../src/domain/inbox'
+import { isSocialChannel } from '../../src/domain/inboxSchema'
+import { answersSocial, answersTexts, visitSummary } from '../../src/assistant/receptionist'
 import { visitStart } from '../../src/domain/guest'
 import type { Context } from '../context'
 import { issueGuestLink } from '../routes/guest'
+import { providerFor } from './providers'
 import type { Providers, Receipt } from './providers'
 
 export type OutboxRow = {
@@ -34,7 +41,7 @@ export type OutboxRow = {
   appointment_id: string
   client_id: string
   kind: MessageKind
-  channel: MessageChannel
+  channel: OutboxChannel
   slot: string
   recipient: string
   subject: string
@@ -52,6 +59,8 @@ export type OutboxRow = {
 export const MAX_ATTEMPTS = 3
 const RETRY_MS = [60000, 5 * 60000]
 const BATCH = 50
+/** An AI receptionist's answer that could not go out within this long is not sent at all. */
+const RECEPTION_STALE_MS = 15 * 60000
 
 /**
  * The outbox: plans confirmations and reminders from studio records, then hands each one to the
@@ -160,8 +169,97 @@ export function createOutbox(ctx: Context, providers: Providers) {
           text.body.replaceAll(BOOK_LINK, `${ctx.allowedOrigin}/book/${org.slug}`),
         )
       }
+      if (org && fresh.kind === 'receptionist') {
+        // V4: an answer to a guest's text. Checked again now: still a studio of its own, still
+        // switched on, and not so late that the answer no longer fits the question.
+        if (operations(org.state).mode !== 'local') return skip('Sample studios never send.')
+        if (now() - fresh.created_at > RECEPTION_STALE_MS)
+          return skip('Too late to answer by the time it could go out.')
+        // A visit's private link goes only to the number still on that guest's record, and only
+        // while the visit is still to come.
+        let sending = fresh.body
+        if (fresh.body.includes(MANAGE_LINK)) {
+          const visit = org.state.appointments.find(
+            (a) => a.id === fresh.appointment_id && a.clientId === fresh.client_id,
+          )
+          if (
+            !client ||
+            !visit ||
+            visit.status !== 'confirmed' ||
+            visitStart(org.state, visit.id) <= now() ||
+            !textNumber(client.phone) ||
+            textNumber(client.phone) !== textNumber(fresh.recipient) ||
+            // Moved meanwhile: the answer would name the old day, time or person.
+            !fresh.body.includes(visitSummary(org.state, visit))
+          )
+            return skip('The visit or the number on the booking changed before it went out.')
+          sending = fresh.body.replaceAll(
+            MANAGE_LINK,
+            issueGuestLink(ctx, org, visit.id, 'message').url,
+          )
+        }
+        if (isSocialChannel(fresh.channel)) {
+          // On a social app, only from the account the guest wrote to, and within its day.
+          if (!answersSocial(org.state))
+            return skip('Answering these messages was turned off before it went out.')
+          const kept = (org.state.replies ?? []).find(
+            (r) => r.channel === fresh.channel && `reception:${r.providerRef}` === fresh.slot,
+          )
+          const account =
+            kept?.account &&
+            db.get<{ account_id: string }>(
+              'SELECT account_id FROM social_accounts WHERE organisation_id=? AND channel=? AND account_id=?',
+              org.id,
+              fresh.channel,
+              kept.account,
+            )
+          if (!account) return skip('The account was disconnected or changed before it went out.')
+          const ends = socialWindowEnds(org.state, fresh.channel, fresh.recipient, kept.account)
+          if (!ends || now() >= ends)
+            return skip('The app’s day to answer ended before it went out.')
+          return send(fresh, org, fresh.recipient, '', fresh.body, sending, account.account_id)
+        }
+        if (!answersTexts(org.state))
+          return skip('Answering texts was turned off before it went out.')
+        return send(fresh, org, fresh.recipient, '', fresh.body, sending)
+      }
+      if (org && fresh.kind === 'social') {
+        // V4: the team's answer on Instagram, Facebook or WhatsApp. Checked again now: still a
+        // studio of its own, the account still connected, and still within the app's day.
+        if (operations(org.state).mode !== 'local') return skip('Sample studios never send.')
+        const answer = (org.state.socialAnswers ?? []).find((a) => socialSlot(a.id) === fresh.slot)
+        if (!answer) return skip('The answer is no longer in the studio record.')
+        if (!isSocialChannel(fresh.channel)) return skip('Not a social app.')
+        // Only the account the guest wrote to can answer them: their id belongs to it.
+        const account = db.get<{ account_id: string }>(
+          'SELECT account_id FROM social_accounts WHERE organisation_id=? AND channel=? AND account_id=?',
+          org.id,
+          fresh.channel,
+          answer.account,
+        )
+        if (!account) return skip('The account was disconnected or changed before it went out.')
+        const ends = socialWindowEnds(org.state, fresh.channel, fresh.recipient, answer.account)
+        if (!ends || now() >= ends) return skip('The app’s day to answer ended before it went out.')
+        return send(fresh, org, fresh.recipient, '', answer.body, answer.body, account.account_id)
+      }
+      if (fresh.channel !== 'email' && fresh.channel !== 'sms')
+        return skip('This message cannot go on a social app.')
       if (!org || !client) return skip('The visit is no longer in the studio record.')
       if (operations(org.state).mode !== 'local') return skip('Sample studios never send.')
+      if (fresh.kind === 'message') {
+        // V1.5: written in the inbox. Checked again now: still queued, still agreed, still reachable.
+        const message = operations(org.state).messages.find((m) => messageSlot(m.id) === fresh.slot)
+        if (!message || message.status !== 'queued')
+          return skip('Stopped or changed before it went out.')
+        if (message.purpose === 'marketing' && !client.marketingConsent)
+          return skip('Email news was no longer agreed before it went out.')
+        if (message.purpose === 'appointment' && appointmentMessagesOff(client, fresh.channel))
+          return skip('Turned off for this client before it went out.')
+        const to = fresh.channel === 'email' ? client.email.trim() : textNumber(client.phone)
+        if (!to) return skip('The client has no address for this channel now.')
+        const body = message.body.replaceAll(BOOK_LINK, `${ctx.allowedOrigin}/book/${org.slug}`)
+        return send(fresh, org, to, message.subject, message.body, body)
+      }
       // V1.5: a birthday or "we miss you" is about the guest, not a visit. Checked again now.
       const kind = fresh.kind
       let current: { subject: string; body: string } | null = null
@@ -242,8 +340,10 @@ export function createOutbox(ctx: Context, providers: Providers) {
     subject: string,
     stored: string,
     sending: string,
+    /** V4: the studio's own account a social answer goes from. */
+    account?: string,
   ) => {
-    const provider = providers[fresh.channel]
+    const provider = providerFor(providers, fresh.channel)
     db.run(
       "UPDATE outbox SET status='unknown',provider=?,attempts=attempts+1,detail=?,recipient=?,subject=?,body=?,updated_at=? WHERE id=?",
       provider.name,
@@ -263,6 +363,7 @@ export function createOutbox(ctx: Context, providers: Providers) {
         subject,
         body: sending,
         fromName: org.state.organisation.name,
+        ...(account ? { account } : {}),
       },
     }
   }
@@ -277,7 +378,7 @@ export function createOutbox(ctx: Context, providers: Providers) {
       const claimed = claim(candidate)
       if (!claimed) continue
       const { row, message } = claimed
-      const result = await providers[row.channel].send(message)
+      const result = await providerFor(providers, row.channel).send(message)
       if (result.outcome === 'test') finish(row, 'test', { detail: null })
       else if (result.outcome === 'accepted')
         finish(row, 'accepted', { provider_ref: result.providerRef, detail: null })

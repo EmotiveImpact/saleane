@@ -24,8 +24,22 @@ import {
 } from './patchTests'
 import { referenceTaken } from './references'
 import { recordFeedback, repeatedFeedback } from './feedback'
+import { repeatedFormAnswer, runFormCommand, stampFormActors } from './forms'
+import {
+  consentUnchanged,
+  recordConsentChanges,
+  runConsentCommand,
+  stampConsentActors,
+} from './consent'
+import {
+  consultationForBooking,
+  runConsultationCommand,
+  stampConsultationActors,
+  unchangedConsultation,
+} from './consultations'
+import { inboxUnchanged, runInboxCommand, stampInboxActors } from './inbox'
 import { guestHereWindow } from './guest'
-import { markCalledBack, recordMissedCall } from './missedCalls'
+import { callForBooking, linkCallToVisit, markCalledBack, recordMissedCall } from './missedCalls'
 import { planSpecial, stopSpecial } from './specials'
 import { addTask, completeTask } from './tasks'
 import { priceRetail, recordRetailMovements, retailCharge, sellAtCounter } from './retail'
@@ -286,6 +300,15 @@ export function execute(
         if (!previous || previous.status !== 'completed' || previous.clientId !== client.id)
           throw new Error('Rebooking needs a completed visit for this client.')
       }
+      if (input.callId) {
+        if (input.source === 'online') throw new Error('Only the desk can book for a missed call.')
+        callForBooking(s, input.callId, client.id)
+      }
+      if (input.consultationId && input.source === 'online')
+        throw new Error('Only the studio can book from a consultation.')
+      const consultation = input.consultationId
+        ? consultationForBooking(s, input.consultationId, client.id, service.id)
+        : undefined
       const appointment: Appointment = {
         id: makeId(),
         organisationId: org.id,
@@ -308,6 +331,7 @@ export function execute(
         bookedResourceType: service.resourceType,
         bookedServiceName: service.name,
         bookedTax: operations(s).tax ?? null,
+        ...(consultation ? { consultation } : {}),
       }
       next.appointments.push(appointment)
       // Simulated deposit receipt is deliberately separate from the service-price snapshot.
@@ -327,9 +351,10 @@ export function execute(
         appointmentId: appointment.id,
         type: 'booked',
         title: input.source === 'rebook' ? 'Next visit booked' : 'Appointment booked',
-        detail: `${service.name} · ${dateLabel(input.date, org.locale)} at ${timeLabel(input.startMinutes, org.locale)}. ${operations(s).mode === 'sandbox' ? 'Deposit simulated; no payment taken.' : 'No payment collected. Any required deposit remains outstanding.'}${input.channel ? ` Booked through your ${channelLabel(input.channel)} link.` : ''}`,
+        detail: `${service.name} · ${dateLabel(input.date, org.locale)} at ${timeLabel(input.startMinutes, org.locale)}. ${operations(s).mode === 'sandbox' ? 'Deposit simulated; no payment taken.' : 'No payment collected. Any required deposit remains outstanding.'}${input.channel ? ` Booked through your ${channelLabel(input.channel)} link.` : ''}${input.callId ? ' Booked when the studio called back after a missed call.' : ''}`,
       })
       if (input.waitlistId) fillFromWaitlist(next, input.waitlistId, appointment, now, 'book')
+      if (input.callId) linkCallToVisit(next, input.callId, appointment.id, client.id, now)
       recordId = appointment.id
     } else if (
       command.type === 'reschedule' ||
@@ -733,9 +758,38 @@ export function execute(
       const same = command.type === 'patch-test-result' && repeatedPatchResult(s, command)
       if (same) return { ok: true, state: s, recordId: same.id }
       recordId = runPatchTestCommand(next, command, now, makeId, addEvent)
+    } else if (
+      command.type === 'form-save' ||
+      command.type === 'form-archive' ||
+      command.type === 'form-submit'
+    ) {
+      const same = command.type === 'form-submit' && repeatedFormAnswer(s, command)
+      if (same) return { ok: true, state: s, recordId: same.id }
+      recordId = runFormCommand(next, command, now, makeId, addEvent)
+    } else if (command.type === 'consent-wording' || command.type === 'guest-consent-stop') {
+      const unchanged = consentUnchanged(s, command)
+      if (unchanged) return { ok: true, state: s, recordId: unchanged }
+      recordId = runConsentCommand(next, command, now, addEvent)
+    } else if (command.type === 'consultation-save') {
+      const unchanged = unchangedConsultation(s, command)
+      if (unchanged) return { ok: true, state: s, recordId: unchanged }
+      recordId = runConsultationCommand(next, command, now, makeId, addEvent)
+    } else if (
+      command.type === 'reply-received' ||
+      command.type === 'reply-note' ||
+      command.type === 'replies-read' ||
+      command.type === 'reply-link' ||
+      command.type === 'social-answer' ||
+      command.type === 'saved-reply-save' ||
+      command.type === 'saved-reply-remove'
+    ) {
+      const unchanged = inboxUnchanged(s, command)
+      if (unchanged) return { ok: true, state: s, recordId: unchanged }
+      recordId = runInboxCommand(next, command, now, makeId, addEvent)
     } else {
       recordId = runOperatingCommand(next, command, now, makeId, addEvent)
     }
+    recordConsentChanges(s, next, command, now, makeId)
     next.revision += 1
     return { ok: true, state: parseState(next, org.region), recordId }
   } catch (error) {
@@ -779,6 +833,10 @@ export function dispatch(
     if (call.calledBackAt && !before?.calledBackAt) call.calledBackBy = actorName
   }
   stampPatchTestActors(s, result.state, actorName)
+  stampFormActors(s, result.state, actorName)
+  stampConsentActors(s, result.state, actorName)
+  stampConsultationActors(s, result.state, actorName)
+  stampInboxActors(s, result.state, actorName)
   const counted = new Set((s.tillCounts ?? []).map((c) => c.id))
   for (const count of result.state.tillCounts ?? [])
     if (!counted.has(count.id)) count.actor = actorName

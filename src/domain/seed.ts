@@ -3,6 +3,7 @@ import { DEMO_DATE, parseState } from './model'
 import type { Appointment, BusinessState, Region } from './model'
 import { addDays, dateLabel, timeLabel } from './format'
 import { defaultOperations } from './operations'
+import { standardWording } from './consent'
 
 export function seed(region: Region): BusinessState {
   const uk = region === 'UK'
@@ -22,6 +23,8 @@ export function seed(region: Region): BusinessState {
       locationId: uk ? 'loc-london' : 'loc-nyc',
       locationName: uk ? 'Marylebone, London' : 'SoHo, New York',
       address: uk ? '24 Devonshire Place, London W1G' : '48 Mercer Street, New York, NY',
+      // V1.5: a fictional public review page, offered to every guest after their visit.
+      reviewUrl: 'https://reviews.example.com/atelier-house',
     },
     clients: [
       ['Amelia Carter', 'Prefers the quiet treatment room. Usually visits on Tuesdays.'],
@@ -553,6 +556,196 @@ export function seed(region: Region): BusinessState {
       notes: 'Behind the left ear.',
       recordedAt: tested(1),
       actor: 'Theo Bennett · demo fixture',
+    },
+  ]
+  // V1.5: an ordinary form for haircuts, and one guest who has filled it in already.
+  const fixture = 'Theo Bennett · demo fixture'
+  state.forms = [
+    {
+      ...scope,
+      id: 'form-cut',
+      serviceIds: ['service-cut'],
+      when: 'every_visit',
+      versions: [
+        {
+          version: 1,
+          publishedAt: `${addDays(DEMO_DATE, -30)}T09:00:00.000Z`,
+          publishedBy: fixture,
+          content: {
+            title: 'Before your cut',
+            intro: 'A few quick questions so your stylist is ready for you.',
+            questions: [
+              {
+                id: 'q-change',
+                kind: 'choice',
+                label: 'What would you like this time?',
+                required: true,
+                options: ['The same again', 'A small change', 'Something new'],
+              },
+              {
+                id: 'q-ideas',
+                kind: 'long',
+                label: 'Anything you would like us to know?',
+                required: false,
+              },
+              {
+                id: 'q-quiet',
+                kind: 'yes_no',
+                label: 'Would you like a quiet appointment, with little conversation?',
+                required: false,
+              },
+            ],
+            agreement: '',
+          },
+        },
+      ],
+    },
+  ]
+  state.formResponses = [
+    {
+      ...scope,
+      id: 'form-answer-1',
+      formId: 'form-cut',
+      version: 1,
+      appointmentId: 'visit-grace',
+      clientId: 'client-6',
+      answers: [
+        { questionId: 'q-change', value: 'A small change' },
+        { questionId: 'q-ideas', value: 'Keeping the length, just tidier at the front.' },
+        { questionId: 'q-quiet', value: 'yes' },
+      ],
+      agreedName: '',
+      submittedAt: `${addDays(DEMO_DATE, -1)}T19:12:00.000Z`,
+    },
+  ]
+  // V1.5: one guest agreed to email news on the booking page; another agreed at the desk and later
+  // stopped it from their visit link. The others were recorded before these records began. Version
+  // 1, SALEANE's standard wording, is kept in the studio's name so a rename cannot rewrite it.
+  state.consentWording = [{ version: 1, text: standardWording(state.organisation.name) }]
+  state.consentRecords = [
+    {
+      ...scope,
+      id: 'consent-1',
+      clientId: 'client-1',
+      channel: 'email',
+      purpose: 'marketing',
+      given: true,
+      wordingVersion: 1,
+      source: 'booking page',
+      recordedAt: `${addDays(DEMO_DATE, -30)}T09:41:00.000Z`,
+      actor: 'Guest booking',
+    },
+    {
+      ...scope,
+      id: 'consent-2',
+      clientId: 'client-4',
+      channel: 'email',
+      purpose: 'marketing',
+      given: true,
+      wordingVersion: 1,
+      source: 'desk',
+      recordedAt: `${addDays(DEMO_DATE, -21)}T11:05:00.000Z`,
+      actor: 'Maya · demo operator',
+    },
+    {
+      ...scope,
+      id: 'consent-3',
+      clientId: 'client-4',
+      channel: 'email',
+      purpose: 'marketing',
+      given: false,
+      source: 'guest link',
+      recordedAt: `${addDays(DEMO_DATE, -6)}T20:17:00.000Z`,
+      actor: 'Guest (private link)',
+    },
+  ]
+  // V1.5: Ellie talked through a colour change with Theo; the price was firmed up the next day,
+  // and her gloss visit was booked against that second version.
+  const talked = { serviceIds: ['service-gloss'], quoteMinor: uk ? 6500 : 8500, notes: '' }
+  state.consultations = [
+    {
+      ...scope,
+      id: 'consult-ellie',
+      clientId: 'client-3',
+      staffId: 'staff-theo',
+      heldOn: addDays(DEMO_DATE, -5),
+      versions: [
+        {
+          ...talked,
+          version: 1,
+          wants: 'Warmer, softer blonde. Less brassy at the ends.',
+          plan: 'Gloss and tone in a warm beige. Keep the roots as they are.',
+          quoteMinor: null,
+          savedAt: `${addDays(DEMO_DATE, -5)}T15:20:00.000Z`,
+          savedBy: 'Theo Bennett',
+        },
+        {
+          ...talked,
+          version: 2,
+          wants: 'Warmer, softer blonde. Less brassy at the ends.',
+          plan: 'Gloss and tone in a warm beige. Keep the roots as they are. Trim the ends after.',
+          savedAt: `${addDays(DEMO_DATE, -4)}T09:05:00.000Z`,
+          savedBy: 'Maya · demo operator',
+        },
+      ],
+    },
+  ]
+  const ellie = state.appointments.find((a) => a.id === 'visit-gloss-ellie')
+  if (ellie) ellie.consultation = { id: 'consult-ellie', version: 2 }
+  // V1.5: a few replies in the inbox. Ellie texted last night and nobody has read it yet; a
+  // number the studio does not know asked about Saturday; Amelia's thank-you has been read.
+  const client = (id: string) => state.clients.find((c) => c.id === id)!
+  state.replies = [
+    {
+      ...scope,
+      id: 'reply-amelia',
+      clientId: 'client-1',
+      channel: 'email',
+      from: client('client-1').email,
+      body: 'Thank you, see you then. Could I have the quiet room again if it is free?',
+      receivedAt: `${addDays(DEMO_DATE, -2)}T10:12:00.000Z`,
+      providerRef: 'sample-email-1',
+      actor: 'Email line',
+      readAt: `${addDays(DEMO_DATE, -2)}T10:40:00.000Z`,
+      readBy: 'Maya · demo operator',
+    },
+    {
+      ...scope,
+      id: 'reply-ellie',
+      clientId: 'client-3',
+      channel: 'sms',
+      from: client('client-3').phone.replace(/\s/g, ''),
+      body: 'Hi! Could I come half an hour later on Thursday? Same gloss please. Ellie',
+      receivedAt: `${addDays(DEMO_DATE, -1)}T19:48:00.000Z`,
+      providerRef: 'sample-text-1',
+      actor: 'Text line',
+    },
+    {
+      ...scope,
+      id: 'reply-unknown',
+      channel: 'sms',
+      from: uk ? '+447700900999' : '+12125550199',
+      body: 'Hello, do you have anything on Saturday morning for a cut and finish?',
+      receivedAt: `${DEMO_DATE}T07:31:00.000Z`,
+      providerRef: 'sample-text-2',
+      actor: 'Text line',
+    },
+  ]
+  state.savedReplies = [
+    {
+      id: 'saved-thanks',
+      name: 'Thanks, back soon',
+      body: 'Thank you for your message. We will come back to you as soon as we can.',
+    },
+    {
+      id: 'saved-move',
+      name: 'Moving a visit',
+      body: 'Of course. We can move you to a time that suits. Let us know which day works best and we will change it for you.',
+    },
+    {
+      id: 'saved-late',
+      name: 'Running late',
+      body: 'Thank you for letting us know. We will hold your time for 15 minutes. If you will be later than that, reply and we will find you a new time.',
     },
   ]
   return parseState(state, region)

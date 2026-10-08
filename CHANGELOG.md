@@ -17,7 +17,136 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Business figures, including time booked, can be filtered by location.
 - Each location has its own booking link that opens with it chosen.
 - A waitlist request can be for one location, and the schedule history records rooms and people moving between locations.
+- A booking link the AI receptionist texts a guest opens at the location where the professional works that day.
 - A studio with one location works exactly as before.
+
+## 2026-10-08 · V4 · The AI receptionist helps a guest move or cancel
+
+**Status: built locally on 8 October 2026, in review; nothing deployed, no AI supplier or text line connected and nothing sent.** [Evidence](docs/evidence/V4-RECEPTIONIST.md#moving-or-cancelling-a-visit-stage-6).
+
+- A guest who texts or sends a WhatsApp message from the phone number on their booking, asking to move or cancel, is sent the private link to that visit. They move or cancel it there under the studio's usual rules. With more than one visit coming, the receptionist lists them and asks which.
+- The link goes only back to that same number. Someone writing from another number, on Instagram or Facebook, or in the booking page chat, is told to use the link in their booking confirmation or text from the number on the booking, and is never told whether a visit exists.
+- The link is made only as the answer goes out and is never stored. If the number on the client's record changes, or the visit is cancelled or has started, before it goes, nothing is sent.
+
+## 2026-10-08 · V4 · AI receptionist on Instagram, Facebook and WhatsApp
+
+**Status: built locally on 8 October 2026 and merged (#55); nothing deployed, no AI supplier connected, SALEANE is not approved by Meta yet and nothing is sent.** [Evidence](docs/evidence/V4-SOCIAL.md#the-ai-receptionist-on-these-apps).
+
+- The AI receptionist can also answer messages to the studio's Instagram, Facebook and WhatsApp, when the studio ticks "Also answer messages to your Instagram, Facebook and WhatsApp". It is off unless chosen.
+- It answers in the same app, from the account the guest wrote to, and every answer starts with the studio's name and "AI receptionist". A free time is offered as a link to the booking page with that time chosen; the guest still confirms it there.
+- It steps back for an hour once someone from the team answers that guest, and a guest who asks for a person is told the team will reply there. On texts it now says the same.
+
+## 2026-10-08 · V4 · Instagram, Facebook and WhatsApp messages in the Inbox
+
+**Status: built locally on 8 October 2026 and merged (#54); nothing deployed, SALEANE is not approved by Meta yet and nothing is sent to Instagram, Facebook or WhatsApp.** [Evidence](docs/evidence/V4-SOCIAL.md).
+
+- The owner can connect the studio's Instagram account, Facebook Page and WhatsApp Business number in Settings › Studio details. Each account can belong to one studio only, and a sample studio never connects.
+- Guests' messages to those accounts arrive in the Inbox beside their emails and texts. A WhatsApp number is matched to its client, with the name WhatsApp gives. Instagram and Facebook give only an id, so the team matches those by hand, and the conversation then moves to the client.
+- The team answers in the conversation, on the app the guest wrote on. The apps allow answers only within a day of the guest's last message, so the box says how long is left and closes after that. Health words are refused.
+- Answers go through the outbox once. In test mode they are recorded as they would go and marked "Test mode, not sent". An answer goes only from the account the guest wrote to, and is not sent if that account was disconnected or changed, or the day ended, before it could go.
+- Only messages signed with SALEANE's Meta app secret are read, and the same message sent twice is kept once.
+- Clients' answers are included in their privacy export and their deletion review.
+
+## 2026-10-08 · V4 · Book with Google
+
+**Status: built locally on 8 October 2026 and merged (#53); nothing deployed, SALEANE is not a Google partner yet and nothing is sent to Google.** [Evidence](docs/evidence/V4-GOOGLE.md).
+
+- The owner can tick "Offer my studio for booking on Google" in Settings › Studio details. It is off unless chosen, and a sample studio is never offered.
+- SALEANE can now answer Google's booking calls: check a time, book it, look it up, list a guest's visits and cancel. A Google booking takes the same path as the studio's own booking page, so it lands in the diary with the usual confirmation and a "Google" source.
+- Test mode answers only on this computer, so it can never book into a real studio's diary. The same time is never booked twice, even when Google sends a request again. A guest can cancel on Google until the visit starts, the same as with their own booking link.
+- Treatments that need a deposit are not offered on Google, because Google takes no payment here; they stay on the studio's own booking page.
+- The owner sees how many treatments and free times Google would show and how many visits came through Google. The Instagram book button is the studio's existing Instagram booking link.
+- A tick box among other settings now sits beside its words instead of above them.
+
+## 2026-10-08 · V4 · AI receptionist answers texts
+
+**Status: built locally on 8 October 2026 and merged (#52); nothing deployed, no AI supplier or text line connected and no text sent.** [Evidence](docs/evidence/V4-RECEPTIONIST.md#answering-texts-stage-2).
+
+- The AI receptionist can also answer texts to the studio's text line, when the studio ticks "Also answer texts to your text line". It is off unless chosen.
+- Each answer starts with the studio's name and "AI receptionist", so a guest always knows it is an AI. Answers go out through the same outbox as reminders, once, and show in the guest's Inbox conversation with what became of them. Nothing is called sent until the text provider accepts it.
+- A free time is offered as a link that opens the booking page with that time already chosen. The guest still holds and confirms it. If the time has gone, the page says so.
+- A guest who asks for a person is told the team will text back; their message is already in the Inbox. The receptionist steps back for an hour once someone from the studio has texted that guest.
+- A text conversation counts as one chat while messages are less than an hour apart.
+
+## 2026-10-08 · V4 · AI receptionist on the booking page
+
+**Status: built locally on 8 October 2026 and merged (#51); nothing deployed, no AI supplier connected and nothing sent outside the computer.** [Evidence](docs/evidence/V4-RECEPTIONIST.md).
+
+- A studio can show an AI receptionist on its booking page (Settings › Colours & booking page, owners and managers). It is off until turned on.
+- Guests tap "Ask a question" and can ask about treatments, prices, opening hours and free times. The chat always says it is an AI, never asks about health and never shares anything about other guests.
+- It can offer a free time. Tapping "Choose this time" fills in the booking steps, and the guest holds and confirms the visit as usual. It never books, moves, cancels or takes a payment by itself.
+- When it cannot help, it can prepare a message for the team with the guest's name and an email or phone number. The message reaches the Inbox only when the guest taps "Send to the team". The studio can turn this off.
+- One chat counts once towards the studio's 200 guest chats a month. It runs in test mode with a simple stand-in, so it costs nothing and understands simple questions only.
+
+## 2026-10-08 · V5 · Access keys for other software
+
+**Status: built locally on 8 October 2026 and merged (#50); nothing deployed.** [Evidence](docs/evidence/V5-ACCESS.md). [Guide](docs/CONNECTIONS.md#reading-from-saleane).
+
+- Settings › Connected software has a new Access keys panel for the owner. A key lets other software (an accountant's tool, the studio's own reports) read visits, clients or treatments and the team, whichever the owner ticks.
+- A key can never change anything. It is shown once, kept only as a hash, shows when it was last used, and stops working the moment it is revoked.
+- Sample studios cannot make keys.
+
+## 2026-10-08 · V5 · Connected software
+
+**Status: built locally on 8 October 2026 and merged (#49); nothing deployed and nothing sent outside the computer.** [Evidence](docs/evidence/V5-CONNECTIONS.md). [Guide for the receiving end](docs/CONNECTIONS.md).
+
+- Settings has a new Connected software section for the owner. It tells other software (a Zapier hook, the studio's own system) when a visit is booked, moved, cancelled, checked out or missed, or a new client is added. The owner chooses the events for each connection.
+- Guest names, email and phone go only to a connection the owner chose to share them with.
+- Each event is signed with a secret shown once. Busy or silent receivers are tried again up to five times; a refusal is not. "What was sent" lists every delivery and what became of it.
+- One connection can be turned off, or all of them at once. Anything still waiting is then not sent. A removed connection keeps its log.
+- Test mode is the default: events are signed and logged as they would be sent, and nothing leaves the computer. Sample studios cannot connect software.
+
+## 2026-10-08 · V1.5 · The inbox
+
+**Status: built locally on 8 October 2026 and merged (#48); nothing deployed and no message sent.** [Evidence](docs/evidence/V15-INBOX.md).
+
+- The Inbox now shows one conversation per guest: what the studio wrote, what went out on its own (confirmations, reminders and the rest) and what the guest wrote back. Filters show new replies and drafts to approve.
+- Guests' replies to the studio's text line or email address arrive in the right conversation once those lines are connected. A reply from an address or number nobody has can be matched to a client. The desk can note a reply given by phone or in person. Opening a conversation marks its replies read, with who read them.
+- A message can be written for email or text, started from a saved reply, and approved in the same step. In a studio of its own, an approved message goes out once through the same outbox as reminders, and the conversation shows what became of it. In test mode nothing is sent and it says so. Sample studios never send. Messages approved before this change stay queued and unsent.
+- Settings › Messages has saved replies, looked after by owners and managers.
+- Guests' replies are in their data export, text export and erasure review. Messages approved for sending are kept when erasure is reviewed, because they may have gone out.
+
+## 2026-10-07 · V1.5 · Consultations
+
+**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-CONSULT.md).
+
+- A client's page has a new Consultations panel. The desk notes the date, who held it, the treatments talked about, what the guest would like, what was agreed and any price given. Health details are refused, as they are for guest forms.
+- Each update is kept as a new version, with who saved it. Earlier versions stay readable.
+- "Book from this" opens the booking window for that guest and treatment. The visit keeps the version agreed, and its window shows the plan, what they wanted and the price given, with a note if the consultation has changed since.
+- The practitioner's own day shows what was agreed for their visit. The client's data export, text export and erasure review include every version.
+
+## 2026-10-07 · V1.5 · Versioned consent for email news
+
+**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-CONSENT.md).
+
+- Settings › Messages to guests has a new panel for the studio's own words asking about email news. Each change is kept as a numbered version; SALEANE's standard words are version 1.
+- The booking page shows the studio's current words beside the optional box. Every time a guest's email permission is given or stopped (booking online, at the desk, editing the client, or from the guest's own link) SALEANE keeps a record of the words agreed to, where, when and who.
+- Guests can stop email news from their private visit link. Any email news already queued for them is held back. Visit updates carry on.
+- A client's page lists their history under Communication preference, and their data export includes each record with the words.
+- On a phone, the "come in sooner" boxes on the guest's page now sit beside their labels instead of above them.
+
+## 2026-10-07 · V1.5 · Guest forms before a visit
+
+**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-FORMS.md).
+
+- Settings has a new Guest forms section. Owners and managers set up short forms for some or all services, asked before every visit or once per guest: short or longer answers, yes or no, pick one, and something to agree to by typing a name. The sample studio has one for haircuts.
+- Forms are for everyday questions. A form that asks about health (allergies, pregnancy, medication, medical conditions and similar) is refused; those wait for the separate clinical part of SALEANE.
+- Guests fill them in from their private visit link. Confirmations and reminders mention a form that is still waiting. Answers show on the visit for the desk and on the practitioner's own day (without the typed name), and on the client's timeline, data export and erasure review.
+- Changing a form's wording makes a new version. Every answer keeps the version it was given against, and answers cannot be changed or replaced once sent.
+
+## 2026-10-07 · V1.5 · Booking from a missed call
+
+**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-CALLBOOK.md).
+
+- Each call on Today's Missed calls list has a Book button. It opens the booking window for that caller: a client matched by their number is already chosen, and anyone else can be found by number or added as a new client while booking, with their number filled in.
+- Booking takes the call off the list, counts as calling back, links the call to the visit and notes it on the visit's timeline. The client's data export shows which visit a call led to. The panel says how many calls this week became a booked visit.
+
+## 2026-10-07 · V1.5 · Neutral review requests and room resting time
+
+**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-REVIEWS.md).
+
+- A studio can add its public review page (Settings › Studio details). After a completed visit, every guest's private page invites them, in the same words, to leave a public review, and the feedback email gains one line with the link. It never asks for a good review and is never held back because of a private rating. Only https addresses are accepted.
+- A room or chair can rest for 10 to 120 minutes after each visit (Settings › Spaces & equipment), for airing, cooling or a deep clean. New bookings and moves leave it empty for that long before and after each visit and use another free room instead; the professional stays free. Visits already booked stay as they are.
 
 ## 2026-10-07 · V1.5 · Missed-call text-back and "I've arrived"
 

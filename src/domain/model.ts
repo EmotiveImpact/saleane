@@ -8,6 +8,14 @@ import { giftCardSchema } from './giftCardsSchema'
 import { giftCardsProblem, refundableOnReceipt } from './giftCards'
 import { patchTestsProblem } from './patchTests'
 import { patchTestSchema } from './patchTestsSchema'
+import { formResponseSchema, formSchema } from './formsSchema'
+import { formsProblem } from './forms'
+import { consentRecordSchema, consentWordingSchema } from './consentSchema'
+import { consentProblem } from './consent'
+import { consultationSchema, visitConsultationSchema } from './consultationsSchema'
+import { consultationsProblem } from './consultations'
+import { replySchema, savedReplySchema, socialAnswerSchema } from './inboxSchema'
+import { inboxProblem } from './inbox'
 import { feedbackProblem, feedbackSchema } from './feedback'
 import { specialSchema, specialsProblem } from './specialsSchema'
 import { taskSchema, tasksProblem } from './tasksSchema'
@@ -32,6 +40,15 @@ const scoped = { id, organisationId: id }
 export const bookingChannels = ['google', 'instagram'] as const
 export type BookingChannel = (typeof bookingChannels)[number]
 export const GUEST_NOTE_LIMIT = 400
+/** A public review address must be a secure web address. */
+export function isReviewUrl(value: string) {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && !!url.hostname && !url.username && !url.password
+  } catch {
+    return false
+  }
+}
 
 export const organisationSchema = z.object({
   id,
@@ -45,6 +62,15 @@ export const organisationSchema = z.object({
   address: z.string(),
   /** Shown to guests before they arrive: directions, parking, how long to allow. Not clinical. */
   arrivalNote: z.string().max(GUEST_NOTE_LIMIT).optional(),
+  /**
+   * V1.5: where guests can leave a public review (a Google review link, say). Offered the same way
+   * to every guest after a visit, whatever they told the studio privately.
+   */
+  reviewUrl: z
+    .string()
+    .max(300)
+    .refine(isReviewUrl, 'Use a full web address starting with https://.')
+    .optional(),
 })
 export const clientSchema = z.object({
   ...scoped,
@@ -119,6 +145,11 @@ export const resourceSchema = z.object({
   archived: z.boolean().optional(),
   /** V2: the location the room or chair is at. Absent means the main location. */
   locationId: id.optional(),
+  /**
+   * V1.5: minutes the room rests empty after each visit (airing, cooling, a deep clean). Only the
+   * room waits; the professional is free. Absent means none.
+   */
+  restMinutes: z.number().int().min(5).max(120).multipleOf(5).optional(),
 })
 export const appointmentSchema = z.object({
   ...scoped,
@@ -146,6 +177,8 @@ export const appointmentSchema = z.object({
   bookedTax: taxSchema.nullable().optional(),
   /** V1.5: when the guest tapped "I've arrived" on their private link. The desk still welcomes them. */
   guestHereAt: z.iso.datetime().optional(),
+  /** V1.5: the consultation this visit was booked from, at the version agreed then. */
+  consultation: visitConsultationSchema.optional(),
 })
 export const saleSchema = z.object({
   ...scoped,
@@ -219,6 +252,8 @@ export const eventSchema = z.object({
     'waitlist',
     'gift_card',
     'patch_test',
+    'form',
+    'consultation',
   ]),
   allocationChange: z.object({ from: allocationSchema, to: allocationSchema }).optional(),
   title: z.string(),
@@ -266,6 +301,19 @@ export const stateSchema = z.object({
   giftCards: z.array(giftCardSchema).optional(),
   /** V1.5: patch tests done here, kept beside each other and never deleted. */
   patchTests: z.array(patchTestSchema).optional(),
+  /** V1.5: ordinary forms guests fill in before a visit, and every answer given, by version. */
+  forms: z.array(formSchema).optional(),
+  formResponses: z.array(formResponseSchema).optional(),
+  /** V1.5: the studio's wording for email news by version, and every permission change. */
+  consentWording: z.array(consentWordingSchema).max(500).optional(),
+  consentRecords: z.array(consentRecordSchema).optional(),
+  /** V1.5: consultations held with guests, each change kept as a version. */
+  consultations: z.array(consultationSchema).optional(),
+  /** V1.5: what guests wrote back, and the studio's saved replies to start a message from. */
+  replies: z.array(replySchema).optional(),
+  savedReplies: z.array(savedReplySchema).optional(),
+  /** V4: the team's answers on Instagram, Facebook and WhatsApp. */
+  socialAnswers: z.array(socialAnswerSchema).optional(),
 })
 export type BusinessState = z.infer<typeof stateSchema>
 export type Client = z.infer<typeof clientSchema>
@@ -589,6 +637,14 @@ export function parseState(value: unknown, region: Region): BusinessState {
   if (patch) throw new Error(patch)
   const feedback = feedbackProblem(s)
   if (feedback) throw new Error(feedback)
+  const forms = formsProblem(s)
+  if (forms) throw new Error(forms)
+  const consent = consentProblem(s)
+  if (consent) throw new Error(consent)
+  const consultations = consultationsProblem(s)
+  if (consultations) throw new Error(consultations)
+  const inbox = inboxProblem(s)
+  if (inbox) throw new Error(inbox)
   const specials = specialsProblem(s)
   if (specials) throw new Error(specials)
   const tasks = tasksProblem(s)

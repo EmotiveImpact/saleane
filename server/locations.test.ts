@@ -4,6 +4,7 @@ import { createApiHandler } from './app'
 import type { ApiHandler } from './app'
 import type { BusinessState } from '../src/domain/model'
 import type { Command } from '../src/domain/commands'
+import { bookingLink } from './messaging/receptionistText'
 
 // V2: a guest books at a second location through the public booking API.
 const origin = 'http://127.0.0.1:5173'
@@ -112,6 +113,17 @@ describe('booking at another location', () => {
           })}`,
         })
         .then((r) => r.json<{ times: number[] }>().times)
+    // A time the AI receptionist texts opens the booking page where Nia works that day.
+    const offered = {
+      kind: 'time' as const,
+      serviceId: 'service-facial',
+      staffId: nia,
+      date: '2026-10-08',
+      startMinutes: 600,
+    }
+    expect(bookingLink(origin, slug, offered, (await studio(owner)).state)).toContain(
+      `location=${islington}`,
+    )
     // Nia only works in Islington, so she has no times at the main location.
     const main = page.locations[0].id
     expect(await times({ staffId: nia, locationId: main })).toEqual([])

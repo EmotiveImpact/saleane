@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { googleBookingSchema, receptionistSettingsSchema } from './receptionistSchema'
 import { missedCallSources } from './missedCallsSchema'
 import { offerInputSchema } from './plansSchema'
 import { specialInputSchema } from './specialsSchema'
@@ -10,6 +11,7 @@ import {
   patchTestResultSchema,
   patchTestSettingsSchema,
 } from './patchTestsSchema'
+import { formAnswersSchema, formContentSchema, formSettingsSchema } from './formsSchema'
 import { feedbackInputSchema } from './feedback'
 import {
   GUEST_NOTE_LIMIT,
@@ -37,6 +39,15 @@ import { rentMethods, rentalInputSchema } from './rentSchema'
 import { orderLinesSchema, supplierInputSchema } from './purchasingSchema'
 import { accountingProviders, accountingSettingsSchema } from './accountsSchema'
 import { reminderSettingsSchema } from './reminderSettings'
+import { CONSENT_TEXT_LIMIT } from './consentSchema'
+import { consultationContentSchema } from './consultationsSchema'
+import {
+  REPLY_TEXT_LIMIT,
+  SOCIAL_ANSWER_LIMIT,
+  noteWays,
+  savedReplyInputSchema,
+  socialChannels,
+} from './inboxSchema'
 const id = z.string().min(1).max(150)
 const money = z.number().int().nonnegative().max(100_000_000)
 const method = paymentMethodSchema
@@ -71,6 +82,12 @@ export const bookingSchema = z.object({
   rebookedFromId: id.optional(),
   /** V1.5: the waitlist request this booking fills. */
   waitlistId: id.optional(),
+  /** V1.5: the missed call this booking answers. */
+  callId: id.optional(),
+  /** V1.5: the version of the email news wording the guest was shown, when they ticked it. */
+  consentVersion: z.number().int().min(1).optional(),
+  /** V1.5: the consultation this visit comes from; the booking keeps its current version. */
+  consultationId: id.optional(),
 })
 export const operatingCommandSchema = z.discriminatedUnion('type', [
   z.object({
@@ -81,6 +98,8 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     timeZone: z.string().min(1).max(80),
     bookingEnabled: z.boolean(),
     botCheck: z.boolean().optional(),
+    /** V1.5: the public review page; empty removes it. Absent leaves it as it is. */
+    reviewUrl: z.string().trim().max(300).optional(),
   }),
   z.object({ type: z.literal('hours'), hours: weeklyHoursSchema }),
   // V2: a further location; the main one is edited with the organisation.
@@ -126,8 +145,17 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     id: id.optional(),
     input: resourceSchema.omit({ id: true, organisationId: true }),
   }),
-  z.object({ type: z.literal('message'), id: id.optional(), input: messageInputSchema }),
+  z.object({
+    type: z.literal('message'),
+    id: id.optional(),
+    input: messageInputSchema,
+    /** V1.5: approve it for sending in the same step, as the inbox's send button does. */
+    approve: z.boolean().optional(),
+  }),
   z.object({ type: z.literal('message-queue'), messageId: id }),
+  // V4: the AI receptionist on the booking page.
+  z.object({ type: z.literal('receptionist'), settings: receptionistSettingsSchema }),
+  z.object({ type: z.literal('google-booking'), settings: googleBookingSchema }),
   // PILOT-01: the studio's confirmation and reminder settings.
   z.object({ type: z.literal('reminders'), settings: reminderSettingsSchema }),
   // PILOT-01: a client's own wish about appointment emails and texts.
@@ -393,6 +421,50 @@ export const commandSchema = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('client'), contact: contactSchema, referredById: id.optional() }),
   z.object({ type: z.literal('consent'), clientId: id, consent: z.boolean() }),
+  z.object({
+    type: z.literal('consent-wording'),
+    text: z.string().trim().min(10).max(CONSENT_TEXT_LIMIT),
+  }),
+  z.object({ type: z.literal('guest-consent-stop'), appointmentId: id }),
+  z.object({
+    type: z.literal('consultation-save'),
+    /** Present to save a new version of an existing consultation. */
+    id: id.optional(),
+    clientId: id,
+    staffId: id.optional(),
+    heldOn: z.iso.date(),
+    content: consultationContentSchema,
+  }),
+  // V1.5: the inbox. A guest's reply arrives only from the studio's email or text line.
+  z.object({
+    type: z.literal('reply-received'),
+    channel: z.enum(['email', 'sms', 'chat', ...socialChannels]),
+    from: z.string().trim().min(1).max(320),
+    body: z.string().max(20000),
+    providerRef: z.string().max(200).optional(),
+    name: z.string().max(200).optional(),
+    account: z.string().max(200).optional(),
+  }),
+  // V4: the team answers a guest on Instagram, Facebook or WhatsApp, within the app's day.
+  z.object({
+    type: z.literal('social-answer'),
+    replyId: id,
+    body: z.string().max(SOCIAL_ANSWER_LIMIT + 1000),
+  }),
+  z.object({
+    type: z.literal('reply-note'),
+    clientId: id,
+    how: z.enum(noteWays),
+    body: z.string().trim().min(1).max(REPLY_TEXT_LIMIT),
+  }),
+  z.object({ type: z.literal('replies-read'), replyIds: z.array(id).min(1).max(200) }),
+  z.object({ type: z.literal('reply-link'), replyId: id, clientId: id }),
+  z.object({
+    type: z.literal('saved-reply-save'),
+    id: id.optional(),
+    input: savedReplyInputSchema,
+  }),
+  z.object({ type: z.literal('saved-reply-remove'), id }),
   tillCountCommandSchema,
   // Sent only through a guest's private link, never by the studio.
   z.object({ type: z.literal('feedback'), appointmentId: id }).extend(feedbackInputSchema.shape),
@@ -417,6 +489,15 @@ export const commandSchema = z.discriminatedUnion('type', [
     times: waitlistTimesSchema,
   }),
   z.object({ type: z.literal('waitlist-leave'), appointmentId: id }),
+  // V1.5: ordinary guest forms. The studio sets them up; answers come only from the guest's link.
+  z.object({
+    type: z.literal('form-save'),
+    id: id.optional(),
+    content: formContentSchema,
+    settings: formSettingsSchema,
+  }),
+  z.object({ type: z.literal('form-archive'), formId: id, archived: z.boolean() }),
+  z.object({ type: z.literal('form-submit'), appointmentId: id }).extend(formAnswersSchema.shape),
   // V1.5: "I've arrived", from the guest's own private link only.
   z.object({ type: z.literal('guest-here'), appointmentId: id }),
   // V1.5: a call the studio missed, written down to call back; and saying it was called back.

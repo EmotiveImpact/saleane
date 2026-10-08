@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { googleBookingSchema, receptionistSettingsSchema } from './receptionistSchema'
 import type { BusinessState } from './model'
 import { reminderSettingsSchema } from './reminderSettings'
 import { patchTestSettingsSchema } from './patchTestsSchema'
@@ -95,6 +96,8 @@ export const messageInputSchema = z.object({
   clientId: id,
   appointmentId: id.optional(),
   purpose: z.enum(['appointment', 'marketing']),
+  /** V1.5: how it goes once approved. Absent means email, as drafts written before it did. */
+  channel: z.enum(['email', 'sms']).optional(),
   subject: z.string().trim().min(1).max(150),
   body: z.string().trim().min(1).max(3000),
 })
@@ -267,6 +270,11 @@ export const operationsSchema = z.object({
       status: z.enum(['draft', 'queued', 'suppressed']),
       createdAt: z.iso.datetime(),
       actor: z.string(),
+      /**
+       * V1.5: when it was approved for the outbox to send. Messages queued before the outbox took
+       * them have none, and stay queued and unsent rather than going out unexpectedly.
+       */
+      approvedAt: z.iso.datetime().optional(),
     }),
   ),
   refunds: z.array(
@@ -316,6 +324,9 @@ export const operationsSchema = z.object({
   patchTests: patchTestSettingsSchema.optional(),
   /** V1.5: calls the studio missed, to call back and, if switched on, to text back. */
   missedCalls: z.array(missedCallSchema).max(MISSED_CALL_LIMIT).optional(),
+  /** V4: the AI receptionist on the booking page. Absent means it is off. */
+  receptionist: receptionistSettingsSchema.optional(),
+  googleBooking: googleBookingSchema.optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 export type Role = 'owner' | 'manager' | 'reception' | 'practitioner'
@@ -440,7 +451,9 @@ export function stock(s: BusinessState, productId: string, locationId?: string) 
     )
     .reduce((sum, m) => sum + m.quantity, 0)
 }
-export function permissionFor(command: { type: string }) {
+export function permissionFor(command: { type: string; approve?: boolean }) {
+  // Writing and approving in one step needs the right to approve.
+  if (command.type === 'message' && command.approve) return 'message.queue'
   if (['service', 'staff', 'resource', 'guest-notes', 'offer'].includes(command.type))
     return 'catalogue'
   if (
@@ -450,16 +463,35 @@ export function permissionFor(command: { type: string }) {
   )
     return 'hours'
   if (command.type === 'stock-move') return 'stock'
-  if (command.type === 'message-queue') return 'message.queue'
+  if (command.type === 'message-queue' || command.type === 'social-answer') return 'message.queue'
   if (command.type === 'special-plan' || command.type === 'special-stop') return 'special'
   if (command.type === 'task-add' || command.type === 'task-done') return 'task'
   if (command.type === 'missed-call-done') return 'missed-call'
+  if (command.type === 'form-save' || command.type === 'form-archive') return 'forms'
+  if (command.type === 'consent-wording') return 'consent-wording'
+  if (command.type === 'consultation-save') return 'consultation'
+  if (['reply-note', 'replies-read', 'reply-link'].includes(command.type)) return 'message'
+  if (command.type === 'saved-reply-save' || command.type === 'saved-reply-remove')
+    return 'saved-replies'
   return command.type
 }
 export const commandPermission = permissionFor
 export function can(role: Role, action: string) {
-  // Feedback, a guest's own waitlist choices and "I've arrived" come only from their private link.
-  if (['feedback', 'waitlist-join', 'waitlist-leave', 'guest-here'].includes(action)) return false
+  // Feedback, a guest's own waitlist choices, forms, "I've arrived" and stopping email news come
+  // only from their private link.
+  if (
+    [
+      'feedback',
+      'waitlist-join',
+      'waitlist-leave',
+      'guest-here',
+      'form-submit',
+      'guest-consent-stop',
+      // V1.5: a guest's reply arrives only from the studio's email or text line.
+      'reply-received',
+    ].includes(action)
+  )
+    return false
   if (role === 'owner') return true
   if (
     [
@@ -467,6 +499,7 @@ export function can(role: Role, action: string) {
       'restore',
       'organisation',
       'tax',
+      'google-booking',
       'pay-rate',
       'pay-rules',
       'location',
@@ -483,6 +516,7 @@ export function can(role: Role, action: string) {
       'stock',
       'product',
       'message.queue',
+      'saved-replies',
       'import-clients',
       'import-services',
       'import-appointments',
@@ -503,6 +537,9 @@ export function can(role: Role, action: string) {
       'gift-card-extend',
       'gift-card-cancel',
       'patch-test-settings',
+      'forms',
+      'consent-wording',
+      'receptionist',
     ].includes(action)
   )
     return false

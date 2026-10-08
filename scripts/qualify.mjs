@@ -32,6 +32,8 @@ const demoRoutes = [
   '/settings?section=payments',
   '/settings?section=switching',
   '/settings?section=plans',
+  '/settings?section=forms',
+  '/settings?section=connections',
   '/business/feedback',
   '/business/stock',
   '/business/pay',

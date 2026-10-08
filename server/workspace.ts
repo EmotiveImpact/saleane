@@ -5,6 +5,7 @@ import { parseState } from '../src/domain/model'
 import type { BusinessState } from '../src/domain/model'
 import { createWorkspace as createLocalWorkspace } from '../src/domain/workspace'
 import { defaultOperations } from '../src/domain/operations'
+import { standardWording } from '../src/domain/consent'
 
 export const workspaceInput = z
   .object({
@@ -55,6 +56,9 @@ export function createWorkspace(input: WorkspaceInput): BusinessState {
     address: input.address ?? '',
     timeZone: zone,
   }
+  // V1.5: the sample's unedited standard wording speaks in the new studio's name.
+  const standard = state.consentWording?.[0]
+  if (standard && !standard.publishedAt) standard.text = standardWording(input.name)
   // The sample keeps its demo shelf of products (V2) and otherwise starts from the defaults.
   state.operations ??= defaultOperations('sandbox')
   for (const collection of [
@@ -74,6 +78,12 @@ export function createWorkspace(input: WorkspaceInput): BusinessState {
     state.tasks ?? [],
     state.giftCards ?? [],
     state.patchTests ?? [],
+    state.forms ?? [],
+    state.formResponses ?? [],
+    state.consentRecords ?? [],
+    state.consultations ?? [],
+    state.replies ?? [],
+    state.socialAnswers ?? [],
   ]) {
     for (const row of collection) row.organisationId = organisationId
   }

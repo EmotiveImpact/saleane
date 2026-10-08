@@ -19,6 +19,8 @@ import { Avatar, Button, ErrorMessage, Modal, Status, TimeChoices } from '../des
 import { BookingDialog } from './BookingDialog'
 import { CardCheckout, VisitCardPanel } from './CardPayments'
 import { VisitPatchTest } from './PatchTests'
+import { VisitForms } from './GuestForms'
+import { VisitConsultation } from './Consultations'
 import { shownStatus } from '../domain/selectors'
 
 export function AppointmentDialog({
@@ -939,11 +941,14 @@ export function AppointmentDialog({
             </p>
             <p>
               {resource.name} · {appointment.bookedBufferMinutes} minute turnaround
+              {resource.restMinutes ? ` · room rests ${resource.restMinutes} minutes` : ''}
             </p>
           </div>
           {['confirmed', 'arrived'].includes(appointment.status) && (
             <VisitPatchTest appointment={appointment} />
           )}
+          <VisitConsultation appointment={appointment} />
+          <VisitForms appointment={appointment} />
           <div className="preference-note">
             <span>Good to remember</span>
             <p>{client.preferences || 'No preferences recorded yet.'}</p>

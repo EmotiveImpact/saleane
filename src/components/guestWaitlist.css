@@ -2,16 +2,21 @@
 .guest-waitlist-check,
 .guest-waitlist-times label {
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 10px;
   min-height: 44px;
+  font-weight: var(--weight-body);
   cursor: pointer;
 }
 .guest-waitlist-check input,
 .guest-waitlist-times input {
   width: 20px;
   height: 20px;
+  min-height: 0;
+  padding: 0;
   margin: 0;
+  flex: none;
   accent-color: var(--brand-ink);
 }
 .guest-waitlist-times {
