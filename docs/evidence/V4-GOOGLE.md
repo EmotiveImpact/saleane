@@ -4,15 +4,15 @@ Recorded 8 October 2026 in Chromium (Playwright) against the built app (`npm run
 
 ## What was built
 
-- **SALEANE's side of Google's booking server.** Google's Actions Center calls a partner's server to check a time, book it, look a booking up, list a guest's bookings and cancel. The calls built are HealthCheck, CheckAvailability, CreateBooking, UpdateBooking (cancelling only), GetBookingStatus and ListBookings under `/api/partners/google/v3/`. They are off unless the server is started with `SALEANE_GOOGLE_BOOKING=test` and partner credentials (`GOOGLE_BOOKING_USERNAME`, `GOOGLE_BOOKING_PASSWORD`), and every call must carry them.
-- **The three feeds Google reads:** the studio, its treatments with the full price a guest pays, and free times for each professional over the next 30 days, all from the studio record. Only the owner can see them, and they are empty unless the studio is offered.
+- **SALEANE's side of Google's booking server.** Google's Actions Center calls a partner's server to check a time, book it, look a booking up, list a guest's bookings and cancel. The calls built are HealthCheck, BatchAvailabilityLookup (the one Google uses for new integrations), CheckAvailability, CreateBooking, UpdateBooking (cancelling only), GetBookingStatus and ListBookings under `/api/partners/google/v3/`. They are off unless the server is started with `SALEANE_GOOGLE_BOOKING=test` and partner credentials (`GOOGLE_BOOKING_USERNAME`, `GOOGLE_BOOKING_PASSWORD`), and every call must carry them. Test mode answers only on this computer (a loopback address), so it can never be pointed at Google's sandbox with a real studio's diary. Google's sandbox needs its own mode with practice studios, built during partner onboarding.
+- **The three feeds Google reads:** the studio, its treatments (with the localised treatment name Google requires) and the full price a guest pays, and free times for each professional over the next 30 days, all from the studio record. Only the owner can see them, and they are empty unless the studio is offered.
 - **The owner's choice:** Settings › Studio details › Book with Google, owner only. A sample studio never sees it and cannot turn it on.
-- Field names follow Google's published booking server and feed references as read on 8 October 2026. They must be checked with Google's own test tools during partner onboarding. BatchAvailabilityLookup and changing a booking's time are not built; Google falls back to CheckAvailability and the guest can cancel and book again.
+- Field names follow Google's published booking server and feed references as read on 8 October 2026. They must be checked with Google's own test tools during partner onboarding. Changing a booking's time is not built; the guest can cancel and book again.
 
 ## Rules it keeps
 
 - A Google booking goes through the same `book` command as the studio's booking page, with the source "online" and the channel "google", so it lands in the diary with the usual confirmation and shows where it came from.
-- The same request sent twice books once (Google's idempotency token is kept per studio). A time already taken comes back as "slot unavailable", and a guest's list holds only the visits booked under their own Google account.
+- The same request sent twice books once (Google's idempotency token is kept per studio). A time already taken comes back as "slot unavailable", and a guest's list holds only their own visits still to come, never cancelled or past ones.
 - A guest can cancel until the visit starts, the same as with their own booking link. After that Google is told it is outside the cancellation window.
 - Treatments that need a deposit are left out of the feeds and refused if asked for, because no payment is taken through Google. They stay on the studio's own booking page.
 
@@ -27,7 +27,7 @@ Screenshot: [the owner's panel](V4-GOOGLE-panel.png).
 
 ## Automated checks
 
-`server/googleBooking.test.ts` covers: the calls are off unless the server is started for them and refuse wrong credentials; only studios whose owner chose it are offered, never a sample studio; the feeds come from the studio record and only the owner can read them; a free time books once per request, into the diary, and is refused to a second request; booking status, a guest's list and cancelling until the visit starts, then refusing after it starts; and treatments that need a deposit are neither offered nor bookable.
+`server/googleBooking.test.ts` covers: the calls are off unless the server is started for them and refuse wrong credentials; only studios whose owner chose it are offered, never a sample studio; the feeds come from the studio record and only the owner can read them; test mode refuses to answer from a public address; several times are checked at once; a free time books once per request, into the diary, and is refused to a second request; booking status, a guest's list of visits still to come, and cancelling until the visit starts, then refusing after it starts; and treatments that need a deposit are neither offered nor bookable.
 
 ## Instagram book button
 

@@ -77,7 +77,7 @@ export function GoogleBooking() {
       </header>
       <p className="ops-help" role="status">
         {status.mode === 'test'
-          ? 'Test mode: this server answers Google’s booking calls with test credentials. Nothing has been sent to Google.'
+          ? 'Test mode: this computer answers Google’s booking calls with test credentials. Nothing has been sent to Google.'
           : 'SALEANE is not a Google booking partner yet, so Google cannot send bookings. You can choose this now, and your studio will be offered once the connection is ready.'}
       </p>
       <form onSubmit={save}>

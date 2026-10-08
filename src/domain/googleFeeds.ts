@@ -59,7 +59,10 @@ export function serviceFeed(studios: FeedStudio[], generatedAt: number) {
       return bookableOnGoogle(state).map((x) => ({
         merchant_id: id,
         service_id: x.id,
-        name: x.name,
+        localized_service_name: {
+          value: x.name,
+          localized_value: [{ locale: state.organisation.locale, value: x.name }],
+        },
         description: x.description,
         // The full price the guest pays, including any tax, as the booking page shows it.
         price: {

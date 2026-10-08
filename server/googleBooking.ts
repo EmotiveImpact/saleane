@@ -5,7 +5,7 @@ import { HttpError, fail, header } from './http'
 import type { Context, Route } from './context'
 import { dispatch, slots } from '../src/domain/commands'
 import { businessDate, businessMinutes, instantFor, operations } from '../src/domain/operations'
-import { guestCancellation } from '../src/domain/guest'
+import { guestCancellation, visitStart } from '../src/domain/guest'
 import {
   availabilityFeed,
   bookableOnGoogle,
@@ -132,24 +132,59 @@ export function googleBooking(options: GoogleBookingOptions) {
     status,
   })
 
+  /** Whether a start time Google asks about is free for this studio now, holds included. */
+  const isFree = (ctx: Context, slot: Slot) => {
+    try {
+      const org = studio(ctx, slot.merchant_id)
+      const visit = visitFor(org.state, slot)
+      const at = new Date(ctx.now()).toISOString()
+      return slots(ctx.withHolds(org), visit.serviceId, visit.staffId, visit.date, at).includes(
+        visit.startMinutes,
+      )
+    } catch (error) {
+      if (error instanceof BookingFailure) return false
+      throw error
+    }
+  }
+
   const methods: Record<string, (ctx: Context, body: unknown) => unknown> = {
     CheckAvailability(ctx, body) {
       const { slot } = z.object({ slot: slotSchema }).passthrough().parse(body)
-      let count = 0
-      try {
-        const org = studio(ctx, slot.merchant_id)
-        const visit = visitFor(org.state, slot)
-        const state = ctx.withHolds(org)
-        const at = new Date(ctx.now()).toISOString()
-        count = slots(state, visit.serviceId, visit.staffId, visit.date, at).includes(
-          visit.startMinutes,
-        )
-          ? 1
-          : 0
-      } catch (error) {
-        if (!(error instanceof BookingFailure)) throw error
+      return { slot, count_available: isFree(ctx, slot) ? 1 : 0 }
+    },
+    // The availability call Google uses for new integrations: several start times at once, as
+    // the guest opens the booking sheet and again when they pick a time.
+    BatchAvailabilityLookup(ctx, body) {
+      const input = z
+        .object({
+          merchant_id: z.string().min(1).max(150),
+          slot_time: z
+            .array(
+              z
+                .object({
+                  service_id: z.string().min(1).max(150),
+                  start_sec: z.coerce.number().int(),
+                  duration_sec: z.coerce.number().int(),
+                  resource_ids: resources,
+                })
+                .passthrough(),
+            )
+            .max(500),
+        })
+        .passthrough()
+        .parse(body)
+      return {
+        slot_time_availability: input.slot_time.map((slot_time) => ({
+          slot_time,
+          available: isFree(ctx, {
+            merchant_id: input.merchant_id,
+            service_id: slot_time.service_id,
+            start_sec: slot_time.start_sec,
+            duration_sec: slot_time.duration_sec,
+            resources: slot_time.resource_ids,
+          }),
+        })),
       }
-      return { slot, count_available: count }
     },
     CreateBooking(ctx, body) {
       const input = z
@@ -307,10 +342,14 @@ export function googleBooking(options: GoogleBookingOptions) {
       )
       return {
         bookings: rows.flatMap((row) => {
-          const visit = ctx
-            .systemOrg(row.organisation_id)
-            ?.state.appointments.find((a) => a.id === row.booking_id)
-          return visit ? [bookingView(row, statusOf(visit.status))] : []
+          const org = ctx.systemOrg(row.organisation_id)
+          const visit = org?.state.appointments.find((a) => a.id === row.booking_id)
+          // Only visits still to come: Google shows the guest their upcoming bookings.
+          return visit &&
+            visit.status === 'confirmed' &&
+            visitStart(org!.state, visit.id) > ctx.now()
+            ? [bookingView(row, statusOf(visit.status))]
+            : []
         }),
       }
     },
@@ -328,6 +367,13 @@ export function googleBooking(options: GoogleBookingOptions) {
     const match = /^\/api\/partners\/google\/v3\/([A-Za-z]+)$/.exec(pathname)
     if (!match) return false
     if (options.mode === 'off') fail(404, 'This endpoint was not found.')
+    // Test mode answers only on this computer, so Google's sandbox can never book into a real
+    // studio's diary. Google's sandbox needs its own mode with practice studios, built at onboarding.
+    if (
+      options.mode === 'test' &&
+      !['127.0.0.1', 'localhost', '[::1]'].includes(ctx.origin.hostname)
+    )
+      fail(503, 'Book with Google test mode only answers on this computer.')
     const auth = header(request, 'authorization') ?? ''
     const [user, ...rest] = auth.startsWith('Basic ')
       ? Buffer.from(auth.slice(6), 'base64').toString('utf8').split(':')

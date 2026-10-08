@@ -143,6 +143,16 @@ describe('Book with Google', () => {
     ).toBe(401)
     expect((await call('HealthCheck', undefined, '')).statusCode).toBe(401)
     expect((await call('HealthCheck')).statusCode).toBe(200)
+    // Test mode never answers from a public address, so it cannot book into a real diary.
+    api.close()
+    api = createApiHandler({
+      origin: 'https://studio.example',
+      databasePath: ':memory:',
+      now: () => clock,
+      turnstile: null,
+      googleBooking: partner,
+    })
+    expect((await call('HealthCheck')).statusCode).toBe(503)
   })
 
   it('offers only studios whose owner chose it, and never a sample studio', async () => {
@@ -185,7 +195,10 @@ describe('Book with Google', () => {
     expect(services.service).toEqual([
       expect.objectContaining({
         service_id: serviceId,
-        name: 'Restorative facial',
+        localized_service_name: {
+          value: 'Restorative facial',
+          localized_value: [{ locale: 'en-GB', value: 'Restorative facial' }],
+        },
         price: { price_micros: 95_000_000, currency_code: 'GBP' },
       }),
     ])
@@ -228,8 +241,10 @@ describe('Book with Google', () => {
         tone: 'blue',
       },
     })
-    const names = (await feed(login, 'services')).json<{ service: { name: string }[] }>()
-    expect(names.service.map((x) => x.name)).toEqual(['Restorative facial'])
+    const names = (await feed(login, 'services')).json<{
+      service: { localized_service_name: { value: string } }[]
+    }>()
+    expect(names.service.map((x) => x.localized_service_name.value)).toEqual(['Restorative facial'])
     expect((await freeTimes(login)).some((e) => e.service_id === deposit.id)).toBe(false)
     expect(
       (
@@ -267,6 +282,18 @@ describe('Book with Google', () => {
     expect((await call('CheckAvailability', { slot: slotOf(time) })).json()).toMatchObject({
       count_available: 0,
     })
+    const lookup = (
+      await call('BatchAvailabilityLookup', {
+        merchant_id: time.merchant_id,
+        slot_time: [time, onDay(await freeTimes(login), '2026-10-09')].map((e) => ({
+          service_id: e.service_id,
+          start_sec: e.start_sec,
+          duration_sec: e.duration_sec,
+          resource_ids: { staff_id: e.resources.staff_id },
+        })),
+      })
+    ).json<{ slot_time_availability: { available: boolean }[] }>()
+    expect(lookup.slot_time_availability.map((x) => x.available)).toEqual([false, true])
     expect(
       (
         await book(onDay(await freeTimes(login), '2026-10-09'), 'token-3', {
@@ -301,11 +328,18 @@ describe('Book with Google', () => {
     expect((await cancel(booking.booking_id)).json()).toMatchObject({
       booking_failure: { cause: 'BOOKING_ALREADY_CANCELLED' },
     })
+    const listed = async () =>
+      (await call('ListBookings', { user_id: guest.user_id })).json<{
+        bookings: { booking_id: string }[]
+      }>().bookings
+    // Google lists only the guest's visits still to come.
+    expect((await listed()).map((b) => b.booking_id)).toEqual([near.booking_id])
     // Like the guest's own link, a visit can be cancelled until it starts, and not after.
     clock = soon.start_sec * 1000 + 60000
     expect((await cancel(near.booking_id)).json()).toMatchObject({
       booking_failure: { cause: 'OUTSIDE_CANCELLATION_WINDOW' },
     })
+    expect(await listed()).toEqual([])
     const { state } = await workspace(login)
     expect(state.appointments.find((a) => a.id === booking.booking_id)?.status).toBe('cancelled')
     expect(state.appointments.find((a) => a.id === near.booking_id)?.status).toBe('confirmed')
