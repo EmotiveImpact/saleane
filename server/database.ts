@@ -320,6 +320,28 @@ export const migrations: Migration[] = [
         CREATE INDEX api_keys_org ON api_keys(organisation_id);
       `),
   },
+  {
+    version: 17,
+    // V4: the AI receptionist's answer to a guest's text, sent once by the outbox.
+    up: (connection) =>
+      connection.exec(
+        outboxWithKinds([
+          'confirmation',
+          'changed',
+          'reminder',
+          'cancelled',
+          'feedback',
+          'patch_test',
+          'aftercare',
+          'due_back',
+          'birthday',
+          'miss_you',
+          'missed_call',
+          'message',
+          'receptionist',
+        ]),
+      ),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the
