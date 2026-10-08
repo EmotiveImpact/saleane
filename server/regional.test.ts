@@ -271,4 +271,116 @@ describe('regional manager access (V5)', () => {
     ).toBe(200)
     expect((await get(rae)).json<{ view: string }>().view).toBe('studio')
   })
+
+  it('routes requests to the regional manager, or up to the owner', async () => {
+    const { owner, main, leeds, london } = await group()
+    const rae = await regional(owner, 'rae@example.invalid', london)
+    const area = async () => (await get(rae)).json<{ area: AreaView }>().area
+    const raise = (login: Login, revision: number, locationId: string, amountMinor: number) =>
+      run(login, revision, {
+        type: 'request-raise',
+        input: { locationId, kind: 'spend', title: 'New basin', amountMinor },
+        // A browser cannot claim which regions have a manager.
+        managedRegions: [],
+      })
+    // Within their limit at their own location: theirs to decide.
+    let view = await area()
+    expect(view.regionalLimitMinor).toBe(500_00)
+    let saved = await raise(rae, view.revision, main, 200_00)
+    expect(saved.statusCode, saved.body).toBe(200)
+    view = saved.json<{ area: AreaView }>().area
+    const small = view.requests.at(-1)!
+    expect(small.routedTo).toEqual({ level: 'regional', regionId: london })
+    expect(small.raisedBy).toBe('Rae Area')
+    expect(view.summary).toContain('1 request is waiting for your sign-off.')
+    // Over the limit: passes up to the owner, which they can see but not decide.
+    saved = await raise(rae, view.revision, main, 900_00)
+    view = saved.json<{ area: AreaView }>().area
+    const big = view.requests.at(-1)!
+    expect(big.routedTo).toEqual({ level: 'owner' })
+    expect(big.passedUp).toBe('over-limit')
+    const passed = await run(rae, view.revision, {
+      type: 'request-decide',
+      requestId: big.id,
+      outcome: 'approved',
+    })
+    expect(passed.statusCode).toBe(403)
+    expect(passed.json<{ error: string }>().error).toBe('This request has passed up to the owner.')
+    // Not at another region's location.
+    expect((await raise(rae, view.revision, leeds, 100_00)).statusCode).toBe(403)
+    // They decide their own, once.
+    const decided = await run(rae, view.revision, {
+      type: 'request-decide',
+      requestId: small.id,
+      outcome: 'approved',
+      note: 'Go ahead',
+    })
+    expect(decided.statusCode, decided.body).toBe(200)
+    view = decided.json<{ area: AreaView }>().area
+    expect(view.requests.find((r) => r.id === small.id)!.decision).toMatchObject({
+      outcome: 'approved',
+      by: 'Rae Area',
+    })
+    const again = await run(rae, view.revision, {
+      type: 'request-decide',
+      requestId: small.id,
+      outcome: 'declined',
+    })
+    expect(again.statusCode).toBe(422)
+    // The owner can decide the one that passed up.
+    const state = await studio(owner)
+    await ok(owner, state.revision, {
+      type: 'request-decide',
+      requestId: big.id,
+      outcome: 'declined',
+    })
+    // Leeds has no regional manager, so its requests go straight to the owner.
+    const after = await studio(owner)
+    await ok(owner, after.revision, {
+      type: 'request-raise',
+      input: { locationId: leeds, kind: 'other', title: 'Close early on Friday' },
+    })
+    const leedsRequest = (await studio(owner)).operations!.requests!.at(-1)!
+    expect(leedsRequest.routedTo).toEqual({ level: 'owner' })
+    expect(leedsRequest.passedUp).toBe('no-manager')
+  })
+
+  it('lets managers raise but not decide, and keeps requests from the desk', async () => {
+    const { owner, main, london } = await group()
+    await regional(owner, 'rae@example.invalid', london)
+    const invite = async (email: string, role: string) => {
+      const invitation = await post(owner, '/invitations', { email, role })
+      expect(invitation.statusCode, invitation.body).toBe(201)
+      const login = await register(email, invitation.json<{ invitation: string }>().invitation)
+      return { ...login, orgId: owner.orgId }
+    }
+    const manager = await invite('manager@example.invalid', 'manager')
+    let state = await studio(manager)
+    await ok(manager, state.revision, {
+      type: 'request-raise',
+      input: { locationId: main, kind: 'spend', title: 'Window cleaner', amountMinor: 80_00 },
+    })
+    state = await studio(manager)
+    const request = state.operations!.requests!.at(-1)!
+    expect(request.routedTo).toEqual({ level: 'regional', regionId: london })
+    const decide = await run(manager, state.revision, {
+      type: 'request-decide',
+      requestId: request.id,
+      outcome: 'approved',
+    })
+    expect(decide.statusCode).toBe(403)
+    expect(
+      (await run(manager, state.revision, { type: 'approval-limit', regionalLimitMinor: 1 }))
+        .statusCode,
+    ).toBe(403)
+    const desk = await invite('desk@example.invalid', 'reception')
+    const body = (await get(desk)).body
+    expect(body).not.toContain('Window cleaner')
+    expect(body).not.toContain('"requests"')
+    const refused = await run(desk, (await studio(owner)).revision, {
+      type: 'request-raise',
+      input: { locationId: main, kind: 'other', title: 'Anything' },
+    })
+    expect(refused.statusCode).toBe(403)
+  })
 })

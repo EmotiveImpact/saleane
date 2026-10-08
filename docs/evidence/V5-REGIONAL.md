@@ -26,6 +26,6 @@ Screenshots: [invitation](V5-REGIONAL-invite.png), [the regional page](V5-REGION
 
 ## Limits
 
-- A regional manager covers one region. Sign-offs and approvals passing up to them are a later V5 stage, as is a general manager with full control of one branch.
+- A regional manager covers one region. Requests for a sign-off were added in the next stage ([evidence](V5-APPROVALS.md)); a general manager with full control of one branch is a later V5 stage.
 - The figures are the same as the whole-business view: completed service takings, with booked visits shown apart.
 - They cannot change their password from their own page yet.

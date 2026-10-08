@@ -21,7 +21,15 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Texts name the location, imported visits go to the location where the professional works that day, and the calendar showing every location spans all their opening hours.
 - A studio with one location works exactly as before.
 
-## 2026-10-08 · V5 · Regional managers
+## 2026-10-08 · V5 · Requests that pass up to the right person
+
+**Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-APPROVALS.md).
+
+- Business has a Requests tab for owners and managers. Anyone there can ask for a sign-off at a location: spending (with the cost) or something else, with a reason.
+- A request goes to the regional manager of the location's region. It passes up to the owner when it costs more than a regional manager may approve, when the location is in no region, or when the region has no regional manager, and the request says which.
+- The owner sets the regional limit (£500 or $500 to start) and can decide any request. Managers raise requests but do not decide them.
+- A regional manager raises and decides requests at their own locations from their own page, and their morning summary says how many are waiting for them. Requests already over their limit show who they are waiting on, without a button.
+- A decision is final and kept with who made it, when and any word back. The desk and practitioners do not receive requests. Approving a request records the decision only; no money moves.
 
 **Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-REGIONAL.md).
 

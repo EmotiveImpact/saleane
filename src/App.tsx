@@ -32,6 +32,7 @@ import { Pay } from './pages/Pay'
 import { Rota } from './pages/Rota'
 import { Accounts } from './pages/Accounts'
 import { BranchVisits } from './pages/BranchVisits'
+import { Requests } from './pages/Requests'
 import { BrandedBooking } from './pages/BrandedBooking'
 const Account = lazy(() =>
   import('./pages/Account').then((module) => ({ default: module.Account })),
@@ -319,6 +320,7 @@ function WorkspaceApp() {
                   <NavLink to="/business/accounts">Accounts</NavLink>
                   <NavLink to="/business/feedback">Feedback</NavLink>
                   <NavLink to="/business/visits">Branch visits</NavLink>
+                  <NavLink to="/business/requests">Requests</NavLink>
                 </>
               )}
             </nav>
@@ -367,6 +369,16 @@ function WorkspaceApp() {
               element={
                 role === 'owner' || role === 'manager' ? (
                   <BranchVisits />
+                ) : (
+                  <Navigate to="/business" replace />
+                )
+              }
+            />
+            <Route
+              path="/business/requests"
+              element={
+                role === 'owner' || role === 'manager' ? (
+                  <Requests />
                 ) : (
                   <Navigate to="/business" replace />
                 )

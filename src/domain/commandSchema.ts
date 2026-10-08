@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { groupCommandSchemas } from './groupSchema'
 import { branchVisitCommandSchemas } from './branchVisitSchema'
+import { approvalCommandSchemas } from './approvalsSchema'
 import { googleBookingSchema, receptionistSettingsSchema } from './receptionistSchema'
 import { missedCallSources } from './missedCallsSchema'
 import { offerInputSchema } from './plansSchema'
@@ -580,6 +581,8 @@ export const commandSchema = z.discriminatedUnion('type', [
   ...groupCommandSchemas,
   // V5: branch visit checklists.
   ...branchVisitCommandSchemas,
+  // V5: requests that pass up for a sign-off.
+  ...approvalCommandSchemas,
   ...operatingCommandSchema.options,
 ])
 export type BookingInput = z.infer<typeof bookingSchema>

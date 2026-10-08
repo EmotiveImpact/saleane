@@ -7,6 +7,7 @@ import { withoutFeedback } from '../src/domain/feedback'
 import { withoutPayRates } from '../src/domain/pay'
 import { withoutBranchVisits } from '../src/domain/branchVisits'
 import { areaView } from '../src/domain/area'
+import { withoutRequests } from '../src/domain/approvals'
 import type { AreaView } from '../src/domain/area'
 
 /** Who is reading: the role and linked professional come from the server membership, never the client. */
@@ -30,9 +31,12 @@ export function workspaceView(
   today: string,
 ): WorkspaceRecord {
   // Guests' individual ratings and comments (V1.5), the team's commission rates (V2) and branch
-  // visit notes (V5) are for owners and managers only.
+  // visit notes and requests for sign-off (V5) are for owners and managers only.
   if (reader.role === 'reception')
-    return { view: 'studio', state: withoutBranchVisits(withoutPayRates(withoutFeedback(state))) }
+    return {
+      view: 'studio',
+      state: withoutRequests(withoutBranchVisits(withoutPayRates(withoutFeedback(state)))),
+    }
   if (reader.role === 'owner' || reader.role === 'manager') return { view: 'studio', state }
   if (reader.role === 'regional') {
     if (!reader.areaId) return fail(403, 'Your access is not linked to a region.')

@@ -250,7 +250,7 @@ export function AccessPanel() {
               name, preferences and notes, and can welcome their client and add notes. They see no
               contact details, prices, payments or other diaries.
               {areas.length > 0 &&
-                ' A regional manager sees only their region’s locations: how each is doing, what is booked today and their branch visits, which they can record. They see no clients, diaries, prices or settings.'}
+                ' A regional manager sees only their region’s locations: how each is doing, what is booked today, their branch visits, which they can record, and requests for a sign-off, which they can raise and approve up to the owner’s limit. They see no clients, diaries, prices or settings.'}
             </p>
             <Button type="submit" disabled={pending}>
               Create invitation link

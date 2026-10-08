@@ -107,7 +107,18 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         if (org.state.revision !== data.revision)
           fail(409, 'This workspace changed. Reload before saving.')
         let command: Command = data.command
-        if (command.type === 'book') {
+        // V5: a request goes to its region's manager only when the region has one; the client's
+        // own list is never trusted.
+        const managedRegions = () =>
+          db
+            .all<{ area_id: string }>(
+              "SELECT DISTINCT area_id FROM memberships WHERE organisation_id=? AND role='regional'",
+              org.id,
+            )
+            .map((row) => row.area_id)
+        if (command.type === 'request-raise') {
+          command = { ...command, managedRegions: managedRegions() }
+        } else if (command.type === 'book') {
           const allocation = chooseStaff(withHolds(org), command.input, command.input.resourceId)
           command = { ...command, input: { ...command.input, ...allocation } }
         } else if (command.type === 'reschedule') {
