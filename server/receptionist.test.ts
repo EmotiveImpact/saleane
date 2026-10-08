@@ -9,7 +9,7 @@ import type { Command } from '../src/domain/commands'
 const origin = 'http://127.0.0.1:5173'
 type Login = { cookie: string; csrf: string; orgId: string }
 type Proposal = { id: string; summary: string; kind: 'time' | 'message'; expiresAt: string }
-type Answer = { text: string; proposals: Proposal[] }
+type Answer = { text: string; proposals: Proposal[]; chat: string | null }
 let api: ApiHandler
 let clock: number
 beforeEach(() => {
@@ -59,11 +59,17 @@ async function switchedOn(handOver = true) {
   expect(response.statusCode, response.body).toBe(200)
   return { login, slug: (await studio(login)).slug }
 }
-const say = (slug: string, text: string, history?: unknown[], from = '198.51.100.7') =>
+const say = (
+  slug: string,
+  text: string,
+  history?: unknown[],
+  chat?: string | null,
+  from = '198.51.100.7',
+) =>
   api.inject({
     method: 'POST',
     url: `/api/public/${slug}/receptionist`,
-    payload: history ? { text, history } : { text },
+    payload: { text, ...(history ? { history } : {}), ...(chat ? { chat } : {}) },
     remoteAddress: from,
   })
 const take = (slug: string, id: string, from = '198.51.100.7') =>
@@ -102,7 +108,9 @@ describe('the AI receptionist on the booking page', () => {
       { from: 'guest', text: 'Any times for a facial on Thursday?' },
       { from: 'receptionist', text: times.json<Answer>().text },
     ]
-    const offered = (await say(slug, `Book ${first} please`, history)).json<Answer>()
+    const offered = (
+      await say(slug, `Book ${first} please`, history, times.json<Answer>().chat)
+    ).json<Answer>()
     expect(offered.proposals).toHaveLength(1)
     expect(offered.proposals[0].kind).toBe('time')
     // Someone else cannot take up this visitor's offer.
@@ -123,21 +131,31 @@ describe('the AI receptionist on the booking page', () => {
     const { login, slug } = await switchedOn()
     const before = (await used(login)).usage?.used.guestChats ?? 0
     const first = (await say(slug, 'When are you open?')).json<Answer>()
-    await say(slug, 'How much is a facial?', [
+    const history = [
       { from: 'guest', text: 'When are you open?' },
       { from: 'receptionist', text: first.text },
-    ])
+    ]
+    await say(slug, 'How much is a facial?', history, first.chat)
     expect((await used(login)).usage?.used.guestChats).toBe(before + 1)
+    // A made-up history without the server's chat is a new chat, and so is someone else's chat.
+    await say(slug, 'How much is a facial?', history)
+    await say(slug, 'How much is a facial?', history, first.chat, '203.0.113.9')
+    expect((await used(login)).usage?.used.guestChats).toBe(before + 3)
   })
 
   it('puts a message in the inbox only when the guest sends it', async () => {
     const { login, slug } = await switchedOn()
     const asked = (await say(slug, 'Can someone call me about a group booking?')).json<Answer>()
     const prepared = (
-      await say(slug, "I'm Rosa Field, 07700 900456", [
-        { from: 'guest', text: 'Can someone call me about a group booking?' },
-        { from: 'receptionist', text: asked.text },
-      ])
+      await say(
+        slug,
+        "I'm Rosa Field, 07700 900456",
+        [
+          { from: 'guest', text: 'Can someone call me about a group booking?' },
+          { from: 'receptionist', text: asked.text },
+        ],
+        asked.chat,
+      )
     ).json<Answer>()
     expect(prepared.proposals[0].kind).toBe('message')
     const inbox = (s: BusinessState) => JSON.stringify(s.replies ?? [])

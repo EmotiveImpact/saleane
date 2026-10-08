@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { current, decide } from '../../lumane'
 import type { PendingProposal, Usage } from '../../lumane'
@@ -10,6 +11,11 @@ import { CHAT_HISTORY_TURNS, askReceptionist, isOn } from '../../src/assistant/r
 import type { ReceptionEffect } from '../../src/assistant/receptionist'
 
 type Held = PendingProposal<ReceptionEffect> & { organisationId: string; visitor: string }
+type Chat = { organisationId: string; visitor: string; expires: number }
+
+/** A chat stays open this long after its last message; after that a new message starts a new chat. */
+const CHAT_IDLE_MS = 60 * 60000
+const CHAT_LIMIT = 10000
 
 const RESTING =
   'The chat is resting for now. You can still choose a time on this page, or call the studio.'
@@ -22,12 +28,16 @@ const RESTING =
  */
 export function receptionistRoutes() {
   const held = new Map<string, Held>()
+  // Chats this server started. Only these count as one chat; a guest's own word that a chat is
+  // under way is not taken, so the monthly allowance cannot be stepped round.
+  const chats = new Map<string, Chat>()
   return async function receptionist(ctx: Context, route: Route): Promise<boolean> {
     const { request, method, path, body, reply } = route
     if (path[1] !== 'public' || !path[2] || path[3] !== 'receptionist') return false
     const org = ctx.publicOrg(path[2])
     const at = new Date(ctx.now()).toISOString()
     for (const [id, proposal] of held) if (proposal.expiresAt < at) held.delete(id)
+    for (const [id, chat] of chats) if (chat.expires <= ctx.now()) chats.delete(id)
     if (path.length === 4 && method === 'GET') {
       reply(200, { available: isOn(org.state), studio: org.state.organisation.name })
       return true
@@ -36,9 +46,10 @@ export function receptionistRoutes() {
     const visitor = ctx.visitorFor(request)
     if (path.length === 4 && method === 'POST') {
       ctx.rateLimit(request, 'receptionist', 40, 10 * 60000)
-      const { text, history } = z
+      const input = z
         .object({
           text: z.string().trim().min(1).max(500),
+          chat: z.uuid().optional(),
           history: z
             .array(
               z
@@ -50,6 +61,10 @@ export function receptionistRoutes() {
         })
         .strict()
         .parse(body)
+      const known = input.chat ? chats.get(input.chat) : undefined
+      const continuing = !!known && known.organisationId === org.id && known.visitor === visitor
+      // Without a chat this server started, earlier messages are not taken on trust.
+      const history = continuing ? input.history : undefined
       const stored = () =>
         ((raw) => (raw ? (JSON.parse(raw.usage) as Usage) : undefined))(
           ctx.db.get<{ usage: string }>(
@@ -62,13 +77,14 @@ export function receptionistRoutes() {
         today: businessDate(org.state, at),
         now: at,
         visitorId: visitor,
-        text,
+        text: input.text,
         history,
+        continuing,
         usage: stored(),
       })
       // The studio's allowance message is for the owner; the guest hears something kinder.
       if (result.status === 'refused') {
-        reply(200, { text: RESTING, proposals: [] })
+        reply(200, { text: RESTING, proposals: [], chat: null })
         return true
       }
       ctx.db.transaction(() => {
@@ -78,7 +94,7 @@ export function receptionistRoutes() {
         const used = {
           ...before.used,
           // One chat counts once, at its first message.
-          guestChats: before.used.guestChats + (history?.length ? 0 : 1),
+          guestChats: before.used.guestChats + (continuing ? 0 : 1),
         }
         const day = at.slice(0, 10)
         const merged: Usage = {
@@ -99,8 +115,12 @@ export function receptionistRoutes() {
       })
       for (const proposal of result.proposals)
         held.set(proposal.id, { ...proposal, organisationId: org.id, visitor })
+      const chat = continuing ? input.chat! : randomUUID()
+      if (!continuing && chats.size >= CHAT_LIMIT) chats.delete(chats.keys().next().value!)
+      chats.set(chat, { organisationId: org.id, visitor, expires: ctx.now() + CHAT_IDLE_MS })
       reply(200, {
         text: result.text,
+        chat,
         proposals: result.proposals.map(({ id, summary, effect, expiresAt }) => ({
           id,
           summary,

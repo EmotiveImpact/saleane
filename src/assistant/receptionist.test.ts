@@ -68,6 +68,39 @@ describe('the AI receptionist in test mode', () => {
     expect(offered.proposals[0].summary).toMatch(/Skin Renewal Facial, Thursday 8 October at/)
   })
 
+  it('carries on looking for times when the guest answers with just a treatment', async () => {
+    const asked = await chat('Any times tomorrow?')
+    expect(asked.text).toMatch(/^Which treatment would you like\?/)
+    const times = await chat('Skin Renewal Facial', [
+      { from: 'guest', text: 'Any times tomorrow?' },
+      { from: 'receptionist', text: asked.text },
+    ])
+    expect(times.text).toMatch(/^Skin Renewal Facial on Wednesday 7 October: /)
+  })
+
+  it('lets a chat already counted carry on when the month is used up, but starts no new one', async () => {
+    const full = {
+      period: '2026-10',
+      used: { typed: 0, talkSeconds: 0, guestChats: 200 },
+      spendByDay: {},
+      recent: {},
+    }
+    const ask = (continuing: boolean) =>
+      askReceptionist({
+        state: on(base),
+        today,
+        now,
+        visitorId: 'v1',
+        text: 'Hello',
+        continuing,
+        usage: full,
+      })
+    expect((await ask(false)).status).toBe('refused')
+    const going = await ask(true)
+    expect(going.status).toBe('answered')
+    if (going.status === 'answered') expect(going.usage.used.guestChats).toBe(200)
+  })
+
   it('does not offer a time that is not free', async () => {
     const result = await chat('Can I book a facial on Thursday at 3am?')
     expect(result.proposals).toEqual([])

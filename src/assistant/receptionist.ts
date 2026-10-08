@@ -265,6 +265,8 @@ export type ReceptionInput = {
   visitorId: string
   text: string
   history?: ReceptionTurn[]
+  /** True for a later message in a chat already counted against the month's guest chats. */
+  continuing?: boolean
   usage: Usage | undefined
   allowance?: Allowance
 }
@@ -294,6 +296,7 @@ export function askReceptionist(input: ReceptionInput): Promise<TurnResult<Recep
       personId: input.visitorId,
       at: input.now,
       kind: 'guestChats',
+      amount: input.continuing ? 0 : 1,
       worstCaseMinor: CHAT_WORST_CASE_MINOR,
     },
   }) as Promise<TurnResult<ReceptionEffect>>

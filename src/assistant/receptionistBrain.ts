@@ -30,6 +30,8 @@ const ASK_CONTACT =
 const HEALTH =
   'I am an AI, so I cannot help with health or medical questions, and please do not share health details here. The team can talk it through with you.'
 
+const ASK_TREATMENT = 'Which treatment would you like?'
+
 type Step = { text?: string; calls: ToolCall[] }
 type Result = { name: string; input: Record<string, unknown>; ok: boolean; data: unknown }
 type Talk = { latest: string; guest: string[]; lastAnswer: string }
@@ -215,7 +217,13 @@ function intent(talk: Talk) {
   const q = talk.latest.toLowerCase()
   if (healthWordIn(talk.latest)) return 'health'
   if (WANTS_PERSON.test(q) || talk.lastAnswer === ASK_CONTACT) return 'person'
-  if (WANTS_TIME.test(q) || timeIn(q) || (dateIn(q, '2000-01-01') && talk.guest.length > 1))
+  if (
+    WANTS_TIME.test(q) ||
+    timeIn(q) ||
+    (dateIn(q, '2000-01-01') && talk.guest.length > 1) ||
+    // A bare treatment name answers "Which treatment would you like?", so the search goes on.
+    talk.lastAnswer.startsWith(ASK_TREATMENT)
+  )
     return 'time'
   if (WANTS_HOURS.test(q)) return 'hours'
   if (WANTS_MENU.test(q)) return 'menu'
@@ -331,7 +339,7 @@ function nextStep(talk: Talk, results: Result[], offered: Set<string>, today: st
     if (intent(talk) === 'time') {
       if (!chosen)
         return say(
-          `Which treatment would you like? We offer ${list
+          `${ASK_TREATMENT} We offer ${list
             .slice(0, 8)
             .map((t) => t.name)
             .join(', ')}.`,

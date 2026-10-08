@@ -32,6 +32,8 @@ export function ReceptionistChat({
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
   const [taken, setTaken] = useState<string[]>([])
+  // The server's name for this chat, so the whole conversation counts once.
+  const [chat, setChat] = useState<string | null>(null)
   const input = useRef<HTMLInputElement>(null)
   const log = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -51,10 +53,14 @@ export function ReceptionistChat({
     setTurns((now) => [...now, { from: 'guest', text: said }])
     setText('')
     try {
-      const answer = await api<{ text: string; proposals: Proposal[] }>(`${base}/receptionist`, {
-        method: 'POST',
-        body: history.length ? { text: said, history } : { text: said },
-      })
+      const answer = await api<{ text: string; proposals: Proposal[]; chat: string | null }>(
+        `${base}/receptionist`,
+        {
+          method: 'POST',
+          body: chat && history.length ? { text: said, chat, history } : { text: said },
+        },
+      )
+      setChat(answer.chat)
       setTurns((now) => [
         ...now,
         { from: 'receptionist', text: answer.text, proposals: answer.proposals },

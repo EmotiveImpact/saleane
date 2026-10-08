@@ -35,6 +35,8 @@ export type TurnInput<Ctx> = {
     personId: string
     at: string
     kind: Exclude<Meter, 'talkSeconds'>
+    /** How much of the meter this turn uses: 1 by default, 0 for a message in a chat already counted. */
+    amount?: number
     /** The most this turn could cost, in minor units, checked against the daily ceiling. */
     worstCaseMinor: number
   }
@@ -86,7 +88,7 @@ export async function runTurn<Ctx>(input: TurnInput<Ctx>): Promise<TurnResult> {
   const { meter } = input
   const request = {
     meter: meter.kind,
-    amount: 1,
+    amount: meter.amount ?? 1,
     personId: meter.personId,
     at: meter.at,
     worstCaseMinor: meter.worstCaseMinor,
