@@ -3,7 +3,7 @@ import { ArrowRight, Check, Leaf } from 'lucide-react'
 import { useStore } from '../state/context'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import { drifting, gapInvitation, gapSuggestions, morningBrief, unusual } from '../domain/insights'
-import { can } from '../domain/operations'
+import { can, leads } from '../domain/operations'
 import { dueTasks } from '../domain/tasks'
 import { Button, photos } from '../design'
 import type { BookingDefaults } from './BookingDialog'
@@ -27,7 +27,7 @@ export function SmartInsights({ onBook }: { onBook: (defaults: BookingDefaults) 
   const [reminder, setReminder] = useState('')
   const [reminderDay, setReminderDay] = useState('')
   const locale = state.organisation.locale
-  const managers = role === 'owner' || role === 'manager'
+  const managers = leads(role)
   const brief = morningBrief(state, today)
   const notices = unusual(state, today).filter((n) => managers || !n.managersOnly)
   const drifters = drifting(state, today)

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { leads } from '../domain/operations'
 import { Share2 } from 'lucide-react'
 import { useStore } from '../state/context'
 import { channelLink } from '../domain/bookingChannel'
@@ -40,7 +41,7 @@ const links: Omit<ShareLink, 'id'>[] = [
 export function ShareBookingPage() {
   const { mode, slug, role, state } = useStore()
   const [copied, setCopied] = useState('')
-  if (!['owner', 'manager'].includes(role)) return null
+  if (!leads(role)) return null
   const base =
     mode === 'server' && slug
       ? `${window.location.origin}/book/${encodeURIComponent(slug)}`

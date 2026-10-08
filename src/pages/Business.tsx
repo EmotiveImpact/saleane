@@ -19,12 +19,12 @@ import {
 } from '../design'
 
 export function Business() {
-  const { state, today } = useStore()
+  const { state, today, branch } = useStore()
   const [days, setDays] = useState(7)
   const [definitions, setDefinitions] = useState(false)
   // V2: figures for one location, or the whole studio.
   const multiSite = hasLocations(state)
-  const [where, setWhere] = useState('all')
+  const [where, setWhere] = useState(branch ?? 'all')
   const place = multiSite && where !== 'all' ? where : undefined
   const data = report(state, days, place)
   const due = dueClients(state)

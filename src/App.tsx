@@ -17,7 +17,8 @@ import {
 } from 'lucide-react'
 import { useStore } from './state/context'
 import { useStudioColours } from './state/studioColours'
-import { operations } from './domain/operations'
+import { leads, operations } from './domain/operations'
+import { places } from './domain/locations'
 import { staleOffer } from './domain/waitlist'
 import { nudges } from './domain/nudges'
 import { Avatar, Modal } from './design'
@@ -78,7 +79,7 @@ const navigation = [
 ]
 
 function WorkspaceApp() {
-  const { state, warning, mode, slug, loading, session, role, reload, today } = useStore()
+  const { state, warning, mode, slug, loading, session, role, reload, today, branch } = useStore()
   const operator = session?.user.name ?? 'Demo operator'
   const initials = state.organisation.name
     .split(' ')
@@ -176,7 +177,11 @@ function WorkspaceApp() {
           <span className="workspace-monogram">{initials}</span>
           <span>
             <strong>{state.organisation.name}</strong>
-            <small>{state.organisation.locationName}</small>
+            <small>
+              {branch
+                ? `General manager · ${places(state, true).find((p) => p.id === branch)?.name ?? 'your location'}`
+                : state.organisation.locationName}
+            </small>
           </span>
           <ChevronDown size={14} />
         </button>
@@ -318,6 +323,10 @@ function WorkspaceApp() {
                 <>
                   <NavLink to="/business/pay">Pay</NavLink>
                   <NavLink to="/business/accounts">Accounts</NavLink>
+                </>
+              )}
+              {leads(role) && (
+                <>
                   <NavLink to="/business/feedback">Feedback</NavLink>
                   <NavLink to="/business/visits">Branch visits</NavLink>
                   <NavLink to="/business/requests">Requests</NavLink>
@@ -366,23 +375,11 @@ function WorkspaceApp() {
             />
             <Route
               path="/business/visits"
-              element={
-                role === 'owner' || role === 'manager' ? (
-                  <BranchVisits />
-                ) : (
-                  <Navigate to="/business" replace />
-                )
-              }
+              element={leads(role) ? <BranchVisits /> : <Navigate to="/business" replace />}
             />
             <Route
               path="/business/requests"
-              element={
-                role === 'owner' || role === 'manager' ? (
-                  <Requests />
-                ) : (
-                  <Navigate to="/business" replace />
-                )
-              }
+              element={leads(role) ? <Requests /> : <Navigate to="/business" replace />}
             />
             <Route path="/business/gift-cards" element={<GiftCards />} />
             <Route path="/settings" element={<Manage accessPanel={<AccessPanel />} />} />

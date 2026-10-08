@@ -354,7 +354,7 @@ export function DecideForm({
  * can decide any request and sets the regional limit.
  */
 export function Requests() {
-  const { state, role, blocked, commit } = useStore()
+  const { state, role, blocked, commit, branch } = useStore()
   const org = state.organisation
   const raise = !blocked && can(role, 'request-raise')
   const owner = !blocked && can(role, 'request-decide')
@@ -446,7 +446,7 @@ export function Requests() {
       </section>
       {form === 'raise' && (
         <RequestForm
-          sites={places(state)}
+          sites={places(state).filter((p) => !branch || p.id === branch)}
           org={org}
           limitMinor={limit}
           commit={commit}

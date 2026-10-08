@@ -45,7 +45,7 @@ function scoreLine(v: BranchVisit) {
  * answers each line, and anything answered no stays on a list until it is put right.
  */
 export function BranchVisits() {
-  const { state, role, blocked, commit } = useStore()
+  const { state, role, blocked, commit, branch } = useStore()
   const org = state.organisation
   const allowed = !blocked && can(role, 'branch-visit')
   const [form, setForm] = useState<'visit' | 'lists' | null>(null)
@@ -90,16 +90,18 @@ export function BranchVisits() {
                 <ClipboardCheck size={17} aria-hidden="true" />
                 Start a visit
               </Button>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setNotice('')
-                  setForm('lists')
-                }}
-              >
-                <ListChecks size={17} aria-hidden="true" />
-                Checklists
-              </Button>
+              {can(role, 'checklist-save') && (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setNotice('')
+                    setForm('lists')
+                  }}
+                >
+                  <ListChecks size={17} aria-hidden="true" />
+                  Checklists
+                </Button>
+              )}
             </>
           )
         }
@@ -165,7 +167,7 @@ export function BranchVisits() {
 
       {form === 'visit' && (
         <VisitForm
-          sites={places(state)}
+          sites={places(state).filter((p) => !branch || p.id === branch)}
           lists={inUse}
           today={businessDate(state)}
           commit={commit}

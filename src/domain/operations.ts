@@ -350,10 +350,12 @@ export type Operations = z.infer<typeof operationsSchema>
  * V5: a regional manager ('regional') looks after the locations in one region. They receive only
  * their area's view, never the studio record, and record branch visits there.
  */
-export type Role = 'owner' | 'manager' | 'reception' | 'practitioner' | 'regional'
-/** The roles that receive the whole studio record (reception with some parts left out). */
+export type Role = 'owner' | 'manager' | 'reception' | 'practitioner' | 'regional' | 'general'
+/** The roles that receive the whole studio record (reception and general managers with some parts left out). */
 export const studioRole = (role: Role) =>
-  role === 'owner' || role === 'manager' || role === 'reception'
+  role === 'owner' || role === 'manager' || role === 'reception' || role === 'general'
+/** Owners, managers and general managers (V5, who run one location): the people who lead a team. */
+export const leads = (role: Role) => role === 'owner' || role === 'manager' || role === 'general'
 export function defaultOperations(mode: Operations['mode'] = 'sandbox'): Operations {
   return {
     mode,
@@ -500,6 +502,51 @@ export function permissionFor(command: { type: string; approve?: boolean }) {
   return command.type
 }
 export const commandPermission = permissionFor
+/**
+ * V5: permission names (see `permissionFor`) a general manager may use at all; `branchRefusal`
+ * in src/domain/branch.ts then checks the location of each change.
+ */
+export const GENERAL_ACTIONS = [
+  'read',
+  'book',
+  'reschedule',
+  'cancel',
+  'no-show',
+  'arrive',
+  'checkout',
+  'deposit',
+  'fee',
+  'refund',
+  'note',
+  'client',
+  'client-edit',
+  'client-birthday',
+  'consent',
+  'contact-preferences',
+  'consultation',
+  'patch-test',
+  'patch-test-result',
+  'message',
+  'message.queue',
+  'gift-card-sell',
+  'plan-sell',
+  'plan-renew',
+  'balance-settle',
+  'task',
+  'missed-call',
+  'waitlist-add',
+  'waitlist-offer',
+  'waitlist-remove',
+  'counter-sale',
+  'stock',
+  'purchase-order',
+  'receive-order',
+  'cancel-order',
+  'branch-visit',
+  'branch-visit-fix',
+  'request-raise',
+] as const
+
 export function can(role: Role, action: string) {
   // Feedback, a guest's own waitlist choices, forms, "I've arrived" and stopping email news come
   // only from their private link.
@@ -520,6 +567,8 @@ export function can(role: Role, action: string) {
   // area's locations (the server checks which).
   if (role === 'regional')
     return ['branch-visit', 'branch-visit-fix', 'request-raise', 'request-decide'].includes(action)
+  // V5: a general manager works as a manager at their own location only (the server checks where).
+  if (role === 'general') return (GENERAL_ACTIONS as readonly string[]).includes(action)
   if (role === 'owner') return true
   if (
     [

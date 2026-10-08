@@ -5,7 +5,7 @@ import { availableResource, commandSchema, rescheduleResource, slots } from '../
 import type { Command } from '../domain/commands'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import type { BusinessState } from '../domain/model'
-import { businessDate, can, operations, stock } from '../domain/operations'
+import { businessDate, can, leads, operations, stock } from '../domain/operations'
 import type { Role } from '../domain/operations'
 import { coverPlan } from '../domain/cover'
 import {
@@ -73,7 +73,7 @@ a payment was taken or a visit was moved: say what you have prepared for them to
 Only offer marketing messages to clients who agreed to them. Never share one client's details with another.`
 
 const studio = (ctx: AskContext) => ctx.role !== 'practitioner' && can(ctx.role, 'read')
-const managers = (ctx: AskContext) => ctx.role === 'owner' || ctx.role === 'manager'
+const managers = (ctx: AskContext) => leads(ctx.role)
 const cash = (ctx: AskContext, minor: number) => money(minor, ctx.state.organisation)
 const time = (ctx: AskContext, minutes: number) => timeLabel(minutes, ctx.state.organisation.locale)
 const name = (s: BusinessState, kind: 'clients' | 'services' | 'staff' | 'resources', id: string) =>

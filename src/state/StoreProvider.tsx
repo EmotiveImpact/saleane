@@ -321,6 +321,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         mode: remote ? 'server' : 'demo',
         today: businessDate(state),
         role: remote?.role ?? 'owner',
+        branch: remote?.locationId ?? null,
         slug: remote?.slug ?? '',
         session,
         loading,

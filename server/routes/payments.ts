@@ -325,6 +325,9 @@ export function paymentRoutes(payments: Payments) {
         )
         if (replay) return { row: replay, replayed: true as const }
         const a = payments.visit(fresh, data.appointmentId)
+        // V5: a general manager takes payments only for visits at their own location.
+        if (fresh.role === 'general' && a.locationId !== fresh.locationId)
+          fail(403, 'That visit is at another location.')
         if (
           db.get(
             "SELECT id FROM payment_attempts WHERE organisation_id=? AND appointment_id=? AND route IN ('saved_card','reader') AND status IN ('started','processing','unknown')",
@@ -586,6 +589,8 @@ export function paymentRoutes(payments: Payments) {
           processor: payments.processor,
         })
         const a = fresh.state.appointments.find((x) => x.id === item.appointmentId)!
+        if (fresh.role === 'general' && a.locationId !== fresh.locationId)
+          fail(403, 'That visit is at another location.')
         const row = payments.create({
           organisation_id: fresh.id,
           appointment_id: a.id,

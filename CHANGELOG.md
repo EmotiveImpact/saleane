@@ -21,7 +21,14 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Texts name the location, imported visits go to the location where the professional works that day, and the calendar showing every location spans all their opening hours.
 - A studio with one location works exactly as before.
 
-## 2026-10-08 · V5 · Requests that pass up to the right person
+## 2026-10-08 · V5 · General managers who run one location
+
+**Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-GENERAL.md).
+
+- Once a studio has more than one location, the owner can invite a general manager for one of them, or change someone's access to it, under Settings, Team.
+- A general manager works as a manager at their location: its diary, check-ins and takings, card payments and refunds, stock and orders, branch visits and requests for a sign-off, and the clients they look after. The calendar, Business and Stock open on their location, and the sidebar names it.
+- They change nothing at other locations and nothing that affects the whole business, such as treatments, prices, the team, hours, settings, checklists or the regional limit, and they do not see the team's pay rates or other locations' branch visits and requests.
+- If their location closes they see nothing until the owner updates their access. Stored access needs a database step (migration 21) that keeps every existing member and invitation.
 
 **Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-APPROVALS.md).
 

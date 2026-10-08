@@ -25,7 +25,7 @@ import { BookingDialog } from '../components/BookingDialog'
 import type { BookingDefaults } from '../components/BookingDialog'
 
 export function Calendar() {
-  const { state, today, role, blocked } = useStore()
+  const { state, today, role, blocked, branch } = useStore()
   useLiveRefresh()
   const [params] = useSearchParams()
   const [date, setDate] = useState(() =>
@@ -34,7 +34,8 @@ export function Calendar() {
   const [staffFilter, setStaffFilter] = useState('all')
   // V2: with more than one location, the calendar can show one of them or all.
   const multiSite = hasLocations(state)
-  const [locationFilter, setLocationFilter] = useState('all')
+  // A general manager opens on their own location.
+  const [locationFilter, setLocationFilter] = useState(branch ?? 'all')
   const atPlace = (a: { locationId: string }) =>
     locationFilter === 'all' || a.locationId === locationFilter
   // Calendar lands on today; the switch moves between a day, its week and its month.

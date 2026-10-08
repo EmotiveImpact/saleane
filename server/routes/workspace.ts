@@ -8,6 +8,7 @@ import type { Role } from '../../src/domain/operations'
 import { emailSchema, roleSchema } from '../context'
 import type { Context, Route } from '../context'
 import { practitionerRefusal } from '../../src/domain/practitioner'
+import { branchChangeRefusal, branchRefusal } from '../../src/domain/branch'
 import { areaRefusal } from '../../src/domain/area'
 import { openingFree, staleOffer } from '../../src/domain/waitlist'
 import { giftCardHoldProblem } from '../payments/service'
@@ -29,6 +30,7 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
     chooseStaff,
     linkableProfessional,
     linkableArea,
+    linkableLocation,
   } = ctx
   const { request, method, path, body, reply } = route
   if (path[1] === 'workspaces' && path[2]) {
@@ -43,6 +45,7 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         slug: org.slug,
         role: org.role,
         staffId: org.staffId,
+        ...(org.role === 'general' ? { locationId: org.locationId } : {}),
         ...workspaceView(org, org.state, today),
         today,
         mode: operations(org.state).mode,
@@ -84,6 +87,12 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
             : 'Your access is not linked to a region.'
           if (refusal) fail(403, refusal)
         }
+        if (org.role === 'general') {
+          const refusal = org.locationId
+            ? branchRefusal(org.state, org.locationId, data.command)
+            : 'Your access is not linked to a location.'
+          if (refusal) fail(403, refusal)
+        }
         if (org.role === 'practitioner') {
           const refusal = practitionerRefusal(
             org.state,
@@ -119,6 +128,9 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         if (command.type === 'request-raise') {
           command = { ...command, managedRegions: managedRegions() }
         } else if (command.type === 'book') {
+          // A general manager books at their own location unless they say otherwise.
+          if (org.role === 'general' && !command.input.locationId)
+            command = { ...command, input: { ...command.input, locationId: org.locationId! } }
           const allocation = chooseStaff(withHolds(org), command.input, command.input.resourceId)
           command = { ...command, input: { ...command.input, ...allocation } }
         } else if (command.type === 'reschedule') {
@@ -178,6 +190,10 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         }
         const result = dispatch(org.state, command, actor.name, new Date(now()).toISOString())
         if (!result.ok) fail(422, result.error)
+        if (org.role === 'general') {
+          const refusal = branchChangeRefusal(org.state, result.state, org.locationId!)
+          if (refusal) fail(403, refusal)
+        }
         const held = giftCardHoldProblem(ctx, org.id, result.state)
         if (held) fail(409, held)
         if (result.state.revision !== org.state.revision)
@@ -206,11 +222,11 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
       if (org.role !== 'owner') fail(403, 'Only the owner can manage access.')
       reply(200, {
         members: db.all(
-          'SELECT a.id,a.name,a.email,m.role,m.staff_id AS staffId,m.area_id AS areaId FROM memberships m JOIN accounts a ON a.id=m.account_id WHERE m.organisation_id=? ORDER BY a.name',
+          'SELECT a.id,a.name,a.email,m.role,m.staff_id AS staffId,m.area_id AS areaId,m.location_id AS locationId FROM memberships m JOIN accounts a ON a.id=m.account_id WHERE m.organisation_id=? ORDER BY a.name',
           org.id,
         ),
         invitations: db.all(
-          'SELECT email,role,staff_id AS staffId,area_id AS areaId,expires_at AS expiresAt FROM invitations WHERE organisation_id=? AND used_at IS NULL AND expires_at>?',
+          'SELECT email,role,staff_id AS staffId,area_id AS areaId,location_id AS locationId,expires_at AS expiresAt FROM invitations WHERE organisation_id=? AND used_at IS NULL AND expires_at>?',
           org.id,
           now(),
         ),
@@ -225,6 +241,7 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
           role: roleSchema,
           staffId: z.string().min(1).max(100).optional(),
           areaId: z.string().min(1).max(150).optional(),
+          locationId: z.string().min(1).max(150).optional(),
         })
         .strict()
         .parse(body)
@@ -242,6 +259,7 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         const staffId =
           data.role === 'practitioner' ? linkableProfessional(org, data.staffId) : null
         const areaId = data.role === 'regional' ? linkableArea(org, data.areaId) : null
+        const locationId = data.role === 'general' ? linkableLocation(org, data.locationId) : null
         db.run(
           'UPDATE invitations SET used_at=? WHERE organisation_id=? AND email=? AND used_at IS NULL',
           now(),
@@ -249,13 +267,14 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
           data.email,
         )
         db.run(
-          'INSERT INTO invitations(token_hash,organisation_id,email,role,staff_id,area_id,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?)',
+          'INSERT INTO invitations(token_hash,organisation_id,email,role,staff_id,area_id,location_id,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?,?)',
           digest(raw),
           org.id,
           data.email,
           data.role,
           staffId,
           areaId,
+          locationId,
           now(),
           expiresAt,
         )
@@ -273,9 +292,10 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
       const data = z
         .object({
           accountId: z.string().min(1).max(100),
-          role: z.enum(['manager', 'reception', 'practitioner', 'regional', 'remove']),
+          role: z.enum(['manager', 'reception', 'practitioner', 'regional', 'general', 'remove']),
           staffId: z.string().min(1).max(100).optional(),
           areaId: z.string().min(1).max(150).optional(),
+          locationId: z.string().min(1).max(150).optional(),
         })
         .strict()
         .parse(body)
@@ -296,12 +316,13 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
           )
         else
           db.run(
-            'UPDATE memberships SET role=?,staff_id=?,area_id=? WHERE organisation_id=? AND account_id=?',
+            'UPDATE memberships SET role=?,staff_id=?,area_id=?,location_id=? WHERE organisation_id=? AND account_id=?',
             data.role,
             data.role === 'practitioner'
               ? linkableProfessional(org, data.staffId, data.accountId)
               : null,
             data.role === 'regional' ? linkableArea(org, data.areaId) : null,
+            data.role === 'general' ? linkableLocation(org, data.locationId) : null,
             org.id,
             data.accountId,
           )
@@ -319,10 +340,12 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         .parse(body)
       const result = db.transaction(() => {
         const org = orgFor(orgId, actor)
-        if (!['owner', 'manager', 'reception'].includes(org.role))
+        if (!['owner', 'manager', 'reception', 'general'].includes(org.role))
           fail(403, 'Your role cannot manage guest links.')
         const appointment = org.state.appointments.find((a) => a.id === data.appointmentId)
         if (!appointment) fail(404, 'This visit is not in the studio record.')
+        if (org.role === 'general' && appointment!.locationId !== org.locationId)
+          fail(403, 'That visit is at another location.')
         if (revoke) {
           const revoked = revokeGuestLinks(ctx, org, data.appointmentId)
           audit(org, actor.id, 'guest_link.revoked', data.appointmentId)
@@ -339,7 +362,8 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
     }
     if (path[3] === 'audit' && path.length === 4 && method === 'GET') {
       const org = orgFor(orgId, actor)
-      if (!['owner', 'manager'].includes(org.role)) fail(403, 'A manager role is required.')
+      if (!['owner', 'manager', 'general'].includes(org.role))
+        fail(403, 'A manager role is required.')
       reply(200, {
         events: db.all(
           "SELECT e.id,e.action,e.record_id AS recordId,e.revision,e.occurred_at AS occurredAt,COALESCE(a.name,CASE WHEN e.action='workspace.restored' THEN 'Local recovery' ELSE 'Guest booking' END) AS actor FROM audit_events e LEFT JOIN accounts a ON a.id=e.actor_id WHERE e.organisation_id=? ORDER BY e.occurred_at DESC,e.rowid DESC LIMIT 200",

@@ -117,6 +117,7 @@ export function openGuestLink(ctx: Context, raw: string) {
     role: 'owner',
     staffId: null,
     areaId: null,
+    locationId: null,
   }
   return { org, appointmentId: link!.appointment_id }
 }

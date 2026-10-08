@@ -1,4 +1,5 @@
 import { addDays, timeLabel } from './format'
+import { leads } from './operations'
 import { unusual } from './insights'
 import type { BusinessState } from './model'
 import type { Role } from './operations'
@@ -17,7 +18,7 @@ const first = (name: string) => name.split(' ')[0]
 
 export function nudges(s: BusinessState, role: Role, today: string, now: string): Nudge[] {
   if (role === 'practitioner') return []
-  const managers = role === 'owner' || role === 'manager'
+  const managers = leads(role)
   const locale = s.organisation.locale
   const tomorrow = addDays(today, 1)
   const found: Nudge[] = []
