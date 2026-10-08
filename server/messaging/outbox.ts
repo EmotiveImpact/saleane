@@ -186,13 +186,15 @@ export function createOutbox(ctx: Context, providers: Providers) {
         const answer = (org.state.socialAnswers ?? []).find((a) => socialSlot(a.id) === fresh.slot)
         if (!answer) return skip('The answer is no longer in the studio record.')
         if (!isSocialChannel(fresh.channel)) return skip('Not a social app.')
+        // Only the account the guest wrote to can answer them: their id belongs to it.
         const account = db.get<{ account_id: string }>(
-          'SELECT account_id FROM social_accounts WHERE organisation_id=? AND channel=?',
+          'SELECT account_id FROM social_accounts WHERE organisation_id=? AND channel=? AND account_id=?',
           org.id,
           fresh.channel,
+          answer.account,
         )
-        if (!account) return skip('The account was disconnected before it went out.')
-        const ends = socialWindowEnds(org.state, fresh.channel, fresh.recipient)
+        if (!account) return skip('The account was disconnected or changed before it went out.')
+        const ends = socialWindowEnds(org.state, fresh.channel, fresh.recipient, answer.account)
         if (!ends || now() >= ends) return skip('The app’s day to answer ended before it went out.')
         return send(fresh, org, fresh.recipient, '', answer.body, answer.body, account.account_id)
       }

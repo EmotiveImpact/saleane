@@ -422,6 +422,7 @@ export const commandSchema = z.discriminatedUnion('type', [
     body: z.string().max(20000),
     providerRef: z.string().max(200).optional(),
     name: z.string().max(200).optional(),
+    account: z.string().max(200).optional(),
   }),
   // V4: the team answers a guest on Instagram, Facebook or WhatsApp, within the app's day.
   z.object({

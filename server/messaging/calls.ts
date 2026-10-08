@@ -84,6 +84,7 @@ export function recordSocialMessage(ctx: Context, message: SocialMessage) {
         body: message.text.slice(0, 20000),
         providerRef: message.ref.slice(0, 200),
         ...(message.name ? { name: message.name.slice(0, 100) } : {}),
+        account: message.account.slice(0, 200),
       },
       `${socialLabel[message.channel]} account`,
       new Date(now()).toISOString(),

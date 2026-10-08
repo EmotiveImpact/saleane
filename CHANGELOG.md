@@ -9,7 +9,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - The owner can connect the studio's Instagram account, Facebook Page and WhatsApp Business number in Settings › Studio details. Each account can belong to one studio only, and a sample studio never connects.
 - Guests' messages to those accounts arrive in the Inbox beside their emails and texts. A WhatsApp number is matched to its client, with the name WhatsApp gives. Instagram and Facebook give only an id, so the team matches those by hand, and the conversation then moves to the client.
 - The team answers in the conversation, on the app the guest wrote on. The apps allow answers only within a day of the guest's last message, so the box says how long is left and closes after that. Health words are refused.
-- Answers go through the outbox once. In test mode they are recorded as they would go and marked "Test mode, not sent". An answer is not sent if the account was disconnected or the day ended before it could go.
+- Answers go through the outbox once. In test mode they are recorded as they would go and marked "Test mode, not sent". An answer goes only from the account the guest wrote to, and is not sent if that account was disconnected or changed, or the day ended, before it could go.
 - Only messages signed with SALEANE's Meta app secret are read, and the same message sent twice is kept once.
 - Clients' answers are included in their privacy export and their deletion review.
 

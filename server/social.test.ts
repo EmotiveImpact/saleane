@@ -334,6 +334,28 @@ describe('Instagram, Facebook and WhatsApp messages', () => {
     expect(outbox()[0].detail).toMatch(/disconnected/)
   })
 
+  it('answers only from the account the guest wrote to', async () => {
+    const login = await studio()
+    await instagram('Hello')
+    const old = (await replies(login)).at(-1)!
+    expect(old.account).toBe('17841400000000001')
+    await run(login, { type: 'social-answer', replyId: old.id, body: 'Hello, how can we help?' })
+    // The owner swaps to another Instagram account before it goes: the guest's id belongs to the
+    // first one, so nothing is sent through the second.
+    await connect(login, 'instagram', '17841400000000002')
+    await api.outbox.tick()
+    expect(sent).toEqual([])
+    expect(outbox()[0].detail).toMatch(/disconnected or changed/)
+    // The same id writing to the new account does not reopen the old account's day.
+    await instagram('Hi again', '9000001', '17841400000000002')
+    clock += 24 * 60 * 60000 + 60000
+    await instagram('Still there?', '9000001', '17841400000000002')
+    const later = await signIn(login)
+    expect(
+      (await attempt(later, { type: 'social-answer', replyId: old.id, body: 'Yes' })).statusCode,
+    ).toBe(422)
+  })
+
   it('refuses health words in an answer', async () => {
     const login = await studio()
     await instagram('Hello')

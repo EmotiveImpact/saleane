@@ -52,6 +52,8 @@ export const replySchema = z
     providerRef: z.string().max(200).optional(),
     /** V4: the name the app gave the sender, when it gives one. */
     name: z.string().max(100).optional(),
+    /** V4: the studio's own account it was sent to; the sender's id belongs to that account. */
+    account: z.string().max(200).optional(),
     /** Who noted it, or the line it came in on. */
     actor: z.string(),
     readAt: z.iso.datetime().optional(),
@@ -78,6 +80,8 @@ export const socialAnswerSchema = z
     channel: z.enum(socialChannels),
     /** The guest's id on that app, as their message came from. */
     to: z.string().trim().min(1).max(200),
+    /** The studio's account the guest wrote to; the answer goes only from that account. */
+    account: z.string().trim().min(1).max(200),
     body: z.string().trim().min(1).max(SOCIAL_ANSWER_LIMIT),
     answeredAt: z.iso.datetime(),
     actor: z.string(),

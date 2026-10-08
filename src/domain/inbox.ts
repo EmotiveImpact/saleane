@@ -68,9 +68,15 @@ export function snippet(text: string, max = 140) {
  * V4: until when the studio can answer a sender on Instagram, Facebook or WhatsApp: a day after
  * their latest message there. Null when they never wrote on that app.
  */
-export function socialWindowEnds(s: BusinessState, channel: SocialChannel, from: string) {
+export function socialWindowEnds(
+  s: BusinessState,
+  channel: SocialChannel,
+  from: string,
+  account: string | undefined,
+) {
+  // A sender's id belongs to the studio account they wrote to, so only messages there count.
   const last = repliesList(s)
-    .filter((r) => r.channel === channel && r.from === from)
+    .filter((r) => r.channel === channel && r.from === from && r.account === account)
     .reduce((latest, r) => Math.max(latest, Date.parse(r.receivedAt)), 0)
   return last ? last + SOCIAL_WINDOW_MS : null
 }
@@ -84,6 +90,8 @@ export type InboxCommand =
       providerRef?: string
       /** V4: the name Instagram, Facebook or WhatsApp gave the sender. */
       name?: string
+      /** V4: the studio's account it was sent to. */
+      account?: string
     }
   | { type: 'social-answer'; replyId: string; body: string }
   | { type: 'reply-note'; clientId: string; how: (typeof noteWays)[number]; body: string }
@@ -166,7 +174,8 @@ export function runInboxCommand(
       throw new Error('That message did not come in on Instagram, Facebook or WhatsApp.')
     const channel = reply.channel
     const app = socialLabel[channel]
-    const ends = socialWindowEnds(next, channel, reply.from)
+    if (!reply.account) throw new Error('This message does not say which account it came to.')
+    const ends = socialWindowEnds(next, channel, reply.from, reply.account)
     if (!ends || Date.parse(now) >= ends)
       throw new Error(
         `${app} lets a business answer only within a day of the guest's last message. Answer another way, or wait for them to write again.`,
@@ -185,6 +194,7 @@ export function runInboxCommand(
       ...(reply.clientId ? { clientId: reply.clientId } : {}),
       channel,
       to: reply.from,
+      account: reply.account,
       body,
       answeredAt: now,
       actor: '',
@@ -283,6 +293,7 @@ export function runInboxCommand(
     receivedAt: now,
     ...(command.providerRef ? { providerRef: command.providerRef.slice(0, 200) } : {}),
     ...(command.name?.trim() ? { name: command.name.trim().slice(0, 100) } : {}),
+    ...(command.account ? { account: command.account.slice(0, 200) } : {}),
     actor: '',
   }
   list.push(reply)

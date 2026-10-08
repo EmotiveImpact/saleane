@@ -405,7 +405,12 @@ export function Inbox() {
           <SocialAnswer
             key={`${c.key}:${social.id}`}
             app={socialLabel[social.channel as SocialChannel]}
-            ends={socialWindowEnds(state, social.channel as SocialChannel, social.from)}
+            ends={socialWindowEnds(
+              state,
+              social.channel as SocialChannel,
+              social.from,
+              social.account,
+            )}
             now={Date.parse(clock)}
             allowed={allowedQueue}
             pending={!!pending}
