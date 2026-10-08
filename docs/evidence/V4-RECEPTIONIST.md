@@ -29,11 +29,22 @@ Recorded 8 October 2026 in the same way with a studio of its own.
 
 `server/receptionistText.test.ts` covers: no answer until the studio also chooses texts; every answer starting "Linden Studio AI receptionist:"; one answer for a text the provider sends again, including one kept but not answered the first time; answers in the client conversation a number was matched to by hand; an answer queued in the outbox for the guest's number and the matched client, sent once and shown as accepted only when the provider accepted it; a free time offered as a booking link for that time, with the whole exchange counting as one chat and a new chat after an hour's quiet; a guest who asks for a person told the team will text back; no answer once someone from the studio has texted that guest in the last hour; and an answer not sent when texts are turned off before it goes out.
 
+## Moving or cancelling a visit (stage 6)
+
+Recorded 8 October 2026 in Chromium (Playwright) against the built app with a studio of its own, its WhatsApp number connected in test mode (`SALEANE_SOCIAL=test`) and the receptionist answering those messages.
+
+- **WhatsApp from the number on a booking:** Rosa Field, booked for a Restorative facial with Maya Lind on Sunday 11 October at 10:00, wrote "Can I move my appointment please?" from her number. The Inbox shows, in her conversation, "AI receptionist · WhatsApp · Test mode, not sent" with "Here is the private link for your Restorative facial with Maya Lind, Sunday 11 October at 10:00: [private link to manage the visit] You can move or cancel it there. Please keep it to yourself." The link itself is not shown or stored; the outbox makes it only as the answer goes. axe finds nothing; no console errors.
+- **The booking page chat on a phone:** "I need to cancel my booking" is answered "I cannot change a visit in this chat. Please use the link in your booking confirmation, or ask me to pass a message to the team." axe finds nothing.
+
+Screenshot: [the answer in the Inbox](V4-RECEPTIONIST-change.png).
+
+`server/receptionistText.test.ts` also covers: a text from another number is told to use the confirmation link and is not told whether a visit exists; a text from the number on the booking gets that visit's link, kept as a placeholder in the outbox and made only as it goes; the link sent opens that visit on the guest's page and appears nowhere in the outbox; with two visits coming, the receptionist lists them, and "2" sends the second; and nothing is sent once the number on the client's record has changed. `src/assistant/receptionist.test.ts` covers: the booking page chat changes no visit, and a known guest is offered only their own coming visit.
+
 ## Limits
 
 - Test mode only. The answers come from a rule-based stand-in that reads the studio's own records; no AI supplier is connected, so it understands simple questions only.
 - Web chat and texts only. Texts need the studio's text line (Twilio) connected, which no studio has yet. Voice calls, Book with Google, an Instagram book button and Instagram, WhatsApp and Facebook messages are later V4 stages. Voice waits for an OpenAI key.
-- It does not move or cancel visits yet; the guest's private link does that.
+- It never moves or cancels a visit itself. It sends a guest the private link to their own visit, and only to the phone number on that booking, by text or WhatsApp; the guest moves or cancels it there. Instagram, Facebook and the booking page chat cannot prove who is writing, so they get no link.
 - By text it steps back for an hour once someone from the studio has texted the guest, and an answer that could not go out within 15 minutes is not sent at all.
 - Each chat counts towards the studio's 200 guest chats a month. When the allowance is used up, the guest is told the chat is resting and can still book on the page.
 - Offers are kept in the server's memory for 30 minutes and are lost if the server restarts; the guest just asks again.

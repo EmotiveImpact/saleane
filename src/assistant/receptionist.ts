@@ -8,6 +8,7 @@ import { operations } from '../domain/operations'
 import { priceSentence } from '../domain/priceSentence'
 import { healthWordIn } from '../domain/forms'
 import { defaultReceptionist } from '../domain/receptionistSchema'
+import { visitStart } from '../domain/guest'
 import { ALLOWANCES } from './saleane'
 import { receptionistBrain } from './receptionistBrain'
 import type { ReceptionChannel } from './receptionistBrain'
@@ -16,7 +17,9 @@ import type { ReceptionChannel } from './receptionistBrain'
  * V4: the AI receptionist, the guest-facing side of Lumane. It answers from the studio's own
  * records, finds free times, and offers one for the guest to book through the ordinary booking
  * steps. It never books, moves, cancels or takes a payment by itself, and anything it cannot
- * answer goes to the team as a message in the inbox, only once the guest says to send it.
+ * answer goes to the team as a message in the inbox, only once the guest says to send it. A
+ * guest writing from the number on their booking can have their visit's private link sent back to
+ * that number, where they move or cancel it under the studio's usual rules.
  */
 
 export type ReceptionContext = {
@@ -26,12 +29,19 @@ export type ReceptionContext = {
   now: string
   sample: boolean
   handOver: boolean
+  /**
+   * The client writing, only when the server knows it for sure: a text or WhatsApp message from
+   * the one number on their record. Nobody else can see or change a visit through the receptionist.
+   */
+  guestId?: string
 }
 
 /** What the guest can say yes to: a time to book, or a message for the team. */
 export type ReceptionEffect =
   | { kind: 'time'; serviceId: string; staffId: string; date: string; startMinutes: number }
   | { kind: 'message'; name: string; contact: string; message: string }
+  /** Send the guest the private link to their own visit, to the number they wrote from. */
+  | { kind: 'manage'; appointmentId: string }
 
 /** How far ahead the receptionist looks for free times. */
 export const LOOK_AHEAD_DAYS = 90
@@ -43,6 +53,7 @@ export const RECEPTION_INSTRUCTIONS = `You are the AI receptionist for a beauty,
 Say you are an AI if asked, and never pretend to be a person. Write in warm, plain British English. Keep it short.
 Only state facts the skills return: treatments, prices, opening hours and free times. Never guess.
 You cannot book, move or cancel a visit or take a payment. You can offer a free time, which the guest finishes booking on the page.
+When the guest is known, you can send them the private link to one of their own visits, where they move or cancel it themselves.
 Never give health or medical advice and never ask about health. Offer to pass a message to the team instead.
 Never share anything about other guests.`
 
@@ -59,6 +70,7 @@ export function receptionContext(
   state: BusinessState,
   today: string,
   now: string,
+  guestId?: string,
 ): ReceptionContext {
   const settings = operations(state).receptionist ?? defaultReceptionist
   return {
@@ -67,7 +79,28 @@ export function receptionContext(
     now,
     sample: operations(state).mode === 'sandbox',
     handOver: settings.handOver,
+    ...(guestId ? { guestId } : {}),
   }
+}
+
+/** How many of a guest's coming visits the receptionist lists. */
+export const VISITS_LISTED = 5
+/** The known guest's own visits still to come, soonest first. */
+function comingVisits(ctx: ReceptionContext) {
+  const now = Date.parse(ctx.now)
+  return ctx.state.appointments
+    .filter((a) => a.clientId === ctx.guestId && a.status === 'confirmed')
+    .map((a) => ({ a, start: visitStart(ctx.state, a.id) }))
+    .filter((v) => v.start > now)
+    .sort((x, y) => x.start - y.start)
+}
+/** One visit in the receptionist's words. The outbox checks it again before a link goes with it. */
+export function visitSummary(state: BusinessState, a: BusinessState['appointments'][number]) {
+  const service =
+    state.services.find((x) => x.id === a.serviceId)?.name ?? a.bookedServiceName ?? 'Visit'
+  const person = state.staff.find((p) => p.id === a.staffId)?.name
+  const locale = state.organisation.locale
+  return `${service}${person ? ` with ${person}` : ''}, ${dateLabel(a.date, locale)} at ${timeLabel(a.startMinutes, locale)}`
 }
 
 const hhmm = (minutes: number) =>
@@ -259,6 +292,32 @@ export function receptionistSkills(): Skill<ReceptionContext, ReceptionEffect>[]
         }
       },
     }),
+    readSkill<ReceptionContext, Record<string, never>>({
+      name: 'my_visits',
+      description:
+        "The guest's own coming visits, soonest first. Only offered when the guest is known by the number they wrote from.",
+      input: z.object({}).strict(),
+      allowed: (ctx) => !!ctx.guestId,
+      run: (ctx) =>
+        comingVisits(ctx)
+          .slice(0, VISITS_LISTED)
+          .map(({ a }) => ({ id: a.id, date: a.date, summary: visitSummary(ctx.state, a) })),
+    }),
+    actionSkill<ReceptionContext, { visitId: string }, ReceptionEffect>({
+      name: 'send_manage_link',
+      description:
+        "Send the guest the private link to one of their own coming visits, to the number they wrote from. They move or cancel it there under the studio's usual rules.",
+      input: z.object({ visitId: z.string().min(1).max(150) }).strict(),
+      allowed: (ctx) => !!ctx.guestId,
+      propose: (ctx, { visitId }) => {
+        const visit = comingVisits(ctx).find(({ a }) => a.id === visitId)
+        if (!visit) throw new SkillRefusal('That is not one of this guest’s coming visits.')
+        return {
+          summary: visitSummary(ctx.state, visit.a),
+          effect: { kind: 'manage', appointmentId: visit.a.id },
+        }
+      },
+    }),
   ]
 }
 
@@ -276,6 +335,8 @@ export type ReceptionInput = {
   channel?: ReceptionChannel
   /** True for a later message in a chat already counted against the month's guest chats. */
   continuing?: boolean
+  /** The client writing, when the server matched the number they wrote from to their record. */
+  guestId?: string
   usage: Usage | undefined
   allowance?: Allowance
 }
@@ -285,7 +346,7 @@ export type ReceptionInput = {
  * supplier, costs nothing and sends nothing.
  */
 export function askReceptionist(input: ReceptionInput): Promise<TurnResult<ReceptionEffect>> {
-  const ctx = receptionContext(input.state, input.today, input.now)
+  const ctx = receptionContext(input.state, input.today, input.now, input.guestId)
   return runTurn({
     brain: receptionistBrain(ctx.today, input.state.organisation.locale, input.channel),
     skills: receptionistSkills(),
