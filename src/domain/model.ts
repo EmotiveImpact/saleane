@@ -92,6 +92,14 @@ export const clientSchema = z.object({
     .regex(/^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/)
     .refine((value) => birthdayIsReal(value), 'Choose a real date.')
     .optional(),
+  /**
+   * V5: the first half of their postcode only ("N1", "SW1A"; US the first three ZIP digits), for
+   * seeing where clients come from in groups. Never the full postcode or an address.
+   */
+  postcodeArea: z
+    .string()
+    .regex(/^[A-Z0-9]{1,4}$/)
+    .optional(),
 })
 /** Whether a "MM-DD" birthday exists in some year (29 February does). */
 export function birthdayIsReal(value: string) {

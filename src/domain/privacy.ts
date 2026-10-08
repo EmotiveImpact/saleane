@@ -106,6 +106,7 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
       goodToRemember: client.preferences,
       clientSince: client.createdAt,
       ...(client.birthday ? { birthday: client.birthday } : {}),
+      ...(client.postcodeArea ? { postcodeArea: client.postcodeArea } : {}),
     },
     consent: {
       emailMarketing: client.marketingConsent,

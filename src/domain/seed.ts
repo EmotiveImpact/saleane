@@ -56,6 +56,42 @@ export function seed(region: Region): BusinessState {
       createdAt,
       // V1.5: a few guests shared their birthday, month and day only.
       ...(i === 0 ? { birthday: '10-09' } : i === 4 ? { birthday: '03-14' } : {}),
+      // V5: most guests gave the first half of their postcode; two did not.
+      ...(i < 13
+        ? {
+            postcodeArea: (uk
+              ? [
+                  'W1G',
+                  'W1G',
+                  'NW1',
+                  'W1G',
+                  'W2',
+                  'NW1',
+                  'NW8',
+                  'W2',
+                  'W1G',
+                  'NW1',
+                  'W2',
+                  'N1',
+                  'NW8',
+                ]
+              : [
+                  '100',
+                  '100',
+                  '112',
+                  '100',
+                  '070',
+                  '112',
+                  '100',
+                  '113',
+                  '112',
+                  '100',
+                  '070',
+                  '104',
+                  '100',
+                ])[i],
+          }
+        : {}),
     })),
     services: [
       {

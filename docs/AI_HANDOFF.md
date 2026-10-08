@@ -45,6 +45,7 @@ There is no hosted service, processor capture/refund, sent email/SMS, production
 - A late async response must not replace a different studio. Revision conflicts load current records without silently resubmitting the initiating draft.
 - Browser demo reset must advance persisted revision rather than returning to zero. It is still browser-local storage, not a multi-user transactional authority.
 - Money is in minor units with provenance and immutable receipts. Manual payment/refund records explicitly acknowledge already-performed external activity. Cancelled visits retain deposit history; no fabricated fee/refund.
+- V5 client areas keep only the first half of a postcode (`client.postcodeArea`, normalised by `postcodeArea` in `src/domain/clientAreas.ts`; a full postcode is cut before it is stored). `clientAreas` names only areas with at least `AREA_MIN_GROUP` (3) clients and folds the rest into "Other areas"; keep that floor in any new view, and never place individual clients on a map.
 - Imports are bounded and reviewed, source-attributed, never infer marketing consent and never auto-merge identities on email. Queued communications remain unsent.
 - Backup is consistent with WAL; restore uses a fresh path and revokes sessions/invitations/holds. Keep databases and sidecars outside static roots and Git.
 

@@ -21,6 +21,15 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Texts name the location, imported visits go to the location where the professional works that day, and the calendar showing every location spans all their opening hours.
 - A studio with one location works exactly as before.
 
+## 2026-10-08 · V5 · Where clients come from
+
+**Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-AREAS.md).
+
+- A client's page has a Postcode area panel (ZIP area in the US). The desk, managers and the owner record the first half of a postcode, such as N1, or the first three digits of a ZIP code. A full postcode typed in is cut to its first half before it is saved, and the client's timeline notes the change. Practitioners cannot record it.
+- Business has a Client areas tab for owners, managers and general managers: clients with a visit in the past year or one booked, grouped by area, with each area's share, and filtered by location when there is more than one. A general manager sees their own location's.
+- An area with fewer than three clients is counted under "Other areas", so no one person can be picked out, and clients with no area are counted as such. Nobody is shown on a map; a drawn map would need an outside map service, which is not connected.
+- The postcode area is included when a client asks for a copy of their record.
+
 ## 2026-10-08 · V5 · General managers who run one location
 
 **Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-GENERAL.md).
@@ -29,6 +38,8 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - A general manager works as a manager at their location: its diary, check-ins and takings, card payments and refunds, stock and orders, branch visits and requests for a sign-off, and the clients they look after. The calendar, Business and Stock open on their location, and the sidebar names it.
 - They change nothing at other locations and nothing that affects the whole business, such as treatments, prices, the team, hours, settings, checklists or the regional limit, and they do not see the team's pay rates or other locations' branch visits and requests.
 - If their location closes they see nothing until the owner updates their access. Stored access needs a database step (migration 21) that keeps every existing member and invitation.
+
+## 2026-10-08 · V5 · Requests that pass up to the right person
 
 **Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-APPROVALS.md).
 

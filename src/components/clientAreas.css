@@ -1,0 +1,73 @@
+/* V5: where clients come from. Plain bars on hairline rows; no coloured edges. */
+.areas-where {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0 var(--space-4);
+}
+.areas-where select {
+  min-width: min(14rem, 100%);
+}
+.areas-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.areas-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.areas-list > li {
+  display: grid;
+  grid-template-columns: minmax(6rem, 9rem) 1fr auto;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--line);
+}
+.areas-name {
+  font-weight: var(--weight-strong);
+}
+.areas-bar {
+  display: block;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: var(--stone);
+  overflow: hidden;
+}
+.areas-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand);
+}
+.areas-quiet .areas-name,
+.areas-quiet .areas-count {
+  color: var(--muted);
+  font-weight: var(--weight-body);
+}
+.areas-quiet .areas-bar > span {
+  background: var(--brand-mid);
+}
+.areas-count {
+  font-size: var(--text-small);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.areas-privacy {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-small);
+  color: var(--muted);
+}
+@media (max-width: 560px) {
+  .areas-list > li {
+    grid-template-columns: 1fr auto;
+  }
+  .areas-bar {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}

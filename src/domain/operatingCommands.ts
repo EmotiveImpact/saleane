@@ -1,4 +1,5 @@
 import type { BusinessState, RelationshipEvent } from './model'
+import { areaHint, postcodeArea } from './clientAreas'
 import { isReviewUrl } from './model'
 import type { OperatingCommand } from './commandSchema'
 import { hasLocations, placeField, placeOf, places } from './locations'
@@ -771,6 +772,23 @@ export function runOperatingCommand(
         type: 'profile',
         title: command.birthday ? 'Birthday recorded' : 'Birthday removed',
         detail: 'Month and day only.',
+      })
+    }
+    recordId = client.id
+  } else if (command.type === 'client-area') {
+    const client = next.clients.find((c) => c.id === command.clientId)
+    if (!client) throw new Error('Client does not belong to this workspace.')
+    const region = next.organisation.region
+    const area = command.area === null ? null : postcodeArea(command.area, region)
+    if (command.area !== null && !area) throw new Error(areaHint(region))
+    if ((client.postcodeArea ?? null) !== area) {
+      if (area) client.postcodeArea = area
+      else delete client.postcodeArea
+      addEvent({
+        clientId: client.id,
+        type: 'profile',
+        title: area ? 'Postcode area recorded' : 'Postcode area removed',
+        detail: area ? `${area}. The first half of the postcode only.` : 'No area is kept.',
       })
     }
     recordId = client.id

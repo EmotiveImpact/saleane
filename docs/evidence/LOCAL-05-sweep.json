@@ -1,6 +1,6 @@
 {
   "environment": "Chromium 141.0.7390.37 / http://127.0.0.1:5173",
-  "recordedAt": "2026-10-08T23:17:55.510Z",
+  "recordedAt": "2026-10-08T23:51:56.108Z",
   "results": [
     {
       "mode": "demo",
@@ -49,7 +49,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 44,
+        "focusable": 45,
         "missing": []
       },
       "errors": []
@@ -88,7 +88,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 40,
+        "focusable": 41,
         "missing": []
       },
       "errors": []
@@ -101,7 +101,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 41,
+        "focusable": 42,
         "missing": []
       },
       "errors": []
@@ -205,7 +205,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 38,
+        "focusable": 39,
         "missing": []
       },
       "errors": []
@@ -231,7 +231,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 40,
+        "focusable": 41,
         "missing": []
       },
       "errors": []
@@ -244,7 +244,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 36,
+        "focusable": 37,
         "missing": []
       },
       "errors": []
@@ -257,7 +257,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 37,
+        "focusable": 38,
         "missing": []
       },
       "errors": []
@@ -270,7 +270,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 32,
+        "focusable": 33,
         "missing": []
       },
       "errors": []
@@ -283,7 +283,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 32,
+        "focusable": 33,
         "missing": []
       },
       "errors": []
@@ -296,7 +296,20 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 30,
+        "focusable": 31,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/business/areas",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 29,
         "missing": []
       },
       "errors": []
@@ -564,6 +577,15 @@
     },
     {
       "mode": "demo",
+      "route": "/business/areas",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "demo",
       "route": "/booking",
       "width": 390,
       "violations": [],
@@ -809,6 +831,15 @@
     },
     {
       "mode": "demo",
+      "route": "/business/areas",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "demo",
       "route": "/booking",
       "width": 320,
       "violations": [],
@@ -892,7 +923,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 45,
+        "focusable": 46,
         "missing": []
       },
       "errors": []
@@ -931,7 +962,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 41,
+        "focusable": 42,
         "missing": []
       },
       "errors": []
@@ -944,7 +975,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 41,
+        "focusable": 42,
         "missing": []
       },
       "errors": []
@@ -1048,7 +1079,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 39,
+        "focusable": 40,
         "missing": []
       },
       "errors": []
@@ -1074,7 +1105,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 41,
+        "focusable": 42,
         "missing": []
       },
       "errors": []
@@ -1087,7 +1118,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 37,
+        "focusable": 38,
         "missing": []
       },
       "errors": []
@@ -1100,7 +1131,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 38,
+        "focusable": 39,
         "missing": []
       },
       "errors": []
@@ -1113,7 +1144,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 33,
+        "focusable": 34,
         "missing": []
       },
       "errors": []
@@ -1126,7 +1157,7 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 33,
+        "focusable": 34,
         "missing": []
       },
       "errors": []
@@ -1139,7 +1170,20 @@
       "viewport": 1280,
       "document": 1280,
       "keyboard": {
-        "focusable": 31,
+        "focusable": 32,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "local studio",
+      "route": "/business/areas",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 30,
         "missing": []
       },
       "errors": []
@@ -1159,7 +1203,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-a3c1c9a6",
+      "route": "/book/qualify-studio-b1d55e61",
       "width": 1280,
       "violations": [],
       "viewport": 1280,
@@ -1392,6 +1436,15 @@
     },
     {
       "mode": "local studio",
+      "route": "/business/areas",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "local studio",
       "route": "/pricing",
       "width": 390,
       "violations": [],
@@ -1401,7 +1454,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-a3c1c9a6",
+      "route": "/book/qualify-studio-b1d55e61",
       "width": 390,
       "violations": [],
       "viewport": 390,
@@ -1626,6 +1679,15 @@
     },
     {
       "mode": "local studio",
+      "route": "/business/areas",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "local studio",
       "route": "/pricing",
       "width": 320,
       "violations": [],
@@ -1635,7 +1697,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-a3c1c9a6",
+      "route": "/book/qualify-studio-b1d55e61",
       "width": 320,
       "violations": [],
       "viewport": 320,
@@ -2315,6 +2377,24 @@
     },
     {
       "mode": "demo",
+      "route": "/business/areas",
+      "title": "SALEANE — Atelier House",
+      "lang": "en-GB",
+      "h1": ["Where clients come from."],
+      "headings": ["H1 Where clients come from.", "H2 By area"],
+      "landmarks": [
+        "aside Workspace navigation",
+        "nav",
+        "header",
+        "section About this version",
+        "main",
+        "nav Business sections",
+        "header",
+        "footer"
+      ]
+    },
+    {
+      "mode": "demo",
       "route": "/booking",
       "title": "SALEANE — Atelier House",
       "lang": "en-GB",
@@ -2920,6 +3000,24 @@
     },
     {
       "mode": "local studio",
+      "route": "/business/areas",
+      "title": "SALEANE — Qualify Studio",
+      "lang": "en-GB",
+      "h1": ["Where clients come from."],
+      "headings": ["H1 Where clients come from.", "H2 By area"],
+      "landmarks": [
+        "aside Workspace navigation",
+        "nav",
+        "header",
+        "section About this version",
+        "main",
+        "nav Business sections",
+        "header",
+        "footer"
+      ]
+    },
+    {
+      "mode": "local studio",
       "route": "/pricing",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
@@ -2936,7 +3034,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-a3c1c9a6",
+      "route": "/book/qualify-studio-b1d55e61",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
       "h1": ["Care, considered."],
@@ -2960,7 +3058,7 @@
     }
   ],
   "summary": {
-    "pages": 159,
+    "pages": 165,
     "withViolations": 0,
     "overflowing": 0,
     "focusMissing": 0,

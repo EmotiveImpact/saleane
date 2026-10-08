@@ -42,6 +42,7 @@ const demoRoutes = [
   '/business/gift-cards',
   '/business/visits',
   '/business/requests',
+  '/business/areas',
   '/booking',
   '/design-language',
   '/account',
