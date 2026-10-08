@@ -113,6 +113,6 @@ Authorization: Bearer sal_1a2b3c4d_…
 | `GET /api/v1/studio`               | any key             | The studio's id, name, time zone and currency, and the key's scopes.                                                             |
 | `GET /api/v1/appointments?from&to` | `appointments:read` | Visits on those dates (up to 31 days), in time order, as in the event payload plus `clientId`, `serviceId` and `professionalId`. |
 | `GET /api/v1/clients`              | `clients:read`      | Clients oldest first: id, name, email, phone, whether they agreed to email news, and when they were added.                       |
-| `GET /api/v1/services`             | `services:read`     | Treatments in use with duration and price in minor units, and the team with the treatments each offers.                          |
+| `GET /api/v1/services`             | `services:read`     | Treatments in use with duration and price in minor units (paged), and the team with the treatments each offers.                  |
 
-Lists take `limit` (1 to 200, default 100) and `offset`, and say the `total`. Each key may make 120 requests a minute. Anything but `GET` is refused with 405, a missing, wrong or revoked key with 401, and a scope the key lacks with 403.
+Visits, clients and treatments take `limit` (1 to 200, default 100) and `offset`, and say the `total`; the team comes whole with the treatments. Each key may make 120 requests a minute in all, from wherever they come. Anything but `GET` is refused with 405, a missing, wrong or revoked key with 401, a scope the key lacks with 403, and too many requests with 429.

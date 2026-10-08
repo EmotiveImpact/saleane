@@ -139,7 +139,12 @@ describe('read-only access for other software', () => {
     })
     expect(visits.body).not.toContain('grace@example.invalid')
     const services = await read(key, 'services')
+    expect((await read(key, 'services?limit=1&offset=1')).json()).toMatchObject({
+      total: 1,
+      data: [],
+    })
     expect(services.json()).toMatchObject({
+      total: 1,
       data: [{ id: ids.serviceId, name: 'Restorative facial', priceMinor: 9500 }],
       team: [{ id: ids.staffId, name: 'Maya Lind' }],
     })
@@ -161,6 +166,9 @@ describe('read-only access for other software', () => {
     const { key, created } = await makeKey(login, ['appointments:read'])
     expect((await read(key, 'appointments', 'POST')).statusCode).toBe(405)
     expect((await read(key, 'appointments?from=2026-10-01&to=2026-12-01')).statusCode).toBe(400)
+    // Both dates count: 1 October to 1 November is 32 days.
+    expect((await read(key, 'appointments?from=2026-10-01&to=2026-11-01')).statusCode).toBe(400)
+    expect((await read(key, 'appointments?from=2026-10-01&to=2026-10-31')).statusCode).toBe(200)
     expect((await read(key, 'appointments?from=2026-10-09&to=2026-10-01')).statusCode).toBe(400)
     const forged = key.slice(0, -4) + (key.endsWith('AAAA') ? 'BBBB' : 'AAAA')
     expect((await read(forged, 'studio')).statusCode).toBe(401)
@@ -168,6 +176,22 @@ describe('read-only access for other software', () => {
     expect((await keys(login, `/${created}/revoke`, {})).statusCode).toBe(200)
     expect((await read(key, 'studio')).statusCode).toBe(401)
     expect((await keys(login, `/${created}/revoke`, {})).statusCode).toBe(404)
+  })
+
+  it('limits each key to 120 requests a minute, wherever they come from', async () => {
+    const login = await owner()
+    const { key } = await makeKey(login, ['services:read'])
+    const from = (address: string) =>
+      api.inject({
+        url: '/api/v1/studio',
+        headers: { authorization: `Bearer ${key}` },
+        remoteAddress: address,
+      })
+    for (let n = 0; n < 60; n++) expect((await from('203.0.113.1')).statusCode).toBe(200)
+    for (let n = 0; n < 60; n++) expect((await from('203.0.113.2')).statusCode).toBe(200)
+    expect((await from('203.0.113.3')).statusCode).toBe(429)
+    clock += 60001
+    expect((await from('203.0.113.3')).statusCode).toBe(200)
   })
 
   it('lets only the owner of a studio of its own make keys', async () => {

@@ -91,7 +91,7 @@ export function AccessKeys() {
     }
   }
 
-  if (!allowed || !listing || listing.sample) return null
+  if (!allowed || listing?.sample) return null
   return (
     <section
       className="surface ops-panel settings-panel connections-panel"
@@ -123,7 +123,7 @@ export function AccessKeys() {
       )}
       {done && !shown && <p role="status">{done}</p>}
       <ErrorMessage error={error} />
-      {listing.keys.length > 0 && (
+      {listing && listing.keys.length > 0 && (
         <ul className="connections-list">
           {listing.keys.map((k) => (
             <li key={k.id}>
@@ -192,6 +192,7 @@ export function AccessKeys() {
           </div>
         </form>
       ) : (
+        listing &&
         listing.keys.length < 10 && (
           <div className="ops-actions">
             <Button variant="secondary" disabled={pending} onClick={() => setAdding(true)}>

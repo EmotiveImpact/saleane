@@ -16,6 +16,7 @@ import { API_VERSION } from './connections'
 export const apiScopes = ['appointments:read', 'clients:read', 'services:read'] as const
 export type ApiScope = (typeof apiScopes)[number]
 const KEY_LIMIT = 10
+const KEY_PER_MINUTE = 120
 /** The longest date range one request may ask for. */
 const MAX_DAYS = 31
 const PAGE = 200
@@ -80,6 +81,19 @@ function appointmentView(s: BusinessState, a: BusinessState['appointments'][numb
 }
 
 export function partnerApi() {
+  // Counted per key wherever its requests come from, on top of the server's own per-address limit.
+  const uses = new Map<string, { count: number; expires: number }>()
+  const limit = (c: Context, prefix: string) => {
+    const time = c.now()
+    if (uses.size > 5000) for (const [k, v] of uses) if (v.expires <= time) uses.delete(k)
+    const existing = uses.get(prefix)
+    const entry =
+      existing && existing.expires > time ? existing : { count: 0, expires: time + 60000 }
+    entry.count += 1
+    uses.set(prefix, entry)
+    if (entry.count > KEY_PER_MINUTE)
+      fail(429, 'Too many requests for this key. Wait before trying again.')
+  }
   /** Owner-managed keys, under the workspace like every other studio setting. */
   async function manage(c: Context, route: Route): Promise<boolean> {
     const { request, method, path, body, reply } = route
@@ -164,7 +178,7 @@ export function partnerApi() {
     )?.[1]
     if (!raw) fail(401, 'Send an access key as "Authorization: Bearer sal_…".')
     const prefix = raw!.slice(4, 12)
-    c.rateLimit(request, `api:${prefix}`, 120, 60000)
+    limit(c, prefix)
     const row = c.db.get<KeyRow>(
       'SELECT * FROM api_keys WHERE prefix=? AND revoked_at IS NULL',
       prefix,
@@ -198,7 +212,8 @@ export function partnerApi() {
     if (resource === 'appointments') {
       need('appointments:read')
       const { from, to } = range.parse(query)
-      if (days(from, to) < 0 || days(from, to) > MAX_DAYS)
+      // Both dates are included, so 31 days means `to` is at most 30 days after `from`.
+      if (days(from, to) < 0 || days(from, to) >= MAX_DAYS)
         fail(400, `Ask for up to ${MAX_DAYS} days at a time, with "from" on or before "to".`)
       const { limit, offset } = page.parse(query)
       const all = s.appointments
@@ -233,17 +248,18 @@ export function partnerApi() {
     }
     if (resource === 'services') {
       need('services:read')
+      const { limit: size, offset } = page.parse(query)
+      const active = s.services.filter((x) => !x.archived)
       reply(200, {
         apiVersion: API_VERSION,
-        data: s.services
-          .filter((x) => !x.archived)
-          .map((x) => ({
-            id: x.id,
-            name: x.name,
-            category: x.category,
-            durationMinutes: x.durationMinutes,
-            priceMinor: x.priceMinor,
-          })),
+        total: active.length,
+        data: active.slice(offset, offset + size).map((x) => ({
+          id: x.id,
+          name: x.name,
+          category: x.category,
+          durationMinutes: x.durationMinutes,
+          priceMinor: x.priceMinor,
+        })),
         team: s.staff
           .filter((p) => !p.archived)
           .map((p) => ({ id: p.id, name: p.name, role: p.role, serviceIds: p.serviceIds })),
