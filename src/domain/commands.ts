@@ -5,6 +5,7 @@ import { placeOf, serviceAt, staffLocationOn } from './locations'
 import { bookingSchema, commandSchema, contactSchema } from './commandSchema'
 import type { Command, ContactInput } from './commandSchema'
 import { assertMethod, paymentDetail, runOperatingCommand } from './operatingCommands'
+import { runGroupCommand } from './group'
 import { channelLabel } from './bookingChannel'
 import { checkoutTotals } from './money'
 import { recordTillCount } from './tillCount'
@@ -786,6 +787,12 @@ export function execute(
       const unchanged = inboxUnchanged(s, command)
       if (unchanged) return { ok: true, state: s, recordId: unchanged }
       recordId = runInboxCommand(next, command, now, makeId, addEvent)
+    } else if (
+      command.type === 'region' ||
+      command.type === 'region-remove' ||
+      command.type === 'targets'
+    ) {
+      recordId = runGroupCommand(next, command, makeId)
     } else {
       recordId = runOperatingCommand(next, command, now, makeId, addEvent)
     }

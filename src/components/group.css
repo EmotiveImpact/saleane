@@ -1,0 +1,99 @@
+/* V5: the whole business across locations. No coloured edges: rows are separated by a hairline. */
+.group-panel {
+  padding: var(--space-6);
+  margin-bottom: var(--space-6);
+}
+.group-header {
+  display: flex;
+  gap: var(--space-4);
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.group-header p {
+  margin-top: var(--space-2);
+  color: var(--muted);
+  max-width: 62ch;
+}
+.group-summary {
+  margin-top: var(--space-5);
+  display: grid;
+  gap: var(--space-2);
+  font-size: var(--text-body);
+}
+.group-region {
+  margin-top: var(--space-6);
+}
+.group-region h3 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: baseline;
+  font-size: var(--text-body);
+}
+.group-region h3 span {
+  font-weight: 400;
+  font-size: var(--text-small);
+  color: var(--muted);
+}
+.group-places {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+}
+.group-places > li {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) 4fr;
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--line);
+}
+.group-place-name {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: flex-start;
+}
+.group-tag {
+  font-size: var(--text-meta);
+  padding: 2px var(--space-2);
+  border-radius: 999px;
+  background: var(--sage-soft);
+  color: var(--ink);
+}
+.group-places dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+.group-places dt {
+  font-size: var(--text-meta);
+  color: var(--muted);
+}
+.group-places dd {
+  margin: var(--space-1) 0 0;
+  font-variant-numeric: tabular-nums;
+}
+.group-places dd small {
+  color: var(--muted);
+}
+.group-form-title {
+  font-size: var(--text-body);
+}
+.group-region-form {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--line);
+}
+@media (max-width: 760px) {
+  .group-panel {
+    padding: var(--space-5) var(--space-4);
+  }
+  .group-header {
+    flex-direction: column;
+  }
+  .group-places > li {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+}

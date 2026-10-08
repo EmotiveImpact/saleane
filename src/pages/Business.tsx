@@ -6,6 +6,7 @@ import { bookedTimeShare, dueClients, report } from '../domain/selectors'
 import { hasLocations, placeOf, places } from '../domain/locations'
 import { bookedTimeDefinition } from '../components/definitions'
 import { RetentionPanel } from '../components/RetentionPanel'
+import { WholeBusiness } from '../components/WholeBusiness'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import {
   Avatar,
@@ -101,6 +102,7 @@ export function Business() {
           {dateLabel(today, state.organisation.locale, true)}
         </span>
       </div>
+      {multiSite && !place && <WholeBusiness />}
       <div className="metrics-band">
         <Metric
           label="Completed service revenue"

@@ -21,9 +21,17 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Texts name the location, imported visits go to the location where the professional works that day, and the calendar showing every location spans all their opening hours.
 - A studio with one location works exactly as before.
 
+## 2026-10-08 · V5 · The whole business at a glance
+
+**Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-GROUP.md).
+
+- With more than one location, Business opens with "The whole business": every location's completed takings over the last 28 days against the 28 before, the change, rebooking, and this month against its target, with what is booked but not yet taken shown apart.
+- A short summary in plain words names the totals, the location doing best and the one that needs a look, and the month so far.
+- The owner can group locations into regions, each location in one region, and set each location a monthly target. Regions show their own totals.
+
 ## 2026-10-08 · V4 · The AI receptionist helps a guest move or cancel
 
-**Status: built locally on 8 October 2026, in review; nothing deployed, no AI supplier or text line connected and nothing sent.** [Evidence](docs/evidence/V4-RECEPTIONIST.md#moving-or-cancelling-a-visit-stage-6).
+**Status: built locally on 8 October 2026 and merged (#56); nothing deployed, no AI supplier or text line connected and nothing sent.** [Evidence](docs/evidence/V4-RECEPTIONIST.md#moving-or-cancelling-a-visit-stage-6).
 
 - A guest who texts or sends a WhatsApp message from the phone number on their booking, asking to move or cancel, is sent the private link to that visit. They move or cancel it there under the studio's usual rules. With more than one visit coming, the receptionist lists them and asks which.
 - The link goes only back to that same number. Someone writing from another number, on Instagram or Facebook, or in the booking page chat, is told to use the link in their booking confirmation or text from the number on the booking, and is never told whether a visit exists.
