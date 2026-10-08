@@ -17,3 +17,11 @@ export const receptionistSettingsSchema = z
   .strict()
 export type ReceptionistSettings = z.infer<typeof receptionistSettingsSchema>
 export const defaultReceptionist: ReceptionistSettings = { enabled: false, handOver: true }
+
+/**
+ * V4: Book with Google. The owner chooses whether the studio's treatments and free times are
+ * offered for booking inside Google Search and Maps, through SALEANE's Actions Center connection.
+ * Off until chosen; a sample studio is never offered.
+ */
+export const googleBookingSchema = z.object({ enabled: z.boolean() }).strict()
+export type GoogleBookingSettings = z.infer<typeof googleBookingSchema>

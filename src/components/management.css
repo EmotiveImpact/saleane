@@ -207,6 +207,11 @@
 .ops-check input {
   margin-top: 2px;
 }
+/* A tick box among other fields still sits beside its words. */
+.ops-fields > label.ops-check {
+  flex-direction: row;
+  font-weight: var(--weight-body);
+}
 .ops-editor-note {
   background: var(--sage);
   padding: 13px 16px;

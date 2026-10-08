@@ -44,6 +44,7 @@ import { SavedReplies } from '../components/SavedReplies'
 import { Connections } from '../components/Connections'
 import { AccessKeys } from '../components/AccessKeys'
 import { ReceptionistSettings } from '../components/ReceptionistSettings'
+import { GoogleBooking } from '../components/GoogleBooking'
 import '../components/management.css'
 
 const sections = [
@@ -508,6 +509,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
             {section === 'business' && (
               <>
                 <ShareBookingPage />
+                <GoogleBooking />
                 <GuestNotesSettings />
               </>
             )}

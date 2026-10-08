@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { receptionistSettingsSchema } from './receptionistSchema'
+import { googleBookingSchema, receptionistSettingsSchema } from './receptionistSchema'
 import { missedCallSources } from './missedCallsSchema'
 import { offerInputSchema } from './plansSchema'
 import { specialInputSchema } from './specialsSchema'
@@ -144,6 +144,7 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('message-queue'), messageId: id }),
   // V4: the AI receptionist on the booking page.
   z.object({ type: z.literal('receptionist'), settings: receptionistSettingsSchema }),
+  z.object({ type: z.literal('google-booking'), settings: googleBookingSchema }),
   // PILOT-01: the studio's confirmation and reminder settings.
   z.object({ type: z.literal('reminders'), settings: reminderSettingsSchema }),
   // PILOT-01: a client's own wish about appointment emails and texts.

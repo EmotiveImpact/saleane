@@ -342,6 +342,22 @@ export const migrations: Migration[] = [
         ]),
       ),
   },
+  {
+    version: 18,
+    // V4: bookings made inside Google, so Google can look them up, cancel them or repeat a request.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE google_bookings (
+          booking_id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          user_id TEXT NOT NULL, idempotency_token TEXT NOT NULL,
+          slot TEXT NOT NULL CHECK(json_valid(slot)),
+          user_information TEXT NOT NULL CHECK(json_valid(user_information)),
+          created_at INTEGER NOT NULL,
+          UNIQUE(organisation_id,idempotency_token)
+        ) STRICT;
+        CREATE INDEX google_bookings_user ON google_bookings(user_id);
+      `),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the
