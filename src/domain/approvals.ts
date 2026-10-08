@@ -95,10 +95,16 @@ export function withoutRequests(s: BusinessState): BusinessState {
   return { ...s, operations }
 }
 
-/** Who a request waits on, in words. */
+/**
+ * Who a request waits on, in words. A request sent to a regional manager falls to the owner when
+ * its location has since closed or left that region, since that manager can no longer see it.
+ */
 export function waitingOn(s: BusinessState, request: ApprovalRequest) {
   if (request.routedTo.level === 'owner') return 'the owner'
   const regionId = request.routedTo.regionId
   const region = regions(s).find((r) => r.id === regionId)
-  return region ? `${region.name}’s regional manager` : 'the owner'
+  const open = places(s).some((p) => p.id === request.locationId)
+  if (!region || !open || !region.locationIds.includes(request.locationId))
+    return 'the owner, because its location has left the region it was sent to'
+  return `${region.name}’s regional manager`
 }

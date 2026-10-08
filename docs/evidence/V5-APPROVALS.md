@@ -23,7 +23,7 @@ Screenshots: [owner's Requests tab](V5-APPROVALS-requests.png), [regional page r
 ## How it is kept safe
 
 - Where a request goes is fixed when it is raised, on the server, from the access records. A later change of limit or of who looks after a region does not move requests already raised.
-- Only the owner changes the limit. The owner can decide any request, including one waiting on a regional manager.
+- Only the owner changes the limit. The owner can decide any request, including one waiting on a regional manager. If a location closes or leaves the region a request was sent to, that request shows as waiting on the owner, since the regional manager can no longer see it.
 - A regional manager's read and writes still go through the area view and `areaRefusal`; requests at other regions' locations are never sent to them.
 
 ## Limits

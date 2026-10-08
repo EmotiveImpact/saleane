@@ -4,7 +4,7 @@ import type { Command } from './commands'
 import type { BusinessState } from './model'
 import { can, permissionFor } from './operations'
 import { seed } from './seed'
-import { requests } from './approvals'
+import { requests, waitingOn } from './approvals'
 
 // V5: requests that pass up to the right person for a sign-off.
 const now = '2026-10-06T15:00:00.000Z'
@@ -99,5 +99,16 @@ describe('requests for sign-off', () => {
       false,
       false,
     ])
+  })
+
+  it('fall to the owner when their location leaves the region', () => {
+    const { s: start, main, islington, london } = business()
+    let s = apply(start, raise(islington, 120_00, [london]))
+    const request = requests(s)[0]
+    expect(waitingOn(s, request)).toBe('London’s regional manager')
+    s = apply(s, { type: 'region', id: london, input: { name: 'London', locationIds: [main] } })
+    expect(waitingOn(s, request)).toBe(
+      'the owner, because its location has left the region it was sent to',
+    )
   })
 })
