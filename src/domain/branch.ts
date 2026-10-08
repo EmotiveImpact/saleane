@@ -36,7 +36,6 @@ const CLIENT_COMMANDS = new Set([
   'task-done',
   'missed-call',
   'missed-call-done',
-  'waitlist-remove',
 ])
 const VISIT_COMMANDS = new Set(['cancel', 'no-show', 'arrive', 'checkout', 'deposit', 'fee'])
 const ELSEWHERE = 'That visit is at another location.'
@@ -88,6 +87,13 @@ export function branchRefusal(
       return mine(command.input.locationId ?? locationId)
         ? null
         : 'That waitlist place is for another location.'
+    case 'waitlist-remove': {
+      // A request for any location is anyone's to tidy; one for another location is not.
+      const entry = s.waitlist?.find((e) => e.id === command.entryId)
+      return entry?.locationId && !mine(entry.locationId)
+        ? 'That waitlist place is for another location.'
+        : null
+    }
     case 'waitlist-offer':
       return staffLocationOn(s, command.staffId, command.date) === locationId
         ? null

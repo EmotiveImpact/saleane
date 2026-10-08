@@ -260,6 +260,10 @@ export function paymentRoutes(payments: Payments) {
     const actor = ctx.actorFor(request, method !== 'GET')
     const org = ctx.orgFor(path[2], actor)
     if (!can(org.role, 'checkout')) fail(403, 'Your role cannot see card payments.')
+    // V5: a general manager sees and follows up only payments for visits at their location.
+    const here = (row: AttemptRow) =>
+      org.role !== 'general' ||
+      org.state.appointments.find((x) => x.id === row.appointment_id)?.locationId === org.locationId
 
     if (path[3] === 'payments' && path.length === 4 && method === 'GET') {
       const input = lookup.parse(Object.fromEntries(url.searchParams))
@@ -286,7 +290,7 @@ export function paymentRoutes(payments: Payments) {
       reply(200, {
         provider: { name: provider.name, live: provider.live, readers: provider.readers },
         available: operations(org.state).mode === 'local',
-        attempts: attempts.map((row) => attemptView(row, provider.live)),
+        attempts: attempts.filter(here).map((row) => attemptView(row, provider.live)),
         cards: clientId ? payments.cards(org.id, clientId).map(cardView) : [],
         ...(a
           ? {
@@ -303,7 +307,8 @@ export function paymentRoutes(payments: Payments) {
 
     if (path[3] === 'payments' && path.length === 5 && method === 'GET') {
       const row = payments.get(path[4])
-      if (!row || row.organisation_id !== org.id) fail(404, 'This payment was not found.')
+      if (!row || row.organisation_id !== org.id || !here(row))
+        fail(404, 'This payment was not found.')
       reply(200, attemptView(row!, provider.live))
       return true
     }
@@ -482,7 +487,8 @@ export function paymentRoutes(payments: Payments) {
     // same request: it reports what happened the first time and never charges twice.
     if (path[3] === 'payments' && path.length === 6 && path[5] === 'check' && method === 'POST') {
       const row = payments.get(path[4])
-      if (!row || row.organisation_id !== org.id) fail(404, 'This payment was not found.')
+      if (!row || row.organisation_id !== org.id || !here(row))
+        fail(404, 'This payment was not found.')
       if (row!.status !== 'unknown') {
         reply(200, attemptView(row!, provider.live))
         return true
@@ -530,7 +536,7 @@ export function paymentRoutes(payments: Payments) {
       if (provider.name !== 'test') fail(404, 'This endpoint was not found.')
       const data = z.object({ approve: z.boolean() }).strict().parse(body)
       const row = payments.get(path[4])
-      if (!row || row.organisation_id !== org.id || row.route !== 'reader')
+      if (!row || row.organisation_id !== org.id || row.route !== 'reader' || !here(row))
         fail(404, 'This payment was not found.')
       if (row!.status !== 'processing') fail(409, 'This payment has already finished.')
       const done = data.approve

@@ -72,6 +72,18 @@ describe('general manager', () => {
         commands: [cancel],
       } as Command),
     ).toBe('That visit is at another location.')
+    // A waitlist place for another location is not theirs to remove; one for any location is.
+    const waitlist = [
+      { ...(s.waitlist?.[0] ?? {}), id: 'w-main', locationId: main },
+      { ...(s.waitlist?.[0] ?? {}), id: 'w-any', locationId: undefined },
+    ] as unknown as BusinessState['waitlist']
+    const listed = { ...s, waitlist }
+    expect(
+      branchRefusal(listed, islington, { type: 'waitlist-remove', entryId: 'w-main', reason: 'x' }),
+    ).toBe('That waitlist place is for another location.')
+    expect(
+      branchRefusal(listed, islington, { type: 'waitlist-remove', entryId: 'w-any', reason: 'x' }),
+    ).toBeNull()
     expect(branchRefusal(s, islington, { type: 'approval-limit', regionalLimitMinor: 1 })).toBe(
       'That changes the whole business. Ask the owner or a manager.',
     )

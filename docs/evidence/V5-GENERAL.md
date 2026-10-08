@@ -26,7 +26,7 @@ Screenshots: [invitation](V5-GENERAL-invite.png), [calendar on their location](V
 ## How it is kept safe
 
 - The role is `general`, separate from `manager`. Its permissions are a fixed list (`GENERAL_ACTIONS`), so anything new stays shut to it until added.
-- Every change is checked on the server before it runs (`branchRefusal`: the visit, sale, order, stock shelf, branch visit or request must be at their location) and after (`branchChangeRefusal`: no visit added or changed anywhere else). Card payments, card refunds and guest links check the visit's location too.
+- Every change is checked on the server before it runs (`branchRefusal`: the visit, sale, order, stock shelf, branch visit or request must be at their location) and after (`branchChangeRefusal`: no visit added or changed anywhere else). Card payments (starting, reading, checking and the test reader), card refunds and guest links check the visit's location too, and the waitlist places they may remove are their location's or ones for any location.
 - The read is built on the server (`branchView`): the team's pay rates and other locations' branch visits and requests never reach them.
 
 ## Limits
