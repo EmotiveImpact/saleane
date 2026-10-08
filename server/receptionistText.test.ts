@@ -279,16 +279,29 @@ describe('the AI receptionist answering texts', () => {
     })
     expect(visit.statusCode, visit.body).toBe(200)
     expect(JSON.stringify(api.database.all('SELECT body FROM outbox'))).not.toContain(link)
+    // If the visit moves before the answer goes, it would name the old time: nothing is sent.
+    clock += 61 * 60000
+    await text(slug, 'Can I cancel my visit?')
+    expect(answers()[2]).toMatchObject({ appointment_id: first, status: 'pending' })
+    await run(login, {
+      type: 'reschedule',
+      appointmentId: first,
+      staffId,
+      date: '2026-10-09',
+      startMinutes: 600,
+    })
+    await api.outbox.tick()
+    expect(answers()[2]).toMatchObject({ status: 'skipped' })
     // With two visits to come, it asks which, then sends the one chosen.
     const second = await book('2026-10-15')
     clock += 61 * 60000
     await text(slug, 'I need to reschedule')
-    expect(answers()[2].body).toMatch(
+    expect(answers()[3].body).toMatch(
       /Which visit would you like to change\? Reply with its number/,
     )
     clock += 60000
     await text(slug, '2')
-    expect(answers()[3]).toMatchObject({ appointment_id: second })
+    expect(answers()[4]).toMatchObject({ appointment_id: second })
     // If the number on the booking changes before it goes, nothing is sent.
     await run(login, {
       type: 'client-edit',
@@ -303,7 +316,7 @@ describe('the AI receptionist answering texts', () => {
     })
     await api.outbox.tick()
     expect(fromReception().filter((m) => m.body.includes('/manage#'))).toHaveLength(1)
-    expect(answers()[3]).toMatchObject({ status: 'skipped' })
+    expect(answers()[4]).toMatchObject({ status: 'skipped' })
   })
 
   it('does not send an answer if texts are turned off before it goes out', async () => {

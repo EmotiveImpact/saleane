@@ -94,11 +94,13 @@ function comingVisits(ctx: ReceptionContext) {
     .filter((v) => v.start > now)
     .sort((x, y) => x.start - y.start)
 }
-function visitSummary(ctx: ReceptionContext, a: BusinessState['appointments'][number]) {
+/** One visit in the receptionist's words. The outbox checks it again before a link goes with it. */
+export function visitSummary(state: BusinessState, a: BusinessState['appointments'][number]) {
   const service =
-    ctx.state.services.find((x) => x.id === a.serviceId)?.name ?? a.bookedServiceName ?? 'Visit'
-  const person = ctx.state.staff.find((p) => p.id === a.staffId)?.name
-  return `${service}${person ? ` with ${person}` : ''}, ${day(ctx, a.date)} at ${clock(ctx, a.startMinutes)}`
+    state.services.find((x) => x.id === a.serviceId)?.name ?? a.bookedServiceName ?? 'Visit'
+  const person = state.staff.find((p) => p.id === a.staffId)?.name
+  const locale = state.organisation.locale
+  return `${service}${person ? ` with ${person}` : ''}, ${dateLabel(a.date, locale)} at ${timeLabel(a.startMinutes, locale)}`
 }
 
 const hhmm = (minutes: number) =>
@@ -299,7 +301,7 @@ export function receptionistSkills(): Skill<ReceptionContext, ReceptionEffect>[]
       run: (ctx) =>
         comingVisits(ctx)
           .slice(0, VISITS_LISTED)
-          .map(({ a }) => ({ id: a.id, date: a.date, summary: visitSummary(ctx, a) })),
+          .map(({ a }) => ({ id: a.id, date: a.date, summary: visitSummary(ctx.state, a) })),
     }),
     actionSkill<ReceptionContext, { visitId: string }, ReceptionEffect>({
       name: 'send_manage_link',
@@ -311,7 +313,7 @@ export function receptionistSkills(): Skill<ReceptionContext, ReceptionEffect>[]
         const visit = comingVisits(ctx).find(({ a }) => a.id === visitId)
         if (!visit) throw new SkillRefusal('That is not one of this guest’s coming visits.')
         return {
-          summary: visitSummary(ctx, visit.a),
+          summary: visitSummary(ctx.state, visit.a),
           effect: { kind: 'manage', appointmentId: visit.a.id },
         }
       },

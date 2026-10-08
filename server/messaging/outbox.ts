@@ -27,7 +27,7 @@ import type { MessageKind, OutboxChannel, OutboxStatus } from '../../src/domain/
 import { operations } from '../../src/domain/operations'
 import { socialWindowEnds } from '../../src/domain/inbox'
 import { isSocialChannel } from '../../src/domain/inboxSchema'
-import { answersSocial, answersTexts } from '../../src/assistant/receptionist'
+import { answersSocial, answersTexts, visitSummary } from '../../src/assistant/receptionist'
 import { visitStart } from '../../src/domain/guest'
 import type { Context } from '../context'
 import { issueGuestLink } from '../routes/guest'
@@ -188,7 +188,9 @@ export function createOutbox(ctx: Context, providers: Providers) {
             visit.status !== 'confirmed' ||
             visitStart(org.state, visit.id) <= now() ||
             !textNumber(client.phone) ||
-            textNumber(client.phone) !== textNumber(fresh.recipient)
+            textNumber(client.phone) !== textNumber(fresh.recipient) ||
+            // Moved meanwhile: the answer would name the old day, time or person.
+            !fresh.body.includes(visitSummary(org.state, visit))
           )
             return skip('The visit or the number on the booking changed before it went out.')
           sending = fresh.body.replaceAll(
