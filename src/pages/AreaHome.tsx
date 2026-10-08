@@ -96,32 +96,39 @@ export function AreaHome() {
       }
     if (journal.error) return { ok: false, error: journal.error }
     setSaving(true)
-    const fingerprint = await requestFingerprint(orgId, store.session.user.id, command)
-    let key = pending.current.get(fingerprint)
-    if (!key) {
-      key = crypto.randomUUID()
-      pending.current = writePendingKeys(pending.current, fingerprint, key, PENDING_AREA_KEY)
-    }
-    const forget = () => {
-      try {
-        pending.current = writePendingKeys(
-          pending.current,
-          fingerprint,
-          undefined,
-          PENDING_AREA_KEY,
-        )
-      } catch {
-        // A key left behind only replays this same receipt.
-      }
-    }
+    let forget = () => {}
     try {
-      const result = await api<AreaWorkspace>(`${path}/commands`, {
+      const fingerprint = await requestFingerprint(orgId, store.session.user.id, command)
+      let key = pending.current.get(fingerprint)
+      if (!key) {
+        key = crypto.randomUUID()
+        pending.current = writePendingKeys(pending.current, fingerprint, key, PENDING_AREA_KEY)
+      }
+      forget = () => {
+        try {
+          pending.current = writePendingKeys(
+            pending.current,
+            fingerprint,
+            undefined,
+            PENDING_AREA_KEY,
+          )
+        } catch {
+          // A key left behind only replays this same receipt.
+        }
+      }
+      const result = await api<AreaWorkspace | RemoteWorkspace>(`${path}/commands`, {
         method: 'POST',
         key,
         body: { revision: record.revision, command },
       })
-      setRecord(areaViewSchema.parse(result.area))
       forget()
+      // The owner may have changed this person's access while the page was open.
+      if (result.view === 'studio') {
+        await store.openWorkspace(orgId)
+        navigate('/today', { replace: true })
+        return { ok: true }
+      }
+      setRecord(areaViewSchema.parse(result.area))
       return { ok: true }
     } catch (e) {
       if (e instanceof ApiError && e.status > 0 && e.status < 500) forget()

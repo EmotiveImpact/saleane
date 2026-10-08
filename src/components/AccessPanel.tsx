@@ -3,6 +3,7 @@ import { useStore } from '../state/context'
 import { api } from '../state/api'
 import { Button, ErrorMessage } from '../design'
 import { regions } from '../domain/group'
+import { areaPlaces } from '../domain/area'
 
 type Team = {
   members: {
@@ -68,9 +69,10 @@ export function AccessPanel() {
   const professionalName = (staffId: string | null) =>
     state.staff.find((person) => person.id === staffId)?.name ?? 'an archived professional'
   // V5: a regional manager looks after one region: "regional:<regionId>".
-  const areas = regions(state)
+  // Only a region with an open location can be looked after.
+  const areas = regions(state).filter((r) => areaPlaces(state, r.id).ids.size > 0)
   const areaName = (areaId: string | null) =>
-    areas.find((r) => r.id === areaId)?.name ?? 'a removed region'
+    regions(state).find((r) => r.id === areaId)?.name ?? 'a removed region'
   async function changeMember(accountId: string, choice: string) {
     const [nextRole, linked] = choice.split(':')
     setPending(true)
