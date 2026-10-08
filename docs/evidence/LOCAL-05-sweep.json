@@ -1,6 +1,6 @@
 {
   "environment": "Chromium 141.0.7390.37 / http://127.0.0.1:5173",
-  "recordedAt": "2026-10-07T23:25:26.440Z",
+  "recordedAt": "2026-10-08T00:00:54.959Z",
   "results": [
     {
       "mode": "demo",
@@ -180,6 +180,19 @@
       "document": 1280,
       "keyboard": {
         "focusable": 23,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/settings?section=connections",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 20,
         "missing": []
       },
       "errors": []
@@ -444,6 +457,15 @@
     },
     {
       "mode": "demo",
+      "route": "/settings?section=connections",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "demo",
       "route": "/business/feedback",
       "width": 390,
       "violations": [],
@@ -654,6 +676,15 @@
     {
       "mode": "demo",
       "route": "/settings?section=forms",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "demo",
+      "route": "/settings?section=connections",
       "width": 320,
       "violations": [],
       "viewport": 320,
@@ -936,6 +967,19 @@
     },
     {
       "mode": "local studio",
+      "route": "/settings?section=connections",
+      "width": 1280,
+      "violations": [],
+      "viewport": 1280,
+      "document": 1280,
+      "keyboard": {
+        "focusable": 21,
+        "missing": []
+      },
+      "errors": []
+    },
+    {
+      "mode": "local studio",
       "route": "/business/feedback",
       "width": 1280,
       "violations": [],
@@ -1027,7 +1071,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-4a9cd27d",
+      "route": "/book/qualify-studio-fa54d929",
       "width": 1280,
       "violations": [],
       "viewport": 1280,
@@ -1179,6 +1223,15 @@
     },
     {
       "mode": "local studio",
+      "route": "/settings?section=connections",
+      "width": 390,
+      "violations": [],
+      "viewport": 390,
+      "document": 390,
+      "errors": []
+    },
+    {
+      "mode": "local studio",
       "route": "/business/feedback",
       "width": 390,
       "violations": [],
@@ -1242,7 +1295,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-4a9cd27d",
+      "route": "/book/qualify-studio-fa54d929",
       "width": 390,
       "violations": [],
       "viewport": 390,
@@ -1386,6 +1439,15 @@
     },
     {
       "mode": "local studio",
+      "route": "/settings?section=connections",
+      "width": 320,
+      "violations": [],
+      "viewport": 320,
+      "document": 320,
+      "errors": []
+    },
+    {
+      "mode": "local studio",
       "route": "/business/feedback",
       "width": 320,
       "violations": [],
@@ -1449,7 +1511,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-4a9cd27d",
+      "route": "/book/qualify-studio-fa54d929",
       "width": 320,
       "violations": [],
       "viewport": 320,
@@ -1762,7 +1824,7 @@
       "headings": [
         "H1 Money, clearly.",
         "H2 A record of every settled visit",
-        "H3 Wednesday 7 October£120.00",
+        "H3 Thursday 8 October£120.00",
         "H3 Tuesday 6 October£195.00",
         "H3 Monday 5 October£261.00",
         "H3 Sunday 4 October£185.00",
@@ -1780,7 +1842,7 @@
         "main",
         "nav Business sections",
         "header",
-        "section Wednesday 7 October",
+        "section Thursday 8 October",
         "section Tuesday 6 October",
         "section Monday 5 October",
         "section Sunday 4 October",
@@ -1918,6 +1980,28 @@
       "lang": "en-GB",
       "h1": ["Your studio, considered."],
       "headings": ["H1 Your studio, considered.", "H2 Guest forms", "H2 A steady foundation."],
+      "landmarks": [
+        "aside Workspace navigation",
+        "nav",
+        "header",
+        "section About this version",
+        "main",
+        "header",
+        "aside",
+        "footer"
+      ]
+    },
+    {
+      "mode": "demo",
+      "route": "/settings?section=connections",
+      "title": "SALEANE — Atelier House",
+      "lang": "en-GB",
+      "h1": ["Your studio, considered."],
+      "headings": [
+        "H1 Your studio, considered.",
+        "H2 Connected software",
+        "H2 A steady foundation."
+      ],
       "landmarks": [
         "aside Workspace navigation",
         "nav",
@@ -2306,7 +2390,7 @@
       "headings": [
         "H1 Money, clearly.",
         "H2 A record of every settled visit",
-        "H3 Wednesday 7 October£120.00",
+        "H3 Thursday 8 October£120.00",
         "H3 Tuesday 6 October£195.00",
         "H3 Monday 5 October£261.00",
         "H3 Sunday 4 October£185.00",
@@ -2324,7 +2408,7 @@
         "main",
         "nav Business sections",
         "header",
-        "section Wednesday 7 October",
+        "section Thursday 8 October",
         "section Tuesday 6 October",
         "section Monday 5 October",
         "section Sunday 4 October",
@@ -2462,6 +2546,28 @@
       "lang": "en-GB",
       "h1": ["Your studio, considered."],
       "headings": ["H1 Your studio, considered.", "H2 Guest forms", "H2 A steady foundation."],
+      "landmarks": [
+        "aside Workspace navigation",
+        "nav",
+        "header",
+        "section About this version",
+        "main",
+        "header",
+        "aside",
+        "footer"
+      ]
+    },
+    {
+      "mode": "local studio",
+      "route": "/settings?section=connections",
+      "title": "SALEANE — Qualify Studio",
+      "lang": "en-GB",
+      "h1": ["Your studio, considered."],
+      "headings": [
+        "H1 Your studio, considered.",
+        "H2 Connected software",
+        "H2 A steady foundation."
+      ],
       "landmarks": [
         "aside Workspace navigation",
         "nav",
@@ -2628,7 +2734,7 @@
     },
     {
       "mode": "local studio",
-      "route": "/book/qualify-studio-4a9cd27d",
+      "route": "/book/qualify-studio-fa54d929",
       "title": "SALEANE — Qualify Studio",
       "lang": "en-GB",
       "h1": ["Care, considered."],
@@ -2652,7 +2758,7 @@
     }
   ],
   "summary": {
-    "pages": 141,
+    "pages": 147,
     "withViolations": 0,
     "overflowing": 0,
     "focusMissing": 0,
