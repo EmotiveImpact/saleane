@@ -43,6 +43,7 @@ import { EmailNewsWording } from '../components/EmailConsent'
 import { SavedReplies } from '../components/SavedReplies'
 import { Connections } from '../components/Connections'
 import { AccessKeys } from '../components/AccessKeys'
+import { ReceptionistSettings } from '../components/ReceptionistSettings'
 import '../components/management.css'
 
 const sections = [
@@ -278,7 +279,12 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
         <div className="ops-layout">
           <div>
             {section === 'preferences' && <PreferencesSection />}
-            {section === 'brand' && <BrandSection />}
+            {section === 'brand' && (
+              <>
+                <BrandSection />
+                <ReceptionistSettings />
+              </>
+            )}
             {section === 'messages' && (
               <>
                 <MessageSettings />

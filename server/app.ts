@@ -17,6 +17,7 @@ import { recordPhoneCall, recordReply } from './messaging/calls'
 import type { Outbox } from './messaging/outbox'
 import { paymentRoutes } from './routes/payments'
 import { assistantRoutes } from './routes/assistant'
+import { receptionistRoutes } from './routes/receptionist'
 import { createPayments } from './payments/service'
 import type { Payments } from './payments/service'
 import { connectionTransportFromEnv, createConnections } from './connections'
@@ -65,6 +66,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     messagingRoutes(outbox),
     paymentRoutes(payments),
     assistantRoutes(),
+    receptionistRoutes(),
     ...baseRoutes,
   ]
   if (options.outboxIntervalMs) {

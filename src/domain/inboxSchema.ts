@@ -11,8 +11,11 @@ export const REPLY_LIMIT = 50000
 export const REPLY_TEXT_LIMIT = 2000
 export const SAVED_REPLY_LIMIT = 50
 
-/** `email` and `sms` came in on the studio's lines; `desk` was noted by the team. */
-export const replyChannels = ['email', 'sms', 'desk'] as const
+/**
+ * `email` and `sms` came in on the studio's lines; `desk` was noted by the team; `chat` was left
+ * with the AI receptionist on the booking page (V4), with the email or number to answer on.
+ */
+export const replyChannels = ['email', 'sms', 'desk', 'chat'] as const
 /** How a guest answered when the team notes it down. */
 export const noteWays = ['phone', 'in person', 'elsewhere'] as const
 
