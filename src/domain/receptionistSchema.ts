@@ -13,6 +13,8 @@ export const receptionistSettingsSchema = z
     handOver: z.boolean(),
     /** Whether it also answers texts to the studio's text line. Off unless chosen. */
     texts: z.boolean().optional(),
+    /** Whether it also answers messages to the studio's Instagram, Facebook and WhatsApp. */
+    social: z.boolean().optional(),
   })
   .strict()
 export type ReceptionistSettings = z.infer<typeof receptionistSettingsSchema>

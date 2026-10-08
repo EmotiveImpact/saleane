@@ -27,7 +27,7 @@ import type { MessageKind, OutboxChannel, OutboxStatus } from '../../src/domain/
 import { operations } from '../../src/domain/operations'
 import { socialWindowEnds } from '../../src/domain/inbox'
 import { isSocialChannel } from '../../src/domain/inboxSchema'
-import { answersTexts } from '../../src/assistant/receptionist'
+import { answersSocial, answersTexts } from '../../src/assistant/receptionist'
 import { visitStart } from '../../src/domain/guest'
 import type { Context } from '../context'
 import { issueGuestLink } from '../routes/guest'
@@ -173,10 +173,31 @@ export function createOutbox(ctx: Context, providers: Providers) {
         // V4: an answer to a guest's text. Checked again now: still a studio of its own, still
         // switched on, and not so late that the answer no longer fits the question.
         if (operations(org.state).mode !== 'local') return skip('Sample studios never send.')
-        if (!answersTexts(org.state))
-          return skip('Answering texts was turned off before it went out.')
         if (now() - fresh.created_at > RECEPTION_STALE_MS)
           return skip('Too late to answer by the time it could go out.')
+        if (isSocialChannel(fresh.channel)) {
+          // On a social app, only from the account the guest wrote to, and within its day.
+          if (!answersSocial(org.state))
+            return skip('Answering these messages was turned off before it went out.')
+          const kept = (org.state.replies ?? []).find(
+            (r) => r.channel === fresh.channel && `reception:${r.providerRef}` === fresh.slot,
+          )
+          const account =
+            kept?.account &&
+            db.get<{ account_id: string }>(
+              'SELECT account_id FROM social_accounts WHERE organisation_id=? AND channel=? AND account_id=?',
+              org.id,
+              fresh.channel,
+              kept.account,
+            )
+          if (!account) return skip('The account was disconnected or changed before it went out.')
+          const ends = socialWindowEnds(org.state, fresh.channel, fresh.recipient, kept.account)
+          if (!ends || now() >= ends)
+            return skip('The app’s day to answer ended before it went out.')
+          return send(fresh, org, fresh.recipient, '', fresh.body, fresh.body, account.account_id)
+        }
+        if (!answersTexts(org.state))
+          return skip('Answering texts was turned off before it went out.')
         return send(fresh, org, fresh.recipient, '', fresh.body, fresh.body)
       }
       if (org && fresh.kind === 'social') {

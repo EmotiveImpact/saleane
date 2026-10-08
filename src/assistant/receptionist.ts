@@ -51,6 +51,9 @@ export const isOn = (s: BusinessState) =>
 /** Whether it also answers texts to the studio's line. */
 export const answersTexts = (s: BusinessState) =>
   isOn(s) && !!(operations(s).receptionist ?? defaultReceptionist).texts
+/** Whether it also answers messages to the studio's Instagram, Facebook and WhatsApp. */
+export const answersSocial = (s: BusinessState) =>
+  isOn(s) && !!(operations(s).receptionist ?? defaultReceptionist).social
 
 export function receptionContext(
   state: BusinessState,

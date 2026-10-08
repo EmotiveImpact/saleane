@@ -15,13 +15,14 @@ export function ReceptionistSettings() {
   const [enabled, setEnabled] = useState(current.enabled)
   const [handOver, setHandOver] = useState(current.handOver)
   const [texts, setTexts] = useState(current.texts ?? false)
+  const [social, setSocial] = useState(current.social ?? false)
   const [saved, setSaved] = useState(false)
   const { run, pending, error } = useRun()
   const allowed = !blocked && can(role, 'receptionist')
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setSaved(false)
-    setSaved(await run({ type: 'receptionist', settings: { enabled, handOver, texts } }))
+    setSaved(await run({ type: 'receptionist', settings: { enabled, handOver, texts, social } }))
   }
   return (
     <section className="surface ops-panel" aria-labelledby="receptionist-settings">
@@ -68,6 +69,16 @@ export function ReceptionistSettings() {
             Also answer texts to your text line. Its answers go out like your other texts, show in
             the Inbox, and say they come from an AI. Anything it cannot answer waits there for the
             team.
+          </label>
+          <label className="ops-check ops-wide">
+            <input
+              type="checkbox"
+              checked={social}
+              disabled={!allowed}
+              onChange={(e) => setSocial(e.target.checked)}
+            />
+            Also answer messages to your Instagram, Facebook and WhatsApp. It answers in the same
+            app, says it is an AI, and steps back for an hour once someone from the team answers.
           </label>
         </div>
         <ErrorMessage error={error} />
