@@ -106,7 +106,25 @@ export function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
   return diff === 0
 }
 
-/** Only provider receipts are signed, and the demo never talks to a provider. */
-export function createHmac(): never {
-  throw new Error('Signed provider receipts are not available in the demo.')
+/** HMAC-SHA256, used to sign the sample deliveries that connected software would receive. */
+export function createHmac(algorithm: string, key: string | Uint8Array) {
+  if (algorithm !== 'sha256') throw new Error(`The demo supports sha256 only, not ${algorithm}.`)
+  let secret: Uint8Array = typeof key === 'string' ? Buffer.from(key) : key
+  if (secret.length > 64) secret = sha256(secret)
+  const block = (pad: number) => Uint8Array.from({ length: 64 }, (_, i) => (secret[i] ?? 0) ^ pad)
+  const inner = createHash('sha256').update(block(0x36))
+  const hmac = {
+    update(value: string | Uint8Array) {
+      inner.update(value)
+      return hmac
+    },
+    digest(encoding?: string) {
+      const result = createHash('sha256')
+        .update(block(0x5c))
+        .update(inner.digest() as Uint8Array)
+        .digest()
+      return encoding ? (result as Buffer).toString(encoding) : result
+    },
+  }
+  return hmac
 }

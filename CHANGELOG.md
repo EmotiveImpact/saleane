@@ -239,6 +239,8 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - The waitlist works in the demo with the three sample clients waiting; booking a suggested time for one of them fills it straight away.
 - Gift cards work in the demo. London's two sample cards show as paid in cash, because a real studio cannot hold simulated card payments.
 - Booking confirmations and reminders appear in test mode for the demo's studios. Nothing is sent or charged. The real app still never sends from sample studios.
+- The London studio has the AI receptionist switched on, so the booking page shows "Ask a question". Connected software and access keys work in test mode; the demo never looks up an address or sends anything.
+- Each demo build keeps its own saved copy of the sample studios, so a refreshed demo always opens on the newest sample data.
 - Changes stay in that browser. Passwords use a simple stand-in there, so the demo is for showing, never for real data.
 - Checked in Chromium at desktop and phone width: Today, Calendar, Clients, Inbox, Business, Settings, a full guest booking, the guest manage page and a checkout receipt. Not checked in Safari or Firefox.
 

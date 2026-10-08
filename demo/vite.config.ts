@@ -129,6 +129,9 @@ export default defineConfig({
       { find: 'node:stream', replacement: here('./shims/stream.ts') },
       { find: 'node:fs', replacement: here('./shims/fs.ts') },
       { find: 'node:path', replacement: here('./shims/path.ts') },
+      { find: /^node:dns(\/promises)?$/, replacement: here('./shims/dns.ts') },
+      { find: /^node:https?$/, replacement: here('./shims/http.ts') },
+      { find: 'node:net', replacement: here('./shims/net.ts') },
     ],
   },
   build: {

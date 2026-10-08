@@ -93,6 +93,7 @@ function makeTestModeStudio(orgId: string) {
       mode: string
       refunds: unknown[]
       movements?: { saleId?: string; counterSaleId?: string }[]
+      receptionist?: { enabled: boolean; handOver: boolean }
     }
     sales: unknown[]
     payments: unknown[]
@@ -124,6 +125,8 @@ function makeTestModeStudio(orgId: string) {
   for (const card of state.giftCards ?? [])
     for (const record of [card.payment, ...card.refunds])
       if (record.method.startsWith('demo_')) record.method = 'cash'
+  // The AI receptionist is off for a new studio; the demo switches it on so the booking page shows it.
+  state.operations.receptionist = { enabled: true, handOver: true }
   state.sales = []
   state.payments = []
   state.events = state.events.filter((event) => !event.saleId)
