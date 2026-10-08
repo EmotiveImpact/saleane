@@ -2,9 +2,17 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-08 · V4 · The AI receptionist helps a guest move or cancel
+
+**Status: built locally on 8 October 2026, in review; nothing deployed, no AI supplier or text line connected and nothing sent.** [Evidence](docs/evidence/V4-RECEPTIONIST.md#moving-or-cancelling-a-visit-stage-6).
+
+- A guest who texts or sends a WhatsApp message from the phone number on their booking, asking to move or cancel, is sent the private link to that visit. They move or cancel it there under the studio's usual rules. With more than one visit coming, the receptionist lists them and asks which.
+- The link goes only back to that same number. Someone writing from another number, on Instagram or Facebook, or in the booking page chat, is told to use the link in their booking confirmation or text from the number on the booking, and is never told whether a visit exists.
+- The link is made only as the answer goes out and is never stored. If the number on the client's record changes, or the visit is cancelled or has started, before it goes, nothing is sent.
+
 ## 2026-10-08 · V4 · AI receptionist on Instagram, Facebook and WhatsApp
 
-**Status: built locally on 8 October 2026, in review; nothing deployed, no AI supplier connected, SALEANE is not approved by Meta yet and nothing is sent.** [Evidence](docs/evidence/V4-SOCIAL.md#the-ai-receptionist-on-these-apps).
+**Status: built locally on 8 October 2026 and merged (#55); nothing deployed, no AI supplier connected, SALEANE is not approved by Meta yet and nothing is sent.** [Evidence](docs/evidence/V4-SOCIAL.md#the-ai-receptionist-on-these-apps).
 
 - The AI receptionist can also answer messages to the studio's Instagram, Facebook and WhatsApp, when the studio ticks "Also answer messages to your Instagram, Facebook and WhatsApp". It is off unless chosen.
 - It answers in the same app, from the account the guest wrote to, and every answer starts with the studio's name and "AI receptionist". A free time is offered as a link to the booking page with that time chosen; the guest still confirms it there.
@@ -12,7 +20,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-08 · V4 · Instagram, Facebook and WhatsApp messages in the Inbox
 
-**Status: built locally on 8 October 2026, in review; nothing deployed, SALEANE is not approved by Meta yet and nothing is sent to Instagram, Facebook or WhatsApp.** [Evidence](docs/evidence/V4-SOCIAL.md).
+**Status: built locally on 8 October 2026 and merged (#54); nothing deployed, SALEANE is not approved by Meta yet and nothing is sent to Instagram, Facebook or WhatsApp.** [Evidence](docs/evidence/V4-SOCIAL.md).
 
 - The owner can connect the studio's Instagram account, Facebook Page and WhatsApp Business number in Settings › Studio details. Each account can belong to one studio only, and a sample studio never connects.
 - Guests' messages to those accounts arrive in the Inbox beside their emails and texts. A WhatsApp number is matched to its client, with the name WhatsApp gives. Instagram and Facebook give only an id, so the team matches those by hand, and the conversation then moves to the client.
@@ -23,7 +31,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-08 · V4 · Book with Google
 
-**Status: built locally on 8 October 2026, in review; nothing deployed, SALEANE is not a Google partner yet and nothing is sent to Google.** [Evidence](docs/evidence/V4-GOOGLE.md).
+**Status: built locally on 8 October 2026 and merged (#53); nothing deployed, SALEANE is not a Google partner yet and nothing is sent to Google.** [Evidence](docs/evidence/V4-GOOGLE.md).
 
 - The owner can tick "Offer my studio for booking on Google" in Settings › Studio details. It is off unless chosen, and a sample studio is never offered.
 - SALEANE can now answer Google's booking calls: check a time, book it, look it up, list a guest's visits and cancel. A Google booking takes the same path as the studio's own booking page, so it lands in the diary with the usual confirmation and a "Google" source.
@@ -34,7 +42,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-08 · V4 · AI receptionist answers texts
 
-**Status: built locally on 8 October 2026, in review; nothing deployed, no AI supplier or text line connected and no text sent.** [Evidence](docs/evidence/V4-RECEPTIONIST.md#answering-texts-stage-2).
+**Status: built locally on 8 October 2026 and merged (#52); nothing deployed, no AI supplier or text line connected and no text sent.** [Evidence](docs/evidence/V4-RECEPTIONIST.md#answering-texts-stage-2).
 
 - The AI receptionist can also answer texts to the studio's text line, when the studio ticks "Also answer texts to your text line". It is off unless chosen.
 - Each answer starts with the studio's name and "AI receptionist", so a guest always knows it is an AI. Answers go out through the same outbox as reminders, once, and show in the guest's Inbox conversation with what became of them. Nothing is called sent until the text provider accepts it.
@@ -44,7 +52,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-08 · V4 · AI receptionist on the booking page
 
-**Status: built locally on 8 October 2026, in review; nothing deployed, no AI supplier connected and nothing sent outside the computer.** [Evidence](docs/evidence/V4-RECEPTIONIST.md).
+**Status: built locally on 8 October 2026 and merged (#51); nothing deployed, no AI supplier connected and nothing sent outside the computer.** [Evidence](docs/evidence/V4-RECEPTIONIST.md).
 
 - A studio can show an AI receptionist on its booking page (Settings › Colours & booking page, owners and managers). It is off until turned on.
 - Guests tap "Ask a question" and can ask about treatments, prices, opening hours and free times. The chat always says it is an AI, never asks about health and never shares anything about other guests.
@@ -54,7 +62,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-08 · V5 · Access keys for other software
 
-**Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-ACCESS.md). [Guide](docs/CONNECTIONS.md#reading-from-saleane).
+**Status: built locally on 8 October 2026 and merged (#50); nothing deployed.** [Evidence](docs/evidence/V5-ACCESS.md). [Guide](docs/CONNECTIONS.md#reading-from-saleane).
 
 - Settings › Connected software has a new Access keys panel for the owner. A key lets other software (an accountant's tool, the studio's own reports) read visits, clients or treatments and the team, whichever the owner ticks.
 - A key can never change anything. It is shown once, kept only as a hash, shows when it was last used, and stops working the moment it is revoked.
@@ -62,7 +70,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-08 · V5 · Connected software
 
-**Status: built locally on 8 October 2026, in review; nothing deployed and nothing sent outside the computer.** [Evidence](docs/evidence/V5-CONNECTIONS.md). [Guide for the receiving end](docs/CONNECTIONS.md).
+**Status: built locally on 8 October 2026 and merged (#49); nothing deployed and nothing sent outside the computer.** [Evidence](docs/evidence/V5-CONNECTIONS.md). [Guide for the receiving end](docs/CONNECTIONS.md).
 
 - Settings has a new Connected software section for the owner. It tells other software (a Zapier hook, the studio's own system) when a visit is booked, moved, cancelled, checked out or missed, or a new client is added. The owner chooses the events for each connection.
 - Guest names, email and phone go only to a connection the owner chose to share them with.
@@ -72,7 +80,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-08 · V1.5 · The inbox
 
-**Status: built locally on 8 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-INBOX.md).
+**Status: built locally on 8 October 2026 and merged (#48); nothing deployed and no message sent.** [Evidence](docs/evidence/V15-INBOX.md).
 
 - The Inbox now shows one conversation per guest: what the studio wrote, what went out on its own (confirmations, reminders and the rest) and what the guest wrote back. Filters show new replies and drafts to approve.
 - Guests' replies to the studio's text line or email address arrive in the right conversation once those lines are connected. A reply from an address or number nobody has can be matched to a client. The desk can note a reply given by phone or in person. Opening a conversation marks its replies read, with who read them.

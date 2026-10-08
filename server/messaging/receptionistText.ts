@@ -5,10 +5,10 @@ import type { InboundReply } from './providers'
 import { countReception, storedUsage } from '../receptionistUsage'
 import { answersSocial, answersTexts, askReceptionist } from '../../src/assistant/receptionist'
 import type { ReceptionEffect, ReceptionTurn } from '../../src/assistant/receptionist'
-import { BOOKING_LINK } from '../../src/assistant/receptionistBrain'
+import { BOOKING_LINK, MANAGE_LINK_SPOT } from '../../src/assistant/receptionistBrain'
 import { businessDate, operations } from '../../src/domain/operations'
 import { repliesList, senderClient } from '../../src/domain/inbox'
-import { textNumber } from '../../src/domain/reminders'
+import { MANAGE_LINK, textNumber } from '../../src/domain/reminders'
 import type { SocialChannel } from '../../src/domain/inboxSchema'
 import type { SocialMessage } from './meta'
 
@@ -152,6 +152,12 @@ async function answer(
       ? `text:${org.id}:${number}`
       : `${channel}:${org.id}:${kept.account}:${number}`,
   )
+  // Known for sure only by a text or WhatsApp message from the one number on a client's record. A
+  // sender the team matched by hand is not proof enough to be sent a visit's private link.
+  const guest =
+    channel === 'sms' || channel === 'whatsapp'
+      ? senderClient(org.state, channel, number)
+      : undefined
   const result = await askReceptionist({
     state: ctx.withHolds(org),
     today: businessDate(org.state, at),
@@ -161,19 +167,26 @@ async function answer(
     history,
     channel: 'text',
     continuing,
+    ...(guest ? { guestId: guest.id } : {}),
     usage: storedUsage(ctx, org.id),
   })
   if (result.status !== 'answered') return false
   const offered = result.proposals.find((p) => p.effect.kind === 'time')
-  // Every answer says who it is from, since a message has no page around it to say so.
-  const body = `${signed}${result.text}`.replaceAll(
-    BOOKING_LINK,
-    offered
-      ? bookingLink(ctx.allowedOrigin, org.slug, offered.effect)
-      : `${ctx.allowedOrigin}/book/${org.slug}`,
-  )
+  const manage = result.proposals
+    .map((p) => p.effect)
+    .find((e): e is Extract<ReceptionEffect, { kind: 'manage' }> => e.kind === 'manage')
+  // Every answer says who it is from, since a message has no page around it to say so. A visit's
+  // private link is never stored: the outbox makes a fresh one as it sends.
+  const body = `${signed}${result.text}`
+    .replaceAll(
+      BOOKING_LINK,
+      offered
+        ? bookingLink(ctx.allowedOrigin, org.slug, offered.effect)
+        : `${ctx.allowedOrigin}/book/${org.slug}`,
+    )
+    .replaceAll(MANAGE_LINK_SPOT, manage && guest ? MANAGE_LINK : '')
   // The guest's own conversation, including a number the team matched to a client by hand.
-  const clientId = kept.clientId ?? senderClient(org.state, channel, number)?.id ?? ''
+  const clientId = manage && guest ? guest.id : (kept.clientId ?? guest?.id ?? '')
   return db.transaction(() => {
     countReception(ctx, org.id, {
       at,
@@ -184,10 +197,11 @@ async function answer(
     })
     const inserted = db.run(
       `INSERT OR IGNORE INTO outbox(id,organisation_id,dedupe_key,appointment_id,client_id,kind,channel,slot,recipient,subject,body,status,next_attempt_at,created_at,updated_at)
-       VALUES(?,?,?,'',?,'receptionist',?,?,?,'',?,'pending',?,?,?)`,
+       VALUES(?,?,?,?,?,'receptionist',?,?,?,'',?,'pending',?,?,?)`,
       randomUUID(),
       org.id,
       dedupe,
+      manage && guest ? manage.appointmentId : '',
       clientId,
       channel,
       `reception:${reply.providerRef}`,
