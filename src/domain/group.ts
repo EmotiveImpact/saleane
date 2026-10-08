@@ -1,0 +1,257 @@
+import type { z } from 'zod'
+import type { BusinessState } from './model'
+import { addDays, money } from './format'
+import { places } from './locations'
+import { businessDate, operations } from './operations'
+import { serviceRevenue } from './selectors'
+import { REGION_LIMIT, TARGET_LIMIT } from './groupSchema'
+import type { Region, Target, groupCommandSchemas } from './groupSchema'
+
+/**
+ * V5: the whole business at a glance. The owner groups locations into regions and sets each
+ * location a monthly target; this works out, from completed visits only, how each location is
+ * doing, which is growing fastest and which needs a look, and says so in plain words. A booked
+ * visit is counted as booked, never as money taken.
+ */
+
+export type GroupCommand = z.infer<(typeof groupCommandSchemas)[number]>
+
+export const regions = (s: BusinessState): Region[] => operations(s).regions ?? []
+export const targets = (s: BusinessState): Target[] => operations(s).targets ?? []
+
+export function runGroupCommand(next: BusinessState, command: GroupCommand, makeId: () => string) {
+  const o = next.operations!
+  const known = new Set(places(next, true).map((p) => p.id))
+  if (command.type === 'region') {
+    const list = (o.regions ??= [])
+    const old = command.id ? list.find((r) => r.id === command.id) : undefined
+    if (command.id && !old) throw new Error('That region is not in this business.')
+    if (!old && list.length >= REGION_LIMIT) throw new Error('Too many regions to keep.')
+    const name = command.input.name.toLowerCase()
+    if (list.some((r) => r.id !== command.id && r.name.toLowerCase() === name))
+      throw new Error('Another region already has that name.')
+    const locationIds = [...new Set(command.input.locationIds)]
+    if (locationIds.some((l) => !known.has(l)))
+      throw new Error('A location in this region is not in this business.')
+    // Each location answers to one region, so figures are never counted twice.
+    const elsewhere = list.find(
+      (r) => r.id !== command.id && r.locationIds.some((l) => locationIds.includes(l)),
+    )
+    if (elsewhere) throw new Error(`A location here is already in ${elsewhere.name}.`)
+    const record = { id: command.id ?? makeId(), name: command.input.name, locationIds }
+    if (old) Object.assign(old, record)
+    else list.push(record)
+    return record.id
+  }
+  if (command.type === 'region-remove') {
+    if (!(o.regions ?? []).some((r) => r.id === command.regionId))
+      throw new Error('That region is not in this business.')
+    o.regions = o.regions!.filter((r) => r.id !== command.regionId)
+    return command.regionId
+  }
+  const named = command.set.map((t) => t.locationId)
+  if (named.some((l) => !known.has(l))) throw new Error('That location is not in this business.')
+  if (new Set(named).size !== named.length) throw new Error('Each location has one target.')
+  const kept = (o.targets ?? []).filter(
+    (t) => !(t.month === command.month && named.includes(t.locationId)),
+  )
+  for (const t of command.set)
+    if (t.takingsMinor !== null)
+      kept.push({ locationId: t.locationId, month: command.month, takingsMinor: t.takingsMinor })
+  if (kept.length > TARGET_LIMIT) throw new Error('Too many targets to keep.')
+  o.targets = kept
+  return command.month
+}
+
+/** Ledger check: regions and targets name real locations, and no location is in two regions. */
+export function groupProblem(s: BusinessState) {
+  const known = new Set(places(s, true).map((p) => p.id))
+  const seen = new Set<string>()
+  for (const r of regions(s))
+    for (const l of r.locationIds) {
+      if (!known.has(l)) return 'A region names a location that is not in this business.'
+      if (seen.has(l)) return 'A location is in two regions.'
+      seen.add(l)
+    }
+  if (targets(s).some((t) => !known.has(t.locationId)))
+    return 'A target names a location that is not in this business.'
+  return null
+}
+
+/** The comparison window: the last 28 days against the 28 before. */
+export const GROUP_WINDOW_DAYS = 28
+
+/** Completed service takings at one location between two dates, both included. */
+function takings(s: BusinessState, locationId: string, from: string, to: string) {
+  const visits = new Map(
+    s.appointments
+      .filter(
+        (a) =>
+          a.locationId === locationId && a.status === 'completed' && a.date >= from && a.date <= to,
+      )
+      .map((a) => [a.id, a]),
+  )
+  const sales = s.sales.filter((sale) => visits.has(sale.appointmentId))
+  return { minor: sales.reduce((sum, sale) => sum + serviceRevenue(sale), 0), visits: visits.size }
+}
+
+export type PlaceFigures = {
+  locationId: string
+  name: string
+  takingsMinor: number
+  previousMinor: number
+  /** Change on the previous 28 days, or null when there was nothing then to compare with. */
+  growth: number | null
+  visits: number
+  /** Completed visits linked to a next visit, or null with none completed. */
+  rebookRate: number | null
+  month: {
+    takenMinor: number
+    /** Visits still to come this month, at their booked prices: booked, not taken. */
+    bookedMinor: number
+    targetMinor: number | null
+  }
+}
+export type RegionFigures = {
+  id: string | null
+  name: string
+  places: PlaceFigures[]
+  takingsMinor: number
+  previousMinor: number
+  growth: number | null
+  month: { takenMinor: number; bookedMinor: number; targetMinor: number | null }
+}
+
+const change = (now: number, before: number) => (before > 0 ? (now - before) / before : null)
+
+export function wholeBusiness(s: BusinessState, today = businessDate(s)) {
+  const from = addDays(today, 1 - GROUP_WINDOW_DAYS)
+  const before = { from: addDays(from, -GROUP_WINDOW_DAYS), to: addDays(from, -1) }
+  const month = today.slice(0, 7)
+  const monthEnd = addDays(`${addMonth(month)}-01`, -1)
+  const rebooked = (id: string) =>
+    s.appointments.some(
+      (next) =>
+        next.rebookedFromId === id && next.status !== 'cancelled' && next.status !== 'no_show',
+    )
+  const figures: PlaceFigures[] = places(s).map((p) => {
+    const now = takings(s, p.id, from, today)
+    const then = takings(s, p.id, before.from, before.to)
+    const completed = s.appointments.filter(
+      (a) => a.locationId === p.id && a.status === 'completed' && a.date >= from && a.date <= today,
+    )
+    const ahead = s.appointments.filter(
+      (a) =>
+        a.locationId === p.id &&
+        (a.status === 'confirmed' || a.status === 'arrived') &&
+        a.date >= today &&
+        a.date <= monthEnd,
+    )
+    return {
+      locationId: p.id,
+      name: p.name,
+      takingsMinor: now.minor,
+      previousMinor: then.minor,
+      growth: change(now.minor, then.minor),
+      visits: now.visits,
+      rebookRate: completed.length
+        ? completed.filter((a) => rebooked(a.id)).length / completed.length
+        : null,
+      month: {
+        takenMinor: takings(s, p.id, `${month}-01`, today).minor,
+        bookedMinor: ahead.reduce((sum, a) => sum + a.bookedPriceMinor, 0),
+        targetMinor:
+          targets(s).find((t) => t.locationId === p.id && t.month === month)?.takingsMinor ?? null,
+      },
+    }
+  })
+  const sum = (list: PlaceFigures[], name: string, id: string | null): RegionFigures => {
+    const takingsMinor = list.reduce((n, p) => n + p.takingsMinor, 0)
+    const previousMinor = list.reduce((n, p) => n + p.previousMinor, 0)
+    const withTarget = list.filter((p) => p.month.targetMinor !== null)
+    return {
+      id,
+      name,
+      places: list,
+      takingsMinor,
+      previousMinor,
+      growth: change(takingsMinor, previousMinor),
+      month: {
+        takenMinor: list.reduce((n, p) => n + p.month.takenMinor, 0),
+        bookedMinor: list.reduce((n, p) => n + p.month.bookedMinor, 0),
+        // A total target only when every location in it has one.
+        targetMinor:
+          withTarget.length === list.length && list.length
+            ? withTarget.reduce((n, p) => n + p.month.targetMinor!, 0)
+            : null,
+      },
+    }
+  }
+  const grouped = regions(s)
+    .map((r) =>
+      sum(
+        figures.filter((f) => r.locationIds.includes(f.locationId)),
+        r.name,
+        r.id,
+      ),
+    )
+    .filter((r) => r.places.length)
+  const inRegion = new Set(grouped.flatMap((r) => r.places.map((p) => p.locationId)))
+  const rest = figures.filter((f) => !inRegion.has(f.locationId))
+  if (grouped.length && rest.length) grouped.push(sum(rest, 'Not in a region', null))
+  const total = sum(figures, 'Whole business', null)
+  const compared = figures.filter((f) => f.growth !== null)
+  const ranked = [...compared].sort((a, b) => b.growth! - a.growth!)
+  const best = ranked.length > 1 ? ranked[0] : null
+  const weakest = ranked.length > 1 ? ranked[ranked.length - 1] : null
+  return {
+    from,
+    to: today,
+    month,
+    places: figures,
+    regions: grouped,
+    total,
+    best,
+    weakest,
+    summary: summary(s, total, best, weakest),
+  }
+}
+
+function addMonth(month: string) {
+  const [y, m] = month.split('-').map(Number)
+  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`
+}
+
+const pct = (n: number) => `${Math.round(Math.abs(n) * 100)}%`
+const upDown = (n: number) =>
+  Math.round(n * 100) === 0 ? 'level with' : n > 0 ? `up ${pct(n)} on` : `down ${pct(n)} on`
+
+/** The week's few lines for the owner, in plain words, from the same figures. */
+function summary(
+  s: BusinessState,
+  total: RegionFigures,
+  best: PlaceFigures | null,
+  weakest: PlaceFigures | null,
+) {
+  const org = s.organisation
+  const lines = [
+    `Across ${total.places.length} locations, completed visits took ${money(total.takingsMinor, org)} in the last ${GROUP_WINDOW_DAYS} days${
+      total.growth === null
+        ? '.'
+        : `, ${upDown(total.growth)} the ${GROUP_WINDOW_DAYS} days before.`
+    }`,
+  ]
+  if (best && weakest && best.locationId !== weakest.locationId)
+    lines.push(
+      `${best.name} is doing best (${upDown(best.growth!).replace(' on', '')}). ${weakest.name} needs a look (${upDown(weakest.growth!).replace(' on', '')}).`,
+    )
+  const month = total.month
+  lines.push(
+    `This month so far: ${money(month.takenMinor, org)} taken${
+      month.targetMinor
+        ? ` of a ${money(month.targetMinor, org)} target (${pct(month.takenMinor / month.targetMinor)})`
+        : ''
+    }, with ${money(month.bookedMinor, org)} more booked but not yet taken.`,
+  )
+  return lines
+}
