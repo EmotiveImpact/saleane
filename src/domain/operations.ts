@@ -3,6 +3,12 @@ import { googleBookingSchema, receptionistSettingsSchema } from './receptionistS
 import type { BusinessState } from './model'
 import { reminderSettingsSchema } from './reminderSettings'
 import { REGION_LIMIT, TARGET_LIMIT, regionSchema, targetSchema } from './groupSchema'
+import {
+  BRANCH_VISIT_LIMIT,
+  CHECKLIST_LIMIT,
+  branchVisitSchema,
+  checklistSchema,
+} from './branchVisitSchema'
 import { patchTestSettingsSchema } from './patchTestsSchema'
 import { MISSED_CALL_LIMIT, missedCallSchema } from './missedCallsSchema'
 import { paymentMethodSchema, processorSchema } from './paymentMethods'
@@ -331,6 +337,9 @@ export const operationsSchema = z.object({
   /** V5: locations grouped into regions, and each location's monthly takings target. */
   regions: z.array(regionSchema).max(REGION_LIMIT).optional(),
   targets: z.array(targetSchema).max(TARGET_LIMIT).optional(),
+  /** V5: branch visit checklists and the visits recorded with them. */
+  checklists: z.array(checklistSchema).max(CHECKLIST_LIMIT).optional(),
+  branchVisits: z.array(branchVisitSchema).max(BRANCH_VISIT_LIMIT).optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 export type Role = 'owner' | 'manager' | 'reception' | 'practitioner'
@@ -547,6 +556,10 @@ export function can(role: Role, action: string) {
       'forms',
       'consent-wording',
       'receptionist',
+      'checklist-save',
+      'checklist-archive',
+      'branch-visit',
+      'branch-visit-fix',
     ].includes(action)
   )
     return false

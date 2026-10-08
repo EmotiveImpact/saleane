@@ -6,6 +6,8 @@ import { Button, ErrorMessage, Modal } from '../design'
 import { money } from '../domain/format'
 import { places } from '../domain/locations'
 import { can } from '../domain/operations'
+import { lastVisits } from '../domain/branchVisits'
+import { dateLabel } from '../domain/format'
 import { GROUP_WINDOW_DAYS, regions, targets, wholeBusiness } from '../domain/group'
 import type { PlaceFigures, RegionFigures } from '../domain/group'
 import type { Command } from '../domain/commands'
@@ -34,6 +36,7 @@ export function WholeBusiness() {
     month: 'long',
     timeZone: 'UTC',
   }).format(new Date(`${view.month}-15T12:00:00Z`))
+  const visited = new Map(lastVisits(state).map((l) => [l.place.id, l.visit]))
   const groups: RegionFigures[] = view.regions.length ? view.regions : [view.total]
   const tag = (p: PlaceFigures) =>
     p.locationId === view.best?.locationId
@@ -119,6 +122,14 @@ export function WholeBusiness() {
                   <div>
                     <dt>Booked, not yet taken</dt>
                     <dd>{money(p.month.bookedMinor, org)}</dd>
+                  </div>
+                  <div>
+                    <dt>Last branch visit</dt>
+                    <dd>
+                      {visited.get(p.locationId)
+                        ? dateLabel(visited.get(p.locationId)!.date, org.locale, true)
+                        : 'Not yet'}
+                    </dd>
                   </div>
                 </dl>
               </li>
