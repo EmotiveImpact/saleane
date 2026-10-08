@@ -338,8 +338,12 @@ export function Inbox() {
                 <li key={item.sent.id} className="inbox-bubble inbox-bubble-ours is-automatic">
                   <small>
                     {kindLabel[item.sent.kind as keyof typeof kindLabel] ?? 'Message'} ·{' '}
-                    {item.sent.channel === 'email' ? 'email' : 'text'} · {at(item.sent.createdAt)} ·{' '}
-                    {outboxStatusLabel[item.sent.status]}
+                    {item.sent.channel === 'email'
+                      ? 'email'
+                      : isSocialChannel(item.sent.channel)
+                        ? socialLabel[item.sent.channel]
+                        : 'text'}{' '}
+                    · {at(item.sent.createdAt)} · {outboxStatusLabel[item.sent.status]}
                   </small>
                   {item.sent.subject && <strong>{item.sent.subject}</strong>}
                   <p>{item.sent.body}</p>

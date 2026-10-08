@@ -2,6 +2,14 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-08 · V4 · AI receptionist on Instagram, Facebook and WhatsApp
+
+**Status: built locally on 8 October 2026, in review; nothing deployed, no AI supplier connected, SALEANE is not approved by Meta yet and nothing is sent.** [Evidence](docs/evidence/V4-SOCIAL.md#the-ai-receptionist-on-these-apps).
+
+- The AI receptionist can also answer messages to the studio's Instagram, Facebook and WhatsApp, when the studio ticks "Also answer messages to your Instagram, Facebook and WhatsApp". It is off unless chosen.
+- It answers in the same app, from the account the guest wrote to, and every answer starts with the studio's name and "AI receptionist". A free time is offered as a link to the booking page with that time chosen; the guest still confirms it there.
+- It steps back for an hour once someone from the team answers that guest, and a guest who asks for a person is told the team will reply there. On texts it now says the same.
+
 ## 2026-10-08 · V4 · Instagram, Facebook and WhatsApp messages in the Inbox
 
 **Status: built locally on 8 October 2026, in review; nothing deployed, SALEANE is not approved by Meta yet and nothing is sent to Instagram, Facebook or WhatsApp.** [Evidence](docs/evidence/V4-SOCIAL.md).

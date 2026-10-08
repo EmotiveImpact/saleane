@@ -20,7 +20,7 @@ import type { Outbox } from './messaging/outbox'
 import { paymentRoutes } from './routes/payments'
 import { assistantRoutes } from './routes/assistant'
 import { receptionistRoutes } from './routes/receptionist'
-import { answerText } from './messaging/receptionistText'
+import { answerSocial, answerText } from './messaging/receptionistText'
 import { createPayments } from './payments/service'
 import type { Payments } from './payments/service'
 import { connectionTransportFromEnv, createConnections } from './connections'
@@ -200,7 +200,11 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
         } catch {
           fail(400, 'Send JSON.')
         }
-        for (const message of metaMessages(payload)) recordSocialMessage(ctx, message)
+        for (const message of metaMessages(payload)) {
+          recordSocialMessage(ctx, message)
+          // The AI receptionist answers a kept message when the studio chose that, once.
+          if ((await answerSocial(ctx, message)) && options.outboxIntervalMs) outbox.soon()
+        }
         reply(200, { ok: true })
         return
       }

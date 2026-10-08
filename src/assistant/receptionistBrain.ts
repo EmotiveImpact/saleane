@@ -27,13 +27,16 @@ export function receptionistBrain(
   }
 }
 
-/** Where the guest is talking: the booking page's chat, or a text to the studio's line. */
+/**
+ * Where the guest is talking: the booking page's chat, or (`text`) a message to the studio's text
+ * line, Instagram, Facebook or WhatsApp, where there is no page around the answer.
+ */
 export type ReceptionChannel = 'web' | 'text'
 /** Stands in a text answer for the link that books an offered time; the server fills it in. */
 export const BOOKING_LINK = '[[booking-link]]'
-/** By text the team already has the guest's message and number in the inbox. */
+/** By message the team already has the guest's words and how to answer them in the inbox. */
 const TEXT_HANDOVER =
-  'I have passed this to the team. Someone will text you back here as soon as they can.'
+  'I have passed this to the team. Someone will reply to you here as soon as they can.'
 
 export const RECEPTION_HELP =
   'I can tell you about our treatments and prices, our opening hours, and find you a free time to book. I can also pass a message to the team. Try "how much is a facial?" or "any times on Thursday for a haircut?"'
@@ -252,7 +255,7 @@ function firstStep(
   switch (intent(talk)) {
     case 'health':
       if (channel === 'text')
-        return say(`${HEALTH} They can see your message and will text you back.`)
+        return say(`${HEALTH} They can see your message and will reply to you here.`)
       return say(
         offered.has('pass_to_team')
           ? `${HEALTH} If you would like, I can pass them a message: tell me your name and an email or phone number.`

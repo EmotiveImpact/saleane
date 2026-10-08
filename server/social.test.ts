@@ -356,6 +356,42 @@ describe('Instagram, Facebook and WhatsApp messages', () => {
     ).toBe(422)
   })
 
+  it('lets the AI receptionist answer on the app when the studio chooses it', async () => {
+    const login = await studio()
+    const reception = () =>
+      api.database.all<OutboxRow>(
+        "SELECT * FROM outbox WHERE kind='receptionist' ORDER BY created_at",
+      )
+    await run(login, {
+      type: 'receptionist',
+      settings: { enabled: true, handOver: true, texts: true },
+    })
+    await instagram('When are you open?')
+    expect(reception()).toEqual([])
+    await run(login, {
+      type: 'receptionist',
+      settings: { enabled: true, handOver: true, social: true },
+    })
+    await instagram('When are you open?')
+    expect(reception()).toMatchObject([
+      { channel: 'instagram', recipient: '9000001', status: 'pending' },
+    ])
+    await api.outbox.tick()
+    expect(sent).toHaveLength(1)
+    expect(sent[0]).toMatchObject({ channel: 'instagram', account: '17841400000000001' })
+    expect(sent[0].body).toMatch(/^Linden Studio AI receptionist: Linden Studio is open:/)
+    // Once someone from the team answers, it steps back for the hour.
+    const reply = (await replies(login)).at(-1)!
+    await run(login, {
+      type: 'social-answer',
+      replyId: reply.id,
+      body: 'Ada here, how can I help?',
+    })
+    clock += 60000
+    await instagram('Can someone call me?')
+    expect(reception()).toHaveLength(1)
+  })
+
   it('refuses health words in an answer', async () => {
     const login = await studio()
     await instagram('Hello')
