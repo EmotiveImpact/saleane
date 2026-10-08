@@ -102,6 +102,27 @@ describe('the whole business', () => {
     expect(view.summary[2]).toMatch(/£300 taken, with £80 more booked but not yet taken\.$/)
   })
 
+  it('never ranks locations that are level with each other', () => {
+    const { s, visit, main, islington, leeds } = business()
+    for (const [id, now, then] of [
+      [main, 10000, 10000],
+      [islington, 10000, 10000],
+      [leeds, 5000, 10000],
+    ] as const) {
+      visit(id, '2026-10-10', now)
+      visit(id, '2026-09-10', then)
+    }
+    let view = wholeBusiness(s, today)
+    // Two locations level at the top: neither is "doing best"; Leeds is still clearly behind.
+    expect(view.best).toBeNull()
+    expect(view.weakest?.locationId).toBe(leeds)
+    expect(view.summary[1]).toBe('Leeds needs a look (down 50%).')
+    visit(leeds, '2026-10-11', 5000)
+    view = wholeBusiness(s, today)
+    expect([view.best, view.weakest]).toEqual([null, null])
+    expect(view.summary).toHaveLength(2)
+  })
+
   it('groups locations into regions with their own totals, and targets add up only when all are set', () => {
     const { s: start, visit, main, islington, leeds } = business()
     let s = apply(start, {

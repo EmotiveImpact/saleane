@@ -19,6 +19,6 @@ Screenshots: [the view](V5-GROUP-view.png), [on a phone](V5-GROUP-390.png).
 ## Limits
 
 - Figures come from completed visits' service takings, as on the rest of Business; products, tips and gift cards are not included.
-- "Best" and "needs a look" compare growth on the previous 28 days, so a new location with nothing to compare is left out until it has history.
+- "Best" and "needs a look" compare growth on the previous 28 days, so a new location with nothing to compare is left out until it has history, and locations level with each other are never ranked. Targets are kept for every location for ten years of months.
 - Managers see the view; only the owner sets regions and targets. Regional and general managers who see only their own locations, approvals passing up, branch checklists and the maps are later V5 stages.
 - Targets are per location per calendar month. There is no forecast beyond what is already booked.

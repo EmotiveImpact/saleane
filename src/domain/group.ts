@@ -202,8 +202,11 @@ export function wholeBusiness(s: BusinessState, today = businessDate(s)) {
   const total = sum(figures, 'Whole business', null)
   const compared = figures.filter((f) => f.growth !== null)
   const ranked = [...compared].sort((a, b) => b.growth! - a.growth!)
-  const best = ranked.length > 1 ? ranked[0] : null
-  const weakest = ranked.length > 1 ? ranked[ranked.length - 1] : null
+  // Named only when clearly ahead or behind: locations level with each other are never ranked.
+  const whole = (p: PlaceFigures) => Math.round(p.growth! * 100)
+  const best = ranked.length > 1 && whole(ranked[0]) > whole(ranked[1]) ? ranked[0] : null
+  const weakest =
+    ranked.length > 1 && whole(ranked.at(-1)!) < whole(ranked.at(-2)!) ? ranked.at(-1)! : null
   return {
     from,
     to: today,
@@ -241,10 +244,11 @@ function summary(
         : `, ${upDown(total.growth)} the ${GROUP_WINDOW_DAYS} days before.`
     }`,
   ]
-  if (best && weakest && best.locationId !== weakest.locationId)
-    lines.push(
-      `${best.name} is doing best (${upDown(best.growth!).replace(' on', '')}). ${weakest.name} needs a look (${upDown(weakest.growth!).replace(' on', '')}).`,
-    )
+  const ranked = [
+    best && `${best.name} is doing best (${upDown(best.growth!).replace(' on', '')}).`,
+    weakest && `${weakest.name} needs a look (${upDown(weakest.growth!).replace(' on', '')}).`,
+  ].filter(Boolean)
+  if (ranked.length) lines.push(ranked.join(' '))
   const month = total.month
   lines.push(
     `This month so far: ${money(month.takenMinor, org)} taken${

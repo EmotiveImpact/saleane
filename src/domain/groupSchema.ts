@@ -2,9 +2,12 @@ import { z } from 'zod'
 
 const id = z.string().min(1).max(150)
 
-/** V5: how many regions a business keeps, and how many monthly targets. */
+/**
+ * V5: how many regions a business keeps, and how many monthly targets: every location's target
+ * for ten years, so past months are kept and never need clearing out.
+ */
 export const REGION_LIMIT = 12
-export const TARGET_LIMIT = 600
+export const TARGET_LIMIT = 21 * 12 * 10
 const month = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Use a month such as 2026-10.')
 
 /** V5: a named group of locations, such as "London" or "North". */
