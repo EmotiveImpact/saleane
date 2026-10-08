@@ -26,6 +26,6 @@ Screenshots: [the secret shown once](V5-CONNECTIONS-secret.png), [the delivery l
 - `SALEANE_CONNECTIONS=live` has not been run against a real Zapier hook or any real receiver. It needs the app hosted to be useful.
 - Events cover visits and new clients. Payments, packages, gift cards, stock and the other V2 records are not sent yet.
 - One delivery loop runs per server; events wait up to the loop interval (30 seconds) unless a change nudges it.
-- Only the owner can connect software. There is no API for other software to read from or write to SALEANE yet.
+- Only the owner can connect software. Reading through access keys followed in a later stage ([evidence](V5-ACCESS.md)); there is no API to write to SALEANE yet.
 - A restored backup may resend events that were waiting when the backup was taken; the receiving end should dedupe on `Saleane-Delivery`.
 - Nothing is deleted automatically, including the delivery log. Safari and Firefox were not checked.

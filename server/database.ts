@@ -306,6 +306,20 @@ export const migrations: Migration[] = [
         CREATE INDEX connection_deliveries_recent ON connection_deliveries(organisation_id,created_at);
       `),
   },
+  {
+    version: 16,
+    // V5: read-only access keys for other software, stored only as a hash.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE api_keys (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          name TEXT NOT NULL, prefix TEXT NOT NULL UNIQUE, key_hash TEXT NOT NULL,
+          scopes TEXT NOT NULL CHECK(json_valid(scopes)), created_by TEXT NOT NULL,
+          created_at INTEGER NOT NULL, last_used_at INTEGER, revoked_at INTEGER
+        ) STRICT;
+        CREATE INDEX api_keys_org ON api_keys(organisation_id);
+      `),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the

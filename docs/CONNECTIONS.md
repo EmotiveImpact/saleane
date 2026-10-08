@@ -96,3 +96,23 @@ export function genuine(secret, header, rawBody, now = Date.now()) {
 ## Test mode
 
 `SALEANE_CONNECTIONS` is unset (`test`) by default. Addresses are checked and every event is signed and logged exactly as it would be sent, marked "Test mode, not sent". Nothing leaves the computer. `SALEANE_CONNECTIONS=live` posts for real; it has not yet been run against a real Zapier hook.
+
+# Reading from SALEANE
+
+Other software can also read from a studio, with an access key the owner makes in Settings › Connected software › Access keys. A key belongs to one studio, reads only what the owner ticked, cannot change anything, and stops working the moment it is revoked. The key (`sal_…`) is shown once; SALEANE keeps only a hash of it. Sample studios cannot make keys.
+
+Send it on every request:
+
+```
+GET /api/v1/appointments?from=2026-10-01&to=2026-10-31
+Authorization: Bearer sal_1a2b3c4d_…
+```
+
+| Endpoint                           | Needs               | Returns                                                                                                                          |
+| ---------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/v1/studio`               | any key             | The studio's id, name, time zone and currency, and the key's scopes.                                                             |
+| `GET /api/v1/appointments?from&to` | `appointments:read` | Visits on those dates (up to 31 days), in time order, as in the event payload plus `clientId`, `serviceId` and `professionalId`. |
+| `GET /api/v1/clients`              | `clients:read`      | Clients oldest first: id, name, email, phone, whether they agreed to email news, and when they were added.                       |
+| `GET /api/v1/services`             | `services:read`     | Treatments in use with duration and price in minor units (paged), and the team with the treatments each offers.                  |
+
+Visits, clients and treatments take `limit` (1 to 200, default 100) and `offset`, and say the `total`; the team comes whole with the treatments. Each key may make 120 requests a minute in all, from wherever they come. Anything but `GET` is refused with 405, a missing, wrong or revoked key with 401, a scope the key lacks with 403, and too many requests with 429.
