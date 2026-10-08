@@ -109,6 +109,27 @@ export function ServerBooking() {
     />
   )
 }
+/** The time in a booking link, when it names a treatment, person, date and start this page offers. */
+function linkedTime(
+  search: string,
+  services: Catalog['services'],
+  staff: Catalog['staff'],
+  today: string,
+) {
+  const q = new URLSearchParams(search)
+  const service = services.find((s) => s.id === q.get('service'))
+  const staffId = q.get('staff') ?? 'any'
+  const date = q.get('date') ?? ''
+  const start = Number(q.get('start'))
+  if (!service || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date < today) return null
+  if (
+    staffId !== 'any' &&
+    !staff.some((p) => p.id === staffId && p.serviceIds.includes(service.id))
+  )
+    return null
+  if (!Number.isInteger(start) || start < 0 || start >= 24 * 60) return null
+  return { serviceId: service.id, staffId, date, start }
+}
 function BookingFlow({
   catalog,
   base,
@@ -125,20 +146,26 @@ function BookingFlow({
     navigate = useNavigate()
   const journalKey = `saleane.guest-confirmation:${base}`
   const [recovery] = useState(() => readPendingBooking(journalKey))
+  // V4: a link from the AI receptionist opens step 2 with the offered time already chosen.
+  const [linked] = useState(() =>
+    recovery.value ? null : linkedTime(window.location.search, services, staff, today),
+  )
   const [attempt, setAttempt] = useState<PendingBooking | null>(recovery.value)
-  const [picked, setPicked] = useState(false)
+  const [picked, setPicked] = useState(!!linked)
   // With one kind of treatment the list opens straight away, chosen as before;
   // otherwise nothing is chosen until the guest picks.
   const ready = picked || new Set(services.map((s) => s.category)).size < 2
-  const [step, setStep] = useState(recovery.value ? 4 : 1),
-    [serviceId, setServiceId] = useState(recovery.value?.serviceId ?? services[0]?.id ?? ''),
-    [staffId, setStaffId] = useState(recovery.value?.staffId ?? 'any'),
-    [date, setDate] = useState(recovery.value?.date ?? addDays(today, 1))
+  const [step, setStep] = useState(recovery.value ? 4 : linked ? 2 : 1),
+    [serviceId, setServiceId] = useState(
+      recovery.value?.serviceId ?? linked?.serviceId ?? services[0]?.id ?? '',
+    ),
+    [staffId, setStaffId] = useState(recovery.value?.staffId ?? linked?.staffId ?? 'any'),
+    [date, setDate] = useState(recovery.value?.date ?? linked?.date ?? addDays(today, 1))
   const [availability, setAvailability] = useState<{ key: string; times: number[] }>({
       key: '',
       times: [],
     }),
-    [start, setStart] = useState<number | null>(recovery.value?.start ?? null)
+    [start, setStart] = useState<number | null>(recovery.value?.start ?? linked?.start ?? null)
   const queryKey = [serviceId, staffId, date, base, step].join('|'),
     loadingTimes = availability.key !== queryKey,
     times = loadingTimes ? [] : availability.times
@@ -527,6 +554,11 @@ function BookingFlow({
                       onChange={setStart}
                       tabs
                     />
+                  )}
+                  {!loadingTimes && start !== null && !times.includes(start) && (
+                    <p role="status" className="subtle">
+                      {timeLabel(start, org.locale)} is no longer free. Choose another time.
+                    </p>
                   )}
                   {!loadingTimes && !times.length && date < addDays(today, 365) && (
                     <Button

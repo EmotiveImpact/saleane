@@ -52,13 +52,17 @@ export const messageKinds = [
   'miss_you',
   'missed_call',
   'message',
+  'receptionist',
 ] as const
 export type MessageKind = (typeof messageKinds)[number]
 /** Messages about the guest rather than one visit. Their rows carry no appointment. */
 export const clientKinds = ['birthday', 'miss_you'] as const
 export type ClientKind = (typeof clientKinds)[number]
 /** Messages about one visit. */
-export type VisitKind = Exclude<MessageKind, ClientKind | 'missed_call' | 'message'>
+export type VisitKind = Exclude<
+  MessageKind,
+  ClientKind | 'missed_call' | 'message' | 'receptionist'
+>
 export const isClientKind = (kind: string): kind is ClientKind =>
   (clientKinds as readonly string[]).includes(kind)
 export const messageChannels = ['email', 'sms'] as const

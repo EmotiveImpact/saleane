@@ -18,6 +18,7 @@ import type { Outbox } from './messaging/outbox'
 import { paymentRoutes } from './routes/payments'
 import { assistantRoutes } from './routes/assistant'
 import { receptionistRoutes } from './routes/receptionist'
+import { answerText } from './messaging/receptionistText'
 import { createPayments } from './payments/service'
 import type { Payments } from './payments/service'
 import { connectionTransportFromEnv, createConnections } from './connections'
@@ -151,10 +152,19 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
           body,
         })
         if (!replies) fail(403, 'This message could not be verified.')
-        for (const reply of replies!)
+        for (const reply of replies!) {
           recordReply(ctx, inbound[3], provider === 'twilio' ? 'sms' : 'email', reply)
+          // V4: the AI receptionist answers a kept text when the studio chose it, once, even if
+          // the provider sends it again after a failure; the outbox sends the answer.
+          if (
+            provider === 'twilio' &&
+            (await answerText(ctx, inbound[3], reply)) &&
+            options.outboxIntervalMs
+          )
+            outbox.soon()
+        }
         if (provider === 'twilio') {
-          // No automatic answer: the team replies from the inbox.
+          // Nothing answered inline: the team, or the AI receptionist through the outbox, replies.
           response.statusCode = 200
           response.setHeader('Content-Type', 'text/xml; charset=utf-8')
           response.end('<?xml version="1.0" encoding="UTF-8"?><Response/>')

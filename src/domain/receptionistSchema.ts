@@ -11,6 +11,8 @@ export const receptionistSettingsSchema = z
     enabled: z.boolean(),
     /** Whether a guest may leave a message for the team, which arrives in the inbox. */
     handOver: z.boolean(),
+    /** Whether it also answers texts to the studio's text line. Off unless chosen. */
+    texts: z.boolean().optional(),
   })
   .strict()
 export type ReceptionistSettings = z.infer<typeof receptionistSettingsSchema>

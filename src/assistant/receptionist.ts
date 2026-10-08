@@ -10,6 +10,7 @@ import { healthWordIn } from '../domain/forms'
 import { defaultReceptionist } from '../domain/receptionistSchema'
 import { ALLOWANCES } from './saleane'
 import { receptionistBrain } from './receptionistBrain'
+import type { ReceptionChannel } from './receptionistBrain'
 
 /**
  * V4: the AI receptionist, the guest-facing side of Lumane. It answers from the studio's own
@@ -47,6 +48,9 @@ Never share anything about other guests.`
 
 export const isOn = (s: BusinessState) =>
   (operations(s).receptionist ?? defaultReceptionist).enabled && operations(s).bookingEnabled
+/** Whether it also answers texts to the studio's line. */
+export const answersTexts = (s: BusinessState) =>
+  isOn(s) && !!(operations(s).receptionist ?? defaultReceptionist).texts
 
 export function receptionContext(
   state: BusinessState,
@@ -265,6 +269,8 @@ export type ReceptionInput = {
   visitorId: string
   text: string
   history?: ReceptionTurn[]
+  /** The booking page's chat (the default) or a text to the studio's line. */
+  channel?: ReceptionChannel
   /** True for a later message in a chat already counted against the month's guest chats. */
   continuing?: boolean
   usage: Usage | undefined
@@ -278,7 +284,7 @@ export type ReceptionInput = {
 export function askReceptionist(input: ReceptionInput): Promise<TurnResult<ReceptionEffect>> {
   const ctx = receptionContext(input.state, input.today, input.now)
   return runTurn({
-    brain: receptionistBrain(ctx.today, input.state.organisation.locale),
+    brain: receptionistBrain(ctx.today, input.state.organisation.locale, input.channel),
     skills: receptionistSkills(),
     ctx,
     instructions: RECEPTION_INSTRUCTIONS,

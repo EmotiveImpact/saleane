@@ -24,6 +24,7 @@ import {
 } from '../../src/domain/reminders'
 import type { MessageChannel, MessageKind, OutboxStatus } from '../../src/domain/reminders'
 import { operations } from '../../src/domain/operations'
+import { answersTexts } from '../../src/assistant/receptionist'
 import { visitStart } from '../../src/domain/guest'
 import type { Context } from '../context'
 import { issueGuestLink } from '../routes/guest'
@@ -54,6 +55,8 @@ export type OutboxRow = {
 export const MAX_ATTEMPTS = 3
 const RETRY_MS = [60000, 5 * 60000]
 const BATCH = 50
+/** An AI receptionist's answer that could not go out within this long is not sent at all. */
+const RECEPTION_STALE_MS = 15 * 60000
 
 /**
  * The outbox: plans confirmations and reminders from studio records, then hands each one to the
@@ -161,6 +164,16 @@ export function createOutbox(ctx: Context, providers: Providers) {
           text.body,
           text.body.replaceAll(BOOK_LINK, `${ctx.allowedOrigin}/book/${org.slug}`),
         )
+      }
+      if (org && fresh.kind === 'receptionist') {
+        // V4: an answer to a guest's text. Checked again now: still a studio of its own, still
+        // switched on, and not so late that the answer no longer fits the question.
+        if (operations(org.state).mode !== 'local') return skip('Sample studios never send.')
+        if (!answersTexts(org.state))
+          return skip('Answering texts was turned off before it went out.')
+        if (now() - fresh.created_at > RECEPTION_STALE_MS)
+          return skip('Too late to answer by the time it could go out.')
+        return send(fresh, org, fresh.recipient, '', fresh.body, fresh.body)
       }
       if (!org || !client) return skip('The visit is no longer in the studio record.')
       if (operations(org.state).mode !== 'local') return skip('Sample studios never send.')

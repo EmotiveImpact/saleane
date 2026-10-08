@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
-import { current, decide } from '../../lumane'
-import type { PendingProposal, Usage } from '../../lumane'
+import { decide } from '../../lumane'
+import type { PendingProposal } from '../../lumane'
+import { countReception, storedUsage } from '../receptionistUsage'
 import { fail } from '../http'
 import type { Context, Route } from '../context'
 import { dispatch } from '../../src/domain/commands'
@@ -65,13 +66,6 @@ export function receptionistRoutes() {
       const continuing = !!known && known.organisationId === org.id && known.visitor === visitor
       // Without a chat this server started, earlier messages are not taken on trust.
       const history = continuing ? input.history : undefined
-      const stored = () =>
-        ((raw) => (raw ? (JSON.parse(raw.usage) as Usage) : undefined))(
-          ctx.db.get<{ usage: string }>(
-            'SELECT usage FROM assistant_usage WHERE organisation_id=?',
-            org.id,
-          ),
-        )
       const result = await askReceptionist({
         state: ctx.withHolds(org),
         today: businessDate(org.state, at),
@@ -80,39 +74,22 @@ export function receptionistRoutes() {
         text: input.text,
         history,
         continuing,
-        usage: stored(),
+        usage: storedUsage(ctx, org.id),
       })
       // The studio's allowance message is for the owner; the guest hears something kinder.
       if (result.status === 'refused') {
         reply(200, { text: RESTING, proposals: [], chat: null })
         return true
       }
-      ctx.db.transaction(() => {
-        // Re-read inside the write, so two guests at once both count.
-        const before = current(stored(), at)
-        const next = result.usage
-        const used = {
-          ...before.used,
-          // One chat counts once, at its first message.
-          guestChats: before.used.guestChats + (continuing ? 0 : 1),
-        }
-        const day = at.slice(0, 10)
-        const merged: Usage = {
-          period: before.period,
-          used,
-          spendByDay: {
-            ...before.spendByDay,
-            [day]: (before.spendByDay[day] ?? 0) + Math.max(0, result.costMinor),
-          },
-          recent: { ...before.recent, [visitor]: next.recent[visitor] ?? [] },
-        }
-        ctx.db.run(
-          'INSERT INTO assistant_usage(organisation_id,usage,updated_at) VALUES(?,?,?) ON CONFLICT(organisation_id) DO UPDATE SET usage=excluded.usage,updated_at=excluded.updated_at',
-          org.id,
-          JSON.stringify(merged),
-          ctx.now(),
-        )
-      })
+      ctx.db.transaction(() =>
+        countReception(ctx, org.id, {
+          at,
+          visitor,
+          continuing,
+          costMinor: result.costMinor,
+          usage: result.usage,
+        }),
+      )
       for (const proposal of result.proposals)
         held.set(proposal.id, { ...proposal, organisationId: org.id, visitor })
       const chat = continuing ? input.chat! : randomUUID()

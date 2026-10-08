@@ -14,13 +14,14 @@ export function ReceptionistSettings() {
   const current = operations(state).receptionist ?? defaultReceptionist
   const [enabled, setEnabled] = useState(current.enabled)
   const [handOver, setHandOver] = useState(current.handOver)
+  const [texts, setTexts] = useState(current.texts ?? false)
   const [saved, setSaved] = useState(false)
   const { run, pending, error } = useRun()
   const allowed = !blocked && can(role, 'receptionist')
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setSaved(false)
-    setSaved(await run({ type: 'receptionist', settings: { enabled, handOver } }))
+    setSaved(await run({ type: 'receptionist', settings: { enabled, handOver, texts } }))
   }
   return (
     <section className="surface ops-panel" aria-labelledby="receptionist-settings">
@@ -56,6 +57,17 @@ export function ReceptionistSettings() {
             />
             Let guests leave a message for the team when it cannot help. Messages arrive in your
             Inbox.
+          </label>
+          <label className="ops-check ops-wide">
+            <input
+              type="checkbox"
+              checked={texts}
+              disabled={!allowed}
+              onChange={(e) => setTexts(e.target.checked)}
+            />
+            Also answer texts to your text line. Its answers go out like your other texts, show in
+            the Inbox, and say they come from an AI. Anything it cannot answer waits there for the
+            team.
           </label>
         </div>
         <ErrorMessage error={error} />
