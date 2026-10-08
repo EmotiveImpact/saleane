@@ -1,12 +1,14 @@
 import type { BusinessState } from '../domain/model'
 import type { PractitionerView } from '../domain/practitioner'
+import type { AreaView } from '../domain/area'
+import type { Role } from '../domain/operations'
 export type WorkspaceAccess = {
   id: string
   slug: string
   name: string
   region: 'UK' | 'US'
   mode: 'sandbox' | 'local'
-  role: 'owner' | 'manager' | 'reception' | 'practitioner'
+  role: Role
   staffId?: string
 }
 export type Session = {
@@ -31,6 +33,8 @@ export type PractitionerWorkspace = WorkspaceRecord & {
   view: 'practitioner'
   practitioner: PractitionerView
 }
+/** V5: what a regional manager receives: their region's figures and branch visits only. */
+export type AreaWorkspace = WorkspaceRecord & { view: 'area'; area: AreaView }
 export class ApiError extends Error {
   status: number
   constructor(message: string, status: number) {

@@ -342,7 +342,14 @@ export const operationsSchema = z.object({
   branchVisits: z.array(branchVisitSchema).max(BRANCH_VISIT_LIMIT).optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
-export type Role = 'owner' | 'manager' | 'reception' | 'practitioner'
+/**
+ * V5: a regional manager ('regional') looks after the locations in one region. They receive only
+ * their area's view, never the studio record, and record branch visits there.
+ */
+export type Role = 'owner' | 'manager' | 'reception' | 'practitioner' | 'regional'
+/** The roles that receive the whole studio record (reception with some parts left out). */
+export const studioRole = (role: Role) =>
+  role === 'owner' || role === 'manager' || role === 'reception'
 export function defaultOperations(mode: Operations['mode'] = 'sandbox'): Operations {
   return {
     mode,
@@ -505,6 +512,8 @@ export function can(role: Role, action: string) {
     ].includes(action)
   )
     return false
+  // V5: a regional manager only records branch visits, and only at their area's locations.
+  if (role === 'regional') return ['branch-visit', 'branch-visit-fix'].includes(action)
   if (role === 'owner') return true
   if (
     [

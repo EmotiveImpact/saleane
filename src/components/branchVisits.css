@@ -153,3 +153,25 @@
     padding: 0 var(--space-2);
   }
 }
+/* V5: a regional manager's area page. */
+.area-main {
+  width: min(1120px, 100%);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5) var(--space-8, 64px);
+  display: grid;
+  gap: var(--space-5);
+}
+.area-main .group-panel,
+.area-main .ops-panel + .ops-panel {
+  margin: 0;
+}
+.area-main .page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+@media (max-width: 760px) {
+  .area-main {
+    padding: var(--space-5) var(--space-4) var(--space-7, 48px);
+  }
+}

@@ -124,7 +124,12 @@ export type RegionFigures = {
 
 const change = (now: number, before: number) => (before > 0 ? (now - before) / before : null)
 
-export function wholeBusiness(s: BusinessState, today = businessDate(s)) {
+/** `only` narrows the view to some locations, for a regional manager's area. */
+export function wholeBusiness(
+  s: BusinessState,
+  today = businessDate(s),
+  only?: ReadonlySet<string>,
+) {
   const from = addDays(today, 1 - GROUP_WINDOW_DAYS)
   const before = { from: addDays(from, -GROUP_WINDOW_DAYS), to: addDays(from, -1) }
   const month = today.slice(0, 7)
@@ -134,37 +139,41 @@ export function wholeBusiness(s: BusinessState, today = businessDate(s)) {
       (next) =>
         next.rebookedFromId === id && next.status !== 'cancelled' && next.status !== 'no_show',
     )
-  const figures: PlaceFigures[] = places(s).map((p) => {
-    const now = takings(s, p.id, from, today)
-    const then = takings(s, p.id, before.from, before.to)
-    const completed = s.appointments.filter(
-      (a) => a.locationId === p.id && a.status === 'completed' && a.date >= from && a.date <= today,
-    )
-    const ahead = s.appointments.filter(
-      (a) =>
-        a.locationId === p.id &&
-        (a.status === 'confirmed' || a.status === 'arrived') &&
-        a.date >= today &&
-        a.date <= monthEnd,
-    )
-    return {
-      locationId: p.id,
-      name: p.name,
-      takingsMinor: now.minor,
-      previousMinor: then.minor,
-      growth: change(now.minor, then.minor),
-      visits: now.visits,
-      rebookRate: completed.length
-        ? completed.filter((a) => rebooked(a.id)).length / completed.length
-        : null,
-      month: {
-        takenMinor: takings(s, p.id, `${month}-01`, today).minor,
-        bookedMinor: ahead.reduce((sum, a) => sum + a.bookedPriceMinor, 0),
-        targetMinor:
-          targets(s).find((t) => t.locationId === p.id && t.month === month)?.takingsMinor ?? null,
-      },
-    }
-  })
+  const figures: PlaceFigures[] = places(s)
+    .filter((p) => !only || only.has(p.id))
+    .map((p) => {
+      const now = takings(s, p.id, from, today)
+      const then = takings(s, p.id, before.from, before.to)
+      const completed = s.appointments.filter(
+        (a) =>
+          a.locationId === p.id && a.status === 'completed' && a.date >= from && a.date <= today,
+      )
+      const ahead = s.appointments.filter(
+        (a) =>
+          a.locationId === p.id &&
+          (a.status === 'confirmed' || a.status === 'arrived') &&
+          a.date >= today &&
+          a.date <= monthEnd,
+      )
+      return {
+        locationId: p.id,
+        name: p.name,
+        takingsMinor: now.minor,
+        previousMinor: then.minor,
+        growth: change(now.minor, then.minor),
+        visits: now.visits,
+        rebookRate: completed.length
+          ? completed.filter((a) => rebooked(a.id)).length / completed.length
+          : null,
+        month: {
+          takenMinor: takings(s, p.id, `${month}-01`, today).minor,
+          bookedMinor: ahead.reduce((sum, a) => sum + a.bookedPriceMinor, 0),
+          targetMinor:
+            targets(s).find((t) => t.locationId === p.id && t.month === month)?.takingsMinor ??
+            null,
+        },
+      }
+    })
   const sum = (list: PlaceFigures[], name: string, id: string | null): RegionFigures => {
     const takingsMinor = list.reduce((n, p) => n + p.takingsMinor, 0)
     const previousMinor = list.reduce((n, p) => n + p.previousMinor, 0)
@@ -238,7 +247,7 @@ function summary(
 ) {
   const org = s.organisation
   const lines = [
-    `Across ${total.places.length} locations, completed visits took ${money(total.takingsMinor, org)} in the last ${GROUP_WINDOW_DAYS} days${
+    `Across ${total.places.length} ${total.places.length === 1 ? 'location' : 'locations'}, completed visits took ${money(total.takingsMinor, org)} in the last ${GROUP_WINDOW_DAYS} days${
       total.growth === null
         ? '.'
         : `, ${upDown(total.growth)} the ${GROUP_WINDOW_DAYS} days before.`

@@ -21,6 +21,15 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Texts name the location, imported visits go to the location where the professional works that day, and the calendar showing every location spans all their opening hours.
 - A studio with one location works exactly as before.
 
+## 2026-10-08 · V5 · Regional managers
+
+**Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-REGIONAL.md).
+
+- The owner can invite a regional manager for one region, or change someone's access to it, under Settings, Team.
+- A regional manager opens their own page: a greeting, their region's figures by location, how many visits each has booked today, a short morning summary (what is waiting to be put right and which locations are due a branch visit), and their region's branch visits.
+- They can record a branch visit and mark a line put right, at their own locations only. They never receive clients, diaries, staff, prices, payments, settings or other locations, and every other part of SALEANE refuses them.
+- If their region is removed or emptied they see nothing until the owner updates their access. Stored access needs a database step (migration 20) that keeps every existing member and invitation.
+
 ## 2026-10-08 · V5 · Branch visit checklists
 
 **Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-BRANCH-VISITS.md).
