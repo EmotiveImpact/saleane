@@ -41,6 +41,15 @@ export async function answerText(ctx: Context, slug: string, reply: InboundReply
   const number = textNumber(reply.from)
   const words = reply.body.trim()
   if (!number || !words) return false
+  // Answered already: a provider sending the same text again gets no second answer. A text kept
+  // before a crash, and not yet answered, is answered when the provider tries again.
+  const dedupe = `reception:${reply.providerRef}`
+  if (db.get('SELECT 1 FROM outbox WHERE organisation_id=? AND dedupe_key=?', org.id, dedupe))
+    return false
+  const kept = repliesList(org.state).find(
+    (r) => r.channel === 'sms' && r.providerRef === reply.providerRef.slice(0, 200),
+  )
+  if (!kept) return false
   const time = now()
   const at = new Date(time).toISOString()
   const since = time - CHAT_WINDOW_MS
@@ -52,9 +61,10 @@ export async function answerText(ctx: Context, slug: string, reply: InboundReply
   )
   // A person at the studio is already talking with this guest.
   if (sent.some((m) => m.kind === 'message')) return false
+  const signed = `${org.state.organisation.name} AI receptionist: `
   const answers = sent.map((m) => ({
     from: 'receptionist' as const,
-    text: m.body,
+    text: m.body.startsWith(signed) ? m.body.slice(signed.length) : m.body,
     at: m.created_at,
   }))
   const asked = repliesList(org.state)
@@ -85,13 +95,15 @@ export async function answerText(ctx: Context, slug: string, reply: InboundReply
   })
   if (result.status !== 'answered') return false
   const offered = result.proposals.find((p) => p.effect.kind === 'time')
-  const body = result.text.replaceAll(
+  // Every text says who it is from, since a text has no page around it to say so.
+  const body = `${signed}${result.text}`.replaceAll(
     BOOKING_LINK,
     offered
       ? bookingLink(ctx.allowedOrigin, org.slug, offered.effect)
       : `${ctx.allowedOrigin}/book/${org.slug}`,
   )
-  const client = senderClient(org.state, 'sms', number)
+  // The guest's own conversation, including a number the team matched to a client by hand.
+  const clientId = kept.clientId ?? senderClient(org.state, 'sms', number)?.id ?? ''
   return db.transaction(() => {
     countReception(ctx, org.id, {
       at,
@@ -105,8 +117,8 @@ export async function answerText(ctx: Context, slug: string, reply: InboundReply
        VALUES(?,?,?,'',?,'receptionist','sms',?,?,'',?,'pending',?,?,?)`,
       randomUUID(),
       org.id,
-      `reception:${reply.providerRef}`,
-      client?.id ?? '',
+      dedupe,
+      clientId,
       `reception:${reply.providerRef}`,
       number,
       body,

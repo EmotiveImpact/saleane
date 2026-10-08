@@ -7,7 +7,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 **Status: built locally on 8 October 2026, in review; nothing deployed, no AI supplier or text line connected and no text sent.** [Evidence](docs/evidence/V4-RECEPTIONIST.md#answering-texts-stage-2).
 
 - The AI receptionist can also answer texts to the studio's text line, when the studio ticks "Also answer texts to your text line". It is off unless chosen.
-- Its answers go out through the same outbox as reminders, once, and show in the guest's Inbox conversation with what became of them. Nothing is called sent until the text provider accepts it.
+- Each answer starts with the studio's name and "AI receptionist", so a guest always knows it is an AI. Answers go out through the same outbox as reminders, once, and show in the guest's Inbox conversation with what became of them. Nothing is called sent until the text provider accepts it.
 - A free time is offered as a link that opens the booking page with that time already chosen. The guest still holds and confirms it. If the time has gone, the page says so.
 - A guest who asks for a person is told the team will text back; their message is already in the Inbox. The receptionist steps back for an hour once someone from the studio has texted that guest.
 - A text conversation counts as one chat while messages are less than an hour apart.

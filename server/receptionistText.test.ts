@@ -158,7 +158,7 @@ describe('the AI receptionist answering texts', () => {
     await api.outbox.tick()
     expect(sent).toHaveLength(1)
     expect(sent[0]).toMatchObject({ channel: 'sms', to: '+447700900456' })
-    expect(sent[0].body).toMatch(/Linden Studio is open:/)
+    expect(sent[0].body).toMatch(/^Linden Studio AI receptionist: Linden Studio is open:/)
     expect(answers()[0].status).toBe('accepted')
     expect(await chats(login)).toBe(1)
   })
@@ -167,7 +167,9 @@ describe('the AI receptionist answering texts', () => {
     const { login, slug } = await studio()
     await text(slug, 'Any times for a facial on Thursday?')
     const times = answers()[0].body
-    expect(times).toMatch(/^Restorative facial on Thursday 8 October: /)
+    expect(times).toMatch(
+      /^Linden Studio AI receptionist: Restorative facial on Thursday 8 October: /,
+    )
     const first = /: (\d{2}:\d{2})/.exec(times)![1]
     clock += 60000
     await text(slug, `Book ${first} please`)
@@ -202,6 +204,48 @@ describe('the AI receptionist answering texts', () => {
     await api.outbox.tick()
     await text(slug, 'Six of us, on Saturday')
     expect(answers()).toHaveLength(1)
+  })
+
+  it('answers a text once, even when the provider sends it again after a failure', async () => {
+    const { login, slug } = await studio(false)
+    const again = (body: string) =>
+      api.inject({
+        method: 'POST',
+        url: `/api/hooks/twilio/sms/${slug}`,
+        headers: {
+          origin: 'https://api.twilio.com',
+          'content-type': 'application/x-www-form-urlencoded',
+        },
+        rawPayload: new URLSearchParams({
+          From: '+447700900456',
+          Body: body,
+          Ref: 'same',
+        }).toString(),
+      })
+    // Kept for the inbox but not answered, as if the answer had failed.
+    await again('When are you open?')
+    expect(answers()).toEqual([])
+    await run(login, {
+      type: 'receptionist',
+      settings: { enabled: true, handOver: true, texts: true },
+    })
+    await again('When are you open?')
+    await again('When are you open?')
+    expect(answers()).toHaveLength(1)
+    expect(await chats(login)).toBe(1)
+  })
+
+  it('answers in the client conversation the team matched the number to', async () => {
+    const { login, slug } = await studio()
+    await text(slug, 'Hello, is that the studio?', '+447700900999')
+    expect(answers()[0].client_id).toBe('')
+    const replyId = (await workspace(login)).state.replies!.find(
+      (r) => r.from === '+447700900999',
+    )!.id
+    await run(login, { type: 'reply-link', replyId, clientId })
+    clock += 60000
+    await text(slug, 'When are you open?', '+447700900999')
+    expect(answers()[1].client_id).toBe(clientId)
   })
 
   it('does not send an answer if texts are turned off before it goes out', async () => {

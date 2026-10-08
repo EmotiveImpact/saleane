@@ -152,15 +152,17 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
           body,
         })
         if (!replies) fail(403, 'This message could not be verified.')
-        for (const reply of replies!)
+        for (const reply of replies!) {
+          recordReply(ctx, inbound[3], provider === 'twilio' ? 'sms' : 'email', reply)
+          // V4: the AI receptionist answers a kept text when the studio chose it, once, even if
+          // the provider sends it again after a failure; the outbox sends the answer.
           if (
-            recordReply(ctx, inbound[3], provider === 'twilio' ? 'sms' : 'email', reply) &&
             provider === 'twilio' &&
-            // V4: the AI receptionist answers when the studio chose it; the outbox sends it.
             (await answerText(ctx, inbound[3], reply)) &&
             options.outboxIntervalMs
           )
             outbox.soon()
+        }
         if (provider === 'twilio') {
           // Nothing answered inline: the team, or the AI receptionist through the outbox, replies.
           response.statusCode = 200
