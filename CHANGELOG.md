@@ -18,6 +18,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Each location has its own booking link that opens with it chosen.
 - A waitlist request can be for one location, and the schedule history records rooms and people moving between locations.
 - A booking link the AI receptionist texts a guest opens at the location where the professional works that day.
+- Texts name the location, imported visits go to the location where the professional works that day, and the calendar showing every location spans all their opening hours.
 - A studio with one location works exactly as before.
 
 ## 2026-10-08 · V4 · The AI receptionist helps a guest move or cancel

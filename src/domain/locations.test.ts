@@ -6,7 +6,15 @@ import { parseState } from './model'
 import { can, hoursFor, operations, permissionFor, stock } from './operations'
 import { createWorkspace } from './workspace'
 import { seed } from './seed'
-import { atPlace, hasLocations, places, roomWithPlace, staffLocationOn } from './locations'
+import {
+  atPlace,
+  hasLocations,
+  listPrice,
+  places,
+  roomWithPlace,
+  staffLocationOn,
+} from './locations'
+import { heldVisit, placeImportedVisit } from './switching'
 import { availableMinutes } from './selectors'
 import { openings } from './waitlist'
 import { composeMessage } from './reminders'
@@ -118,6 +126,24 @@ describe('several locations', () => {
     expect(JSON.stringify(message)).toContain('Islington, 1 Upper Street, London')
     expect(JSON.stringify(message)).toContain('Ring the bell marked Saleane.')
     expect(roomWithPlace(booked, visit)).toBe('Treatment room 2, Islington')
+    // A text has no address block, so it names the location itself.
+    expect(composeMessage(booked, visit, 'reminder', 'sms').body).toContain(
+      'at Islington, 1 Upper Street, London',
+    )
+    expect(composeMessage(local(), visit, 'reminder', 'sms').body).not.toContain('Islington')
+  })
+
+  it('carries an imported visit over to the location its professional works at that day', () => {
+    const { s, islington } = twoSites()
+    const row = {
+      serviceId: 'service-facial',
+      staffId: 'staff-maya',
+      date: thursday,
+      startMinutes: 600,
+    }
+    const placed = placeImportedVisit(s, row, now)
+    expect(placed).toEqual({ resourceId: 'room-two' })
+    expect(heldVisit(s, row, 'room-two', 'held-1').locationId).toBe(islington)
   })
 
   it('uses a location’s own opening hours when it has them', () => {
@@ -287,6 +313,22 @@ describe('finishing several locations', () => {
     const main = s.organisation.locationId
     expect(run(s, edit({ locationPrices: [{ locationId: main, priceMinor: 1 }] })).ok).toBe(false)
     expect(run(s, edit({ notOfferedAt: [main, islington] })).ok).toBe(false)
+    // A list price comes only from places a guest can book: "From" only when those differ.
+    expect(
+      listPrice(
+        priced.services.find((x) => x.id === facial.id)!,
+        [main],
+      ),
+    ).toEqual({
+      priceMinor: facial.priceMinor,
+      from: false,
+    })
+    expect(
+      listPrice(
+        priced.services.find((x) => x.id === facial.id)!,
+        [main, islington],
+      ),
+    ).toEqual({ priceMinor: Math.min(12000, facial.priceMinor), from: true })
     const offMenu = apply(s, edit({ notOfferedAt: [islington] }))
     expect(slots(offMenu, 'service-facial', 'staff-maya', thursday, now)).toEqual([])
     expect(slots(offMenu, 'service-facial', 'staff-maya', wednesday, now)).toContain(600)

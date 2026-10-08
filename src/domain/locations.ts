@@ -89,9 +89,17 @@ export function offeredAt(service: Pick<Service, 'notOfferedAt'>, locationId: st
   return !service.notOfferedAt?.includes(locationId)
 }
 
-/** Whether a treatment's price differs between locations, so a list says "from". */
-export function pricesVary(service: Pick<Service, 'priceMinor' | 'locationPrices'>) {
-  return !!service.locationPrices?.some((r) => r.priceMinor !== service.priceMinor)
+/**
+ * A treatment's price for a list, from the places a guest can actually book it: the lowest of
+ * them, and whether it differs between them, so the list says "From" (V2).
+ */
+export function listPrice(
+  service: Pick<Service, 'priceMinor' | 'locationPrices'>,
+  bookableIds: string[],
+) {
+  const prices = bookableIds.map((id) => serviceAt(service, id).priceMinor)
+  if (!prices.length) return { priceMinor: service.priceMinor, from: false }
+  return { priceMinor: Math.min(...prices), from: new Set(prices).size > 1 }
 }
 
 /**

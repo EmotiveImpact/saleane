@@ -15,7 +15,7 @@ import { PriceSentence } from '../components/PriceSentence'
 import { BeforeYouArrive } from '../components/BeforeYouArrive'
 import { AddToCalendar } from '../components/AddToCalendar'
 import { LocationChoice } from '../components/LocationChoice'
-import { offeredAt, pricesVary, serviceAt } from '../domain/locations'
+import { listPrice, offeredAt, serviceAt } from '../domain/locations'
 import type { LocationOption } from '../components/LocationChoice'
 import { ReceptionistChat } from '../components/ReceptionistChat'
 import { visitUid } from '../domain/calendarFile'
@@ -178,9 +178,21 @@ function BookingFlow({
         '',
     )
   // Only places where someone does the chosen treatment are offered.
-  /** The lowest price across locations, for a list that says "From" (V2). */
-  const lowest = (s: Catalog['services'][number]) =>
-    Math.min(s.priceMinor, ...(s.locationPrices ?? []).map((r) => r.priceMinor))
+  /** A treatment's list price, from the locations where a guest can book it (V2). */
+  const shown = (s: Catalog['services'][number]) =>
+    listPrice(
+      s,
+      locations
+        .filter(
+          (l) =>
+            offeredAt(s, l.id) &&
+            staff.some(
+              (p) =>
+                p.serviceIds.includes(s.id) && (!p.locationIds || p.locationIds.includes(l.id)),
+            ),
+        )
+        .map((l) => l.id),
+    )
   const chosenService = services.find((s) => s.id === serviceId)
   const offered = locations.filter(
     (l) =>
@@ -532,15 +544,15 @@ function BookingFlow({
                             </p>
                           )}
                           <PriceSentence
-                            service={{ ...s, priceMinor: lowest(s) }}
+                            service={{ ...s, priceMinor: shown(s).priceMinor }}
                             organisation={org}
                             tax={tax}
                             simulated={sample}
                           />
                         </span>
                         <strong>
-                          {locations.length > 1 && pricesVary(s) ? 'From ' : ''}
-                          {money(fullPriceMinor({ priceMinor: lowest(s) }, tax), org)}
+                          {shown(s).from ? 'From ' : ''}
+                          {money(fullPriceMinor({ priceMinor: shown(s).priceMinor }, tax), org)}
                         </strong>
                       </button>
                     )}

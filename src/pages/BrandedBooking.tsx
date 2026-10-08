@@ -15,7 +15,7 @@ import { AddToCalendar } from '../components/AddToCalendar'
 import { visitUid } from '../domain/calendarFile'
 import { bookingChannel } from '../domain/bookingChannel'
 import { fullPriceMinor } from '../domain/priceSentence'
-import { offeredAt, places, pricesVary, serviceAt, staffPlaces } from '../domain/locations'
+import { listPrice, offeredAt, places, serviceAt, staffPlaces } from '../domain/locations'
 import { LocationChoice } from '../components/LocationChoice'
 import { patchTestSettings } from '../domain/patchTests'
 import { currentWording } from '../domain/consent'
@@ -107,9 +107,23 @@ export function BrandedBooking() {
   const fullPrice = (s: { priceMinor: number }) => fullPriceMinor(s, tax)
   // V2: the treatment as priced where the guest is coming.
   const booked = serviceAt(service, where.id)
-  /** The lowest price across locations, for a list that says "From". */
-  const lowest = (s: (typeof state.services)[number]) =>
-    Math.min(s.priceMinor, ...(s.locationPrices ?? []).map((r) => r.priceMinor))
+  /** A treatment's list price, from the locations where a guest can book it. */
+  const shown = (s: (typeof state.services)[number]) =>
+    listPrice(
+      s,
+      locations
+        .filter(
+          (l) =>
+            offeredAt(s, l.id) &&
+            state.staff.some(
+              (p) =>
+                !p.archived &&
+                p.serviceIds.includes(s.id) &&
+                staffPlaces(state, p.id).includes(l.id),
+            ),
+        )
+        .map((l) => l.id),
+    )
   async function confirm() {
     if (start === null || !policy) {
       setError('Choose a time and acknowledge the demo booking policy.')
@@ -295,7 +309,7 @@ export function BrandedBooking() {
                           {s.durationMinutes} minutes
                         </span>
                         <PriceSentence
-                          service={{ ...s, priceMinor: lowest(s) }}
+                          service={{ ...s, priceMinor: shown(s).priceMinor }}
                           organisation={state.organisation}
                           tax={tax}
                           simulated
@@ -303,8 +317,11 @@ export function BrandedBooking() {
                       </div>
                       <span>
                         <strong>
-                          {locations.length > 1 && pricesVary(s) ? 'From ' : ''}
-                          {money(fullPrice({ priceMinor: lowest(s) }), state.organisation)}
+                          {shown(s).from ? 'From ' : ''}
+                          {money(
+                            fullPrice({ priceMinor: shown(s).priceMinor }),
+                            state.organisation,
+                          )}
                         </strong>
                         <span className="selection-circle">
                           {ready && serviceId === s.id && <Check size={14} />}

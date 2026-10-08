@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Plus, LayoutGrid, List } from 'lucide-react'
 import { useStore } from '../state/context'
 import { useLiveRefresh } from '../state/useLive'
 import { businessMinutes, can, hoursFor } from '../domain/operations'
+import type { BusinessState } from '../domain/model'
 import { dayAppointments, shownStatus, staffDay } from '../domain/selectors'
 import { hasLocations, places, staffLocationOn } from '../domain/locations'
 import { addDays, dateLabel, timeLabel } from '../domain/format'
@@ -54,13 +55,12 @@ export function Calendar() {
         staffLocationOn(state, s.id, date) === locationFilter ||
         day.some((a) => a.staffId === s.id)),
   )
-  const hours = hoursFor(state, date, locationFilter === 'all' ? undefined : locationFilter)
-  const start =
-    Math.floor(Math.min(hours?.open ?? 540, ...day.map((a) => a.startMinutes)) / 60) * 60
+  const hours = shownHours(state, date, locationFilter)
+  const start = Math.floor(Math.min(hours.open, ...day.map((a) => a.startMinutes)) / 60) * 60
   const end =
     Math.ceil(
       Math.max(
-        hours?.close ?? 1080,
+        hours.close,
         ...day.map((a) => a.startMinutes + a.bookedDurationMinutes + a.bookedBufferMinutes),
       ) / 60,
     ) * 60
@@ -546,6 +546,23 @@ export function Calendar() {
 }
 
 /** Monday of the week that holds this date. */
+/**
+ * V2: the hours the calendar shows for a day. With every location shown, from the earliest opening
+ * to the latest closing among them, and closed only when all of them are.
+ */
+function shownHours(state: BusinessState, date: string, locationFilter: string) {
+  if (locationFilter !== 'all') return hoursFor(state, date, locationFilter)
+  const open = places(state)
+    .map((place) => hoursFor(state, date, place.id))
+    .filter((h) => !h.closed)
+  if (!open.length) return hoursFor(state, date)
+  return {
+    ...open[0],
+    open: Math.min(...open.map((h) => h.open)),
+    close: Math.max(...open.map((h) => h.close)),
+  }
+}
+
 function weekStart(date: string) {
   const weekday = new Date(`${date}T00:00:00Z`).getUTCDay()
   return addDays(date, -((weekday + 6) % 7))
@@ -617,7 +634,7 @@ function MonthView({
               (staffFilter === 'all' || a.staffId === staffFilter) &&
               (locationFilter === 'all' || a.locationId === locationFilter),
           )
-          const hours = hoursFor(state, day, locationFilter === 'all' ? undefined : locationFilter)
+          const hours = shownHours(state, day, locationFilter)
           const open = hours.closed ? 0 : (hours.close - hours.open) * Math.max(1, peopleOn(day))
           const booked = visits.reduce((sum, a) => sum + a.bookedDurationMinutes, 0)
           const fill = open ? Math.min(1, booked / open) : 0
@@ -715,7 +732,7 @@ function WeekView({
             (staffFilter === 'all' || a.staffId === staffFilter) &&
             (locationFilter === 'all' || a.locationId === locationFilter),
         )
-        const hours = hoursFor(state, day, locationFilter === 'all' ? undefined : locationFilter)
+        const hours = shownHours(state, day, locationFilter)
         return (
           <section
             className={`week-day ${day === today ? 'week-today' : ''}`}
