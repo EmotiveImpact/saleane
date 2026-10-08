@@ -88,7 +88,8 @@ export function genuine(secret, header, rawBody, now = Date.now()) {
 - Any 2xx answer counts as delivered. Answer quickly and do the work afterwards.
 - `408`, `429`, any `5xx`, no answer within 10 seconds, or no connection at all: tried again after 1 minute, 5 minutes, 30 minutes and 2 hours (five tries in all), then marked not delivered.
 - Any other `4xx` is a refusal and is not tried again.
-- Redirects are not followed. Addresses must be HTTPS, may not hold a name or password, and may not lead to this computer or a private network.
+- Redirects are not followed. Addresses must be HTTPS, may not hold a name or password, and may not lead to this computer or a private network. The address checked is the one connected to.
+- If the server stops mid-send, the delivery is tried again after five minutes.
 - An event still waiting after three days is not sent.
 - Delivery is at least once: after a timeout the other end may have it already, so dedupe on `Saleane-Delivery`.
 

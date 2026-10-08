@@ -1,5 +1,7 @@
 // @vitest-environment node
 import { createHmac } from 'node:crypto'
+import { createServer } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createApiHandler } from './app'
 import type { ApiHandler } from './app'
@@ -8,6 +10,7 @@ import type { Command } from '../src/domain/commands'
 import {
   connectionTransportFromEnv,
   fetchTransport,
+  nodeSender,
   privateAddress,
   signature,
 } from './connections'
@@ -241,6 +244,38 @@ describe('connections through the server', () => {
     expect(posts).toEqual([])
   })
 
+  it('does not send what was waiting when a connection was turned off, even once it is back on', async () => {
+    const login = await owner()
+    const { created } = await connect(login)
+    await book(login)
+    await call(login, `/${created}`, { active: false })
+    await call(login, `/${created}`, { active: true })
+    await api.connections.tick()
+    expect(posts).toEqual([])
+    expect((await call(login)).json<Listing>().deliveries).toMatchObject([
+      { type: 'appointment.booked', status: 'skipped' },
+    ])
+  })
+
+  it('tries again a send cut short by the server stopping, once its lease is over', async () => {
+    const login = await owner()
+    await connect(login)
+    await book(login)
+    // As if the server stopped after claiming the delivery and before hearing back.
+    api.database.run(
+      "UPDATE connection_deliveries SET status='unknown',attempts=1,updated_at=?",
+      clock,
+    )
+    await api.connections.tick()
+    expect(posts).toEqual([])
+    clock += 5 * 60000
+    await api.connections.tick()
+    expect(posts).toHaveLength(1)
+    expect((await call(login)).json<Listing>().deliveries).toMatchObject([
+      { status: 'delivered', attempts: 2 },
+    ])
+  })
+
   it('turns every connection off at once, and keeps the log of one removed', async () => {
     const login = await owner()
     await connect(login)
@@ -360,24 +395,51 @@ describe('the connection transport', () => {
     expect(() => connectionTransportFromEnv({ SALEANE_CONNECTIONS: 'maybe' })).toThrow()
   })
 
+  it('connects to the address that was checked, keeping the name the owner gave', async () => {
+    const seen: { host?: string; body: string }[] = []
+    const server = createServer((request, response) => {
+      let body = ''
+      request.on('data', (chunk) => (body += chunk))
+      request.on('end', () => {
+        seen.push({ host: request.headers.host, body })
+        response.statusCode = 204
+        response.end()
+      })
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    const { port } = server.address() as AddressInfo
+    try {
+      const status = await nodeSender(new URL(`http://partner.invalid:${port}/hook`), {
+        headers: { 'Content-Type': 'application/json' },
+        body: '{"ok":true}',
+        address: '127.0.0.1',
+      })
+      expect(status).toBe(204)
+      expect(seen).toEqual([{ host: `partner.invalid:${port}`, body: '{"ok":true}' }])
+    } finally {
+      server.close()
+    }
+  })
+
   it('refuses addresses on this computer or a private network, and does not follow redirects', async () => {
     for (const address of ['127.0.0.1', '10.1.2.3', '192.168.0.4', '169.254.169.254', '::1'])
       expect(privateAddress(address), address).toBe(true)
     expect(privateAddress('::ffff:127.0.0.1')).toBe(true)
     expect(privateAddress('93.184.216.34')).toBe(false)
-    const seen: RequestInit[] = []
+    const seen: { url: string; address?: string }[] = []
     const live = fetchTransport({
-      fetcher: (async (_url: unknown, init: RequestInit) => {
-        seen.push(init)
-        return new Response(null, { status: 302 })
-      }) as typeof fetch,
+      sender: async (url, request) => {
+        seen.push({ url: url.toString(), address: request.address })
+        return 302
+      },
     })
     expect(live.check('http://example.invalid/x')).toMatch(/https/)
     expect(live.check('https://localhost/x')).toMatch(/this computer/)
     expect(live.check('https://user:pass@example.com/x')).toMatch(/password/)
     expect(live.check('https://10.0.0.1/x')).toMatch(/private/)
     expect(await live.post('https://[::1]/x', {}, '{}')).toMatchObject({ error: 'refused' })
+    // A redirect is an answer, not followed; the address checked is the one connected to.
     expect(await live.post('https://93.184.216.34/x', {}, '{}')).toEqual({ status: 302 })
-    expect(seen[0].redirect).toBe('manual')
+    expect(seen).toEqual([{ url: 'https://93.184.216.34/x', address: '93.184.216.34' }])
   })
 })

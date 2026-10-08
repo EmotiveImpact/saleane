@@ -1,5 +1,8 @@
 import { createHmac, randomBytes, randomUUID } from 'node:crypto'
 import { lookup } from 'node:dns/promises'
+import type { lookup as dnsLookup } from 'node:dns'
+import http from 'node:http'
+import https from 'node:https'
 import { BlockList, isIP } from 'node:net'
 import { z } from 'zod'
 import { fail } from './http'
@@ -67,6 +70,8 @@ const RETRY_MS = [60000, 5 * 60000, 30 * 60000, 2 * 60 * 60000]
 /** An event still waiting after this long is no longer worth sending. */
 const STALE_MS = 3 * 24 * 60 * 60000
 const BATCH = 20
+/** A claimed send that has not finished by now was cut short. Well beyond the request timeout. */
+const LEASE_MS = 5 * 60000
 const TIMEOUT_MS = 10000
 const CONNECTION_LIMIT = 10
 
@@ -100,14 +105,53 @@ export function privateAddress(address: string) {
   return PRIVATE.check(address, family === 4 ? 'ipv4' : 'ipv6')
 }
 
+/** Posts once and returns the answer's status. `address` is where to connect, already checked. */
+export type Sender = (
+  url: URL,
+  request: { headers: Record<string, string>; body: string; address?: string },
+) => Promise<number>
+
+/** Node's own client: connects only to the address given, keeps the name for TLS, no redirects. */
+export const nodeSender: Sender = (url, { headers, body, address }) =>
+  new Promise((resolve, reject) => {
+    const client = url.protocol === 'https:' ? https : http
+    const outgoing = client.request(
+      url,
+      {
+        method: 'POST',
+        headers: { ...headers, 'Content-Length': Buffer.byteLength(body) },
+        timeout: TIMEOUT_MS,
+        ...(address
+          ? {
+              lookup: ((_host: string, options: { all?: boolean }, done: LookupDone) =>
+                options?.all
+                  ? done(null, [{ address, family: isIP(address) }])
+                  : done(null, address, isIP(address))) as unknown as typeof dnsLookup,
+            }
+          : {}),
+      },
+      (response) => {
+        response.resume()
+        resolve(response.statusCode ?? 0)
+      },
+    )
+    outgoing.on('timeout', () =>
+      outgoing.destroy(Object.assign(new Error('timeout'), { code: 'ETIMEDOUT' })),
+    )
+    outgoing.on('error', reject)
+    outgoing.end(body)
+  })
+type LookupDone = (error: Error | null, address: unknown, family?: number) => void
+
 /**
  * The real transport: HTTPS only, no redirects followed, and an address that resolves to a
  * private network refused, so a connection cannot be pointed back inside the studio's server.
+ * The address checked is the one connected to, so a name cannot change its answer in between.
  */
 export function fetchTransport(
-  options: { allowPrivate?: boolean; fetcher?: typeof fetch } = {},
+  options: { allowPrivate?: boolean; sender?: Sender } = {},
 ): ConnectionTransport {
-  const fetcher = options.fetcher ?? fetch
+  const sender = options.sender ?? nodeSender
   const allowPrivate = !!options.allowPrivate
   const check = (raw: string) => {
     let url: URL
@@ -134,27 +178,21 @@ export function fetchTransport(
       if (refused) return { error: 'refused', detail: refused }
       const url = new URL(raw)
       const host = url.hostname.replace(/^\[|\]$/g, '')
+      let address: string | undefined
       if (!allowPrivate) {
         try {
           const addresses = isIP(host) ? [{ address: host }] : await lookup(host, { all: true })
           if (!addresses.length || addresses.some((a) => privateAddress(a.address)))
             return { error: 'refused', detail: 'The address leads to a private network.' }
+          address = addresses[0].address
         } catch {
           return { error: 'not_sent', detail: 'The address could not be found.' }
         }
       }
       try {
-        const response = await fetcher(url, {
-          method: 'POST',
-          headers,
-          body,
-          redirect: 'manual',
-          signal: AbortSignal.timeout(TIMEOUT_MS),
-        })
-        await response.body?.cancel().catch(() => {})
-        return { status: response.status }
+        return { status: await sender(url, { headers, body, address }) }
       } catch (error) {
-        const code = (error as { cause?: { code?: string } })?.cause?.code
+        const code = (error as { code?: string })?.code
         if (code && ['ENOTFOUND', 'ECONNREFUSED', 'EAI_AGAIN', 'ENETUNREACH'].includes(code))
           return { error: 'not_sent', detail: 'The other software could not be reached.' }
         return { error: 'unknown', detail: 'No answer in time. It may have arrived.' }
@@ -305,7 +343,27 @@ export function createConnections(ctx: Context, transport: ConnectionTransport) 
       row.id,
     )
 
+  /** Anything still waiting for these connections is not sent: turning off means now. */
+  const discard = (connectionIds: string[]) => {
+    for (const id of connectionIds)
+      db.run(
+        "UPDATE connection_deliveries SET status='skipped',detail=?,updated_at=? WHERE connection_id=? AND status='pending'",
+        'Turned off before it went out.',
+        now(),
+        id,
+      )
+  }
+
   const deliver = async () => {
+    // A send cut short (the server stopped mid-request) is tried again once the lease is over;
+    // the receiver dedupes on Saleane-Delivery, so a repeat is safe.
+    db.run(
+      "UPDATE connection_deliveries SET status=CASE WHEN attempts<? THEN 'pending' ELSE 'failed' END,next_attempt_at=?,updated_at=? WHERE status='unknown' AND updated_at<=?",
+      MAX_ATTEMPTS,
+      now(),
+      now(),
+      now() - LEASE_MS,
+    )
     const due = db.all<DeliveryRow>(
       "SELECT * FROM connection_deliveries WHERE status='pending' AND next_attempt_at<=? ORDER BY next_attempt_at,created_at LIMIT ?",
       now(),
@@ -468,11 +526,18 @@ export function createConnections(ctx: Context, transport: ConnectionTransport) 
     }
     if (path.length === 5 && path[4] === 'pause-all' && method === 'POST') {
       empty.parse(body ?? {})
-      db.run(
-        'UPDATE connections SET active=0,updated_at=? WHERE organisation_id=? AND active=1',
-        time,
-        org.id,
-      )
+      db.transaction(() => {
+        const on = db.all<{ id: string }>(
+          'SELECT id FROM connections WHERE organisation_id=? AND active=1',
+          org.id,
+        )
+        db.run(
+          'UPDATE connections SET active=0,updated_at=? WHERE organisation_id=? AND active=1',
+          time,
+          org.id,
+        )
+        discard(on.map((x) => x.id))
+      })
       c.audit(org, actor.id, 'connection.paused-all', org.id)
       reply(200, list())
       return true
@@ -481,15 +546,18 @@ export function createConnections(ctx: Context, transport: ConnectionTransport) 
       const row = owned(org.id, path[4])
       if (path.length === 5) {
         const change = connectionChange.parse(body)
-        db.run(
-          'UPDATE connections SET name=?,events=?,share_contact=?,active=?,updated_at=? WHERE id=?',
-          change.name ?? row.name,
-          change.events ? JSON.stringify([...new Set(change.events)]) : row.events,
-          change.shareContact === undefined ? row.share_contact : change.shareContact ? 1 : 0,
-          change.active === undefined ? row.active : change.active ? 1 : 0,
-          time,
-          row.id,
-        )
+        db.transaction(() => {
+          db.run(
+            'UPDATE connections SET name=?,events=?,share_contact=?,active=?,updated_at=? WHERE id=?',
+            change.name ?? row.name,
+            change.events ? JSON.stringify([...new Set(change.events)]) : row.events,
+            change.shareContact === undefined ? row.share_contact : change.shareContact ? 1 : 0,
+            change.active === undefined ? row.active : change.active ? 1 : 0,
+            time,
+            row.id,
+          )
+          if (change.active === false) discard([row.id])
+        })
         c.audit(org, actor.id, 'connection.changed', row.id)
         reply(200, list())
         return true
@@ -524,12 +592,15 @@ export function createConnections(ctx: Context, transport: ConnectionTransport) 
       if (path.length === 6 && path[5] === 'remove') {
         empty.parse(body ?? {})
         // Removed from view and never sent to again; its delivery log is kept.
-        db.run(
-          'UPDATE connections SET active=0,removed_at=?,updated_at=? WHERE id=?',
-          time,
-          time,
-          row.id,
-        )
+        db.transaction(() => {
+          db.run(
+            'UPDATE connections SET active=0,removed_at=?,updated_at=? WHERE id=?',
+            time,
+            time,
+            row.id,
+          )
+          discard([row.id])
+        })
         c.audit(org, actor.id, 'connection.removed', row.id)
         reply(200, list())
         return true
