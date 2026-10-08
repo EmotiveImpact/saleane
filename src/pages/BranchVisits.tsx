@@ -22,6 +22,8 @@ import '../components/management.css'
 import '../components/plans.css'
 import '../components/branchVisits.css'
 
+/** Past visits are shown thirty at a time; every one stays reachable. */
+const HISTORY_PAGE = 30
 const ANSWER_LABEL: Record<Answer, string> = { yes: 'Yes', no: 'No', na: 'Not checked' }
 
 /** "7 fine, 1 to put right, 1 not checked", leaving out what is zero. */
@@ -51,9 +53,11 @@ export function BranchVisits() {
   const [error, setError] = useState('')
   const [pending, setPending] = useState('')
   const open = toPutRight(state)
-  const history = [...branchVisits(state)]
-    .sort((a, b) => b.date.localeCompare(a.date) || b.recordedAt.localeCompare(a.recordedAt))
-    .slice(0, 30)
+  const [shown, setShown] = useState(HISTORY_PAGE)
+  const everyVisit = [...branchVisits(state)].sort(
+    (a, b) => b.date.localeCompare(a.date) || b.recordedAt.localeCompare(a.recordedAt),
+  )
+  const history = everyVisit.slice(0, shown)
   const names = new Map(places(state, true).map((p) => [p.id, p.name]))
   const inUse = checklists(state).filter((c) => !c.archived)
   const day = (date: string) => dateLabel(date, org.locale)
@@ -215,6 +219,16 @@ export function BranchVisits() {
                 {visit.actor && <p className="ops-help">Recorded by {visit.actor}.</p>}
               </details>
             ))}
+            {everyVisit.length > shown && (
+              <div className="ops-actions">
+                <Button variant="secondary" onClick={() => setShown((n) => n + HISTORY_PAGE)}>
+                  Show {Math.min(HISTORY_PAGE, everyVisit.length - shown)} more
+                </Button>
+                <span className="ops-help">
+                  Showing {shown} of {everyVisit.length} visits
+                </span>
+              </div>
+            )}
           </div>
         ) : (
           <p className="ops-help">No visits recorded yet.</p>
