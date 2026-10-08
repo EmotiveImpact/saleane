@@ -3,6 +3,7 @@ import { googleBookingSchema, receptionistSettingsSchema } from './receptionistS
 import type { BusinessState } from './model'
 import { reminderSettingsSchema } from './reminderSettings'
 import { REGION_LIMIT, TARGET_LIMIT, regionSchema, targetSchema } from './groupSchema'
+import { REQUEST_LIMIT, approvalRequestSchema, approvalSettingsSchema } from './approvalsSchema'
 import {
   BRANCH_VISIT_LIMIT,
   CHECKLIST_LIMIT,
@@ -340,6 +341,9 @@ export const operationsSchema = z.object({
   /** V5: branch visit checklists and the visits recorded with them. */
   checklists: z.array(checklistSchema).max(CHECKLIST_LIMIT).optional(),
   branchVisits: z.array(branchVisitSchema).max(BRANCH_VISIT_LIMIT).optional(),
+  /** V5: requests needing a sign-off, and what a regional manager may approve. */
+  requests: z.array(approvalRequestSchema).max(REQUEST_LIMIT).optional(),
+  approvals: approvalSettingsSchema.optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 /**
@@ -512,11 +516,15 @@ export function can(role: Role, action: string) {
     ].includes(action)
   )
     return false
-  // V5: a regional manager only records branch visits, and only at their area's locations.
-  if (role === 'regional') return ['branch-visit', 'branch-visit-fix'].includes(action)
+  // V5: a regional manager records branch visits and raises and signs off requests, only at their
+  // area's locations (the server checks which).
+  if (role === 'regional')
+    return ['branch-visit', 'branch-visit-fix', 'request-raise', 'request-decide'].includes(action)
   if (role === 'owner') return true
   if (
     [
+      'request-decide',
+      'approval-limit',
       'membership',
       'restore',
       'organisation',
@@ -569,6 +577,7 @@ export function can(role: Role, action: string) {
       'checklist-archive',
       'branch-visit',
       'branch-visit-fix',
+      'request-raise',
     ].includes(action)
   )
     return false

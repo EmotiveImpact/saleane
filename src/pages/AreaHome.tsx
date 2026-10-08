@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ClipboardCheck, Sun } from 'lucide-react'
+import { ClipboardCheck, Send, Sun } from 'lucide-react'
 import { useStore } from '../state/context'
 import { api, ApiError } from '../state/api'
 import type { AreaWorkspace, RemoteWorkspace } from '../state/api'
@@ -13,6 +13,8 @@ import { GROUP_WINDOW_DAYS } from '../domain/group'
 import { venueMinutes } from '../domain/pocket'
 import { Button, ErrorMessage, PageHeader } from '../design'
 import { PutRightList, VisitForm, VisitHistory } from './BranchVisits'
+import { DecideForm, DecidedRequests, RequestForm, WaitingRequests } from './Requests'
+import type { ApprovalRequest } from '../domain/approvalsSchema'
 import '../practitioner.css'
 import '../components/management.css'
 import '../components/plans.css'
@@ -36,7 +38,7 @@ const changeLabel = (growth: number | null) =>
 /**
  * V5: a regional manager's area. The server sends only their region's figures and branch visits;
  * this screen never holds the studio record. They can record a branch visit and mark a line put
- * right, at their own locations only.
+ * right, and raise and decide requests for a sign-off, at their own locations only.
  */
 export function AreaHome() {
   const { orgId = '' } = useParams()
@@ -45,7 +47,8 @@ export function AreaHome() {
   const [record, setRecord] = useState<AreaView | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-  const [form, setForm] = useState(false)
+  const [form, setForm] = useState<'visit' | 'request' | null>(null)
+  const [deciding, setDeciding] = useState<ApprovalRequest | null>(null)
   const [saving, setSaving] = useState(false)
   // The greeting follows the studio's clock when the page opened.
   const [openedAt] = useState(() => Date.now())
@@ -173,6 +176,11 @@ export function AreaHome() {
         .map((line) => ({ visit, line, place: names.get(visit.locationId) ?? 'A location' })),
     )
     .sort((a, b) => b.visit.date.localeCompare(a.visit.date))
+  const mine = (r: ApprovalRequest) =>
+    r.routedTo.level === 'regional' && r.routedTo.regionId === record.area.id
+  const waitingRequests = record.requests
+    .filter((r) => !r.decision)
+    .sort((a, b) => a.raisedAt.localeCompare(b.raisedAt))
   const monthLine = (m: AreaView['total']['month']) =>
     `${money(m.takenMinor, org)} taken${m.targetMinor ? ` of ${money(m.targetMinor, org)}` : ''}`
 
@@ -198,17 +206,29 @@ export function AreaHome() {
           }
           title={`${greeting(venueMinutes(org.timeZone, openedAt))}, ${record.area.name}.`}
           actions={
-            record.checklists.length > 0 && (
+            <>
+              {record.checklists.length > 0 && (
+                <Button
+                  onClick={() => {
+                    setNotice('')
+                    setForm('visit')
+                  }}
+                >
+                  <ClipboardCheck size={17} aria-hidden="true" />
+                  Start a branch visit
+                </Button>
+              )}
               <Button
+                variant="secondary"
                 onClick={() => {
                   setNotice('')
-                  setForm(true)
+                  setForm('request')
                 }}
               >
-                <ClipboardCheck size={17} aria-hidden="true" />
-                Start a branch visit
+                <Send size={17} aria-hidden="true" />
+                Ask for a sign-off
               </Button>
-            )
+            </>
           }
         />
         {notice && (
@@ -299,6 +319,31 @@ export function AreaHome() {
             }}
           />
         </section>
+        <section className="surface ops-panel" aria-labelledby="area-requests">
+          <header>
+            <div>
+              <h2 id="area-requests">Requests</h2>
+              <p>
+                You can approve up to {money(record.regionalLimitMinor, org)} at your locations.
+                Anything more passes up to the owner.
+              </p>
+            </div>
+          </header>
+          <WaitingRequests
+            items={waitingRequests}
+            org={org}
+            names={names}
+            day={day}
+            waiting={(r) => (mine(r) ? 'you' : 'the owner')}
+            canDecide={mine}
+            onDecide={(r) => {
+              setNotice('')
+              setDeciding(r)
+            }}
+          />
+          <h3 className="group-form-title">Decided</h3>
+          <DecidedRequests items={record.requests} org={org} names={names} day={day} />
+        </section>
         <section className="surface ops-panel" aria-labelledby="area-history">
           <header>
             <div>
@@ -309,20 +354,47 @@ export function AreaHome() {
           <VisitHistory visits={record.visits} names={names} day={day} />
         </section>
         <p className="ops-help area-scope">
-          You see your region’s locations only: their figures, what is booked today and their branch
-          visits. Clients, diaries, prices and settings stay with the studio team.
+          You see your region’s locations only: their figures, what is booked today, their branch
+          visits and their requests. Clients, diaries, prices and settings stay with the studio
+          team.
         </p>
       </main>
-      {form && (
+      {form === 'request' && (
+        <RequestForm
+          sites={record.places}
+          org={org}
+          limitMinor={record.regionalLimitMinor}
+          commit={save}
+          onClose={() => setForm(null)}
+          onSaved={(message) => {
+            setNotice(message)
+            setForm(null)
+          }}
+        />
+      )}
+      {deciding && (
+        <DecideForm
+          request={deciding}
+          org={org}
+          place={names.get(deciding.locationId) ?? 'A location'}
+          commit={save}
+          onClose={() => setDeciding(null)}
+          onSaved={(message) => {
+            setNotice(message)
+            setDeciding(null)
+          }}
+        />
+      )}
+      {form === 'visit' && (
         <VisitForm
           sites={record.places}
           lists={record.checklists}
           today={record.today}
           commit={save}
-          onClose={() => setForm(false)}
+          onClose={() => setForm(null)}
           onSaved={(message) => {
             setNotice(message)
-            setForm(false)
+            setForm(null)
           }}
         />
       )}

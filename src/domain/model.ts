@@ -28,6 +28,7 @@ import { waitlistProblem } from './waitlist'
 import { locationsProblem } from './locations'
 import { groupProblem } from './group'
 import { branchVisitsProblem } from './branchVisits'
+import { approvalsProblem } from './approvals'
 export { paymentMethodSchema, paymentMethods, processorSchema } from './paymentMethods'
 
 export const DEMO_DATE = '2026-10-06'
@@ -665,6 +666,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
   if (group) throw new Error(group)
   const visits = branchVisitsProblem(s)
   if (visits) throw new Error(visits)
+  const approvals = approvalsProblem(s)
+  if (approvals) throw new Error(approvals)
   try {
     new Intl.DateTimeFormat('en', { timeZone: org.timeZone }).format(new Date())
   } catch {

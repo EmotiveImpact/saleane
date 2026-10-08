@@ -7,6 +7,8 @@ import { places } from './locations'
 import { regions, wholeBusiness } from './group'
 import { branchVisits, checklists } from './branchVisits'
 import { branchVisitSchema, checklistSchema } from './branchVisitSchema'
+import { approvalRequestSchema } from './approvalsSchema'
+import { regionalLimit, requests } from './approvals'
 
 /**
  * V5: what a regional manager may read and change.
@@ -16,8 +18,15 @@ import { branchVisitSchema, checklistSchema } from './branchVisitSchema'
  * today, the checklists in use and the branch visits recorded there. No clients, diaries, staff,
  * prices, payments, settings or other locations.
  * Write: record a branch visit at one of their locations, and mark a line from one put right.
+ * Raise a request for sign-off at one of their locations, and decide the ones routed to their
+ * region (those over their limit pass up to the owner).
  */
-const AREA_COMMANDS = ['branch-visit', 'branch-visit-fix'] as const
+const AREA_COMMANDS = [
+  'branch-visit',
+  'branch-visit-fix',
+  'request-raise',
+  'request-decide',
+] as const
 /** A location not visited for this long is named in the morning summary. */
 export const AREA_VISIT_DUE_DAYS = 30
 
@@ -67,6 +76,9 @@ export const areaViewSchema = z
     summary: z.array(z.string()),
     checklists: z.array(checklistSchema),
     visits: z.array(branchVisitSchema),
+    /** Requests at their locations, and what they may approve. */
+    requests: z.array(approvalRequestSchema),
+    regionalLimitMinor: z.number().int().nonnegative(),
   })
   .strict()
 export type AreaView = z.infer<typeof areaViewSchema>
@@ -103,11 +115,18 @@ export function areaView(s: BusinessState, regionId: string, today: string): Are
     const last = lastVisit(p.id)
     return !last || last < addDays(today, -AREA_VISIT_DUE_DAYS)
   })
+  const areaRequests = requests(s).filter((r) => ids.has(r.locationId))
+  const forYou = areaRequests.filter(
+    (r) => !r.decision && r.routedTo.level === 'regional' && r.routedTo.regionId === region.id,
+  ).length
   const morning = [
     `Today, ${bookedToday === 1 ? 'one visit is' : `${bookedToday} visits are`} booked across ${region.name}.`,
     open
       ? `${open} ${open === 1 ? 'thing' : 'things'} from branch visits still to put right.`
       : 'Nothing from branch visits is waiting to be put right.',
+    ...(forYou
+      ? [`${forYou} ${forYou === 1 ? 'request is' : 'requests are'} waiting for your sign-off.`]
+      : []),
     ...(due.length
       ? [
           `Due a branch visit: ${due
@@ -156,6 +175,8 @@ export function areaView(s: BusinessState, regionId: string, today: string): Are
     summary: [...view.summary, ...morning],
     checklists: checklists(s).filter((c) => !c.archived),
     visits,
+    requests: areaRequests,
+    regionalLimitMinor: regionalLimit(s),
   }
 }
 
@@ -169,6 +190,15 @@ export function areaRefusal(s: BusinessState, regionId: string, command: Command
   if (command.type === 'branch-visit-fix') {
     const visit = branchVisits(s).find((v) => v.id === command.visitId)
     return visit && ids.has(visit.locationId) ? null : 'That visit is not in your area.'
+  }
+  if (command.type === 'request-raise')
+    return ids.has(command.input.locationId) ? null : 'That location is not in your area.'
+  if (command.type === 'request-decide') {
+    const request = requests(s).find((r) => r.id === command.requestId)
+    if (!request || !ids.has(request.locationId)) return 'That request is not in your area.'
+    if (request.routedTo.level !== 'regional' || request.routedTo.regionId !== regionId)
+      return 'This request has passed up to the owner.'
+    return null
   }
   return 'Your role cannot make this change.'
 }

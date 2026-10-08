@@ -6,6 +6,7 @@ import { bookingSchema, commandSchema, contactSchema } from './commandSchema'
 import type { Command, ContactInput } from './commandSchema'
 import { assertMethod, paymentDetail, runOperatingCommand } from './operatingCommands'
 import { runGroupCommand } from './group'
+import { runApprovalCommand, stampRequestActors } from './approvals'
 import { branchVisitUnchanged, runBranchVisitCommand, stampBranchVisitActors } from './branchVisits'
 import { channelLabel } from './bookingChannel'
 import { checkoutTotals } from './money'
@@ -803,6 +804,12 @@ export function execute(
       const unchanged = branchVisitUnchanged(s, command)
       if (unchanged) return { ok: true, state: s, recordId: unchanged }
       recordId = runBranchVisitCommand(next, command, now, businessDate(s, now), makeId)
+    } else if (
+      command.type === 'request-raise' ||
+      command.type === 'request-decide' ||
+      command.type === 'approval-limit'
+    ) {
+      recordId = runApprovalCommand(next, command, now, makeId)
     } else {
       recordId = runOperatingCommand(next, command, now, makeId, addEvent)
     }
@@ -844,6 +851,7 @@ export function dispatch(
   for (const sale of result.state.counterSales ?? []) if (!sold.has(sale.id)) sale.actor = actorName
   stampGiftCardActors(s, result.state, actorName)
   stampBranchVisitActors(s, result.state, actorName)
+  stampRequestActors(s, result.state, actorName)
   const known = new Map((operations(s).missedCalls ?? []).map((c) => [c.id, c]))
   for (const call of operations(result.state).missedCalls ?? []) {
     const before = known.get(call.id)
