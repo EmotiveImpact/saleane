@@ -119,6 +119,8 @@ export type ApiOptions = {
   paymentProvider?: PaymentProvider
   /** V5: how connected software is reached. Omitted uses fetch with private addresses refused. */
   connectionTransport?: ConnectionTransport
+  /** V4: Book with Google's partner credentials; read from the environment when left out. */
+  googleBooking?: import('./googleBooking').GoogleBookingOptions
 }
 
 /** Shared request authority: database, clock, sessions, tenant lookup, holds and audit. */

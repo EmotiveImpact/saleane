@@ -2,6 +2,17 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-08 · V4 · Book with Google
+
+**Status: built locally on 8 October 2026, in review; nothing deployed, SALEANE is not a Google partner yet and nothing is sent to Google.** [Evidence](docs/evidence/V4-GOOGLE.md).
+
+- The owner can tick "Offer my studio for booking on Google" in Settings › Studio details. It is off unless chosen, and a sample studio is never offered.
+- SALEANE can now answer Google's booking calls: check a time, book it, look it up, list a guest's visits and cancel. A Google booking takes the same path as the studio's own booking page, so it lands in the diary with the usual confirmation and a "Google" source.
+- The same time is never booked twice, even when Google sends a request again. A guest can cancel on Google until the visit starts, the same as with their own booking link.
+- Treatments that need a deposit are not offered on Google, because Google takes no payment here; they stay on the studio's own booking page.
+- The owner sees how many treatments and free times Google would show and how many visits came through Google. The Instagram book button is the studio's existing Instagram booking link.
+- A tick box among other settings now sits beside its words instead of above them.
+
 ## 2026-10-08 · V4 · AI receptionist answers texts
 
 **Status: built locally on 8 October 2026, in review; nothing deployed, no AI supplier or text line connected and no text sent.** [Evidence](docs/evidence/V4-RECEPTIONIST.md#answering-texts-stage-2).

@@ -24,6 +24,7 @@ import type { Payments } from './payments/service'
 import { connectionTransportFromEnv, createConnections } from './connections'
 import type { Connections } from './connections'
 import { partnerApi } from './partnerApi'
+import { googleBooking, googleBookingFromEnv } from './googleBooking'
 
 export type { ApiOptions } from './context'
 export type { InjectOptions, InjectResponse } from './http'
@@ -60,9 +61,11 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     options.connectionTransport ?? connectionTransportFromEnv(),
   )
   const partners = partnerApi()
+  const google = googleBooking(options.googleBooking ?? googleBookingFromEnv(process.env))
   const routes = [
     partners.read,
     partners.manage,
+    google.manage,
     connections.routes,
     messagingRoutes(outbox),
     paymentRoutes(payments),
@@ -183,6 +186,24 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
         reply(200, { ok: true })
         return
       }
+      // V4: Google's Actions Center calls in with partner credentials, not a session or origin.
+      if (
+        await google.partner(
+          ctx,
+          request,
+          method,
+          url.pathname,
+          async () => {
+            try {
+              return JSON.parse(((await readBody(request, true)) as string) || '{}') as unknown
+            } catch {
+              return fail(400, 'Send JSON.')
+            }
+          },
+          reply,
+        )
+      )
+        return
       const path = url.pathname
         .split('/')
         .filter(Boolean)

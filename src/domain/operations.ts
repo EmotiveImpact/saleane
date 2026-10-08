@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { receptionistSettingsSchema } from './receptionistSchema'
+import { googleBookingSchema, receptionistSettingsSchema } from './receptionistSchema'
 import type { BusinessState } from './model'
 import { reminderSettingsSchema } from './reminderSettings'
 import { patchTestSettingsSchema } from './patchTestsSchema'
@@ -297,6 +297,7 @@ export const operationsSchema = z.object({
   missedCalls: z.array(missedCallSchema).max(MISSED_CALL_LIMIT).optional(),
   /** V4: the AI receptionist on the booking page. Absent means it is off. */
   receptionist: receptionistSettingsSchema.optional(),
+  googleBooking: googleBookingSchema.optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 export type Role = 'owner' | 'manager' | 'reception' | 'practitioner'
@@ -458,6 +459,7 @@ export function can(role: Role, action: string) {
       'restore',
       'organisation',
       'tax',
+      'google-booking',
       'pay-rate',
       'pay-rules',
       'accounting-settings',
