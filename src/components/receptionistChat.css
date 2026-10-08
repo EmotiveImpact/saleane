@@ -1,0 +1,103 @@
+.reception-launch {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-5);
+}
+.reception-launch button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.reception-chat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+  padding: var(--space-4);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+}
+.reception-chat header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.reception-chat h2 {
+  margin: 0 0 var(--space-2);
+  font-size: 1.25rem;
+}
+.reception-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.reception-close {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: var(--target);
+  height: var(--target);
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-pill);
+}
+.reception-log {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-height: 26rem;
+  overflow-y: auto;
+}
+.reception-starters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.reception-bubble {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 92%;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-panel);
+  line-height: 1.5;
+}
+.reception-bubble p {
+  margin: 0;
+}
+.reception-guest {
+  align-self: flex-end;
+  color: var(--ink);
+  background: var(--brand-soft);
+}
+.reception-receptionist {
+  align-self: flex-start;
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
+.reception-offer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--panel);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-inner);
+}
+.reception-thinking {
+  margin: 0;
+  color: var(--muted);
+}
+.reception-form {
+  display: flex;
+  gap: var(--space-2);
+}
+.reception-form input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--target);
+}

@@ -43,6 +43,17 @@ One payment provider takes card payments for the whole server. Every payment sta
 
 The Stripe adapter follows Stripe's published API (Checkout for guests, off-session PaymentIntents for saved cards, server-driven Terminal readers, refunds, `Stripe-Signature` webhooks with a five-minute tolerance) and is covered by tests with simulated responses; it has not run against a real account. Webhooks need a public HTTPS address, so card readers and guest payments can only be confirmed by Stripe once the app is hosted. Tap to Pay on a phone needs a native phone app and is not part of this web candidate.
 
+### Connected software (V5)
+
+Owners can point SALEANE at other software (a Zapier hook, their own system) and choose which diary events it hears about. A listener on `persist` compares the studio record before and after each saved change and writes one `connection_deliveries` row per event and connection inside the same transaction. The delivery loop claims a row as `unknown` before posting, signs the body with the connection's secret (`Saleane-Signature: t=…,v1=HMAC-SHA256`), and records `delivered`, `pending` with the next try, `failed` or `skipped` (turned off before it went out). Guest names and contact details are included only when the owner chose that for the connection. The full contract for the receiving end is in [docs/CONNECTIONS.md](../docs/CONNECTIONS.md).
+
+The owner can also make read-only access keys (`api_keys`, stored as a SHA-256 hash with a short public prefix for lookup). `/api/v1/*` accepts only `GET` with `Authorization: Bearer sal_…`, needs no session or Origin, reads the studio through `systemOrg`, checks the key's scopes, records when it was last used and is rate limited per key. Revoking a key stops it on the next request.
+
+| Setting                             | Default | Purpose                                                                                                            |
+| ----------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------ |
+| `SALEANE_CONNECTIONS`               | `test`  | `test` signs and logs each event and sends nothing; `live` posts to the owner's HTTPS addresses.                   |
+| `SALEANE_CONNECTIONS_ALLOW_PRIVATE` | unset   | `1` lets `live` reach `http://`, localhost and private addresses, for trying a receiver on your own computer only. |
+
 ## Authority and request contract
 
 Passwords use salted scrypt; session cookies carry random tokens whose hashes are stored in SQLite. Cookies are HttpOnly, SameSite Strict and expire after 12 hours; HTTPS uses Secure. A password change revokes all previous sessions. Authenticated writes require `X-CSRF-Token` from registration, login or `GET /api/session`. All writes require the exact Origin and JSON. Host validation, cross-site rejection, request limits, bounded JSON bodies and generic server errors apply. No authentication secret appears in workspace or audit responses.

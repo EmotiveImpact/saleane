@@ -382,7 +382,9 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
             ? `Noted by ${r.actor} (${r.from === 'elsewhere' ? 'answered another way' : `by ${r.from}`})`
             : r.channel === 'sms'
               ? `Text from ${r.from}`
-              : `Email from ${r.from}`,
+              : r.channel === 'chat'
+                ? `Left with the AI receptionist, to answer on ${r.from}`
+                : `Email from ${r.from}`,
         words: r.body,
       })),
     // V1.5: consultations held with them, every version, and the visits booked from each.

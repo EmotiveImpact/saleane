@@ -258,7 +258,8 @@ export function Inbox() {
   function replyLine(reply: Reply) {
     if (reply.channel === 'desk')
       return `Noted by ${reply.actor} · ${reply.from === 'elsewhere' ? 'answered another way' : `by ${reply.from}`}`
-    const from = reply.channel === 'sms' ? numberLabel(reply.from) : reply.from
+    const from = reply.from.startsWith('+') ? numberLabel(reply.from) : reply.from
+    if (reply.channel === 'chat') return `Left with the AI receptionist · answer on ${from}`
     return `${reply.channel === 'sms' ? 'Text' : 'Email'} from ${from}`
   }
 

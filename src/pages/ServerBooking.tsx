@@ -14,6 +14,7 @@ import { TreatmentPicker } from '../components/TreatmentPicker'
 import { PriceSentence } from '../components/PriceSentence'
 import { BeforeYouArrive } from '../components/BeforeYouArrive'
 import { AddToCalendar } from '../components/AddToCalendar'
+import { ReceptionistChat } from '../components/ReceptionistChat'
 import { visitUid } from '../domain/calendarFile'
 import { bookingChannel } from '../domain/bookingChannel'
 import { fullPriceMinor } from '../domain/priceSentence'
@@ -65,6 +66,8 @@ type Catalog = {
   emailNews?: { version: number; text: string }
   botCheck?: { siteKey: string } | null
   tax?: PriceTax
+  /** V4: the AI receptionist chat is switched on for this page. */
+  receptionist?: boolean
 }
 export function ServerBooking() {
   const { slug } = useParams(),
@@ -117,7 +120,7 @@ function BookingFlow({
   pending: boolean
   setPending: (value: boolean) => void
 }) {
-  const { organisation: org, services, staff, today, sample, botCheck, tax } = catalog
+  const { organisation: org, services, staff, today, sample, botCheck, tax, receptionist } = catalog
   const store = useStore(),
     navigate = useNavigate()
   const journalKey = `saleane.guest-confirmation:${base}`
@@ -686,6 +689,22 @@ function BookingFlow({
               )}
             </fieldset>
             <ErrorMessage error={error} />
+            {receptionist && step <= 2 && !attempt && !hold && (
+              <ReceptionistChat
+                base={base}
+                studio={org.name}
+                onTime={(offered) => {
+                  // The guest finishes booking through the ordinary steps: hold, details, confirm.
+                  setPicked(true)
+                  setServiceId(offered.serviceId)
+                  setStaffId(offered.staffId)
+                  setDate(offered.date)
+                  setStart(offered.startMinutes)
+                  setError('')
+                  setStep(2)
+                }}
+              />
+            )}
           </div>
           <footer className="booking-powered">
             Considered care. Connected by <span className="mini-saleane">SALEANE</span>

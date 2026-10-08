@@ -2,6 +2,34 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-08 · V4 · AI receptionist on the booking page
+
+**Status: built locally on 8 October 2026, in review; nothing deployed, no AI supplier connected and nothing sent outside the computer.** [Evidence](docs/evidence/V4-RECEPTIONIST.md).
+
+- A studio can show an AI receptionist on its booking page (Settings › Colours & booking page, owners and managers). It is off until turned on.
+- Guests tap "Ask a question" and can ask about treatments, prices, opening hours and free times. The chat always says it is an AI, never asks about health and never shares anything about other guests.
+- It can offer a free time. Tapping "Choose this time" fills in the booking steps, and the guest holds and confirms the visit as usual. It never books, moves, cancels or takes a payment by itself.
+- When it cannot help, it can prepare a message for the team with the guest's name and an email or phone number. The message reaches the Inbox only when the guest taps "Send to the team". The studio can turn this off.
+- One chat counts once towards the studio's 200 guest chats a month. It runs in test mode with a simple stand-in, so it costs nothing and understands simple questions only.
+
+## 2026-10-08 · V5 · Access keys for other software
+
+**Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-ACCESS.md). [Guide](docs/CONNECTIONS.md#reading-from-saleane).
+
+- Settings › Connected software has a new Access keys panel for the owner. A key lets other software (an accountant's tool, the studio's own reports) read visits, clients or treatments and the team, whichever the owner ticks.
+- A key can never change anything. It is shown once, kept only as a hash, shows when it was last used, and stops working the moment it is revoked.
+- Sample studios cannot make keys.
+
+## 2026-10-08 · V5 · Connected software
+
+**Status: built locally on 8 October 2026, in review; nothing deployed and nothing sent outside the computer.** [Evidence](docs/evidence/V5-CONNECTIONS.md). [Guide for the receiving end](docs/CONNECTIONS.md).
+
+- Settings has a new Connected software section for the owner. It tells other software (a Zapier hook, the studio's own system) when a visit is booked, moved, cancelled, checked out or missed, or a new client is added. The owner chooses the events for each connection.
+- Guest names, email and phone go only to a connection the owner chose to share them with.
+- Each event is signed with a secret shown once. Busy or silent receivers are tried again up to five times; a refusal is not. "What was sent" lists every delivery and what became of it.
+- One connection can be turned off, or all of them at once. Anything still waiting is then not sent. A removed connection keeps its log.
+- Test mode is the default: events are signed and logged as they would be sent, and nothing leaves the computer. Sample studios cannot connect software.
+
 ## 2026-10-08 · V1.5 · The inbox
 
 **Status: built locally on 8 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-INBOX.md).

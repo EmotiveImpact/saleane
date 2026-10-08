@@ -247,6 +247,9 @@ export function runOperatingCommand(
   } else if (command.type === 'reminders') {
     o.reminders = { ...command.settings }
     recordId = next.organisation.id
+  } else if (command.type === 'receptionist') {
+    o.receptionist = { ...command.settings }
+    recordId = next.organisation.id
   } else if (command.type === 'contact-preferences') {
     const client = next.clients.find((c) => c.id === command.clientId)
     if (!client) throw new Error('Client does not belong to this workspace.')

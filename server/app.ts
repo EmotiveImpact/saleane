@@ -17,8 +17,12 @@ import { recordPhoneCall, recordReply } from './messaging/calls'
 import type { Outbox } from './messaging/outbox'
 import { paymentRoutes } from './routes/payments'
 import { assistantRoutes } from './routes/assistant'
+import { receptionistRoutes } from './routes/receptionist'
 import { createPayments } from './payments/service'
 import type { Payments } from './payments/service'
+import { connectionTransportFromEnv, createConnections } from './connections'
+import type { Connections } from './connections'
+import { partnerApi } from './partnerApi'
 
 export type { ApiOptions } from './context'
 export type { InjectOptions, InjectResponse } from './http'
@@ -30,6 +34,7 @@ export type ApiHandler = ((
   database: LocalDatabase
   outbox: Outbox
   payments: Payments
+  connections: Connections
   close: () => void
   inject: (request: InjectOptions) => Promise<InjectResponse>
 }
@@ -49,13 +54,25 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   const { origin, allowedOrigin, db, rateLimit } = ctx
   const outbox = createOutbox(ctx, ctx.messaging)
   const payments = createPayments(ctx, ctx.paymentProvider)
+  const connections = createConnections(
+    ctx,
+    options.connectionTransport ?? connectionTransportFromEnv(),
+  )
+  const partners = partnerApi()
   const routes = [
+    partners.read,
+    partners.manage,
+    connections.routes,
     messagingRoutes(outbox),
     paymentRoutes(payments),
     assistantRoutes(),
+    receptionistRoutes(),
     ...baseRoutes,
   ]
-  if (options.outboxIntervalMs) outbox.start(options.outboxIntervalMs)
+  if (options.outboxIntervalMs) {
+    outbox.start(options.outboxIntervalMs)
+    connections.start(options.outboxIntervalMs)
+  }
 
   const handler = (async (
     request: IncomingMessage,
@@ -166,6 +183,8 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
             return fail(400, 'This address is not valid.')
           }
         })
+      // V5: the partner API reads only, and proves itself with a key rather than a session.
+      if (path[1] === 'v1' && method !== 'GET') fail(405, 'This API only reads. Use GET.')
       let body: unknown
       if (!['GET', 'HEAD'].includes(method)) {
         if (
@@ -181,7 +200,10 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
       for (const handle of routes)
         if (await handle(ctx, route)) {
           // A booking, move or cancellation may need a message; send it soon, not next interval.
-          if (method !== 'GET' && options.outboxIntervalMs) outbox.soon()
+          if (method !== 'GET' && options.outboxIntervalMs) {
+            outbox.soon()
+            connections.soon()
+          }
           return
         }
       fail(404, 'This endpoint was not found.')
@@ -201,8 +223,10 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   handler.database = db
   handler.outbox = outbox
   handler.payments = payments
+  handler.connections = connections
   handler.close = () => {
     outbox.stop()
+    connections.stop()
     db.close()
   }
   handler.inject = (input) => inject(handler, allowedOrigin, input)

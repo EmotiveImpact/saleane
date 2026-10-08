@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { receptionistSettingsSchema } from './receptionistSchema'
 import { missedCallSources } from './missedCallsSchema'
 import { offerInputSchema } from './plansSchema'
 import { specialInputSchema } from './specialsSchema'
@@ -141,6 +142,8 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     approve: z.boolean().optional(),
   }),
   z.object({ type: z.literal('message-queue'), messageId: id }),
+  // V4: the AI receptionist on the booking page.
+  z.object({ type: z.literal('receptionist'), settings: receptionistSettingsSchema }),
   // PILOT-01: the studio's confirmation and reminder settings.
   z.object({ type: z.literal('reminders'), settings: reminderSettingsSchema }),
   // PILOT-01: a client's own wish about appointment emails and texts.
@@ -407,7 +410,7 @@ export const commandSchema = z.discriminatedUnion('type', [
   // V1.5: the inbox. A guest's reply arrives only from the studio's email or text line.
   z.object({
     type: z.literal('reply-received'),
-    channel: z.enum(['email', 'sms']),
+    channel: z.enum(['email', 'sms', 'chat']),
     from: z.string().trim().min(1).max(320),
     body: z.string().max(20000),
     providerRef: z.string().max(200).optional(),
