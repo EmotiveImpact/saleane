@@ -14,13 +14,21 @@ describe('the workspace read projection', () => {
         view: 'studio',
         state,
       })
-    // V1.5: guests' private feedback, and V2: the team's commission rates and rent, are for owners and
-    // managers only.
+    // V1.5: guests' private feedback, V2: the team's commission rates and rent, and V5: branch
+    // visits, are for owners and managers only.
     const { feedback, ...rest } = state
-    const { payRates, rentals: _rentals, rentPayments: _paid, ...operations } = state.operations!
-    void [_rentals, _paid]
+    const {
+      payRates,
+      rentals: _rentals,
+      rentPayments: _paid,
+      checklists: _lists,
+      branchVisits,
+      ...operations
+    } = state.operations!
+    void [_rentals, _paid, _lists]
     expect(feedback?.length).toBeGreaterThan(0)
     expect(payRates?.length).toBeGreaterThan(0)
+    expect(branchVisits?.length).toBeGreaterThan(0)
     expect(workspaceView({ role: 'reception', staffId: null }, state, DEMO_DATE)).toEqual({
       view: 'studio',
       state: { ...rest, operations },

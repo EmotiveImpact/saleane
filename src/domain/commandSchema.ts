@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { groupCommandSchemas } from './groupSchema'
+import { branchVisitCommandSchemas } from './branchVisitSchema'
 import { googleBookingSchema, receptionistSettingsSchema } from './receptionistSchema'
 import { missedCallSources } from './missedCallsSchema'
 import { offerInputSchema } from './plansSchema'
@@ -577,6 +578,8 @@ export const commandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('patch-test-settings'), settings: patchTestSettingsSchema }),
   // V5: regions and monthly targets for the whole business.
   ...groupCommandSchemas,
+  // V5: branch visit checklists.
+  ...branchVisitCommandSchemas,
   ...operatingCommandSchema.options,
 ])
 export type BookingInput = z.infer<typeof bookingSchema>

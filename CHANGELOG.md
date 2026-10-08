@@ -21,6 +21,15 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Texts name the location, imported visits go to the location where the professional works that day, and the calendar showing every location spans all their opening hours.
 - A studio with one location works exactly as before.
 
+## 2026-10-08 · V5 · Branch visit checklists
+
+**Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-BRANCH-VISITS.md).
+
+- Business has a Branch visits tab for owners and managers. A visit is recorded on a phone against a checklist: each line is answered yes, no or not checked, with a note.
+- Every line answered no stays on "To put right" until someone marks it done, with who and when.
+- Each location shows when it was last visited and how it went, and past visits are kept exactly as they were answered, even after a checklist changes. The whole-business view shows each location's last visit.
+- Checklists are kept and can be put away, never deleted. Sample studios start with one checklist and one visit. The desk and practitioners do not receive any of it.
+
 ## 2026-10-08 · V5 · The whole business at a glance
 
 **Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-GROUP.md).
