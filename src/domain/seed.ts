@@ -759,6 +759,7 @@ function build(region: Region, regularCount: number): BusinessState {
   // NEXT-07: a fortnight of clocked hours, so Pay shows hours worked.
   ;(state.operations ??= defaultOperations('sandbox')).shifts = sampleShifts(state, DEMO_DATE)
   seedBranchVisits(state)
+  seedRota(state, at)
   seedRent(state, uk)
   seedAccounting(state, uk)
   seedArrivals(state, uk, at)
@@ -1342,6 +1343,38 @@ function seedTimeOff(state: BusinessState, uk: boolean) {
     actor: 'Owner',
   }))
   o.leaveAllowances = state.staff.map((person) => ({ staffId: person.id, days: uk ? 28 : 15 }))
+}
+
+/**
+ * Stage 3: two days changed on the sample week's rota, after the diary is made so they leave every
+ * booked visit inside the hours. Maya finishes early on Friday and works an extra Saturday.
+ */
+function seedRota(state: BusinessState, at: (date: string, minutes: number) => string) {
+  const o = (state.operations ??= defaultOperations('sandbox'))
+  o.rotaChanges = [
+    {
+      id: 'rota-maya-friday',
+      staffId: 'staff-maya',
+      date: addDays(DEMO_DATE, 3),
+      working: true,
+      open: 540,
+      close: 900,
+      note: 'Training from three',
+      createdAt: at(addDays(DEMO_DATE, -4), 610),
+      actor: 'Owner',
+    },
+    {
+      id: 'rota-maya-saturday',
+      staffId: 'staff-maya',
+      date: addDays(DEMO_DATE, 4),
+      working: true,
+      open: 600,
+      close: 960,
+      note: 'Covering Saturday',
+      createdAt: at(addDays(DEMO_DATE, -4), 612),
+      actor: 'Owner',
+    },
+  ]
 }
 
 /** V2: commission rates for the team, so Pay has figures to show. Fictional. */

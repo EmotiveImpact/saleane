@@ -5,37 +5,45 @@ import { useStore } from '../state/context'
 import { businessDate, can, operations, timeOffKinds } from '../domain/operations'
 import type { TimeOff } from '../domain/operations'
 import type { OperatingCommand } from '../domain/commandSchema'
-import { addDays, dateLabel, timeLabel } from '../domain/format'
+import { addDays, dateLabel } from '../domain/format'
 import { describeVisit, scheduleImpact } from '../domain/schedule'
-import {
-  TIME_OFF_LABEL,
-  holidaySummary,
-  mondayOf,
-  rotaWeek,
-  workingDaysAway,
-} from '../domain/timeOff'
+import { TIME_OFF_LABEL, holidaySummary, mondayOf, workingDaysAway } from '../domain/timeOff'
+import { rotaChanges, rotaWeek, span, weekStillToCome } from '../domain/rota'
+import type { RotaDay } from '../domain/rota'
+import { hasLocations, placeOf } from '../domain/locations'
 import { Avatar, Button, ErrorMessage, Modal, PageHeader, useScrollEdges } from '../design'
 import '../components/management.css'
 import '../rota.css'
 import { StudioDateField } from '../components/StudioDateField'
+import { RotaDayDialog, RotaWeekDialog } from '../components/RotaChanges'
 
 /**
  * V2: the week's rota from everyone's usual hours, who is away, and each person's holiday
  * allowance. Time off stops people being booked; it never moves or cancels a visit already booked.
+ * Stage 3: owners and managers change one day for one person, or add a day, straight from the week.
  */
 export function Rota() {
-  const { state, role, blocked } = useStore()
+  const { state, role, blocked, commit } = useStore()
   const org = state.organisation
   const today = businessDate(state)
   const [monday, setMonday] = useState(mondayOf(today))
   const [adding, setAdding] = useState(false)
   const [allowanceFor, setAllowanceFor] = useState<string | null>(null)
+  // Stage 3: the day being changed, and a whole week being copied or cleared.
+  const [changing, setChanging] = useState<{ staffId: string; date: string } | null>(null)
+  const [weekly, setWeekly] = useState<'copy' | 'clear' | null>(null)
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
-  const { commit } = useStore()
   const canEdit = !blocked && can(role, 'hours')
   const week = rotaWeek(state, monday)
   const dates = Array.from({ length: 7 }, (_, i) => addDays(monday, i))
+  const multiSite = hasLocations(state)
+  // Last week has changes to copy, and this week has changes still to come to clear.
+  const lastWeek = rotaChanges(state).some((c) => c.date >= addDays(monday, -7) && c.date < monday)
+  const weekAhead = addDays(monday, 6) >= today
+  const stillToCome = weekStillToCome(state, monday, today).length
+  const editable = (day: RotaDay) =>
+    canEdit && day.date >= today && (day.state === 'working' || day.state === 'off')
   const year = Number(today.slice(0, 4))
   const name = (id: string) => state.staff.find((p) => p.id === id)?.name ?? 'Someone'
   // On a narrow screen the week scrolls sideways; the far edge fades while there is more to see.
@@ -60,7 +68,7 @@ export function Rota() {
         variant="compact"
         eyebrow="Business"
         title="Who is in, and who is away."
-        description="The week from everyone's usual hours, with holidays and sick days. Nobody is booked while they are away."
+        description="Each week starts from everyone's usual hours. Change one day here and their usual hours stay as they are. Nobody is booked while they are away."
         actions={
           canEdit ? (
             <Button
@@ -103,6 +111,39 @@ export function Rota() {
             </Button>
           </div>
         </header>
+        {canEdit && weekAhead && (lastWeek || stillToCome > 0) && (
+          <details className="rota-more">
+            <summary>Change the whole week</summary>
+            <div className="rota-more-body">
+              <p className="subtle">
+                Repeat last week's changed days on the same days this week, or put every change
+                still to come this week back to usual hours.
+              </p>
+              <div className="rota-more-actions">
+                <Button
+                  variant="secondary"
+                  disabled={!lastWeek}
+                  onClick={() => {
+                    setWeekly('copy')
+                    setNotice('')
+                  }}
+                >
+                  Copy last week's changes
+                </Button>
+                <Button
+                  variant="secondary"
+                  disabled={!stillToCome}
+                  onClick={() => {
+                    setWeekly('clear')
+                    setNotice('')
+                  }}
+                >
+                  Clear this week's changes
+                </Button>
+              </div>
+            </div>
+          </details>
+        )}
         <div
           className="rota-scroll"
           ref={scroller}
@@ -139,40 +180,51 @@ export function Rota() {
                       {person.name}
                     </span>
                   </th>
-                  {days.map((day) => (
-                    <td
-                      key={day.date}
-                      className={`rota-${day.state}${day.date === today ? ' rota-today' : ''}`}
-                    >
-                      {day.state === 'working' ? (
-                        <>
-                          <strong>
-                            {timeLabel(day.open, org.locale)}–{timeLabel(day.close, org.locale)}
-                          </strong>
-                          {day.visits > 0 && (
-                            <small>
-                              {day.visits} {day.visits === 1 ? 'visit' : 'visits'}
-                            </small>
-                          )}
-                        </>
-                      ) : day.state === 'away' ? (
-                        <>
-                          <strong>{TIME_OFF_LABEL[day.away.kind]}</strong>
-                          {day.away.note && <small>{day.away.note}</small>}
-                        </>
-                      ) : (
-                        <span>{day.state === 'closed' ? 'Closed' : 'Off'}</span>
-                      )}
-                    </td>
-                  ))}
+                  {days.map((day) => {
+                    const changed = 'change' in day && !!day.change
+                    const cell = (
+                      <RotaCell
+                        day={day}
+                        locale={org.locale}
+                        place={
+                          multiSite && day.state === 'working'
+                            ? placeOf(state, day.locationId)?.name
+                            : undefined
+                        }
+                      />
+                    )
+                    return (
+                      <td
+                        key={day.date}
+                        className={`rota-${day.state}${changed ? ' rota-changed' : ''}${day.date === today ? ' rota-today' : ''}`}
+                      >
+                        {editable(day) ? (
+                          <button
+                            type="button"
+                            className="rota-cell"
+                            aria-label={`Change ${person.name}'s day, ${dateLabel(day.date, org.locale)}. ${cellWords(day, org.locale)}`}
+                            onClick={() => {
+                              setChanging({ staffId: person.id, date: day.date })
+                              setNotice('')
+                            }}
+                          >
+                            {cell}
+                          </button>
+                        ) : (
+                          cell
+                        )}
+                      </td>
+                    )
+                  })}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
         <p className="subtle">
-          Usual hours come from each person's weekly hours in Settings. Single breaks and venue
-          closures are in Settings too.
+          {canEdit
+            ? "Choose a day to change it for that date only, or to add a day someone does not usually work. Usual hours come from each person's weekly hours in Settings, with single breaks and venue closures."
+            : "Usual hours come from each person's weekly hours in Settings. Changed days are marked."}
         </p>
       </section>
       <div className="rota-columns">
@@ -279,6 +331,28 @@ export function Rota() {
           }}
         />
       )}
+      {changing && (
+        <RotaDayDialog
+          staffId={changing.staffId}
+          date={changing.date}
+          onClose={() => setChanging(null)}
+          onDone={(message) => {
+            setChanging(null)
+            setNotice(message)
+          }}
+        />
+      )}
+      {weekly && (
+        <RotaWeekDialog
+          action={weekly}
+          monday={monday}
+          onClose={() => setWeekly(null)}
+          onDone={(message) => {
+            setWeekly(null)
+            setNotice(message)
+          }}
+        />
+      )}
       {allowanceFor && (
         <AllowanceDialog
           staffId={allowanceFor}
@@ -291,6 +365,63 @@ export function Rota() {
       )}
     </div>
   )
+}
+
+/** What one day of the rota shows: hours and where, off or away, and anything changed. */
+function RotaCell({ day, locale, place }: { day: RotaDay; locale: string; place?: string }) {
+  const tag =
+    'kind' in day && day.kind ? (
+      <span className="rota-tag">{day.kind === 'extra' ? 'Extra day' : 'Changed'}</span>
+    ) : null
+  const outside =
+    'outside' in day && day.outside.length > 0 ? (
+      <small className="rota-warn">
+        {day.outside.length} booked {day.outside.length === 1 ? 'visit' : 'visits'} outside{' '}
+        {day.state === 'off' ? 'their hours' : 'these hours'}
+      </small>
+    ) : null
+  if (day.state === 'working')
+    return (
+      <>
+        <strong>{span(day.open, day.close, locale)}</strong>
+        {place && <small>{place}</small>}
+        {day.visits > 0 && (
+          <small>
+            {day.visits} {day.visits === 1 ? 'visit' : 'visits'}
+          </small>
+        )}
+        {tag}
+        {outside}
+      </>
+    )
+  if (day.state === 'away')
+    return (
+      <>
+        <strong>{TIME_OFF_LABEL[day.away.kind]}</strong>
+        {day.away.note && <small>{day.away.note}</small>}
+      </>
+    )
+  if (day.state === 'off')
+    return (
+      <>
+        <span>{day.kind ? 'Not working' : 'Off'}</span>
+        {tag}
+        {outside}
+      </>
+    )
+  return <span>Closed</span>
+}
+
+/** A day in words, for the button that opens it. */
+function cellWords(day: RotaDay, locale: string) {
+  const changed =
+    'kind' in day && day.kind ? (day.kind === 'extra' ? ' Extra day.' : ' Changed.') : ''
+  const outside =
+    'outside' in day && day.outside.length
+      ? ` ${day.outside.length} booked ${day.outside.length === 1 ? 'visit' : 'visits'} outside the hours.`
+      : ''
+  if (day.state === 'working') return `${span(day.open, day.close, locale)}.${changed}${outside}`
+  return `Not working.${changed}${outside}`
 }
 
 function TimeOffDialog({

@@ -5,6 +5,7 @@ import { socialLabel } from './inboxSchema'
 import { METHOD_WORDS } from './accounts'
 import { csvRows } from './csv'
 import { dateLabel, fullDateLabel, money, timeLabel } from './format'
+import { rotaChangeDetail } from './rota'
 
 /**
  * NEXT-05: who changed what. Every saved change is already written to the studio's audit log
@@ -142,6 +143,10 @@ const commandWords: Record<Command['type'], Words> = {
   'shift-save': ['team', 'Changed hours worked', 'Added hours worked'],
   'shift-remove': ['team', 'Removed hours worked'],
   'leave-allowance': ['team', 'Changed a holiday allowance'],
+  'rota-day': ['team', 'Changed a day on the rota'],
+  'rota-day-usual': ['team', 'Put a day on the rota back to usual hours'],
+  'rota-week-copy': ['team', 'Copied last week’s rota changes'],
+  'rota-week-clear': ['team', 'Cleared a week’s rota changes'],
   'pay-rules': ['team', 'Changed the pay rules'],
   'pay-rate': ['team', 'Changed a pay rate'],
   stock: ['stock', 'Changed a stock count'],
@@ -390,6 +395,9 @@ export function changeDetail(
   action: string,
   recordId: string,
 ): ChangeDetail | undefined {
+  // Stage 3: a day on the rota keeps which day it was and its hours before and after.
+  const rota = rotaChangeDetail(before, after, action, recordId)
+  if (rota) return rota
   let fields: ChangedField[] = []
   let made: ChangeDetail['made']
   const settings = settingsOf[action]
@@ -500,6 +508,10 @@ const fieldWords: Record<string, string> = {
   day5: 'Friday',
   day6: 'Saturday',
   day0: 'Sunday',
+  shift: 'hours that day',
+  weekOf: 'week of',
+  daysChanged: 'days changed',
+  visitsKept: 'booked visits kept outside the hours',
 }
 /** A detail's name in words: "cutoffHours" reads "cutoff hours". */
 export function fieldName(field: string) {
@@ -570,8 +582,10 @@ export function recordNames(s: BusinessState): RecordNames {
 function valueText(s: BusinessState, names: RecordNames, f: string, v: Value) {
   const locale = s.organisation.locale
   if (v === null) return 'none'
-  if (/^day\d$/.test(f) && typeof v === 'string') {
+  if ((/^day\d$/.test(f) || f === 'shift') && typeof v === 'string') {
     if (v === 'closed') return 'closed'
+    if (v === 'off') return 'not working'
+    if (v === 'usual') return 'their usual hours'
     const [open, close] = v.split('-').map(Number)
     const clock = (m: number) => (m >= 1440 ? 'midnight' : timeLabel(m, locale))
     return `${clock(open)} to ${clock(close)}`

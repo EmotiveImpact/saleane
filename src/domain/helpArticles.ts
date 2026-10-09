@@ -178,12 +178,13 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     steps: [
       'Each visit shows the client, the treatment and Before you begin: what is good to remember, your last time with them and any patch test.',
       'Use Previous day, Today and Next day to see other days.',
+      'Your hours on the rota shows when you work that day. A day changed just for that date is marked, and changed days coming up are listed below it.',
       'When your client arrives, choose Welcome and their name.',
       'Write under Add a note for the studio and choose Save note. It is saved to their history.',
     ],
     screens: ['/practice'],
     roles: ['practitioner'],
-    words: 'my day visits clients notes arrive',
+    words: 'my day visits clients notes arrive rota hours shift',
   },
   {
     id: 'practitioner-patch',
@@ -705,14 +706,36 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     summary: 'Who is in each week, who is away, and how much holiday each person has left.',
     steps: [
       'Open Business, then Rota. Move between weeks with Previous week and Next week.',
+      "Each week starts from everyone's usual hours. A day changed for one date shows Changed, and a day added shows Extra day.",
       'Choose Add time off. Pick who, the first and last day and the kind, then choose Save time off.',
       "Set each person's holiday for the year under Holiday, with Allowance.",
     ],
-    note: 'Reception and general managers can see the rota; owners and managers change it.',
+    note: 'Reception and general managers can see the rota and its changed days; owners and managers change it.',
     to: '/business/rota',
     screens: ['/business/rota'],
     roles: DESK,
     words: 'rota holiday time off sick shift leave',
+  },
+  {
+    id: 'rota-day',
+    title: 'Change one day on the rota',
+    group: 'Team',
+    summary:
+      'Give someone different hours for one date, take a day off, or add a day they do not usually work.',
+    steps: [
+      "Open Business, then Rota, and choose the person's day in the week.",
+      'Choose Different hours (or Extra day) and set when they start and finish, or choose Not working. With more than one location, choose where.',
+      'Choose Save this day. Their usual weekly hours stay as they are, and booking follows the new hours straight away.',
+      'If booked visits would fall outside the new hours, they are listed. Move them first, or keep them booked as they are and the rota shows a warning on that day.',
+      'To undo a change, choose the day again, then As usual and Put back to usual.',
+      "Under Change the whole week, copy last week's changed days onto this week, or put this week's changes back to usual.",
+    ],
+    note: 'Nothing is ever moved, cancelled or messaged for you. Every change shows in Who changed what. Practitioners see their own changed days on their own page.',
+    to: '/business/rota',
+    screens: ['/business/rota'],
+    roles: RUNS,
+    words:
+      'rota shift one day change hours different hours extra day cover swap not working day off copy week clear week usual',
   },
   {
     id: 'clock',

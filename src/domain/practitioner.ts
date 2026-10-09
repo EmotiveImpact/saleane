@@ -9,6 +9,7 @@ import { ownRating } from './feedback'
 import { clearFrom, patchTests, visitPatchTest } from './patchTests'
 import { answerText, versionOf, visitForms } from './forms'
 import { visitConsultation } from './consultations'
+import { ownPlan } from './rota'
 
 /**
  * LOCAL-01: what an assigned practitioner may read and change.
@@ -59,6 +60,26 @@ export const practitionerViewSchema = z
         todayMinutes: z.number().int().nonnegative(),
       })
       .strict()
+      .optional(),
+    /**
+     * Stage 3: their own days as planned, across the window: hours and where, and whether the
+     * rota changed the day from their usual week. Nobody else's days, and no notes.
+     */
+    plan: z
+      .array(
+        z
+          .object({
+            date: z.iso.date(),
+            working: z.boolean(),
+            open: z.number().int().min(0).max(1440).optional(),
+            close: z.number().int().min(0).max(1440).optional(),
+            place: z.string().optional(),
+            change: z.enum(['hours', 'extra', 'off']).optional(),
+            away: z.literal(true).optional(),
+          })
+          .strict(),
+      )
+      .max(PRACTITIONER_DAYS_BEFORE + PRACTITIONER_DAYS_AFTER + 1)
       .optional(),
     /** V1.5: how guests rate this practitioner, as an average only and never single answers. */
     rating: z
@@ -241,6 +262,7 @@ export function practitionerView(
       since: clockedIn(s, staffId, now)?.start ?? null,
       todayMinutes: hoursPeriod(s, today, today).get(staffId)?.minutes ?? 0,
     },
+    plan: ownPlan(s, staffId, windowFor(today).from, windowFor(today).to),
     rating: ownRating(s, staffId),
     appointments: visits.map((a) => ({
       id: a.id,

@@ -1,5 +1,5 @@
 import type { Appointment, BusinessState, Service } from './model'
-import { operations, usualHoursFor } from './operations'
+import { businessDate, operations, plannedHoursFor, usualHoursFor } from './operations'
 
 /**
  * V2: several locations. The main location lives on the organisation; further ones are kept in
@@ -63,19 +63,29 @@ export function resourceLocation(s: BusinessState, resource: { locationId?: stri
   return resource.locationId ?? s.organisation.locationId
 }
 
-/** Where a person works on a day, from their weekly hours. */
+/** Where a person works on a day, from their weekly hours or the day as changed on the rota. */
 export function staffLocationOn(s: BusinessState, staffId: string, date: string) {
-  return usualHoursFor(s, staffId, date).locationId ?? s.organisation.locationId
+  return plannedHoursFor(s, staffId, date).locationId ?? s.organisation.locationId
 }
 
-/** Every location someone works at across a usual week (from 2026-10-05, a Monday). */
-export function staffPlaces(s: BusinessState, staffId: string) {
+/**
+ * Every location someone works at across a usual week (from 2026-10-05, a Monday), and anywhere
+ * the rota sends them on a day still to come (Stage 3).
+ */
+export function staffPlaces(s: BusinessState, staffId: string, now = new Date().toISOString()) {
+  const main = s.organisation.locationId
+  const today = businessDate(s, now)
   return [
-    ...new Set(
-      Array.from({ length: 7 }, (_, i) =>
-        staffLocationOn(s, staffId, `2026-10-${String(5 + i).padStart(2, '0')}`),
+    ...new Set([
+      ...Array.from(
+        { length: 7 },
+        (_, i) =>
+          usualHoursFor(s, staffId, `2026-10-${String(5 + i).padStart(2, '0')}`).locationId ?? main,
       ),
-    ),
+      ...(operations(s).rotaChanges ?? [])
+        .filter((c) => !c.ended && c.working && c.staffId === staffId && c.date >= today)
+        .map((c) => c.locationId ?? main),
+    ]),
   ]
 }
 
