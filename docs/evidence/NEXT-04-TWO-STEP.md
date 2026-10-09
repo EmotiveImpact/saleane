@@ -2,7 +2,7 @@
 
 Recorded 9 October 2026 on a local build (Chromium, 127.0.0.1:5173, empty studio, email in test mode). Codes were worked out by the test script from the key shown on the page, as an authenticator app would.
 
-## Server tests (`server/twoStep.test.ts`, 13 tests)
+## Server tests (`server/twoStep.test.ts`, 14 tests)
 
 - Codes match the six published RFC 6238 SHA-1 examples (as six digits), and the key survives base32 both ways.
 - A code is accepted one step either side of now, never two steps out, and never for a step already used.
@@ -12,7 +12,8 @@ Recorded 9 October 2026 on a local build (Chromium, 127.0.0.1:5173, empty studio
 - After the password, no cookie is set until the code is right; the same code cannot open a second session; a used sign-in step cannot be reused.
 - Five wrong codes, or five minutes, end the sign-in step (410).
 - A recovery code works once, typed in capitals with a space, and the inbox is told.
-- A password reset from the email saves the new password, signs everyone out and still asks for the code.
+- A password reset from the email saves the new password, signs everyone out and still asks for the code; a sign-in started with the old password and waiting for its code can no longer finish. A password change does the same.
+- Restoring a backup retires the recovery codes it brings back (`server/backup.test.ts`).
 - Turning off needs the right password and a right code; new recovery codes need the password, and the old ones stop working.
 
 ## Browser journey

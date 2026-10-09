@@ -233,6 +233,8 @@ describe('signing in with two-step sign-in on', () => {
     const owner = await register()
     const { secret } = await turnOn(owner)
     clock += STEP_SECONDS * 1000
+    // Someone with the old password gets as far as the code before the owner resets it.
+    const stolen = await challenge()
     await post(null, '/api/auth/forgot', { email })
     const token = mail.at(-1)!.body.match(/\/reset-password#([A-Za-z0-9_-]{32,})\s/)![1]
     const reset = await post(null, '/api/auth/reset', {
@@ -246,8 +248,25 @@ describe('signing in with two-step sign-in on', () => {
     // The new password is saved, every device is signed out, and the code finishes signing in.
     expect((await session(owner)).statusCode).toBe(401)
     expect((await signIn('A brand new password 2026')).json()).toMatchObject({ twoStep: true })
+    // The sign-in started with the old password can no longer finish.
+    expect((await enterCode(stolen, codeAt(secret, step()))).statusCode).toBe(410)
     const done = await enterCode(pending.challenge, codeAt(secret, step()))
     expect(done.statusCode, done.body).toBe(200)
+  })
+})
+
+describe('a password change', () => {
+  it('stops a sign-in started with the old password from finishing', async () => {
+    const owner = await register()
+    const { secret } = await turnOn(owner)
+    clock += STEP_SECONDS * 1000
+    const stolen = await challenge()
+    const changed = await post(owner, '/api/auth/password', {
+      current: password,
+      password: 'A brand new password 2026',
+    })
+    expect(changed.statusCode, changed.body).toBe(200)
+    expect((await enterCode(stolen, codeAt(secret, step()))).statusCode).toBe(410)
   })
 })
 

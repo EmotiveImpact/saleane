@@ -111,6 +111,12 @@ function snapshot(source: string, destination: string, restore: boolean) {
             recovered.prepare('UPDATE account_links SET used_at=? WHERE used_at IS NULL').run(time)
               .changes,
           ),
+          // Recovery codes used since the backup would work again, so none of the restored ones
+          // do; signing in warns that none are left until new ones are made.
+          recoveryCodesRetired: Number(
+            recovered.prepare('UPDATE recovery_codes SET used_at=? WHERE used_at IS NULL').run(time)
+              .changes,
+          ),
           accessKeysRevoked: Number(
             recovered.prepare('UPDATE api_keys SET revoked_at=? WHERE revoked_at IS NULL').run(time)
               .changes,

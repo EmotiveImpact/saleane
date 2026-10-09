@@ -158,8 +158,10 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
         now(),
         link!.account_id,
       )
-      // Every signed-in device is signed out.
+      // Every signed-in device is signed out, and a sign-in started with the old password that
+      // is waiting for its code can no longer finish.
       db.run('DELETE FROM sessions WHERE account_id=?', link!.account_id)
+      db.run('DELETE FROM login_challenges WHERE account_id=?', link!.account_id)
       const on = db.get<{ at: number | null }>(
         'SELECT totp_enabled_at AS at FROM accounts WHERE id=?',
         link!.account_id,
@@ -403,6 +405,7 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
     db.transaction(() => {
       db.run('UPDATE accounts SET password_hash=? WHERE id=?', hash, actor.id)
       db.run('DELETE FROM sessions WHERE account_id=?', actor.id)
+      db.run('DELETE FROM login_challenges WHERE account_id=?', actor.id)
     })
     reply(200, { csrf: signIn(response, actor.id) })
     return true
