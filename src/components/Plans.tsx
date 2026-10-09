@@ -11,6 +11,8 @@ import { Button, ErrorMessage, Modal, SegmentedControl } from '../design'
 import './management.css'
 import './plans.css'
 import { usePayment, useRun } from './usePayment'
+import { SoldAt } from './SoldAt'
+import { asksSoldAt } from '../domain/locations'
 import type { Method } from './usePayment'
 
 /**
@@ -401,6 +403,7 @@ export function ClientPlans({ clientId }: { clientId: string }) {
   const [offerId, setOfferId] = useState('')
   const [reason, setReason] = useState('')
   const [refund, setRefund] = useState('0')
+  const [soldAt, setSoldAt] = useState('')
   const pay = usePayment()
   const { run, pending, error, setError } = useRun()
   const may = (action: string) => !blocked && can(role, action)
@@ -409,6 +412,7 @@ export function ClientPlans({ clientId }: { clientId: string }) {
   function start(next: NonNullable<typeof dialog>) {
     setDialog(next)
     setOfferId(onSale[0]?.id ?? '')
+    setSoldAt(org.locationId)
     setReason('')
     setRefund('0')
     pay.reset()
@@ -442,7 +446,13 @@ export function ClientPlans({ clientId }: { clientId: string }) {
     }
     const done = await run(
       dialog.kind === 'sell'
-        ? { type: 'plan-sell', offerId, clientId, ...pay.payment }
+        ? {
+            type: 'plan-sell',
+            offerId,
+            clientId,
+            ...pay.payment,
+            ...(asksSoldAt(state, role) ? { locationId: soldAt } : {}),
+          }
         : { type: 'plan-renew', holdingId: dialog.holding.id, ...pay.payment },
     )
     if (done) setDialog(null)
@@ -532,6 +542,7 @@ export function ClientPlans({ clientId }: { clientId: string }) {
                 {chosen && <small>{planTerms(chosen)}</small>}
               </label>
             )}
+            {dialog.kind === 'sell' && <SoldAt value={soldAt} onChange={setSoldAt} />}
             {dialog.kind === 'end' && (
               <>
                 <label className="ops-field">

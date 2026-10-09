@@ -18,6 +18,8 @@ import {
   Stats,
 } from '../design'
 import { PaymentFields } from '../components/Plans'
+import { SoldAt } from '../components/SoldAt'
+import { asksSoldAt } from '../domain/locations'
 import { usePayment, useRun } from '../components/usePayment'
 import '../components/management.css'
 import '../components/plans.css'
@@ -60,6 +62,7 @@ export function GiftCards() {
   const [expiresOn, setExpiresOn] = useState('')
   const [reason, setReason] = useState('')
   const [refund, setRefund] = useState('0')
+  const [soldAt, setSoldAt] = useState('')
   const pay = usePayment()
   const { run, pending, error, setError } = useRun()
   if (role === 'practitioner')
@@ -97,6 +100,7 @@ export function GiftCards() {
       setKind('money')
       setAmount('50')
       setServiceId(services[0]?.id ?? '')
+      setSoldAt(org.locationId)
       setClientId('')
       setPurchaser('')
       setRecipient('')
@@ -144,6 +148,7 @@ export function GiftCards() {
           message: message.trim(),
         },
         ...pay.payment,
+        ...(asksSoldAt(state, role) ? { locationId: soldAt } : {}),
       })
       // The new card is the newest one once the saved state arrives.
       if (result) setDialog({ kind: 'sold' })
@@ -403,6 +408,7 @@ export function GiftCards() {
                       onChange={(e) => setMessage(e.target.value)}
                     />
                   </label>
+                  <SoldAt value={soldAt} onChange={setSoldAt} />
                   <PaymentFields {...pay.fields} />
                 </>
               )}

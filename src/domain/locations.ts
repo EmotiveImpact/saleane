@@ -49,6 +49,12 @@ export function hasLocations(s: BusinessState) {
   return places(s).length > 1
 }
 
+/**
+ * Whether selling a gift card, package or membership asks which location sold it: only with more
+ * than one location, and never a general manager, whose own location the server sets.
+ */
+export const asksSoldAt = (s: BusinessState, role: string) => hasLocations(s) && role !== 'general'
+
 export function placeOf(s: BusinessState, locationId: string | undefined) {
   return places(s, true).find((p) => p.id === (locationId ?? s.organisation.locationId))
 }

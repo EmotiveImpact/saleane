@@ -541,6 +541,53 @@ describe('front desk access to Business', () => {
   })
 })
 
+describe('selling at one of several locations', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    sessionStorage.clear()
+  })
+
+  it('asks which location sold a gift card and sends it with the sale', async () => {
+    const user = userEvent.setup()
+    await signedIn('owner', '/business/gift-cards', (state) => {
+      state.operations!.locations = [
+        { id: 'loc-islington', name: 'Islington', address: '5 Upper Street, London N1' },
+      ]
+    })
+    await user.click(await screen.findByRole('button', { name: 'Sell a gift card' }))
+    const dialog = await screen.findByRole('dialog')
+    const soldAt = within(dialog).getByRole('combobox', { name: 'Sold at' })
+    expect(
+      within(soldAt)
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual(['Marylebone, London', 'Islington'])
+    await user.selectOptions(soldAt, 'loc-islington')
+    await user.type(within(dialog).getByRole('textbox', { name: 'Buyer’s name' }), 'Jo Guest')
+    await user.click(within(dialog).getByRole('button', { name: /^Record/ }))
+    await waitFor(() =>
+      expect(vi.mocked(fetch).mock.calls.some(([path]) => String(path).endsWith('/commands'))).toBe(
+        true,
+      ),
+    )
+    const [, init] = vi
+      .mocked(fetch)
+      .mock.calls.find(([path]) => String(path).endsWith('/commands'))!
+    expect(JSON.parse(String(init!.body)).command).toMatchObject({
+      type: 'gift-card-sell',
+      locationId: 'loc-islington',
+    })
+  })
+
+  it('leaves the choice out with one location', async () => {
+    const user = userEvent.setup()
+    await signedIn('owner', '/business/gift-cards')
+    await user.click(await screen.findByRole('button', { name: 'Sell a gift card' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).queryByRole('combobox', { name: 'Sold at' })).not.toBeInTheDocument()
+  })
+})
+
 describe('the Business tab bar', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
