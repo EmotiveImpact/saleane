@@ -128,7 +128,8 @@ export function receptionistRoutes() {
       }
       ctx.db.transaction(() => {
         const fresh = ctx.publicOrg(path[2])
-        // A local number such as 07700 900456 is kept with its country code, so it finds the client.
+        // A local number such as 07700 900456 is kept with its country code, as texts are. What
+        // the visitor typed proves nothing, so the team matches the message to a client by hand.
         const from = effect.contact.includes('@')
           ? effect.contact
           : (callerNumber(fresh.state, effect.contact) ?? effect.contact)

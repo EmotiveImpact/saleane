@@ -347,6 +347,58 @@ describe('the inbox (V1.5)', () => {
     expect(repliesList(later.state).find((r) => r.id === later.recordId)?.clientId).toBe('client-6')
   })
 
+  it('never matches a message left in the booking page chat by the details the visitor typed', () => {
+    const s = seed('UK')
+    const amelia = s.clients.find((c) => c.id === 'client-1')!
+    const timeline = (state: BusinessState) =>
+      state.events.filter((e) => e.clientId === amelia.id).length
+    const left = (state: BusinessState, from: string, providerRef: string) =>
+      run(
+        state,
+        {
+          type: 'reply-received',
+          channel: 'chat',
+          from,
+          body: 'Amelia Carter: please call me',
+          providerRef,
+        },
+        'AI receptionist',
+      )
+    // Anyone can type a client's email or number into the chat, so neither finds the client.
+    let result = left(s, amelia.email, 'chat-1')
+    expect(repliesList(result.state).find((r) => r.id === result.recordId)?.clientId).toBe(
+      undefined,
+    )
+    result = left(result.state, '+447700900001', 'chat-2')
+    expect(repliesList(result.state).find((r) => r.id === result.recordId)?.clientId).toBe(
+      undefined,
+    )
+    expect(timeline(result.state)).toBe(timeline(s))
+    // The team matches it by hand; a later chat giving the same address still waits for them.
+    const first = repliesList(result.state).find((r) => r.providerRef === 'chat-1')!
+    let next = run(result.state, {
+      type: 'reply-link',
+      replyId: first.id,
+      clientId: amelia.id,
+    }).state
+    expect(repliesList(next).find((r) => r.id === first.id)?.clientId).toBe(amelia.id)
+    const matched = timeline(next)
+    result = left(next, amelia.email, 'chat-3')
+    expect(repliesList(result.state).find((r) => r.id === result.recordId)?.clientId).toBe(
+      undefined,
+    )
+    expect(timeline(result.state)).toBe(matched)
+    // A text from the number on her record still goes with her.
+    next = run(result.state, {
+      type: 'reply-received',
+      channel: 'sms',
+      from: amelia.phone,
+      body: 'Running late',
+      providerRef: 'SM-amelia',
+    }).state
+    expect(repliesList(next).find((r) => r.providerRef === 'SM-amelia')?.clientId).toBe(amelia.id)
+  })
+
   it('refuses a reply that names a client who is not there', () => {
     const s = seed('UK')
     s.replies![0].clientId = 'client-missing'

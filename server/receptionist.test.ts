@@ -168,6 +168,33 @@ describe('the AI receptionist on the booking page', () => {
     expect(inbox((await studio(login)).state)).toMatch(/"from":"\+447700900456"/)
   })
 
+  it('leaves a message unmatched for the team, even when it gives a client’s email', async () => {
+    const { login, slug } = await switchedOn()
+    const before = (await studio(login)).state
+    const amelia = before.clients.find((c) => c.id === 'client-1')!
+    const asked = (await say(slug, 'Can someone call me about my visits?')).json<Answer>()
+    const prepared = (
+      await say(
+        slug,
+        `I'm Amelia Carter, ${amelia.email}`,
+        [
+          { from: 'guest', text: 'Can someone call me about my visits?' },
+          { from: 'receptionist', text: asked.text },
+        ],
+        asked.chat,
+      )
+    ).json<Answer>()
+    expect(prepared.proposals[0].kind).toBe('message')
+    expect((await take(slug, prepared.proposals[0].id)).statusCode).toBe(200)
+    const after = (await studio(login)).state
+    const left = (after.replies ?? []).find((r) => r.channel === 'chat')!
+    expect(left.from).toBe(amelia.email)
+    expect(left.clientId).toBeUndefined()
+    // Nothing was added to her record.
+    const hers = (s: BusinessState) => s.events.filter((e) => e.clientId === amelia.id).length
+    expect(hers(after)).toBe(hers(before))
+  })
+
   it('refuses unknown fields and offers no messages when the studio turned them off', async () => {
     const { slug } = await switchedOn(false)
     const wrong = await api.inject({
