@@ -26,7 +26,32 @@ export const targetSchema = z
   .strict()
 export type Target = z.infer<typeof targetSchema>
 
+/**
+ * V5: the checks that run by themselves across every location. Each one is a number the owner
+ * chooses, or null to switch it off; a missing value uses the default.
+ */
+export const groupChecksSchema = z
+  .object({
+    /** A location's last 7 days down by at least this share on the 7 before. */
+    takingsDropPct: z.number().int().min(5).max(90).nullable().optional(),
+    /** A location's month-end estimate short of its target by at least this share. */
+    targetShortPct: z.number().int().min(1).max(90).nullable().optional(),
+    /** A location not visited for this many days. */
+    visitDueDays: z.number().int().min(7).max(365).nullable().optional(),
+    /** A request waiting for a decision this many days. */
+    requestWaitDays: z.number().int().min(1).max(60).nullable().optional(),
+  })
+  .strict()
+export type GroupChecks = z.infer<typeof groupChecksSchema>
+export const GROUP_CHECK_DEFAULTS = {
+  takingsDropPct: 20,
+  targetShortPct: 10,
+  visitDueDays: 30,
+  requestWaitDays: 3,
+} as const
+
 export const groupCommandSchemas = [
+  z.object({ type: z.literal('group-checks'), checks: groupChecksSchema }).strict(),
   z.object({ type: z.literal('region'), id: id.optional(), input: regionInputSchema }).strict(),
   z.object({ type: z.literal('region-remove'), regionId: id }).strict(),
   // Every location's target for one month, saved together; null takes one away.

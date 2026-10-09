@@ -2,7 +2,13 @@ import { z } from 'zod'
 import { googleBookingSchema, receptionistSettingsSchema } from './receptionistSchema'
 import type { BusinessState } from './model'
 import { reminderSettingsSchema } from './reminderSettings'
-import { REGION_LIMIT, TARGET_LIMIT, regionSchema, targetSchema } from './groupSchema'
+import {
+  REGION_LIMIT,
+  TARGET_LIMIT,
+  groupChecksSchema,
+  regionSchema,
+  targetSchema,
+} from './groupSchema'
 import { REQUEST_LIMIT, approvalRequestSchema, approvalSettingsSchema } from './approvalsSchema'
 import { benchmarkSharingSchema, houseRulesSchema, lookSchema } from './brandRulesSchema'
 import {
@@ -339,6 +345,8 @@ export const operationsSchema = z.object({
   /** V5: locations grouped into regions, and each location's monthly takings target. */
   regions: z.array(regionSchema).max(REGION_LIMIT).optional(),
   targets: z.array(targetSchema).max(TARGET_LIMIT).optional(),
+  /** V5: the owner's automatic checks across locations; absent means the defaults. */
+  groupChecks: groupChecksSchema.optional(),
   /** V5: branch visit checklists and the visits recorded with them. */
   checklists: z.array(checklistSchema).max(CHECKLIST_LIMIT).optional(),
   branchVisits: z.array(branchVisitSchema).max(BRANCH_VISIT_LIMIT).optional(),
@@ -595,6 +603,7 @@ export function can(role: Role, action: string) {
       'region',
       'region-remove',
       'targets',
+      'group-checks',
     ].includes(action)
   )
     return false

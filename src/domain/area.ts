@@ -11,6 +11,7 @@ import { approvalRequestSchema } from './approvalsSchema'
 import { regionalLimit, requests } from './approvals'
 import { branchMap } from './branchMap'
 import { mapFeatures } from './areaMap'
+import { groupAlerts, groupCheckSettings } from './groupChecks'
 
 /**
  * V5: what a regional manager may read and change.
@@ -29,8 +30,6 @@ const AREA_COMMANDS = [
   'request-raise',
   'request-decide',
 ] as const
-/** A location not visited for this long is named in the morning summary. */
-export const AREA_VISIT_DUE_DAYS = 30
 
 const id = z.string().min(1)
 const month = z.object({
@@ -82,6 +81,18 @@ export const areaViewSchema = z
     /** Requests at their locations, and what they may approve. */
     requests: z.array(approvalRequestSchema),
     regionalLimitMinor: z.number().int().nonnegative(),
+    /** What the owner's automatic checks find at their locations today. */
+    alerts: z.array(
+      z
+        .object({
+          id: z.string(),
+          kind: z.enum(['takings-drop', 'target-short', 'visit-due', 'request-waiting']),
+          locationId: id,
+          title: z.string(),
+          detail: z.string(),
+        })
+        .strict(),
+    ),
     /** Their locations on a map, only where a map is ready; null otherwise. */
     map: z
       .object({
@@ -143,10 +154,16 @@ export function areaView(s: BusinessState, regionId: string, today: string): Are
       .reduce<string | null>((latest, v) => (!latest || v.date > latest ? v.date : latest), null)
   const bookedToday = list.reduce((n, p) => n + booked(p.id), 0)
   const open = visits.flatMap((v) => v.answers.filter((a) => a.answer === 'no' && !a.fixed)).length
-  const due = list.filter((p) => {
-    const last = lastVisit(p.id)
-    return !last || last < addDays(today, -AREA_VISIT_DUE_DAYS)
-  })
+  // A location not visited for as long as the owner's check allows is named in the summary.
+  const dueDays = groupCheckSettings(s).visitDueDays
+  // Only once there is a checklist in use, the same as the automatic checks.
+  const due =
+    dueDays === null || !checklists(s).some((c) => !c.archived)
+      ? []
+      : list.filter((p) => {
+          const last = lastVisit(p.id)
+          return !last || last <= addDays(today, -dueDays)
+        })
   const areaRequests = requests(s).filter((r) => ids.has(r.locationId))
   const forYou = areaRequests.filter(
     (r) => !r.decision && r.routedTo.level === 'regional' && r.routedTo.regionId === region.id,
@@ -210,6 +227,8 @@ export function areaView(s: BusinessState, regionId: string, today: string): Are
     requests: areaRequests,
     regionalLimitMinor: regionalLimit(s),
     map: map.ready ? { pins: map.pins, features: mapFeatures(s) } : null,
+    // Branch visits due are already in the summary above.
+    alerts: groupAlerts(s, today, ids).filter((a) => a.kind !== 'visit-due'),
   }
 }
 

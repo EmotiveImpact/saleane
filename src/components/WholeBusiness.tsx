@@ -21,6 +21,8 @@ import type { Command } from '../domain/commands'
 import { branchMap } from '../domain/branchMap'
 import { mapFeatures, mapReady } from '../domain/areaMap'
 import { BranchMap } from './BranchMap'
+import { GroupAlertList, GroupChecksEditor } from './GroupChecks'
+import { groupAlerts } from '../domain/groupChecks'
 import './group.css'
 
 const pct = (n: number) => `${Math.round(n * 100)}%`
@@ -38,10 +40,12 @@ const changeLabel = (growth: number | null) =>
 export function WholeBusiness() {
   const { state, today, role, blocked } = useStore()
   const [editing, setEditing] = useState(false)
+  const [checking, setChecking] = useState(false)
   const [saved, setSaved] = useState('')
   const view = wholeBusiness(state, today)
   const week = weekInBrief(state, today)
   const map = branchMap(state, today)
+  const alerts = groupAlerts(state, today)
   const org = state.organisation
   const allowed = !blocked && can(role, 'targets')
   const monthName = new Intl.DateTimeFormat(org.locale, {
@@ -85,6 +89,23 @@ export function WholeBusiness() {
         {view.summary.map((line) => (
           <p key={line}>{line}</p>
         ))}
+      </div>
+      <div className="group-attention">
+        <h3>Needs a look</h3>
+        <GroupAlertList alerts={alerts} />
+        {allowed && (
+          <div>
+            <Button
+              variant="quiet"
+              onClick={() => {
+                setSaved('')
+                setChecking(true)
+              }}
+            >
+              Automatic checks
+            </Button>
+          </div>
+        )}
       </div>
       <div className="group-week">
         <h3>The week in brief</h3>
@@ -183,6 +204,15 @@ export function WholeBusiness() {
           </ul>
         </div>
       ))}
+      {checking && (
+        <GroupChecksEditor
+          onClose={() => setChecking(false)}
+          onSaved={(message) => {
+            setSaved(message)
+            setChecking(false)
+          }}
+        />
+      )}
       {editing && (
         <GroupEditor
           month={view.month}

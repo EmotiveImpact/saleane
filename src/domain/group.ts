@@ -4,7 +4,7 @@ import { addDays, money } from './format'
 import { places } from './locations'
 import { businessDate, operations } from './operations'
 import { serviceRevenue } from './selectors'
-import { REGION_LIMIT, TARGET_LIMIT } from './groupSchema'
+import { GROUP_CHECK_DEFAULTS, REGION_LIMIT, TARGET_LIMIT } from './groupSchema'
 import type { Region, Target, groupCommandSchemas } from './groupSchema'
 
 /**
@@ -22,6 +22,10 @@ export const targets = (s: BusinessState): Target[] => operations(s).targets ?? 
 export function runGroupCommand(next: BusinessState, command: GroupCommand, makeId: () => string) {
   const o = next.operations!
   const known = new Set(places(next, true).map((p) => p.id))
+  if (command.type === 'group-checks') {
+    o.groupChecks = { ...GROUP_CHECK_DEFAULTS, ...command.checks }
+    return 'group-checks'
+  }
   if (command.type === 'region') {
     const list = (o.regions ??= [])
     const old = command.id ? list.find((r) => r.id === command.id) : undefined
@@ -82,7 +86,7 @@ export function groupProblem(s: BusinessState) {
 export const GROUP_WINDOW_DAYS = 28
 
 /** Completed service takings at one location between two dates, both included. */
-function takings(s: BusinessState, locationId: string, from: string, to: string) {
+export function takings(s: BusinessState, locationId: string, from: string, to: string) {
   const visits = new Map(
     s.appointments
       .filter(
