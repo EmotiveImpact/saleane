@@ -73,7 +73,7 @@ There is no hosted service, real card capture/refund, sent email/SMS, AI supplie
 - Only the owner and managers, or a general manager for a client who visits their location, may remove a saved card (`mayRemoveSavedCard`). `orgFor` refuses a general manager whose location has closed on every route.
 - Gift cards, packages and memberships record the location that sold them; rent and other takings are counted on the studio's own day, never the UTC day.
 - Each command inside a batch is validated on its own before anything reads it. Outgoing connections treat NAT64 addresses as private.
-- Imports are bounded and reviewed, source-attributed, never infer marketing consent and never auto-merge identities on email. Queued communications remain unsent.
+- Imports are bounded and reviewed, source-attributed, never infer marketing consent and never auto-merge identities on email. Moving in (MOVING-01) carries email marketing only when the old system's file records that the client agreed: the consent record has source `previous system`, the old system's words as `evidence` and no wording version, and the server refuses carried consent without evidence. A moved-in client may have a phone and no email; guest booking and new desk clients still require one. Queued communications remain unsent.
 - Backup is consistent with WAL; restore uses a fresh path and revokes sessions/invitations/holds/guest links. It also holds back everything that reaches outside the studio: access keys are revoked, connections turned off, social accounts set back to unconfirmed and pending messages held as unknown until the team checks them. Keep databases and sidecars outside static roots and Git.
 
 ## Local operating instructions

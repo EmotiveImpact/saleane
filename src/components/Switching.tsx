@@ -8,7 +8,7 @@ import { importStanding } from '../domain/switching'
 import { dateLabel, money } from '../domain/format'
 import type { Command } from '../domain/commands'
 import { Button, ErrorMessage, Modal } from '../design'
-import { ClientImport } from './ClientImport'
+import { MovingIn } from './MovingIn'
 import { CLIENT_IMPORT_MAX_BYTES, CLIENT_IMPORT_MAX_PAYLOAD_BYTES } from './clientImportCsv'
 import {
   SWITCH_COLUMNS,
@@ -68,7 +68,7 @@ export function SwitchingSettings() {
     {
       kind: 'clients',
       title: 'Clients',
-      body: 'Names, emails and phone numbers. Marketing permission always starts off.',
+      body: 'Straight from Fresha, Phorest, Timely, Treatwell, Booksy or any other system, with notes, birthdays and the marketing choices your old system recorded.',
     },
     { kind: 'services', ...KIND_COPY.services },
     { kind: 'appointments', ...KIND_COPY.appointments },
@@ -89,9 +89,10 @@ export function SwitchingSettings() {
           <div>
             <strong>Nothing already here is changed or removed.</strong>
             <p>
-              Export each list from your old system as a CSV file. You see every row before it is
-              saved, with totals to check against your old system’s own report. Add your team and
-              spaces first, so treatments and visits have somewhere to go.
+              Export each list from your old system. Client lists can be CSV or Excel, exactly as
+              they come; the other lists are CSV files. You see every row before it is saved, with
+              totals to check against your old system’s own report. Add your team and spaces first,
+              so treatments and visits have somewhere to go.
             </p>
           </div>
         </div>
@@ -130,7 +131,7 @@ export function SwitchingSettings() {
           </p>
         )}
       </div>
-      {open === 'clients' && <ClientImport onClose={() => setOpen(null)} />}
+      {open === 'clients' && <MovingIn onClose={() => setOpen(null)} />}
       {open && open !== 'clients' && <ImportReview kind={open} onClose={() => setOpen(null)} />}
     </section>
   )

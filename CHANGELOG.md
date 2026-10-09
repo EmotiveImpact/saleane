@@ -2,6 +2,20 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-09 · Moving in, stage 1: clients from any system
+
+**Status: built locally on 9 October 2026, awaiting the owner's "merge"; nothing deployed.** [Evidence](docs/evidence/MOVING-01.md).
+
+The owner said yes to the five moving-in answers. Stage 1 brings the client list across from Fresha, Phorest, Timely, Treatwell, Booksy and any other system.
+
+- Clients, Import clients, and Settings, Switching over, Clients, open "Move your clients in": choose the old system, see where to find its export, and drop in as many CSV or Excel files as they come.
+- SALEANE recognises the system and report from the columns, skips title and totals rows, reads Excel dates, and matches columns by meaning, checking each against what is inside. Only an unsure column becomes a question, with examples.
+- Clients come across with notes, birthdays (month and day), postcode area, other phone numbers and international mobiles. The same person in several rows or files is combined; anyone already in SALEANE is left exactly as they are.
+- Email marketing comes across only when the old file records that the client agreed. The consent record keeps the old system's own words as evidence with source "previous system", and the client page and privacy file show it. Anything else starts off.
+- A moved-in client may have a phone number and no email. Guest booking and new clients at the desk still need an email.
+- Long lists are saved in parts the server accepts; a dropped connection keeps the files and says how many came across.
+- Visit, gift card, package and payment files are recognised and kept for the next stages. The older one-file client import is replaced by this screen.
+
 ## 2026-10-09 · Whole app review and fixes
 
 **Status: built locally on 9 October 2026 and merged (#72); nothing deployed.** [Evidence](docs/evidence/APP-REVIEW-2026-10-09.md).

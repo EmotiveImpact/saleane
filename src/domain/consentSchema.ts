@@ -22,7 +22,8 @@ export const consentWordingSchema = z
   .strict()
 export type ConsentWording = z.infer<typeof consentWordingSchema>
 
-export const consentSources = ['booking page', 'desk', 'guest link'] as const
+/** "previous system": the studio's old booking system recorded that the client agreed (moving in). */
+export const consentSources = ['booking page', 'desk', 'guest link', 'previous system'] as const
 export const consentRecordSchema = z
   .object({
     id,
@@ -34,6 +35,11 @@ export const consentRecordSchema = z
     /** The wording the guest agreed to. Absent on a withdrawal, which needs no wording. */
     wordingVersion: z.number().int().min(1).optional(),
     source: z.enum(consentSources),
+    /**
+     * Moving in: what the old system recorded, such as Fresha recorded "Accepts marketing: Yes".
+     * Kept instead of a wording version, because the client agreed to the studio's old words.
+     */
+    evidence: z.string().trim().min(2).max(300).optional(),
     recordedAt: z.iso.datetime(),
     actor: z.string().max(200),
   })

@@ -17,7 +17,7 @@ import {
   SegmentedControl,
   photos,
 } from '../design'
-import { ClientImport } from '../components/ClientImport'
+import { MovingIn } from '../components/MovingIn'
 import { guestPhone, phoneProblem } from '../domain/phone'
 
 export function Clients() {
@@ -262,7 +262,7 @@ export function Clients() {
           </nav>
         )}
       </section>
-      {importing && <ClientImport onClose={() => setImporting(false)} />}
+      {importing && <MovingIn onClose={() => setImporting(false)} />}
       {newClient && (
         <Modal
           open

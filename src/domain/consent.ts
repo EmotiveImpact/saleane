@@ -103,8 +103,14 @@ export function recordConsentChanges(
 ) {
   const was = new Map(before.clients.map((c) => [c.id, c.marketingConsent]))
   const online = command.type === 'book' && command.input.source === 'online'
-  const source: ConsentRecord['source'] =
-    command.type === 'guest-consent-stop' ? 'guest link' : online ? 'booking page' : 'desk'
+  const moving = command.type === 'import-clients'
+  const source: ConsentRecord['source'] = moving
+    ? 'previous system'
+    : command.type === 'guest-consent-stop'
+      ? 'guest link'
+      : online
+        ? 'booking page'
+        : 'desk'
   const current = currentWording(next)
   for (const client of next.clients) {
     const previous = was.get(client.id)
@@ -114,7 +120,21 @@ export function recordConsentChanges(
     )
       continue
     let wordingVersion: number | undefined
-    if (client.marketingConsent) {
+    let evidence: string | undefined
+    if (moving) {
+      // Moving in: only new clients whose old system recorded a clear yes arrive agreed.
+      const contact = command.contacts.find(
+        (c) =>
+          c.name.trim().toLowerCase() === client.name.toLowerCase() &&
+          c.email.trim().toLowerCase() === client.email &&
+          c.phone.trim() === client.phone,
+      )
+      evidence = contact?.consentEvidence
+      if (!client.marketingConsent || !evidence)
+        throw new Error(
+          'Marketing permission can only come across with what the old system recorded.',
+        )
+    } else if (client.marketingConsent) {
       const shown = command.type === 'book' ? command.input.consentVersion : undefined
       // A guest's own tick must say which words they read; the desk records what the guest told them.
       if ((online && shown === undefined) || (shown !== undefined && shown !== current.version))
@@ -137,6 +157,7 @@ export function recordConsentChanges(
       purpose: 'marketing',
       given: client.marketingConsent,
       ...(wordingVersion ? { wordingVersion } : {}),
+      ...(evidence ? { evidence } : {}),
       source,
       recordedAt: now,
       actor: 'Local operator',
@@ -166,7 +187,11 @@ export function consentProblem(s: BusinessState) {
   for (const r of rows) {
     if (r.organisationId !== s.organisation.id) return 'Foreign workspace record.'
     if (!clients.has(r.clientId)) return 'A consent record does not match its client.'
-    if (r.given !== !!r.wordingVersion || (r.wordingVersion ?? 0) > latestVersion)
+    // Permission carried over from the old system has the old system's evidence, not our words.
+    const carried = r.source === 'previous system'
+    if (carried ? !r.given || !r.evidence || r.wordingVersion : r.evidence)
+      return 'A consent record does not match its wording.'
+    if (!carried && (r.given !== !!r.wordingVersion || (r.wordingVersion ?? 0) > latestVersion))
       return 'A consent record does not match its wording.'
     newest.set(r.clientId, r)
   }

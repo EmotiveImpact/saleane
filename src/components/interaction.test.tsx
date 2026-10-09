@@ -790,71 +790,80 @@ describe('the Settings page', () => {
   })
 })
 
-describe('reviewed CSV client import', () => {
-  it('previews duplicates and invalid rows, ignores consent columns and saves only reviewed contacts', async () => {
+describe('moving clients in from another system', () => {
+  const fresha =
+    'First name,Last name,Email,Mobile number,Accepts marketing,Accepts SMS marketing,Birthday,Note\n' +
+    'Amelia,Carter,amelia.carter@example.com,07700 900001,Yes,No,,\n' +
+    'Alex,Import,alex.import@example.com,07700 900123,Yes,Yes,14/03/1990,Prefers mornings\n' +
+    ',,,,No,No,,'
+
+  it('recognises a Fresha client list and brings new clients across with notes, birthdays and recorded marketing', async () => {
     const user = userEvent.setup()
     await show('/clients')
     await user.click(screen.getByRole('button', { name: 'Import clients' }))
-    const csv =
-      'name,email,phone,marketingConsent\nAmelia Carter,amelia.carter@example.com,+447700900001,true\nAlex Import,alex.import@example.com,+12125550111,true\n,missing@example.com,+12125550112,true'
+    await user.click(screen.getByRole('button', { name: 'Fresha' }))
+    expect(screen.getByText(/In Fresha, go to Clients/)).toBeInTheDocument()
     await user.upload(
-      screen.getByLabelText('Choose CSV'),
-      new File([csv], 'booking-export.csv', { type: 'text/csv' }),
+      screen.getByLabelText(/Drop files here/),
+      new File([fresha], 'export_customer_list.csv', { type: 'text/csv' }),
     )
+    expect(await screen.findByText(/Fresha client list · 3 rows/)).toBeInTheDocument()
+    const summary = document.querySelector('.ops-summary')!
     expect(
-      await screen.findByRole('checkbox', { name: 'Import record 3: Alex Import' }),
-    ).toBeChecked()
-    const submit = screen.getByRole('button', { name: 'Import 1 reviewed client' })
+      within(summary as HTMLElement).getByText('Ready to come across').nextSibling,
+    ).toHaveTextContent('1')
+    expect(screen.getByText(/1 agreed to marketing, 1 with birthdays/)).toBeInTheDocument()
+    const submit = screen.getByRole('button', { name: 'Bring 1 client across' })
     expect(submit).toBeDisabled()
-    expect(screen.getByText(/Exact name and email already exist/)).toBeInTheDocument()
-    expect(screen.getByText(/Ignored columns: marketingconsent/)).toBeInTheDocument()
-    await user.clear(screen.getByLabelText('Import source'))
-    await user.type(screen.getByLabelText('Import source'), 'Previous booking system')
-    await user.click(
-      screen.getByRole('checkbox', { name: /I have reviewed these 1 selected records/ }),
-    )
+    await user.click(screen.getByRole('checkbox', { name: /I have checked these 1 clients/ }))
     await user.click(submit)
-    expect(screen.getByRole('heading', { name: '1 client imported' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: '1 client brought across from Fresha' }),
+    ).toBeInTheDocument()
     const saved = JSON.parse(localStorage.getItem('saleane.demo.v1.UK')!)
     expect(saved.clients).toHaveLength(16)
-    const imported = saved.clients.find(
+    const moved = saved.clients.find(
       (client: { email: string }) => client.email === 'alex.import@example.com',
     )
-    expect(imported.marketingConsent).toBe(false)
+    expect(moved).toMatchObject({
+      phone: '+447700900123',
+      birthday: '03-14',
+      marketingConsent: true,
+    })
+    expect(moved.preferences).toContain('Prefers mornings')
     expect(
-      saved.events.find((event: { clientId: string }) => event.clientId === imported.id).detail,
-    ).toContain('Previous booking system')
+      saved.consentRecords.find((record: { clientId: string }) => record.clientId === moved.id),
+    ).toMatchObject({ source: 'previous system', evidence: expect.stringContaining('Fresha') })
+    const amelia = saved.clients.filter(
+      (client: { email: string }) => client.email === 'amelia.carter@example.com',
+    )
+    expect(amelia).toHaveLength(1)
   })
 
-  it('retains a reviewed import after a failed save and allows explicit review before retry', async () => {
+  it('keeps the files after a failed save and asks for the review again', async () => {
     const user = userEvent.setup()
     await show('/clients')
     await user.click(screen.getByRole('button', { name: 'Import clients' }))
     await user.upload(
-      screen.getByLabelText('Choose CSV'),
+      screen.getByLabelText(/Drop files here/),
       new File(['name,email,phone\nRetry Person,retry@example.com,+442071234567'], 'retry.csv', {
         type: 'text/csv',
       }),
     )
-    await screen.findByRole('checkbox', { name: 'Import record 2: Retry Person' })
-    await user.click(
-      screen.getByRole('checkbox', { name: /I have reviewed these 1 selected records/ }),
-    )
+    const review = await screen.findByRole('checkbox', { name: /I have checked these 1 clients/ })
+    await user.click(review)
     const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
       throw new Error('Storage unavailable')
     })
-    await user.click(screen.getByRole('button', { name: 'Import 1 reviewed client' }))
+    await user.click(screen.getByRole('button', { name: 'Bring 1 client across' }))
+    await waitFor(() => expect(screen.getByRole('alert')).not.toBeEmptyDOMElement())
     write.mockRestore()
-    expect(screen.getByRole('alert')).not.toBeEmptyDOMElement()
-    expect(screen.getByLabelText('Import source')).toHaveValue('retry.csv')
-    expect(screen.getByRole('checkbox', { name: 'Import record 2: Retry Person' })).toBeChecked()
+    expect(screen.getByText('retry.csv')).toBeInTheDocument()
+    expect(review).not.toBeChecked()
+    await user.click(review)
+    await user.click(screen.getByRole('button', { name: 'Bring 1 client across' }))
     expect(
-      screen.getByRole('checkbox', { name: /I have reviewed these 1 selected records/ }),
-    ).not.toBeChecked()
-    await user.click(
-      screen.getByRole('checkbox', { name: /I have reviewed these 1 selected records/ }),
-    )
-    await user.click(screen.getByRole('button', { name: 'Import 1 reviewed client' }))
-    expect(screen.getByRole('heading', { name: '1 client imported' })).toBeInTheDocument()
+      await screen.findByRole('heading', { name: '1 client brought across from your old system' }),
+    ).toBeInTheDocument()
   })
 })

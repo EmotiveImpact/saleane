@@ -61,6 +61,8 @@ const importSource = z.string().trim().min(2).max(100)
 export const contactSchema = clientSchema
   .pick({ name: true, email: true, phone: true, marketingConsent: true })
   .extend({
+    // A guest booking or a new client at the desk always gives an email.
+    email: z.email(),
     phone: z
       .string()
       .trim()
@@ -71,6 +73,35 @@ export const contactSchema = clientSchema
       ),
   })
 export const importContactSchema = contactSchema
+const internationalPhone = (value: string) => /^\+[1-9]\d{6,14}$/.test(value.replace(/[ ()-]/g, ''))
+/**
+ * Moving in: a client brought across from the studio's old system. The old system may have only
+ * an email or only a phone number. Marketing permission comes across only with what the old
+ * system recorded (`consentEvidence`).
+ */
+const movingContactBase = clientSchema
+  .pick({ name: true, marketingConsent: true, birthday: true, postcodeArea: true })
+  .extend({
+    email: z.union([z.email().max(254), z.literal('')]),
+    phone: z
+      .string()
+      .trim()
+      .max(30)
+      .refine(
+        (value) => !value || internationalPhone(value),
+        'Use an international telephone number with a country code.',
+      ),
+    preferences: z.string().trim().max(1000).optional(),
+    consentEvidence: z.string().trim().min(2).max(300).optional(),
+    /** The old system recorded that the client agreed to marketing texts; noted on their timeline. */
+    textMarketing: z.boolean().optional(),
+  })
+export const movingContactSchema = movingContactBase
+  .refine((c) => c.email || c.phone, 'Each client needs an email or a phone number.')
+  .refine(
+    (c) => !c.marketingConsent || !!c.consentEvidence,
+    'Marketing permission needs what the old system recorded.',
+  )
 export const bookingSchema = z.object({
   resourceId: id.optional(),
   /** V2: where the visit is. Absent means the main location. */
@@ -301,7 +332,13 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('client-edit'),
     clientId: id,
-    contact: contactSchema,
+    /** An email or phone may stay empty only when it was already empty (a client moved in). */
+    contact: movingContactBase.pick({
+      name: true,
+      email: true,
+      phone: true,
+      marketingConsent: true,
+    }),
     preferences: z.string().trim().max(1000),
   }),
   // PILOT-03: moving from another system. Each import is reviewed row by row before it is sent.
@@ -376,7 +413,7 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('import-clients'),
     source: z.string().trim().min(2).max(100).optional(),
-    contacts: z.array(contactSchema).min(1).max(500),
+    contacts: z.array(movingContactSchema).min(1).max(500),
     reviewed: z.literal(true),
   }),
 ])

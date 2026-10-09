@@ -81,7 +81,8 @@ export const organisationSchema = z.object({
 export const clientSchema = z.object({
   ...scoped,
   name: z.string().min(2).max(100),
-  email: z.email(),
+  /** Empty when the client has no email on file, which a client moved in from another system may not. */
+  email: z.union([z.email(), z.literal('')]),
   phone: z.string().max(30),
   preferences: z.string().max(1000),
   marketingConsent: z.boolean(),
