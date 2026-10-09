@@ -1,6 +1,6 @@
 # SALEANE version roadmap
 
-Last updated: 9 October 2026. Everything that can be built on this computer is built locally, up to V5, in test mode; nothing is deployed. What remains before release is listed under [What's left before release](#whats-left-before-release). Milestones are outcome gates, not promised dates. The user authorised consolidation into main on 6 October 2026. This does not authorise deployment or future automatic merges.
+Last updated: 9 October 2026. Every roadmap feature from V1 to V5 is built locally in test mode; nothing is deployed. Further items that can still be built locally are queued as NEXT-01 to NEXT-12. What remains before release is listed under [What's left before release](#whats-left-before-release). Milestones are outcome gates, not promised dates. The user authorised consolidation into main on 6 October 2026. This does not authorise deployment or future automatic merges.
 
 ## Current position
 
@@ -37,7 +37,7 @@ Checked against the code on main on 9 October 2026 and grouped by what each item
 5. Names: a trademark search for LUMANE before public use, and testing and clearing SALEANE (deferred decision 5).
 6. Smaller choices: a "How SALEANE speaks" wording guide, the V3 warning thresholds, and three empty photos in #15 to export again.
 
-**Waiting on outside accounts or live sources** (all built in test mode; nothing is sent or charged)
+**Waiting on outside accounts or live sources** (built in test mode, so nothing is sent or charged; the real AI and voice connections are also still to write, as NEXT-12)
 
 | What studios get                                          | What it needs                                                                             |
 | --------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
@@ -50,7 +50,7 @@ Checked against the code on main on 9 October 2026 and grouped by what each item
 | Instagram, WhatsApp and Facebook messages                 | Meta approval and each studio's own accounts                                              |
 | Specials based on what is really happening locally        | Free sources first (bank holidays, weather, school terms), then a capped paid events feed |
 
-**Still to build** (each can be built and tested on this computer; see the ordered build queue below, NEXT-01 to NEXT-11)
+**Still to build** (see the ordered build queue below, NEXT-01 to NEXT-12)
 
 **Steps to release 1.0** (from [V1_READINESS](V1_READINESS.md); most need hosting, which the owner has parked and which stays undecided)
 
@@ -122,6 +122,7 @@ The sequence matters: a polished inbox without consent and delivery history is n
 | NEXT-09          | Repeat bookings                    | Such as every four weeks. None exists.                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | NEXT-10          | Team diaries in Google or Apple    | Guests can add their own visit to their calendar; the team's diaries do not sync.                                                                                                                                                                                                                                                                                                                                                                                                |
 | NEXT-11          | Filling a cancelled time by itself | The waitlist half is built. Still to come: finding clients who agreed to hear about openings and inviting them once the team approves (competitive position, point 6).                                                                                                                                                                                                                                                                                                           |
+| NEXT-12          | A real AI and voice connection     | Only the test-mode brain (`lumane/brain.ts`) and a voice shortlist (`src/assistant/voices.ts`) exist. Write the connection to the chosen AI supplier and to OpenAI voice behind the existing adapters; it can be proven only once those accounts exist.                                                                                                                                                                                                                          |
 
 Each increment updates PRD status, changelog and evidence, runs lint/tests/build, and stays reviewable. Keep one server and preserve browser demo records. Inventory/retail/commissions remain V2; command seams are not a shipped retail product. Clinical stays separate.
 
