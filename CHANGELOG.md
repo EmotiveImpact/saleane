@@ -48,7 +48,7 @@ Rough edges:
 
 Polish:
 
-- Today's right-hand column holds a compact "Needs you" stack and "Your team today". What SALEANE noticed and one special, with "See all", sit side by side under the day ahead, so the two columns end together (33).
+- Today's right-hand column holds a compact "Needs you" stack and "Your team today". What SALEANE noticed and one special, with "See all", sit side by side under the day ahead, so Today on the sample studio is less than half as long as it was (33).
 - Every staff page has the same header (34), and headline figures share one style in whole pounds or dollars (35).
 - Gift cards look like real cards, and regional wording stays hidden until a studio has regions (36).
 - Settings is grouped under five headings with one way of saving (37).
@@ -66,7 +66,7 @@ Bigger improvements:
 
 Behind the scenes:
 
-- Pages load when they are first opened, so the first download fell from 816 kB to 382 kB, and the small client portraits went from a 2.3 MB picture to a 31 kB one (46).
+- Pages load when they are first opened, so the app's main script is half its old size (845 kB to 414 kB) and a first visit downloads about a quarter less. The small client portraits went from a 2.3 MB picture to a 31 kB one (46).
 - The project notes for future helpers say what is merged, how merging works and the new rules (47).
 - Each change inside a combined change is checked on its own, outgoing connections treat NAT64 addresses as private, and three unused bits of code are gone (48).
 
