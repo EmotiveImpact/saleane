@@ -14,6 +14,7 @@ import {
   Mail,
   Hourglass,
   Sparkles,
+  CircleHelp,
 } from 'lucide-react'
 import { useStore } from './state/context'
 import { useStudioColours } from './state/studioColours'
@@ -62,6 +63,9 @@ const BrandedBooking = lazy(() =>
 )
 const AccessPanel = lazy(() =>
   import('./components/AccessPanel').then((module) => ({ default: module.AccessPanel })),
+)
+const HelpPanel = lazy(() =>
+  import('./components/HelpPanel').then((module) => ({ default: module.HelpPanel })),
 )
 const PractitionerDay = lazy(() =>
   import('./pages/PractitionerDay').then((module) => ({ default: module.PractitionerDay })),
@@ -145,6 +149,7 @@ function WorkspaceApp() {
   )
   const [search, setSearch] = useState(false)
   const [asking, setAsking] = useState(false)
+  const [helping, setHelping] = useState(false)
   const navigate = useNavigate()
   const openSettings = (section: string) => navigate(`/settings?section=${section}`)
   const [mobileNav, setMobileNav] = useState(false)
@@ -375,6 +380,10 @@ function WorkspaceApp() {
               <Search size={17} />
               <span>Find a client</span>
             </button>
+            <button className="ask-button help-button" onClick={() => setHelping(true)}>
+              <CircleHelp size={17} aria-hidden="true" />
+              <span>Help</span>
+            </button>
             <span className="header-divider" />
             <button className="operator-button" onClick={() => openSettings('preferences')}>
               <Avatar small name={operator} tone="sand" />
@@ -522,6 +531,19 @@ function WorkspaceApp() {
         </main>
       </div>
       {search && <SearchDialog onClose={() => setSearch(false)} />}
+      {helping && (
+        <Suspense fallback={null}>
+          <HelpPanel
+            open
+            onClose={() => setHelping(false)}
+            role={role}
+            signedIn={mode === 'server'}
+            workspaceId={mode === 'server' ? state.organisation.id : null}
+            onAsk={() => setAsking(true)}
+            locale={state.organisation.locale}
+          />
+        </Suspense>
+      )}
       {asking && (
         <Suspense fallback={null}>
           <AskSaleane onClose={() => setAsking(false)} />

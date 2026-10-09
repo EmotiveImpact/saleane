@@ -19,6 +19,7 @@ import { PRACTITIONER_AVERAGE_MIN } from '../domain/feedback'
 import { venueDate } from '../domain/tillCount'
 import { Avatar, Button, Empty, ErrorMessage, PageHeader, Status } from '../design'
 import { SignOut } from '../components/SignOut'
+import { HelpButton } from '../components/HelpButton'
 import '../practitioner.css'
 
 /** Matches the single-column breakpoint in practitioner.css. */
@@ -236,7 +237,10 @@ export function PractitionerDay() {
             {staff.name} · {organisation.locationName}
           </small>
         </span>
-        <SignOut onError={setError} />
+        <div className="practitioner-header-actions">
+          <HelpButton role="practitioner" workspaceId={orgId} locale={locale} />
+          <SignOut onError={setError} />
+        </div>
       </header>
       <main id="main-content" className="practitioner-main" data-open={open ? 'visit' : 'day'}>
         <div className="practitioner-day-heading">

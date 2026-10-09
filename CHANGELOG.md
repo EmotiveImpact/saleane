@@ -2,6 +2,18 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-09 · Help inside the app (NEXT-06)
+
+**Status: built locally on 9 October 2026; help requests are kept on the server until a help address and email are connected.** [Evidence](docs/evidence/NEXT-06-HELP.md).
+
+- Help sits at the top of every screen, beside Find a client, on the practitioner's and regional manager's own pages and on the list of studios. It opens a side panel of 51 short guides, each a few steps long and written with the labels on screen, word for word: booking, moving and cancelling visits, checkout, refunds, the waitlist, clients, patch tests, packages, gift cards, the till, the team, pay, messages, the AI, privacy, locations and SALEANE's own plan.
+- The guides for the screen come first (a Settings section's own before the rest), and each person sees only those for what their role can do. Search understands everyday words: "reschedule" finds Move a visit, "no show" finds Mark it missed, "voucher" finds gift cards.
+- Each guide says plainly what is not live yet, such as messages and card payments in test mode, and "Go there" opens the screen it is about. Practitioners, regional managers and someone with no studio open are not offered "Go there", as they do not open the studio's screens.
+- Ask SALEANE answers "how do I…" and "where can I…" from the same guides, for the person asking.
+- Write to the SALEANE team: anyone signed in can say what they need, with the screen they were on and the studio they were in. The request is kept first, then emailed to the team's address. The panel says honestly whether it was sent, kept because no help address is set, not sent because email is in test mode, or could not be sent, and lists what the person has written. Five an hour each.
+- Error messages that said "Please contact support" now say to write to the SALEANE team from Help.
+- Migration 28 adds the help requests.
+
 ## 2026-10-09 · Studios paying for SALEANE (NEXT-02)
 
 **Status: built locally on 9 October 2026; test mode only, so no card is charged and no money moves.** [Evidence](docs/evidence/NEXT-02-STUDIOS-PAYING.md).

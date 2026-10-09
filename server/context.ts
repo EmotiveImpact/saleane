@@ -137,6 +137,8 @@ export type ApiOptions = {
   paymentProvider?: PaymentProvider
   /** NEXT-02: SALEANE's own card account for studios' plans. Omitted reads SALEANE_BILLING_PROVIDER. */
   billingProvider?: PaymentProvider
+  /** NEXT-06: where help requests are emailed; unset reads SALEANE_SUPPORT_EMAIL, null keeps them. */
+  supportEmail?: string | null
   /** V5: how connected software is reached. Omitted uses fetch with private addresses refused. */
   connectionTransport?: ConnectionTransport
   /** V4: Book with Google's partner credentials; read from the environment when left out. */
