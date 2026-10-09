@@ -353,7 +353,7 @@ export function PassOnOffers() {
         <ul className="waitlist-pass-on">
           {rows.map((row) => (
             <PassOnRow
-              key={`${row.entry.id}-${row.opening.date}-${row.opening.startMinutes}`}
+              key={`${row.entry.id}-${row.opening.date}-${row.opening.startMinutes}-${row.opening.staffId}`}
               row={row}
               allowed={allowed}
               onPassed={setPassed}
