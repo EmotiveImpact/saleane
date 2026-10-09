@@ -8,6 +8,7 @@ import { rememberStudio } from '../state/lastStudio'
 import { roleNames } from '../domain/operations'
 import { Button, ErrorMessage } from '../design'
 import { BrandsTogether } from '../components/BrandsTogether'
+import { HelpButton } from '../components/HelpButton'
 import { InvitationSummary } from '../components/InvitationSummary'
 import { TwoStepCode } from '../components/TwoStepCode'
 import type { InvitationPreview } from '../components/InvitationSummary'
@@ -323,6 +324,7 @@ export function Account() {
               >
                 Sign out
               </Button>
+              <HelpButton role={null} />
             </div>
             <ErrorMessage error={error} />
           </>

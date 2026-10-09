@@ -838,7 +838,7 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     steps: [
       'Open Help and find Write to the SALEANE team, at the end.',
       'Choose what it is about and say what you need. The screen you are on goes with it.',
-      'Choose Send to the SALEANE team. The answer comes by email.',
+      'Choose Send to the SALEANE team. Any reply comes by email.',
     ],
     note: "Leave out clients' health details and card numbers.",
     screens: [],

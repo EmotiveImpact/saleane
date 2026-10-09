@@ -159,6 +159,16 @@ export function helpForScreen(
 }
 
 /** Guides that match what a person typed, best first; nothing when nothing matches. */
+/**
+ * Where "Go there" leads for someone in this role. Practitioners and regional managers have their
+ * own page instead of the studio's screens, and someone with no studio open has none, so for them
+ * the guide's steps say where to go.
+ */
+export function helpDestination(article: HelpArticle, role: Role | null) {
+  if (!article.to || !role || role === 'practitioner' || role === 'regional') return undefined
+  return article.to
+}
+
 export function searchHelp(query: string, role: Role | null, articles = HELP_ARTICLES) {
   const asked = [...new Set(helpWords(query))]
   if (!asked.length) return []

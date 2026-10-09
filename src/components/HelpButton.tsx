@@ -8,17 +8,18 @@ const HelpPanel = lazy(() =>
 )
 
 /**
- * NEXT-06: Help for the pages a practitioner or regional manager has instead of the studio's own
- * screens. It opens the same panel, with only the guides for their role.
+ * NEXT-06: Help for the pages outside the studio's own screens: a practitioner's or regional
+ * manager's page, and the list of studios. It opens the same panel, with only the guides for their
+ * role, or those for everyone when no studio is open.
  */
 export function HelpButton({
   role,
   workspaceId,
   locale,
 }: {
-  role: Role
-  workspaceId: string
-  locale: string
+  role: Role | null
+  workspaceId?: string
+  locale?: string
 }) {
   const [open, setOpen] = useState(false)
   return (

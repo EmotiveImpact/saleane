@@ -9,6 +9,7 @@ import {
   HELP_GROUPS,
   SUPPORT_TOPICS,
   helpArticles,
+  helpDestination,
   helpForScreen,
   searchHelp,
   supportStatusWords,
@@ -18,12 +19,12 @@ import type { HelpArticle, SupportAnswer, SupportTopic } from '../domain/help'
 import './helpPanel.css'
 
 const DELIVERY: Record<SupportAnswer['delivery'], string> = {
-  email: 'It is emailed to the SALEANE team, who reply to',
+  email: 'It is emailed to the SALEANE team. Any reply goes to',
   test: 'Email is in test mode on this server, so a request is saved here but not sent yet. Replies would go to',
   kept: 'No help address is set on this server yet, so a request is saved here but not sent. Replies would go to',
 }
 const SAID: Record<SupportAnswer['delivery'], string> = {
-  email: 'Sent to the SALEANE team. They will reply by email.',
+  email: 'Sent to the SALEANE team by email.',
   test: 'Saved. Email is in test mode, so it has not been sent to anyone yet.',
   kept: 'Saved on this server. It has not been sent, as no help address is set yet.',
 }
@@ -65,6 +66,7 @@ export function HelpPanel({
   const found = useMemo(() => searchHelp(query, role), [query, role])
   const all = useMemo(() => helpArticles(role), [role])
   const page = `${location.pathname}${location.search}`
+  const destination = reading ? helpDestination(reading, role) : undefined
 
   function close() {
     setReading(null)
@@ -123,8 +125,8 @@ export function HelpPanel({
                 <span>{reading.note}</span>
               </p>
             )}
-            {reading.to && reading.to !== page && (
-              <Button onClick={() => go(reading.to!)}>Go there</Button>
+            {destination && destination !== page && (
+              <Button onClick={() => go(destination)}>Go there</Button>
             )}
           </article>
         ) : (

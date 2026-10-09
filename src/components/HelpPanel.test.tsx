@@ -86,6 +86,16 @@ test('finds a guide in everyday words, reads it, and goes there', async () => {
   expect(screen.getByTestId('where')).toHaveTextContent('/calendar')
 })
 
+test('a regional manager reads their guides with no way into the studio screens they cannot open', async () => {
+  const user = userEvent.setup()
+  const { dialog } = open('/area/org-1', 'regional')
+  const here = within(dialog).getByRole('list', { name: 'On this screen' })
+  await user.click(within(here).getByRole('button', { name: /Do a branch visit/ }))
+  const guide = screen.getByRole('dialog', { name: 'Do a branch visit' })
+  expect(guide).toHaveTextContent('On your area page, choose Start a branch visit.')
+  expect(within(guide).queryByRole('button', { name: 'Go there' })).toBeNull()
+})
+
 test('says when nothing matches, and points to Ask SALEANE and the team', async () => {
   const user = userEvent.setup()
   const onAsk = vi.fn()
@@ -156,6 +166,40 @@ test('writes to the team with the screen, and says plainly it was only kept in t
     '9 October 2026, Linden Studio. Not sent: email is in test mode.',
   )
   expect(within(dialog).getByRole('textbox', { name: 'What do you need?' })).toHaveValue('')
+})
+
+test('says a request was emailed, and promises no reply', async () => {
+  const user = userEvent.setup()
+  mocked.mockResolvedValueOnce(answer({ delivery: 'email' }))
+  const { dialog } = open('/today', 'owner', { signedIn: true })
+  expect(
+    await within(dialog).findByText(/It is emailed to the SALEANE team. Any reply goes to/),
+  ).toHaveTextContent('ada@example.com')
+  await user.type(
+    within(dialog).getByRole('textbox', { name: 'What do you need?' }),
+    'Can I pay for a year at once?',
+  )
+  mocked.mockResolvedValueOnce(
+    answer({
+      delivery: 'email',
+      id: 'r3',
+      requests: [
+        {
+          id: 'r3',
+          topic: 'using',
+          message: 'Can I pay for a year at once?',
+          page: '/today',
+          studio: null,
+          status: 'accepted',
+          createdAt: at,
+        },
+      ],
+    }),
+  )
+  await user.click(within(dialog).getByRole('button', { name: 'Send to the SALEANE team' }))
+  const said = await within(dialog).findByRole('status')
+  expect(said).toHaveTextContent('Sent to the SALEANE team by email.')
+  expect(said).not.toHaveTextContent(/will reply/)
 })
 
 test('never says a request was sent when the email service failed', async () => {

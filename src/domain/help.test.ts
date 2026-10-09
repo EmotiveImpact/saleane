@@ -1,6 +1,13 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { HELP_GROUPS, helpArticles, helpForScreen, helpWords, searchHelp } from './help'
+import {
+  HELP_GROUPS,
+  helpArticles,
+  helpDestination,
+  helpForScreen,
+  helpWords,
+  searchHelp,
+} from './help'
 import { HELP_ARTICLES } from './helpArticles'
 
 const source = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
@@ -102,5 +109,15 @@ describe('help inside the app', () => {
     expect(searchHelp('the', 'owner')).toEqual([])
     expect(searchHelp('rocket launch', 'owner')).toEqual([])
     expect(helpWords("Customer's bookings")).toEqual(['client', 'visit'])
+  })
+  it('offers Go there only to people who open the studio screens', () => {
+    const visits = HELP_ARTICLES.find((a) => a.id === 'branch-visits')!
+    expect(helpDestination(visits, 'owner')).toBe('/business/visits')
+    expect(helpDestination(visits, 'general')).toBe('/business/visits')
+    // A regional manager's area page and a practitioner's day are all they open.
+    expect(helpDestination(visits, 'regional')).toBeUndefined()
+    expect(helpDestination(visits, 'practitioner')).toBeUndefined()
+    // With no studio open, there is no studio screen to go to.
+    expect(helpDestination(visits, null)).toBeUndefined()
   })
 })
