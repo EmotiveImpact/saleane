@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react'
 import { api, ApiError } from '../state/api'
@@ -24,6 +24,7 @@ import { fullPriceMinor } from '../domain/priceSentence'
 import type { PriceTax } from '../domain/priceSentence'
 import { useGuestColours } from '../state/studioColours'
 import type { StudioLook } from '../domain/brandRulesSchema'
+import { guestPhone, phoneProblem } from '../domain/phone'
 import '../guest.css'
 
 const pendingBookingSchema = z.object({
@@ -236,11 +237,13 @@ function BookingFlow({
   const [name, setName] = useState(recovery.value?.payload.contact.name ?? ''),
     [email, setEmail] = useState(recovery.value?.payload.contact.email ?? ''),
     [phone, setPhone] = useState(recovery.value?.payload.contact.phone ?? ''),
+    [phoneMessage, setPhoneProblem] = useState(''),
     [consent, setConsent] = useState(recovery.value?.payload.contact.marketingConsent ?? false),
     [policy, setPolicy] = useState(!!recovery.value),
     [error, setError] = useState(''),
     [confirmed, setConfirmed] = useState(''),
     [manageUrl, setManageUrl] = useState('')
+  const phoneField = useRef<HTMLInputElement>(null)
   const service = services.find((s) => s.id === serviceId),
     professional = staff.find((s) => s.id === staffId)
   // Each step starts at the top, so a guest on a phone isn't left at the foot of the last one.
@@ -685,6 +688,14 @@ function BookingFlow({
                 <form
                   onSubmit={(e) => {
                     e.preventDefault()
+                    // Kept as an international number, so the review shows how the studio sees it.
+                    const number = guestPhone(org.region, phone)
+                    if (!number) {
+                      setPhoneProblem(phoneProblem(org.region))
+                      phoneField.current?.focus()
+                      return
+                    }
+                    setPhone(number)
                     setStep(4)
                   }}
                 >
@@ -711,18 +722,37 @@ function BookingFlow({
                         onChange={(e) => setEmail(e.target.value)}
                       />
                     </label>
-                    <label>
-                      Phone with country code
-                      <input
-                        autoComplete="tel"
-                        type="tel"
-                        required
-                        pattern={String.raw`\+[0-9\s\(\)\-]{6,29}`}
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder={org.region === 'UK' ? '+44 7700 900123' : '+1 212 555 0123'}
-                      />
-                    </label>
+                    <div className="booking-field">
+                      <label>
+                        Phone number
+                        <input
+                          ref={phoneField}
+                          autoComplete="tel"
+                          type="tel"
+                          inputMode="tel"
+                          required
+                          maxLength={30}
+                          value={phone}
+                          aria-invalid={!!phoneMessage}
+                          aria-describedby="booking-phone-help"
+                          onChange={(e) => {
+                            setPhone(e.target.value)
+                            setPhoneProblem('')
+                          }}
+                          placeholder={org.region === 'US' ? '(212) 555-0123' : '07700 900123'}
+                        />
+                      </label>
+                      <small
+                        id="booking-phone-help"
+                        className={phoneMessage ? 'booking-field-problem' : undefined}
+                        role={phoneMessage ? 'alert' : undefined}
+                      >
+                        {phoneMessage ||
+                          (org.region === 'US'
+                            ? 'A US number, or any number with its country code.'
+                            : 'A UK number, or any number with its country code.')}
+                      </small>
+                    </div>
                     <label className="checkbox-label">
                       <input
                         type="checkbox"

@@ -438,3 +438,19 @@
     font-size: 22px;
   }
 }
+
+/* A field with a line of help under it, which turns into the problem when there is one. */
+.booking-field {
+  display: grid;
+  gap: 6px;
+}
+.booking-field > small {
+  font-size: var(--text-meta);
+  color: var(--muted);
+}
+.booking-field > small.booking-field-problem {
+  color: var(--danger);
+}
+.booking-field input[aria-invalid='true'] {
+  border-color: var(--danger);
+}

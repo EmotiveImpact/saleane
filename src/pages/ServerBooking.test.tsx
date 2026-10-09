@@ -65,7 +65,7 @@ test('unknown confirmation retains its exact snapshot through expiry and reload,
   await user.click(screen.getByRole('button', { name: 'Hold this time' }))
   await user.type(await screen.findByLabelText('Full name'), payload.contact.name)
   await user.type(screen.getByLabelText('Email'), payload.contact.email)
-  await user.type(screen.getByLabelText('Phone with country code'), payload.contact.phone)
+  await user.type(screen.getByLabelText('Phone number'), payload.contact.phone)
   await user.click(screen.getByRole('button', { name: 'Review your visit' }))
   await user.click(
     screen.getByRole('checkbox', { name: /I understand this is a local booking preview/ }),
@@ -184,4 +184,45 @@ test('a studio bot check gates the hold and sends a fresh single-use token each 
     'token-2',
   ])
   delete window.turnstile
+})
+
+test('a local phone number is accepted and kept international; rubbish gets a friendly message', async () => {
+  const user = userEvent.setup()
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path === base) return catalog as never
+    if (path.startsWith(`${base}/availability`)) return { times: [600] } as never
+    if (path === `${base}/holds`)
+      return { hold: payload.hold, expiresAt: new Date(Date.now() + 300000).toISOString() } as never
+    if (path === `${base}/book`) return { appointmentId: 'visit-local-phone' } as never
+    throw new Error(`Unexpected route ${path}`)
+  })
+  view()
+  await user.click(await screen.findByRole('button', { name: 'Choose a time' }))
+  await user.click(await screen.findByRole('radio', { name: '10:00' }))
+  await user.click(screen.getByRole('button', { name: 'Hold this time' }))
+  await user.type(await screen.findByLabelText('Full name'), payload.contact.name)
+  await user.type(screen.getByLabelText('Email'), payload.contact.email)
+  const phone = screen.getByLabelText('Phone number')
+  await user.type(phone, 'call me maybe')
+  await user.click(screen.getByRole('button', { name: 'Review your visit' }))
+  expect(
+    await screen.findByText(
+      'Enter a phone number we can reach you on, such as 07700 900456 or +44 7700 900456.',
+    ),
+  ).toBeVisible()
+  expect(phone).toHaveAttribute('aria-invalid', 'true')
+  expect(phone).toHaveFocus()
+  expect(screen.queryByRole('button', { name: /Confirm/ })).not.toBeInTheDocument()
+  await user.clear(phone)
+  await user.type(phone, '07700 900456')
+  expect(phone).toHaveAttribute('aria-invalid', 'false')
+  await user.click(screen.getByRole('button', { name: 'Review your visit' }))
+  expect(await screen.findByText(/\+44 7700 900456/)).toBeVisible()
+  await user.click(
+    screen.getByRole('checkbox', { name: /I understand this is a local booking preview/ }),
+  )
+  await user.click(screen.getByRole('button', { name: 'Confirm visit' }))
+  await screen.findByText('Saved in the studio calendar')
+  const sent = vi.mocked(api).mock.calls.find(([path]) => path === `${base}/book`)!
+  expect((sent[1]?.body as typeof payload).contact.phone).toBe('+44 7700 900456')
 })

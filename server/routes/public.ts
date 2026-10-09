@@ -12,6 +12,7 @@ import { issueGuestLink } from './guest'
 import { bookingChannel } from '../../src/domain/bookingChannel'
 import { places, serviceAt, staffLocationOn, staffPlaces } from '../../src/domain/locations'
 import { isOn } from '../../src/assistant/receptionist'
+import { guestPhone, phoneProblem } from '../../src/domain/phone'
 
 /** Public booking routes. These never return clients, histories or money. Returns false when the request belongs to another module. */
 export async function publicRoutes(ctx: Context, route: Route): Promise<boolean> {
@@ -205,6 +206,11 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
       const fingerprint = digest(canonical(data.contact))
       const result = db.transaction(() => {
         const org = publicOrg(slug)
+        // Guests write their number the way they know it, such as 07700 900456 in the UK; it is
+        // kept as an international number. Checked first, so a slip never costs the held time.
+        const region = org.state.organisation.region
+        const phone = guestPhone(region, data.contact.phone)
+        if (!phone) fail(422, phoneProblem(region))
         const hash = digest(data.hold)
         const hold = db.get<HoldRow>(
           'SELECT id,input,expires_at,appointment_id,fingerprint FROM booking_holds WHERE token_hash=? AND organisation_id=?',
@@ -254,7 +260,7 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
             date: allocation.date,
             startMinutes: allocation.startMinutes,
             ...(allocation.locationId ? { locationId: allocation.locationId } : {}),
-            contact: data.contact,
+            contact: { ...data.contact, phone },
             source: 'online',
             channel: bookingChannel(data.from),
             ...(data.contact.marketingConsent && data.emailNewsVersion
