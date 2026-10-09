@@ -43,6 +43,17 @@ describe('the AI receptionist in test mode', () => {
     expect(result.proposals).toEqual([])
   })
 
+  it('quotes the deposit the way the booking page does, simulated only in a sample studio', async () => {
+    const asked = 'How much is the Skin Renewal Facial?'
+    expect((await chat(asked)).text).toMatch(
+      /^Skin Renewal Facial: £95 for 60 minutes.*\. £25 simulated deposit when you book, the rest at the studio\./,
+    )
+    const real = on({ ...base, operations: { ...base.operations!, mode: 'local' } })
+    expect((await chat(asked, [], real)).text).toMatch(
+      /^Skin Renewal Facial: £95 for 60 minutes.*\. £25 deposit when you book, the rest at the studio\./,
+    )
+  })
+
   it('gives the opening hours', async () => {
     const result = await chat('When are you open?')
     expect(result.text).toMatch(/Atelier House is open:\nMonday: /)

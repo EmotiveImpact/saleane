@@ -133,15 +133,15 @@ const clock = (ctx: ReceptionContext, minutes: number) =>
   timeLabel(minutes, ctx.state.organisation.locale)
 
 /**
- * A treatment's price in one sentence, at one location's price. `from` marks the lowest of
- * several, which the sentence then says.
+ * A treatment's price in one sentence, at one location's price, with the deposit the booking page
+ * asks for (simulated only in a sample studio). `from` marks the lowest of several, which the
+ * sentence then says.
  */
 function priceFor(ctx: ReceptionContext, x: Service, priceMinor: number, from = false) {
-  const said = priceSentence(
-    { ...x, priceMinor, depositMinor: ctx.sample ? x.depositMinor : 0 },
-    ctx.state.organisation,
-    { tax: operations(ctx.state).tax, simulated: ctx.sample },
-  )
+  const said = priceSentence({ ...x, priceMinor }, ctx.state.organisation, {
+    tax: operations(ctx.state).tax,
+    simulated: ctx.sample,
+  })
   return from ? `From ${said[0].toLowerCase()}${said.slice(1)}` : said
 }
 

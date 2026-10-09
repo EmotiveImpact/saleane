@@ -56,6 +56,8 @@ const pendingBookingSchema = z.object({
   }),
   serviceId: z.string(),
   staffId: z.string(),
+  /** Who the held time is with, when the guest had no preference. */
+  heldStaffId: z.string().optional(),
   date: z.iso.date(),
   start: z.number().int(),
   expiresAt: z.iso.datetime(),
@@ -267,7 +269,11 @@ function BookingFlow({
     )
   const [hold, setHold] = useState<HoldReply | null>(
       recovery.value
-        ? { hold: recovery.value.payload.hold, expiresAt: recovery.value.expiresAt }
+        ? {
+            hold: recovery.value.payload.hold,
+            expiresAt: recovery.value.expiresAt,
+            ...(recovery.value.heldStaffId ? { staffId: recovery.value.heldStaffId } : {}),
+          }
         : null,
     ),
     [seconds, setSeconds] = useState(() =>
@@ -761,6 +767,7 @@ function BookingFlow({
       },
       serviceId,
       staffId,
+      ...(hold.staffId ? { heldStaffId: hold.staffId } : {}),
       date,
       start: start!,
       expiresAt: hold.expiresAt,

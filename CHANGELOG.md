@@ -28,7 +28,7 @@ Things that were broken:
 
 Rough edges:
 
-- The AI receptionist and Book with Google quote each location's own price, "From £95" where prices differ, and only what is offered there (16).
+- The AI receptionist and Book with Google quote each location's own price, "From £95" where prices differ, and only what is offered there. The receptionist names the deposit the booking page asks for (16).
 - A time the receptionist offers opens the booking steps at the location where it is (17).
 - The receptionist answers opening hours, parts of the day, parking and directions, says plainly when it cannot answer, and each time it lists is a button (18).
 - A newly added Instagram, Facebook or WhatsApp account waits until the owner confirms it is theirs, and once one studio has confirmed an account no other studio can add it (19).

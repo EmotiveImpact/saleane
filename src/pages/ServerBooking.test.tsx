@@ -108,6 +108,48 @@ test('unknown confirmation retains its exact snapshot through expiry and reload,
   expect(confirmations[1][1]?.body).toEqual(payload)
 })
 
+test('a recovered confirmation still says who the visit is with when the guest had no preference', async () => {
+  const user = userEvent.setup()
+  let succeed = false
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path === base) return catalog as never
+    if (path.startsWith(`${base}/availability`)) return { times: [600] } as never
+    if (path === `${base}/holds`)
+      return {
+        hold: payload.hold,
+        expiresAt: new Date(Date.now() + 300000).toISOString(),
+        staffId: 'staff-maya',
+      } as never
+    if (path === `${base}/book`) {
+      if (!succeed) throw new ApiError('Connection interrupted; confirmation is uncertain.', 0)
+      return { appointmentId: 'visit-recovered' } as never
+    }
+    throw new Error(`Unexpected route ${path}`)
+  })
+  const first = view()
+  await user.click(await screen.findByRole('button', { name: 'Choose a time' }))
+  await user.click(await screen.findByRole('radio', { name: '10:00' }))
+  await user.click(screen.getByRole('button', { name: 'Hold this time' }))
+  await user.type(await screen.findByLabelText('Full name'), payload.contact.name)
+  await user.type(screen.getByLabelText('Email'), payload.contact.email)
+  await user.type(screen.getByLabelText('Phone number'), payload.contact.phone)
+  await user.click(screen.getByRole('button', { name: 'Review your visit' }))
+  await user.click(
+    screen.getByRole('checkbox', { name: /I agree to the deposit and cancellation terms/ }),
+  )
+  await user.click(screen.getByRole('button', { name: 'Confirm visit' }))
+  await screen.findByText('Connection interrupted; confirmation is uncertain.')
+  // The exact submitted snapshot is unchanged; who the time is with is kept beside it.
+  expect(JSON.parse(sessionStorage.getItem(journal)!).payload).toEqual(payload)
+  first.unmount()
+  view()
+  succeed = true
+  await user.click(await screen.findByRole('button', { name: 'Check booking status' }))
+  await screen.findByText('Saved in the studio calendar')
+  const summary = screen.getByRole('region', { name: 'Your visit' })
+  expect(within(summary).getByText('With').closest('div')).toHaveTextContent('Maya Lewis')
+})
+
 test('a definitive expired unconsumed reservation unlocks a new time; inaccessible studio keeps retry protected', async () => {
   const saved = {
     payload,
