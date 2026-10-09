@@ -10,6 +10,7 @@ import {
   composeMissedCallText,
   missedCallSlot,
   missedCallTextDue,
+  clientsWithNumber,
   isClientKind,
   messageSlot,
   socialSlot,
@@ -29,6 +30,7 @@ import { socialWindowEnds } from '../../src/domain/inbox'
 import { isSocialChannel } from '../../src/domain/inboxSchema'
 import { answersSocial, answersTexts, visitSummary } from '../../src/assistant/receptionist'
 import { visitStart } from '../../src/domain/guest'
+import { textsStopped } from '../../src/domain/textStop'
 import type { Context } from '../context'
 import { issueGuestLink } from '../routes/guest'
 import { providerFor } from './providers'
@@ -221,6 +223,9 @@ export function createOutbox(ctx: Context, providers: Providers) {
         }
         if (!answersTexts(org.state))
           return skip('Answering texts was turned off before it went out.')
+        // Stage 1: a client with this number asked for no texts meanwhile.
+        if (clientsWithNumber(org.state, fresh.recipient).some((c) => c.noTextReminders))
+          return skip('Texts were turned off for this number before it went out.')
         return send(fresh, org, fresh.recipient, '', fresh.body, sending)
       }
       if (org && fresh.kind === 'social') {
@@ -343,6 +348,14 @@ export function createOutbox(ctx: Context, providers: Providers) {
     /** V4: the studio's own account a social answer goes from. */
     account?: string,
   ) => {
+    // Stage 1: whatever planned it, nothing is texted to a number that replied STOP and has not
+    // texted START since, client or not (src/domain/textStop.ts).
+    if (fresh.channel === 'sms' && textsStopped(org.state, to)) {
+      finish(fresh, 'skipped', {
+        detail: 'This number replied STOP, so SALEANE does not text it until they text START.',
+      })
+      return null
+    }
     const provider = providerFor(providers, fresh.channel)
     db.run(
       "UPDATE outbox SET status='unknown',provider=?,attempts=attempts+1,detail=?,recipient=?,subject=?,body=?,updated_at=? WHERE id=?",

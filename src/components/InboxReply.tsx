@@ -19,6 +19,7 @@ export type ReplyDraft = { channel: Channel; subject: string; body: string }
 export function InboxReply({
   client,
   answering,
+  textsOff = false,
   lastChannel,
   saved,
   studio,
@@ -32,6 +33,8 @@ export function InboxReply({
   client: Client
   /** The guest wrote last, so this answers them. */
   answering: boolean
+  /** Stage 1: they asked for no texts, or their number replied STOP, so nothing goes by text. */
+  textsOff?: boolean
   /** How the guest last wrote, to answer the same way. */
   lastChannel?: Channel
   saved: SavedReply[]
@@ -47,7 +50,7 @@ export function InboxReply({
   const textId = useId()
   const helpId = useId()
   const box = useRef<HTMLTextAreaElement>(null)
-  const canText = !!textNumber(client.phone)
+  const canText = !!textNumber(client.phone) && !textsOff
   const hasEmail = !!client.email.trim()
   const [channel, setChannel] = useState<Channel>(() =>
     lastChannel === 'sms' && canText
@@ -109,7 +112,7 @@ export function InboxReply({
           >
             <option value="email">Email</option>
             <option value="sms" disabled={!canText}>
-              Text{canText ? '' : ' (no mobile number)'}
+              Text{canText ? '' : textsOff ? ' (texts are off)' : ' (no mobile number)'}
             </option>
           </select>
         </label>

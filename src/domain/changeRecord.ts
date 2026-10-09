@@ -193,6 +193,7 @@ const serverWords: Record<string, Words> = {
   'google.cancel': ['visits', 'Cancelled through Book with Google'],
   'phone.missed-call': ['messages', 'Wrote down a missed call'],
   'inbox.reply': ['messages', 'A message came in'],
+  'inbox.test-text': ['messages', 'Delivered a test text to the studio’s line'],
   'receptionist.message': ['messages', 'Passed on a message from the AI receptionist'],
 }
 

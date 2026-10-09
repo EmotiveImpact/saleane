@@ -21,6 +21,7 @@ import {
   sameGuest,
   returnWeeksFor,
 } from './dueBack'
+import { textsStopped } from './textStop'
 
 /**
  * PILOT-01: appointment confirmations and reminders by email and text.
@@ -286,8 +287,9 @@ export function clientsWithNumber(s: BusinessState, number: string) {
 
 /**
  * Whether a caller the studio missed may get one text now: the studio switched it on and sends
- * texts, nobody has called them back, they rang in the last 15 minutes, and no client with that
- * number asked not to get texts. Checked again just before sending.
+ * texts, nobody has called them back, they rang in the last 15 minutes, no client with that
+ * number asked not to get texts and the number has not replied STOP. Checked again just before
+ * sending.
  */
 export function missedCallTextDue(s: BusinessState, call: MissedCall, nowIso: string) {
   const settings = reminderSettings(s)
@@ -299,7 +301,9 @@ export function missedCallTextDue(s: BusinessState, call: MissedCall, nowIso: st
     !call.calledBackAt &&
     since >= 0 &&
     since < TEXT_BACK_MS &&
-    !clientsWithNumber(s, call.number).some((c) => c.noTextReminders)
+    !clientsWithNumber(s, call.number).some((c) => c.noTextReminders) &&
+    // Stage 1: nor has the number replied STOP, client or not.
+    !textsStopped(s, call.number)
   )
 }
 
@@ -377,7 +381,7 @@ export function channelsFor(s: BusinessState, client: Client): MessageChannel[] 
   const settings = reminderSettings(s)
   const channels: MessageChannel[] = []
   if (settings.email && !client.noEmailReminders) channels.push('email')
-  if (settings.sms && !client.noTextReminders && textNumber(client.phone)) channels.push('sms')
+  if (settings.sms && !textsOff(s, client) && textNumber(client.phone)) channels.push('sms')
   return channels
 }
 
@@ -561,6 +565,7 @@ export function planMessages(
     if (!client || (message.purpose === 'marketing' && !client.marketingConsent)) continue
     const channel = message.channel ?? 'email'
     if (message.purpose === 'appointment' && appointmentMessagesOff(client, channel)) continue
+    if (channel === 'sms' && textsOff(s, client)) continue
     const recipient = channel === 'email' ? client.email.trim() : textNumber(client.phone)
     if (!recipient) continue
     plan.push({
@@ -601,6 +606,13 @@ export const socialSlot = (answerId: string) => `social:${answerId}`
 /** Whether a client asked for no appointment messages on this channel. */
 export const appointmentMessagesOff = (client: Client, channel: MessageChannel) =>
   channel === 'email' ? !!client.noEmailReminders : !!client.noTextReminders
+
+/**
+ * Stage 1: whether nothing may be texted to this client: they asked for no texts, or their number
+ * replied STOP to the studio's line and has not texted START since (textStop.ts).
+ */
+export const textsOff = (s: BusinessState, client: Client) =>
+  !!client.noTextReminders || textsStopped(s, client.phone)
 
 /** The outbox slot of a message written in the inbox, which names the message. */
 export const messageSlot = (messageId: string) => `message:${messageId}`
