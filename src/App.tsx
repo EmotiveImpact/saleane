@@ -35,6 +35,7 @@ import { Accounts } from './pages/Accounts'
 import { BranchVisits } from './pages/BranchVisits'
 import { Requests } from './pages/Requests'
 import { ClientAreas } from './pages/ClientAreas'
+import { Compare } from './pages/Compare'
 import { BrandedBooking } from './pages/BrandedBooking'
 const Account = lazy(() =>
   import('./pages/Account').then((module) => ({ default: module.Account })),
@@ -329,6 +330,7 @@ function WorkspaceApp() {
                 <>
                   <NavLink to="/business/pay">Pay</NavLink>
                   <NavLink to="/business/accounts">Accounts</NavLink>
+                  <NavLink to="/business/compare">How you compare</NavLink>
                 </>
               )}
               {leads(role) && (
@@ -354,6 +356,16 @@ function WorkspaceApp() {
               element={role === 'reception' ? <Navigate to="/settings" replace /> : <Business />}
             />
             <Route path="/business/money" element={<Money />} />
+            <Route
+              path="/business/compare"
+              element={
+                role === 'owner' || role === 'manager' ? (
+                  <Compare />
+                ) : (
+                  <Navigate to="/business" replace />
+                )
+              }
+            />
             <Route path="/business/feedback" element={<Feedback />} />
             <Route path="/business/stock" element={<Stock />} />
             <Route
