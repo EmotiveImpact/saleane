@@ -260,6 +260,59 @@ describe('general manager access (V5)', () => {
     expect(elsewhere.statusCode).toBe(403)
   })
 
+  it('sells gift cards and packages at their own location', async () => {
+    const { owner, islington, main } = await twoSites()
+    const gia = await general(owner, 'gia@example.invalid', islington)
+    let state = await studio(owner)
+    const offer = await ok(owner, state.revision, {
+      type: 'offer',
+      input: {
+        kind: 'package',
+        name: 'Five facials',
+        serviceIds: ['service-facial'],
+        visits: 5,
+        priceMinor: 40000,
+        discountPercent: 0,
+        validMonths: 6,
+        archived: false,
+      },
+    } as Command)
+    const offerId = offer.json<{ recordId: string }>().recordId
+    const card = (locationId?: string) =>
+      ({
+        type: 'gift-card-sell',
+        input: {
+          kind: 'money',
+          valueMinor: 5000,
+          purchaserName: 'Ada Lovelace',
+          recipientName: 'Grace',
+          message: '',
+        },
+        method: 'demo_cash',
+        ...(locationId ? { locationId } : {}),
+      }) as Command
+    state = await studio(gia)
+    const sold = await run(gia, state.revision, card())
+    expect(sold.statusCode, sold.body).toBe(200)
+    const plan = await run(gia, sold.json<{ state: BusinessState }>().state.revision, {
+      type: 'plan-sell',
+      offerId,
+      clientId: 'client-1',
+      method: 'demo_cash',
+    } as Command)
+    expect(plan.statusCode, plan.body).toBe(200)
+    state = await studio(owner)
+    expect(state.giftCards!.at(-1)!.locationId).toBe(islington)
+    expect(state.holdings!.at(-1)!.locationId).toBe(islington)
+    // Not at the main location.
+    const elsewhere = await run(gia, state.revision, card(main))
+    expect(elsewhere.statusCode).toBe(403)
+    // The owner's sale without a location counts at the main location.
+    const own = await run(owner, state.revision, card())
+    expect(own.statusCode, own.body).toBe(200)
+    expect((await studio(owner)).giftCards!.at(-1)!.locationId).toBeUndefined()
+  })
+
   it('is shut out when their location closes, and follows a change of location', async () => {
     const { owner, islington, main } = await twoSites()
     const gia = await general(owner, 'gia@example.invalid', islington)

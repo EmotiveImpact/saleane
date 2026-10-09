@@ -213,6 +213,10 @@ export function Business() {
           <small>
             Before tax, separate from service revenue. <Link to="/business/stock">See stock</Link>
           </small>
+          <div className="insight-rule" />
+          <span>Gift cards, packages and memberships sold</span>
+          <strong>{money(data.giftCardsSold + data.plansSold, state.organisation)}</strong>
+          <small>Money taken where they were sold, separate from service revenue.</small>
         </section>
       </div>
       <div className="business-tables">

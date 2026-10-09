@@ -138,6 +138,14 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
             command = { ...command, input: { ...command.input, locationId: org.locationId! } }
           const allocation = chooseStaff(withHolds(org), command.input, command.input.resourceId)
           command = { ...command, input: { ...command.input, ...allocation } }
+        } else if (
+          (command.type === 'gift-card-sell' || command.type === 'plan-sell') &&
+          org.role === 'general'
+        ) {
+          // A general manager sells at their own location, so it counts in its takings.
+          if (command.locationId && command.locationId !== org.locationId)
+            fail(403, 'That is at another location.')
+          command = { ...command, locationId: org.locationId! }
         } else if (command.type === 'reschedule') {
           const resourceId = rescheduleResource(
             withHolds(org),

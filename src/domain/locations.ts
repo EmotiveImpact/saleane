@@ -76,6 +76,16 @@ export function placeField(s: BusinessState, locationId: string | undefined) {
   return locationId && locationId !== s.organisation.locationId ? { locationId } : {}
 }
 
+/**
+ * Where a sale without a visit was made, such as a gift card or a package: an open location,
+ * named on the record only when it is not the main one (V2).
+ */
+export function salePlace(s: BusinessState, locationId: string | undefined) {
+  const site = placeOf(s, locationId)
+  if (!site || site.archived) throw new Error('Choose an open location.')
+  return placeField(s, site.id)
+}
+
 /** A treatment as offered at one location, with its price there (V2). */
 export function serviceAt<T extends Pick<Service, 'priceMinor' | 'locationPrices'>>(
   service: T,
@@ -104,19 +114,21 @@ export function listPrice(
 
 /**
  * The studio as seen from one location, for figures: its visits and their receipts, and walk-in
- * sales made there. Everything else is unchanged.
+ * sales, gift cards, packages and memberships sold there (anything sold before locations were
+ * recorded counts at the main one). Everything else is unchanged.
  */
 export function atPlace(s: BusinessState, locationId: string): BusinessState {
   const main = s.organisation.locationId
+  const here = (row: { locationId?: string }) => (row.locationId ?? main) === locationId
   const appointments = s.appointments.filter((a) => a.locationId === locationId)
   const visits = new Set(appointments.map((a) => a.id))
   return {
     ...s,
     appointments,
     sales: s.sales.filter((sale) => visits.has(sale.appointmentId)),
-    ...(s.counterSales
-      ? { counterSales: s.counterSales.filter((c) => (c.locationId ?? main) === locationId) }
-      : {}),
+    ...(s.counterSales ? { counterSales: s.counterSales.filter(here) } : {}),
+    ...(s.giftCards ? { giftCards: s.giftCards.filter(here) } : {}),
+    ...(s.holdings ? { holdings: s.holdings.filter(here) } : {}),
   }
 }
 
@@ -145,6 +157,8 @@ export function locationsProblem(s: BusinessState) {
   if (
     o.movements.some((m) => m.locationId && !known.has(m.locationId)) ||
     (s.counterSales ?? []).some((c) => c.locationId && !known.has(c.locationId)) ||
+    (s.giftCards ?? []).some((c) => c.locationId && !known.has(c.locationId)) ||
+    (s.holdings ?? []).some((h) => h.locationId && !known.has(h.locationId)) ||
     (o.purchaseOrders ?? []).some((order) => order.locationId && !known.has(order.locationId)) ||
     (s.waitlist ?? []).some((entry) => entry.locationId && !known.has(entry.locationId))
   )

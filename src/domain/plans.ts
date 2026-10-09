@@ -5,6 +5,7 @@ import { assertMethod } from './operatingCommands'
 import { businessDate, operations } from './operations'
 import { dateLabel, money } from './format'
 import { referenceTaken, refundReferenceTaken } from './references'
+import { salePlace } from './locations'
 
 /**
  * V1.5: packages and memberships. A package is a number of visits bought at one price and used
@@ -206,6 +207,7 @@ export function runPlanCommand(
     if (!client) throw new Error('Client does not belong to this workspace.')
     assertMethod(next, command.method, command.reference)
     assertReferenceFree(next, command.reference)
+    const place = salePlace(next, command.locationId)
     next.holdings ??= []
     if (
       offer.kind === 'membership' &&
@@ -232,6 +234,7 @@ export function runPlanCommand(
       status: 'active',
       soldAt: now,
       actor: '',
+      ...place,
       payments: [
         {
           id: makeId(),

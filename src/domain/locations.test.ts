@@ -15,7 +15,7 @@ import {
   staffLocationOn,
 } from './locations'
 import { heldVisit, placeImportedVisit } from './switching'
-import { availableMinutes } from './selectors'
+import { availableMinutes, report } from './selectors'
 import { openings } from './waitlist'
 import { composeMessage } from './reminders'
 import { scheduleImpact } from './schedule'
@@ -366,6 +366,69 @@ describe('finishing several locations', () => {
     )
     expect(atPlace(s, islington).appointments.every((a) => a.locationId === islington)).toBe(true)
     expect(atPlace(s, main).appointments.some((a) => a.locationId === islington)).toBe(false)
+  })
+
+  it('counts gift cards, packages and memberships at the location that sold them', () => {
+    const { s: start, islington } = twoSites()
+    const main = start.organisation.locationId
+    const card = (valueMinor: number, locationId?: string) =>
+      ({
+        type: 'gift-card-sell',
+        input: {
+          kind: 'money',
+          valueMinor,
+          purchaserName: 'Ada Lovelace',
+          recipientName: 'Grace',
+          message: '',
+        },
+        method: 'cash',
+        ...(locationId ? { locationId } : {}),
+      }) as Command
+    let s = apply(start, card(5000, islington))
+    s = apply(s, card(3000))
+    s = apply(s, card(2000, main))
+    s = apply(s, {
+      type: 'offer',
+      input: {
+        kind: 'package',
+        name: 'Five facials',
+        serviceIds: ['service-facial'],
+        visits: 5,
+        priceMinor: 40000,
+        discountPercent: 0,
+        validMonths: 6,
+        archived: false,
+      },
+    })
+    const offerId = s.offers![0].id
+    const sell = (clientId: string, locationId?: string) =>
+      ({
+        type: 'plan-sell',
+        offerId,
+        clientId,
+        method: 'cash',
+        ...(locationId ? { locationId } : {}),
+      }) as Command
+    s = apply(s, sell('client-1', islington))
+    s = apply(s, sell('client-2'))
+    // Islington is named on its own sales; the main location stays unnamed, as before.
+    expect(s.giftCards!.map((c) => c.locationId)).toEqual([islington, undefined, undefined])
+    expect(s.holdings!.map((h) => h.locationId)).toEqual([islington, undefined])
+    // An old sale without a location counts at the main location.
+    const figures = (where?: string) => {
+      const data = report(s, 7, where)
+      return [data.giftCardsSold, data.plansSold]
+    }
+    expect(figures(islington)).toEqual([5000, 40000])
+    expect(figures(main)).toEqual([5000, 40000])
+    expect(figures()).toEqual([10000, 80000])
+    expect(atPlace(s, islington).giftCards!.map((c) => c.valueMinor)).toEqual([5000])
+    // A closed or unknown location is refused.
+    expect(run(s, card(1000, 'nowhere')).ok).toBe(false)
+    expect(run(s, sell('client-3', 'nowhere')).ok).toBe(false)
+    s = apply(s, branch({ archived: true }, islington))
+    expect(run(s, card(1000, islington)).ok).toBe(false)
+    expect(run(s, sell('client-3', islington)).ok).toBe(false)
   })
 
   it('records location changes in the schedule history', () => {

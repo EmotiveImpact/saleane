@@ -528,6 +528,8 @@ export const commandSchema = z.discriminatedUnion('type', [
     clientId: id,
     method,
     reference: z.string().trim().max(150).optional(),
+    /** V2: the location that sold it. Absent means the main location. */
+    locationId: id.optional(),
   }),
   z.object({
     type: z.literal('plan-renew'),
@@ -563,6 +565,8 @@ export const commandSchema = z.discriminatedUnion('type', [
     input: giftCardInputSchema,
     method,
     reference: z.string().trim().max(150).optional(),
+    /** V2: the location that sold it. Absent means the main location. */
+    locationId: id.optional(),
   }),
   z.object({ type: z.literal('gift-card-extend'), giftCardId: id, expiresOn: z.iso.date() }),
   z.object({
