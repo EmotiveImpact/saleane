@@ -8,7 +8,8 @@ import type { ReceptionEffect, ReceptionTurn } from '../../src/assistant/recepti
 import { BOOKING_LINK, MANAGE_LINK_SPOT } from '../../src/assistant/receptionistBrain'
 import { businessDate, operations } from '../../src/domain/operations'
 import { repliesList, senderClient } from '../../src/domain/inbox'
-import { MANAGE_LINK, textNumber } from '../../src/domain/reminders'
+import { MANAGE_LINK, clientsWithNumber, textNumber } from '../../src/domain/reminders'
+import { textsStopped } from '../../src/domain/textStop'
 import type { SocialChannel } from '../../src/domain/inboxSchema'
 import type { SocialMessage } from './meta'
 import type { BusinessState } from '../../src/domain/model'
@@ -97,6 +98,16 @@ async function answer(
     (r) => r.channel === channel && r.providerRef === reply.providerRef.slice(0, 200),
   )
   if (!kept) return false
+  // Stage 1: a text that was only STOP, START or HELP is for the phone network, never answered.
+  // Nor is a number that replied STOP, or one whose client asked for no texts: the guest's
+  // message waits in the inbox for the team.
+  if (
+    channel === 'sms' &&
+    (kept.keyword ||
+      textsStopped(org.state, number) ||
+      clientsWithNumber(org.state, number).some((c) => c.noTextReminders))
+  )
+    return false
   // On the social apps, a team member's answer is the 'social' kind rather than a message.
   const person = channel === 'sms' ? 'message' : 'social'
   const time = now()
@@ -154,6 +165,8 @@ async function answer(
         r.from === number &&
         r.account === kept.account &&
         r.providerRef !== reply.providerRef &&
+        // Stage 1: STOP, START and HELP were for the phone network, not part of the chat.
+        !r.keyword &&
         Date.parse(r.receivedAt) > since,
     )
     .map((r) => ({ from: 'guest' as const, text: r.body, at: Date.parse(r.receivedAt) }))

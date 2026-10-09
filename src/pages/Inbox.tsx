@@ -14,7 +14,9 @@ import type { Conversation, Delivery, ThreadItem } from '../domain/inbox'
 import { SOCIAL_ANSWER_LIMIT, isSocialChannel, noteWays, socialLabel } from '../domain/inboxSchema'
 import type { Reply, SocialChannel } from '../domain/inboxSchema'
 import { numberLabel } from '../domain/missedCalls'
-import { outboxStatusLabel, textNumber } from '../domain/reminders'
+import { outboxStatusLabel, textNumber, textsOff } from '../domain/reminders'
+import { dayMonth, keywordLabel, keywordNote, numberStop, settledKeyword } from '../domain/textStop'
+import { TestText } from '../components/TestText'
 import { SentMessages } from '../components/AppointmentMessages'
 import { kindLabel, useSentMessages } from '../components/sentMessages'
 import { useClock } from '../state/clock'
@@ -53,7 +55,10 @@ function who(state: BusinessState, c: Conversation) {
 }
 
 function itemText(item: ThreadItem) {
-  if (item.kind === 'reply') return item.reply.body
+  if (item.kind === 'reply')
+    return item.reply.keyword
+      ? `${keywordLabel[item.reply.keyword]}: ${item.reply.body}`
+      : item.reply.body
   if (item.kind === 'message') return item.message.body
   if (item.kind === 'answer') return item.answer.body
   return `${kindLabel[item.sent.kind as keyof typeof kindLabel] ?? 'Message'}: ${item.sent.body}`
@@ -82,7 +87,9 @@ export function Inbox() {
   const [clientId, setClientId] = useState(writeTo?.id ?? state.clients[0]?.id ?? '')
   const [purpose, setPurpose] = useState<'appointment' | 'marketing'>('appointment')
   const [channel, setChannel] = useState<'email' | 'sms'>(() =>
-    !writeTo || writeTo.email.trim() || !textNumber(writeTo.phone) ? 'email' : 'sms',
+    !writeTo || writeTo.email.trim() || !textNumber(writeTo.phone) || textsOff(state, writeTo)
+      ? 'email'
+      : 'sms',
   )
   const [appointmentId, setAppointmentId] = useState(
     () =>
@@ -108,6 +115,13 @@ export function Inbox() {
   const [panelOpen, setPanelOpen] = useState(false)
   const [noting, setNoting] = useState(false)
   const [linkTo, setLinkTo] = useState('')
+  // Stage 1: while texts are in test mode, the owner or a manager can deliver a test text.
+  const [testing, setTesting] = useState(false)
+  const testTexts =
+    mode === 'server' &&
+    (role === 'owner' || role === 'manager') &&
+    !!sent.reply &&
+    (!sent.reply.providers.sms.live || operations(state).mode !== 'local')
   const all = conversations(state, sent.reply?.messages ?? [])
   const shown = all
     .filter((c) => filter === 'all' || (filter === 'unread' ? c.unread > 0 : c.drafts > 0))
@@ -131,7 +145,7 @@ export function Inbox() {
   const allowedDraft = can(role, 'message') && !blocked
   const allowedQueue = can(role, 'message.queue') && !blocked
   const client = state.clients.find((item) => item.id === clientId)
-  const canText = !!client && !!textNumber(client.phone)
+  const canText = !!client && !!textNumber(client.phone) && !textsOff(state, client)
   const saved = savedReplies(state)
   // Sample studios never send; a studio of its own on the server sends what is approved.
   const sends = mode === 'server' && operations(state).mode === 'local'
@@ -169,7 +183,9 @@ export function Inbox() {
     setPurpose('appointment')
     if (forClient) setClientId(forClient)
     const c = state.clients.find((x) => x.id === (forClient ?? clientId))
-    setChannel(c?.email.trim() || !c || !textNumber(c.phone) ? 'email' : 'sms')
+    setChannel(
+      c?.email.trim() || !c || !textNumber(c.phone) || textsOff(state, c) ? 'email' : 'sms',
+    )
     setComposing(true)
   }
   function close() {
@@ -311,6 +327,9 @@ export function Inbox() {
     if (reply.channel === 'chat') return `Left with the AI receptionist · answer on ${from}`
     if (isSocialChannel(reply.channel))
       return `${socialLabel[reply.channel]} message${reply.channel === 'whatsapp' ? ` from ${from}` : ''}`
+    // Stage 1: a text the team delivered in test mode says so.
+    if (reply.channel === 'sms' && reply.providerRef?.startsWith('test-'))
+      return `Test text from ${from} (test mode)`
     return `${reply.channel === 'sms' ? 'Text' : 'Email'} from ${from}`
   }
 
@@ -322,6 +341,11 @@ export function Inbox() {
     const lastWritten = [...c.items]
       .reverse()
       .find((i) => i.kind === 'reply' && (i.reply.channel === 'email' || i.reply.channel === 'sms'))
+    // Stage 1: STOP and START need no answer, so they never make the guest look unanswered.
+    const lastAsking = [...c.items]
+      .reverse()
+      .find((i) => i.kind !== 'reply' || !settledKeyword(i.reply))
+    const stoppedNumber = !recipient && c.from ? numberStop(state, c.from) : undefined
     return (
       <>
         <header className="inbox-pane-header">
@@ -332,6 +356,8 @@ export function Inbox() {
               {recipient
                 ? [recipient.email, recipient.phone].filter(Boolean).join(' · ')
                 : 'Not matched to a client yet.'}
+              {stoppedNumber &&
+                ` This number replied STOP on ${dayMonth(state, stoppedNumber.stoppedAt)}, so SALEANE will not text it until they text START.`}
             </p>
           </div>
           {recipient && (
@@ -353,6 +379,12 @@ export function Inbox() {
                     {!item.reply.readAt && ' · new'}
                   </small>
                   <p>{item.reply.body}</p>
+                  {item.reply.keyword && (
+                    <div className="inbox-keyword">
+                      <span className="ops-tag">{keywordLabel[item.reply.keyword]}</span>
+                      <small>{keywordNote[item.reply.keyword]}</small>
+                    </div>
+                  )}
                 </li>
               )
             if (item.kind === 'answer')
@@ -472,7 +504,8 @@ export function Inbox() {
           <InboxReply
             key={c.key}
             client={recipient}
-            answering={c.items.at(-1)?.kind === 'reply'}
+            answering={lastAsking?.kind === 'reply'}
+            textsOff={textsOff(state, recipient)}
             lastChannel={
               lastWritten?.kind === 'reply'
                 ? (lastWritten.reply.channel as 'email' | 'sms')
@@ -597,8 +630,17 @@ export function Inbox() {
         <div>
           <strong>{banner.title}</strong>
           <p>{banner.text}</p>
+          {testTexts && (
+            <div className="test-text-entry">
+              <p>To see how a guest’s text is handled, including STOP and START, try one here.</p>
+              <Button variant="secondary" disabled={blocked} onClick={() => setTesting(true)}>
+                Deliver a test text
+              </Button>
+            </div>
+          )}
         </div>
       </div>
+      {testing && <TestText onClose={() => setTesting(false)} />}
       <section className={`surface inbox-card inbox-${view} ${opened ? 'is-open' : ''}`}>
         <div className="inbox-list">
           <div className="inbox-toolbar">
@@ -803,7 +845,12 @@ export function Inbox() {
                 >
                   <option value="email">Email</option>
                   <option value="sms" disabled={purpose === 'marketing' || !canText}>
-                    Text{!canText ? ' (no mobile number)' : ''}
+                    Text
+                    {canText
+                      ? ''
+                      : client && textNumber(client.phone)
+                        ? ' (texts are off)'
+                        : ' (no mobile number)'}
                   </option>
                 </select>
               </label>

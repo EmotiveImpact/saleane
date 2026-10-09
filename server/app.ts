@@ -14,6 +14,7 @@ import { daySheetRoutes } from './routes/daysheet'
 import { changeRoutes } from './routes/changes'
 import { privacyRoutes } from './routes/privacy'
 import { messagingRoutes } from './routes/messaging'
+import { testTextRoutes } from './routes/testText'
 import { createOutbox } from './messaging/outbox'
 import { recordPhoneCall, recordReply, recordSocialMessage } from './messaging/calls'
 import { metaChallenge, metaGenuine, metaMessages, socialFromEnv } from './messaging/meta'
@@ -76,6 +77,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     socialRoutes(social),
     connections.routes,
     messagingRoutes(outbox),
+    testTextRoutes(outbox),
     paymentRoutes(payments),
     assistantRoutes(),
     receptionistRoutes(),

@@ -25,6 +25,7 @@ import { restockReturn } from './retail'
 import { assertSchedulePreserved, scheduleChanges, scheduleSnapshot } from './schedule'
 import { isWaitlistOffer, staleOffer } from './waitlist'
 import { otherLedgerRefund, otherLedgerReference, referenceTaken } from './references'
+import { dayMonth, needsAskedAfterStop, numberStop, textStopState } from './textStop'
 
 export function assertMethod(
   s: BusinessState,
@@ -337,16 +338,34 @@ export function runOperatingCommand(
     const client = next.clients.find((c) => c.id === command.clientId)
     if (!client) throw new Error('Client does not belong to this studio.')
     const was = { email: !client.noEmailReminders, sms: !client.noTextReminders }
+    // Stage 1: a client who replied STOP gets texts again from the desk only when they asked, and
+    // the team says so; their phone network still blocks texts until they text START.
+    const stopped = !was.sms && command.sms ? textStopState(next, client) : null
+    if (stopped?.kind === 'stopped' && !command.askedAfterStop)
+      throw new Error(
+        `${client.name.split(' ')[0]} replied STOP by text. Turn texts back on only if they asked you to, and confirm that they did.`,
+      )
     if (command.email) delete client.noEmailReminders
     else client.noEmailReminders = true
-    if (command.sms) delete client.noTextReminders
-    else client.noTextReminders = true
+    if (command.sms) {
+      delete client.noTextReminders
+      // The team decided: nothing waits on a STOP or START reply now.
+      delete client.textsStoppedAt
+      delete client.textsAskedAt
+    } else client.noTextReminders = true
+    const still = command.sms && numberStop(next, client.phone)
     if (was.email !== command.email || was.sms !== command.sms)
       addEvent({
         clientId: client.id,
         type: 'consent',
         title: 'Visit messages updated',
-        detail: `Visit emails ${command.email ? 'on' : 'off'}, texts ${command.sms ? 'on' : 'off'}. Marketing preference unchanged.`,
+        detail: `Visit emails ${command.email ? 'on' : 'off'}, texts ${command.sms ? 'on' : 'off'}.${
+          stopped?.kind === 'stopped'
+            ? ` They replied STOP by text on ${dayMonth(next, stopped.at)}; the team confirmed they asked for texts again.`
+            : stopped?.kind === 'asked'
+              ? ` They had texted START on ${dayMonth(next, stopped.at)} to ask for texts again.`
+              : ''
+        }${still ? ' Their number stays blocked for texts until they text START.' : ''} Marketing preference unchanged.`,
       })
     recordId = client.id
   } else if (command.type === 'message') {
@@ -942,8 +961,15 @@ function approveMessage(next: BusinessState, message: DraftMessage, now: string)
   )
     throw new Error(
       message.channel === 'sms'
-        ? 'This client asked for no texts about their visits. Send by email, or change their preferences first.'
+        ? needsAskedAfterStop(next, to)
+          ? 'This client replied STOP by text, so texts to them are off. Send by email.'
+          : 'This client asked for no texts about their visits. Send by email, or change their preferences first.'
         : 'This client asked for no emails about their visits. Send by text, or change their preferences first.',
+    )
+  // Stage 1: nothing is texted to a number that replied STOP until it texts START.
+  if (message.channel === 'sms' && numberStop(next, to.phone))
+    throw new Error(
+      'This client’s number replied STOP by text, so nothing can be texted to it until they text START. Send by email.',
     )
   message.status = 'queued'
   message.approvedAt = now

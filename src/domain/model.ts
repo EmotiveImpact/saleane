@@ -14,7 +14,7 @@ import { consentRecordSchema, consentWordingSchema } from './consentSchema'
 import { consentProblem } from './consent'
 import { consultationSchema, visitConsultationSchema } from './consultationsSchema'
 import { consultationsProblem } from './consultations'
-import { replySchema, savedReplySchema, socialAnswerSchema } from './inboxSchema'
+import { replySchema, savedReplySchema, socialAnswerSchema, textStopSchema } from './inboxSchema'
 import { inboxProblem } from './inbox'
 import { feedbackProblem, feedbackSchema } from './feedback'
 import { specialSchema, specialsProblem } from './specialsSchema'
@@ -89,6 +89,14 @@ export const clientSchema = z.object({
   /** The client asked not to receive appointment emails or texts (PILOT-01). Absent means allowed. */
   noEmailReminders: z.boolean().optional(),
   noTextReminders: z.boolean().optional(),
+  /**
+   * Stage 1: when their own STOP reply to the studio's text line turned texts off. Present only
+   * while texts are off because of it, so a START reply turns them back on; absent when the desk
+   * turned texts off (see textStop.ts).
+   */
+  textsStoppedAt: z.iso.datetime().optional(),
+  /** Stage 1: when they texted START while the desk keeps texts off, for the team to decide. */
+  textsAskedAt: z.iso.datetime().optional(),
   /** V1.5: month and day only ("03-14"), never the year, for a birthday email. */
   birthday: z
     .string()
@@ -326,6 +334,8 @@ export const stateSchema = z.object({
   /** V1.5: what guests wrote back, and the studio's saved replies to start a message from. */
   replies: z.array(replySchema).optional(),
   savedReplies: z.array(savedReplySchema).optional(),
+  /** Stage 1: numbers that texted STOP to the studio's line, and when they texted START again. */
+  textStops: z.array(textStopSchema).optional(),
   /** V4: the team's answers on Instagram, Facebook and WhatsApp. */
   socialAnswers: z.array(socialAnswerSchema).optional(),
 })

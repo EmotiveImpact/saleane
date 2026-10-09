@@ -171,6 +171,8 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     clientId: id,
     email: z.boolean(),
     sms: z.boolean(),
+    /** Stage 1: the team confirms a client who replied STOP asked for texts again. */
+    askedAfterStop: z.literal(true).optional(),
   }),
   z.object({
     type: z.literal('refund'),

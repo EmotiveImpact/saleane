@@ -13,6 +13,7 @@ import {
 import type { Reply, SavedReply, SocialAnswer, SocialChannel, noteWays } from './inboxSchema'
 import { healthWordIn } from './forms'
 import { operations } from './operations'
+import { applyTextKeyword, settledKeyword, textStopProblem } from './textStop'
 
 /**
  * V1.5: the inbox. Each guest's messages read as one conversation: what the studio wrote, what
@@ -299,7 +300,15 @@ export function runInboxCommand(
     actor: '',
   }
   list.push(reply)
-  if (client)
+  // Stage 1: a text that is only STOP, START or HELP is an instruction to the phone network, and
+  // SALEANE follows it here, as the reply is kept (textStop.ts). One that needs no answer is
+  // kept as read, so it never waits for one.
+  const keyword = command.channel === 'sms' ? applyTextKeyword(next, reply, now, addEvent) : null
+  if (keyword) {
+    reply.keyword = keyword.keyword
+    if (settledKeyword(reply)) Object.assign(reply, { readAt: now, readBy: '' })
+  }
+  if (client && !keyword?.told.has(client.id))
     addEvent({
       clientId: client.id,
       type: 'message',
@@ -348,7 +357,8 @@ export function inboxProblem(s: BusinessState) {
   const saved = savedReplies(s)
   if (saved.length > SAVED_REPLY_LIMIT) return 'Too many saved replies.'
   if (new Set(saved.map((r) => r.id)).size !== saved.length) return 'Duplicate saved reply IDs.'
-  return null
+  for (const r of list) if (r.keyword && r.channel !== 'sms') return 'Only a text is a keyword.'
+  return textStopProblem(s)
 }
 
 /** What happened to an approved message once the outbox took it, when the server says. */
