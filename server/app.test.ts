@@ -806,6 +806,19 @@ describe('public booking privacy and reservation races', () => {
   it('records local public booking without invented deposits or settlement and keeps live services unconfigured', async () => {
     const owner = await register('local@example.invalid', false)
     let revision = 0
+    // A new studio takes online bookings only once the owner switches them on.
+    const fresh = await workspace(owner)
+    expect((await api.inject({ url: `/api/public/${fresh.slug}` })).statusCode).toBe(404)
+    const { name, locationName, address, timeZone } = fresh.state.organisation
+    const online = await command(owner, revision++, {
+      type: 'organisation',
+      name,
+      locationName,
+      address,
+      timeZone,
+      bookingEnabled: true,
+    })
+    expect(online.statusCode, online.body).toBe(200)
     const resource = await command(owner, revision++, {
       type: 'resource',
       input: { name: 'Room One', type: 'treatment' },

@@ -23,6 +23,8 @@ function refusal(s: BusinessState, command: Command, clock = now) {
 }
 function local(region: Region = 'UK') {
   const s = createWorkspace({ name: 'Schedule test studio', region })
+  // Open every day, as the clock changes fall on Sundays (a new studio starts closed on Sunday).
+  s.operations = { ...operations(s), hours: defaultOperations().hours }
   const sample = seed(region)
   for (const key of ['clients', 'services', 'staff', 'resources'] as const)
     Object.assign(s, {

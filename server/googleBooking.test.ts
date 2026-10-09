@@ -93,6 +93,16 @@ async function studio(offered = true) {
     type: 'staff',
     input: { name: 'Maya Lind', role: 'Facialist', serviceIds: [serviceId], tone: 'sage' },
   })
+  // A new studio takes online bookings once the owner switches them on.
+  const { name, locationName, address, timeZone } = (await workspace(login)).state.organisation
+  await ok(login, {
+    type: 'organisation',
+    name,
+    locationName,
+    address,
+    timeZone,
+    bookingEnabled: true,
+  })
   if (offered) await ok(login, { type: 'google-booking', settings: { enabled: true } })
   return login
 }

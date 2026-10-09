@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { hasLocations, placeOf, staffLocationOn } from '../domain/locations'
 import { Link } from 'react-router-dom'
-import { ArrowRight, ArrowUpRight, Plus, Printer } from 'lucide-react'
+import { ArrowUpRight, Plus, Printer } from 'lucide-react'
+import { GetReady } from '../components/GetReady'
 import { useStore } from '../state/context'
 import { useLiveRefresh } from '../state/useLive'
 import { availableMinutes, bookedTimeShare, dayAppointments, dueClients } from '../domain/selectors'
@@ -111,18 +112,7 @@ export function Today() {
         />
         <Metric label="Ready to return" value={due.length} detail="Clients with no next visit" />
       </div>
-      {!state.services.length && (
-        <section className="surface setup-prompt">
-          <h2>Let’s make this your studio.</h2>
-          <p>
-            Add your services, professionals and spaces, then set opening hours. Your first
-            appointment brings the day to life.
-          </p>
-          <Link className="button button-primary" to="/settings">
-            Set up your studio <ArrowRight size={16} />
-          </Link>
-        </section>
-      )}
+      <GetReady />
       <div className="today-layout">
         <section className="surface schedule-surface">
           <div className="section-heading">

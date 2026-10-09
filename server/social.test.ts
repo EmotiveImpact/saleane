@@ -123,6 +123,16 @@ async function studio() {
       marketingConsent: false,
     },
   })
+  // A new studio takes online bookings once the owner switches them on.
+  const { name, locationName, address, timeZone } = (await workspace(login)).state.organisation
+  await run(login, {
+    type: 'organisation',
+    name,
+    locationName,
+    address,
+    timeZone,
+    bookingEnabled: true,
+  })
   expect((await connect(login, 'instagram', '17841400000000001')).statusCode).toBe(200)
   expect((await connect(login, 'whatsapp', '106540352242922')).statusCode).toBe(200)
   return login
