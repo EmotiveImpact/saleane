@@ -14,7 +14,7 @@ Screenshots: [the form](V5-PARTNERS-form.png), [the list](V5-PARTNERS-keys.png).
 
 ## Automated checks
 
-`server/partnerApi.test.ts` (partner access) covers: a one-location key refused clients or takings, and refused for an unknown location; a one-location key reading only that location's visits while a key for the main location reads its own; the key stopping once its location is closed; an end date in the past or more than a year ahead refused; a key working through the whole of its last day in the studio's time and refused with "end date" after it; takings by day with no client names, the 31-day range limit, and the scope needed. Migration 22 adds `location_id` and `ends_on` to `api_keys`; existing keys keep working with neither set.
+`server/partnerApi.test.ts` (partner access) covers: a one-location key refused clients or takings, and refused for an unknown location; a one-location key reading only that location's visits while a key for the main location reads its own; each key's menu leaving out treatments not offered at its location and showing that location's price; the key stopping once its location is closed; an end date in the past or on or after the same date next year refused, and the day before allowed; a key working through the whole of its last day in the studio's time and refused with "end date" after it; takings by day with no client names, the 31-day range limit, and the scope needed. Migration 22 adds `location_id` and `ends_on` to `api_keys`; existing keys keep working with neither set.
 
 ## Limits
 

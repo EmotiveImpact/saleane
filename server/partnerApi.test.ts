@@ -234,6 +234,27 @@ describe('partner access', () => {
     const s = await state(login)
     const [main, islington] = [s.organisation.locationId, s.operations!.locations![0].id]
     await book(login)
+    const treatment = {
+      description: 'A fictional service',
+      category: 'Skin' as const,
+      durationMinutes: 45,
+      bufferMinutes: 0,
+      depositMinor: 0,
+      resourceType: 'treatment' as const,
+    }
+    await run(login, {
+      type: 'service',
+      input: { ...treatment, name: 'Brow shape', priceMinor: 3000, notOfferedAt: [islington] },
+    })
+    await run(login, {
+      type: 'service',
+      input: {
+        ...treatment,
+        name: 'Lash lift',
+        priceMinor: 5000,
+        locationPrices: [{ locationId: islington, priceMinor: 5500 }],
+      },
+    })
     // Clients and takings belong to the whole studio, so a one-location key cannot have them.
     for (const scope of ['clients:read', 'takings:read']) {
       const refused = await keys(login, '', {
@@ -272,7 +293,15 @@ describe('partner access', () => {
     expect((await read(there.key, 'studio')).json<{ locationId: string }>().locationId).toBe(
       islington,
     )
-    expect((await read(there.key, 'services')).statusCode).toBe(200)
+    // Each key sees the menu at its own location: what is offered there, at its price there.
+    const menu = async (key: string) =>
+      (await read(key, 'services')).json<{ data: { name: string; priceMinor: number }[] }>().data
+    const islingtonMenu = await menu(there.key)
+    expect(islingtonMenu.map((x) => x.name)).not.toContain('Brow shape')
+    expect(islingtonMenu.find((x) => x.name === 'Lash lift')!.priceMinor).toBe(5500)
+    const mainMenu = await menu(here.key)
+    expect(mainMenu.map((x) => x.name)).toContain('Brow shape')
+    expect(mainMenu.find((x) => x.name === 'Lash lift')!.priceMinor).toBe(5000)
     expect((await read(there.key, 'clients')).statusCode).toBe(403)
     // Closing the location stops its key.
     await run(login, {
@@ -286,10 +315,15 @@ describe('partner access', () => {
 
   it('stops a key after its last day', async () => {
     const login = await owner()
-    for (const endsOn of ['2026-10-05', '2027-10-08']) {
+    // At most one year: the day before the same date next year is the last allowed.
+    for (const endsOn of ['2026-10-05', '2027-10-06']) {
       const refused = await keys(login, '', { name: 'Audit', scopes: ['takings:read'], endsOn })
       expect(refused.statusCode).toBe(422)
     }
+    expect(
+      (await keys(login, '', { name: 'Year', scopes: ['takings:read'], endsOn: '2027-10-05' }))
+        .statusCode,
+    ).toBe(201)
     const made = await keys(login, '', {
       name: 'Audit',
       scopes: ['takings:read'],

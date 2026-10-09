@@ -120,4 +120,4 @@ Visits, clients and treatments take `limit` (1 to 200, default 100) and `offset`
 
 ## Partner keys
 
-A key can be kept to one location, for a partner that works with one branch such as that branch's own till. It reads only that location's visits, plus the treatments and team; clients and takings belong to the whole studio and cannot be given to a one-location key. A key can also stop after a chosen day (up to a year ahead), counted in the studio's own time; it works through the whole of that day. Both are set when the key is made and shown in the list.
+A key can be kept to one location, for a partner that works with one branch such as that branch's own till. It reads only that location's visits, plus the treatments offered there at that location's prices and the team; clients and takings belong to the whole studio and cannot be given to a one-location key. A key can also stop after a chosen day (at most one year: the latest is the day before the same date next year), counted in the studio's own time; it works through the whole of that day. Both are set when the key is made and shown in the list.

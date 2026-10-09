@@ -5,7 +5,7 @@ import { fail, header } from './http'
 import type { Context, Route } from './context'
 import { businessDate, operations } from '../src/domain/operations'
 import { addDays } from '../src/domain/format'
-import { places } from '../src/domain/locations'
+import { offeredAt, places, serviceAt } from '../src/domain/locations'
 import { dailySummary } from '../src/domain/accounts'
 import type { BusinessState } from '../src/domain/model'
 import { API_VERSION } from './connections'
@@ -25,8 +25,17 @@ export const apiScopes = [
 ] as const
 /** What a key for one location may read: its own visits, and the menu and team. */
 const LOCATION_SCOPES: readonly ApiScope[] = ['appointments:read', 'services:read']
-/** The longest a key may run before it stops, when the owner sets an end. */
-const MAX_KEY_DAYS = 366
+/**
+ * The last day a key may run to: the day before the same date next year, so it runs for at most
+ * one year (a key made on 29 February may run to 28 February).
+ */
+function lastEndDay(today: string) {
+  const year = Number(today.slice(0, 4)) + 1
+  const [month, day] = [Number(today.slice(5, 7)), Number(today.slice(8, 10))]
+  // Date.UTC rolls 29 February into 1 March in a year without it.
+  const next = new Date(Date.UTC(year, month - 1, day)).toISOString().slice(0, 10)
+  return addDays(next, -1)
+}
 export type ApiScope = (typeof apiScopes)[number]
 const KEY_LIMIT = 10
 const KEY_PER_MINUTE = 120
@@ -164,7 +173,7 @@ export function partnerApi() {
             'A key for one location can read its visits and the treatments and team only. Clients and takings belong to the whole studio.',
           )
       }
-      if (input.endsOn && (input.endsOn < today || input.endsOn > addDays(today, MAX_KEY_DAYS)))
+      if (input.endsOn && (input.endsOn < today || input.endsOn > lastEndDay(today)))
         fail(422, 'Choose an end date from today to a year ahead.')
       const prefix = randomBytes(4).toString('hex')
       const key = `sal_${prefix}_${randomBytes(24).toString('base64url')}`
@@ -308,7 +317,10 @@ export function partnerApi() {
     if (resource === 'services') {
       need('services:read')
       const { limit: size, offset } = page.parse(query)
-      const active = s.services.filter((x) => !x.archived)
+      // A key for one location sees that location's menu, at its prices.
+      const active = s.services
+        .filter((x) => !x.archived && (!only || offeredAt(x, only)))
+        .map((x) => (only ? serviceAt(x, only) : x))
       reply(200, {
         apiVersion: API_VERSION,
         total: active.length,
