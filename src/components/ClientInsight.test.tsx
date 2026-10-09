@@ -83,9 +83,7 @@ describe('At a glance', () => {
       rebookedFromId: visits.at(-1)!.id,
     })
     show(s, client)
-    expect(
-      within(glance()).getByText('Usually every 4 weeks, on Saturday mornings.'),
-    ).toBeInTheDocument()
+    expect(within(glance()).getByText('Usually comes on Saturday mornings.')).toBeInTheDocument()
     expect(facts()).toEqual([
       'Favourite treatment',
       'Last 12 months',

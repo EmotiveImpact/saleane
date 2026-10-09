@@ -55,13 +55,17 @@ export function whenTheyCome(timing: NonNullable<ClientInsight['timing']>, local
 }
 
 /** One sentence about the client. A new client gets a short welcome and nothing more. */
+/**
+ * One sentence that adds to the client's heading, or none. The heading already says how often they
+ * come ("usually every 4 weeks"), so the sentence names only what it does not: when in the week they
+ * like to come, or that there is no rhythm yet.
+ */
 export function insightSummary(insight: ClientInsight, locale: string) {
   const visits = insight.completedVisits
   if (insight.isNew) return visits ? 'New client. 1 visit so far.' : 'New client. No visits yet.'
   const when = insight.timing ? whenTheyCome(insight.timing, locale) : ''
-  if (insight.usualWeeks)
-    return `Usually every ${insight.usualWeeks} weeks${when ? `, ${when}` : ''}.`
   if (when) return `Usually comes ${when}.`
+  if (insight.usualWeeks) return ''
   return `${count(visits, 'visit')} so far, with no set rhythm yet.`
 }
 

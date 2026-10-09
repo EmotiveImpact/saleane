@@ -1,7 +1,7 @@
 /*
- * "At a glance" on the client page: one sentence, a few calm facts in a grid, and the suggested
- * next step on the studio's soft colour. Facts are separated by a hairline above each one, never
- * by a stripe at the side.
+ * "At a glance" on the client page: at most one sentence, a few calm facts in a grid, and the
+ * suggested next step as the last row. Facts and the step are separated by a hairline above each
+ * one, never by a box inside the panel or a stripe at the side.
  */
 .client-insight {
   margin-bottom: 22px;
@@ -79,10 +79,9 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px 24px;
-  margin-top: 24px;
-  padding: 16px 20px;
-  border-radius: var(--radius-panel);
-  background: var(--brand-soft);
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
 }
 .client-insight-step-copy {
   display: flex;
@@ -122,7 +121,7 @@
   gap: 10px;
   padding: 14px 16px;
   border-radius: var(--radius-inner);
-  background: var(--paper);
+  background: var(--stone);
 }
 .client-insight-draft p {
   font-size: var(--text-small);
@@ -188,8 +187,8 @@
   }
   .client-insight-step {
     grid-template-columns: 1fr;
-    margin-top: 20px;
-    padding: 16px;
+    margin-top: 18px;
+    padding-top: 16px;
   }
   .client-insight-step-action .button {
     width: 100%;

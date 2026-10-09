@@ -1,12 +1,11 @@
 /* Stage 1: a package or membership the guest holds, on their visit page. */
+/* A section of the visit card, set off by a hairline like the details above it, never a box. */
 .guest-plan {
   display: grid;
   gap: var(--space-2);
   margin: 0 0 22px;
-  padding: 18px 20px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-panel);
-  background: var(--paper);
+  padding: 18px 0 0;
+  border-top: 1px solid var(--line);
 }
 .guest-plan h2 {
   display: flex;
@@ -28,23 +27,16 @@
 .guest-plan-name {
   font-weight: var(--weight-strong);
 }
-/* What the plan can mean for this visit, on a soft ground of its own. */
+/* What the plan can mean for this visit: one line led by its icon. */
 .guest-plan-visit {
   display: grid;
   grid-template-columns: 17px minmax(0, 1fr);
   gap: 10px;
   align-items: start;
   margin-top: var(--space-1);
-  padding: 12px 14px;
-  border-radius: var(--radius);
-  background: var(--sage-soft);
+  color: var(--muted);
 }
 .guest-plan-visit svg {
   margin-top: 3px;
   color: var(--brand-ink);
-}
-@media (max-width: 480px) {
-  .guest-plan {
-    padding: 16px;
-  }
 }

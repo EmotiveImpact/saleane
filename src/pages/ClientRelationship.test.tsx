@@ -23,7 +23,8 @@ describe('At a glance on the client page', { timeout: 20000 }, () => {
     const glance = await screen.findByRole('region', { name: 'At a glance' }, { timeout: 8000 })
     const timeline = screen.getByRole('heading', { name: 'The relationship timeline' })
     expect(glance.compareDocumentPosition(timeline) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(within(glance).getByText('Usually every 4 weeks.')).toBeInTheDocument()
+    // The heading already says how often they come, so the section does not repeat it.
+    expect(within(glance).queryByText(/Usually every/)).not.toBeInTheDocument()
 
     const step = within(glance).getByRole('group', { name: 'Invite them back' })
     expect(

@@ -115,6 +115,7 @@ export function ClientInsight({ client }: { client: Client }) {
         if (step.consent && may('message'))
           return drafting ? null : (
             <Button
+              variant="secondary"
               onClick={() => {
                 setError('')
                 setDrafting(true)
@@ -124,14 +125,14 @@ export function ClientInsight({ client }: { client: Client }) {
             </Button>
           )
         return may('book') ? (
-          <Button disabled={busy} onClick={() => book(step.booking)}>
+          <Button variant="secondary" disabled={busy} onClick={() => book(step.booking)}>
             {step.booking.usual ? 'Book their usual' : 'Book their next visit'}
             <ArrowRight size={16} aria-hidden="true" />
           </Button>
         ) : null
       case 'book-usual':
         return may('book') ? (
-          <Button disabled={busy} onClick={() => book(step.booking)}>
+          <Button variant="secondary" disabled={busy} onClick={() => book(step.booking)}>
             {step.booking.usual ? 'Book their usual' : 'Book their next visit'}
             <ArrowRight size={16} aria-hidden="true" />
           </Button>
@@ -160,7 +161,7 @@ export function ClientInsight({ client }: { client: Client }) {
           From their visits and receipts
         </span>
       </div>
-      <p className="client-insight-summary">{summary}</p>
+      {summary && <p className="client-insight-summary">{summary}</p>}
       {lines.length > 0 && (
         <dl className="client-insight-facts" data-count={lines.length}>
           {lines.map((line) => (
