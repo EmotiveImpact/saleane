@@ -14,7 +14,7 @@ import { openingFree, staleOffer } from '../../src/domain/waitlist'
 import { giftCardHoldProblem } from '../payments/service'
 import { workspaceView } from '../projections'
 import type { Reader } from '../projections'
-import { issueGuestLink, revokeGuestLinks } from './guest'
+import { followGuestLinks, issueGuestLink, revokeGuestLinks } from './guest'
 
 /** Signed-in workspace routes: records, commands, team, invitations and audit. Returns false when the request belongs to another module. */
 export async function workspaceRoutes(ctx: Context, route: Route): Promise<boolean> {
@@ -83,7 +83,7 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
           fail(403, 'Your role cannot make this change.')
         if (org.role === 'regional') {
           const refusal = org.areaId
-            ? areaRefusal(org.state, org.areaId, data.command)
+            ? areaRefusal(org.state, org.areaId, data.command, actor.id)
             : 'Your access is not linked to a region.'
           if (refusal) fail(403, refusal)
         }
@@ -114,10 +114,10 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
           return { ok: true, state: org.state, recordId: receipt.record_id, replayed: true }
         }
         if (org.state.revision !== data.revision)
-          fail(409, 'This workspace changed. Reload before saving.')
+          fail(409, 'Someone else saved a change just now. Reload to see it, then try again.')
         let command: Command = data.command
-        // V5: a request goes to its region's manager only when the region has one; the client's
-        // own list is never trusted.
+        // V5: a request goes to its region's manager only when the region has one, and never to
+        // the person who raised it; the client's own list and claims are never trusted.
         const managedRegions = () =>
           db
             .all<{ area_id: string }>(
@@ -126,13 +126,26 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
             )
             .map((row) => row.area_id)
         if (command.type === 'request-raise') {
-          command = { ...command, managedRegions: managedRegions() }
+          command = {
+            ...command,
+            managedRegions: managedRegions(),
+            raisedById: actor.id,
+            raiserRegion: org.role === 'regional' ? (org.areaId ?? undefined) : undefined,
+          }
         } else if (command.type === 'book') {
           // A general manager books at their own location unless they say otherwise.
           if (org.role === 'general' && !command.input.locationId)
             command = { ...command, input: { ...command.input, locationId: org.locationId! } }
           const allocation = chooseStaff(withHolds(org), command.input, command.input.resourceId)
           command = { ...command, input: { ...command.input, ...allocation } }
+        } else if (
+          (command.type === 'gift-card-sell' || command.type === 'plan-sell') &&
+          org.role === 'general'
+        ) {
+          // A general manager sells at their own location, so it counts in its takings.
+          if (command.locationId && command.locationId !== org.locationId)
+            fail(403, 'That is at another location.')
+          command = { ...command, locationId: org.locationId! }
         } else if (command.type === 'reschedule') {
           const resourceId = rescheduleResource(
             withHolds(org),
@@ -142,6 +155,8 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
             command.startMinutes,
             new Date(now()).toISOString(),
             command.resourceId,
+            // A move to another location is checked there, not where the visit is now.
+            command.locationId,
           )
           if (!resourceId) fail(409, 'This time is reserved or unavailable. Choose another time.')
           command = { ...command, resourceId }
@@ -181,6 +196,7 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
                 move.startMinutes,
                 at,
                 move.resourceId,
+                move.locationId,
               )
               if (!resourceId)
                 fail(409, 'A time in this plan is reserved or unavailable. Ask again.')
@@ -198,6 +214,15 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         if (held) fail(409, held)
         if (result.state.revision !== org.state.revision)
           persist(org, result.state, actor.id, command.type, result.recordId)
+        // Open guest links follow a visit the desk moves, as they do when the guest moves it.
+        const moves = command.type === 'batch' ? command.commands : [command]
+        for (const move of moves)
+          if (move.type === 'reschedule')
+            followGuestLinks(
+              ctx,
+              { ...org, state: result.state },
+              (move as Extract<Command, { type: 'reschedule' }>).appointmentId,
+            )
         db.run(
           'INSERT INTO command_receipts(organisation_id,account_id,key,fingerprint,record_id,revision,created_at) VALUES(?,?,?,?,?,?,?)',
           org.id,
@@ -230,7 +255,6 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
           org.id,
           now(),
         ),
-        practitionerAccessEnabled: true,
       })
       return true
     }
@@ -371,10 +395,6 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         ),
       })
       return true
-    }
-    if (path[3] === 'messages' && path[4] === 'send' && method === 'POST') {
-      if (orgFor(orgId, actor).role === 'practitioner') fail(403, 'Your role cannot send messages.')
-      fail(503, 'Message delivery is not configured. Drafts and queues remain local.')
     }
   }
   return false

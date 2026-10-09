@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { ArrowLeft, FilePenLine, MailWarning, MessageSquarePlus, Plus, Search } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useStore } from '../state/context'
 import { operations, can } from '../domain/operations'
 import { dateLabel } from '../domain/format'
@@ -18,6 +18,8 @@ import { outboxStatusLabel, textNumber } from '../domain/reminders'
 import { SentMessages } from '../components/AppointmentMessages'
 import { kindLabel, useSentMessages } from '../components/sentMessages'
 import { useClock } from '../state/clock'
+import { InboxReply } from '../components/InboxReply'
+import type { ReplyDraft } from '../components/InboxReply'
 import '../components/management.css'
 
 type QueuedMessage = ReturnType<typeof operations>['messages'][number]
@@ -72,12 +74,25 @@ export function Inbox() {
   const sent = useSentMessages()
   const live = !!sent.reply && (sent.reply.providers.email.live || sent.reply.providers.sms.live)
   const [filter, setFilter] = useState<Filter>('all')
-  const [composing, setComposing] = useState(false)
+  // "Message" on a visit opens a draft here, with its client and the visit already chosen.
+  const [params, setParams] = useSearchParams()
+  const writeTo = state.clients.find((c) => c.id === params.get('write'))
+  const [composing, setComposing] = useState(() => !!writeTo && can(role, 'message'))
   const [editingId, setEditingId] = useState<string | undefined>()
-  const [clientId, setClientId] = useState(state.clients[0]?.id ?? '')
+  const [clientId, setClientId] = useState(writeTo?.id ?? state.clients[0]?.id ?? '')
   const [purpose, setPurpose] = useState<'appointment' | 'marketing'>('appointment')
-  const [channel, setChannel] = useState<'email' | 'sms'>('email')
-  const [appointmentId, setAppointmentId] = useState('')
+  const [channel, setChannel] = useState<'email' | 'sms'>(() =>
+    !writeTo || writeTo.email.trim() || !textNumber(writeTo.phone) ? 'email' : 'sms',
+  )
+  const [appointmentId, setAppointmentId] = useState(
+    () =>
+      state.appointments.find((a) => a.id === params.get('visit') && a.clientId === writeTo?.id)
+        ?.id ?? '',
+  )
+  useEffect(() => {
+    // The request is used once, so going back or reloading shows the inbox as it was.
+    if (params.has('write') || params.has('visit')) setParams({}, { replace: true })
+  }, [params, setParams])
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [pending, setPending] = useState('')
@@ -85,7 +100,9 @@ export function Inbox() {
   const [notice, setNotice] = useState('')
   const [query, setQuery] = useState('')
   const view = useInboxView(session?.user.id)
-  const [selectedKey, setSelectedKey] = useState<string | undefined>()
+  const [selectedKey, setSelectedKey] = useState<string | undefined>(
+    writeTo ? `client:${writeTo.id}` : undefined,
+  )
   // On a phone the two-column view shows the list first, then one conversation.
   const [opened, setOpened] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
@@ -206,6 +223,24 @@ export function Inbox() {
     event.preventDefault()
     await save(false)
   }
+  /** The reply box under a conversation: always a draft, approved like any other message. */
+  async function reply(forClient: string, draft: ReplyDraft) {
+    if (pending || !allowedDraft) return { ok: false }
+    setPending('reply')
+    setError('')
+    setNotice('')
+    try {
+      const result = await commit({
+        type: 'message',
+        input: { clientId: forClient, purpose: 'appointment', ...draft },
+      })
+      return result.ok ? { ok: true } : { ok: false, error: result.error }
+    } catch {
+      return { ok: false, error: 'That could not be saved. Your writing is still here; try again.' }
+    } finally {
+      setPending('')
+    }
+  }
   const queue = (messageId: string) =>
     act(
       messageId,
@@ -284,6 +319,9 @@ export function Inbox() {
     const name = who(state, c)
     const unreadIds = c.items.filter((i) => i.kind === 'reply' && !i.reply.readAt).length
     const social = latestSocial(c)
+    const lastWritten = [...c.items]
+      .reverse()
+      .find((i) => i.kind === 'reply' && (i.reply.channel === 'email' || i.reply.channel === 'sms'))
     return (
       <>
         <header className="inbox-pane-header">
@@ -430,10 +468,34 @@ export function Inbox() {
             }
           />
         )}
+        {recipient && !social && can(role, 'message') && (
+          <InboxReply
+            key={c.key}
+            client={recipient}
+            answering={c.items.at(-1)?.kind === 'reply'}
+            lastChannel={
+              lastWritten?.kind === 'reply'
+                ? (lastWritten.reply.channel as 'email' | 'sms')
+                : undefined
+            }
+            saved={saved}
+            studio={state.organisation.name}
+            allowed={allowedDraft}
+            pending={!!pending}
+            sends={sends}
+            live={live}
+            canEditSaved={can(role, 'saved-replies')}
+            onSave={(draft) => reply(recipient.id, draft)}
+          />
+        )}
         <footer className="inbox-pane-actions">
           {recipient ? (
             <>
-              <Button disabled={!allowedDraft} onClick={() => startDraft(recipient.id)}>
+              <Button
+                variant="secondary"
+                disabled={!allowedDraft}
+                onClick={() => startDraft(recipient.id)}
+              >
                 <MessageSquarePlus size={16} aria-hidden="true" /> Write to{' '}
                 {recipient.name.split(' ')[0]}
               </Button>
@@ -471,7 +533,7 @@ export function Inbox() {
               }}
             >
               <label>
-                This is
+                Link to a client
                 <select value={linkTo} onChange={(e) => setLinkTo(e.target.value)} required>
                   <option value="">Choose a client</option>
                   {state.clients.map((x) => (
@@ -484,6 +546,7 @@ export function Inbox() {
               <Button type="submit" variant="secondary" disabled={!allowedDraft || !!pending}>
                 Match to this client
               </Button>
+              <small>Replies go to a client, so link this conversation to one first.</small>
             </form>
           )}
           {unreadIds > 0 && (
@@ -728,7 +791,7 @@ export function Inbox() {
                     if (next === 'marketing') setChannel('email')
                   }}
                 >
-                  <option value="appointment">Appointment update</option>
+                  <option value="appointment">Visit update</option>
                   <option value="marketing">Marketing</option>
                 </select>
               </label>
@@ -764,12 +827,12 @@ export function Inbox() {
                 </label>
               )}
               <label className="ops-wide">
-                Related appointment (optional)
+                Related visit (optional)
                 <select
                   value={appointmentId}
                   onChange={(event) => setAppointmentId(event.target.value)}
                 >
-                  <option value="">No linked appointment</option>
+                  <option value="">No linked visit</option>
                   {state.appointments
                     .filter((item) => item.clientId === clientId)
                     .slice()

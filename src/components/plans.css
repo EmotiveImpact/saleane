@@ -29,7 +29,7 @@
 }
 .plans-totals div {
   padding: 16px 18px;
-  background: var(--stone);
+  background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--radius);
 }
@@ -37,11 +37,9 @@
   font-size: var(--text-small);
   color: var(--muted);
 }
+/* The figure shares the headline figure style in design.css. */
 .plans-totals dd {
   margin-top: 6px;
-  font-family: var(--font-editorial);
-  font-size: var(--text-title-m);
-  font-variant-numeric: tabular-nums;
 }
 .checkout-plans {
   display: grid;

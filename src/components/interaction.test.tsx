@@ -1,11 +1,19 @@
-import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { StoreProvider } from '../state/StoreProvider'
 import { App } from '../App'
+import { seed } from '../domain/seed'
+import { withoutFeedback } from '../domain/feedback'
+import { withoutPayRates } from '../domain/pay'
+import { withoutBranchVisits } from '../domain/branchVisits'
+import { withoutRequests } from '../domain/approvals'
+import type { Role } from '../domain/operations'
+import type { BusinessState } from '../domain/model'
+import type { RemoteWorkspace, Session } from '../state/api'
 
-function show(route = '/today') {
+async function show(route = '/today') {
   render(
     <MemoryRouter initialEntries={[route]}>
       <StoreProvider>
@@ -13,6 +21,67 @@ function show(route = '/today') {
       </StoreProvider>
     </MemoryRouter>,
   )
+  // Pages load when they are first opened; wait for this one before looking at it.
+  await waitFor(() =>
+    expect(document.querySelector('.route-loading, .candidate-loading')).toBeNull(),
+  )
+}
+
+/**
+ * Opens the app signed in to the sample studio with the given role. The answers mirror the server:
+ * the front desk reads the studio record without guests' feedback, pay rates, branch visits or
+ * requests (server/projections.ts).
+ */
+async function signedIn(role: Role, route: string, studio?: (state: BusinessState) => void) {
+  const sample = seed('UK')
+  studio?.(sample)
+  const state =
+    role === 'reception'
+      ? withoutRequests(withoutBranchVisits(withoutPayRates(withoutFeedback(sample))))
+      : sample
+  const workspace: RemoteWorkspace = {
+    id: state.organisation.id,
+    slug: 'sample-studio',
+    view: 'studio',
+    state,
+    role,
+    today: '2026-10-06',
+    mode: 'sandbox',
+  }
+  const session: Session = {
+    user: { id: 'account-desk', name: 'Rosa Desk', email: 'desk@example.invalid' },
+    csrf: 'csrf-token',
+    workspaces: [
+      {
+        id: workspace.id,
+        slug: workspace.slug,
+        name: state.organisation.name,
+        region: 'UK',
+        mode: 'sandbox',
+        role,
+      },
+    ],
+    services: { email: false, payments: false },
+    localOnly: true,
+  }
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input)
+      const body =
+        path === '/api/session'
+          ? session
+          : path === `/api/workspaces/${workspace.id}`
+            ? workspace
+            : null
+      return new Response(JSON.stringify(body ?? { error: 'Not in this test.' }), {
+        status: body ? 200 : 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }),
+  )
+  sessionStorage.setItem('saleane.workspace', workspace.id)
+  await show(route)
 }
 
 async function chooseFacial(user: ReturnType<typeof userEvent.setup>) {
@@ -21,20 +90,25 @@ async function chooseFacial(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('connected operator journeys', () => {
+  // The whole app, from the calendar through the date picker to the moved visit, so this journey
+  // can take several seconds on a busy machine: it has 20 seconds rather than the usual 5.
   it('moves a visit with keyboard time choices and follows it to its new calendar day', async () => {
     const user = userEvent.setup()
-    show('/calendar')
+    await show('/calendar')
     await user.click(screen.getAllByRole('button', { name: /Noor Ahmed Skin Renewal Facial/ })[0])
-    await user.click(screen.getByRole('button', { name: 'Move appointment' }))
-    expect(screen.getByRole('heading', { name: 'Move appointment' })).toHaveFocus()
-    await user.clear(screen.getByLabelText('New date'))
-    await user.type(screen.getByLabelText('New date'), '2026-10-07')
+    await user.click(screen.getByRole('button', { name: 'Move visit' }))
+    expect(screen.getByRole('heading', { name: 'Move visit' })).toHaveFocus()
+    // The new date is chosen from the calendar, written out the studio's way.
+    expect(screen.getByLabelText('New date')).toHaveTextContent('Tue 6 Oct 2026')
+    await user.click(screen.getByLabelText('New date'))
+    await user.click(screen.getByRole('button', { name: 'Wednesday 7 October 2026' }))
+    expect(screen.getByLabelText('New date')).toHaveTextContent('Wed 7 Oct 2026')
     const first = screen.getByRole('radio', { name: '09:00' })
     await user.click(first)
     await user.keyboard('{ArrowRight}{ArrowRight}')
     expect(screen.getByRole('radio', { name: '09:30' })).toBeChecked()
-    await user.click(screen.getByRole('button', { name: 'Save appointment' }))
-    expect(screen.getByRole('status')).toHaveTextContent('Appointment saved')
+    await user.click(screen.getByRole('button', { name: 'Save visit' }))
+    expect(screen.getByRole('status')).toHaveTextContent('Visit saved')
     const saved = JSON.parse(localStorage.getItem('saleane.demo.v1.UK')!)
     expect(saved.appointments.find((a: { id: string }) => a.id === 'visit-noor')).toMatchObject({
       date: '2026-10-07',
@@ -43,20 +117,20 @@ describe('connected operator journeys', () => {
     })
     expect(saved.events.filter((e: { type: string }) => e.type === 'rescheduled')).toHaveLength(1)
     await user.keyboard('{Escape}')
-    expect(screen.getByLabelText('Jump to date')).toHaveValue('2026-10-07')
+    expect(screen.getByLabelText('Jump to date')).toHaveTextContent('Wed 7 Oct 2026')
     expect(
       screen.getAllByRole('button', { name: /09:30 .*Noor Ahmed Skin Renewal Facial/ }).length,
     ).toBeGreaterThan(0)
-  })
+  }, 20000)
   it('requires cancellation review and preserves the visit in accessible calendar history', async () => {
     const user = userEvent.setup()
-    show('/calendar')
+    await show('/calendar')
     await user.click(screen.getAllByRole('button', { name: /Noor Ahmed Skin Renewal Facial/ })[0])
-    await user.click(screen.getByRole('button', { name: 'Cancel appointment' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel visit' }))
     expect(screen.getByText('£25 deposit remains recorded')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Keep appointment' }))
+    await user.click(screen.getByRole('button', { name: 'Keep visit' }))
     expect(screen.getByRole('button', { name: 'Welcome client' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Cancel appointment' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel visit' }))
     await user.click(screen.getByRole('button', { name: 'Confirm cancellation' }))
     expect(screen.getByRole('status')).toHaveTextContent('Cancellation recorded')
     expect(screen.queryByRole('button', { name: 'Welcome client' })).not.toBeInTheDocument()
@@ -72,13 +146,13 @@ describe('connected operator journeys', () => {
   })
   it('follows a moved visit when a professional filter was active', async () => {
     const user = userEvent.setup()
-    show('/calendar')
+    await show('/calendar')
     await user.selectOptions(screen.getByLabelText('Filter professional'), 'staff-maya')
     await user.click(screen.getAllByRole('button', { name: /Noor Ahmed Skin Renewal Facial/ })[0])
-    await user.click(screen.getByRole('button', { name: 'Move appointment' }))
+    await user.click(screen.getByRole('button', { name: 'Move visit' }))
     await user.selectOptions(screen.getByLabelText('Professional'), 'staff-sophia')
     await user.click(screen.getByRole('radio', { name: '12:30' }))
-    await user.click(screen.getByRole('button', { name: 'Save appointment' }))
+    await user.click(screen.getByRole('button', { name: 'Save visit' }))
     await user.keyboard('{Escape}')
     expect(screen.getByLabelText('Filter professional')).toHaveValue('staff-sophia')
     expect(
@@ -87,7 +161,7 @@ describe('connected operator journeys', () => {
   })
   it('records missed attendance through an explicit review without creating a sale', async () => {
     const user = userEvent.setup()
-    show()
+    await show()
     await user.click(screen.getByRole('button', { name: /Noor Ahmed Skin Renewal Facial/ }))
     await user.click(screen.getByRole('button', { name: 'Mark as missed' }))
     expect(screen.getByText(/Confirm that the scheduled visit time has passed/)).toBeInTheDocument()
@@ -105,17 +179,17 @@ describe('connected operator journeys', () => {
   })
   it('focuses search immediately and restores the initiating control on Escape', async () => {
     const user = userEvent.setup()
-    show()
+    await show()
     const trigger = screen.getByRole('button', { name: 'Find a client' })
     await user.click(trigger)
-    expect(screen.getByRole('searchbox', { name: 'Search workspace' })).toHaveFocus()
+    expect(screen.getByRole('searchbox', { name: 'Search clients' })).toHaveFocus()
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(trigger).toHaveFocus()
   })
   it('checks out an arrived visit and presents the linked receipt and rebooking action', async () => {
     const user = userEvent.setup()
-    show()
+    await show()
     await user.click(screen.getByRole('button', { name: /Amelia Carter Skin Renewal Facial/ }))
     await user.click(screen.getByRole('button', { name: 'Continue to checkout' }))
     await user.click(screen.getByRole('button', { name: '15%' }))
@@ -130,14 +204,14 @@ describe('connected operator journeys', () => {
   })
   it('finds a client and appends an ordinary relationship note', async () => {
     const user = userEvent.setup()
-    show('/clients')
+    await show('/clients')
     await user.type(
       screen.getByRole('searchbox', { name: 'Search by name, phone or email' }),
       'Amelia',
     )
     await user.click(screen.getByRole('link', { name: /Amelia Carter/ }))
     await user.type(
-      screen.getByRole('textbox', { name: 'Relationship note' }),
+      await screen.findByRole('textbox', { name: 'Relationship note' }),
       'Prefers a Tuesday afternoon.',
     )
     await user.click(screen.getByRole('button', { name: 'Add to timeline' }))
@@ -146,13 +220,13 @@ describe('connected operator journeys', () => {
   })
   it('edits what is good to remember about a client in place', async () => {
     const user = userEvent.setup()
-    show('/clients')
+    await show('/clients')
     await user.type(
       screen.getByRole('searchbox', { name: 'Search by name, phone or email' }),
       'Amelia',
     )
     await user.click(screen.getByRole('link', { name: /Amelia Carter/ }))
-    await user.click(screen.getByRole('button', { name: 'Edit good to remember' }))
+    await user.click(await screen.findByRole('button', { name: 'Edit good to remember' }))
     const field = screen.getByRole('textbox', { name: 'Good to remember' })
     await user.clear(field)
     await user.type(field, 'Unscented oil only. Likes a warm room.')
@@ -163,7 +237,7 @@ describe('connected operator journeys', () => {
   })
   it('opens treatments by kind, or by search, before a treatment is chosen', async () => {
     const user = userEvent.setup()
-    show('/booking')
+    await show('/booking')
     expect(screen.queryByRole('button', { name: 'Choose a time' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /^Hair/ }))
     expect(screen.getByRole('button', { name: /Signature Cut/ })).toBeInTheDocument()
@@ -179,30 +253,28 @@ describe('connected operator journeys', () => {
   })
   it('completes public booking with marketing left off and exposes it in the calendar', async () => {
     const user = userEvent.setup()
-    show('/booking')
+    await show('/booking')
     await chooseFacial(user)
     await user.click(screen.getByRole('button', { name: 'Choose a time' }))
     await user.click(screen.getByRole('radio', { name: '09:00' }))
     await user.click(screen.getByRole('button', { name: 'Your details' }))
     await user.type(screen.getByRole('textbox', { name: 'Full name' }), 'Alex Demo')
     await user.type(screen.getByRole('textbox', { name: 'Email' }), 'alex@example.com')
-    await user.type(
-      screen.getByRole('textbox', { name: 'Phone with country code' }),
-      '+44 7700 900111',
-    )
+    await user.type(screen.getByRole('textbox', { name: 'Phone' }), '07700 900111')
     await user.click(screen.getByRole('button', { name: 'Review your visit' }))
     await user.click(screen.getByRole('checkbox', { name: /I understand this is a demo/ }))
     await user.click(screen.getByRole('button', { name: 'Confirm demo visit' }))
     expect(screen.getByText(/Something to/)).toBeInTheDocument()
     const saved = JSON.parse(localStorage.getItem('saleane.demo.v1.UK')!)
-    expect(
-      saved.clients.find((c: { name: string }) => c.name === 'Alex Demo').marketingConsent,
-    ).toBe(false)
+    const alex = saved.clients.find((c: { name: string }) => c.name === 'Alex Demo')
+    expect(alex.marketingConsent).toBe(false)
+    // Typed as a local UK mobile, kept as an international number.
+    expect(alex.phone).toBe('+44 7700 900111')
     expect(saved.appointments.some((a: { source: string }) => a.source === 'online')).toBe(true)
   })
   it('books anyone available in the afternoon and gives the visit to a professional free then', async () => {
     const user = userEvent.setup()
-    show('/booking')
+    await show('/booking')
     await chooseFacial(user)
     await user.click(screen.getByRole('button', { name: 'Choose a time' }))
     expect(screen.getByRole('button', { name: /Anyone available/ })).toHaveAttribute(
@@ -215,10 +287,7 @@ describe('connected operator journeys', () => {
     await user.click(screen.getByRole('button', { name: 'Your details' }))
     await user.type(screen.getByRole('textbox', { name: 'Full name' }), 'Robin Anyone')
     await user.type(screen.getByRole('textbox', { name: 'Email' }), 'robin@example.com')
-    await user.type(
-      screen.getByRole('textbox', { name: 'Phone with country code' }),
-      '+44 7700 900222',
-    )
+    await user.type(screen.getByRole('textbox', { name: 'Phone' }), '+44 7700 900222')
     await user.click(screen.getByRole('button', { name: 'Review your visit' }))
     await user.click(screen.getByRole('checkbox', { name: /I understand this is a demo/ }))
     await user.click(screen.getByRole('button', { name: 'Confirm demo visit' }))
@@ -235,8 +304,8 @@ describe('connected operator journeys', () => {
 describe('local operating surfaces', () => {
   it('edits catalogue pricing without rewriting booked promises and preserves a conflicting closure draft', async () => {
     const user = userEvent.setup()
-    show('/settings')
-    await user.click(await screen.findByRole('tab', { name: 'Services' }))
+    await show('/settings')
+    await user.click(await screen.findByRole('tab', { name: 'Treatments' }))
     await user.click(screen.getByRole('button', { name: 'Edit Skin Renewal Facial' }))
     await user.clear(screen.getByLabelText('Price (GBP)'))
     await user.type(screen.getByLabelText('Price (GBP)'), '120')
@@ -251,7 +320,8 @@ describe('local operating surfaces', () => {
     ).toBe(9500)
     await user.click(screen.getByRole('tab', { name: 'Hours & closures' }))
     await user.click(screen.getByRole('button', { name: 'Add closure' }))
-    await user.type(screen.getByLabelText('Date'), '2026-10-06')
+    await user.click(screen.getByLabelText('Date'))
+    await user.click(screen.getByRole('button', { name: 'Tuesday 6 October 2026' }))
     await user.type(screen.getByLabelText('Reason'), 'Maintenance')
     // LOCAL-04: the affected visits are named before saving, and saving waits until they move.
     const dialog = screen.getByRole('dialog')
@@ -263,7 +333,7 @@ describe('local operating surfaces', () => {
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(screen.getByLabelText('Reason')).toHaveValue('Maintenance')
-    expect(screen.getByLabelText('Date')).toHaveValue('2026-10-06')
+    expect(screen.getByLabelText('Date')).toHaveTextContent('Tue 6 Oct 2026')
     expect(
       JSON.parse(localStorage.getItem('saleane.demo.v1.UK')!).operations.closures,
     ).toHaveLength(0)
@@ -271,7 +341,7 @@ describe('local operating surfaces', () => {
 
   it('previews affected visits for opening hours and lists the change in schedule history', async () => {
     const user = userEvent.setup()
-    show('/settings')
+    await show('/settings')
     await user.click(await screen.findByRole('tab', { name: 'Hours & closures' }))
     expect(screen.getByText(/No schedule changes recorded yet/)).toBeInTheDocument()
     const tuesday = screen.getByRole('checkbox', { name: 'Tuesday' })
@@ -292,7 +362,7 @@ describe('local operating surfaces', () => {
 
   it('keeps an unconsented marketing message as an editable unsent draft', async () => {
     const user = userEvent.setup()
-    show('/inbox')
+    await show('/inbox')
     await user.click(await screen.findByRole('button', { name: 'Write a draft' }))
     await user.selectOptions(screen.getByLabelText('Client'), 'client-4')
     await user.selectOptions(screen.getByLabelText('Purpose'), 'marketing')
@@ -321,7 +391,7 @@ describe('local operating surfaces', () => {
 
   it('reads a guest’s reply, answers by text from a saved reply and matches an unknown number', async () => {
     const user = userEvent.setup()
-    show('/inbox')
+    await show('/inbox')
     expect((await screen.findByText('New replies')).parentElement).toHaveTextContent('New replies2')
     await user.click(screen.getByRole('button', { name: /Ellie Brooks/ }))
     const thread = await screen.findByRole('list', { name: 'Conversation with Ellie Brooks' })
@@ -351,7 +421,7 @@ describe('local operating surfaces', () => {
       status: 'queued',
     })
     await user.click(screen.getByRole('button', { name: /\+44 7700 900999/ }))
-    await user.selectOptions(screen.getByLabelText('This is'), 'client-6')
+    await user.selectOptions(screen.getByLabelText('Link to a client'), 'client-6')
     await user.click(screen.getByRole('button', { name: 'Match to this client' }))
     expect(
       await screen.findByText('Matched. The conversation is now with the client.'),
@@ -363,7 +433,7 @@ describe('local operating surfaces', () => {
 
   it('opens the inbox in two columns and lets each person choose the side panel on the Settings page', async () => {
     const user = userEvent.setup()
-    show('/inbox')
+    await show('/inbox')
     expect(await screen.findByRole('list', { name: /Conversation with/ })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /your preferences/ }))
     expect(await screen.findByRole('tab', { name: 'Your preferences' })).toHaveAttribute(
@@ -380,7 +450,7 @@ describe('local operating surfaces', () => {
 
   it('requires refund provenance confirmation and retains the settled receipt', async () => {
     const user = userEvent.setup()
-    show('/business/money')
+    await show('/business/money')
     await user.click((await screen.findAllByRole('button', { name: /View receipt for/ }))[0])
     await user.click(screen.getByRole('button', { name: 'Record simulated refund' }))
     await user.type(screen.getByLabelText('Amount (GBP)'), '10')
@@ -408,10 +478,322 @@ describe('local operating surfaces', () => {
   })
 })
 
+describe('front desk access to Business', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    sessionStorage.clear()
+  })
+
+  it('opens Money, Stock, Rota and Gift cards, and lands Business on Money', async () => {
+    const user = userEvent.setup()
+    await signedIn('reception', '/business')
+    expect(await screen.findByRole('heading', { name: 'Money, clearly.' })).toBeInTheDocument()
+    const sections = screen.getByRole('navigation', { name: 'Business sections' })
+    expect(
+      within(sections)
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual(['Money', 'Stock', 'Rota', 'Gift cards'])
+    const business = screen.getByRole('link', { name: 'Business' })
+    expect(business).toHaveAttribute('href', '/business/money')
+    expect(business).toHaveAttribute('aria-current', 'page')
+    await user.click(within(sections).getByRole('link', { name: 'Stock' }))
+    expect(
+      await screen.findByRole('heading', { name: 'What is on the shelf.' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Business' })).toHaveAttribute('aria-current', 'page')
+    await user.click(within(sections).getByRole('link', { name: 'Rota' }))
+    expect(
+      await screen.findByRole('heading', { name: 'Who is in, and who is away.' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Add time off/ })).not.toBeInTheDocument()
+    await user.click(within(sections).getByRole('link', { name: 'Gift cards' }))
+    expect(
+      await screen.findByRole('heading', { name: 'Gift cards and vouchers.' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Sell a gift card/ })).toBeInTheDocument()
+  })
+
+  it('sends the desk back to Money from pages that stay with owners and managers', async () => {
+    for (const page of ['pay', 'accounts', 'feedback', 'visits', 'requests', 'areas']) {
+      await signedIn('reception', `/business/${page}`)
+      expect(await screen.findByRole('heading', { name: 'Money, clearly.' })).toBeInTheDocument()
+      cleanup()
+      vi.unstubAllGlobals()
+      sessionStorage.clear()
+    }
+  })
+
+  it('shows receipts to the desk without a refund it could not record', async () => {
+    const user = userEvent.setup()
+    await signedIn('reception', '/business/money')
+    await user.click((await screen.findAllByRole('button', { name: /View receipt for/ }))[0])
+    expect(screen.getByRole('heading', { name: 'Receipt' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /refund/i })).not.toBeInTheDocument()
+  })
+
+  it('keeps every Business section for an owner', async () => {
+    await signedIn('owner', '/business')
+    expect(await screen.findByRole('heading', { name: 'A clearer view.' })).toBeInTheDocument()
+    const sections = screen.getByRole('navigation', { name: 'Business sections' })
+    expect(
+      within(sections)
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual(
+      expect.arrayContaining(['Overview', 'Money', 'Pay', 'Accounts', 'Feedback', 'Client areas']),
+    )
+    expect(screen.getByRole('link', { name: 'Business' })).toHaveAttribute('href', '/business')
+  })
+})
+
+describe('selling at one of several locations', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    sessionStorage.clear()
+  })
+
+  it('asks which location sold a gift card and sends it with the sale', async () => {
+    const user = userEvent.setup()
+    await signedIn('owner', '/business/gift-cards', (state) => {
+      state.operations!.locations = [
+        { id: 'loc-islington', name: 'Islington', address: '5 Upper Street, London N1' },
+      ]
+    })
+    await user.click(await screen.findByRole('button', { name: 'Sell a gift card' }))
+    const dialog = await screen.findByRole('dialog')
+    const soldAt = within(dialog).getByRole('combobox', { name: 'Sold at' })
+    expect(
+      within(soldAt)
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual(['Marylebone, London', 'Islington'])
+    await user.selectOptions(soldAt, 'loc-islington')
+    await user.type(within(dialog).getByRole('textbox', { name: 'Buyer’s name' }), 'Jo Guest')
+    await user.click(within(dialog).getByRole('button', { name: /^Record/ }))
+    await waitFor(() =>
+      expect(vi.mocked(fetch).mock.calls.some(([path]) => String(path).endsWith('/commands'))).toBe(
+        true,
+      ),
+    )
+    const [, init] = vi
+      .mocked(fetch)
+      .mock.calls.find(([path]) => String(path).endsWith('/commands'))!
+    expect(JSON.parse(String(init!.body)).command).toMatchObject({
+      type: 'gift-card-sell',
+      locationId: 'loc-islington',
+    })
+  })
+
+  it('leaves the choice out with one location', async () => {
+    const user = userEvent.setup()
+    await signedIn('owner', '/business/gift-cards')
+    await user.click(await screen.findByRole('button', { name: 'Sell a gift card' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).queryByRole('combobox', { name: 'Sold at' })).not.toBeInTheDocument()
+  })
+})
+
+describe('the Business tab bar', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    sessionStorage.clear()
+  })
+
+  it('leaves out Branch visits and Requests while the studio has one location', async () => {
+    await show('/business')
+    const sections = screen.getByRole('navigation', { name: 'Business sections' })
+    expect(
+      within(sections)
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual([
+      'Overview',
+      'Money',
+      'Stock',
+      'Rota',
+      'Gift cards',
+      'Pay',
+      'Accounts',
+      'How you compare',
+      'Feedback',
+      'Client areas',
+    ])
+    expect(within(sections).getByRole('link', { name: 'Overview' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+  })
+
+  it('shows Branch visits and Requests once there is a second location', async () => {
+    await signedIn('owner', '/business/requests', (state) => {
+      state.operations!.locations = [
+        { id: 'loc-islington', name: 'Islington', address: '5 Upper Street, London N1' },
+      ]
+    })
+    const sections = await screen.findByRole('navigation', { name: 'Business sections' })
+    expect(within(sections).getByRole('link', { name: 'Branch visits' })).toHaveAttribute(
+      'href',
+      '/business/visits',
+    )
+    expect(within(sections).getByRole('link', { name: 'Requests' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+  })
+})
+
+describe('the rota week', () => {
+  it('marks today and keeps This week ready to press', async () => {
+    const user = userEvent.setup()
+    await show('/business/rota')
+    expect(screen.getByRole('heading', { name: 'Week of Monday 5 October' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /6 Oct Today$/ })).toBeInTheDocument()
+    const thisWeek = screen.getByRole('button', { name: 'This week' })
+    expect(thisWeek).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: 'Next week' }))
+    expect(screen.getByRole('heading', { name: 'Week of Monday 12 October' })).toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: /Today/ })).not.toBeInTheDocument()
+    await user.click(thisWeek)
+    expect(screen.getByRole('heading', { name: 'Week of Monday 5 October' })).toBeInTheDocument()
+  })
+})
+
+describe('Business overview wording', () => {
+  it('says one completed visit, not one completed visits', async () => {
+    await show('/business')
+    const counts = screen
+      .getAllByText(/^\d+ completed visits?\b/)
+      .map((node) => /^(\d+) completed (visits?)\b/.exec(node.textContent ?? '')!)
+    expect(counts.length).toBeGreaterThan(0)
+    for (const [, count, word] of counts) expect(word).toBe(count === '1' ? 'visit' : 'visits')
+  })
+})
+
+describe('requests and branch visits before regions', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    sessionStorage.clear()
+  })
+  const secondLocation = (state: BusinessState) => {
+    state.operations!.locations = [
+      { id: 'loc-islington', name: 'Islington', address: '5 Upper Street, London N1' },
+    ]
+  }
+
+  it('says nothing of regional managers until the studio has a region', async () => {
+    await signedIn('owner', '/business/requests', secondLocation)
+    expect(await screen.findByRole('heading', { name: 'No requests yet' })).toBeInTheDocument()
+    expect(
+      screen.getByText(/The owner approves or declines it, and every decision is kept/),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ask for a sign-off' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Regional limit' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/regional/i)).not.toBeInTheDocument()
+  })
+
+  it('shows the regional limit once the locations are grouped into a region', async () => {
+    await signedIn('owner', '/business/requests', (state) => {
+      secondLocation(state)
+      state.operations!.regions = [
+        {
+          id: 'region-london',
+          name: 'London',
+          locationIds: [state.organisation.locationId, 'loc-islington'],
+        },
+      ]
+    })
+    expect(await screen.findByRole('button', { name: 'Regional limit' })).toBeInTheDocument()
+    expect(screen.getByText(/Regional managers approve up to £500/)).toBeInTheDocument()
+  })
+
+  it('explains branch visits and the first step before the first visit', async () => {
+    await signedIn('owner', '/business/visits', (state) => {
+      secondLocation(state)
+      state.operations!.branchVisits = []
+    })
+    expect(await screen.findByRole('heading', { name: 'No visits yet' })).toBeInTheDocument()
+    expect(screen.getByText(/Start with Start a visit, above\./)).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'To put right' })).not.toBeInTheDocument()
+  })
+})
+
+describe('gift cards', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    sessionStorage.clear()
+  })
+
+  it('shows each card as a card, with its balance, code and who it is for', async () => {
+    const user = userEvent.setup()
+    await show('/business/gift-cards')
+    const card = await screen.findByRole('button', { name: /LAKE-7K4M-2QHN/ })
+    expect(card).toHaveTextContent('£75')
+    expect(card).toHaveTextContent(/for Hannah/)
+    await user.click(card)
+    expect(screen.getByRole('dialog', { name: 'Gift card' })).toHaveTextContent('For Hannah')
+  })
+
+  it('shows what a card looks like before the first one is sold', async () => {
+    await signedIn('owner', '/business/gift-cards', (state) => {
+      state.giftCards = []
+    })
+    expect(await screen.findByRole('heading', { name: 'No gift cards yet' })).toBeInTheDocument()
+    expect(
+      screen.getByText(/Sell the first one with Sell a gift card, above\./),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+  })
+})
+
+describe('the Settings page', () => {
+  it('groups the sections under five headings, with treatments by that name', async () => {
+    await show('/settings')
+    const sections = await screen.findByRole('group', { name: 'Settings sections' })
+    const lists = within(sections).getAllByRole('tablist')
+    expect(lists.map((list) => list.getAttribute('aria-label'))).toEqual([
+      'Studio',
+      'Team',
+      'Treatments and money',
+      'Guests and messages',
+      'Your account and data',
+    ])
+    expect(
+      within(lists[2])
+        .getAllByRole('tab')
+        .map((tab) => tab.textContent),
+    ).toEqual(['Treatments', 'Packages & memberships', 'Payments'])
+    expect(screen.queryByRole('tab', { name: 'Services' })).not.toBeInTheDocument()
+    // Studio details opens first; a narrow screen picks the same sections from one select.
+    expect(screen.getByRole('tab', { name: 'Studio details' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    const picker = screen.getByRole('combobox', { name: 'Section' })
+    expect(picker).toHaveValue('business')
+    expect(within(picker).getByRole('group', { name: 'Guests and messages' })).toBeInTheDocument()
+  })
+
+  it('keeps the old section addresses and shows a photograph beside each treatment', async () => {
+    const user = userEvent.setup()
+    await show('/settings?section=service')
+    expect(await screen.findByRole('heading', { name: 'Treatments' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Treatments' })).toHaveAttribute('aria-selected', 'true')
+    const rows = document.querySelectorAll('.ops-record')
+    expect(rows.length).toBeGreaterThan(0)
+    for (const row of rows) expect(row.querySelector('.ops-record-photo')).not.toBeNull()
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Section' }), 'receptionist')
+    expect(screen.getByRole('heading', { name: 'AI receptionist' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save receptionist settings' })).toHaveClass(
+      'button-primary',
+    )
+  })
+})
+
 describe('reviewed CSV client import', () => {
   it('previews duplicates and invalid rows, ignores consent columns and saves only reviewed contacts', async () => {
     const user = userEvent.setup()
-    show('/clients')
+    await show('/clients')
     await user.click(screen.getByRole('button', { name: 'Import clients' }))
     const csv =
       'name,email,phone,marketingConsent\nAmelia Carter,amelia.carter@example.com,+447700900001,true\nAlex Import,alex.import@example.com,+12125550111,true\n,missing@example.com,+12125550112,true'
@@ -446,7 +828,7 @@ describe('reviewed CSV client import', () => {
 
   it('retains a reviewed import after a failed save and allows explicit review before retry', async () => {
     const user = userEvent.setup()
-    show('/clients')
+    await show('/clients')
     await user.click(screen.getByRole('button', { name: 'Import clients' }))
     await user.upload(
       screen.getByLabelText('Choose CSV'),

@@ -72,8 +72,9 @@ async function studio(login: Login) {
   expect(response.statusCode, response.body).toBe(200)
   return response.json<{ state: BusinessState }>().state
 }
+// The sample studio opens Monday to Saturday, 09:00 to 18:00.
 const hours = (patch: (day: number) => object) =>
-  defaultOperations().hours.map((h) => ({ ...h, ...patch(h.day) }))
+  defaultOperations().hours.map((h) => ({ ...h, closed: h.day === 0, ...patch(h.day) }))
 // The sample day is Tuesday 6 October 2026, which already has booked visits.
 const closeTuesday: Command = {
   type: 'hours',
@@ -133,7 +134,7 @@ describe('schedule administration continuity (LOCAL-04)', () => {
     })
     expect(stale.statusCode).toBe(409)
     expect(stale.json<{ error: string }>().error).toBe(
-      'This workspace changed. Reload before saving.',
+      'Someone else saved a change just now. Reload to see it, then try again.',
     )
     // Racing edits on one revision: exactly one lands and leaves one history entry.
     const racing = await Promise.all([

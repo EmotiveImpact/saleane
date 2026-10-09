@@ -8,6 +8,7 @@ import { parseMinor } from '../domain/money'
 import { expectedCash, tillCountsFor, tillDifference } from '../domain/tillCount'
 import type { TillCount as TillCountRecord } from '../domain/tillCount'
 import { Button, ErrorMessage } from '../design'
+import { StudioDateField } from './StudioDateField'
 import './till.css'
 
 /**
@@ -106,13 +107,10 @@ export function TillCount() {
           <div className="ops-fields">
             <label className="ops-wide">
               Day counted
-              <input
-                type="date"
+              <StudioDateField
                 value={date}
                 max={today}
-                required
-                onChange={(e) => {
-                  const day = e.target.value || today
+                onChange={(day) => {
                   setDate(day)
                   setFloat(floatFor(day))
                   setNotice('')

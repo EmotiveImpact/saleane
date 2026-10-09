@@ -5,6 +5,7 @@ import { assertMethod } from './operatingCommands'
 import { businessDate, operations } from './operations'
 import { dateLabel, money } from './format'
 import { referenceTaken, refundReferenceTaken } from './references'
+import { salePlace } from './locations'
 
 /**
  * V1.5: packages and memberships. A package is a number of visits bought at one price and used
@@ -145,7 +146,7 @@ export function coverVisit(
   if (!holding || holding.clientId !== appointment.clientId)
     throw new Error('This plan does not belong to this client.')
   if (!holding.serviceIds.includes(appointment.serviceId))
-    throw new Error(`${holding.name} does not cover this service.`)
+    throw new Error(`${holding.name} does not cover this treatment.`)
   if (depositMinor > 0)
     throw new Error('This visit already has a deposit. Take the visit off the plan or refund it.')
   const today = businessDate(next, now)
@@ -182,7 +183,7 @@ export function runPlanCommand(
   if (command.type === 'offer') {
     const input = command.input
     if (input.serviceIds.some((id) => !next.services.some((service) => service.id === id)))
-      throw new Error('Choose services offered here.')
+      throw new Error('Choose treatments offered here.')
     next.offers ??= []
     if (command.id) {
       const offer = next.offers.find((o) => o.id === command.id)
@@ -203,9 +204,10 @@ export function runPlanCommand(
     const offer = offers(next).find((o) => o.id === command.offerId)
     const client = next.clients.find((c) => c.id === command.clientId)
     if (!offer || offer.archived) throw new Error('This plan is not on sale.')
-    if (!client) throw new Error('Client does not belong to this workspace.')
+    if (!client) throw new Error('Client does not belong to this studio.')
     assertMethod(next, command.method, command.reference)
     assertReferenceFree(next, command.reference)
+    const place = salePlace(next, command.locationId)
     next.holdings ??= []
     if (
       offer.kind === 'membership' &&
@@ -232,6 +234,7 @@ export function runPlanCommand(
       status: 'active',
       soldAt: now,
       actor: '',
+      ...place,
       payments: [
         {
           id: makeId(),
@@ -255,7 +258,7 @@ export function runPlanCommand(
     return holding.id
   }
   const holding = holdings(next).find((h) => h.id === command.holdingId)
-  if (!holding) throw new Error('This plan does not belong to this workspace.')
+  if (!holding) throw new Error('This plan does not belong to this studio.')
   if (holding.status === 'cancelled') throw new Error('This plan has already ended.')
   if (command.type === 'plan-renew') {
     if (holding.kind !== 'membership') throw new Error('Only a membership is paid monthly.')
@@ -396,7 +399,7 @@ export function plansProblem(s: BusinessState) {
         sandbox !== record.method.startsWith('demo_') ||
         (record.method === 'external_card' && !record.reference?.trim())
       )
-        return 'Plan payment provenance does not match this workspace.'
+        return 'A plan payment record is not valid for this studio.'
     if (sum(holding.refunds) + sum(holding.uses) > sum(holding.payments))
       return 'A plan cannot use or return more than was paid.'
     for (const use of holding.uses) {

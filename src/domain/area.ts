@@ -232,8 +232,16 @@ export function areaView(s: BusinessState, regionId: string, today: string): Are
   }
 }
 
-/** Why a regional manager may not make this change, or null when they may. */
-export function areaRefusal(s: BusinessState, regionId: string, command: Command) {
+/**
+ * Why a regional manager may not make this change, or null when they may. `accountId` is theirs,
+ * from the server's session, so a request they raised themselves is never theirs to decide.
+ */
+export function areaRefusal(
+  s: BusinessState,
+  regionId: string,
+  command: Command,
+  accountId?: string,
+) {
   if (!(AREA_COMMANDS as readonly string[]).includes(command.type))
     return 'Your role cannot make this change.'
   const { ids } = areaPlaces(s, regionId)
@@ -250,6 +258,8 @@ export function areaRefusal(s: BusinessState, regionId: string, command: Command
     if (!request || !ids.has(request.locationId)) return 'That request is not in your area.'
     if (request.routedTo.level !== 'regional' || request.routedTo.regionId !== regionId)
       return 'This request has passed up to the owner.'
+    if (accountId && request.raisedById === accountId)
+      return 'You raised this request, so the owner decides it.'
     return null
   }
   return 'Your role cannot make this change.'

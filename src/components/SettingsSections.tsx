@@ -157,6 +157,11 @@ export function BrandSection() {
   )
 }
 
+const roleName: Record<string, string> = {
+  regional: 'regional manager',
+  general: 'general manager',
+}
+
 export function WorkspaceSection({ onReset }: { onReset?: () => void } = {}) {
   const { state, reset, region, changeRegion, mode, role, reload, enterDemo } = useStore()
   const [confirmReset, setConfirmReset] = useState(false),
@@ -181,8 +186,10 @@ export function WorkspaceSection({ onReset }: { onReset?: () => void } = {}) {
     <section className="surface ops-panel settings-panel">
       <header>
         <div>
-          <h2>{mode === 'demo' ? 'Your demo workspace' : 'This workspace'}</h2>
-          <p>SALEANE 1.0 release candidate, built for local review.</p>
+          <h2>About this version</h2>
+          <p>
+            SALEANE 1.0 preview, running {mode === 'demo' ? 'in this browser' : 'on this computer'}.
+          </p>
         </div>
         <Store size={21} />
       </header>
@@ -203,25 +210,25 @@ export function WorkspaceSection({ onReset }: { onReset?: () => void } = {}) {
               </select>
             </label>
             <p>
-              These are separate fictional browser workspaces. Changing market does not convert
-              prices or transfer records.
+              Each market is its own made-up studio. Changing market does not convert prices or move
+              records.
             </p>
           </>
         ) : (
           <p>
-            Accounts and studio records are saved on this computer’s local server. Your access:{' '}
-            {role}. Card payments and email sending are not connected yet.
+            Accounts and studio records are saved on this computer. Your access:{' '}
+            {roleName[role] ?? role}. Card payments and email sending are not connected yet.
           </p>
         )}
         <p>
-          This is a local release candidate. Use fictional client details while reviewing. Hosted
-          operations, payment settlement and message delivery are later release gates.
+          This is a preview. Use made-up client details while you try it. Real card payments and
+          real messages come once those accounts are connected.
         </p>
         <div className="settings-actions">
           {(mode === 'demo' || role === 'owner' || role === 'manager') && (
             <Button variant="secondary" onClick={download}>
               <Download size={16} />
-              Export workspace snapshot
+              Download a copy of the records
             </Button>
           )}
           <Button

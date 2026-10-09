@@ -119,12 +119,16 @@ describe('guest waitlist', () => {
     const { slug } = await studio(owner)
     const booked = await book(slug, 600, '2026-10-13')
     const token = tokenOf(booked.manage)
-    expect((await visit(token)).json<GuestView>().waitlist).toEqual({ joined: null })
+    // The sample studio closes at 6pm, so a facial with its resting time can never start in the
+    // evening: only mornings and afternoons are offered.
+    const offered = ['morning', 'afternoon']
+    expect((await visit(token)).json<GuestView>().waitlist).toEqual({ joined: null, offered })
 
     const joined = await waitlist(token)
     expect(joined.statusCode, joined.body).toBe(200)
     expect(joined.json<GuestView>().waitlist).toEqual({
       joined: { anyone: false, times: ['morning'] },
+      offered,
     })
     const { state } = await studio(owner)
     const entry = state.waitlist!.find((e) => e.appointmentId === booked.appointmentId)!
@@ -139,10 +143,13 @@ describe('guest waitlist', () => {
     expect((await studio(owner)).state.revision).toBe(state.revision)
 
     const changed = await waitlist(token, { anyone: true, times: [] })
-    expect(changed.json<GuestView>().waitlist).toEqual({ joined: { anyone: true, times: [] } })
+    expect(changed.json<GuestView>().waitlist).toEqual({
+      joined: { anyone: true, times: [] },
+      offered,
+    })
     const left = await waitlist(token, { join: false })
     expect(left.statusCode, left.body).toBe(200)
-    expect(left.json<GuestView>().waitlist).toEqual({ joined: null })
+    expect(left.json<GuestView>().waitlist).toEqual({ joined: null, offered })
     const after = (await studio(owner)).state.waitlist!.filter(
       (e) => e.appointmentId === booked.appointmentId,
     )

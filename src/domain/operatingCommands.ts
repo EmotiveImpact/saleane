@@ -1,4 +1,5 @@
-import type { BusinessState, RelationshipEvent } from './model'
+import type { BusinessState, Region, RelationshipEvent } from './model'
+import { emailProblem, phoneProblem } from './studioContact'
 import { areaHint, postcodeArea } from './clientAreas'
 import { serviceRuleRefusal } from './brandRules'
 import { isReviewUrl } from './model'
@@ -41,12 +42,12 @@ export function assertMethod(
   if (sandbox !== method.startsWith('demo_'))
     throw new Error(
       sandbox
-        ? 'Use a simulated payment method in the sample workspace.'
-        : 'Record a cash or external terminal payment in this workspace.',
+        ? 'Use a simulated payment in a sample studio.'
+        : 'Record a cash or card machine payment.',
     )
   if (method === 'external_card' && !reference?.trim())
     throw new Error(
-      'Enter the external terminal receipt reference. SALEANE has not charged the card.',
+      'Enter the reference from the card machine receipt. SALEANE has not charged the card.',
     )
 }
 /** How a recorded payment reached the studio, in plain words for the client's timeline. */
@@ -55,7 +56,12 @@ export function paymentDetail(method: string, processor?: { provider: string; li
     return processor.live
       ? 'Paid by card through the payment provider.'
       : 'Test card payment: the provider is in test mode and no money moved.'
-  return `Payment recorded as ${method === 'cash' ? 'cash received' : 'already paid at an external terminal'}. SALEANE did not process a payment.`
+  return `Payment recorded as ${method === 'cash' ? 'cash received' : 'already paid on the card machine'}. SALEANE did not process a payment.`
+}
+/** Why a phone number or email address guests would use cannot be saved; empty means none. */
+function contactProblem(field: 'phone' | 'email', value: string, region: Region) {
+  if (!value) return null
+  return field === 'phone' ? phoneProblem(value, region) : emailProblem(value)
 }
 export function runOperatingCommand(
   next: BusinessState,
@@ -80,12 +86,12 @@ export function runOperatingCommand(
   if (command.type === 'guest-notes') {
     const services = command.prepNotes.map(({ serviceId, note }) => {
       const service = next.services.find((item) => item.id === serviceId)
-      if (!service) throw new Error('Service does not belong to this workspace.')
+      if (!service) throw new Error('Treatment does not belong to this studio.')
       return { service, note }
     })
     const aftercare = (command.aftercareNotes ?? []).map(({ serviceId, note }) => {
       const service = next.services.find((item) => item.id === serviceId)
-      if (!service) throw new Error('Service does not belong to this workspace.')
+      if (!service) throw new Error('Treatment does not belong to this studio.')
       return { service, note }
     })
     if (command.arrivalNote) next.organisation.arrivalNote = command.arrivalNote
@@ -111,7 +117,7 @@ export function runOperatingCommand(
       command.timeZone !== next.organisation.timeZone &&
       next.appointments.some((a) => ['confirmed', 'arrived'].includes(a.status))
     )
-      throw new Error('Resolve upcoming appointments before changing the venue time zone.')
+      throw new Error('Move or cancel upcoming visits before changing the studio’s time zone.')
     Object.assign(next.organisation, {
       name: command.name,
       locationName: command.locationName,
@@ -125,6 +131,15 @@ export function runOperatingCommand(
       else if (!isReviewUrl(command.reviewUrl))
         throw new Error('Enter the review page as a full web address starting with https://.')
       else next.organisation.reviewUrl = command.reviewUrl
+    }
+    // How guests reach the studio: absent leaves each as it is, empty removes it.
+    for (const field of ['phone', 'email'] as const) {
+      const value = command[field]
+      if (value === undefined) continue
+      const problem = contactProblem(field, value, next.organisation.region)
+      if (problem) throw new Error(problem)
+      if (value) next.organisation[field] = value
+      else delete next.organisation[field]
     }
     recordId = next.organisation.id
   } else if (command.type === 'hours') {
@@ -180,18 +195,26 @@ export function runOperatingCommand(
   } else if (command.type === 'location') {
     const list = (o.locations ??= [])
     const old = command.id ? list.find((l) => l.id === command.id) : undefined
-    if (command.id && !old) throw new Error('Location does not belong to this workspace.')
+    if (command.id && !old) throw new Error('Location does not belong to this studio.')
     const name = command.input.name.toLowerCase()
     if (places(next, true).some((p) => p.id !== command.id && p.name.toLowerCase() === name))
       throw new Error('Another location already has that name.')
     if (!old && list.length >= LOCATION_LIMIT) throw new Error('Too many locations to keep.')
     const record = { ...command.input, id: command.id ?? makeId() }
     if (!record.arrivalNote) delete record.arrivalNote
+    // A location's own phone and email; without them guests see the studio's.
+    for (const field of ['phone', 'email'] as const) {
+      const problem = contactProblem(field, record[field] ?? '', next.organisation.region)
+      if (problem) throw new Error(problem)
+      if (!record[field]) delete record[field]
+    }
     if (old) {
       Object.assign(old, record)
       if (!command.input.hours) delete old.hours
       if (!command.input.arrivalNote) delete old.arrivalNote
       if (!command.input.archived) delete old.archived
+      if (!record.phone) delete old.phone
+      if (!record.email) delete old.email
     } else list.push(record)
     recordId = record.id
   } else if (
@@ -206,11 +229,11 @@ export function runOperatingCommand(
           ? next.staff
           : next.resources
     const old = command.id ? rows.find((r) => r.id === command.id) : undefined
-    if (command.id && !old) throw new Error('Record does not belong to this workspace.')
+    if (command.id && !old) throw new Error('Record does not belong to this studio.')
     const record = { ...command.input, ...scope, id: command.id ?? makeId() }
     if (command.type === 'service') {
       if (command.input.depositMinor > command.input.priceMinor)
-        throw new Error('Deposit cannot exceed the service price.')
+        throw new Error('The deposit cannot be more than the treatment price.')
       // V2: prices and availability at other locations name real ones, never the main location,
       // whose price is the service price itself.
       const known = new Set(places(next, true).map((p) => p.id))
@@ -226,7 +249,7 @@ export function runOperatingCommand(
       if (places(next).every((p) => command.input.notOfferedAt?.includes(p.id)))
         throw new Error('Offer the treatment at one location at least, or archive it.')
       if (command.input.durationMinutes + command.input.bufferMinutes > 1440)
-        throw new Error('A service must fit within one day.')
+        throw new Error('A treatment must fit within one day.')
       // V5: the owner's house rules for every location.
       const refusal = serviceRuleRefusal(next, { ...command.input, id: record.id })
       if (refusal) throw new Error(refusal)
@@ -312,7 +335,7 @@ export function runOperatingCommand(
     recordId = next.organisation.id
   } else if (command.type === 'contact-preferences') {
     const client = next.clients.find((c) => c.id === command.clientId)
-    if (!client) throw new Error('Client does not belong to this workspace.')
+    if (!client) throw new Error('Client does not belong to this studio.')
     const was = { email: !client.noEmailReminders, sms: !client.noTextReminders }
     if (command.email) delete client.noEmailReminders
     else client.noEmailReminders = true
@@ -322,22 +345,22 @@ export function runOperatingCommand(
       addEvent({
         clientId: client.id,
         type: 'consent',
-        title: 'Appointment messages updated',
-        detail: `Appointment emails ${command.email ? 'on' : 'off'}, texts ${command.sms ? 'on' : 'off'}. Marketing preference unchanged.`,
+        title: 'Visit messages updated',
+        detail: `Visit emails ${command.email ? 'on' : 'off'}, texts ${command.sms ? 'on' : 'off'}. Marketing preference unchanged.`,
       })
     recordId = client.id
   } else if (command.type === 'message') {
     const client = next.clients.find((c) => c.id === command.input.clientId)
-    if (!client) throw new Error('Client does not belong to this workspace.')
+    if (!client) throw new Error('Client does not belong to this studio.')
     if (
       command.input.appointmentId &&
       !next.appointments.some(
         (a) => a.id === command.input.appointmentId && a.clientId === client.id,
       )
     )
-      throw new Error('Choose an appointment belonging to this client.')
+      throw new Error('Choose a visit belonging to this client.')
     const old = command.id ? o.messages.find((m) => m.id === command.id) : undefined
-    if (command.id && !old) throw new Error('Message does not belong to this workspace.')
+    if (command.id && !old) throw new Error('Message does not belong to this studio.')
     if (old?.status === 'queued') throw new Error('A queued message cannot be edited.')
     // An offer is checked against the time it names, so its wording is not changed by hand.
     if (old && isWaitlistOffer(next, old.id))
@@ -367,13 +390,15 @@ export function runOperatingCommand(
     })
   } else if (command.type === 'message-queue') {
     const message = o.messages.find((m) => m.id === command.messageId)
-    if (!message) throw new Error('Message does not belong to this workspace.')
+    if (!message) throw new Error('Message does not belong to this studio.')
     approveMessage(next, message, now)
     recordId = message.id
   } else if (command.type === 'deposit') {
     const a = next.appointments.find((a) => a.id === command.appointmentId)
     if (!a || !['confirmed', 'arrived'].includes(a.status))
-      throw new Error('A deposit can be recorded only for an upcoming or arrived appointment.')
+      throw new Error(
+        'A deposit can be recorded only for an upcoming visit, or one where the client has arrived.',
+      )
     assertMethod(next, command.method, command.reference, command.processor)
     const existing =
       command.reference &&
@@ -468,7 +493,7 @@ export function runOperatingCommand(
     // V2: money back for products sold without a visit, with any products put back on the shelf.
     if (command.saleId || command.paymentId) throw new Error('Choose one receipt to refund.')
     const sale = (next.counterSales ?? []).find((x) => x.id === command.counterSaleId)
-    if (!sale) throw new Error('Receipt does not belong to this workspace.')
+    if (!sale) throw new Error('Receipt does not belong to this studio.')
     const existing = o.refunds.find(
       (r) => r.counterSaleId === sale.id && r.reference === command.reference,
     )
@@ -519,7 +544,7 @@ export function runOperatingCommand(
     const paid = command.paymentId
       ? next.payments.find((p) => p.id === command.paymentId && p.kind !== 'settlement')
       : undefined
-    if (!sale && !paid) throw new Error('Receipt does not belong to this workspace.')
+    if (!sale && !paid) throw new Error('Receipt does not belong to this studio.')
     // A deposit still counts toward the visit's checkout, so it is returned only once it is off.
     if (
       paid?.kind === 'deposit' &&
@@ -766,7 +791,7 @@ export function runOperatingCommand(
     recordId = transferId
   } else if (command.type === 'client-birthday') {
     const client = next.clients.find((c) => c.id === command.clientId)
-    if (!client) throw new Error('Client does not belong to this workspace.')
+    if (!client) throw new Error('Client does not belong to this studio.')
     // Saving the same date again changes nothing and adds nothing to the timeline.
     if ((client.birthday ?? null) !== command.birthday) {
       if (command.birthday) client.birthday = command.birthday
@@ -781,7 +806,7 @@ export function runOperatingCommand(
     recordId = client.id
   } else if (command.type === 'client-area') {
     const client = next.clients.find((c) => c.id === command.clientId)
-    if (!client) throw new Error('Client does not belong to this workspace.')
+    if (!client) throw new Error('Client does not belong to this studio.')
     const region = next.organisation.region
     const area = command.area === null ? null : postcodeArea(command.area, region)
     if (command.area !== null && !area) throw new Error(areaHint(region))
@@ -800,7 +825,7 @@ export function runOperatingCommand(
     recordId = client.id
   } else if (command.type === 'client-edit') {
     const client = next.clients.find((c) => c.id === command.clientId)
-    if (!client) throw new Error('Client does not belong to this workspace.')
+    if (!client) throw new Error('Client does not belong to this studio.')
     if (!/^\+[\d() -]{6,29}$/.test(command.contact.phone.trim()))
       throw new Error('Enter a telephone number starting with + and a country code.')
     const consentChanged = client.marketingConsent !== command.contact.marketingConsent
@@ -896,7 +921,7 @@ function approveMessage(next: BusinessState, message: DraftMessage, now: string)
     !next.clients.find((c) => c.id === message.clientId)?.marketingConsent
   )
     throw new Error(
-      'This client has not consented to email marketing. Appointment updates are a separate purpose.',
+      'This client has not agreed to marketing emails. Messages about their visits are separate.',
     )
   if (message.approvedAt) throw new Error('This message is already approved.')
   // V1.5: the outbox sends it, so it needs somewhere to go now.
@@ -917,8 +942,8 @@ function approveMessage(next: BusinessState, message: DraftMessage, now: string)
   )
     throw new Error(
       message.channel === 'sms'
-        ? 'This client asked for no appointment texts. Send by email, or change their preferences first.'
-        : 'This client asked for no appointment emails. Send by text, or change their preferences first.',
+        ? 'This client asked for no texts about their visits. Send by email, or change their preferences first.'
+        : 'This client asked for no emails about their visits. Send by text, or change their preferences first.',
     )
   message.status = 'queued'
   message.approvedAt = now

@@ -3,17 +3,27 @@ import type { FormEvent } from 'react'
 import { Download, Wallet } from 'lucide-react'
 import { useStore } from '../state/context'
 import { businessDate, can } from '../domain/operations'
-import { addDays, dateLabel, money } from '../domain/format'
+import { addDays, dateLabel, money, wholeMoney } from '../domain/format'
 import { payCsv, payPeriod, rateFor, rateHistory, rulesFor, rulesHistory } from '../domain/pay'
 import type { PaySummary } from '../domain/pay'
 import type { Staff } from '../domain/model'
 import type { PayRules } from '../domain/operations'
 import { rentalOn } from '../domain/rent'
 import { RentPanel } from '../components/RentPanel'
-import { Avatar, Button, ErrorMessage, Modal, PageHeader, SegmentedControl } from '../design'
+import {
+  Avatar,
+  Button,
+  ErrorMessage,
+  Modal,
+  PageHeader,
+  SegmentedControl,
+  Stat,
+  Stats,
+} from '../design'
 import '../components/management.css'
 import '../stock.css'
 import '../pay.css'
+import { StudioDateField } from '../components/StudioDateField'
 
 /**
  * V2: commission and tips per person for a month. SALEANE works out what each person has earned;
@@ -74,8 +84,9 @@ export function Pay() {
     <div className="pay-page">
       <PageHeader
         variant="compact"
+        eyebrow="Business"
         title="What the team has earned."
-        description="Commission on services and products, and tips, for each person. SALEANE works it out; you pay people through your own payroll."
+        description="Commission and tips for each person. SALEANE works it out; you pay people through your own payroll."
         actions={
           <Button variant="secondary" onClick={download}>
             <Download size={16} aria-hidden="true" /> Download for payroll
@@ -99,39 +110,30 @@ export function Pay() {
         {monthName}
         {period === 'this' ? `, up to ${dateLabel(to, org.locale)}` : ''}
       </p>
-      <dl className="stock-totals">
-        <div>
-          <dt>Commission</dt>
-          <dd>
-            {money(
-              total((row) => row.commissionMinor),
-              org,
-              true,
-            )}
-          </dd>
-        </div>
-        <div>
-          <dt>Tips</dt>
-          <dd>
-            {money(
-              total((row) => row.tipsMinor),
-              org,
-              true,
-            )}
-          </dd>
-        </div>
-        <div>
-          <dt>Owed to the team</dt>
-          <dd>
-            {money(
-              total((row) => row.owedMinor),
-              org,
-              true,
-            )}
-            <small>Before any deductions</small>
-          </dd>
-        </div>
-      </dl>
+      <Stats>
+        <Stat
+          label="Commission"
+          value={wholeMoney(
+            total((row) => row.commissionMinor),
+            org,
+          )}
+        />
+        <Stat
+          label="Tips"
+          value={wholeMoney(
+            total((row) => row.tipsMinor),
+            org,
+          )}
+        />
+        <Stat
+          label="Owed to the team"
+          value={wholeMoney(
+            total((row) => row.owedMinor),
+            org,
+          )}
+          detail="Before any deductions"
+        />
+      </Stats>
       {notice && (
         <p className="success-strip" role="status">
           {notice}
@@ -162,6 +164,16 @@ export function Pay() {
           {rows.map((row) => {
             const rate = rateFor(state, row.staff.id, to)
             const expanded = open === row.staff.id
+            // Visits while renting earn no commission, but they still happened.
+            const renting = state.appointments.filter(
+              (a) =>
+                a.staffId === row.staff.id &&
+                a.status === 'completed' &&
+                a.date >= from &&
+                a.date <= to &&
+                rentalOn(state, a.staffId, a.date),
+            ).length
+            const visits = (n: number) => `${n} ${n === 1 ? 'visit' : 'visits'}`
             return (
               <div className="pay-person" key={row.staff.id}>
                 <div className="ops-record pay-record">
@@ -174,11 +186,16 @@ export function Pay() {
                   <div className="ops-record-copy">
                     <strong>{row.staff.name}</strong>
                     <small>
-                      {row.visits} {row.visits === 1 ? 'visit' : 'visits'} ·{' '}
+                      {!renting
+                        ? visits(row.visits)
+                        : row.visits
+                          ? `${visits(row.visits)} on commission, ${renting} while renting`
+                          : `${visits(renting)} while renting`}{' '}
+                      ·{' '}
                       {rentalOn(state, row.staff.id, to)
                         ? 'Rents a chair or room, keeps own takings'
                         : rate
-                          ? `${percent(rate.serviceBps)} on services, ${percent(rate.productBps)} on products`
+                          ? `${percent(rate.serviceBps)} on treatments, ${percent(rate.productBps)} on products`
                           : 'No commission rate set'}
                     </small>
                   </div>
@@ -200,7 +217,7 @@ export function Pay() {
                   </dl>
                   <div className="stock-actions">
                     <Button
-                      variant="quiet"
+                      variant="secondary"
                       aria-label={`${expanded ? 'Hide' : 'Details'} for ${row.staff.name}`}
                       aria-expanded={expanded}
                       aria-controls={`pay-lines-${row.staff.id}`}
@@ -210,7 +227,7 @@ export function Pay() {
                     </Button>
                     {canRate && (
                       <Button
-                        variant="quiet"
+                        variant="secondary"
                         aria-label={`Rates for ${row.staff.name}`}
                         onClick={() => {
                           setRating(row.staff)
@@ -225,7 +242,7 @@ export function Pay() {
                 {expanded && (
                   <div className="pay-lines" id={`pay-lines-${row.staff.id}`}>
                     <p className="pay-sums">
-                      Services {money(row.servicesMinor, org, true)} · Products{' '}
+                      Treatments {money(row.servicesMinor, org, true)} · Products{' '}
                       {money(row.productsMinor, org, true)}
                       {row.givenBackMinor
                         ? ` · Given back ${money(row.givenBackMinor, org, true)}`
@@ -241,7 +258,7 @@ export function Pay() {
                                 {dateLabel(line.date, org.locale, true)}
                                 {line.receipt ? ` · ${line.receipt}` : ''}
                                 {line.servicesMinor
-                                  ? ` · services ${money(line.servicesMinor, org, true)}`
+                                  ? ` · treatments ${money(line.servicesMinor, org, true)}`
                                   : ''}
                                 {line.productsMinor
                                   ? ` · products ${money(line.productsMinor, org, true)}`
@@ -411,7 +428,7 @@ function RulesDialog({
         </fieldset>
         <label>
           Starting
-          <input type="date" value={from} required onChange={(e) => setFrom(e.target.value)} />
+          <StudioDateField value={from} required onChange={setFrom} />
         </label>
         {history.length > 0 && (
           <div className="pay-history">
@@ -486,7 +503,7 @@ function RateDialog({
       if (!result.ok) setError(result.error)
       else
         onDone(
-          `${staff.name} is on ${percent(serviceBps)} on services and ${percent(productBps)} on products from ${dateLabel(from, org.locale)}.`,
+          `${staff.name} is on ${percent(serviceBps)} on treatments and ${percent(productBps)} on products from ${dateLabel(from, org.locale)}.`,
         )
     } catch {
       setError('This could not be saved. Your entries are still here; try again.')
@@ -526,7 +543,7 @@ function RateDialog({
           </label>
           <label>
             Starting
-            <input type="date" value={from} required onChange={(e) => setFrom(e.target.value)} />
+            <StudioDateField value={from} required onChange={setFrom} />
           </label>
         </div>
         {history.length > 0 && (

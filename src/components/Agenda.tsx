@@ -21,15 +21,13 @@ export function Agenda({
   const { state } = useStore()
   if (!appointments.length)
     return (
-      <Empty title="A little breathing room">
-        No appointments on this day. Add a visit to get started.
-      </Empty>
+      <Empty title="A little breathing room">No visits on this day. Add one to get started.</Empty>
     )
   return (
     <div className="agenda-list">
       <div className="agenda-labels" aria-hidden="true">
         <span>Time</span>
-        <span>Client & service</span>
+        <span>Client & treatment</span>
         <span>Professional</span>
         <span>Status</span>
         <span>Value</span>

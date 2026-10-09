@@ -124,6 +124,17 @@ async function regional(owner: Login, email: string, areaId: string) {
   return { ...login, orgId: owner.orgId }
 }
 
+async function general(owner: Login, email: string, locationId: string) {
+  const invitation = await post(owner, '/invitations', { email, role: 'general', locationId })
+  expect(invitation.statusCode, invitation.body).toBe(201)
+  const login = await register(
+    email,
+    invitation.json<{ invitation: string }>().invitation,
+    'Gia General',
+  )
+  return { ...login, orgId: owner.orgId }
+}
+
 describe('regional manager access (V5)', () => {
   it('needs a region with an open location before inviting', async () => {
     const { owner, london } = await group()
@@ -285,16 +296,32 @@ describe('regional manager access (V5)', () => {
         // A browser cannot claim which regions have a manager.
         managedRegions: [],
       })
-    // Within their limit at their own location: theirs to decide.
+    // Within their limit at their own location, raised by someone at the branch: theirs to decide.
     let view = await area()
     expect(view.regionalLimitMinor).toBe(500_00)
-    let saved = await raise(rae, view.revision, main, 200_00)
+    const gia = await general(owner, 'gia@example.invalid', main)
+    let saved = await raise(gia, (await studio(owner)).revision, main, 200_00)
     expect(saved.statusCode, saved.body).toBe(200)
-    view = saved.json<{ area: AreaView }>().area
+    view = await area()
     const small = view.requests.at(-1)!
     expect(small.routedTo).toEqual({ level: 'regional', regionId: london })
-    expect(small.raisedBy).toBe('Rae Area')
+    expect(small.raisedBy).toBe('Gia General')
+    expect(small.raisedById).toBe(gia.userId)
     expect(view.summary).toContain('1 request is waiting for your sign-off.')
+    // Their own request, however small, goes to the owner: nobody signs off their own spending.
+    saved = await raise(rae, view.revision, main, 200_00)
+    expect(saved.statusCode, saved.body).toBe(200)
+    view = saved.json<{ area: AreaView }>().area
+    const own = view.requests.at(-1)!
+    expect(own.routedTo).toEqual({ level: 'owner' })
+    expect(own.raisedBy).toBe('Rae Area')
+    expect(own.raisedById).toBe(rae.userId)
+    const self = await run(rae, view.revision, {
+      type: 'request-decide',
+      requestId: own.id,
+      outcome: 'approved',
+    })
+    expect(self.statusCode).toBe(403)
     // Over the limit: passes up to the owner, which they can see but not decide.
     saved = await raise(rae, view.revision, main, 900_00)
     view = saved.json<{ area: AreaView }>().area
@@ -310,7 +337,7 @@ describe('regional manager access (V5)', () => {
     expect(passed.json<{ error: string }>().error).toBe('This request has passed up to the owner.')
     // Not at another region's location.
     expect((await raise(rae, view.revision, leeds, 100_00)).statusCode).toBe(403)
-    // They decide their own, once.
+    // They decide the one sent to them, once.
     const decided = await run(rae, view.revision, {
       type: 'request-decide',
       requestId: small.id,
@@ -361,10 +388,14 @@ describe('regional manager access (V5)', () => {
     await ok(manager, state.revision, {
       type: 'request-raise',
       input: { locationId: main, kind: 'spend', title: 'Window cleaner', amountMinor: 80_00 },
-    })
+      // A browser cannot say who raised it, or that they look after the region.
+      raisedById: 'someone-else',
+      raiserRegion: london,
+    } as Command)
     state = await studio(manager)
     const request = state.operations!.requests!.at(-1)!
     expect(request.routedTo).toEqual({ level: 'regional', regionId: london })
+    expect(request.raisedById).toBe(manager.userId)
     const decide = await run(manager, state.revision, {
       type: 'request-decide',
       requestId: request.id,

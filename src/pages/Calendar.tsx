@@ -3,8 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Plus, LayoutGrid, List } from 'lucide-react'
 import { useStore } from '../state/context'
 import { useLiveRefresh } from '../state/useLive'
-import { businessMinutes, can, hoursFor } from '../domain/operations'
-import type { BusinessState } from '../domain/model'
+import { businessMinutes, can } from '../domain/operations'
 import { dayAppointments, shownStatus, staffDay } from '../domain/selectors'
 import { hasLocations, places, staffLocationOn } from '../domain/locations'
 import { addDays, dateLabel, timeLabel } from '../domain/format'
@@ -22,6 +21,10 @@ import { Agenda } from '../components/Agenda'
 import { PeopleColumns } from '../components/PeopleColumns'
 import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
+import { StudioDateField } from '../components/StudioDateField'
+import { CalendarMonth } from '../components/CalendarMonth'
+import { CalendarWeek } from '../components/CalendarWeek'
+import { addMonths, shownHours, weekStart } from '../components/calendarDays'
 import type { BookingDefaults } from '../components/BookingDialog'
 
 export function Calendar() {
@@ -139,7 +142,7 @@ export function Calendar() {
         actions={
           <Button onClick={() => setBooking({})}>
             <Plus size={17} />
-            New appointment
+            New visit
           </Button>
         }
       />
@@ -184,13 +187,7 @@ export function Calendar() {
           <div className="calendar-filters">
             <label className="calendar-date-picker">
               Jump to date
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => {
-                  if (e.target.value) setDate(e.target.value)
-                }}
-              />
+              <StudioDateField className="date-field-compact" value={date} onChange={setDate} />
             </label>
             <label className="sr-only" htmlFor="staff-filter">
               Filter professional
@@ -253,7 +250,8 @@ export function Calendar() {
             <span className="legend-dot sand" />
             Hair & styling
           </span>
-          <small>Turnaround time shown beneath each visit</small>
+          {/* Only the day's grid draws the turnaround; the week and month show the visits. */}
+          {view === 'grid' && <small>Turnaround time shown beneath each visit</small>}
         </div>
         <div className={view === 'grid' ? 'calendar-grid-desktop' : 'hidden'}>
           {canDrag && day.some((a) => a.status === 'confirmed') && (
@@ -296,7 +294,7 @@ export function Calendar() {
                 style={{ height: hourCount * 82 }}
                 key={s.id}
                 data-lane={s.id}
-                aria-label={`${s.name} appointments`}
+                aria-label={`${s.name} visits`}
               >
                 {Array.from({ length: hourCount }, (_, i) => (
                   <div className="hour-line" style={{ top: i * 82 }} key={i} />
@@ -310,7 +308,7 @@ export function Calendar() {
                         date === today
                           ? Math.max(segment.from, Math.ceil(clock / 15) * 15)
                           : segment.from
-                      // A gap shorter than a comfortable tap (24px) is booked from New appointment instead.
+                      // A gap shorter than a comfortable tap (24px) is booked from New visit instead.
                       if (segment.to - from < 15 || ((segment.to - from) / 60) * 82 < 24)
                         return null
                       return (
@@ -453,16 +451,17 @@ export function Calendar() {
           </div>
         </div>
         {view === 'week' ? (
-          <WeekView
+          <CalendarWeek
             date={date}
             staffFilter={staffFilter}
             locationFilter={locationFilter}
             selectedId={appointmentId}
+            now={clock}
             onOpen={setAppointmentId}
             onDay={openDay}
           />
         ) : view === 'month' ? (
-          <MonthView
+          <CalendarMonth
             date={date}
             staffFilter={staffFilter}
             locationFilter={locationFilter}
@@ -486,7 +485,7 @@ export function Calendar() {
         )}
         {!day.length && view === 'grid' && (
           <div className="calendar-grid-desktop">
-            <Empty title="A clear day">Use New appointment to reserve a time.</Empty>
+            <Empty title="A clear day">Use New visit to reserve a time.</Empty>
           </div>
         )}
       </section>
@@ -546,235 +545,10 @@ export function Calendar() {
   )
 }
 
-/** Monday of the week that holds this date. */
-/**
- * V2: the hours the calendar shows for a day. With every location shown, from the earliest opening
- * to the latest closing among them, and closed only when all of them are.
- */
-function shownHours(state: BusinessState, date: string, locationFilter: string) {
-  if (locationFilter !== 'all') return hoursFor(state, date, locationFilter)
-  const open = places(state)
-    .map((place) => hoursFor(state, date, place.id))
-    .filter((h) => !h.closed)
-  if (!open.length) return hoursFor(state, date)
-  return {
-    ...open[0],
-    open: Math.min(...open.map((h) => h.open)),
-    close: Math.max(...open.map((h) => h.close)),
-  }
-}
-
-function weekStart(date: string) {
-  const weekday = new Date(`${date}T00:00:00Z`).getUTCDay()
-  return addDays(date, -((weekday + 6) % 7))
-}
-
-/** The first of the month a given number of months away. */
-function addMonths(date: string, months: number) {
-  const value = new Date(`${date.slice(0, 7)}-01T12:00:00Z`)
-  value.setUTCMonth(value.getUTCMonth() + months)
-  return value.toISOString().slice(0, 10)
-}
-
 function monthLabel(date: string, locale: string) {
   return new Intl.DateTimeFormat(locale, {
     month: 'long',
     year: 'numeric',
     timeZone: 'UTC',
   }).format(new Date(`${date.slice(0, 7)}-01T12:00:00Z`))
-}
-
-/**
- * The whole month at a glance: how full each day is and its first few visits.
- * A day opens its timeline; a visit opens its details.
- */
-function MonthView({
-  date,
-  staffFilter,
-  locationFilter,
-  selectedId,
-  onOpen,
-  onDay,
-}: {
-  date: string
-  staffFilter: string
-  locationFilter: string
-  selectedId: string
-  onOpen: (id: string) => void
-  onDay: (date: string) => void
-}) {
-  const { state, today } = useStore()
-  const locale = state.organisation.locale
-  const month = date.slice(0, 7)
-  const first = weekStart(`${month}-01`)
-  const weeks = Math.ceil(
-    (Date.parse(`${addMonths(date, 1)}T12:00:00Z`) - Date.parse(`${first}T12:00:00Z`)) /
-      (7 * 86_400_000),
-  )
-  const weekday = new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' })
-  const team = state.staff.filter(
-    (s) => !s.archived && (staffFilter === 'all' || s.id === staffFilter),
-  )
-  // People working at the chosen location that day, for how full the day is.
-  const peopleOn = (day: string) =>
-    locationFilter === 'all'
-      ? team.length
-      : team.filter((s) => staffLocationOn(state, s.id, day) === locationFilter).length
-  return (
-    <div className="month-view">
-      <div className="month-weekdays" aria-hidden="true">
-        {Array.from({ length: 7 }, (_, i) => (
-          <span key={i}>{weekday.format(new Date(`${addDays(first, i)}T12:00:00Z`))}</span>
-        ))}
-      </div>
-      <div className="month-grid">
-        {Array.from({ length: weeks * 7 }, (_, i) => {
-          const day = addDays(first, i)
-          const visits = dayAppointments(state, day).filter(
-            (a) =>
-              (staffFilter === 'all' || a.staffId === staffFilter) &&
-              (locationFilter === 'all' || a.locationId === locationFilter),
-          )
-          const hours = shownHours(state, day, locationFilter)
-          const open = hours.closed ? 0 : (hours.close - hours.open) * Math.max(1, peopleOn(day))
-          const booked = visits.reduce((sum, a) => sum + a.bookedDurationMinutes, 0)
-          const fill = open ? Math.min(1, booked / open) : 0
-          const shown = visits.slice(0, 3)
-          return (
-            <section
-              key={day}
-              className={`month-day ${day.slice(0, 7) !== month ? 'month-out' : ''} ${day === today ? 'month-today' : ''}`}
-              aria-label={dateLabel(day, locale)}
-            >
-              <button
-                type="button"
-                className="month-day-head"
-                aria-label={`${dateLabel(day, locale)}, ${hours.closed && !visits.length ? 'closed' : `${visits.length} ${visits.length === 1 ? 'visit' : 'visits'}`}`}
-                onClick={() => onDay(day)}
-              >
-                <strong>{Number(day.slice(8))}</strong>
-                <small>
-                  {hours.closed && !visits.length
-                    ? 'Closed'
-                    : visits.length
-                      ? `${visits.length} ${visits.length === 1 ? 'visit' : 'visits'}`
-                      : ''}
-                </small>
-              </button>
-              {!hours.closed && (
-                <span className="month-fill" aria-hidden="true">
-                  <span style={{ width: `${Math.round(fill * 100)}%` }} />
-                </span>
-              )}
-              <ol>
-                {shown.map((a) => {
-                  const client = state.clients.find((c) => c.id === a.clientId)!
-                  const person = state.staff.find((p) => p.id === a.staffId)!
-                  return (
-                    <li key={a.id}>
-                      <button
-                        type="button"
-                        className={`month-visit tone-${person.tone}`}
-                        data-selected={selectedId === a.id ? '' : undefined}
-                        aria-haspopup="dialog"
-                        onClick={() => onOpen(a.id)}
-                      >
-                        {timeLabel(a.startMinutes, locale)} {client.name.split(' ')[0]}
-                      </button>
-                    </li>
-                  )
-                })}
-              </ol>
-              {visits.length > shown.length && (
-                <button type="button" className="month-more" onClick={() => onDay(day)}>
-                  {visits.length - shown.length} more
-                </button>
-              )}
-            </section>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-/** Seven days side by side, so the shape of the week shows before the detail of a day. */
-function WeekView({
-  date,
-  staffFilter,
-  locationFilter,
-  selectedId,
-  onOpen,
-  onDay,
-}: {
-  date: string
-  staffFilter: string
-  locationFilter: string
-  selectedId: string
-  onOpen: (id: string) => void
-  onDay: (date: string) => void
-}) {
-  const { state, today } = useStore()
-  const locale = state.organisation.locale
-  const monday = weekStart(date)
-  const weekday = new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' })
-  const dayMonth = new Intl.DateTimeFormat(locale, {
-    day: 'numeric',
-    month: 'short',
-    timeZone: 'UTC',
-  })
-  return (
-    <div className="week-view">
-      {Array.from({ length: 7 }, (_, i) => {
-        const day = addDays(monday, i)
-        const when = new Date(`${day}T00:00:00Z`)
-        const visits = dayAppointments(state, day).filter(
-          (a) =>
-            (staffFilter === 'all' || a.staffId === staffFilter) &&
-            (locationFilter === 'all' || a.locationId === locationFilter),
-        )
-        const hours = shownHours(state, day, locationFilter)
-        return (
-          <section
-            className={`week-day ${day === today ? 'week-today' : ''}`}
-            key={day}
-            aria-label={dateLabel(day, locale)}
-          >
-            <button type="button" className="week-day-head" onClick={() => onDay(day)}>
-              <span>{weekday.format(when)}</span>
-              <strong>{dayMonth.format(when)}</strong>
-              <small>
-                {hours.closed
-                  ? 'Closed'
-                  : `${visits.length} ${visits.length === 1 ? 'visit' : 'visits'}`}
-              </small>
-            </button>
-            <ol>
-              {visits.map((a) => {
-                const client = state.clients.find((c) => c.id === a.clientId)!
-                const person = state.staff.find((p) => p.id === a.staffId)!
-                const service = state.services.find((item) => item.id === a.serviceId)!
-                return (
-                  <li key={a.id}>
-                    <button
-                      type="button"
-                      className={`week-visit tone-${person.tone}`}
-                      data-selected={selectedId === a.id ? '' : undefined}
-                      aria-haspopup="dialog"
-                      onClick={() => onOpen(a.id)}
-                    >
-                      <span>
-                        {timeLabel(a.startMinutes, locale)} · {person.name.split(' ')[0]}
-                      </span>{' '}
-                      <strong>{client.name}</strong> <small>{service.name}</small>
-                    </button>
-                  </li>
-                )
-              })}
-            </ol>
-          </section>
-        )
-      })}
-    </div>
-  )
 }

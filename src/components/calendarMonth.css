@@ -1,0 +1,58 @@
+/*
+ * The month on a phone: each day says how many visits it has, and the whole day is one tap to
+ * open it. The wider month keeps its layout from the main stylesheet.
+ */
+.month-hint {
+  display: none;
+}
+@media (max-width: 650px) {
+  .month-hint {
+    display: block;
+    margin: 0;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-size: var(--text-micro);
+  }
+  .month-view .month-day {
+    min-height: 78px;
+    padding: 0 2px 5px;
+  }
+  .month-view .month-day-head {
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 4px;
+    width: calc(100% + 4px);
+    min-height: var(--target);
+    margin: 0 -2px;
+    padding: 6px 2px 2px;
+  }
+  .month-view .month-day-head small {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.15;
+  }
+  /* The count sits in its own soft tile, so it does not read as part of the date. */
+  .month-view .month-count {
+    width: 100%;
+    padding: 3px 0 4px;
+    border-radius: var(--radius-inner);
+    background: color-mix(in srgb, var(--brand) 9%, var(--paper));
+    color: var(--brand-ink);
+  }
+  .month-count > span:first-child {
+    font-size: var(--text-small);
+    font-weight: var(--weight-strong);
+    font-variant-numeric: tabular-nums;
+  }
+  .month-view .month-out .month-count {
+    background: var(--hover);
+    color: var(--muted);
+  }
+  .month-view .month-closed {
+    color: var(--muted);
+  }
+}

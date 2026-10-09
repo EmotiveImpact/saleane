@@ -115,6 +115,10 @@ export function ClientRelationship() {
     (a) => a.clientId === client.id && a.status !== 'cancelled' && a.status !== 'no_show',
   )
   const firstVisit = kept.map((a) => a.date).sort()[0]
+  // As in the client list, someone in the studio today, or seen already, was last here today.
+  const seenToday = kept.some(
+    (a) => a.date === today && (a.status === 'arrived' || a.status === 'completed'),
+  )
   const completedDates = kept.filter((a) => a.status === 'completed').map((a) => a.date)
   const rhythm = usualWeeks(completedDates)
   const monthYear = new Intl.DateTimeFormat(state.organisation.locale, {
@@ -261,9 +265,11 @@ export function ClientRelationship() {
           <div>
             <dt>Last visit</dt>
             <dd>
-              {stats.last
-                ? dateLabel(stats.last.date, state.organisation.locale, true).split(',').pop()
-                : 'Not yet'}
+              {seenToday
+                ? 'Today'
+                : stats.last
+                  ? dateLabel(stats.last.date, state.organisation.locale, true).split(',').pop()
+                  : 'Not yet'}
             </dd>
           </div>
           <div>
@@ -408,7 +414,7 @@ export function ClientRelationship() {
                             <div className="timeline-money">
                               <strong>{money(sale.serviceMinor, state.organisation)}</strong>
                               <span>
-                                Service · {money(sale.tipMinor, state.organisation)} tip
+                                Treatment · {money(sale.tipMinor, state.organisation)} tip
                                 {sale.retail
                                   ? ` · bought ${sale.retail.lines.map((line) => line.name).join(', ')}`
                                   : ''}
@@ -511,7 +517,7 @@ export function ClientRelationship() {
                   Shown to everyone who looks after this client, including on the visit. Ordinary
                   service preferences only.{' '}
                   {operations(state).mode === 'sandbox'
-                    ? 'Use fictional information in this sandbox.'
+                    ? 'This is a sample studio, so use made-up details.'
                     : ''}
                 </p>
                 <ErrorMessage error={preferencesError} />
@@ -600,7 +606,7 @@ export function ClientRelationship() {
               <p className="subtle">
                 Ordinary service preferences only.{' '}
                 {operations(state).mode === 'sandbox'
-                  ? 'Use fictional information in this sandbox. '
+                  ? 'This is a sample studio, so use made-up details. '
                   : ''}
                 Clinical records belong in a separate future product.
               </p>
@@ -641,7 +647,7 @@ export function ClientRelationship() {
               Email marketing enabled
             </label>
             <p className="subtle">
-              Appointment updates are separate. Changing this preference records an event; it sends
+              Messages about their visits are separate. Changing this records the choice; it sends
               no message.
             </p>
             <ConsentHistory clientId={client.id} />

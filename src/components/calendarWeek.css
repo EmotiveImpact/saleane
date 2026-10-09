@@ -1,0 +1,332 @@
+/*
+ * The week on one timeline: a column for each day beside the hours, each visit at its time in the
+ * same chip as the day view, and visits at the same time side by side. The week shows each visit's
+ * own time; its turnaround shows on the day view. On a phone the days become a list. No left-edge
+ * stripes: the only left rules are the 1px lines between columns.
+ */
+.week-grid {
+  --week-hour: 60px;
+  --minute: calc(var(--week-hour) / 60);
+  display: grid;
+  grid-template-columns: 52px repeat(7, minmax(120px, 1fr));
+  grid-template-rows: auto auto;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+.week-corner,
+.week-axis {
+  grid-column: 1;
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--paper);
+}
+.week-corner {
+  grid-row: 1;
+  border-bottom: 1px solid var(--line);
+}
+.week-axis {
+  grid-row: 2;
+  height: calc(var(--minutes) * var(--minute));
+  background: var(--hover);
+}
+.week-axis span {
+  position: absolute;
+  top: calc(var(--at) * var(--minute));
+  left: 12px;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: var(--text-micro);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.week-axis span:first-child {
+  transform: translateY(4px);
+}
+.week-axis span:last-child {
+  transform: translateY(calc(-100% - 4px));
+}
+
+.week-grid > .week-column {
+  grid-row: 1 / span 2;
+  display: grid;
+  grid-template-rows: subgrid;
+  min-width: 0;
+  border-left: 1px solid var(--line);
+}
+.week-head {
+  display: grid;
+  align-content: start;
+  gap: 1px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: none;
+  color: var(--ink);
+  text-align: left;
+}
+.week-head:hover {
+  background: var(--stone);
+}
+.week-head:focus-visible,
+.week-lane .week-event:focus-visible {
+  outline-offset: -2px;
+}
+.week-head span,
+.week-head small {
+  color: var(--muted);
+  font-size: var(--text-micro);
+}
+.week-head strong {
+  font-size: var(--text-body);
+  font-weight: var(--weight-strong);
+}
+.week-head svg {
+  display: none;
+}
+.week-column.is-today .week-head {
+  background: var(--sage-soft);
+}
+.week-column.is-today .week-head strong {
+  color: var(--brand-ink);
+}
+
+/* Hour lines, with a fainter line at each half hour. */
+.week-lane {
+  position: relative;
+  height: calc(var(--minutes) * var(--minute));
+  background-image:
+    linear-gradient(
+      to bottom,
+      transparent calc(var(--week-hour) - 1px),
+      var(--line) calc(var(--week-hour) - 1px)
+    ),
+    linear-gradient(
+      to bottom,
+      transparent calc(var(--week-hour) / 2 - 1px),
+      var(--stone) calc(var(--week-hour) / 2 - 1px),
+      var(--stone) calc(var(--week-hour) / 2),
+      transparent calc(var(--week-hour) / 2)
+    );
+  background-size: 100% var(--week-hour);
+}
+.week-column.is-closed .week-lane {
+  background-color: var(--stone);
+}
+.week-shut {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--from) * var(--minute));
+  height: calc(var(--length) * var(--minute));
+  background: color-mix(in srgb, var(--stone) 75%, transparent);
+}
+/* Now sits beneath the visits here, so it never reads as a line through a time. */
+.week-lane > .now-line {
+  top: calc(var(--from) * var(--minute));
+  z-index: 0;
+}
+.week-lane > ol {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Each visit takes an equal share of its day beside any visit at the same time. */
+.week-lane .week-slot {
+  top: calc(var(--from) * var(--minute));
+  height: calc(var(--length) * var(--minute) - 2px);
+  left: calc(2px + (100% - 2px) * var(--column) / var(--across));
+  right: auto;
+  width: calc((100% - 2px) / var(--across) - 2px);
+  z-index: 1;
+  border-radius: var(--radius-inner);
+  /* The chip shows what fits its size: see the container rules below. */
+  container-type: size;
+}
+.week-slot > .week-event {
+  height: 100%;
+  padding: 5px 8px;
+  line-height: 1.25;
+}
+.week-event > * {
+  flex-shrink: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.week-event > .week-event-when {
+  display: block;
+  font-size: var(--text-micro);
+}
+.week-event-who::before {
+  content: '· ';
+}
+.week-event > strong {
+  margin-top: 1px;
+  font-size: var(--text-meta);
+}
+.week-event > small {
+  opacity: 0.85;
+}
+.week-event .status {
+  display: none;
+}
+
+/*
+ * A small chip keeps what matters most in sight: beside other visits, the time and first name;
+ * when short, no treatment; when shorter still, just the name. What is tucked away stays in the
+ * chip's name for a screen reader, and in its tooltip.
+ */
+@container (max-width: 100px) {
+  .week-slot > .week-event {
+    padding: 4px 3px 4px 4px;
+  }
+  .week-event-who,
+  .week-event-surname {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .week-event > strong {
+    font-size: var(--text-micro);
+  }
+}
+@container (max-width: 44px) {
+  .week-slot > .week-event {
+    padding-inline: 2px;
+  }
+  .week-event > .week-event-when {
+    letter-spacing: -0.02em;
+  }
+}
+@container (max-height: 50px) {
+  .week-event > small {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+@container (max-height: 32px) {
+  .week-slot > .week-event {
+    padding-block: 3px;
+  }
+  .week-event > .week-event-when {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+
+/* A phone: the same days as a list, each opening its day, with its visits beneath. */
+@media (max-width: 650px) {
+  .week-grid {
+    display: block;
+    overflow: visible;
+    border-radius: 0;
+  }
+  .week-corner,
+  .week-axis,
+  .week-shut,
+  .week-lane > .now-line {
+    display: none;
+  }
+  .week-grid > .week-column {
+    display: block;
+    border-left: 0;
+  }
+  .week-column + .week-column {
+    border-top: 1px solid var(--line);
+  }
+  .week-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: var(--target);
+    padding: 10px 16px;
+    border-bottom: 0;
+  }
+  .week-head span {
+    min-width: 30px;
+  }
+  .week-head strong {
+    font-size: var(--text-small);
+  }
+  .week-head small {
+    margin-left: auto;
+  }
+  .week-head svg {
+    display: block;
+    flex: none;
+    color: var(--muted);
+  }
+  .week-lane,
+  .week-column.is-closed .week-lane {
+    height: auto;
+    background: none;
+  }
+  .week-lane > ol {
+    position: static;
+    display: grid;
+    gap: 6px;
+    padding: 0 12px 12px;
+  }
+  .week-lane .week-slot {
+    position: static;
+    width: auto;
+    height: auto;
+    border-radius: var(--radius-control);
+    container-type: normal;
+  }
+  .week-slot > .week-event {
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr);
+    column-gap: 10px;
+    row-gap: 2px;
+    align-items: start;
+    height: auto;
+    min-height: var(--target);
+    padding: 10px 12px;
+  }
+  .week-event > .week-event-when {
+    grid-row: 1 / span 3;
+    display: flex;
+    flex-direction: column;
+    font-size: var(--text-small);
+    font-weight: var(--weight-strong);
+    font-variant-numeric: tabular-nums;
+  }
+  .week-event-who {
+    font-size: var(--text-micro);
+    font-weight: var(--weight-body);
+  }
+  .week-event-who::before {
+    content: none;
+  }
+  .week-event > strong,
+  .week-event > small,
+  .week-event > .status {
+    grid-column: 2;
+  }
+  .week-event > strong {
+    margin-top: 0;
+    font-size: var(--text-small);
+  }
+  .week-lane .week-event .status {
+    display: inline-flex;
+    justify-self: start;
+  }
+}

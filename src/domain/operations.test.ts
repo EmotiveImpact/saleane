@@ -65,6 +65,19 @@ describe('local workspace and venue time', () => {
     expect(operations(parseState(seed('UK'), 'UK')).mode).toBe('sandbox')
     expect(businessDate(seed('UK'), '2030-01-01T12:00:00Z')).toBe('2026-10-06')
   })
+  it('starts a new studio closed on Sunday, taking no online bookings until switched on', () => {
+    const fresh = operations(createWorkspace({ name: 'New venue', region: 'UK' }))
+    expect(fresh.bookingEnabled).toBe(false)
+    expect(fresh.hours.filter((day) => day.closed).map((day) => day.day)).toEqual([0])
+    expect(fresh.hours.find((day) => day.day === 1)).toMatchObject({ open: 540, close: 1080 })
+    // A studio saved before this, without settings of its own, keeps taking bookings every day.
+    const older = operations({
+      ...createWorkspace({ name: 'Older venue', region: 'UK' }),
+      operations: undefined,
+    })
+    expect(older.bookingEnabled).toBe(true)
+    expect(older.hours.every((day) => !day.closed)).toBe(true)
+  })
   it('uses the venue civil date on either side of midnight', () => {
     const us = createWorkspace({ name: 'New York venue', region: 'US' })
     expect(businessDate(us, '2026-10-06T00:30:00Z')).toBe('2026-10-05')
@@ -409,7 +422,7 @@ describe('honest manual money and immutable receipts', () => {
     expect(() => parseState(s, 'UK')).toThrow('ledger')
     const sample = seed('UK')
     sample.operations = defaultOperations('local')
-    expect(() => parseState(sample, 'UK')).toThrow('provenance')
+    expect(() => parseState(sample, 'UK')).toThrow('not valid for this studio')
   })
 })
 

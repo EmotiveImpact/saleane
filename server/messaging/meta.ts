@@ -12,6 +12,15 @@ import type { SocialChannel } from '../../src/domain/inboxSchema'
 
 export type SocialOptions = { mode: 'off' | 'test'; appSecret: string; verifyToken: string }
 
+/**
+ * An account the owner has added but not yet confirmed is kept in social_accounts under this
+ * prefix and the studio's id, so the lookups that route messages by the account's own id never
+ * find it, and two studios can each wait to confirm the same id. Confirming keeps the plain id.
+ */
+export const UNCONFIRMED = 'unconfirmed:'
+export const unconfirmedId = (organisationId: string, accountId: string) =>
+  `${UNCONFIRMED}${organisationId}:${accountId}`
+
 export function socialFromEnv(env: Record<string, string | undefined>): SocialOptions {
   const mode = env.SALEANE_SOCIAL?.trim() || 'off'
   if (mode === 'off') return { mode: 'off', appSecret: '', verifyToken: '' }

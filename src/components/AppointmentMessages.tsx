@@ -194,10 +194,10 @@ export function MessageSettings() {
           </label>
         </fieldset>
         <p className="subtle">
-          These are service messages about a visit, which a client can turn off on their profile.
-          Due back, birthday and &ldquo;we miss you&rdquo; emails go only to guests who agreed to
-          hear from you, by email only. A missed-call text goes within 15 minutes of the call, at
-          most once a day to each number, and never to a client who asked for no texts.{' '}
+          These are messages about a booked visit, not marketing. A client can turn them off on
+          their profile. Due back, birthday and &ldquo;we miss you&rdquo; emails go only to guests
+          who agreed to hear from you, by email only. A missed-call text goes within 15 minutes of
+          the call, at most once a day to each number, and never to a client who asked for no texts.{' '}
           {mode === 'demo' ? 'The demo studio never sends anything.' : ''}
         </p>
         <ErrorMessage error={error} />
@@ -205,7 +205,7 @@ export function MessageSettings() {
           {saved}
         </p>
         {editable && (
-          <div className="settings-actions">
+          <div className="ops-actions">
             <Button type="submit" disabled={!changed || pending}>
               {pending ? 'Saving…' : 'Save message settings'}
             </Button>
@@ -275,7 +275,7 @@ export function SentMessages({ clientId }: { clientId?: string }) {
   return (
     <section className="surface sent-messages" aria-labelledby="sent-messages-title">
       <header>
-        <h2 id="sent-messages-title">{clientId ? 'Appointment messages' : 'Sent for you'}</h2>
+        <h2 id="sent-messages-title">{clientId ? 'Visit messages' : 'Sent for you'}</h2>
         <p>
           {reply && !reply.providers.email.live && !reply.providers.sms.live
             ? 'Test mode: these show what guests would receive. Nothing was sent.'
@@ -388,7 +388,7 @@ export function ClientMessagePreferences({ client }: { client: Client }) {
           disabled={pending || !allowed}
           onChange={(e) => void change({ email: e.target.checked, sms })}
         />
-        Appointment emails
+        Visit emails
       </label>
       <label className="checkbox-label">
         <input
@@ -397,14 +397,14 @@ export function ClientMessagePreferences({ client }: { client: Client }) {
           disabled={pending || !allowed}
           onChange={(e) => void change({ email, sms: e.target.checked })}
         />
-        Appointment texts
+        Visit texts
       </label>
       <p className="subtle">
         {!studio.email && !studio.sms
-          ? 'The studio has turned appointment messages off.'
+          ? 'The studio has turned visit messages off.'
           : reachable.length
             ? `Confirmations and reminders go by ${reachable.map((c) => (c === 'email' ? 'email' : 'text')).join(' and ')}.`
-            : 'No appointment messages will go to this client.'}
+            : 'No visit messages will go to this client.'}
         {sms && studio.sms && !textNumber(client.phone)
           ? ' Texts need a mobile number with a country code.'
           : ''}

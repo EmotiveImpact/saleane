@@ -276,7 +276,7 @@ export function sellAtCounter(
   makeId: () => string,
 ) {
   if (command.clientId && !next.clients.some((c) => c.id === command.clientId))
-    throw new Error('Client does not belong to this workspace.')
+    throw new Error('Client does not belong to this studio.')
   if (command.staffId && !next.staff.some((p) => p.id === command.staffId && !p.archived))
     throw new Error('Choose someone on the team.')
   if (command.method === 'external_card' && !command.reference?.trim())

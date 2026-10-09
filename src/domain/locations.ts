@@ -12,6 +12,9 @@ export type Place = {
   name: string
   address: string
   arrivalNote?: string
+  /** How guests reach this location, when it has its own number or address. */
+  phone?: string
+  email?: string
   main: boolean
   archived: boolean
 }
@@ -23,6 +26,8 @@ export function places(s: BusinessState, includeArchived = false): Place[] {
     name: org.locationName,
     address: org.address,
     ...(org.arrivalNote ? { arrivalNote: org.arrivalNote } : {}),
+    ...(org.phone ? { phone: org.phone } : {}),
+    ...(org.email ? { email: org.email } : {}),
     main: true,
     archived: false,
   }
@@ -31,6 +36,8 @@ export function places(s: BusinessState, includeArchived = false): Place[] {
     name: l.name,
     address: l.address,
     ...(l.arrivalNote ? { arrivalNote: l.arrivalNote } : {}),
+    ...(l.phone ? { phone: l.phone } : {}),
+    ...(l.email ? { email: l.email } : {}),
     main: false,
     archived: !!l.archived,
   }))
@@ -41,6 +48,12 @@ export function places(s: BusinessState, includeArchived = false): Place[] {
 export function hasLocations(s: BusinessState) {
   return places(s).length > 1
 }
+
+/**
+ * Whether selling a gift card, package or membership asks which location sold it: only with more
+ * than one location, and never a general manager, whose own location the server sets.
+ */
+export const asksSoldAt = (s: BusinessState, role: string) => hasLocations(s) && role !== 'general'
 
 export function placeOf(s: BusinessState, locationId: string | undefined) {
   return places(s, true).find((p) => p.id === (locationId ?? s.organisation.locationId))
@@ -76,6 +89,16 @@ export function placeField(s: BusinessState, locationId: string | undefined) {
   return locationId && locationId !== s.organisation.locationId ? { locationId } : {}
 }
 
+/**
+ * Where a sale without a visit was made, such as a gift card or a package: an open location,
+ * named on the record only when it is not the main one (V2).
+ */
+export function salePlace(s: BusinessState, locationId: string | undefined) {
+  const site = placeOf(s, locationId)
+  if (!site || site.archived) throw new Error('Choose an open location.')
+  return placeField(s, site.id)
+}
+
 /** A treatment as offered at one location, with its price there (V2). */
 export function serviceAt<T extends Pick<Service, 'priceMinor' | 'locationPrices'>>(
   service: T,
@@ -103,20 +126,39 @@ export function listPrice(
 }
 
 /**
+ * The open locations where a guest can book a treatment: it is on the menu there and someone who
+ * does it works there in a usual week (V2).
+ */
+export function bookablePlaces(s: BusinessState, service: Pick<Service, 'id' | 'notOfferedAt'>) {
+  return places(s).filter(
+    (place) =>
+      offeredAt(service, place.id) &&
+      s.staff.some(
+        (p) =>
+          !p.archived &&
+          p.serviceIds.includes(service.id) &&
+          staffPlaces(s, p.id).includes(place.id),
+      ),
+  )
+}
+
+/**
  * The studio as seen from one location, for figures: its visits and their receipts, and walk-in
- * sales made there. Everything else is unchanged.
+ * sales, gift cards, packages and memberships sold there (anything sold before locations were
+ * recorded counts at the main one). Everything else is unchanged.
  */
 export function atPlace(s: BusinessState, locationId: string): BusinessState {
   const main = s.organisation.locationId
+  const here = (row: { locationId?: string }) => (row.locationId ?? main) === locationId
   const appointments = s.appointments.filter((a) => a.locationId === locationId)
   const visits = new Set(appointments.map((a) => a.id))
   return {
     ...s,
     appointments,
     sales: s.sales.filter((sale) => visits.has(sale.appointmentId)),
-    ...(s.counterSales
-      ? { counterSales: s.counterSales.filter((c) => (c.locationId ?? main) === locationId) }
-      : {}),
+    ...(s.counterSales ? { counterSales: s.counterSales.filter(here) } : {}),
+    ...(s.giftCards ? { giftCards: s.giftCards.filter(here) } : {}),
+    ...(s.holdings ? { holdings: s.holdings.filter(here) } : {}),
   }
 }
 
@@ -130,7 +172,7 @@ export function locationsProblem(s: BusinessState) {
   if (s.staff.some((p) => p.hours?.some((h) => h.locationId && !known.has(h.locationId))))
     return 'Working hours name a missing location.'
   if (s.appointments.some((a) => !known.has(a.locationId)))
-    return 'An appointment names a missing location.'
+    return 'A visit names a missing location.'
   const o = operations(s)
   if (o.hours.some((h) => h.locationId)) return 'Studio opening hours cannot name a location.'
   const main = s.organisation.locationId
@@ -145,6 +187,8 @@ export function locationsProblem(s: BusinessState) {
   if (
     o.movements.some((m) => m.locationId && !known.has(m.locationId)) ||
     (s.counterSales ?? []).some((c) => c.locationId && !known.has(c.locationId)) ||
+    (s.giftCards ?? []).some((c) => c.locationId && !known.has(c.locationId)) ||
+    (s.holdings ?? []).some((h) => h.locationId && !known.has(h.locationId)) ||
     (o.purchaseOrders ?? []).some((order) => order.locationId && !known.has(order.locationId)) ||
     (s.waitlist ?? []).some((entry) => entry.locationId && !known.has(entry.locationId))
   )

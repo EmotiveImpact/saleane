@@ -131,6 +131,16 @@ async function localStudio() {
     type: 'staff',
     input: { name: 'Maya Lind', role: 'Facialist', serviceIds: [serviceId], tone: 'sage' },
   })
+  // A new studio takes online bookings once the owner switches them on.
+  const { name, locationName, address, timeZone } = (await workspace(owner)).state.organisation
+  await run(owner, {
+    type: 'organisation',
+    name,
+    locationName,
+    address,
+    timeZone,
+    bookingEnabled: true,
+  })
   return { owner, serviceId, staffId, slug: (await workspace(owner)).slug }
 }
 async function book(
@@ -264,7 +274,7 @@ describe('appointment messages (PILOT-01)', () => {
     await api.outbox.tick()
     expect(sent).toEqual([])
     const timeline = (await workspace(owner)).state.events.filter((e) => e.clientId === clientId)
-    expect(timeline.map((e) => e.title)).toContain('Appointment messages updated')
+    expect(timeline.map((e) => e.title)).toContain('Visit messages updated')
   })
 
   it('skips a message whose visit changed after it was planned', async () => {

@@ -43,9 +43,11 @@ export const approvalRequestSchema = z
     note: z.string().max(500).optional(),
     /** Who it went to when it was raised, and why it passed up if it did. */
     routedTo: routeSchema,
-    passedUp: z.enum(['over-limit', 'no-region', 'no-manager']).optional(),
+    passedUp: z.enum(['over-limit', 'no-region', 'no-manager', 'own-request']).optional(),
     raisedAt: z.string(),
     raisedBy: z.string().optional(),
+    /** The account that raised it, from the server's session. Older requests have none. */
+    raisedById: id.optional(),
     decision: z
       .object({
         outcome: z.enum(['approved', 'declined']),
@@ -73,6 +75,12 @@ export const approvalCommandSchemas = [
        * records; without it (the browser demo) every request goes to the owner.
        */
       managedRegions: z.array(id).max(50).optional(),
+      /**
+       * Who raised it, and the region they look after when they are a regional manager. The
+       * server supplies both from the session, overwriting anything the browser sent.
+       */
+      raisedById: id.optional(),
+      raiserRegion: id.optional(),
     })
     .strict(),
   z

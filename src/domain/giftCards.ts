@@ -7,6 +7,7 @@ import { businessDate, operations } from './operations'
 import { addMonths } from './plans'
 import { referenceTaken, refundReferenceTaken } from './references'
 import { fullDateLabel, money } from './format'
+import { salePlace } from './locations'
 
 /**
  * V1.5: gift cards and vouchers. The money paid for one is held until it pays for a visit, so the
@@ -149,12 +150,13 @@ export function runGiftCardCommand(
       : undefined
     if (input.kind === 'service' && !service) throw new Error('Choose a treatment offered here.')
     const client = input.clientId ? next.clients.find((c) => c.id === input.clientId) : undefined
-    if (input.clientId && !client) throw new Error('Client does not belong to this workspace.')
+    if (input.clientId && !client) throw new Error('Client does not belong to this studio.')
     const valueMinor = service ? service.priceMinor : input.valueMinor!
     if (valueMinor <= 0) throw new Error('This treatment has no price to put on a voucher.')
     assertMethod(next, command.method, command.reference)
     if (referenceTaken(next, command.reference))
       throw new Error('This payment reference is already recorded. Review the existing payment.')
+    const place = salePlace(next, command.locationId)
     next.giftCards ??= []
     let code = giftCode(makeId())
     for (let tries = 0; next.giftCards.some((c) => c.code === code); tries += 1) {
@@ -177,6 +179,7 @@ export function runGiftCardCommand(
       expiresOn: addMonths(today, giftCardMonths(next)),
       soldAt: now,
       actor: '',
+      ...place,
       payment: {
         id: makeId(),
         amountMinor: valueMinor,
@@ -287,7 +290,7 @@ export function giftCardsProblem(s: BusinessState) {
         sandbox !== record.method.startsWith('demo_') ||
         (record.method === 'external_card' && !record.reference?.trim())
       )
-        return 'Gift card payment provenance does not match this workspace.'
+        return 'A gift card payment record is not valid for this studio.'
     if (sum(card.redemptions) + sum(card.refunds) > card.valueMinor)
       return 'A gift card cannot pay or return more than it holds.'
     for (const use of card.redemptions) {

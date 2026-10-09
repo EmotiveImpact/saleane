@@ -39,17 +39,12 @@ export const unreadReplies = (s: BusinessState) => repliesList(s).filter((r) => 
 
 /** The one client an address or number belongs to, or undefined when none or several do. */
 export function senderClient(s: BusinessState, channel: ArrivalChannel, from: string) {
-  // Instagram and Facebook give only an id of their own, so the team matches those by hand.
-  if (channel === 'instagram' || channel === 'facebook') return undefined
-  // A chat leaves an email or a number, whichever the guest gave; WhatsApp gives the number.
-  const by =
-    channel === 'chat'
-      ? from.includes('@')
-        ? 'email'
-        : 'sms'
-      : channel === 'whatsapp'
-        ? 'sms'
-        : channel
+  // Instagram and Facebook give only an id of their own, so the team matches those by hand. A
+  // chat on the booking page leaves whatever email or number the visitor typed, which proves
+  // nothing, so the team matches those by hand too.
+  if (channel === 'instagram' || channel === 'facebook' || channel === 'chat') return undefined
+  // WhatsApp gives the number it came from.
+  const by = channel === 'whatsapp' ? 'sms' : channel
   const matches =
     by === 'sms'
       ? s.clients.filter((c) => textNumber(c.phone) === textNumber(from))
@@ -226,7 +221,7 @@ export function runInboxCommand(
     if (!reply) throw new Error('That reply is not in this studio.')
     if (reply.clientId) throw new Error('This reply is already with a client.')
     const client = next.clients.find((c) => c.id === command.clientId)
-    if (!client) throw new Error('Client does not belong to this workspace.')
+    if (!client) throw new Error('Client does not belong to this studio.')
     // Every reply from the same address or number goes with it, so the conversation stays whole.
     for (const r of list)
       if (!r.clientId && r.channel === reply.channel && r.from === reply.from)
@@ -245,7 +240,7 @@ export function runInboxCommand(
     throw new Error('The studio cannot keep more replies. Please contact support.')
   if (command.type === 'reply-note') {
     const client = next.clients.find((c) => c.id === command.clientId)
-    if (!client) throw new Error('Client does not belong to this workspace.')
+    if (!client) throw new Error('Client does not belong to this studio.')
     const body = command.body.trim()
     refuseHealth(body, 'Notes')
     const reply: Reply = {
@@ -277,8 +272,15 @@ export function runInboxCommand(
       : null) ?? command.from.trim()
   const body = command.body.trim().slice(0, REPLY_TEXT_LIMIT) || '(No words, perhaps a picture.)'
   // A sender matched to a client before stays with them, even if their profile has other details.
+  // Not in the chat, where anyone can type the address the team matched before.
   const earlier = list
-    .filter((r) => r.channel === command.channel && r.from === from.slice(0, 200) && r.clientId)
+    .filter(
+      (r) =>
+        command.channel !== 'chat' &&
+        r.channel === command.channel &&
+        r.from === from.slice(0, 200) &&
+        r.clientId,
+    )
     .at(-1)
   const client =
     (earlier && next.clients.find((c) => c.id === earlier.clientId)) ??
@@ -305,9 +307,7 @@ export function runInboxCommand(
         ? `${socialLabel[command.channel]} message received`
         : command.channel === 'sms'
           ? 'Text received'
-          : command.channel === 'chat'
-            ? 'Message left with the AI receptionist'
-            : 'Email received',
+          : 'Email received',
       detail: snippet(body, 120),
     })
   return reply.id

@@ -30,7 +30,7 @@ export function loadWorkspace(storage: Storage, region: Region): LoadedWorkspace
     return {
       state: seed(region),
       warning:
-        'Saved demo data could not be read. Changes are paused to preserve it. Export the saved data or reset this demo workspace.',
+        'Saved demo data could not be read. Changes are paused to preserve it. Export the saved data or reset this demo studio.',
       blocked: true,
     }
   }
@@ -44,7 +44,10 @@ export function commitWorkspace(
   try {
     const raw = storage.getItem(storageKey(region))
     if (raw && parseState(JSON.parse(raw), region).revision !== state.revision)
-      return { ok: false, error: 'This workspace changed in another tab. Reload before saving.' }
+      return {
+        ok: false,
+        error: 'This studio changed in another tab. Reload to see it, then try again.',
+      }
     const result = execute(state, command)
     if (!result.ok) return result
     if (result.state !== state) storage.setItem(storageKey(region), JSON.stringify(result.state))

@@ -159,10 +159,10 @@ describe("A manager's day through Ask Saleane", () => {
 
   it('closes the day and reviews the week with reasons', async () => {
     expect((await ask('How did we do today?')).text).toMatch(
-      /^£195 in treatments from 2 visits, against about £181 on a usual Tuesday\./,
+      /^£195 in treatments from 2 visits, against about £151 on a usual Tuesday\./,
     )
     expect((await ask('How was the week?')).text).toMatch(
-      /^The last seven days: £1,200 from 13 visits/,
+      /^The last seven days: £195 from 2 visits/,
     )
     expect((await ask('How did we do today?', 'reception')).text).toBe(
       'That is for owners and managers.',

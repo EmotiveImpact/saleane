@@ -133,23 +133,6 @@
   border-color: var(--ink);
   background: var(--stone);
 }
-.business-subnav {
-  display: flex;
-  gap: 24px;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 25px;
-  flex-wrap: wrap;
-}
-.business-subnav a {
-  padding: 10px 0 14px;
-  color: var(--muted);
-  font-size: var(--text-small);
-}
-.business-subnav a.active {
-  color: var(--ink);
-  border-bottom: 2px solid var(--ink);
-  font-weight: var(--weight-strong);
-}
 .workspace-connect {
   display: grid;
   gap: 12px;
@@ -242,9 +225,6 @@
   .access-row select {
     max-width: none;
   }
-  .business-subnav {
-    gap: 17px;
-  }
   .account-story .wordmark {
     font-size: 23px;
   }
@@ -272,15 +252,6 @@
   height: 26px;
   border: 1px solid var(--line);
   border-radius: 50%;
-}
-.setup-prompt {
-  margin: 0 0 28px;
-  padding: 24px;
-}
-.setup-prompt p {
-  max-width: 680px;
-  color: var(--muted);
-  margin-bottom: 18px;
 }
 .access-list {
   margin: 20px 0;

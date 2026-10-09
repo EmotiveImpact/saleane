@@ -5,7 +5,7 @@ import { useStore } from '../state/context'
 import { DEMO_DATE } from '../domain/model'
 import { slots } from '../domain/commands'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
-import { Avatar, Button, DateStrip, ErrorMessage, TimeChoices } from '../design'
+import { Avatar, Button, DateField, DateStrip, ErrorMessage, TimeChoices } from '../design'
 import { operations } from '../domain/operations'
 import { BookingFrame } from '../components/BookingFrame'
 import { TreatmentPicker } from '../components/TreatmentPicker'
@@ -13,6 +13,7 @@ import { PriceSentence } from '../components/PriceSentence'
 import { BeforeYouArrive } from '../components/BeforeYouArrive'
 import { AddToCalendar } from '../components/AddToCalendar'
 import { visitUid } from '../domain/calendarFile'
+import { guestPhone, phoneProblem } from '../domain/phone'
 import { bookingChannel } from '../domain/bookingChannel'
 import { fullPriceMinor } from '../domain/priceSentence'
 import { listPrice, offeredAt, places, serviceAt, staffPlaces } from '../domain/locations'
@@ -129,6 +130,12 @@ export function BrandedBooking() {
       setError('Choose a time and acknowledge the demo booking policy.')
       return
     }
+    // A local number in the studio's own country works as well as one with its country code.
+    const number = guestPhone(region, phone)
+    if (!number) {
+      setError(phoneProblem(region))
+      return
+    }
     const result = await commit({
       type: 'book',
       input: {
@@ -137,7 +144,7 @@ export function BrandedBooking() {
         date,
         startMinutes: start,
         ...(where.main ? {} : { locationId: where.id }),
-        contact: { name, email, phone, marketingConsent: consent },
+        contact: { name, email, phone: number, marketingConsent: consent },
         source: 'online',
         // Where the guest came from, when they followed one of the studio's shared links.
         channel: bookingChannel(new URLSearchParams(window.location.search).get('from')),
@@ -190,7 +197,7 @@ export function BrandedBooking() {
           </p>
           <div className="confirmation-details">
             <span>
-              Service total<strong>{money(fullPrice(booked), state.organisation)}</strong>
+              Treatment price<strong>{money(fullPrice(booked), state.organisation)}</strong>
             </span>
             <span>
               Demo deposit<strong>{money(service.depositMinor, state.organisation)}</strong>
@@ -217,8 +224,7 @@ export function BrandedBooking() {
             />
           )}
           <p className="subtle">
-            No money was taken and no email was sent. This fictional booking is saved in this
-            browser’s workspace.
+            No money was taken and no email was sent. This made-up booking is saved in this browser.
           </p>
           <Link className="button button-primary" to="/calendar">
             View in the workspace <ArrowRight size={17} />
@@ -273,7 +279,7 @@ export function BrandedBooking() {
                 : step === 2
                   ? 'A familiar professional, at a time that suits you.'
                   : step === 3
-                    ? 'Just what we need to look after your appointment.'
+                    ? 'Just what we need to look after your visit.'
                     : 'Take a moment to review your visit.'}
             </p>
             {step === 1 && (
@@ -415,14 +421,15 @@ export function BrandedBooking() {
                 />
                 <label className="date-strip-other">
                   Or pick another date
-                  <input
-                    type="date"
+                  <DateField
                     value={date}
+                    locale={state.organisation.locale}
+                    today={DEMO_DATE}
                     min={DEMO_DATE}
                     max="2027-10-06"
-                    onChange={(e) => {
-                      if (!e.target.value) return
-                      setDate(e.target.value)
+                    onChange={(next) => {
+                      if (!next) return
+                      setDate(next)
                       setStart(null)
                     }}
                   />
@@ -503,15 +510,14 @@ export function BrandedBooking() {
                     />
                   </label>
                   <label>
-                    Phone with country code
+                    Phone
                     <input
                       autoComplete="off"
                       required
                       type="tel"
-                      pattern={String.raw`\+[0-9\s\(\)\-]{6,29}`}
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      placeholder={region === 'UK' ? '+44 7700 900123' : '+1 212 555 0123'}
+                      placeholder={region === 'UK' ? '07700 900123' : '(212) 555-0123'}
                     />
                   </label>
                   <label className="checkbox-label">
@@ -551,7 +557,7 @@ export function BrandedBooking() {
                     {locations.length > 1 && where.address ? `, ${where.address}` : ''}
                   </p>
                   <div className="receipt-line">
-                    <span>Service total</span>
+                    <span>Treatment total</span>
                     <strong>{money(fullPrice(booked), state.organisation)}</strong>
                   </div>
                   <div className="receipt-line">

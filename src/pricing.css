@@ -93,6 +93,16 @@
   margin-top: 3px;
   color: var(--brand-ink);
 }
+/* Works once the studio connects its own card or text account. */
+.pricing-included small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+.pricing-connect svg {
+  color: var(--muted);
+}
 .pricing-cta {
   justify-self: start;
   text-decoration: none;

@@ -23,7 +23,7 @@ export function assistantRoutes() {
     if (path[1] !== 'workspaces' || path[3] !== 'assistant') return false
     const actor = ctx.actorFor(request, method !== 'GET')
     const org = ctx.orgFor(path[2], actor)
-    if (org.role === 'practitioner') fail(403, 'Ask Saleane is not available for your role yet.')
+    if (org.role === 'practitioner') fail(403, 'Ask SALEANE is not available for your role yet.')
     const at = new Date(ctx.now()).toISOString()
     for (const [id, proposal] of held) if (proposal.expiresAt < at) held.delete(id)
     const allowance = ALLOWANCES.included

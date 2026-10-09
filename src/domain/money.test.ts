@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { checkoutTotals, minorInput, parseMinor } from './money'
-import { money } from './format'
+import { money, wholeMoney } from './format'
 import { seed } from './seed'
 
 describe('money input and display', () => {
@@ -30,6 +30,15 @@ describe('money input and display', () => {
     expect(money(8500, uk)).toBe('£85')
     expect(money(1205, us)).toBe('$12.05')
     expect(money(8500, uk, true)).toBe('£85.00')
+  })
+  it('rounds headline figures to whole pounds and dollars', () => {
+    const uk = seed('UK').organisation,
+      us = seed('US').organisation
+    expect(wholeMoney(36940, uk)).toBe('£369')
+    expect(wholeMoney(119960, uk)).toBe('£1,200')
+    expect(wholeMoney(9231, uk)).toBe('£92')
+    expect(wholeMoney(0, uk)).toBe('£0')
+    expect(wholeMoney(1250, us)).toBe('$13')
   })
 })
 

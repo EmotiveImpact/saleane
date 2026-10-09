@@ -9,6 +9,7 @@ import { TEST_CARDS } from '../payments/providers'
 import { balanceDue, feeAllowed, giftCardHoldProblem, guestPaymentFor } from '../payments/service'
 import type { AttemptRow, CardRow, Payments } from '../payments/service'
 import { retailItemsSchema } from '../../src/domain/retailSchema'
+import { mayRemoveSavedCard } from '../../src/domain/paymentMethods'
 import { openGuestLink, tokenSchema } from './guest'
 
 const keySchema = /^[A-Za-z0-9._:-]{8,100}$/
@@ -630,12 +631,17 @@ export function paymentRoutes(payments: Payments) {
     }
 
     if (path[3] === 'cards' && path.length === 6 && path[5] === 'remove' && method === 'POST') {
+      // Taking a client's card off file is for the owner and managers, not the desk.
+      if (!['owner', 'manager', 'general'].includes(org.role))
+        fail(403, 'Your role cannot remove a saved card.')
       const card = db.get<CardRow>(
         'SELECT * FROM saved_cards WHERE id=? AND organisation_id=? AND removed_at IS NULL',
         path[4],
         org.id,
       )
       if (!card) fail(404, 'This card was not found.')
+      if (!mayRemoveSavedCard(org.state, org.role, card!.client_id, org.locationId))
+        fail(403, 'That client’s visits are at another location. Ask the owner or a manager.')
       if (!(await provider.removeCard(card!.method_ref)))
         fail(502, 'The payment provider did not confirm the card was removed. Try again.')
       db.run('UPDATE saved_cards SET removed_at=? WHERE id=?', now(), card!.id)

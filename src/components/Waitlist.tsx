@@ -22,6 +22,7 @@ import { feedbackDay } from '../domain/feedback'
 import type { Command } from '../domain/commands'
 import { Button, ErrorMessage, Modal } from '../design'
 import { hasLocations, places } from '../domain/locations'
+import { StudioDateField } from './StudioDateField'
 import './management.css'
 import './waitlist.css'
 
@@ -118,7 +119,7 @@ export function WaitlistForm({ clientId, onClose }: { clientId?: string; onClose
             </label>
           )}
           <label>
-            Service
+            Treatment
             <select
               value={input.serviceId}
               onChange={(e) => change({ serviceId: e.target.value, staffId: undefined })}
@@ -162,23 +163,25 @@ export function WaitlistForm({ clientId, onClose }: { clientId?: string; onClose
           )}
           <label>
             From
-            <input
-              type="date"
-              required
+            <StudioDateField
               min={today}
               value={input.fromDate}
-              onChange={(e) => change({ fromDate: e.target.value })}
+              onChange={(fromDate) => {
+                // Keep the end inside the new range, as the calendar only offers days in it.
+                const last = addDays(fromDate, WAITLIST_MAX_DAYS - 1)
+                const toDate =
+                  input.toDate < fromDate ? fromDate : input.toDate > last ? last : input.toDate
+                change({ fromDate, toDate })
+              }}
             />
           </label>
           <label>
             Until
-            <input
-              type="date"
-              required
+            <StudioDateField
               min={input.fromDate}
               max={addDays(input.fromDate, WAITLIST_MAX_DAYS - 1)}
               value={input.toDate}
-              onChange={(e) => change({ toDate: e.target.value })}
+              onChange={(toDate) => change({ toDate })}
             />
           </label>
           <fieldset className="ops-checks ops-wide">
@@ -305,7 +308,7 @@ export function WaitlistCard({
           </ul>
         )}
         {allowed && (
-          <Button variant="quiet" onClick={() => setRemoving(true)}>
+          <Button variant="secondary" onClick={() => setRemoving(true)}>
             Take off the list
             <span className="sr-only">
               : {client?.name}, {serviceName}

@@ -1,6 +1,6 @@
 # SALEANE — AI continuation handoff
 
-Prepared 6 October 2026 for transfer to Claude. Read the repository before rebuilding anything. The user requested the roadmap, consolidation of all branches and a clear handoff. They explicitly chose **local first; live services unconfigured**.
+Prepared 6 October 2026 for transfer to Claude; current state brought up to date on 9 October 2026. Read the repository before rebuilding anything. The user explicitly chose **local first; live services unconfigured**.
 
 ## Read in this order
 
@@ -11,19 +11,30 @@ Prepared 6 October 2026 for transfer to Claude. Read the repository before rebui
 
 ## Repository and consolidation
 
-Private GitHub: https://github.com/EmotiveImpact/saleane; foundation review: https://github.com/EmotiveImpact/saleane/pull/1. Local checkout: `outputs/Saleane` within the Codex conversation directory. Inspect current Git status and remote main; do not assume a stale branch is the latest authority.
+Private GitHub: https://github.com/EmotiveImpact/saleane; foundation review: https://github.com/EmotiveImpact/saleane/pull/1. Inspect current Git status and remote main; do not assume a stale branch is the latest authority. Work arrives as pull requests from several threads at once, so check what merged since your branch started and the next free migration number (22 is the latest on 9 October 2026).
 
 Implementation baseline `09dc3bd` is the local V1 candidate. The handoff increment fixes the review finding about browser reset revision reuse and adds regression coverage. The old server draft `f73d084` on `wip/saleane-server-authority` is preserved through an explicit **history-only merge**, keeping the current implementation tree. That draft used Fastify/PGlite/Postgres and broad state endpoints. The current Node/SQLite implementation supersedes its account, workspace and command ambitions with tested local boundaries. Do not cherry-pick its package lock or replace the current server. Preserving history does not mean claiming every abandoned implementation ships.
 
-The requested GitHub merge consolidates this into main; verify the actual merge/check status in GitHub. No deployment is part of this handoff. Keep both historical branches unless the user requests cleanup.
+Since then everything has gone through pull requests into main. The roadmap build thread merges its own green stage PRs ("merge as you go", agreed 7 October 2026); any other PR waits for the user to say "merge". Nothing is deployed. Keep both historical branches unless the user requests cleanup.
 
 ## What actually works
 
 Version **1.0.0-rc.1** connects Today → Calendar → Client → Appointment → manual Checkout → Rebook → Business intelligence. There are two modes: the preserved fictional browser demo with a fixed 6 October 2026 date, and authenticated local studios with current venue time and SQLite authority.
 
-Local accounts, tenant memberships (owner/manager/reception), manual invitations, services/qualified professionals/resources, hours/closures/tax setup, public availability with exact-room holds, appointment lifecycle, client timeline, manual receipts/deposits/refunds, unsent drafts, bounded CSV imports and backup/restore are implemented. Empty UK/GBP and US/USD studios can be created through `/account`. Professional catalogue entries do not confer login access by themselves. LOCAL-01 (merged) adds practitioner invitations linked to one professional and a scoped "Your day" screen. LOCAL-02 (in review as a draft PR) adds private guest manage links with online cancellation under a 24-hour deposit cutoff.
+Local accounts, tenant memberships, manual invitations, treatments/qualified professionals/resources, hours/closures/tax setup, public availability with exact-room holds, the visit lifecycle, client timeline, manual receipts/deposits/refunds, unsent drafts, bounded CSV imports and backup/restore are implemented. Empty UK/GBP and US/USD studios can be created through `/account`; a new studio starts closed on Sunday with online booking off, and Today lists what is left to set up. Professional catalogue entries do not confer login access by themselves.
 
-There is no hosted service, processor capture/refund, sent email/SMS, production identity qualification, verified guest identity (manage links are bearer capabilities copied by hand), comprehensive privacy programme or real studio pilot. V2 stock command seams are not retail UI. Stable 1.0 requires the roadmap’s release gates, not a cosmetic version change.
+Merged on top of that, all built locally and in test mode where a provider would be needed:
+
+- LOCAL-01 to LOCAL-05 and OFF-01: practitioner access ("Your day"), guest manage links (cancel, and since 9 October move), privacy and the data lifecycle, schedule administration, a qualification pass, and the read-only offline day sheet.
+- Pilot basics (PILOT-01 to 04): visit messages, saved cards, card payments and deposits in test mode, switching from another system, one published price.
+- V1.5: gift cards, packages and memberships, patch tests, forms, consultations, waitlist (with pass-on), due back and aftercare, birthday and "we miss you", reviews, missed-call text-back, the Inbox.
+- V2: stock and retail at the till, commissions, tips, rota and time off, chair and room rent, supplier orders, accountant exports, several locations.
+- V3 core: Ask SALEANE (morning brief, warnings, booking and cancelling by chat, cover plans), smart insights and specials.
+- V4 in test mode: the AI receptionist on the booking page, texts, Instagram, Facebook and WhatsApp, and Book with Google.
+- V5: the whole business view, regions and regional managers, general managers, requests that pass up, branch visits, client areas and maps, brand rules, several brands, month-end estimate, benchmarking, branch map, partner access keys, automatic checks.
+- The 9 October app review (48 items) fixed the problems it found and polished the daily screens; see the changelog entry of that date.
+
+There is no hosted service, real card capture/refund, sent email/SMS, AI supplier, map service, production identity qualification, verified guest identity (manage links are bearer capabilities copied by hand), comprehensive privacy programme or real studio pilot. Stable 1.0 requires the roadmap’s release gates, not a cosmetic version change.
 
 ## Code map
 
@@ -33,6 +44,8 @@ There is no hosted service, processor capture/refund, sent email/SMS, production
 - `src/pages/`, `src/components/`: route and shared interface; inspect actual exports before editing.
 - `server/app.ts` (request checks and routing), `context.ts` (sessions, tenant lookup, holds, audit), `routes/auth.ts`, `routes/workspace.ts`, `routes/public.ts`, `projections.ts` (the one place a workspace record leaves the server), `database.ts` (numbered migrations), `auth.ts`, `workspace.ts`.
 - `server/index.ts`: same-origin built UI/API host; `backup.ts`: consistent snapshot/verification/fresh-path restore.
+- `server/routes/guest.ts` with `src/domain/guest.ts` and `guestMove.ts`: the guest's own visit (view, cancel, move, pay, forms). `server/routes/assistant.ts`, `receptionist.ts`, `src/assistant/` and `src/lumane/`: Ask SALEANE and the AI receptionist. `server/messaging/`, `server/connections.ts`, `server/partnerApi.ts`: messages, connected software and partner keys, all behind adapters.
+- `demo/`: the clickable cloud demo, which runs the real server in the browser with fresh sample studios.
 - Tests sit beside domain, state and server implementation; `docs/evidence/` records observed browser and recovery work.
 
 ## Invariants that must survive
@@ -53,8 +66,15 @@ There is no hosted service, processor capture/refund, sent email/SMS, production
 - V5 automatic checks (`src/domain/groupChecks.ts`, `operations.groupChecks`, owner-only `group-checks` command): `groupAlerts` is computed on read and must stay read-only (no commands, no messages). `AreaView.alerts` is built with the region's location ids only; the regional morning summary's branch-visit line uses `groupCheckSettings(s).visitDueDays`.
 - Waitlist pass-on (`unansweredOffers` in `src/domain/waitlist.ts`, `PassOnOffers` on /waitlist) is read-only: it only suggests. Passing on uses the ordinary `waitlist-offer` command, so the new offer is a draft awaiting approval; never send or withdraw anything from it. An offer counts as unanswered from its `approvedAt`, not from delivery.
 - V5 house rules (`operations.houseRules`, owner only) are enforced in the `service` command by `serviceRuleRefusal` (`src/domain/brandRules.ts`); keep any new path that writes `locationPrices` or `notOfferedAt` going through it. Setting a rule never rewrites existing treatments; `ruleBreaches` lists them. Studio colours are `operations.look` and reach guests through the public booking payload.
+- A guest moves their own visit only through `POST /api/guest/move` (`server/routes/guest.ts`, `src/domain/guestMove.ts`): the same treatment at the same location, with the same professional or anyone qualified, not within `GUEST_CANCEL_CUTOFF_HOURS` of the visit and at most `GUEST_MOVE_DAYS` ahead. The server rechecks the time against desk bookings and online holds, keeps the booked terms, and the open link follows the visit; a visit the desk moves keeps its open links too (`followGuestLinks`).
+- Messages passed on from the booking page chat always wait unmatched for the team; never match a chat sender to a client by an email or number they typed. Texts from a number already on file still match.
+- A newly added Instagram, Facebook or WhatsApp account is stored unconfirmed (`unconfirmed:<orgId>:<accountId>`) until the owner proves it is theirs, and message routing never matches an unconfirmed id. Once one studio confirms an account, no other studio can add it.
+- Requests record who raised them (`raisedById`, from the session, never from the browser). A regional manager's own request goes to the owner, and they cannot decide a request they raised.
+- Only the owner and managers, or a general manager for a client who visits their location, may remove a saved card (`mayRemoveSavedCard`). `orgFor` refuses a general manager whose location has closed on every route.
+- Gift cards, packages and memberships record the location that sold them; rent and other takings are counted on the studio's own day, never the UTC day.
+- Each command inside a batch is validated on its own before anything reads it. Outgoing connections treat NAT64 addresses as private.
 - Imports are bounded and reviewed, source-attributed, never infer marketing consent and never auto-merge identities on email. Queued communications remain unsent.
-- Backup is consistent with WAL; restore uses a fresh path and revokes sessions/invitations/holds. Keep databases and sidecars outside static roots and Git.
+- Backup is consistent with WAL; restore uses a fresh path and revokes sessions/invitations/holds/guest links. It also holds back everything that reaches outside the studio: access keys are revoked, connections turned off, social accounts set back to unconfirmed and pending messages held as unknown until the team checks them. Keep databases and sidecars outside static roots and Git.
 
 ## Local operating instructions
 
@@ -76,8 +96,8 @@ SALEANE is the operating system for modern beauty, spa and wellness businesses, 
 
 The user rejected generic visual directions. Preserve the original light sidebar, weighted serif, warm ivory/sage palette and photographic direction documented in the design files. Generated studio images are fictional. Caleane was an interaction/style reference, not a replacement identity. No UXio connector was used. The original conversation’s readable context and PRD preview were recovered; original ZIP/workbook/image bytes remain unavailable. Do not claim to have imported them.
 
-## First continuation task
+## Where to pick up
 
-Implement **LOCAL-01** from the roadmap: define assigned-practitioner read/command scope, then server projections, then the corresponding UI. Prove denial of other practitioners’ clients/visits, other tenants, finance/export access and revoked memberships through direct API tests as well as browser journeys. Enable practitioner invites only when those boundaries hold. Keep live services unconfigured. Update the PRD, changelog and evidence; leave the next increment on a reviewable feature branch unless the user authorises another merge.
+Every roadmap version has a local build. What remains waits on the user: provider accounts (Postmark and Twilio for messages, Stripe for cards, an OpenAI key for voice, a map service, Google and Meta approval), a real studio for the pilot, and hosting, which the user has parked. Wire each provider through its existing adapter and keep test mode as the default until the user connects the account.
 
-Suggested kickoff: “Read CLAUDE.md and docs/AI_HANDOFF.md, inspect main and existing local changes/processes, then implement ROADMAP LOCAL-01 against the current shared domain. Preserve the visual direction and existing booking/money/retry invariants. Build locally, run the complete checks and affected browser journeys, document gaps, and prepare the change for review without deployment.”
+Suggested kickoff: “Read CLAUDE.md and docs/AI_HANDOFF.md, inspect main and existing local changes/processes, then take the next item the user asks for against the current shared domain. Preserve the visual direction and existing booking/money/retry invariants. Build locally, run the complete checks and affected browser journeys, document gaps, and prepare the change for review without deployment.”

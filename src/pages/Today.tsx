@@ -1,13 +1,13 @@
 import { useState } from 'react'
-import { hasLocations, placeOf, staffLocationOn } from '../domain/locations'
 import { Link } from 'react-router-dom'
-import { ArrowRight, ArrowUpRight, Plus, Printer } from 'lucide-react'
+import { ArrowUpRight, Plus, Printer } from 'lucide-react'
+import { GetReady } from '../components/GetReady'
 import { useStore } from '../state/context'
 import { useLiveRefresh } from '../state/useLive'
-import { availableMinutes, bookedTimeShare, dayAppointments, dueClients } from '../domain/selectors'
+import { bookedTimeShare, dayAppointments, dueClients } from '../domain/selectors'
 import { bookedTimeDefinition } from '../components/definitions'
 import { dateLabel, money } from '../domain/format'
-import { Avatar, Button, Metric, photos } from '../design'
+import { Button, Metric, photos } from '../design'
 import { businessMinutes } from '../domain/operations'
 import type { Appointment, Client } from '../domain/model'
 import { Agenda } from '../components/Agenda'
@@ -15,8 +15,8 @@ import { SmartInsights } from '../components/SmartInsights'
 import { Specials } from '../components/Specials'
 import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
-import { PatchTestsDue } from '../components/PatchTests'
-import { MissedCalls } from '../components/MissedCalls'
+import { NeedsYou } from '../components/NeedsYou'
+import { TeamToday } from '../components/TeamToday'
 import type { BookingDefaults } from '../components/BookingDialog'
 
 function greeting(minutes: number) {
@@ -37,12 +37,16 @@ function daySummary(day: Appointment[], clients: Client[], all: Appointment[]) {
   ).length
   const inRoom = day.find((a) => a.status === 'arrived')
   const name = inRoom && clients.find((c) => c.id === inRoom.clientId)?.name.split(' ')[0]
-  const people = `${spell(guests.size)} ${guests.size === 1 ? 'guest' : 'guests'} today`
-  const fresh = firstVisits
-    ? `, ${firstVisits === guests.size ? 'all' : spell(firstVisits).toLowerCase()} of them new`
-    : ''
   const now = name ? ` ${name} is in the studio now.` : ''
-  return `${people}${fresh}.${now}`
+  if (guests.size === 1) return `${firstVisits ? 'One new guest' : 'One guest'} today.${now}`
+  const fresh = !firstVisits
+    ? ''
+    : firstVisits < guests.size
+      ? `, ${spell(firstVisits).toLowerCase()} of them new`
+      : guests.size === 2
+        ? ', both new'
+        : ', all of them new'
+  return `${spell(guests.size)} guests today${fresh}.${now}`
 }
 
 export function Today() {
@@ -52,7 +56,6 @@ export function Today() {
   const [booking, setBooking] = useState<BookingDefaults | null>(null)
   const [hideCompleted, setHideCompleted] = useState(false)
   const day = dayAppointments(state)
-  const multiSite = hasLocations(state)
   const due = dueClients(state)
   const booked = day.reduce((sum, a) => sum + a.bookedPriceMinor, 0)
   const completed = day.filter((a) => a.status === 'completed').length
@@ -73,7 +76,7 @@ export function Today() {
           <div className="page-actions">
             <Button onClick={() => setBooking({ date: today })}>
               <Plus size={17} />
-              New appointment
+              New visit
             </Button>
             <Link className="button button-secondary" to="/calendar">
               Open calendar
@@ -97,7 +100,7 @@ export function Today() {
           detail="Before discounts, tax adjustments and tips"
         />
         <Metric
-          label="Appointments"
+          label="Visits"
           value={day.length}
           detail={`${completed} complete · ${day.length - completed} still to come`}
         />
@@ -111,18 +114,7 @@ export function Today() {
         />
         <Metric label="Ready to return" value={due.length} detail="Clients with no next visit" />
       </div>
-      {!state.services.length && (
-        <section className="surface setup-prompt">
-          <h2>Let’s make this your studio.</h2>
-          <p>
-            Add your services, professionals and spaces, then set opening hours. Your first
-            appointment brings the day to life.
-          </p>
-          <Link className="button button-primary" to="/settings">
-            Set up your studio <ArrowRight size={16} />
-          </Link>
-        </section>
-      )}
+      <GetReady />
       <div className="today-layout">
         <section className="surface schedule-surface">
           <div className="section-heading">
@@ -163,43 +155,8 @@ export function Today() {
           )}
         </section>
         <aside className="today-aside">
-          <MissedCalls />
-          <PatchTestsDue />
-          <SmartInsights onBook={setBooking} />
-          <Specials />
-          <section className="team-panel">
-            <div className="section-heading">
-              <h2>Your people today</h2>
-              <span>{state.staff.filter((p) => !p.archived).length} professionals</span>
-            </div>
-            {state.staff
-              .filter((p) => !p.archived)
-              .map((staff) => {
-                const visits = day.filter((a) => a.staffId === staff.id)
-                const percent = Math.round(
-                  (visits.reduce((sum, a) => sum + a.bookedDurationMinutes, 0) /
-                    (availableMinutes({ ...state, staff: [staff] }, today) || 1)) *
-                    100,
-                )
-                return (
-                  <div className="team-row" key={staff.id}>
-                    <Avatar identity={staff.id} name={staff.name} small tone={staff.tone} />
-                    <div>
-                      <strong>{staff.name.split(' ')[0]}</strong>
-                      <small>
-                        {visits.length} visits · {percent}% booked
-                        {multiSite
-                          ? ` · ${placeOf(state, staffLocationOn(state, staff.id, today))?.name ?? ''}`
-                          : ''}
-                      </small>
-                      <div className={`capacity-bar tone-${staff.tone}`}>
-                        <span style={{ width: `${percent}%` }} />
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-          </section>
+          <NeedsYou />
+          <TeamToday />
           <Link className="booking-prompt" to="/booking">
             <span className="mini-wordmark">
               {state.organisation.name
@@ -215,6 +172,10 @@ export function Today() {
             <ArrowUpRight size={18} />
           </Link>
         </aside>
+        <div className="today-ideas">
+          <SmartInsights onBook={setBooking} />
+          <Specials />
+        </div>
       </div>
       {appointmentId && (
         <AppointmentDialog

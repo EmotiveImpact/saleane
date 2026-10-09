@@ -6,6 +6,7 @@ import { can } from '../domain/operations'
 import { birthdayIsReal } from '../domain/model'
 import type { Client } from '../domain/model'
 import { Button, ErrorMessage } from '../design'
+import '../guest-extras.css'
 
 const two = (n: number) => String(n).padStart(2, '0')
 

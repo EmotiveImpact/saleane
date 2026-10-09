@@ -229,7 +229,10 @@ describe('the request email', () => {
   function local() {
     const s = seed('UK')
     s.operations = { ...defaultOperations('local'), hours: defaultOperations().hours }
-    const a = unrated(s)
+    // The latest visit nobody has rated: one of today's, so its feedback link is still open.
+    const a = [...s.appointments]
+      .reverse()
+      .find((x) => x.status === 'completed' && !s.feedback?.some((f) => f.appointmentId === x.id))!
     const sale = s.sales.find((x) => x.appointmentId === a.id)!
     sale.paidAt = '2026-10-06T09:00:00.000Z'
     // Only this visit's checkout is recent.

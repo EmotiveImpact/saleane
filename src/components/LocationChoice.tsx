@@ -1,6 +1,14 @@
 import { MapPin } from 'lucide-react'
 
-export type LocationOption = { id: string; name: string; address: string; arrivalNote?: string }
+export type LocationOption = {
+  id: string
+  name: string
+  address: string
+  arrivalNote?: string
+  /** How guests reach this location; absent means the studio's own phone and email. */
+  phone?: string
+  email?: string
+}
 
 /** V2: the guest's choice of location, shown only when the studio has more than one. */
 export function LocationChoice({

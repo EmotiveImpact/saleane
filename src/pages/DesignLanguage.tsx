@@ -10,9 +10,12 @@ import {
   Modal,
   PageHeader,
   SegmentedControl,
+  Stat,
+  Stats,
   Status,
   Tabs,
   TimeChoices,
+  photos,
 } from '../design'
 import '../design/library.css'
 
@@ -276,7 +279,11 @@ export function DesignLanguage() {
 
         <div className="library-specimen">
           <h3>Page header</h3>
-          <p>Editorial for arrival; compact for working screens.</p>
+          <p>
+            Editorial for arrival; compact for working screens. Every staff page has a small
+            eyebrow, a serif title, one line of description and its actions on the right. A page
+            that opens a part of the studio can lead with a thin band of a house photograph.
+          </p>
           <div className="library-frame">
             <PageHeader
               headingLevel={2}
@@ -284,18 +291,20 @@ export function DesignLanguage() {
               eyebrow="Tuesday 6 October"
               title="A good day begins here."
               description="Everything you need to give today your best."
-              actions={<Button>New appointment</Button>}
+              actions={<Button>New visit</Button>}
             />
           </div>
           <div className="library-frame">
             <PageHeader
               headingLevel={2}
-              title="Calendar"
-              description="People, spaces and time, working together."
+              photo={{ src: photos.tea, position: 'center 58%' }}
+              eyebrow="Waitlist"
+              title="Who would take a time."
+              description="When a time opens that suits someone, it appears beside their name."
               actions={
                 <Button>
                   <Plus size={17} />
-                  New appointment
+                  Add to the waitlist
                 </Button>
               }
             />
@@ -340,20 +349,23 @@ export function DesignLanguage() {
 
         <div className="library-specimen">
           <h3>Tabs</h3>
-          <p>Radix Tabs, for sections that replace each other in place.</p>
+          <p>
+            Radix Tabs, for sections that replace each other in place. A long list, as in Settings,
+            splits into named groups and becomes one select on a phone.
+          </p>
           <Tabs
             label="Example sections"
             value={tab}
             onChange={setTab}
             tabs={[
-              { value: 'services', label: 'Services' },
+              { value: 'services', label: 'Treatments' },
               { value: 'team', label: 'Team' },
               { value: 'hours', label: 'Hours & closures' },
             ]}
           >
             <p className="library-panel">
               {tab === 'services'
-                ? 'Services panel'
+                ? 'Treatments panel'
                 : tab === 'team'
                   ? 'Team panel'
                   : 'Hours and closures panel'}
@@ -362,17 +374,30 @@ export function DesignLanguage() {
         </div>
 
         <div className="library-specimen">
-          <h3>Metric and definition</h3>
-          <p>Label, value and plain detail. A Radix Popover explains how a figure is measured.</p>
+          <h3>Figures</h3>
+          <p>
+            Label, figure and plain detail, in one figure style everywhere. Headline money is in
+            whole pounds; receipts and tables keep the pence. A Radix Popover explains how a figure
+            is measured.
+          </p>
           <div className="metrics-band library-metrics">
             <Metric label="Booked for today" value="£1,100" detail="Before discounts and tips" />
             <Metric
               label="Time booked"
               value="46%"
               detail="Today, of open professional hours"
-              definition={<p>Booked service minutes divided by scheduled professional hours.</p>}
+              definition={<p>Booked treatment minutes divided by scheduled professional hours.</p>}
             />
           </div>
+          <Stats>
+            <Stat label="Waiting to be spent" value="£170" />
+            <Stat label="Owed to the team" value="£369" detail="Before any deductions" />
+            <Stat
+              label="The visit"
+              value="4.4 / 5"
+              definition={<p>The average of every guest's rating for their visit.</p>}
+            />
+          </Stats>
           <p>
             Inline definition{' '}
             <Definition label="Inline definition">
@@ -435,7 +460,7 @@ export function DesignLanguage() {
 
         <div className="library-specimen">
           <h3>Empty and error states</h3>
-          <Empty title="A little breathing room">No appointments on this day.</Empty>
+          <Empty title="A little breathing room">No visits on this day.</Empty>
           <ErrorMessage error="Could not save your note. Your writing is still here; try again." />
         </div>
       </section>
@@ -443,7 +468,7 @@ export function DesignLanguage() {
       <section className="surface library-section" aria-labelledby="voice">
         <h2 id="voice">Voice</h2>
         <ul className="library-principles">
-          <li>British English, calm and specific. No exclamation marks in the workspace.</li>
+          <li>British English, calm and specific. No exclamation marks in the app.</li>
           <li>Editorial lines are short and warm; working copy says exactly what will happen.</li>
           <li>Never claim a payment was processed or a message was sent when it was recorded.</li>
           <li>Errors keep the person’s input and name the next step.</li>

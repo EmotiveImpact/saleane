@@ -1,0 +1,178 @@
+/* DateField: a written-out date that opens a small month calendar. Tokens only, no edge stripes. */
+.date-field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.date-field-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--target);
+  padding: 10px 12px;
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: var(--weight-body);
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+.date-field-trigger:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--brand) 40%, var(--line2));
+}
+.date-field-trigger:focus-visible {
+  outline-offset: 1px;
+}
+.date-field-trigger[data-state='open'] {
+  border-color: var(--brand);
+}
+.date-field-trigger[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+.date-field-trigger svg {
+  color: var(--muted);
+}
+.date-field-value,
+.date-field-placeholder {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.date-field-placeholder {
+  color: var(--muted);
+}
+.date-field-trigger[aria-invalid='true'] .date-field-placeholder {
+  color: var(--danger);
+}
+
+.date-field-popover {
+  z-index: 70;
+  width: min(316px, calc(100vw - 24px));
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow-float);
+  font-size: var(--text-small);
+}
+.month-calendar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.month-calendar-head h2 {
+  font-family: var(--font-editorial);
+  font-size: var(--text-title-s);
+  font-weight: var(--weight-editorial);
+  letter-spacing: -0.01em;
+}
+.month-calendar-turn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink);
+}
+.month-calendar-turn:hover:not(:disabled) {
+  background: var(--stone);
+}
+.month-calendar-grid {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.month-calendar-grid th {
+  padding: 0 0 var(--space-2);
+  color: var(--muted);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-body);
+  text-align: center;
+}
+.month-calendar-grid td {
+  padding: 1px 0;
+  text-align: center;
+}
+.month-calendar-day {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-variant-numeric: tabular-nums;
+}
+.month-calendar-day:hover:not(:disabled) {
+  background: var(--stone);
+}
+.month-calendar-day:focus-visible {
+  outline-offset: 1px;
+}
+.month-calendar-day.is-today {
+  border-color: var(--brand-mid);
+  font-weight: var(--weight-strong);
+}
+.month-calendar-day.is-chosen,
+.month-calendar-day.is-chosen:hover {
+  border-color: var(--action);
+  background: var(--action);
+  color: var(--paper);
+  font-weight: var(--weight-strong);
+}
+.month-calendar-day:disabled {
+  color: var(--faint);
+  opacity: 1;
+  cursor: default;
+}
+.month-calendar-foot {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line);
+}
+.month-calendar-foot .text-link {
+  min-height: 40px;
+  color: var(--brand-ink);
+}
+/* Small phones: the popover takes the screen's width so each day stays a 40px target. */
+@media (max-width: 380px) {
+  .date-field-popover {
+    width: calc(100vw - 16px);
+    padding: var(--space-3) var(--space-2);
+  }
+  .month-calendar-day {
+    width: 100%;
+    max-width: 44px;
+  }
+}
+/* Compact: for toolbars, such as the calendar's jump to a date. */
+.date-field-compact .date-field-trigger {
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: var(--text-small);
+  min-width: 160px;
+}
+@media (max-width: 480px) {
+  .date-field-compact {
+    flex: 1 1 auto;
+  }
+  .date-field-compact .date-field-trigger {
+    min-height: 40px;
+  }
+}

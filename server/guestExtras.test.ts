@@ -175,11 +175,12 @@ describe('guest extras', () => {
       'arrival',
       'cancellation',
       'deposit',
+      // Whether the guest can move the visit online, and why not; never other guests' times.
+      'move',
       'organisation',
       'payment',
       'visit',
-      // V1.5: only whether this guest asked to come in sooner, never who else is waiting.
-      'waitlist',
+      // No "come in sooner?" for a visit the next day; see the waitlist tests for that answer.
     ])
     expect(Object.keys(view.organisation).sort()).toEqual([
       'address',

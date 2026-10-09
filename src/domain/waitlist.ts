@@ -69,7 +69,7 @@ export function serviceLabel(s: BusinessState, entry: WaitlistEntry) {
   return (
     (booked?.bookedServiceName ??
       s.services.find((item) => item.id === entry.serviceId)?.name ??
-      'Service') + where
+      'Treatment') + where
   )
 }
 
@@ -209,16 +209,16 @@ export function openingFree(s: BusinessState, entry: WaitlistEntry, opening: Ope
 
 function checkInput(s: BusinessState, input: WaitlistInput, now: string) {
   const client = s.clients.find((c) => c.id === input.clientId)
-  if (!client) throw new Error('Client does not belong to this workspace.')
+  if (!client) throw new Error('Client does not belong to this studio.')
   const service = s.services.find((item) => item.id === input.serviceId)
   // A guest asking to come in sooner keeps their booked visit even if the service has since been
   // taken off the menu; only a new request from the desk needs a service still offered.
   if (!service || (service.archived && !input.appointmentId))
-    throw new Error('Choose a service offered here.')
+    throw new Error('Choose a treatment offered here.')
   if (input.staffId) {
     const person = s.staff.find((p) => p.id === input.staffId)
     if (!person || person.archived || !person.serviceIds.includes(service.id))
-      throw new Error('Choose someone who offers this service, or anyone.')
+      throw new Error('Choose someone who offers this treatment, or anyone.')
   }
   if (input.locationId) {
     const site = placeOf(s, input.locationId)
@@ -237,7 +237,7 @@ function checkInput(s: BusinessState, input: WaitlistInput, now: string) {
       visit.status !== 'confirmed' ||
       visit.serviceId !== service.id
     )
-      throw new Error('Choose an upcoming visit of this client for this service.')
+      throw new Error('Choose an upcoming visit of this client for this treatment.')
     if (input.toDate >= visit.date) throw new Error('The window must end before their visit.')
   }
   return { client, service }
@@ -595,7 +595,7 @@ export function fillFromWaitlist(
   const entry = entryFor(next, waitlistId)
   if (entry.status !== 'waiting') throw new Error('This waitlist entry is no longer waiting.')
   if (entry.clientId !== appointment.clientId || entry.serviceId !== appointment.serviceId)
-    throw new Error('This waitlist entry is for another client or service.')
+    throw new Error('This waitlist entry is for another client or treatment.')
   if (how === 'book' && entry.appointmentId)
     throw new Error('This guest already has a visit; move it rather than booking another.')
   if (how === 'move' && entry.appointmentId !== appointment.id)

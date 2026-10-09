@@ -81,7 +81,7 @@ export function runConsultationCommand(
       `Consultations here are for everyday notes, so they cannot record health details (“${word}”). Patch tests have their own record; health details wait for the separate clinical part of SALEANE.`,
     )
   const client = next.clients.find((c) => c.id === command.clientId)
-  if (!client) throw new Error('Client does not belong to this workspace.')
+  if (!client) throw new Error('Client does not belong to this studio.')
   for (const serviceId of content.serviceIds)
     if (!next.services.some((x) => x.id === serviceId))
       throw new Error('Choose treatments from this studio.')

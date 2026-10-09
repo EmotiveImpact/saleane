@@ -32,9 +32,14 @@ export function bookingLink(
     date: time.date,
     start: String(time.startMinutes),
   })
-  // V2: with several locations, the page opens at the place the person works that day.
-  if (state && hasLocations(state))
-    params.set('location', staffLocationOn(state, time.staffId, time.date))
+  // V2: with several locations, the page opens where the time was found: where the professional
+  // who would take it works that day. A time with anyone carries its location.
+  const where =
+    time.locationId ??
+    (state && hasLocations(state) && time.staffId !== 'any'
+      ? staffLocationOn(state, time.staffId, time.date)
+      : undefined)
+  if (where) params.set('location', where)
   return `${origin}/book/${slug}?${params}`
 }
 

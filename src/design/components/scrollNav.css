@@ -1,0 +1,84 @@
+/* Section links in one row (Business). Wider than the screen, the row scrolls sideways. */
+.scroll-nav {
+  margin-bottom: 25px;
+  border-bottom: 1px solid var(--line);
+}
+/* Each link carries 8px either side, so even a short one is a full tap wide; the track's
+   negative margin keeps the first word in line with the page. */
+.scroll-nav-track {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  margin-inline: -8px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.scroll-nav-track::-webkit-scrollbar {
+  display: none;
+}
+/* A soft fade says there is more to scroll to, on whichever side has more. */
+.scroll-nav[data-more-before] .scroll-nav-track {
+  mask-image: linear-gradient(to right, transparent, #000 40px);
+}
+.scroll-nav[data-more-after] .scroll-nav-track {
+  mask-image: linear-gradient(to left, transparent, #000 40px);
+}
+.scroll-nav[data-more-before][data-more-after] .scroll-nav-track {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 40px,
+    #000 calc(100% - 40px),
+    transparent
+  );
+}
+.scroll-nav-track > a {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-width: 40px;
+  min-height: var(--target);
+  padding: 2px 8px;
+  color: var(--muted);
+  font-size: var(--text-small);
+  white-space: nowrap;
+}
+/* The open section is underlined across its words only. */
+.scroll-nav-track > a::after {
+  content: '';
+  position: absolute;
+  right: 8px;
+  bottom: 0;
+  left: 8px;
+  height: 2px;
+}
+.scroll-nav-track > a:hover {
+  color: var(--ink);
+}
+.scroll-nav-track > a.active {
+  color: var(--ink);
+  font-weight: var(--weight-strong);
+}
+.scroll-nav-track > a.active::after {
+  background: var(--ink);
+}
+/* Inside the scrolling row, the focus ring is drawn inward so it is never cut off. */
+.scroll-nav-track > a:focus-visible {
+  outline-offset: -2px;
+  border-radius: var(--radius-inner);
+}
+@media (max-width: 650px) {
+  .scroll-nav {
+    margin: 0 -16px 20px;
+  }
+  .scroll-nav-track {
+    gap: 6px;
+    margin-inline: 0;
+    padding: 0 8px;
+    scroll-padding-inline: 8px;
+  }
+}

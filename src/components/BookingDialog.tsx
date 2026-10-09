@@ -9,6 +9,7 @@ import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import { numberLabel } from '../domain/missedCalls'
 import { consultationsList, latestVersion } from '../domain/consultations'
 import { Button, ErrorMessage, Modal, TimeChoices } from '../design'
+import { StudioDateField } from './StudioDateField'
 
 export type BookingDefaults = {
   clientId?: string
@@ -189,7 +190,7 @@ export function BookingDialog({
           ? 'A visit to look forward to'
           : defaults.rebookedFromId
             ? 'Keep the relationship going'
-            : 'Book an appointment'
+            : 'Book a visit'
       }
       description={
         confirmedId
@@ -204,8 +205,8 @@ export function BookingDialog({
             {!state.clients.length
               ? 'Add a client before reserving their visit.'
               : !service
-                ? 'Add an active service in Business management.'
-                : 'Qualify an active professional for this service in Business management.'}
+                ? 'Add a treatment in Settings first.'
+                : 'In Settings, choose who gives this treatment first.'}
           </p>
           <Button variant="secondary" disabled={busy} onClick={onClose}>
             Close
@@ -327,7 +328,7 @@ export function BookingDialog({
           )}
           <div className="form-grid">
             <label className="form-grid-wide">
-              Service
+              Treatment
               <select
                 value={serviceId}
                 disabled={busy}
@@ -391,13 +392,12 @@ export function BookingDialog({
             )}
             <label>
               Date
-              <input
-                type="date"
+              <StudioDateField
                 value={date}
                 min={today}
                 max={addDays(today, 365)}
                 disabled={busy}
-                onChange={(e) => chooseDate(e.target.value)}
+                onChange={chooseDate}
               />
             </label>
           </div>
@@ -424,7 +424,7 @@ export function BookingDialog({
             </span>
           </div>
           <div className="receipt-line">
-            <span>Service total</span>
+            <span>Treatment total</span>
             <strong>
               {money(
                 serviceAt(service, staffId ? staffLocationOn(state, staffId, date) : undefined)

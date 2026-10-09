@@ -57,10 +57,6 @@
 .insight-drifting strong {
   font-size: var(--text-meta);
 }
-.insight-more {
-  display: block;
-  margin-top: 4px;
-}
 .insight-draft {
   display: flex;
   flex-direction: column;
@@ -89,32 +85,27 @@
   color: var(--danger);
   font-size: var(--text-meta);
 }
-.insight-reminders li {
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
+/* Today's column is narrow: a shorter photograph, and a drifting client's two choices side by side
+   when they fit. */
+.intelligence-panel > .intelligence-photo {
+  height: 112px;
 }
-.insight-remind {
+.insight-drifting-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
+  gap: 6px;
 }
-.insight-remind label:first-child {
-  flex: 1 1 160px;
+.intelligence-panel .insight-drifting-actions .button {
+  flex: 1 1 auto;
+  width: auto;
+  min-height: 38px;
+  padding: 7px 12px;
 }
-.insight-remind input,
-.insight-remind select {
-  width: 100%;
-  min-height: 40px;
-  padding: 8px 12px;
-  border: 1px solid var(--line2);
-  border-radius: var(--radius-inner);
-  background: var(--palette-white);
-  color: var(--ink);
-  font: inherit;
-  font-size: var(--text-meta);
+.insight-drifting .see-all {
+  margin-top: 2px;
 }
-.insight-reminders li > span {
-  flex: 1;
+@media (max-width: 650px) {
+  .intelligence-panel .insight-drifting-actions .button {
+    min-height: 40px;
+  }
 }

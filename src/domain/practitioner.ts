@@ -188,7 +188,7 @@ export function practitionerView(
   const serviceName = (a: BusinessState['appointments'][number]) =>
     a.bookedServiceName ??
     s.services.find((service) => service.id === a.serviceId)?.name ??
-    'Service'
+    'Treatment'
   /** The latest visit this practitioner completed with the client before today, if any. */
   const previousVisit = (clientId: string) => {
     const done = s.appointments

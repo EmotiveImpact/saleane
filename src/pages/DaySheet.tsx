@@ -38,7 +38,7 @@ function Visits({ sheet }: { sheet: DaySheet }) {
         <tr>
           <th scope="col">Time</th>
           <th scope="col">Client</th>
-          <th scope="col">Service</th>
+          <th scope="col">Treatment</th>
           {studio && <th scope="col">Professional</th>}
           <th scope="col">Room</th>
           <th scope="col">Status</th>
@@ -90,8 +90,8 @@ function OfflineNotice({ saved, preview }: { saved: SavedDaySheet | null; previe
         </p>
         {preview && (
           <p className="subtle">
-            In a signed-in studio this screen replaces the workspace whenever SALEANE cannot be
-            reached, and every change waits until your access is checked again.
+            In a signed-in studio this page takes over whenever SALEANE cannot be reached, and every
+            change waits until your access is checked again.
           </p>
         )}
         {!preview && (

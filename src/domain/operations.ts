@@ -61,6 +61,9 @@ export const locationInputSchema = z.object({
   arrivalNote: z.string().trim().max(400).optional(),
   hours: weeklyHoursSchema.optional(),
   archived: z.boolean().optional(),
+  /** This location's own phone and email for guests; without them guests see the studio's. */
+  phone: z.string().trim().max(40).optional(),
+  email: z.string().trim().max(254).optional(),
 })
 export const locationSchema = locationInputSchema.extend({ id })
 export type Location = z.infer<typeof locationSchema>
@@ -365,6 +368,15 @@ export type Operations = z.infer<typeof operationsSchema>
  * their area's view, never the studio record, and record branch visits there.
  */
 export type Role = 'owner' | 'manager' | 'reception' | 'practitioner' | 'regional' | 'general'
+/** Each role as the team reads it. */
+export const roleNames: Record<Role, string> = {
+  owner: 'Owner',
+  manager: 'Manager',
+  reception: 'Reception',
+  practitioner: 'Practitioner',
+  general: 'General manager',
+  regional: 'Regional manager',
+}
 /** The roles that receive the whole studio record (reception and general managers with some parts left out). */
 export const studioRole = (role: Role) =>
   role === 'owner' || role === 'manager' || role === 'reception' || role === 'general'
@@ -411,9 +423,15 @@ export function businessDate(s: BusinessState, now = new Date().toISOString()) {
   const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)!.value
   return `${part('year')}-${part('month')}-${part('day')}`
 }
-/** Minutes past midnight on the studio's own clock, for the calendar's "now" line. */
-export function businessMinutes(s: BusinessState, now = new Date().toISOString()) {
-  const parts = localFormatter(s.organisation.timeZone).formatToParts(new Date(now))
+/** Where a sample studio's clock stands on its sample day: 10:45, so its diary agrees with it. */
+export const DEMO_MINUTES = 10 * 60 + 45
+/**
+ * Minutes past midnight on the studio's own clock, for the calendar's "now" line: now, or at the
+ * instant given. A sample studio's clock stands still at 10:45, as its date does.
+ */
+export function businessMinutes(s: BusinessState, now?: string) {
+  if (now === undefined && operations(s).mode === 'sandbox') return DEMO_MINUTES
+  const parts = localFormatter(s.organisation.timeZone).formatToParts(new Date(now ?? Date.now()))
   const n = (type: Intl.DateTimeFormatPartTypes) =>
     Number(parts.find((p) => p.type === type)!.value)
   return n('hour') * 60 + n('minute')
@@ -436,7 +454,7 @@ export function instantIn(timeZone: string, date: string, minute: number) {
     minute < 0 ||
     minute >= 1440
   )
-    throw new Error('Invalid local appointment time.')
+    throw new Error('That time is not valid.')
   const target = Date.parse(`${date}T00:00:00Z`) + minute * 60000
   const offsets = new Set(
     [-36, -12, 0, 12, 36].map((h) => {

@@ -3,9 +3,9 @@ import { Hourglass, Plus } from 'lucide-react'
 import { useStore } from '../state/context'
 import { useClock } from '../state/clock'
 import { feedbackSince } from '../domain/feedback'
-import { money } from '../domain/format'
+import { wholeMoney } from '../domain/format'
 import { waiting, waitlistSummary } from '../domain/waitlist'
-import { Button, Empty, PageHeader } from '../design'
+import { Button, Empty, PageHeader, Stat, Stats, photos } from '../design'
 import { PassOnOffers, WaitlistCard, WaitlistForm } from '../components/Waitlist'
 import { can } from '../domain/operations'
 import '../components/management.css'
@@ -24,7 +24,7 @@ export function Waitlist() {
   if (role === 'practitioner')
     return (
       <div className="waitlist-page">
-        <PageHeader variant="compact" title="Waitlist" description="" />
+        <PageHeader variant="compact" eyebrow="Waitlist" title="Who would take a time." />
         <Empty title="For the desk">
           The front desk, managers and owners look after the waitlist.
         </Empty>
@@ -36,23 +36,26 @@ export function Waitlist() {
     <div className="waitlist-page">
       <PageHeader
         variant="compact"
+        photo={{ src: photos.tea, position: 'center 58%' }}
+        eyebrow="Waitlist"
         title="Who would take a time."
-        description="When a time opens that suits someone, it appears beside their name. Book it, move their visit, or write them an offer to approve. Nobody is contacted by itself."
+        description="When a time opens that suits someone, it appears beside their name. Nobody is contacted by itself."
+        actions={
+          allowed ? (
+            <Button onClick={() => setAdding(true)}>
+              <Plus size={16} aria-hidden="true" /> Add to the waitlist
+            </Button>
+          ) : undefined
+        }
       />
-      <dl className="plans-totals waitlist-totals">
-        <div>
-          <dt>Waiting now</dt>
-          <dd>{summary.waiting}</dd>
-        </div>
-        <div>
-          <dt>Times filled from the list, last 30 days</dt>
-          <dd>{summary.filled}</dd>
-        </div>
-        <div>
-          <dt>Value of those visits</dt>
-          <dd>{money(summary.valueMinor, state.organisation, true)}</dd>
-        </div>
-      </dl>
+      <Stats>
+        <Stat label="Waiting now" value={summary.waiting} />
+        <Stat label="Times filled from the list, last 30 days" value={summary.filled} />
+        <Stat
+          label="Value of those visits"
+          value={wholeMoney(summary.valueMinor, state.organisation)}
+        />
+      </Stats>
       <PassOnOffers />
       <section className="surface ops-panel" aria-labelledby="waiting-heading">
         <header>
@@ -72,13 +75,6 @@ export function Waitlist() {
           <Empty title="Nobody is waiting">
             Add someone who wants a time that is full, or guests can ask from their own visit page.
           </Empty>
-        )}
-        {allowed && (
-          <div className="ops-actions">
-            <Button onClick={() => setAdding(true)}>
-              <Plus size={16} aria-hidden="true" /> Add to the waitlist
-            </Button>
-          </div>
         )}
       </section>
       {adding && <WaitlistForm onClose={() => setAdding(false)} />}

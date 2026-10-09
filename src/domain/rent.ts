@@ -1,6 +1,7 @@
 import type { BusinessState } from './model'
 import { addDays } from './format'
 import { businessDate, operations } from './operations'
+import { recordDay } from './tillCount'
 import type { Rental, RentPayment } from './rentSchema'
 
 /**
@@ -82,11 +83,11 @@ export function rentStatement(s: BusinessState, rental: Rental, until = business
   })
 }
 
-/** Rent recorded as paid in a date range, by the day it was paid. */
+/** Rent recorded as paid in a date range, by the studio's own day it was paid. */
 export function rentReceived(s: BusinessState, from: string, to: string) {
   return (operations(s).rentPayments ?? [])
     .filter((p) => {
-      const day = p.paidAt.slice(0, 10)
+      const day = recordDay(s, p.paidAt)
       return day >= from && day <= to
     })
     .reduce((sum, p) => sum + p.amountMinor, 0)

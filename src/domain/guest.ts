@@ -1,13 +1,15 @@
-import { visitPlace } from './locations'
+import { offeredAt, visitPlace } from './locations'
 import { z } from 'zod'
 import { formContentSchema } from './formsSchema'
 import { visitForms } from './forms'
 import { GUEST_NOTE_LIMIT, appointmentSchema, organisationSchema } from './model'
 import { visitUid } from './calendarFile'
 import type { BusinessState } from './model'
-import { businessDate, instantFor, operations } from './operations'
+import { businessDate, hoursFor, instantFor, operations } from './operations'
 import { addDays } from './format'
 import { WAITLIST_TIMES } from './waitlistSchema'
+import type { WaitlistTime } from './waitlistSchema'
+import { lookSchema } from './brandRulesSchema'
 import { isOpen } from './waitlist'
 import { feedbackForVisit, feedbackOpen } from './feedback'
 
@@ -15,13 +17,18 @@ import { feedbackForVisit, feedbackOpen } from './feedback'
  * LOCAL-02: what a guest holding a private manage link may see and do.
  *
  * Read: their one visit (service, professional's first name, time, status) and the deposit
- * already recorded against it, the studio address and its "before you arrive" notes. No contact
- * details, client notes, history or other visits.
+ * already recorded against it, the studio's address, phone and email, and its "before you arrive"
+ * notes. None of the guest's own contact details, no client notes, history or other visits.
  * Write: cancel that visit while it is still upcoming. A paid deposit is flagged for refund when
  * the guest cancels at least GUEST_CANCEL_CUTOFF_HOURS before the start, and retained after that.
  * Nothing is refunded automatically; the studio records any refund in Money.
+ * Move it to another free time until the same cutoff (see guestMove.ts).
  */
 export const GUEST_CANCEL_CUTOFF_HOURS = 24
+/** "Come in sooner?" is offered only for a visit at least this many days away. */
+export const GUEST_SOONER_MIN_DAYS = 3
+/** Evenings are offered only at a studio open until at least this time on some day. */
+const EVENING_CLOSE = 18 * 60
 /** A link stops opening this long after the visit starts, whatever its stored expiry. */
 export const GUEST_LINK_AFTER_VISIT_MS = 7 * 24 * 60 * 60000
 /** The longest a link can live from the moment it is issued. */
@@ -97,6 +104,9 @@ export const guestViewSchema = z
         currency: true,
         region: true,
         address: true,
+        // How to reach the visit's location, or the studio when the location has none of its own.
+        phone: true,
+        email: true,
       })
       .strict(),
     visit: z
@@ -119,7 +129,12 @@ export const guestViewSchema = z
       })
       .strict(),
     deposit: z
-      .object({ paidMinor: z.number().int().nonnegative(), simulated: z.boolean() })
+      .object({
+        paidMinor: z.number().int().nonnegative(),
+        simulated: z.boolean(),
+        /** Paid only by test card payments, in test mode: no money was taken. */
+        test: z.literal(true).optional(),
+      })
       .strict(),
     cancellation: z
       .object({
@@ -190,7 +205,24 @@ export const guestViewSchema = z
           .object({ anyone: z.boolean(), times: z.array(z.enum(WAITLIST_TIMES)) })
           .strict()
           .nullable(),
+        /** The parts of the day the treatment can start in, when that is not all three. */
+        offered: z.array(z.enum(WAITLIST_TIMES)).optional(),
       })
+      .strict()
+      .optional(),
+    /**
+     * Moving this upcoming visit online. Absent once it can no longer change. `reason` says why
+     * it cannot move now: the cutoff has passed, or the studio has switched online booking off.
+     */
+    move: z
+      .object({ available: z.boolean(), reason: z.enum(['cutoff', 'off']).optional() })
+      .strict()
+      .optional(),
+    /** The studio's own colours, so the page looks like its booking page. */
+    look: lookSchema.optional(),
+    /** After a cancellation: the studio's booking page, with the same treatment chosen. */
+    bookAgain: z
+      .object({ path: z.string().max(400) })
       .strict()
       .optional(),
   })
@@ -222,6 +254,46 @@ export function guestCancellation(s: BusinessState, appointmentId: string, now: 
 }
 
 /**
+ * Why a guest cannot move this visit online now, or null when they can. A visit moves online up to
+ * the same cutoff as a cancellation with the deposit given back, and only while the studio takes
+ * bookings online. `closed` means it is no longer upcoming: cancelled, under way or over.
+ */
+export function guestMoveBlock(
+  s: BusinessState,
+  appointmentId: string,
+  now: number,
+): 'closed' | 'off' | 'cutoff' | null {
+  const a = s.appointments.find((item) => item.id === appointmentId)
+  if (!a) throw new Error('This visit is not in the studio record.')
+  const start = visitStart(s, appointmentId)
+  if (a.status !== 'confirmed' || now >= start) return 'closed'
+  if (!operations(s).bookingEnabled) return 'off'
+  if (now >= start - GUEST_CANCEL_CUTOFF_HOURS * 60 * 60000) return 'cutoff'
+  return null
+}
+
+/**
+ * The parts of the day this treatment could start in on the days before the visit (a week at
+ * most): within opening hours with its full length and resting time. Evenings count only at a
+ * studio open until 6pm or later that day, so a studio closing at 5.30pm never offers them.
+ */
+function soonerParts(s: BusinessState, appointmentId: string, today: string): WaitlistTime[] {
+  const a = s.appointments.find((item) => item.id === appointmentId)!
+  const length = a.bookedDurationMinutes + a.bookedBufferMinutes
+  const parts = new Set<WaitlistTime>()
+  for (let day = today; day < a.date && day < addDays(today, 7); day = addDays(day, 1)) {
+    const hours = hoursFor(s, day, a.locationId)
+    if (!hours || hours.closed) continue
+    const latest = hours.close - length
+    if (latest < hours.open) continue
+    if (hours.open < 720) parts.add('morning')
+    if (hours.open < 1020 && latest >= 720) parts.add('afternoon')
+    if (latest >= 1020 && hours.close >= EVENING_CLOSE) parts.add('evening')
+  }
+  return WAITLIST_TIMES.filter((part) => parts.has(part))
+}
+
+/**
  * Whether a guest can tap "I've arrived" now: a confirmed visit today on the studio's clock, from
  * half an hour before it starts until it ends. `opensAt` is when it opens, for the page to say.
  */
@@ -243,13 +315,36 @@ export function guestView(
   appointmentId: string,
   now: number,
   payment?: GuestPayment | null,
+  /** The studio's booking page address, for booking again after a cancellation. */
+  studio: { slug?: string } = {},
 ): GuestView {
   const a = s.appointments.find((item) => item.id === appointmentId)
   if (!a) throw new Error('This visit is not in the studio record.')
   const { paidMinor, ...cancellation } = guestCancellation(s, appointmentId, now)
+  const today = businessDate(s, new Date(now).toISOString())
+  const deposits = s.payments.filter((p) => p.appointmentId === a.id && p.kind === 'deposit')
+  const sooner = (s.waitlist ?? []).find(
+    (e) => isOpen(s, e, new Date(now).toISOString()) && e.appointmentId === a.id,
+  )
+  // "Come in sooner?" is offered for a visit a few days away, in the parts of the day that could
+  // suit; a guest already asking keeps their answer until the day before, to change it or leave.
+  const upcoming = a.status === 'confirmed' && addDays(a.date, -1) >= today
+  const offered = upcoming ? soonerParts(s, a.id, today) : []
+  const waitlist =
+    upcoming && (sooner || (offered.length && a.date >= addDays(today, GUEST_SOONER_MIN_DAYS)))
+      ? {
+          joined: sooner ? { anyone: !sooner.staffId, times: sooner.times } : null,
+          ...(offered.length && offered.length < WAITLIST_TIMES.length ? { offered } : {}),
+        }
+      : null
+  const move = guestMoveBlock(s, a.id, now)
+  const service = s.services.find((x) => x.id === a.serviceId)
+  const look = operations(s).look
   const professional = s.staff.find((p) => p.id === a.staffId)?.name.split(' ')[0] ?? 'The studio'
   // V2: the guest sees the location their visit is at.
   const place = visitPlace(s, a)
+  const phone = place.phone ?? s.organisation.phone
+  const email = place.email ?? s.organisation.email
   return guestViewSchema.parse({
     organisation: {
       name: s.organisation.name,
@@ -259,10 +354,11 @@ export function guestView(
       currency: s.organisation.currency,
       region: s.organisation.region,
       address: place.address,
+      ...(phone ? { phone } : {}),
+      ...(email ? { email } : {}),
     },
     visit: {
-      serviceName:
-        a.bookedServiceName ?? s.services.find((x) => x.id === a.serviceId)?.name ?? 'Your visit',
+      serviceName: a.bookedServiceName ?? service?.name ?? 'Your visit',
       professional,
       date: a.date,
       startMinutes: a.startMinutes,
@@ -272,26 +368,31 @@ export function guestView(
     },
     arrival: {
       studioNote: place.arrivalNote ?? '',
-      serviceNote: s.services.find((x) => x.id === a.serviceId)?.prepNote ?? '',
+      serviceNote: service?.prepNote ?? '',
     },
     deposit: {
       paidMinor,
-      simulated: s.payments.some(
-        (p) => p.appointmentId === a.id && p.kind === 'deposit' && p.method === 'demo_card',
-      ),
+      simulated: deposits.some((p) => p.method === 'demo_card'),
+      // Only a deposit paid wholly by test card payments took no money.
+      ...(deposits.length && deposits.every((p) => p.processor && !p.processor.live)
+        ? { test: true as const }
+        : {}),
     },
     cancellation,
     ...(payment === undefined ? {} : { payment }),
-    ...(a.status === 'confirmed' &&
-    addDays(a.date, -1) >= businessDate(s, new Date(now).toISOString())
+    ...(waitlist ? { waitlist } : {}),
+    ...(move === 'closed'
+      ? {}
+      : { move: move ? { available: false, reason: move } : { available: true } }),
+    ...(look ? { look } : {}),
+    ...(a.status === 'cancelled' && studio.slug && operations(s).bookingEnabled
       ? {
-          waitlist: {
-            joined: (() => {
-              const entry = (s.waitlist ?? []).find(
-                (e) => isOpen(s, e, new Date(now).toISOString()) && e.appointmentId === a.id,
-              )
-              return entry ? { anyone: !entry.staffId, times: entry.times } : null
-            })(),
+          bookAgain: {
+            path: `/book/${encodeURIComponent(studio.slug)}${
+              service && !service.archived && offeredAt(service, a.locationId)
+                ? `?service=${encodeURIComponent(service.id)}`
+                : ''
+            }`,
           },
         }
       : {}),

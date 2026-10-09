@@ -72,7 +72,7 @@ describe('before you arrive notes', () => {
       arrivalNote: 'Allowed',
       prepNotes: [{ serviceId: 'service-elsewhere', note: 'Not here' }],
     })
-    expect(foreign).toEqual({ ok: false, error: 'Service does not belong to this workspace.' })
+    expect(foreign).toEqual({ ok: false, error: 'Treatment does not belong to this studio.' })
     expect(s.organisation.arrivalNote).toBeUndefined()
   })
 

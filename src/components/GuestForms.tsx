@@ -53,7 +53,7 @@ export function FormSettings() {
           .map((id) => state.services.find((s) => s.id === id)?.name)
           .filter(Boolean)
           .join(', ')
-      : 'Every service'
+      : 'Every treatment'
   async function archive(form: GuestForm) {
     setNotice('')
     const archived = !form.archived
@@ -331,8 +331,8 @@ function FormEditor({
           </label>
         </div>
         <fieldset className="form-services">
-          <legend>For these services</legend>
-          <p className="subtle">Leave them all unticked to ask for every service.</p>
+          <legend>For these treatments</legend>
+          <p className="subtle">Leave them all unticked to ask for every treatment.</p>
           <div>
             {services.map((s) => (
               <label className="ops-check" key={s.id}>

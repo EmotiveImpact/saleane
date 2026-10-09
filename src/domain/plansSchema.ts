@@ -93,6 +93,8 @@ export const holdingSchema = z.object({
     .optional(),
   soldAt: z.iso.datetime(),
   actor: z.string(),
+  /** V2: the location that sold it, when not the main one. Older plans have none. */
+  locationId: id.optional(),
   payments: z.array(planPaymentSchema),
   uses: z.array(planUseSchema),
   refunds: z.array(planRefundSchema),

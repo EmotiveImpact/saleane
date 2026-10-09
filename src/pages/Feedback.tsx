@@ -5,7 +5,7 @@ import { MessageSquareQuote, Star } from 'lucide-react'
 import { useStore } from '../state/context'
 import { feedbackDay, feedbackList, feedbackSince, feedbackSummary } from '../domain/feedback'
 import { dateLabel } from '../domain/format'
-import { Avatar, Empty, PageHeader, SegmentedControl } from '../design'
+import { Avatar, Empty, PageHeader, SegmentedControl, Stat, Stats } from '../design'
 import '../components/management.css'
 import '../feedback.css'
 
@@ -25,7 +25,7 @@ export function Feedback() {
   if (!leads(role))
     return (
       <div className="feedback-page">
-        <PageHeader variant="compact" title="Guest feedback" description="" />
+        <PageHeader variant="compact" eyebrow="Business" title="What guests tell you." />
         <Empty title="For owners and managers">
           Guests' private feedback is read by the studio's owner and managers.
         </Empty>
@@ -42,6 +42,7 @@ export function Feedback() {
     <div className="feedback-page">
       <PageHeader
         variant="compact"
+        eyebrow="Business"
         title="What guests tell you."
         description="Private ratings and notes after each visit. Nothing here is published; public reviews stay on your Google page."
       />
@@ -55,20 +56,11 @@ export function Feedback() {
           label: PERIODS[Number(value) as Period],
         }))}
       />
-      <dl className="feedback-totals">
-        <div>
-          <dt>Visits rated</dt>
-          <dd>{summary.count}</dd>
-        </div>
-        <div>
-          <dt>The visit</dt>
-          <dd>{score(summary.visitAverage)}</dd>
-        </div>
-        <div>
-          <dt>How guests were looked after</dt>
-          <dd>{score(summary.practitionerAverage)}</dd>
-        </div>
-      </dl>
+      <Stats className="feedback-totals">
+        <Stat label="Visits rated" value={summary.count} />
+        <Stat label="The visit" value={score(summary.visitAverage)} />
+        <Stat label="How guests were looked after" value={score(summary.practitionerAverage)} />
+      </Stats>
       <div className="feedback-layout">
         <section className="surface ops-panel" aria-labelledby="by-person">
           <header>

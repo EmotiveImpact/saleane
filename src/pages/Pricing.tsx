@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Check } from 'lucide-react'
-import { INCLUDED, PRICE, PROMISES, priceLabel } from '../domain/pricing'
+import { Check, Plug } from 'lucide-react'
+import { CONNECT_NOTES, INCLUDED, PRICE, PROMISES, priceLabel } from '../domain/pricing'
 import type { PriceRegion } from '../domain/pricing'
 import { SegmentedControl } from '../design'
 import '../pricing.css'
@@ -21,7 +21,7 @@ export function Pricing() {
   return (
     <div className="pricing-page">
       <header className="pricing-top">
-        <Link className="wordmark" to="/today">
+        <Link className="wordmark" to="/pricing">
           SALEANE
         </Link>
         <Link className="pricing-sign-in" to="/account">
@@ -58,9 +58,16 @@ export function Pricing() {
             </p>
             <ul className="pricing-included">
               {INCLUDED.map((item) => (
-                <li key={item}>
-                  <Check size={17} aria-hidden="true" />
-                  {item}
+                <li key={item.text} className={item.connect ? 'pricing-connect' : undefined}>
+                  {item.connect ? (
+                    <Plug size={17} aria-hidden="true" />
+                  ) : (
+                    <Check size={17} aria-hidden="true" />
+                  )}
+                  <span>
+                    {item.text}
+                    {item.connect && <small>{CONNECT_NOTES[item.connect]}</small>}
+                  </span>
                 </li>
               ))}
             </ul>

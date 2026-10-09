@@ -77,6 +77,8 @@ export const giftCardSchema = z.object({
   expiresOn: civilDate,
   soldAt: z.iso.datetime(),
   actor: z.string(),
+  /** V2: the location that sold it, when not the main one. Older cards have none. */
+  locationId: id.optional(),
   payment: z.object({
     id,
     amountMinor: minor,

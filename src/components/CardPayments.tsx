@@ -5,6 +5,7 @@ import { useStore } from '../state/context'
 import { api } from '../state/api'
 import { can, operations } from '../domain/operations'
 import { minorInput, parseMinor } from '../domain/money'
+import { mayRemoveSavedCard } from '../domain/paymentMethods'
 import { money as formatMoney } from '../domain/format'
 import { Button, ErrorMessage } from '../design'
 
@@ -422,8 +423,10 @@ export function VisitCardPanel({ appointmentId }: { appointmentId: string }) {
 
 /** PILOT-02: the cards a client saved, what they agreed to, and a way to remove one. */
 export function ClientCards({ clientId }: { clientId: string }) {
-  const { state, blocked } = useStore()
+  const { state, blocked, role, branch } = useStore()
   const { reply, load, available } = usePayments({ clientId })
+  // The owner and managers take a card off file; the server checks again.
+  const removable = mayRemoveSavedCard(state, role, clientId, branch)
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -468,7 +471,7 @@ export function ClientCards({ clientId }: { clientId: string }) {
               <summary>What the client agreed to</summary>
               <p>{card.agreed}</p>
             </details>
-            {confirm === card.id ? (
+            {!removable ? null : confirm === card.id ? (
               <div className="guest-actions">
                 <Button disabled={blocked || busy} onClick={() => void remove(card.id)}>
                   {busy ? 'Removing…' : 'Yes, remove this card'}
@@ -484,6 +487,9 @@ export function ClientCards({ clientId }: { clientId: string }) {
             )}
           </div>
         ))
+      )}
+      {reply.cards.length > 0 && !removable && (
+        <p className="subtle">The owner or a manager can remove a saved card.</p>
       )}
       <ErrorMessage error={error} />
     </section>
@@ -583,7 +589,7 @@ export function PaymentSettings() {
           {saved}
         </p>
         {editable && (
-          <div className="settings-actions">
+          <div className="ops-actions">
             <Button type="submit" disabled={!changed || pending}>
               {pending ? 'Saving…' : 'Save payment settings'}
             </Button>

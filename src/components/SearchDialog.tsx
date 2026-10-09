@@ -36,7 +36,7 @@ export function SearchDialog({ onClose }: { onClose: () => void }) {
     >
       <label className="search-field command-search">
         <Search size={20} />
-        <span className="sr-only">Search workspace</span>
+        <span className="sr-only">Search clients</span>
         <input
           type="search"
           value={query}

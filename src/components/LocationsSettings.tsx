@@ -7,12 +7,13 @@ import { can, operations } from '../domain/operations'
 import { places, resourceLocation } from '../domain/locations'
 import type { Place } from '../domain/locations'
 import { scheduleImpact } from '../domain/schedule'
-import { Button, ErrorMessage, Modal } from '../design'
+import { Button, ErrorMessage, Modal, TimeField } from '../design'
 import { AffectedVisits } from './ScheduleImpact'
 
 /**
  * V2: the studio's locations. The main one is edited in Studio details; further locations have a
- * name, an address, an optional note for guests and, if they differ, their own opening hours.
+ * name, an address, an optional note, phone and email for guests and, if they differ, their own
+ * opening hours.
  * Rooms are placed in Spaces and each person's working days in Team.
  */
 type WeeklyHours = ReturnType<typeof operations>['hours']
@@ -145,6 +146,8 @@ function LocationDialog({
   const [name, setName] = useState(place?.name ?? '')
   const [address, setAddress] = useState(place?.address ?? '')
   const [note, setNote] = useState(place?.arrivalNote ?? '')
+  const [phone, setPhone] = useState(stored?.phone ?? '')
+  const [email, setEmail] = useState(stored?.email ?? '')
   const [own, setOwn] = useState(!!stored?.hours)
   const [hours, setHours] = useState<WeeklyHours>(() =>
     (stored?.hours ?? studio).map((day) => ({ ...day })),
@@ -159,6 +162,8 @@ function LocationDialog({
       name: name.trim(),
       address: address.trim(),
       ...(note.trim() ? { arrivalNote: note.trim() } : {}),
+      ...(phone.trim() ? { phone: phone.trim() } : {}),
+      ...(email.trim() ? { email: email.trim() } : {}),
       ...(own ? { hours } : {}),
       ...(closed ? { archived: true } : {}),
     },
@@ -167,7 +172,7 @@ function LocationDialog({
     () => (place ? scheduleImpact(state, command, new Date().toISOString()) : []),
     // The command is rebuilt from these values on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state, place, name, address, note, own, hours, closed],
+    [state, place, name, address, note, phone, email, own, hours, closed],
   )
 
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -217,6 +222,26 @@ function LocationDialog({
             Address
             <input value={address} maxLength={300} onChange={(e) => setAddress(e.target.value)} />
           </label>
+          <label>
+            Phone for guests (optional)
+            <input
+              type="tel"
+              value={phone}
+              maxLength={40}
+              autoComplete="off"
+              onChange={(e) => setPhone(e.target.value)}
+            />
+          </label>
+          <label>
+            Email for guests (optional)
+            <input
+              type="email"
+              value={email}
+              maxLength={254}
+              autoComplete="off"
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </label>
           <label className="ops-wide">
             Before you arrive (optional)
             <textarea
@@ -254,24 +279,24 @@ function LocationDialog({
                       </label>
                       <label className="ops-field">
                         Opens
-                        <input
-                          type="time"
+                        <TimeField
+                          locale={state.organisation.locale}
                           aria-label={`${days[weekday]} opens`}
                           required={!day.closed}
                           disabled={day.closed}
                           value={clock(day.open)}
-                          onChange={(e) => update({ open: minutes(e.target.value) })}
+                          onChange={(time) => update({ open: minutes(time) })}
                         />
                       </label>
                       <label className="ops-field">
                         Closes
-                        <input
-                          type="time"
+                        <TimeField
+                          locale={state.organisation.locale}
                           aria-label={`${days[weekday]} closes`}
                           required={!day.closed}
                           disabled={day.closed}
                           value={clock(day.close)}
-                          onChange={(e) => update({ close: minutes(e.target.value) })}
+                          onChange={(time) => update({ close: minutes(time) })}
                         />
                       </label>
                     </div>

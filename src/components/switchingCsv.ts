@@ -183,7 +183,7 @@ export function previewServicesCsv(
       return problem(
         record,
         cells,
-        'A service with this name already exists, or appears earlier in this file. The existing one stays unchanged.',
+        'A treatment with this name already exists, or appears earlier in this file. The existing one stays unchanged.',
         'duplicate',
       )
     taken.add(key)
@@ -199,13 +199,13 @@ export function previewServicesCsv(
       return problem(
         record,
         cells,
-        `This service needs a ${resourceType === 'chair' ? 'chair' : 'treatment room'}. Add one in Spaces & equipment first.`,
+        `This treatment needs a ${resourceType === 'chair' ? 'chair' : 'treatment room'}. Add one in Spaces & equipment first.`,
       )
     return {
       record,
       cells,
       status: 'ready',
-      detail: `New service${category ? '' : ' in Skin (no category given)'}, ${resourceType === 'chair' ? 'uses a chair' : 'uses a treatment room'}${staffIds.length ? `, given by ${professionals.join(', ')}` : ', no one assigned yet'}.`,
+      detail: `New treatment${category ? '' : ' in Skin (no category given)'}, ${resourceType === 'chair' ? 'uses a chair' : 'uses a treatment room'}${staffIds.length ? `, given by ${professionals.join(', ')}` : ', no one assigned yet'}.`,
       amountMinor: price,
       depositMinor: deposit,
       value: {
@@ -257,8 +257,8 @@ export function previewAppointmentsCsv(
         record,
         cells,
         services.length
-          ? 'service: More than one service has this name.'
-          : 'service: No service has this name. Import or add it first.',
+          ? 'service: More than one treatment has this name.'
+          : 'service: No treatment has this name. Import or add it first.',
       )
     const service = services[0]
     const staff = byName(state.staff, file.at(values, 'professional'))

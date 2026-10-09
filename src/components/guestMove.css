@@ -1,0 +1,119 @@
+/* A guest moving their own visit: choose a day and time, then see the old and new side by side. */
+.guest-move {
+  display: grid;
+  gap: var(--space-5);
+  margin-top: var(--space-2);
+  padding: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--sage-soft);
+}
+.guest-move h3 {
+  margin: 0;
+  font-family: var(--font-editorial);
+  font-weight: var(--weight-editorial);
+  font-size: var(--text-title-s);
+}
+.guest-move h3:focus {
+  outline: none;
+}
+.guest-move h3:focus-visible {
+  outline: 2px solid var(--brand-ink);
+  outline-offset: 4px;
+}
+.guest-move > p {
+  margin: 0;
+}
+.guest-move .segmented-pill {
+  justify-self: start;
+}
+.guest-move .segmented-pill .segmented-item {
+  min-height: 40px;
+  padding: 8px 16px;
+}
+.guest-move .time-fieldset {
+  margin: 0;
+}
+.guest-move .time-slots {
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+}
+.guest-move .time-slot {
+  min-height: var(--target);
+  background: var(--paper);
+}
+.guest-move .time-slot.selected {
+  background: var(--action);
+}
+.guest-move-none {
+  margin: 0;
+  padding: var(--space-4);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  color: var(--muted);
+}
+.guest-move .guest-actions .button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* The visit now and the new time, side by side; stacked on a phone. */
+.guest-move-compare {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+}
+.guest-move-compare > div {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+}
+.guest-move-compare span {
+  font-size: var(--text-micro);
+  font-weight: var(--weight-strong);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.guest-move-compare strong {
+  font-weight: var(--weight-strong);
+}
+.guest-move-compare small {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.guest-move-compare .guest-move-new {
+  border-color: var(--brand-mid);
+  background: var(--brand-soft);
+}
+.guest-move-arrow {
+  color: var(--brand-ink);
+}
+.guest-move-late {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
+.guest-move-unsure {
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-panel);
+  background: var(--sage);
+}
+@media (max-width: 480px) {
+  .guest-move {
+    padding: var(--space-4);
+  }
+  .guest-move-compare {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .guest-move-arrow {
+    justify-self: center;
+    transform: rotate(90deg);
+  }
+}

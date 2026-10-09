@@ -105,9 +105,11 @@ export function HouseRules() {
           {saved}
         </p>
         {allowed ? (
-          <Button type="submit" disabled={pending}>
-            {pending ? 'Saving…' : 'Save house rules'}
-          </Button>
+          <div className="ops-actions">
+            <Button type="submit" disabled={pending}>
+              {pending ? 'Saving…' : 'Save house rules'}
+            </Button>
+          </div>
         ) : (
           <p className="ops-help">Only the owner sets the house rules.</p>
         )}
@@ -120,7 +122,7 @@ export function HouseRules() {
           <>
             <p className="subtle">
               Nothing is changed for you. Each of these must meet the rules the next time it is
-              saved under Services.
+              saved under Treatments.
             </p>
             <ul>
               {breaches.map((b) => (

@@ -438,3 +438,295 @@
     font-size: 22px;
   }
 }
+
+/* A field with a line of help under it, which turns into the problem when there is one. */
+.booking-field {
+  display: grid;
+  gap: 6px;
+}
+.booking-field > small {
+  font-size: var(--text-meta);
+  color: var(--muted);
+}
+.booking-field > small.booking-field-problem {
+  color: var(--danger);
+}
+.booking-field input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+/* The deposit and the cancellation rule, read before the guest confirms. */
+.booking-terms {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-5) 0 var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--paper);
+}
+.booking-terms h3 {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-body);
+  font-weight: var(--weight-strong);
+}
+.booking-terms p {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+/* After booking: paying the deposit straight away. */
+.booking-pay-now {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  margin: 0 auto var(--space-6);
+  padding: var(--space-5);
+  border-radius: var(--radius-panel);
+  background: var(--brand-soft);
+  text-align: center;
+}
+.booking-pay-now h3 {
+  margin: 0;
+  font-family: var(--font-editorial);
+  font-weight: var(--weight-editorial);
+  font-size: 24px;
+}
+.booking-pay-now p {
+  margin: 0;
+  max-width: 46ch;
+  font-size: var(--text-small);
+  line-height: 1.55;
+  color: var(--ink);
+}
+.booking-pay-now .booking-test-note {
+  font-size: var(--text-meta);
+  color: var(--muted);
+}
+
+/* Finding a time: the first available button sits beside the day strip's label. */
+.booking-first-free.button {
+  min-height: 40px;
+  padding: 8px 16px;
+  font-size: var(--text-meta);
+}
+.booking-day-note {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-meta);
+  color: var(--muted);
+}
+/* A day with nothing free says so and points to the next free time. */
+.booking-day-empty {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+  margin: var(--space-5) 0 0;
+  padding: var(--space-4) var(--space-5);
+  border: 1px dashed var(--line2);
+  border-radius: var(--radius-panel);
+}
+.booking-day-empty p {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+/* A hold that ran out: hold the same time again in one tap, or one of the nearest times. */
+.booking-hold-again {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-6) 0 0;
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-panel);
+  background: var(--rose-soft);
+}
+.booking-hold-again h3 {
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: var(--weight-strong);
+}
+.booking-hold-again p {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: 1.55;
+  color: var(--ink);
+}
+.booking-hold-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/*
+ * The guest's visit so far. On a wide screen it sits over the photograph, in the welcome's place,
+ * and stays in view as the steps scroll; on a phone it is a bar that stays at the top.
+ */
+.public-booking-layout > .booking-story {
+  grid-column: 1;
+  grid-row: 1;
+}
+.public-booking-layout > .booking-main {
+  grid-column: 2;
+  grid-row: 1;
+}
+.booking-visit-slot {
+  grid-column: 1;
+  grid-row: 1;
+  position: sticky;
+  top: var(--preview-h);
+  z-index: 3;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-start;
+  height: calc(100vh - var(--preview-h));
+  height: calc(100dvh - var(--preview-h));
+  padding: 96px clamp(20px, 2.4vw, 36px) clamp(20px, 2.4vw, 36px);
+  pointer-events: none;
+}
+.booking-visit-slot > * {
+  pointer-events: auto;
+}
+.has-summary .booking-story-card {
+  display: none;
+}
+@media (max-width: 650px) {
+  .public-booking-layout > .booking-main {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  .booking-visit-slot {
+    grid-column: 1;
+    grid-row: 2;
+    top: 0;
+    z-index: 20;
+    display: block;
+    height: auto;
+    padding: 0;
+  }
+}
+
+/* The details step says what is being booked before asking for anything. */
+.booking-step-content > p.booking-step-lead {
+  margin: var(--space-2) 0 var(--space-5);
+  color: var(--ink);
+}
+.booking-step-content > p.booking-hold-time {
+  margin: 0 0 var(--space-5);
+  font-size: var(--text-meta);
+}
+/* The countdown sits right under the line it belongs to. */
+.booking-step-content > p.booking-step-lead + p.booking-hold-time {
+  margin-top: calc(-1 * var(--space-4));
+}
+
+/* After booking: the guest's own next steps, then the visit in full. */
+.booking-guest-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
+.booking-guest-actions .add-to-calendar {
+  margin: 0;
+}
+.booking-confirmation > p.booking-copied {
+  min-height: 1.5em;
+  margin: var(--space-2) 0 var(--space-4);
+  font-size: var(--text-meta);
+  color: var(--brand-ink);
+}
+.booking-confirmation .manage-link {
+  margin-bottom: var(--space-6);
+}
+.booking-confirmation .your-visit-receipt {
+  margin: 0 0 var(--space-5);
+}
+
+/* A booking page that isn't there: said kindly, with no way into the studio's workspace. */
+.booking-unavailable {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: var(--space-6);
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: var(--space-10) var(--space-4);
+  background: var(--bg);
+}
+.booking-unavailable-card {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-4);
+  width: min(100%, 520px);
+  text-align: center;
+}
+.booking-unavailable-card h1 {
+  margin: 0;
+  font-family: var(--font-editorial);
+  font-weight: var(--weight-editorial);
+  font-size: clamp(30px, 6vw, 40px);
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+}
+.booking-unavailable-card p {
+  margin: 0;
+  max-width: 44ch;
+  font-size: var(--text-body);
+  line-height: 1.6;
+  color: var(--muted);
+}
+.booking-unavailable-card p.booking-unavailable-detail {
+  font-size: var(--text-meta);
+}
+.booking-unavailable .booking-powered {
+  margin: 0;
+}
+
+/* Each step's heading has room before the first thing to choose. */
+.booking-step-content > h2 {
+  margin-bottom: var(--space-5);
+}
+
+/* When only one of the studio's locations offers the treatment, the guest is told where. */
+.booking-place-note {
+  margin: 0 0 var(--space-5);
+  font-size: var(--text-small);
+  color: var(--muted);
+}
+
+/*
+ * Progress through the steps: where four labels would wrap, only the current step is named.
+ * The others keep their names for screen readers.
+ */
+@media (max-width: 1000px) {
+  .booking-steps > span:not([aria-current]) small {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .booking-steps > span[aria-current] small {
+    white-space: nowrap;
+  }
+}
+
+/* The studio's phone and email under the booking steps, so a question never needs a search. */
+.booking-footer-contact {
+  display: block;
+  margin-bottom: 8px;
+  font-size: var(--text-small);
+  color: var(--muted);
+}
+.booking-footer-contact a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

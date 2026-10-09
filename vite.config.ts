@@ -45,5 +45,7 @@ export default defineConfig(({ isSsrBuild }) => ({
     include: ['src/**/*.test.{ts,tsx}', 'lumane/**/*.test.ts'],
     setupFiles: './src/test/setup.ts',
     restoreMocks: true,
+    // Whole-app journeys open several pages on demand; give them room on a busy machine.
+    testTimeout: 20000,
   },
 }))

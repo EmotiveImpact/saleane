@@ -4,8 +4,12 @@ import { ArrowRight, ArrowLeft, ShieldCheck } from 'lucide-react'
 import { useStore } from '../state/context'
 import { api } from '../state/api'
 import type { Session } from '../state/api'
+import { rememberStudio } from '../state/lastStudio'
+import { roleNames } from '../domain/operations'
 import { Button, ErrorMessage } from '../design'
 import { BrandsTogether } from '../components/BrandsTogether'
+import { InvitationSummary } from '../components/InvitationSummary'
+import type { InvitationPreview } from '../components/InvitationSummary'
 import '../account.css'
 
 export function Account() {
@@ -27,6 +31,27 @@ export function Account() {
     [pending, setPending] = useState(false),
     [error, setError] = useState('')
   const [ready, setReady] = useState(false)
+  // A team invitation names its studio and role before anyone signs in.
+  const [invited, setInvited] = useState<InvitationPreview | null>(null)
+  const [inviteProblem, setInviteProblem] = useState('')
+  useEffect(() => {
+    if (!invitation) return
+    let active = true
+    api<InvitationPreview>('/api/invitations/preview', { method: 'POST', body: { invitation } })
+      .then((found) => {
+        if (!active) return
+        setInvited(found)
+        // The invitation works only with the address it was sent to.
+        setEmail((typed) => typed || found.email)
+      })
+      .catch((e) => {
+        if (active)
+          setInviteProblem(e instanceof Error ? e.message : 'This invitation could not be read.')
+      })
+    return () => {
+      active = false
+    }
+  }, [invitation])
   useEffect(() => {
     let active = true
     store
@@ -49,6 +74,9 @@ export function Account() {
    */
   async function open(id: string, current: Session | null) {
     const role = current?.workspaces.find((w) => w.id === id)?.role
+    // A new tab opens this studio again for them (the studio itself is noted once it opens).
+    if (current && (role === 'practitioner' || role === 'regional'))
+      rememberStudio(current.user.id, id)
     if (role === 'practitioner') {
       navigate(`/practice/${encodeURIComponent(id)}`)
       return
@@ -66,7 +94,7 @@ export function Account() {
     try {
       await open(id, current)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Workspace could not be opened.')
+      setError(e instanceof Error ? e.message : 'This studio could not be opened.')
     } finally {
       setPending(false)
     }
@@ -122,6 +150,8 @@ export function Account() {
       setPending(false)
     }
   }
+  // Joining works only with the address the invitation was sent to.
+  const otherEmail = !!invited && !!store.session && store.session.user.email !== invited.email
   return (
     <div className="account-layout">
       <aside className="account-story">
@@ -135,21 +165,25 @@ export function Account() {
             <br />
             every promise.
           </p>
-          <p>Your people, appointments and client relationships, remembered together.</p>
+          <p>Your team, visits and clients, remembered together.</p>
         </div>
         <img
           src="/images/saleane-studio-warm.jpg"
           alt="A calm fictional studio with natural light"
         />
         <small>
-          Local V1 workspace · payments and email not connected · <Link to="/pricing">Pricing</Link>
+          A preview on this computer · card payments and email not connected yet ·{' '}
+          <Link to="/pricing">Pricing</Link>
         </small>
       </aside>
       <main className="account-main">
-        <Link className="back-link" to="/today">
-          <ArrowLeft size={16} />
-          Back to workspace
-        </Link>
+        {/* Signed in with no studio open, the workspace would only bring them back here. */}
+        {store.landing !== '/account' && (
+          <Link className="back-link" to="/today">
+            <ArrowLeft size={16} />
+            Back to your studio
+          </Link>
+        )}
         {ready && store.session && view !== 'workspace' ? (
           <>
             <p className="date-caption">Welcome, {store.session.user.name}</p>
@@ -161,8 +195,8 @@ export function Account() {
                   <span>
                     <strong>{w.name}</strong>
                     <small>
-                      {w.region} · {w.role} ·{' '}
-                      {w.mode === 'sandbox' ? 'Fictional sample' : 'Local business'}
+                      {w.region} · {roleNames[w.role] ?? w.role} ·{' '}
+                      {w.mode === 'sandbox' ? 'Sample studio' : 'Your studio'}
                     </small>
                   </span>
                   <ArrowRight size={19} />
@@ -176,9 +210,17 @@ export function Account() {
             {!store.session.workspaces.length && (
               <p>You do not have an active studio membership.</p>
             )}
+            {invitation && invited && <InvitationSummary invitation={invited} />}
+            {invitation && <ErrorMessage error={inviteProblem} />}
+            {invitation && otherEmail && (
+              <p className="subtle">
+                This invitation was sent to {invited?.email}. Sign out, then sign in or create an
+                account with that address to join.
+              </p>
+            )}
             {invitation && (
               <Button
-                disabled={pending}
+                disabled={pending || otherEmail}
                 onClick={async () => {
                   setPending(true)
                   try {
@@ -194,7 +236,7 @@ export function Account() {
                   }
                 }}
               >
-                Accept studio invitation
+                {invited ? `Join ${invited.studio}` : 'Accept studio invitation'}
               </Button>
             )}
             <div className="account-actions">
@@ -222,7 +264,7 @@ export function Account() {
         ) : (
           <>
             <p className="date-caption">
-              {invitation ? 'A place on the team' : 'Your local workspace'}
+              {invitation ? 'A place on the team' : 'Your SALEANE account'}
             </p>
             <h1>
               {view === 'signin'
@@ -230,13 +272,21 @@ export function Account() {
                 : view === 'workspace'
                   ? 'Make room for your studio.'
                   : invitation
-                    ? 'Join your studio.'
+                    ? `Join ${invited?.studio ?? 'your studio'}.`
                     : 'Begin with your business.'}
             </h1>
+            {invitation && view !== 'workspace' && invited && (
+              <InvitationSummary invitation={invited} />
+            )}
+            {invitation && view !== 'workspace' && <ErrorMessage error={inviteProblem} />}
             <p className="account-intro">
               {view === 'signin'
-                ? 'Sign in to continue with the records saved on this computer.'
-                : 'Accounts and studio records are saved by the local server. Card payments and email sending are not connected yet.'}
+                ? invited
+                  ? `Sign in with ${invited.email} to join ${invited.studio}.`
+                  : 'Sign in to continue with the records saved on this computer.'
+                : invited && view === 'create'
+                  ? 'Create your account with the email your invitation was sent to. Accounts and studio records are kept on this computer for now.'
+                  : 'Accounts and studio records are kept on this computer for now. Card payments and emails are not connected yet.'}
             </p>
             <form onSubmit={submit}>
               {view !== 'workspace' && (
@@ -250,6 +300,13 @@ export function Account() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
+                    {invited && (
+                      <small>
+                        {email.trim().toLowerCase() === invited.email
+                          ? 'Your invitation was sent to this address.'
+                          : `Your invitation was sent to ${invited.email}.`}
+                      </small>
+                    )}
                   </label>
                   {view === 'create' && (
                     <label>
@@ -341,12 +398,12 @@ export function Account() {
                       checked={sample}
                       onChange={(e) => setSample(e.target.checked)}
                     />
-                    Start with fictional sample appointments
+                    Start with made-up sample clients and visits
                   </label>
                   <small className="subtle">
                     {sample
-                      ? 'Sample appointments use the fixed demonstration day and simulated money.'
-                      : 'Your studio begins with no client or payment records. Set up services, people and spaces before booking.'}
+                      ? 'The sample is set on one fixed day, and its money is simulated.'
+                      : 'Your studio starts empty. A short list on Today takes you through treatments, your team, rooms and opening hours.'}
                   </small>
                 </>
               )}
@@ -358,7 +415,7 @@ export function Account() {
                     ? 'Sign in'
                     : invitation
                       ? 'Join studio'
-                      : 'Create local workspace'}
+                      : 'Create your studio'}
                 <ArrowRight size={16} />
               </Button>
             </form>
@@ -391,8 +448,8 @@ export function Account() {
             <div className="account-footnote">
               <ShieldCheck size={19} />
               <span>
-                Local access only. There is no email verification or recovery provider configured.
-                Use review accounts and fictional client information for this candidate.
+                This preview runs on this computer only. There is no email check or password
+                recovery yet, so use made-up client details while you try it.
               </span>
             </div>
           </>

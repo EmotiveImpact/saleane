@@ -107,7 +107,7 @@ describe('client export', () => {
   it('keeps a connection as its type only', () => {
     const amelia = clientExport(studio(), 'client-1', meta)
     expect(amelia.connections).toEqual([
-      { type: 'referral', role: 'Introduced another client', since: '2026-07-07T12:00:00.000Z' },
+      { type: 'referral', role: 'Introduced another client', since: '2026-07-14T09:40:00.000Z' },
     ])
     const relationship = amelia.timeline.find((t) => t.type === 'relationship')!
     expect(relationship.title).toBe('Client connection')

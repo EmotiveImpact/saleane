@@ -104,6 +104,9 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     botCheck: z.boolean().optional(),
     /** V1.5: the public review page; empty removes it. Absent leaves it as it is. */
     reviewUrl: z.string().trim().max(300).optional(),
+    /** The studio's phone and email for guests; empty removes one. Absent leaves it as it is. */
+    phone: z.string().trim().max(40).optional(),
+    email: z.string().trim().max(254).optional(),
   }),
   z.object({ type: z.literal('hours'), hours: weeklyHoursSchema }),
   // V2: a further location; the main one is edited with the organisation.
@@ -117,7 +120,7 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
       .max(500)
       .refine(
         (rows) => new Set(rows.map((row) => row.serviceId)).size === rows.length,
-        'Each service appears once.',
+        'Each treatment appears once.',
       ),
     /** V1.5: care advice emailed after the visit. Absent leaves every note as it is. */
     aftercareNotes: z
@@ -125,7 +128,7 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
       .max(500)
       .refine(
         (rows) => new Set(rows.map((row) => row.serviceId)).size === rows.length,
-        'Each service appears once.',
+        'Each treatment appears once.',
       )
       .optional(),
   }),
@@ -377,6 +380,10 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     reviewed: z.literal(true),
   }),
 ])
+/** Whether a value is a complete command, for the changes inside a batch. */
+function validCommand(value: unknown): boolean {
+  return commandSchema.safeParse(value).success
+}
 export const commandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('book'), input: bookingSchema }),
   z.object({
@@ -528,6 +535,8 @@ export const commandSchema = z.discriminatedUnion('type', [
     clientId: id,
     method,
     reference: z.string().trim().max(150).optional(),
+    /** V2: the location that sold it. Absent means the main location. */
+    locationId: id.optional(),
   }),
   z.object({
     type: z.literal('plan-renew'),
@@ -551,7 +560,11 @@ export const commandSchema = z.discriminatedUnion('type', [
     commands: z
       .array(z.looseObject({ type: z.enum(['reschedule', 'cancel', 'closure', 'message']) }))
       .min(1)
-      .max(40),
+      .max(40)
+      // Each change is checked in full, so a malformed one is refused before any check reads it.
+      .refine((parts): boolean => parts.every((part) => validCommand(part)), {
+        message: 'A change in this plan is not complete.',
+      }),
   }),
   // V3: planning a special records it; nothing is sent and no price changes.
   z.object({ type: z.literal('special-plan'), input: specialInputSchema }),
@@ -563,6 +576,8 @@ export const commandSchema = z.discriminatedUnion('type', [
     input: giftCardInputSchema,
     method,
     reference: z.string().trim().max(150).optional(),
+    /** V2: the location that sold it. Absent means the main location. */
+    locationId: id.optional(),
   }),
   z.object({ type: z.literal('gift-card-extend'), giftCardId: id, expiresOn: z.iso.date() }),
   z.object({

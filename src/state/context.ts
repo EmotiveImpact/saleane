@@ -19,6 +19,12 @@ export type Store = {
   branch?: string | null
   slug: string
   session: Session | null
+  /**
+   * Where a signed-in person with no studio open in this tab belongs: their practitioner day, their
+   * area, or the account page to choose a studio. Null when a studio is open, nobody is signed in or
+   * they chose the fictional demo.
+   */
+  landing?: string | null
   loading: boolean
   saving: boolean
   refreshSession: () => Promise<Session | null>
@@ -40,6 +46,6 @@ export type Store = {
 export const StoreContext = createContext<Store | null>(null)
 export function useStore() {
   const context = useContext(StoreContext)
-  if (!context) throw new Error('Saleane workspace provider is missing.')
+  if (!context) throw new Error('The SALEANE store provider is missing.')
   return context
 }

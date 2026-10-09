@@ -3,6 +3,7 @@ import { slots } from './commands'
 import { addDays } from './format'
 import { businessDate, instantFor, operations } from './operations'
 import { fullPriceMinor } from './priceSentence'
+import { bookablePlaces, listPrice } from './locations'
 
 /**
  * V4: Book with Google. The three feeds Google's Actions Center reads from a booking partner,
@@ -25,10 +26,11 @@ const metadata = (generatedAt: number) => ({
 
 /**
  * Treatments Google can book. Google takes no payment here, so a treatment that needs a deposit
- * stays on the studio's own booking page, where the deposit is taken.
+ * stays on the studio's own booking page, where the deposit is taken. A treatment no open location
+ * offers, or that nobody who works there does, is left off (V2).
  */
 export const bookableOnGoogle = (s: BusinessState) =>
-  s.services.filter((x) => !x.archived && x.depositMinor === 0)
+  s.services.filter((x) => !x.archived && x.depositMinor === 0 && bookablePlaces(s, x).length > 0)
 
 /** Only studios of their own that chose Google, and still take bookings online. */
 export const offeredOnGoogle = (s: BusinessState) =>
@@ -56,20 +58,29 @@ export function serviceFeed(studios: FeedStudio[], generatedAt: number) {
     metadata: metadata(generatedAt),
     service: studios.flatMap(({ id, state }) => {
       const tax = operations(state).tax
-      return bookableOnGoogle(state).map((x) => ({
-        merchant_id: id,
-        service_id: x.id,
-        localized_service_name: {
-          value: x.name,
-          localized_value: [{ locale: state.organisation.locale, value: x.name }],
-        },
-        description: x.description,
-        // The full price the guest pays, including any tax, as the booking page shows it.
-        price: {
-          price_micros: fullPriceMinor(x, tax) * 10000,
-          currency_code: state.organisation.currency,
-        },
-      }))
+      return bookableOnGoogle(state).map((x) => {
+        // V2: Google lists the studio once, so a treatment priced differently at its locations
+        // shows the lowest price as a starting price, as the booking page's list does.
+        const { priceMinor, from } = listPrice(
+          x,
+          bookablePlaces(state, x).map((p) => p.id),
+        )
+        return {
+          merchant_id: id,
+          service_id: x.id,
+          localized_service_name: {
+            value: x.name,
+            localized_value: [{ locale: state.organisation.locale, value: x.name }],
+          },
+          description: x.description,
+          // The full price the guest pays, including any tax, as the booking page shows it.
+          price: {
+            price_micros: fullPriceMinor({ priceMinor }, tax) * 10000,
+            currency_code: state.organisation.currency,
+          },
+          ...(from ? { price_interpretation: 'STARTS_AT' } : {}),
+        }
+      })
     }),
   }
 }

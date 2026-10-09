@@ -12,19 +12,25 @@ export const requests = (s: BusinessState): ApprovalRequest[] => operations(s).r
 export const regionalLimit = (s: BusinessState) =>
   operations(s).approvals?.regionalLimitMinor ?? DEFAULT_REGIONAL_LIMIT
 
-/** Where a request goes: its region's manager, or the owner when over their limit or in no region. */
+/**
+ * Where a request goes: its region's manager, or the owner when over their limit, in no region,
+ * or raised by that region's own manager (nobody signs off their own request).
+ */
 export function routeFor(
   s: BusinessState,
   locationId: string,
   amountMinor: number | undefined,
   managedRegions: readonly string[] = [],
-): { routedTo: Route; passedUp?: 'over-limit' | 'no-region' | 'no-manager' } {
+  raiserRegion?: string,
+): { routedTo: Route; passedUp?: NonNullable<ApprovalRequest['passedUp']> } {
   const region = regions(s).find((r) => r.locationIds.includes(locationId))
   if (!region) return { routedTo: { level: 'owner' }, passedUp: 'no-region' }
   if (!managedRegions.includes(region.id))
     return { routedTo: { level: 'owner' }, passedUp: 'no-manager' }
   if ((amountMinor ?? 0) > regionalLimit(s))
     return { routedTo: { level: 'owner' }, passedUp: 'over-limit' }
+  // A regional manager never signs off their own request.
+  if (raiserRegion === region.id) return { routedTo: { level: 'owner' }, passedUp: 'own-request' }
   return { routedTo: { level: 'regional', regionId: region.id } }
 }
 
@@ -52,8 +58,15 @@ export function runApprovalCommand(
       title: input.title,
       ...(input.amountMinor !== undefined ? { amountMinor: input.amountMinor } : {}),
       ...(input.note ? { note: input.note } : {}),
-      ...routeFor(next, input.locationId, input.amountMinor, command.managedRegions),
+      ...routeFor(
+        next,
+        input.locationId,
+        input.amountMinor,
+        command.managedRegions,
+        command.raiserRegion,
+      ),
       raisedAt: now,
+      ...(command.raisedById ? { raisedById: command.raisedById } : {}),
     }
     list.push(request)
     return request.id

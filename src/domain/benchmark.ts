@@ -32,7 +32,7 @@ export const MEASURES: {
   { key: 'averageVisit', label: 'Average treatment sale', money: true },
   { key: 'rebookRate', label: 'Visits rebooked before leaving' },
   { key: 'returnRate', label: 'Clients who came more than once' },
-  { key: 'noShowRate', label: 'Missed appointments', lowerIsBetter: true },
+  { key: 'noShowRate', label: 'Missed visits', lowerIsBetter: true },
 ]
 
 /** One studio's measures over the last 90 days, or null when it has too few visits to count. */

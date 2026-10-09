@@ -162,7 +162,7 @@ export function runPatchTestCommand(
   if (command.type === 'patch-test') {
     const input = command.input
     const client = next.clients.find((c) => c.id === input.clientId)
-    if (!client) throw new Error('Client does not belong to this workspace.')
+    if (!client) throw new Error('Client does not belong to this studio.')
     if (input.staffId && !next.staff.some((p) => p.id === input.staffId && !p.archived))
       throw new Error('Choose someone who works here.')
     if (Date.parse(input.testedAt) > Date.parse(now) + 5 * 60000)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { StoreProvider } from '../state/StoreProvider'
@@ -7,7 +7,7 @@ import { App } from '../App'
 import { usualWeeks } from '../domain/selectors'
 import { groupTimes } from '../design'
 
-function show(route: string) {
+async function show(route: string) {
   render(
     <MemoryRouter initialEntries={[route]}>
       <StoreProvider>
@@ -15,12 +15,16 @@ function show(route: string) {
       </StoreProvider>
     </MemoryRouter>,
   )
+  // Pages load when they are first opened; wait for this one before looking at it.
+  await waitFor(() =>
+    expect(document.querySelector('.route-loading, .candidate-loading')).toBeNull(),
+  )
 }
 
 describe('faster everyday flows', () => {
   it('books from a free space on the calendar with the person and time filled in', async () => {
     const user = userEvent.setup()
-    show('/calendar')
+    await show('/calendar')
     await user.click(screen.getByRole('button', { name: 'Next day' }))
     await user.click(screen.getAllByRole('button', { name: 'Book with Maya Lewis from 09:00' })[0])
     const dialog = screen.getByRole('dialog')
@@ -36,7 +40,7 @@ describe('faster everyday flows', () => {
 
   it('asks for a client before a new booking can be confirmed', async () => {
     const user = userEvent.setup()
-    show('/calendar')
+    await show('/calendar')
     await user.click(screen.getByRole('button', { name: 'Next day' }))
     await user.click(screen.getAllByRole('button', { name: 'Book with Maya Lewis from 09:00' })[0])
     expect(
@@ -46,7 +50,7 @@ describe('faster everyday flows', () => {
 
   it('shows the whole week and opens a day from it', async () => {
     const user = userEvent.setup()
-    show('/calendar')
+    await show('/calendar')
     await user.click(screen.getByRole('radio', { name: 'Week' }))
     expect(screen.getByRole('heading', { name: /Week of Monday 5 October/ })).toBeInTheDocument()
     const tuesday = screen.getByRole('region', { name: 'Tuesday 6 October' })
@@ -57,7 +61,7 @@ describe('faster everyday flows', () => {
 
   it('lands on today, shows the month, and opens a day or a visit from it', async () => {
     const user = userEvent.setup()
-    show('/calendar')
+    await show('/calendar')
     expect(screen.getByRole('radio', { name: 'Today' })).toBeChecked()
     await user.click(screen.getByRole('radio', { name: 'Month' }))
     expect(screen.getByRole('heading', { name: 'October 2026' })).toBeInTheDocument()
@@ -80,7 +84,7 @@ describe('faster everyday flows', () => {
 
   it('keeps discount before the tip at checkout and folds a custom tip into Other', async () => {
     const user = userEvent.setup()
-    show('/today')
+    await show('/today')
     await user.click(screen.getAllByRole('button', { name: /Amelia Carter/ })[0])
     await user.click(screen.getByRole('button', { name: 'Continue to checkout' }))
     const dialog = screen.getByRole('dialog')

@@ -18,6 +18,7 @@ import {
   photos,
 } from '../design'
 import { ClientImport } from '../components/ClientImport'
+import { guestPhone, phoneProblem } from '../domain/phone'
 
 export function Clients() {
   const { state, commit, blocked, saving, role } = useStore()
@@ -59,12 +60,18 @@ export function Clients() {
   async function save(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
     if (busy || !allowed) return
+    // A local number in the studio's own country works as well as one with its country code.
+    const number = guestPhone(state.organisation.region, phone)
+    if (!number) {
+      setError(phoneProblem(state.organisation.region))
+      return
+    }
     setPending(true)
     setError('')
     try {
       const result = await commit({
         type: 'client',
-        contact: { name, email, phone, marketingConsent: consent },
+        contact: { name, email, phone: number, marketingConsent: consent },
         referredById: referrer || undefined,
       })
       if (!result.ok) {
@@ -157,7 +164,7 @@ export function Clients() {
         <div className="client-table-wrap">
           <table className="client-table">
             <caption className="sr-only">
-              Client directory with last and next visit, completed visits and service spend
+              Client directory with last and next visit, completed visits and treatment spend
             </caption>
             <thead>
               <tr>
@@ -289,14 +296,14 @@ export function Clients() {
                 />
               </label>
               <label>
-                Phone with country code
+                Phone
                 <input
                   required
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder={
-                    state.organisation.region === 'UK' ? '+44 7700 900123' : '+1 212 555 0123'
+                    state.organisation.region === 'UK' ? '07700 900123' : '(212) 555-0123'
                   }
                   autoComplete="off"
                 />
@@ -323,8 +330,8 @@ export function Clients() {
             </label>
             <p className="subtle">
               {operations(state).mode === 'sandbox'
-                ? 'Use fictional details only. This is a sandbox workspace.'
-                : 'The record is saved to your local workspace. Marketing permission is independent of booking.'}
+                ? 'This is a sample studio, so use made-up details only.'
+                : 'Saved to your studio. Permission for marketing is separate from booking.'}
             </p>
             <ErrorMessage error={error} />
             <div className="dialog-footer">

@@ -94,12 +94,12 @@ export function GoogleBooking() {
         </div>
         <ErrorMessage error={error} />
         <div className="ops-actions">
-          <Button type="submit" variant="secondary" disabled={pending || blocked}>
-            {pending ? 'Saving…' : 'Save'}
-          </Button>
           <span role="status" className="ops-help">
             {saved ? 'Saved.' : ''}
           </span>
+          <Button type="submit" disabled={pending || blocked}>
+            {pending ? 'Saving…' : 'Save'}
+          </Button>
         </div>
       </form>
       {status.offered && counts && (

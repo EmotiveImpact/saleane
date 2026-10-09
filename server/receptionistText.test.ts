@@ -115,6 +115,16 @@ async function studio(texts = true) {
       marketingConsent: false,
     },
   })
+  // The receptionist answers for a studio that takes online bookings, switched on by the owner.
+  const { name, locationName, address, timeZone } = (await workspace(login)).state.organisation
+  await run(login, {
+    type: 'organisation',
+    name,
+    locationName,
+    address,
+    timeZone,
+    bookingEnabled: true,
+  })
   await run(login, {
     type: 'receptionist',
     settings: { enabled: true, handOver: true, texts },
@@ -185,6 +195,38 @@ describe('the AI receptionist answering texts', () => {
     clock += 61 * 60000
     await text(slug, 'When are you open?')
     expect(await chats(login)).toBe(2)
+  })
+
+  it('opens the texted link at the location where a time with anyone is', async () => {
+    const { login, slug } = await studio()
+    // V2: Maya works at a second location, Islington, every day.
+    await run(login, {
+      type: 'location',
+      input: { name: 'Islington', address: '1 Upper Street, London' },
+    } as Command)
+    const before = (await workspace(login)).state
+    const islington = before.operations!.locations![0].id
+    await run(login, {
+      type: 'resource',
+      input: { name: 'Islington room', type: 'treatment', locationId: islington },
+    } as Command)
+    await run(login, {
+      type: 'staff',
+      id: staffId,
+      input: {
+        name: 'Maya Lind',
+        role: 'Facialist',
+        serviceIds: [serviceId],
+        tone: 'sage',
+        hours: before.operations!.hours.map((h) => ({ ...h, locationId: islington })),
+      },
+    } as Command)
+    await text(slug, 'Can I book a facial on Thursday at 10am?')
+    const offer = answers()[0].body
+    expect(offer).toContain(
+      `${origin}/book/${slug}?service=${serviceId}&staff=any&date=2026-10-08&start=600&location=${islington}`,
+    )
+    expect(offer).toMatch(/Restorative facial at Islington, Thursday 8 October at 10:00/)
   })
 
   it('hands over to the team by text, and steps back once a person has texted the guest', async () => {

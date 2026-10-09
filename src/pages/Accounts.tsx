@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { BookOpenCheck, Download } from 'lucide-react'
 import { useStore } from '../state/context'
 import { businessDate, can, operations } from '../domain/operations'
-import { dateLabel, money } from '../domain/format'
+import { dateLabel, money, wholeMoney } from '../domain/format'
 import {
   accountingPayload,
   dailySummary,
@@ -20,8 +20,10 @@ import {
 } from '../domain/accounts'
 import { accountingProviders } from '../domain/accountsSchema'
 import type { AccountCodes, AccountingProvider } from '../domain/accountsSchema'
-import { Button, ErrorMessage, Modal, PageHeader, SegmentedControl } from '../design'
+import { Button, ErrorMessage, Modal, PageHeader, SegmentedControl, Stat, Stats } from '../design'
 import '../components/management.css'
+import '../pay.css'
+import '../rota.css'
 import '../stock.css'
 import '../accounts.css'
 
@@ -115,8 +117,9 @@ export function Accounts() {
     <div className="accounts-page">
       <PageHeader
         variant="compact"
+        eyebrow="Business"
         title="For your accountant."
-        description="Spreadsheets for the month and a day-by-day summary of takings, tax, tips and refunds. Everything comes from what SALEANE has recorded."
+        description="Spreadsheets for the month and a day-by-day summary of takings, tax, tips and refunds."
       />
       <SegmentedControl
         label="Period"
@@ -131,27 +134,34 @@ export function Accounts() {
       <p className="pay-range">
         {dateLabel(from, org.locale)} to {dateLabel(to, org.locale)}
       </p>
-      <dl className="stock-totals">
-        <div>
-          <dt>Takings</dt>
-          <dd>
-            {fmt(sum(dayTakings))}
-            <small>Including tax and tips, less refunds</small>
-          </dd>
-        </div>
-        <div>
-          <dt>Tax</dt>
-          <dd>{fmt(sum((d) => d.taxMinor))}</dd>
-        </div>
-        <div>
-          <dt>Tips</dt>
-          <dd>{fmt(sum((d) => d.tipsMinor))}</dd>
-        </div>
-        <div>
-          <dt>Refunds</dt>
-          <dd>{fmt(sum((d) => d.refundsMinor))}</dd>
-        </div>
-      </dl>
+      <Stats>
+        <Stat
+          label="Takings"
+          value={wholeMoney(sum(dayTakings), org)}
+          detail="Including tax and tips, less refunds"
+        />
+        <Stat
+          label="Tax"
+          value={wholeMoney(
+            sum((d) => d.taxMinor),
+            org,
+          )}
+        />
+        <Stat
+          label="Tips"
+          value={wholeMoney(
+            sum((d) => d.tipsMinor),
+            org,
+          )}
+        />
+        <Stat
+          label="Refunds"
+          value={wholeMoney(
+            sum((d) => d.refundsMinor),
+            org,
+          )}
+        />
+      </Stats>
       {notice && (
         <p className="success-strip" role="status">
           {notice}

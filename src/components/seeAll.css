@@ -1,0 +1,29 @@
+/* "See all 5" under a shortened list: a quiet text button, with room for a thumb on a phone. */
+.see-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand-ink);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+.see-all svg {
+  transition: transform var(--motion-quick);
+}
+.see-all.is-open svg {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .see-all svg {
+    transition: none;
+  }
+}
+@media (max-width: 650px) {
+  .see-all {
+    min-height: 40px;
+  }
+}

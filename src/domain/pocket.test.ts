@@ -35,15 +35,15 @@ describe('the pocket view helpers', () => {
   })
 
   it('finds the last visit together, inside the window or from the server beyond it', () => {
-    // Amelia's last facial with Maya was a week ago, inside the window.
-    const amelia = previousWithYou(record, visitFor('client-1'), clientFor('client-1'))
-    expect(amelia).toEqual({ date: addDays(DEMO_DATE, -7), serviceName: 'Skin Renewal Facial' })
-    // Ruby last saw Maya 38 days ago, before the window; only the server field knows.
-    const ruby = clientFor('client-10')
-    expect(ruby.previousVisit?.date).toBe(addDays(DEMO_DATE, -38))
-    expect(previousWithYou(record, visitFor('client-10'), ruby)).toEqual(ruby.previousVisit)
+    // Ruby's last massage with Maya was a fortnight ago, inside the window.
+    const ruby = previousWithYou(record, visitFor('client-10'), clientFor('client-10'))
+    expect(ruby).toEqual({ date: addDays(DEMO_DATE, -14), serviceName: 'Deep Restore Massage' })
+    // Amelia last saw Maya three weeks ago, before the window; only the server field knows.
+    const amelia = clientFor('client-1')
+    expect(amelia.previousVisit?.date).toBe(addDays(DEMO_DATE, -21))
+    expect(previousWithYou(record, visitFor('client-1'), amelia)).toEqual(amelia.previousVisit)
     // With no earlier visit on record the answer is a definite none.
-    expect(previousWithYou(record, visitFor('client-10'), { ...ruby, previousVisit: null })).toBe(
+    expect(previousWithYou(record, visitFor('client-1'), { ...amelia, previousVisit: null })).toBe(
       null,
     )
   })

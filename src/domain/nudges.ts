@@ -1,6 +1,7 @@
 import { addDays, timeLabel } from './format'
 import { leads } from './operations'
 import { unusual } from './insights'
+import type { Notice } from './insights'
 import type { BusinessState } from './model'
 import type { Role } from './operations'
 import { dueTasks } from './tasks'
@@ -15,6 +16,30 @@ export type Nudge = { id: string; text: string; ask: string }
 
 const NUDGES_SHOWN = 3
 const first = (name: string) => name.split(' ')[0]
+
+/**
+ * The question that follows up a notice, so the tap answers what the notice raised: low stock
+ * asks what to reorder, a quiet day who is due back. Each is a question Ask Saleane already
+ * answers, and one the person's role may ask.
+ */
+export function noticeQuestion(s: BusinessState, notice: Notice, managers: boolean) {
+  switch (notice.kind) {
+    case 'low-stock':
+      return 'What should I reorder?'
+    case 'quiet-day':
+      return 'Who is due back?'
+    case 'takings-down':
+      return 'How was the week?'
+    case 'cancellations':
+      return managers ? 'How was the week?' : 'Who is due back?'
+    case 'missed-visits': {
+      const client = s.clients.find((c) => c.id === notice.clientId)
+      return client ? `Tell me about ${client.name}` : 'Anything unusual?'
+    }
+    default:
+      return 'Anything unusual?'
+  }
+}
 
 export function nudges(s: BusinessState, role: Role, today: string, now: string): Nudge[] {
   if (role === 'practitioner') return []
@@ -58,7 +83,7 @@ export function nudges(s: BusinessState, role: Role, today: string, now: string)
     found.push({
       id: `notice-${notice.id}`,
       text: `${notice.title}. ${notice.detail}`,
-      ask: 'Anything unusual?',
+      ask: noticeQuestion(s, notice, managers),
     })
 
   return found.slice(0, NUDGES_SHOWN)

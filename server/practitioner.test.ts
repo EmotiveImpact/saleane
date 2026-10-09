@@ -100,9 +100,7 @@ describe('assigned practitioner access (LOCAL-01)', () => {
     expect(second.statusCode).toBe(409)
     const team = (await get(owner, '/team')).json<{
       members: { role: string; staffId: string | null }[]
-      practitionerAccessEnabled: boolean
     }>()
-    expect(team.practitionerAccessEnabled).toBe(true)
     expect(team.members).toContainEqual(
       expect.objectContaining({ role: 'practitioner', staffId: 'staff-maya' }),
     )
@@ -223,7 +221,11 @@ describe('assigned practitioner access (LOCAL-01)', () => {
     const maya = await practitioner(owner, 'maya@example.invalid', 'staff-maya')
     expect((await get(maya, '/team')).statusCode).toBe(403)
     expect((await get(maya, '/audit')).statusCode).toBe(403)
-    expect((await post(maya, '/messages/send', {})).statusCode).toBe(403)
+    // Messages go out only through the outbox, which a practitioner cannot queue for.
+    const revision = (await studio(owner)).revision
+    expect(
+      (await run(maya, revision, { type: 'message-queue', messageId: 'message-1' })).statusCode,
+    ).toBe(403)
     expect(
       (await post(maya, '/invitations', { email: 'x@example.invalid', role: 'reception' }))
         .statusCode,
