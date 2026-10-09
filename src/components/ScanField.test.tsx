@@ -110,6 +110,22 @@ describe('scanning at a walk-in sale', { timeout: 20000 }, () => {
     )
     expect(lines(dialog)).toEqual([])
   })
+
+  it('lets the next scan replace an unknown code, so two scans never run together', async () => {
+    const { user, dialog } = await sellWithoutVisit()
+    const field = within(dialog).getByLabelText('Scan or type a barcode')
+    await user.keyboard('5012345678900{Enter}')
+    // The code stays to be checked, chosen so whatever comes next replaces it.
+    expect(field).toHaveValue('5012345678900')
+    expect([
+      (field as HTMLInputElement).selectionStart,
+      (field as HTMLInputElement).selectionEnd,
+    ]).toEqual([0, 13])
+    await user.keyboard(`${SERUM}{Enter}`)
+    expect(within(dialog).getByRole('status')).toHaveTextContent('Added Hydrating Serum.')
+    expect(lines(dialog)).toEqual(['Hydrating Serum'])
+    expect(field).toHaveValue('')
+  })
 })
 
 describe('scanning on Stock', { timeout: 20000 }, () => {

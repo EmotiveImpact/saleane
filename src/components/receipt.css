@@ -180,6 +180,21 @@
 .till-modes small {
   display: block;
 }
+/* Each way to print reads as a row: a small radio beside its name and one line about it. */
+.till-modes label {
+  align-items: flex-start;
+  min-height: 44px;
+  padding: var(--space-1) 0;
+}
+.till-modes input[type='radio'] {
+  width: 17px;
+  height: 17px;
+  min-height: 0;
+  padding: 0;
+  margin: 2px 0 0;
+  flex: none;
+  accent-color: var(--ink);
+}
 .till-more {
   display: grid;
   gap: var(--space-3);
@@ -188,10 +203,44 @@
 .till-more > summary {
   display: flex;
   align-items: center;
+  gap: var(--space-2);
   min-height: 44px;
-  color: var(--muted);
+  padding-top: var(--space-2);
   font-size: var(--text-small);
+  font-weight: var(--weight-strong);
   cursor: pointer;
+  list-style: none;
+}
+.till-more > summary::-webkit-details-marker {
+  display: none;
+}
+.till-more > summary > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.till-more > summary small {
+  color: var(--muted);
+  font-weight: var(--weight-body);
+  overflow-wrap: anywhere;
+}
+/* A small chevron that turns when the fold opens, as on the product form. */
+.till-more > summary::after {
+  content: '';
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  margin: -3px 4px 0 auto;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+}
+.till-more[open] > summary::after {
+  margin-top: 4px;
+  transform: rotate(-135deg);
+}
+.till-settings-body .ops-save-note:empty {
+  display: none;
 }
 .till-more[open] > summary {
   margin-bottom: var(--space-2);

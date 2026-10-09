@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ScanBarcode } from 'lucide-react'
 import { useStore } from '../state/context'
@@ -85,6 +85,12 @@ export function ScanField({
     setValue('')
   }
   useBarcodeScan(take, root, !disabled)
+  // An unknown code stays in the field to be checked, selected, so the next scan or typing
+  // replaces it rather than adding to it.
+  useEffect(() => {
+    if (shown?.tone === 'unknown' && document.activeElement === input.current)
+      input.current?.select()
+  }, [shown])
 
   async function attach(code: string) {
     const product = products(state).find((p) => p.id === attachTo)

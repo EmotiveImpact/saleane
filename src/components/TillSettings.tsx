@@ -167,7 +167,7 @@ export function TillSettings() {
         </div>
         <Printer size={21} aria-hidden="true" />
       </header>
-      <form className="settings-body" onSubmit={save} aria-busy={pending}>
+      <form className="settings-body till-settings-body" onSubmit={save} aria-busy={pending}>
         <fieldset className="message-settings" disabled={!editable || pending}>
           <legend className="sr-only">Receipt printer</legend>
           {hasLocations(state) && (
@@ -244,9 +244,16 @@ export function TillSettings() {
           {/* Set once and rarely changed, so tucked away until asked for. */}
           <details className="till-more">
             <summary>
-              {draft.mode === 'network'
-                ? `Paper width, port and ${taxLabel}`
-                : `Paper width and ${taxLabel}`}
+              <span>
+                {draft.mode === 'network'
+                  ? `Paper width, port and ${taxLabel}`
+                  : `Paper width and ${taxLabel}`}
+                <small>
+                  {draft.paper} mm roll
+                  {draft.mode === 'network' ? `, port ${draft.port.trim() || '9100'}` : ''}
+                  {taxNumber.trim() ? `, ${taxLabel} ${taxNumber.trim()}` : `, no ${taxLabel} yet`}
+                </small>
+              </span>
             </summary>
             <label>
               Paper width

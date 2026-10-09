@@ -5,6 +5,7 @@ import { useStore } from '../state/context'
 import { can, operations } from '../domain/operations'
 import type { Command } from '../domain/commands'
 import { dateLabel, money } from '../domain/format'
+import { recordDay } from '../domain/tillCount'
 import { minorInput, parseMinor } from '../domain/money'
 import { priceRetail, retailCharge, returnable } from '../domain/retail'
 import { hasLocations, placeOf, places } from '../domain/locations'
@@ -97,7 +98,7 @@ export function CounterSales() {
                       .join(', ')}
                   </strong>
                   <small>
-                    {dateLabel(sale.paidAt.slice(0, 10), org.locale)} · {sale.receiptNumber} ·{' '}
+                    {dateLabel(recordDay(state, sale.paidAt), org.locale)} · {sale.receiptNumber} ·{' '}
                     {METHOD_LABEL[sale.method]}
                     {clientName(sale.clientId) ? ` · ${clientName(sale.clientId)}` : ''}
                     {staffName(sale.staffId) ? ` · sold by ${staffName(sale.staffId)}` : ''}
