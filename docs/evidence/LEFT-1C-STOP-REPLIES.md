@@ -1,6 +1,6 @@
 # Stage 1, part C · STOP and START replies change the client's text setting
 
-Recorded 9 October 2026 in a worktree from main at 016f3ca. Automated tests only: no dev server was started and no browser was opened for this note, so the browser journey below is written for the lead to run and has not been observed yet. All names and numbers are fictional and nothing was sent.
+Recorded 9 October 2026 in a worktree from main at 016f3ca. Built with automated tests; the lead then ran the journey in a browser after merging (see "Seen in a browser"). All names and numbers are fictional and nothing was sent.
 
 ## What it does
 
@@ -32,6 +32,10 @@ Full checks on the branch: `npm run lint`, `npx tsc -b`, `npm run format:check`,
 4. Rosa's page › Communication preference: "Texts are off. Rosa replied STOP on 9 October." and the timeline entry. Tick Visit texts, read the warning, try both buttons.
 5. Deliver START, then HELP, then an ordinary question with the AI receptionist answering texts, and check each label, the client page and Settings › Who changed what.
 6. Repeat at 390 px wide. A sample studio should record the same way and still send nothing.
+
+## Seen in a browser
+
+On 9 October 2026 on the merged branch, in a UK sample studio at 1440px: Inbox, "Deliver a test text", from Elias Hamilton's number, STOP. The window said "Kept in the Inbox as \"Turned texts off\". SALEANE will not text this number until it texts START, and nothing was queued to answer it. Test mode: no phone network was involved and nothing was sent." His page then read "Texts are off. Elias replied STOP on 9 October." with Visit texts unticked. The client page was also checked at 390px.
 
 ## Limits
 

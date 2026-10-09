@@ -2,7 +2,7 @@
 
 Recorded 9 October 2026. Everything runs in the payment provider's test mode: no card is charged and no money moves. All names and amounts are fictional.
 
-**Not yet seen in a browser.** The brief for this part asked for no dev server and no browser, so the screens below are covered by component tests that render them, and the money rules by server tests that drive the real API and loop against SQLite. Nobody has looked at them at 1440px or 390px yet, and there are no screenshots. The click-through below is the next step, and it is written so the lead can do it on a scratch database.
+Built in a worktree without a browser, then merged and run in a browser by the lead on 9 October 2026 (see "Seen in a browser" below).
 
 ## What it does
 
@@ -42,15 +42,32 @@ Use a scratch copy, never a database you keep, and a fresh, non-sample studio.
 1. In Settings, Payments, tick "Let guests save a card from the link to their visit". Add a treatment, a client with an email address and mobile number, and a membership in Settings, Packages & memberships.
 2. Book the client a visit, open its guest link, and save test card 4242 (or 0002, which always declines).
 3. On the client's page, sell the membership and tick "Take it from their saved card each month". Read the words, tick the agreement and choose "Set up card payments". The membership now says "Paid by Visa ending 4242 each month. Next payment …".
-4. **Move the clock.** Stop the server, then run `node scripts/plan-cards-scratch.mjs <scratch.sqlite> <client email> remind`. It moves that membership's dates so its next card payment is three days from today, and refuses any path without "scratch" in it. Start the server again. Within 30 seconds (between 09:00 and 19:00 London time) the reminder appears under the client's "Visit messages" as "Membership payment reminder", marked as test mode with nothing sent.
+4. **Move the clock.** Stop the server, then run `node scripts/plan-cards-scratch.mjs <scratch.sqlite> <client email> remind`. It moves that membership's dates so its next card payment is three days from today, and refuses any path without "scratch" in it. Start the server again. Within 30 seconds (between 09:00 and 19:00 in the studio's own time zone) the reminder appears under the client's "Visit messages" as "Membership payment reminder", marked as test mode with nothing sent.
 5. Stop the server, run the same command with `due`, and start it again. From 09:00 the next pass takes the payment: the membership line shows "Last payment: Taken", the timeline shows "Membership paid … Test payment, no money moved.", and Money, Plans lists it as taken. With card 0002, the line shows "Declined, next try" with tomorrow's date. To see that retry now, stop the server and run `node -e "const {DatabaseSync}=require('node:sqlite');new DatabaseSync(process.argv[1]).prepare('UPDATE membership_charges SET next_try_at=? WHERE next_try_at IS NOT NULL').run(Date.now())" <scratch.sqlite>`, then start it again.
 6. **Refund to the card.** After a payment taken with 4242, choose "End" on the membership, give a reason and an amount up to the figure shown, and choose "Refund to the card and end". The membership ends, the timeline says "£… returned to the Visa card ending 4242 through the payment provider. Test refund, no money moved." and Money, Plans lists the refund.
 
 In tests, the clock is the `now` option given to `createApiHandler`, and `api.memberships.tick()` runs one pass of the loop (see `server/planCards.test.ts`).
 
+## Seen in a browser
+
+On 9 October 2026, on the merged branch with a scratch database, one dev server on 127.0.0.1:5173 and Chromium at 1440px and 390px. The studio was a fresh US studio of its own (not a sample) in Los Angeles time, because it was after 19:00 in London and reminders only go out between 09:00 and 19:00 studio time.
+
+1. A treatment with no deposit, a room, a professional, and two clients, Rosa Field and Theo Park, each booked for 13 October. "Let guests save a card" turned on.
+2. Each guest opened their visit link on a phone, chose "Save a test card" and saved 4242 (Rosa) or 0002 (Theo) on the labelled test card page.
+3. On each client's page: "Sell a package or membership", Facial club, "Take it from their saved card each month", paid the first month in cash at the desk, then the set-up step showed the card, the exact words ("Rosa Field agrees that Linden Studio may take $75.00 from their Visa card ending 4242 on the 9th of each month for Facial club, until they cancel. They will get a reminder three days before each payment."), the first card date, and the tick box. "Set up card payments" stayed disabled until it was ticked.
+4. `remind` with the scratch script, then a restart: within 30 seconds both clients had "Membership payment reminder" by email and by text under Visit messages and in the Inbox's "Sent for you", each marked "Test mode, not sent", worded with the date, amount and card.
+5. `due`, then a restart: Rosa's month was taken ("Last payment: Taken", her timeline says "Test payment, no money moved.") and Theo's was declined with "SALEANE will try again on October 10". Money, Plans listed one taken and one declined, $75.00 each, and the till count expected only the two cash first months ($150.00), never the card payment.
+
+What the browser showed that the tests had not, and was fixed in this branch:
+
+- On the client page the Packages & memberships panel squeezed a plan's name into a narrow column beside its buttons ("Facia / l / club"). This was already so on main for any membership; with the card line it got worse. A plan now reads top to bottom, with its buttons beneath.
+- Visit messages on the client page were bordered boxes inside the panel, squeezed in the same narrow column. They are now rows divided by hairlines, laid out by the panel's own width (a container query), so the Inbox's wide "Sent for you" keeps its one-line rows.
+- The guest's page said nothing about card payments (a limit listed below). It now says "Each month is paid from your Visa test card ending 4242, with a reminder three days before. While the studio is in test mode, no money moves.", and an unpaid month says it is due from that card and how to use another. Only the brand and last four digits are added to the guest's view; the visit page already showed them for the saved card.
+- The client glance's "needs this month's payment" step now says the month is taken from their card ending 0002 and that Packages & memberships shows how the last try went.
+
 ## Quality bar
 
-Checked against `quality-bar.md` by reading the code and the component tests. Nothing has been seen at 1440px or 390px yet.
+Checked against `quality-bar.md` in the code and then in the browser at 1440px and 390px.
 
 - [x] **One main job and one primary button.** The set-up step has one primary button ("Set up card payments") and Cancel. On the client's page the card controls are quiet buttons beside the existing ones. Money's section has no primary button: its job is to show the month, and "Turn card payments back on" (secondary) appears only after a restore.
 - [x] **Rarely used options tucked away.** Turning off asks for a confirm in place. Money's list shows six rows and puts the rest behind "See all". `MoreOptions` is not on main yet (PR #83), so this uses a native `<details>`, as asked.
@@ -59,14 +76,14 @@ Checked against `quality-bar.md` by reading the code and the component tests. No
 - [ ] **Empty welcome.** Not applicable: these are sections inside existing pages. Money's section does not appear at all when there is nothing to show.
 - [ ] **Loading shapes.** Not met. `LoadingShapes` is not on main yet (PR #83). Until the answer arrives, the card line and Money's section show nothing, and the rest of the page is already there.
 - [x] **Motion.** Nothing new moves. The set-up step uses the existing `Modal`.
-- [ ] **At 390px.** Not seen yet. The intent: buttons are the library's 44px buttons and may wrap; the saved-card choices, the agreement tick box and "See all" are at least 44px tall; Money's rows wrap their tag and amount under the words; the set-up step's buttons are full width at its foot; the agreement wording wraps long words. This needs checking in a browser.
+- [x] **At 390px.** Seen on the client page, the set-up step, the guest's page and Money, Plans: no sideways scroll; buttons are the library's 44px buttons; the set-up step's buttons sit full width at its foot; the agreement wording wraps.
 - [x] **Warm, plain words.** British English, "visit" and "treatment", no em dashes (a test checks the reminder email). Test mode never says money moved or a message was sent.
 - [x] **Built from the library.** `Button`, `Modal` and `ErrorMessage` from `src/design`, and tokens only (`--line`, `--muted`, `--target`, `--text-lead` and others). There are no new colours and no left-edge stripes; `src/design/edges.test.ts` passes. `npm run check` and `npm run format:check` pass.
-- [ ] **Before and after pictures.** Not taken (no browser for this part).
+- [x] **Before and after pictures.** Taken at 1440px and 390px for the client page, the set-up step, the guest's page and Money, Plans, and shown with the pull request.
 
 ## Decisions
 
-- **Migration 27, with 26 left empty.** Main is at 25 and NEXT-02's open pull request uses 26. This branch holds an empty step 26 so the numbers stay contiguous for the database and backup checks. When both are merged, NEXT-02's real step 26 replaces the empty one. Do not run this branch on a database you keep, or it will record 26 as done without NEXT-02's change.
+- **Migration 27.** NEXT-02 took 26 on main; the empty stand-in this part first carried was dropped when it was merged, so 26 is NEXT-02's and 27 is this part's.
 - **The first card month is at least three days after set-up**, so a reminder can always go first. Earlier months are paid at the desk.
 - **No reminder, no charge.** If the server was off for the three days before a payment, it does not take that month late without a reminder. It notes "Not taken: no reminder went out three days before" and leaves the month to be paid by hand. The next month is reminded and taken as normal.
 - **Set-up needs a way to remind the client** (an email address, or texts allowed). Every client has an email address today, so this is a safeguard.
@@ -80,5 +97,5 @@ Checked against `quality-bar.md` by reading the code and the component tests. No
 - The refund to the card covers the current month that the card paid. A month the client also paid ahead at the desk is not split between card and cash; end it as usual for that part.
 - If a card is removed at the provider while a payment from it is still waiting, that payment can only be checked in the provider's own dashboard.
 - Live Stripe has not been tried: off-session charges, refunds and webhooks for these payments go through the same adapter as PILOT-02, covered by simulated responses only. Real reminders need the email and text providers configured.
-- The guest's own page does not show the agreement or the next payment yet.
-- No browser check, screenshots, axe run or phone-width check yet (see above).
+- The guest's page says which card pays each month, but not the next payment's amount: the guest's view carries no prices.
+- No axe run yet. Safari and Firefox not checked.

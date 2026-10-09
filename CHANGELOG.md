@@ -2,6 +2,16 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-09 · Clients and memberships, built properly (left-out Stage 1)
+
+**Status: built locally on 9 October 2026 and checked in a browser; test mode only, so no card is charged, no message is sent and nothing is deployed.** Evidence: [membership card payments](docs/evidence/LEFT-1A-MEMBERSHIP-CARD-PAYMENTS.md), [guest plans](docs/evidence/LEFT-1B-GUEST-PLANS.md), [STOP replies](docs/evidence/LEFT-1C-STOP-REPLIES.md), [at a glance](docs/evidence/LEFT-1D-CLIENT-INSIGHT.md).
+
+- **Memberships paid from a saved card each month.** Selling a membership can now take it from the client's saved card: the desk reads the client the exact words of the agreement and ticks that they agreed. SALEANE reminds the client three days before each payment, takes it on the day from 09:00, and records the month only when the card service confirms it. A declined card is tried again after 1, 3 and 7 days, then SALEANE stops and tells the client and the team. An unclear answer is never retried by itself; "Check again" asks the same question. Ending a month the card paid can refund it to the card. Money, Plans shows this month's card payments, and the till never counts them as cash. Sample studios never charge. Migration 27.
+- **Guests see their package or membership** on their visit page: what is left, when the next month starts, which card pays it each month, and what it can mean for this visit, using checkout's own rules. Never a price, a payment or a record ID.
+- **STOP and START by text.** A client who texts STOP has texts turned off and nothing more is texted to that number; START turns them back on only where STOP turned them off. HELP is left for the team. The Inbox labels each one, and the client page says when they replied STOP. Owners and managers can deliver a test text from the Inbox to try it, with nothing sent.
+- **At a glance on each client page:** when they usually come, when they are due back, their favourite treatment and professional, what they spent in the last 12 months, how reliable they are and how often they book ahead, with one suggested next step (invite them back, book their usual, a patch test, a membership to mention or a month to pay). Nothing is sent from it.
+- On the client page a plan now reads top to bottom instead of squeezing its name beside its buttons, and visit messages are rows divided by hairlines.
+
 ## 2026-10-09 · Studios paying for SALEANE (NEXT-02)
 
 **Status: built locally on 9 October 2026; test mode only, so no card is charged and no money moves.** [Evidence](docs/evidence/NEXT-02-STUDIOS-PAYING.md).
