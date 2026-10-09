@@ -77,20 +77,21 @@ Display sizes on guest booking and marketing panels may sit outside this scale.
 
 All are exported from `src/design/index.ts`. Interactive primitives use Radix, unstyled, and take their look from these tokens. Radix packages in use: Dialog, Tabs, Toggle Group, Popover. Add another Radix primitive when a pattern needs its keyboard and focus behaviour, not for appearance alone.
 
-| Component               | Built on           | When to use                                                                                           |
-| ----------------------- | ------------------ | ----------------------------------------------------------------------------------------------------- |
-| `PageHeader`            | native             | Every page title. `variant="editorial"` for Today, booking, accounts; `compact` elsewhere             |
-| `Button`                | native             | Actions. Primary, secondary, quiet, light. Name the action, not the control                           |
-| `SegmentedControl`      | Radix Toggle Group | One choice between views of the same content: a period, a filter, a layout. Always keeps one selected |
-| `Tabs`                  | Radix Tabs         | Sections that replace each other in place (Manage)                                                    |
-| `Definition`            | Radix Popover      | How a figure is measured. Opens by tap, click or keyboard; never hover-only                           |
-| `Metric`                | native             | Label, value, plain detail; optional `definition`. No decorative trend claims                         |
-| `Status`                | native             | Visit state as text plus dot                                                                          |
-| `Avatar`                | native             | Fictional seed portrait or initials on a staff tone; decorative beside a visible name                 |
-| `TimeChoices`           | native radios      | Picking an appointment time; arrow keys select                                                        |
-| `DateStrip`             | native radios      | Picking a day from the next fortnight, each showing how many times it has                             |
-| `Modal`                 | Radix Dialog       | One decision or one record. Focus trapped, Escape closes, focus returns                               |
-| `Empty`, `ErrorMessage` | native             | Empty and failed states with a next step                                                              |
+| Component                                                     | Built on           | When to use                                                                                                                          |
+| ------------------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `PageHeader`                                                  | native             | Every page title. `variant="editorial"` for Today, booking, accounts; `compact` elsewhere                                            |
+| `Button`                                                      | native             | Actions. Primary, secondary, quiet, light. Name the action, not the control                                                          |
+| `SegmentedControl`                                            | Radix Toggle Group | One choice between views of the same content: a period, a filter, a layout. Always keeps one selected                                |
+| `Tabs`                                                        | Radix Tabs         | Sections that replace each other in place (Manage)                                                                                   |
+| `Definition`                                                  | Radix Popover      | How a figure is measured. Opens by tap, click or keyboard; never hover-only                                                          |
+| `Metric`                                                      | native             | Label, value, plain detail; optional `definition`. No decorative trend claims                                                        |
+| `Status`                                                      | native             | Visit state as text plus dot                                                                                                         |
+| `Avatar`                                                      | native             | Fictional seed portrait or initials on a staff tone; decorative beside a visible name                                                |
+| `TimeChoices`                                                 | native radios      | Picking an appointment time; arrow keys select                                                                                       |
+| `DateStrip`                                                   | native radios      | Picking a day from the next fortnight, each showing how many times it has                                                            |
+| `Modal`                                                       | Radix Dialog       | One decision or one record. Focus trapped, Escape closes, focus returns                                                              |
+| `WizardSteps`, `useWizardStep`, `ChoiceTiles`, `WizardFooter` | native             | A task of a few steps inside a `Modal` (moving in): named steps along the top, large single choices, Back and Continue kept in reach |
+| `Empty`, `ErrorMessage`                                       | native             | Empty and failed states with a next step                                                                                             |
 
 Route links (main navigation, the Business sub-navigation) stay as links. They are not tabs, because each one changes the URL.
 
@@ -107,6 +108,7 @@ Route links (main navigation, the Business sub-navigation) stay as links. They a
 - **Plain words.** Say what is not connected yet in studio language ("Card payments are not connected yet"), never configuration names or internal codes.
 - **Start where you are.** Free time on the calendar books there, and a dragged visit opens the move step at its new spot. Shortcuts fill in choices; the same checks and confirmation still decide.
 - **Times in groups.** Long runs of times sit under Morning, Afternoon and Evening.
+- **Wizards.** A job with a few distinct steps runs in a `Modal` with `WizardSteps` along the top: one job per step, Continue held until the step is complete, Back always there, nothing saved until the last step, and that step saying in plain sentences what will happen. Each step opens at the top with its heading focused (`useWizardStep`). Moving in (`MovingIn.tsx`) is the reference.
 
 ## Voice
 

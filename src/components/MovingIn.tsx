@@ -2,7 +2,15 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, FileUp, Upload, X } from 'lucide-react'
 import { useStore } from '../state/context'
 import { can } from '../domain/operations'
-import { Button, ErrorMessage, Modal } from '../design'
+import {
+  Button,
+  ChoiceTiles,
+  ErrorMessage,
+  Modal,
+  WizardFooter,
+  WizardSteps,
+  useWizardStep,
+} from '../design'
 import { readSheet } from '../domain/movingIn/sheet'
 import type { Sheet } from '../domain/movingIn/sheet'
 import { FIELD_LABEL, clientFields, headingKey } from '../domain/movingIn/fields'
@@ -50,21 +58,10 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
   const [done, setDone] = useState<number | null>(null)
   const [step, setStep] = useState<Step>(1)
   const sending = useRef(false)
-  const top = useRef<HTMLDivElement>(null)
-  const heading = useRef<HTMLHeadingElement>(null)
-  const shownStep = useRef<Step>(1)
+  const heading = useWizardStep(step)
   const inputId = useId()
   const helpId = useId()
   const headingId = useId()
-
-  // Each new step starts at the top, with its heading read out.
-  useEffect(() => {
-    if (shownStep.current === step) return
-    shownStep.current = step
-    const dialog = top.current?.closest('.dialog-content')
-    if (dialog) dialog.scrollTop = 0
-    heading.current?.focus({ preventScroll: true })
-  }, [step])
 
   const understood = useMemo(
     () =>
@@ -229,57 +226,32 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
       title="Move your clients in"
       description="Four short steps. Nothing is saved until the last one."
     >
-      <div className="moving" ref={top}>
-        <ol className="moving-steps" aria-label="Moving in steps">
-          {STEPS.map((name, i) => {
-            const n = (i + 1) as Step
-            return (
-              <li
-                key={name}
-                aria-current={step === n ? 'step' : undefined}
-                className={n < step ? 'is-done' : undefined}
-              >
-                <span className="moving-steps-mark" aria-hidden="true">
-                  {n < step ? <Check size={13} /> : n}
-                </span>
-                <span className="moving-steps-label">
-                  {name}
-                  {n < step && <span className="sr-only"> (done)</span>}
-                </span>
-              </li>
-            )
-          })}
-        </ol>
+      <div className="moving">
+        <WizardSteps steps={STEPS} current={step} label="Moving in steps" />
 
         {step === 1 && (
           <section aria-labelledby={headingId}>
-            <h3 id={headingId} ref={heading} tabIndex={-1} className="moving-step">
+            <h3 id={headingId} ref={heading} tabIndex={-1} className="wizard-heading">
               Where are you moving from?
             </h3>
             <p className="ops-help">
               Choose the system your clients are in now. SALEANE knows how each one lays out its
               files.
             </p>
-            <div className="moving-tiles" role="group" aria-label="Your old system">
-              {[...UK_FIRST, ...oldSystems.filter((s) => !UK_FIRST.includes(s))].map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  className="moving-tile"
-                  aria-pressed={system === s}
-                  onClick={() => setSystem(s)}
-                >
-                  {s === 'other' ? 'Something else' : SYSTEM_NAME[s]}
-                  {system === s && <Check size={16} aria-hidden="true" />}
-                </button>
-              ))}
-            </div>
+            <ChoiceTiles
+              label="Your old system"
+              options={[...UK_FIRST, ...oldSystems.filter((s) => !UK_FIRST.includes(s))].map(
+                (s) => ({ value: s, label: s === 'other' ? 'Something else' : SYSTEM_NAME[s] }),
+              )}
+              value={system}
+              onChange={setSystem}
+            />
           </section>
         )}
 
         {step === 2 && system && (
           <section aria-labelledby={headingId}>
-            <h3 id={headingId} ref={heading} tabIndex={-1} className="moving-step">
+            <h3 id={headingId} ref={heading} tabIndex={-1} className="wizard-heading">
               {systemName ? `Add your ${systemName} client list` : 'Add your client list'}
             </h3>
             <div className="moving-guide">
@@ -358,7 +330,7 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
 
         {step === 3 && (
           <section aria-labelledby={headingId}>
-            <h3 id={headingId} ref={heading} tabIndex={-1} className="moving-step">
+            <h3 id={headingId} ref={heading} tabIndex={-1} className="wizard-heading">
               {questions.length ? 'Check a few things first' : 'Check your clients'}
             </h3>
             {!!questions.length && (
@@ -435,7 +407,7 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
 
         {step === 4 && (
           <section aria-labelledby={headingId}>
-            <h3 id={headingId} ref={heading} tabIndex={-1} className="moving-step">
+            <h3 id={headingId} ref={heading} tabIndex={-1} className="wizard-heading">
               Bring them across
             </h3>
             <p className="moving-lead">
@@ -489,7 +461,7 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
 
         {!allowed && <p className="ops-help">Only an owner or manager can bring clients across.</p>}
         <ErrorMessage error={error} />
-        <div className="moving-next">
+        <WizardFooter>
           {step > 1 ? (
             <Button variant="quiet" disabled={running} onClick={() => go((step - 1) as Step)}>
               <ArrowLeft size={16} />
@@ -517,7 +489,7 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
                 : `Bring ${ready.toLocaleString(state.organisation.locale)} ${ready === 1 ? 'client' : 'clients'} across`}
             </Button>
           )}
-        </div>
+        </WizardFooter>
       </div>
     </Modal>
   )
