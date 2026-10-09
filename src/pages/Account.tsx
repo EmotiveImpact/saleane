@@ -5,6 +5,7 @@ import { useStore } from '../state/context'
 import { api } from '../state/api'
 import type { Session } from '../state/api'
 import { Button, ErrorMessage } from '../design'
+import { BrandsTogether } from '../components/BrandsTogether'
 import '../account.css'
 
 export function Account() {
@@ -168,6 +169,10 @@ export function Account() {
                 </button>
               ))}
             </div>
+            <BrandsTogether
+              owned={store.session.workspaces.filter((w) => w.role === 'owner').length}
+              onOpen={(id) => void enter(id)}
+            />
             {!store.session.workspaces.length && (
               <p>You do not have an active studio membership.</p>
             )}
