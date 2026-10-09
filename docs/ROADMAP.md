@@ -30,12 +30,13 @@ Checked against the code on main on 9 October 2026 and grouped by what each item
 
 **Waiting on the owner's word**
 
-1. "Merge" for the 48 fixes from the whole-app review (built, every check passing; includes the deposit and cancellation rule shown before a guest confirms).
-2. Moving in from another system: five answers and free trial accounts (Fresha, Timely, Square, Phorest). Owned by the "Moving in from another system" thread. The trial sign-ups wait for another time.
-3. The price: £49 / $59 a month is shown until confirmed, and the AI allowance inside it is a proposal.
-4. The heading font: a Financier Display Light licence (about $60); Newsreader stands in.
-5. Names: a trademark search for LUMANE before public use, and testing and clearing SALEANE (deferred decision 5).
-6. Smaller choices: a "How SALEANE speaks" wording guide, the V3 warning thresholds, and three empty photos in #15 to export again.
+The 48 fixes from the whole-app review merged as #72 on 9 October 2026, including the deposit and cancellation rule shown before a guest confirms.
+
+1. Moving in from another system: five answers and free trial accounts (Fresha, Timely, Square, Phorest). Owned by the "Moving in from another system" thread. The trial sign-ups wait for another time.
+2. The price: £49 / $59 a month is shown until confirmed, and the AI allowance inside it is a proposal.
+3. The heading font: a Financier Display Light licence (about $60); Newsreader stands in.
+4. Names: a trademark search for LUMANE before public use, and testing and clearing SALEANE (deferred decision 5).
+5. Smaller choices: a "How SALEANE speaks" wording guide, the V3 warning thresholds, and three empty photos in #15 to export again.
 
 **Waiting on outside accounts or live sources** (built in test mode, so nothing is sent or charged; the real AI and voice connections are also still to write, as NEXT-12)
 
