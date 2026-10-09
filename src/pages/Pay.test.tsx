@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
@@ -17,7 +17,9 @@ const completed = (staffId: string, from: string, to: string) =>
     (a) => a.staffId === staffId && a.status === 'completed' && a.date >= from && a.date <= to,
   ).length
 const summary = (name: string) =>
-  screen.getByText(name, { selector: 'strong' }).parentElement!.querySelector('small')!
+  within(screen.getByRole('region', { name: 'Each person' }))
+    .getByText(name, { selector: 'strong' })
+    .parentElement!.querySelector('small')!
 
 describe('Pay', () => {
   it('counts the visits of someone renting a chair, though they earn no commission', async () => {

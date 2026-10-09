@@ -89,6 +89,29 @@ describe('general manager', () => {
     )
   })
 
+  it('clocks out only a shift clocked in at their location', () => {
+    const { s, main, islington } = twoSites()
+    const clocked = apply(s, { type: 'clock-in', staffId: 'staff-maya' })
+    // Maya clocked in at the main location; the rota now has her at Islington.
+    const moved = structuredClone(clocked)
+    moved.staff.find((p) => p.id === 'staff-maya')!.hours = Array.from({ length: 7 }, (_, day) => ({
+      day,
+      open: 540,
+      close: 1080,
+      closed: false,
+      locationId: islington,
+    }))
+    const out: Command = { type: 'clock-out', staffId: 'staff-maya', breakMinutes: 0 }
+    expect(branchRefusal(moved, islington, out)).toBe('That person clocked in at another location.')
+    expect(branchRefusal(moved, main, out)).toBeNull()
+    // Whatever is asked, a change to hours at another location is caught once it is made.
+    const after = apply(moved, out)
+    expect(branchChangeRefusal(moved, after, islington)).toBe(
+      'That would change hours worked at another location.',
+    )
+    expect(branchChangeRefusal(moved, after, main)).toBeNull()
+  })
+
   it('catches a change that lands a visit at another location', () => {
     const { s, main, islington } = twoSites()
     const visit = s.appointments.find((a) => a.locationId === main)!

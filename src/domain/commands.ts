@@ -9,6 +9,7 @@ import { runGroupCommand } from './group'
 import { runApprovalCommand, stampRequestActors } from './approvals'
 import { runBrandCommand } from './brandRules'
 import { branchVisitUnchanged, runBranchVisitCommand, stampBranchVisitActors } from './branchVisits'
+import { runHoursCommand, stampShiftActors } from './hours'
 import { channelLabel } from './bookingChannel'
 import { checkoutTotals } from './money'
 import { recordTillCount } from './tillCount'
@@ -813,6 +814,13 @@ export function execute(
     ) {
       recordId = runApprovalCommand(next, command, now, makeId)
     } else if (
+      command.type === 'clock-in' ||
+      command.type === 'clock-out' ||
+      command.type === 'shift-save' ||
+      command.type === 'shift-remove'
+    ) {
+      recordId = runHoursCommand(next, command, now, businessDate(s, now), makeId)
+    } else if (
       command.type === 'studio-look' ||
       command.type === 'house-rules' ||
       command.type === 'benchmark-sharing'
@@ -860,6 +868,7 @@ export function dispatch(
   stampGiftCardActors(s, result.state, actorName)
   stampBranchVisitActors(s, result.state, actorName)
   stampRequestActors(s, result.state, actorName)
+  stampShiftActors(s, result.state, actorName)
   const known = new Map((operations(s).missedCalls ?? []).map((c) => [c.id, c]))
   for (const call of operations(result.state).missedCalls ?? []) {
     const before = known.get(call.id)

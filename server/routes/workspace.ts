@@ -46,7 +46,7 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         role: org.role,
         staffId: org.staffId,
         ...(org.role === 'general' ? { locationId: org.locationId } : {}),
-        ...workspaceView(org, org.state, today),
+        ...workspaceView(org, org.state, today, now()),
         today,
         mode: operations(org.state).mode,
         deliveryConfigured: ctx.messaging.email.live || ctx.messaging.sms.live,
@@ -240,7 +240,7 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
       const { state, ...outcome } = result
       reply(200, {
         ...outcome,
-        ...workspaceView(reader, state, businessDate(state, new Date(now()).toISOString())),
+        ...workspaceView(reader, state, businessDate(state, new Date(now()).toISOString()), now()),
       })
       return true
     }

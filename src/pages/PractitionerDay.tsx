@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, ChevronRight, NotebookPen, Star, Sun } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ChevronRight, Clock3, NotebookPen, Star, Sun } from 'lucide-react'
 import { useStore } from '../state/context'
 import { api, ApiError } from '../state/api'
 import type { PractitionerWorkspace, RemoteWorkspace } from '../state/api'
@@ -17,9 +17,11 @@ import { addDays, dateLabel, timeLabel } from '../domain/format'
 import { firstName, nextUp, previousWithYou, untilLabel, venueMinutes } from '../domain/pocket'
 import { PRACTITIONER_AVERAGE_MIN } from '../domain/feedback'
 import { venueDate } from '../domain/tillCount'
-import { Avatar, Button, Empty, ErrorMessage, PageHeader, Status } from '../design'
+import { hoursLabel } from '../domain/hours'
+import { Avatar, Button, Empty, ErrorMessage, Modal, PageHeader, Status } from '../design'
 import { SignOut } from '../components/SignOut'
 import { HelpButton } from '../components/HelpButton'
+import { ClockOutForm } from '../components/Clock'
 import '../practitioner.css'
 
 /** Matches the single-column breakpoint in practitioner.css. */
@@ -43,6 +45,8 @@ export function PractitionerDay() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [saving, setSaving] = useState(false)
+  // NEXT-07: clocking out asks for the break taken first.
+  const [leaving, setLeaving] = useState(false)
   const [journal] = useState(() => readPendingKeys(PENDING_PRACTITIONER_KEY))
   const pending = useRef(journal.keys)
   const path = `/api/workspaces/${encodeURIComponent(orgId)}`
@@ -202,6 +206,9 @@ export function PractitionerDay() {
       locale,
     )}`
   const clientName = (id: string) => record.clients.find((c) => c.id === id)?.name ?? 'Client'
+  const clockAt = (instant: number) =>
+    timeLabel(venueMinutes(organisation.timeZone, instant), locale)
+  const hours = record.hours
 
   function changeDay(target: string) {
     setDate(target)
@@ -285,6 +292,62 @@ export function PractitionerDay() {
           />
         </div>
         <ErrorMessage error={error} />
+        {isToday && hours && (
+          <section className="practitioner-clock" aria-label="Your hours">
+            <p>
+              <Clock3 size={18} aria-hidden="true" />
+              {hours.since ? (
+                <strong>In since {clockAt(Date.parse(hours.since))}</strong>
+              ) : hours.todayMinutes ? (
+                `${hoursLabel(hours.todayMinutes)} worked today.`
+              ) : (
+                'Not clocked in today.'
+              )}
+            </p>
+            <Button
+              variant="secondary"
+              disabled={saving}
+              onClick={() => {
+                if (hours.since) {
+                  setError('')
+                  setLeaving(true)
+                } else
+                  void save(
+                    { type: 'clock-in', staffId: staff.id },
+                    `You clocked in at ${clockAt(Date.now())}.`,
+                  )
+              }}
+            >
+              {hours.since ? 'Clock out' : 'Clock in'}
+            </Button>
+          </section>
+        )}
+        {leaving && hours?.since && (
+          <Modal
+            open
+            onClose={() => {
+              if (!saving) setLeaving(false)
+            }}
+            title="Clock out"
+            description="The time is now, on the studio clock."
+          >
+            <ClockOutForm
+              since={clockAt(Date.parse(hours.since))}
+              pending={saving}
+              error={error}
+              onBack={() => setLeaving(false)}
+              onConfirm={async (breakMinutes) => {
+                if (
+                  await save(
+                    { type: 'clock-out', staffId: staff.id, breakMinutes },
+                    `You clocked out at ${clockAt(Date.now())}.`,
+                  )
+                )
+                  setLeaving(false)
+              }}
+            />
+          </Modal>
+        )}
         {record.rating && (
           <p className="practitioner-rating">
             <Star size={16} aria-hidden="true" />

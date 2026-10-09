@@ -389,3 +389,55 @@ describe('the previous visit in the practitioner view', () => {
     expect(settings.statusCode).toBe(403)
   })
 })
+
+describe('clocking in and out on their own day (NEXT-07)', () => {
+  it('clocks only themselves in and out, and shows their own hours', async () => {
+    const owner = await register('owner@example.invalid')
+    const maya = await practitioner(owner, 'maya@example.invalid', 'staff-maya')
+    const before = await view(maya)
+    expect(before.practitioner.hours).toEqual({ since: null, todayMinutes: 0 })
+    let revision = before.practitioner.revision
+
+    const forTheo = await run(maya, revision, { type: 'clock-in', staffId: 'staff-theo' })
+    expect(forTheo.statusCode).toBe(403)
+    expect(forTheo.json().error).toBe('Clock in and out only for yourself.')
+    const fix = await run(maya, revision, {
+      type: 'shift-save',
+      input: {
+        staffId: 'staff-maya',
+        date: '2026-10-05',
+        start: '09:00',
+        end: '18:00',
+        breakMinutes: 0,
+        reason: 'More hours please',
+      },
+    })
+    expect(fix.statusCode).toBe(403)
+
+    const clocked = await run(maya, revision, { type: 'clock-in', staffId: 'staff-maya' })
+    expect(clocked.statusCode, clocked.body).toBe(200)
+    const after = clocked.json<{ practitioner: PractitionerView; state?: unknown }>()
+    expect(after.state).toBeUndefined()
+    expect(after.practitioner.hours).toEqual({ since: '2026-10-06T08:00:00.000Z', todayMinutes: 0 })
+    revision = after.practitioner.revision
+
+    // The owner sees who clocked in, by name; the practitioner's page never holds the team's hours.
+    const shift = (await studio(owner)).operations?.shifts?.at(-1)
+    expect(shift).toMatchObject({ staffId: 'staff-maya', actor: 'Maya Lewis', source: 'clock' })
+    expect(JSON.stringify(after.practitioner)).not.toContain('staff-theo-2026')
+    const out = await run(maya, revision, {
+      type: 'clock-out',
+      staffId: 'staff-maya',
+      breakMinutes: 60,
+    })
+    // The server's clock has not moved, so an hour's break is longer than the shift.
+    expect(out.statusCode).toBe(422)
+    const done = await run(maya, revision, {
+      type: 'clock-out',
+      staffId: 'staff-maya',
+      breakMinutes: 0,
+    })
+    expect(done.statusCode, done.body).toBe(200)
+    expect(done.json<{ practitioner: PractitionerView }>().practitioner.hours?.since).toBeNull()
+  })
+})
