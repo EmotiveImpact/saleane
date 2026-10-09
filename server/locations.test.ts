@@ -156,3 +156,142 @@ describe('booking at another location', () => {
     expect(visit).toMatchObject({ locationId: islington, staffId: nia, bookedPriceMinor: 12500 })
   })
 })
+
+describe('moving a visit to another location', () => {
+  /** A sample studio with Islington open, a room there and Nia working there every day. */
+  async function twoSites() {
+    const owner = await register()
+    let state = await run(owner, {
+      type: 'location',
+      input: { name: 'Islington', address: '1 Upper Street, London' },
+    } as Command)
+    const islington = state.operations!.locations![0].id
+    state = await run(owner, {
+      type: 'resource',
+      input: { name: 'Islington room', type: 'treatment', locationId: islington },
+    } as Command)
+    state = await run(owner, {
+      type: 'staff',
+      input: {
+        name: 'Nia Fictional',
+        role: 'Facialist',
+        serviceIds: ['service-facial'],
+        tone: 'sage',
+        hours: state.operations!.hours.map((h) => ({ ...h, locationId: islington })),
+      },
+    } as Command)
+    const nia = state.staff.find((p) => p.name === 'Nia Fictional')!.id
+    return { owner, islington, nia, main: state.organisation.locationId }
+  }
+  async function book(login: Login, staffId: string, startMinutes: number, locationId?: string) {
+    const { state } = await studio(login)
+    const response = await api.inject({
+      method: 'POST',
+      url: `/api/workspaces/${login.orgId}/commands`,
+      headers: { ...headers(login), 'idempotency-key': crypto.randomUUID() },
+      payload: {
+        revision: state.revision,
+        command: {
+          type: 'book',
+          input: {
+            serviceId: 'service-facial',
+            staffId,
+            date: '2026-10-08',
+            startMinutes,
+            clientId: 'client-1',
+            source: 'desk',
+            ...(locationId ? { locationId } : {}),
+          },
+        },
+      },
+    })
+    expect(response.statusCode, response.body).toBe(200)
+    return response.json<{ recordId: string }>().recordId
+  }
+  async function send(login: Login, command: Command) {
+    const { state } = await studio(login)
+    return api.inject({
+      method: 'POST',
+      url: `/api/workspaces/${login.orgId}/commands`,
+      headers: { ...headers(login), 'idempotency-key': crypto.randomUUID() },
+      payload: { revision: state.revision, command },
+    })
+  }
+  const visitOf = async (login: Login, id: string) =>
+    (await studio(login)).state.appointments.find((a) => a.id === id)!
+
+  it('moves to someone working at the other location, and refuses a time not free there', async () => {
+    const { owner, islington, nia, main } = await twoSites()
+    const first = await book(owner, 'staff-maya', 600)
+    expect((await visitOf(owner, first)).locationId).toBe(main)
+    const moved = await send(owner, {
+      type: 'reschedule',
+      appointmentId: first,
+      staffId: nia,
+      date: '2026-10-08',
+      startMinutes: 600,
+      locationId: islington,
+    })
+    expect(moved.statusCode, moved.body).toBe(200)
+    expect(await visitOf(owner, first)).toMatchObject({
+      locationId: islington,
+      staffId: nia,
+      startMinutes: 600,
+    })
+    // Islington has one room and Nia is there at 10:00, so another visit cannot join her.
+    const second = await book(owner, 'staff-maya', 900)
+    const clash = await send(owner, {
+      type: 'reschedule',
+      appointmentId: second,
+      staffId: nia,
+      date: '2026-10-08',
+      startMinutes: 600,
+      locationId: islington,
+    })
+    expect(clash.statusCode).toBe(409)
+    expect(await visitOf(owner, second)).toMatchObject({
+      locationId: main,
+      staffId: 'staff-maya',
+      startMinutes: 900,
+    })
+  })
+
+  it('moves a visit to another location inside an approved plan', async () => {
+    const { owner, islington, nia } = await twoSites()
+    const first = await book(owner, 'staff-maya', 600)
+    const second = await book(owner, 'staff-maya', 900)
+    const plan = await send(owner, {
+      type: 'batch',
+      label: 'Move the morning to Islington',
+      commands: [
+        {
+          type: 'reschedule',
+          appointmentId: first,
+          staffId: nia,
+          date: '2026-10-08',
+          startMinutes: 660,
+          locationId: islington,
+        },
+      ],
+    } as Command)
+    expect(plan.statusCode, plan.body).toBe(200)
+    expect(await visitOf(owner, first)).toMatchObject({ locationId: islington, staffId: nia })
+    // A plan that moves into a time already taken there is refused as a whole.
+    const clash = await send(owner, {
+      type: 'batch',
+      label: 'Move the afternoon to Islington',
+      commands: [
+        {
+          type: 'reschedule',
+          appointmentId: second,
+          staffId: nia,
+          date: '2026-10-08',
+          startMinutes: 660,
+          locationId: islington,
+        },
+      ],
+    } as Command)
+    expect(clash.statusCode).toBe(409)
+    expect((await visitOf(owner, second)).staffId).toBe('staff-maya')
+  })
+})

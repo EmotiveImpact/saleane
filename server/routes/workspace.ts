@@ -142,6 +142,8 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
             command.startMinutes,
             new Date(now()).toISOString(),
             command.resourceId,
+            // A move to another location is checked there, not where the visit is now.
+            command.locationId,
           )
           if (!resourceId) fail(409, 'This time is reserved or unavailable. Choose another time.')
           command = { ...command, resourceId }
@@ -181,6 +183,7 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
                 move.startMinutes,
                 at,
                 move.resourceId,
+                move.locationId,
               )
               if (!resourceId)
                 fail(409, 'A time in this plan is reserved or unavailable. Ask again.')
