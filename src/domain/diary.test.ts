@@ -160,6 +160,58 @@ describe('team diaries in Google or Apple Calendar', () => {
     expect(everyone).not.toContain('Theo Bennett: time off')
   })
 
+  it('shows a location only the days off someone was due to work there', () => {
+    const s = studioWithChanges()
+    // Maya works Monday to Wednesday at the main location and Thursday and Friday in Islington.
+    const maya = s.staff.find((p) => p.id === 'staff-maya')!
+    maya.hours = [0, 1, 2, 3, 4, 5, 6].map((day) => ({
+      day,
+      open: 540,
+      close: 1020,
+      closed: day === 0 || day === 6,
+      ...(day === 4 || day === 5 ? { locationId: 'loc-islington' } : {}),
+    }))
+    s.operations = {
+      ...s.operations!,
+      locations: [{ id: 'loc-islington', name: 'Islington', address: '1 Upper Street' }],
+      timeOff: [
+        {
+          id: 'away-week',
+          staffId: 'staff-maya',
+          from: '2026-10-05',
+          to: '2026-10-11',
+          kind: 'holiday',
+          createdAt: '2026-10-01T07:00:00.000Z',
+          actor: 'Owner',
+        },
+        {
+          id: 'away-tuesday',
+          staffId: 'staff-maya',
+          from: '2026-10-13',
+          to: '2026-10-13',
+          kind: 'sick',
+          createdAt: '2026-10-06T07:00:00.000Z',
+          actor: 'Owner',
+        },
+      ],
+    } as BusinessState['operations']
+    const away = (scope: DiaryScope) =>
+      events(diaryFile(s, scope, { detail: 'names', ...window }))
+        .filter((e) => e.SUMMARY === 'Maya Lewis: time off')
+        .map((e) => `${e['DTSTART;VALUE=DATE']} to ${e['DTEND;VALUE=DATE']}`)
+    // Thursday and Friday of the holiday week only, as one event, and not the Tuesday after.
+    expect(away({ kind: 'location', locationId: 'loc-islington' })).toEqual([
+      '20261008 to 20261010',
+    ])
+    // The main location: the holiday's Tuesday and Wednesday inside the window, then that Tuesday.
+    expect(away({ kind: 'location', locationId: s.organisation.locationId })).toEqual([
+      '20261006 to 20261008',
+      '20261013 to 20261014',
+    ])
+    // The studio's diary and her own keep each block whole.
+    expect(away(studio)).toEqual(['20261005 to 20261012', '20261013 to 20261014'])
+  })
+
   it('keeps one UID per visit, different from the guest’s own calendar, without the record ID', () => {
     const s = studioWithChanges()
     const first = events(diaryFile(s, maya, { detail: 'names', ...window }))

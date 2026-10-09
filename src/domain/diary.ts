@@ -1,8 +1,8 @@
 import type { Appointment, BusinessState } from './model'
 import { escapeText, foldLine, stableUid, utcStamp } from './calendarFile'
 import { addDays } from './format'
-import { instantFor, operations } from './operations'
-import { places, roomWithPlace, staffPlaces } from './locations'
+import { instantFor, operations, usualHoursFor } from './operations'
+import { places, roomWithPlace, staffLocationOn } from './locations'
 import { PRACTITIONER_DAYS_AFTER, PRACTITIONER_DAYS_BEFORE } from './practitioner'
 
 /**
@@ -69,15 +69,36 @@ export function diaryVisits(s: BusinessState, scope: DiaryScope, from: string, t
     .sort((a, b) => a.date.localeCompare(b.date) || a.startMinutes - b.startMinutes)
 }
 
-/** Time off that touches the window, for the person or for those who work at the location. */
-function diaryTimeOff(s: BusinessState, scope: DiaryScope, from: string, to: string) {
-  const working = (staffId: string) =>
-    scope.kind === 'studio' ||
-    (scope.kind === 'person' && staffId === scope.staffId) ||
-    (scope.kind === 'location' && staffPlaces(s, staffId).includes(scope.locationId))
-  return (operations(s).timeOff ?? []).filter(
-    (t) => !t.cancelledAt && t.from <= to && t.to >= from && working(t.staffId),
+type Away = { id: string; staffId: string; from: string; to: string }
+
+/**
+ * Time off that touches the window, for the person or for the whole studio. A location's diary
+ * shows only the days the person was due to work there, as one event for each run of such days,
+ * so someone who works at two locations is not shown away from the one they were not due at.
+ */
+function diaryTimeOff(s: BusinessState, scope: DiaryScope, from: string, to: string): Away[] {
+  const blocks = (operations(s).timeOff ?? []).filter(
+    (t) =>
+      !t.cancelledAt &&
+      t.from <= to &&
+      t.to >= from &&
+      (scope.kind !== 'person' || t.staffId === scope.staffId),
   )
+  if (scope.kind !== 'location') return blocks
+  const dueHere = (staffId: string, date: string) =>
+    !usualHoursFor(s, staffId, date).closed &&
+    staffLocationOn(s, staffId, date) === scope.locationId
+  return blocks.flatMap((t) => {
+    const runs: Away[] = []
+    const last = t.to < to ? t.to : to
+    for (let date = t.from > from ? t.from : from; date <= last; date = addDays(date, 1)) {
+      if (!dueHere(t.staffId, date)) continue
+      const run = runs.at(-1)
+      if (run && addDays(run.to, 1) === date) run.to = date
+      else runs.push({ id: `${t.id}:${date}`, staffId: t.staffId, from: date, to: date })
+    }
+    return runs
+  })
 }
 
 const allDay = (date: string) => date.replace(/-/g, '')
