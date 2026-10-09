@@ -25,7 +25,7 @@ export function Feedback() {
   if (!leads(role))
     return (
       <div className="feedback-page">
-        <PageHeader variant="compact" title="Guest feedback" description="" />
+        <PageHeader variant="compact" eyebrow="Business" title="What guests tell you." />
         <Empty title="For owners and managers">
           Guests' private feedback is read by the studio's owner and managers.
         </Empty>
@@ -42,6 +42,7 @@ export function Feedback() {
     <div className="feedback-page">
       <PageHeader
         variant="compact"
+        eyebrow="Business"
         title="What guests tell you."
         description="Private ratings and notes after each visit. Nothing here is published; public reviews stay on your Google page."
       />

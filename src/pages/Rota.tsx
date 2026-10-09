@@ -57,6 +57,7 @@ export function Rota() {
     <div className="rota-page">
       <PageHeader
         variant="compact"
+        eyebrow="Business"
         title="Who is in, and who is away."
         description="The week from everyone's usual hours, with holidays and sick days. Nobody is booked while they are away."
         actions={

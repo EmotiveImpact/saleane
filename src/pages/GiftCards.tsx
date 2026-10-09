@@ -65,7 +65,7 @@ export function GiftCards() {
   if (role === 'practitioner')
     return (
       <div className="gift-page">
-        <PageHeader variant="compact" title="Gift cards" description="" />
+        <PageHeader variant="compact" eyebrow="Business" title="Gift cards and vouchers." />
         <Empty title="For the front desk">Gift cards are sold and spent at the front desk.</Empty>
       </div>
     )

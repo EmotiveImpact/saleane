@@ -70,6 +70,7 @@ export function Business() {
     <>
       <PageHeader
         variant="compact"
+        eyebrow="Business"
         title="A clearer view."
         description="Understand the rhythm. Choose what comes next."
         actions={

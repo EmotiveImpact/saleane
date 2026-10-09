@@ -10,9 +10,12 @@ import {
   Modal,
   PageHeader,
   SegmentedControl,
+  Stat,
+  Stats,
   Status,
   Tabs,
   TimeChoices,
+  photos,
 } from '../design'
 import '../design/library.css'
 
@@ -276,7 +279,11 @@ export function DesignLanguage() {
 
         <div className="library-specimen">
           <h3>Page header</h3>
-          <p>Editorial for arrival; compact for working screens.</p>
+          <p>
+            Editorial for arrival; compact for working screens. Every staff page has a small
+            eyebrow, a serif title, one line of description and its actions on the right. A page
+            that opens a part of the studio can lead with a thin band of a house photograph.
+          </p>
           <div className="library-frame">
             <PageHeader
               headingLevel={2}
@@ -290,12 +297,14 @@ export function DesignLanguage() {
           <div className="library-frame">
             <PageHeader
               headingLevel={2}
-              title="Calendar"
-              description="People, spaces and time, working together."
+              photo={{ src: photos.tea, position: 'center 58%' }}
+              eyebrow="Waitlist"
+              title="Who would take a time."
+              description="When a time opens that suits someone, it appears beside their name."
               actions={
                 <Button>
                   <Plus size={17} />
-                  New appointment
+                  Add to the waitlist
                 </Button>
               }
             />
@@ -362,8 +371,12 @@ export function DesignLanguage() {
         </div>
 
         <div className="library-specimen">
-          <h3>Metric and definition</h3>
-          <p>Label, value and plain detail. A Radix Popover explains how a figure is measured.</p>
+          <h3>Figures</h3>
+          <p>
+            Label, figure and plain detail, in one figure style everywhere. Headline money is in
+            whole pounds; receipts and tables keep the pence. A Radix Popover explains how a figure
+            is measured.
+          </p>
           <div className="metrics-band library-metrics">
             <Metric label="Booked for today" value="£1,100" detail="Before discounts and tips" />
             <Metric
@@ -373,6 +386,15 @@ export function DesignLanguage() {
               definition={<p>Booked service minutes divided by scheduled professional hours.</p>}
             />
           </div>
+          <Stats>
+            <Stat label="Waiting to be spent" value="£170" />
+            <Stat label="Owed to the team" value="£369" detail="Before any deductions" />
+            <Stat
+              label="The visit"
+              value="4.4 / 5"
+              definition={<p>The average of every guest's rating for their visit.</p>}
+            />
+          </Stats>
           <p>
             Inline definition{' '}
             <Definition label="Inline definition">

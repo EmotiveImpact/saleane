@@ -115,8 +115,9 @@ export function Accounts() {
     <div className="accounts-page">
       <PageHeader
         variant="compact"
+        eyebrow="Business"
         title="For your accountant."
-        description="Spreadsheets for the month and a day-by-day summary of takings, tax, tips and refunds. Everything comes from what SALEANE has recorded."
+        description="Spreadsheets for the month and a day-by-day summary of takings, tax, tips and refunds."
       />
       <SegmentedControl
         label="Period"

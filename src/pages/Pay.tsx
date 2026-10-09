@@ -83,8 +83,9 @@ export function Pay() {
     <div className="pay-page">
       <PageHeader
         variant="compact"
+        eyebrow="Business"
         title="What the team has earned."
-        description="Commission on services and products, and tips, for each person. SALEANE works it out; you pay people through your own payroll."
+        description="Commission and tips for each person. SALEANE works it out; you pay people through your own payroll."
         actions={
           <Button variant="secondary" onClick={download}>
             <Download size={16} aria-hidden="true" /> Download for payroll

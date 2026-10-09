@@ -75,8 +75,9 @@ export function BranchVisits() {
   return (
     <div className="visits-page">
       <PageHeader
+        eyebrow="Business"
         title="Branch visits."
-        description="Walk a location with a checklist, answer each line, and keep what needs putting right in one place. Only the owner and managers see this page."
+        description="Walk a location with a checklist and keep what needs putting right in one place."
         actions={
           allowed && (
             <>

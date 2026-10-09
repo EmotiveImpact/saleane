@@ -377,6 +377,7 @@ export function Requests() {
   return (
     <div className="visits-page">
       <PageHeader
+        eyebrow="Business"
         title="Requests."
         description={`Spending and other changes that need a sign-off. Regional managers approve up to ${money(limit, org)}; anything more passes up to the owner.`}
         actions={

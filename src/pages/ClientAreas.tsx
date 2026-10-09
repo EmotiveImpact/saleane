@@ -43,6 +43,7 @@ export function ClientAreas() {
   return (
     <div className="areas-page">
       <PageHeader
+        eyebrow="Business"
         title="Where clients come from."
         description={`Clients with a visit in ${spanWords} or booked ahead, grouped by ${word}. Record a client’s area on their page.`}
       />

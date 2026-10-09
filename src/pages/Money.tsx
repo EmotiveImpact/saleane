@@ -225,6 +225,7 @@ export function Money() {
     <div className="money-page">
       <PageHeader
         variant="compact"
+        eyebrow="Business"
         title="Money, clearly."
         description="Receipts, recorded funds and the deposits still held for a visit."
       />

@@ -56,8 +56,10 @@
     font-size: var(--text-micro);
     line-height: 1.3;
   }
+  /* The figures line up along the strip even when one label runs to more lines. */
   .stat > .stat-figure {
-    margin: 0;
+    margin: auto 0 0;
+    padding-top: 2px;
   }
   .stat-detail {
     display: none;
