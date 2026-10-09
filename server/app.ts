@@ -12,6 +12,7 @@ import { publicRoutes } from './routes/public'
 import { guestRoutes } from './routes/guest'
 import { daySheetRoutes } from './routes/daysheet'
 import { changeRoutes } from './routes/changes'
+import { supportAddressFromEnv, supportRoutes } from './routes/support'
 import { privacyRoutes } from './routes/privacy'
 import { messagingRoutes } from './routes/messaging'
 import { testTextRoutes } from './routes/testText'
@@ -78,6 +79,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   ctx.plans.begin = (org) => void billing.planFor(org)
   ctx.plans.summary = billing.summary
   ctx.plans.allowance = billing.allowance
+  ctx.plans.locked = billing.locked
   const memberships = createMembershipCharges(ctx, payments, () => {
     if (options.outboxIntervalMs) outbox.soon()
   })
@@ -101,6 +103,9 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     planCardRoutes(payments, memberships),
     assistantRoutes(),
     receptionistRoutes(),
+    supportRoutes(
+      options.supportEmail === undefined ? supportAddressFromEnv() : options.supportEmail,
+    ),
     ...baseRoutes,
   ]
   if (options.outboxIntervalMs) {

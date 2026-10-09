@@ -8,6 +8,7 @@ import { rememberStudio } from '../state/lastStudio'
 import { roleNames } from '../domain/operations'
 import { Button, ErrorMessage } from '../design'
 import { BrandsTogether } from '../components/BrandsTogether'
+import { HelpButton } from '../components/HelpButton'
 import { InvitationSummary } from '../components/InvitationSummary'
 import { TwoStepCode } from '../components/TwoStepCode'
 import type { InvitationPreview } from '../components/InvitationSummary'
@@ -258,6 +259,10 @@ export function Account() {
                     <small>
                       {w.region} · {roleNames[w.role] ?? w.role} ·{' '}
                       {w.mode === 'sandbox' ? 'Sample studio' : 'Your studio'}
+                      {w.locked &&
+                        (w.role === 'owner'
+                          ? ' · Locked until you pay its SALEANE bill'
+                          : ' · Locked until the owner pays its SALEANE bill')}
                     </small>
                   </span>
                   <ArrowRight size={19} />
@@ -319,6 +324,7 @@ export function Account() {
               >
                 Sign out
               </Button>
+              <HelpButton role={null} />
             </div>
             <ErrorMessage error={error} />
           </>

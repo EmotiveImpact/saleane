@@ -590,6 +590,37 @@ export const migrations: Migration[] = [
   },
   {
     version: 27,
+    // NEXT-02, the owner's decision of 9 October 2026: a read-only studio locks 30 days after the
+    // last day paid for (the missed payment, or the end of its trial or plan), until it is paid.
+    up: (connection) =>
+      connection.exec(`
+        ALTER TABLE studio_plans ADD COLUMN lock_at INTEGER;
+        ALTER TABLE studio_plans ADD COLUMN locked_at INTEGER;
+        -- A studio already read only locks 30 days after the end of its last paid month, or of its
+        -- trial when it never paid; the billing loop locks those whose day has already passed.
+        UPDATE studio_plans SET lock_at=COALESCE(period_end,trial_ends_at)+${30 * 86_400_000}
+          WHERE status='stopped';
+      `),
+  },
+  {
+    version: 28,
+    // NEXT-06, help inside the app: each request to the SALEANE team, with what happened to the
+    // email that carries it. It is kept whether or not it could be sent, and never deleted here.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE support_requests (
+          id TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id),
+          organisation_id TEXT REFERENCES organisations(id), role TEXT,
+          topic TEXT NOT NULL CHECK(topic IN ('using','billing','problem','idea','other')),
+          message TEXT NOT NULL, page TEXT,
+          status TEXT NOT NULL CHECK(status IN ('kept','test','accepted','failed','unknown')),
+          provider TEXT, provider_ref TEXT, detail TEXT, created_at INTEGER NOT NULL
+        ) STRICT;
+        CREATE INDEX support_requests_recent ON support_requests(account_id,created_at);
+      `),
+  },
+  {
+    version: 29,
     // Stage 1, memberships paid from a saved card: each try at the card for a month and each
     // refund to it, with one live or successful try per membership and month so a month can never
     // be charged twice; a hold that stops card payments after a restore until the team checks the

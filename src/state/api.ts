@@ -11,6 +11,8 @@ export type WorkspaceAccess = {
   mode: 'sandbox' | 'local'
   role: Role
   staffId?: string
+  /** NEXT-02: locked until its SALEANE bill is paid; only the owner can open it. */
+  locked?: boolean
 }
 export type Session = {
   user: {
