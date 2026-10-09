@@ -111,6 +111,20 @@ const connect = (login: Login, channel: string, accountId: string | null) =>
     headers: headers(login),
     payload: { channel, accountId },
   })
+/** The test-mode step that stands in for signing in with Meta. */
+const confirm = (login: Login, channel: string) =>
+  api.inject({
+    method: 'POST',
+    url: `/api/workspaces/${login.orgId}/social/confirm`,
+    headers: headers(login),
+    payload: { channel },
+  })
+/** Adds an account and confirms it, as the owner signing in with Meta would. */
+async function connected(login: Login, channel: string, accountId: string) {
+  expect((await connect(login, channel, accountId)).statusCode).toBe(200)
+  const confirmed = await confirm(login, channel)
+  expect(confirmed.statusCode, confirmed.body).toBe(200)
+}
 let clientId: string
 async function studio() {
   const login = await register()
@@ -123,8 +137,8 @@ async function studio() {
       marketingConsent: false,
     },
   })
-  expect((await connect(login, 'instagram', '17841400000000001')).statusCode).toBe(200)
-  expect((await connect(login, 'whatsapp', '106540352242922')).statusCode).toBe(200)
+  await connected(login, 'instagram', '17841400000000001')
+  await connected(login, 'whatsapp', '106540352242922')
   return login
 }
 const post = (payload: unknown, secret = meta.appSecret) => {
@@ -267,6 +281,69 @@ describe('Instagram, Facebook and WhatsApp messages', () => {
     )
   })
 
+  it('keeps a newly added account waiting until the owner confirms it is theirs', async () => {
+    const login = await register()
+    await run(login, {
+      type: 'receptionist',
+      settings: { enabled: true, handOver: true, social: true },
+    })
+    expect((await connect(login, 'instagram', '17841400000000001')).statusCode).toBe(200)
+    const listed = async () =>
+      (
+        await api.inject({ url: `/api/workspaces/${login.orgId}/social`, headers: headers(login) })
+      ).json<{ accounts: { channel: string; accountId: string; confirmed: boolean }[] }>().accounts
+    expect(await listed()).toMatchObject([
+      { channel: 'instagram', accountId: '17841400000000001', confirmed: false },
+    ])
+    // Until it is confirmed, its messages reach no inbox and the receptionist does not answer.
+    await instagram('Are you open on Sunday?')
+    expect(await replies(login)).toEqual([])
+    expect(api.database.all("SELECT * FROM outbox WHERE kind='receptionist'")).toEqual([])
+    const confirmed = await confirm(login, 'instagram')
+    expect(confirmed.statusCode, confirmed.body).toBe(200)
+    expect(await listed()).toMatchObject([{ accountId: '17841400000000001', confirmed: true }])
+    await instagram('Are you open on Sunday?')
+    expect(await replies(login)).toHaveLength(1)
+    expect(api.database.all("SELECT * FROM outbox WHERE kind='receptionist'")).toHaveLength(1)
+    // Adding the same account again keeps it confirmed.
+    await connect(login, 'instagram', '17841400000000001')
+    expect(await listed()).toMatchObject([{ confirmed: true }])
+  })
+
+  it('lets only the first studio to confirm an account keep it', async () => {
+    const first = await register()
+    const second = await register(false, 'second@example.invalid')
+    // Typing an id proves nothing, so both can wait to confirm the same one.
+    expect((await connect(first, 'instagram', '17841400000000001')).statusCode).toBe(200)
+    expect((await connect(second, 'instagram', '17841400000000001')).statusCode).toBe(200)
+    expect((await confirm(first, 'instagram')).statusCode).toBe(200)
+    const late = await confirm(second, 'instagram')
+    expect(late.statusCode).toBe(409)
+    expect(late.json<{ error: string }>().error).toMatch(/connected to another studio/)
+    // Once confirmed, no other studio can add it.
+    expect((await connect(second, 'facebook', '17841400000000001')).statusCode).toBe(200)
+    await connect(second, 'instagram', null)
+    expect((await connect(second, 'instagram', '17841400000000001')).statusCode).toBe(409)
+    await instagram('Hello')
+    expect(await replies(first)).toHaveLength(1)
+    expect(await replies(second)).toEqual([])
+  })
+
+  it('confirms only in test mode, and never takes a waiting account’s stored name as an id', async () => {
+    const login = await register()
+    expect((await connect(login, 'instagram', `unconfirmed:${login.orgId}:178`)).statusCode).toBe(
+      400,
+    )
+    api.close()
+    make({ mode: 'off', appSecret: '', verifyToken: '' })
+    const owner = await register()
+    expect((await connect(owner, 'instagram', '17841400000000001')).statusCode).toBe(200)
+    const refused = await confirm(owner, 'instagram')
+    expect(refused.statusCode).toBe(409)
+    expect(refused.json<{ error: string }>().error).toMatch(/signing in with Meta/)
+    expect((await confirm(owner, 'facebook')).statusCode).toBe(409)
+  })
+
   it('answers on the app the guest wrote on, within its day, through the outbox', async () => {
     const login = await studio()
     await instagram('Do you have anything on Saturday?')
@@ -342,7 +419,7 @@ describe('Instagram, Facebook and WhatsApp messages', () => {
     await run(login, { type: 'social-answer', replyId: old.id, body: 'Hello, how can we help?' })
     // The owner swaps to another Instagram account before it goes: the guest's id belongs to the
     // first one, so nothing is sent through the second.
-    await connect(login, 'instagram', '17841400000000002')
+    await connected(login, 'instagram', '17841400000000002')
     await api.outbox.tick()
     expect(sent).toEqual([])
     expect(outbox()[0].detail).toMatch(/disconnected or changed/)
@@ -420,7 +497,7 @@ describe('Instagram, Facebook and WhatsApp messages', () => {
     expect((await listed()).find((m) => m.kind === 'receptionist')?.clientId).toBe(clientId)
     expect((await listed(`?clientId=${clientId}`)).map((m) => m.kind)).toContain('receptionist')
     // A new account on the same app is a new chat: the same sender id there is answered afresh.
-    await connect(login, 'instagram', '17841400000000002')
+    await connected(login, 'instagram', '17841400000000002')
     clock += 60000
     await instagram('Hello?', '9000001', '17841400000000002')
     expect(reception()).toHaveLength(2)

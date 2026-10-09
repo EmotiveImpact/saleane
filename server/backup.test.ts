@@ -148,6 +148,11 @@ describe('consistent local backups and fresh-path recovery', () => {
     expect(
       (await write('/social', { channel: 'instagram', accountId: '17841400000000001' })).statusCode,
     ).toBe(200)
+    // Confirmed, as the owner signing in with Meta would.
+    api.database.run(
+      "UPDATE social_accounts SET account_id='17841400000000001' WHERE organisation_id=?",
+      orgId,
+    )
     api.database.run(
       `INSERT INTO outbox(id,organisation_id,dedupe_key,appointment_id,client_id,kind,channel,slot,recipient,subject,body,status,next_attempt_at,created_at,updated_at)
        VALUES('outbox-waiting',?,'waiting','','client-x','missed_call','sms','call:1','+447700900456','','Sorry we missed you','pending',0,0,0)`,
