@@ -162,7 +162,11 @@ describe('the local API workspace context', () => {
     expect(view.store.state.sales).toEqual([])
     expect(view.store.session?.services).toEqual({ email: false, payments: false })
     expect(sessionStorage.getItem('saleane.workspace')).toBe(remote.id)
-    expect(localStorage.length).toBe(0)
+    // No browser fixtures: this browser keeps only which studio the account last opened.
+    expect(Object.keys(localStorage)).toEqual(['saleane.last-studio.v1'])
+    expect(JSON.parse(localStorage.getItem('saleane.last-studio.v1')!)).toEqual([
+      ['test-operator', remote.id],
+    ])
   })
   it('keeps the form draft and workspace intact when a remote write is rejected', async () => {
     const remote = fixture()

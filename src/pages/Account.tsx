@@ -4,6 +4,7 @@ import { ArrowRight, ArrowLeft, ShieldCheck } from 'lucide-react'
 import { useStore } from '../state/context'
 import { api } from '../state/api'
 import type { Session } from '../state/api'
+import { rememberStudio } from '../state/lastStudio'
 import { Button, ErrorMessage } from '../design'
 import { InvitationSummary } from '../components/InvitationSummary'
 import type { InvitationPreview } from '../components/InvitationSummary'
@@ -71,6 +72,9 @@ export function Account() {
    */
   async function open(id: string, current: Session | null) {
     const role = current?.workspaces.find((w) => w.id === id)?.role
+    // A new tab opens this studio again for them (the studio itself is noted once it opens).
+    if (current && (role === 'practitioner' || role === 'regional'))
+      rememberStudio(current.user.id, id)
     if (role === 'practitioner') {
       navigate(`/practice/${encodeURIComponent(id)}`)
       return
@@ -170,10 +174,13 @@ export function Account() {
         </small>
       </aside>
       <main className="account-main">
-        <Link className="back-link" to="/today">
-          <ArrowLeft size={16} />
-          Back to workspace
-        </Link>
+        {/* Signed in with no studio open, the workspace would only bring them back here. */}
+        {store.landing !== '/account' && (
+          <Link className="back-link" to="/today">
+            <ArrowLeft size={16} />
+            Back to workspace
+          </Link>
+        )}
         {ready && store.session && view !== 'workspace' ? (
           <>
             <p className="date-caption">Welcome, {store.session.user.name}</p>

@@ -7,13 +7,16 @@ import './styles.css'
 import { StoreProvider } from './state/StoreProvider'
 import { App } from './App'
 import { DaySheetGate } from './components/DaySheetGate'
+import { StudioLanding } from './components/StudioLanding'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <StoreProvider>
         <DaySheetGate>
-          <App />
+          <StudioLanding>
+            <App />
+          </StudioLanding>
         </DaySheetGate>
       </StoreProvider>
     </BrowserRouter>
