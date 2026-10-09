@@ -19,6 +19,7 @@ import { dateLabel, money, timeLabel } from './format'
 import { availableAllocation } from './allocation'
 import { runSwitchingCommand } from './switching'
 import { coverVisit, runPlanCommand, stampPlanActors } from './plans'
+import { planCardUnchanged, runPlanCardCommand } from './planCards'
 import { runGiftCardCommand, spendGiftCard, stampGiftCardActors } from './giftCards'
 import {
   patchTestBlocksVisit,
@@ -748,6 +749,10 @@ export function execute(
       command.type === 'plan-cancel'
     ) {
       recordId = runPlanCommand(next, command, now, makeId, addEvent)
+    } else if (command.type === 'plan-card' || command.type === 'plan-card-try') {
+      const unchanged = planCardUnchanged(s, command)
+      if (unchanged) return { ok: true, state: s, recordId: unchanged }
+      recordId = runPlanCardCommand(next, command, now, makeId, addEvent)
     } else if (
       command.type === 'gift-card-sell' ||
       command.type === 'gift-card-extend' ||

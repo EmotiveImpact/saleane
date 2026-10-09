@@ -75,7 +75,8 @@ export function moneyInAndOut(s: BusinessState, from: string, to: string): Money
         client: clientName(h.clientId),
         method: p.method,
         amountMinor: p.amountMinor,
-        test: p.method.startsWith('demo_'),
+        // Stage 1: a membership month the provider took from the card in its test mode.
+        test: p.method.startsWith('demo_') || p.processor?.live === false,
       })
     for (const r of h.refunds)
       push({
@@ -85,7 +86,7 @@ export function moneyInAndOut(s: BusinessState, from: string, to: string): Money
         client: clientName(h.clientId),
         method: r.method,
         amountMinor: -r.amountMinor,
-        test: r.method.startsWith('demo_'),
+        test: r.method.startsWith('demo_') || r.processor?.live === false,
       })
   }
   for (const sale of s.counterSales ?? [])

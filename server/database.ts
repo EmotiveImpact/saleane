@@ -588,6 +588,66 @@ export const migrations: Migration[] = [
         CREATE INDEX account_mail_recent ON account_mail(account_id,created_at);
       `),
   },
+  {
+    version: 27,
+    // Stage 1, memberships paid from a saved card: each try at the card for a month and each
+    // refund to it, with one live or successful try per membership and month so a month can never
+    // be charged twice; a hold that stops card payments after a restore until the team checks the
+    // provider; and the outbox's reminder before each payment and note after the last decline.
+    up: (connection) =>
+      connection.exec(
+        `
+        CREATE TABLE membership_charges (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          holding_id TEXT NOT NULL, client_id TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK(kind IN ('charge','refund')),
+          period_start TEXT NOT NULL CHECK(period_start GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+          amount_minor INTEGER NOT NULL CHECK(amount_minor>0),
+          currency TEXT NOT NULL CHECK(currency IN ('GBP','USD')),
+          card_id TEXT NOT NULL, card_brand TEXT NOT NULL, card_last4 TEXT NOT NULL,
+          try_number INTEGER NOT NULL CHECK(try_number>=1),
+          status TEXT NOT NULL CHECK(status IN ('started','processing','succeeded','failed','unknown','review')),
+          provider TEXT NOT NULL, provider_ref TEXT, detail TEXT, next_try_at INTEGER,
+          refund_of TEXT, reason TEXT, ledger_id TEXT, request_key TEXT, actor_id TEXT,
+          created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+          CHECK((kind='refund')=(refund_of IS NOT NULL)),
+          CHECK(next_try_at IS NULL OR (kind='charge' AND status='failed')),
+          UNIQUE(organisation_id,holding_id,kind,period_start,try_number)
+        ) STRICT;
+        CREATE UNIQUE INDEX membership_charges_once ON membership_charges(organisation_id,holding_id,kind,period_start)
+          WHERE status IN ('started','processing','succeeded','unknown','review');
+        CREATE INDEX membership_charges_retry ON membership_charges(status,next_try_at);
+        CREATE INDEX membership_charges_recent ON membership_charges(organisation_id,created_at);
+        CREATE INDEX membership_charges_holding ON membership_charges(organisation_id,holding_id);
+        CREATE UNIQUE INDEX membership_charges_key ON membership_charges(organisation_id,actor_id,request_key)
+          WHERE request_key IS NOT NULL;
+        CREATE TABLE membership_card_holds (
+          organisation_id TEXT PRIMARY KEY REFERENCES organisations(id), held_at INTEGER NOT NULL
+        ) STRICT;
+      ` +
+          outboxWithKinds(
+            [
+              'confirmation',
+              'changed',
+              'reminder',
+              'cancelled',
+              'feedback',
+              'patch_test',
+              'aftercare',
+              'due_back',
+              'birthday',
+              'miss_you',
+              'missed_call',
+              'message',
+              'receptionist',
+              'social',
+              'plan_reminder',
+              'plan_declined',
+            ],
+            ['email', 'sms', 'instagram', 'facebook', 'whatsapp'],
+          ),
+      ),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the

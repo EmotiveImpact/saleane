@@ -1,0 +1,84 @@
+# Stage 1, part A · Memberships paid each month from a saved card: evidence
+
+Recorded 9 October 2026. Everything runs in the payment provider's test mode: no card is charged and no money moves. All names and amounts are fictional.
+
+**Not yet seen in a browser.** The brief for this part asked for no dev server and no browser, so the screens below are covered by component tests that render them, and the money rules by server tests that drive the real API and loop against SQLite. Nobody has looked at them at 1440px or 390px yet, and there are no screenshots. The click-through below is the next step, and it is written so the lead can do it on a scratch database.
+
+## What it does
+
+- **Setting it up.** On a client's page, each membership has "Pay each month from a saved card" for the owner, a manager, or the general manager of the location that sold it. Selling a membership offers "Take it from their saved card each month", which opens the same step straight after the sale. The step shows the saved card (or a choice when there are several) and the exact words to read to the client, for example: "Rosa Okafor agrees that Linden Studio may take £75.00 from their Visa card ending 4242 on the 6th of each month for Facial club, until they cancel. They will get a reminder three days before each payment." It also shows the first payment date, and the person ticks "Rosa Okafor has agreed to these words." With no saved card it says how to get one: "They can save one from the link to their visit, once the studio offers it in Settings, Payments."
+- **What is kept.** On the membership: the card's id, brand and last four, the exact words, when they were agreed and who recorded it, the first month the card pays, and when and why it stopped (turned off, card removed, membership ended, or replaced by another card). The server works the words out again and refuses any difference, and checks that the card is this client's, still saved and saved with this server's provider. A command from a page can never name a card, set this up or note a decline (403).
+- **The reminder.** Three days before each payment, between 09:00 and 19:00 studio time, a "Membership payment reminder" goes into the outbox once per membership, month and channel: by email whenever the client has an address, and by text only when the studio sends texts and the client allows them. It is checked again just before it goes. In test mode it is written down and shown as not sent.
+- **Taking the payment.** On the due date, from 09:00 studio time, the server tries the card once, and only if that month's reminder was queued. Each try is a row in `membership_charges` (migration 27); the row's id is the provider's idempotency key. Before charging, the membership, the agreement, the saved card and the month are all checked again and the `plan-renew` is rehearsed. The month enters the record as a card payment with the provider's reference only once the provider confirms it, in one transaction with the row. The client's timeline then says "Test payment, no money moved. Taken from the saved Visa card ending 4242 in test mode."
+- **Declines.** A declined card is tried again 1, 3 and 7 days after the first try, at 09:00. Each decline goes on the timeline ("SALEANE will try again on Saturday 7 November."). After the fourth, SALEANE stops ("Membership card payments stopped for the month"), the month stays unpaid, the client is sent "Your Facial club payment did not go through", and staff see it. Paying the month at the desk, ending the membership, removing the card or turning card payments off stops any further tries.
+- **Unclear answers.** A dropped connection becomes "Unclear". It is never retried by itself. While it is unclear, nobody can record that membership's month by hand, refund it, turn card payments off or remove that card. "Check again" asks the provider the same question under the same key.
+- **Refunds.** Ending a membership whose current month the card paid sends the money back to that card through the provider, up to the unused part of that payment ("Refund to the card and end"). The membership ends once the provider confirms the refund. Recording a refund by hand for that month is refused.
+- **Money.** Money, Plans opens with "Membership payments from saved cards this month": upcoming, taken, declined or not taken, and unclear or waiting, with totals. The rows that need someone come first, and a long month is behind "See all". The till count never expects card takings as cash, and accounts exports list them as "Card through SALEANE", marked as test payments in test mode.
+- **After a restore.** Card payments pause for every studio with an open agreement, and tries that were still waiting are marked unclear. The pause lasts until the owner or a manager has checked the provider and chosen "Turn card payments back on".
+
+## Who can do what
+
+| Screen                                  | Owner, manager                                                          | General manager                                                  | Reception                                        | Practitioner, regional manager, guest |
+| --------------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------- |
+| Client page, membership line            | Sees how it is paid; sets up, turns off, "Check again"                  | The same for memberships sold at their location; sees the others | Sees how it is paid and the last try, no buttons | Not shown (403 from the server)       |
+| Sell a membership                       | "Take it from their saved card each month"                              | Only when selling at their own location                          | Sells as before, no card option                  | Not shown                             |
+| End a membership with a card-paid month | Refund to the card                                                      | Cannot end memberships (unchanged)                               | Cannot end memberships (unchanged)               | Not shown                             |
+| Money, Plans                            | This month's card payments, "Check again", "Turn card payments back on" | Their location's memberships, "Check again" on charges           | Sees the list, no buttons                        | Not shown                             |
+| Client's own data export                | Includes the words they agreed to and when it stopped                   |                                                                  |                                                  |                                       |
+
+## Automated checks
+
+All passed on 9 October 2026: `npm run lint`, `npx tsc -b`, `npm run format:check`, `npm run build`, and the full `npm test` (114 files and 984 tests in the app suite; 46 files and 327 tests, 2 skipped, in the server suite).
+
+- `server/planCards.test.ts` (12): the full journey (the words, the reminder by email and text in test mode, nothing before 09:00, one charge at 09:00, the attempt id as the idempotency key, the ledger entry, the timeline, till cash 0, accounts marked test); declines on days 1, 3 and 7 then the stop, the client's note and the timeline; tries stopped by paying by hand, removing the card or turning it off; a month not taken because no reminder went out, and the next month reminded and taken; turning off and ending the plan; an unclear answer that blocks hand records, turning off and card removal until "Check again"; money confirmed after the plan ended kept for review and never forced in; a refund to the card with the cap, a repeated click, an unclear refund and "Check again"; refusals for reception, practitioner, regional manager and a general manager elsewhere, forged page commands refused for everyone, a manager allowed, and a general manager allowed for their own location's sale; the card must be the client's, still saved and from this provider; sample studios never charge or remind; a try cut short by a restart becomes unclear, and a restored backup pauses card payments until they are turned back on.
+- `server/planCardsScratch.test.ts` (1): the scratch recipe below, run against the real loop.
+- `src/domain/planCards.test.ts` (21): ordinals and the words (including a day some months do not have), the agreement kept with who and when, changed words refused, the same card again changing nothing and another card replacing it, packages, ended plans and sample studios refused, a client who cannot be reminded refused, turning off, the first month at least three days away, due from 09:00 studio time, the 1, 3 and 7 day retries, every reason a try is stopped, card payments recorded only with the provider's confirmation and a month, the ledger checks on read (no processor, no month, cash with a processor, two open agreements, an open agreement on an ended plan), the refund to the card with its cap and wording, the timeline wording for declines, stops and missed reminders, the client's export, roles and the general manager's location, the channels, the reminder window and the message wording.
+- `src/components/PlanCards.test.tsx` (9): the membership line and turning it off after a confirm; setting it up only after the words are shown and the agreement ticked; the no-card message; "Check again" only for those who may; a general manager elsewhere sees no buttons; the refund to the card keeping one request key; Money's section with totals and the restore pause; reception without the owner's buttons; selling with "Take it from their saved card each month".
+
+## Rehearse it in a browser
+
+Use a scratch copy, never a database you keep, and a fresh, non-sample studio.
+
+1. In Settings, Payments, tick "Let guests save a card from the link to their visit". Add a treatment, a client with an email address and mobile number, and a membership in Settings, Packages & memberships.
+2. Book the client a visit, open its guest link, and save test card 4242 (or 0002, which always declines).
+3. On the client's page, sell the membership and tick "Take it from their saved card each month". Read the words, tick the agreement and choose "Set up card payments". The membership now says "Paid by Visa ending 4242 each month. Next payment …".
+4. **Move the clock.** Stop the server, then run `node scripts/plan-cards-scratch.mjs <scratch.sqlite> <client email> remind`. It moves that membership's dates so its next card payment is three days from today, and refuses any path without "scratch" in it. Start the server again. Within 30 seconds (between 09:00 and 19:00 London time) the reminder appears under the client's "Visit messages" as "Membership payment reminder", marked as test mode with nothing sent.
+5. Stop the server, run the same command with `due`, and start it again. From 09:00 the next pass takes the payment: the membership line shows "Last payment: Taken", the timeline shows "Membership paid … Test payment, no money moved.", and Money, Plans lists it as taken. With card 0002, the line shows "Declined, next try" with tomorrow's date. To see that retry now, stop the server and run `node -e "const {DatabaseSync}=require('node:sqlite');new DatabaseSync(process.argv[1]).prepare('UPDATE membership_charges SET next_try_at=? WHERE next_try_at IS NOT NULL').run(Date.now())" <scratch.sqlite>`, then start it again.
+6. **Refund to the card.** After a payment taken with 4242, choose "End" on the membership, give a reason and an amount up to the figure shown, and choose "Refund to the card and end". The membership ends, the timeline says "£… returned to the Visa card ending 4242 through the payment provider. Test refund, no money moved." and Money, Plans lists the refund.
+
+In tests, the clock is the `now` option given to `createApiHandler`, and `api.memberships.tick()` runs one pass of the loop (see `server/planCards.test.ts`).
+
+## Quality bar
+
+Checked against `quality-bar.md` by reading the code and the component tests. Nothing has been seen at 1440px or 390px yet.
+
+- [x] **One main job and one primary button.** The set-up step has one primary button ("Set up card payments") and Cancel. On the client's page the card controls are quiet buttons beside the existing ones. Money's section has no primary button: its job is to show the month, and "Turn card payments back on" (secondary) appears only after a restore.
+- [x] **Rarely used options tucked away.** Turning off asks for a confirm in place. Money's list shows six rows and puts the rest behind "See all". `MoreOptions` is not on main yet (PR #83), so this uses a native `<details>`, as asked.
+- [x] **No card inside a card.** The words to agree, each try on the membership line, the totals and the restore notice are separated by space and hairlines, not boxes. Money's rows are the existing `ops-record` rows with a line between them. The test-mode note keeps the dashed outline it has everywhere else in card payments.
+- [x] **Photographs.** None added; these are dense working surfaces.
+- [ ] **Empty welcome.** Not applicable: these are sections inside existing pages. Money's section does not appear at all when there is nothing to show.
+- [ ] **Loading shapes.** Not met. `LoadingShapes` is not on main yet (PR #83). Until the answer arrives, the card line and Money's section show nothing, and the rest of the page is already there.
+- [x] **Motion.** Nothing new moves. The set-up step uses the existing `Modal`.
+- [ ] **At 390px.** Not seen yet. The intent: buttons are the library's 44px buttons and may wrap; the saved-card choices, the agreement tick box and "See all" are at least 44px tall; Money's rows wrap their tag and amount under the words; the set-up step's buttons are full width at its foot; the agreement wording wraps long words. This needs checking in a browser.
+- [x] **Warm, plain words.** British English, "visit" and "treatment", no em dashes (a test checks the reminder email). Test mode never says money moved or a message was sent.
+- [x] **Built from the library.** `Button`, `Modal` and `ErrorMessage` from `src/design`, and tokens only (`--line`, `--muted`, `--target`, `--text-lead` and others). There are no new colours and no left-edge stripes; `src/design/edges.test.ts` passes. `npm run check` and `npm run format:check` pass.
+- [ ] **Before and after pictures.** Not taken (no browser for this part).
+
+## Decisions
+
+- **Migration 27, with 26 left empty.** Main is at 25 and NEXT-02's open pull request uses 26. This branch holds an empty step 26 so the numbers stay contiguous for the database and backup checks. When both are merged, NEXT-02's real step 26 replaces the empty one. Do not run this branch on a database you keep, or it will record 26 as done without NEXT-02's change.
+- **The first card month is at least three days after set-up**, so a reminder can always go first. Earlier months are paid at the desk.
+- **No reminder, no charge.** If the server was off for the three days before a payment, it does not take that month late without a reminder. It notes "Not taken: no reminder went out three days before" and leaves the month to be paid by hand. The next month is reminded and taken as normal.
+- **Set-up needs a way to remind the client** (an email address, or texts allowed). Every client has an email address today, so this is a safeguard.
+- **Payment emails go even if the client turned off visit emails.** Following the brief, a message about money they agreed to goes by email whenever they have an address. Texts still follow their choice.
+- **Removing a card ends any agreement using it** and is recorded. It is refused while a payment from that card is unclear, so an unclear payment cannot be left with no card to check it against.
+- **A restore pauses card payments** for studios with an open agreement, because the restored record cannot know about payments taken since the backup.
+- **Retries keep to the month.** A retry that would fall in the next month is not made.
+
+## Limits
+
+- The refund to the card covers the current month that the card paid. A month the client also paid ahead at the desk is not split between card and cash; end it as usual for that part.
+- If a card is removed at the provider while a payment from it is still waiting, that payment can only be checked in the provider's own dashboard.
+- Live Stripe has not been tried: off-session charges, refunds and webhooks for these payments go through the same adapter as PILOT-02, covered by simulated responses only. Real reminders need the email and text providers configured.
+- The guest's own page does not show the agreement or the next payment yet.
+- No browser check, screenshots, axe run or phone-width check yet (see above).

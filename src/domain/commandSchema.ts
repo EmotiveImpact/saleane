@@ -545,6 +545,9 @@ export const commandSchema = z.discriminatedUnion('type', [
     holdingId: id,
     method,
     reference: z.string().trim().max(150).optional(),
+    processor,
+    /** Stage 1: the month a card payment was taken for; only with the card, from the server. */
+    periodStart: z.iso.date().optional(),
   }),
   z.object({
     type: z.literal('plan-cancel'),
@@ -553,6 +556,32 @@ export const commandSchema = z.discriminatedUnion('type', [
     refundMinor: money.optional(),
     method: method.optional(),
     reference: z.string().trim().max(150).optional(),
+    processor,
+  }),
+  // Stage 1: a membership paid each month from a saved card, set up (with the card) or turned
+  // off. Only the server sends it, with a card it checked; a page's own command is refused.
+  z.object({
+    type: z.literal('plan-card'),
+    holdingId: id,
+    card: z
+      .object({ id, brand: z.string().trim().min(1).max(40), last4: z.string().regex(/^\d{4}$/) })
+      .strict()
+      .optional(),
+    wording: z.string().trim().min(20).max(1000).optional(),
+    /** Why card payments stopped, when they do. */
+    reason: z.enum(['turned_off', 'card_removed']).optional(),
+  }),
+  // Stage 1: the server tried a membership's saved card and it was declined; for the timeline.
+  z.object({
+    type: z.literal('plan-card-try'),
+    holdingId: id,
+    periodStart: z.iso.date(),
+    amountMinor: money.refine((n) => n > 0),
+    try: z.number().int().min(1).max(4),
+    /** The next try's day, or none once SALEANE stops trying for the month. */
+    nextTryOn: z.iso.date().optional(),
+    /** The card was not tried, because no reminder went out three days before. */
+    missedReminder: z.literal(true).optional(),
   }),
   // Ask Saleane: several desk changes approved together, applied together or not at all. Only
   // moving, cancelling, closing time and unsent drafts, so no money moves in a batch.

@@ -43,6 +43,8 @@ export const kindLabel: Record<MessageKind, string> = {
   message: 'Written in the inbox',
   receptionist: 'AI receptionist',
   social: 'Answered by the team',
+  plan_reminder: 'Membership payment reminder',
+  plan_declined: 'Membership payment not taken',
 }
 /** The outbox for one studio, or one client. Reads only; staff can ask a failed message to go again. */
 export function useSentMessages(
