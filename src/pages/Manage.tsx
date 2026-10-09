@@ -25,6 +25,8 @@ import { useStore } from '../state/context'
 import type { Command } from '../domain/commands'
 import type { BusinessState } from '../domain/model'
 import type { OperatingCommand } from '../domain/commandSchema'
+import { TimeField } from '../design'
+import { StudioDateField } from '../components/StudioDateField'
 import { scheduleImpact } from '../domain/schedule'
 import { operations, can, permissionFor } from '../domain/operations'
 import { money, dateLabel, timeLabel } from '../domain/format'
@@ -813,24 +815,24 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                             </label>
                             <label className="ops-field">
                               Opens
-                              <input
-                                type="time"
+                              <TimeField
+                                locale={locale}
                                 aria-label={`${days[weekday]} opens`}
                                 required={!day.closed}
                                 disabled={day.closed}
                                 value={clock(day.open)}
-                                onChange={(event) => update({ open: minutes(event.target.value) })}
+                                onChange={(time) => update({ open: minutes(time) })}
                               />
                             </label>
                             <label className="ops-field">
                               Closes
-                              <input
-                                type="time"
+                              <TimeField
+                                locale={locale}
                                 aria-label={`${days[weekday]} closes`}
                                 required={!day.closed}
                                 disabled={day.closed}
                                 value={clock(day.close)}
-                                onChange={(event) => update({ close: minutes(event.target.value) })}
+                                onChange={(time) => update({ close: minutes(time) })}
                               />
                             </label>
                           </div>
@@ -1153,8 +1155,8 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                               </label>
                               <label className="ops-field">
                                 Starts
-                                <input
-                                  type="time"
+                                <TimeField
+                                  locale={locale}
                                   name={`own-${weekday}-open`}
                                   aria-label={`${days[weekday]} starts`}
                                   required
@@ -1163,8 +1165,8 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                               </label>
                               <label className="ops-field">
                                 Finishes
-                                <input
-                                  type="time"
+                                <TimeField
+                                  locale={locale}
                                   name={`own-${weekday}-close`}
                                   aria-label={`${days[weekday]} finishes`}
                                   required
@@ -1240,7 +1242,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                 <>
                   <label>
                     Date
-                    <input name="date" type="date" required />
+                    <StudioDateField name="date" required />
                   </label>
                   <label>
                     Applies to
@@ -1257,11 +1259,11 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                   </label>
                   <label>
                     From
-                    <input name="start" type="time" required defaultValue="09:00" />
+                    <TimeField locale={locale} name="start" required defaultValue="09:00" />
                   </label>
                   <label>
                     Until
-                    <input name="end" type="time" required defaultValue="18:00" />
+                    <TimeField locale={locale} name="end" required defaultValue="18:00" />
                   </label>
                   <label className="ops-wide">
                     Reason

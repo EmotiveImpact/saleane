@@ -1,61 +1,45 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { ArrowRight, Check, Leaf } from 'lucide-react'
 import { useStore } from '../state/context'
-import { addDays, dateLabel, money, timeLabel } from '../domain/format'
+import { money, timeLabel } from '../domain/format'
 import { drifting, gapInvitation, gapSuggestions, morningBrief, unusual } from '../domain/insights'
-import { can, leads } from '../domain/operations'
-import { dueTasks } from '../domain/tasks'
+import { leads } from '../domain/operations'
 import { Button, photos } from '../design'
 import type { BookingDefaults } from './BookingDialog'
+import { dayHeadline, daySentence, weekdayName } from './insightWords'
+import { useSeeAll } from './seeAll'
+import { SeeAllButton } from './SeeAllButton'
 import './smart-insights.css'
-
-const hours = (minutes: number) => {
-  const h = Math.round(minutes / 30) / 2
-  return `${h} ${h === 1 ? 'hour' : 'hours'}`
-}
 
 /**
  * V3 Smart insights on Today: a short brief, anything unusual, and clients drifting away with an
  * open time to offer them. Everything is read from the studio record; nothing is sent or changed
- * until someone chooses to book.
+ * until someone chooses to book. Reminders sit with what needs someone (see NeedsYou).
  */
 export function SmartInsights({ onBook }: { onBook: (defaults: BookingDefaults) => void }) {
   const { state, today, role, commit } = useStore()
+  const listId = useId()
   const [drafting, setDrafting] = useState<string | null>(null)
   const [saved, setSaved] = useState<string[]>([])
   const [error, setError] = useState('')
-  const [reminder, setReminder] = useState('')
-  const [reminderDay, setReminderDay] = useState('')
   const locale = state.organisation.locale
   const managers = leads(role)
   const brief = morningBrief(state, today)
   const notices = unusual(state, today).filter((n) => managers || !n.managersOnly)
   const drifters = drifting(state, today)
+  const more = useSeeAll(drifters)
   const offers = gapSuggestions(state, today)
-  const weekday = dateLabel(today, locale).split(' ')[0]
-  const reminders = dueTasks(state, today)
-  const canRemind = can(role, 'task')
 
-  const headline = notices.some((n) => n.kind === 'quiet-day')
-    ? 'Tomorrow has room to fill.'
-    : drifters.length
-      ? 'Make room for a familiar face.'
-      : brief.usualBookedMinutes && brief.bookedMinutes > brief.usualBookedMinutes * 1.25
-        ? 'A fuller day than usual.'
-        : 'A steady day ahead.'
-
-  const day = brief.visits
-    ? `${brief.visits} ${brief.visits === 1 ? 'visit' : 'visits'} and ${hours(brief.bookedMinutes)} booked today${
-        brief.usualBookedMinutes
-          ? `; a usual ${weekday} has about ${hours(brief.usualBookedMinutes)}`
-          : ''
-      }.`
-    : 'Nothing is booked today yet.'
+  const headline = dayHeadline(
+    brief,
+    notices.some((n) => n.kind === 'quiet-day'),
+  )
+  const day = daySentence(brief, weekdayName(today, locale))
   const yesterday =
     managers && brief.yesterday.takingsMinor
       ? ` Yesterday took ${money(brief.yesterday.takingsMinor, state.organisation)}${
           brief.yesterday.usualTakingsMinor
-            ? `, against about ${money(Math.round(brief.yesterday.usualTakingsMinor), state.organisation)} on a usual ${dateLabel(brief.yesterday.date, locale).split(' ')[0]}`
+            ? `, against about ${money(Math.round(brief.yesterday.usualTakingsMinor), state.organisation)} on a usual ${weekdayName(brief.yesterday.date, locale)}`
             : ''
         }.`
       : ''
@@ -86,91 +70,13 @@ export function SmartInsights({ onBook }: { onBook: (defaults: BookingDefaults) 
           ))}
         </ul>
       )}
-      {(reminders.length > 0 || canRemind) && (
-        <div className="insight-drifting insight-reminders">
-          <h3>Reminders</h3>
-          {reminders.length > 0 && (
-            <ul>
-              {reminders.map((r) => (
-                <li key={r.id}>
-                  <span>
-                    <strong>{r.text}</strong>
-                    <small>
-                      {r.dueDate < today ? `From ${dateLabel(r.dueDate, locale)}` : 'Today'}
-                      {r.createdBy ? `, left by ${r.createdBy.split(' ')[0]}` : ''}
-                    </small>
-                  </span>
-                  {canRemind && (
-                    <Button
-                      variant="quiet"
-                      onClick={async () => {
-                        setError('')
-                        const result = await commit({ type: 'task-done', taskId: r.id })
-                        if (!result.ok) setError(result.error)
-                      }}
-                    >
-                      <Check size={14} aria-hidden="true" /> Done
-                    </Button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-          {canRemind && (
-            <form
-              className="insight-remind"
-              onSubmit={async (event) => {
-                event.preventDefault()
-                setError('')
-                const result = await commit({
-                  type: 'task-add',
-                  input: { text: reminder.trim(), dueDate: reminderDay || today },
-                })
-                if (!result.ok) return setError(result.error)
-                setReminder('')
-              }}
-            >
-              <label>
-                <span className="sr-only">Reminder</span>
-                <input
-                  required
-                  minLength={2}
-                  maxLength={200}
-                  placeholder="Add a reminder"
-                  value={reminder}
-                  onChange={(e) => setReminder(e.target.value)}
-                />
-              </label>
-              <label>
-                <span className="sr-only">Day</span>
-                <select
-                  value={reminderDay || today}
-                  onChange={(e) => setReminderDay(e.target.value)}
-                >
-                  {Array.from({ length: 7 }, (_, n) => addDays(today, n)).map((d, n) => (
-                    <option key={d} value={d}>
-                      {n === 0
-                        ? 'Today'
-                        : n === 1
-                          ? 'Tomorrow'
-                          : dateLabel(d, locale).split(' ')[0]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <Button type="submit" variant="light">
-                Add
-              </Button>
-            </form>
-          )}
-        </div>
-      )}
       {drifters.length > 0 && (
         <div className="insight-drifting">
-          <h3>Drifting away</h3>
-          <ul>
-            {drifters.slice(0, 3).map((d) => {
+          <h3 id={`${listId}-title`}>Drifting away</h3>
+          <ul id={listId} aria-labelledby={`${listId}-title`}>
+            {more.shown.map((d) => {
               const offer = offers.find((o) => o.clientId === d.clientId)
+              const isSaved = saved.includes(d.clientId)
               return (
                 <li key={d.clientId}>
                   <span>
@@ -208,44 +114,41 @@ export function SmartInsights({ onBook }: { onBook: (defaults: BookingDefaults) 
                       </div>
                     </div>
                   )}
-                  {saved.includes(d.clientId) && (
+                  {isSaved && (
                     <small role="status" className="insight-saved">
                       <Check size={13} aria-hidden="true" /> Invitation saved in the Inbox, unsent.
                     </small>
                   )}
-                  {offer &&
-                    offer.marketingConsent &&
-                    drafting !== d.clientId &&
-                    !saved.includes(d.clientId) && (
-                      <Button variant="quiet" onClick={() => setDrafting(d.clientId)}>
-                        Prepare an invitation
-                      </Button>
-                    )}
                   {offer && (
-                    <Button
-                      variant="light"
-                      onClick={() =>
-                        onBook({
-                          clientId: offer.clientId,
-                          serviceId: offer.serviceId,
-                          staffId: offer.staffId,
-                          date: offer.date,
-                          startMinutes: offer.startMinutes,
-                        })
-                      }
-                    >
-                      Offer {offer.date === today ? 'today' : 'tomorrow'}{' '}
-                      {timeLabel(offer.startMinutes, locale)}
-                      <ArrowRight size={16} />
-                    </Button>
+                    <div className="insight-drifting-actions">
+                      <Button
+                        variant="light"
+                        onClick={() =>
+                          onBook({
+                            clientId: offer.clientId,
+                            serviceId: offer.serviceId,
+                            staffId: offer.staffId,
+                            date: offer.date,
+                            startMinutes: offer.startMinutes,
+                          })
+                        }
+                      >
+                        Offer {offer.date === today ? 'today' : 'tomorrow'}{' '}
+                        {timeLabel(offer.startMinutes, locale)}
+                        <ArrowRight size={16} />
+                      </Button>
+                      {offer.marketingConsent && drafting !== d.clientId && !isSaved && (
+                        <Button variant="quiet" onClick={() => setDrafting(d.clientId)}>
+                          Prepare an invitation
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </li>
               )
             })}
           </ul>
-          {drifters.length > 3 && (
-            <small className="insight-more">and {drifters.length - 3} more</small>
-          )}
+          <SeeAllButton list={listId} {...more} />
         </div>
       )}
       {error && (

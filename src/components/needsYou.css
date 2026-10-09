@@ -1,0 +1,219 @@
+/*
+ * Today's right-hand column: what needs someone now, as small cards with a count each, then
+ * what SALEANE noticed, one special and the team. Long lists show their first few.
+ */
+.today-aside {
+  display: grid;
+  gap: var(--space-5);
+  align-content: start;
+}
+.needs-you {
+  display: grid;
+  gap: var(--space-3);
+}
+.needs-you-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 0 2px;
+}
+.needs-you-head h2 {
+  font-size: 24px;
+}
+.needs-you-head span {
+  color: var(--muted);
+  font-size: var(--text-micro);
+  white-space: nowrap;
+}
+.needs-card {
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--paper);
+}
+.needs-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.needs-card-head > svg {
+  color: var(--brand-ink);
+}
+.needs-card-head h3 {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+}
+.needs-card-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-soft);
+  color: var(--brand-ink);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+}
+.needs-card-count.is-none {
+  background: var(--stone);
+  color: var(--muted);
+}
+.needs-list {
+  display: grid;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.needs-list > li {
+  display: grid;
+  gap: 6px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.needs-list > li:first-child {
+  border-top: 0;
+}
+.needs-list > li:last-child {
+  padding-bottom: 2px;
+}
+/* A row with one small action at its end, such as a reminder and its Done. */
+.needs-list > li.needs-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+.needs-who {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.needs-who strong,
+.needs-who a {
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+  overflow-wrap: anywhere;
+}
+.needs-who a {
+  color: var(--ink);
+}
+.needs-who small {
+  color: var(--muted);
+  font-size: var(--text-micro);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.needs-who .ops-tag {
+  justify-self: start;
+  margin-bottom: 2px;
+}
+.needs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.needs-actions .button {
+  min-height: 34px;
+  padding: 6px 12px;
+  font-size: var(--text-meta);
+}
+.needs-empty,
+.needs-note {
+  margin-top: var(--space-2);
+  color: var(--muted);
+  font-size: var(--text-micro);
+  line-height: 1.5;
+}
+.needs-card form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+.needs-card form label {
+  flex: 1 1 150px;
+  gap: 6px;
+  font-size: var(--text-micro);
+}
+.needs-card form input,
+.needs-card form select {
+  min-height: 38px;
+  padding: 7px 10px;
+  font-size: var(--text-meta);
+}
+.needs-card form .button {
+  min-height: 38px;
+  padding: 7px 14px;
+  font-size: var(--text-meta);
+}
+.needs-card .reminder-form .reminder-text {
+  flex-basis: 100%;
+}
+.needs-error {
+  margin-top: var(--space-2);
+  color: var(--danger);
+  font-size: var(--text-meta);
+}
+.needs-card .ops-save-note {
+  margin-top: var(--space-2);
+}
+.needs-card-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px var(--space-3);
+  margin-top: var(--space-1);
+}
+.needs-card .text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand-ink);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+@media (max-width: 650px) {
+  .needs-actions .button,
+  .needs-card form input,
+  .needs-card form select,
+  .needs-card form .button,
+  .needs-card .text-link {
+    min-height: 40px;
+  }
+}
+/* Tablets: the cards flow down two columns, each kept whole. */
+@media (max-width: 1080px) and (min-width: 651px) {
+  .today-aside {
+    display: block;
+    columns: 2;
+    column-gap: 22px;
+  }
+  .today-aside > * {
+    break-inside: avoid;
+    margin: 0 0 var(--space-5);
+  }
+  .today-aside > .booking-prompt {
+    grid-column: auto;
+    margin-top: 0;
+  }
+  .today-aside > .intelligence-panel {
+    grid-row: auto;
+  }
+}
+@media (max-width: 650px) {
+  .today-aside {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+}

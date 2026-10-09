@@ -1,6 +1,15 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowUpRight, Check, CreditCard } from 'lucide-react'
+import {
+  ArrowUpRight,
+  CalendarClock,
+  Check,
+  ChevronRight,
+  CircleX,
+  CreditCard,
+  MessageSquareText,
+  UserX,
+} from 'lucide-react'
 import { useStore } from '../state/context'
 import { GuestLinkPanel } from './GuestLinkPanel'
 import { can, operations, visitTax } from '../domain/operations'
@@ -15,13 +24,16 @@ import type { RetailItems } from '../domain/retailSchema'
 import { CheckoutProducts, ReceiptProducts } from './CheckoutProducts'
 import { findGiftCard, giftCards, giftStanding } from '../domain/giftCards'
 import '../components/plans.css'
-import { Avatar, Button, ErrorMessage, Modal, Status, TimeChoices } from '../design'
+import { Avatar, Button, ErrorMessage, Modal, Status, TimeChoices, photos } from '../design'
+import { StudioDateField } from './StudioDateField'
 import { BookingDialog } from './BookingDialog'
 import { CardCheckout, VisitCardPanel } from './CardPayments'
 import { VisitPatchTest } from './PatchTests'
 import { VisitForms } from './GuestForms'
 import { VisitConsultation } from './Consultations'
 import { shownStatus } from '../domain/selectors'
+import { servicePhoto } from './servicePhoto'
+import './visitPanel.css'
 
 export function AppointmentDialog({
   appointmentId,
@@ -75,6 +87,7 @@ export function AppointmentDialog({
   )
   const [reason, setReason] = useState('')
   const [notice, setNotice] = useState('')
+  const rebookHeading = useId()
   if (!appointment)
     return (
       <Modal
@@ -102,6 +115,42 @@ export function AppointmentDialog({
       </Modal>
     )
   const sale = state.sales.find((s) => s.appointmentId === appointmentId)
+  const locale = state.organisation.locale
+  const firstName = client.name.split(' ')[0]
+  const serviceName = appointment.bookedServiceName ?? service.name
+  const photo = servicePhoto(state.services, service.id)
+  const ends = appointment.startMinutes + appointment.bookedDurationMinutes
+  // Earlier visits the client came to, for a line of context beside what is good to remember.
+  const earlier = state.appointments
+    .filter(
+      (a) =>
+        a.clientId === client.id &&
+        a.id !== appointment.id &&
+        (a.status === 'completed' || a.status === 'arrived') &&
+        (a.date < appointment.date ||
+          (a.date === appointment.date && a.startMinutes < appointment.startMinutes)),
+    )
+    .sort((a, b) => b.date.localeCompare(a.date) || b.startMinutes - a.startMinutes)
+  const previous = earlier[0]
+  const previousName =
+    previous &&
+    (previous.bookedServiceName ?? state.services.find((s) => s.id === previous.serviceId)?.name)
+  // The client's next booked visit after this one, if they already have one.
+  const nextVisit = state.appointments
+    .filter(
+      (a) =>
+        a.clientId === client.id &&
+        a.id !== appointment.id &&
+        a.status === 'confirmed' &&
+        a.date >= today &&
+        (a.date > appointment.date ||
+          (a.date === appointment.date && a.startMinutes > appointment.startMinutes)),
+    )
+    .sort((a, b) => a.date.localeCompare(b.date) || a.startMinutes - b.startMinutes)[0]
+  // Rebooking opens four weeks on from this visit, or tomorrow when that has already passed.
+  const fourWeeksOn = addDays(appointment.date, 28)
+  const rebookDate = fourWeeksOn > today ? fourWeeksOn : addDays(today, 1)
+  const messaging = can(role, 'message') && !blocked
   // PILOT-02: a signed-in local studio can take a card through the payment provider.
   const cardTaking = storeMode === 'server' && !sandbox
   const deposit = depositPaid(state, appointmentId)
@@ -147,6 +196,10 @@ export function AppointmentDialog({
   // Nothing is charged to a card when a plan or gift card leaves nothing to pay.
   const byCard = cardTaking && method === 'card' && total > 0
   function applyGift() {
+    if (!giftCode.trim()) {
+      setGiftError('Type the code from the gift card or voucher, then apply it.')
+      return
+    }
     const card = findGiftCard(state, giftCode)
     const standing = card && giftStanding(card, today)
     if (!card || !standing) {
@@ -188,10 +241,7 @@ export function AppointmentDialog({
           clientId: client.id,
           serviceId: service.id,
           staffId: staff.id,
-          date:
-            addDays(appointment.date, 28) > today
-              ? addDays(appointment.date, 28)
-              : addDays(today, 1),
+          date: rebookDate,
           startMinutes: appointment.startMinutes,
           rebookedFromId: appointment.id,
         }}
@@ -285,6 +335,66 @@ export function AppointmentDialog({
         : 'Missed visit recorded in the client relationship.',
     )
   }
+  const details = !sale && !checkout && mode === 'details'
+  const identity = (
+    <div className="client-identity">
+      <Avatar identity={client.id} name={client.name} />
+      <div>
+        <h3>{client.name}</h3>
+        <Link onClick={onClose} to={`/clients/${client.id}`}>
+          Open client page <ArrowUpRight size={14} aria-hidden="true" />
+        </Link>
+      </div>
+      <Status status={shownStatus(appointment)} />
+    </div>
+  )
+  const strips = (
+    <>
+      {appointment.status === 'confirmed' && appointment.guestHereAt && (
+        <p className="success-strip">
+          {`${firstName} tapped “I’ve arrived” at ${new Intl.DateTimeFormat(locale, {
+            timeZone: state.organisation.timeZone,
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: locale === 'en-US',
+          }).format(new Date(appointment.guestHereAt))}. Welcome them when you’re ready.`}
+        </p>
+      )}
+      {notice && (
+        <p className="success-strip" role="status">
+          {notice}
+        </p>
+      )}
+    </>
+  )
+  // The treatment as a line of the bill, with its photograph and who gives it.
+  const serviceLine = (price: number) => (
+    <div className="receipt-line visit-service-line">
+      <span className="visit-service-name">
+        <span
+          className="visit-service-photo"
+          aria-hidden="true"
+          style={{ backgroundImage: `url(${photo.src})`, backgroundPosition: photo.position }}
+        />
+        <span>
+          {serviceName}
+          <small>
+            {appointment.bookedDurationMinutes} minutes with {staff.name}
+          </small>
+        </span>
+      </span>
+      <strong>{money(price, state.organisation, true)}</strong>
+    </div>
+  )
+  // Messages are written in the Inbox, with this client and this visit already chosen.
+  const messageTo = `/inbox?write=${encodeURIComponent(client.id)}&visit=${encodeURIComponent(appointment.id)}`
+  const messageLink = messaging && (
+    <Link className="visit-action" to={messageTo} onClick={onClose}>
+      <MessageSquareText size={18} aria-hidden="true" />
+      <span>Message {firstName}</span>
+      <ChevronRight size={16} aria-hidden="true" />
+    </Link>
+  )
   return (
     <Modal
       open
@@ -303,7 +413,7 @@ export function AppointmentDialog({
                 ? 'Cancel appointment'
                 : mode === 'no-show'
                   ? 'Record a missed visit'
-                  : 'Appointment'
+                  : serviceName
       }
       description={
         sale
@@ -314,36 +424,16 @@ export function AppointmentDialog({
               : 'Local receipt saved. No payment provider was contacted.'
           : checkout
             ? 'Review the service, any products, the deposit and an optional tip before recording payment.'
-            : `${dateLabel(appointment.date, state.organisation.locale)} at ${timeLabel(appointment.startMinutes, state.organisation.locale)}`
+            : details
+              ? `${dateLabel(appointment.date, locale)}, ${timeLabel(appointment.startMinutes, locale)} to ${timeLabel(ends, locale)}`
+              : `${dateLabel(appointment.date, locale)} at ${timeLabel(appointment.startMinutes, locale)}`
       }
     >
-      <div className="client-identity">
-        <Avatar identity={client.id} name={client.name} />
-        <div>
-          <h3>{client.name}</h3>
-          <Link onClick={onClose} to={`/clients/${client.id}`}>
-            Open relationship <ArrowUpRight size={14} />
-          </Link>
-        </div>
-        <Status status={shownStatus(appointment)} />
-      </div>
-      {appointment.status === 'confirmed' && appointment.guestHereAt && (
-        <p className="success-strip">
-          {`${client.name.split(' ')[0]} tapped “I’ve arrived” at ${new Intl.DateTimeFormat(
-            state.organisation.locale,
-            {
-              timeZone: state.organisation.timeZone,
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: state.organisation.locale === 'en-US',
-            },
-          ).format(new Date(appointment.guestHereAt))}. Welcome them when you’re ready.`}
-        </p>
-      )}
-      {notice && (
-        <p className="success-strip" role="status">
-          {notice}
-        </p>
+      {!details && (
+        <>
+          {identity}
+          {strips}
+        </>
       )}
       {sale ? (
         <>
@@ -363,10 +453,7 @@ export function AppointmentDialog({
                     previous_system: 'Previous system',
                   }[sale.method]}
           </div>
-          <div className="receipt-line">
-            <span>{appointment.bookedServiceName ?? service.name}</span>
-            <strong>{money(sale.serviceMinor, state.organisation, true)}</strong>
-          </div>
+          {serviceLine(sale.serviceMinor)}
           {!!sale.coveredMinor && (
             <div className="receipt-line">
               <span>
@@ -420,13 +507,40 @@ export function AppointmentDialog({
                   : 'Paid with a test card. Test mode: no money moved.'
                 : 'This receipt records funds handled outside Saleane. No payment provider was contacted.'}
           </p>
-          <div className="rebook-callout">
-            <h3>Give the next visit a place.</h3>
-            <p>A simple invitation to keep a good rhythm.</p>
-            <Button disabled={!allowed('book')} onClick={() => setRebook(true)}>
-              Rebook this client
-            </Button>
-          </div>
+          <section className="rebook-moment" aria-labelledby={rebookHeading}>
+            <div
+              className="rebook-moment-photo"
+              aria-hidden="true"
+              style={{ backgroundImage: `url(${photos.tea})` }}
+            />
+            <div className="rebook-moment-text">
+              <p className="eyebrow">Next visit</p>
+              <h3 id={rebookHeading}>
+                {nextVisit ? 'The next visit is already booked.' : 'Give the next visit a place.'}
+              </h3>
+              <p>
+                {nextVisit
+                  ? `${dateLabel(nextVisit.date, locale)} at ${timeLabel(nextVisit.startMinutes, locale)}, ${nextVisit.bookedServiceName ?? state.services.find((s) => s.id === nextVisit.serviceId)?.name ?? 'a visit'}.`
+                  : rebookDate === fourWeeksOn
+                    ? `A simple invitation to keep a good rhythm. Four weeks on is ${dateLabel(rebookDate, locale)}.`
+                    : 'A simple invitation to keep a good rhythm.'}
+              </p>
+              <div className="rebook-moment-actions">
+                <Button
+                  variant={nextVisit ? 'secondary' : 'primary'}
+                  disabled={!allowed('book')}
+                  onClick={() => setRebook(true)}
+                >
+                  Rebook this client
+                </Button>
+                {messaging && (
+                  <Link className="text-link" to={messageTo} onClick={onClose}>
+                    Message {firstName}
+                  </Link>
+                )}
+              </div>
+            </div>
+          </section>
         </>
       ) : mode === 'move' ? (
         <>
@@ -443,14 +557,13 @@ export function AppointmentDialog({
           <div className="form-grid">
             <label>
               New date
-              <input
-                type="date"
+              <StudioDateField
                 min={today}
                 max={addDays(today, 365)}
                 disabled={busy}
                 value={date}
-                onChange={(e) => {
-                  setDate(e.target.value)
+                onChange={(next) => {
+                  setDate(next)
                   setStart(null)
                   setError('')
                 }}
@@ -600,14 +713,13 @@ export function AppointmentDialog({
           </div>
         </>
       ) : checkout ? (
-        <>
-          <div className="receipt-line">
-            <span>{appointment.bookedServiceName ?? service.name}</span>
-            <strong>{money(appointment.bookedPriceMinor, state.organisation, true)}</strong>
-          </div>
-          <div className="receipt-line">
-            <span>Deposit already recorded</span>
-            <span>−{money(deposit, state.organisation, true)}</span>
+        <div className="checkout-stack">
+          <div className="checkout-lines">
+            {serviceLine(appointment.bookedPriceMinor)}
+            <div className="receipt-line">
+              <span>Deposit already recorded</span>
+              <span>−{money(deposit, state.organisation, true)}</span>
+            </div>
           </div>
           {coverable.length > 0 && (
             <fieldset className="checkout-plans">
@@ -644,7 +756,7 @@ export function AppointmentDialog({
             </fieldset>
           )}
           {chosenPlan ? (
-            <>
+            <div className="checkout-lines">
               <div className="receipt-line">
                 <span>Paid by {chosenPlan.holding.name}</span>
                 <span>−{money(coveredMinor, state.organisation, true)}</span>
@@ -655,9 +767,9 @@ export function AppointmentDialog({
                   <span>−{money(discountMinor, state.organisation, true)}</span>
                 </div>
               )}
-            </>
+            </div>
           ) : (
-            <>
+            <div className="checkout-discount-group">
               {memberPercent > 0 && (
                 <p className="member-discount">
                   Member price: {memberPercent}% off is{' '}
@@ -698,7 +810,7 @@ export function AppointmentDialog({
                   }}
                 />
               </label>
-            </>
+            </div>
           )}
           <CheckoutProducts
             items={items}
@@ -814,13 +926,13 @@ export function AppointmentDialog({
                         setGiftCode(event.target.value)
                         setGiftError('')
                       }}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Enter') return
+                        event.preventDefault()
+                        applyGift()
+                      }}
                     />
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      disabled={giftCode.trim().length < 12}
-                      onClick={applyGift}
-                    >
+                    <Button type="button" variant="secondary" disabled={busy} onClick={applyGift}>
                       Apply
                     </Button>
                   </span>
@@ -830,7 +942,7 @@ export function AppointmentDialog({
             )
           )}
           {(total > 0 || (!chosenPlan && !gift)) && (
-            <>
+            <div className="checkout-payment">
               <label>
                 Payment method
                 <select
@@ -877,19 +989,23 @@ export function AppointmentDialog({
                   </label>
                 </>
               )}
-            </>
-          )}
-          {tax && (
-            <div className="receipt-line">
-              <span>
-                {tax.label || 'Tax'} {tax.inclusive ? '(included)' : ''}
-              </span>
-              <span>{money(taxMinor, state.organisation, true)}</span>
             </div>
           )}
-          <div className="receipt-line total">
-            <span>{sandbox ? 'To collect' : byCard ? 'To pay by card' : 'Balance to record'}</span>
-            <strong>{money(total, state.organisation, true)}</strong>
+          <div className="checkout-lines">
+            {tax && (
+              <div className="receipt-line">
+                <span>
+                  {tax.label || 'Tax'} {tax.inclusive ? '(included)' : ''}
+                </span>
+                <span>{money(taxMinor, state.organisation, true)}</span>
+              </div>
+            )}
+            <div className="receipt-line total">
+              <span>
+                {sandbox ? 'To collect' : byCard ? 'To pay by card' : 'Balance to record'}
+              </span>
+              <strong>{money(total, state.organisation, true)}</strong>
+            </div>
           </div>
           <p className="subtle demo-note">
             {tax
@@ -931,35 +1047,48 @@ export function AppointmentDialog({
               </Button>
             )}
           </div>
-        </>
+        </div>
       ) : (
         <>
-          <div className="visit-details">
-            <h3>{appointment.bookedServiceName ?? service.name}</h3>
-            <p>
-              {appointment.bookedDurationMinutes} minutes with {staff.name}
-            </p>
-            <p>
-              {resource.name} · {appointment.bookedBufferMinutes} minute turnaround
-              {resource.restMinutes ? ` · room rests ${resource.restMinutes} minutes` : ''}
-            </p>
+          <div
+            className="visit-photo"
+            aria-hidden="true"
+            style={{ backgroundImage: `url(${photo.src})`, backgroundPosition: photo.position }}
+          />
+          <p className="visit-facts">
+            {appointment.bookedDurationMinutes} minutes with {staff.name} · {resource.name} ·{' '}
+            {appointment.bookedBufferMinutes} minute turnaround
+            {resource.restMinutes ? ` · room rests ${resource.restMinutes} minutes` : ''}
+          </p>
+          {strips}
+          <div className="visit-client">
+            {identity}
+            <div className="visit-remember">
+              <span>Good to remember</span>
+              <p>{client.preferences || 'No preferences recorded yet.'}</p>
+              <p className="visit-history">
+                {previous
+                  ? `Last came ${dateLabel(previous.date, locale)}${previousName ? ` for ${previousName}` : ''}. ${earlier.length} ${earlier.length === 1 ? 'visit' : 'visits'} before this one.`
+                  : 'No earlier visits.'}
+              </p>
+            </div>
           </div>
-          {['confirmed', 'arrived'].includes(appointment.status) && (
-            <VisitPatchTest appointment={appointment} />
-          )}
-          <VisitConsultation appointment={appointment} />
-          <VisitForms appointment={appointment} />
-          <div className="preference-note">
-            <span>Good to remember</span>
-            <p>{client.preferences || 'No preferences recorded yet.'}</p>
+          <div className="visit-notes">
+            {['confirmed', 'arrived'].includes(appointment.status) && (
+              <VisitPatchTest appointment={appointment} />
+            )}
+            <VisitConsultation appointment={appointment} />
+            <VisitForms appointment={appointment} />
           </div>
-          <div className="receipt-line">
-            <span>Service</span>
-            <strong>{money(appointment.bookedPriceMinor, state.organisation)}</strong>
-          </div>
-          <div className="receipt-line subtle">
-            <span>{sandbox ? 'Demo deposit recorded' : 'Deposit recorded'}</span>
-            <span>{money(deposit, state.organisation)}</span>
+          <div className="visit-money">
+            <div className="receipt-line">
+              <span>Service</span>
+              <strong>{money(appointment.bookedPriceMinor, state.organisation)}</strong>
+            </div>
+            <div className="receipt-line subtle">
+              <span>{sandbox ? 'Demo deposit recorded' : 'Deposit recorded'}</span>
+              <span>{money(deposit, state.organisation)}</span>
+            </div>
           </div>
           {(appointment.status === 'cancelled' || appointment.status === 'no_show') && (
             <div className="deposit-review">
@@ -970,30 +1099,44 @@ export function AppointmentDialog({
               </p>
             </div>
           )}
-          {appointment.status === 'confirmed' && (
-            <div className="appointment-actions" aria-label="Manage appointment">
-              <Button
-                variant="secondary"
-                disabled={!allowed('reschedule')}
-                onClick={() => changeMode('move')}
-              >
-                Move appointment
-              </Button>
-              <Button
-                variant="quiet"
-                disabled={!allowed('cancel')}
-                onClick={() => changeMode('cancel')}
-              >
-                Cancel appointment
-              </Button>
-              {appointment.date <= today && (
-                <Button
-                  variant="quiet"
+          {(appointment.status === 'confirmed' || messageLink) && (
+            <div className="visit-actions" role="group" aria-label="Manage this visit">
+              {appointment.status === 'confirmed' && (
+                <button
+                  type="button"
+                  className="visit-action"
+                  disabled={!allowed('reschedule')}
+                  onClick={() => changeMode('move')}
+                >
+                  <CalendarClock size={18} aria-hidden="true" />
+                  <span>Move appointment</span>
+                  <ChevronRight size={16} aria-hidden="true" />
+                </button>
+              )}
+              {messageLink}
+              {appointment.status === 'confirmed' && (
+                <button
+                  type="button"
+                  className="visit-action"
+                  disabled={!allowed('cancel')}
+                  onClick={() => changeMode('cancel')}
+                >
+                  <CircleX size={18} aria-hidden="true" />
+                  <span>Cancel appointment</span>
+                  <ChevronRight size={16} aria-hidden="true" />
+                </button>
+              )}
+              {appointment.status === 'confirmed' && appointment.date <= today && (
+                <button
+                  type="button"
+                  className="visit-action"
                   disabled={!allowed('no-show')}
                   onClick={() => changeMode('no-show')}
                 >
-                  Mark as missed
-                </Button>
+                  <UserX size={18} aria-hidden="true" />
+                  <span>Mark as missed</span>
+                  <ChevronRight size={16} aria-hidden="true" />
+                </button>
               )}
             </div>
           )}

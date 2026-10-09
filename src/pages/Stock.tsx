@@ -15,6 +15,8 @@ import { CounterSales } from '../components/CounterSales'
 import { SupplierOrders } from '../components/SupplierOrders'
 import { suppliers } from '../domain/purchasing'
 import { Button, Empty, ErrorMessage, Modal, PageHeader, SegmentedControl } from '../design'
+import { PhotoStrip, photos } from '../design'
+import { ProductTile } from '../components/ProductTile'
 import '../components/management.css'
 import '../stock.css'
 
@@ -280,6 +282,7 @@ export function Stock() {
           ) : undefined
         }
       />
+      <PhotoStrip src={photos.towels} position="center 62%" />
       <dl className="stock-totals">
         <div>
           <dt>Products for sale</dt>
@@ -352,74 +355,92 @@ export function Stock() {
         />
         {shown.length ? (
           <div className="ops-ledger">
-            {shown.map(({ product, onHand, low: isLow, valueMinor }) => (
-              <div className="ops-record stock-record" key={product.id}>
-                <div className="ops-record-copy">
-                  <strong>{product.name}</strong>
-                  <small>
-                    {product.forSale === false
-                      ? 'Used in treatments'
-                      : `Sold at ${money(product.priceMinor, org, true)}`}
-                    {product.sku ? ` · ${product.sku}` : ''}
-                    {` · reorder at ${product.reorderAt}`}
-                    {seesCost && valueMinor !== undefined
-                      ? ` · ${money(valueMinor, org, true)} at cost`
-                      : ''}
-                    {multiSite && !place ? ` · ${split(product.id)}` : ''}
-                  </small>
-                </div>
-                {product.archived ? (
-                  <span className="ops-tag">No longer stocked</span>
-                ) : (
-                  isLow && <span className="ops-tag stock-low">Running low</span>
-                )}
-                <span
-                  className="stock-count"
-                  aria-label={`${onHand} in stock${place ? ` at ${placeName(place)}` : ''}`}
+            {shown.map(({ product, onHand, low: isLow, valueMinor }) => {
+              const treatment = product.forSale === false
+              // How full the shelf is against three times the reorder point; the count says it.
+              const fullness = Math.min(1, onHand / Math.max(1, product.reorderAt * 3))
+              return (
+                <div
+                  className={`shelf-record ${isLow && !product.archived ? 'is-low' : ''}`}
+                  key={product.id}
                 >
-                  {onHand}
-                  <small>{place ? `at ${placeName(place)}` : 'in stock'}</small>
-                </span>
-                {(canStock || canEdit) && (
-                  <div className="stock-actions">
-                    {canStock && !product.archived && (
-                      <>
-                        <Button
-                          variant="secondary"
-                          onClick={() => openMovement(product, 'received')}
-                        >
-                          Delivery
-                        </Button>
-                        <Button variant="quiet" onClick={() => openMovement(product, 'consumed')}>
-                          Used
-                        </Button>
-                        <Button variant="quiet" onClick={() => openMovement(product, 'count')}>
-                          Count
-                        </Button>
-                        {multiSite && (
-                          <Button
-                            variant="quiet"
-                            aria-label={`Move ${product.name} to another location`}
-                            onClick={() => openMovement(product, 'move')}
-                          >
-                            Move
-                          </Button>
-                        )}
-                      </>
-                    )}
-                    {canEdit && (
-                      <Button
-                        variant="quiet"
-                        aria-label={`Edit ${product.name}`}
-                        onClick={() => openProduct(product)}
-                      >
-                        Edit
-                      </Button>
+                  <ProductTile id={product.id} name={product.name} />
+                  <div className="shelf-record-copy">
+                    <strong>{product.name}</strong>
+                    <span className="shelf-record-meta">
+                      <span className={`shelf-kind ${treatment ? 'is-treatment' : ''}`}>
+                        {treatment ? 'Used in treatments' : 'For sale'}
+                      </span>
+                      <small>
+                        {treatment ? '' : `${money(product.priceMinor, org, true)} · `}
+                        {product.sku ? `${product.sku} · ` : ''}
+                        {`reorder at ${product.reorderAt}`}
+                        {seesCost && valueMinor !== undefined
+                          ? ` · ${money(valueMinor, org, true)} at cost`
+                          : ''}
+                        {multiSite && !place ? ` · ${split(product.id)}` : ''}
+                      </small>
+                    </span>
+                  </div>
+                  <div className="shelf-level">
+                    <span
+                      className="shelf-count"
+                      aria-label={`${onHand} in stock${place ? ` at ${placeName(place)}` : ''}`}
+                    >
+                      {onHand}
+                      <small>{place ? `at ${placeName(place)}` : 'in stock'}</small>
+                    </span>
+                    <span className="shelf-meter" aria-hidden="true">
+                      <span style={{ width: `${Math.round(fullness * 100)}%` }} />
+                    </span>
+                    {product.archived ? (
+                      <span className="ops-tag">No longer stocked</span>
+                    ) : (
+                      isLow && <span className="ops-tag stock-low">Running low</span>
                     )}
                   </div>
-                )}
-              </div>
-            ))}
+                  {(canStock || canEdit) && (
+                    <div
+                      className="shelf-actions"
+                      role="group"
+                      aria-label={`Stock and details for ${product.name}`}
+                    >
+                      {canStock && !product.archived && (
+                        <>
+                          <Button variant="quiet" onClick={() => openMovement(product, 'received')}>
+                            Delivery
+                          </Button>
+                          <Button variant="quiet" onClick={() => openMovement(product, 'consumed')}>
+                            Used
+                          </Button>
+                          <Button variant="quiet" onClick={() => openMovement(product, 'count')}>
+                            Count
+                          </Button>
+                          {multiSite && (
+                            <Button
+                              variant="quiet"
+                              aria-label={`Move ${product.name} to another location`}
+                              onClick={() => openMovement(product, 'move')}
+                            >
+                              Move
+                            </Button>
+                          )}
+                        </>
+                      )}
+                      {canEdit && (
+                        <Button
+                          variant="quiet"
+                          aria-label={`Edit ${product.name}`}
+                          onClick={() => openProduct(product)}
+                        >
+                          Edit
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         ) : rows.length ? (
           <p className="ops-help">Nothing matches. Choose All to see every product.</p>

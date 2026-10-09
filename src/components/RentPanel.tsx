@@ -10,6 +10,7 @@ import { RENT_METHOD_LABEL, rentReceived, rentStatement } from '../domain/rent'
 import { rentMethods } from '../domain/rentSchema'
 import type { Rental, RentPayment } from '../domain/rentSchema'
 import { Button, ErrorMessage, Modal } from '../design'
+import { StudioDateField } from './StudioDateField'
 
 /**
  * V2: chairs and rooms rented to self-employed people. SALEANE works out the rent due and records
@@ -300,7 +301,7 @@ function RentalDialog({
           </label>
           <label>
             First day
-            <input type="date" value={from} required onChange={(e) => setFrom(e.target.value)} />
+            <StudioDateField value={from} onChange={setFrom} />
           </label>
         </div>
         <ErrorMessage error={error} />
@@ -483,13 +484,7 @@ function EndDialog({
         <div className="ops-fields">
           <label>
             Last day
-            <input
-              type="date"
-              value={to}
-              min={rental.from}
-              required
-              onChange={(e) => setTo(e.target.value)}
-            />
+            <StudioDateField value={to} min={rental.from} onChange={setTo} />
           </label>
         </div>
         <ErrorMessage error={error} />

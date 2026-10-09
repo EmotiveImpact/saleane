@@ -567,7 +567,8 @@
 .inbox-card {
   margin-top: 18px;
   padding: 0;
-  overflow: hidden;
+  /* Clipped rather than hidden, so the reply box can stay in view while a thread scrolls. */
+  overflow: clip;
 }
 .inbox-columns {
   display: grid;

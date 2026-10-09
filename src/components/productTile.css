@@ -1,0 +1,19 @@
+/* A product's initial on a soft tile: a square with rounded corners, so it never reads as a person. */
+.product-tile {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-control);
+  font-family: var(--font-editorial);
+  font-size: 21px;
+  font-weight: var(--weight-editorial);
+  line-height: 1;
+}
+.product-tile-small {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-inner);
+  font-size: 17px;
+}

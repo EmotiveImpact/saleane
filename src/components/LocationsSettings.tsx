@@ -7,7 +7,7 @@ import { can, operations } from '../domain/operations'
 import { places, resourceLocation } from '../domain/locations'
 import type { Place } from '../domain/locations'
 import { scheduleImpact } from '../domain/schedule'
-import { Button, ErrorMessage, Modal } from '../design'
+import { Button, ErrorMessage, Modal, TimeField } from '../design'
 import { AffectedVisits } from './ScheduleImpact'
 
 /**
@@ -279,24 +279,24 @@ function LocationDialog({
                       </label>
                       <label className="ops-field">
                         Opens
-                        <input
-                          type="time"
+                        <TimeField
+                          locale={state.organisation.locale}
                           aria-label={`${days[weekday]} opens`}
                           required={!day.closed}
                           disabled={day.closed}
                           value={clock(day.open)}
-                          onChange={(e) => update({ open: minutes(e.target.value) })}
+                          onChange={(time) => update({ open: minutes(time) })}
                         />
                       </label>
                       <label className="ops-field">
                         Closes
-                        <input
-                          type="time"
+                        <TimeField
+                          locale={state.organisation.locale}
                           aria-label={`${days[weekday]} closes`}
                           required={!day.closed}
                           disabled={day.closed}
                           value={clock(day.close)}
-                          onChange={(e) => update({ close: minutes(e.target.value) })}
+                          onChange={(time) => update({ close: minutes(time) })}
                         />
                       </label>
                     </div>

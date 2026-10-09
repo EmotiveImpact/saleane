@@ -90,14 +90,19 @@ async function chooseFacial(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('connected operator journeys', () => {
+  // The whole app, from the calendar through the date picker to the moved visit, so this journey
+  // can take several seconds on a busy machine: it has 20 seconds rather than the usual 5.
   it('moves a visit with keyboard time choices and follows it to its new calendar day', async () => {
     const user = userEvent.setup()
     await show('/calendar')
     await user.click(screen.getAllByRole('button', { name: /Noor Ahmed Skin Renewal Facial/ })[0])
     await user.click(screen.getByRole('button', { name: 'Move appointment' }))
     expect(screen.getByRole('heading', { name: 'Move appointment' })).toHaveFocus()
-    await user.clear(screen.getByLabelText('New date'))
-    await user.type(screen.getByLabelText('New date'), '2026-10-07')
+    // The new date is chosen from the calendar, written out the studio's way.
+    expect(screen.getByLabelText('New date')).toHaveTextContent('Tue 6 Oct 2026')
+    await user.click(screen.getByLabelText('New date'))
+    await user.click(screen.getByRole('button', { name: 'Wednesday 7 October 2026' }))
+    expect(screen.getByLabelText('New date')).toHaveTextContent('Wed 7 Oct 2026')
     const first = screen.getByRole('radio', { name: '09:00' })
     await user.click(first)
     await user.keyboard('{ArrowRight}{ArrowRight}')
@@ -112,11 +117,11 @@ describe('connected operator journeys', () => {
     })
     expect(saved.events.filter((e: { type: string }) => e.type === 'rescheduled')).toHaveLength(1)
     await user.keyboard('{Escape}')
-    expect(screen.getByLabelText('Jump to date')).toHaveValue('2026-10-07')
+    expect(screen.getByLabelText('Jump to date')).toHaveTextContent('Wed 7 Oct 2026')
     expect(
       screen.getAllByRole('button', { name: /09:30 .*Noor Ahmed Skin Renewal Facial/ }).length,
     ).toBeGreaterThan(0)
-  })
+  }, 20000)
   it('requires cancellation review and preserves the visit in accessible calendar history', async () => {
     const user = userEvent.setup()
     await show('/calendar')
@@ -315,7 +320,8 @@ describe('local operating surfaces', () => {
     ).toBe(9500)
     await user.click(screen.getByRole('tab', { name: 'Hours & closures' }))
     await user.click(screen.getByRole('button', { name: 'Add closure' }))
-    await user.type(screen.getByLabelText('Date'), '2026-10-06')
+    await user.click(screen.getByLabelText('Date'))
+    await user.click(screen.getByRole('button', { name: 'Tuesday 6 October 2026' }))
     await user.type(screen.getByLabelText('Reason'), 'Maintenance')
     // LOCAL-04: the affected visits are named before saving, and saving waits until they move.
     const dialog = screen.getByRole('dialog')
@@ -327,7 +333,7 @@ describe('local operating surfaces', () => {
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(screen.getByLabelText('Reason')).toHaveValue('Maintenance')
-    expect(screen.getByLabelText('Date')).toHaveValue('2026-10-06')
+    expect(screen.getByLabelText('Date')).toHaveTextContent('Tue 6 Oct 2026')
     expect(
       JSON.parse(localStorage.getItem('saleane.demo.v1.UK')!).operations.closures,
     ).toHaveLength(0)
@@ -415,7 +421,7 @@ describe('local operating surfaces', () => {
       status: 'queued',
     })
     await user.click(screen.getByRole('button', { name: /\+44 7700 900999/ }))
-    await user.selectOptions(screen.getByLabelText('This is'), 'client-6')
+    await user.selectOptions(screen.getByLabelText('Link to a client'), 'client-6')
     await user.click(screen.getByRole('button', { name: 'Match to this client' }))
     expect(
       await screen.findByText('Matched. The conversation is now with the client.'),

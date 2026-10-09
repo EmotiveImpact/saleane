@@ -280,7 +280,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
               maxLength={500}
               autoComplete="off"
               onChange={(e) => setText(e.target.value)}
-              placeholder="Ask about today, a client or your takings…"
+              placeholder="Ask about today or a client…"
             />
             <Button type="submit" disabled={busy || !text.trim()}>
               Ask

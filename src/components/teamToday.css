@@ -1,0 +1,79 @@
+/*
+ * "Your team today" on Today: a strip of faces, each ringed by how much of the day is booked.
+ * The ring is drawn with a conic gradient; the percentage is always written beneath it.
+ */
+.team-today {
+  padding: var(--space-1) 2px 0;
+}
+.team-today-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.team-today-head h2 {
+  font-size: var(--text-title-s);
+}
+.team-today-head span {
+  color: var(--muted);
+  font-size: var(--text-micro);
+  white-space: nowrap;
+}
+.team-today-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: var(--space-4) var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.team-today-list > li {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 1px;
+  min-width: 0;
+  text-align: center;
+}
+.team-today-ring {
+  --ring: color-mix(in srgb, var(--brand) 70%, #ffffff);
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  margin-bottom: var(--space-2);
+  border-radius: 50%;
+  background: conic-gradient(var(--ring) var(--booked, 0%), var(--line) 0);
+}
+.team-today-ring[data-tone='blue'] {
+  --ring: color-mix(in srgb, var(--rose) 70%, #ffffff);
+}
+.team-today-ring[data-tone='sand'] {
+  --ring: #c9b9a3;
+}
+.team-today-ring > .avatar {
+  width: 50px;
+  height: 50px;
+  box-shadow: 0 0 0 2px var(--paper);
+}
+.team-today-list strong {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.team-today-list small {
+  max-width: 100%;
+  color: var(--muted);
+  font-size: var(--text-micro);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+}
+.team-today-list .team-today-place {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

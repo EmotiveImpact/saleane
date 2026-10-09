@@ -12,6 +12,7 @@ import { dateLabel, money } from '../domain/format'
 import { minorInput, parseMinor } from '../domain/money'
 import { Button, ErrorMessage, Modal } from '../design'
 import { BookingDialog } from './BookingDialog'
+import { StudioDateField } from './StudioDateField'
 import { useRun } from './usePayment'
 import './management.css'
 import './consultations.css'
@@ -218,13 +219,11 @@ function ConsultationForm({
         <div className="ops-fields">
           <label>
             Date
-            <input
-              type="date"
-              required
+            <StudioDateField
               max={today}
               disabled={!!existing}
               value={heldOn}
-              onChange={(e) => setHeldOn(e.target.value)}
+              onChange={setHeldOn}
             />
           </label>
           <label>

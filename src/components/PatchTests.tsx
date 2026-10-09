@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Droplet, Plus } from 'lucide-react'
@@ -17,10 +17,14 @@ import type { PatchTestState } from '../domain/patchTests'
 import type { PatchTest } from '../domain/patchTestsSchema'
 import type { Appointment } from '../domain/model'
 import { dateLabel, timeLabel } from '../domain/format'
-import { Button, ErrorMessage, Modal } from '../design'
+import { Button, ErrorMessage, Modal, TimeField } from '../design'
+import { StudioDateField } from './StudioDateField'
 import { useRun } from './usePayment'
+import { useSeeAll } from './seeAll'
+import { SeeAllButton } from './SeeAllButton'
 import './management.css'
 import './patchTests.css'
+import './needsYou.css'
 
 /**
  * V1.5 patch test screens: the record on a client's page, the form to add one, where a colour
@@ -119,17 +123,16 @@ export function PatchTestForm({ clientId, onClose }: { clientId: string; onClose
         <div className="ops-fields">
           <label>
             Date
-            <input
-              type="date"
-              required
-              max={today}
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
+            <StudioDateField max={today} value={date} onChange={setDate} />
           </label>
           <label>
             Time
-            <input type="time" required value={time} onChange={(e) => setTime(e.target.value)} />
+            <TimeField
+              locale={state.organisation.locale}
+              required
+              value={time}
+              onChange={setTime}
+            />
           </label>
           <label className="ops-wide">
             Product or shade tested
@@ -386,26 +389,30 @@ export function VisitPatchTest({ appointment }: { appointment: Appointment }) {
 export function PatchTestsDue() {
   const { state } = useStore()
   const clock = useClock()
+  const listId = useId()
   const today = businessDate(state, clock)
   const rows = patchTestsDue(state, today)
+  const more = useSeeAll(rows)
   if (!rows.length) return null
   const org = state.organisation
   return (
-    <section className="surface ops-panel patch-panel" aria-labelledby="patch-tests-due">
-      <header>
-        <div>
-          <h2 id="patch-tests-due">Patch tests to sort</h2>
-          <p>Booked treatments in the next two weeks that need a test before they go ahead.</p>
-        </div>
-        <Droplet size={21} aria-hidden="true" />
+    <section className="needs-card patch-card" aria-labelledby="patch-tests-due">
+      <header className="needs-card-head">
+        <Droplet size={18} aria-hidden="true" />
+        <h3 id="patch-tests-due">Patch tests to sort</h3>
+        <span className="needs-card-count">
+          {rows.length}
+          <span className="sr-only"> to sort</span>
+        </span>
       </header>
-      <ul className="patch-list is-compact">
-        {rows.map(({ appointment: a, standing }) => (
+      <p className="needs-note">Booked in the next two weeks, and needing a test first.</p>
+      <ul className="needs-list" id={listId}>
+        {more.shown.map(({ appointment: a, standing }) => (
           <li key={a.id}>
-            <span className={tagClass[standing.state]}>{shortState[standing.state]}</span>
-            <div>
+            <div className="needs-who">
+              <span className={tagClass[standing.state]}>{shortState[standing.state]}</span>
               <Link to={`/clients/${a.clientId}`}>
-                <strong>{state.clients.find((c) => c.id === a.clientId)?.name ?? 'Client'}</strong>
+                {state.clients.find((c) => c.id === a.clientId)?.name ?? 'Client'}
               </Link>
               <small>
                 {a.bookedServiceName ?? state.services.find((s) => s.id === a.serviceId)?.name} ·{' '}
@@ -416,6 +423,11 @@ export function PatchTestsDue() {
           </li>
         ))}
       </ul>
+      {more.hidden > 0 && (
+        <div className="needs-card-links">
+          <SeeAllButton list={listId} {...more} />
+        </div>
+      )}
     </section>
   )
 }
