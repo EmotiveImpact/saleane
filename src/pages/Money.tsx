@@ -6,9 +6,18 @@ import { returnable } from '../domain/retail'
 import { useStore } from '../state/context'
 import { depositPaid } from '../domain/commands'
 import { operations, can } from '../domain/operations'
-import { dateLabel, money } from '../domain/format'
+import { dateLabel, money, wholeMoney } from '../domain/format'
 import { parseMinor } from '../domain/money'
-import { Button, ErrorMessage, Modal, Status, PageHeader, SegmentedControl } from '../design'
+import {
+  Button,
+  ErrorMessage,
+  Modal,
+  Status,
+  PageHeader,
+  SegmentedControl,
+  Stat,
+  Stats,
+} from '../design'
 import '../components/management.css'
 import { TillCount } from '../components/TillCount'
 import { CardRefund } from '../components/CardPayments'
@@ -216,6 +225,7 @@ export function Money() {
     <div className="money-page">
       <PageHeader
         variant="compact"
+        eyebrow="Business"
         title="Money, clearly."
         description="Receipts, recorded funds and the deposits still held for a visit."
       />
@@ -236,31 +246,31 @@ export function Money() {
           </p>
         </div>
       </div>
-      <div className="ops-summary">
-        <div>
-          <span>{sandbox ? 'Simulated funds received' : 'Funds recorded'}</span>
-          <strong>{format(received)}</strong>
-          <small>
-            {state.payments.some((p) => p.method === 'previous_system')
+      <Stats>
+        <Stat
+          label={sandbox ? 'Simulated funds received' : 'Funds recorded'}
+          value={wholeMoney(received, state.organisation)}
+          detail={
+            state.payments.some((p) => p.method === 'previous_system')
               ? `Includes ${format(
                   state.payments
                     .filter((p) => p.method === 'previous_system')
                     .reduce((total, p) => total + p.amountMinor, 0),
                 )} paid to your old system before switching`
-              : 'Deposits and settlements counted once'}
-          </small>
-        </div>
-        <div>
-          <span>Unapplied deposits</span>
-          <strong>{format(deposits)}</strong>
-          <small>Includes cancelled and missed visits awaiting review</small>
-        </div>
-        <div>
-          <span>{sandbox ? 'Simulated refunds' : 'External refunds recorded'}</span>
-          <strong>{format(refunded)}</strong>
-          <small>Net recorded funds: {format(received - refunded)}</small>
-        </div>
-      </div>
+              : 'Deposits and settlements counted once'
+          }
+        />
+        <Stat
+          label="Unapplied deposits"
+          value={wholeMoney(deposits, state.organisation)}
+          detail="Includes cancelled and missed visits awaiting review"
+        />
+        <Stat
+          label={sandbox ? 'Simulated refunds' : 'External refunds recorded'}
+          value={wholeMoney(refunded, state.organisation)}
+          detail={`Net recorded funds: ${format(received - refunded)}`}
+        />
+      </Stats>
       <SegmentedControl
         label="Money records"
         className="ops-switch"
@@ -762,26 +772,25 @@ export function Money() {
               </div>
             </form>
           ) : (
-            <div className="ops-actions">
-              <Button
-                variant="secondary"
-                disabled={
-                  !can(role, 'refund') ||
-                  blocked ||
-                  refundFor(receipt.id) >= refundableOnReceipt(receipt)
-                }
-                onClick={() => {
-                  setRefund(true)
-                  setError('')
-                }}
-              >
-                {sandbox
-                  ? 'Record simulated refund'
-                  : receipt.method === 'card' && cardRefundable(receipt.id) > 0
-                    ? 'Refund to the card'
-                    : 'Record external refund'}
-              </Button>
-            </div>
+            // The front desk reads receipts; refunds are for owners and managers (the server agrees).
+            can(role, 'refund') && (
+              <div className="ops-actions">
+                <Button
+                  variant="secondary"
+                  disabled={blocked || refundFor(receipt.id) >= refundableOnReceipt(receipt)}
+                  onClick={() => {
+                    setRefund(true)
+                    setError('')
+                  }}
+                >
+                  {sandbox
+                    ? 'Record simulated refund'
+                    : receipt.method === 'card' && cardRefundable(receipt.id) > 0
+                      ? 'Refund to the card'
+                      : 'Record external refund'}
+                </Button>
+              </div>
+            )
           )}
         </Modal>
       )}

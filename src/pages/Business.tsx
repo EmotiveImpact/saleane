@@ -7,7 +7,7 @@ import { hasLocations, placeOf, places } from '../domain/locations'
 import { bookedTimeDefinition } from '../components/definitions'
 import { RetentionPanel } from '../components/RetentionPanel'
 import { WholeBusiness } from '../components/WholeBusiness'
-import { addDays, dateLabel, money, timeLabel } from '../domain/format'
+import { addDays, dateLabel, money, timeLabel, wholeMoney } from '../domain/format'
 import {
   Avatar,
   Button,
@@ -17,6 +17,8 @@ import {
   photos,
   treatmentPhoto,
 } from '../design'
+
+const completedVisits = (count: number) => `${count} completed ${count === 1 ? 'visit' : 'visits'}`
 
 export function Business() {
   const { state, today, branch } = useStore()
@@ -68,6 +70,7 @@ export function Business() {
     <>
       <PageHeader
         variant="compact"
+        eyebrow="Business"
         title="A clearer view."
         description="Understand the rhythm. Choose what comes next."
         actions={
@@ -106,12 +109,12 @@ export function Business() {
       <div className="metrics-band">
         <Metric
           label="Completed service revenue"
-          value={money(data.revenue, state.organisation)}
-          detail={`${data.completed} completed visits`}
+          value={wholeMoney(data.revenue, state.organisation)}
+          detail={completedVisits(data.completed)}
         />
         <Metric
           label="Average service sale"
-          value={money(
+          value={wholeMoney(
             data.completed ? Math.round(data.revenue / data.completed) : 0,
             state.organisation,
           )}
@@ -138,7 +141,7 @@ export function Business() {
               <h2>Revenue has a rhythm.</h2>
               <p>Completed services, with deposits counted once.</p>
             </div>
-            <span className="chart-total">{money(data.revenue, state.organisation)}</span>
+            <span className="chart-total">{wholeMoney(data.revenue, state.organisation)}</span>
           </div>
           <div
             className="revenue-chart"
@@ -205,11 +208,11 @@ export function Business() {
           </Link>
           <div className="insight-rule" />
           <span>Tips recorded in this period</span>
-          <strong>{money(data.tips, state.organisation)}</strong>
+          <strong>{wholeMoney(data.tips, state.organisation)}</strong>
           <small>Reported separately from service revenue.</small>
           <div className="insight-rule" />
           <span>Products sold with visits</span>
-          <strong>{money(data.retail, state.organisation)}</strong>
+          <strong>{wholeMoney(data.retail, state.organisation)}</strong>
           <small>
             Before tax, separate from service revenue. <Link to="/business/stock">See stock</Link>
           </small>
@@ -227,7 +230,7 @@ export function Business() {
               <div key={service.id}>
                 <span>
                   <strong>{service.name}</strong>
-                  <small>{visits} completed visits</small>
+                  <small>{completedVisits(visits)}</small>
                 </span>
                 <strong>{money(revenue, state.organisation)}</strong>
                 <div className="performance-track">
@@ -247,7 +250,7 @@ export function Business() {
               <span>
                 <strong>{staff.name}</strong>
                 <small>
-                  {visits} completed visits
+                  {completedVisits(visits)}
                   {visits > 0 && ` · ${Math.round((rebooked / visits) * 100)}% rebooked`}
                 </small>
               </span>

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { ClipboardCheck, ListChecks } from 'lucide-react'
 import { useStore } from '../state/context'
-import { Button, ErrorMessage, Modal, PageHeader } from '../design'
+import { Button, Empty, ErrorMessage, Modal, PageHeader } from '../design'
 import { dateLabel } from '../domain/format'
 import { places } from '../domain/locations'
 import { businessDate, can } from '../domain/operations'
@@ -55,7 +55,9 @@ export function BranchVisits() {
   const open = toPutRight(state)
   const names = new Map(places(state, true).map((p) => [p.id, p.name]))
   const inUse = checklists(state).filter((c) => !c.archived)
+  const visits = branchVisits(state)
   const day = (date: string) => dateLabel(date, org.locale)
+  const editLists = can(role, 'checklist-save')
 
   async function fix(visitId: string, itemId: string, text: string) {
     setPending(`${visitId}:${itemId}`)
@@ -75,8 +77,9 @@ export function BranchVisits() {
   return (
     <div className="visits-page">
       <PageHeader
+        eyebrow="Business"
         title="Branch visits."
-        description="Walk a location with a checklist, answer each line, and keep what needs putting right in one place. Only the owner and managers see this page."
+        description="Walk a location with a checklist and keep what needs putting right in one place."
         actions={
           allowed && (
             <>
@@ -90,7 +93,7 @@ export function BranchVisits() {
                 <ClipboardCheck size={17} aria-hidden="true" />
                 Start a visit
               </Button>
-              {can(role, 'checklist-save') && (
+              {editLists && (
                 <Button
                   variant="secondary"
                   onClick={() => {
@@ -106,7 +109,7 @@ export function BranchVisits() {
           )
         }
       />
-      {allowed && !inUse.length && (
+      {allowed && !inUse.length && visits.length > 0 && (
         <p className="ops-help">Make a checklist first, then start a visit with it.</p>
       )}
       {notice && (
@@ -116,54 +119,73 @@ export function BranchVisits() {
       )}
       <ErrorMessage error={error} />
 
-      <section className="surface ops-panel" aria-labelledby="put-right-heading">
-        <header>
-          <div>
-            <h2 id="put-right-heading">To put right</h2>
-            <p>Lines answered no on a visit, until someone marks them done.</p>
-          </div>
-        </header>
-        <PutRightList
-          items={open.map(({ visit, line, place }) => ({ visit, line, place }))}
-          day={day}
-          canFix={allowed}
-          pending={!!pending}
-          onFix={(visit, line) => void fix(visit.id, line.itemId, line.text)}
-        />
-      </section>
-
-      <section className="surface ops-panel" aria-labelledby="places-heading">
-        <header>
-          <div>
-            <h2 id="places-heading">Each location</h2>
-            <p>When each one was last visited, and how it went.</p>
-          </div>
-        </header>
-        <ul className="visits-list">
-          {lastVisits(state).map(({ place, visit }) => (
-            <li key={place.id}>
+      {visits.length === 0 ? (
+        <section className="surface" aria-label="No visits yet">
+          <Empty title="No visits yet">
+            A branch visit is a walk round a location with a checklist on your phone: towels
+            stocked, fire exits clear, prices on show. Anything answered no stays on a list here
+            until someone puts it right.{' '}
+            {!allowed
+              ? ''
+              : inUse.length
+                ? 'Start with Start a visit, above.'
+                : editLists
+                  ? 'First make a checklist with Checklists, above. A starter list is filled in for you to change.'
+                  : 'A checklist is needed first, made by the owner or a manager.'}
+          </Empty>
+        </section>
+      ) : (
+        <>
+          <section className="surface ops-panel" aria-labelledby="put-right-heading">
+            <header>
               <div>
-                <strong>{place.name}</strong>
-                <span className="visits-meta">
-                  {visit
-                    ? `Last visited ${day(visit.date)}: ${scoreLine(visit)}`
-                    : 'Not visited yet'}
-                </span>
+                <h2 id="put-right-heading">To put right</h2>
+                <p>Lines answered no on a visit, until someone marks them done.</p>
               </div>
-            </li>
-          ))}
-        </ul>
-      </section>
+            </header>
+            <PutRightList
+              items={open.map(({ visit, line, place }) => ({ visit, line, place }))}
+              day={day}
+              canFix={allowed}
+              pending={!!pending}
+              onFix={(visit, line) => void fix(visit.id, line.itemId, line.text)}
+            />
+          </section>
 
-      <section className="surface ops-panel" aria-labelledby="history-heading">
-        <header>
-          <div>
-            <h2 id="history-heading">Past visits</h2>
-            <p>Each kept exactly as it was answered on the day.</p>
-          </div>
-        </header>
-        <VisitHistory visits={branchVisits(state)} names={names} day={day} />
-      </section>
+          <section className="surface ops-panel" aria-labelledby="places-heading">
+            <header>
+              <div>
+                <h2 id="places-heading">Each location</h2>
+                <p>When each one was last visited, and how it went.</p>
+              </div>
+            </header>
+            <ul className="visits-list">
+              {lastVisits(state).map(({ place, visit }) => (
+                <li key={place.id}>
+                  <div>
+                    <strong>{place.name}</strong>
+                    <span className="visits-meta">
+                      {visit
+                        ? `Last visited ${day(visit.date)}: ${scoreLine(visit)}`
+                        : 'Not visited yet'}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="surface ops-panel" aria-labelledby="history-heading">
+            <header>
+              <div>
+                <h2 id="history-heading">Past visits</h2>
+                <p>Each kept exactly as it was answered on the day.</p>
+              </div>
+            </header>
+            <VisitHistory visits={visits} names={names} day={day} />
+          </section>
+        </>
+      )}
 
       {form === 'visit' && (
         <VisitForm

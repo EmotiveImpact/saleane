@@ -269,6 +269,7 @@ export function Stock() {
     <div className="stock-page">
       <PageHeader
         variant="compact"
+        eyebrow="Business"
         title="What is on the shelf."
         description="Products you sell at the till and the ones you use in treatments. Selling a product at checkout takes it out of stock for you."
         actions={

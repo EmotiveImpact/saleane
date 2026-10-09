@@ -1,9 +1,17 @@
-import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { StoreProvider } from '../state/StoreProvider'
 import { App } from '../App'
+import { seed } from '../domain/seed'
+import { withoutFeedback } from '../domain/feedback'
+import { withoutPayRates } from '../domain/pay'
+import { withoutBranchVisits } from '../domain/branchVisits'
+import { withoutRequests } from '../domain/approvals'
+import type { Role } from '../domain/operations'
+import type { BusinessState } from '../domain/model'
+import type { RemoteWorkspace, Session } from '../state/api'
 
 function show(route = '/today') {
   render(
@@ -13,6 +21,63 @@ function show(route = '/today') {
       </StoreProvider>
     </MemoryRouter>,
   )
+}
+
+/**
+ * Opens the app signed in to the sample studio with the given role. The answers mirror the server:
+ * the front desk reads the studio record without guests' feedback, pay rates, branch visits or
+ * requests (server/projections.ts).
+ */
+function signedIn(role: Role, route: string, studio?: (state: BusinessState) => void) {
+  const sample = seed('UK')
+  studio?.(sample)
+  const state =
+    role === 'reception'
+      ? withoutRequests(withoutBranchVisits(withoutPayRates(withoutFeedback(sample))))
+      : sample
+  const workspace: RemoteWorkspace = {
+    id: state.organisation.id,
+    slug: 'sample-studio',
+    view: 'studio',
+    state,
+    role,
+    today: '2026-10-06',
+    mode: 'sandbox',
+  }
+  const session: Session = {
+    user: { id: 'account-desk', name: 'Rosa Desk', email: 'desk@example.invalid' },
+    csrf: 'csrf-token',
+    workspaces: [
+      {
+        id: workspace.id,
+        slug: workspace.slug,
+        name: state.organisation.name,
+        region: 'UK',
+        mode: 'sandbox',
+        role,
+      },
+    ],
+    services: { email: false, payments: false },
+    localOnly: true,
+  }
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input)
+      const body =
+        path === '/api/session'
+          ? session
+          : path === `/api/workspaces/${workspace.id}`
+            ? workspace
+            : null
+      return new Response(JSON.stringify(body ?? { error: 'Not in this test.' }), {
+        status: body ? 200 : 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }),
+  )
+  sessionStorage.setItem('saleane.workspace', workspace.id)
+  show(route)
 }
 
 async function chooseFacial(user: ReturnType<typeof userEvent.setup>) {
@@ -231,7 +296,7 @@ describe('local operating surfaces', () => {
   it('edits catalogue pricing without rewriting booked promises and preserves a conflicting closure draft', async () => {
     const user = userEvent.setup()
     show('/settings')
-    await user.click(await screen.findByRole('tab', { name: 'Services' }))
+    await user.click(await screen.findByRole('tab', { name: 'Treatments' }))
     await user.click(screen.getByRole('button', { name: 'Edit Skin Renewal Facial' }))
     await user.clear(screen.getByLabelText('Price (GBP)'))
     await user.type(screen.getByLabelText('Price (GBP)'), '120')
@@ -399,6 +464,270 @@ describe('local operating surfaces', () => {
     ).toBe(true)
     expect(within(screen.getByRole('dialog')).getByRole('status')).toHaveTextContent(
       'No money moved',
+    )
+  })
+})
+
+describe('front desk access to Business', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    sessionStorage.clear()
+  })
+
+  it('opens Money, Stock, Rota and Gift cards, and lands Business on Money', async () => {
+    const user = userEvent.setup()
+    signedIn('reception', '/business')
+    expect(await screen.findByRole('heading', { name: 'Money, clearly.' })).toBeInTheDocument()
+    const sections = screen.getByRole('navigation', { name: 'Business sections' })
+    expect(
+      within(sections)
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual(['Money', 'Stock', 'Rota', 'Gift cards'])
+    const business = screen.getByRole('link', { name: 'Business' })
+    expect(business).toHaveAttribute('href', '/business/money')
+    expect(business).toHaveAttribute('aria-current', 'page')
+    await user.click(within(sections).getByRole('link', { name: 'Stock' }))
+    expect(
+      await screen.findByRole('heading', { name: 'What is on the shelf.' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Business' })).toHaveAttribute('aria-current', 'page')
+    await user.click(within(sections).getByRole('link', { name: 'Rota' }))
+    expect(
+      await screen.findByRole('heading', { name: 'Who is in, and who is away.' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Add time off/ })).not.toBeInTheDocument()
+    await user.click(within(sections).getByRole('link', { name: 'Gift cards' }))
+    expect(
+      await screen.findByRole('heading', { name: 'Gift cards and vouchers.' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Sell a gift card/ })).toBeInTheDocument()
+  })
+
+  it('sends the desk back to Money from pages that stay with owners and managers', async () => {
+    for (const page of ['pay', 'accounts', 'feedback', 'visits', 'requests', 'areas']) {
+      signedIn('reception', `/business/${page}`)
+      expect(await screen.findByRole('heading', { name: 'Money, clearly.' })).toBeInTheDocument()
+      cleanup()
+      vi.unstubAllGlobals()
+      sessionStorage.clear()
+    }
+  })
+
+  it('shows receipts to the desk without a refund it could not record', async () => {
+    const user = userEvent.setup()
+    signedIn('reception', '/business/money')
+    await user.click((await screen.findAllByRole('button', { name: /View receipt for/ }))[0])
+    expect(screen.getByRole('heading', { name: 'Receipt' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /refund/i })).not.toBeInTheDocument()
+  })
+
+  it('keeps every Business section for an owner', async () => {
+    signedIn('owner', '/business')
+    expect(await screen.findByRole('heading', { name: 'A clearer view.' })).toBeInTheDocument()
+    const sections = screen.getByRole('navigation', { name: 'Business sections' })
+    expect(
+      within(sections)
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual(
+      expect.arrayContaining(['Overview', 'Money', 'Pay', 'Accounts', 'Feedback', 'Client areas']),
+    )
+    expect(screen.getByRole('link', { name: 'Business' })).toHaveAttribute('href', '/business')
+  })
+})
+
+describe('the Business tab bar', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    sessionStorage.clear()
+  })
+
+  it('leaves out Branch visits and Requests while the studio has one location', () => {
+    show('/business')
+    const sections = screen.getByRole('navigation', { name: 'Business sections' })
+    expect(
+      within(sections)
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual([
+      'Overview',
+      'Money',
+      'Stock',
+      'Rota',
+      'Gift cards',
+      'Pay',
+      'Accounts',
+      'Feedback',
+      'Client areas',
+    ])
+    expect(within(sections).getByRole('link', { name: 'Overview' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+  })
+
+  it('shows Branch visits and Requests once there is a second location', async () => {
+    signedIn('owner', '/business/requests', (state) => {
+      state.operations!.locations = [
+        { id: 'loc-islington', name: 'Islington', address: '5 Upper Street, London N1' },
+      ]
+    })
+    const sections = await screen.findByRole('navigation', { name: 'Business sections' })
+    expect(within(sections).getByRole('link', { name: 'Branch visits' })).toHaveAttribute(
+      'href',
+      '/business/visits',
+    )
+    expect(within(sections).getByRole('link', { name: 'Requests' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+  })
+})
+
+describe('the rota week', () => {
+  it('marks today and keeps This week ready to press', async () => {
+    const user = userEvent.setup()
+    show('/business/rota')
+    expect(screen.getByRole('heading', { name: 'Week of Monday 5 October' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /6 Oct Today$/ })).toBeInTheDocument()
+    const thisWeek = screen.getByRole('button', { name: 'This week' })
+    expect(thisWeek).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: 'Next week' }))
+    expect(screen.getByRole('heading', { name: 'Week of Monday 12 October' })).toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: /Today/ })).not.toBeInTheDocument()
+    await user.click(thisWeek)
+    expect(screen.getByRole('heading', { name: 'Week of Monday 5 October' })).toBeInTheDocument()
+  })
+})
+
+describe('Business overview wording', () => {
+  it('says one completed visit, not one completed visits', () => {
+    show('/business')
+    const counts = screen
+      .getAllByText(/^\d+ completed visits?\b/)
+      .map((node) => /^(\d+) completed (visits?)\b/.exec(node.textContent ?? '')!)
+    expect(counts.length).toBeGreaterThan(0)
+    for (const [, count, word] of counts) expect(word).toBe(count === '1' ? 'visit' : 'visits')
+  })
+})
+
+describe('requests and branch visits before regions', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    sessionStorage.clear()
+  })
+  const secondLocation = (state: BusinessState) => {
+    state.operations!.locations = [
+      { id: 'loc-islington', name: 'Islington', address: '5 Upper Street, London N1' },
+    ]
+  }
+
+  it('says nothing of regional managers until the studio has a region', async () => {
+    signedIn('owner', '/business/requests', secondLocation)
+    expect(await screen.findByRole('heading', { name: 'No requests yet' })).toBeInTheDocument()
+    expect(
+      screen.getByText(/The owner approves or declines it, and every decision is kept/),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ask for a sign-off' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Regional limit' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/regional/i)).not.toBeInTheDocument()
+  })
+
+  it('shows the regional limit once the locations are grouped into a region', async () => {
+    signedIn('owner', '/business/requests', (state) => {
+      secondLocation(state)
+      state.operations!.regions = [
+        {
+          id: 'region-london',
+          name: 'London',
+          locationIds: [state.organisation.locationId, 'loc-islington'],
+        },
+      ]
+    })
+    expect(await screen.findByRole('button', { name: 'Regional limit' })).toBeInTheDocument()
+    expect(screen.getByText(/Regional managers approve up to £500/)).toBeInTheDocument()
+  })
+
+  it('explains branch visits and the first step before the first visit', async () => {
+    signedIn('owner', '/business/visits', (state) => {
+      secondLocation(state)
+      state.operations!.branchVisits = []
+    })
+    expect(await screen.findByRole('heading', { name: 'No visits yet' })).toBeInTheDocument()
+    expect(screen.getByText(/Start with Start a visit, above\./)).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'To put right' })).not.toBeInTheDocument()
+  })
+})
+
+describe('gift cards', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    sessionStorage.clear()
+  })
+
+  it('shows each card as a card, with its balance, code and who it is for', async () => {
+    const user = userEvent.setup()
+    show('/business/gift-cards')
+    const card = await screen.findByRole('button', { name: /LAKE-7K4M-2QHN/ })
+    expect(card).toHaveTextContent('£75')
+    expect(card).toHaveTextContent(/for Hannah/)
+    await user.click(card)
+    expect(screen.getByRole('dialog', { name: 'Gift card' })).toHaveTextContent('For Hannah')
+  })
+
+  it('shows what a card looks like before the first one is sold', async () => {
+    signedIn('owner', '/business/gift-cards', (state) => {
+      state.giftCards = []
+    })
+    expect(await screen.findByRole('heading', { name: 'No gift cards yet' })).toBeInTheDocument()
+    expect(
+      screen.getByText(/Sell the first one with Sell a gift card, above\./),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+  })
+})
+
+describe('the Settings page', () => {
+  it('groups the sections under five headings, with treatments by that name', async () => {
+    show('/settings')
+    const sections = await screen.findByRole('group', { name: 'Settings sections' })
+    const lists = within(sections).getAllByRole('tablist')
+    expect(lists.map((list) => list.getAttribute('aria-label'))).toEqual([
+      'Studio',
+      'Team',
+      'Treatments and money',
+      'Guests and messages',
+      'Your account and data',
+    ])
+    expect(
+      within(lists[2])
+        .getAllByRole('tab')
+        .map((tab) => tab.textContent),
+    ).toEqual(['Treatments', 'Packages & memberships', 'Payments'])
+    expect(screen.queryByRole('tab', { name: 'Services' })).not.toBeInTheDocument()
+    // Studio details opens first; a narrow screen picks the same sections from one select.
+    expect(screen.getByRole('tab', { name: 'Studio details' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    const picker = screen.getByRole('combobox', { name: 'Section' })
+    expect(picker).toHaveValue('business')
+    expect(within(picker).getByRole('group', { name: 'Guests and messages' })).toBeInTheDocument()
+  })
+
+  it('keeps the old section addresses and shows a photograph beside each treatment', async () => {
+    const user = userEvent.setup()
+    show('/settings?section=service')
+    expect(await screen.findByRole('heading', { name: 'Treatments' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Treatments' })).toHaveAttribute('aria-selected', 'true')
+    const rows = document.querySelectorAll('.ops-record')
+    expect(rows.length).toBeGreaterThan(0)
+    for (const row of rows) expect(row.querySelector('.ops-record-photo')).not.toBeNull()
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Section' }), 'receptionist')
+    expect(screen.getByRole('heading', { name: 'AI receptionist' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save receptionist settings' })).toHaveClass(
+      'button-primary',
     )
   })
 })

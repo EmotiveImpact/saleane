@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
+import { KeyRound } from 'lucide-react'
 import { useStore } from '../state/context'
 import { api } from '../state/api'
 import { Button, ErrorMessage } from '../design'
 import { regions } from '../domain/group'
 import { areaPlaces } from '../domain/area'
 import { hasLocations, places } from '../domain/locations'
+import './accessPanel.css'
 
 type Team = {
   members: {
@@ -57,12 +59,17 @@ export function AccessPanel() {
   }, [base, role, mode])
   if (mode === 'demo')
     return (
-      <section className="surface manage-section">
-        <h2>Workspace access</h2>
-        <p>
-          The fictional browser demo has no team accounts. Create a local account to manage a shared
-          studio.
-        </p>
+      <section className="surface ops-panel access-panel" aria-labelledby="access-title">
+        <header>
+          <div>
+            <h2 id="access-title">Workspace access</h2>
+            <p>
+              The fictional browser demo has no team accounts. Create a local account to manage a
+              shared studio.
+            </p>
+          </div>
+          <KeyRound size={21} aria-hidden="true" />
+        </header>
         <a className="button button-secondary" href="/account">
           Open local accounts
         </a>
@@ -105,12 +112,17 @@ export function AccessPanel() {
     }
   }
   return (
-    <section className="surface manage-section">
-      <h2>Workspace access</h2>
-      <p>
-        Each person signs in separately. Invitation links work on this local server; no email is
-        sent.
-      </p>
+    <section className="surface ops-panel access-panel" aria-labelledby="access-title">
+      <header>
+        <div>
+          <h2 id="access-title">Workspace access</h2>
+          <p>
+            Each person signs in separately. Invitation links work on this local server; no email is
+            sent.
+          </p>
+        </div>
+        <KeyRound size={21} aria-hidden="true" />
+      </header>
       {role === 'owner' ? (
         <>
           <div className="access-list">
@@ -187,6 +199,8 @@ export function AccessPanel() {
             ))}
           </div>
           <form
+            className="access-invite"
+            aria-labelledby="invite-title"
             onSubmit={async (e) => {
               e.preventDefault()
               setPending(true)
@@ -213,12 +227,16 @@ export function AccessPanel() {
               }
             }}
           >
-            <div className="form-grid">
+            <h3 id="invite-title" className="access-subtitle">
+              Invite someone
+            </h3>
+            <div className="ops-fields">
               <label>
                 Team email
                 <input
                   type="email"
                   required
+                  autoComplete="off"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
@@ -285,7 +303,7 @@ export function AccessPanel() {
                 </label>
               )}
             </div>
-            <p className="subtle">
+            <p className="ops-help">
               Managers can configure the studio and review money. Reception can manage appointments,
               clients and checkout. A practitioner sees only their own visits, with each client's
               name, preferences and notes, and can welcome their client and add notes. They see no
@@ -295,9 +313,11 @@ export function AccessPanel() {
               {areas.length > 0 &&
                 ' A regional manager sees only their region’s locations: how each is doing, what is booked today, their branch visits, which they can record, and requests for a sign-off, which they can raise and approve up to the owner’s limit. They see no clients, diaries, prices or settings.'}
             </p>
-            <Button type="submit" disabled={pending}>
-              Create invitation link
-            </Button>
+            <div className="ops-actions">
+              <Button type="submit" disabled={pending}>
+                Create invitation link
+              </Button>
+            </div>
           </form>
           {link && (
             <div className="copy-invitation">
@@ -335,11 +355,12 @@ export function AccessPanel() {
           )}
         </>
       ) : (
-        <p>Only the owner can invite people or change workspace access.</p>
+        <p className="ops-help">Only the owner can invite people or change workspace access.</p>
       )}
-      <details>
+      <details className="access-password">
         <summary>Change your password</summary>
         <form
+          aria-label="Change your password"
           onSubmit={async (e) => {
             e.preventDefault()
             setPending(true)
@@ -360,31 +381,42 @@ export function AccessPanel() {
             }
           }}
         >
-          <label>
-            Current password
-            <input
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </label>
-          <label>
-            New password
-            <input
-              type="password"
-              autoComplete="new-password"
-              required
-              minLength={12}
-              maxLength={128}
-              value={nextPassword}
-              onChange={(e) => setNextPassword(e.target.value)}
-            />
-          </label>
-          <Button type="submit" disabled={pending}>
-            {changed ? 'Password updated' : 'Update password'}
-          </Button>
+          <div className="ops-fields">
+            <div className="ops-field">
+              <label htmlFor="access-current-password">Current password</label>
+              <input
+                id="access-current-password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+            <div className="ops-field">
+              <label htmlFor="access-new-password">New password</label>
+              <input
+                id="access-new-password"
+                type="password"
+                autoComplete="new-password"
+                aria-describedby="access-new-password-help"
+                required
+                minLength={12}
+                maxLength={128}
+                value={nextPassword}
+                onChange={(e) => setNextPassword(e.target.value)}
+              />
+              <small id="access-new-password-help">At least 12 characters.</small>
+            </div>
+          </div>
+          <p className="ops-save-note" role="status">
+            {changed ? 'Your password is updated.' : ''}
+          </p>
+          <div className="ops-actions">
+            <Button type="submit" disabled={pending}>
+              Update password
+            </Button>
+          </div>
         </form>
       </details>
       <ErrorMessage error={error} />

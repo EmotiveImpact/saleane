@@ -57,7 +57,8 @@ textarea:focus-visible {
 h1,
 h2,
 h3,
-p {
+p,
+dd {
   margin: 0;
 }
 h1 {
@@ -99,6 +100,23 @@ textarea {
   border-radius: var(--radius-control);
   padding: 10px 12px;
   width: 100%;
+}
+/* The browser's own clear button on search fields, drawn in the studio's ink, not system blue. */
+input[type='search']::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-left: var(--space-2);
+  background-color: var(--muted);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M18 6 6 18M6 6l12 12'/%3E%3C/svg%3E")
+    center / 16px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M18 6 6 18M6 6l12 12'/%3E%3C/svg%3E")
+    center / 16px no-repeat;
+  cursor: pointer;
+}
+input[type='search']::-webkit-search-cancel-button:hover {
+  background-color: var(--ink);
 }
 input[type='checkbox'] {
   accent-color: var(--ink);
@@ -460,6 +478,8 @@ fieldset {
   display: flex;
   align-items: center;
   gap: 16px;
+  min-width: 0;
+  white-space: nowrap;
 }
 .header-studio {
   font-weight: var(--weight-strong);
@@ -523,6 +543,19 @@ fieldset {
   border: 0;
   padding: 0;
   font-size: var(--text-small);
+}
+/* Narrower screens keep the header on one line: the dot alone says there is something to mention. */
+@media (max-width: 1200px) {
+  .ask-count {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
+  .global-search {
+    min-width: 0;
+  }
 }
 .demo-notice {
   padding: 8px 36px;
@@ -628,14 +661,9 @@ fieldset {
   font-size: var(--text-small);
   color: var(--muted);
 }
+/* The figure itself shares the headline figure style in design.css. */
 .metric > strong {
-  font-family: var(--font-display);
-  font-size: clamp(26px, 2.4vw, var(--text-stat));
-  letter-spacing: -0.01em;
-  line-height: 1.1;
   margin: 4px 0;
-  font-weight: var(--weight-body);
-  font-variant-numeric: tabular-nums;
 }
 .metric small {
   font-size: var(--text-micro);
@@ -1080,6 +1108,10 @@ fieldset {
 .time-axis span:first-child {
   transform: translateY(5px);
 }
+/* The closing hour sits just above the bottom edge, so the grid never cuts it off. */
+.time-axis span:nth-last-child(1 of :not(.time-axis-now)) {
+  transform: translateY(calc(-100% - 4px));
+}
 .calendar-lane {
   height: 757px;
   position: relative;
@@ -1136,7 +1168,8 @@ fieldset {
 .calendar-hint {
   font-size: var(--text-micro);
   color: var(--muted);
-  padding: 0 0 10px;
+  padding: 10px 23px;
+  border-bottom: 1px solid var(--line);
 }
 .calendar-event.event-movable {
   cursor: grab;
@@ -1989,6 +2022,37 @@ fieldset {
 .detail-panel {
   padding: 24px;
 }
+/*
+ * The client page's side cards share one header: a small serif title with any icon at the
+ * right. The column's gap spaces them, so stacked cards add no margin of their own.
+ */
+.relationship-aside > .ops-panel {
+  padding: 24px;
+}
+.relationship-aside > .ops-panel + .ops-panel {
+  margin-top: 0;
+}
+.relationship-aside > .ops-panel > header {
+  margin-bottom: 15px;
+}
+.relationship-aside > .ops-panel > header h2 {
+  font-size: var(--text-title-s);
+}
+.relationship-aside > .ops-panel > header > svg {
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+}
+.relationship-aside .detail-panel h2:has(> svg) {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+}
+.relationship-aside .detail-panel h2 > svg {
+  color: var(--muted);
+}
 .detail-panel h2 {
   font-size: var(--text-title-s);
   margin-bottom: 15px;
@@ -2058,7 +2122,10 @@ fieldset {
   grid-template-columns: minmax(0, 1fr) 294px;
   gap: 24px;
 }
+/* The chart grows to the height of the card beside it, so no empty band is left below. */
 .chart-panel {
+  display: flex;
+  flex-direction: column;
   padding: 25px;
 }
 .chart-total {
@@ -2070,6 +2137,7 @@ fieldset {
 }
 .revenue-chart {
   display: flex;
+  flex: 1 0 auto;
   height: 245px;
   margin: 29px 0 30px;
   gap: 18px;
@@ -2183,9 +2251,10 @@ fieldset {
 }
 .business-insight > strong {
   font-family: var(--font-display);
-  font-weight: var(--weight-nav);
+  font-weight: var(--weight-body);
   font-size: 26px;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
   margin: 5px 0;
 }
 .business-insight > small {
@@ -2278,6 +2347,8 @@ fieldset {
   margin-bottom: 10px;
 }
 .empty p {
+  max-width: 62ch;
+  margin-inline: auto;
   color: var(--muted);
   font-size: var(--text-body);
 }
@@ -3457,9 +3528,6 @@ fieldset {
   .metric > span {
     font-size: var(--text-micro);
   }
-  .metric > strong {
-    font-size: 28px;
-  }
   .metric small {
     font-size: var(--text-micro);
   }
@@ -4443,9 +4511,9 @@ fieldset {
   text-transform: uppercase;
 }
 .closing-up h2 {
-  font-family: var(--font-display);
-  font-weight: 300;
-  font-size: 28px;
+  font-family: var(--font-editorial);
+  font-weight: var(--weight-editorial);
+  font-size: var(--text-title-m);
 }
 .closing-up p {
   color: var(--muted);
@@ -4468,4 +4536,54 @@ fieldset {
 /* V2: figures for one location. */
 .business-where select {
   min-width: min(13rem, 100%);
+}
+
+/* Phones: every control is at least 40px to tap. Desktop keeps its compact sizes. */
+@media (max-width: 650px) {
+  .icon-button,
+  .date-controls .icon-button {
+    width: 40px;
+    height: 40px;
+  }
+  .ask-button,
+  .global-search,
+  .operator-button {
+    min-width: 40px;
+    min-height: 40px;
+    justify-content: center;
+  }
+  .text-link,
+  .date-controls .button,
+  .calendar-filters select,
+  .calendar-date-picker input,
+  .search-field input,
+  .sort-field select,
+  .directory-paging .button,
+  .date-strip-other input,
+  .client-table .client-cell,
+  .patch-list .missed-actions .button,
+  .areas-list > li button.areas-name,
+  .back-link,
+  .next-visit-panel .button,
+  .connection-row {
+    min-height: 40px;
+  }
+  .text-link {
+    min-width: 40px;
+  }
+  summary,
+  .chart-data summary {
+    min-height: 40px;
+    padding-block: 10px;
+  }
+  /* Names that open a record keep their place in the text but take a taller touch. */
+  .patch-list > li > div > a {
+    padding-block: 9px;
+    margin-block: -9px;
+  }
+  .waitlist-card-copy strong a {
+    display: inline-block;
+    padding-block: 11px;
+    margin-block: -11px;
+  }
 }

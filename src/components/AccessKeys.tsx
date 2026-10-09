@@ -183,11 +183,11 @@ export function AccessKeys() {
             ))}
           </fieldset>
           <div className="ops-actions">
-            <Button type="submit" disabled={pending || chosen.length === 0}>
-              {pending ? 'Making…' : 'Make the key'}
-            </Button>
             <Button variant="quiet" disabled={pending} onClick={() => setAdding(false)}>
               Cancel
+            </Button>
+            <Button type="submit" disabled={pending || chosen.length === 0}>
+              {pending ? 'Making…' : 'Make the key'}
             </Button>
           </div>
         </form>

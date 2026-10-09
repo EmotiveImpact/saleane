@@ -56,3 +56,24 @@ describe('design language in the workspace', () => {
     expect(screen.getByRole('tablist', { name: 'Example sections' })).toBeInTheDocument()
   })
 })
+
+describe('shared page parts', () => {
+  it('pairs each headline figure with its label', async () => {
+    show('/business/pay')
+    const label = await screen.findByText('Owed to the team')
+    expect(label.tagName).toBe('DT')
+    const [figure, detail] = within(label.closest('.stat') as HTMLElement).getAllByRole(
+      'definition',
+    )
+    expect(figure).toHaveTextContent(/^£\d[\d,]*$/)
+    expect(detail).toHaveTextContent('Before any deductions')
+  })
+  it('opens the waitlist with the shared header and its action', async () => {
+    show('/waitlist')
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Who would take a time.' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Waitlist', { selector: '.eyebrow' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add to the waitlist' })).toBeInTheDocument()
+  })
+})

@@ -589,7 +589,7 @@ export function PaymentSettings() {
           {saved}
         </p>
         {editable && (
-          <div className="settings-actions">
+          <div className="ops-actions">
             <Button type="submit" disabled={!changed || pending}>
               {pending ? 'Saving…' : 'Save payment settings'}
             </Button>

@@ -1,31 +1,17 @@
 /* V1.5: guest feedback for owners and managers. */
+/* The figures are the shared Stats tiles. */
 .feedback-totals {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
-  margin: 22px 0;
-}
-.feedback-totals div {
-  padding: 18px 20px;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-}
-.feedback-totals dt {
-  font-size: var(--text-small);
-  color: var(--muted);
-}
-.feedback-totals dd {
-  margin-top: 6px;
-  font-family: var(--font-editorial);
-  font-size: var(--text-title-m);
-  font-variant-numeric: tabular-nums;
+  margin-top: 22px;
 }
 .feedback-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
   gap: 22px;
   align-items: start;
+}
+/* The grid gap spaces the two cards; a stacked-card margin would push the second one lower. */
+.feedback-layout > .ops-panel + .ops-panel {
+  margin-top: 0;
 }
 .feedback-list {
   list-style: none;

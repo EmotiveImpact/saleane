@@ -17,9 +17,13 @@
   outline: 2px solid var(--brand);
   outline-offset: 2px;
 }
+/* The far edge fades while more of the week is off to the side. */
+.rota-scroll[data-more-after] {
+  mask-image: linear-gradient(to left, transparent, #000 48px);
+}
 .rota-table {
   width: 100%;
-  min-width: 760px;
+  min-width: 900px;
   border-collapse: separate;
   border-spacing: 4px;
   table-layout: fixed;
@@ -32,12 +36,22 @@
   padding: 4px 8px;
 }
 .rota-table th[scope='row'] {
-  width: 170px;
+  width: 150px;
   color: var(--ink);
   font-size: var(--text-small);
 }
 .rota-table th.rota-today {
   color: var(--ink);
+}
+.rota-today-tag {
+  display: inline-block;
+  margin-left: 2px;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--sage);
+  color: var(--brand-ink);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-strong);
 }
 .rota-person {
   display: flex;
@@ -55,6 +69,11 @@
 .rota-table td strong,
 .rota-table td small {
   display: block;
+}
+/* Opening and closing times stay on one line; the table is wide enough for them. */
+.rota-table td strong {
+  font-weight: var(--weight-strong);
+  white-space: nowrap;
 }
 .rota-table td small {
   margin-top: 2px;
@@ -74,13 +93,18 @@
   color: var(--muted);
   background: transparent;
 }
+/* Today's column carries a firmer outline, under the Today label in its heading. */
+.rota-table td.rota-today {
+  border-color: var(--brand);
+}
 .rota-columns {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 22px;
   margin-top: 22px;
 }
-.rota-columns > * {
+.rota-columns > *,
+.rota-columns > .ops-panel + .ops-panel {
   margin: 0;
 }
 .rota-over {
@@ -99,5 +123,28 @@
 @media (max-width: 640px) {
   .rota-columns {
     grid-template-columns: 1fr;
+  }
+}
+/* Phones: names stay in view while the days scroll beneath them. */
+@media (max-width: 650px) {
+  .rota-table {
+    min-width: 860px;
+  }
+  .rota-table th[scope='row'] {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    width: 112px;
+    padding-left: 0;
+    background: var(--paper);
+    /* Covers the spacing beside the names, so passing days never show through. */
+    box-shadow:
+      -4px 0 0 var(--paper),
+      4px 0 0 var(--paper);
+  }
+  .rota-person {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
   }
 }

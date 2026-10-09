@@ -488,7 +488,7 @@ export function seed(region: Region): BusinessState {
       valueMinor: uk ? 7500 : 10000,
       clientId: 'client-2',
       purchaserName: state.clients.find((c) => c.id === 'client-2')!.name,
-      recipientName: 'Her sister',
+      recipientName: 'Hannah',
       message: 'For a quiet hour just for you.',
       issuedOn: soldOn,
       expiresOn: lastDay(years),

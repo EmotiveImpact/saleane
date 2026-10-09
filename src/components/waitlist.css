@@ -1,10 +1,7 @@
 /* V1.5: the waitlist. */
+/* The header, figures and list keep their own spacing, as on every staff page. */
 .waitlist-page {
-  display: grid;
-  gap: 18px;
-}
-.waitlist-totals {
-  margin-bottom: 0;
+  min-width: 0;
 }
 .waitlist-cards {
   display: grid;
@@ -21,6 +18,14 @@
   background: var(--stone);
   border: 1px solid var(--line);
   border-radius: var(--radius);
+}
+/* Who added the request, as a small white tag that reads on the stone card. */
+.waitlist-card .ops-tag {
+  width: fit-content;
+  margin-top: var(--space-1);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
 }
 .waitlist-card-copy {
   display: grid;

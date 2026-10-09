@@ -1,5 +1,7 @@
+import { useRef } from 'react'
 import type { ReactNode } from 'react'
 import * as ToggleGroup from '@radix-ui/react-toggle-group'
+import { useScrollEdges } from './useScrollEdges'
 
 /**
  * A single choice between a few views of the same content (a period, a
@@ -21,8 +23,14 @@ export function SegmentedControl<T extends string>({
   appearance?: 'underline' | 'pill' | 'icon' | 'chips'
   className?: string
 }) {
+  // Where a row of options scrolls sideways on a phone, the edge with more to see fades.
+  const row = useRef<HTMLDivElement>(null)
+  const more = useScrollEdges(row)
   return (
     <ToggleGroup.Root
+      ref={row}
+      data-more-before={more.before || undefined}
+      data-more-after={more.after || undefined}
       type="single"
       aria-label={label}
       value={value}

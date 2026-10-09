@@ -2,10 +2,11 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Send } from 'lucide-react'
 import { useStore } from '../state/context'
-import { Button, ErrorMessage, Modal, PageHeader } from '../design'
+import { Button, Empty, ErrorMessage, Modal, PageHeader } from '../design'
 import { dateLabel, money } from '../domain/format'
 import { places } from '../domain/locations'
 import { can } from '../domain/operations'
+import { regions } from '../domain/group'
 import { regionalLimit, requests, waitingOn } from '../domain/approvals'
 import type { ApprovalRequest } from '../domain/approvalsSchema'
 import type { Command } from '../domain/commands'
@@ -50,6 +51,7 @@ export function WaitingRequests({
   waiting,
   canDecide,
   onDecide,
+  regional = true,
 }: {
   items: ApprovalRequest[]
   org: Org
@@ -58,6 +60,8 @@ export function WaitingRequests({
   waiting: (r: ApprovalRequest) => string
   canDecide: (r: ApprovalRequest) => boolean
   onDecide: (r: ApprovalRequest) => void
+  /** False while the studio has no regions: every request goes to the owner, so no reason is given. */
+  regional?: boolean
 }) {
   if (!items.length) return <p className="ops-help">Nothing is waiting for a sign-off.</p>
   return (
@@ -70,7 +74,7 @@ export function WaitingRequests({
             {r.note && <p>{r.note}</p>}
             <span className="visits-meta">
               Waiting on {waiting(r)}
-              {r.passedUp ? `, because ${PASSED_UP[r.passedUp]}.` : '.'}
+              {regional && r.passedUp ? `, because ${PASSED_UP[r.passedUp]}.` : '.'}
             </span>
           </div>
           {canDecide(r) && (
@@ -162,6 +166,7 @@ export function RequestForm({
   commit,
   onClose,
   onSaved,
+  regional = true,
 }: {
   sites: { id: string; name: string }[]
   org: Org
@@ -169,6 +174,8 @@ export function RequestForm({
   commit: Commit
   onClose: () => void
   onSaved: (message: string) => void
+  /** False while the studio has no regions, when every request goes straight to the owner. */
+  regional?: boolean
 }) {
   const [locationId, setLocationId] = useState(sites[0]?.id ?? '')
   const [kind, setKind] = useState<'spend' | 'other'>('spend')
@@ -208,7 +215,11 @@ export function RequestForm({
         if (!pending) onClose()
       }}
       title="Ask for a sign-off"
-      description={`It goes to the location’s regional manager when it has one. Anything over ${money(limitMinor, org)}, or with no regional manager, goes to the owner.`}
+      description={
+        regional
+          ? `It goes to the location’s regional manager when it has one. Anything over ${money(limitMinor, org)}, or with no regional manager, goes to the owner.`
+          : 'It goes to the owner, who approves or declines it here.'
+      }
     >
       <form className="plan-form" onSubmit={submit}>
         <div className="ops-fields">
@@ -368,6 +379,8 @@ export function Requests() {
     .filter((r) => !r.decision)
     .sort((a, b) => a.raisedAt.localeCompare(b.raisedAt))
   const limit = regionalLimit(state)
+  // Regional managers and their limit only matter once the studio has grouped its locations.
+  const regional = regions(state).length > 0
   const saved = (message: string) => {
     setNotice(message)
     setForm(null)
@@ -377,8 +390,13 @@ export function Requests() {
   return (
     <div className="visits-page">
       <PageHeader
+        eyebrow="Business"
         title="Requests."
-        description={`Spending and other changes that need a sign-off. Regional managers approve up to ${money(limit, org)}; anything more passes up to the owner.`}
+        description={
+          regional
+            ? `Spending and other changes that need a sign-off. Regional managers approve up to ${money(limit, org)}; anything more passes up to the owner.`
+            : 'Spending and other changes that need the owner’s sign-off.'
+        }
         actions={
           <>
             {raise && (
@@ -392,7 +410,7 @@ export function Requests() {
                 Ask for a sign-off
               </Button>
             )}
-            {owner && (
+            {owner && regional && (
               <Button
                 variant="secondary"
                 onClick={() => {
@@ -411,39 +429,64 @@ export function Requests() {
           {notice}
         </p>
       )}
-      <section className="surface ops-panel" aria-labelledby="requests-waiting">
-        <header>
-          <div>
-            <h2 id="requests-waiting">Waiting for a sign-off</h2>
-            <p>
-              {owner
-                ? 'As the owner you can decide any of these, including those waiting on a regional manager.'
-                : 'Who each one is waiting on. Only the owner or the regional manager can decide.'}
-            </p>
-          </div>
-        </header>
-        <WaitingRequests
-          items={waiting}
-          org={org}
-          names={names}
-          day={day}
-          waiting={(r) => waitingOn(state, r)}
-          canDecide={() => owner}
-          onDecide={(r) => {
-            setNotice('')
-            setDeciding(r)
-          }}
-        />
-      </section>
-      <section className="surface ops-panel" aria-labelledby="requests-decided">
-        <header>
-          <div>
-            <h2 id="requests-decided">Decided</h2>
-            <p>Each decision is kept as it was made.</p>
-          </div>
-        </header>
-        <DecidedRequests items={all} org={org} names={names} day={day} />
-      </section>
+      {all.length === 0 ? (
+        <section className="surface" aria-label="No requests yet">
+          <Empty title="No requests yet">
+            When a manager needs to spend money or change something at a location, such as a new
+            basin or closing early on a Friday, they ask here.{' '}
+            {regional
+              ? 'Their regional manager or the owner approves or declines it'
+              : 'The owner approves or declines it'}
+            , and every decision is kept.{' '}
+            {owner
+              ? 'Requests wait here for you to decide.'
+              : raise
+                ? 'Start with Ask for a sign-off, above.'
+                : ''}
+          </Empty>
+        </section>
+      ) : (
+        <>
+          <section className="surface ops-panel" aria-labelledby="requests-waiting">
+            <header>
+              <div>
+                <h2 id="requests-waiting">Waiting for a sign-off</h2>
+                <p>
+                  {owner
+                    ? regional
+                      ? 'As the owner you can decide any of these, including those waiting on a regional manager.'
+                      : 'As the owner you decide each of these.'
+                    : regional
+                      ? 'Who each one is waiting on. Only the owner or the regional manager can decide.'
+                      : 'Each one waits on the owner to decide.'}
+                </p>
+              </div>
+            </header>
+            <WaitingRequests
+              items={waiting}
+              org={org}
+              names={names}
+              day={day}
+              waiting={(r) => waitingOn(state, r)}
+              canDecide={() => owner}
+              onDecide={(r) => {
+                setNotice('')
+                setDeciding(r)
+              }}
+              regional={regional}
+            />
+          </section>
+          <section className="surface ops-panel" aria-labelledby="requests-decided">
+            <header>
+              <div>
+                <h2 id="requests-decided">Decided</h2>
+                <p>Each decision is kept as it was made.</p>
+              </div>
+            </header>
+            <DecidedRequests items={all} org={org} names={names} day={day} />
+          </section>
+        </>
+      )}
       {form === 'raise' && (
         <RequestForm
           sites={places(state).filter((p) => !branch || p.id === branch)}
@@ -452,9 +495,10 @@ export function Requests() {
           commit={commit}
           onClose={() => setForm(null)}
           onSaved={saved}
+          regional={regional}
         />
       )}
-      {form === 'limit' && (
+      {form === 'limit' && regional && (
         <LimitForm
           org={org}
           limitMinor={limit}

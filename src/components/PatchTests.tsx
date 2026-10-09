@@ -445,8 +445,8 @@ export function PatchTestRules() {
         <div>
           <h2 id="patch-test-rules">Patch tests</h2>
           <p>
-            For treatments marked as needing one, such as colour. Mark them in Services. Most colour
-            brands ask for 48 hours.
+            For treatments marked as needing one, such as colour. Mark them in Treatments. Most
+            colour brands ask for 48 hours.
           </p>
         </div>
         <Droplet size={21} aria-hidden="true" />
@@ -491,12 +491,12 @@ export function PatchTestRules() {
         <ErrorMessage error={error} />
         {allowed && (
           <div className="ops-actions">
-            <Button type="submit" variant="secondary" disabled={pending}>
-              {pending ? 'Saving…' : 'Save patch test rules'}
-            </Button>
             <span role="status" className="ops-help">
               {saved ? 'Saved.' : ''}
             </span>
+            <Button type="submit" disabled={pending}>
+              {pending ? 'Saving…' : 'Save patch test rules'}
+            </Button>
           </div>
         )}
       </form>

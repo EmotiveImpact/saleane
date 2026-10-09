@@ -115,7 +115,7 @@ export function RentPanel({ from, to }: { from: string; to: string }) {
                       )}
                       {!rental.to && (
                         <Button
-                          variant="quiet"
+                          variant="secondary"
                           aria-label={`End ${name(rental.staffId)}'s rental`}
                           onClick={() => {
                             setEnding(rental)

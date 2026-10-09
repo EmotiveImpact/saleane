@@ -17,6 +17,7 @@ import {
   Layers,
   MapPin,
   ClipboardList,
+  MessageCircle,
   Plug,
 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
@@ -28,7 +29,7 @@ import { scheduleImpact } from '../domain/schedule'
 import { operations, can, permissionFor } from '../domain/operations'
 import { money, dateLabel, timeLabel } from '../domain/format'
 import { parseMinor } from '../domain/money'
-import { Avatar, Button, ErrorMessage, Modal, PageHeader, Tabs } from '../design'
+import { Avatar, Button, ErrorMessage, Modal, PageHeader, Tabs, treatmentPhoto } from '../design'
 import { AffectedVisits, ScheduleHistory } from '../components/ScheduleImpact'
 import { StudioPrivacy } from '../components/Privacy'
 import { BrandSection, PreferencesSection, WorkspaceSection } from '../components/SettingsSections'
@@ -53,27 +54,60 @@ import { houseRuleNote } from '../domain/brandRules'
 import { SocialAccounts } from '../components/SocialAccounts'
 import '../components/management.css'
 
-const sections = [
-  { id: 'preferences', label: 'Your preferences', icon: SlidersHorizontal },
-  { id: 'business', label: 'Studio details', icon: Building2 },
-  { id: 'locations', label: 'Locations', icon: MapPin },
-  { id: 'brand', label: 'Colours & booking page', icon: Palette },
-  { id: 'messages', label: 'Messages to guests', icon: BellRing },
-  { id: 'payments', label: 'Payments', icon: CreditCard },
-  { id: 'service', label: 'Services', icon: Scissors },
-  { id: 'plans', label: 'Packages & memberships', icon: Layers },
-  { id: 'forms', label: 'Guest forms', icon: ClipboardList },
-  { id: 'staff', label: 'Team', icon: Users },
-  { id: 'resource', label: 'Spaces & equipment', icon: Armchair },
-  { id: 'hours', label: 'Hours & closures', icon: CalendarDays },
-  { id: 'connections', label: 'Connected software', icon: Plug },
-  { id: 'privacy', label: 'Data & privacy', icon: ShieldCheck },
-  { id: 'switching', label: 'Switching over', icon: ArrowRightLeft },
-  { id: 'workspace', label: 'This workspace', icon: Store },
+/**
+ * The sections of Settings, in five groups. Each keeps the id it has always had in the address
+ * (`/settings?section=service` still opens Treatments), so older links still land in place.
+ */
+const groups = [
+  {
+    label: 'Studio',
+    sections: [
+      { id: 'business', label: 'Studio details', icon: Building2 },
+      { id: 'locations', label: 'Locations', icon: MapPin },
+      { id: 'hours', label: 'Hours & closures', icon: CalendarDays },
+      { id: 'brand', label: 'Colours & booking page', icon: Palette },
+    ],
+  },
+  {
+    label: 'Team',
+    sections: [
+      { id: 'staff', label: 'Team', icon: Users },
+      { id: 'resource', label: 'Spaces & equipment', icon: Armchair },
+    ],
+  },
+  {
+    label: 'Treatments and money',
+    sections: [
+      { id: 'service', label: 'Treatments', icon: Scissors },
+      { id: 'plans', label: 'Packages & memberships', icon: Layers },
+      { id: 'payments', label: 'Payments', icon: CreditCard },
+    ],
+  },
+  {
+    label: 'Guests and messages',
+    sections: [
+      { id: 'messages', label: 'Messages to guests', icon: BellRing },
+      { id: 'forms', label: 'Guest forms', icon: ClipboardList },
+      { id: 'receptionist', label: 'AI receptionist', icon: MessageCircle },
+    ],
+  },
+  {
+    label: 'Your account and data',
+    sections: [
+      { id: 'preferences', label: 'Your preferences', icon: SlidersHorizontal },
+      { id: 'connections', label: 'Connected software', icon: Plug },
+      { id: 'privacy', label: 'Data & privacy', icon: ShieldCheck },
+      { id: 'switching', label: 'Switching over', icon: ArrowRightLeft },
+      { id: 'workspace', label: 'This workspace', icon: Store },
+    ],
+  },
 ] as const
-type SectionId = (typeof sections)[number]['id']
+type SectionId = (typeof groups)[number]['sections'][number]['id']
+const sectionIds: readonly string[] = groups.flatMap((group) =>
+  (group.sections as readonly { id: SectionId }[]).map((item) => item.id),
+)
 const isSection = (value: string | null): value is SectionId =>
-  sections.some((item) => item.id === value)
+  value !== null && sectionIds.includes(value)
 const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const clock = (value: number) =>
   Number.isFinite(value)
@@ -109,6 +143,18 @@ function ownHours(data: FormData, fallback: WeekHours, main: string): WeekHours 
       ...(where && where !== main ? { locationId: where } : {}),
     }
   })
+}
+
+/** The house photograph for a kind of treatment, beside it in the list. */
+function TreatmentPhoto({ category, nth }: { category: string; nth: number }) {
+  const photo = treatmentPhoto(category, nth)
+  return (
+    <span
+      className="ops-record-photo"
+      aria-hidden="true"
+      style={{ backgroundImage: `url(${photo.src})`, backgroundPosition: photo.position }}
+    />
+  )
 }
 
 export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
@@ -268,7 +314,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
     if (!editor || editorImpact.length) return
     const command = commandFrom(editor, new FormData(event.currentTarget))
     const message = {
-      service: 'Service saved. Booked prices and durations are preserved.',
+      service: 'Treatment saved. Booked prices and durations are preserved.',
       staff: 'Professional saved.',
       resource: 'Resource saved.',
       closure: 'Time away saved.',
@@ -301,10 +347,11 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
         variant="compact"
         eyebrow="Settings"
         title="Your studio, considered."
-        description="Your own preferences, and the services, people and spaces behind every visit."
+        description="The studio, its team and treatments, and your own preferences."
       />
       <Tabs
         label="Settings sections"
+        picker="Section"
         orientation="vertical"
         value={section}
         disabled={pending}
@@ -313,25 +360,25 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
           setError('')
           setSaved('')
         }}
-        tabs={sections.map(({ id, label, icon: Icon }) => ({
-          value: id,
-          label: (
-            <>
-              <Icon size={17} />
-              {label}
-            </>
-          ),
+        groups={groups.map((group) => ({
+          label: group.label,
+          tabs: group.sections.map(({ id, label, icon: Icon }) => ({
+            value: id,
+            text: label,
+            label: (
+              <>
+                <Icon size={17} aria-hidden="true" />
+                {label}
+              </>
+            ),
+          })),
         }))}
       >
         <div className="ops-layout">
           <div>
             {section === 'preferences' && <PreferencesSection />}
-            {section === 'brand' && (
-              <>
-                <BrandSection />
-                <ReceptionistSettings />
-              </>
-            )}
+            {section === 'brand' && <BrandSection />}
+            {section === 'receptionist' && <ReceptionistSettings />}
             {section === 'messages' && (
               <>
                 <MessageSettings />
@@ -361,7 +408,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
               <section className="surface ops-panel">
                 <header>
                   <div>
-                    <h2>Business details</h2>
+                    <h2>Studio details</h2>
                     <p>The identity guests see when they book.</p>
                   </div>
                   <Building2 size={21} />
@@ -384,7 +431,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                         phone: text(data, 'phone'),
                         email: text(data, 'email'),
                       },
-                      'Business settings saved.',
+                      'Studio details saved.',
                     )
                   }}
                 >
@@ -508,7 +555,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                   {status}
                   <div className="ops-actions">
                     <Button type="submit" disabled={pending || !allowed('organisation')}>
-                      {pending ? 'Saving…' : 'Save business details'}
+                      {pending ? 'Saving…' : 'Save studio details'}
                     </Button>
                   </div>
                 </form>
@@ -596,18 +643,22 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
               <section className="surface ops-panel">
                 <header>
                   <div>
-                    <h2>Service catalogue</h2>
+                    <h2>Treatments</h2>
                     <p>Clear promises, protected once a visit is booked.</p>
                   </div>
                   <Button disabled={!allowed('catalogue')} onClick={() => open('service')}>
                     <Plus size={16} />
-                    Add service
+                    Add treatment
                   </Button>
                 </header>
                 {status}
                 <div className="ops-ledger">
-                  {state.services.map((item) => (
+                  {state.services.map((item, index, all) => (
                     <div className="ops-record" key={item.id}>
+                      <TreatmentPhoto
+                        category={item.category}
+                        nth={all.slice(0, index).filter((s) => s.category === item.category).length}
+                      />
                       <div className="ops-record-copy">
                         <strong>{item.name}</strong>
                         <small>
@@ -629,7 +680,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                 </div>
                 {!state.services.length && (
                   <p className="ops-help">
-                    Add a service, then qualify a professional and create a suitable space.
+                    Add a treatment, then qualify a professional and create a suitable space.
                   </p>
                 )}
               </section>
@@ -657,7 +708,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                           <strong>{item.name}</strong>
                           <small>
                             {item.role} · {item.serviceIds.length} qualified{' '}
-                            {item.serviceIds.length === 1 ? 'service' : 'services'}
+                            {item.serviceIds.length === 1 ? 'treatment' : 'treatments'}
                           </small>
                         </div>
                         <div className="ops-record-controls">
@@ -855,18 +906,6 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
               </>
             )}
           </div>
-          <aside className="ops-aside">
-            <h2>A steady foundation.</h2>
-            <p>
-              Services, people and spaces share the same calendar. Changes here guide the next
-              booking.
-            </p>
-            <p>Booked prices, durations and deposits remain attached to the original visit.</p>
-            <img
-              src="/images/saleane-studio-warm.jpg"
-              alt="Sunlit treatment studio with cream linens"
-            />
-          </aside>
         </div>
       </Tabs>
       {editor && (
@@ -881,7 +920,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
           title={
             editor.kind === 'closure'
               ? 'Time away'
-              : `${editor.id ? 'Edit' : 'Add'} ${editor.kind === 'staff' ? 'professional' : editor.kind}`
+              : `${editor.id ? 'Edit' : 'Add'} ${{ service: 'treatment', staff: 'professional', resource: 'resource' }[editor.kind]}`
           }
           description="Changes are saved to this workspace. Existing history is preserved."
         >

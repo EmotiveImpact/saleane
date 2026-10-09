@@ -18,10 +18,11 @@ import {
 import { useStore } from './state/context'
 import { useStudioColours } from './state/studioColours'
 import { leads, operations } from './domain/operations'
-import { places } from './domain/locations'
+import { hasLocations, places } from './domain/locations'
+import { regions } from './domain/group'
 import { staleOffer } from './domain/waitlist'
 import { nudges } from './domain/nudges'
-import { Avatar, Modal } from './design'
+import { Avatar, Modal, ScrollNav } from './design'
 import { SearchDialog } from './components/SearchDialog'
 import { Today } from './pages/Today'
 import { Calendar } from './pages/Calendar'
@@ -78,6 +79,9 @@ const navigation = [
   { to: '/business', label: 'Business', icon: ChartNoAxesCombined },
   { to: '/settings', label: 'Settings', icon: Settings2 },
 ]
+/** Whether a sidebar section holds the page that is open, including the pages inside it. */
+const within = (pathname: string, section: string) =>
+  pathname === section || pathname.startsWith(`${section}/`)
 
 function WorkspaceApp() {
   const { state, warning, mode, slug, loading, session, role, reload, today, branch } = useStore()
@@ -109,8 +113,33 @@ function WorkspaceApp() {
   const drafts = operations(state).messages.filter(
     (m) => m.status === 'draft' && !staleOffer(state, m.id, clock),
   ).length
+  // The front desk opens Money, Stock, Rota and Gift cards in Business, not the studio's figures,
+  // pay, accounts or private feedback, so their Business link lands on Money.
+  const desk = role === 'reception'
+  const links = navigation.map((item) => ({
+    ...item,
+    href: desk && item.to === '/business' ? '/business/money' : item.to,
+    active: within(location.pathname, item.to),
+  }))
+  const owns = role === 'owner' || role === 'manager'
+  // Branch visits and Requests are about running several branches, so they wait until there are
+  // more locations or any regions. A general manager runs one of several, so always has them.
+  const branches = hasLocations(state) || regions(state).length > 0 || role === 'general'
+  const businessTabs = [
+    { to: '/business', label: 'Overview', show: !desk },
+    { to: '/business/money', label: 'Money', show: true },
+    { to: '/business/stock', label: 'Stock', show: true },
+    { to: '/business/rota', label: 'Rota', show: true },
+    { to: '/business/gift-cards', label: 'Gift cards', show: role !== 'practitioner' },
+    { to: '/business/pay', label: 'Pay', show: owns },
+    { to: '/business/accounts', label: 'Accounts', show: owns },
+    { to: '/business/feedback', label: 'Feedback', show: leads(role) },
+    { to: '/business/visits', label: 'Branch visits', show: leads(role) && branches },
+    { to: '/business/requests', label: 'Requests', show: leads(role) && branches },
+    { to: '/business/areas', label: 'Client areas', show: leads(role) },
+  ].filter((tab) => tab.show)
   useEffect(() => {
-    document.title = `SALEANE — ${state.organisation.name}`
+    document.title = `${state.organisation.name} · SALEANE`
   }, [state.organisation.name])
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0 })
@@ -192,12 +221,13 @@ function WorkspaceApp() {
           <ChevronDown size={14} />
         </button>
         <nav>
-          {navigation.map(({ to, label, icon: Icon }) => (
-            <NavLink
+          {links.map(({ to, href, active, label, icon: Icon }) => (
+            <Link
               onClick={() => setMobileNav(false)}
-              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+              className={`nav-link ${active ? 'active' : ''}`}
+              aria-current={active ? 'page' : undefined}
               key={to}
-              to={to}
+              to={href}
             >
               <Icon size={19} strokeWidth={1.6} />
               {label}
@@ -207,7 +237,7 @@ function WorkspaceApp() {
                   <span className="sr-only"> {drafts === 1 ? 'draft' : 'drafts'} to approve</span>
                 </span>
               )}
-            </NavLink>
+            </Link>
           ))}
         </nav>
         <div className="sidebar-bottom">
@@ -226,9 +256,6 @@ function WorkspaceApp() {
               <span className="live-dot" />
               Local V1 candidate
             </span>
-            <Link className="icon-button" aria-label="Settings" to="/settings">
-              <Settings2 size={18} />
-            </Link>
           </div>
         </div>
       </aside>
@@ -240,11 +267,17 @@ function WorkspaceApp() {
           description={`Choose where to work in ${state.organisation.name}.`}
         >
           <nav className="mobile-route-menu">
-            {navigation.map(({ to, label, icon: Icon }) => (
-              <NavLink key={to} to={to} onClick={() => setMobileNav(false)}>
+            {links.map(({ to, href, active, label, icon: Icon }) => (
+              <Link
+                key={to}
+                to={href}
+                className={active ? 'active' : undefined}
+                aria-current={active ? 'page' : undefined}
+                onClick={() => setMobileNav(false)}
+              >
                 <Icon size={19} />
                 {label}
-              </NavLink>
+              </Link>
             ))}
             <Link to="/booking" onClick={() => setMobileNav(false)}>
               Your booking page
@@ -273,7 +306,11 @@ function WorkspaceApp() {
               <Sparkles size={17} />
               <span>
                 Ask Saleane
-                {noticed > 0 && `, ${noticed} ${noticed === 1 ? 'thing' : 'things'} to mention`}
+                {noticed > 0 && (
+                  <span className="ask-count">
+                    , {noticed} {noticed === 1 ? 'thing' : 'things'} to mention
+                  </span>
+                )}
               </span>
               {noticed > 0 && <i className="ask-dot" aria-hidden="true" />}
             </button>
@@ -316,30 +353,18 @@ function WorkspaceApp() {
           id="main-content"
           className="workspace-main"
         >
-          {location.pathname.startsWith('/business') && (
-            <nav className="business-subnav" aria-label="Business sections">
-              <NavLink end to="/business">
-                Overview
-              </NavLink>
-              <NavLink to="/business/money">Money</NavLink>
-              <NavLink to="/business/stock">Stock</NavLink>
-              <NavLink to="/business/rota">Rota</NavLink>
-              {role !== 'practitioner' && <NavLink to="/business/gift-cards">Gift cards</NavLink>}
-              {(role === 'owner' || role === 'manager') && (
-                <>
-                  <NavLink to="/business/pay">Pay</NavLink>
-                  <NavLink to="/business/accounts">Accounts</NavLink>
-                </>
-              )}
-              {leads(role) && (
-                <>
-                  <NavLink to="/business/feedback">Feedback</NavLink>
-                  <NavLink to="/business/visits">Branch visits</NavLink>
-                  <NavLink to="/business/requests">Requests</NavLink>
-                  <NavLink to="/business/areas">Client areas</NavLink>
-                </>
-              )}
-            </nav>
+          {within(location.pathname, '/business') && (
+            <ScrollNav
+              label="Business sections"
+              className="business-subnav"
+              current={location.pathname}
+            >
+              {businessTabs.map((tab) => (
+                <NavLink key={tab.to} end={tab.to === '/business'} to={tab.to}>
+                  {tab.label}
+                </NavLink>
+              ))}
+            </ScrollNav>
           )}
           <Routes>
             <Route path="/" element={<Navigate to="/today" replace />} />
@@ -351,10 +376,13 @@ function WorkspaceApp() {
             <Route path="/waitlist" element={<Waitlist />} />
             <Route
               path="/business"
-              element={role === 'reception' ? <Navigate to="/settings" replace /> : <Business />}
+              element={desk ? <Navigate to="/business/money" replace /> : <Business />}
             />
             <Route path="/business/money" element={<Money />} />
-            <Route path="/business/feedback" element={<Feedback />} />
+            <Route
+              path="/business/feedback"
+              element={leads(role) ? <Feedback /> : <Navigate to="/business" replace />}
+            />
             <Route path="/business/stock" element={<Stock />} />
             <Route
               path="/business/accounts"
