@@ -3,7 +3,9 @@ import { z } from 'zod'
 import { digest, token } from '../auth'
 import { canonical, fail } from '../http'
 import { commandSchema, dispatch, slots } from '../../src/domain/commands'
-import { businessDate, operations } from '../../src/domain/operations'
+import { businessDate, hoursFor, operations } from '../../src/domain/operations'
+import { addDays } from '../../src/domain/format'
+import type { BusinessState } from '../../src/domain/model'
 import { patchTestSettings } from '../../src/domain/patchTests'
 import { currentWording } from '../../src/domain/consent'
 import { HOLD_LIMITS, holdInput, guestContact } from '../context'
@@ -14,7 +16,18 @@ import { places, serviceAt, staffLocationOn, staffPlaces } from '../../src/domai
 import { isOn } from '../../src/assistant/receptionist'
 import { guestPhone, phoneProblem } from '../../src/domain/phone'
 import { GUEST_CANCEL_CUTOFF_HOURS } from '../../src/domain/guest'
+import { BOOKING_DAYS, NEXT_FREE_DAYS, STRIP_DAYS } from '../../src/domain/bookingTerms'
 import { guestPaymentFor } from '../payments/service'
+
+/** A location shut all day: closed on its weekly hours, or closed for the whole of its hours. */
+function placeClosed(s: BusinessState, date: string, locationId?: string) {
+  const hours = hoursFor(s, date, locationId)
+  if (!hours || hours.closed) return true
+  return operations(s).closures.some(
+    (c) =>
+      c.date === date && !c.staffId && c.startMinutes <= hours.open && c.endMinutes >= hours.close,
+  )
+}
 
 /** Public booking routes. These never return clients, histories or money. Returns false when the request belongs to another module. */
 export async function publicRoutes(ctx: Context, route: Route): Promise<boolean> {
@@ -105,6 +118,53 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
       })
       return true
     }
+    // A run of days for the booking page's day strip: whether each is closed and how many times
+    // are free, and the first free time from a day on. Never before the studio's today.
+    if (['days', 'next'].includes(path[3]) && path.length === 4 && method === 'GET') {
+      rateLimit(request, 'public-days', 60, 5 * 60000)
+      const query = z
+        .object({
+          serviceId: z.string().min(1).max(100),
+          staffId: z.string().min(1).max(100),
+          from: z.iso.date(),
+          locationId: z.string().min(1).max(150).optional(),
+        })
+        .parse(Object.fromEntries(url.searchParams))
+      const org = publicOrg(slug)
+      const state = withHolds(org),
+        time = new Date(now()).toISOString(),
+        today = businessDate(org.state, time)
+      const first = query.from < today ? today : query.from
+      const last = addDays(today, BOOKING_DAYS - 1)
+      const day = (date: string) => {
+        // A professional chosen by name is wherever they work that day.
+        const place =
+          query.locationId ??
+          (query.staffId === 'any' ? undefined : staffLocationOn(state, query.staffId, date))
+        const closed = placeClosed(state, date, place)
+        const times = closed
+          ? []
+          : slots(state, query.serviceId, query.staffId, date, time, query.locationId)
+        return { date, closed, times }
+      }
+      if (path[3] === 'days') {
+        const days = []
+        for (let date = first; date <= last && days.length < STRIP_DAYS; date = addDays(date, 1)) {
+          const { closed, times } = day(date)
+          days.push({ date, closed, times: times.length })
+        }
+        reply(200, { days })
+      } else {
+        let next: { date: string; startMinutes: number } | null = null
+        for (let n = 0, date = first; !next && n < NEXT_FREE_DAYS && date <= last; n++) {
+          const { times } = day(date)
+          if (times.length) next = { date, startMinutes: times[0] }
+          date = addDays(date, 1)
+        }
+        reply(200, { next })
+      }
+      return true
+    }
     if (path[3] === 'holds' && path[4] === 'release' && path.length === 5 && method === 'POST') {
       rateLimit(request, 'public-write', 20, 5 * 60000)
       const data = z
@@ -142,7 +202,8 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
       }
       const raw = token(),
         visitor = visitorFor(request)
-      let expires = 0
+      let expires = 0,
+        heldWith = ''
       db.transaction(() => {
         const time = now()
         expires = time + limits.HOLD_MS
@@ -176,6 +237,7 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
           fail(429, 'Many guests are choosing times right now. Try again in a few minutes.')
         const blocked = withHolds(org),
           allocation = chooseStaff(blocked, data)
+        heldWith = allocation.staffId
         const service = org.state.services.find((service) => service.id === data.serviceId)!
         // V2: the price where the visit will be, which can differ between locations.
         const place = data.locationId ?? staffLocationOn(org.state, allocation.staffId, data.date)
@@ -199,7 +261,8 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
           visitor,
         )
       })
-      reply(201, { hold: raw, expiresAt: new Date(expires).toISOString() })
+      // Who the time is with, so a guest who chose "no preference" sees who they will meet.
+      reply(201, { hold: raw, expiresAt: new Date(expires).toISOString(), staffId: heldWith })
       return true
     }
     if (path[3] === 'book' && path.length === 4 && method === 'POST') {

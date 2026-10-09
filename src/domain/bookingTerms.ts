@@ -1,6 +1,13 @@
 import { dateLabel, timeLabel } from './format'
 import { instantIn } from './operations'
 
+/** How far ahead a guest can book online, counting the studio's today. */
+export const BOOKING_DAYS = 366
+/** Days in one run of the booking page's day strip, and in one answer about them. */
+export const STRIP_DAYS = 14
+/** How far "first available" and "next free" look ahead: about three months. */
+export const NEXT_FREE_DAYS = 92
+
 /**
  * The cancellation rule a guest agrees to before confirming a visit, in plain words. It follows
  * the rule the guest's own visit page applies (LOCAL-02, `guestCancellation` in guest.ts): a

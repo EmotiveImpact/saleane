@@ -27,7 +27,15 @@ import type { StudioLook } from '../domain/brandRulesSchema'
 import { guestPhone, phoneProblem } from '../domain/phone'
 import { GUEST_CANCEL_CUTOFF_HOURS } from '../domain/guest'
 import type { GuestPayment as GuestPaymentView } from '../domain/guest'
-import { cancellationTerms, civilTime } from '../domain/bookingTerms'
+import {
+  BOOKING_DAYS,
+  STRIP_DAYS,
+  cancellationTerms,
+  civilTime,
+  whenLabel,
+} from '../domain/bookingTerms'
+import { DayStrip } from '../components/DayStrip'
+import type { DayStripDay } from '../components/DayStrip'
 import { instantIn } from '../domain/operations'
 import { useClock } from '../state/clock'
 import { startGuestPayment } from '../state/guestPay'
@@ -66,6 +74,26 @@ function urlChannel() {
     return new URLSearchParams(window.location.search).get('from') ?? undefined
   } catch {
     return undefined
+  }
+}
+/** What a hold answers: its token, when it runs out and, from newer servers, who it is with. */
+type HoldReply = { hold: string; expiresAt: string; staffId?: string }
+/** A free time on some day, such as the first available one. */
+type FreeTime = { date: string; startMinutes: number }
+/** Whole seconds until a hold runs out, never below zero. */
+function secondsLeft(expiresAt: string) {
+  return Math.max(0, Math.ceil((Date.parse(expiresAt) - Date.now()) / 1000))
+}
+/** Whole days from one date to another, both written yyyy-mm-dd. */
+function daysBetween(from: string, to: string) {
+  return Math.round((Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / 86400000)
+}
+/** The time zone the guest's own device is set to, when it says. */
+function deviceZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone
+  } catch {
+    return ''
   }
 }
 type Catalog = {
@@ -190,7 +218,7 @@ function BookingFlow({
       recovery.value?.serviceId ?? linked?.serviceId ?? services[0]?.id ?? '',
     ),
     [staffId, setStaffId] = useState(recovery.value?.staffId ?? linked?.staffId ?? 'any'),
-    [date, setDate] = useState(recovery.value?.date ?? linked?.date ?? addDays(today, 1)),
+    [chosenDate, setDate] = useState(recovery.value?.date ?? linked?.date ?? addDays(today, 1)),
     [chosenLocation, setLocationId] = useState(
       recovery.value?.locationId ??
         // V2: a location's own booking link opens with it chosen.
@@ -199,6 +227,32 @@ function BookingFlow({
         locations[0]?.id ??
         '',
     )
+  const [hold, setHold] = useState<HoldReply | null>(
+      recovery.value
+        ? { hold: recovery.value.payload.hold, expiresAt: recovery.value.expiresAt }
+        : null,
+    ),
+    [seconds, setSeconds] = useState(() =>
+      recovery.value ? secondsLeft(recovery.value.expiresAt) : 0,
+    )
+  // The studio's today: the server's, moved on by each midnight that passes in the studio while
+  // the page stays open. A sample studio keeps its own fixed day.
+  const [openedAt] = useState(clock)
+  const studioToday = sample
+    ? today
+    : addDays(
+        today,
+        Math.max(
+          0,
+          daysBetween(
+            civilTime(Date.parse(openedAt), org.timeZone).date,
+            civilTime(Date.parse(clock), org.timeZone).date,
+          ),
+        ),
+      )
+  // No day before the studio's today is ever chosen or suggested. A held or submitted time keeps
+  // its own date.
+  const date = hold || attempt || chosenDate >= studioToday ? chosenDate : studioToday
   // Only places where someone does the chosen treatment are offered.
   /** A treatment's list price, from the locations where a guest can book it (V2). */
   const shown = (s: Catalog['services'][number]) =>
@@ -242,12 +296,43 @@ function BookingFlow({
   const queryKey = [serviceId, staffId, date, base, step, locationId].join('|'),
     loadingTimes = availability.key !== queryKey,
     times = loadingTimes ? [] : availability.times
-  const [hold, setHold] = useState<{ hold: string; expiresAt: string } | null>(
-      recovery.value
-        ? { hold: recovery.value.payload.hold, expiresAt: recovery.value.expiresAt }
-        : null,
-    ),
-    [seconds, setSeconds] = useState(0)
+  /** The search for times: what is booked, with whom and where. Day counts are kept by it. */
+  const searchKey = [base, serviceId, staffId, located.locationId ?? ''].join('|')
+  // The day strip runs from the studio's today, a fortnight at a time: as many fortnights as the
+  // guest asked for, and enough to show the chosen day.
+  const [fortnights, setFortnights] = useState(1)
+  const stripLength = Math.min(
+    BOOKING_DAYS,
+    Math.max(fortnights, Math.floor(daysBetween(studioToday, date) / STRIP_DAYS) + 1) * STRIP_DAYS,
+  )
+  const runStarts = Array.from({ length: Math.ceil(stripLength / STRIP_DAYS) }, (_, i) =>
+    addDays(studioToday, i * STRIP_DAYS),
+  )
+  const [dayCounts, setDayCounts] = useState<Record<string, { closed: boolean; free: number }>>({})
+  const daysAsked = useRef(new Set<string>()),
+    stepWas = useRef(0)
+  const stripDays: DayStripDay[] = Array.from({ length: stripLength }, (_, i) => {
+    const day = addDays(studioToday, i),
+      known = dayCounts[`${searchKey}|${day}`]
+    return known ? { date: day, ...known } : { date: day }
+  })
+  const dayClosed = !!dayCounts[`${searchKey}|${date}`]?.closed
+  const [finding, setFinding] = useState(false),
+    [nothingAhead, setNothingAhead] = useState('')
+  // The next free time after a day with none, looked up for that day.
+  const emptyDay = step === 2 && !loadingTimes && !times.length,
+    nextKey = `${searchKey}|${date}`
+  const [nextFree, setNextFree] = useState<{ key: string; next: FreeTime | null }>({
+    key: '',
+    next: null,
+  })
+  // When a hold runs out and its time has gone meanwhile: the nearest free times instead.
+  const [holdGone, setHoldGone] = useState<{
+    date: string
+    start: number
+    near: number[]
+    next: FreeTime | null
+  } | null>(null)
   const [botToken, setBotToken] = useState(''),
     [botAttempt, setBotAttempt] = useState(0)
   const [name, setName] = useState(recovery.value?.payload.contact.name ?? ''),
@@ -263,8 +348,9 @@ function BookingFlow({
     [paying, setPaying] = useState(false),
     [payError, setPayError] = useState('')
   const phoneField = useRef<HTMLInputElement>(null)
+  // A held time says who it is with, even when the guest had no preference.
   const service = services.find((s) => s.id === serviceId),
-    professional = staff.find((s) => s.id === staffId)
+    professional = staff.find((s) => s.id === (hold?.staffId ?? staffId))
   // What the visit costs where it will be, and the deposit asked for when it is booked.
   const priceMinor = service ? fullPriceMinor(serviceAt(service, place?.id), tax) : 0
   const depositMinor = service ? Math.min(service.depositMinor, priceMinor) : 0
@@ -312,14 +398,27 @@ function BookingFlow({
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0 })
   }, [step, confirmed])
+  /** The search for times as a query, with anything more it needs. */
+  const searchFor = (more: Record<string, string>) =>
+    new URLSearchParams({
+      serviceId,
+      staffId,
+      ...(located.locationId ? { locationId: located.locationId } : {}),
+      ...more,
+    })
   useEffect(() => {
     if (!serviceId || step !== 2) return
     let active = true
-    api<{ times: number[] }>(
-      `${base}/availability?${new URLSearchParams(located.locationId ? { serviceId, staffId, date, locationId: located.locationId } : { serviceId, staffId, date })}`,
-    )
+    const counted = `${searchKey}|${date}`
+    api<{ times: number[] }>(`${base}/availability?${searchFor({ date })}`)
       .then((r) => {
-        if (active) setAvailability({ key: queryKey, times: r.times })
+        if (!active) return
+        setAvailability({ key: queryKey, times: r.times })
+        // The chosen day's count follows its times, so the strip and the list agree.
+        setDayCounts((known) => ({
+          ...known,
+          [counted]: { closed: known[counted]?.closed ?? false, free: r.times.length },
+        }))
       })
       .catch((e) => {
         if (active) {
@@ -333,39 +432,157 @@ function BookingFlow({
     // `located` follows locationId, which is part of the query key.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serviceId, staffId, date, base, step, queryKey])
+  // How many times each day in the strip has, a fortnight per question, asked afresh each time
+  // the guest comes to this step.
+  useEffect(() => {
+    if (step === 2 && stepWas.current !== 2) daysAsked.current.clear()
+    stepWas.current = step
+    if (!serviceId || step !== 2) return
+    for (const from of runStarts) {
+      const asked = `${searchKey}|${from}`
+      if (daysAsked.current.has(asked)) continue
+      daysAsked.current.add(asked)
+      api<{ days: { date: string; closed: boolean; times: number }[] }>(
+        `${base}/days?${searchFor({ from })}`,
+      )
+        .then(({ days }) =>
+          setDayCounts((known) => ({
+            ...known,
+            ...Object.fromEntries(
+              days.map((day) => [
+                `${searchKey}|${day.date}`,
+                { closed: day.closed, free: day.times },
+              ]),
+            ),
+          })),
+        )
+        // The counts only help a guest choose; the chosen day's own times stay the authority.
+        .catch(() => daysAsked.current.delete(asked))
+    }
+    // `searchFor` and `runStarts` follow the search key and the strip's first days.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, serviceId, searchKey, runStarts.join()])
+  // A day with no free times points to the next one, which is never before the studio's today.
+  useEffect(() => {
+    if (!emptyDay) return
+    let active = true
+    api<{ next: FreeTime | null }>(`${base}/next?${searchFor({ from: addDays(date, 1) })}`)
+      .then(({ next }) => {
+        if (active) setNextFree({ key: nextKey, next })
+      })
+      .catch(() => {
+        if (active) setNextFree({ key: nextKey, next: null })
+      })
+    return () => {
+      active = false
+    }
+    // `searchFor` and `date` are part of the next key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [emptyDay, nextKey])
   useEffect(() => {
     if (!hold) return
-    const update = () =>
-      setSeconds(Math.max(0, Math.ceil((Date.parse(hold.expiresAt) - Date.now()) / 1000)))
+    const update = () => setSeconds(secondsLeft(hold.expiresAt))
     update()
     const timer = setInterval(update, 1000)
     return () => clearInterval(timer)
   }, [hold])
+  /** Moves to a free time on another day, such as the first available one. */
+  function goTo(free: FreeTime) {
+    setDate(free.date)
+    setStart(free.startMinutes)
+    setError('')
+  }
+  async function firstAvailable() {
+    setFinding(true)
+    setError('')
+    setNothingAhead('')
+    try {
+      const { next } = await api<{ next: FreeTime | null }>(
+        `${base}/next?${searchFor({ from: studioToday })}`,
+      )
+      if (next) goTo(next)
+      else setNothingAhead(searchKey)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'The first free time could not be found.')
+    } finally {
+      setFinding(false)
+    }
+  }
+  /** Keeps a new hold and starts its countdown at once, so it never shows as run out. */
+  function keepHold(reply: HoldReply) {
+    setHold(reply)
+    setSeconds(secondsLeft(reply.expiresAt))
+    setHoldGone(null)
+  }
+  function holdBody(at: number, on: string) {
+    return {
+      serviceId,
+      staffId,
+      date: on,
+      startMinutes: at,
+      ...located,
+      // Hand back any earlier hold so this guest never holds two times at once.
+      ...(hold ? { replaces: hold.hold } : {}),
+      ...(botCheck ? { botCheck: botToken } : {}),
+    }
+  }
   async function reserve() {
     if (start === null) return
     setPending(true)
     setError('')
     try {
-      setHold(
-        await api(`${base}/holds`, {
-          method: 'POST',
-          body: {
-            serviceId,
-            staffId,
-            date,
-            startMinutes: start,
-            ...located,
-            // Hand back any earlier hold so this guest never holds two times at once.
-            ...(hold ? { replaces: hold.hold } : {}),
-            ...(botCheck ? { botCheck: botToken } : {}),
-          },
-        }),
+      keepHold(
+        await api<HoldReply>(`${base}/holds`, { method: 'POST', body: holdBody(start, date) }),
       )
       setStep(3)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'This time could not be reserved.')
     } finally {
       // Turnstile tokens are single use, so every attempt needs a fresh check.
+      if (botCheck) setBotAttempt((n) => n + 1)
+      setPending(false)
+    }
+  }
+  /**
+   * After a hold runs out: one tap holds the same time again, keeping the guest's details. When
+   * the time has gone meanwhile, the guest is told and offered the nearest free times instead.
+   */
+  async function holdAgain(at: number, on = date) {
+    if (!hold || attempt) return
+    setPending(true)
+    setError('')
+    try {
+      keepHold(await api<HoldReply>(`${base}/holds`, { method: 'POST', body: holdBody(at, on) }))
+      if (at !== start || on !== date) {
+        setDate(on)
+        setStart(at)
+        // A different time has its own cancellation cutoff, so the guest reads the terms again.
+        setPolicy(false)
+      }
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 409) {
+        let near: number[] = [],
+          next: FreeTime | null = null
+        try {
+          const { times: free } = await api<{ times: number[] }>(
+            `${base}/availability?${searchFor({ date: on })}`,
+          )
+          near = [...free]
+            .sort((a, b) => Math.abs(a - at) - Math.abs(b - at) || a - b)
+            .slice(0, 4)
+            .sort((a, b) => a - b)
+          if (!near.length)
+            next = (
+              await api<{ next: FreeTime | null }>(
+                `${base}/next?${searchFor({ from: addDays(on, 1) })}`,
+              )
+            ).next
+        } catch {
+          /* The guest can still choose another time. */
+        }
+        setHoldGone({ date: on, start: at, near, next })
+      } else setError(e instanceof Error ? e.message : 'This time could not be held again.')
+    } finally {
       if (botCheck) setBotAttempt((n) => n + 1)
       setPending(false)
     }
@@ -377,6 +594,7 @@ function BookingFlow({
     try {
       if (hold) await api(`${base}/holds/release`, { method: 'POST', body: { hold: hold.hold } })
       setHold(null)
+      setHoldGone(null)
       setStart(null)
       setStep(2)
     } catch (e) {
@@ -452,6 +670,73 @@ function BookingFlow({
       setPending(false)
     }
   }
+  // Times are the studio's own; a guest whose device is set elsewhere is told so.
+  const zone = deviceZone()
+  // After a hold runs out, beside the step's own buttons: hold the same time again in one tap.
+  // A held time from an earlier day is never offered again: the guest chooses a new one.
+  const heldPassed = date < studioToday
+  const canHold = !pending && (!botCheck || !!botToken)
+  const holdPanel =
+    step >= 3 && hold && !attempt && !seconds && start !== null ? (
+      <section className="booking-hold-again" aria-labelledby="booking-hold-again-heading">
+        <h3 id="booking-hold-again-heading">
+          {heldPassed
+            ? 'That time has passed'
+            : holdGone
+              ? 'That time has just gone'
+              : 'Your hold has ended'}
+        </h3>
+        <p role="status">
+          {heldPassed
+            ? 'Choose another time to carry on; your details are kept.'
+            : !holdGone
+              ? `We kept ${whenLabel(date, start, org.locale)} for you for five minutes. Hold it again to carry on; your details are kept.`
+              : `${whenLabel(holdGone.date, holdGone.start, org.locale)} is no longer free. ${
+                  holdGone.near.length
+                    ? 'These are the nearest free times that day. Choose one to hold it, and your details are kept.'
+                    : holdGone.next
+                      ? 'Nothing else is free that day. This is the next free time.'
+                      : 'Nothing else is free soon with this choice. Choose another time to look further ahead.'
+                }`}
+        </p>
+        {botCheck && !heldPassed && (
+          <BotCheck key={botAttempt} siteKey={botCheck.siteKey} onToken={setBotToken} />
+        )}
+        <div className="booking-hold-actions">
+          {!heldPassed && !holdGone && (
+            <Button disabled={!canHold} onClick={() => void holdAgain(start)}>
+              Hold it again
+            </Button>
+          )}
+          {!heldPassed &&
+            holdGone?.near.map((time) => (
+              <Button
+                key={time}
+                variant="secondary"
+                disabled={!canHold}
+                aria-label={`Hold ${timeLabel(time, org.locale)} instead`}
+                onClick={() => void holdAgain(time, holdGone.date)}
+              >
+                {timeLabel(time, org.locale)}
+              </Button>
+            ))}
+          {!heldPassed && holdGone?.next && (
+            <Button
+              variant="secondary"
+              disabled={!canHold}
+              onClick={() => void holdAgain(holdGone.next!.startMinutes, holdGone.next!.date)}
+            >
+              Hold {whenLabel(holdGone.next.date, holdGone.next.startMinutes, org.locale)}
+            </Button>
+          )}
+          {step === 4 && (
+            <Button variant="quiet" disabled={pending} onClick={() => void chooseAnotherTime()}>
+              Choose another time
+            </Button>
+          )}
+        </div>
+      </section>
+    ) : null
   return (
     <BookingFrame
       studio={org.name}
@@ -604,13 +889,16 @@ function BookingFlow({
                 ][step - 1]
               }
             </h2>
-            {step >= 3 && hold && (
+            {step >= 3 && hold && attempt && (
               <p className="subtle" role="status">
-                {attempt
-                  ? 'Confirmation needs checking. Your submitted details are protected; check this booking before choosing another time.'
-                  : seconds
-                    ? `This time is held for ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}.`
-                    : 'Your hold expired. Choose a time again.'}
+                Confirmation needs checking. Your submitted details are protected; check this
+                booking before choosing another time.
+              </p>
+            )}
+            {step >= 3 && hold && !attempt && seconds > 0 && (
+              <p className="subtle">
+                This time is held for {Math.floor(seconds / 60)}:
+                {String(seconds % 60).padStart(2, '0')}.
               </p>
             )}
             <ErrorMessage error={recovery.error} />
@@ -708,50 +996,82 @@ function BookingFlow({
                         ))}
                     </select>
                   </label>
-                  <label>
-                    Choose a date
-                    <input
-                      type="date"
-                      min={today}
-                      max={addDays(today, 365)}
-                      value={date}
-                      onChange={(e) => {
-                        setDate(e.target.value)
-                        setStart(null)
-                        setError('')
-                      }}
-                    />
-                  </label>
+                  <DayStrip
+                    days={stripDays}
+                    value={date}
+                    today={studioToday}
+                    locale={org.locale}
+                    label="Choose a day"
+                    onChange={(day) => {
+                      setDate(day)
+                      setStart(null)
+                      setError('')
+                    }}
+                    onMore={
+                      stripLength < BOOKING_DAYS
+                        ? () => setFortnights(runStarts.length + 1)
+                        : undefined
+                    }
+                    action={
+                      <Button
+                        variant="secondary"
+                        className="booking-first-free"
+                        disabled={finding}
+                        onClick={() => void firstAvailable()}
+                      >
+                        {finding ? 'Looking…' : 'First available'}
+                      </Button>
+                    }
+                  />
+                  {nothingAhead === searchKey && (
+                    <p role="status" className="booking-day-note">
+                      Nothing is free in the next three months with this choice. Try another
+                      professional{offered.length > 1 ? ' or location' : ''}.
+                    </p>
+                  )}
                   {loadingTimes ? (
-                    <p role="status">Finding available times…</p>
-                  ) : (
+                    <p role="status" className="booking-day-note">
+                      Finding available times…
+                    </p>
+                  ) : times.length ? (
                     <TimeChoices
-                      label={`Available times · ${org.timeZone}`}
+                      label={`Times on ${dateLabel(date, org.locale)}`}
                       times={times.map((value) => ({
                         value,
                         label: timeLabel(value, org.locale),
                       }))}
                       value={start}
                       onChange={setStart}
-                      tabs
                     />
+                  ) : (
+                    <div className="booking-day-empty" role="status">
+                      <p>
+                        {dayClosed
+                          ? `The studio is closed on ${dateLabel(date, org.locale)}.`
+                          : `Nothing is free on ${dateLabel(date, org.locale)}.`}{' '}
+                        {nextFree.key !== nextKey
+                          ? 'Looking for the next free time…'
+                          : nextFree.next
+                            ? 'The next free time is:'
+                            : 'Nothing is free in the next three months with this choice.'}
+                      </p>
+                      {nextFree.key === nextKey && nextFree.next && (
+                        <Button variant="secondary" onClick={() => goTo(nextFree.next!)}>
+                          {whenLabel(nextFree.next.date, nextFree.next.startMinutes, org.locale)}
+                        </Button>
+                      )}
+                    </div>
                   )}
                   {!loadingTimes && start !== null && !times.includes(start) && (
                     <p role="status" className="subtle">
                       {timeLabel(start, org.locale)} is no longer free. Choose another time.
                     </p>
                   )}
-                  {!loadingTimes && !times.length && date < addDays(today, 365) && (
-                    <Button
-                      variant="secondary"
-                      onClick={() => {
-                        setDate(addDays(date, 1))
-                        setStart(null)
-                        setError('')
-                      }}
-                    >
-                      Try {dateLabel(addDays(date, 1), org.locale)}
-                    </Button>
+                  {zone && zone !== org.timeZone && (
+                    <p className="booking-day-note">
+                      Times are {org.timeZone.split('/').pop()!.replace(/_/g, ' ')} time, where the
+                      studio is.
+                    </p>
                   )}
                   {botCheck && (
                     <BotCheck key={botAttempt} siteKey={botCheck.siteKey} onToken={setBotToken} />
@@ -858,6 +1178,7 @@ function BookingFlow({
                       details while this local candidate is under review.
                     </p>
                   </div>
+                  {holdPanel}
                   <div className="booking-next">
                     <Button variant="quiet" onClick={() => void chooseAnotherTime()}>
                       Choose another time
@@ -922,6 +1243,7 @@ function BookingFlow({
                       ? 'I understand this is a sample studio: nothing is charged or sent.'
                       : 'I agree to the deposit and cancellation terms.'}
                   </label>
+                  {holdPanel}
                   <div className="booking-next">
                     <Button variant="quiet" disabled={!!attempt} onClick={() => setStep(3)}>
                       Edit details
@@ -934,11 +1256,6 @@ function BookingFlow({
                       <Check size={17} />
                     </Button>
                   </div>
-                  {!seconds && !attempt && (
-                    <Button variant="secondary" onClick={() => void chooseAnotherTime()}>
-                      Choose a time again
-                    </Button>
-                  )}
                 </>
               )}
             </fieldset>

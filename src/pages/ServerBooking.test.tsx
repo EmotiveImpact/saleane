@@ -1,10 +1,11 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { ServerBooking } from './ServerBooking'
 import { api, ApiError } from '../state/api'
 import { seed } from '../domain/seed'
+import { addDays } from '../domain/format'
 
 vi.mock('../state/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../state/api')>()),
@@ -44,6 +45,20 @@ afterEach(() => {
   vi.useRealTimers()
   vi.resetAllMocks()
 })
+/** A fortnight from a day, as the server answers the day strip: three times a day unless said. */
+function fortnight(from: string, special: Record<string, { closed?: boolean; times?: number }>) {
+  return Array.from({ length: 14 }, (_, i) => {
+    const date = addDays(from, i)
+    return { date, closed: special[date]?.closed ?? false, times: special[date]?.times ?? 3 }
+  })
+}
+const queryOf = (path: string) => new URLSearchParams(path.split('?')[1] ?? '')
+/** Every date the page asked the server about, for a day or as the first of a run. */
+const datesAsked = () =>
+  vi
+    .mocked(api)
+    .mock.calls.flatMap(([path]) => ['date', 'from'].map((key) => queryOf(path).get(key)))
+    .filter((date): date is string => !!date)
 
 test('unknown confirmation retains its exact snapshot through expiry and reload, then safely replays', async () => {
   const user = userEvent.setup()
@@ -81,7 +96,7 @@ test('unknown confirmation retains its exact snapshot through expiry and reload,
   view()
   const retry = await screen.findByRole('button', { name: 'Check booking status' })
   expect(retry).toBeEnabled()
-  expect(screen.queryByRole('button', { name: 'Choose a time again' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Hold it again' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Edit details' })).toBeDisabled()
   succeed = true
   await user.click(retry)
@@ -124,7 +139,8 @@ test('a definitive expired unconsumed reservation unlocks a new time; inaccessib
   await screen.findByText('This reservation expired. Choose a time again.')
   await waitFor(() => expect(screen.getByRole('button', { name: 'Edit details' })).toBeEnabled())
   expect(screen.getByRole('button', { name: 'Confirm visit' })).toBeDisabled()
-  expect(screen.getByRole('button', { name: 'Choose a time again' })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Hold it again' })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Choose another time' })).toBeEnabled()
   expect(sessionStorage.getItem(journal)).toBeNull()
 })
 
@@ -303,4 +319,198 @@ test('a real studio shows its deposit and cancellation rule before confirming, t
   )
   // The guest comes back to their own visit after the payment page.
   expect(sessionStorage.getItem('saleane-manage-token')).toBe(token)
+})
+
+test('the day strip starts on the studio’s today, shows closed and full days, and finds free times', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-10-06T07:00:00.000Z'))
+  const user = userEvent.setup()
+  const free: Record<string, number[]> = {
+    '2026-10-06': [990],
+    '2026-10-07': [],
+    '2026-10-08': [600, 840, 1080],
+  }
+  vi.mocked(api).mockImplementation(async (path) => {
+    const query = queryOf(path)
+    if (path === base) return catalog as never
+    if (path.startsWith(`${base}/days?`))
+      return {
+        days: fortnight(query.get('from')!, {
+          '2026-10-07': { times: 0 },
+          '2026-10-11': { closed: true, times: 0 },
+        }),
+      } as never
+    if (path.startsWith(`${base}/availability?`))
+      return { times: free[query.get('date')!] ?? [600] } as never
+    if (path.startsWith(`${base}/next?`))
+      return {
+        next:
+          query.get('from') === '2026-10-06'
+            ? { date: '2026-10-06', startMinutes: 990 }
+            : { date: '2026-10-08', startMinutes: 840 },
+      } as never
+    throw new Error(`Unexpected route ${path}`)
+  })
+  view()
+  await user.click(await screen.findByRole('button', { name: 'Choose a time' }))
+  const days = screen.getByRole('radiogroup', { name: 'Choose a day' })
+  // Tomorrow is chosen to begin with. It is full, so the next free time is offered instead.
+  expect(
+    await within(days).findByRole('radio', { name: 'Wednesday 7 October, full' }),
+  ).toBeChecked()
+  expect(within(days).getByRole('radio', { name: /^Today, Tuesday 6 October/ })).toBeEnabled()
+  expect(within(days).getByRole('radio', { name: 'Sunday 11 October, closed' })).toBeDisabled()
+  expect(within(days).queryByRole('radio', { name: /Monday 5 October/ })).not.toBeInTheDocument()
+  expect(within(days).getAllByRole('radio')).toHaveLength(14)
+  expect(
+    await screen.findByText('Nothing is free on Wednesday 7 October. The next free time is:'),
+  ).toBeVisible()
+  await user.click(screen.getByRole('button', { name: 'Thursday 8 October at 14:00' }))
+  expect(
+    within(days).getByRole('radio', { name: 'Thursday 8 October, 3 times free' }),
+  ).toBeChecked()
+  // The day's times, in the studio's own 24-hour clock, by part of the day.
+  const list = await screen.findByRole('group', { name: 'Times on Thursday 8 October' })
+  expect(within(list).getByRole('radio', { name: '14:00' })).toBeChecked()
+  expect(within(list).getByText('Morning')).toBeInTheDocument()
+  expect(within(list).getByText('Afternoon')).toBeInTheDocument()
+  expect(within(list).getByText('Evening')).toBeInTheDocument()
+  // The first free time from today, in one tap.
+  await user.click(screen.getByRole('button', { name: 'First available' }))
+  expect(
+    await within(days).findByRole('radio', { name: /^Today, Tuesday 6 October/ }),
+  ).toBeChecked()
+  expect(await screen.findByRole('radio', { name: '16:30' })).toBeChecked()
+  // A further fortnight on request.
+  await user.click(screen.getByRole('button', { name: 'More dates' }))
+  expect(
+    await within(days).findByRole('radio', { name: 'Tuesday 20 October, 3 times free' }),
+  ).toBeEnabled()
+  expect(within(days).getAllByRole('radio')).toHaveLength(28)
+  // Nothing before the studio's today is ever asked about.
+  expect(datesAsked().filter((date) => date < '2026-10-06')).toEqual([])
+})
+
+test('when a hold runs out one tap holds the same time again; a time that has gone offers the nearest', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-10-06T07:00:00.000Z'))
+  const user = userEvent.setup()
+  let holds = 0,
+    taken = false
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path === base) return catalog as never
+    if (path.startsWith(`${base}/days?`))
+      return { days: fortnight(queryOf(path).get('from')!, {}) } as never
+    if (path.startsWith(`${base}/availability?`))
+      return { times: taken ? [540, 570, 660, 900, 1020] : [600] } as never
+    if (path === `${base}/holds`) {
+      holds += 1
+      if (taken && holds === 3)
+        throw new ApiError('That time was just taken. Choose another time or professional.', 409)
+      return {
+        hold: String(holds).repeat(48),
+        expiresAt: new Date(Date.now() + 300000).toISOString(),
+        staffId: 'staff-maya',
+      } as never
+    }
+    if (path === `${base}/book`) return { appointmentId: 'visit-held-again' } as never
+    throw new Error(`Unexpected route ${path}`)
+  })
+  view()
+  await user.click(await screen.findByRole('button', { name: 'Choose a time' }))
+  await user.click(await screen.findByRole('radio', { name: '10:00' }))
+  await user.click(screen.getByRole('button', { name: 'Hold this time' }))
+  await user.type(await screen.findByLabelText('Full name'), payload.contact.name)
+  await user.type(screen.getByLabelText('Email'), payload.contact.email)
+  await user.type(screen.getByLabelText('Phone number'), payload.contact.phone)
+  await user.click(screen.getByRole('button', { name: 'Review your visit' }))
+  // A guest with no preference sees who the held time is with.
+  expect(await screen.findByText(/Maya Lewis/)).toBeVisible()
+  await user.click(screen.getByRole('checkbox', { name: /I agree to the deposit/ }))
+  expect(screen.getByRole('button', { name: 'Confirm visit' })).toBeEnabled()
+  // Six minutes later the hold has run out.
+  vi.setSystemTime(new Date('2026-10-06T07:06:00.000Z'))
+  const again = await screen.findByRole('button', { name: 'Hold it again' }, { timeout: 3000 })
+  expect(
+    screen.getByText(
+      'We kept Wednesday 7 October at 10:00 for you for five minutes. Hold it again to carry on; your details are kept.',
+    ),
+  ).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Confirm visit' })).toBeDisabled()
+  await user.click(again)
+  await waitFor(() =>
+    expect(screen.queryByRole('button', { name: 'Hold it again' })).not.toBeInTheDocument(),
+  )
+  const held = vi.mocked(api).mock.calls.filter(([path]) => path === `${base}/holds`)
+  expect(held[1][1]?.body).toEqual({
+    serviceId: state.services[0].id,
+    staffId: 'any',
+    date: '2026-10-07',
+    startMinutes: 600,
+    replaces: '1'.repeat(48),
+  })
+  // The same time and the terms already agreed stand.
+  expect(screen.getByRole('checkbox', { name: /I agree to the deposit/ })).toBeChecked()
+  expect(screen.getByRole('button', { name: 'Confirm visit' })).toBeEnabled()
+  // It runs out again, and this time someone else has booked 10:00 meanwhile.
+  taken = true
+  vi.setSystemTime(new Date('2026-10-06T07:12:00.000Z'))
+  await user.click(await screen.findByRole('button', { name: 'Hold it again' }, { timeout: 3000 }))
+  expect(
+    await screen.findByText(
+      'Wednesday 7 October at 10:00 is no longer free. These are the nearest free times that day. Choose one to hold it, and your details are kept.',
+    ),
+  ).toBeVisible()
+  const nearest = screen
+    .getAllByRole('button', { name: /^Hold .* instead$/ })
+    .map((button) => button.textContent)
+  expect(nearest).toEqual(['09:00', '09:30', '11:00', '15:00'])
+  await user.click(screen.getByRole('button', { name: 'Hold 09:30 instead' }))
+  expect(await screen.findByText(/Wednesday 7 October at 09:30/)).toBeVisible()
+  // A different time has its own cutoff, so the terms are agreed again.
+  const terms = screen.getByRole('checkbox', { name: /I agree to the deposit/ })
+  expect(terms).not.toBeChecked()
+  await user.click(terms)
+  await user.click(screen.getByRole('button', { name: 'Confirm visit' }))
+  await screen.findByText('Saved in the studio calendar')
+  const booked = vi.mocked(api).mock.calls.find(([path]) => path === `${base}/book`)!
+  expect((booked[1]?.body as typeof payload).hold).toBe('4'.repeat(48))
+  expect((booked[1]?.body as typeof payload).contact.name).toBe(payload.contact.name)
+})
+
+test('a time from an earlier day is never offered again; choosing another starts on the studio’s today', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-10-06T07:00:00.000Z'))
+  sessionStorage.setItem(
+    journal,
+    JSON.stringify({
+      payload,
+      serviceId: state.services[0].id,
+      staffId: 'any',
+      date: '2026-10-02',
+      start: 600,
+      expiresAt: '2026-10-02T09:05:00.000Z',
+    }),
+  )
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path === base) return catalog as never
+    if (path === `${base}/book`)
+      throw new ApiError('This reservation expired. Choose a time again.', 409)
+    if (path === `${base}/holds/release`) return { released: false } as never
+    if (path.startsWith(`${base}/days?`))
+      return { days: fortnight(queryOf(path).get('from')!, {}) } as never
+    if (path.startsWith(`${base}/availability?`)) return { times: [600] } as never
+    throw new Error(`Unexpected route ${path}`)
+  })
+  const user = userEvent.setup()
+  view()
+  await user.click(await screen.findByRole('button', { name: 'Check booking status' }))
+  expect(await screen.findByText('That time has passed')).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'Hold it again' })).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Choose another time' }))
+  const days = await screen.findByRole('radiogroup', { name: 'Choose a day' })
+  expect(within(days).getByRole('radio', { name: /^Today, Tuesday 6 October/ })).toBeChecked()
+  expect(within(days).queryByRole('radio', { name: /Friday 2 October/ })).not.toBeInTheDocument()
+  expect(await screen.findByRole('group', { name: 'Times on Tuesday 6 October' })).toBeVisible()
+  expect(datesAsked().filter((date) => date < '2026-10-06')).toEqual([])
 })

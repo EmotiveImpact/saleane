@@ -505,3 +505,58 @@
   font-size: var(--text-meta);
   color: var(--muted);
 }
+
+/* Finding a time: the first available button sits beside the day strip's label. */
+.booking-first-free.button {
+  min-height: 40px;
+  padding: 8px 16px;
+  font-size: var(--text-meta);
+}
+.booking-day-note {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-meta);
+  color: var(--muted);
+}
+/* A day with nothing free says so and points to the next free time. */
+.booking-day-empty {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+  margin: var(--space-5) 0 0;
+  padding: var(--space-4) var(--space-5);
+  border: 1px dashed var(--line2);
+  border-radius: var(--radius-panel);
+}
+.booking-day-empty p {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+/* A hold that ran out: hold the same time again in one tap, or one of the nearest times. */
+.booking-hold-again {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-6) 0 0;
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-panel);
+  background: var(--rose-soft);
+}
+.booking-hold-again h3 {
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: var(--weight-strong);
+}
+.booking-hold-again p {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: 1.55;
+  color: var(--ink);
+}
+.booking-hold-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}

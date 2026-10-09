@@ -211,3 +211,83 @@ describe('deposits shown truthfully before the guest confirms', () => {
     expect(booked.json()).not.toHaveProperty('payment')
   })
 })
+
+describe('finding a day and a time', () => {
+  const query = (serviceId: string, staffId: string, from: string) =>
+    new URLSearchParams({ serviceId, staffId, from }).toString()
+  type Day = { date: string; closed: boolean; times: number }
+
+  it('lists a fortnight from the studio’s today, never earlier, with closed days marked', async () => {
+    const { owner, serviceId, slug } = await realStudio()
+    const { state } = await studio(owner)
+    const hours = state.operations!.hours.map((h) => (h.day === 0 ? { ...h, closed: true } : h))
+    await run(owner, { type: 'hours', hours })
+    // Thursday 8 October closed all day; Friday 9 October only for the morning.
+    for (const [date, endMinutes] of [
+      ['2026-10-08', 1080],
+      ['2026-10-09', 720],
+    ] as const)
+      await run(owner, {
+        type: 'closure',
+        input: { date, startMinutes: 540, endMinutes, reason: 'Staff training' },
+      })
+    const response = await api.inject({
+      url: `/api/public/${slug}/days?${query(serviceId, 'any', '2026-09-30')}`,
+    })
+    expect(response.statusCode, response.body).toBe(200)
+    const { days } = response.json<{ days: Day[] }>()
+    expect(days).toHaveLength(14)
+    expect(days[0].date).toBe('2026-10-06')
+    const on = (date: string) => days.find((d) => d.date === date)!
+    expect(on('2026-10-08')).toEqual({ date: '2026-10-08', closed: true, times: 0 })
+    expect(on('2026-10-11')).toEqual({ date: '2026-10-11', closed: true, times: 0 })
+    expect(on('2026-10-09').closed).toBe(false)
+    expect(on('2026-10-09').times).toBeGreaterThan(0)
+    expect(on('2026-10-09').times).toBeLessThan(on('2026-10-07').times)
+    // The counts agree with the times the page then shows for a day.
+    const times = await api.inject({
+      url: `/api/public/${slug}/availability?serviceId=${serviceId}&staffId=any&date=2026-10-09`,
+    })
+    expect(times.json<{ times: number[] }>().times).toHaveLength(on('2026-10-09').times)
+    // The reason for a closure is the studio's own business.
+    expect(response.body).not.toContain('Staff training')
+  })
+
+  it('finds the first free time from a day on, skipping closed and full days', async () => {
+    const { owner, serviceId, staffId, slug } = await realStudio()
+    await run(owner, {
+      type: 'closure',
+      input: { date: '2026-10-07', startMinutes: 540, endMinutes: 1080, reason: 'Closed' },
+    })
+    const next = async (from: string) =>
+      (
+        await api.inject({ url: `/api/public/${slug}/next?${query(serviceId, staffId, from)}` })
+      ).json<{ next: { date: string; startMinutes: number } | null }>().next
+    // 08:00 in London on 6 October: the first time today is when the studio opens.
+    expect(await next('2026-10-01')).toEqual({ date: '2026-10-06', startMinutes: 540 })
+    expect(await next('2026-10-07')).toEqual({ date: '2026-10-08', startMinutes: 540 })
+    clock = Date.parse('2026-10-06T16:30:00.000Z')
+    // 17:30 in London: a 60-minute facial with its 15 minutes after no longer fits today.
+    expect(await next('2026-10-06')).toEqual({ date: '2026-10-08', startMinutes: 540 })
+  })
+
+  it('says who a held time is with when the guest had no preference', async () => {
+    const owner = await register('UK')
+    const { slug, state } = await studio(owner)
+    const held = await api.inject({
+      method: 'POST',
+      url: `/api/public/${slug}/holds`,
+      payload: {
+        serviceId: 'service-facial',
+        staffId: 'any',
+        date: '2026-10-07',
+        startMinutes: 600,
+      },
+    })
+    expect(held.statusCode, held.body).toBe(201)
+    const { staffId } = held.json<{ staffId: string }>()
+    expect(state.staff.find((p) => p.id === staffId)?.serviceIds.includes('service-facial')).toBe(
+      true,
+    )
+  })
+})
