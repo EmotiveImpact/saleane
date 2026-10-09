@@ -78,6 +78,35 @@ describe('client area map', () => {
     expect(areaChange(fresh).label).toBe('No earlier figure to compare')
   })
 
+  it('leaves bookings ahead out of the change and included tax out of sales', () => {
+    const s = studio(['N1', 'N1', 'N1', 'N1'], [today])
+    s.appointments.push(
+      ...['c0', 'c1', 'c2'].map((clientId, i) => ({
+        ...s.appointments[0],
+        id: `old${i}`,
+        clientId,
+        date: '2025-06-01',
+      })),
+    )
+    // The fourth client is only booked in for next week, so has not been seen yet.
+    s.appointments.find((a) => a.id === 'a3-0')!.date = '2026-10-13'
+    s.sales = [
+      {
+        ...seed('UK').sales[0],
+        appointmentId: 'a0-0',
+        serviceMinor: 12_000,
+        discountMinor: 0,
+        taxMinor: 2_000,
+        taxInclusive: true,
+      },
+    ]
+    const [area] = mapAreas(s, today, 'all').areas
+    expect(area.clients).toBe(4)
+    expect(area.seen).toBe(3)
+    expect(areaChange(area).label).toBe('The same as the period before')
+    expect(area.salesMinor).toBe(10_000)
+  })
+
   it('has no map, centres or landmarks for a real studio until a map service is connected', () => {
     const real = studio(['W1G', 'W1G', 'W1G'], [today], 'local')
     expect(mapReady(real)).toBe(false)

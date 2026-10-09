@@ -116,8 +116,8 @@ export function ClientAreas() {
             />
           )}
         </header>
-        {ready ? (
-          <div className="areas-map-layout">
+        <div className="areas-map-layout">
+          {ready ? (
             <AreaMap
               org={org}
               areas={map.areas}
@@ -127,20 +127,20 @@ export function ClientAreas() {
               selected={selected}
               onSelect={setSelected}
             />
-            <AreaDetail area={chosen} areas={map.areas} map={map} org={org} />
-          </div>
-        ) : (
-          <div className="areas-map-off">
-            <MapIcon size={22} aria-hidden="true" />
-            <div>
-              <strong>The map appears once a map service is connected.</strong>
-              <p>
-                It draws the streets under each area. Until then, the list below shows every area
-                with its numbers. Sample studios show a sample map.
-              </p>
+          ) : (
+            <div className="areas-map-off">
+              <MapIcon size={22} aria-hidden="true" />
+              <div>
+                <strong>The map appears once a map service is connected.</strong>
+                <p>
+                  It draws the streets under each area. Until then, choose an area in the list below
+                  for its numbers. Sample studios show a sample map.
+                </p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+          <AreaDetail area={chosen} areas={map.areas} map={map} org={org} />
+        </div>
         {ready && (
           <p className="areas-privacy">
             Sample map: approximate area centres with no streets. A real studio’s map draws the
@@ -263,8 +263,8 @@ function AreaDetail({
   }
   const strongest = areas[0]
   const growing = areas
-    .filter((a) => a.before !== null && a.clients > a.before)
-    .sort((a, b) => b.clients - b.before! - (a.clients - a.before!))[0]
+    .filter((a) => a.before !== null && a.seen > a.before)
+    .sort((a, b) => b.seen - b.before! - (a.seen - a.before!))[0]
   const home = map.places.find((p) => p.centre)
   const near =
     home && map.total
@@ -296,7 +296,7 @@ function AreaDetail({
           )}
         </ul>
       )}
-      <p className="subtle">Choose a circle or an area in the list for its numbers.</p>
+      <p className="subtle">Choose an area for its numbers.</p>
     </aside>
   )
 }

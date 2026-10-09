@@ -2,6 +2,7 @@ import type { BusinessState, Region } from './model'
 import { addDays } from './format'
 import { operations } from './operations'
 import { places } from './locations'
+import { serviceRevenue } from './selectors'
 import { AREA_MIN_GROUP, postcodeArea } from './clientAreas'
 
 /**
@@ -188,10 +189,12 @@ export type MapArea = {
   area: string
   clients: number
   share: number
+  /** Clients seen in the window up to today, for the change (bookings ahead are left out). */
+  seen: number
   /** Clients from this area in the window before, for the change; null when that is too few. */
   before: number | null
   visits: number
-  /** Treatment sales from these visits, before any refunds. */
+  /** Treatment sales from these visits, less discounts and included tax, before any refunds. */
   salesMinor: number
   centre: [number, number] | null
 }
@@ -219,11 +222,21 @@ export function mapAreas(
   const sales = new Map(s.sales.map((x) => [x.appointmentId, x]))
   const rows = new Map<
     string,
-    { clients: Set<string>; before: Set<string>; visits: number; salesMinor: number }
+    {
+      clients: Set<string>
+      seen: Set<string>
+      before: Set<string>
+      visits: number
+      salesMinor: number
+    }
   >()
   const row = (key: string) => {
     let r = rows.get(key)
-    if (!r) rows.set(key, (r = { clients: new Set(), before: new Set(), visits: 0, salesMinor: 0 }))
+    if (!r)
+      rows.set(
+        key,
+        (r = { clients: new Set(), seen: new Set(), before: new Set(), visits: 0, salesMinor: 0 }),
+      )
     return r
   }
   const counted = new Set(now.map((a) => a.clientId))
@@ -232,9 +245,12 @@ export function mapAreas(
     if (!key) continue
     const r = row(key)
     r.clients.add(a.clientId)
-    if (a.date <= today) r.visits += 1
+    if (a.date <= today) {
+      r.visits += 1
+      r.seen.add(a.clientId)
+    }
     const sale = sales.get(a.id)
-    if (sale) r.salesMinor += sale.serviceMinor - (sale.discountMinor ?? 0)
+    if (sale) r.salesMinor += serviceRevenue(sale)
   }
   for (const a of then) {
     const key = area.get(a.clientId)
@@ -247,6 +263,7 @@ export function mapAreas(
       area: key,
       clients: r.clients.size,
       share: total ? r.clients.size / total : 0,
+      seen: r.seen.size,
       before: r.before.size >= AREA_MIN_GROUP ? r.before.size : null,
       visits: r.visits,
       salesMinor: r.salesMinor,
@@ -296,7 +313,8 @@ export function milesBetween(a: [number, number], b: [number, number]) {
 /** How an area has changed since the same length of time before. */
 export function areaChange(a: MapArea) {
   if (a.before === null) return { label: 'No earlier figure to compare', growing: false }
-  const diff = a.clients - a.before
+  // Like for like: clients seen up to today against the same length of time before.
+  const diff = a.seen - a.before
   if (diff > 0) return { label: `Up ${diff} on the period before`, growing: true }
   if (diff < 0) return { label: `Down ${-diff} on the period before`, growing: false }
   return { label: 'The same as the period before', growing: false }
