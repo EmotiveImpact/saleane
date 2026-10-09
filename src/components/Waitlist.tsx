@@ -5,8 +5,16 @@ import { Hourglass, Plus } from 'lucide-react'
 import { useStore } from '../state/context'
 import { useClock } from '../state/clock'
 import { businessDate, can } from '../domain/operations'
-import { isOpen, openings, serviceLabel, timesLabel, waitlistList } from '../domain/waitlist'
-import type { Opening } from '../domain/waitlist'
+import {
+  PASS_ON_HOURS,
+  isOpen,
+  openings,
+  serviceLabel,
+  timesLabel,
+  unansweredOffers,
+  waitlistList,
+} from '../domain/waitlist'
+import type { Opening, UnansweredOffer } from '../domain/waitlist'
 import { WAITLIST_MAX_DAYS, WAITLIST_TIMES } from '../domain/waitlistSchema'
 import type { WaitlistEntry, WaitlistInput, WaitlistTime } from '../domain/waitlistSchema'
 import { addDays, dateLabel, timeLabel } from '../domain/format'
@@ -314,6 +322,104 @@ export function WaitlistCard({
         />
       )}
       {removing && <RemoveDialog entry={entry} onClose={() => setRemoving(false)} />}
+    </li>
+  )
+}
+
+/**
+ * Offers approved a while ago that nobody has answered, with the next person waiting who could take
+ * the same time. Passing it on writes a new offer for the team to approve; nothing is sent here.
+ */
+export function PassOnOffers() {
+  const { state } = useStore()
+  const allowed = useWaitlistAllowed()
+  const clock = useClock()
+  const rows = useMemo(() => unansweredOffers(state, clock), [state, clock])
+  // Once a time is passed on it leaves the list, so the confirmation is kept here, not on its row.
+  const [passed, setPassed] = useState('')
+  if (!rows.length && !passed) return null
+  return (
+    <section className="surface ops-panel" aria-labelledby="pass-on-heading">
+      <header>
+        <div>
+          <h2 id="pass-on-heading">Not answered yet</h2>
+          <p>
+            Offers approved {PASS_ON_HOURS} hours or more ago with no reply. The time is still free,
+            so it can be offered to the next person waiting.
+          </p>
+        </div>
+      </header>
+      {rows.length > 0 && (
+        <ul className="waitlist-pass-on">
+          {rows.map((row) => (
+            <PassOnRow
+              key={`${row.entry.id}-${row.opening.date}-${row.opening.startMinutes}`}
+              row={row}
+              allowed={allowed}
+              onPassed={setPassed}
+            />
+          ))}
+        </ul>
+      )}
+      <p role="status" className="ops-save-note">
+        {passed && (
+          <>
+            {passed} <Link to="/inbox">Open the Inbox</Link>
+          </>
+        )}
+      </p>
+    </section>
+  )
+}
+
+function PassOnRow({
+  row,
+  allowed,
+  onPassed,
+}: {
+  row: UnansweredOffer
+  allowed: boolean
+  onPassed: (note: string) => void
+}) {
+  const { state } = useStore()
+  const { run, pending, error } = useRun()
+  const org = state.organisation
+  const name = (id: string) => state.clients.find((c) => c.id === id)?.name ?? 'Client'
+  const first = name(row.entry.clientId)
+  const next = name(row.next.clientId)
+  const person = state.staff.find((p) => p.id === row.opening.staffId)?.name ?? 'the team'
+  const when = `${dateLabel(row.opening.date, org.locale)} at ${timeLabel(row.opening.startMinutes, org.locale)}`
+  const clock = useClock()
+  const hours = Math.floor((Date.parse(clock) - Date.parse(row.approvedAt)) / 3_600_000)
+  const ago =
+    hours >= 48
+      ? `${Math.floor(hours / 24)} days ago`
+      : hours >= 24
+        ? 'a day ago'
+        : `${hours} hours ago`
+  async function passOn() {
+    if (await run({ type: 'waitlist-offer', entryId: row.next.id, ...row.opening }))
+      onPassed(
+        `An offer for ${next} on ${when} is waiting in the Inbox for you to approve. Nothing has been sent.`,
+      )
+  }
+  return (
+    <li className="waitlist-pass-on-row">
+      <div>
+        <strong>
+          {serviceLabel(state, row.entry)}, {when} with {person}
+        </strong>
+        <small>
+          Offered to {first}, approved {ago}, with no reply yet. {next} is next on the list and this
+          time suits them.
+        </small>
+        <ErrorMessage error={error} />
+      </div>
+      {allowed && (
+        <Button variant="secondary" disabled={pending} onClick={() => void passOn()}>
+          Offer it to {next}
+        </Button>
+      )}
     </li>
   )
 }
