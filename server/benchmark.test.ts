@@ -22,9 +22,12 @@ afterEach(() => api.close())
 
 const headers = (login: Login) => ({ cookie: login.cookie, 'x-csrf-token': login.csrf })
 const cookie = (response: InjectResponse) => String(response.headers['set-cookie']).split(';')[0]
+let address = 0
 async function register(email: string, invitation?: string, name = 'Studio Owner') {
   const response = await api.inject({
     method: 'POST',
+    // Each owner signs up from their own address, as separate studios would.
+    remoteAddress: `198.51.100.${++address}`,
     url: '/api/auth/register',
     payload: {
       name,
@@ -101,12 +104,12 @@ describe('how you compare', () => {
       since: '2026-10-06',
     })
     const others: Login[] = []
-    for (let i = 0; i < 5; i++) others.push(await register(`peer${i}@example.invalid`))
-    // Four others sharing is too few: nothing about them is shown.
-    for (const peer of others.slice(0, 4)) await share(peer)
+    for (let i = 0; i < 10; i++) others.push(await register(`peer${i}@example.invalid`))
+    // Nine other owners sharing is too few: nothing about them is shown.
+    for (const peer of others.slice(0, 9)) await share(peer)
     let view = await benchmark(owner)
     expect(view).toMatchObject({ sharing: true, enoughVisits: true, comparison: null })
-    await share(others[4])
+    await share(others[9])
     view = await benchmark(owner)
     expect(view.comparison!.map((c) => c.key)).toEqual([
       'averageVisit',
@@ -115,22 +118,23 @@ describe('how you compare', () => {
       'noShowRate',
     ])
     // The sample studios are alike, so this one sits in the middle of them.
-    expect(view.comparison!.every((c) => c.position === 'typical' && c.own === c.median)).toBe(true)
+    expect(view.comparison!.every((c) => c.position === 'typical')).toBe(true)
     // Nothing names or counts another studio.
     const text = JSON.stringify(view)
     expect(text).not.toContain('orgId')
     expect(text).not.toMatch(/"(id|name|count|studios)"/)
     // A studio that stops sharing drops out at once.
-    await share(others[4], false)
+    await share(others[9], false)
     expect((await benchmark(owner)).comparison).toBeNull()
   })
 
   it('never mixes sample studios with real ones or markets with each other', async () => {
     const owner = await register('owner@example.invalid')
     await share(owner)
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 10; i++) {
       const response = await api.inject({
         method: 'POST',
+        remoteAddress: `203.0.113.${i + 1}`,
         url: '/api/auth/register',
         payload: {
           name: 'Peer Owner',
@@ -159,5 +163,40 @@ describe('how you compare', () => {
     ).toBe(403)
     expect((await benchmark(manager)).sharing).toBe(false)
     expect((await get(desk, '/benchmark')).statusCode).toBe(403)
+  })
+
+  it('counts one owner’s studios once and never compares an owner with their own studios', async () => {
+    const owner = await register('owner@example.invalid')
+    await share(owner)
+    // The same owner opens nine more sample studios and shares them all: still no comparison.
+    for (let i = 0; i < 9; i++) {
+      const response = await api.inject({
+        method: 'POST',
+        url: '/api/workspaces',
+        headers: headers(owner),
+        payload: {
+          workspace: { name: `Own ${i}`, locationName: 'Main', region: 'UK', sample: true },
+        },
+      })
+      await share({ ...owner, orgId: response.json<{ orgId: string }>().orgId })
+    }
+    expect((await benchmark(owner)).comparison).toBeNull()
+    // Nine other owners each with two studios are still only nine.
+    for (let i = 0; i < 9; i++) {
+      const peer = await register(`many${i}@example.invalid`)
+      await share(peer)
+      const response = await api.inject({
+        method: 'POST',
+        url: '/api/workspaces',
+        headers: headers(peer),
+        payload: {
+          workspace: { name: 'Second', locationName: 'Main', region: 'UK', sample: true },
+        },
+      })
+      await share({ ...peer, orgId: response.json<{ orgId: string }>().orgId })
+    }
+    expect((await benchmark(owner)).comparison).toBeNull()
+    await share(await register('tenth@example.invalid'))
+    expect((await benchmark(owner)).comparison).not.toBeNull()
   })
 })

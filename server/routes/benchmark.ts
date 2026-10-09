@@ -1,7 +1,8 @@
 import { fail } from '../http'
 import type { Context, Route } from '../context'
 import { businessDate, operations } from '../../src/domain/operations'
-import { compare, studioMeasures } from '../../src/domain/benchmark'
+import { compare, perOwner, studioMeasures } from '../../src/domain/benchmark'
+import type { Measures } from '../../src/domain/benchmark'
 
 /**
  * V5: how this studio compares with similar studios. Only owners and managers read it, only a
@@ -28,11 +29,28 @@ export async function benchmarkRoutes(ctx: Context, route: Route): Promise<boole
     org.id,
     org.state.organisation.region,
   )
-  const others = ids
-    .map((row) => ctx.systemOrg(row.id))
-    .filter((o) => !!o && (operations(o.state).mode === 'sandbox') === sample)
-    .map((o) => studioMeasures(o!.state, businessDate(o!.state, iso)))
-    .filter((m) => m !== null)
+  // Studios are grouped by owner: one owner's studios count once, and studios sharing an owner
+  // with this one are left out, so an owner never compares against themselves.
+  const ownerOf = (id: string) =>
+    ctx.db
+      .all<{ account_id: string }>(
+        "SELECT account_id FROM memberships WHERE organisation_id=? AND role='owner' ORDER BY account_id",
+        id,
+      )
+      .map((row) => row.account_id)
+  const mine = new Set(ownerOf(org.id))
+  const groups = new Map<string, Measures[]>()
+  for (const row of ids) {
+    const other = ctx.systemOrg(row.id)
+    if (!other || (operations(other.state).mode === 'sandbox') !== sample) continue
+    const owners = ownerOf(row.id)
+    if (!owners.length || owners.some((o) => mine.has(o))) continue
+    const measures = studioMeasures(other.state, businessDate(other.state, iso))
+    if (!measures) continue
+    const key = owners[0]
+    groups.set(key, [...(groups.get(key) ?? []), measures])
+  }
+  const others = perOwner([...groups.values()])
   const own = studioMeasures(org.state, businessDate(org.state, iso))
   reply(200, {
     sharing: true,

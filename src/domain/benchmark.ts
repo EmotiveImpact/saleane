@@ -6,11 +6,15 @@ import { serviceRevenue } from './selectors'
  * V5: how a studio compares with similar studios, without anyone seeing anyone else. A studio
  * only joins in when its owner chooses to share, and only a studio that shares sees the
  * comparison. Each studio is reduced to a few rates and averages (never totals, names, clients or
- * receipts), and a comparison is shown only when at least BENCHMARK_MIN_STUDIOS other studios in
- * the same market have enough visits to count.
+ * receipts), and a comparison is shown only when at least BENCHMARK_MIN_STUDIOS other owners in
+ * the same market have enough visits to count. Only rounded spreads come back.
  */
 
-export const BENCHMARK_MIN_STUDIOS = 5
+/**
+ * At least this many other owners must share. Studios with the same owner count once (their
+ * measures are averaged), so no one can surround a peer with studios of their own.
+ */
+export const BENCHMARK_MIN_STUDIOS = 10
 /** The window each studio's measures are taken over. */
 export const BENCHMARK_DAYS = 90
 /** A studio with fewer completed visits than this in the window is left out of every measure. */
@@ -60,6 +64,29 @@ export function studioMeasures(s: BusinessState, today: string): Measures | null
   }
 }
 
+/**
+ * Reported spreads are rounded (to £5 or $5, and to 5 percentage points), so no figure handed
+ * back is any one studio's exact value.
+ */
+export function coarse(key: MeasureKey, value: number) {
+  return key === 'averageVisit' ? Math.round(value / 500) * 500 : Math.round(value * 20) / 20
+}
+
+/** One owner's studios as one entry: the average of their measures. */
+export function perOwner(groups: Measures[][]): Measures[] {
+  return groups
+    .filter((g) => g.length)
+    .map((g) => {
+      const mean = (key: MeasureKey) => g.reduce((n, m) => n + m[key], 0) / g.length
+      return {
+        averageVisit: mean('averageVisit'),
+        rebookRate: mean('rebookRate'),
+        noShowRate: mean('noShowRate'),
+        returnRate: mean('returnRate'),
+      }
+    })
+}
+
 function quantile(sorted: number[], q: number) {
   const at = (sorted.length - 1) * q
   const low = Math.floor(at)
@@ -87,6 +114,7 @@ export function compare(own: Measures | null, others: Measures[]): Comparison[] 
   if (!own || others.length < BENCHMARK_MIN_STUDIOS) return null
   return MEASURES.map((m) => {
     const values = others.map((o) => o[m.key]).sort((a, b) => a - b)
+    // Where this studio sits is judged on the exact spread; only rounded figures are returned.
     const low = quantile(values, 0.25)
     const high = quantile(values, 0.75)
     const value = own[m.key]
@@ -105,9 +133,9 @@ export function compare(own: Measures | null, others: Measures[]): Comparison[] 
       key: m.key,
       label: m.label,
       own: value,
-      low,
-      median: quantile(values, 0.5),
-      high,
+      low: coarse(m.key, low),
+      median: coarse(m.key, quantile(values, 0.5)),
+      high: coarse(m.key, high),
       position,
     }
   })

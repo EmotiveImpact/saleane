@@ -27,7 +27,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 - Business has a new "How you compare" page for owners and managers. The owner chooses to share anonymously; only a studio that shares can compare.
 - Four figures are compared with similar studios in the same market over the last 90 days: the average treatment sale, visits rebooked before leaving, clients who came more than once, and missed appointments. Each shows where most studios sit, the middle studio, and whether this studio is ahead of most, typical or behind.
-- Nothing is shown until at least five other studios share, no other studio's name or figures are ever shown, sample studios are only compared with samples, and stopping sharing takes the studio out of every comparison at once.
+- Nothing is shown until at least ten other owners share (one owner's studios count once, and never in their own comparison), other studios' figures are only shown as rounded ranges, no other studio's name is ever shown, sample studios are only compared with samples, and stopping sharing takes the studio out of every comparison at once.
 
 ## 2026-10-09 · V5 · Month-end estimate and the week in brief
 

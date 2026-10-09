@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { seed } from './seed'
 import { businessDate } from './operations'
-import { BENCHMARK_MIN_STUDIOS, compare, measureLabel, studioMeasures } from './benchmark'
+import {
+  BENCHMARK_MIN_STUDIOS,
+  coarse,
+  compare,
+  measureLabel,
+  perOwner,
+  studioMeasures,
+} from './benchmark'
 import type { Measures } from './benchmark'
 
 // V5: comparing with similar studios.
@@ -32,19 +39,16 @@ describe('how a studio compares', () => {
   })
 
   it('places a studio ahead, typical or behind, with fewer missed visits counted as better', () => {
-    const others = [
-      m(6000, 0.2, 0.02),
-      m(7000, 0.3, 0.04),
-      m(8000, 0.4, 0.06),
-      m(9000, 0.5, 0.08),
-      m(10000, 0.6, 0.1),
-    ]
-    const view = compare(m(12000, 0.4, 0.01, 0.1), others)!
+    // Ten owners, spread evenly: £60 to £105, 15% to 60% rebooked, 1% to 10% missed.
+    const others = Array.from({ length: 10 }, (_, i) =>
+      m(6000 + i * 500, 0.15 + i * 0.05, 0.01 + i * 0.01),
+    )
+    const view = compare(m(12000, 0.4, 0.005, 0.1), others)!
     const at = (key: string) => view.find((c) => c.key === key)!
     expect(at('averageVisit')).toMatchObject({
-      median: 8000,
       low: 7000,
-      high: 9000,
+      median: 8500,
+      high: 9500,
       position: 'ahead',
     })
     expect(at('rebookRate').position).toBe('typical')
@@ -52,5 +56,20 @@ describe('how a studio compares', () => {
     expect(at('returnRate').position).toBe('behind')
     expect(measureLabel('averageVisit', 8049, { locale: 'en-GB', currency: 'GBP' })).toBe('£80')
     expect(measureLabel('rebookRate', 0.456, { locale: 'en-GB', currency: 'GBP' })).toBe('46%')
+  })
+
+  it('rounds every spread and counts each owner once', () => {
+    expect(coarse('averageVisit', 8249)).toBe(8000)
+    expect(coarse('rebookRate', 0.437)).toBe(0.45)
+    const [one] = perOwner([[m(6000, 0.2, 0.1), m(8000, 0.4, 0.3)]])
+    expect(one).toEqual(m(7000, 0.30000000000000004, 0.2))
+    // No reported figure is any single studio's exact value.
+    const others = Array.from({ length: 10 }, (_, i) =>
+      m(6123 + i * 371, 0.123 + i * 0.037, 0.021, 0.333),
+    )
+    const view = compare(m(8000, 0.3, 0.02), others)!
+    for (const c of view)
+      for (const v of [c.low, c.median, c.high])
+        expect(others.some((o) => o[c.key] === v)).toBe(false)
   })
 })
