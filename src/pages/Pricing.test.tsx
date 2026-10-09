@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { expect, test } from 'vitest'
@@ -28,4 +28,25 @@ test('shows one price, everything included, and switches country', async () => {
   await userEvent.click(screen.getByRole('radio', { name: 'United States' }))
   expect(screen.getByText('$59')).toBeInTheDocument()
   expect(screen.getByText(/plus any sales tax/)).toBeInTheDocument()
+})
+
+test('says which included features wait for a card or text account, and keeps visitors on the page', () => {
+  render(
+    <MemoryRouter>
+      <Pricing />
+    </MemoryRouter>,
+  )
+  const included = within(screen.getByRole('region', { name: 'The price' })).getAllByRole(
+    'listitem',
+  )
+  const line = (text: string) => included.find((item) => item.textContent?.startsWith(text))!
+  expect(line('Reminders by text')).toHaveTextContent('Arrives when you connect your text account')
+  expect(line('Saved cards, card readers')).toHaveTextContent(
+    'Arrives when you connect your card account',
+  )
+  expect(line('Booking confirmations and reminders by email')).not.toHaveTextContent('Arrives')
+  // Only the lines that need a connection carry the note.
+  expect(included.filter((item) => item.textContent?.includes('Arrives'))).toHaveLength(2)
+  // The logo stays on the price page instead of opening the fictional demo.
+  expect(screen.getAllByRole('link', { name: 'SALEANE' })[0]).toHaveAttribute('href', '/pricing')
 })
