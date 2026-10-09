@@ -8,9 +8,12 @@ import { businessDate, businessMinutes, can, instantFor, operations } from '../d
 import {
   clearFrom,
   localDate,
+  onlinePatchTestStop,
   patchTestSettings,
+  patchTestStanding,
   patchTests,
   patchTestsDue,
+  serviceNeedsPatchTest,
   visitPatchTest,
 } from '../domain/patchTests'
 import type { PatchTestState } from '../domain/patchTests'
@@ -387,6 +390,72 @@ export function VisitPatchTest({ appointment }: { appointment: Appointment }) {
   )
 }
 
+/**
+ * Stage 3: in the desk's booking dialog, for a treatment that needs a patch test: where the client
+ * stands for the chosen time, whether online booking would have stopped it, and a quick way to
+ * book the studio's patch test first. The desk is never stopped.
+ */
+export function BookingPatchTest({
+  clientId,
+  serviceId,
+  date,
+  start,
+  test,
+  onBookTest,
+}: {
+  /** Absent for someone new, who has had no test here. */
+  clientId?: string
+  serviceId: string
+  date: string
+  /** The chosen time; before one is chosen, midday that day. */
+  start: number | null
+  /** The studio's patch test, when it can be booked in this dialog. */
+  test?: { id: string; name: string }
+  onBookTest: (serviceId: string) => void
+}) {
+  const { state } = useStore()
+  if (!serviceNeedsPatchTest(state, serviceId)) return null
+  let at: string
+  try {
+    at = instantFor(state, date, start ?? 12 * 60)
+  } catch {
+    return null
+  }
+  const hours = patchTestSettings(state).hoursBefore
+  const standing = clientId
+    ? patchTestStanding(state, clientId, at)
+    : {
+        state: 'needed' as const,
+        label: `Someone new needs a patch test at least ${hours} hours before`,
+      }
+  if (standing.state === 'clear')
+    return (
+      <p className="patch-visit">
+        <span className={tagClass.clear}>{standing.label}</span>
+      </p>
+    )
+  // The same rule the booking page follows, for this client at this time.
+  const stopped = clientId
+    ? onlinePatchTestStop(state, serviceId, { clientId, start: at })
+    : onlinePatchTestStop(state, serviceId)
+  return (
+    <div className="booking-patch-note" role="note">
+      <span className={tagClass[standing.state]}>{standing.label}</span>
+      {stopped && (
+        <p>
+          Online booking would have stopped this visit, as the studio asks for a clear patch test
+          first. You can still book it here.
+        </p>
+      )}
+      {test && (
+        <Button variant="secondary" onClick={() => onBookTest(test.id)}>
+          Book the patch test first
+        </Button>
+      )}
+    </div>
+  )
+}
+
 /** For Today: booked visits in the next fortnight whose patch test is not yet in order. */
 export function PatchTestsDue() {
   const { state } = useStore()
@@ -434,22 +503,39 @@ export function PatchTestsDue() {
   )
 }
 
-/** For Settings: how long before a visit a test is needed, how long a clear one lasts, reminders. */
+/**
+ * For Settings: how long before a visit a test is needed, how long a clear one lasts, reminders,
+ * and (Stage 3) whether online booking stops without one, with the patch test guests book.
+ */
 export function PatchTestRules() {
   const { state, role, blocked } = useStore()
   const current = patchTestSettings(state)
   const [hours, setHours] = useState(String(current.hoursBefore))
   const [months, setMonths] = useState(String(current.validMonths))
   const [remind, setRemind] = useState(current.remind)
+  const [stopOnline, setStopOnline] = useState(!!current.stopOnline)
+  const [testServiceId, setTestServiceId] = useState(current.testServiceId ?? '')
   const [saved, setSaved] = useState(false)
+  const ids = useId()
   const { run, pending, error } = useRun()
   const allowed = !blocked && can(role, 'patch-test-settings')
+  // The patch test itself: any treatment on the menu that does not need one.
+  const tests = state.services.filter(
+    (x) => !x.patchTest && (!x.archived || x.id === current.testServiceId),
+  )
+  const needing = state.services.filter((x) => x.patchTest && !x.archived)
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setSaved(false)
     const done = await run({
       type: 'patch-test-settings',
-      settings: { hoursBefore: Number(hours), validMonths: Number(months), remind },
+      settings: {
+        hoursBefore: Number(hours),
+        validMonths: Number(months),
+        remind,
+        stopOnline,
+        ...(testServiceId ? { testServiceId } : {}),
+      },
     })
     setSaved(done)
   }
@@ -501,6 +587,48 @@ export function PatchTestRules() {
             Message a booked guest who needs a test, using their usual visit email and text
             settings. Sent once, up to two weeks before, while there is still time.
           </label>
+          <div className="ops-wide">
+            <label className="ops-check">
+              <input
+                type="checkbox"
+                checked={stopOnline}
+                disabled={!allowed}
+                aria-describedby={`${ids}-online-help`}
+                onChange={(e) => setStopOnline(e.target.checked)}
+              />
+              Stop online booking when a patch test is missing or out of date
+            </label>
+            <p className="ops-help" id={`${ids}-online-help`}>
+              Guests booking online are never matched to your client records, so with this on nobody
+              can book{' '}
+              {needing.length === 1 ? needing[0].name : 'a treatment that needs a patch test'}{' '}
+              online: on your booking page, through the AI receptionist or on Google. Every guest
+              reads the same words: a patch test comes first, and how to book one or reach you. A
+              guest moving a visit from their private link sees only times their clear test covers.
+              The desk can still book anyone.
+            </p>
+          </div>
+          <div className="ops-wide ops-field">
+            <label htmlFor={`${ids}-test`}>The patch test guests can book online</label>
+            <select
+              id={`${ids}-test`}
+              value={testServiceId}
+              disabled={!allowed}
+              aria-describedby={`${ids}-test-help`}
+              onChange={(e) => setTestServiceId(e.target.value)}
+            >
+              <option value="">None: guests call or email you to arrange one</option>
+              {tests.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.name}
+                </option>
+              ))}
+            </select>
+            <small id={`${ids}-test-help`}>
+              Offered to guests when a treatment needs a patch test first, and to the desk as Book
+              the patch test first.
+            </small>
+          </div>
         </div>
         <ErrorMessage error={error} />
         {allowed && (

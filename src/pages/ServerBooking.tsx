@@ -44,6 +44,7 @@ import { instantIn } from '../domain/operations'
 import { useClock } from '../state/clock'
 import { startGuestPayment } from '../state/guestPay'
 import { StudioContact } from '../components/StudioContact'
+import { PatchTestFirst } from '../components/PatchTestFirst'
 import { phoneLink } from '../domain/studioContact'
 import '../guest.css'
 
@@ -112,6 +113,11 @@ type Catalog = {
   today: string
   sample: boolean
   patchTestHours?: number
+  /**
+   * Stage 3: present when the studio books treatments that need a patch test only with the guest,
+   * never online, with the patch test a guest can book here instead, if any. Older servers send none.
+   */
+  patchTestFirst?: { testServiceId: string | null }
   /** V1.5: the studio's current words for email news, by version. */
   emailNews?: { version: number; text: string }
   botCheck?: { siteKey: string } | null
@@ -226,6 +232,10 @@ function linkedTime(
   if (!Number.isInteger(start) || start < 0 || start >= 24 * 60) return null
   return { serviceId: service.id, staffId, date, start }
 }
+/** Stage 3: the treatment a link names on its own, such as the studio's patch test. */
+function linkedService(search: string, services: Catalog['services']) {
+  return services.find((s) => s.id === new URLSearchParams(search).get('service'))?.id
+}
 function BookingFlow({
   catalog,
   base,
@@ -244,18 +254,30 @@ function BookingFlow({
   const store = useStore()
   const journalKey = `saleane.guest-confirmation:${base}`
   const [recovery] = useState(() => readPendingBooking(journalKey))
+  /** Stage 3: a treatment the studio books with the guest only, after a patch test. */
+  const patchFirst = (s?: Catalog['services'][number]) => !!catalog.patchTestFirst && !!s?.patchTest
+  const testService = services.find((s) => s.id === catalog.patchTestFirst?.testServiceId)
   // V4: a link from the AI receptionist opens step 2 with the offered time already chosen.
-  const [linked] = useState(() =>
+  const [linkedAt] = useState(() =>
     recovery.value ? null : linkedTime(window.location.search, services, staff, today),
   )
+  // A link with a time for a treatment that needs a patch test first opens on the treatment, where
+  // the page says what comes first. A link naming only a treatment opens with it chosen.
+  const linked =
+    linkedAt && !patchFirst(services.find((s) => s.id === linkedAt.serviceId)) ? linkedAt : null
+  const [linkedTreatment] = useState(() =>
+    recovery.value
+      ? undefined
+      : (linkedAt?.serviceId ?? linkedService(window.location.search, services)),
+  )
   const [attempt, setAttempt] = useState<PendingBooking | null>(recovery.value)
-  const [picked, setPicked] = useState(!!linked)
+  const [picked, setPicked] = useState(!!linkedTreatment)
   // With one kind of treatment the list opens straight away, chosen as before;
   // otherwise nothing is chosen until the guest picks.
   const ready = picked || new Set(services.map((s) => s.category)).size < 2
   const [step, setStep] = useState(recovery.value ? 4 : linked ? 2 : 1),
     [serviceId, setServiceId] = useState(
-      recovery.value?.serviceId ?? linked?.serviceId ?? services[0]?.id ?? '',
+      recovery.value?.serviceId ?? linkedTreatment ?? services[0]?.id ?? '',
     ),
     [staffId, setStaffId] = useState(recovery.value?.staffId ?? linked?.staffId ?? 'any'),
     [chosenDate, setDate] = useState(recovery.value?.date ?? linked?.date ?? addDays(today, 1)),
@@ -1106,14 +1128,39 @@ function BookingFlow({
                       </button>
                     )}
                     footer={
-                      ready && (
+                      ready &&
+                      (patchFirst(service) ? (
+                        <PatchTestFirst
+                          treatment={service.name}
+                          hours={catalog.patchTestHours ?? 48}
+                          studio={{
+                            name: org.name,
+                            phone: where.phone,
+                            email: where.email,
+                            address: where.address,
+                            region: org.region,
+                          }}
+                          test={
+                            testService && {
+                              href: `?service=${encodeURIComponent(testService.id)}`,
+                              onChoose: () => {
+                                setServiceId(testService.id)
+                                setStaffId('any')
+                                setStart(null)
+                                setError('')
+                                setStep(2)
+                              },
+                            }
+                          }
+                        />
+                      ) : (
                         <div className="booking-next">
                           <span>{service.name}</span>
                           <Button onClick={() => setStep(2)}>
                             Choose a time <ArrowRight size={17} />
                           </Button>
                         </div>
-                      )
+                      ))
                     }
                   />
                 </>

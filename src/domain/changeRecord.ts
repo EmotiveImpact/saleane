@@ -456,6 +456,8 @@ const fieldWords: Record<string, string> = {
   prepNote: 'preparation note',
   aftercareNote: 'aftercare note',
   patchTest: 'needs a patch test',
+  stopOnline: 'stop online booking without a patch test',
+  testServiceId: 'patch test guests book',
   locationPrices: 'prices at other locations',
   notOfferedAt: 'locations that do not offer it',
   role: 'job title',

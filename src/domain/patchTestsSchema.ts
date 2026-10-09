@@ -14,6 +14,13 @@ export const patchTestSettingsSchema = z
     validMonths: z.number().int().min(1).max(24),
     /** Message guests whose booked visit needs a test they have not had. */
     remind: z.boolean(),
+    /**
+     * Stage 3: no booking without the desk for a treatment that needs a test, unless the guest has
+     * a clear one for that time. Off unless the owner or a manager turns it on.
+     */
+    stopOnline: z.boolean().optional(),
+    /** Stage 3: the treatment guests book for a patch test, linked when a booking is stopped. */
+    testServiceId: id.optional(),
   })
   .strict()
 export type PatchTestSettings = z.infer<typeof patchTestSettingsSchema>

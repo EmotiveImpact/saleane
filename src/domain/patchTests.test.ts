@@ -3,10 +3,19 @@ import { dispatch, execute } from './commands'
 import type { Command } from './commands'
 import type { BusinessState } from './model'
 import { parseState } from './model'
-import { can } from './operations'
+import { can, instantFor } from './operations'
 import { seed } from './seed'
 import { addDays } from './format'
-import { patchTestsDue, patchTests, visitPatchTest } from './patchTests'
+import {
+  onlinePatchTestStop,
+  patchTestBooking,
+  patchTestSettings,
+  patchTestsDue,
+  patchTests,
+  visitPatchTest,
+} from './patchTests'
+import { defaultPatchTestSettings } from './patchTestsSchema'
+import { bookableOnGoogle } from './googleFeeds'
 import { planMessages, composeMessage } from './reminders'
 import { practitionerRefusal, practitionerView } from './practitioner'
 import { clientExport, clientExportText, erasureReview, previewClientExport } from './privacy'
@@ -381,5 +390,181 @@ describe('patch tests', () => {
     const t = structuredClone(seed('UK'))
     t.patchTests![0].clientId = 'client-unknown'
     expect(() => parseState(t, 'UK')).toThrow(/patch test/)
+  })
+})
+
+// Stage 3: stopping online booking until a patch test is in place.
+describe('stopping online booking without a patch test', () => {
+  const rules = (s: BusinessState, extra: Record<string, unknown> = {}) =>
+    apply(s, {
+      type: 'patch-test-settings',
+      settings: { ...defaultPatchTestSettings, ...patchTestSettings(s), ...extra },
+    } as Command)
+  const stopping = (s = seed('UK')) => rules(s, { stopOnline: true })
+  const at = (s: BusinessState, date: string, minutes = 600) => instantFor(s, date, minutes)
+  /** A guest booking on the page, with whatever email and phone they type. */
+  const online = (serviceId: string, contact = guest): Command => ({
+    type: 'book',
+    input: {
+      serviceId,
+      staffId: serviceId === 'service-facial' ? 'staff-maya' : 'staff-theo',
+      date: '2026-10-08',
+      startMinutes: serviceId === 'service-facial' ? 780 : 840,
+      contact,
+      source: 'online',
+    },
+  })
+  const guest = {
+    name: 'Made Up Guest',
+    email: 'made.up@example.invalid',
+    phone: '+44 7700 900111',
+    marketingConsent: false,
+  }
+  const asClient = (s: BusinessState, clientId: string) => {
+    const c = s.clients.find((x) => x.id === clientId)!
+    return { name: c.name, email: c.email, phone: c.phone, marketingConsent: false }
+  }
+
+  it('is off until the owner or a manager turns it on, and the sample names its patch test', () => {
+    const s = seed('UK')
+    expect(patchTestSettings(s).stopOnline).toBeUndefined()
+    expect(patchTestBooking(s)?.name).toBe('Colour patch test')
+    expect(onlinePatchTestStop(s, 'service-gloss')).toBeNull()
+    expect(run(s, online('service-gloss')).ok).toBe(true)
+    expect(can('owner', 'patch-test-settings')).toBe(true)
+    expect(can('manager', 'patch-test-settings')).toBe(true)
+    for (const role of ['reception', 'practitioner', 'general', 'regional'] as const)
+      expect(can(role, 'patch-test-settings')).toBe(false)
+  })
+
+  it('stops every unknown guest with the same words, whoever they say they are', () => {
+    const s = stopping()
+    const words = onlinePatchTestStop(s, 'service-gloss')
+    expect(words).toBe(
+      'Gloss & Tone needs a patch test first, so it cannot be booked online. Book a patch test, or if you have had one recently, contact the studio to book.',
+    )
+    // A made-up guest, and strangers typing the details of Ellie (clear), Grace (waiting) and
+    // Luca (no test): the same refusal, and nothing written.
+    for (const contact of [
+      guest,
+      asClient(s, 'client-3'),
+      asClient(s, 'client-6'),
+      asClient(s, 'client-9'),
+    ]) {
+      const refused = run(s, online('service-gloss', contact))
+      expect(refused.ok).toBe(false)
+      if (!refused.ok) expect(refused.error).toBe(words)
+    }
+    // A treatment that needs no test books online as before.
+    expect(run(s, online('service-facial')).ok).toBe(true)
+    // Without a patch test guests can book, they are asked to contact the studio.
+    const none = rules(s, { testServiceId: undefined })
+    expect(onlinePatchTestStop(none, 'service-gloss')).toBe(
+      'Gloss & Tone needs a patch test first, so it cannot be booked online. Contact the studio to arrange one, or to book if you have had one recently.',
+    )
+  })
+
+  it('lets a known guest through only with a clear test for that time', () => {
+    let s = stopping()
+    const known = (clientId: string, date: string, minutes = 600) =>
+      onlinePatchTestStop(s, 'service-gloss', { clientId, start: at(s, date, minutes) })
+    // Ellie's test was clear on 26 September and counts for six months.
+    expect(known('client-3', '2026-10-08')).toBeNull()
+    expect(known('client-3', '2027-03-26')).toBeNull()
+    // Out of date after that.
+    expect(known('client-3', '2027-03-27')).toMatch(/needs a clear patch test/)
+    // Grace's result is still to record; Luca has none.
+    expect(known('client-6', '2026-10-09')).toMatch(/needs a clear patch test/)
+    expect(known('client-9', '2026-10-10')).toMatch(/needs a clear patch test/)
+    // A reaction straight after a test stops it.
+    s = apply(
+      s,
+      test('client-9', '2026-10-06T07:00:00.000Z', { result: { outcome: 'reaction', notes: '' } }),
+    )
+    expect(known('client-9', '2026-10-10')).toMatch(/needs a clear patch test/)
+    // A test done too close to the visit does not count.
+    const close = apply(
+      stopping(),
+      test('client-9', '2026-10-09T08:00:00.000Z'),
+      '2026-10-12T09:00:00.000Z',
+    )
+    expect(
+      onlinePatchTestStop(close, 'service-gloss', {
+        clientId: 'client-9',
+        start: at(close, '2026-10-10'),
+      }),
+    ).toMatch(/needs a clear patch test/)
+    // A later reaction outweighs an older clear test.
+    const reacted = apply(
+      stopping(),
+      test('client-3', '2026-10-05T09:00:00.000Z', { result: { outcome: 'reaction', notes: '' } }),
+    )
+    expect(
+      onlinePatchTestStop(reacted, 'service-gloss', {
+        clientId: 'client-3',
+        start: at(reacted, '2026-10-08'),
+      }),
+    ).toMatch(/needs a clear patch test/)
+    // A treatment that needs no test never stops.
+    expect(
+      onlinePatchTestStop(s, 'service-facial', {
+        clientId: 'client-9',
+        start: at(s, '2026-10-10'),
+      }),
+    ).toBeNull()
+  })
+
+  it('never stops the desk', () => {
+    const s = stopping()
+    const desk = run(s, {
+      type: 'book',
+      input: {
+        serviceId: 'service-gloss',
+        staffId: 'staff-theo',
+        date: '2026-10-08',
+        startMinutes: 840,
+        clientId: 'client-9',
+        source: 'desk',
+      },
+    })
+    expect(desk.ok).toBe(true)
+  })
+
+  it('takes as the patch test only a treatment on the menu that needs no test itself', () => {
+    const s = seed('UK')
+    const refused = (testServiceId: string) => {
+      const result = run(s, {
+        type: 'patch-test-settings',
+        settings: { ...defaultPatchTestSettings, stopOnline: true, testServiceId },
+      })
+      return result.ok ? '' : result.error
+    }
+    expect(refused('service-gloss')).toMatch(/cannot be a treatment that needs a patch test/)
+    expect(refused('service-nowhere')).toBe('Choose a treatment on the menu.')
+    const archived = structuredClone(s)
+    archived.services.find((x) => x.id === 'service-cut')!.archived = true
+    const gone = run(parseState(archived, 'UK'), {
+      type: 'patch-test-settings',
+      settings: { ...defaultPatchTestSettings, testServiceId: 'service-cut' },
+    })
+    expect(gone.ok).toBe(false)
+    // A patch test later archived, or marked as needing a test, is simply not offered.
+    const later = structuredClone(s)
+    later.services.find((x) => x.id === 'service-patch-test')!.archived = true
+    expect(patchTestBooking(parseState(later, 'UK'))).toBeUndefined()
+  })
+
+  it('leaves the treatment off Google and out of the receptionist’s times', () => {
+    const s = structuredClone(stopping())
+    // Google only lists treatments without a deposit.
+    s.services.find((x) => x.id === 'service-gloss')!.depositMinor = 0
+    const free = parseState(s, 'UK')
+    expect(bookableOnGoogle(free).map((x) => x.id)).not.toContain('service-gloss')
+    expect(bookableOnGoogle(free).map((x) => x.id)).toContain('service-patch-test')
+    const off = parseState(
+      { ...s, operations: { ...s.operations!, patchTests: defaultPatchTestSettings } },
+      'UK',
+    )
+    expect(bookableOnGoogle(off).map((x) => x.id)).toContain('service-gloss')
   })
 })

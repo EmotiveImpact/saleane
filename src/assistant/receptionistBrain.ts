@@ -490,6 +490,8 @@ function nextStep(
 ): Step {
   const last = results.at(-1)!
   if (!last.ok) {
+    // Stage 3: a treatment the studio books only after a patch test. Another day changes nothing.
+    if (/needs a patch test first/.test(String(last.data))) return say(String(last.data))
     if (last.name === 'offer_time' || last.name === 'find_times')
       return say(`${String(last.data)} Tell me another day or time and I will look again.`)
     return say(String(last.data))

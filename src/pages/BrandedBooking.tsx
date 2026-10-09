@@ -18,17 +18,25 @@ import { bookingChannel } from '../domain/bookingChannel'
 import { fullPriceMinor } from '../domain/priceSentence'
 import { listPrice, offeredAt, places, serviceAt, staffPlaces } from '../domain/locations'
 import { LocationChoice } from '../components/LocationChoice'
-import { patchTestSettings } from '../domain/patchTests'
+import { patchTestBooking, patchTestFirst, patchTestSettings } from '../domain/patchTests'
+import { PatchTestFirst } from '../components/PatchTestFirst'
 import { currentWording } from '../domain/consent'
 
 export function BrandedBooking() {
   const { state, commit, region, changeRegion, saving } = useStore()
   const [step, setStep] = useState(1)
-  const [picked, setPicked] = useState(false)
+  // Stage 3: a link naming a treatment, such as the studio's patch test, opens with it chosen.
+  const [linkedService] = useState(
+    () =>
+      state.services.find(
+        (s) => !s.archived && s.id === new URLSearchParams(window.location.search).get('service'),
+      )?.id,
+  )
+  const [picked, setPicked] = useState(!!linkedService)
   // With one kind of treatment the list opens straight away, chosen as before;
   // otherwise nothing is chosen until the guest picks.
   const ready = picked || new Set(state.services.map((s) => s.category)).size < 2
-  const [serviceId, setServiceId] = useState(state.services[0].id)
+  const [serviceId, setServiceId] = useState(linkedService ?? state.services[0].id)
   // 'any' lets the guest take the first professional free at the time they choose.
   const [staffId, setStaffId] = useState('any')
   const [date, setDate] = useState(addDays(DEMO_DATE, 1))
@@ -336,7 +344,36 @@ export function BrandedBooking() {
                     </button>
                   )}
                   footer={
-                    ready && (
+                    ready &&
+                    (patchTestFirst(state, serviceId) ? (
+                      // Stage 3: the studio books this only with the guest, after a patch test.
+                      <PatchTestFirst
+                        treatment={service.name}
+                        hours={patchTestSettings(state).hoursBefore}
+                        studio={{
+                          name: state.organisation.name,
+                          phone: where.phone ?? state.organisation.phone,
+                          email: where.email ?? state.organisation.email,
+                          address: where.address,
+                          region: state.organisation.region,
+                        }}
+                        test={(() => {
+                          const test = patchTestBooking(state)
+                          return test
+                            ? {
+                                href: `?service=${encodeURIComponent(test.id)}`,
+                                onChoose: () => {
+                                  setServiceId(test.id)
+                                  setStaffId('any')
+                                  setStart(null)
+                                  setError('')
+                                  setStep(2)
+                                },
+                              }
+                            : undefined
+                        })()}
+                      />
+                    ) : (
                       <div className="booking-next">
                         <span>
                           {service.name}
@@ -350,7 +387,7 @@ export function BrandedBooking() {
                           Choose a time <ArrowRight size={17} />
                         </Button>
                       </div>
-                    )
+                    ))
                   }
                 />
               </>

@@ -4,6 +4,7 @@ import type { Appointment, BusinessState, Region } from './model'
 import { addDays, dateLabel, timeLabel } from './format'
 import { DEMO_MINUTES, defaultOperations, hoursFor, instantFor } from './operations'
 import { standardWording } from './consent'
+import { defaultPatchTestSettings } from './patchTestsSchema'
 import { STARTER_CHECKLIST } from './branchVisits'
 import { sampleShifts } from './hours'
 import { Diary, planRegulars, sampleRegulars, seeded } from './sampleDiary'
@@ -403,6 +404,21 @@ function build(region: Region, regularCount: number): BusinessState {
           'Wait two days before washing your hair, then use a colour-safe shampoo and cool water.',
         returnWeeks: 6,
       },
+      // Stage 3: the patch test itself, free, which guests can book online before a colour.
+      {
+        ...scope,
+        id: 'service-patch-test',
+        name: 'Colour patch test',
+        category: 'Hair',
+        description:
+          'A quick skin test behind the ear, at least 48 hours before your colour. No charge.',
+        durationMinutes: 15,
+        bufferMinutes: 0,
+        priceMinor: 0,
+        depositMinor: 0,
+        resourceType: 'chair',
+        prepNote: 'Come with clean, dry skin behind your ears.',
+      },
     ],
     // Each person works five days a week; the studio is closed on Sundays.
     staff: [
@@ -429,7 +445,7 @@ function build(region: Region, regularCount: number): BusinessState {
         id: 'staff-theo',
         name: 'Theo Bennett',
         role: 'Hair & styling',
-        serviceIds: ['service-cut', 'service-gloss'],
+        serviceIds: ['service-cut', 'service-gloss', 'service-patch-test'],
         tone: 'sand',
         hours: week([2, 3, 4, 5, 6]),
       },
@@ -447,6 +463,9 @@ function build(region: Region, regularCount: number): BusinessState {
   }
   const o = (state.operations = defaultOperations('sandbox'))
   o.hours = week([1, 2, 3, 4, 5, 6])
+  // Stage 3: the patch test guests book is set, and stopping online booking without one is left
+  // off, as in every studio, for the owner to try in Settings, Treatments.
+  o.patchTests = { ...defaultPatchTestSettings, testServiceId: 'service-patch-test' }
   seedTimeOff(state, uk)
   const at = (date: string, minutes: number) => instantFor(state, date, minutes)
   const diary = new Diary(state)

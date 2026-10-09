@@ -6,6 +6,7 @@ import type { Context, Route } from './context'
 import { dispatch, slots } from '../src/domain/commands'
 import { businessDate, businessMinutes, instantFor, operations } from '../src/domain/operations'
 import { guestCancellation, visitStart } from '../src/domain/guest'
+import { onlinePatchTestStop } from '../src/domain/patchTests'
 import {
   availabilityFeed,
   bookableOnGoogle,
@@ -206,6 +207,9 @@ export function googleBooking(options: GoogleBookingOptions) {
           const visit = org.state.appointments.find((a) => a.id === earlier.booking_id)
           return { booking: bookingView(earlier, visit ? statusOf(visit.status) : 'CONFIRMED') }
         }
+        // Stage 3: the same rule as the studio's booking page, with its own words in the answer.
+        const patchStop = onlinePatchTestStop(org.state, input.slot.service_id)
+        if (patchStop) throw new BookingFailure('SLOT_UNAVAILABLE', patchStop)
         const visit = visitFor(org.state, input.slot)
         const user = input.user_information
         const name = [user.given_name, user.family_name].filter(Boolean).join(' ').trim()

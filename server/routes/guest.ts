@@ -15,6 +15,8 @@ import {
   visitStart,
 } from '../../src/domain/guest'
 import { guestMoveDays, guestMoveTimes, timeAhead } from '../../src/domain/guestMove'
+import { onlinePatchTestStop, patchTestFirst } from '../../src/domain/patchTests'
+import { instantFor } from '../../src/domain/operations'
 import type { Context, Org, Route } from '../context'
 import { feedbackForVisit, feedbackInputSchema, feedbackOpen } from '../../src/domain/feedback'
 import { waitlistTimesSchema } from '../../src/domain/waitlistSchema'
@@ -404,14 +406,27 @@ export async function guestRoutes(ctx: Context, route: Route): Promise<boolean> 
       : (days.find((d) => d.open && d.date === visit.date) ?? days.find((d) => d.open) ?? days[0])
     if (!day) fail(409, data.date ? 'Choose one of the days shown.' : MOVE_REFUSALS.closed)
     const anyone = data.anyone ?? false
+    // Stage 3: with the studio's patch test rule on, only times the guest's clear test covers.
+    const patchFirst = patchTestFirst(org.state, visit.serviceId)
+    const covered = (startMinutes: number) => {
+      try {
+        const start = instantFor(org.state, day!.date, startMinutes)
+        return !onlinePatchTestStop(org.state, visit.serviceId, { clientId: visit.clientId, start })
+      } catch {
+        return false
+      }
+    }
     reply(200, {
       days,
       date: day!.date,
       anyone,
       // Free for desk bookings and for guests holding a time on the booking page.
       times: day!.open
-        ? guestMoveTimes(withHolds(org), appointmentId, day!.date, now(), anyone)
+        ? guestMoveTimes(withHolds(org), appointmentId, day!.date, now(), anyone).filter((time) =>
+            covered(time.startMinutes),
+          )
         : [],
+      ...(patchFirst ? { patchTest: true } : {}),
     })
     return true
   }
@@ -465,6 +480,12 @@ export async function guestRoutes(ctx: Context, route: Route): Promise<boolean> 
         fail(409, 'Choose one of the open days shown.')
       if (!timeAhead(org.state, data.date, data.startMinutes, now()))
         fail(409, 'That time has passed. Choose another time.')
+      // Stage 3: the studio's patch test rule, for the guest this private link belongs to.
+      const patchStop = onlinePatchTestStop(org.state, visit.serviceId, {
+        clientId: visit.clientId,
+        start: instantFor(org.state, data.date, data.startMinutes),
+      })
+      if (patchStop) fail(422, patchStop)
       // Free for desk bookings and for guests holding a time on the booking page, in the exact
       // room the check found, with its resting time.
       const resourceId = rescheduleResource(

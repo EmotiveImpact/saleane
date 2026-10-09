@@ -9,6 +9,7 @@ import { priceSentence } from '../domain/priceSentence'
 import { healthWordIn } from '../domain/forms'
 import { defaultReceptionist } from '../domain/receptionistSchema'
 import { visitStart } from '../domain/guest'
+import { onlinePatchTestStop, patchTestFirst } from '../domain/patchTests'
 import {
   bookablePlaces,
   hasLocations,
@@ -76,6 +77,7 @@ Only state facts the skills return: treatments, prices, opening hours and free t
 You cannot book, move or cancel a visit or take a payment. You can offer a free time, which the guest finishes booking on the page.
 When the guest is known, you can send them the private link to one of their own visits, where they move or cancel it themselves.
 Never give health or medical advice and never ask about health. Offer to pass a message to the team instead.
+When a treatment needs a patch test first, say so and how to get one. Never say whether the guest has had one.
 Never share anything about other guests.`
 
 export const isOn = (s: BusinessState) =>
@@ -149,6 +151,15 @@ function treatment(ctx: ReceptionContext, id: string) {
   const service = services(ctx.state).find((x) => x.id === id)
   if (!service) throw new SkillRefusal('That treatment is not on the menu.')
   return service
+}
+/**
+ * Stage 3: a treatment the studio books only for guests with a patch test. Every time offered here
+ * is booked on the booking page, where the guest is never known, so the answer is the same for
+ * everyone, including a guest the receptionist knows by their number.
+ */
+function bookableHere(ctx: ReceptionContext, service: Service) {
+  const stop = onlinePatchTestStop(ctx.state, service.id)
+  if (stop) throw new SkillRefusal(stop)
 }
 function professional(ctx: ReceptionContext, serviceId: string, id?: string) {
   if (!id || id === 'any') return null
@@ -247,6 +258,8 @@ export function receptionistSkills(): Skill<ReceptionContext, ReceptionEffect>[]
                 about: x.description,
                 durationMinutes: x.durationMinutes,
                 price: priceFor(ctx, x, priceMinor, from),
+                // Stage 3: not booked online until the guest has had a patch test.
+                ...(patchTestFirst(ctx.state, x.id) ? { patchTestFirst: true } : {}),
                 ...(several
                   ? {
                       locations: where.map((p) => ({
@@ -363,6 +376,7 @@ export function receptionistSkills(): Skill<ReceptionContext, ReceptionEffect>[]
       allowed: () => true,
       run: (ctx, input) => {
         const service = treatment(ctx, input.treatmentId)
+        bookableHere(ctx, service)
         const person = professional(ctx, service.id, input.professionalId)
         const place = askedPlace(ctx, service, input.locationId)
         bookableDate(ctx, input.date)
@@ -439,6 +453,7 @@ export function receptionistSkills(): Skill<ReceptionContext, ReceptionEffect>[]
       allowed: () => true,
       propose: (ctx, input) => {
         const service = treatment(ctx, input.treatmentId)
+        bookableHere(ctx, service)
         const person = professional(ctx, service.id, input.professionalId)
         const place = askedPlace(ctx, service, input.locationId)
         bookableDate(ctx, input.date)

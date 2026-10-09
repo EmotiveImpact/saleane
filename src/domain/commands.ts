@@ -25,6 +25,7 @@ import { coverVisit, runPlanCommand, stampPlanActors } from './plans'
 import { planCardUnchanged, runPlanCardCommand } from './planCards'
 import { runGiftCardCommand, spendGiftCard, stampGiftCardActors } from './giftCards'
 import {
+  onlinePatchTestStop,
   patchTestBlocksVisit,
   repeatedPatchResult,
   runPatchTestCommand,
@@ -250,6 +251,10 @@ export function execute(
       const input = bookingSchema.parse(command.input)
       if (input.source === 'online' && !operations(s).bookingEnabled)
         throw new Error('Online booking is currently closed.')
+      // Stage 3: an online booking always opens a new client record, so the guest is never known
+      // for sure and the studio's patch test rule stops a treatment that needs one.
+      const patchStop = input.source === 'online' ? onlinePatchTestStop(s, input.serviceId) : null
+      if (patchStop) throw new Error(patchStop)
       // Without a chosen location, the visit is wherever the person works that day.
       const chosenPlace = input.locationId
       const staffId =

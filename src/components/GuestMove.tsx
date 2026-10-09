@@ -18,6 +18,8 @@ type MoveTimes = {
   date: string
   anyone: boolean
   times: { startMinutes: number; staffId: string; professional: string }[]
+  /** Stage 3: only times a clear patch test covers are offered, under the studio's rule. */
+  patchTest?: boolean
 }
 type Choice = Omit<PendingMove, 'requestKey'>
 
@@ -223,6 +225,12 @@ export function GuestMove({
             {visit.serviceName} at {org.locationName}. Everything else stays as booked
             {deposit.paidMinor ? ', including your deposit' : ''}.
           </p>
+          {slots?.patchTest && (
+            <p className="subtle">
+              This treatment needs a clear patch test that covers the visit, so only those times can
+              be chosen here. For another time, contact the studio.
+            </p>
+          )}
           <SegmentedControl
             label="Who with"
             appearance="pill"
@@ -290,9 +298,11 @@ export function GuestMove({
               <p className="guest-move-none" role="status">
                 {!day.open
                   ? `The studio is closed on ${dateLabel(date, org.locale)}.`
-                  : anyone
-                    ? `No free times on ${dateLabel(date, org.locale)}. Try another day.`
-                    : `No free times with ${visit.professional} on ${dateLabel(date, org.locale)}. Try another day, or anyone available.`}
+                  : slots.patchTest
+                    ? `No times on ${dateLabel(date, org.locale)} can be chosen here. Try another day, or contact the studio.`
+                    : anyone
+                      ? `No free times on ${dateLabel(date, org.locale)}. Try another day.`
+                      : `No free times with ${visit.professional} on ${dateLabel(date, org.locale)}. Try another day, or anyone available.`}
               </p>
             )
           )}

@@ -224,6 +224,7 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
       'Choose New visit on Today or the Calendar, or click a free space in the Calendar.',
       "Type the client's name, email or phone. For someone new, choose They are new: add them while booking.",
       'Pick the treatment and the professional, then the date and one of the available times.',
+      'For a treatment that needs a patch test, the dialog shows where the client stands. Choose Book the patch test first to book the patch test instead.',
       'Choose Confirm booking.',
     ],
     note: 'No card is charged when you book. Record any deposit already received in Money.',
@@ -411,6 +412,30 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     screens: ['/clients', '/settings?section=service'],
     roles: DESK,
     words: 'patch test allergy skin colour tint',
+  },
+  {
+    id: 'patch-test-online',
+    title: 'Stop online booking until a patch test is in place',
+    group: 'Clients',
+    summary:
+      'Keep treatments that need a patch test off online booking, and show guests how to get one first.',
+    steps: [
+      'Open Settings, then Treatments, and find Patch tests.',
+      'Tick Stop online booking when a patch test is missing or out of date.',
+      'In The patch test guests can book online, choose your patch test treatment, or None if guests should call or email you.',
+      'Choose Save patch test rules.',
+      'On your booking page, a guest who chooses a treatment that needs a patch test reads A patch test comes first, with Book a patch test and your phone and email, in place of Choose a time.',
+      'The AI receptionist says the same, and Google no longer lists the treatment.',
+      'Online, nobody is matched to your client records, so every guest reads the same words. Nobody can learn from your booking page whether someone is a client or has had a test.',
+      'A guest moving a visit from their private link sees only times their clear test covers.',
+      'At the desk, Book a visit still books anyone. It says when online booking would have stopped the visit, and offers Book the patch test first.',
+    ],
+    note: 'A test waiting for its result does not count yet. Record the result once the skin has been checked.',
+    to: '/settings?section=service',
+    screens: ['/settings?section=service'],
+    roles: RUNS,
+    words:
+      'patch test online booking stop block prevent colour allergy guests book page google receptionist',
   },
   {
     id: 'guest-forms',

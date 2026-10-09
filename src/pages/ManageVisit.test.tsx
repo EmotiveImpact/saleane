@@ -588,3 +588,24 @@ test('shows the guest’s package, and stops offering it for a visit they cancel
   expect(after).toHaveTextContent('3 of 6 visits left')
   expect(after).not.toHaveTextContent('This visit')
 })
+
+test('says when only times a clear patch test covers can be chosen (Stage 3)', async () => {
+  const user = userEvent.setup()
+  vi.mocked(api).mockImplementation(async (path, options) => {
+    const body = options?.body as { date?: string; anyone?: boolean }
+    if (path === '/api/guest/visit') return movable() as never
+    return { ...moveTimes(body.date ?? '2026-10-07', body.anyone), patchTest: true } as never
+  })
+  render(<ManageVisit />)
+  await user.click(await screen.findByRole('button', { name: 'Move my visit' }))
+  expect(
+    await screen.findByText(
+      'This treatment needs a clear patch test that covers the visit, so only those times can be chosen here. For another time, contact the studio.',
+    ),
+  ).toBeInTheDocument()
+  expect(
+    screen.getByText(
+      'No times on Wednesday 7 October can be chosen here. Try another day, or contact the studio.',
+    ),
+  ).toBeInTheDocument()
+})

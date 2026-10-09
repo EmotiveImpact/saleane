@@ -6,7 +6,11 @@ import { commandSchema, dispatch, slots } from '../../src/domain/commands'
 import { businessDate, hoursFor, operations } from '../../src/domain/operations'
 import { addDays } from '../../src/domain/format'
 import type { BusinessState } from '../../src/domain/model'
-import { patchTestSettings } from '../../src/domain/patchTests'
+import {
+  onlinePatchTestStop,
+  patchTestBooking,
+  patchTestSettings,
+} from '../../src/domain/patchTests'
 import { currentWording } from '../../src/domain/consent'
 import { HOLD_LIMITS, holdInput, guestContact } from '../context'
 import type { Context, Org, Route, HoldAllocation, HoldRow } from '../context'
@@ -106,6 +110,12 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
         sample,
         // V1.5: treatments marked as needing a patch test tell guests how far ahead to have one.
         patchTestHours: patchTestSettings(state).hoursBefore,
+        // Stage 3: with the studio's rule on, a treatment that needs a patch test is not booked
+        // here, and the guest is shown how to get one: the studio's patch test, when a guest can
+        // book it, or its phone and email. The same for every guest; nothing about anyone.
+        ...(patchTestSettings(state).stopOnline
+          ? { patchTestFirst: { testServiceId: patchTestBooking(state)?.id ?? null } }
+          : {}),
         // V1.5: the studio's current words for email news, so a ticked box records what was read.
         emailNews: (({ version, text }) => ({ version, text }))(currentWording(state)),
         // PILOT-02: a sample studio only simulates its deposits. A real studio's guest pays the
@@ -245,9 +255,12 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
         heldWith = ''
       db.transaction(() => {
         const time = now()
+        const org = publicOrg(slug)
+        // Stage 3: a treatment the studio keeps for guests with a patch test is never held here.
+        const patchStop = onlinePatchTestStop(org.state, data.serviceId)
+        if (patchStop) fail(422, patchStop)
         expires = time + limits.HOLD_MS
         db.run('DELETE FROM booking_holds WHERE expires_at<=? AND appointment_id IS NULL', time)
-        const org = publicOrg(slug)
         if (replaces)
           db.run(
             'DELETE FROM booking_holds WHERE token_hash=? AND organisation_id=? AND appointment_id IS NULL',
@@ -353,6 +366,9 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
         }
         if (hold!.expires_at <= now()) fail(409, 'This reservation expired. Choose a time again.')
         const allocation = JSON.parse(hold!.input) as HoldAllocation
+        // Stage 3: the studio may have turned its patch test rule on while the time was held.
+        const patchStop = onlinePatchTestStop(org.state, allocation.serviceId)
+        if (patchStop) fail(422, patchStop)
         const service = org.state.services.find((service) => service.id === allocation.serviceId)
         if (
           !service ||
