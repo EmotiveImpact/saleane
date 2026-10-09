@@ -239,6 +239,77 @@ describe('the AI receptionist with several locations', () => {
     )
   })
 
+  it('offers a time with anyone where the professional free then works, and says where', async () => {
+    // Sophia is away on Thursday, so only Maya, at Islington that day, is free for a facial.
+    const state = twoSites()
+    const away: BusinessState = {
+      ...state,
+      operations: {
+        ...operations(state),
+        closures: [
+          ...operations(state).closures,
+          {
+            id: 'closure-sophia',
+            date: '2026-10-08',
+            staffId: 'staff-sophia',
+            startMinutes: 0,
+            endMinutes: 1440,
+            reason: 'Away',
+          },
+        ],
+      },
+    }
+    const asked = 'Any times for a facial on Thursday?'
+    const times = await chat(asked, [], away)
+    expect(times.text).toMatch(/^Skin Renewal Facial at Islington on Thursday 8 October: /)
+    const first = /: (\d{2}:\d{2})/.exec(times.text)![1]
+    const offered = await chat(
+      `Book ${first} please`,
+      [
+        { from: 'guest', text: asked },
+        { from: 'receptionist', text: times.text },
+      ],
+      away,
+    )
+    expect(offered.proposals[0].effect).toEqual<ReceptionEffect>({
+      kind: 'time',
+      serviceId: 'service-facial',
+      staffId: 'any',
+      date: '2026-10-08',
+      startMinutes: Number(first.slice(0, 2)) * 60 + Number(first.slice(3)),
+      locationId: islington,
+    })
+    expect(offered.proposals[0].summary).toMatch(
+      /^Skin Renewal Facial at Islington, Thursday 8 October at /,
+    )
+  })
+
+  it('finds times at the location the guest names, and none where it is not offered', async () => {
+    const main = base.organisation.locationId
+    const asked = 'Any times for a facial at Marylebone on Thursday?'
+    const times = await chat(asked, [], twoSites())
+    expect(times.text).toMatch(/^Skin Renewal Facial at Marylebone, London on Thursday 8 October: /)
+    const first = /: (\d{2}:\d{2})/.exec(times.text)![1]
+    const offered = await chat(
+      `Book ${first} please`,
+      [
+        { from: 'guest', text: asked },
+        { from: 'receptionist', text: times.text },
+      ],
+      twoSites(),
+    )
+    expect(offered.proposals[0].effect).toMatchObject({ staffId: 'any', locationId: main })
+    const massage = await chat(
+      'Any times for the lymphatic massage at Islington on Thursday?',
+      [],
+      twoSites(),
+    )
+    expect(massage.text).toBe(
+      'Lymphatic Massage is not offered at Islington. You can book it at Marylebone, London.',
+    )
+    expect(massage.proposals).toEqual([])
+  })
+
   it('lists no treatment that no open location offers or that nobody there does', () => {
     const state = twoSites()
     const nowhere: BusinessState = {

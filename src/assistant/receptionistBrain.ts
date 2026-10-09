@@ -420,7 +420,7 @@ function nextStep(
       professional: string
       date: string
       day: string
-      times: { time: string; label: string }[]
+      times: { time: string; label: string; location?: string }[]
       more: number
     }
     const named = firstDate(talk, today)
@@ -438,10 +438,27 @@ function nextStep(
     const wanted = timeIn(talk.latest)
     if (wanted && found.times.some((t) => t.time === wanted) && offered.has('offer_time'))
       return call('offer_time', { ...last.input, time: wanted })
+    const who = found.professional === 'anyone' ? '' : ` with ${found.professional}`
+    const more = found.more ? `, and ${found.more} more` : ''
+    // V2: with several locations, say where the times are.
+    const sites = [...new Set(found.times.map((t) => t.location ?? ''))]
+    if (sites.length > 1) {
+      const lines = sites.map(
+        (site) =>
+          `At ${site}: ${found.times
+            .filter((t) => t.location === site)
+            .map((t) => t.label)
+            .join(', ')}`,
+      )
+      if (found.more) lines.push(`And ${found.more} more.`)
+      return say(
+        `${found.treatment}${who} on ${found.day}:\n${lines.join('\n')}\nWhich would you like?`,
+      )
+    }
     return say(
-      `${found.treatment}${found.professional === 'anyone' ? '' : ` with ${found.professional}`} on ${found.day}: ${found.times
+      `${found.treatment}${who}${sites[0] ? ` at ${sites[0]}` : ''} on ${found.day}: ${found.times
         .map((t) => t.label)
-        .join(', ')}${found.more ? `, and ${found.more} more` : ''}. Which would you like?`,
+        .join(', ')}${more}. Which would you like?`,
     )
   }
   if (last.name === 'treatments') {
@@ -457,10 +474,17 @@ function nextStep(
             .join(', ')}.`,
         )
       const person = professionalIn(talk, chosen)
+      // V2: times at the location the guest names, when it offers the treatment.
+      const place = placeIn(talk, list)
+      if (place && !chosen.locations?.some((p) => p.id === place.id))
+        return say(
+          `${chosen.name} is not offered at ${place.name}. You can book it at ${names(chosen.locations ?? [])}.`,
+        )
       const input = {
         treatmentId: chosen.id,
         date: firstDate(talk, today) ?? addDays(today, 1),
         ...(person ? { professionalId: person.id } : {}),
+        ...(place ? { locationId: place.id } : {}),
       }
       const wanted = timeIn(talk.latest)
       if (wanted && /\bbook\b/i.test(talk.latest) && offered.has('offer_time'))

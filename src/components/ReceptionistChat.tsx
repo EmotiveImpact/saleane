@@ -7,7 +7,14 @@ import './receptionistChat.css'
 
 type Proposal = { id: string; summary: string; kind: 'time' | 'message'; expiresAt: string }
 type Turn = { from: 'guest' | 'receptionist'; text: string; proposals?: Proposal[] }
-export type OfferedTime = { serviceId: string; staffId: string; date: string; startMinutes: number }
+/** A time the receptionist offered. With several locations it names where it is (V2). */
+export type OfferedTime = {
+  serviceId: string
+  staffId: string
+  date: string
+  startMinutes: number
+  locationId?: string
+}
 
 const HISTORY = 8
 const starters = ['When are you open?', 'How much is a facial?', 'Any times tomorrow?']

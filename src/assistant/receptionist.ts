@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { SkillRefusal, actionSkill, readSkill, runTurn } from '../../lumane'
 import type { Allowance, BrainMessage, Skill, TurnResult, Usage } from '../../lumane'
 import type { BusinessState, Service } from '../domain/model'
-import { slots } from '../domain/commands'
+import { availableProfessionals, slots } from '../domain/commands'
 import { addDays, dateLabel, timeLabel } from '../domain/format'
 import { operations } from '../domain/operations'
 import { priceSentence } from '../domain/priceSentence'
@@ -13,7 +13,10 @@ import {
   bookablePlaces,
   hasLocations,
   listPrice,
+  offeredAt,
+  placeOf,
   serviceAt,
+  staffLocationOn,
   staffPlaces,
 } from '../domain/locations'
 import { ALLOWANCES } from './saleane'
@@ -43,9 +46,19 @@ export type ReceptionContext = {
   guestId?: string
 }
 
-/** What the guest can say yes to: a time to book, or a message for the team. */
+/**
+ * What the guest can say yes to: a time to book, or a message for the team. With several
+ * locations a time names where it is, so the booking page opens there (V2).
+ */
 export type ReceptionEffect =
-  | { kind: 'time'; serviceId: string; staffId: string; date: string; startMinutes: number }
+  | {
+      kind: 'time'
+      serviceId: string
+      staffId: string
+      date: string
+      startMinutes: number
+      locationId?: string
+    }
   | { kind: 'message'; name: string; contact: string; message: string }
   /** Send the guest the private link to their own visit, to the number they wrote from. */
   | { kind: 'manage'; appointmentId: string }
@@ -142,6 +155,32 @@ function professional(ctx: ReceptionContext, serviceId: string, id?: string) {
   if (!person || !person.serviceIds.includes(serviceId))
     throw new SkillRefusal('That person does not offer this treatment.')
   return person
+}
+/** The open location the guest asked for, when they named one, and only if it offers the treatment. */
+function askedPlace(ctx: ReceptionContext, service: Service, id?: string) {
+  if (!id) return undefined
+  const place = placeOf(ctx.state, id)
+  if (!place || place.id !== id || place.archived)
+    throw new SkillRefusal('That location is not open.')
+  if (!offeredAt(service, place.id))
+    throw new SkillRefusal(`${service.name} is not offered at ${place.name}.`)
+  return place
+}
+/**
+ * Where a free time is (V2): the asked-for location, where the professional works that day, or,
+ * with anyone, where the first professional free then works, as booking would choose them.
+ */
+function placeOfTime(
+  ctx: ReceptionContext,
+  serviceId: string,
+  staffId: string | undefined,
+  date: string,
+  start: number,
+  locationId?: string,
+) {
+  if (locationId) return locationId
+  const who = staffId ?? availableProfessionals(ctx.state, serviceId, date, start, ctx.now)[0]?.id
+  return who ? staffLocationOn(ctx.state, who, date) : ctx.state.organisation.locationId
 }
 function bookableDate(ctx: ReceptionContext, date: string) {
   if (date < ctx.today) throw new SkillRefusal('That date has passed.')
@@ -240,36 +279,64 @@ export function receptionistSkills(): Skill<ReceptionContext, ReceptionEffect>[]
         }
       },
     }),
-    readSkill<ReceptionContext, { treatmentId: string; date: string; professionalId?: string }>({
+    readSkill<
+      ReceptionContext,
+      { treatmentId: string; date: string; professionalId?: string; locationId?: string }
+    >({
       name: 'find_times',
       description:
-        'Free start times for one treatment on one date, with anyone or with one professional.',
+        'Free start times for one treatment on one date, with anyone or with one professional. With several locations, each time says where it is, and a location can be asked for.',
       input: z
         .object({
           treatmentId: z.string().min(1).max(150),
           date: isoDate,
           professionalId: z.string().min(1).max(150).optional(),
+          locationId: z.string().min(1).max(150).optional(),
         })
         .strict(),
       allowed: () => true,
       run: (ctx, input) => {
         const service = treatment(ctx, input.treatmentId)
         const person = professional(ctx, service.id, input.professionalId)
+        const place = askedPlace(ctx, service, input.locationId)
         bookableDate(ctx, input.date)
-        const times = slots(ctx.state, service.id, person?.id ?? 'any', input.date, ctx.now)
+        const times = slots(
+          ctx.state,
+          service.id,
+          person?.id ?? 'any',
+          input.date,
+          ctx.now,
+          place?.id,
+        )
+        const several = hasLocations(ctx.state)
         return {
           treatment: service.name,
           professional: person?.name ?? 'anyone',
           date: input.date,
           day: day(ctx, input.date),
-          times: times.slice(0, 12).map((m) => ({ time: hhmm(m), label: clock(ctx, m) })),
+          times: times.slice(0, 12).map((m) => {
+            const where = several
+              ? placeOfTime(ctx, service.id, person?.id, input.date, m, place?.id)
+              : undefined
+            return {
+              time: hhmm(m),
+              label: clock(ctx, m),
+              ...(where ? { locationId: where, location: placeOf(ctx.state, where)!.name } : {}),
+            }
+          }),
           more: Math.max(0, times.length - 12),
         }
       },
     }),
     actionSkill<
       ReceptionContext,
-      { treatmentId: string; date: string; time: string; professionalId?: string },
+      {
+        treatmentId: string
+        date: string
+        time: string
+        professionalId?: string
+        locationId?: string
+      },
       ReceptionEffect
     >({
       name: 'offer_time',
@@ -281,24 +348,40 @@ export function receptionistSkills(): Skill<ReceptionContext, ReceptionEffect>[]
           date: isoDate,
           time,
           professionalId: z.string().min(1).max(150).optional(),
+          locationId: z.string().min(1).max(150).optional(),
         })
         .strict(),
       allowed: () => true,
       propose: (ctx, input) => {
         const service = treatment(ctx, input.treatmentId)
         const person = professional(ctx, service.id, input.professionalId)
+        const place = askedPlace(ctx, service, input.locationId)
         bookableDate(ctx, input.date)
         const start = minutes(input.time)
-        if (!slots(ctx.state, service.id, person?.id ?? 'any', input.date, ctx.now).includes(start))
+        if (
+          !slots(
+            ctx.state,
+            service.id,
+            person?.id ?? 'any',
+            input.date,
+            ctx.now,
+            place?.id,
+          ).includes(start)
+        )
           throw new SkillRefusal('That time is not free. Look for another.')
+        // V2: the time is where the professional who would take it works that day.
+        const where = hasLocations(ctx.state)
+          ? placeOfTime(ctx, service.id, person?.id, input.date, start, place?.id)
+          : undefined
         return {
-          summary: `${service.name}${person ? ` with ${person.name}` : ''}, ${day(ctx, input.date)} at ${clock(ctx, start)}`,
+          summary: `${service.name}${person ? ` with ${person.name}` : ''}${where ? ` at ${placeOf(ctx.state, where)!.name}` : ''}, ${day(ctx, input.date)} at ${clock(ctx, start)}`,
           effect: {
             kind: 'time',
             serviceId: service.id,
             staffId: person?.id ?? 'any',
             date: input.date,
             startMinutes: start,
+            ...(where ? { locationId: where } : {}),
           },
         }
       },
