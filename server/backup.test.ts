@@ -163,6 +163,8 @@ describe('consistent local backups and fresh-path recovery', () => {
     backupDatabase(api.database.path, backup)
     expect(restoreDatabase(backup, restored)).toMatchObject({
       sessionsRevoked: true,
+      // The confirmation link sent when the account was made.
+      accountLinksRetired: 1,
       accessKeysRevoked: 1,
       connectionsTurnedOff: 1,
       socialAccountsToConfirm: 1,
@@ -183,6 +185,9 @@ describe('consistent local backups and fresh-path recovery', () => {
       // The access key no longer reads anything.
       expect((await reads(recovered)).statusCode).toBe(401)
       expect(recovered.database.all('SELECT * FROM api_keys WHERE revoked_at IS NULL')).toEqual([])
+      expect(recovered.database.all('SELECT * FROM account_links WHERE used_at IS NULL')).toEqual(
+        [],
+      )
       // The connection is off until the owner turns it on, and what waited for it is not sent.
       expect(recovered.database.all('SELECT * FROM connections WHERE active=1')).toEqual([])
       expect(

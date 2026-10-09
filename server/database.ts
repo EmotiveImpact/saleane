@@ -457,6 +457,28 @@ export const migrations: Migration[] = [
         ALTER TABLE api_keys ADD COLUMN ends_on TEXT;
       `),
   },
+  {
+    version: 23,
+    // NEXT-03, forgotten passwords and email confirmation: single-use links (stored as hashes),
+    // and a record of each account email and what really happened to it.
+    up: (connection) =>
+      connection.exec(`
+        ALTER TABLE accounts ADD COLUMN email_confirmed_at INTEGER;
+        CREATE TABLE account_links (
+          token_hash TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id),
+          kind TEXT NOT NULL CHECK(kind IN ('reset','confirm')), email TEXT NOT NULL,
+          created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, used_at INTEGER
+        ) STRICT;
+        CREATE INDEX account_links_account ON account_links(account_id,kind);
+        CREATE TABLE account_mail (
+          id TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id),
+          kind TEXT NOT NULL CHECK(kind IN ('reset','confirm')), recipient TEXT NOT NULL,
+          subject TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('test','accepted','failed','unknown')),
+          provider TEXT, provider_ref TEXT, detail TEXT, created_at INTEGER NOT NULL
+        ) STRICT;
+        CREATE INDEX account_mail_recent ON account_mail(account_id,created_at);
+      `),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the
