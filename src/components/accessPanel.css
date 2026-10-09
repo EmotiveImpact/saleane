@@ -1,0 +1,67 @@
+/* Settings › Team: who can sign in to this studio, and your own password. */
+.access-panel .access-list {
+  margin: 0;
+  gap: 0;
+}
+.access-panel .access-row {
+  min-height: 64px;
+}
+.access-panel .access-row:first-child {
+  border-top: 1px solid var(--line);
+}
+.access-invite {
+  margin-top: var(--space-6);
+}
+.access-subtitle {
+  margin-bottom: var(--space-4);
+}
+.access-invite .ops-help {
+  margin-top: var(--space-4);
+}
+.access-panel .copy-invitation {
+  border-radius: var(--radius-panel);
+}
+.access-password {
+  margin-top: var(--space-6);
+  border-top: 1px solid var(--line);
+}
+.access-password > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target);
+  padding-top: var(--space-3);
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+  list-style: none;
+}
+.access-password > summary::-webkit-details-marker {
+  display: none;
+}
+/* A small chevron that turns when the section opens. */
+.access-password > summary::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  margin: -3px 4px 0 auto;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform var(--motion-quick);
+}
+.access-password[open] > summary::after {
+  margin-top: 4px;
+  transform: rotate(-135deg);
+}
+.access-password form {
+  padding-top: var(--space-4);
+}
+.access-password .ops-field > label {
+  font-size: var(--text-small);
+}
+@media (prefers-reduced-motion: reduce) {
+  .access-password > summary::after {
+    transition: none;
+  }
+}
