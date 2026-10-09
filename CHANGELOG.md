@@ -2,6 +2,74 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-09 · Whole app review and fixes
+
+**Status: built locally on 9 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/APP-REVIEW-2026-10-09.md).
+
+A fresh review of the whole app listed 48 things to fix or improve, and the owner said yes to all of them, including that a regional manager's own requests go to the owner and that only owners and managers remove a saved card. Messages, card payments, AI and maps stay in test mode: nothing is sent or charged.
+
+Things that were broken:
+
+- Moving a visit to someone working at another location now works from the desk and from an approved Ask SALEANE plan (1).
+- Guests and the desk can type a local mobile number ("07700 900456", "(212) 555-0142") or one with a country code. It is kept as an international number, nonsense gets a plain message, and a typo never costs the held time (2).
+- A real studio's booking page shows each treatment's deposit and the cancellation rule before booking, and offers to pay the deposit on the confirmation (3).
+- The confirmation offers "View my visit", "Add to calendar" and "Copy link", and repeats the full summary with the address and "Before you arrive". A wrong address shows "This booking page isn't available" (4).
+- Opening SALEANE in a new tab takes someone signed in to their own studio (the last one used, or their only one), a practitioner to their day and a regional manager to their area. Someone signed out still sees the fictional demo (5).
+- No day before the studio's today can be chosen or suggested on the booking page (6).
+- The studio and each location can have a phone number and email for guests. The booking page, the confirmation and the guest's visit page show them, with directions (7).
+- A general manager of a closed location is refused on every route, not only the studio read (8).
+- Messages from the booking page chat are never matched to a client by what the visitor typed; they wait in the Inbox for the team (9).
+- Restoring a backup no longer brings back access keys, connections, social accounts or unsent messages; each waits for the owner or the team (10).
+- A regional manager is greeted by their own first name, not the region's (11).
+- A mistyped, cut-off or replaced guest link says "This link has expired or been replaced. Ask the studio for a new one." (12).
+- The front desk can open Money, Stock, Rota and Gift cards, and Business opens on Money for them (13).
+- The team access panel has room to breathe and labelled password fields (14).
+- The Business tabs stay on one row that scrolls on a phone (15).
+
+Rough edges:
+
+- The AI receptionist and Book with Google quote each location's own price, "From £95" where prices differ, and only what is offered there (16).
+- A time the receptionist offers opens the booking steps at the location where it is (17).
+- The receptionist answers opening hours, parts of the day, parking and directions, says plainly when it cannot answer, and each time it lists is a button (18).
+- A newly added Instagram, Facebook or WhatsApp account waits until the owner confirms it is theirs, and once one studio has confirmed an account no other studio can add it (19).
+- A regional manager's own requests go to the owner, and the Requests page says why (20).
+- Only the owner and managers, or a general manager for a client of their location, can remove a saved card (21).
+- Gift cards, packages and memberships record the location that sold them, with a "Sold at" choice when there are several, and count in that location's figures (22).
+- Chair and room rent counts on the studio's own day, not the UTC day (23).
+- Every date is chosen from SALEANE's own month calendar and written the studio's way ("Tue 6 Oct 2026"), on staff pages, the booking page and the guest's visit page. Times are 24-hour in the UK and 12-hour in the US (24).
+- Internal words such as "Local V1 candidate", "release candidate", "sandbox", "workspace", "provenance" and "processor settlement evidence" are replaced with plain ones, and saving messages say plainly when someone else saved a change just now (25).
+- Screens say SALEANE (including Ask SALEANE), visit and treatment. Accountant exports keep "Services", the word their software expects (26).
+- The sample studio is busy and agrees with itself. Its clock stands at 10:45, so finished, current and coming visits match the time; about three hundred fictional regulars fill September and October; it closes on Sundays and each person has two days off a week; about three in five visits book the next one; feedback comes only from guests about their own visits; and Pay agrees with Business (27).
+- A new studio opens Monday to Saturday, 09:00 to 18:00, with online booking off until the owner switches it on (28).
+- Owners and managers of a studio still setting up see "Get your studio ready" on Today: opening hours, treatments, the team, rooms or chairs, VAT or sales tax, deposits and cancellation, the phone and email guests see, and online booking. Each step links to its place in Settings and ticks itself once set (29).
+- The join page names the studio, the role and its location or region, fills in the invited email and explains an expired link. Practitioners and regional managers can sign out from their own pages (30).
+- After a test card payment the guest is told plainly that it was a test and no money was taken, on the payment page, the booking page and their visit page (31).
+- The price page marks text reminders, saved cards and card readers as arriving once a card or text account is connected, and its logo stays on the price page (32).
+
+Polish:
+
+- Today's right-hand column holds a compact "Needs you" stack and "Your team today". What SALEANE noticed and one special, with "See all", sit side by side under the day ahead, so the two columns end together (33).
+- Every staff page has the same header (34), and headline figures share one style in whole pounds or dollars (35).
+- Gift cards look like real cards, and regional wording stays hidden until a studio has regions (36).
+- Settings is grouped under five headings with one way of saving (37).
+- Small layout slips are fixed across staff pages (38), and every control is at least 40px to tap on a phone (39).
+
+Bigger improvements:
+
+- Guests can move their own visit from their private link: the same treatment and location, with the same professional or anyone qualified, up to 24 hours before, comparing the old and new time before confirming. The page offers "Book again" after a cancellation and wears the studio's colours and photograph (40).
+- One booking summary runs through every step of the booking page and becomes the receipt (41).
+- A day strip shows each day as "Closed", "Full" or how many times are free, with "First available", times grouped into morning, afternoon and evening, and "Hold it again" when a hold runs out (42).
+- The visit panel covers a visit in every state: the treatment photo, what to remember, their last visit and the next actions. "Message" opens an unsent draft in the Inbox (43).
+- Stock, the visit panel and staff page headers carry photographs, and stock rows show the count with a level bar and "Running low" in words (44).
+- Each Inbox conversation ends in a reply box with saved replies and a choice of email or text. Replies wait as drafts for approval (45).
+- The calendar week is one timeline with visits at the same time side by side, the month on a phone shows how many visits each day has, and Ask SALEANE offers a follow-up question for each thing it mentions.
+
+Behind the scenes:
+
+- Pages load when they are first opened, so the first download fell from 816 kB to 382 kB, and the small client portraits went from a 2.3 MB picture to a 31 kB one (46).
+- The project notes for future helpers say what is merged, how merging works and the new rules (47).
+- Each change inside a combined change is checked on its own, outgoing connections treat NAT64 addresses as private, and three unused bits of code are gone (48).
+
 ## 2026-10-09 · V1.5 · Passing an unanswered waitlist offer on
 
 **Status: built locally on 9 October 2026 and merged (#71); nothing deployed.** [Evidence](docs/evidence/V15-WAITLIST.md#passing-an-unanswered-offer-on).
