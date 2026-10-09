@@ -21,6 +21,14 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Texts name the location, imported visits go to the location where the professional works that day, and the calendar showing every location spans all their opening hours.
 - A studio with one location works exactly as before.
 
+## 2026-10-09 · V5 · Automatic checks
+
+**Status: built locally on 9 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-CHECKS.md).
+
+- The whole business view has a "Needs a look" list, filled by checks that run by themselves across every location: a location's week down by 20% or more, a month-end estimate 10% or more short of its target (from the 7th), a branch visit due after 30 days (once there is a checklist), and a request waiting 3 days or more.
+- The owner turns each check on or off and sets its number under "Automatic checks". Regional managers see the same list for their own locations, and their morning summary uses the owner's number of days for branch visits.
+- The checks change nothing and contact no one.
+
 ## 2026-10-09 · V5 · Partner access
 
 **Status: built locally on 9 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-PARTNERS.md).

@@ -793,7 +793,8 @@ export function execute(
     } else if (
       command.type === 'region' ||
       command.type === 'region-remove' ||
-      command.type === 'targets'
+      command.type === 'targets' ||
+      command.type === 'group-checks'
     ) {
       recordId = runGroupCommand(next, command, makeId)
     } else if (

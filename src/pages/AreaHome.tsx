@@ -20,6 +20,7 @@ import '../components/management.css'
 import '../components/plans.css'
 import '../components/group.css'
 import { BranchMap } from '../components/BranchMap'
+import { GroupAlertList } from '../components/GroupChecks'
 import '../components/branchVisits.css'
 
 function greeting(minutes: number) {
@@ -244,6 +245,10 @@ export function AreaHome() {
             {record.summary.map((line) => (
               <p key={line}>{line}</p>
             ))}
+          </div>
+          <div className="group-attention">
+            <h3>Needs a look</h3>
+            <GroupAlertList alerts={record.alerts} />
           </div>
           <ul className="group-places">
             {record.places.map((p) => (
