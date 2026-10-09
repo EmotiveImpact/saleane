@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { PhoneMissed } from 'lucide-react'
@@ -11,25 +11,32 @@ import { dateLabel } from '../domain/format'
 import { Button, ErrorMessage } from '../design'
 import { useRun } from './usePayment'
 import { BookingDialog } from './BookingDialog'
+import { useSeeAll } from './seeAll'
+import { SeeAllButton } from './SeeAllButton'
 import './patchTests.css'
+import './needsYou.css'
 
 /**
  * V1.5: calls nobody could answer, for the desk to call back. Written down here by the team, or
  * by the studio's phone line once one is connected. A caller may also get one text with the
- * booking link, if the studio switched that on.
+ * booking link, if the studio switched that on. A small card on Today: the first two calls,
+ * the rest a tap away.
  */
 export function MissedCalls() {
   const { state, role, blocked } = useStore()
   const clock = useClock()
+  const listId = useId()
   const [number, setNumber] = useState('')
+  const [logging, setLogging] = useState(false)
   const [notice, setNotice] = useState('')
   const [booking, setBooking] = useState<{ callId: string; clientId?: string } | null>(null)
   const { run, pending, error, setError } = useRun()
+  const calls = openMissedCalls(state, clock)
+  const more = useSeeAll(calls)
   if (!can(role, 'missed-call')) return null
   const allowed = !blocked
   const org = state.organisation
   const today = businessDate(state, clock)
-  const calls = openMissedCalls(state, clock)
   const booked = callsBookedThisWeek(state, clock)
   const canBook = allowed && can(role, 'book')
   const textBack = reminderSettings(state).missedCall === true && reminderSettings(state).sms
@@ -60,31 +67,25 @@ export function MissedCalls() {
     if (await run({ type: 'missed-call-done', callId })) setNotice(`${who} is off the list.`)
   }
   return (
-    <section className="surface ops-panel missed-panel" aria-labelledby="missed-calls-title">
-      <header>
-        <div>
-          <h2 id="missed-calls-title">Missed calls</h2>
-          <p>
-            Calls nobody could answer. Call them back, then take them off the list.{' '}
-            {textBack
-              ? 'Each caller is also texted your booking link, once a day.'
-              : 'Texting callers back is off in Settings.'}
-          </p>
-        </div>
-        <PhoneMissed size={21} aria-hidden="true" />
+    <section className="needs-card missed-card" aria-labelledby="missed-calls-title">
+      <header className="needs-card-head">
+        <PhoneMissed size={18} aria-hidden="true" />
+        <h3 id="missed-calls-title">Missed calls</h3>
+        <span className={`needs-card-count ${calls.length ? '' : 'is-none'}`}>
+          {calls.length}
+          <span className="sr-only"> to call back</span>
+        </span>
       </header>
       {calls.length ? (
-        <ul className="patch-list is-compact">
-          {calls.map((call) => {
+        <ul className="needs-list" id={listId}>
+          {more.shown.map((call) => {
             const client = state.clients.find((c) => c.id === call.clientId)
             const who = client?.name ?? numberLabel(call.number)
             return (
               <li key={call.id}>
-                <div>
+                <div className="needs-who">
                   {client ? (
-                    <Link to={`/clients/${client.id}`}>
-                      <strong>{client.name}</strong>
-                    </Link>
+                    <Link to={`/clients/${client.id}`}>{client.name}</Link>
                   ) : (
                     <strong>{numberLabel(call.number)}</strong>
                   )}
@@ -92,12 +93,11 @@ export function MissedCalls() {
                     {when(call.lastAt)}
                     {call.calls > 1 ? ` · rang ${call.calls} times` : ''}
                     {client ? ` · ${numberLabel(call.number)}` : ''}
-                  </small>
-                  <small>
-                    {call.source === 'phone' ? 'From the phone line' : `Noted by ${call.actor}`}
+                    {' · '}
+                    {call.source === 'phone' ? 'from the phone line' : `noted by ${call.actor}`}
                   </small>
                 </div>
-                <div className="missed-actions">
+                <div className="needs-actions">
                   <a className="button button-secondary" href={`tel:${call.number}`}>
                     Call
                   </a>
@@ -128,14 +128,26 @@ export function MissedCalls() {
           })}
         </ul>
       ) : (
-        <p className="subtle">No calls waiting for a call back.</p>
+        <p className="needs-empty">No calls waiting for a call back.</p>
       )}
-      {booked > 0 && (
-        <p className="subtle">
-          {booked === 1 ? 'One call' : `${booked} calls`} this week became a booked visit.
-        </p>
+      <p className="needs-note">
+        {booked > 0 &&
+          `${booked === 1 ? 'One call' : `${booked} calls`} this week became a booked visit. `}
+        {textBack
+          ? 'Each caller is also texted your booking link, once a day.'
+          : 'Texting callers back is off in Settings.'}
+      </p>
+      {(more.hidden > 0 || (allowed && !logging)) && (
+        <div className="needs-card-links">
+          <SeeAllButton list={listId} {...more} />
+          {allowed && !logging && (
+            <button type="button" className="text-link" onClick={() => setLogging(true)}>
+              Log a missed call
+            </button>
+          )}
+        </div>
       )}
-      {allowed && (
+      {allowed && logging && (
         <form className="missed-form" onSubmit={(event) => void add(event)} aria-busy={pending}>
           <label>
             Log a missed call
@@ -143,6 +155,7 @@ export function MissedCalls() {
               type="tel"
               inputMode="tel"
               autoComplete="off"
+              autoFocus
               placeholder={org.region === 'US' ? '(212) 555-0100' : '07700 900123'}
               value={number}
               onChange={(e) => setNumber(e.target.value)}

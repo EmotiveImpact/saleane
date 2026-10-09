@@ -1,7 +1,9 @@
-/* V3 specials, the assistant manager on Today. No left-edge stripes. */
+/*
+ * V3 specials, the assistant manager on Today: one special in a small card, and all of them in a
+ * dialog. No left-edge stripes.
+ */
 .specials-panel {
-  margin-top: 20px;
-  padding: 24px;
+  padding: var(--space-5);
   background: var(--palette-white);
   border: 1px solid var(--line2);
   border-radius: var(--radius);
@@ -11,7 +13,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: var(--space-3);
   color: var(--brand-ink);
   font-size: var(--text-eyebrow);
   letter-spacing: 0.14em;
@@ -20,7 +22,7 @@
 .specials-panel h2 {
   margin: 0 0 6px;
   font-family: var(--font-editorial);
-  font-size: 26px;
+  font-size: 23px;
   font-weight: var(--weight-editorial);
   line-height: 1.15;
 }
@@ -30,40 +32,47 @@
   font-size: var(--text-meta);
   line-height: 1.5;
 }
-.specials-panel ul {
+.specials-panel ul,
+.specials-all ul {
   list-style: none;
   margin: 0;
   padding: 0;
 }
-.specials-panel li {
+.specials-panel li,
+.specials-all li {
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding: 14px 0;
 }
-.specials-panel li + li {
+.specials-panel li + li,
+.specials-planned li + li {
   border-top: 1px solid var(--line2);
 }
-.specials-panel li > span {
+.specials-panel li > span,
+.specials-all li > span {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-.specials-panel strong {
+.specials-panel strong,
+.specials-all strong {
   font-size: var(--text-meta);
 }
-.specials-panel li p {
+.specials-panel li p,
+.specials-all li p {
   margin: 0;
   font-size: var(--text-meta);
   line-height: 1.5;
 }
-.specials-panel small {
+.specials-panel small,
+.specials-all small {
   color: var(--muted);
   font-size: var(--text-micro);
   line-height: 1.5;
 }
-.specials-panel .specials-ideas {
-  margin-top: 8px;
+.specials-panel .specials-one > li {
+  padding-bottom: var(--space-2);
 }
 .specials-effect {
   color: var(--brand-ink);
@@ -86,13 +95,19 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+.specials-panel .specials-actions .button {
+  flex: 1 1 auto;
+  min-height: 38px;
+  padding: 7px 12px;
+  font-size: var(--text-meta);
+}
 .specials-planned {
-  margin-top: 16px;
   padding: 14px 16px 12px;
   background: color-mix(in srgb, var(--brand) 5%, var(--stone));
   border-radius: var(--radius-inner);
 }
-.specials-planned h3 {
+.specials-planned h3,
+.specials-all-heading {
   margin: 0;
   color: var(--brand-ink);
   font-size: var(--text-eyebrow);
@@ -111,4 +126,51 @@
   margin: 12px 0 0;
   color: var(--danger);
   font-size: var(--text-meta);
+}
+.specials-see-all {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand-ink);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--brand-ink) 35%, transparent);
+  text-underline-offset: 4px;
+}
+.specials-see-all:hover {
+  text-decoration-color: currentColor;
+}
+
+/* The dialog: planned specials first, then each idea as its own small card. */
+.specials-all {
+  display: grid;
+  gap: var(--space-4);
+}
+.specials-all > .specials-note {
+  margin-top: 0;
+}
+.specials-all .specials-ideas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-3);
+}
+.specials-all .specials-ideas > li {
+  padding: var(--space-4);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-panel);
+  background: var(--palette-white);
+}
+.specials-all .specials-ideas .specials-actions {
+  margin-top: auto;
+  padding-top: var(--space-1);
+}
+@media (max-width: 650px) {
+  .specials-see-all,
+  .specials-actions .button {
+    min-height: 40px;
+  }
 }

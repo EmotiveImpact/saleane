@@ -1,13 +1,12 @@
 import { useState } from 'react'
-import { hasLocations, placeOf, staffLocationOn } from '../domain/locations'
 import { Link } from 'react-router-dom'
 import { ArrowRight, ArrowUpRight, Plus, Printer } from 'lucide-react'
 import { useStore } from '../state/context'
 import { useLiveRefresh } from '../state/useLive'
-import { availableMinutes, bookedTimeShare, dayAppointments, dueClients } from '../domain/selectors'
+import { bookedTimeShare, dayAppointments, dueClients } from '../domain/selectors'
 import { bookedTimeDefinition } from '../components/definitions'
 import { dateLabel, money } from '../domain/format'
-import { Avatar, Button, Metric, photos } from '../design'
+import { Button, Metric, photos } from '../design'
 import { businessMinutes } from '../domain/operations'
 import type { Appointment, Client } from '../domain/model'
 import { Agenda } from '../components/Agenda'
@@ -15,8 +14,8 @@ import { SmartInsights } from '../components/SmartInsights'
 import { Specials } from '../components/Specials'
 import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
-import { PatchTestsDue } from '../components/PatchTests'
-import { MissedCalls } from '../components/MissedCalls'
+import { NeedsYou } from '../components/NeedsYou'
+import { TeamToday } from '../components/TeamToday'
 import type { BookingDefaults } from '../components/BookingDialog'
 
 function greeting(minutes: number) {
@@ -52,7 +51,6 @@ export function Today() {
   const [booking, setBooking] = useState<BookingDefaults | null>(null)
   const [hideCompleted, setHideCompleted] = useState(false)
   const day = dayAppointments(state)
-  const multiSite = hasLocations(state)
   const due = dueClients(state)
   const booked = day.reduce((sum, a) => sum + a.bookedPriceMinor, 0)
   const completed = day.filter((a) => a.status === 'completed').length
@@ -163,43 +161,10 @@ export function Today() {
           )}
         </section>
         <aside className="today-aside">
-          <MissedCalls />
-          <PatchTestsDue />
+          <NeedsYou />
+          <TeamToday />
           <SmartInsights onBook={setBooking} />
           <Specials />
-          <section className="team-panel">
-            <div className="section-heading">
-              <h2>Your people today</h2>
-              <span>{state.staff.filter((p) => !p.archived).length} professionals</span>
-            </div>
-            {state.staff
-              .filter((p) => !p.archived)
-              .map((staff) => {
-                const visits = day.filter((a) => a.staffId === staff.id)
-                const percent = Math.round(
-                  (visits.reduce((sum, a) => sum + a.bookedDurationMinutes, 0) /
-                    (availableMinutes({ ...state, staff: [staff] }, today) || 1)) *
-                    100,
-                )
-                return (
-                  <div className="team-row" key={staff.id}>
-                    <Avatar identity={staff.id} name={staff.name} small tone={staff.tone} />
-                    <div>
-                      <strong>{staff.name.split(' ')[0]}</strong>
-                      <small>
-                        {visits.length} visits · {percent}% booked
-                        {multiSite
-                          ? ` · ${placeOf(state, staffLocationOn(state, staff.id, today))?.name ?? ''}`
-                          : ''}
-                      </small>
-                      <div className={`capacity-bar tone-${staff.tone}`}>
-                        <span style={{ width: `${percent}%` }} />
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-          </section>
           <Link className="booking-prompt" to="/booking">
             <span className="mini-wordmark">
               {state.organisation.name
