@@ -269,6 +269,14 @@ export function createOutbox(ctx: Context, providers: Providers) {
         if (!to) return skip('The client has no address for this channel now.')
         return send(fresh, org, to, text.subject, text.body, text.body)
       }
+      if (fresh.kind === 'receipt') {
+        // Stage 2: a receipt the desk chose to email, sent as it was written, and only to the
+        // address it was written for.
+        if (fresh.channel !== 'email') return skip('A receipt goes by email only.')
+        if (client.email.trim().toLowerCase() !== fresh.recipient.trim().toLowerCase())
+          return skip('The client’s email address changed before it went out.')
+        return send(fresh, org, fresh.recipient, fresh.subject, fresh.body, fresh.body)
+      }
       if (fresh.kind === 'message') {
         // V1.5: written in the inbox. Checked again now: still queued, still agreed, still reachable.
         const message = operations(org.state).messages.find((m) => messageSlot(m.id) === fresh.slot)

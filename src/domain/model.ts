@@ -29,6 +29,7 @@ import { locationsProblem } from './locations'
 import { groupProblem } from './group'
 import { branchVisitsProblem } from './branchVisits'
 import { approvalsProblem } from './approvals'
+import { tillProblem } from './till'
 export { paymentMethodSchema, paymentMethods, processorSchema } from './paymentMethods'
 
 export const DEMO_DATE = '2026-10-06'
@@ -689,6 +690,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
   if (visits) throw new Error(visits)
   const approvals = approvalsProblem(s)
   if (approvals) throw new Error(approvals)
+  const till = tillProblem(s)
+  if (till) throw new Error(till)
   try {
     new Intl.DateTimeFormat('en', { timeZone: org.timeZone }).format(new Date())
   } catch {

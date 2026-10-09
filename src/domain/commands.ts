@@ -8,6 +8,7 @@ import { assertMethod, paymentDetail, runOperatingCommand } from './operatingCom
 import { runGroupCommand } from './group'
 import { runApprovalCommand, stampRequestActors } from './approvals'
 import { runBrandCommand } from './brandRules'
+import { runTillCommand } from './till'
 import { branchVisitUnchanged, runBranchVisitCommand, stampBranchVisitActors } from './branchVisits'
 import { channelLabel } from './bookingChannel'
 import { checkoutTotals } from './money'
@@ -823,6 +824,8 @@ export function execute(
       command.type === 'benchmark-sharing'
     ) {
       recordId = runBrandCommand(next, command, businessDate(s, now))
+    } else if (command.type === 'till-settings') {
+      recordId = runTillCommand(next, command)
     } else {
       recordId = runOperatingCommand(next, command, now, makeId, addEvent)
     }

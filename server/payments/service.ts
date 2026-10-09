@@ -7,7 +7,7 @@ import { cardPolicy, guestPayment } from '../../src/domain/guest'
 import { feeAllowed } from '../../src/domain/fees'
 export { feeAllowed }
 import { businessDate, operations, visitTax } from '../../src/domain/operations'
-import { priceRetail, retailCharge } from '../../src/domain/retail'
+import { priceRetail, retailCharge, returnable } from '../../src/domain/retail'
 import { retailItemsSchema } from '../../src/domain/retailSchema'
 import type { RetailItems } from '../../src/domain/retailSchema'
 import type { BusinessState } from '../../src/domain/model'
@@ -215,9 +215,22 @@ export function createPayments(ctx: Context, provider: PaymentProvider) {
     }
     if (row.purpose === 'refund') {
       const [kind, target] = (row.refund_of ?? '').split(':')
+      // Stage 2: the products chosen to go back on the shelf, in the same step as the refund. The
+      // money has already gone back by now, so if some were returned by hand meanwhile, only what
+      // is still left on the receipt comes back rather than the refund going unrecorded.
+      const left = new Map(
+        kind === 'sale' ? returnable(s, target).map((line) => [line.productId, line.left]) : [],
+      )
+      const restock = (attemptProducts(row) ?? [])
+        .map((item) => ({
+          productId: item.productId,
+          quantity: Math.min(item.quantity, left.get(item.productId) ?? 0),
+        }))
+        .filter((item) => item.quantity > 0)
       return {
         type: 'refund',
         ...(kind === 'sale' ? { saleId: target } : { paymentId: target }),
+        ...(restock.length ? { restock } : {}),
         amountMinor: row.amount_minor,
         reason: row.reason ?? 'Refunded to the card',
         ...base,

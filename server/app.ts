@@ -39,6 +39,8 @@ import { planCardRoutes } from './routes/planCards'
 import { connectionTransportFromEnv, createConnections } from './connections'
 import type { Connections } from './connections'
 import { partnerApi } from './partnerApi'
+import { createTill } from './till/service'
+import type { Till } from './till/service'
 import { googleBooking, googleBookingFromEnv } from './googleBooking'
 import { billingProviderFromEnv, createBilling } from './billing'
 import type { Billing } from './billing'
@@ -57,6 +59,8 @@ export type ApiHandler = ((
   memberships: MembershipCharges
   connections: Connections
   billing: Billing
+  /** Stage 2: receipt printers and the cash drawer. */
+  till: Till
   close: () => void
   inject: (request: InjectOptions) => Promise<InjectResponse>
 }
@@ -93,6 +97,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     ctx,
     options.connectionTransport ?? connectionTransportFromEnv(),
   )
+  const till = createTill(ctx, outbox, options.printers)
   const partners = partnerApi()
   const google = googleBooking(options.googleBooking ?? googleBookingFromEnv(process.env))
   const social = options.social ?? socialFromEnv(process.env)
@@ -107,6 +112,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     paymentRoutes(payments),
     billing.routes,
     planCardRoutes(payments, memberships),
+    till.routes,
     assistantRoutes(),
     receptionistRoutes(),
     ...baseRoutes,
@@ -357,11 +363,13 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   handler.memberships = memberships
   handler.connections = connections
   handler.billing = billing
+  handler.till = till
   handler.close = () => {
     outbox.stop()
     connections.stop()
     billing.stop()
     memberships.stop()
+    till.stop()
     db.close()
   }
   handler.inject = (input) => inject(handler, allowedOrigin, input)

@@ -97,6 +97,8 @@ const refundInput = z
     paymentId: z.string().min(1).max(150).optional(),
     amountMinor: money.refine((v) => v > 0),
     reason: z.string().trim().min(3).max(300),
+    /** Stage 2: products the guest brought back, back on the shelf once the provider confirms. */
+    restock: retailItemsSchema.optional(),
   })
   .strict()
 const lookup = z
@@ -557,6 +559,8 @@ export function paymentRoutes(payments: Payments) {
       const data = refundInput.parse(body)
       if (!!data.saleId === !!data.paymentId)
         fail(400, 'Choose the receipt or the payment being refunded.')
+      const restock = data.restock?.length ? data.restock : undefined
+      if (restock && !data.saleId) fail(400, 'Only products on a receipt can come back.')
       const key = header(request, 'idempotency-key')
       if (!key || !keySchema.test(key))
         fail(400, 'Use an idempotency key between 8 and 100 safe characters.')
@@ -587,9 +591,12 @@ export function paymentRoutes(payments: Payments) {
           )
         if (data.amountMinor > remaining)
           fail(409, 'This is more than is left to refund on this card payment.')
+        // Products going back are checked now against what the receipt sold, as a refund recorded
+        // by hand would be, and go back on the shelf only once the provider confirms the refund.
         rehearse(fresh, {
           type: 'refund',
           ...target,
+          ...(restock ? { restock } : {}),
           amountMinor: data.amountMinor,
           reason: data.reason,
           reference: 'rehearsal',
@@ -612,6 +619,7 @@ export function paymentRoutes(payments: Payments) {
           save_card: 0,
           refund_of: refundOf,
           reason: data.reason,
+          ...(restock ? { products: restock } : {}),
           request_key: key!,
           actor_id: actor.id,
         })

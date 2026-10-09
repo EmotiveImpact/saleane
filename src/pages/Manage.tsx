@@ -21,6 +21,7 @@ import {
   Plug,
   History,
   Receipt,
+  Printer,
 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { useStore } from '../state/context'
@@ -44,6 +45,7 @@ import { GuestNotesSettings } from '../components/GuestNotesSettings'
 import { PatchTestRules } from '../components/PatchTests'
 import { ShareBookingPage } from '../components/ShareBookingPage'
 import { PaymentSettings } from '../components/CardPayments'
+import { TillSettings } from '../components/TillSettings'
 import { SwitchingSettings } from '../components/Switching'
 import { PlanSettings } from '../components/Plans'
 import { LocationsSettings } from '../components/LocationsSettings'
@@ -87,6 +89,7 @@ const groups = [
       { id: 'service', label: 'Treatments', icon: Scissors },
       { id: 'plans', label: 'Packages & memberships', icon: Layers },
       { id: 'payments', label: 'Payments', icon: CreditCard },
+      { id: 'till', label: 'Till and printer', icon: Printer },
     ],
   },
   {
@@ -400,6 +403,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
               </>
             )}
             {section === 'payments' && <PaymentSettings />}
+            {section === 'till' && <TillSettings />}
             {section === 'workspace' && <WorkspaceSection onReset={() => setReplaced(true)} />}
             {section === 'privacy' && <StudioPrivacy />}
             {section === 'changes' && <ChangeRecord />}

@@ -21,6 +21,7 @@ import { PaymentFields } from '../components/Plans'
 import { SoldAt } from '../components/SoldAt'
 import { asksSoldAt } from '../domain/locations'
 import { usePayment, useRun } from '../components/usePayment'
+import { ReceiptActions } from '../components/ReceiptActions'
 import '../components/management.css'
 import '../components/plans.css'
 import '../giftCards.css'
@@ -267,6 +268,7 @@ export function GiftCards() {
           description="Give the code to the buyer. It is all anyone needs to spend the card here."
         >
           <GiftCardFace card={soldCard} />
+          <ReceiptActions receiptKey={`gift-card:${soldCard.id}`} />
           <div className="ops-actions">
             <Button onClick={printCard}>Print</Button>
             <Button variant="secondary" onClick={() => setDialog(null)}>

@@ -768,7 +768,7 @@ describe('the Settings page', () => {
       within(lists[2])
         .getAllByRole('tab')
         .map((tab) => tab.textContent),
-    ).toEqual(['Treatments', 'Packages & memberships', 'Payments'])
+    ).toEqual(['Treatments', 'Packages & memberships', 'Payments', 'Till and printer'])
     expect(screen.queryByRole('tab', { name: 'Services' })).not.toBeInTheDocument()
     // Studio details opens first; a narrow screen picks the same sections from one select.
     expect(screen.getByRole('tab', { name: 'Studio details' })).toHaveAttribute(

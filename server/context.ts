@@ -143,6 +143,11 @@ export type ApiOptions = {
   googleBooking?: import('./googleBooking').GoogleBookingOptions
   /** V4: messages to the studio's Instagram, Facebook and WhatsApp accounts. */
   social?: import('./messaging/meta').SocialOptions
+  /** Stage 2: how receipts reach a printer. Omitted uses the real network printer and test printer. */
+  printers?: {
+    network?: import('./till/printers').PrinterTransport
+    test?: import('./till/printers').PrinterTransport
+  }
 }
 
 /** Shared request authority: database, clock, sessions, tenant lookup, holds and audit. */
@@ -358,8 +363,16 @@ export function createContext(options: ApiOptions) {
     plans.begin(org)
     return org
   }
-  /** Told about every saved change, inside the same transaction, with the record before and after. */
-  const persistListeners: ((org: Org, before: BusinessState, after: BusinessState) => void)[] = []
+  /**
+   * Told about every saved change, inside the same transaction, with the record before and after
+   * and who saved it (null for a guest or the server itself).
+   */
+  const persistListeners: ((
+    org: Org,
+    before: BusinessState,
+    after: BusinessState,
+    change: { actorId: string | null; action: string; recordId: string },
+  ) => void)[] = []
   const onPersist = (listener: (typeof persistListeners)[number]) => persistListeners.push(listener)
   const persist = (
     org: Org,
@@ -387,7 +400,8 @@ export function createContext(options: ApiOptions) {
       parsed.revision,
       changeDetail(org.state, parsed, action, recordId),
     )
-    for (const listener of persistListeners) listener(org, org.state, parsed)
+    for (const listener of persistListeners)
+      listener(org, org.state, parsed, { actorId, action, recordId })
   }
   /**
    * NEXT-02: each studio's plan, as the billing module answers once it is set up: what the studio
