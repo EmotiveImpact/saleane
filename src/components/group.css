@@ -158,3 +158,12 @@
   border-radius: 50%;
   background: var(--pin);
 }
+@media (max-width: 560px) {
+  /* The map shrinks to about half on a phone, so its words are drawn larger to stay readable. */
+  .branch-name {
+    font-size: 22px;
+  }
+  .branch-value {
+    font-size: 18px;
+  }
+}
