@@ -44,7 +44,10 @@ export function commitWorkspace(
   try {
     const raw = storage.getItem(storageKey(region))
     if (raw && parseState(JSON.parse(raw), region).revision !== state.revision)
-      return { ok: false, error: 'This workspace changed in another tab. Reload before saving.' }
+      return {
+        ok: false,
+        error: 'This studio changed in another tab. Reload to see it, then try again.',
+      }
     const result = execute(state, command)
     if (!result.ok) return result
     if (result.state !== state) storage.setItem(storageKey(region), JSON.stringify(result.state))

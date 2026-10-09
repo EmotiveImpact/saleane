@@ -5,6 +5,7 @@ import { useStore } from '../state/context'
 import { api } from '../state/api'
 import type { Session } from '../state/api'
 import { rememberStudio } from '../state/lastStudio'
+import { roleNames } from '../domain/operations'
 import { Button, ErrorMessage } from '../design'
 import { BrandsTogether } from '../components/BrandsTogether'
 import { InvitationSummary } from '../components/InvitationSummary'
@@ -93,7 +94,7 @@ export function Account() {
     try {
       await open(id, current)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Workspace could not be opened.')
+      setError(e instanceof Error ? e.message : 'This studio could not be opened.')
     } finally {
       setPending(false)
     }
@@ -164,14 +165,15 @@ export function Account() {
             <br />
             every promise.
           </p>
-          <p>Your people, appointments and client relationships, remembered together.</p>
+          <p>Your team, visits and clients, remembered together.</p>
         </div>
         <img
           src="/images/saleane-studio-warm.jpg"
           alt="A calm fictional studio with natural light"
         />
         <small>
-          Local V1 workspace · payments and email not connected · <Link to="/pricing">Pricing</Link>
+          A preview on this computer · card payments and email not connected yet ·{' '}
+          <Link to="/pricing">Pricing</Link>
         </small>
       </aside>
       <main className="account-main">
@@ -179,7 +181,7 @@ export function Account() {
         {store.landing !== '/account' && (
           <Link className="back-link" to="/today">
             <ArrowLeft size={16} />
-            Back to workspace
+            Back to your studio
           </Link>
         )}
         {ready && store.session && view !== 'workspace' ? (
@@ -193,8 +195,8 @@ export function Account() {
                   <span>
                     <strong>{w.name}</strong>
                     <small>
-                      {w.region} · {w.role} ·{' '}
-                      {w.mode === 'sandbox' ? 'Fictional sample' : 'Local business'}
+                      {w.region} · {roleNames[w.role] ?? w.role} ·{' '}
+                      {w.mode === 'sandbox' ? 'Sample studio' : 'Your studio'}
                     </small>
                   </span>
                   <ArrowRight size={19} />
@@ -262,7 +264,7 @@ export function Account() {
         ) : (
           <>
             <p className="date-caption">
-              {invitation ? 'A place on the team' : 'Your local workspace'}
+              {invitation ? 'A place on the team' : 'Your SALEANE account'}
             </p>
             <h1>
               {view === 'signin'
@@ -283,8 +285,8 @@ export function Account() {
                   ? `Sign in with ${invited.email} to join ${invited.studio}.`
                   : 'Sign in to continue with the records saved on this computer.'
                 : invited && view === 'create'
-                  ? 'Create your account with the email your invitation was sent to. Accounts and studio records are saved by the local server.'
-                  : 'Accounts and studio records are saved by the local server. Card payments and email sending are not connected yet.'}
+                  ? 'Create your account with the email your invitation was sent to. Accounts and studio records are kept on this computer for now.'
+                  : 'Accounts and studio records are kept on this computer for now. Card payments and emails are not connected yet.'}
             </p>
             <form onSubmit={submit}>
               {view !== 'workspace' && (
@@ -396,12 +398,12 @@ export function Account() {
                       checked={sample}
                       onChange={(e) => setSample(e.target.checked)}
                     />
-                    Start with fictional sample appointments
+                    Start with made-up sample clients and visits
                   </label>
                   <small className="subtle">
                     {sample
-                      ? 'Sample appointments use the fixed demonstration day and simulated money.'
-                      : 'Your studio begins with no client or payment records. Set up services, people and spaces before booking.'}
+                      ? 'The sample is set on one fixed day, and its money is simulated.'
+                      : 'Your studio starts empty. A short list on Today takes you through treatments, your team, rooms and opening hours.'}
                   </small>
                 </>
               )}
@@ -413,7 +415,7 @@ export function Account() {
                     ? 'Sign in'
                     : invitation
                       ? 'Join studio'
-                      : 'Create local workspace'}
+                      : 'Create your studio'}
                 <ArrowRight size={16} />
               </Button>
             </form>
@@ -446,8 +448,8 @@ export function Account() {
             <div className="account-footnote">
               <ShieldCheck size={19} />
               <span>
-                Local access only. There is no email verification or recovery provider configured.
-                Use review accounts and fictional client information for this candidate.
+                This preview runs on this computer only. There is no email check or password
+                recovery yet, so use made-up client details while you try it.
               </span>
             </div>
           </>

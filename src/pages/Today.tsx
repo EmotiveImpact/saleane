@@ -96,7 +96,7 @@ export function Today() {
           detail="Before discounts, tax adjustments and tips"
         />
         <Metric
-          label="Appointments"
+          label="Visits"
           value={day.length}
           detail={`${completed} complete · ${day.length - completed} still to come`}
         />

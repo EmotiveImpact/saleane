@@ -1,4 +1,5 @@
 import { Users } from 'lucide-react'
+import { roleNames } from '../domain/operations'
 import type { Role } from '../domain/operations'
 import './invitationSummary.css'
 
@@ -13,33 +14,18 @@ export type InvitationPreview = {
   email: string
 }
 
-const roles: Record<Role, { name: string; note: string }> = {
-  owner: { name: 'Owner', note: 'Runs the whole studio.' },
-  manager: {
-    name: 'Manager',
-    note: 'Runs the studio day to day, from the diary and clients to the team and money.',
-  },
-  reception: {
-    name: 'Reception',
-    note: 'Looks after bookings, clients and checkout.',
-  },
-  practitioner: {
-    name: 'Practitioner',
-    note: 'Sees their own visits and the notes that help them look after each client.',
-  },
-  general: {
-    name: 'General manager',
-    note: 'Runs one location: its diary, takings, stock and branch visits.',
-  },
-  regional: {
-    name: 'Regional manager',
-    note: 'Looks after the locations in one region, their branch visits and sign-offs.',
-  },
+const notes: Record<Role, string> = {
+  owner: 'Runs the whole studio.',
+  manager: 'Runs the studio day to day, from the diary and clients to the team and money.',
+  reception: 'Looks after bookings, clients and checkout.',
+  practitioner: 'Sees their own visits and the notes that help them look after each client.',
+  general: 'Runs one location: its diary, takings, stock and branch visits.',
+  regional: 'Looks after the locations in one region, their branch visits and sign-offs.',
 }
 
 /** The role and place a team invitation offers, shown on the join page. */
 export function InvitationSummary({ invitation }: { invitation: InvitationPreview }) {
-  const role = roles[invitation.role] ?? { name: invitation.role, note: '' }
+  const role = { name: roleNames[invitation.role] ?? invitation.role, note: notes[invitation.role] }
   return (
     <section className="invitation-summary" aria-label="Your invitation">
       <span className="invitation-summary-icon" aria-hidden="true">

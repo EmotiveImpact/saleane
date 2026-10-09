@@ -191,7 +191,10 @@ describe('the local API workspace context', () => {
     let reads = 0
     fetchMock.mockImplementation(async (path) => {
       if (String(path).endsWith('/commands'))
-        return response({ error: 'This workspace changed. Reload before saving.' }, 409)
+        return response(
+          { error: 'Someone else saved a change just now. Reload to see it, then try again.' },
+          409,
+        )
       if (String(path) === '/api/session') return response(sessionFor(remote))
       return response(++reads === 1 ? remote : { ...remote, state: changed.state })
     })
@@ -201,7 +204,9 @@ describe('the local API workspace context', () => {
       target: { value: 'Review this draft' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Save preference' }))
-    await screen.findByText('This workspace changed. Reload before saving.')
+    await screen.findByText(
+      'Someone else saved a change just now. Reload to see it, then try again.',
+    )
     expect(view.store.state.revision).toBe(1)
     expect(view.store.state.events.at(-1)?.detail).toBe('Another desk recorded this')
     expect(screen.getByLabelText('Preference')).toHaveValue('Review this draft')

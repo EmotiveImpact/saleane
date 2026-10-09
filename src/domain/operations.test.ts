@@ -422,7 +422,7 @@ describe('honest manual money and immutable receipts', () => {
     expect(() => parseState(s, 'UK')).toThrow('ledger')
     const sample = seed('UK')
     sample.operations = defaultOperations('local')
-    expect(() => parseState(sample, 'UK')).toThrow('provenance')
+    expect(() => parseState(sample, 'UK')).toThrow('not valid for this studio')
   })
 })
 

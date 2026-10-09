@@ -118,7 +118,10 @@ test('reloads their day when the studio changed first', async () => {
   const user = userEvent.setup()
   vi.mocked(api).mockImplementation(async (path) => {
     if (path === base) return record() as never
-    throw new ApiError('This workspace changed. Reload before saving.', 409)
+    throw new ApiError(
+      'Someone else saved a change just now. Reload to see it, then try again.',
+      409,
+    )
   })
   view()
   await user.click(await screen.findByRole('button', { name: new RegExp(client.name) }))

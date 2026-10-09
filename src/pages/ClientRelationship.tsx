@@ -647,7 +647,7 @@ export function ClientRelationship() {
               Email marketing enabled
             </label>
             <p className="subtle">
-              Appointment updates are separate. Changing this preference records an event; it sends
+              Messages about their visits are separate. Changing this records the choice; it sends
               no message.
             </p>
             <ConsentHistory clientId={client.id} />

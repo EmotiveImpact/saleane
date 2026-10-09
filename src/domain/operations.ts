@@ -368,6 +368,15 @@ export type Operations = z.infer<typeof operationsSchema>
  * their area's view, never the studio record, and record branch visits there.
  */
 export type Role = 'owner' | 'manager' | 'reception' | 'practitioner' | 'regional' | 'general'
+/** Each role as the team reads it. */
+export const roleNames: Record<Role, string> = {
+  owner: 'Owner',
+  manager: 'Manager',
+  reception: 'Reception',
+  practitioner: 'Practitioner',
+  general: 'General manager',
+  regional: 'Regional manager',
+}
 /** The roles that receive the whole studio record (reception and general managers with some parts left out). */
 export const studioRole = (role: Role) =>
   role === 'owner' || role === 'manager' || role === 'reception' || role === 'general'
@@ -445,7 +454,7 @@ export function instantIn(timeZone: string, date: string, minute: number) {
     minute < 0 ||
     minute >= 1440
   )
-    throw new Error('Invalid local appointment time.')
+    throw new Error('That time is not valid.')
   const target = Date.parse(`${date}T00:00:00Z`) + minute * 60000
   const offsets = new Set(
     [-36, -12, 0, 12, 36].map((h) => {

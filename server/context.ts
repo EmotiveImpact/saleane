@@ -366,7 +366,8 @@ export function createContext(options: ApiOptions) {
       org.id,
       org.state.revision,
     )
-    if (Number(result.changes) !== 1) fail(409, 'This workspace changed. Reload before saving.')
+    if (Number(result.changes) !== 1)
+      fail(409, 'Someone else saved a change just now. Reload to see it, then try again.')
     audit(org, actorId, action, recordId, parsed.revision)
     for (const listener of persistListeners) listener(org, org.state, parsed)
   }

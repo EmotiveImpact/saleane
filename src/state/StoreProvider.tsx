@@ -315,7 +315,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           setWorkspace((prev) => ({
             ...prev,
             blocked: true,
-            warning: error instanceof Error ? error.message : 'Your workspace could not be loaded.',
+            warning: error instanceof Error ? error.message : 'Your studio could not be loaded.',
           }))
       } finally {
         if (!cancelled && ticket === generation.current) {
@@ -419,7 +419,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         },
         async commit(command) {
           if (transitioning.current)
-            return { ok: false, error: 'The workspace is opening. Wait before saving.' }
+            return { ok: false, error: 'Your studio is still opening. Wait a moment, then save.' }
           if (workspace.blocked) return { ok: false, error: workspace.warning }
           if (remote && connectionRef.current !== 'online') return { ok: false, error: PAUSED }
           if (busy.current)
@@ -434,7 +434,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               return result
             }
             if (!session?.user.id)
-              return { ok: false, error: 'Sign in before saving to this workspace.' }
+              return { ok: false, error: 'Sign in before saving to this studio.' }
             if (pendingJournal.error) return { ok: false, error: pendingJournal.error }
             const fingerprint = await requestFingerprint(remote.id, session.user.id, command)
             if (
@@ -444,7 +444,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             )
               return {
                 ok: false,
-                error: 'The workspace changed before saving. Try again in the current workspace.',
+                error: 'You switched studio before this saved. Try again in the studio now open.',
               }
             let key = pendingKeys.current.get(fingerprint)
             if (!key) {
@@ -461,7 +461,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                 return {
                   ok: false,
                   error:
-                    'The workspace changed while saving. Reopen the original workspace to see the saved result.',
+                    'You switched studio while this was saving. Open the first studio again to see the result.',
                 }
               // The server has committed: show that first. Clearing the retry key is best-effort,
               // and a key left behind only replays this same committed receipt.
@@ -490,7 +490,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                   return {
                     ok: false,
                     error:
-                      'This workspace changed, but the latest records could not be loaded. Reconnect and reload before saving.',
+                      'Someone else saved a change, but the latest records could not be loaded. Reconnect, reload, then try again.',
                   }
                 }
               }

@@ -514,7 +514,7 @@ function build(region: Region, regularCount: number): BusinessState {
       clientId: v.clientId,
       appointmentId: v.id,
       type: 'booked',
-      title: v.source === 'rebook' ? 'Next visit booked' : 'Appointment booked',
+      title: v.source === 'rebook' ? 'Next visit booked' : 'Visit booked',
       detail: `${treatment.name} · ${dateLabel(v.date, state.organisation.locale)} at ${timeLabel(v.start, state.organisation.locale)}`,
       occurredAt: v.bookedAt,
       actor: v.source === 'online' ? 'Guest booking' : 'Front desk',

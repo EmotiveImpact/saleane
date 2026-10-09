@@ -114,7 +114,7 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
           return { ok: true, state: org.state, recordId: receipt.record_id, replayed: true }
         }
         if (org.state.revision !== data.revision)
-          fail(409, 'This workspace changed. Reload before saving.')
+          fail(409, 'Someone else saved a change just now. Reload to see it, then try again.')
         let command: Command = data.command
         // V5: a request goes to its region's manager only when the region has one, and never to
         // the person who raised it; the client's own list and claims are never trusted.

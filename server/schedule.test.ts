@@ -134,7 +134,7 @@ describe('schedule administration continuity (LOCAL-04)', () => {
     })
     expect(stale.statusCode).toBe(409)
     expect(stale.json<{ error: string }>().error).toBe(
-      'This workspace changed. Reload before saving.',
+      'Someone else saved a change just now. Reload to see it, then try again.',
     )
     // Racing edits on one revision: exactly one lands and leaves one history entry.
     const racing = await Promise.all([
