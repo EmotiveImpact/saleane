@@ -112,6 +112,13 @@ describe('recording a client area', () => {
     const s = seed('US')
     const result = run(s, { type: 'client-area', clientId: s.clients[0].id, area: 'Brooklyn' })
     expect(result.ok).toBe(false)
+    const clientId = s.clients[s.clients.length - 1].id
+    const saved = apply(s, { type: 'client-area', clientId, area: '10001' })
+    const event = saved.events.find((e) => e.clientId === clientId && e.title.includes('area'))
+    expect(event).toMatchObject({
+      title: 'ZIP area recorded',
+      detail: '100. The first three digits of the ZIP code only.',
+    })
   })
   it('is for the desk and leads, not practitioners', () => {
     for (const role of ['owner', 'manager', 'reception', 'general'] as const)

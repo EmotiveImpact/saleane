@@ -787,8 +787,10 @@ export function runOperatingCommand(
       addEvent({
         clientId: client.id,
         type: 'profile',
-        title: area ? 'Postcode area recorded' : 'Postcode area removed',
-        detail: area ? `${area}. The first half of the postcode only.` : 'No area is kept.',
+        title: `${region === 'UK' ? 'Postcode' : 'ZIP'} area ${area ? 'recorded' : 'removed'}`,
+        detail: area
+          ? `${area}. ${region === 'UK' ? 'The first half of the postcode' : 'The first three digits of the ZIP code'} only.`
+          : 'No area is kept.',
       })
     }
     recordId = client.id

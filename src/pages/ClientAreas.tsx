@@ -113,8 +113,10 @@ export function ClientAreas() {
           </ul>
         )}
         <p className="areas-privacy">
-          Only the first half of a postcode is ever kept, never an address, and no one is shown on a
-          map.
+          {org.region === 'UK'
+            ? 'Only the first half of a postcode is ever kept'
+            : 'Only the first three digits of a ZIP code are ever kept'}
+          , never an address, and no one is shown on a map.
         </p>
       </section>
     </div>
