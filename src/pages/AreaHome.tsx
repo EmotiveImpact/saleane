@@ -9,7 +9,7 @@ import { areaViewSchema } from '../domain/area'
 import type { AreaView } from '../domain/area'
 import type { Command } from '../domain/commands'
 import { dateLabel, money } from '../domain/format'
-import { GROUP_WINDOW_DAYS } from '../domain/group'
+import { GROUP_WINDOW_DAYS, monthEstimate } from '../domain/group'
 import { venueMinutes } from '../domain/pocket'
 import { Button, ErrorMessage, PageHeader } from '../design'
 import { PutRightList, VisitForm, VisitHistory } from './BranchVisits'
@@ -287,6 +287,10 @@ export function AreaHome() {
                         <small> · no target</small>
                       )}
                     </dd>
+                  </div>
+                  <div>
+                    <dt>Month-end estimate</dt>
+                    <dd>{monthEstimate(p.figures.month, org)}</dd>
                   </div>
                 </dl>
               </li>

@@ -35,6 +35,7 @@ const month = z.object({
   takenMinor: z.number().int(),
   bookedMinor: z.number().int(),
   targetMinor: z.number().int().nullable(),
+  forecastMinor: z.number().int(),
 })
 const placeFigures = z
   .object({

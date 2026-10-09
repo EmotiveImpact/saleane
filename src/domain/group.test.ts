@@ -5,7 +5,7 @@ import type { BusinessState } from './model'
 import { can, permissionFor } from './operations'
 import { seed } from './seed'
 import { createWorkspace } from './workspace'
-import { wholeBusiness } from './group'
+import { weekInBrief, wholeBusiness } from './group'
 
 // V5: regions, monthly targets and the whole-business view.
 const now = '2026-10-20T08:00:00.000Z'
@@ -91,7 +91,13 @@ describe('the whole business', () => {
     const by = (id: string) => view.places.find((p) => p.locationId === id)!
     expect(by(islington)).toMatchObject({ takingsMinor: 15000, previousMinor: 10000, growth: 0.5 })
     expect(by(leeds)).toMatchObject({ takingsMinor: 5000, growth: -0.5 })
-    expect(by(leeds).month).toEqual({ takenMinor: 5000, bookedMinor: 8000, targetMinor: null })
+    expect(by(leeds).month).toEqual({
+      takenMinor: 5000,
+      bookedMinor: 8000,
+      targetMinor: null,
+      // Taken, plus the larger of booked (£80) and 25 days at £50 over 28 days (£44.64).
+      forecastMinor: 13000,
+    })
     expect(view.best?.locationId).toBe(islington)
     expect(view.weakest?.locationId).toBe(leeds)
     expect(view.total).toMatchObject({ takingsMinor: 30000, previousMinor: 30000, growth: 0 })
@@ -100,6 +106,9 @@ describe('the whole business', () => {
     )
     expect(view.summary[1]).toBe('Islington is doing best (up 50%). Leeds needs a look (down 50%).')
     expect(view.summary[2]).toMatch(/£300 taken, with £80 more booked but not yet taken\.$/)
+    expect(view.summary[3]).toMatch(
+      /^At the recent pace the month could end near £\d[\d,]*\. This is an estimate, not money taken\.$/,
+    )
   })
 
   it('never ranks locations that are level with each other', () => {
@@ -120,7 +129,7 @@ describe('the whole business', () => {
     visit(leeds, '2026-10-11', 5000)
     view = wholeBusiness(s, today)
     expect([view.best, view.weakest]).toEqual([null, null])
-    expect(view.summary).toHaveLength(2)
+    expect(view.summary).toHaveLength(3)
   })
 
   it('groups locations into regions with their own totals, and targets add up only when all are set', () => {
@@ -151,7 +160,27 @@ describe('the whole business', () => {
     expect(view.regions[0].month.targetMinor).toBeNull()
     view = at(s)
     expect(view.regions[0].month.targetMinor).toBe(100000)
-    expect(view.summary.at(-1)).toMatch(/£300 taken\b/)
+    expect(view.summary.find((l) => l.startsWith('This month'))).toMatch(/£300 taken\b/)
+    expect(view.summary.at(-1)).toBe(
+      'At the recent pace the month could end near £418. This is an estimate, not money taken.',
+    )
+    // With every location given a target, the estimate is set against it.
+    const all = (takingsMinor: number) =>
+      at(
+        apply(s, { type: 'targets', month: '2026-10', set: [{ locationId: leeds, takingsMinor }] }),
+      )
+    expect(all(10000).summary.at(-1)).toMatch(/near £418, short of the target\./)
+    expect(all(10000).total.month.targetMinor).toBe(110000)
+    const easy = apply(s, {
+      type: 'targets',
+      month: '2026-10',
+      set: [
+        { locationId: main, takingsMinor: 100 },
+        { locationId: islington, takingsMinor: 100 },
+        { locationId: leeds, takingsMinor: 100 },
+      ],
+    })
+    expect(at(easy).summary.at(-1)).toMatch(/near £418, on course for the target\./)
     // A target can be taken away again.
     s = apply(s, {
       type: 'targets',
@@ -182,5 +211,26 @@ describe('the whole business', () => {
       expect(can('manager', action)).toBe(false)
       expect(can('reception', action)).toBe(false)
     }
+  })
+
+  it('sums up the week against the week before, with first-time clients and the best week', () => {
+    const { s, visit, main, islington } = business()
+    visit(main, '2026-10-19', 10000)
+    visit(main, '2026-10-12', 10000)
+    visit(islington, '2026-10-15', 6000)
+    visit(islington, '2026-10-08', 2000)
+    // Booked visits and next week's are never counted.
+    visit(main, '2026-10-20', 9000, 'confirmed')
+    // A newcomer's first completed visit falls this week; the regular came before.
+    const regular = s.appointments[0].clientId
+    const newcomer = s.clients.find((c) => c.id !== regular)!.id
+    s.appointments.find((a) => a.id === 'visit-1')!.clientId = newcomer
+    const week = weekInBrief(s, today)
+    expect([week.from, week.to]).toEqual(['2026-10-14', today])
+    expect(week.lines).toEqual([
+      'This week, completed visits took £160 from 2 visits, up 33% on the week before.',
+      '1 client came for the first time.',
+      'Islington had the best week (up 200%).',
+    ])
   })
 })

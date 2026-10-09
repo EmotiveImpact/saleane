@@ -110,6 +110,11 @@ export type PlaceFigures = {
     /** Visits still to come this month, at their booked prices: booked, not taken. */
     bookedMinor: number
     targetMinor: number | null
+    /**
+     * An estimate of the month's end: taken so far, plus the larger of what is booked and the
+     * last 28 days' daily pace over the days left. Never money taken.
+     */
+    forecastMinor: number
   }
 }
 export type RegionFigures = {
@@ -119,7 +124,12 @@ export type RegionFigures = {
   takingsMinor: number
   previousMinor: number
   growth: number | null
-  month: { takenMinor: number; bookedMinor: number; targetMinor: number | null }
+  month: {
+    takenMinor: number
+    bookedMinor: number
+    targetMinor: number | null
+    forecastMinor: number
+  }
 }
 
 const change = (now: number, before: number) => (before > 0 ? (now - before) / before : null)
@@ -134,6 +144,8 @@ export function wholeBusiness(
   const before = { from: addDays(from, -GROUP_WINDOW_DAYS), to: addDays(from, -1) }
   const month = today.slice(0, 7)
   const monthEnd = addDays(`${addMonth(month)}-01`, -1)
+  // Days after today to the month's end, for the pace estimate.
+  const daysLeft = Number(monthEnd.slice(8)) - Number(today.slice(8))
   const rebooked = (id: string) =>
     s.appointments.some(
       (next) =>
@@ -155,6 +167,8 @@ export function wholeBusiness(
           a.date >= today &&
           a.date <= monthEnd,
       )
+      const takenMinor = takings(s, p.id, `${month}-01`, today).minor
+      const bookedMinor = ahead.reduce((sum, a) => sum + a.bookedPriceMinor, 0)
       return {
         locationId: p.id,
         name: p.name,
@@ -166,8 +180,11 @@ export function wholeBusiness(
           ? completed.filter((a) => rebooked(a.id)).length / completed.length
           : null,
         month: {
-          takenMinor: takings(s, p.id, `${month}-01`, today).minor,
-          bookedMinor: ahead.reduce((sum, a) => sum + a.bookedPriceMinor, 0),
+          takenMinor,
+          bookedMinor,
+          forecastMinor:
+            takenMinor +
+            Math.max(bookedMinor, Math.round((now.minor / GROUP_WINDOW_DAYS) * daysLeft)),
           targetMinor:
             targets(s).find((t) => t.locationId === p.id && t.month === month)?.takingsMinor ??
             null,
@@ -188,6 +205,7 @@ export function wholeBusiness(
       month: {
         takenMinor: list.reduce((n, p) => n + p.month.takenMinor, 0),
         bookedMinor: list.reduce((n, p) => n + p.month.bookedMinor, 0),
+        forecastMinor: list.reduce((n, p) => n + p.month.forecastMinor, 0),
         // A total target only when every location in it has one.
         targetMinor:
           withTarget.length === list.length && list.length
@@ -229,6 +247,66 @@ export function wholeBusiness(
   }
 }
 
+/** The weekly few lines: the last 7 days against the 7 before, from completed visits only. */
+export function weekInBrief(s: BusinessState, today = businessDate(s), only?: ReadonlySet<string>) {
+  const org = s.organisation
+  const ids = places(s)
+    .filter((p) => !only || only.has(p.id))
+    .map((p) => p.id)
+  const from = addDays(today, -6)
+  const before = { from: addDays(today, -13), to: addDays(today, -7) }
+  const all = ids.map((id) => ({
+    id,
+    name: places(s).find((p) => p.id === id)!.name,
+    now: takings(s, id, from, today),
+    then: takings(s, id, before.from, before.to),
+  }))
+  const now = all.reduce((n, p) => n + p.now.minor, 0)
+  const then = all.reduce((n, p) => n + p.then.minor, 0)
+  const visits = all.reduce((n, p) => n + p.now.visits, 0)
+  const growth = change(now, then)
+  const completed = s.appointments.filter(
+    (a) => a.status === 'completed' && ids.includes(a.locationId ?? '') && a.date <= today,
+  )
+  // A client is new this week when their first completed visit falls in it.
+  const first = new Map<string, string>()
+  for (const a of s.appointments)
+    if (a.status === 'completed' && a.date <= today && (first.get(a.clientId) ?? '9999') > a.date)
+      first.set(a.clientId, a.date)
+  const fresh = new Set(
+    completed
+      .filter((a) => a.date >= from && first.get(a.clientId) === a.date)
+      .map((a) => a.clientId),
+  ).size
+  const lines = [
+    `This week, completed visits took ${money(now, org)} from ${visits} ${visits === 1 ? 'visit' : 'visits'}${
+      growth === null ? '.' : `, ${upDown(growth)} the week before.`
+    }`,
+    fresh
+      ? `${fresh} ${fresh === 1 ? 'client' : 'clients'} came for the first time.`
+      : 'No one new came this week.',
+  ]
+  const ranked = all
+    .filter((p) => p.then.minor > 0)
+    .map((p) => ({ name: p.name, growth: change(p.now.minor, p.then.minor)! }))
+    .sort((a, b) => b.growth - a.growth)
+  if (ranked.length > 1 && Math.round(ranked[0].growth * 100) > Math.round(ranked[1].growth * 100))
+    lines.push(
+      `${ranked[0].name} had the best week (${upDown(ranked[0].growth).replace(' on', '')}).`,
+    )
+  return { from, to: today, lines }
+}
+
+/** The month-end estimate for one row, rounded to whole pounds or dollars: never money taken. */
+export function monthEstimate(
+  m: RegionFigures['month'],
+  org: Pick<BusinessState['organisation'], 'locale' | 'currency'>,
+) {
+  const near = money(Math.round(m.forecastMinor / 100) * 100, org)
+  if (!m.targetMinor) return `About ${near}`
+  return `About ${near}, ${m.forecastMinor >= m.targetMinor ? 'on course' : 'short of target'}`
+}
+
 function addMonth(month: string) {
   const [y, m] = month.split('-').map(Number)
   return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`
@@ -266,5 +344,13 @@ function summary(
         : ''
     }, with ${money(month.bookedMinor, org)} more booked but not yet taken.`,
   )
+  if (month.forecastMinor > month.takenMinor)
+    lines.push(
+      `At the recent pace the month could end near ${money(Math.round(month.forecastMinor / 100) * 100, org)}${
+        month.targetMinor
+          ? `, ${month.forecastMinor >= month.targetMinor ? 'on course for' : 'short of'} the target`
+          : ''
+      }. This is an estimate, not money taken.`,
+    )
   return lines
 }

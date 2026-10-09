@@ -21,6 +21,13 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Texts name the location, imported visits go to the location where the professional works that day, and the calendar showing every location spans all their opening hours.
 - A studio with one location works exactly as before.
 
+## 2026-10-09 · V5 · Month-end estimate and the week in brief
+
+**Status: built locally on 9 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-GROUP.md#month-end-estimate-and-the-week-in-brief-9-october-2026).
+
+- The whole business view now estimates where the month could end: what is already taken, plus the larger of what is booked and the recent daily pace over the days left. It says it is an estimate, not money taken, and whether the business is on course for its target when every location has one. Each location, and each location on a regional manager's page, shows its own estimate.
+- "The week in brief" sums up the last seven days against the seven before: takings from completed visits, how many visits, how many clients came for the first time, and the location with the best week when one is clearly ahead.
+
 ## 2026-10-09 · V5 · Several brands, one owner
 
 **Status: built locally on 9 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-BRANDS.md).

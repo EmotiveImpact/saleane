@@ -8,7 +8,14 @@ import { places } from '../domain/locations'
 import { can } from '../domain/operations'
 import { lastVisits } from '../domain/branchVisits'
 import { dateLabel } from '../domain/format'
-import { GROUP_WINDOW_DAYS, regions, targets, wholeBusiness } from '../domain/group'
+import {
+  GROUP_WINDOW_DAYS,
+  monthEstimate,
+  regions,
+  targets,
+  weekInBrief,
+  wholeBusiness,
+} from '../domain/group'
 import type { PlaceFigures, RegionFigures } from '../domain/group'
 import type { Command } from '../domain/commands'
 import './group.css'
@@ -30,6 +37,7 @@ export function WholeBusiness() {
   const [editing, setEditing] = useState(false)
   const [saved, setSaved] = useState('')
   const view = wholeBusiness(state, today)
+  const week = weekInBrief(state, today)
   const org = state.organisation
   const allowed = !blocked && can(role, 'targets')
   const monthName = new Intl.DateTimeFormat(org.locale, {
@@ -71,6 +79,16 @@ export function WholeBusiness() {
       </header>
       <div className="group-summary">
         {view.summary.map((line) => (
+          <p key={line}>{line}</p>
+        ))}
+      </div>
+      <div className="group-week">
+        <h3>The week in brief</h3>
+        <p className="subtle">
+          {dateLabel(week.from, org.locale, true)} to {dateLabel(week.to, org.locale, true)},
+          against the week before.
+        </p>
+        {week.lines.map((line) => (
           <p key={line}>{line}</p>
         ))}
       </div>
@@ -122,6 +140,10 @@ export function WholeBusiness() {
                   <div>
                     <dt>Booked, not yet taken</dt>
                     <dd>{money(p.month.bookedMinor, org)}</dd>
+                  </div>
+                  <div>
+                    <dt>Month-end estimate</dt>
+                    <dd>{monthEstimate(p.month, org)}</dd>
                   </div>
                   <div>
                     <dt>Last branch visit</dt>
