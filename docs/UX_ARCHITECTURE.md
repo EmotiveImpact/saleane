@@ -4,7 +4,7 @@ Revision 0.2 · 6 October 2026. Companion contract to [PRD](PRD.md), [context](P
 
 ## Experience structure
 
-Operator navigation remains **Today · Calendar · Clients · Inbox · Business**, with workspace/settings under the business switcher and one global search/command entry. The 0.2 app omits Inbox because no real conversations are delivered. Do not add empty future pages to make the menu look complete. Public booking has its own business-branded shell and a strict server access boundary in production.
+Operator navigation is **Today · Calendar · Clients · Waitlist · Inbox · Business · Settings** (updated 9 October 2026), with one global search entry and Ask SALEANE in the header. Inbox arrived in V1.5 and holds real conversations in test mode; nothing is sent until a provider is connected. Business keeps its own tab bar (Money, Stock, Rota, Gift cards, Pay, Accounts, How you compare, Feedback, Branch visits, Requests, Client areas), each shown only to the roles and studios it applies to. Reception lands on Money. Practitioners, regional managers and general managers have their own scoped pages. Do not add empty future pages to make the menu look complete. Public booking has its own business-branded shell and a strict server access boundary in production.
 
 Today gives attention, opportunity and verified completed work. Calendar owns allocation. Clients owns relationship context. Inbox owns communication history. Business owns commercial understanding and configuration. A visit opened from Today, Calendar or a client is the same appointment; its compact right-side preview leads to checkout or deliberate expansion into the client timeline. On a phone it becomes a full-height sheet, retaining the same action order.
 
