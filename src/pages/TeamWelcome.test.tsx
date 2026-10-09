@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, test, vi } from 'vitest'
 import { TeamWelcome } from './TeamWelcome'
+import { api } from '../state/api'
 
 // Three short screens for someone who has just joined, before their studio opens.
 vi.mock('../state/context', () => ({
@@ -10,6 +11,8 @@ vi.mock('../state/context', () => ({
     state: { organisation: { locale: 'en-GB' } },
   }),
 }))
+
+vi.mock('../state/api', () => ({ api: vi.fn() }))
 
 function welcome(role: 'general' | 'manager', onOpen = vi.fn()) {
   render(
@@ -52,4 +55,30 @@ test('a manager is told where to turn on two-step sign-in later, and can skip at
   expect(onOpen).toHaveBeenCalledTimes(1)
   await userEvent.click(screen.getByRole('button', { name: /Open the studio/ }))
   expect(onOpen).toHaveBeenCalledTimes(2)
+})
+
+test('keeps one main button on the sign-in screen, stepping back while two-step is set up', async () => {
+  vi.mocked(api).mockResolvedValue({
+    secret: 'JBSWY3DPEHPK3PXP',
+    uri: 'otpauth://totp/SALEANE:sam?secret=JBSWY3DPEHPK3PXP&issuer=SALEANE',
+  } as never)
+  welcome('manager')
+  await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
+  const main = () => screen.getByRole('button', { name: /Open the studio/ })
+  const primaries = () => document.querySelectorAll('.button-primary')
+  expect(primaries()).toHaveLength(1)
+  expect(main()).toHaveClass('button-primary')
+  expect(screen.getByRole('button', { name: 'Set up two-step sign-in' })).toHaveClass(
+    'button-secondary',
+  )
+  await userEvent.click(screen.getByRole('button', { name: 'Set up two-step sign-in' }))
+  const turnOn = await screen.findByRole('button', { name: 'Turn on two-step sign-in' })
+  expect(turnOn).toHaveClass('button-primary')
+  expect(main()).toHaveClass('button-secondary')
+  expect(primaries()).toHaveLength(1)
+  // Going back and returning starts the screen afresh, with the footer as the way forward.
+  await userEvent.click(screen.getByRole('button', { name: 'Back' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
+  expect(main()).toHaveClass('button-primary')
 })

@@ -10,6 +10,9 @@ import type { Role } from '../domain/operations'
 import { places, staffLocationOn } from '../domain/locations'
 import { createWorkspace } from '../domain/workspace'
 import { seed } from '../domain/seed'
+import { api } from '../state/api'
+import { monthBill } from '../domain/billing'
+import type { BillingView } from '../domain/billing'
 
 // "Add a location": six screens, nothing saved until the last one.
 type Shown = {
@@ -21,6 +24,34 @@ type Shown = {
 }
 let store: Shown
 vi.mock('../state/context', () => ({ useStore: () => store }))
+vi.mock('../state/api', () => ({ api: vi.fn() }))
+const ends = Date.parse('2026-10-23T09:00:00.000Z')
+/** A studio on its free trial, with card payments in test mode. */
+const plan: BillingView = {
+  status: 'trial',
+  stopReason: null,
+  region: 'UK',
+  test: true,
+  trialEndsAt: ends,
+  periodStart: null,
+  periodEnd: null,
+  plus: false,
+  plusNext: false,
+  cancelAtPeriodEnd: false,
+  card: null,
+  locations: 1,
+  nextBill: { at: ends, bill: monthBill('UK', 1, false) },
+  overdue: null,
+  checking: false,
+  held: false,
+  invoices: [],
+  moreBills: null,
+  ai: {
+    typed: { used: 0, of: 300 },
+    guestChats: { used: 0, of: 200 },
+    talkSeconds: { used: 0, of: 1800 },
+  },
+}
 const commit = vi.fn(async (command: Command): Promise<CommandResult> => {
   const result = execute(store.state, command, '2026-10-06T08:00:00.000Z', () =>
     crypto.randomUUID(),
@@ -38,8 +69,9 @@ function studio(): BusinessState {
     })
   return s
 }
-function show(role: Role = 'owner') {
-  store = { state: studio(), role, mode: 'server', blocked: false, commit }
+function show(role: Role = 'owner', mode: Shown['mode'] = 'server') {
+  vi.mocked(api).mockResolvedValue(plan as never)
+  store = { state: studio(), role, mode, blocked: false, commit }
   return render(
     <MemoryRouter>
       <LocationsSettings />
@@ -97,9 +129,16 @@ describe('Add a location', () => {
     // Check: nothing has been saved until now.
     expect(commit).not.toHaveBeenCalled()
     expect(within(dialog()).getByText('Maya Lewis (Thu)')).toBeInTheDocument()
+    // The owner sees what their own bill becomes, and that nothing is taken now.
     expect(
-      within(dialog()).getByText('Each location is £49 a month, plus VAT.'),
+      await within(dialog()).findByText(
+        'Your monthly bill goes from £58.80 to £117.60, including VAT at 20%.',
+      ),
     ).toBeInTheDocument()
+    expect(within(dialog()).getByText(/Nothing is taken during the trial\./)).toHaveTextContent(
+      'Card payments are in test mode, so nothing is charged.',
+    )
+    expect(api).toHaveBeenCalledWith(`/api/workspaces/${store.state.organisation.id}/billing`)
     await userEvent.click(within(dialog()).getByRole('button', { name: 'Add Islington' }))
     expect(commit).toHaveBeenCalledTimes(1)
     expect(commit.mock.calls[0][0]).toMatchObject({
@@ -119,6 +158,24 @@ describe('Add a location', () => {
     )
     const islington = places(store.state).find((p) => p.name === 'Islington')!
     expect(staffLocationOn(store.state, 'staff-maya', '2026-10-08')).toBe(islington.id)
+  })
+
+  it('shows only the price in a sample studio, where nothing is ever charged', async () => {
+    show('owner', 'demo')
+    await userEvent.click(screen.getByRole('button', { name: 'Add location' }))
+    await userEvent.type(within(dialog()).getByLabelText('Name'), 'Islington')
+    await userEvent.type(within(dialog()).getByLabelText('Address'), '1 Upper Street, London')
+    for (let n = 0; n < 4; n++) await userEvent.click(next())
+    const maya = within(dialog()).getByText('Maya Lewis').closest('li') as HTMLElement
+    await userEvent.click(within(maya).getByRole('checkbox', { name: 'Thursday' }))
+    await userEvent.click(next())
+    expect(
+      within(dialog()).getByText('Each location is £49 a month, plus VAT.'),
+    ).toBeInTheDocument()
+    expect(
+      within(dialog()).getByText(/This is a sample studio, so nothing is ever charged\./),
+    ).toBeInTheDocument()
+    expect(api).not.toHaveBeenCalled()
   })
 
   it('is for the owner', () => {

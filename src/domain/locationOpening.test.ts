@@ -5,9 +5,12 @@ import type { BusinessState } from './model'
 import { createWorkspace } from './workspace'
 import { seed } from './seed'
 import { places, serviceAt, staffLocationOn } from './locations'
+import { monthBill, planDate } from './billing'
+import type { BillingView } from './billing'
 import {
   bookedWeekdays,
   openDays,
+  openingBill,
   openingCommand,
   openingDraft,
   openingImpact,
@@ -195,5 +198,94 @@ describe('add a location', () => {
     )
     // Another day has nothing booked.
     expect(openingImpact(booked, where(booked, { days: { 'staff-maya': [2] } }), now)).toEqual([])
+  })
+})
+
+describe('what one more location does to the bill', () => {
+  const org = createWorkspace({
+    name: 'Linden Studio',
+    region: 'UK',
+    locationName: 'Bath',
+  }).organisation
+  const ends = Date.parse('2026-10-23T09:00:00.000Z')
+  const plan = (extra: Partial<BillingView> = {}): BillingView => ({
+    status: 'trial',
+    stopReason: null,
+    region: 'UK',
+    test: false,
+    trialEndsAt: ends,
+    periodStart: null,
+    periodEnd: null,
+    plus: false,
+    plusNext: false,
+    cancelAtPeriodEnd: false,
+    card: null,
+    locations: 1,
+    nextBill: { at: ends, bill: monthBill('UK', 1, false) },
+    overdue: null,
+    checking: false,
+    held: false,
+    invoices: [],
+    moreBills: null,
+    ai: {
+      typed: { used: 0, of: 300 },
+      guestChats: { used: 0, of: 200 },
+      talkSeconds: { used: 0, of: 1800 },
+    },
+    ...extra,
+  })
+
+  it('gives the whole monthly bill before and after, with VAT, and takes nothing during a trial', () => {
+    const bill = openingBill(plan(), org)
+    expect(bill.before.totalMinor).toBe(5880)
+    expect(bill.after.totalMinor).toBe(11760)
+    expect(bill.heading).toBe(
+      'Your monthly bill goes from £58.80 to £117.60, including VAT at 20%.',
+    )
+    expect(bill.detail).toBe(
+      `Your first bill is on ${planDate(org, ends)}, when the free trial ends. Nothing is taken during the trial.`,
+    )
+  })
+
+  it('starts the new amount with the next bill, never part way through a month', () => {
+    const bill = openingBill(
+      plan({ status: 'active', periodStart: ends - 30 * 86400000, periodEnd: ends, locations: 2 }),
+      org,
+    )
+    expect(bill.heading).toBe(
+      'Your monthly bill goes from £117.60 to £176.40, including VAT at 20%.',
+    )
+    expect(bill.detail).toBe(
+      `The new amount starts with your next bill on ${planDate(org, ends)}. Nothing is taken today.`,
+    )
+  })
+
+  it('counts Plus for the new location too', () => {
+    const bill = openingBill(plan({ plusNext: true }), org)
+    expect(bill.heading).toBe(
+      'Your monthly bill, with Plus, goes from £105.60 to £211.20, including VAT at 20%.',
+    )
+  })
+
+  it('says so when card payments are in test mode', () => {
+    expect(openingBill(plan({ test: true }), org).detail).toMatch(
+      /Card payments are in test mode, so nothing is charged\.$/,
+    )
+  })
+
+  it('takes nothing when the plan is ending or owed', () => {
+    expect(
+      openingBill(plan({ status: 'active', periodEnd: ends, cancelAtPeriodEnd: true }), org).detail,
+    ).toBe(`Your plan stops on ${planDate(org, ends)}, so nothing more is taken.`)
+    expect(openingBill(plan({ status: 'overdue' }), org).detail).toBe(
+      'The new amount starts with the monthly bill after the one that is owed. Nothing more is taken today.',
+    )
+  })
+
+  it('leaves US sales tax to the provider', () => {
+    const us = createWorkspace({ name: 'Linden Studio', region: 'US', locationName: 'Austin' })
+    expect(openingBill(plan({ region: 'US' }), us.organisation).heading).toBe(
+      'Your monthly bill goes from $59.00 to $118.00, plus any sales tax.',
+    )
   })
 })

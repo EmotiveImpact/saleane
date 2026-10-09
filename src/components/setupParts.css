@@ -289,3 +289,30 @@
     right: 6px;
   }
 }
+
+/* On a phone every target in the wizards is at least 44px, so a thumb finds it first time. */
+@media (max-width: 650px) {
+  :is(.setup-layout, .opening)
+    :is(
+      .setup-chip,
+      .setup-tick,
+      .colour-swatch,
+      .segmented-item,
+      .back-link,
+      .text-link,
+      .opening-offered,
+      .ops-check,
+      .setup-day-name
+    ) {
+    min-height: 44px;
+  }
+  :is(.setup-layout, .opening) .setup-remove {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .setup-story .wordmark {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}

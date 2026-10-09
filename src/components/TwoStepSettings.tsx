@@ -38,10 +38,16 @@ function save(name: string, content: string) {
 export function TwoStepSettings({
   onChange,
   startOpen,
+  onBusy,
 }: {
   onChange?: () => void
   /** Shown open, as on the welcome for someone who has just joined. */
   startOpen?: boolean
+  /**
+   * Inside a flow that has its own main button: setting up steps back to a secondary button, and
+   * this says when setting up is under way so the flow's button can step back in turn.
+   */
+  onBusy?: (busy: boolean) => void
 }) {
   const store = useStore()
   const user = store.session?.user
@@ -56,6 +62,7 @@ export function TwoStepSettings({
   if (!user) return null
   function go(next: Phase) {
     setPhase(next)
+    onBusy?.(next.kind !== 'idle')
     setCode('')
     setPassword('')
     setError('')
@@ -315,7 +322,11 @@ export function TwoStepSettings({
               password alone cannot open your studio. Recommended for owners and managers.
             </p>
             <div className="ops-actions">
-              <Button disabled={pending} onClick={() => void start()}>
+              <Button
+                variant={onBusy ? 'secondary' : 'primary'}
+                disabled={pending}
+                onClick={() => void start()}
+              >
                 Set up two-step sign-in
               </Button>
             </div>

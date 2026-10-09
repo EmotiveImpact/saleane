@@ -353,3 +353,15 @@
     padding: 12px 14px;
   }
 }
+
+/* On a phone the way forward fills the width at the foot of the step, where a thumb reaches it,
+   with Back as its quiet partner. */
+@media (max-width: 650px) {
+  .setup-main .wizard-footer > span:empty {
+    display: none;
+  }
+  .setup-main .wizard-footer > .button:last-child {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}

@@ -1,6 +1,7 @@
-import { useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, Plus, ReceiptText } from 'lucide-react'
 import { useStore } from '../state/context'
+import { api } from '../state/api'
 import type { Service } from '../domain/model'
 import { operations } from '../domain/operations'
 import { money } from '../domain/format'
@@ -15,6 +16,7 @@ import {
   openingCommand,
   openingDraft,
   openingHours,
+  openingBill,
   openingImpact,
   openingProblem,
   bookedWeekdays,
@@ -22,6 +24,7 @@ import {
   startingRooms,
 } from '../domain/locationOpening'
 import type { OpeningDraft } from '../domain/locationOpening'
+import type { BillingView } from '../domain/billing'
 import { WEEKDAYS, WEEK_ORDER, newRowKey } from '../domain/setupScreens'
 import {
   Button,
@@ -114,7 +117,7 @@ export function LocationOpening({
     >
       <div className="opening">
         <WizardSteps steps={NAMES} current={step} label="Adding a location" />
-        <section aria-labelledby={headingId}>
+        <section key={id} className="settle" aria-labelledby={headingId}>
           <h3 id={headingId} ref={heading} tabIndex={-1} className="wizard-heading">
             {TITLES[id]}
           </h3>
@@ -538,6 +541,24 @@ function Summary({ draft, offered }: { draft: OpeningDraft; offered: Service[] }
   ]
   const count = places(state).length + 1
   const sample = mode === 'demo' || operations(state).mode === 'sandbox'
+  const real = mode === 'server' && operations(state).mode === 'local'
+  // The studio's own plan, so the owner sees what their bill becomes, not just the price.
+  const [plan, setPlan] = useState<BillingView | null>(null)
+  useEffect(() => {
+    if (!real) return
+    let active = true
+    api<BillingView>(`/api/workspaces/${encodeURIComponent(state.organisation.id)}/billing`)
+      .then((view) => {
+        if (active) setPlan(view)
+      })
+      .catch(() => {
+        // The price for each location still shows; the plan is in Settings, Plan and billing.
+      })
+    return () => {
+      active = false
+    }
+  }, [real, state.organisation.id])
+  const bill = plan && openingBill(plan, state.organisation)
   const lines = [
     ['Where', [draft.name.trim(), draft.address.trim()].join(', ')],
     [
@@ -576,17 +597,27 @@ function Summary({ draft, offered }: { draft: OpeningDraft; offered: Service[] }
       </ul>
       <div className="ops-banner opening-price-note">
         <ReceiptText size={20} aria-hidden="true" />
-        <div>
-          <strong>
-            Each location is {priceLabel(region)} a month, {PRICE[region].tax}.
-          </strong>
-          <p>
-            {draft.name.trim()} makes {count} locations.{' '}
-            {sample
-              ? 'This is a sample studio, so nothing is ever charged.'
-              : 'Nothing is charged in this test version.'}
-          </p>
-        </div>
+        {bill ? (
+          <div key="bill" className="settle">
+            <strong>{bill.heading}</strong>
+            <p>
+              {draft.name.trim()} makes {count} locations, each {priceLabel(plan!.region)} a month.{' '}
+              {bill.detail}
+            </p>
+          </div>
+        ) : (
+          <div>
+            <strong>
+              Each location is {priceLabel(region)} a month, {PRICE[region].tax}.
+            </strong>
+            <p>
+              {draft.name.trim()} makes {count} locations.{' '}
+              {sample
+                ? 'This is a sample studio, so nothing is ever charged.'
+                : 'Settings, Plan and billing shows when each bill is taken.'}
+            </p>
+          </div>
+        )}
       </div>
     </>
   )

@@ -284,6 +284,26 @@ describe('Your first weeks', () => {
     expect(step('Check out your first visit')).toHaveTextContent('test mode')
   })
 
+  it('gives one main button, on the first step to do, and moves it on once the link is copied', async () => {
+    const writeText = vi.fn(async () => undefined)
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    show(withTeam(), signedIn)
+    const primary = () => weeks()!.querySelectorAll('.button-primary')
+    expect(primary()).toHaveLength(1)
+    expect(step('Share your booking page')).toHaveClass('is-next')
+    expect(within(step('Share your booking page')).getByRole('button')).toHaveClass(
+      'button-primary',
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Copy the link' }))
+    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/book/fernleaf-rooms`)
+    expect(screen.getByRole('button', { name: 'Copied' })).toHaveClass('button-secondary')
+    expect(primary()).toHaveLength(1)
+    expect(step('Bring your clients across')).toHaveClass('is-next')
+    expect(within(step('Bring your clients across')).getByRole('link')).toHaveClass(
+      'button-primary',
+    )
+  })
+
   it('ticks inviting the team when someone else is asked, and takes "I work on my own"', async () => {
     vi.mocked(api).mockResolvedValue({ members: [{}, {}], invitations: [] } as never)
     show(withTeam(), signedIn)

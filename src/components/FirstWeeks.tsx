@@ -126,6 +126,14 @@ export function FirstWeeks() {
   }).filter((step) => owner || step.id !== 'team')
   const finished = steps.filter((step) => step.done).length
   if (finished === steps.length) return null
+  // The first step this person can do now is the one clear way forward; the rest wait quietly.
+  // Once the link is copied, the booking page waits on a guest, so the next step moves on.
+  const next = blocked
+    ? undefined
+    : steps.find(
+        (step) =>
+          !step.done && can(role, weekPermission[step.id]) && !(step.id === 'link' && copied),
+      )?.id
   const connected = session?.services ?? { email: false, payments: false }
   const link = `${window.location.origin}/book/${encodeURIComponent(slug)}`
   const remember = (change: Memory[string]) => {
@@ -158,9 +166,13 @@ export function FirstWeeks() {
         {steps.map((step, index) => {
           const copy = copyFor(step.id, connected)
           const allowed = can(role, weekPermission[step.id]) && !blocked
+          const main = step.id === next ? 'primary' : 'secondary'
           return (
-            <li key={step.id} className={`get-ready-step${step.done ? ' is-done' : ''}`}>
-              <span className="get-ready-mark" aria-hidden="true">
+            <li
+              key={step.id}
+              className={`get-ready-step${step.done ? ' is-done' : step.id === next ? ' is-next' : ''}`}
+            >
+              <span key={String(step.done)} className="get-ready-mark settle" aria-hidden="true">
                 {step.done ? <Check size={15} strokeWidth={2.4} /> : index + 1}
               </span>
               <div className="get-ready-text">
@@ -173,7 +185,7 @@ export function FirstWeeks() {
                     <small className="get-ready-owner">The studio owner does this.</small>
                   ) : step.id === 'link' ? (
                     <Button
-                      variant="secondary"
+                      variant={main}
                       onClick={async () => {
                         try {
                           await navigator.clipboard.writeText(link)
@@ -189,7 +201,7 @@ export function FirstWeeks() {
                   ) : (
                     <>
                       {copy.link && (
-                        <Link className="button button-secondary" to={copy.link[0]}>
+                        <Link className={`button button-${main}`} to={copy.link[0]}>
                           {copy.link[1]} <ArrowRight size={15} aria-hidden="true" />
                         </Link>
                       )}

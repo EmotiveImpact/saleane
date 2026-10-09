@@ -228,7 +228,7 @@ export function StudioSetup() {
           current={index + 1}
           label="Setting up your studio"
         />
-        <section className="setup-screen">
+        <section key={index} className="setup-screen settle">
           <h1 id={headingId} ref={heading} tabIndex={-1} className="wizard-heading setup-heading">
             {
               {

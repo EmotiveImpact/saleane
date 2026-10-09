@@ -9,6 +9,9 @@ import { emailProblem, phoneProblem } from './studioContact'
 import { isUpcoming, scheduleImpact } from './schedule'
 import type { AffectedVisit } from './schedule'
 import { locationParts, suggestedRooms } from './setup'
+import { monthBill, planDate } from './billing'
+import type { BillingView } from './billing'
+import { money } from './format'
 
 /**
  * "Add a location": what the owner fills in across its screens, the one change it saves at the
@@ -252,3 +255,34 @@ export function openingProblem(
 }
 
 const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+/**
+ * NEXT-02: what one more location does to the studio's SALEANE bill, in words for the last step.
+ * Each month is billed in advance for every open location, so nothing is taken when it is added:
+ * the new amount starts with the next monthly bill.
+ */
+export function openingBill(plan: BillingView, org: BusinessState['organisation']) {
+  const before = monthBill(plan.region, plan.locations, plan.plusNext)
+  const after = monthBill(plan.region, plan.locations + 1, plan.plusNext)
+  const cash = (minor: number) => money(minor, org, true)
+  const day = (at: number) => planDate(org, at)
+  const tax = after.taxLabel ? `, including ${after.taxLabel}` : ', plus any sales tax'
+  const when =
+    plan.status === 'trial'
+      ? plan.cancelAtPeriodEnd
+        ? 'Your plan stops when the free trial ends, so nothing is taken.'
+        : `Your first bill is on ${day(plan.trialEndsAt)}, when the free trial ends. Nothing is taken during the trial.`
+      : plan.status === 'active'
+        ? plan.cancelAtPeriodEnd
+          ? `Your plan stops on ${day(plan.periodEnd!)}, so nothing more is taken.`
+          : `The new amount starts with your next bill on ${day(plan.periodEnd!)}. Nothing is taken today.`
+        : plan.status === 'overdue'
+          ? 'The new amount starts with the monthly bill after the one that is owed. Nothing more is taken today.'
+          : 'Nothing is taken until your plan starts again.'
+  return {
+    before,
+    after,
+    heading: `Your monthly bill${plan.plusNext ? ', with Plus,' : ''} goes from ${cash(before.totalMinor)} to ${cash(after.totalMinor)}${tax}.`,
+    detail: plan.test ? `${when} Card payments are in test mode, so nothing is charged.` : when,
+  }
+}

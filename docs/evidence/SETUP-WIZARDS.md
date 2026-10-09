@@ -66,9 +66,49 @@ After, three short screens first.
 ![Keep your sign-in safe, with two-step sign-in](WELCOME-04-sign-in.jpg)
 ![On a phone](WELCOME-05-phone-390.jpg)
 
+## Quality bar pass (9 October 2026)
+
+Checked against the quality bar in `docs/DESIGN_LANGUAGE.md` (from the quality bar pull request) at 1440px and 390px in Chromium, on a new studio made through sign-up and setup, a practitioner joining it from an invitation, and the owner adding a second location. Targets were measured in the browser, not judged by eye.
+
+What changed:
+
+- **Your first weeks** has one main button: the first step there is to do. Its number is filled, and on a phone its button fills the width. Once the link is copied the next step takes over. Every button in the list is now 44px tall (it was 40px), and "Hide this list" is 44px on a phone. A step's tick settles in when it is done.
+- **The welcome** keeps one main button on each screen. On "Keep your sign-in safe", setting up two-step sign-in is now a secondary button beside "Open your day" (both were filled before), and while it is being set up, "Turn on two-step sign-in" is the main button and "Open your day" steps back.
+- **On a phone**, the main button of each wizard fills the width at the foot of the step, with Back beside it (it was a small button on the right). Every target in the setup and location wizards is at least 44px.
+- **Adding a location** no longer puts cards inside the window: rooms, team and the summary are rows with hairlines, and the bill sits in the open below them.
+- Each step of all three wizards has `settle`, keyed to the step, so steps arrive with the shared calm motion once the quality bar's styles are in.
+
+![First weeks before, six equal buttons](SETUP-QB-01-weeks-1440-before.jpg)
+![First weeks after, one clear next step](SETUP-QB-01-weeks-1440-after.jpg)
+![First weeks on a phone, before](SETUP-QB-02-weeks-390-before.jpg)
+![First weeks on a phone, after](SETUP-QB-02-weeks-390-after.jpg)
+![Welcome sign-in screen before, two filled buttons](SETUP-QB-03-welcome-1440-before.jpg)
+![Welcome sign-in screen after, one](SETUP-QB-03-welcome-1440-after.jpg)
+![Welcome on a phone, before](SETUP-QB-04-welcome-390-before.jpg)
+![Welcome on a phone, after, the main button across the foot](SETUP-QB-04-welcome-390-after.jpg)
+![Welcome sign-in on a phone, before](SETUP-QB-05-welcome-390-sign-in-before.jpg)
+![Welcome sign-in on a phone, after](SETUP-QB-05-welcome-390-sign-in-after.jpg)
+![Adding a location, the team as rows](SETUP-QB-06-location-team-1440-after.jpg)
+![Adding a location, the bill it makes](SETUP-QB-07-location-bill-1440-after.jpg)
+![Adding a location on a phone](SETUP-QB-08-location-bill-390-after.jpg)
+
+Checklist:
+
+- [x] Each screen or section has one main job and one primary button. (Today keeps "New visit" in its greeting; the first weeks list is its own section with one.)
+- [x] Rarely used options are tucked away. Nothing here needed `MoreOptions`: each step shows only what that step needs.
+- [x] No card sits inside another card; lists use rows and hairlines. Fixed in the location window. The setup wizard's rows sit on the open page, not in a card.
+- [x] At most one photograph per view, framed large and fading into the words: the setup and welcome columns. None on Today's list or in the location window.
+- [x] Empty pages: none of these screens is an empty page.
+- [x] Loading: nothing here waits on a whole page. The first weeks list and the location bill show at once with what is known and fill in the rest (whether the team was invited, the exact bill) without a blank space or a spinner. `LoadingShapes` arrives with the quality bar pull request.
+- [x] Motion: every step has `settle`, keyed to the step, and a step's tick settles in. The styles and the reduced-motion rule come with the quality bar pull request; until then steps simply appear.
+- [x] At 390px: no sideways scroll on any screen; every target in the list, the welcome and both wizards is at least 44px; the main button fills the foot of each step. One exception, not in this change: the shared window's close button is 40px everywhere in the app.
+- [x] The words read plainly: the bill says what changes and when, and that nothing is taken today.
+- [x] Built from `src/design` tokens and components, with no new raw colours; `npm run check` and `npm run format:check` pass.
+- [x] Before and after pictures above.
+
 ## Limits
 
-- Prices for a location are said, not charged: charging studios is NEXT-02, owned by the build thread. The last screen says "Nothing is charged in this test version", or that a sample studio is never charged.
+- Adding a location says what the owner's own monthly bill becomes, read from Settings, Plan and billing (NEXT-02). Nothing is taken when it is added, because each month is billed in advance, and the screen says so, along with test mode for card payments. If the plan cannot be read, it shows the price for each location instead. A sample studio shows only the price and is never charged.
 - The setup screens, the welcome and several app screens still borrow the existing house photographs. `docs/photo-prompts.md` holds 21 prompts, one for each of those screens, and one message to paste into ChatGPT for the whole set. The three empty photographs in the photo library pull request only need saving again from their originals.
 - Setup asks for everyone to work the studio's opening hours to begin with; each person's own days stay in Settings under Team. Inviting the team to sign in also stays in Settings.
 - A location's photograph, its own colours and moving existing rooms into it stay in Settings.

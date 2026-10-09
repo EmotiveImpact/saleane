@@ -43,6 +43,8 @@ export function TeamWelcome({
   onOpen: () => void
 }) {
   const [index, setIndex] = useState(0)
+  // While two-step sign-in is being set up, that is the main job and the footer steps back.
+  const [settingUp, setSettingUp] = useState(false)
   const step = STEPS[index]
   const heading = useWizardStep(index)
   const headingId = useId()
@@ -75,7 +77,7 @@ export function TeamWelcome({
           current={index + 1}
           label="Your welcome"
         />
-        <section className="setup-screen">
+        <section key={step} className="setup-screen settle">
           <h1 id={headingId} ref={heading} tabIndex={-1} className="wizard-heading setup-heading">
             {
               {
@@ -129,7 +131,7 @@ export function TeamWelcome({
                 Your sign-in opens guests’ private details, so keep your password to yourself and
                 think about turning on two-step sign-in now.
               </p>
-              <TwoStepSettings startOpen />
+              <TwoStepSettings startOpen onBusy={setSettingUp} />
               {studioRole(role) && (
                 <p className="ops-help">You can also turn it on later in Settings, under Team.</p>
               )}
@@ -139,14 +141,25 @@ export function TeamWelcome({
         </section>
         <WizardFooter>
           {index > 0 ? (
-            <Button variant="quiet" disabled={pending} onClick={() => setIndex(index - 1)}>
+            <Button
+              variant="quiet"
+              disabled={pending}
+              onClick={() => {
+                setSettingUp(false)
+                setIndex(index - 1)
+              }}
+            >
               <ArrowLeft size={16} />
               Back
             </Button>
           ) : (
             <span />
           )}
-          <Button disabled={pending} onClick={() => (last ? onOpen() : setIndex(index + 1))}>
+          <Button
+            variant={last && settingUp ? 'secondary' : 'primary'}
+            disabled={pending}
+            onClick={() => (last ? onOpen() : setIndex(index + 1))}
+          >
             {pending ? 'Opening…' : last ? welcome.open : 'Continue'}
             {!pending && <ArrowRight size={17} />}
           </Button>
