@@ -524,6 +524,70 @@ export const migrations: Migration[] = [
         CREATE INDEX audit_actor ON audit_events(organisation_id,actor_id,occurred_at);
       `),
   },
+  {
+    version: 26,
+    // NEXT-02, studios paying for SALEANE: each real studio's plan (trial, paid month, overdue or
+    // read only, with its saved card as the payment service's references, and held from charging
+    // by itself after a restore), its bills, each card being saved, and billing emails to the
+    // owner. One live month's bill per studio and start, so two runs cannot bill a month twice.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE studio_plans (
+          organisation_id TEXT PRIMARY KEY REFERENCES organisations(id),
+          status TEXT NOT NULL CHECK(status IN ('trial','active','overdue','stopped')),
+          stop_reason TEXT CHECK(stop_reason IN ('trial_ended','unpaid','cancelled')),
+          trial_ends_at INTEGER NOT NULL, trial_warned_at INTEGER,
+          anchor_day INTEGER CHECK(anchor_day BETWEEN 1 AND 31),
+          period_start INTEGER, period_end INTEGER,
+          plus INTEGER NOT NULL DEFAULT 0 CHECK(plus IN (0,1)),
+          plus_next INTEGER NOT NULL DEFAULT 0 CHECK(plus_next IN (0,1)),
+          cancel_at_period_end INTEGER NOT NULL DEFAULT 0 CHECK(cancel_at_period_end IN (0,1)),
+          overdue_since INTEGER, next_attempt_at INTEGER,
+          card_customer_ref TEXT, card_method_ref TEXT, card_brand TEXT, card_last4 TEXT,
+          card_exp_month INTEGER, card_exp_year INTEGER,
+          held_at INTEGER,
+          created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+          CHECK((status='stopped')=(stop_reason IS NOT NULL)),
+          CHECK((status='overdue')=(overdue_since IS NOT NULL))
+        ) STRICT;
+        CREATE TABLE studio_invoices (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          number TEXT NOT NULL UNIQUE, kind TEXT NOT NULL CHECK(kind IN ('month','plus')),
+          period_start INTEGER NOT NULL, period_end INTEGER NOT NULL CHECK(period_end>period_start),
+          plus INTEGER NOT NULL CHECK(plus IN (0,1)),
+          currency TEXT NOT NULL CHECK(currency IN ('GBP','USD')),
+          lines TEXT NOT NULL CHECK(json_valid(lines)),
+          subtotal_minor INTEGER NOT NULL CHECK(subtotal_minor>=0),
+          tax_minor INTEGER NOT NULL CHECK(tax_minor>=0), tax_label TEXT,
+          total_minor INTEGER NOT NULL CHECK(total_minor=subtotal_minor+tax_minor),
+          status TEXT NOT NULL CHECK(status IN ('open','charging','paid','void','unknown')),
+          test INTEGER NOT NULL CHECK(test IN (0,1)),
+          attempt_key TEXT, attempts INTEGER NOT NULL DEFAULT 0, charged_at INTEGER,
+          provider_ref TEXT, detail TEXT,
+          created_at INTEGER NOT NULL, paid_at INTEGER, closed_at INTEGER
+        ) STRICT;
+        CREATE INDEX studio_invoices_recent ON studio_invoices(organisation_id,created_at);
+        CREATE UNIQUE INDEX studio_invoices_month ON studio_invoices(organisation_id,period_start) WHERE kind='month' AND status<>'void';
+        CREATE UNIQUE INDEX studio_invoices_attempt ON studio_invoices(attempt_key) WHERE attempt_key IS NOT NULL;
+        CREATE TABLE billing_setups (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          account_id TEXT NOT NULL REFERENCES accounts(id),
+          status TEXT NOT NULL CHECK(status IN ('started','saved','left','failed')),
+          then_pay INTEGER NOT NULL CHECK(then_pay IN (0,1)),
+          provider_ref TEXT, detail TEXT, created_at INTEGER NOT NULL, finished_at INTEGER
+        ) STRICT;
+        CREATE TABLE account_mail_next (
+          id TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id),
+          kind TEXT NOT NULL CHECK(kind IN ('reset','confirm','security','billing')), recipient TEXT NOT NULL,
+          subject TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('test','accepted','failed','unknown')),
+          provider TEXT, provider_ref TEXT, detail TEXT, created_at INTEGER NOT NULL
+        ) STRICT;
+        INSERT INTO account_mail_next SELECT id,account_id,kind,recipient,subject,status,provider,provider_ref,detail,created_at FROM account_mail;
+        DROP TABLE account_mail;
+        ALTER TABLE account_mail_next RENAME TO account_mail;
+        CREATE INDEX account_mail_recent ON account_mail(account_id,created_at);
+      `),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the

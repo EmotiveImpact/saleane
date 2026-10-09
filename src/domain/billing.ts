@@ -1,0 +1,244 @@
+import { PRICE, type PriceRegion } from './pricing'
+import type { Role } from './operations'
+import type { BusinessState } from './model'
+import { fullDateLabel } from './format'
+import { venueDate } from './tillCount'
+
+/**
+ * NEXT-02: what a studio pays SALEANE. A new studio has a free trial; then each month is billed
+ * in advance for every open location, with Plus if the owner chose it. A failed payment is tried
+ * again and the studio keeps working through a grace period; after it, or when the trial ends
+ * without a card, or when the owner stops, the studio becomes read only. Nothing is ever deleted.
+ * These pure parts are shared by the server, which keeps the plan, and the screens that show it.
+ */
+export type PlanStatus = 'trial' | 'active' | 'overdue' | 'stopped'
+export type StopReason = 'trial_ended' | 'unpaid' | 'cancelled'
+export type BillLine = { text: string; quantity: number; unitMinor: number; amountMinor: number }
+export type Bill = {
+  lines: BillLine[]
+  subtotalMinor: number
+  taxMinor: number
+  /** "VAT at 20%", or null where tax is not worked out here (US sales tax). */
+  taxLabel: string | null
+  totalMinor: number
+}
+export type InvoiceStatus = 'open' | 'charging' | 'paid' | 'void' | 'unknown'
+export type InvoiceView = Bill & {
+  id: string
+  number: string
+  kind: 'month' | 'plus'
+  periodStart: number
+  periodEnd: number
+  currency: 'GBP' | 'USD'
+  status: InvoiceStatus
+  /** Made while card payments were in test mode: nothing was charged. */
+  test: boolean
+  detail: string | null
+  createdAt: number
+  paidAt: number | null
+}
+export type SavedCard = { brand: string; last4: string; expMonth: number; expYear: number }
+type Meter = { used: number; of: number }
+/** The owner's whole plan, for Settings, Plan and billing. */
+export type BillingView = {
+  status: PlanStatus
+  stopReason: StopReason | null
+  region: PriceRegion
+  /** The card payment service is in test mode, so nothing is charged. */
+  test: boolean
+  trialEndsAt: number
+  periodStart: number | null
+  periodEnd: number | null
+  plus: boolean
+  plusNext: boolean
+  cancelAtPeriodEnd: boolean
+  card: SavedCard | null
+  locations: number
+  /** What the next bill will be if nothing changes, and when it is taken. */
+  nextBill: { at: number; bill: Bill } | null
+  overdue: { since: number; graceEndsAt: number; nextAttemptAt: number | null } | null
+  /** A payment whose outcome is not known yet; nothing more is taken until it is. */
+  checking: boolean
+  /** SALEANE was restored from a backup: nothing is charged by itself until payments are checked. */
+  held: boolean
+  /** The newest bills; `moreBills` is where the older ones start, or null when there are none. */
+  invoices: InvoiceView[]
+  moreBills: string | null
+  ai: { typed: Meter; guestChats: Meter; talkSeconds: Meter }
+}
+/** What every role's studio record carries: enough for a banner, and dates only for the owner. */
+export type BillingSummary = {
+  readOnly: boolean
+  status?: PlanStatus
+  stopReason?: StopReason | null
+  trialEndsAt?: number
+  graceEndsAt?: number
+  nextAttemptAt?: number | null
+  hasCard?: boolean
+}
+
+export const DAY_MS = 86400000
+
+/** The end of a month that starts at `start`, on the plan's day of the month or the month's last. */
+export function monthAfter(start: number, anchorDay: number) {
+  const from = new Date(start)
+  const year = from.getUTCFullYear(),
+    month = from.getUTCMonth() + 1
+  const last = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
+  return Date.UTC(
+    year,
+    month,
+    Math.min(anchorDay, last),
+    from.getUTCHours(),
+    from.getUTCMinutes(),
+    from.getUTCSeconds(),
+    from.getUTCMilliseconds(),
+  )
+}
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+
+/** Adds tax to a bill's lines: VAT at 20% in the UK; US sales tax is left to the provider. */
+export function taxed(region: PriceRegion, lines: BillLine[]): Bill {
+  const subtotalMinor = lines.reduce((sum, line) => sum + line.amountMinor, 0)
+  const rate = PRICE[region].taxRateBps
+  const taxMinor = rate === null ? 0 : Math.round((subtotalMinor * rate) / 10000)
+  return {
+    lines,
+    subtotalMinor,
+    taxMinor,
+    taxLabel: rate === null ? null : `VAT at ${rate / 100}%`,
+    totalMinor: subtotalMinor + taxMinor,
+  }
+}
+
+/** One month in advance: every open location, and Plus for each if chosen. */
+export function monthBill(region: PriceRegion, locations: number, plus: boolean): Bill {
+  const count = Math.max(1, locations)
+  const price = PRICE[region]
+  const where = plural(count, 'location', 'locations')
+  return taxed(region, [
+    {
+      text: `SALEANE, ${where}`,
+      quantity: count,
+      unitMinor: price.monthlyMinor,
+      amountMinor: price.monthlyMinor * count,
+    },
+    ...(plus
+      ? [
+          {
+            text: `Plus, ${where}`,
+            quantity: count,
+            unitMinor: price.plusMinor,
+            amountMinor: price.plusMinor * count,
+          },
+        ]
+      : []),
+  ])
+}
+
+/** Plus added part way through a paid month: only the part of the month that is left. */
+export function plusBill(
+  region: PriceRegion,
+  locations: number,
+  from: number,
+  periodStart: number,
+  periodEnd: number,
+): Bill {
+  const count = Math.max(1, locations)
+  const unit = PRICE[region].plusMinor
+  const share = Math.min(1, Math.max(0, (periodEnd - from) / (periodEnd - periodStart)))
+  const days = Math.max(1, Math.ceil((periodEnd - from) / DAY_MS))
+  const all = Math.round((periodEnd - periodStart) / DAY_MS)
+  return taxed(region, [
+    {
+      text: `Plus, ${plural(count, 'location', 'locations')}, for the ${plural(days, 'day', 'days')} left of ${all}`,
+      quantity: count,
+      unitMinor: unit,
+      amountMinor: Math.round(unit * count * share),
+    },
+  ])
+}
+
+/** The next retry after a payment first failed at `since`, or null when none are left. */
+export function nextRetry(since: number, now: number, retryDays: readonly number[]) {
+  const next = retryDays.map((d) => since + d * DAY_MS).find((at) => at > now)
+  return next ?? null
+}
+
+/** The one message a refused change shows while a studio is read only. */
+export function readOnlyMessage(role: Role) {
+  return role === 'owner'
+    ? 'This studio is read only until its SALEANE bill is paid. Nothing has been lost, and guests can still book. Pay in Settings, Plan and billing.'
+    : 'This studio is read only until the owner pays its SALEANE bill. Nothing has been lost, and guests can still book.'
+}
+
+/** A day in the studio's own calendar, as words: "20 October 2026". */
+export function planDate(org: BusinessState['organisation'], at: number) {
+  return fullDateLabel(venueDate(org.timeZone, new Date(at).toISOString()), org.locale)
+}
+
+/** How many days of a trial are left, counting part of a day as a day. */
+export const trialDaysLeft = (trialEndsAt: number, now: number) =>
+  Math.max(0, Math.ceil((trialEndsAt - now) / DAY_MS))
+
+export type BillingNotice = {
+  tone: 'stopped' | 'due' | 'soon'
+  text: string
+  /** What the owner's button does; nobody else gets one. */
+  action?: 'Add a card' | 'Pay now' | 'Start again'
+}
+/**
+ * NEXT-02: the line across the top of the studio about its plan, or nothing. Everyone sees that a
+ * read-only studio is read only; only the owner hears about a trial ending or a payment failing.
+ */
+export function billingNotice(
+  billing: BillingSummary | null | undefined,
+  role: Role,
+  org: BusinessState['organisation'],
+  now: number,
+): BillingNotice | null {
+  if (!billing) return null
+  const kept = 'Nothing has been lost, and guests can still book.'
+  if (billing.readOnly) {
+    if (role !== 'owner')
+      return {
+        tone: 'stopped',
+        text: `This studio is read only until the owner pays its SALEANE bill. You can still see everything. ${kept}`,
+      }
+    if (billing.stopReason === 'trial_ended')
+      return {
+        tone: 'stopped',
+        text: `Your free trial has ended, so the studio is read only. ${kept}`,
+        action: billing.hasCard ? 'Pay now' : 'Add a card',
+      }
+    if (billing.stopReason === 'cancelled')
+      return {
+        tone: 'stopped',
+        text: `Your SALEANE plan has stopped, so the studio is read only. ${kept}`,
+        action: 'Start again',
+      }
+    return {
+      tone: 'stopped',
+      text: `The SALEANE bill is unpaid, so the studio is read only. ${kept}`,
+      action: 'Pay now',
+    }
+  }
+  if (role !== 'owner') return null
+  if (billing.status === 'overdue' && billing.graceEndsAt)
+    return {
+      tone: 'due',
+      text: `We could not take this month’s SALEANE payment. Pay, or use another card, by ${planDate(org, billing.graceEndsAt)} to keep everything working.`,
+      action: 'Pay now',
+    }
+  if (billing.status === 'trial' && billing.trialEndsAt && !billing.hasCard) {
+    const left = trialDaysLeft(billing.trialEndsAt, now)
+    if (left <= 7)
+      return {
+        tone: 'soon',
+        text: `Your free trial ends on ${planDate(org, billing.trialEndsAt)}. Add a card to carry on without a break.`,
+        action: 'Add a card',
+      }
+  }
+  return null
+}

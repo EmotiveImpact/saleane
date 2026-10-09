@@ -80,6 +80,7 @@ export function receptionistRoutes() {
         history,
         continuing,
         usage: storedUsage(ctx, org.id),
+        allowance: ctx.plans.allowance(org),
       })
       // The studio's allowance message is for the owner; the guest hears something kinder.
       if (result.status === 'refused') {

@@ -640,6 +640,75 @@ describe('Stripe adapter (unverified against a live account)', () => {
     expect(String(calls[0].init.body)).toContain('off_session=true')
   })
 
+  it('keeps marks with a charge, and finds every charge with a mark again, page by page', async () => {
+    const calls: string[] = []
+    const intent = (id: string, status: string, attempt: string) => ({
+      id,
+      status,
+      amount: 5880,
+      amount_received: status === 'succeeded' ? 5880 : 0,
+      metadata: { studio: 'org-1', bill: 'bill-1', attempt },
+    })
+    let down = false
+    const provider = stripeProvider({
+      secretKey: 'sk_test_fictional',
+      webhookSecret: secret,
+      fetcher: async (url, init) => {
+        calls.push(`${init?.method} ${String(url)} ${init?.body ?? ''}`)
+        if (down) return new Response('{}', { status: 500 })
+        if (String(url).endsWith('/payment_intents'))
+          return new Response(JSON.stringify({ id: 'pi_1', status: 'succeeded' }), { status: 200 })
+        const page = new URL(String(url)).searchParams.get('page')
+        return new Response(
+          JSON.stringify(
+            page
+              ? { data: [intent('pi_2', 'requires_payment_method', 'bill-1.2')], has_more: false }
+              : {
+                  data: [intent('pi_1', 'succeeded', 'bill-1.1')],
+                  has_more: true,
+                  next_page: 'page_2',
+                },
+          ),
+          { status: 200 },
+        )
+      },
+    })
+    await provider.chargeSaved({
+      attemptId: 'bill-1.1',
+      amountMinor: 5880,
+      currency: 'GBP',
+      description: 'SALEANE bill SAL-000001',
+      card: { customerRef: 'cus_1', methodRef: 'pm_1', last4: '4242' },
+      marks: { studio: 'org-1', bill: 'bill-1' },
+    })
+    expect(calls[0]).toContain('metadata%5Bstudio%5D=org-1')
+    expect(calls[0]).toContain('metadata%5Battempt%5D=bill-1.1')
+    expect(await provider.charges({ key: 'studio', value: 'org-1' })).toEqual([
+      {
+        attemptId: 'bill-1.1',
+        providerRef: 'pi_1',
+        status: 'succeeded',
+        amountMinor: 5880,
+        marks: { studio: 'org-1', bill: 'bill-1', attempt: 'bill-1.1' },
+      },
+      {
+        attemptId: 'bill-1.2',
+        providerRef: 'pi_2',
+        status: 'failed',
+        amountMinor: 5880,
+        marks: { studio: 'org-1', bill: 'bill-1', attempt: 'bill-1.2' },
+      },
+    ])
+    const search = new URL(calls[1].split(' ')[1])
+    expect(search.pathname).toBe('/v1/payment_intents/search')
+    expect(search.searchParams.get('query')).toBe("metadata['studio']:'org-1'")
+    expect(calls[2]).toContain('page=page_2')
+    // A value that could change the search is never sent, and an outage is not "nothing taken".
+    expect(await provider.charges({ key: 'studio', value: "x' OR '1" })).toBeNull()
+    down = true
+    expect(await provider.charges({ key: 'studio', value: 'org-1' })).toBeNull()
+  })
+
   it('applies a verified webhook to the attempt it names', async () => {
     const provider = stripeProvider({
       secretKey: 'sk_test_fictional',
