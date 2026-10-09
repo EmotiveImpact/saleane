@@ -762,26 +762,25 @@ export function Money() {
               </div>
             </form>
           ) : (
-            <div className="ops-actions">
-              <Button
-                variant="secondary"
-                disabled={
-                  !can(role, 'refund') ||
-                  blocked ||
-                  refundFor(receipt.id) >= refundableOnReceipt(receipt)
-                }
-                onClick={() => {
-                  setRefund(true)
-                  setError('')
-                }}
-              >
-                {sandbox
-                  ? 'Record simulated refund'
-                  : receipt.method === 'card' && cardRefundable(receipt.id) > 0
-                    ? 'Refund to the card'
-                    : 'Record external refund'}
-              </Button>
-            </div>
+            // The front desk reads receipts; refunds are for owners and managers (the server agrees).
+            can(role, 'refund') && (
+              <div className="ops-actions">
+                <Button
+                  variant="secondary"
+                  disabled={blocked || refundFor(receipt.id) >= refundableOnReceipt(receipt)}
+                  onClick={() => {
+                    setRefund(true)
+                    setError('')
+                  }}
+                >
+                  {sandbox
+                    ? 'Record simulated refund'
+                    : receipt.method === 'card' && cardRefundable(receipt.id) > 0
+                      ? 'Refund to the card'
+                      : 'Record external refund'}
+                </Button>
+              </div>
+            )
           )}
         </Modal>
       )}

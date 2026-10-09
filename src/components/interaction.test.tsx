@@ -1,9 +1,16 @@
-import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { StoreProvider } from '../state/StoreProvider'
 import { App } from '../App'
+import { seed } from '../domain/seed'
+import { withoutFeedback } from '../domain/feedback'
+import { withoutPayRates } from '../domain/pay'
+import { withoutBranchVisits } from '../domain/branchVisits'
+import { withoutRequests } from '../domain/approvals'
+import type { Role } from '../domain/operations'
+import type { RemoteWorkspace, Session } from '../state/api'
 
 function show(route = '/today') {
   render(
@@ -13,6 +20,62 @@ function show(route = '/today') {
       </StoreProvider>
     </MemoryRouter>,
   )
+}
+
+/**
+ * Opens the app signed in to the sample studio with the given role. The answers mirror the server:
+ * the front desk reads the studio record without guests' feedback, pay rates, branch visits or
+ * requests (server/projections.ts).
+ */
+function signedIn(role: Role, route: string) {
+  const sample = seed('UK')
+  const state =
+    role === 'reception'
+      ? withoutRequests(withoutBranchVisits(withoutPayRates(withoutFeedback(sample))))
+      : sample
+  const workspace: RemoteWorkspace = {
+    id: state.organisation.id,
+    slug: 'sample-studio',
+    view: 'studio',
+    state,
+    role,
+    today: '2026-10-06',
+    mode: 'sandbox',
+  }
+  const session: Session = {
+    user: { id: 'account-desk', name: 'Rosa Desk', email: 'desk@example.invalid' },
+    csrf: 'csrf-token',
+    workspaces: [
+      {
+        id: workspace.id,
+        slug: workspace.slug,
+        name: state.organisation.name,
+        region: 'UK',
+        mode: 'sandbox',
+        role,
+      },
+    ],
+    services: { email: false, payments: false },
+    localOnly: true,
+  }
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input)
+      const body =
+        path === '/api/session'
+          ? session
+          : path === `/api/workspaces/${workspace.id}`
+            ? workspace
+            : null
+      return new Response(JSON.stringify(body ?? { error: 'Not in this test.' }), {
+        status: body ? 200 : 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }),
+  )
+  sessionStorage.setItem('saleane.workspace', workspace.id)
+  show(route)
 }
 
 async function chooseFacial(user: ReturnType<typeof userEvent.setup>) {
@@ -405,6 +468,75 @@ describe('local operating surfaces', () => {
     expect(within(screen.getByRole('dialog')).getByRole('status')).toHaveTextContent(
       'No money moved',
     )
+  })
+})
+
+describe('front desk access to Business', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    sessionStorage.clear()
+  })
+
+  it('opens Money, Stock, Rota and Gift cards, and lands Business on Money', async () => {
+    const user = userEvent.setup()
+    signedIn('reception', '/business')
+    expect(await screen.findByRole('heading', { name: 'Money, clearly.' })).toBeInTheDocument()
+    const sections = screen.getByRole('navigation', { name: 'Business sections' })
+    expect(
+      within(sections)
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual(['Money', 'Stock', 'Rota', 'Gift cards'])
+    const business = screen.getByRole('link', { name: 'Business' })
+    expect(business).toHaveAttribute('href', '/business/money')
+    expect(business).toHaveAttribute('aria-current', 'page')
+    await user.click(within(sections).getByRole('link', { name: 'Stock' }))
+    expect(
+      await screen.findByRole('heading', { name: 'What is on the shelf.' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Business' })).toHaveAttribute('aria-current', 'page')
+    await user.click(within(sections).getByRole('link', { name: 'Rota' }))
+    expect(
+      await screen.findByRole('heading', { name: 'Who is in, and who is away.' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Add time off/ })).not.toBeInTheDocument()
+    await user.click(within(sections).getByRole('link', { name: 'Gift cards' }))
+    expect(
+      await screen.findByRole('heading', { name: 'Gift cards and vouchers.' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Sell a gift card/ })).toBeInTheDocument()
+  })
+
+  it('sends the desk back to Money from pages that stay with owners and managers', async () => {
+    for (const page of ['pay', 'accounts', 'feedback', 'visits', 'requests', 'areas']) {
+      signedIn('reception', `/business/${page}`)
+      expect(await screen.findByRole('heading', { name: 'Money, clearly.' })).toBeInTheDocument()
+      cleanup()
+      vi.unstubAllGlobals()
+      sessionStorage.clear()
+    }
+  })
+
+  it('shows receipts to the desk without a refund it could not record', async () => {
+    const user = userEvent.setup()
+    signedIn('reception', '/business/money')
+    await user.click((await screen.findAllByRole('button', { name: /View receipt for/ }))[0])
+    expect(screen.getByRole('heading', { name: 'Receipt' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /refund/i })).not.toBeInTheDocument()
+  })
+
+  it('keeps every Business section for an owner', async () => {
+    signedIn('owner', '/business')
+    expect(await screen.findByRole('heading', { name: 'A clearer view.' })).toBeInTheDocument()
+    const sections = screen.getByRole('navigation', { name: 'Business sections' })
+    expect(
+      within(sections)
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual(
+      expect.arrayContaining(['Overview', 'Money', 'Pay', 'Accounts', 'Feedback', 'Client areas']),
+    )
+    expect(screen.getByRole('link', { name: 'Business' })).toHaveAttribute('href', '/business')
   })
 })
 
