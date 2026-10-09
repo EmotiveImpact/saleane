@@ -8,7 +8,8 @@ import { rememberToken } from '../state/guestReturn'
 
 /**
  * PILOT-02: paying a deposit or saving a card from the guest's private page. The card is typed
- * on the payment provider's own page; SALEANE never sees the number.
+ * on the payment provider's own page; SALEANE never sees the number. In test mode every step says
+ * it is a test, and nothing here reads as money taken.
  */
 export function GuestPayment({
   token,
@@ -23,6 +24,7 @@ export function GuestPayment({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const due = money(payment.depositDueMinor, organisation, true)
+  const test = payment.testMode
 
   async function open(purpose: 'deposit' | 'save_card') {
     setBusy(true)
@@ -46,27 +48,34 @@ export function GuestPayment({
         <ShieldCheck size={18} aria-hidden="true" />
         {payment.depositDueMinor ? 'Secure your visit' : 'Your card'}
       </h2>
-      {payment.testMode && (
+      {test && (
         <p className="guest-pay-test">
           Test mode: the studio is still setting up card payments, so no card is asked for and no
           money moves.
         </p>
       )}
       {payment.pending ? (
-        <p role="status">We’re confirming your payment. This page will show it once it lands.</p>
+        <p role="status">
+          {test
+            ? 'We’re confirming your test payment. This page will show it once it lands. No money is taken.'
+            : 'We’re confirming your payment. This page will show it once it lands.'}
+        </p>
       ) : (
         <>
           {payment.savedCard && (
             <p className="guest-pay-card">
               <CreditCard size={16} aria-hidden="true" />
-              {payment.savedCard.brand} ending {payment.savedCard.last4} is saved for your visits.
+              {test
+                ? `${payment.savedCard.brand} test card ending ${payment.savedCard.last4} is saved for your visits. No money can be taken from it.`
+                : `${payment.savedCard.brand} ending ${payment.savedCard.last4} is saved for your visits.`}
             </p>
           )}
           {payment.depositDueMinor > 0 ? (
             <>
               <p>
-                {organisation.name} asks for a deposit of {due} to hold this time. It comes off your
-                bill on the day.
+                {organisation.name} asks for a deposit of {due} to hold this time.
+                {/* In test mode the note above already says no money moves. */}
+                {test ? '' : ' It comes off your bill on the day.'}
               </p>
               {payment.saveCardOffered && (
                 <label className="guest-pay-save">
@@ -82,7 +91,11 @@ export function GuestPayment({
                 </label>
               )}
               <Button disabled={busy} onClick={() => void open('deposit')}>
-                {busy ? 'Opening the payment page…' : `Pay ${due} deposit`}
+                {busy
+                  ? 'Opening the payment page…'
+                  : test
+                    ? `Make a ${due} test payment`
+                    : `Pay ${due} deposit`}
               </Button>
             </>
           ) : (
@@ -92,7 +105,7 @@ export function GuestPayment({
                   Save a card so you don’t need one on the day. <small>{payment.policy}</small>
                 </p>
                 <Button variant="secondary" disabled={busy} onClick={() => void open('save_card')}>
-                  {busy ? 'Opening the card page…' : 'Save a card'}
+                  {busy ? 'Opening the card page…' : test ? 'Save a test card' : 'Save a card'}
                 </Button>
               </>
             )

@@ -331,7 +331,10 @@ export function GuestMove({
             <p className="guest-move-late">
               This new time is less than {GUEST_CANCEL_CUTOFF_HOURS} hours away, so after this your
               visit can’t be moved online again
-              {deposit.paidMinor ? ', and if you cancel, the studio keeps your deposit' : ''}.
+              {deposit.paidMinor
+                ? `, and if you cancel, the studio keeps your ${deposit.test ? 'test ' : deposit.simulated ? 'simulated ' : ''}deposit`
+                : ''}
+              .
             </p>
           )}
           <ErrorMessage error={error} />

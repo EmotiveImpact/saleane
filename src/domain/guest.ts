@@ -129,7 +129,12 @@ export const guestViewSchema = z
       })
       .strict(),
     deposit: z
-      .object({ paidMinor: z.number().int().nonnegative(), simulated: z.boolean() })
+      .object({
+        paidMinor: z.number().int().nonnegative(),
+        simulated: z.boolean(),
+        /** Paid only by test card payments, in test mode: no money was taken. */
+        test: z.literal(true).optional(),
+      })
       .strict(),
     cancellation: z
       .object({
@@ -368,6 +373,10 @@ export function guestView(
     deposit: {
       paidMinor,
       simulated: deposits.some((p) => p.method === 'demo_card'),
+      // Only a deposit paid wholly by test card payments took no money.
+      ...(deposits.length && deposits.every((p) => p.processor && !p.processor.live)
+        ? { test: true as const }
+        : {}),
     },
     cancellation,
     ...(payment === undefined ? {} : { payment }),

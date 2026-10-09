@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { ManageVisit } from './ManageVisit'
 import { api, ApiError } from '../state/api'
 import type { GuestView } from '../domain/guest'
@@ -427,4 +427,103 @@ test('leaves out coming in sooner for a visit only a day or two away', async () 
   render(<ManageVisit />)
   await screen.findByText('Skin Renewal Facial')
   expect(screen.queryByText(/come in sooner/)).not.toBeInTheDocument()
+})
+
+const testDeposit = (outcome: GuestView['cancellation']['outcome']): GuestView => ({
+  ...view(outcome),
+  deposit: { paidMinor: 2500, simulated: false, test: true },
+})
+
+test('says a test deposit took no money, before and after cancelling', async () => {
+  const user = userEvent.setup()
+  vi.mocked(api).mockImplementation(async (path) =>
+    path === '/api/guest/cancel'
+      ? ({
+          ...testDeposit('refund_due'),
+          visit: { ...view('none').visit, status: 'cancelled' },
+        } as never)
+      : (testDeposit('refund_due') as never),
+  )
+  render(<ManageVisit />)
+  expect(await screen.findByText('£25.00 test payment')).toBeInTheDocument()
+  expect(screen.getByText('No money was taken.')).toBeInTheDocument()
+  expect(
+    screen.getByText(
+      'Cancel before Tuesday 6 October at 09:00 and your £25.00 deposit would be given back. It was a test payment, so no money was taken.',
+    ),
+  ).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Cancel this visit' }))
+  expect(
+    screen.getByText(
+      'Your £25.00 deposit would be given back. It was a test payment, so no money was taken.',
+    ),
+  ).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Yes, cancel my visit' }))
+  expect(
+    await screen.findByText(
+      'Reference Studio can see your cancellation. Your deposit was a test payment, so no money was taken.',
+    ),
+  ).toBeInTheDocument()
+  expect(screen.queryByText(/will give back|refunded/)).not.toBeInTheDocument()
+})
+
+test('a late cancellation with a test deposit still says no money was taken', async () => {
+  vi.mocked(api).mockResolvedValue(testDeposit('retained') as never)
+  render(<ManageVisit />)
+  expect(
+    await screen.findByText(
+      'It is less than 24 hours until your visit, so if you cancel now the studio would keep your £25.00 deposit. It was a test payment, so no money was taken.',
+    ),
+  ).toBeInTheDocument()
+})
+
+describe('coming back from the payment page', () => {
+  afterEach(() => {
+    vi.clearAllTimers()
+    vi.useRealTimers()
+    window.history.replaceState(null, '', '/')
+  })
+  const returning = () => window.history.replaceState(null, '', `/manage?payment=done#${token}`)
+
+  test('says a test payment took no money, never that money went through', async () => {
+    returning()
+    vi.mocked(api).mockResolvedValue({ ...testDeposit('refund_due'), payment: null } as never)
+    render(<ManageVisit />)
+    expect(
+      await screen.findByText('Thank you. That was a test payment, so no money was taken.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/went through/)).not.toBeInTheDocument()
+  })
+
+  test('while a test payment is confirmed, says no money is taken', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    returning()
+    vi.mocked(api).mockResolvedValue({
+      ...view('none'),
+      deposit: { paidMinor: 0, simulated: false },
+      payment: {
+        testMode: true,
+        depositDueMinor: 2500,
+        saveCardOffered: false,
+        savedCard: null,
+        policy: 'Your card is saved for visits at Reference Studio.',
+        pending: true,
+      },
+    } as never)
+    render(<ManageVisit />)
+    expect(
+      await screen.findByText(
+        'Thank you. Your test payment is being confirmed and will show here shortly. No money is taken.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/We’re confirming your test payment/)).toBeInTheDocument()
+  })
+
+  test('a real payment that landed says it went through', async () => {
+    returning()
+    vi.mocked(api).mockResolvedValue({ ...view('refund_due'), payment: null } as never)
+    render(<ManageVisit />)
+    expect(await screen.findByText('Thank you. That went through.')).toBeInTheDocument()
+    expect(screen.getByText('£25.00 paid')).toBeInTheDocument()
+  })
 })

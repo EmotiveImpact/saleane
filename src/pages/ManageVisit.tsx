@@ -55,9 +55,26 @@ function momentLabel(iso: string, org: GuestView['organisation']) {
 }
 
 /**
+ * The note after the payment provider's page. A payment that has landed says so, and one made in
+ * test mode says that no money was taken.
+ */
+function paymentWords(note: string, view: GuestView) {
+  if (!note.startsWith('Thank you')) return note
+  const test = !!(view.deposit.test || view.payment?.testMode)
+  if (view.payment?.pending || view.payment?.depositDueMinor)
+    return test
+      ? 'Thank you. Your test payment is being confirmed and will show here shortly. No money is taken.'
+      : note
+  if (view.deposit.test) return 'Thank you. That was a test payment, so no money was taken.'
+  return test
+    ? 'Thank you. That was a test, so no money was taken.'
+    : 'Thank you. That went through.'
+}
+
+/**
  * What cancelling means for the deposit, in plain words: before the guest asks, as they confirm,
- * and once it is done. Only a visit with a deposit mentions one, and a simulated deposit never
- * reads as money.
+ * and once it is done. Only a visit with a deposit mentions one, and a simulated or test deposit
+ * never reads as money.
  */
 function cancelWords(view: GuestView, cutoff: string) {
   const { deposit, cancellation } = view
@@ -81,6 +98,21 @@ function cancelWords(view: GuestView, cutoff: string) {
           confirm: `${late}, so the studio would keep your simulated ${paid} deposit. No money moves in a sample studio.`,
           done: 'In this sample studio, no money moves.',
         }
+  if (deposit.test) {
+    const none = 'It was a test payment, so no money was taken.'
+    const done = 'Your deposit was a test payment, so no money was taken.'
+    return cancellation.outcome === 'refund_due'
+      ? {
+          before: `Cancel before ${cutoff} and your ${paid} deposit would be given back. ${none}`,
+          confirm: `Your ${paid} deposit would be given back. ${none}`,
+          done,
+        }
+      : {
+          before: `${late}, so if you cancel now the studio would keep your ${paid} deposit. ${none}`,
+          confirm: `${late}, so the studio would keep your ${paid} deposit. ${none}`,
+          done,
+        }
+  }
   return cancellation.outcome === 'refund_due'
     ? {
         before: `Cancel before ${cutoff} and the studio will give back your ${paid} deposit. After that, it keeps the deposit.`,
@@ -237,11 +269,7 @@ export function ManageVisit() {
         )}
         {paymentNote && (
           <p className="guest-notice" role="status">
-            {paymentNote.startsWith('Thank you') &&
-            !view.payment?.pending &&
-            !view.payment?.depositDueMinor
-              ? 'Thank you. That went through.'
-              : paymentNote}
+            {paymentWords(paymentNote, view)}
           </p>
         )}
         <dl className="guest-visit">
@@ -264,8 +292,9 @@ export function ManageVisit() {
             <div>
               <dt>Deposit</dt>
               <dd>
-                {paid} paid
+                {deposit.test ? `${paid} test payment` : `${paid} paid`}
                 {deposit.simulated && <small>Simulated in the sample studio</small>}
+                {deposit.test && <small>No money was taken.</small>}
               </dd>
             </div>
           )}
