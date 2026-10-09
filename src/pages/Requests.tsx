@@ -24,6 +24,7 @@ const PASSED_UP: Record<NonNullable<ApprovalRequest['passedUp']>, string> = {
   'over-limit': 'it costs more than a regional manager may approve',
   'no-region': 'its location is in no region',
   'no-manager': 'its region has no regional manager',
+  'own-request': 'its region’s own regional manager raised it',
 }
 
 /** "New basin · £200 · Islington · raised 6 Oct by Rae". */

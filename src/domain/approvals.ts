@@ -22,14 +22,15 @@ export function routeFor(
   amountMinor: number | undefined,
   managedRegions: readonly string[] = [],
   raiserRegion?: string,
-): { routedTo: Route; passedUp?: 'over-limit' | 'no-region' | 'no-manager' } {
+): { routedTo: Route; passedUp?: NonNullable<ApprovalRequest['passedUp']> } {
   const region = regions(s).find((r) => r.locationIds.includes(locationId))
   if (!region) return { routedTo: { level: 'owner' }, passedUp: 'no-region' }
   if (!managedRegions.includes(region.id))
     return { routedTo: { level: 'owner' }, passedUp: 'no-manager' }
   if ((amountMinor ?? 0) > regionalLimit(s))
     return { routedTo: { level: 'owner' }, passedUp: 'over-limit' }
-  if (raiserRegion === region.id) return { routedTo: { level: 'owner' } }
+  // A regional manager never signs off their own request.
+  if (raiserRegion === region.id) return { routedTo: { level: 'owner' }, passedUp: 'own-request' }
   return { routedTo: { level: 'regional', regionId: region.id } }
 }
 

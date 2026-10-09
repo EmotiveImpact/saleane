@@ -43,7 +43,7 @@ export const approvalRequestSchema = z
     note: z.string().max(500).optional(),
     /** Who it went to when it was raised, and why it passed up if it did. */
     routedTo: routeSchema,
-    passedUp: z.enum(['over-limit', 'no-region', 'no-manager']).optional(),
+    passedUp: z.enum(['over-limit', 'no-region', 'no-manager', 'own-request']).optional(),
     raisedAt: z.string(),
     raisedBy: z.string().optional(),
     /** The account that raised it, from the server's session. Older requests have none. */

@@ -115,7 +115,7 @@ describe('requests for sign-off', () => {
     const [own, theirs] = requests(s)
     // Within the limit, but raised by London's own manager: the owner signs it off.
     expect(own).toMatchObject({ routedTo: { level: 'owner' }, raisedById: 'account-rae' })
-    expect(own.passedUp).toBeUndefined()
+    expect(own.passedUp).toBe('own-request')
     expect(waitingOn(s, own)).toBe('the owner')
     expect(theirs).toMatchObject({
       routedTo: { level: 'regional', regionId: london },
