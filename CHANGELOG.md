@@ -21,6 +21,13 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Texts name the location, imported visits go to the location where the professional works that day, and the calendar showing every location spans all their opening hours.
 - A studio with one location works exactly as before.
 
+## 2026-10-09 · Roadmap · What's left before release
+
+**Status: documentation only; nothing built or deployed.**
+
+- The roadmap now lists everything left before release, grouped by what each item waits on: the owner's word, outside accounts or live sources, things still to build (NEXT-01 to NEXT-11 in the build queue), and the steps to release 1.0.
+- V3's row records what is built locally, a V5.5 row holds the ideas agreed to come after real studios, and hosting is shown as parked and undecided.
+
 ## 2026-10-09 · V1.5 · Passing an unanswered waitlist offer on
 
 **Status: built locally on 9 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V15-WAITLIST.md#passing-an-unanswered-offer-on).
