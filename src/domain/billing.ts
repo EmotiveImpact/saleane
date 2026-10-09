@@ -61,6 +61,9 @@ export type BillingView = {
   checking: boolean
   /** SALEANE was restored from a backup: nothing is charged by itself until payments are checked. */
   held: boolean
+  /** When a read-only studio locks (or locked), and whether it has. */
+  lockAt: number | null
+  locked: boolean
   /** The newest bills; `moreBills` is where the older ones start, or null when there are none. */
   invoices: InvoiceView[]
   moreBills: string | null
@@ -69,6 +72,9 @@ export type BillingView = {
 /** What every role's studio record carries: enough for a banner, and dates only for the owner. */
 export type BillingSummary = {
   readOnly: boolean
+  /** A read-only studio locks on `lockAt`: only the owner can open it, and booking closes. */
+  locked?: boolean
+  lockAt?: number | null
   status?: PlanStatus
   stopReason?: StopReason | null
   trialEndsAt?: number
@@ -173,6 +179,13 @@ export function readOnlyMessage(role: Role) {
     : 'This studio is read only until the owner pays its SALEANE bill. Nothing has been lost, and guests can still book.'
 }
 
+/** What everyone but the owner is told, and the owner on anything but paying, once a studio locks. */
+export function lockedMessage(role: Role) {
+  return role === 'owner'
+    ? 'This studio is locked until its SALEANE bill is paid. Nothing has been deleted. Pay in Plan and billing to open it again for everyone.'
+    : 'This studio is locked until the owner pays its SALEANE bill. Nothing has been deleted.'
+}
+
 /** A day in the studio's own calendar, as words: "20 October 2026". */
 export function planDate(org: BusinessState['organisation'], at: number) {
   return fullDateLabel(venueDate(org.timeZone, new Date(at).toISOString()), org.locale)
@@ -201,26 +214,32 @@ export function billingNotice(
   if (!billing) return null
   const kept = 'Nothing has been lost, and guests can still book.'
   if (billing.readOnly) {
+    const lock =
+      billing.lockAt && !billing.locked
+        ? role === 'owner'
+          ? ` On ${planDate(org, billing.lockAt)} it locks: only you will be able to open it, and online booking closes.`
+          : ` On ${planDate(org, billing.lockAt)} it locks, and only the owner will be able to open it.`
+        : ''
     if (role !== 'owner')
       return {
         tone: 'stopped',
-        text: `This studio is read only until the owner pays its SALEANE bill. You can still see everything. ${kept}`,
+        text: `This studio is read only until the owner pays its SALEANE bill. You can still see everything. ${kept}${lock}`,
       }
     if (billing.stopReason === 'trial_ended')
       return {
         tone: 'stopped',
-        text: `Your free trial has ended, so the studio is read only. ${kept}`,
+        text: `Your free trial has ended, so the studio is read only. ${kept}${lock}`,
         action: billing.hasCard ? 'Pay now' : 'Add a card',
       }
     if (billing.stopReason === 'cancelled')
       return {
         tone: 'stopped',
-        text: `Your SALEANE plan has stopped, so the studio is read only. ${kept}`,
+        text: `Your SALEANE plan has stopped, so the studio is read only. ${kept}${lock}`,
         action: 'Start again',
       }
     return {
       tone: 'stopped',
-      text: `The SALEANE bill is unpaid, so the studio is read only. ${kept}`,
+      text: `The SALEANE bill is unpaid, so the studio is read only. ${kept}${lock}`,
       action: 'Pay now',
     }
   }

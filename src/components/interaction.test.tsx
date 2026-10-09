@@ -829,6 +829,17 @@ describe('the Settings page', () => {
     )
     expect(screen.getByRole('heading', { name: 'Plan and billing' })).toBeInTheDocument()
     expect(screen.getByText(/Sample studios are never charged/)).toBeInTheDocument()
+    cleanup()
+    // Locked: whatever address the owner opens, only paying and downloading are offered.
+    await signedIn('owner', '/calendar', undefined, {
+      billing: { readOnly: true, locked: true, stopReason: 'unpaid', hasCard: true },
+    })
+    const name = seed('UK').organisation.name
+    expect(await screen.findByRole('heading', { name: `${name} is locked` })).toBeInTheDocument()
+    expect(screen.getByText(/Your team cannot open it, and online booking is closed/)).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Download the studio’s records' })).toBeEnabled()
+    expect(screen.getByRole('heading', { name: 'Plan and billing' })).toBeInTheDocument()
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
   })
 
   it('keeps the old section addresses and shows a photograph beside each treatment', async () => {

@@ -240,6 +240,7 @@ export function partnerApi() {
     const org = c.systemOrg(row!.organisation_id)
     if (!org || operations(org.state).mode === 'sandbox')
       fail(401, 'This access key is not valid or was revoked.')
+    if (c.plans.locked(org!.id)) fail(402, 'This studio is locked until its SALEANE bill is paid.')
     const s = org!.state
     // A key past its last day, or for a location since closed, reads nothing more.
     if (row!.ends_on && businessDate(s, new Date(c.now()).toISOString()) > row!.ends_on)

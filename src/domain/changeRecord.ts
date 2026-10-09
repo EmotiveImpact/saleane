@@ -203,6 +203,7 @@ const serverWords: Record<string, Words> = {
   'billing.test-paid': ['settings', 'Settled a test SALEANE bill. No money moved'],
   'billing.failed': ['settings', 'A SALEANE bill could not be taken'],
   'billing.read-only': ['settings', 'The studio became read only until it is paid'],
+  'billing.locked': ['settings', 'The studio locked until its SALEANE bill is paid'],
   'billing.checked': [
     'settings',
     'Checked the SALEANE payments with the card service after a restore',

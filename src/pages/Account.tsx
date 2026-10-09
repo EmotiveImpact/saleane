@@ -258,6 +258,10 @@ export function Account() {
                     <small>
                       {w.region} · {roleNames[w.role] ?? w.role} ·{' '}
                       {w.mode === 'sandbox' ? 'Sample studio' : 'Your studio'}
+                      {w.locked &&
+                        (w.role === 'owner'
+                          ? ' · Locked until you pay its SALEANE bill'
+                          : ' · Locked until the owner pays its SALEANE bill')}
                     </small>
                   </span>
                   <ArrowRight size={19} />
