@@ -30,6 +30,8 @@ function local(region: Region = 'UK') {
     Object.assign(s, {
       [key]: sample[key].map((row) => ({ ...row, organisationId: s.organisation.id })),
     })
+  // Everyone follows those hours, rather than the sample's own rota with its days off.
+  for (const person of s.staff) delete person.hours
   return s
 }
 const visit = {

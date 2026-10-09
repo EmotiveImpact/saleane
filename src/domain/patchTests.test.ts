@@ -236,7 +236,7 @@ describe('patch tests', () => {
       type: 'patch-test-settings',
       settings: { hoursBefore: 48, validMonths: 1, remind: true },
     })
-    // Ellie's clear test is from 27 September; a one-month rule still covers 8 October.
+    // Ellie's clear test is from 26 September; a one-month rule still covers 8 October.
     expect(visitPatchTest(s, visit(s, 'visit-gloss-ellie'))?.state).toBe('clear')
     expect(
       run(s, {
@@ -356,7 +356,7 @@ describe('patch tests', () => {
     expect(file.patchTests).toEqual([
       expect.objectContaining({ result: 'clear', doneBy: 'Theo Bennett' }),
     ])
-    expect(clientExportText(file)).toContain('2026-09-27 · Gloss toner 9.1')
+    expect(clientExportText(file)).toContain('2026-09-26 · Gloss toner 9.1')
     // Who did a test is never guessed from who wrote it down.
     const unknown = apply(seed('UK'), {
       type: 'patch-test',

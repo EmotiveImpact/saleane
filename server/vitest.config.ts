@@ -1,5 +1,10 @@
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
-  test: { environment: 'node', include: ['server/**/*.test.ts'], setupFiles: [], maxWorkers: 1 },
+  test: {
+    environment: 'node',
+    include: ['server/**/*.test.ts'],
+    setupFiles: ['./server/test/setup.ts'],
+    maxWorkers: 1,
+  },
 })

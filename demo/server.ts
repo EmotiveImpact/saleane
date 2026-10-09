@@ -3,7 +3,8 @@
 import { createApiHandler } from '../server/app'
 import type { ApiHandler } from '../server/app'
 import { Buffer } from './shims/buffer'
-import { DEMO_DATE } from '../src/domain/model'
+import type { BusinessState } from '../src/domain/model'
+import { catchUpSampleDay, moveSampleDay } from '../src/domain/sampleDay'
 import { exportDatabase, initSqlite } from './shims/sqlite'
 
 const ORIGIN = 'http://saleane.demo'
@@ -104,16 +105,7 @@ function makeTestModeStudio(orgId: string) {
   state.operations.mode = 'local'
   // A real studio follows the real calendar, so move the sample's 6 October day to today.
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date())
-  const shift = Date.parse(`${today}T00:00:00Z`) - Date.parse(`${DEMO_DATE}T00:00:00Z`)
-  const move = (value: unknown): unknown => {
-    if (Array.isArray(value)) return value.map(move)
-    if (value && typeof value === 'object')
-      return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, move(item)]))
-    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}(T[\d:.]+Z)?$/.test(value)) return value
-    const moved = new Date(Date.parse(value.length === 10 ? `${value}T00:00:00Z` : value) + shift)
-    return value.length === 10 ? moved.toISOString().slice(0, 10) : moved.toISOString()
-  }
-  Object.assign(state, move(state))
+  Object.assign(state, moveSampleDay(state as unknown as BusinessState, today))
   state.operations.refunds = []
   // Product sales belong to the stripped receipts, so their stock movements go with them.
   if (state.operations.movements)
@@ -130,6 +122,8 @@ function makeTestModeStudio(orgId: string) {
   state.sales = []
   state.payments = []
   state.events = state.events.filter((event) => !event.saleId)
+  // The sample day stood at 10:45; on the real calendar the real time of day decides what happened.
+  catchUpSampleDay(state as unknown as BusinessState, Date.now())
   api.database.run('UPDATE organisations SET state=? WHERE id=?', JSON.stringify(state), orgId)
 }
 
@@ -196,58 +190,6 @@ async function seedPlans(orgId: string, csrf: string, sample: boolean) {
   }
 }
 
-/** A handful of private ratings on visits that are already complete, for the Feedback page. */
-function seedFeedback(orgId: string) {
-  const row = api.database.get<{ state: string }>(
-    'SELECT state FROM organisations WHERE id=?',
-    orgId,
-  )
-  if (!row) return
-  const state = JSON.parse(row.state) as {
-    organisation: { id: string }
-    appointments: {
-      id: string
-      clientId: string
-      staffId: string
-      date: string
-      startMinutes: number
-      status: string
-    }[]
-    feedback?: Record<string, unknown>[]
-  }
-  const answers: [number, number, string][] = [
-    [5, 5, 'Felt completely looked after. The room was so calm.'],
-    [5, 5, ''],
-    [4, 5, 'Lovely treatment. I waited about ten minutes at the start.'],
-    [5, 4, 'My skin feels brand new. Booking again next month.'],
-    [3, 4, 'The massage was good, but the room was a little cold.'],
-    [5, 5, 'Thoughtful from start to finish.'],
-    [4, 4, ''],
-    [5, 5, 'The best haircut I have had in years.'],
-  ]
-  const done = state.appointments
-    .filter((a) => a.status === 'completed')
-    .sort((a, b) => (b.date + b.startMinutes).localeCompare(a.date + a.startMinutes))
-    .slice(0, answers.length)
-  const now = Date.now()
-  state.feedback = done.map((a, index) => {
-    const [visitRating, practitionerRating, comment] = answers[index]
-    const after = Date.parse(`${a.date}T00:00:00Z`) + (a.startMinutes + 120) * 60000
-    return {
-      id: `demo-feedback-${index + 1}`,
-      organisationId: state.organisation.id,
-      appointmentId: a.id,
-      clientId: a.clientId,
-      staffId: a.staffId,
-      createdAt: new Date(Math.min(after, now)).toISOString(),
-      visitRating,
-      practitionerRating,
-      comment,
-    }
-  })
-  api.database.run('UPDATE organisations SET state=? WHERE id=?', JSON.stringify(state), orgId)
-}
-
 async function seed() {
   const register = await call(
     'POST',
@@ -269,7 +211,6 @@ async function seed() {
   if (register.statusCode !== 201) throw new Error(`Demo setup failed: ${register.body}`)
   const { csrf, orgId } = register.json<{ csrf: string; orgId: string }>()
   makeTestModeStudio(orgId)
-  seedFeedback(orgId)
   await seedPlans(orgId, csrf, false).catch((error: unknown) => console.warn(error))
   const created = await call(
     'POST',
@@ -288,7 +229,6 @@ async function seed() {
   )
   if (created.statusCode === 201) {
     const newYork = created.json<{ orgId: string }>().orgId
-    seedFeedback(newYork)
     await seedPlans(newYork, csrf, true).catch((error: unknown) => console.warn(error))
   }
 }

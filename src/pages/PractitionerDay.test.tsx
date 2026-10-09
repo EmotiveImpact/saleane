@@ -239,9 +239,11 @@ test('on another day the brief opens the next visit to come, never a cancelled o
   expect(screen.getByRole('button', { name: new RegExp(gone) })).toHaveTextContent('Cancelled')
   expect(screen.getByRole('region', { name: next })).toBeInTheDocument()
   expect(screen.queryByRole('region', { name: gone })).not.toBeInTheDocument()
-  // A day that has passed opens no brief until a visit is chosen.
+  // A day that has passed opens no brief until a visit is chosen: back to Maya's latest one.
   await user.click(screen.getByRole('button', { name: 'Today' }))
   await user.click(screen.getByRole('button', { name: 'Previous day' }))
+  for (let back = 1; back < 14 && !screen.queryByRole('list', { name: 'Assigned to you' }); back++)
+    await user.click(screen.getByRole('button', { name: 'Previous day' }))
   const past = screen.getByRole('list', { name: 'Assigned to you' })
   expect(within(past).getAllByRole('listitem').length).toBeGreaterThan(0)
   expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([

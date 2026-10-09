@@ -25,7 +25,8 @@ const withVisits = (...visits: Appointment[]): BusinessState => ({
 
 describe('Smart insights', () => {
   it('briefs the day from the diary and compares with the same weekday before', () => {
-    const brief = morningBrief(base, today)
+    // The full sample, whose regulars were in yesterday too.
+    const brief = morningBrief(seed('UK', { regulars: true }), today)
     expect(brief).toMatchObject({ date: today, visits: 12, guests: 12, firstVisits: 0 })
     expect(brief.bookedMinutes).toBeGreaterThan(0)
     expect(brief.yesterday.takingsMinor).toBeGreaterThan(0)

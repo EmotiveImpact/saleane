@@ -379,7 +379,8 @@ describe('waitlist', () => {
     })
     const found = openings(s, s.waitlist!.at(-1)!, now)
     expect(found).toHaveLength(3)
-    expect(found[0].date).toBe(addDays('2026-10-07', 40))
+    // The first day back is a Monday, which Theo does not work, so the Tuesday after.
+    expect(found[0].date).toBe(addDays('2026-10-07', 41))
   })
 
   it('offers a guest only times their own booked visit fits, ignoring its current place', () => {
