@@ -349,20 +349,23 @@ export function DesignLanguage() {
 
         <div className="library-specimen">
           <h3>Tabs</h3>
-          <p>Radix Tabs, for sections that replace each other in place.</p>
+          <p>
+            Radix Tabs, for sections that replace each other in place. A long list, as in Settings,
+            splits into named groups and becomes one select on a phone.
+          </p>
           <Tabs
             label="Example sections"
             value={tab}
             onChange={setTab}
             tabs={[
-              { value: 'services', label: 'Services' },
+              { value: 'services', label: 'Treatments' },
               { value: 'team', label: 'Team' },
               { value: 'hours', label: 'Hours & closures' },
             ]}
           >
             <p className="library-panel">
               {tab === 'services'
-                ? 'Services panel'
+                ? 'Treatments panel'
                 : tab === 'team'
                   ? 'Team panel'
                   : 'Hours and closures panel'}
