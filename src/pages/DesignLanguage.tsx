@@ -468,7 +468,7 @@ export function DesignLanguage() {
       <section className="surface library-section" aria-labelledby="voice">
         <h2 id="voice">Voice</h2>
         <ul className="library-principles">
-          <li>British English, calm and specific. No exclamation marks in the workspace.</li>
+          <li>British English, calm and specific. No exclamation marks in the app.</li>
           <li>Editorial lines are short and warm; working copy says exactly what will happen.</li>
           <li>Never claim a payment was processed or a message was sent when it was recorded.</li>
           <li>Errors keep the person’s input and name the next step.</li>

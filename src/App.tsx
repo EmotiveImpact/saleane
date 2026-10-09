@@ -210,7 +210,7 @@ function WorkspaceApp() {
       <main className="candidate-loading">
         <span className="wordmark">SALEANE</span>
         <h1>Opening your studio…</h1>
-        <p role="status">Restoring your saved workspace.</p>
+        <p role="status">Loading your saved records.</p>
       </main>
     )
   if (location.pathname === '/booking')

@@ -502,7 +502,7 @@ export function parseState(value: unknown, region: Region): BusinessState {
         (record.method === 'external_card' && !record.reference?.trim()),
     )
   )
-    throw new Error('Payment provenance does not match this workspace.')
+    throw new Error('A payment record is not valid for this studio.')
   for (const event of s.events)
     if (
       !exists(s.clients, event.clientId) ||

@@ -399,7 +399,7 @@ export function plansProblem(s: BusinessState) {
         sandbox !== record.method.startsWith('demo_') ||
         (record.method === 'external_card' && !record.reference?.trim())
       )
-        return 'Plan payment provenance does not match this workspace.'
+        return 'A plan payment record is not valid for this studio.'
     if (sum(holding.refunds) + sum(holding.uses) > sum(holding.payments))
       return 'A plan cannot use or return more than was paid.'
     for (const use of holding.uses) {

@@ -62,16 +62,16 @@ export function AccessPanel() {
       <section className="surface ops-panel access-panel" aria-labelledby="access-title">
         <header>
           <div>
-            <h2 id="access-title">Workspace access</h2>
+            <h2 id="access-title">Who can sign in</h2>
             <p>
-              The fictional browser demo has no team accounts. Create a local account to manage a
-              shared studio.
+              The fictional demo has no team accounts. Create a studio of your own to invite your
+              team.
             </p>
           </div>
           <KeyRound size={21} aria-hidden="true" />
         </header>
         <a className="button button-secondary" href="/account">
-          Open local accounts
+          Create your studio
         </a>
       </section>
     )
@@ -115,10 +115,10 @@ export function AccessPanel() {
     <section className="surface ops-panel access-panel" aria-labelledby="access-title">
       <header>
         <div>
-          <h2 id="access-title">Workspace access</h2>
+          <h2 id="access-title">Who can sign in</h2>
           <p>
-            Each person signs in separately. Invitation links work on this local server; no email is
-            sent.
+            Each person signs in with their own account. Invitation links open on this computer for
+            now, and no email is sent.
           </p>
         </div>
         <KeyRound size={21} aria-hidden="true" />
@@ -355,7 +355,7 @@ export function AccessPanel() {
           )}
         </>
       ) : (
-        <p className="ops-help">Only the owner can invite people or change workspace access.</p>
+        <p className="ops-help">Only the owner can invite people or change who can sign in.</p>
       )}
       <details className="access-password">
         <summary>Change your password</summary>

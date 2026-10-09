@@ -290,7 +290,7 @@ export function giftCardsProblem(s: BusinessState) {
         sandbox !== record.method.startsWith('demo_') ||
         (record.method === 'external_card' && !record.reference?.trim())
       )
-        return 'Gift card payment provenance does not match this workspace.'
+        return 'A gift card payment record is not valid for this studio.'
     if (sum(card.redemptions) + sum(card.refunds) > card.valueMinor)
       return 'A gift card cannot pay or return more than it holds.'
     for (const use of card.redemptions) {

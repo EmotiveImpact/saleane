@@ -58,7 +58,7 @@ export function BookingFrame({
           <div>
             {controls}
             <Link to="?view=guest">See it as a guest</Link>
-            <Link to="/today">Back to workspace</Link>
+            <Link to="/today">Back to your studio</Link>
           </div>
         </section>
       )}

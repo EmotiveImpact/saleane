@@ -182,7 +182,7 @@ describe('connected operator journeys', () => {
     await show()
     const trigger = screen.getByRole('button', { name: 'Find a client' })
     await user.click(trigger)
-    expect(screen.getByRole('searchbox', { name: 'Search workspace' })).toHaveFocus()
+    expect(screen.getByRole('searchbox', { name: 'Search clients' })).toHaveFocus()
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(trigger).toHaveFocus()
