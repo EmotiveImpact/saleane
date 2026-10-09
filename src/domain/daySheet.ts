@@ -109,7 +109,7 @@ export function daySheet(s: BusinessState, reader: DaySheetReader, now: string):
         startMinutes: a.startMinutes,
         endMinutes: a.startMinutes + a.bookedDurationMinutes,
         serviceName:
-          a.bookedServiceName ?? s.services.find((x) => x.id === a.serviceId)?.name ?? 'Service',
+          a.bookedServiceName ?? s.services.find((x) => x.id === a.serviceId)?.name ?? 'Treatment',
         professionalName: s.staff.find((p) => p.id === a.staffId)?.name ?? '',
         roomName: roomWithPlace(s, a),
         status: a.status as Exclude<typeof a.status, 'cancelled'>,

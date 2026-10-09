@@ -386,7 +386,7 @@ export function DesignLanguage() {
               label="Time booked"
               value="46%"
               detail="Today, of open professional hours"
-              definition={<p>Booked service minutes divided by scheduled professional hours.</p>}
+              definition={<p>Booked treatment minutes divided by scheduled professional hours.</p>}
             />
           </div>
           <Stats>
@@ -460,7 +460,7 @@ export function DesignLanguage() {
 
         <div className="library-specimen">
           <h3>Empty and error states</h3>
-          <Empty title="A little breathing room">No appointments on this day.</Empty>
+          <Empty title="A little breathing room">No visits on this day.</Empty>
           <ErrorMessage error="Could not save your note. Your writing is still here; try again." />
         </div>
       </section>

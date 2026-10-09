@@ -575,7 +575,7 @@ export function Money() {
                 {visit
                   ? (visit.bookedServiceName ??
                     state.services.find((item) => item.id === visit.serviceId)?.name)
-                  : 'Service'}
+                  : 'Treatment'}
               </span>
               <strong>{format(receipt.serviceMinor)}</strong>
             </div>

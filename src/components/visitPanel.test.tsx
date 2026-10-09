@@ -48,7 +48,7 @@ describe('the visit panel, one place for a visit in every state', { timeout: 200
     // The Inbox is loaded when first opened, which can take a moment.
     const draft = await screen.findByRole('dialog', { name: 'Write a draft' }, { timeout: 8000 })
     expect(within(draft).getByLabelText('Client')).toHaveValue('client-4')
-    expect(within(draft).getByLabelText('Related appointment (optional)')).toHaveValue('visit-noor')
+    expect(within(draft).getByLabelText('Related visit (optional)')).toHaveValue('visit-noor')
     expect(within(draft).getByLabelText('Send by')).toHaveValue('email')
     await user.type(within(draft).getByLabelText('Subject'), 'Your visit today')
     await user.type(within(draft).getByLabelText('Message'), 'See you at eleven.')

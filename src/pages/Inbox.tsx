@@ -791,7 +791,7 @@ export function Inbox() {
                     if (next === 'marketing') setChannel('email')
                   }}
                 >
-                  <option value="appointment">Appointment update</option>
+                  <option value="appointment">Visit update</option>
                   <option value="marketing">Marketing</option>
                 </select>
               </label>
@@ -827,12 +827,12 @@ export function Inbox() {
                 </label>
               )}
               <label className="ops-wide">
-                Related appointment (optional)
+                Related visit (optional)
                 <select
                   value={appointmentId}
                   onChange={(event) => setAppointmentId(event.target.value)}
                 >
-                  <option value="">No linked appointment</option>
+                  <option value="">No linked visit</option>
                   {state.appointments
                     .filter((item) => item.clientId === clientId)
                     .slice()

@@ -38,7 +38,7 @@ function Visits({ sheet }: { sheet: DaySheet }) {
         <tr>
           <th scope="col">Time</th>
           <th scope="col">Client</th>
-          <th scope="col">Service</th>
+          <th scope="col">Treatment</th>
           {studio && <th scope="col">Professional</th>}
           <th scope="col">Room</th>
           <th scope="col">Status</th>

@@ -1082,7 +1082,7 @@ export function AppointmentDialog({
           </div>
           <div className="visit-money">
             <div className="receipt-line">
-              <span>Service</span>
+              <span>Treatment</span>
               <strong>{money(appointment.bookedPriceMinor, state.organisation)}</strong>
             </div>
             <div className="receipt-line subtle">

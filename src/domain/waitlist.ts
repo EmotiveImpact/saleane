@@ -69,7 +69,7 @@ export function serviceLabel(s: BusinessState, entry: WaitlistEntry) {
   return (
     (booked?.bookedServiceName ??
       s.services.find((item) => item.id === entry.serviceId)?.name ??
-      'Service') + where
+      'Treatment') + where
   )
 }
 
