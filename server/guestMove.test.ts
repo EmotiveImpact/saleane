@@ -504,6 +504,33 @@ describe('guests moving their own visit', () => {
     expect((await move(token, { date: '2026-10-24', startMinutes: 660 })).statusCode).toBe(200)
   })
 
+  it('keeps the guest link open for a visit the desk moves later', async () => {
+    const owner = await register()
+    const { slug } = await studio(owner)
+    const { appointmentId, token } = await book(slug)
+    const moved = await run(owner, {
+      type: 'reschedule',
+      appointmentId,
+      staffId: 'staff-maya',
+      date: '2026-11-03',
+      startMinutes: 600,
+    })
+    expect(moved.statusCode, moved.body).toBe(200)
+    const link = api.database.get<{ created_at: number; expires_at: number }>(
+      'SELECT created_at,expires_at FROM guest_links WHERE appointment_id=? AND revoked_at IS NULL',
+      appointmentId,
+    )!
+    expect(link.expires_at).toBe(
+      Math.min(
+        link.created_at + GUEST_LINK_MAX_MS,
+        Date.parse('2026-11-03T10:00:00.000Z') + GUEST_LINK_AFTER_VISIT_MS,
+      ),
+    )
+    // A day before the new time, long after the old one, the guest can still open their visit.
+    clock = Date.parse('2026-11-02T10:00:00.000Z')
+    expect((await visit(token)).json<GuestView>().visit.date).toBe('2026-11-03')
+  })
+
   it('tells the guest about the new time, as a move at the desk does', async () => {
     const owner = await register('owner@example.invalid', false)
     const send = async (command: Command) => {

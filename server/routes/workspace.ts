@@ -14,7 +14,7 @@ import { openingFree, staleOffer } from '../../src/domain/waitlist'
 import { giftCardHoldProblem } from '../payments/service'
 import { workspaceView } from '../projections'
 import type { Reader } from '../projections'
-import { issueGuestLink, revokeGuestLinks } from './guest'
+import { followGuestLinks, issueGuestLink, revokeGuestLinks } from './guest'
 
 /** Signed-in workspace routes: records, commands, team, invitations and audit. Returns false when the request belongs to another module. */
 export async function workspaceRoutes(ctx: Context, route: Route): Promise<boolean> {
@@ -214,6 +214,15 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         if (held) fail(409, held)
         if (result.state.revision !== org.state.revision)
           persist(org, result.state, actor.id, command.type, result.recordId)
+        // Open guest links follow a visit the desk moves, as they do when the guest moves it.
+        const moves = command.type === 'batch' ? command.commands : [command]
+        for (const move of moves)
+          if (move.type === 'reschedule')
+            followGuestLinks(
+              ctx,
+              { ...org, state: result.state },
+              (move as Extract<Command, { type: 'reschedule' }>).appointmentId,
+            )
         db.run(
           'INSERT INTO command_receipts(organisation_id,account_id,key,fingerprint,record_id,revision,created_at) VALUES(?,?,?,?,?,?,?)',
           org.id,
