@@ -24,6 +24,7 @@ import { staleOffer } from './domain/waitlist'
 import { nudges } from './domain/nudges'
 import { Avatar, Modal, ScrollNav } from './design'
 import { SearchDialog } from './components/SearchDialog'
+import { BillingBanner } from './components/BillingBanner'
 import { Today } from './pages/Today'
 // Every page but Today loads when it is first opened, so the first screen arrives sooner.
 const Calendar = lazy(() =>
@@ -73,6 +74,9 @@ const ManageVisit = lazy(() =>
 )
 const TestPayment = lazy(() =>
   import('./pages/TestPayment').then((module) => ({ default: module.TestPayment })),
+)
+const TestBillingCard = lazy(() =>
+  import('./pages/TestBillingCard').then((module) => ({ default: module.TestBillingCard })),
 )
 const Pricing = lazy(() =>
   import('./pages/Pricing').then((module) => ({ default: module.Pricing })),
@@ -191,6 +195,7 @@ function WorkspaceApp() {
     return <AccountLink />
   if (location.pathname === '/manage') return <ManageVisit />
   if (location.pathname === '/pay/test') return <TestPayment />
+  if (location.pathname === '/billing/test-card') return <TestBillingCard />
   if (location.pathname === '/pricing') return <Pricing />
   if (location.pathname.startsWith('/area/'))
     return (
@@ -392,6 +397,7 @@ function WorkspaceApp() {
             <button onClick={() => openSettings('workspace')}>Open recovery controls</button>
           </div>
         )}
+        <BillingBanner onOpen={() => openSettings('billing')} />
         <main
           key={state.organisation.id}
           tabIndex={-1}

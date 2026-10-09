@@ -1,0 +1,32 @@
+# NEXT-02 · Studios paying for SALEANE
+
+Recorded 9 October 2026 on a local build (Chromium, 127.0.0.1:5173, a new real UK studio called Linden Studio with one location, and an invited manager). Billing ran in test mode throughout: no card was charged and no money moved. The server's own clock cannot be moved forward in a browser, so to reach the end of the trial, a renewal and the end of the grace days the journey moved those dates in the scratch database and let the billing loop (every minute) act on them.
+
+## Tests
+
+- `src/domain/billing.test.ts` (13 tests): a month runs to the same day next month, or the last day of a shorter one, then returns to its own day; VAT at 20% on UK bills, rounded to the penny, and none worked out for the US; each location charged, with Plus for each; Plus added on day 11 of a 31-day month charged for 21 days; retries on days 1, 3 and 7 then none; trial days counted up; each location's AI allowance, Plus's, and none when stopped; the line above every screen for each state and role, with only the owner offered a way to pay.
+- `server/billing.test.ts` (10 tests): a real studio starts a 14-day trial and a sample studio has no plan and gets 409; the first month is taken when the trial ends, for every open location, then each month after, with a receipt email marked as test mode; a declined card is tried again, then after 14 days the studio is read only (402 on changes, no AI, privacy export still works, a guest can still hold and book a time) until a good card pays for a fresh month; a trial ending with no card; Plus charged for the days left, and turned off at the month's end; Plus refused with nothing taken when the card is declined; a month that is owed has only the Plus its bill has; stopping and keeping the plan; one bill never charged twice, with an unclear answer asked about again with the same key; pressing pay twice gives one payment and one 409.
+- `server/backup.test.ts`: a restore marks open bills to check and holds every plan, and a held plan is not charged when its trial has ended.
+- `src/components/PlanBilling.test.tsx` (7 tests), `src/pages/Pricing.test.tsx` (4 tests) and the Settings interaction test: each state of the plan in words, Plus asking before it charges £34.09, a declined payment saying nothing was taken, read only, stopping, the message after the card page, sample studios and the demo never charged; the price page's per-location wording, add-ons and AI amounts matching the app's allowances; the section shown to the owner only, and the line above every screen for a manager and an owner.
+
+## Browser journey
+
+1. Settings, Plan and billing on the first day: "Free trial until 23 October 2026, 14 days left. Add a card to carry on after that; nothing is taken until the trial ends." The next bill: SALEANE, 1 location £49.00, VAT at 20% £9.80, total £58.80. No line above the screens yet.
+2. With three days left, a line above every screen: "Your free trial ends on 12 October 2026. Add a card to carry on without a break." Its "Add a card" opens Plan and billing.
+3. "Add a card" opened the labelled test card page ("This page stands in for the card service's page while SALEANE billing is in test mode. No card details are asked for and no money moves."). Card 4242 saved; back on Plan and billing: "Your card is saved." and "Then £58.80 a month is taken from the Visa ending 4242." The line above the screens went away.
+4. Plus added during the trial: "Plus starts with your first bill"; the next bill became £105.60.
+5. At the trial's end the loop took the first month: bill TEST-000001, £105.60, "Settled in test mode on 9 October 2026", marked "Test". "Paid until 9 November 2026." The AI meters showed 800 questions and 500 guest chats.
+6. Plus off: "Plus stays on until 9 November 2026, then stops."
+7. The card swapped for 0002, then the renewal: declined. TEST-000002 owed, "The card was declined (test card ending 0002)". The owner's line: "We could not take this month's SALEANE payment. Pay, or use another card, by 23 October 2026 to keep everything working." Plan and billing: "We will try the card again on 10 October 2026." "Pay £58.80 now" with the same card: "The payment did not go through. Nothing was taken."
+8. Fourteen days on, read only. The owner's line (an alert): "The SALEANE bill is unpaid, so the studio is read only. Nothing has been lost, and guests can still book." with "Pay now". Today, Clients and Settings still showed everything; Save buttons were disabled. A change sent straight to the server got 402 with the same words, and so did Ask Saleane. The manager's line said the owner must pay, with no button; the manager had no Plan and billing section and the plan's address gave them 403.
+9. "Use another card" opened "Save a card and pay £58.80"; card 4242 saved and paid: "Your card is saved and the bill is paid. Everything works again." TEST-000003 paid, TEST-000002 "Not charged: the studio became read only."
+10. "Stop at the end of the month" asked first ("On 9 November 2026 the studio becomes read only. Nothing is deleted…"), then "Keep my plan" put it back.
+11. At 390 px wide nothing scrolls sideways; buttons fill the width and each bill's amount sits under it.
+12. The price page: "One price for each location.", "£49 a month, plus VAT, per location, month to month", "Start with 14 days free, no card needed", and Add-ons with Plus at £39 and the phone receptionist at £79 ("Arrives when phone calls are connected").
+13. A sample studio's Plan and billing: "Sample studios are never charged."
+
+axe (WCAG 2.2 AA tags) found nothing on the trial, the test card page, the paid plan, the overdue plan, the stop question, the phone view or the price page. No console errors.
+
+## Not covered
+
+No real card account: the Stripe adapter for SALEANE's own billing follows Stripe's published API and is untested against Stripe. VAT on SALEANE's own bills and US sales tax need an adviser's check before real bills go out. The US prices of Plus ($49) and the phone receptionist ($99) are placeholders. The phone receptionist cannot be added until phone calls are connected. Safari and Firefox were not checked.

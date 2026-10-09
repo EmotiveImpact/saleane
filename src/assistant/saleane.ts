@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { actionSkill, readSkill, SkillRefusal } from '../../lumane'
-import type { Allowance, Skill } from '../../lumane'
+import type { Skill } from '../../lumane'
 import { availableResource, commandSchema, rescheduleResource, slots } from '../domain/commands'
 import type { Command } from '../domain/commands'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
@@ -49,21 +49,8 @@ import {
  */
 export type AskContext = { state: BusinessState; role: Role; today: string; now: string }
 
-/** Plan allowances. Every amount here costs the business at most about half what the plan earns. */
-export const ALLOWANCES = {
-  included: {
-    monthly: { typed: 300, talkSeconds: 30 * 60, guestChats: 200 },
-    dailySpendCeilingMinor: 150,
-    perPersonHourly: 30,
-    maxTalkSessionSeconds: 10 * 60,
-  },
-  plus: {
-    monthly: { typed: 800, talkSeconds: 150 * 60, guestChats: 500 },
-    dailySpendCeilingMinor: 400,
-    perPersonHourly: 30,
-    maxTalkSessionSeconds: 10 * 60,
-  },
-} satisfies Record<string, Allowance>
+/** Plan allowances, for each location; they live with the price they belong to. */
+export { ALLOWANCES } from '../domain/pricing'
 
 export const INSTRUCTIONS = `You are Ask SALEANE, the assistant inside SALEANE for a beauty, spa or wellness studio.
 Write in warm, plain British English for a busy owner or receptionist. Lead with the answer. Keep it short.

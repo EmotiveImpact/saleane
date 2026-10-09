@@ -3,12 +3,16 @@ import type { BusinessState, Region } from '../domain/model'
 import type { Command, CommandResult } from '../domain/commands'
 import type { Session, WorkspaceAccess } from './api'
 import type { SavedDaySheet } from './daySheet'
+import type { BillingSummary } from '../domain/billing'
 
 export type Store = {
   state: BusinessState
   region: Region
   warning: string
+  /** Changes are paused: recovery, a lost session, or (NEXT-02) a studio that has stopped paying. */
   blocked: boolean
+  /** NEXT-02: the signed-in studio's plan as its record carries it; null in the demo and samples. */
+  billing?: BillingSummary | null
   commit: (command: Command) => Promise<CommandResult>
   changeRegion: (region: Region) => void
   reset: () => void

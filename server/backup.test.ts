@@ -162,10 +162,18 @@ describe('consistent local backups and fresh-path recovery', () => {
     api.database.run(
       "INSERT INTO recovery_codes(account_id,code_hash,created_at) SELECT id,'code-hash',0 FROM accounts",
     )
+    // NEXT-02: a bill still owed, which may be paid after the backup is taken.
+    api.database.run(
+      `INSERT INTO studio_invoices(id,organisation_id,number,kind,period_start,period_end,plus,currency,lines,subtotal_minor,tax_minor,total_minor,status,test,created_at)
+       VALUES('bill-owed',?,'TEST-000001','month',1,2,0,'GBP','[]',4900,980,5880,'open',1,0)`,
+      orgId,
+    )
     const backup = join(directory, 'before.sqlite'),
       restored = join(directory, 'after.sqlite')
     backupDatabase(api.database.path, backup)
     expect(restoreDatabase(backup, restored)).toMatchObject({
+      billsToCheck: 1,
+      plansHeld: 1,
       sessionsRevoked: true,
       // The confirmation link sent when the account was made.
       accountLinksRetired: 1,
@@ -196,6 +204,19 @@ describe('consistent local backups and fresh-path recovery', () => {
       expect(recovered.database.all('SELECT * FROM recovery_codes WHERE used_at IS NULL')).toEqual(
         [],
       )
+      // Nothing is charged by itself, and no trial ends, until the payments have been checked.
+      expect(
+        recovered.database.get<{ status: string }>(
+          "SELECT status FROM studio_invoices WHERE id='bill-owed'",
+        )!.status,
+      ).toBe('unknown')
+      recovered.database.run('UPDATE studio_plans SET trial_ends_at=0')
+      await recovered.billing.run()
+      expect(
+        recovered.database.all(
+          "SELECT * FROM studio_plans WHERE status<>'trial' OR held_at IS NULL",
+        ),
+      ).toEqual([])
       // The connection is off until the owner turns it on, and what waited for it is not sent.
       expect(recovered.database.all('SELECT * FROM connections WHERE active=1')).toEqual([])
       expect(

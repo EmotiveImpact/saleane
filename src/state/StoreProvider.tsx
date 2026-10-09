@@ -14,6 +14,7 @@ import { clearDaySheet, readDaySheet, storeDaySheet } from './daySheet'
 import type { SavedDaySheet } from './daySheet'
 import type { Store } from './context'
 import { rememberStudio, scopedHome, signedInHere, startingStudio } from './lastStudio'
+import { readOnlyMessage } from '../domain/billing'
 
 const OFFLINE_RETRY_MS = 15000
 const PAUSED = 'Offline. Changes are paused until SALEANE reconnects and checks your access.'
@@ -384,6 +385,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     <StoreContext.Provider
       value={{
         ...workspace,
+        // NEXT-02: a studio that has stopped paying is read only for everyone in it.
+        blocked: workspace.blocked || !!remote?.billing?.readOnly,
+        billing: remote?.billing ?? null,
         state,
         region: state.organisation.region,
         mode: remote ? 'server' : 'demo',
@@ -421,6 +425,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           if (transitioning.current)
             return { ok: false, error: 'Your studio is still opening. Wait a moment, then save.' }
           if (workspace.blocked) return { ok: false, error: workspace.warning }
+          if (remote?.billing?.readOnly) return { ok: false, error: readOnlyMessage(remote.role) }
           if (remote && connectionRef.current !== 'online') return { ok: false, error: PAUSED }
           if (busy.current)
             return { ok: false, error: 'Please wait for the current change to finish.' }
@@ -494,6 +499,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                   }
                 }
               }
+              // NEXT-02: the studio became read only while it was open; show it straight away.
+              if (error instanceof ApiError && error.status === 402)
+                void api<RemoteWorkspace>(`/api/workspaces/${encodeURIComponent(remote.id)}`)
+                  .then((next) => {
+                    const latest = studioRecord(next)
+                    if (ticket === generation.current && activeId.current === remote.id) {
+                      setRemote(latest)
+                      setWorkspace({ state: latest.state, warning: '', blocked: false })
+                    }
+                  })
+                  .catch(() => {})
               if (
                 error instanceof ApiError &&
                 error.status === 401 &&

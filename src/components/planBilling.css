@@ -1,0 +1,143 @@
+/* NEXT-02: the studio's SALEANE plan, in Settings for the owner. */
+.plan-test {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  margin-bottom: 18px;
+  background: var(--stone);
+  border-radius: 4px;
+  font-size: var(--text-small);
+  color: var(--ink);
+}
+.plan-now {
+  display: grid;
+  gap: 10px;
+}
+.plan-summary {
+  font-size: 17px;
+  line-height: 1.5;
+  max-width: 62ch;
+}
+.plan-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 6px;
+}
+.plan-block {
+  margin-top: 30px;
+}
+.plan-block > h3 {
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+  color: var(--muted);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.plan-block > .ops-record:first-of-type {
+  border-top: 0;
+}
+.plan-block > .ops-help {
+  margin: 12px 0 4px;
+}
+.plan-lines {
+  display: grid;
+  margin: 0;
+  max-width: 520px;
+}
+.plan-lines > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--text-small);
+}
+.plan-lines dt {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.plan-lines dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.plan-lines .plan-total {
+  border-bottom: 0;
+  font-weight: var(--weight-strong);
+  font-size: 15px;
+}
+.plan-meters {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+  margin: 16px 0 0;
+  padding: 0;
+}
+.plan-meters li {
+  display: grid;
+  gap: 5px;
+  align-content: start;
+  min-width: 0;
+}
+.plan-meters span {
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+}
+.plan-meters small {
+  color: var(--muted);
+  font-size: var(--text-small);
+  font-variant-numeric: tabular-nums;
+}
+.plan-meters i {
+  display: block;
+  height: 6px;
+  margin-top: 4px;
+  background: var(--stone);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.plan-meters b {
+  display: block;
+  height: 100%;
+  background: var(--brand-ink);
+  border-radius: 3px;
+}
+.plan-bills {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.plan-bills .ops-record {
+  align-items: flex-start;
+}
+.plan-bills details {
+  margin-top: 8px;
+  font-size: var(--text-small);
+}
+.plan-bills summary {
+  cursor: pointer;
+  color: var(--brand-ink);
+  width: fit-content;
+}
+.plan-bills details .plan-lines {
+  margin-top: 6px;
+}
+@media (max-width: 650px) {
+  .plan-meters {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .plan-billing .ops-record {
+    flex-wrap: wrap;
+  }
+  .plan-billing .ops-record > .button {
+    width: 100%;
+  }
+  /* A bill's amount and state sit on their own line under it. */
+  .plan-bills .ops-record-copy {
+    flex-basis: 100%;
+  }
+}
