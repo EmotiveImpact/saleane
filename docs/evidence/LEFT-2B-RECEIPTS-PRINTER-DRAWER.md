@@ -44,7 +44,7 @@ This part was built as migration 29. Main took 26 to 28, Stage 1 took 29 and pro
 
 ## Seen in a browser
 
-Checked on 9 October 2026 in Chromium against the local server, signed up as a new owner with the sample studio, at 1440 px and 390 px. Before and after pictures are on the Stage 2 before and after page.
+Checked on 9 October 2026 in Chromium against the local server, signed up as a new owner with the sample studio, at 1440 px and 390 px. Before and after pictures: https://claude.ai/artifact/VPJaxk5BhVEtV2Fvujb3c4
 
 - Settings, Till and printer: the test printer saved with the drawer on; "Print a test page" showed the paper with where it would be cut.
 - A walk-in sale in cash, then "Print receipt": the paper shows the studio, receipt SC-2, the date and time, who served, the lines, the total and "Paid: Cash, sample studio, no real money", with "Test drawer: it would have opened."

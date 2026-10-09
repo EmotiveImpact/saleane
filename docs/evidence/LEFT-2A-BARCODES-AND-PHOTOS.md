@@ -85,7 +85,7 @@ Built 9 October 2026 in a worktree, on top of main at `016f3ca`. Everything belo
 
 ## Seen in a browser
 
-Checked on 9 October 2026 in Chromium against the local server, signed up as a new owner with the sample studio, at 1440 px and 390 px, with scans sent as above. Before and after pictures are on the Stage 2 before and after page.
+Checked on 9 October 2026 in Chromium against the local server, signed up as a new owner with the sample studio, at 1440 px and 390 px, with scans sent as above. Before and after pictures: https://claude.ai/artifact/VPJaxk5BhVEtV2Fvujb3c4
 
 - Stock: a scan with focus on the page opens "Edit Hydrating Serum"; the list shows each barcode.
 - Add a product: a scan with focus in Name keeps the name, opens the fold and fills the barcode. A 1 MB photo became "Photo ready. Save the product to keep it." and the saved product shows it in the list; after its first delivery it sells like any other.
