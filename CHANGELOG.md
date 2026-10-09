@@ -2,6 +2,18 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-09 · Booking several people together (NEXT-08)
+
+**Status: built locally on 9 October 2026.** [Evidence](docs/evidence/NEXT-08-TOGETHER.md).
+
+- Booking a visit at the desk has Others coming: Add someone, up to 8 people in all, each chosen from the clients or added as someone new with their own email and phone. Each has their own treatment and professional (or Anyone free) and is offered the first person's time, or the nearest free time when that is taken; any time can be changed. Each person's line says who they will be with and where, such as "With Sophia in Treatment room 2, beside Grace.", and the button says how many visits it books.
+- Everyone is booked together or no one is; a clash names the person. Each is a client with a visit of their own that can move or be cancelled alone. Moving one to another day takes it out of the group. Guests cannot book several people online.
+- A room can be marked "A room for two" in Settings, Spaces & equipment. Two people booked together, such as a couple, can have it at the same time; anyone else has it to themselves. The sample studio's Treatment room 2 is one.
+- The visit card lists who a visit is booked with, each a row that opens their visit, and the Calendar marks those visits. Cancelling one offers Just this visit or this visit and the ones booked with it.
+- Messages: each person is confirmed at their own email and phone. The person it was booked for is told who else is coming ("Also booked with you: …"); the others are told who booked them ("Booked together with Grace Chen."). When the visits are cancelled together, everyone is told and the first person hears the others are off too. Messages stay in test mode until a message service is connected.
+- On the server, everyone in the booking is checked against guests holding a time online, as a single booking is. A general manager books several people only at their own location.
+- Help has a guide, Book several people together.
+
 ## 2026-10-09 · Repeat visits (NEXT-09)
 
 **Status: built locally on 9 October 2026.** [Evidence](docs/evidence/NEXT-09-REPEAT.md).

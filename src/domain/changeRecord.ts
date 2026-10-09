@@ -37,6 +37,7 @@ type Words = readonly [ChangeGroup, string, string?]
 const commandWords: Record<Command['type'], Words> = {
   book: ['visits', 'Booked a visit'],
   'book-repeat': ['visits', 'Booked repeat visits'],
+  'book-together': ['visits', 'Booked visits for several people'],
   reschedule: ['visits', 'Moved a visit'],
   cancel: ['visits', 'Cancelled a visit'],
   'no-show': ['visits', 'Marked a visit as a no-show'],

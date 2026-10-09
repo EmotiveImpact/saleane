@@ -303,6 +303,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
           ...(numeric(data, 'restMinutes') > 0
             ? { restMinutes: numeric(data, 'restMinutes') }
             : {}),
+          ...(data.get('forTwo') ? { forTwo: true as const } : {}),
           archived,
           ...(text(data, 'locationId') && text(data, 'locationId') !== state.organisation.locationId
             ? { locationId: text(data, 'locationId') }
@@ -775,6 +776,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                           {item.restMinutes
                             ? ` · rests ${item.restMinutes} minutes after each visit`
                             : ''}
+                          {item.forTwo ? ' · room for two' : ''}
                         </small>
                       </div>
                       <div className="ops-record-controls">
@@ -1248,6 +1250,18 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                     they are.
                   </small>
                 </label>
+              )}
+              {editor.kind === 'resource' && (
+                <>
+                  <label className="ops-check">
+                    <input type="checkbox" name="forTwo" defaultChecked={!!resource?.forTwo} />A
+                    room for two
+                  </label>
+                  <p className="ops-help">
+                    Two people booked together, such as a couple, can have it at the same time.
+                    Anyone else has it to themselves.
+                  </p>
+                </>
               )}
               {editor.kind === 'closure' && (
                 <>

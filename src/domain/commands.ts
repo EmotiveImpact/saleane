@@ -18,6 +18,7 @@ export type { Command, BookingInput, ContactInput } from './commandSchema'
 import type { Appointment, BusinessState, RelationshipEvent } from './model'
 import { addDays, dateLabel, money, timeLabel } from './format'
 import { REPEAT_AHEAD_DAYS, REPEAT_MOST, everyLabel, laterInRepeat, repeatDates } from './repeat'
+import { upcomingTogether } from './together'
 import { availableAllocation } from './allocation'
 import { runSwitchingCommand } from './switching'
 import { coverVisit, runPlanCommand, stampPlanActors } from './plans'
@@ -69,6 +70,8 @@ export function availableResource(
   now = new Date().toISOString(),
   preferredResourceId?: string,
   locationId?: string,
+  /** NEXT-08: the visits this one is booked together with. */
+  together?: string,
 ) {
   const service = s.services.find((item) => item.id === serviceId)
   return service && !service.archived
@@ -86,6 +89,7 @@ export function availableResource(
         preferredResourceId,
         undefined,
         locationId,
+        together,
       )
     : null
 }
@@ -102,6 +106,13 @@ export function rescheduleResource(
 ) {
   const appointment = s.appointments.find((item) => item.id === appointmentId)
   const resource = s.resources.find((item) => item.id === appointment?.resourceId)
+  // NEXT-08: a visit moved within its day and location stays with the others booked with it.
+  const together =
+    appointment?.together &&
+    date === appointment.date &&
+    (locationId ?? appointment.locationId) === appointment.locationId
+      ? appointment.together.id
+      : undefined
   return appointment?.status === 'confirmed' && resource
     ? availableAllocation(
         s,
@@ -118,6 +129,7 @@ export function rescheduleResource(
         undefined,
         // A visit moves to another time at the same location unless another is chosen.
         locationId ?? appointment.locationId,
+        together,
       )
     : null
 }
@@ -142,13 +154,25 @@ export function slots(
   date: string,
   now = new Date().toISOString(),
   locationId?: string,
+  /** NEXT-08: the visits this one would be booked together with. */
+  together?: string,
 ) {
   const options: number[] = []
   for (let start = 0; start < 1440; start += 15)
     if (
       staffId === 'any'
-        ? availableProfessionals(s, serviceId, date, start, now, locationId).length > 0
-        : availableResource(s, serviceId, staffId, date, start, now, undefined, locationId)
+        ? availableProfessionals(s, serviceId, date, start, now, locationId, together).length > 0
+        : availableResource(
+            s,
+            serviceId,
+            staffId,
+            date,
+            start,
+            now,
+            undefined,
+            locationId,
+            together,
+          )
     )
       options.push(start)
   return options
@@ -160,9 +184,10 @@ export function availableProfessionals(
   start: number,
   now = new Date().toISOString(),
   locationId?: string,
+  together?: string,
 ) {
   return s.staff.filter((person) =>
-    availableResource(s, serviceId, person.id, date, start, now, undefined, locationId),
+    availableResource(s, serviceId, person.id, date, start, now, undefined, locationId, together),
   )
 }
 export function depositPaid(s: BusinessState, appointmentId: string) {
@@ -175,6 +200,8 @@ export function depositPaid(s: BusinessState, appointmentId: string) {
 export type ExecuteOptions = {
   /** A card payment held this gift card share on this business day; judge expiry as of then. */
   giftCardAsOf?: string
+  /** NEXT-08: a visit being booked together with others, who may share a room for two. */
+  together?: string
 }
 
 export function execute(
@@ -203,6 +230,7 @@ export function execute(
       }
     }
     if (command.type === 'book-repeat') return bookRepeat(s, command, now, makeId)
+    if (command.type === 'book-together') return bookTogether(s, command, now, makeId)
     const next = structuredClone(s)
     const org = s.organisation
     const addEvent = (
@@ -259,6 +287,7 @@ export function execute(
               input.startMinutes,
               now,
               chosenPlace,
+              options.together,
             ).find(
               (person) =>
                 !input.resourceId ||
@@ -271,6 +300,7 @@ export function execute(
                   now,
                   input.resourceId,
                   chosenPlace,
+                  options.together,
                 ),
             )?.id
           : input.staffId
@@ -286,6 +316,7 @@ export function execute(
         now,
         input.resourceId,
         locationId,
+        options.together,
       )
       if (!resourceId)
         throw new Error('That time is no longer available. Choose another time or professional.')
@@ -411,6 +442,9 @@ export function execute(
         }
         const to = { ...input, resourceId, ...(moved ? { locationId: place } : {}) }
         Object.assign(appointment, to)
+        // NEXT-08: visits booked together share a day and a location; one moved off them leaves.
+        const leaves = !!appointment.together && (from.date !== to.date || moved)
+        if (leaves) delete appointment.together
         // "I've arrived" was about the old time; a guest tells the desk again on the new day.
         if (from.date !== to.date || from.startMinutes !== to.startMinutes)
           delete appointment.guestHereAt
@@ -420,7 +454,7 @@ export function execute(
           type: 'rescheduled',
           title: 'Visit moved',
           allocationChange: { from, to },
-          detail: `${dateLabel(from.date, org.locale)} at ${timeLabel(from.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === from.staffId)!.name}${moved ? ` at ${placeOf(s, from.locationId)?.name}` : ''} → ${dateLabel(to.date, org.locale)} at ${timeLabel(to.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === to.staffId)!.name}${moved ? ` at ${placeOf(s, place)?.name}` : ''}. Booked treatment, price and deposit kept; no message sent.`,
+          detail: `${dateLabel(from.date, org.locale)} at ${timeLabel(from.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === from.staffId)!.name}${moved ? ` at ${placeOf(s, from.locationId)?.name}` : ''} → ${dateLabel(to.date, org.locale)} at ${timeLabel(to.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === to.staffId)!.name}${moved ? ` at ${placeOf(s, place)?.name}` : ''}. Booked treatment, price and deposit kept; no message sent.${leaves ? ' No longer booked together with the others.' : ''}`,
         })
         if (command.waitlistId)
           fillFromWaitlist(next, command.waitlistId, appointment, now, 'move', from.date)
@@ -434,9 +468,21 @@ export function execute(
                 next.appointments.find((y) => y.id === x.id)!,
               )
             : []
-        if (command.type === 'cancel' && command.andLater && command.deposit)
+        // NEXT-08: and the visits booked together with it, when the studio asks for that.
+        const others =
+          command.type === 'cancel' && command.andTogether
+            ? upcomingTogether(s, appointment)
+                .map((x) => next.appointments.find((y) => y.id === x.id)!)
+                .filter((x) => !later.includes(x))
+            : []
+        if (
+          command.type === 'cancel' &&
+          (command.andLater || command.andTogether) &&
+          command.deposit
+        )
           throw new Error('A guest cancels one visit at a time.')
-        if (appointment.status === status && !later.length)
+        const withIt = [...later, ...others]
+        if (appointment.status === status && !withIt.length)
           return { ok: true, state: s, recordId: appointment.id }
         if (appointment.status !== 'confirmed' && appointment.status !== status)
           throw new Error('Only an upcoming visit can be changed this way.')
@@ -445,7 +491,8 @@ export function execute(
         const reason = command.reason.trim()
         if (reason.length < 2 || reason.length > 300)
           throw new Error('Enter an operational reason between 2 and 300 characters.')
-        for (const visit of appointment.status === status ? later : [appointment, ...later]) {
+        const leadName = next.clients.find((c) => c.id === appointment.clientId)?.name
+        for (const visit of appointment.status === status ? withIt : [appointment, ...withIt]) {
           visit.status = status
           if (status === 'cancelled') closeForCancelledVisit(s, next, visit.id, now)
           const paid = depositPaid(s, visit.id)
@@ -460,7 +507,7 @@ export function execute(
             appointmentId: visit.id,
             type: status,
             title: status === 'cancelled' ? 'Visit cancelled' : 'Visit marked as missed',
-            detail: `${reason}.${visit !== appointment ? ' Cancelled with the earlier visit of its repeat.' : ''} ${deposit}`,
+            detail: `${reason}.${others.includes(visit) ? ` Cancelled together with ${leadName ?? 'the guest'}’s visit, booked with it.` : visit !== appointment ? ' Cancelled with the earlier visit of its repeat.' : ''} ${deposit}`,
           })
         }
       }
@@ -927,6 +974,201 @@ function bookRepeat(
     state: parseState({ ...current, revision: s.revision + 1 }, s.organisation.region),
     recordId: made[0].id,
   }
+}
+
+type TogetherGuest = Extract<Command, { type: 'book-together' }>['guests'][number]
+type TogetherBooking = Extract<Command, { type: 'book-together' }>['booking']
+
+/**
+ * NEXT-08: everyone booked together, each through the ordinary booking as a visit of its own, at
+ * the first visit's location. Someone sharing an earlier person's time in the same kind of room
+ * joins them in a room for two when one is free, so a couple can be side by side.
+ */
+function placeParty(
+  s: BusinessState,
+  booking: TogetherBooking,
+  guests: TogetherGuest[],
+  now: string,
+  makeId: () => string,
+): { ok: true; state: BusinessState; made: Appointment[] } | { ok: false; error: string } {
+  const together = makeId()
+  const span = (serviceId: string, start: number) => {
+    const service = s.services.find((item) => item.id === serviceId)
+    return [start, start + (service ? service.durationMinutes + service.bufferMinutes : 0)]
+  }
+  const kind = (serviceId: string) => s.services.find((item) => item.id === serviceId)?.resourceType
+  const meets = (a: number[], b: number[]) => a[0] < b[1] && b[0] < a[1]
+  const people = [booking, ...guests]
+  const made: Appointment[] = []
+  let current = s
+  for (const [index, person] of people.entries()) {
+    const guest = index ? guests[index - 1] : undefined
+    const input = guest
+      ? {
+          ...(guest.clientId ? { clientId: guest.clientId } : { contact: guest.contact }),
+          serviceId: guest.serviceId,
+          staffId: guest.staffId,
+          date: booking.date,
+          startMinutes: guest.startMinutes,
+          ...(guest.resourceId ? { resourceId: guest.resourceId } : {}),
+          locationId: made[0].locationId,
+          source: 'desk' as const,
+        }
+      : booking
+    const own = span(person.serviceId, person.startMinutes)
+    const alike = (serviceId: string, start: number) =>
+      kind(serviceId) === kind(person.serviceId) && meets(own, span(serviceId, start))
+    // Side by side: the room for two an earlier person is in, or one that is free for both.
+    const partner = made.find(
+      (visit) =>
+        alike(visit.serviceId, visit.startMinutes) &&
+        current.resources.find((room) => room.id === visit.resourceId)?.forTwo,
+    )
+    const rooms = input.resourceId
+      ? []
+      : partner
+        ? [partner.resourceId]
+        : people.some((other, at) => at > index && alike(other.serviceId, other.startMinutes))
+          ? current.resources.filter((room) => room.forTwo && !room.archived).map((room) => room.id)
+          : []
+    let result: CommandResult | undefined
+    for (const resourceId of rooms) {
+      result = execute(current, { type: 'book', input: { ...input, resourceId } }, now, makeId, {
+        together,
+      })
+      if (result.ok) break
+    }
+    if (!result?.ok) result = execute(current, { type: 'book', input }, now, makeId, { together })
+    if (!result.ok) {
+      if (!guest) return result
+      const name =
+        (guest.clientId
+          ? s.clients.find((client) => client.id === guest.clientId)?.name
+          : guest.contact?.name) ?? `Person ${index + 1}`
+      return { ok: false, error: `${name}: ${result.error}` }
+    }
+    current = result.state
+    const visit = current.appointments.find((a) => a.id === result.recordId)!
+    if (made.some((other) => other.clientId === visit.clientId))
+      return {
+        ok: false,
+        error: 'Each person is booked once. Book another treatment for them on its own.',
+      }
+    visit.together = index ? { id: together } : { id: together, lead: true }
+    made.push(visit)
+  }
+  return { ok: true, state: current, made }
+}
+
+/** NEXT-08: visits for several people on one day, booked together or not at all. */
+function bookTogether(
+  s: BusinessState,
+  command: Extract<Command, { type: 'book-together' }>,
+  now: string,
+  makeId: () => string,
+): CommandResult {
+  const { booking, guests } = command
+  if (booking.source === 'online')
+    throw new Error('Visits for several people are booked by the studio.')
+  // A new person's own email, never one that belongs to someone else.
+  const emails = new Map<string, string>()
+  for (const person of [booking, ...guests]) {
+    const contact = person.contact
+    if (!contact) continue
+    const email = contact.email.trim().toLowerCase()
+    const known = s.clients.find((client) => client.email.toLowerCase() === email)
+    const twice = emails.get(email)
+    if (known || twice)
+      throw new Error(
+        `${contact.name.trim()}: that email is ${known ? `${known.name}’s` : `${twice}’s too`}. Choose ${known ? 'them from your clients' : 'one person for it'}, or use their own email.`,
+      )
+    emails.set(email, contact.name.trim())
+  }
+  const placed = placeParty(s, booking, guests, now, makeId)
+  if (!placed.ok) return placed
+  const { state: current, made } = placed
+  // Each visit's own "Visit booked" line names the people booked with it.
+  const names = new Map(
+    made.map((visit) => [visit.id, current.clients.find((c) => c.id === visit.clientId)!.name]),
+  )
+  const before = new Set(s.events.map((e) => e.id))
+  for (const event of current.events)
+    if (!before.has(event.id) && event.type === 'booked' && names.has(event.appointmentId ?? '')) {
+      const list = made
+        .filter((visit) => visit.id !== event.appointmentId)
+        .map((visit) => names.get(visit.id)!)
+      event.detail += ` Booked together with ${list.length < 2 ? list[0] : `${list.slice(0, -1).join(', ')} and ${list.at(-1)}`}.`
+    }
+  return {
+    ok: true,
+    state: parseState({ ...current, revision: s.revision + 1 }, s.organisation.region),
+    recordId: made[0].id,
+  }
+}
+
+/** One person in a booking for several, as the desk has them so far. */
+export type PartyPerson = {
+  clientId?: string
+  serviceId: string
+  /** A professional, or "any" for whoever is free. */
+  staffId: string
+  startMinutes: number
+}
+
+/**
+ * NEXT-08: the calendar as it would be with these people booked together, so the desk can see the
+ * times still free for the next person and where each one would be. Anyone not chosen yet stands
+ * in as someone new; nothing is saved.
+ */
+export function previewTogether(
+  s: BusinessState,
+  date: string,
+  people: PartyPerson[],
+  locationId?: string,
+  now = new Date().toISOString(),
+) {
+  let n = 0
+  const makeId = () => `preview-${++n}`
+  const who = (person: PartyPerson, index: number) =>
+    person.clientId
+      ? { clientId: person.clientId }
+      : {
+          contact: {
+            name: 'Someone new',
+            email: `someone-new-${index}@preview.invalid`,
+            phone: '+447700900000',
+            marketingConsent: false,
+          },
+        }
+  const [first, ...rest] = people
+  const placed = placeParty(
+    s,
+    {
+      ...who(first, 0),
+      serviceId: first.serviceId,
+      staffId: first.staffId,
+      date,
+      startMinutes: first.startMinutes,
+      source: 'desk',
+      ...(locationId ? { locationId } : {}),
+    },
+    rest.map((person, index) => ({
+      ...who(person, index + 1),
+      serviceId: person.serviceId,
+      staffId: person.staffId,
+      startMinutes: person.startMinutes,
+    })),
+    now,
+    makeId,
+  )
+  return placed.ok
+    ? {
+        ok: true as const,
+        state: placed.state,
+        made: placed.made,
+        together: placed.made[0].together!.id,
+      }
+    : placed
 }
 
 export function dispatch(
