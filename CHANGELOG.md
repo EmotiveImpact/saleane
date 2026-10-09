@@ -2,6 +2,16 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-09 · Who changed what (NEXT-05)
+
+**Status: built locally on 9 October 2026; nothing deployed.** [Evidence](docs/evidence/NEXT-05-WHO-CHANGED-WHAT.md).
+
+- Settings, Your account and data, "Who changed what", for the owner only: every saved change, newest first, under the studio's own days, with who made it, what it was about and what changed, such as "Price £95.00 became £105.00" or "Professional Maya Lewis became Sophia Reed".
+- For clients it keeps only which details changed ("Changed email and phone"), never what they say. Guests and automatic changes are named by where they came from, such as "A guest booking online".
+- Filter by person, by kind (visits, clients, money, team and pay, stock, messages, settings, sign-in and access) and up to a day, page back 50 at a time, and download up to 5,000 changes as a spreadsheet.
+- An invitation and a change of someone's access keep the access given. The Data and privacy record now asks only for its own entries, so other changes no longer push them off its list.
+- Migration 25 adds the changed details to each audit entry. Changes saved before it show without their details.
+
 ## 2026-10-09 · Two-step sign-in (NEXT-04)
 
 **Status: built locally on 9 October 2026; nothing deployed and no email sent.** [Evidence](docs/evidence/NEXT-04-TWO-STEP.md).

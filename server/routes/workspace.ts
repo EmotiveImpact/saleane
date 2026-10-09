@@ -305,7 +305,9 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
           now(),
           expiresAt,
         )
-        audit(org, actor.id, 'invitation.created', digest(data.email))
+        audit(org, actor.id, 'invitation.created', digest(data.email), undefined, {
+          fields: [{ f: 'access', to: data.role }],
+        })
       })
       reply(201, {
         url: `${allowedOrigin}/join?invitation=${raw}`,
@@ -353,7 +355,9 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
             org.id,
             data.accountId,
           )
-        audit(org, actor.id, 'membership.changed', data.accountId)
+        audit(org, actor.id, 'membership.changed', data.accountId, undefined, {
+          fields: [{ f: 'access', from: member!.role, to: data.role }],
+        })
       })
       reply(200, { ok: true })
       return true
@@ -391,10 +395,21 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
       const org = orgFor(orgId, actor)
       if (!['owner', 'manager', 'general'].includes(org.role))
         fail(403, 'A manager role is required.')
+      // Only some kinds of entry, such as the privacy record's, so busy days never push them out.
+      const actions = z
+        .string()
+        .max(1000)
+        .optional()
+        .parse(route.url.searchParams.get('actions') ?? undefined)
+        ?.split(',')
+        .filter(Boolean)
       reply(200, {
         events: db.all(
-          "SELECT e.id,e.action,e.record_id AS recordId,e.revision,e.occurred_at AS occurredAt,COALESCE(a.name,CASE WHEN e.action='workspace.restored' THEN 'Local recovery' ELSE 'Guest booking' END) AS actor FROM audit_events e LEFT JOIN accounts a ON a.id=e.actor_id WHERE e.organisation_id=? ORDER BY e.occurred_at DESC,e.rowid DESC LIMIT 200",
+          `SELECT e.id,e.action,e.record_id AS recordId,e.revision,e.occurred_at AS occurredAt,COALESCE(a.name,CASE WHEN e.action='workspace.restored' THEN 'Local recovery' ELSE 'Guest booking' END) AS actor FROM audit_events e LEFT JOIN accounts a ON a.id=e.actor_id WHERE e.organisation_id=?${
+            actions?.length ? ' AND e.action IN (SELECT value FROM json_each(?))' : ''
+          } ORDER BY e.occurred_at DESC,e.rowid DESC LIMIT 200`,
           org.id,
+          ...(actions?.length ? [JSON.stringify(actions)] : []),
         ),
       })
       return true

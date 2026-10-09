@@ -514,6 +514,16 @@ export const migrations: Migration[] = [
         CREATE INDEX account_mail_recent ON account_mail(account_id,created_at);
       `),
   },
+  {
+    version: 25,
+    // NEXT-05, who changed what: which details of a record a change touched, with the before and
+    // after values that are safe to keep, and finding one person's changes quickly.
+    up: (connection) =>
+      connection.exec(`
+        ALTER TABLE audit_events ADD COLUMN detail TEXT CHECK(detail IS NULL OR json_valid(detail));
+        CREATE INDEX audit_actor ON audit_events(organisation_id,actor_id,occurred_at);
+      `),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the

@@ -11,6 +11,7 @@ import { workspaceRoutes } from './routes/workspace'
 import { publicRoutes } from './routes/public'
 import { guestRoutes } from './routes/guest'
 import { daySheetRoutes } from './routes/daysheet'
+import { changeRoutes } from './routes/changes'
 import { privacyRoutes } from './routes/privacy'
 import { messagingRoutes } from './routes/messaging'
 import { createOutbox } from './messaging/outbox'
@@ -52,6 +53,7 @@ const baseRoutes = [
   publicRoutes,
   guestRoutes,
   daySheetRoutes,
+  changeRoutes,
   benchmarkRoutes,
 ]
 
