@@ -4,7 +4,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-09 · Whole app review and fixes
 
-**Status: built locally on 9 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/APP-REVIEW-2026-10-09.md).
+**Status: built locally on 9 October 2026 and merged (#72); nothing deployed.** [Evidence](docs/evidence/APP-REVIEW-2026-10-09.md).
 
 A fresh review of the whole app listed 48 things to fix or improve, and the owner said yes to all of them, including that a regional manager's own requests go to the owner and that only owners and managers remove a saved card. Messages, card payments, AI and maps stay in test mode: nothing is sent or charged.
 
