@@ -34,7 +34,9 @@
 .scroll-nav-track > a {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   flex: none;
+  min-width: 40px;
   min-height: var(--target);
   padding: 2px 0;
   border-bottom: 2px solid transparent;

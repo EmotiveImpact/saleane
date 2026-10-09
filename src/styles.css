@@ -4469,3 +4469,53 @@ fieldset {
 .business-where select {
   min-width: min(13rem, 100%);
 }
+
+/* Phones: every control is at least 40px to tap. Desktop keeps its compact sizes. */
+@media (max-width: 650px) {
+  .icon-button,
+  .date-controls .icon-button {
+    width: 40px;
+    height: 40px;
+  }
+  .ask-button,
+  .global-search,
+  .operator-button {
+    min-width: 40px;
+    min-height: 40px;
+    justify-content: center;
+  }
+  .text-link,
+  .date-controls .button,
+  .calendar-filters select,
+  .calendar-date-picker input,
+  .search-field input,
+  .sort-field select,
+  .directory-paging .button,
+  .date-strip-other input,
+  .client-table .client-cell,
+  .patch-list .missed-actions .button,
+  .areas-list > li button.areas-name,
+  .back-link,
+  .next-visit-panel .button,
+  .connection-row {
+    min-height: 40px;
+  }
+  .text-link {
+    min-width: 40px;
+  }
+  summary,
+  .chart-data summary {
+    min-height: 40px;
+    padding-block: 10px;
+  }
+  /* Names that open a record keep their place in the text but take a taller touch. */
+  .patch-list > li > div > a {
+    padding-block: 9px;
+    margin-block: -9px;
+  }
+  .waitlist-card-copy strong a {
+    display: inline-block;
+    padding-block: 11px;
+    margin-block: -11px;
+  }
+}

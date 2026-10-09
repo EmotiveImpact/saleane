@@ -180,6 +180,31 @@
   outline-offset: 6px;
 }
 
+/* Phones: every choice is at least 40px to tap; desktop keeps its compact sizes. */
+@media (max-width: 650px) {
+  .segmented-pill .segmented-item,
+  .segmented-chips .segmented-item {
+    min-height: 40px;
+  }
+  .segmented-icon .segmented-item {
+    width: 40px;
+    height: 40px;
+  }
+  .segmented-underline .segmented-item {
+    min-height: 40px;
+    min-width: 40px;
+  }
+}
+/* The small "i" keeps its size but takes a 40px touch. */
+.definition-trigger {
+  position: relative;
+}
+.definition-trigger::after {
+  content: '';
+  position: absolute;
+  inset: -9px;
+}
+
 @media (max-width: 650px) {
   .page-heading-compact {
     align-items: flex-start;
