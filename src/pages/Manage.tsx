@@ -48,6 +48,8 @@ import { Connections } from '../components/Connections'
 import { AccessKeys } from '../components/AccessKeys'
 import { ReceptionistSettings } from '../components/ReceptionistSettings'
 import { GoogleBooking } from '../components/GoogleBooking'
+import { HouseRules } from '../components/HouseRules'
+import { houseRuleNote } from '../domain/brandRules'
 import { SocialAccounts } from '../components/SocialAccounts'
 import '../components/management.css'
 
@@ -348,7 +350,12 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
             )}
             {section === 'switching' && <SwitchingSettings />}
             {section === 'plans' && <PlanSettings />}
-            {section === 'locations' && <LocationsSettings />}
+            {section === 'locations' && (
+              <>
+                <LocationsSettings />
+                <HouseRules />
+              </>
+            )}
             {section === 'forms' && <FormSettings />}
             {section === 'business' && (
               <section className="surface ops-panel">
@@ -943,6 +950,9 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                   {multiSite && (
                     <fieldset className="ops-wide service-places">
                       <legend>At each location</legend>
+                      {houseRuleNote(state, service?.id) && (
+                        <p className="subtle ops-wide">{houseRuleNote(state, service?.id)}</p>
+                      )}
                       {places(state).map((place) => (
                         <div className="service-place" key={place.id}>
                           <label className="ops-check">

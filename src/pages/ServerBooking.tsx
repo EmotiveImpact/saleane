@@ -22,6 +22,8 @@ import { visitUid } from '../domain/calendarFile'
 import { bookingChannel } from '../domain/bookingChannel'
 import { fullPriceMinor } from '../domain/priceSentence'
 import type { PriceTax } from '../domain/priceSentence'
+import { useGuestColours } from '../state/studioColours'
+import type { StudioLook } from '../domain/brandRulesSchema'
 import '../guest.css'
 
 const pendingBookingSchema = z.object({
@@ -75,6 +77,8 @@ type Catalog = {
   locations?: LocationOption[]
   /** V4: the AI receptionist chat is switched on for this page. */
   receptionist?: boolean
+  /** V5: the studio's colours. Older servers send none, and the house colours show. */
+  look?: StudioLook
 }
 export function ServerBooking() {
   const { slug } = useParams(),
@@ -82,6 +86,7 @@ export function ServerBooking() {
   const [catalog, setCatalog] = useState<Catalog | null>(null),
     [error, setError] = useState(''),
     [pending, setPending] = useState(false)
+  useGuestColours(catalog?.look)
   useEffect(() => {
     let active = true
     api<Catalog>(base)

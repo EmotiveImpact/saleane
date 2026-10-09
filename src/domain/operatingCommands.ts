@@ -1,5 +1,6 @@
 import type { BusinessState, RelationshipEvent } from './model'
 import { areaHint, postcodeArea } from './clientAreas'
+import { serviceRuleRefusal } from './brandRules'
 import { isReviewUrl } from './model'
 import type { OperatingCommand } from './commandSchema'
 import { hasLocations, placeField, placeOf, places } from './locations'
@@ -226,6 +227,9 @@ export function runOperatingCommand(
         throw new Error('Offer the treatment at one location at least, or archive it.')
       if (command.input.durationMinutes + command.input.bufferMinutes > 1440)
         throw new Error('A service must fit within one day.')
+      // V5: the owner's house rules for every location.
+      const refusal = serviceRuleRefusal(next, { ...command.input, id: record.id })
+      if (refusal) throw new Error(refusal)
       const { returnWeeks, ...input } = command.input
       const weeks = returnWeeks ? { returnWeeks } : {}
       if (old) {

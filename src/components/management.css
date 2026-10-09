@@ -1320,3 +1320,29 @@ a.receipt-row {
     gap: 2px;
   }
 }
+/* V5: treatments not yet meeting the house rules. Hairline rows; no coloured edges. */
+.house-rules-breaches {
+  margin-top: var(--space-5, 24px);
+  padding-top: var(--space-4, 16px);
+  border-top: 1px solid var(--line);
+}
+.house-rules-breaches h3 {
+  margin: 0 0 6px;
+  font-size: var(--text-body);
+  font-weight: var(--weight-strong);
+}
+.house-rules-breaches ul {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+.house-rules-breaches li {
+  display: grid;
+  gap: 3px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  font-size: var(--text-small);
+}
+.house-rules-breaches li span {
+  color: var(--muted);
+}
