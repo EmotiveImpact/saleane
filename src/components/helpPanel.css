@@ -191,3 +191,9 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+@media (max-width: 640px) {
+  /* On a phone the one main button runs the width of the form, within reach of a thumb. */
+  .help-form > .button-primary {
+    justify-self: stretch;
+  }
+}

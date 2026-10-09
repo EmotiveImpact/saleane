@@ -307,7 +307,7 @@ function WriteToUs({
         </small>
         <ErrorMessage error={error} />
         {said && (
-          <p className="ops-save-note" role="status">
+          <p className="ops-save-note settle" role="status">
             {said}
           </p>
         )}
