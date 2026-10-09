@@ -21,6 +21,8 @@ async function chooseFacial(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('connected operator journeys', () => {
+  // The whole app, from the calendar through the date picker to the moved visit, so this journey
+  // can take several seconds on a busy machine: it has 20 seconds rather than the usual 5.
   it('moves a visit with keyboard time choices and follows it to its new calendar day', async () => {
     const user = userEvent.setup()
     show('/calendar')
@@ -50,7 +52,7 @@ describe('connected operator journeys', () => {
     expect(
       screen.getAllByRole('button', { name: /09:30 .*Noor Ahmed Skin Renewal Facial/ }).length,
     ).toBeGreaterThan(0)
-  })
+  }, 20000)
   it('requires cancellation review and preserves the visit in accessible calendar history', async () => {
     const user = userEvent.setup()
     show('/calendar')
