@@ -1,0 +1,234 @@
+/*
+ * The visit panel: one place for a visit in every state. The treatment's photograph leads,
+ * then who is coming and what is good to know, then what can be done next.
+ */
+.visit-photo {
+  height: 168px;
+  margin-bottom: var(--space-4);
+  border-radius: var(--radius-panel);
+  background-color: var(--stone);
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+.visit-facts {
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: 1.5;
+}
+.visit-facts + .success-strip {
+  margin-bottom: 0;
+}
+.visit-client {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--paper);
+}
+.visit-client .client-identity {
+  margin-bottom: 0;
+}
+/* The name keeps its line; on a narrow screen the status moves below it rather than squeezing it. */
+.dialog-side .client-identity {
+  flex-wrap: wrap;
+  row-gap: var(--space-2);
+}
+.dialog-side .client-identity > div {
+  flex: 1 1 150px;
+  min-width: 0;
+}
+.visit-notes {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+.visit-notes:empty {
+  display: none;
+}
+.visit-notes > * {
+  margin: 0;
+}
+.visit-remember {
+  padding: 14px var(--space-4);
+  border-radius: var(--radius-control);
+  background: var(--stone);
+}
+.visit-remember > span {
+  font-size: var(--text-micro);
+  font-weight: var(--weight-strong);
+}
+.visit-remember > p {
+  margin-top: var(--space-1);
+  font-size: var(--text-small);
+}
+.visit-remember > .visit-history {
+  margin-top: var(--space-2);
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+.visit-money {
+  margin-top: var(--space-3);
+}
+
+/* What can be done next: one row each, with room for a thumb. */
+.visit-actions {
+  display: grid;
+  margin-top: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  overflow: hidden;
+  background: var(--paper);
+}
+.visit-action {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 52px;
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+  text-align: left;
+  text-decoration: none;
+}
+.visit-action + .visit-action {
+  border-top: 1px solid var(--line);
+}
+.visit-action > span {
+  flex: 1;
+  min-width: 0;
+}
+.visit-action > svg {
+  color: var(--muted);
+}
+.visit-action > svg:first-child {
+  color: var(--brand-ink);
+}
+.visit-action:hover:not(:disabled) {
+  background: var(--hover);
+}
+.visit-action:focus-visible {
+  outline-offset: -3px;
+}
+
+/* The treatment as a line of the bill, with its photograph. */
+.visit-service-line {
+  align-items: center;
+}
+.visit-service-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.visit-service-name small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+.visit-service-photo {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: var(--radius-control);
+  background-color: var(--stone);
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+/* Checkout: each part with room around it, so no label sits on the one before. */
+.checkout-stack {
+  display: grid;
+  gap: 22px;
+}
+.checkout-stack > * {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+.checkout-stack > .checkout-lines > .receipt-line.total {
+  margin-top: var(--space-2);
+}
+.checkout-discount-group,
+.checkout-payment {
+  display: grid;
+  gap: 14px;
+}
+.checkout-discount-group .checkout-discount {
+  margin-top: 0;
+}
+.checkout-stack .tip-options {
+  margin-bottom: 0;
+}
+.checkout-stack .time-fieldset legend {
+  margin-bottom: var(--space-2);
+}
+
+/* After checkout: the invitation to book again, led by a photograph. */
+.rebook-moment {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  margin-top: var(--space-6);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  overflow: hidden;
+  background: var(--sage-soft);
+}
+.rebook-moment-photo {
+  min-height: 100%;
+  background-color: var(--stone);
+  background-size: cover;
+  background-position: center;
+}
+.rebook-moment-text {
+  padding: var(--space-5) var(--space-5) var(--space-5) 18px;
+}
+.rebook-moment-text .eyebrow {
+  color: var(--brand-ink);
+}
+.rebook-moment-text h3 {
+  margin: var(--space-2) 0;
+  font-family: var(--font-editorial);
+  font-size: 25px;
+  font-weight: var(--weight-editorial);
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+.rebook-moment-text p:not(.eyebrow) {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.rebook-moment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin-top: var(--space-4);
+}
+.rebook-moment-actions .text-link {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+}
+
+@media (max-width: 480px) {
+  .visit-photo {
+    height: 148px;
+  }
+  .rebook-moment {
+    grid-template-columns: 1fr;
+  }
+  .rebook-moment-photo {
+    min-height: 0;
+    height: 132px;
+  }
+  .rebook-moment-text {
+    padding: var(--space-4);
+  }
+}

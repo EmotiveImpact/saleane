@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from 'react'
+import * as Popover from '@radix-ui/react-popover'
 import { Minus, Plus, X } from 'lucide-react'
 import { useStore } from '../state/context'
 import { stock } from '../domain/operations'
@@ -5,6 +7,7 @@ import { money } from '../domain/format'
 import { products, sellable } from '../domain/retail'
 import type { RetailItems, SaleRetail } from '../domain/retailSchema'
 import { RETAIL_LINE_LIMIT, RETAIL_QUANTITY_LIMIT } from '../domain/retailSchema'
+import { ProductTile } from './ProductTile'
 import './checkout-products.css'
 
 /**
@@ -24,6 +27,20 @@ export function CheckoutProducts({
 }) {
   const { state } = useStore()
   const org = state.organisation
+  const [choosing, setChoosing] = useState(false)
+  const [query, setQuery] = useState('')
+  const list = useRef<HTMLFieldSetElement | null>(null)
+  // A product just added takes the focus, as the list it was chosen from has closed.
+  const justAdded = useRef('')
+  const [additions, setAdditions] = useState(0)
+  useEffect(() => {
+    if (!justAdded.current) return
+    const row = list.current?.querySelector(`[data-product="${justAdded.current}"]`)
+    const target =
+      row?.querySelector<HTMLButtonElement>('[data-more]:not(:disabled)') ??
+      row?.querySelector<HTMLButtonElement>('button:not(:disabled)')
+    target?.focus()
+  }, [additions])
   const onSale = products(state)
     .filter(sellable)
     .sort((a, b) => a.name.localeCompare(b.name))
@@ -31,21 +48,33 @@ export function CheckoutProducts({
   const addable = onSale.filter(
     (p) => !items.some((item) => item.productId === p.id) && stock(state, p.id) > 0,
   )
+  const words = query.trim().toLocaleLowerCase()
+  const offered = words
+    ? addable.filter((p) => p.name.toLocaleLowerCase().includes(words))
+    : addable
   const set = (productId: string, quantity: number) =>
     onChange(
       quantity > 0
         ? items.map((item) => (item.productId === productId ? { ...item, quantity } : item))
         : items.filter((item) => item.productId !== productId),
     )
+  function add(productId: string) {
+    onChange([...items, { productId, quantity: 1 }])
+    justAdded.current = productId
+    setAdditions((n) => n + 1)
+    setChoosing(false)
+    setQuery('')
+  }
   return (
-    <fieldset className="checkout-products">
+    <fieldset className="checkout-products" ref={list}>
       <legend>Products</legend>
       {items.map((item) => {
         const product = onSale.find((p) => p.id === item.productId)
         if (!product) return null
         const left = stock(state, product.id)
         return (
-          <div className="checkout-product" key={item.productId}>
+          <div className="checkout-product" key={item.productId} data-product={product.id}>
+            <ProductTile id={product.id} name={product.name} size="small" />
             <span className="checkout-product-name">
               {product.name}
               <small>
@@ -64,6 +93,7 @@ export function CheckoutProducts({
               <span aria-live="polite">{item.quantity}</span>
               <button
                 type="button"
+                data-more
                 aria-label={`One more ${product.name}`}
                 disabled={disabled || item.quantity >= Math.min(left, RETAIL_QUANTITY_LIMIT)}
                 onClick={() => set(product.id, item.quantity + 1)}
@@ -85,24 +115,66 @@ export function CheckoutProducts({
         )
       })}
       {addable.length > 0 && items.length < RETAIL_LINE_LIMIT && (
-        <label className="checkout-product-add">
-          <span className="sr-only">Add a product</span>
-          <select
-            value=""
-            disabled={disabled}
-            onChange={(event) => {
-              if (event.target.value)
-                onChange([...items, { productId: event.target.value, quantity: 1 }])
-            }}
-          >
-            <option value="">Add a product…</option>
-            {addable.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} · {money(p.priceMinor, org, true)}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Popover.Root
+          open={choosing}
+          onOpenChange={(open) => {
+            setChoosing(open)
+            setQuery('')
+            if (open) justAdded.current = ''
+          }}
+        >
+          <Popover.Trigger asChild>
+            <button type="button" className="checkout-product-add" disabled={disabled}>
+              <Plus size={16} aria-hidden="true" />
+              Add a product
+            </button>
+          </Popover.Trigger>
+          <Popover.Portal>
+            <Popover.Content
+              className="product-picker"
+              side="bottom"
+              align="start"
+              sideOffset={6}
+              collisionPadding={8}
+              aria-label="Add a product"
+              onCloseAutoFocus={(event) => {
+                // The product just added has the focus; it stays there rather than on this list's button.
+                if (justAdded.current) event.preventDefault()
+              }}
+            >
+              {addable.length > 6 && (
+                <label className="product-picker-search">
+                  <span className="sr-only">Find a product</span>
+                  <input
+                    type="search"
+                    value={query}
+                    placeholder="Find a product"
+                    onChange={(event) => setQuery(event.target.value)}
+                  />
+                </label>
+              )}
+              <ul className="product-picker-list">
+                {offered.map((product) => (
+                  <li key={product.id}>
+                    <button
+                      type="button"
+                      className="product-picker-item"
+                      onClick={() => add(product.id)}
+                    >
+                      <ProductTile id={product.id} name={product.name} />
+                      <span className="product-picker-name">
+                        {product.name}
+                        <small>{stock(state, product.id)} in stock</small>
+                      </span>
+                      <strong>{money(product.priceMinor, org, true)}</strong>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {!offered.length && <p className="product-picker-none">No product by that name.</p>}
+            </Popover.Content>
+          </Popover.Portal>
+        </Popover.Root>
       )}
       {retail && retail.taxMinor > 0 && (
         <div className="receipt-line">

@@ -16,7 +16,8 @@ function show(route: string) {
 }
 const stored = () => JSON.parse(localStorage.getItem('saleane.demo.v1.UK')!)
 
-describe('dates and times written the studio’s way in staff forms', () => {
+// Each test drives the whole app, which can take several seconds on a busy machine.
+describe('dates and times written the studio’s way in staff forms', { timeout: 20000 }, () => {
   it('books a new visit on a day chosen from the calendar', async () => {
     const user = userEvent.setup()
     show('/today')

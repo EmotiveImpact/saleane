@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { ArrowLeft, FilePenLine, MailWarning, MessageSquarePlus, Plus, Search } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useStore } from '../state/context'
 import { operations, can } from '../domain/operations'
 import { dateLabel } from '../domain/format'
@@ -72,12 +72,25 @@ export function Inbox() {
   const sent = useSentMessages()
   const live = !!sent.reply && (sent.reply.providers.email.live || sent.reply.providers.sms.live)
   const [filter, setFilter] = useState<Filter>('all')
-  const [composing, setComposing] = useState(false)
+  // "Message" on a visit opens a draft here, with its client and the visit already chosen.
+  const [params, setParams] = useSearchParams()
+  const writeTo = state.clients.find((c) => c.id === params.get('write'))
+  const [composing, setComposing] = useState(() => !!writeTo && can(role, 'message'))
   const [editingId, setEditingId] = useState<string | undefined>()
-  const [clientId, setClientId] = useState(state.clients[0]?.id ?? '')
+  const [clientId, setClientId] = useState(writeTo?.id ?? state.clients[0]?.id ?? '')
   const [purpose, setPurpose] = useState<'appointment' | 'marketing'>('appointment')
-  const [channel, setChannel] = useState<'email' | 'sms'>('email')
-  const [appointmentId, setAppointmentId] = useState('')
+  const [channel, setChannel] = useState<'email' | 'sms'>(() =>
+    !writeTo || writeTo.email.trim() || !textNumber(writeTo.phone) ? 'email' : 'sms',
+  )
+  const [appointmentId, setAppointmentId] = useState(
+    () =>
+      state.appointments.find((a) => a.id === params.get('visit') && a.clientId === writeTo?.id)
+        ?.id ?? '',
+  )
+  useEffect(() => {
+    // The request is used once, so going back or reloading shows the inbox as it was.
+    if (params.has('write') || params.has('visit')) setParams({}, { replace: true })
+  }, [params, setParams])
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [pending, setPending] = useState('')
@@ -85,7 +98,9 @@ export function Inbox() {
   const [notice, setNotice] = useState('')
   const [query, setQuery] = useState('')
   const view = useInboxView(session?.user.id)
-  const [selectedKey, setSelectedKey] = useState<string | undefined>()
+  const [selectedKey, setSelectedKey] = useState<string | undefined>(
+    writeTo ? `client:${writeTo.id}` : undefined,
+  )
   // On a phone the two-column view shows the list first, then one conversation.
   const [opened, setOpened] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
