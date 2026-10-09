@@ -246,7 +246,6 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
           org.id,
           now(),
         ),
-        practitionerAccessEnabled: true,
       })
       return true
     }
@@ -387,10 +386,6 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         ),
       })
       return true
-    }
-    if (path[3] === 'messages' && path[4] === 'send' && method === 'POST') {
-      if (orgFor(orgId, actor).role === 'practitioner') fail(403, 'Your role cannot send messages.')
-      fail(503, 'Message delivery is not configured. Drafts and queues remain local.')
     }
   }
   return false

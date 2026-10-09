@@ -377,6 +377,10 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     reviewed: z.literal(true),
   }),
 ])
+/** Whether a value is a complete command, for the changes inside a batch. */
+function validCommand(value: unknown): boolean {
+  return commandSchema.safeParse(value).success
+}
 export const commandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('book'), input: bookingSchema }),
   z.object({
@@ -553,7 +557,11 @@ export const commandSchema = z.discriminatedUnion('type', [
     commands: z
       .array(z.looseObject({ type: z.enum(['reschedule', 'cancel', 'closure', 'message']) }))
       .min(1)
-      .max(40),
+      .max(40)
+      // Each change is checked in full, so a malformed one is refused before any check reads it.
+      .refine((parts): boolean => parts.every((part) => validCommand(part)), {
+        message: 'A change in this plan is not complete.',
+      }),
   }),
   // V3: planning a special records it; nothing is sent and no price changes.
   z.object({ type: z.literal('special-plan'), input: specialInputSchema }),

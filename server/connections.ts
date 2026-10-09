@@ -92,6 +92,9 @@ for (const [net, bits] of [
   PRIVATE.addSubnet(net, bits, 'ipv4')
 for (const [net, bits] of [
   ['::', 127],
+  // NAT64 gateways turn these into IPv4 addresses, private ones included.
+  ['64:ff9b::', 96],
+  ['64:ff9b:1::', 48],
   ['fc00::', 7],
   ['fe80::', 10],
   ['ff00::', 8],

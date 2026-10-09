@@ -90,6 +90,40 @@ describe('one-approval plans on the server', () => {
     expect((await studio(owner)).revision).toBe(before + 1)
   })
 
+  it('turns away a malformed change inside a batch as a bad request, whoever sends it', async () => {
+    const owner = await register('owner@example.invalid')
+    const state = await studio(owner)
+    const invitation = await post(owner, '/invitations', {
+      email: 'gm@example.invalid',
+      role: 'general',
+      locationId: state.organisation.locationId,
+    })
+    expect(invitation.statusCode, invitation.body).toBe(201)
+    const gm = {
+      ...(await register(
+        'gm@example.invalid',
+        invitation.json<{ invitation: string }>().invitation,
+      )),
+      orgId: owner.orgId,
+    }
+    const malformed = [
+      { type: 'message' },
+      { type: 'closure', input: { date: 'soon' } },
+      { type: 'reschedule', appointmentId: 7 },
+      { type: 'cancel' },
+    ]
+    for (const part of malformed)
+      for (const who of [owner, gm]) {
+        const response = await run(who, owner, {
+          type: 'batch',
+          label: 'Broken plan',
+          commands: [part],
+        } as unknown as Command)
+        expect(response.statusCode, `${JSON.stringify(part)}: ${response.body}`).toBe(400)
+      }
+    expect((await studio(owner)).revision).toBe(state.revision)
+  })
+
   it('refuses a batch that tries to take a payment', async () => {
     const owner = await register('owner@example.invalid')
     const sneaky = {
