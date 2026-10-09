@@ -355,7 +355,7 @@ describe('local operating surfaces', () => {
       status: 'queued',
     })
     await user.click(screen.getByRole('button', { name: /\+44 7700 900999/ }))
-    await user.selectOptions(screen.getByLabelText('This is'), 'client-6')
+    await user.selectOptions(screen.getByLabelText('Link to a client'), 'client-6')
     await user.click(screen.getByRole('button', { name: 'Match to this client' }))
     expect(
       await screen.findByText('Matched. The conversation is now with the client.'),

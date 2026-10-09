@@ -18,6 +18,8 @@ import { outboxStatusLabel, textNumber } from '../domain/reminders'
 import { SentMessages } from '../components/AppointmentMessages'
 import { kindLabel, useSentMessages } from '../components/sentMessages'
 import { useClock } from '../state/clock'
+import { InboxReply } from '../components/InboxReply'
+import type { ReplyDraft } from '../components/InboxReply'
 import '../components/management.css'
 
 type QueuedMessage = ReturnType<typeof operations>['messages'][number]
@@ -221,6 +223,24 @@ export function Inbox() {
     event.preventDefault()
     await save(false)
   }
+  /** The reply box under a conversation: always a draft, approved like any other message. */
+  async function reply(forClient: string, draft: ReplyDraft) {
+    if (pending || !allowedDraft) return { ok: false }
+    setPending('reply')
+    setError('')
+    setNotice('')
+    try {
+      const result = await commit({
+        type: 'message',
+        input: { clientId: forClient, purpose: 'appointment', ...draft },
+      })
+      return result.ok ? { ok: true } : { ok: false, error: result.error }
+    } catch {
+      return { ok: false, error: 'That could not be saved. Your writing is still here; try again.' }
+    } finally {
+      setPending('')
+    }
+  }
   const queue = (messageId: string) =>
     act(
       messageId,
@@ -299,6 +319,9 @@ export function Inbox() {
     const name = who(state, c)
     const unreadIds = c.items.filter((i) => i.kind === 'reply' && !i.reply.readAt).length
     const social = latestSocial(c)
+    const lastWritten = [...c.items]
+      .reverse()
+      .find((i) => i.kind === 'reply' && (i.reply.channel === 'email' || i.reply.channel === 'sms'))
     return (
       <>
         <header className="inbox-pane-header">
@@ -445,10 +468,34 @@ export function Inbox() {
             }
           />
         )}
+        {recipient && !social && can(role, 'message') && (
+          <InboxReply
+            key={c.key}
+            client={recipient}
+            answering={c.items.at(-1)?.kind === 'reply'}
+            lastChannel={
+              lastWritten?.kind === 'reply'
+                ? (lastWritten.reply.channel as 'email' | 'sms')
+                : undefined
+            }
+            saved={saved}
+            studio={state.organisation.name}
+            allowed={allowedDraft}
+            pending={!!pending}
+            sends={sends}
+            live={live}
+            canEditSaved={can(role, 'saved-replies')}
+            onSave={(draft) => reply(recipient.id, draft)}
+          />
+        )}
         <footer className="inbox-pane-actions">
           {recipient ? (
             <>
-              <Button disabled={!allowedDraft} onClick={() => startDraft(recipient.id)}>
+              <Button
+                variant="secondary"
+                disabled={!allowedDraft}
+                onClick={() => startDraft(recipient.id)}
+              >
                 <MessageSquarePlus size={16} aria-hidden="true" /> Write to{' '}
                 {recipient.name.split(' ')[0]}
               </Button>
@@ -486,7 +533,7 @@ export function Inbox() {
               }}
             >
               <label>
-                This is
+                Link to a client
                 <select value={linkTo} onChange={(e) => setLinkTo(e.target.value)} required>
                   <option value="">Choose a client</option>
                   {state.clients.map((x) => (
@@ -499,6 +546,7 @@ export function Inbox() {
               <Button type="submit" variant="secondary" disabled={!allowedDraft || !!pending}>
                 Match to this client
               </Button>
+              <small>Replies go to a client, so link this conversation to one first.</small>
             </form>
           )}
           {unreadIds > 0 && (

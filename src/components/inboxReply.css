@@ -1,0 +1,131 @@
+/*
+ * The reply box at the foot of an open conversation. On a large screen it stays in view at the
+ * bottom while a long thread scrolls, and settles under the last message. On a phone it simply
+ * follows the thread, so it never covers the conversation.
+ */
+.inbox-reply {
+  display: grid;
+  gap: 10px;
+  margin-bottom: var(--space-4);
+  padding: 14px 0 max(16px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+}
+.inbox-reply-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+}
+.inbox-reply-head > label:first-child {
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+}
+.inbox-reply-channel {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-body);
+}
+.inbox-reply-channel select {
+  width: auto;
+  min-height: 34px;
+  padding: 5px 10px;
+  font-size: var(--text-meta);
+}
+.inbox-quick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.inbox-quick-chip {
+  min-height: 34px;
+  max-width: 100%;
+  padding: 6px 13px;
+  overflow: hidden;
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-pill);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.inbox-quick-chip:hover {
+  background: var(--brand-soft);
+  border-color: color-mix(in srgb, var(--brand) 35%, var(--line2));
+}
+.inbox-quick-edit {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  margin-left: 4px;
+  color: var(--brand-ink);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+.inbox-reply textarea {
+  width: 100%;
+  min-height: 76px;
+  resize: vertical;
+}
+.inbox-reply-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+.inbox-reply-foot p {
+  flex: 1 1 260px;
+  color: var(--muted);
+  font-size: var(--text-micro);
+  line-height: 1.5;
+}
+.inbox-reply-error {
+  color: var(--danger);
+  font-size: var(--text-meta);
+}
+.inbox-reply-notice {
+  color: var(--brand-ink);
+  font-size: var(--text-meta);
+}
+/* An unmatched conversation explains why there is no reply box yet. */
+.inbox-link small {
+  flex-basis: 100%;
+  color: var(--muted);
+  font-size: var(--text-micro);
+}
+@media (max-width: 650px) {
+  /* One line of chips that scrolls sideways, so the box stays short on a phone. */
+  .inbox-quick {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .inbox-quick > * {
+    flex: none;
+  }
+  .inbox-quick-chip,
+  .inbox-quick-edit,
+  .inbox-reply-channel select {
+    min-height: 40px;
+  }
+  .inbox-reply-foot .button {
+    flex: 1 1 auto;
+  }
+}
+@media (min-width: 821px) and (min-height: 640px) {
+  .inbox-reply {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+  }
+}
