@@ -425,7 +425,16 @@ describe('the connection transport', () => {
     for (const address of ['127.0.0.1', '10.1.2.3', '192.168.0.4', '169.254.169.254', '::1'])
       expect(privateAddress(address), address).toBe(true)
     expect(privateAddress('::ffff:127.0.0.1')).toBe(true)
+    // NAT64 addresses reach IPv4 ones, this computer included, through a translating gateway.
+    for (const address of [
+      '64:ff9b::7f00:1',
+      '64:ff9b::127.0.0.1',
+      '64:ff9b::a9fe:a9fe',
+      '64:ff9b:1::a00:1',
+    ])
+      expect(privateAddress(address), address).toBe(true)
     expect(privateAddress('93.184.216.34')).toBe(false)
+    expect(privateAddress('2606:4700:4700::1111')).toBe(false)
     const seen: { url: string; address?: string }[] = []
     const live = fetchTransport({
       sender: async (url, request) => {

@@ -127,6 +127,35 @@ describe('the AI receptionist on the booking page', () => {
     expect((await take(slug, offered.proposals[0].id)).statusCode).toBe(404)
   })
 
+  it('lists the free times it finds for the page to show as buttons', async () => {
+    const { slug } = await switchedOn()
+    const found = (await say(slug, 'Any times for a facial on Thursday afternoon?')).json<
+      Answer & {
+        times: {
+          serviceId: string
+          staffId: string
+          date: string
+          startMinutes: number
+          label: string
+        }[]
+      }
+    >()
+    expect(found.times.length).toBeGreaterThan(0)
+    for (const time of found.times) {
+      expect(time).toMatchObject({
+        serviceId: 'service-facial',
+        staffId: 'any',
+        date: '2026-10-08',
+      })
+      expect(time.startMinutes).toBeGreaterThanOrEqual(720)
+      expect(time.startMinutes).toBeLessThan(1020)
+      expect(found.text).toContain(time.label)
+    }
+    // An answer without times lists none.
+    const hours = (await say(slug, 'When are you open?')).json<{ times: unknown[] }>()
+    expect(hours.times).toEqual([])
+  })
+
   it('counts one chat once, however many messages it takes', async () => {
     const { login, slug } = await switchedOn()
     const before = (await used(login)).usage?.used.guestChats ?? 0
@@ -166,6 +195,33 @@ describe('the AI receptionist on the booking page', () => {
     expect(inbox((await studio(login)).state)).toMatch(/Rosa Field: .*group booking/)
     // The local number is kept with its country code, as texts are.
     expect(inbox((await studio(login)).state)).toMatch(/"from":"\+447700900456"/)
+  })
+
+  it('leaves a message unmatched for the team, even when it gives a client’s email', async () => {
+    const { login, slug } = await switchedOn()
+    const before = (await studio(login)).state
+    const amelia = before.clients.find((c) => c.id === 'client-1')!
+    const asked = (await say(slug, 'Can someone call me about my visits?')).json<Answer>()
+    const prepared = (
+      await say(
+        slug,
+        `I'm Amelia Carter, ${amelia.email}`,
+        [
+          { from: 'guest', text: 'Can someone call me about my visits?' },
+          { from: 'receptionist', text: asked.text },
+        ],
+        asked.chat,
+      )
+    ).json<Answer>()
+    expect(prepared.proposals[0].kind).toBe('message')
+    expect((await take(slug, prepared.proposals[0].id)).statusCode).toBe(200)
+    const after = (await studio(login)).state
+    const left = (after.replies ?? []).find((r) => r.channel === 'chat')!
+    expect(left.from).toBe(amelia.email)
+    expect(left.clientId).toBeUndefined()
+    // Nothing was added to her record.
+    const hers = (s: BusinessState) => s.events.filter((e) => e.clientId === amelia.id).length
+    expect(hers(after)).toBe(hers(before))
   })
 
   it('refuses unknown fields and offers no messages when the studio turned them off', async () => {

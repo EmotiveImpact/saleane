@@ -231,6 +231,7 @@ export function createContext(options: ApiOptions) {
   /**
    * A signed-in member's studio. A regional manager is refused everywhere except the routes that
    * pass `area: true` and then serve only their area's view (fail closed: new routes stay shut).
+   * A general manager whose location has closed is refused everywhere, before anything runs.
    */
   const orgFor = (orgId: string, actor: Actor, opts: { area?: boolean } = {}): Org => {
     const row = db.get<OrgRow>(
@@ -245,6 +246,9 @@ export function createContext(options: ApiOptions) {
     if (row!.role === 'regional' && !opts.area)
       fail(403, 'Your access covers your area’s view only.')
     const raw = JSON.parse(row!.state) as BusinessState
+    const state = parseState(raw, raw.organisation.region)
+    if (row!.role === 'general' && (!row!.location_id || !branchOpen(state, row!.location_id)))
+      fail(403, 'Your location has closed. Ask the owner to update your access.')
     return {
       id: row!.id,
       slug: row!.slug,
@@ -252,7 +256,7 @@ export function createContext(options: ApiOptions) {
       staffId: row!.staff_id,
       areaId: row!.area_id,
       locationId: row!.location_id,
-      state: parseState(raw, raw.organisation.region),
+      state,
     }
   }
   /** A studio read by the server itself (outbox, payment confirmations), with owner authority. */

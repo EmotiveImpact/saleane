@@ -8,7 +8,13 @@ import { socialChannels, socialLabel } from '../domain/inboxSchema'
 import type { SocialChannel } from '../domain/inboxSchema'
 import './management.css'
 
-type Account = { channel: SocialChannel; accountId: string; connectedAt: string }
+/** `confirmed` once the owner proved the account is theirs; until then its messages go nowhere. */
+type Account = {
+  channel: SocialChannel
+  accountId: string
+  confirmed: boolean
+  connectedAt: string
+}
 type Status = { mode: 'off' | 'test'; sample: boolean; accounts: Account[] }
 
 const what: Record<SocialChannel, string> = {
@@ -19,7 +25,9 @@ const what: Record<SocialChannel, string> = {
 
 /**
  * V4: the owner connects the studio's Instagram account, Facebook Page and WhatsApp Business
- * number, so guests' messages there arrive in the inbox and the team can answer them.
+ * number, so guests' messages there arrive in the inbox and the team can answer them. A typed id
+ * proves nothing, so each account waits until the owner confirms it by signing in with Meta; in
+ * test mode a labelled step stands in for that.
  */
 export function SocialAccounts() {
   const { mode, session, state, role, blocked } = useStore()
@@ -55,13 +63,29 @@ export function SocialAccounts() {
       })
       setStatus(next)
       setDrafts((d) => ({ ...d, [channel]: '' }))
+      const now = next.accounts.find((a) => a.channel === channel)
       setNotice(
-        accountId
-          ? `${socialLabel[channel]} connected. Messages to it now arrive in the Inbox.`
-          : `${socialLabel[channel]} disconnected. New messages there no longer arrive here.`,
+        !accountId
+          ? `${socialLabel[channel]} removed. New messages there no longer arrive here.`
+          : now?.confirmed
+            ? `${socialLabel[channel]} is connected. Messages to it arrive in the Inbox.`
+            : `${socialLabel[channel]} added. Confirm it is yours before its messages arrive.`,
       )
     } catch (e) {
       setError(e instanceof Error ? e.message : 'That could not be saved.')
+    } finally {
+      setPending('')
+    }
+  }
+  async function confirm(channel: SocialChannel) {
+    setPending(channel)
+    setError('')
+    setNotice('')
+    try {
+      setStatus(await api<Status>(`${base}/confirm`, { method: 'POST', body: { channel } }))
+      setNotice(`${socialLabel[channel]} confirmed. Messages to it now arrive in the Inbox.`)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'That could not be confirmed.')
     } finally {
       setPending('')
     }
@@ -86,6 +110,11 @@ export function SocialAccounts() {
           ? 'Test mode: messages are read as Meta would send them, and answers are kept in the outbox. Nothing is sent to Instagram, Facebook or WhatsApp.'
           : 'SALEANE is waiting for Meta’s approval, so messages cannot arrive yet. You can add your accounts now, and they will connect once it is ready.'}
       </p>
+      <p className="ops-help">
+        {status.mode === 'test'
+          ? 'Each account you add waits until you confirm it is yours, which is done by signing in with Meta. In test mode, the confirm button marked “(test)” stands in for that sign-in. Until then its messages do not arrive and the AI receptionist does not answer them.'
+          : 'Each account you add waits until you confirm it is yours by signing in with Meta. Until then its messages do not arrive and the AI receptionist does not answer them.'}
+      </p>
       <ul className="social-accounts">
         {socialChannels.map((channel) => {
           const account = status.accounts.find((a) => a.channel === channel)
@@ -95,14 +124,31 @@ export function SocialAccounts() {
               {account ? (
                 <div className="ops-actions">
                   <span>
-                    <strong>{label}</strong> connected · {what[channel]} {account.accountId}
+                    <strong>{label}</strong>{' '}
+                    <span className={account.confirmed ? 'tag tag-brand' : 'tag'}>
+                      {account.confirmed ? 'Connected' : 'Waiting to be confirmed'}
+                    </span>{' '}
+                    · {what[channel]} {account.accountId}
                   </span>
+                  {!account.confirmed && status.mode === 'test' && (
+                    <Button
+                      variant="secondary"
+                      disabled={blocked || !!pending}
+                      onClick={() => void confirm(channel)}
+                    >
+                      {pending === channel ? 'Confirming…' : `Confirm ${label} (test)`}
+                    </Button>
+                  )}
                   <Button
                     variant="secondary"
                     disabled={blocked || !!pending}
                     onClick={() => void save(channel, null)}
                   >
-                    {pending === channel ? 'Disconnecting…' : `Disconnect ${label}`}
+                    {pending === channel
+                      ? 'Removing…'
+                      : account.confirmed
+                        ? `Disconnect ${label}`
+                        : `Remove ${label}`}
                   </Button>
                 </div>
               ) : (
@@ -129,7 +175,7 @@ export function SocialAccounts() {
                     variant="secondary"
                     disabled={blocked || !!pending || !drafts[channel]?.trim()}
                   >
-                    {pending === channel ? 'Connecting…' : `Connect ${label}`}
+                    {pending === channel ? 'Adding…' : `Add ${label}`}
                   </Button>
                 </form>
               )}

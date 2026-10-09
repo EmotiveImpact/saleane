@@ -8,7 +8,12 @@ import type { Context, Route } from '../context'
 import { dispatch } from '../../src/domain/commands'
 import { businessDate } from '../../src/domain/operations'
 import { callerNumber } from '../../src/domain/missedCalls'
-import { CHAT_HISTORY_TURNS, askReceptionist, isOn } from '../../src/assistant/receptionist'
+import {
+  CHAT_HISTORY_TURNS,
+  askReceptionist,
+  isOn,
+  listedTimes,
+} from '../../src/assistant/receptionist'
 import type { ReceptionEffect } from '../../src/assistant/receptionist'
 
 type Held = PendingProposal<ReceptionEffect> & { organisationId: string; visitor: string }
@@ -104,6 +109,8 @@ export function receptionistRoutes() {
           kind: effect.kind,
           expiresAt,
         })),
+        // The free times the answer lists, each a button that starts booking it on this page.
+        times: listedTimes(result),
       })
       return true
     }
@@ -128,7 +135,8 @@ export function receptionistRoutes() {
       }
       ctx.db.transaction(() => {
         const fresh = ctx.publicOrg(path[2])
-        // A local number such as 07700 900456 is kept with its country code, so it finds the client.
+        // A local number such as 07700 900456 is kept with its country code, as texts are. What
+        // the visitor typed proves nothing, so the team matches the message to a client by hand.
         const from = effect.contact.includes('@')
           ? effect.contact
           : (callerNumber(fresh.state, effect.contact) ?? effect.contact)

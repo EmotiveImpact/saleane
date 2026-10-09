@@ -56,6 +56,18 @@ export function report(whole: BusinessState, days: number, locationId?: string) 
     return day >= from && day <= businessDate(s)
   })
   const retail = [...sales, ...counter].reduce((sum, sale) => sum + retailRevenue(sale), 0)
+  // V2: money taken for gift cards, packages and memberships, at the location that sold them.
+  const inPeriod = (at: string) => {
+    const day = recordDay(s, at)
+    return day >= from && day <= businessDate(s)
+  }
+  const giftCardsSold = (s.giftCards ?? [])
+    .filter((card) => inPeriod(card.payment.recordedAt))
+    .reduce((sum, card) => sum + card.payment.amountMinor, 0)
+  const plansSold = (s.holdings ?? [])
+    .flatMap((h) => h.payments)
+    .filter((p) => inPeriod(p.recordedAt))
+    .reduce((sum, p) => sum + p.amountMinor, 0)
   const booked = appointments.reduce((sum, a) => sum + a.bookedPriceMinor, 0)
   const minutes = appointments.reduce((sum, a) => sum + a.bookedDurationMinutes, 0)
   const wasRebooked = (a: (typeof completed)[number]) =>
@@ -102,6 +114,8 @@ export function report(whole: BusinessState, days: number, locationId?: string) 
     tips,
     retail,
     retailByProduct: retailByProduct([...sales, ...counter]),
+    giftCardsSold,
+    plansSold,
     booked,
     completed: completed.length,
     utilisation: capacity ? minutes / capacity : 0,

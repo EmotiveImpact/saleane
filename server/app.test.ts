@@ -864,15 +864,5 @@ describe('public booking privacy and reservation races', () => {
     expect(state.appointments).toHaveLength(1)
     expect(state.payments).toEqual([])
     expect(state.sales).toEqual([])
-    expect(
-      (
-        await api.inject({
-          method: 'POST',
-          url: `/api/workspaces/${org.id}/messages/send`,
-          headers: headers(owner),
-          payload: { id: 'not-sent' },
-        })
-      ).statusCode,
-    ).toBe(503)
   })
 })

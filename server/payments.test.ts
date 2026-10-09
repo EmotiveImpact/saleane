@@ -482,6 +482,86 @@ describe('card payments (PILOT-02)', () => {
     )
   })
 
+  it('lets only the owner, a manager or the client’s general manager remove a saved card', async () => {
+    const { owner, serviceId, staffId, slug } = await localStudio()
+    const first = await book(slug, serviceId, staffId, '2026-10-09', 600)
+    await guestPays(first.token)
+    const { state } = await workspace(owner)
+    const clientId = state.appointments.find((a) => a.id === first.appointmentId)!.clientId
+    // An older card on file for the same client.
+    api.database.run(
+      `INSERT INTO saved_cards(id,organisation_id,client_id,provider,customer_ref,method_ref,brand,last4,exp_month,exp_year,agreed,created_at)
+       VALUES('card-older',?,?,'test','test_customer_older','test_card_older','Visa','1881',12,2029,'Agreed earlier',0)`,
+      owner.orgId,
+      clientId,
+    )
+    const cards = async () =>
+      (
+        await api.inject({
+          url: `/api/workspaces/${owner.orgId}/payments?clientId=${clientId}`,
+          headers: headers(owner),
+        })
+      ).json<{ cards: { id: string }[] }>().cards
+    const [one, two] = (await cards()).map((c) => c.id)
+    expect(two).toBeDefined()
+    // A second location with its own general manager, and a region over both.
+    await run(owner, { type: 'location', input: { name: 'Islington', address: '1 Upper Street' } })
+    let fresh = (await workspace(owner)).state
+    const main = fresh.organisation.locationId
+    const islington = fresh.operations!.locations![0].id
+    await run(owner, { type: 'region', input: { name: 'London', locationIds: [main, islington] } })
+    fresh = (await workspace(owner)).state
+    const member = async (email: string, invite: Record<string, unknown>) => {
+      const invited = await api.inject({
+        method: 'POST',
+        url: `/api/workspaces/${owner.orgId}/invitations`,
+        headers: headers(owner),
+        payload: { email, ...invite },
+      })
+      expect(invited.statusCode, invited.body).toBe(201)
+      const joined = await api.inject({
+        method: 'POST',
+        url: '/api/auth/register',
+        payload: {
+          name: 'Team Member',
+          email,
+          password: 'Fictional local account 2026!',
+          invitation: invited.json<{ invitation: string }>().invitation,
+        },
+      })
+      expect(joined.statusCode, joined.body).toBe(201)
+      return {
+        orgId: owner.orgId,
+        csrf: joined.json<{ csrf: string }>().csrf,
+        cookie: String(joined.headers['set-cookie']).split(';')[0],
+      }
+    }
+    const remove = (login: Login, cardId: string) =>
+      api.inject({
+        method: 'POST',
+        url: `/api/workspaces/${owner.orgId}/cards/${cardId}/remove`,
+        headers: headers(login),
+        payload: {},
+      })
+    const refused = [
+      await member('desk@example.invalid', { role: 'reception' }),
+      await member('maya@example.invalid', { role: 'practitioner', staffId }),
+      await member('rae@example.invalid', {
+        role: 'regional',
+        areaId: fresh.operations!.regions![0].id,
+      }),
+      // Her visits are at the main location, not Islington.
+      await member('gia@example.invalid', { role: 'general', locationId: islington }),
+    ]
+    for (const login of refused) expect((await remove(login, one)).statusCode).toBe(403)
+    expect((await cards()).map((c) => c.id)).toEqual([one, two])
+    const general = await member('gus@example.invalid', { role: 'general', locationId: main })
+    expect((await remove(general, one)).statusCode).toBe(200)
+    const manager = await member('max@example.invalid', { role: 'manager' })
+    expect((await remove(manager, two)).statusCode).toBe(200)
+    expect(await cards()).toEqual([])
+  })
+
   it('never takes card payments for a sample studio', async () => {
     const owner = await register(true)
     const { state } = await workspace(owner)

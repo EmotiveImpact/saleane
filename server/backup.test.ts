@@ -7,6 +7,7 @@ import { LocalDatabase, migrations } from './database'
 import { createApiHandler } from './app'
 import type { ApiHandler } from './app'
 import { backupDatabase, restoreDatabase, validateDatabase } from './backup'
+import { metaSignature } from './messaging/meta'
 
 let directory: string
 let api: ApiHandler
@@ -85,6 +86,164 @@ describe('consistent local backups and fresh-path recovery', () => {
       recovered.close()
     }
     expect((await api.inject({ url: '/api/session', headers })).statusCode).toBe(200)
+  })
+  it('turns off what reaches outside the studio, so a restore cannot bring it back by itself', async () => {
+    const password = 'Fictional backup password!'
+    const registration = await api.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: {
+        name: 'Recovery Owner',
+        email: 'recovery@example.invalid',
+        password,
+        workspace: { name: 'Recovery Studio', locationName: 'London', region: 'UK' },
+      },
+    })
+    expect(registration.statusCode, registration.body).toBe(201)
+    const { orgId, csrf } = registration.json<{ csrf: string; orgId: string }>()
+    const headers = { cookie: String(registration.headers['set-cookie']).split(';')[0] }
+    const write = (path: string, payload: unknown) =>
+      api.inject({
+        method: 'POST',
+        url: `/api/workspaces/${orgId}${path}`,
+        headers: { ...headers, 'x-csrf-token': csrf },
+        payload,
+      })
+    // An access key, a connection with an event waiting for it, an Instagram account and a
+    // message waiting in the outbox.
+    const made = await write('/api-keys', { name: 'Accounts', scopes: ['services:read'] })
+    expect(made.statusCode, made.body).toBe(201)
+    const key = made.json<{ key: string }>().key
+    const reads = (handler: ApiHandler) =>
+      handler.inject({ url: '/api/v1/studio', headers: { authorization: `Bearer ${key}` } })
+    expect((await reads(api)).statusCode).toBe(200)
+    const hook = await write('/connections', {
+      name: 'Bookkeeping',
+      url: 'https://hooks.example.com/saleane',
+      events: ['client.created'],
+      shareContact: false,
+    })
+    expect(hook.statusCode, hook.body).toBe(201)
+    const client = await api.inject({
+      method: 'POST',
+      url: `/api/workspaces/${orgId}/commands`,
+      headers: { ...headers, 'x-csrf-token': csrf, 'idempotency-key': 'restore-client-added' },
+      payload: {
+        revision: 0,
+        command: {
+          type: 'client',
+          contact: {
+            name: 'Rosa Field',
+            email: 'rosa@example.invalid',
+            phone: '+44 7700 900456',
+            marketingConsent: false,
+          },
+        },
+      },
+    })
+    expect(client.statusCode, client.body).toBe(200)
+    expect(
+      api.database.all("SELECT * FROM connection_deliveries WHERE status='pending'"),
+    ).toHaveLength(1)
+    expect(
+      (await write('/social', { channel: 'instagram', accountId: '17841400000000001' })).statusCode,
+    ).toBe(200)
+    // Confirmed, as the owner signing in with Meta would.
+    api.database.run(
+      "UPDATE social_accounts SET account_id='17841400000000001' WHERE organisation_id=?",
+      orgId,
+    )
+    api.database.run(
+      `INSERT INTO outbox(id,organisation_id,dedupe_key,appointment_id,client_id,kind,channel,slot,recipient,subject,body,status,next_attempt_at,created_at,updated_at)
+       VALUES('outbox-waiting',?,'waiting','','client-x','missed_call','sms','call:1','+447700900456','','Sorry we missed you','pending',0,0,0)`,
+      orgId,
+    )
+    const backup = join(directory, 'before.sqlite'),
+      restored = join(directory, 'after.sqlite')
+    backupDatabase(api.database.path, backup)
+    expect(restoreDatabase(backup, restored)).toMatchObject({
+      sessionsRevoked: true,
+      accessKeysRevoked: 1,
+      connectionsTurnedOff: 1,
+      socialAccountsToConfirm: 1,
+      messagesHeld: 1,
+    })
+
+    const meta = {
+      mode: 'test' as const,
+      appSecret: 'a-long-meta-app-secret-2026',
+      verifyToken: 'a-long-verify-token-2026',
+    }
+    const recovered = createApiHandler({
+      origin: 'http://127.0.0.1:5173',
+      databasePath: restored,
+      social: meta,
+    })
+    try {
+      // The access key no longer reads anything.
+      expect((await reads(recovered)).statusCode).toBe(401)
+      expect(recovered.database.all('SELECT * FROM api_keys WHERE revoked_at IS NULL')).toEqual([])
+      // The connection is off until the owner turns it on, and what waited for it is not sent.
+      expect(recovered.database.all('SELECT * FROM connections WHERE active=1')).toEqual([])
+      expect(
+        recovered.database.all("SELECT * FROM connection_deliveries WHERE status='pending'"),
+      ).toEqual([])
+      // Messages to the Instagram account wait until the owner confirms it again.
+      const body = JSON.stringify({
+        object: 'instagram',
+        entry: [
+          {
+            id: '17841400000000001',
+            messaging: [
+              {
+                sender: { id: '9000001' },
+                recipient: { id: '17841400000000001' },
+                message: { mid: 'm-after-restore', text: 'Hello' },
+              },
+            ],
+          },
+        ],
+      })
+      const message = await recovered.inject({
+        method: 'POST',
+        url: '/api/hooks/meta',
+        headers: {
+          'content-type': 'application/json',
+          'x-hub-signature-256': metaSignature(meta.appSecret, body),
+        },
+        rawPayload: body,
+      })
+      expect(message.statusCode).toBe(200)
+      const state = recovered.database.get<{ state: string }>('SELECT state FROM organisations')!
+      expect(state.state).not.toContain('m-after-restore')
+      // The waiting message is held for the team to check and send again, not sent by itself.
+      await recovered.outbox.tick()
+      const held = recovered.database.get<{ status: string; detail: string }>(
+        "SELECT status,detail FROM outbox WHERE id='outbox-waiting'",
+      )!
+      expect(held.status).toBe('unknown')
+      expect(held.detail).toMatch(/restored from a backup/)
+      // Signing in again, the owner sees the connection off and can turn it back on.
+      const login = await recovered.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { email: 'recovery@example.invalid', password },
+      })
+      expect(login.statusCode, login.body).toBe(200)
+      const session = {
+        cookie: String(login.headers['set-cookie']).split(';')[0],
+        'x-csrf-token': login.json<{ csrf: string }>().csrf,
+      }
+      const listed = await recovered.inject({
+        url: `/api/workspaces/${orgId}/connections`,
+        headers: session,
+      })
+      expect(listed.json<{ connections: { active: boolean }[] }>().connections).toMatchObject([
+        { active: false },
+      ])
+    } finally {
+      recovered.close()
+    }
   })
   it('refuses every existing destination, including an empty file and the source database', () => {
     const destination = join(directory, 'existing.sqlite')

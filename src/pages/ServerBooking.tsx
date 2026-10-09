@@ -822,6 +822,8 @@ function BookingFlow({
                   setStaffId(offered.staffId)
                   setDate(offered.date)
                   setStart(offered.startMinutes)
+                  // V2: the page opens at the location where the time was found.
+                  if (offered.locationId) setLocationId(offered.locationId)
                   setError('')
                   setStep(2)
                 }}

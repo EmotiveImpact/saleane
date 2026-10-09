@@ -12,6 +12,7 @@ import { dirname, resolve } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { fileURLToPath } from 'node:url'
 import { SCHEMA_VERSION } from './database'
+import { UNCONFIRMED } from './messaging/meta'
 import { parseState } from '../src/domain/model'
 import type { BusinessState } from '../src/domain/model'
 
@@ -80,6 +81,7 @@ function snapshot(source: string, destination: string, restore: boolean) {
   validateDatabase(input)
   mkdirSync(dirname(output), { recursive: true, mode: 0o700 })
   const partial = `${output}.partial-${randomUUID()}`
+  let held = {}
   closeSync(openSync(partial, 'wx', 0o600))
   try {
     const database = new DatabaseSync(input, { readOnly: true, timeout: 5000 })
@@ -98,6 +100,43 @@ function snapshot(source: string, destination: string, restore: boolean) {
         recovered.exec(
           'BEGIN IMMEDIATE; DELETE FROM sessions; DELETE FROM invitations; DELETE FROM booking_holds; DELETE FROM guest_links;',
         )
+        // Nothing that reaches outside the studio comes back by itself: a key revoked since the
+        // backup would read again, a connection removed since would be sent to, and a message
+        // sent since would go twice. The owner turns each back on, and the team sends again.
+        const time = Date.now()
+        held = {
+          accessKeysRevoked: Number(
+            recovered.prepare('UPDATE api_keys SET revoked_at=? WHERE revoked_at IS NULL').run(time)
+              .changes,
+          ),
+          connectionsTurnedOff: Number(
+            recovered
+              .prepare('UPDATE connections SET active=0,updated_at=? WHERE active=1')
+              .run(time).changes,
+          ),
+          socialAccountsToConfirm: Number(
+            recovered
+              .prepare(
+                "UPDATE social_accounts SET account_id=?||organisation_id||':'||account_id WHERE substr(account_id,1,?)<>?",
+              )
+              .run(UNCONFIRMED, UNCONFIRMED.length, UNCONFIRMED).changes,
+          ),
+          messagesHeld: Number(
+            recovered
+              .prepare(
+                "UPDATE outbox SET status='unknown',detail=?,updated_at=? WHERE status='pending'",
+              )
+              .run(
+                'Held when the studio was restored from a backup. It may have gone already, so check before sending again.',
+                time,
+              ).changes,
+          ),
+        }
+        recovered
+          .prepare(
+            "UPDATE connection_deliveries SET status='skipped',detail=?,updated_at=? WHERE status='pending'",
+          )
+          .run('Not sent: the studio was restored from a backup.', time)
         for (const row of recovered.prepare('SELECT id,revision FROM organisations').all())
           recovered
             .prepare(
@@ -116,7 +155,7 @@ function snapshot(source: string, destination: string, restore: boolean) {
     chmodSync(partial, 0o600)
     // Atomic hard-link publication fails if a competing process creates the destination.
     linkSync(partial, output)
-    return { path: output, ...evidence, sessionsRevoked: restore }
+    return { path: output, ...evidence, sessionsRevoked: restore, ...held }
   } finally {
     if (existsSync(partial)) unlinkSync(partial)
     for (const suffix of ['-wal', '-shm'])
