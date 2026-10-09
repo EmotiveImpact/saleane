@@ -6,6 +6,7 @@ import type { ApiOptions, Route } from './context'
 import { HttpError, fail, header, inject, readBody } from './http'
 import type { InjectOptions, InjectResponse } from './http'
 import { authRoutes } from './routes/auth'
+import { benchmarkRoutes } from './routes/benchmark'
 import { workspaceRoutes } from './routes/workspace'
 import { publicRoutes } from './routes/public'
 import { guestRoutes } from './routes/guest'
@@ -51,6 +52,7 @@ const baseRoutes = [
   publicRoutes,
   guestRoutes,
   daySheetRoutes,
+  benchmarkRoutes,
 ]
 
 export function createApiHandler(options: ApiOptions): ApiHandler {

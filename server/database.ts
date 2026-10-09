@@ -448,6 +448,15 @@ export const migrations: Migration[] = [
         ALTER TABLE invitations_next RENAME TO invitations;
       `),
   },
+  {
+    version: 22,
+    // V5: a partner's access key can cover one location and stop on a chosen day.
+    up: (connection) =>
+      connection.exec(`
+        ALTER TABLE api_keys ADD COLUMN location_id TEXT;
+        ALTER TABLE api_keys ADD COLUMN ends_on TEXT;
+      `),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the

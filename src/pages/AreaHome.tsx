@@ -9,7 +9,7 @@ import { areaViewSchema } from '../domain/area'
 import type { AreaView } from '../domain/area'
 import type { Command } from '../domain/commands'
 import { dateLabel, money } from '../domain/format'
-import { GROUP_WINDOW_DAYS } from '../domain/group'
+import { GROUP_WINDOW_DAYS, monthEstimate } from '../domain/group'
 import { venueMinutes } from '../domain/pocket'
 import { Button, ErrorMessage, PageHeader } from '../design'
 import { PutRightList, VisitForm, VisitHistory } from './BranchVisits'
@@ -19,6 +19,8 @@ import '../practitioner.css'
 import '../components/management.css'
 import '../components/plans.css'
 import '../components/group.css'
+import { BranchMap } from '../components/BranchMap'
+import { GroupAlertList } from '../components/GroupChecks'
 import '../components/branchVisits.css'
 
 function greeting(minutes: number) {
@@ -244,6 +246,10 @@ export function AreaHome() {
               <p key={line}>{line}</p>
             ))}
           </div>
+          <div className="group-attention">
+            <h3>Needs a look</h3>
+            <GroupAlertList alerts={record.alerts} />
+          </div>
           <ul className="group-places">
             {record.places.map((p) => (
               <li key={p.id}>
@@ -288,10 +294,25 @@ export function AreaHome() {
                       )}
                     </dd>
                   </div>
+                  <div>
+                    <dt>Month-end estimate</dt>
+                    <dd>{monthEstimate(p.figures.month, org)}</dd>
+                  </div>
                 </dl>
               </li>
             ))}
           </ul>
+          <div className="group-map">
+            <h3>Where each location stands</h3>
+            {record.map ? (
+              <BranchMap org={org} pins={record.map.pins} features={record.map.features} />
+            ) : (
+              <p className="subtle">
+                A map appears once a map service is connected and two or more of your locations can
+                be placed on it. Until then, every figure is in the list above.
+              </p>
+            )}
+          </div>
         </section>
         <section className="surface ops-panel" aria-labelledby="area-put-right">
           <header>

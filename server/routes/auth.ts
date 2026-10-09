@@ -4,6 +4,7 @@ import { checkPassword, digest, passwordHash } from '../auth'
 import { COOKIE, fail, sessionToken } from '../http'
 import { createWorkspace, workspaceInput } from '../workspace'
 import { emailSchema, registration } from '../context'
+import { brandFigures, brandGroup } from '../../src/domain/brandGroup'
 import type { Context, Route } from '../context'
 
 /** Health, session, account and workspace-creation routes. Returns false when the request belongs to another module. */
@@ -18,6 +19,7 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
     actorFor,
     signIn,
     memberships,
+    orgFor,
     insertWorkspace,
     invitationFor,
     join,
@@ -120,6 +122,15 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
       db.run('DELETE FROM sessions WHERE account_id=?', actor.id)
     })
     reply(200, { csrf: signIn(response, actor.id) })
+    return true
+  }
+  if (method === 'GET' && url.pathname === '/api/group') {
+    // V5: the brands this person owns, side by side from totals only. A manager's or desk
+    // member's studios are never included: only an owner sees a brand's whole figures.
+    const actor = actorFor(request)
+    const iso = new Date(now()).toISOString()
+    const owned = memberships(actor).filter((w) => w.role === 'owner')
+    reply(200, brandGroup(owned.map((w) => brandFigures(orgFor(w.id, actor), iso))))
     return true
   }
   if (method === 'POST' && url.pathname === '/api/workspaces') {

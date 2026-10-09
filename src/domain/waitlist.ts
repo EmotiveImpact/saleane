@@ -6,6 +6,7 @@ import { businessDate, hoursFor, operations, staffHoursFor } from './operations'
 import { WAITLIST_MAX_DAYS, WAITLIST_MAX_OFFERS } from './waitlistSchema'
 import type { WaitlistEntry, WaitlistInput, WaitlistTime } from './waitlistSchema'
 import { placeOf, staffLocationOn } from './locations'
+import { repliesList } from './inbox'
 
 /**
  * V1.5: the waitlist, the first half of "from cancellation to filled slot". Openings are read live
@@ -326,6 +327,75 @@ export function staleOffer(s: BusinessState, messageId: string, now: string) {
   return openingFree(s, entry, offer, now)
     ? null
     : 'That time has gone since this offer was written. Write a new one from the waitlist.'
+}
+
+/** Hours after an offer is approved before the waitlist suggests offering the time to someone else. */
+export const PASS_ON_HOURS = 2
+
+export type UnansweredOffer = {
+  /** The person who was offered the time and has not answered. */
+  entry: WaitlistEntry
+  opening: Opening
+  approvedAt: string
+  /** The next person waiting who could take the same time: the longest waiting first. */
+  next: WaitlistEntry
+}
+
+const openingKey = (o: Opening) => `${o.date}|${o.startMinutes}|${o.staffId}`
+
+/**
+ * Offers that were approved at least `hours` ago with no reply from the client since, whose time is
+ * still free for someone else waiting. A time already passed on is not suggested again. Nothing is
+ * sent from here: passing it on writes a new offer that waits in the Inbox for approval, like any
+ * other.
+ */
+export function unansweredOffers(
+  s: BusinessState,
+  now: string,
+  hours = PASS_ON_HOURS,
+): UnansweredOffer[] {
+  const messages = new Map(operations(s).messages.map((m) => [m.id, m]))
+  const all = waitlistList(s)
+  // Each time is judged by its latest offer: one written to anyone else at the same moment or later
+  // means it has already been passed on.
+  const latest: { entry: WaitlistEntry; offer: NonNullable<WaitlistEntry['offers']>[number] }[] = []
+  for (const entry of all)
+    for (const offer of entry.offers ?? []) {
+      const key = openingKey(offer)
+      const later = all.some(
+        (other) =>
+          other.id !== entry.id &&
+          (other.offers ?? []).some((o) => openingKey(o) === key && o.at >= offer.at),
+      )
+      if (!later && !(entry.offers ?? []).some((o) => openingKey(o) === key && o.at > offer.at))
+        latest.push({ entry, offer })
+    }
+  const cutoff = Date.parse(now) - hours * 3_600_000
+  const open = waiting(s, now).sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+  const found: UnansweredOffer[] = []
+  for (const { entry, offer } of latest) {
+    const key = openingKey(offer)
+    const message = messages.get(offer.messageId)
+    // Only an approved offer still standing: a draft is still with the team, a withdrawn one ended.
+    if (!message || message.status !== 'queued' || !message.approvedAt) continue
+    if (Date.parse(message.approvedAt) > cutoff) continue
+    if (!isOpen(s, entry, now)) continue
+    const answered = repliesList(s).some(
+      (r) => r.clientId === entry.clientId && r.receivedAt >= message.approvedAt!,
+    )
+    if (answered) continue
+    const opening = { date: offer.date, startMinutes: offer.startMinutes, staffId: offer.staffId }
+    const next = open.find(
+      (e) =>
+        e.id !== entry.id &&
+        e.clientId !== entry.clientId &&
+        !(e.offers ?? []).some((o) => openingKey(o) === key) &&
+        (e.offers?.length ?? 0) < WAITLIST_MAX_OFFERS &&
+        openingFree(s, e, opening, now),
+    )
+    if (next) found.push({ entry, opening, approvedAt: message.approvedAt, next })
+  }
+  return found.sort((a, b) => a.approvedAt.localeCompare(b.approvedAt))
 }
 
 /**

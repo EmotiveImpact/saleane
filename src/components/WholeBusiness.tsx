@@ -8,9 +8,21 @@ import { places } from '../domain/locations'
 import { can } from '../domain/operations'
 import { lastVisits } from '../domain/branchVisits'
 import { dateLabel } from '../domain/format'
-import { GROUP_WINDOW_DAYS, regions, targets, wholeBusiness } from '../domain/group'
+import {
+  GROUP_WINDOW_DAYS,
+  monthEstimate,
+  regions,
+  targets,
+  weekInBrief,
+  wholeBusiness,
+} from '../domain/group'
 import type { PlaceFigures, RegionFigures } from '../domain/group'
 import type { Command } from '../domain/commands'
+import { branchMap } from '../domain/branchMap'
+import { mapFeatures, mapReady } from '../domain/areaMap'
+import { BranchMap } from './BranchMap'
+import { GroupAlertList, GroupChecksEditor } from './GroupChecks'
+import { groupAlerts } from '../domain/groupChecks'
 import './group.css'
 
 const pct = (n: number) => `${Math.round(n * 100)}%`
@@ -28,8 +40,12 @@ const changeLabel = (growth: number | null) =>
 export function WholeBusiness() {
   const { state, today, role, blocked } = useStore()
   const [editing, setEditing] = useState(false)
+  const [checking, setChecking] = useState(false)
   const [saved, setSaved] = useState('')
   const view = wholeBusiness(state, today)
+  const week = weekInBrief(state, today)
+  const map = branchMap(state, today)
+  const alerts = groupAlerts(state, today)
   const org = state.organisation
   const allowed = !blocked && can(role, 'targets')
   const monthName = new Intl.DateTimeFormat(org.locale, {
@@ -73,6 +89,53 @@ export function WholeBusiness() {
         {view.summary.map((line) => (
           <p key={line}>{line}</p>
         ))}
+      </div>
+      <div className="group-attention">
+        <h3>Needs a look</h3>
+        <GroupAlertList alerts={alerts} />
+        {allowed && (
+          <div>
+            <Button
+              variant="quiet"
+              onClick={() => {
+                setSaved('')
+                setChecking(true)
+              }}
+            >
+              Automatic checks
+            </Button>
+          </div>
+        )}
+      </div>
+      <div className="group-week">
+        <h3>The week in brief</h3>
+        <p className="subtle">
+          {dateLabel(week.from, org.locale, true)} to {dateLabel(week.to, org.locale, true)},
+          against the week before.
+        </p>
+        {week.lines.map((line) => (
+          <p key={line}>{line}</p>
+        ))}
+      </div>
+      <div className="group-map">
+        <h3>Where each location stands</h3>
+        {map.ready ? (
+          <>
+            <BranchMap org={org} pins={map.pins} features={mapFeatures(state)} />
+            {map.unplaced.length > 0 && (
+              <p className="subtle">
+                Not on the map yet, as the map cannot place its postcode: {map.unplaced.join(', ')}.
+                Its figures are in the list below.
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="subtle">
+            {mapReady(state)
+              ? 'The map appears once two or more locations have an address with a postcode we can place.'
+              : 'A map of your locations appears once a map service is connected. Until then, every figure is in the list below.'}
+          </p>
+        )}
       </div>
       <p role="status" className="ops-help">
         {saved}
@@ -124,6 +187,10 @@ export function WholeBusiness() {
                     <dd>{money(p.month.bookedMinor, org)}</dd>
                   </div>
                   <div>
+                    <dt>Month-end estimate</dt>
+                    <dd>{monthEstimate(p.month, org)}</dd>
+                  </div>
+                  <div>
                     <dt>Last branch visit</dt>
                     <dd>
                       {visited.get(p.locationId)
@@ -137,6 +204,15 @@ export function WholeBusiness() {
           </ul>
         </div>
       ))}
+      {checking && (
+        <GroupChecksEditor
+          onClose={() => setChecking(false)}
+          onSaved={(message) => {
+            setSaved(message)
+            setChecking(false)
+          }}
+        />
+      )}
       {editing && (
         <GroupEditor
           month={view.month}

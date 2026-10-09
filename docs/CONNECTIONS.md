@@ -108,11 +108,16 @@ GET /api/v1/appointments?from=2026-10-01&to=2026-10-31
 Authorization: Bearer sal_1a2b3c4d_…
 ```
 
-| Endpoint                           | Needs               | Returns                                                                                                                          |
-| ---------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/v1/studio`               | any key             | The studio's id, name, time zone and currency, and the key's scopes.                                                             |
-| `GET /api/v1/appointments?from&to` | `appointments:read` | Visits on those dates (up to 31 days), in time order, as in the event payload plus `clientId`, `serviceId` and `professionalId`. |
-| `GET /api/v1/clients`              | `clients:read`      | Clients oldest first: id, name, email, phone, whether they agreed to email news, and when they were added.                       |
-| `GET /api/v1/services`             | `services:read`     | Treatments in use with duration and price in minor units (paged), and the team with the treatments each offers.                  |
+| Endpoint                           | Needs               | Returns                                                                                                                            |
+| ---------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/v1/studio`               | any key             | The studio's id, name, time zone and currency, the key's scopes, and its `locationId` and `endsOn` (null when not set).            |
+| `GET /api/v1/appointments?from&to` | `appointments:read` | Visits on those dates (up to 31 days), in time order, as in the event payload plus `clientId`, `serviceId` and `professionalId`.   |
+| `GET /api/v1/clients`              | `clients:read`      | Clients oldest first: id, name, email, phone, whether they agreed to email news, and when they were added.                         |
+| `GET /api/v1/services`             | `services:read`     | Treatments in use with duration and price in minor units (paged), and the team with the treatments each offers.                    |
+| `GET /api/v1/takings?from&to`      | `takings:read`      | One line per day (up to 31 days) of treatments, products, tax, tips, plans, rent, fees and money given back. No receipts or names. |
 
-Visits, clients and treatments take `limit` (1 to 200, default 100) and `offset`, and say the `total`; the team comes whole with the treatments. Each key may make 120 requests a minute in all, from wherever they come. Anything but `GET` is refused with 405, a missing, wrong or revoked key with 401, a scope the key lacks with 403, and too many requests with 429.
+Visits, clients and treatments take `limit` (1 to 200, default 100) and `offset`, and say the `total`; the team comes whole with the treatments. Each key may make 120 requests a minute in all, from wherever they come. Anything but `GET` is refused with 405, a missing, wrong or revoked key, a key past its last day or one for a closed location with 401, a scope the key lacks with 403, and too many requests with 429.
+
+## Partner keys
+
+A key can be kept to one location, for a partner that works with one branch such as that branch's own till. It reads only that location's visits, plus the treatments offered there at that location's prices and the team; clients and takings belong to the whole studio and cannot be given to a one-location key. A key can also stop after a chosen day (at most one year: the latest is the day before the same date next year), counted in the studio's own time; it works through the whole of that day. Both are set when the key is made and shown in the list.

@@ -2,9 +2,15 @@ import { z } from 'zod'
 import { googleBookingSchema, receptionistSettingsSchema } from './receptionistSchema'
 import type { BusinessState } from './model'
 import { reminderSettingsSchema } from './reminderSettings'
-import { REGION_LIMIT, TARGET_LIMIT, regionSchema, targetSchema } from './groupSchema'
+import {
+  REGION_LIMIT,
+  TARGET_LIMIT,
+  groupChecksSchema,
+  regionSchema,
+  targetSchema,
+} from './groupSchema'
 import { REQUEST_LIMIT, approvalRequestSchema, approvalSettingsSchema } from './approvalsSchema'
-import { houseRulesSchema, lookSchema } from './brandRulesSchema'
+import { benchmarkSharingSchema, houseRulesSchema, lookSchema } from './brandRulesSchema'
 import {
   BRANCH_VISIT_LIMIT,
   CHECKLIST_LIMIT,
@@ -342,6 +348,8 @@ export const operationsSchema = z.object({
   /** V5: locations grouped into regions, and each location's monthly takings target. */
   regions: z.array(regionSchema).max(REGION_LIMIT).optional(),
   targets: z.array(targetSchema).max(TARGET_LIMIT).optional(),
+  /** V5: the owner's automatic checks across locations; absent means the defaults. */
+  groupChecks: groupChecksSchema.optional(),
   /** V5: branch visit checklists and the visits recorded with them. */
   checklists: z.array(checklistSchema).max(CHECKLIST_LIMIT).optional(),
   branchVisits: z.array(branchVisitSchema).max(BRANCH_VISIT_LIMIT).optional(),
@@ -351,6 +359,8 @@ export const operationsSchema = z.object({
   /** V5: the studio's colours and the house rules every location follows. */
   look: lookSchema.optional(),
   houseRules: houseRulesSchema.optional(),
+  /** V5: anonymous comparison with similar studios, only when the owner chooses to share. */
+  benchmark: benchmarkSharingSchema.optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 /**
@@ -583,6 +593,7 @@ export function can(role: Role, action: string) {
       'request-decide',
       'approval-limit',
       'house-rules',
+      'benchmark-sharing',
       'membership',
       'restore',
       'organisation',
@@ -595,6 +606,7 @@ export function can(role: Role, action: string) {
       'region',
       'region-remove',
       'targets',
+      'group-checks',
     ].includes(action)
   )
     return false

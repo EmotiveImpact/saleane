@@ -268,3 +268,25 @@
 .access-row small {
   display: block;
 }
+/* V5: an owner's brands side by side, below the studio list. */
+.brands-together {
+  margin-top: 40px;
+}
+.brands-together > h2 {
+  font-size: 24px;
+}
+.brands-together > .subtle {
+  margin-top: 8px;
+}
+.brands-together .group-places > li {
+  grid-template-columns: minmax(130px, 1fr) 3fr;
+}
+.brands-together .group-place-name .button {
+  padding-inline: 0;
+  min-height: 32px;
+}
+@media (max-width: 640px) {
+  .brands-together .group-places > li {
+    grid-template-columns: 1fr;
+  }
+}

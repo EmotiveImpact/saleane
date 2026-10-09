@@ -562,6 +562,7 @@ describe('the Business tab bar', () => {
       'Gift cards',
       'Pay',
       'Accounts',
+      'How you compare',
       'Feedback',
       'Client areas',
     ])

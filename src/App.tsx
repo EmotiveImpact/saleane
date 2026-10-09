@@ -53,6 +53,9 @@ const Requests = lazy(() =>
 const ClientAreas = lazy(() =>
   import('./pages/ClientAreas').then((module) => ({ default: module.ClientAreas })),
 )
+const Compare = lazy(() =>
+  import('./pages/Compare').then((module) => ({ default: module.Compare })),
+)
 const BrandedBooking = lazy(() =>
   import('./pages/BrandedBooking').then((module) => ({ default: module.BrandedBooking })),
 )
@@ -164,6 +167,7 @@ function WorkspaceApp() {
     { to: '/business/gift-cards', label: 'Gift cards', show: role !== 'practitioner' },
     { to: '/business/pay', label: 'Pay', show: owns },
     { to: '/business/accounts', label: 'Accounts', show: owns },
+    { to: '/business/compare', label: 'How you compare', show: owns },
     { to: '/business/feedback', label: 'Feedback', show: leads(role) },
     { to: '/business/visits', label: 'Branch visits', show: leads(role) && branches },
     { to: '/business/requests', label: 'Requests', show: leads(role) && branches },
@@ -417,6 +421,10 @@ function WorkspaceApp() {
                 element={desk ? <Navigate to="/business/money" replace /> : <Business />}
               />
               <Route path="/business/money" element={<Money />} />
+              <Route
+                path="/business/compare"
+                element={owns ? <Compare /> : <Navigate to="/business" replace />}
+              />
               <Route
                 path="/business/feedback"
                 element={leads(role) ? <Feedback /> : <Navigate to="/business" replace />}

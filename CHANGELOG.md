@@ -2,6 +2,62 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-09 · V1.5 · Passing an unanswered waitlist offer on
+
+**Status: built locally on 9 October 2026 and merged (#71); nothing deployed.** [Evidence](docs/evidence/V15-WAITLIST.md#passing-an-unanswered-offer-on).
+
+- The Waitlist page has a "Not answered yet" panel. It lists offers approved at least 2 hours ago with no reply from the client since, where the time is still free and someone else waiting could take it.
+- "Offer it to" the next person (the longest waiting whose request suits that time) writes a new offer that waits in the Inbox for approval, like any other. Nothing is sent by itself, and the first offer is not withdrawn: the first to answer gets the time.
+- A time already passed on, booked, or no longer free leaves the panel. Approving a message is not the same as sending it; with no provider connected, approved offers still wait unsent.
+
+## 2026-10-09 · V5 · Automatic checks
+
+**Status: built locally on 9 October 2026 and merged (#70); nothing deployed.** [Evidence](docs/evidence/V5-CHECKS.md).
+
+- The whole business view has a "Needs a look" list, filled by checks that run by themselves across every location: a location's week down by 20% or more, a month-end estimate 10% or more short of its target (from the 7th), a branch visit due after 30 days (once there is a checklist), and a request waiting 3 days or more.
+- The owner turns each check on or off and sets its number under "Automatic checks". Regional managers see the same list for their own locations, and their morning summary uses the owner's number of days for branch visits.
+- The checks change nothing and contact no one.
+
+## 2026-10-09 · V5 · Partner access
+
+**Status: built locally on 9 October 2026 and merged (#69); nothing deployed.** [Evidence](docs/evidence/V5-PARTNERS.md).
+
+- An access key can now be kept to one location, for a partner that works with one branch. It reads only that location's visits, plus the treatments and team, and stops if the location closes.
+- A key can stop working after a chosen day, up to a year ahead.
+- A new "Takings by day" permission lets an accountant's software read the same daily lines as the accountant's export, with no names or receipts.
+- Still read only. No real partner has been connected.
+
+## 2026-10-09 · V5 · Branch map
+
+**Status: built locally on 9 October 2026 and merged (#68); nothing deployed.** [Evidence](docs/evidence/V5-BRANCH-MAP.md).
+
+- The whole business view has a map of every location. Each pin is sized by what it took over the last 28 days and coloured by whether that is up, level or down on the 28 days before, with the best and the one that needs a look named.
+- A regional manager sees the same map with only their own region's locations.
+- Places come from a map service, which is not connected, so only sample studios show the map. A real studio sees a short note and the same figures in the list, and a location the map cannot place is named under it.
+
+## 2026-10-09 · V5 · How you compare
+
+**Status: built locally on 9 October 2026 and merged (#67); nothing deployed.** [Evidence](docs/evidence/V5-COMPARE.md).
+
+- Business has a new "How you compare" page for owners and managers. The owner chooses to share anonymously; only a studio that shares can compare.
+- Four figures are compared with similar studios in the same market over the last 90 days: the average treatment sale, visits rebooked before leaving, clients who came more than once, and missed appointments. Each shows where most studios sit, the middle studio, and whether this studio is ahead of most, typical or behind.
+- Nothing is shown until at least ten other owners share (one owner's studios count once, and never in their own comparison), other studios' figures are only shown as rounded ranges, no other studio's name is ever shown, sample studios are only compared with samples, and stopping sharing takes the studio out of every comparison at once.
+
+## 2026-10-09 · V5 · Month-end estimate and the week in brief
+
+**Status: built locally on 9 October 2026 and merged (#66); nothing deployed.** [Evidence](docs/evidence/V5-GROUP.md#month-end-estimate-and-the-week-in-brief-9-october-2026).
+
+- The whole business view now estimates where the month could end: what is already taken, plus the larger of what is booked and the recent daily pace over the days left. It says it is an estimate, not money taken, and whether the business is on course for its target when every location has one. Each location, and each location on a regional manager's page, shows its own estimate.
+- "The week in brief" sums up the last seven days against the seven before: takings from completed visits, how many visits, how many clients came for the first time, and the location with the best week when one is clearly ahead.
+
+## 2026-10-09 · V5 · Several brands, one owner
+
+**Status: built locally on 9 October 2026 and merged (#65); nothing deployed.** [Evidence](docs/evidence/V5-BRANDS.md).
+
+- When someone owns two or more studios, "Your studios" now has "Your brands together" underneath: each brand's last 28 days, the change on the 28 before, how many visits were rebooked, this month's takings and what is booked but not yet taken, and how many clients it has, with an Open button.
+- A few plain lines add the brands up. Pounds and dollars are never added together, and sample studios are never added to real ones. The brand clearly ahead is named, and a brand is said to need a look only when its takings fell. Sample studios are only ranked when there is no real brand, because they run on a fixed demonstration day.
+- Each brand keeps its own clients, team and money. The overview shows totals only, and studios where the person is a manager or on the desk are left out.
+
 ## 2026-10-09 · V5 · The client map
 
 **Status: built locally on 9 October 2026 and merged (#64); nothing deployed.** [Evidence](docs/evidence/V5-MAP.md).

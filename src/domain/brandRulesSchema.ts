@@ -49,6 +49,15 @@ export const houseRulesSchema = z
   .strict()
 export type HouseRules = z.infer<typeof houseRulesSchema>
 
+/**
+ * V5: whether this studio adds its anonymous measures to comparisons with similar studios, and
+ * since when. Only a studio that shares sees the comparison (give to get).
+ */
+export const benchmarkSharingSchema = z
+  .object({ sharing: z.boolean(), since: z.iso.date().optional() })
+  .strict()
+export type BenchmarkSharing = z.infer<typeof benchmarkSharingSchema>
+
 export const brandCommandSchemas = [
   z.object({ type: z.literal('studio-look'), look: lookSchema }).strict(),
   z
@@ -58,4 +67,5 @@ export const brandCommandSchemas = [
       coreServiceIds: z.array(id).max(CORE_LIMIT),
     })
     .strict(),
+  z.object({ type: z.literal('benchmark-sharing'), share: z.boolean() }).strict(),
 ] as const

@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { ManageVisit } from './ManageVisit'
@@ -400,7 +400,10 @@ test('wears the studio colours and photograph, like its booking page', async () 
   } as never)
   const { container } = render(<ManageVisit />)
   await screen.findByText('Skin Renewal Facial')
-  expect(document.documentElement.style.getPropertyValue('--brand')).toBe('#7a6690')
+  // The colours are applied just after the visit appears.
+  await waitFor(() =>
+    expect(document.documentElement.style.getPropertyValue('--brand')).toBe('#7a6690'),
+  )
   expect(container.querySelector('.visit-hero img')).toHaveAttribute(
     'src',
     '/images/library/rooms/studio-exterior.webp',

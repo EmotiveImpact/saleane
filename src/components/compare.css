@@ -1,0 +1,74 @@
+/* V5: how the studio compares with similar studios. No coloured edges; rows split by a hairline. */
+.compare-page {
+  display: grid;
+  gap: var(--space-5);
+}
+.compare-shared {
+  margin: var(--space-3) 0 var(--space-4);
+  padding-left: 1.2em;
+  display: grid;
+  gap: var(--space-2);
+  color: var(--muted);
+}
+.compare-list {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+}
+.compare-list > li {
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: var(--space-2);
+}
+.compare-row-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: baseline;
+  justify-content: space-between;
+}
+.compare-tag {
+  font-size: var(--text-meta);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--stone);
+  color: var(--ink);
+}
+.compare-ahead {
+  background: var(--sage-soft);
+}
+.compare-behind {
+  background: var(--rose-soft);
+}
+.compare-scale {
+  position: relative;
+  height: 18px;
+  margin-top: var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--stone);
+}
+.compare-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: var(--radius-pill);
+  background: var(--sage-soft);
+}
+.compare-median {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--muted);
+}
+.compare-you {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: var(--ink);
+}

@@ -11,6 +11,7 @@ import {
   openings,
   serviceLabel,
   timeOfDay,
+  unansweredOffers,
   waiting,
   waitlistSummary,
 } from './waitlist'
@@ -686,5 +687,76 @@ describe('waitlist', () => {
     })
     expect(edit.ok).toBe(false)
     if (!edit.ok) expect(edit.error).toContain('cannot be edited')
+  })
+
+  it('suggests passing an unanswered offer to the next person waiting, never sending it', () => {
+    const base = seed('UK')
+    const entry = waiting(base, now)[0]
+    const opening = openings(base, entry, now)[0]
+    // Two more people want the same treatment at any time: the earlier request is next in line.
+    const others = base.clients.filter((c) => c.id !== entry.clientId).slice(0, 2)
+    let s = base
+    for (const [i, client] of others.entries()) {
+      const added = execute(
+        s,
+        {
+          type: 'waitlist-add',
+          input: {
+            clientId: client.id,
+            serviceId: entry.serviceId,
+            fromDate: '2026-10-06',
+            toDate: '2026-10-20',
+            times: [],
+            note: '',
+          },
+        },
+        `2026-10-06T0${6 + i}:00:00.000Z`,
+        () => `wl-${++sequence}`,
+      )
+      if (!added.ok) throw new Error(added.error)
+      s = added.state
+    }
+    const [nextEntry] = waiting(s, now)
+      .filter((e) => e.clientId === others[0].id)
+      .slice(-1)
+    s = apply(s, { type: 'waitlist-offer', entryId: entry.id, ...opening })
+    const messageId = s.waitlist!.find((e) => e.id === entry.id)!.offers![0].messageId
+    const later = '2026-10-06T10:30:00.000Z'
+    // A draft not yet approved is still with the team, so nothing is suggested.
+    expect(unansweredOffers(s, later)).toEqual([])
+    s = apply(s, { type: 'message-queue', messageId })
+    expect(operations(s).messages.find((m) => m.id === messageId)!.approvedAt).toBe(now)
+    // Under two hours after approval, it is too soon.
+    expect(unansweredOffers(s, '2026-10-06T09:30:00.000Z')).toEqual([])
+    const found = unansweredOffers(s, later)
+    expect(found).toHaveLength(1)
+    expect(found[0].entry.id).toBe(entry.id)
+    expect(found[0].next.id).toBe(nextEntry.id)
+    expect(found[0].opening).toEqual(opening)
+    // A reply from the client since the offer was approved means they answered.
+    const replied = structuredClone(s)
+    replied.replies = [
+      {
+        ...({} as NonNullable<BusinessState['replies']>[number]),
+        id: 'reply-x',
+        clientId: entry.clientId,
+        receivedAt: '2026-10-06T09:00:00.000Z',
+      },
+    ]
+    expect(unansweredOffers(replied, later)).toEqual([])
+    // Passing it on writes a draft for the next person; it waits for approval like any offer.
+    const passed = apply(s, { type: 'waitlist-offer', entryId: nextEntry.id, ...opening })
+    expect(operations(passed).messages.at(-1)).toMatchObject({
+      status: 'draft',
+      clientId: nextEntry.clientId,
+    })
+    // The time is not suggested again once it has been passed on.
+    expect(unansweredOffers(passed, later)).toEqual([])
+    // Once the time is booked, there is nothing to pass on.
+    const booked = apply(s, {
+      type: 'book',
+      input: { clientId: 'client-1', serviceId: entry.serviceId, source: 'desk', ...opening },
+    })
+    expect(unansweredOffers(booked, later)).toEqual([])
   })
 })

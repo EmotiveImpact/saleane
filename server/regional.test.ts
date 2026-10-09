@@ -162,6 +162,8 @@ describe('regional manager access (V5)', () => {
     expect(body.state).toBeUndefined()
     expect(body.area.area.name).toBe('London')
     expect(body.area.places.map((p) => p.id)).toEqual([main, islington])
+    // A real studio has no map until a map service is connected.
+    expect(body.area.map).toBeNull()
     const json = JSON.stringify(body)
     expect(json).not.toContain(leeds)
     const full = await studio(owner)
