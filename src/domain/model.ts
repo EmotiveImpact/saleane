@@ -202,6 +202,11 @@ export const appointmentSchema = z.object({
   guestHereAt: z.iso.datetime().optional(),
   /** V1.5: the consultation this visit was booked from, at the version agreed then. */
   consultation: visitConsultationSchema.optional(),
+  /** NEXT-09: one of several visits booked together to repeat every few weeks. */
+  repeat: z
+    .object({ id, everyWeeks: z.number().int().min(1).max(12) })
+    .strict()
+    .optional(),
 })
 export const saleSchema = z.object({
   ...scoped,
@@ -412,6 +417,15 @@ export function parseState(value: unknown, region: Region): BusinessState {
     if (a.rebookedFromId && !exists(s.appointments, a.rebookedFromId))
       throw new Error('Broken rebooking link.')
     if (a.bookedDepositMinor > a.bookedPriceMinor) throw new Error('Invalid booked deposit.')
+  }
+  // NEXT-09: repeat visits are one client's, at one rhythm.
+  const repeats = new Map<string, { clientId: string; everyWeeks: number }>()
+  for (const a of s.appointments) {
+    if (!a.repeat) continue
+    const first = repeats.get(a.repeat.id)
+    if (!first) repeats.set(a.repeat.id, { clientId: a.clientId, everyWeeks: a.repeat.everyWeeks })
+    else if (first.clientId !== a.clientId || first.everyWeeks !== a.repeat.everyWeeks)
+      throw new Error('Broken repeat booking.')
   }
   if (new Set(s.sales.map((sale) => sale.appointmentId)).size !== s.sales.length)
     throw new Error('Duplicate appointment settlement.')

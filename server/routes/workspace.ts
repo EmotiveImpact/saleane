@@ -1,8 +1,14 @@
 import { z } from 'zod'
 import { digest, token } from '../auth'
 import { canonical, fail, header } from '../http'
-import { commandSchema, dispatch, rescheduleResource } from '../../src/domain/commands'
+import {
+  availableResource,
+  commandSchema,
+  dispatch,
+  rescheduleResource,
+} from '../../src/domain/commands'
 import type { Command } from '../../src/domain/commands'
+import { dateLabel, timeLabel } from '../../src/domain/format'
 import { businessDate, can, operations, permissionFor } from '../../src/domain/operations'
 import type { Role } from '../../src/domain/operations'
 import { emailSchema, roleSchema } from '../context'
@@ -48,7 +54,7 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         role: org.role,
         staffId: org.staffId,
         ...(org.role === 'general' ? { locationId: org.locationId } : {}),
-        ...workspaceView(org, org.state, today),
+        ...workspaceView(org, org.state, today, now()),
         today,
         mode: operations(org.state).mode,
         deliveryConfigured: ctx.messaging.email.live || ctx.messaging.sms.live,
@@ -156,6 +162,37 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
             command = { ...command, input: { ...command.input, locationId: org.locationId! } }
           const allocation = chooseStaff(withHolds(org), command.input, command.input.resourceId)
           command = { ...command, input: { ...command.input, ...allocation } }
+        } else if (command.type === 'book-repeat') {
+          // NEXT-09: every visit of a repeat respects guests holding a time online, exactly as a
+          // single booking does; the later ones keep the first visit's professional.
+          let booking = command.booking
+          if (org.role === 'general' && !booking.locationId)
+            booking = { ...booking, locationId: org.locationId! }
+          const held = withHolds(org)
+          booking = { ...booking, ...chooseStaff(held, booking, booking.resourceId) }
+          const at = new Date(now()).toISOString()
+          const { locale } = org.state.organisation
+          command = {
+            ...command,
+            booking,
+            visits: command.visits.map((visit) => {
+              const resourceId = availableResource(
+                held,
+                booking.serviceId,
+                booking.staffId,
+                visit.date,
+                visit.startMinutes,
+                at,
+                visit.resourceId,
+              )
+              if (!resourceId)
+                fail(
+                  409,
+                  `${dateLabel(visit.date, locale)} at ${timeLabel(visit.startMinutes, locale)}: that time was just taken. Choose another time or leave that visit out.`,
+                )
+              return { ...visit, resourceId }
+            }),
+          }
         } else if (
           (command.type === 'gift-card-sell' || command.type === 'plan-sell') &&
           org.role === 'general'
@@ -261,7 +298,7 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
       const { state, ...outcome } = result
       reply(200, {
         ...outcome,
-        ...workspaceView(reader, state, businessDate(state, new Date(now()).toISOString())),
+        ...workspaceView(reader, state, businessDate(state, new Date(now()).toISOString()), now()),
       })
       return true
     }

@@ -1,4 +1,5 @@
 import { roomWithPlace } from './locations'
+import { clockedIn, hoursPeriod } from './hours'
 import { z } from 'zod'
 import { appointmentSchema, organisationSchema } from './model'
 import type { Appointment, BusinessState } from './model'
@@ -24,7 +25,14 @@ export const PRACTITIONER_DAYS_BEFORE = 14
 export const PRACTITIONER_DAYS_AFTER = 28
 export const PRACTITIONER_NOTES = 20
 export const PRACTITIONER_PATCH_TESTS = 5
-const PRACTITIONER_COMMANDS = ['arrive', 'note', 'patch-test', 'patch-test-result'] as const
+const PRACTITIONER_COMMANDS = [
+  'arrive',
+  'note',
+  'patch-test',
+  'patch-test-result',
+  'clock-in',
+  'clock-out',
+] as const
 
 const id = z.string().min(1)
 export const practitionerViewSchema = z
@@ -44,6 +52,14 @@ export const practitionerViewSchema = z
       })
       .strict(),
     staff: z.object({ id, name: z.string(), role: z.string() }).strict(),
+    /** NEXT-07: their own clock: when they clocked in, while they are in, and today's hours. */
+    hours: z
+      .object({
+        since: z.iso.datetime().nullable(),
+        todayMinutes: z.number().int().nonnegative(),
+      })
+      .strict()
+      .optional(),
     /** V1.5: how guests rate this practitioner, as an average only and never single answers. */
     rating: z
       .object({ count: z.number().int().nonnegative(), average: z.number().nullable() })
@@ -178,6 +194,7 @@ export function practitionerView(
   s: BusinessState,
   staffId: string,
   today: string,
+  now = Date.now(),
 ): PractitionerView {
   const person = s.staff.find((p) => p.id === staffId && !p.archived)
   if (!person) throw new Error('This practitioner is not an active professional in the studio.')
@@ -220,6 +237,10 @@ export function practitionerView(
       locationName: s.organisation.locationName,
     },
     staff: { id: person.id, name: person.name, role: person.role },
+    hours: {
+      since: clockedIn(s, staffId, now)?.start ?? null,
+      todayMinutes: hoursPeriod(s, today, today).get(staffId)?.minutes ?? 0,
+    },
     rating: ownRating(s, staffId),
     appointments: visits.map((a) => ({
       id: a.id,
@@ -303,6 +324,8 @@ export function practitionerRefusal(
       return 'This client is not in your assigned visits.'
     return command.input.staffId === staffId ? null : 'Record only the patch tests you did.'
   }
+  if (command.type === 'clock-in' || command.type === 'clock-out')
+    return command.staffId === staffId ? null : 'Clock in and out only for yourself.'
   if (command.type === 'patch-test-result') {
     const test = patchTests(s).find((t) => t.id === command.patchTestId)
     if (!test || !visits.some((a) => a.clientId === test.clientId))

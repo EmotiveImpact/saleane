@@ -19,6 +19,7 @@ import {
 } from './branchVisitSchema'
 import { patchTestSettingsSchema } from './patchTestsSchema'
 import { tillSettingsSchema } from './tillSchema'
+import { SHIFT_LIMIT, shiftSchema } from './hoursSchema'
 import { MISSED_CALL_LIMIT, missedCallSchema } from './missedCallsSchema'
 import { paymentMethodSchema, processorSchema } from './paymentMethods'
 import { RENT_LIMIT, RENT_PAYMENT_LIMIT, rentPaymentSchema, rentalSchema } from './rentSchema'
@@ -374,6 +375,8 @@ export const operationsSchema = z.object({
   benchmark: benchmarkSharingSchema.optional(),
   /** Stage 2: how each location's receipts print and whether its cash drawer opens by itself. */
   till: tillSettingsSchema.optional(),
+  /** NEXT-07: hours worked, clocked in and out or added by hand, for payroll. */
+  shifts: z.array(shiftSchema).max(SHIFT_LIMIT).optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 /**
@@ -534,6 +537,11 @@ export function permissionFor(command: { type: string; approve?: boolean }) {
   )
     return 'hours'
   if (command.type === 'stock-move') return 'stock'
+  // NEXT-09: booking repeat visits is booking.
+  if (command.type === 'book-repeat') return 'book'
+  // NEXT-07: clocking in and out is for everyone in the studio; changing hours is for managers.
+  if (command.type === 'clock-in' || command.type === 'clock-out') return 'clock'
+  if (command.type === 'shift-save' || command.type === 'shift-remove') return 'shift-fix'
   if (command.type === 'message-queue' || command.type === 'social-answer') return 'message.queue'
   if (command.type === 'special-plan' || command.type === 'special-stop') return 'special'
   if (command.type === 'task-add' || command.type === 'task-done') return 'task'
@@ -553,6 +561,7 @@ export const commandPermission = permissionFor
  */
 export const GENERAL_ACTIONS = [
   'read',
+  'clock',
   'book',
   'reschedule',
   'cancel',
@@ -684,11 +693,12 @@ export function can(role: Role, action: string) {
       'request-raise',
       'studio-look',
       'till-settings',
+      'shift-fix',
     ].includes(action)
   )
     return false
   if (role === 'reception') return true
-  return ['read', 'arrive', 'note', 'patch-test', 'patch-test-result'].includes(action)
+  return ['read', 'arrive', 'note', 'patch-test', 'patch-test-result', 'clock'].includes(action)
 }
 
 /**

@@ -26,6 +26,30 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - **Help** has three new guides: taking a membership from a saved card each month, when a client texts STOP, and seeing a client at a glance.
 - On the client page a plan now reads top to bottom instead of squeezing its name beside its buttons, and visit messages are rows divided by hairlines.
 
+## 2026-10-09 · Repeat visits (NEXT-09)
+
+**Status: built locally on 9 October 2026.** [Evidence](docs/evidence/NEXT-09-REPEAT.md).
+
+- Booking a visit at the desk has Repeat: How often (every week up to every 12 weeks) and Visits in all (2 to 12). The later visits are listed with their dates: each says it is free at the same time, has the nearest free time within an hour and a half, or is left out because nothing is free or it is more than a year ahead. The desk can choose another time for any one or leave it out, and the button says how many visits it books.
+- All the visits are booked together or none are; a clash names the date and time. Each is a visit of its own, with the same professional, that can move or be cancelled alone. Guests cannot book repeats online.
+- The visit card says where a visit sits, such as "Visit 2 of 6, repeating every 4 weeks. Next: Thursday 12 November at 10:00.", and the Calendar marks repeat visits. Cancelling one offers Just this visit or this visit and the ones after it.
+- Messages: the first visit's confirmation lists the others ("Also booked, every 4 weeks: …"), later visits are not confirmed again, and visits cancelled together are one message naming them. Each visit keeps its own reminder. Messages stay in test mode until a message service is connected.
+- On the server, each later visit is checked against guests holding a time online, as a single booking is. A general manager books repeats only at their own location.
+- Help has a guide, Book visits that repeat.
+
+## 2026-10-09 · Hours worked for payroll (NEXT-07)
+
+**Status: built locally on 9 October 2026.** [Evidence](docs/evidence/NEXT-07-HOURS.md).
+
+- Clock in and out: each person does it on their own page, or the desk does it for them from Your team today on Today. Clocking out asks for any unpaid break. Your team today shows who is in and since when.
+- Pay has Hours worked: each person's hours for the month, less breaks, with their shifts newest first. Owners and managers add hours nobody clocked and change or remove wrong ones, always saying why. Nothing is deleted: a changed shift keeps the times it had before (shown under Before when it is opened), removed hours keep who removed them and why, and who changed what records each change.
+- Someone still clocked in after 16 hours is shown as a forgotten clock-out. Their hours count once an owner or manager sets when they finished.
+- Download for payroll now has Hours worked, Shifts and Shifts with no finish time for each person, and includes anyone who has left but worked in the period.
+- A practitioner can clock only themselves in and out; a general manager only the people working at their location that day, and clocks out only a shift clocked in there. Reception can clock people in and out but not change hours.
+- Changing only the break keeps the clocked start and finish to the second, and hours moved to another day count where the person worked that day.
+- Sample studios have a fortnight of clocked hours. Help has guides for clocking in and out and for putting hours right.
+- SALEANE adds up the hours; it pays nobody and does not work out hourly pay, overtime or holiday pay.
+
 ## 2026-10-09 · Help inside the app (NEXT-06)
 
 **Status: built locally on 9 October 2026; help requests are kept on the server until a help address and email are connected.** [Evidence](docs/evidence/NEXT-06-HELP.md).
