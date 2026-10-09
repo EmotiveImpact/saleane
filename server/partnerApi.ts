@@ -3,17 +3,39 @@ import { z } from 'zod'
 import { digest, equalToken } from './auth'
 import { fail, header } from './http'
 import type { Context, Route } from './context'
-import { operations } from '../src/domain/operations'
+import { businessDate, operations } from '../src/domain/operations'
+import { addDays } from '../src/domain/format'
+import { offeredAt, places, serviceAt } from '../src/domain/locations'
+import { dailySummary } from '../src/domain/accounts'
 import type { BusinessState } from '../src/domain/model'
 import { API_VERSION } from './connections'
 
 /**
- * V5: read-only access for other software. The owner makes a key for one studio, chooses what it
- * may read, and can revoke it at any time. Keys are stored only as a hash; the key itself is
- * shown once. Nothing can be changed through a key.
+ * V5: read-only access for other software and partners. The owner makes a key for one studio,
+ * chooses what it may read, and can revoke it at any time. A partner's key can also be kept to one
+ * location and stop on a chosen day. Keys are stored only as a hash; the key itself is shown once.
+ * Nothing can be changed through a key.
  */
 
-export const apiScopes = ['appointments:read', 'clients:read', 'services:read'] as const
+export const apiScopes = [
+  'appointments:read',
+  'clients:read',
+  'services:read',
+  'takings:read',
+] as const
+/** What a key for one location may read: its own visits, and the menu and team. */
+const LOCATION_SCOPES: readonly ApiScope[] = ['appointments:read', 'services:read']
+/**
+ * The last day a key may run to: the day before the same date next year, so it runs for at most
+ * one year (a key made on 29 February may run to 28 February).
+ */
+function lastEndDay(today: string) {
+  const year = Number(today.slice(0, 4)) + 1
+  const [month, day] = [Number(today.slice(5, 7)), Number(today.slice(8, 10))]
+  // Date.UTC rolls 29 February into 1 March in a year without it.
+  const next = new Date(Date.UTC(year, month - 1, day)).toISOString().slice(0, 10)
+  return addDays(next, -1)
+}
 export type ApiScope = (typeof apiScopes)[number]
 const KEY_LIMIT = 10
 const KEY_PER_MINUTE = 120
@@ -32,12 +54,18 @@ type KeyRow = {
   created_at: number
   last_used_at: number | null
   revoked_at: number | null
+  location_id: string | null
+  ends_on: string | null
 }
 
 const keyInput = z
   .object({
     name: z.string().trim().min(2).max(60),
     scopes: z.array(z.enum(apiScopes)).min(1).max(apiScopes.length),
+    /** Only this location's visits, for a partner that works with one branch. */
+    locationId: z.string().min(1).max(100).optional(),
+    /** The last day the key works, in the studio's own days. */
+    endsOn: z.iso.date().optional(),
   })
   .strict()
 const empty = z.object({}).strict()
@@ -58,6 +86,8 @@ const keyView = (row: KeyRow) => ({
   createdBy: row.created_by,
   createdAt: new Date(row.created_at).toISOString(),
   lastUsedAt: row.last_used_at ? new Date(row.last_used_at).toISOString() : null,
+  locationId: row.location_id,
+  endsOn: row.ends_on,
 })
 
 const hhmm = (minutes: number) =>
@@ -78,6 +108,14 @@ function appointmentView(s: BusinessState, a: BusinessState['appointments'][numb
     professionalId: a.staffId,
     source: a.source,
   }
+}
+
+function dates(query: Record<string, string>) {
+  const { from, to } = range.parse(query)
+  // Both dates are included, so 31 days means `to` is at most 30 days after `from`.
+  if (days(from, to) < 0 || days(from, to) >= MAX_DAYS)
+    fail(400, `Ask for up to ${MAX_DAYS} days at a time, with "from" on or before "to".`)
+  return { from, to }
 }
 
 export function partnerApi() {
@@ -125,6 +163,18 @@ export function partnerApi() {
     }
     if (path.length === 4 && method === 'POST') {
       const input = keyInput.parse(body)
+      const today = businessDate(org.state, new Date(time).toISOString())
+      if (input.locationId) {
+        if (!places(org.state).some((p) => p.id === input.locationId))
+          fail(422, 'Choose one of your open locations.')
+        if (input.scopes.some((scope) => !LOCATION_SCOPES.includes(scope)))
+          fail(
+            422,
+            'A key for one location can read its visits and the treatments and team only. Clients and takings belong to the whole studio.',
+          )
+      }
+      if (input.endsOn && (input.endsOn < today || input.endsOn > lastEndDay(today)))
+        fail(422, 'Choose an end date from today to a year ahead.')
       const prefix = randomBytes(4).toString('hex')
       const key = `sal_${prefix}_${randomBytes(24).toString('base64url')}`
       const id = randomUUID()
@@ -136,7 +186,7 @@ export function partnerApi() {
         if (count >= KEY_LIMIT)
           fail(409, `Keep up to ${KEY_LIMIT} access keys. Revoke one you no longer use.`)
         c.db.run(
-          'INSERT INTO api_keys(id,organisation_id,name,prefix,key_hash,scopes,created_by,created_at) VALUES(?,?,?,?,?,?,?,?)',
+          'INSERT INTO api_keys(id,organisation_id,name,prefix,key_hash,scopes,created_by,created_at,location_id,ends_on) VALUES(?,?,?,?,?,?,?,?,?,?)',
           id,
           org.id,
           input.name,
@@ -145,6 +195,8 @@ export function partnerApi() {
           JSON.stringify([...new Set(input.scopes)]),
           actor.name,
           time,
+          input.locationId ?? null,
+          input.endsOn ?? null,
         )
         c.audit(org, actor.id, 'api-key.created', id)
       })
@@ -188,12 +240,18 @@ export function partnerApi() {
     const org = c.systemOrg(row!.organisation_id)
     if (!org || operations(org.state).mode === 'sandbox')
       fail(401, 'This access key is not valid or was revoked.')
+    const s = org!.state
+    // A key past its last day, or for a location since closed, reads nothing more.
+    if (row!.ends_on && businessDate(s, new Date(c.now()).toISOString()) > row!.ends_on)
+      fail(401, 'This access key has reached its end date.')
+    const only = row!.location_id
+    if (only && !places(s).some((p) => p.id === only))
+      fail(401, 'This access key was for a location that has closed.')
     const scopes = JSON.parse(row!.scopes) as ApiScope[]
     const need = (scope: ApiScope) => {
       if (!scopes.includes(scope)) fail(403, `This key cannot read that. It needs ${scope}.`)
     }
     c.db.run('UPDATE api_keys SET last_used_at=? WHERE id=?', c.now(), row!.id)
-    const s = org!.state
     const query = Object.fromEntries(url.searchParams)
     const resource = path.slice(2).join('/')
     if (resource === 'studio') {
@@ -206,23 +264,33 @@ export function partnerApi() {
           currency: s.organisation.currency,
         },
         scopes,
+        locationId: only,
+        endsOn: row!.ends_on,
       })
       return true
     }
     if (resource === 'appointments') {
       need('appointments:read')
-      const { from, to } = range.parse(query)
-      // Both dates are included, so 31 days means `to` is at most 30 days after `from`.
-      if (days(from, to) < 0 || days(from, to) >= MAX_DAYS)
-        fail(400, `Ask for up to ${MAX_DAYS} days at a time, with "from" on or before "to".`)
+      const { from, to } = dates(query)
       const { limit, offset } = page.parse(query)
       const all = s.appointments
-        .filter((a) => a.date >= from && a.date <= to)
+        .filter((a) => a.date >= from && a.date <= to && (!only || a.locationId === only))
         .sort((a, b) => a.date.localeCompare(b.date) || a.startMinutes - b.startMinutes)
       reply(200, {
         apiVersion: API_VERSION,
         data: all.slice(offset, offset + limit).map((a) => appointmentView(s, a)),
         total: all.length,
+      })
+      return true
+    }
+    if (resource === 'takings') {
+      need('takings:read')
+      const { from, to } = dates(query)
+      // Totals by day only: no receipts, no names. Money given back is shown, never netted away.
+      reply(200, {
+        apiVersion: API_VERSION,
+        currency: s.organisation.currency,
+        data: dailySummary(s, from, to),
       })
       return true
     }
@@ -249,7 +317,10 @@ export function partnerApi() {
     if (resource === 'services') {
       need('services:read')
       const { limit: size, offset } = page.parse(query)
-      const active = s.services.filter((x) => !x.archived)
+      // A key for one location sees that location's menu, at its prices.
+      const active = s.services
+        .filter((x) => !x.archived && (!only || offeredAt(x, only)))
+        .map((x) => (only ? serviceAt(x, only) : x))
       reply(200, {
         apiVersion: API_VERSION,
         total: active.length,

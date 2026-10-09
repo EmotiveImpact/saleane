@@ -4,8 +4,10 @@ import { KeyRound } from 'lucide-react'
 import { useStore } from '../state/context'
 import { api } from '../state/api'
 import { Button, ErrorMessage } from '../design'
+import { places } from '../domain/locations'
+import { fullDateLabel } from '../domain/format'
 
-type Scope = 'appointments:read' | 'clients:read' | 'services:read'
+type Scope = 'appointments:read' | 'clients:read' | 'services:read' | 'takings:read'
 type AccessKey = {
   id: string
   name: string
@@ -14,6 +16,8 @@ type AccessKey = {
   createdBy: string
   createdAt: string
   lastUsedAt: string | null
+  locationId: string | null
+  endsOn: string | null
 }
 type Listing = { keys: AccessKey[]; apiVersion: string; sample: boolean; key?: string }
 
@@ -21,12 +25,16 @@ const scopeLabel: Record<Scope, string> = {
   'appointments:read': 'Visits',
   'clients:read': 'Clients, with names, email and phone',
   'services:read': 'Treatments, prices and the team',
+  'takings:read': 'Takings by day, with no names or receipts',
 }
+/** A key for one location reads that location's visits and the menu only. */
+const locationScopes: Scope[] = ['appointments:read', 'services:read']
 const scopes = Object.keys(scopeLabel) as Scope[]
 
 /**
- * V5: read-only access keys. Other software (an accountant's tool, the studio's own reports)
- * can read what the owner allows and change nothing. Each key can be revoked at any time.
+ * V5: read-only access keys. Other software and partners (an accountant's tool, a branch's own
+ * till, the studio's own reports) can read what the owner allows and change nothing. A key can be
+ * kept to one location and stop on a chosen day, and can be revoked at any time.
  */
 export function AccessKeys() {
   const { mode, session, state, role } = useStore()
@@ -40,6 +48,11 @@ export function AccessKeys() {
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
   const [chosen, setChosen] = useState<Scope[]>(['appointments:read'])
+  const [locationId, setLocationId] = useState('')
+  const [endsOn, setEndsOn] = useState('')
+  const sites = places(state)
+  const siteName = (id: string) => sites.find((p) => p.id === id)?.name ?? 'a closed location'
+  const offered = locationId ? locationScopes : scopes
   const when = (iso: string) =>
     new Intl.DateTimeFormat(state.organisation.locale, {
       day: 'numeric',
@@ -82,12 +95,23 @@ export function AccessKeys() {
   }
   async function add(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const next = await send('', { name, scopes: chosen }, `Made “${name.trim()}”.`)
+    const next = await send(
+      '',
+      {
+        name,
+        scopes: chosen.filter((x) => offered.includes(x)),
+        ...(locationId ? { locationId } : {}),
+        ...(endsOn ? { endsOn } : {}),
+      },
+      `Made “${name.trim()}”.`,
+    )
     if (next?.key) {
       setShown({ name: name.trim(), value: next.key })
       setAdding(false)
       setName('')
       setChosen(['appointments:read'])
+      setLocationId('')
+      setEndsOn('')
     }
   }
 
@@ -104,7 +128,8 @@ export function AccessKeys() {
           <p>
             Let other software read from your studio, such as your accountant&rsquo;s tool or your
             own reports. A key can only read what you tick, never change anything, and stops working
-            the moment you revoke it.
+            the moment you revoke it. A partner&rsquo;s key can be kept to one location and stop on
+            a day you choose.
           </p>
         </div>
         <KeyRound size={21} />
@@ -130,8 +155,14 @@ export function AccessKeys() {
               <div>
                 <strong>{k.name}</strong>
                 <p>
-                  Starts sal_{k.prefix}. Reads {k.scopes.map((s) => scopeLabel[s]).join('; ')}.
+                  Starts sal_{k.prefix}. Reads {k.scopes.map((s) => scopeLabel[s]).join('; ')}
+                  {k.locationId ? `, at ${siteName(k.locationId)} only` : ''}.
                 </p>
+                {k.endsOn && (
+                  <p>
+                    Works until the end of {fullDateLabel(k.endsOn, state.organisation.locale)}.
+                  </p>
+                )}
                 <p>
                   Made by {k.createdBy}, {when(k.createdAt)}.{' '}
                   {k.lastUsedAt ? `Last used ${when(k.lastUsedAt)}.` : 'Not used yet.'}
@@ -165,9 +196,28 @@ export function AccessKeys() {
               onChange={(e) => setName(e.target.value)}
             />
           </label>
+          {sites.length > 1 && (
+            <label>
+              Which locations
+              <select value={locationId} onChange={(e) => setLocationId(e.target.value)}>
+                <option value="">The whole studio</option>
+                {sites.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} only
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <fieldset className="message-settings">
             <legend>It may read</legend>
-            {scopes.map((scope) => (
+            {locationId && (
+              <p className="ops-help">
+                A key for one location reads its visits and the treatments and team. Clients and
+                takings belong to the whole studio.
+              </p>
+            )}
+            {offered.map((scope) => (
               <label className="checkbox-label" key={scope}>
                 <input
                   type="checkbox"
@@ -182,8 +232,12 @@ export function AccessKeys() {
               </label>
             ))}
           </fieldset>
+          <label>
+            Stops working after (optional)
+            <input type="date" value={endsOn} onChange={(e) => setEndsOn(e.target.value)} />
+          </label>
           <div className="ops-actions">
-            <Button type="submit" disabled={pending || chosen.length === 0}>
+            <Button type="submit" disabled={pending || !chosen.some((x) => offered.includes(x))}>
               {pending ? 'Making…' : 'Make the key'}
             </Button>
             <Button variant="quiet" disabled={pending} onClick={() => setAdding(false)}>
