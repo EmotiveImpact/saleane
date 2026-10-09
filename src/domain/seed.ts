@@ -5,6 +5,7 @@ import { addDays, dateLabel, timeLabel } from './format'
 import { DEMO_MINUTES, defaultOperations, hoursFor, instantFor } from './operations'
 import { standardWording } from './consent'
 import { STARTER_CHECKLIST } from './branchVisits'
+import { sampleShifts } from './hours'
 import { Diary, planRegulars, sampleRegulars, seeded } from './sampleDiary'
 import type { PlannedVisit, Random } from './sampleDiary'
 
@@ -755,6 +756,8 @@ function build(region: Region, regularCount: number): BusinessState {
   seedStock(state, uk, random, at)
   seedSuppliers(state)
   seedPay(state)
+  // NEXT-07: a fortnight of clocked hours, so Pay shows hours worked.
+  ;(state.operations ??= defaultOperations('sandbox')).shifts = sampleShifts(state, DEMO_DATE)
   seedBranchVisits(state)
   seedRent(state, uk)
   seedAccounting(state, uk)

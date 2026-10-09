@@ -2,6 +2,18 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-09 · Hours worked for payroll (NEXT-07)
+
+**Status: built locally on 9 October 2026.** [Evidence](docs/evidence/NEXT-07-HOURS.md).
+
+- Clock in and out: each person does it on their own page, or the desk does it for them from Your team today on Today. Clocking out asks for any unpaid break. Your team today shows who is in and since when.
+- Pay has Hours worked: each person's hours for the month, less breaks, with their shifts newest first. Owners and managers add hours nobody clocked and change or remove wrong ones, always saying why. Nothing is deleted: a changed shift keeps the times it had before (shown under Before when it is opened), removed hours keep who removed them and why, and who changed what records each change.
+- Someone still clocked in after 16 hours is shown as a forgotten clock-out. Their hours count once an owner or manager sets when they finished.
+- Download for payroll now has Hours worked, Shifts and Shifts with no finish time for each person, and includes anyone who has left but worked in the period.
+- A practitioner can clock only themselves in and out; a general manager only the people working at their location that day. Reception can clock people in and out but not change hours.
+- Sample studios have a fortnight of clocked hours. Help has guides for clocking in and out and for putting hours right.
+- SALEANE adds up the hours; it pays nobody and does not work out hourly pay, overtime or holiday pay.
+
 ## 2026-10-09 · Help inside the app (NEXT-06)
 
 **Status: built locally on 9 October 2026; help requests are kept on the server until a help address and email are connected.** [Evidence](docs/evidence/NEXT-06-HELP.md).

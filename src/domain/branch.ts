@@ -1,9 +1,10 @@
 import type { BusinessState } from './model'
 import type { Command } from './commands'
-import { operations } from './operations'
+import { businessDate, operations } from './operations'
 import { places, staffLocationOn } from './locations'
 import { branchVisits } from './branchVisits'
 import { withoutPayRates } from './pay'
+import { shiftsAt } from './hours'
 
 /**
  * V5: a general manager runs one location ('general', with the location in their access). They
@@ -95,6 +96,11 @@ export function branchRefusal(
         ? 'That waitlist place is for another location.'
         : null
     }
+    case 'clock-in':
+    case 'clock-out':
+      return staffLocationOn(s, command.staffId, businessDate(s)) === locationId
+        ? null
+        : 'That person works at another location today.'
     case 'waitlist-offer':
       return staffLocationOn(s, command.staffId, command.date) === locationId
         ? null
@@ -161,6 +167,7 @@ export function branchView(s: BusinessState, locationId: string): BusinessState 
         ? { branchVisits: o.branchVisits.filter((v) => v.locationId === locationId) }
         : {}),
       ...(o.requests ? { requests: o.requests.filter((r) => r.locationId === locationId) } : {}),
+      ...(o.shifts ? { shifts: shiftsAt(o.shifts, locationId, s.organisation.locationId) } : {}),
     },
   }
 }

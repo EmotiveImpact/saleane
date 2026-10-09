@@ -83,6 +83,7 @@ describe('help inside the app', () => {
     expect(ids(helpForScreen('/practice/org-1', '', 'practitioner'))).toEqual([
       'practitioner-day',
       'practitioner-patch',
+      'practitioner-clock',
       'day-sheet',
     ])
     expect(helpForScreen('/today', '', 'owner')[0].id).toBe('get-ready')
@@ -106,6 +107,9 @@ describe('help inside the app', () => {
     expect(first('my subscription')).toBe('billing')
     expect(first('GDPR')).toBe('client-privacy')
     expect(first('xero')).toBe('accounts')
+    expect(first('clock in')).toBe('clock')
+    expect(first('timesheet forgot to clock out')).toBe('hours-worked')
+    expect(first('clock in', 'practitioner')).toBe('practitioner-clock')
     expect(searchHelp('the', 'owner')).toEqual([])
     expect(searchHelp('rocket launch', 'owner')).toEqual([])
     expect(helpWords("Customer's bookings")).toEqual(['client', 'visit'])
