@@ -18,6 +18,7 @@ import { availableResource } from '../src/domain/commands'
 import { staffLocationOn } from '../src/domain/locations'
 import { operations } from '../src/domain/operations'
 import { areaPlaces } from '../src/domain/area'
+import { changeDetail, type ChangeDetail } from '../src/domain/changeRecord'
 import { branchOpen } from '../src/domain/branch'
 import type { Role, Tax } from '../src/domain/operations'
 
@@ -303,9 +304,10 @@ export function createContext(options: ApiOptions) {
     action: string,
     recordId: string,
     revision = org.state.revision,
+    detail?: ChangeDetail,
   ) =>
     db.run(
-      'INSERT INTO audit_events(id,organisation_id,actor_id,action,record_id,revision,occurred_at) VALUES(?,?,?,?,?,?,?)',
+      'INSERT INTO audit_events(id,organisation_id,actor_id,action,record_id,revision,occurred_at,detail) VALUES(?,?,?,?,?,?,?,?)',
       randomUUID(),
       org.id,
       actorId,
@@ -313,6 +315,7 @@ export function createContext(options: ApiOptions) {
       recordId,
       revision,
       now(),
+      detail ? JSON.stringify(detail) : null,
     )
   const insertWorkspace = (state: BusinessState, accountId: string) => {
     const slug = `${
@@ -368,7 +371,15 @@ export function createContext(options: ApiOptions) {
     )
     if (Number(result.changes) !== 1)
       fail(409, 'Someone else saved a change just now. Reload to see it, then try again.')
-    audit(org, actorId, action, recordId, parsed.revision)
+    // NEXT-05: which details of the record changed, for the owner's change record.
+    audit(
+      org,
+      actorId,
+      action,
+      recordId,
+      parsed.revision,
+      changeDetail(org.state, parsed, action, recordId),
+    )
     for (const listener of persistListeners) listener(org, org.state, parsed)
   }
   const withHolds = (org: Org, excludeHash = '') => {

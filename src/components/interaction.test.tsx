@@ -774,6 +774,22 @@ describe('the Settings page', () => {
     expect(within(picker).getByRole('group', { name: 'Guests and messages' })).toBeInTheDocument()
   })
 
+  it('shows who changed what to the owner only (NEXT-05)', async () => {
+    await signedIn('manager', '/settings?section=changes')
+    expect(await screen.findByRole('tab', { name: 'Studio details' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(screen.queryByRole('tab', { name: 'Who changed what' })).not.toBeInTheDocument()
+    cleanup()
+    await signedIn('owner', '/settings?section=changes')
+    expect(await screen.findByRole('tab', { name: 'Who changed what' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(screen.getByRole('heading', { name: 'Who changed what' })).toBeInTheDocument()
+  })
+
   it('keeps the old section addresses and shows a photograph beside each treatment', async () => {
     const user = userEvent.setup()
     await show('/settings?section=service')
