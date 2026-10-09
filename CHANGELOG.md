@@ -12,6 +12,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - A waitlist nobody has used yet opens with the tea photograph, "Nobody is waiting yet." and one button, instead of three figures at zero. The list itself has one person per row with a line between them, no box inside the panel's box, and "Take off the list" as a quiet button under the times.
 - Pages show loading shapes while they first open, as does "Who changed what" while it reads the record. The page for a missing link has a photograph and a button back to Today.
 - Small empty notes across the app now use the light serif heading.
+- Every dialog's close button is now a full 44px target at every width, with the cross where it was.
 
 ## 2026-10-09 · Studios paying for SALEANE (NEXT-02)
 

@@ -508,6 +508,18 @@
 .definition-content[data-state='open'] {
   animation: calm-fade var(--motion-quick) ease-out;
 }
+/* Every dialog's close button is a full touch target at every width. The negative margin keeps
+   the cross where it sat and the heading row the same height. */
+.dialog-heading .dialog-close {
+  width: var(--target);
+  height: var(--target);
+  margin: -4px -4px -4px 0;
+}
+@media (max-width: 650px) {
+  .dialog-heading .dialog-close {
+    margin: -2px -2px -2px 0;
+  }
+}
 
 /* Empty states. Small ones sit inside a list or panel. A page with nothing in it yet opens with
    a welcome in the wizards' manner: the words on a warm stone ground and a house photograph

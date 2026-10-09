@@ -33,10 +33,11 @@ The bar itself is in [DESIGN_LANGUAGE.md](../DESIGN_LANGUAGE.md#quality-bar).
 
 6. Motion: the new client dialog was part-way faded in 80 milliseconds after opening and fully shown by 500; Escape still closed it at once. A visit's side panel on Today slid in from the right and settled. With reduced motion asked for, the dialog was fully shown at once.
 7. A missing address (/nowhere) shows the same welcome panel with the towels photograph, "This page isn't here." and Return to Today.
-8. `/design-language` shows the new empty page, loading shapes, more options and a "Show it again" motion example.
+8. Every dialog's close button measured 44 by 44 pixels at 1440px and 390px (before: 36 at 1440px and 40 at 390px), with the cross in the same place as before, and still closed the dialog.
+9. `/design-language` shows the new empty page, loading shapes, more options and a "Show it again" motion example.
 
 axe (WCAG 2.0, 2.1 and 2.2 A and AA tags) found nothing on the new studio's Clients and Waitlist at 1440px and 390px, the demo waitlist at both widths, or the missing page. No console errors.
 
 ## Not covered
 
-Safari and Firefox were not checked. Only these screens were changed; the full polish pass across every page comes later. A new studio's Calendar still shows an empty grid with no one on it, which is for that pass.
+Safari and Firefox were not checked. Only these screens were changed; the full polish pass across every page comes later. A new studio's Calendar still shows an empty grid with no one on it, and the Calendar arrows and the phone menu buttons are still under 44px; both are for that pass.
