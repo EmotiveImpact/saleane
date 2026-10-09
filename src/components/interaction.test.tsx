@@ -193,6 +193,27 @@ describe('connected operator journeys', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(trigger).toHaveFocus()
   })
+  it('opens Help on the guides for this screen, and hands over to Ask SALEANE', async () => {
+    const user = userEvent.setup()
+    await show('/calendar')
+    const trigger = screen.getByRole('button', { name: 'Help' })
+    await user.click(trigger)
+    const help = await screen.findByRole('dialog', { name: 'Help' })
+    expect(within(help).getByRole('list', { name: 'On this screen' })).toHaveTextContent(
+      'Book a visit',
+    )
+    expect(help).toHaveTextContent('The browser demo cannot send anything.')
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog', { name: 'Help' })).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+    await user.click(trigger)
+    await user.click(
+      within(await screen.findByRole('dialog', { name: 'Help' })).getByRole('button', {
+        name: 'Ask SALEANE',
+      }),
+    )
+    expect(await screen.findByRole('dialog', { name: 'Ask SALEANE' })).toBeInTheDocument()
+  })
   it('checks out an arrived visit and presents the linked receipt and rebooking action', async () => {
     const user = userEvent.setup()
     await show()

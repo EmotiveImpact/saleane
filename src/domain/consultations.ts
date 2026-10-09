@@ -106,7 +106,9 @@ export function runConsultationCommand(
   if (command.heldOn > businessDate(next, now))
     throw new Error('Record a consultation once it has happened.')
   if (list.length >= CONSULTATION_LIMIT)
-    throw new Error('The studio cannot keep more consultations. Please contact support.')
+    throw new Error(
+      'The studio cannot keep more consultations. Write to the SALEANE team from Help, at the top of the screen.',
+    )
   const c: Consultation = {
     id: makeId(),
     organisationId: next.organisation.id,

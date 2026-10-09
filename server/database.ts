@@ -602,6 +602,23 @@ export const migrations: Migration[] = [
           WHERE status='stopped';
       `),
   },
+  {
+    version: 28,
+    // NEXT-06, help inside the app: each request to the SALEANE team, with what happened to the
+    // email that carries it. It is kept whether or not it could be sent, and never deleted here.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE support_requests (
+          id TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id),
+          organisation_id TEXT REFERENCES organisations(id), role TEXT,
+          topic TEXT NOT NULL CHECK(topic IN ('using','billing','problem','idea','other')),
+          message TEXT NOT NULL, page TEXT,
+          status TEXT NOT NULL CHECK(status IN ('kept','test','accepted','failed','unknown')),
+          provider TEXT, provider_ref TEXT, detail TEXT, created_at INTEGER NOT NULL
+        ) STRICT;
+        CREATE INDEX support_requests_recent ON support_requests(account_id,created_at);
+      `),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the
