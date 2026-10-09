@@ -31,7 +31,7 @@ Built 9 October 2026 in a worktree, on top of main at `016f3ca`. Everything belo
 
 ## Server
 
-- Migration **28** (26 and 27 belong to work merging alongside): `images` (id, organisation, kind, content type, bytes, width, height, created time, created by), each bounded by CHECK constraints, and an index by studio and time.
+- Migration **30**: `images` (id, organisation, kind, content type, bytes, width, height, created time, created by), each bounded by CHECK constraints, and an index by studio and time.
 - `POST /api/workspaces/:orgId/images`: session, request token and the studio's own address as on every write; a body of `image/jpeg`, `image/png` or `image/webp` only, read up to 400 KB; the route's own rate limit of 30 a minute. Photos added but never kept on a product are cleared away after a day, and a studio keeps at most 1000.
 - `GET /api/workspaces/:orgId/images/:imageId`: signed-in members of that studio with a studio role only (owner, manager, reception, general manager whose location is open). The photo is looked up by id and studio together, so another studio's id is "not found". Headers: the stored content type, `X-Content-Type-Options: nosniff`, `Cache-Control: private, max-age=31536000, immutable` (a new photo always gets a new id), a `sandbox` content security policy and `Cross-Origin-Resource-Policy: same-origin`. Photo reads have their own rate allowance so a page of thumbnails never uses up the one for saving work.
 - A product command naming a new photo is refused unless the photo is this studio's own ("That photo could not be found. Add it again.").
@@ -44,7 +44,6 @@ Built 9 October 2026 in a worktree, on top of main at `016f3ca`. Everything belo
 - `src/components/ScanField.test.tsx` (7, whole app in the browser sample): **scanning adds a product at a walk-in sale**, and one more on a second scan; a scan while another field has focus adds the product and leaves that field as it was, and the sale is then recorded; unknown code, wrong check digit and a treatment-only product, each in plain words; on Stock a scan opens the product; in the product form a scan fills the barcode, keeps the name as typed and opens the fold; each scan in a count adds one and another product is refused; a supplier order counts each scan from zero and names a product not on the order.
 - `src/components/CameraScan.test.tsx` (5): no button without `BarcodeDetector`; the camera is asked for only on press, with the rear camera, and stops once a code is read; it stops when the view is closed; a refused camera is explained; photos are shrunk to 800 pixels and never enlarged.
 - `server/images.test.ts` (13): JPEG, PNG and WebP read from their bytes, SVG, GIF, HTML and truncated files refused; owner upload and the served headers; type decided by the first bytes (SVG sent as PNG or JPEG refused, a JPEG sent as PNG stored as JPEG); over 400 KB (also with a false length) and over 2000 pixels refused, exactly 400 KB accepted, an empty body refused; request token and address; managers may add, reception may only view, practitioners neither; general managers view but cannot add; another studio's photo is "not found" to read and refused to attach; unused photos cleared after a day; barcode duplicates, wrong digits and the normal form through the command route; reception cannot change a barcode; backup and restore keep the photo.
-- Adjusted: `server/database.test.ts`, `server/app.test.ts` and `server/backup.ts` now read the known migration list instead of assuming versions run 1 to n without a gap, because 28 lands before 26 and 27.
 
 ## Checks
 
@@ -78,7 +77,7 @@ Built 9 October 2026 in a worktree, on top of main at `016f3ca`. Everything belo
 
 ## Limits and notes
 
-- **Migration order.** Migration 28 lands before 26 and 27. The migration runner needs applied steps to be a prefix of the known ones, so a local database that runs 28 before 26 and 27 arrive will refuse to open once they do. Merge 26 and 27 first, or start a fresh local database (or restore a backup taken before) after they merge. Once all three are on main, the contiguity assertions in `server/database.test.ts` can be restored.
+- **Migration number.** This part was built as 28. Main took 26 to 28 and Stage 1 took 29 while it waited, so it is 30, after them, and the migrations run 1 to 31 without a gap again. A local database that ran this part as 28 must be started afresh.
 - Photos are cached privately by the browser for a year (each new photo has a new id). After signing out, someone using the same browser profile could still open a cached photo if they knew its address. Product photos are not personal data, so this was accepted.
 - In the browser demo, photos are saved with the demo database in the browser's local storage, which holds a few megabytes, so after about ten photos the demo stops saving between visits (it keeps working until the tab closes). The demo was not built here (its dependencies are not installed); `demo/server.ts` was type-checked on its own.
 - Camera scanning depends on `BarcodeDetector`, which Chrome on Android and Safari on recent iPhones and iPads offer and most desktop browsers do not.

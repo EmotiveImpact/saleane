@@ -36,11 +36,11 @@ Roles: owners, managers and reception print, email and open the drawer (they tak
 - `src/components/ReceiptSlip.test.tsx` (6): the slip's layout and width, printing only the slip on a till roll and tidying up, the test printer's paper, Print receipt using the print window without the server, the test printer and test drawer wording, and an email queued with a request key and never called sent.
 - `src/components/interaction.test.tsx`: Settings now lists Till and printer under Treatments and money.
 
-Full results: `npm run lint`, `npx tsc -b`, `npm run format:check` and `npm run build` pass. `npm test` passes in full (front end 116 files, 991 tests; server 46 files, 336 tests, 2 skipped) with migrations 26 to 28 present, as they will be once the other Stage 1 and 2 branches are merged. On this branch alone, six server tests that require migration numbers with no gaps fail (`database.test.ts` two, `backup.test.ts` three, `app.test.ts` one); see below.
+Full results: `npm run lint`, `npx tsc -b`, `npm run format:check` and `npm run build` pass. `npm test` passes in full (front end 116 files, 991 tests; server 46 files, 336 tests, 2 skipped), as first built. The checks were run again once Stage 2 was joined together; see the Stage 2 notes in the changelog.
 
-## Migration 29
+## Migration 31
 
-This branch adds migration **29**, as agreed with the lead (28 belongs to the product images table of the other Stage 2 agent, and 26 and 27 to the Stage 1 membership work). Note that `main` has since taken **26** for studio billing (NEXT-02, #79), so the numbers need settling at merge time. Migration 29 rebuilds the outbox to add the `receipt` kind (the full kind list is restated); any other branch that rebuilds the outbox's kinds must include `receipt`, or merge after this one and restate it. It also creates `till_events`.
+This part was built as migration 29. Main took 26 to 28, Stage 1 took 29 and product photos took 30 while it waited, so it is **31**. It rebuilds the outbox to add the `receipt` kind, restating every kind before it (including Stage 1's `plan_reminder` and `plan_declined`); any later step that rebuilds the outbox's kinds must restate `receipt` too. It also creates `till_events`.
 
 ## Decisions and limits
 

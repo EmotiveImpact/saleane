@@ -683,7 +683,7 @@ export const migrations: Migration[] = [
       ),
   },
   {
-    version: 28,
+    version: 30,
     // Stage 2, product photos. Each studio's pictures, checked by their first bytes (JPEG, PNG or
     // WebP only) and bounded in size, served only to that studio's team. A product keeps the id; a
     // new photo gets a new id.
@@ -702,7 +702,7 @@ export const migrations: Migration[] = [
       `),
   },
   {
-    version: 29,
+    version: 31,
     // Stage 2, the till: a receipt the desk chose to email goes through the outbox like any other
     // message; and every time SALEANE asked a receipt printer to print or open its cash drawer,
     // with who, when, why, which sale and what the printer answered. A test printer's job is kept

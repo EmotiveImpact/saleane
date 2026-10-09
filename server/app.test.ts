@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createApiHandler } from './app'
-import { migrations } from './database'
+import { SCHEMA_VERSION } from './database'
 import type { ApiHandler, InjectResponse } from './app'
 import type { BusinessState } from '../src/domain/model'
 import type { Command } from '../src/domain/commands'
@@ -529,7 +529,7 @@ describe('tenant authority, durable commands and access', () => {
     )
     expect((await workspace(owner)).state.events.at(-1)?.detail).toBe(change.text)
     expect((await command(owner, 0, change, key)).json().replayed).toBe(true)
-    expect(api.database.all('SELECT * FROM schema_migrations')).toHaveLength(migrations.length)
+    expect(api.database.all('SELECT * FROM schema_migrations')).toHaveLength(SCHEMA_VERSION)
     expect(api.database.all('SELECT * FROM command_receipts')).toHaveLength(1)
   })
 })
