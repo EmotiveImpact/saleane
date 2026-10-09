@@ -527,3 +527,30 @@ describe('coming back from the payment page', () => {
     expect(screen.getByText('£25.00 paid')).toBeInTheDocument()
   })
 })
+
+test('reads dates with the weekday and times on a 12-hour clock for a studio in the US', async () => {
+  const user = userEvent.setup()
+  const us = movable()
+  us.organisation = {
+    ...us.organisation,
+    locale: 'en-US',
+    timeZone: 'America/New_York',
+    currency: 'USD',
+    region: 'US',
+  }
+  us.cancellation = { ...us.cancellation, cutoffAt: '2026-10-06T13:00:00.000Z' }
+  vi.mocked(api).mockImplementation(async (path, options) => {
+    const body = options?.body as { date?: string; anyone?: boolean }
+    if (path === '/api/guest/visit') return us as never
+    return moveTimes(body.date ?? '2026-10-08', body.anyone) as never
+  })
+  render(<ManageVisit />)
+  expect(await screen.findByText('Wednesday, October 7 at 09:00 AM')).toBeInTheDocument()
+  expect(screen.getByText(/online until Tuesday, October 6 at 09:00 AM/)).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Move my visit' }))
+  expect(await screen.findByRole('radio', { name: '10:00 AM' })).toBeInTheDocument()
+  expect(screen.getByRole('radio', { name: /^Thu Oct 8/ })).toBeChecked()
+  expect(
+    screen.getByRole('group', { name: 'Free times on Thursday, October 8' }),
+  ).toBeInTheDocument()
+})

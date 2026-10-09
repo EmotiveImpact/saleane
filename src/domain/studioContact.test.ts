@@ -8,7 +8,7 @@ import { operations } from './operations'
 import { guestView } from './guest'
 import { directionsLink, emailProblem, phoneLink, phoneProblem } from './studioContact'
 
-// Item 7: guests are told how to reach the studio, so "contact the studio" never leads nowhere.
+// Guests are told how to reach the studio, so "contact the studio" never leads nowhere.
 const NOW = '2026-10-06T08:00:00.000Z'
 let sequence = 0
 function run(s: BusinessState, command: Command) {
