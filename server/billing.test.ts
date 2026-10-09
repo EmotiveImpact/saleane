@@ -1,11 +1,16 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { createApiHandler } from './app'
 import type { ApiHandler, InjectResponse } from './app'
+import { backupDatabase, restoreDatabase } from './backup'
 import { testBillingProvider } from './billing'
-import type { PaymentProvider, PayOutcome } from './payments/providers'
+import type { ChargeRecord, PaymentProvider, PayOutcome } from './payments/providers'
 import type { BusinessState } from '../src/domain/model'
 import type { Command } from '../src/domain/commands'
+import { monthBill } from '../src/domain/billing'
 import type { BillingSummary, BillingView } from '../src/domain/billing'
 
 // NEXT-02: studios paying for SALEANE, in test mode.
@@ -18,11 +23,11 @@ let clock: number
 const start = Date.parse('2026-10-06T07:00:00.000Z')
 const trialEnd = start + 14 * DAY
 
-function open(billingProvider?: PaymentProvider) {
+function open(billingProvider?: PaymentProvider, databasePath = ':memory:') {
   api?.close()
   api = createApiHandler({
     origin,
-    databasePath: ':memory:',
+    databasePath,
     now: () => clock,
     turnstile: null,
     ...(billingProvider ? { billingProvider } : {}),
@@ -148,6 +153,51 @@ async function bookable(login: Login) {
   const { name, locationName, address, timeZone } = (await record(login)).state.organisation
   await ok({ type: 'organisation', name, locationName, address, timeZone, bookingEnabled: true })
   return { serviceId, staffId }
+}
+
+/** Test cards, with the card service's own record of every charge, as Stripe keeps one. */
+function cardService() {
+  const base = testBillingProvider(origin)
+  const ledger: ChargeRecord[] = []
+  let reachable = true
+  const provider: PaymentProvider = {
+    ...base,
+    async chargeSaved(input) {
+      const outcome = await base.chargeSaved(input)
+      ledger.push({
+        attemptId: input.attemptId,
+        providerRef: outcome.status === 'succeeded' ? outcome.providerRef : `pi_${ledger.length}`,
+        status: outcome.status === 'succeeded' ? 'succeeded' : 'failed',
+        amountMinor: input.amountMinor,
+        marks: { ...input.marks, attempt: input.attemptId },
+      })
+      return outcome
+    },
+    async charges(mark) {
+      return reachable ? ledger.filter((charge) => charge.marks[mark.key] === mark.value) : null
+    },
+  }
+  return {
+    provider,
+    ledger,
+    reach(on: boolean) {
+      reachable = on
+    },
+  }
+}
+/** Backs up the studio, lets `after` happen, then loses the server and restores the backup. */
+async function restoredAfter(
+  directory: string,
+  cards: PaymentProvider,
+  after: () => Promise<void>,
+) {
+  const backup = join(directory, `backup-${crypto.randomUUID()}.sqlite`)
+  backupDatabase(api.database.path, backup)
+  await after()
+  api.close()
+  const restored = join(directory, `restored-${crypto.randomUUID()}.sqlite`)
+  restoreDatabase(backup, restored)
+  open(cards, restored)
 }
 
 describe('a studio’s plan (NEXT-02)', () => {
@@ -526,5 +576,132 @@ describe('a studio’s plan (NEXT-02)', () => {
     expect(answers.map((a) => a.statusCode).sort()).toEqual([200, 409])
     const plan = await billing(owner)
     expect(plan.invoices.filter((i) => i.status === 'paid')).toHaveLength(1)
+  })
+  it('after a restore, learns from the card service what was taken, so nothing is charged twice', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'saleane-billing-restore-'))
+    try {
+      const cards = cardService()
+      open(cards.provider, join(directory, 'live.sqlite'))
+      let owner = await register()
+      await saveCard(owner, '4242')
+      await at(trialEnd)
+      owner = await signIn()
+      const first = await billing(owner)
+      expect(first.invoices.map((bill) => bill.number)).toEqual(['TEST-000001'])
+      const renewal = first.periodEnd!
+      // After the backup the next month is taken, then the server is lost.
+      await restoredAfter(directory, cards.provider, async () => {
+        await at(renewal)
+        expect(cards.ledger.filter((c) => c.status === 'succeeded')).toHaveLength(2)
+      })
+      // While the card service cannot be asked, nothing is charged by itself or by hand.
+      cards.reach(false)
+      await at(renewal + 60000)
+      expect(cards.ledger).toHaveLength(2)
+      owner = await signIn()
+      expect(await billing(owner)).toMatchObject({ held: true, periodEnd: renewal })
+      const plus = await post(owner, '/billing/plus', { on: true })
+      expect(plus.statusCode).toBe(409)
+      expect(plus.json<{ error: string }>().error).toMatch(/restored from a backup/)
+      // Once it can be asked, the month taken after the backup is put back with its own number.
+      cards.reach(true)
+      await at(renewal + 120000)
+      expect(cards.ledger).toHaveLength(2)
+      const after = await billing(owner)
+      expect(after).toMatchObject({ held: false, status: 'active', periodStart: renewal })
+      expect(after.invoices.map((bill) => [bill.number, bill.status])).toEqual([
+        ['TEST-000002', 'paid'],
+        ['TEST-000001', 'paid'],
+      ])
+      expect(after.invoices[0].lines).toEqual(monthBill('UK', 1, false).lines)
+      // Its receipt went out before the server was lost, so none is sent again.
+      expect(mail().filter((m) => m.subject.includes('TEST-000002'))).toEqual([])
+      // The month after is taken as usual, numbered after it.
+      await at(after.periodEnd!)
+      expect(cards.ledger).toHaveLength(3)
+      expect((await billing(await signIn())).invoices[0].number).toBe('TEST-000003')
+    } finally {
+      api.close()
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('after a restore, owes again what the card service did not take, and tries it with a new key', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'saleane-billing-restore-'))
+    try {
+      const cards = cardService()
+      open(cards.provider, join(directory, 'live.sqlite'))
+      let owner = await register()
+      await saveCard(owner, '0002')
+      await at(trialEnd)
+      owner = await signIn()
+      const [bill] = (await billing(owner)).invoices
+      expect(bill.status).toBe('open')
+      // The card is tried again after the backup, and declined again.
+      await restoredAfter(directory, cards.provider, () => at(trialEnd + DAY))
+      expect(cards.ledger.map((c) => c.attemptId)).toEqual([`${bill.id}.1`, `${bill.id}.2`])
+      // A charge the card service is still working on keeps the plan waiting.
+      cards.ledger.push({
+        attemptId: `${bill.id}.3`,
+        providerRef: 'pi_slow',
+        status: 'processing',
+        amountMinor: bill.totalMinor,
+        marks: { studio: owner.orgId, bill: bill.id, attempt: `${bill.id}.3` },
+      })
+      await at(trialEnd + DAY + 60000)
+      owner = await signIn()
+      // The amount owed still shows while it is being checked.
+      expect(await billing(owner)).toMatchObject({
+        held: true,
+        status: 'overdue',
+        nextBill: { bill: { totalMinor: bill.totalMinor } },
+      })
+      cards.ledger[2].status = 'failed'
+      await at(trialEnd + DAY + 120000)
+      const owed = await billing(owner)
+      expect(owed).toMatchObject({ held: false, status: 'overdue' })
+      expect(owed.invoices[0]).toMatchObject({ id: bill.id, status: 'open' })
+      // A good card pays it, with a key no charge has used.
+      await saveCard(owner, '4242')
+      expect(await billing(owner)).toMatchObject({ status: 'active' })
+      const keys = cards.ledger.map((c) => c.attemptId)
+      expect(new Set(keys).size).toBe(keys.length)
+      expect(cards.ledger.filter((c) => c.status === 'succeeded')).toHaveLength(1)
+    } finally {
+      api.close()
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps every bill, and shows the older ones a page at a time', async () => {
+    const owner = await register()
+    for (let n = 1; n <= 30; n++)
+      api.database.run(
+        `INSERT INTO studio_invoices(id,organisation_id,number,kind,period_start,period_end,plus,currency,lines,subtotal_minor,tax_minor,tax_label,total_minor,status,test,created_at)
+         VALUES(?,?,?,'month',?,?,0,'GBP','[]',4900,980,'VAT at 20%',5880,'paid',1,?)`,
+        `bill-${n}`,
+        owner.orgId,
+        `TEST-${String(n).padStart(6, '0')}`,
+        n * DAY,
+        (n + 1) * DAY,
+        // Two bills made at the same moment still come in order, across a page break.
+        n === 6 ? 7 * DAY : n * DAY,
+      )
+    const first = await billing(owner)
+    expect(first.invoices).toHaveLength(24)
+    expect(first.invoices[0].number).toBe('TEST-000030')
+    expect(first.moreBills).toMatch(/^\d+\.\d+$/)
+    const older = await get(owner, `/billing/bills?before=${first.moreBills}`)
+    expect(older.statusCode, older.body).toBe(200)
+    const rest = older.json<{ invoices: { number: string }[]; next: string | null }>()
+    expect(rest.next).toBeNull()
+    expect([...first.invoices, ...rest.invoices].map((bill) => bill.number)).toEqual(
+      Array.from({ length: 30 }, (_, i) => `TEST-${String(30 - i).padStart(6, '0')}`),
+    )
+    expect((await get(owner, '/billing/bills?before=soon')).statusCode).toBe(400)
+    // Another studio's owner cannot read them.
+    const other = await register('other@example.invalid')
+    const refused = await get({ ...other, orgId: owner.orgId }, '/billing/bills')
+    expect([403, 404]).toContain(refused.statusCode)
   })
 })

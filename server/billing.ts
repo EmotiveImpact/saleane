@@ -11,7 +11,7 @@ import {
   stripeProvider,
   testPaymentProvider,
 } from './payments/providers'
-import type { PaymentEvent, PaymentProvider, PayOutcome } from './payments/providers'
+import type { ChargeRecord, PaymentEvent, PaymentProvider, PayOutcome } from './payments/providers'
 import { operations } from '../src/domain/operations'
 import { places } from '../src/domain/locations'
 import { fullDateLabel, money } from '../src/domain/format'
@@ -25,6 +25,7 @@ import {
   nextRetry,
   plusBill,
   readOnlyMessage,
+  taxed,
 } from '../src/domain/billing'
 import type {
   Bill,
@@ -101,7 +102,11 @@ type Account = { id: string; name: string; email: string }
 const RECHECK_MS = 10 * 60000
 /** Below this a part-month bill is not worth a card charge; the rest of the month is free. */
 const SMALLEST_CHARGE_MINOR = 100
+/** Bills shown at once; older ones come a page at a time. */
+const BILLS_PAGE = 24
 const SETTINGS = '/settings?section=billing'
+const RESTORED =
+  'Payments are being checked with the card service after SALEANE was restored from a backup. Try again in a few minutes.'
 
 /**
  * NEXT-02: SALEANE's own card account for charging studios, separate from the studios' card
@@ -145,6 +150,14 @@ const routeInput = {
   plus: z.object({ on: z.boolean() }).strict(),
   stop: z.object({ stop: z.boolean() }).strict(),
   empty: z.object({}).strict(),
+  bills: z
+    .object({
+      before: z
+        .string()
+        .max(40)
+        .regex(/^\d+\.\d+$/),
+    })
+    .strict(),
   testCard: z
     .object({ outcome: z.enum(['save', 'cancel']), card: z.enum(['4242', '0002']) })
     .strict(),
@@ -241,6 +254,15 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
       mailBilling(ctx, owner, subject, `${says}${testNote}`)
   }
 
+  /** The next bill number, in one sequence for real bills and another for test ones. */
+  function nextNumber() {
+    const prefix = test ? 'TEST' : 'SAL'
+    const last = db.get<{ number: string }>(
+      'SELECT number FROM studio_invoices WHERE number LIKE ? ORDER BY length(number) DESC, number DESC LIMIT 1',
+      `${prefix}-%`,
+    )
+    return `${prefix}-${String(Number(last?.number.slice(prefix.length + 1) ?? 0) + 1).padStart(6, '0')}`
+  }
   /** Makes a bill, numbered in one sequence for real bills and another for test ones. */
   function addInvoice(
     org: Org,
@@ -249,20 +271,16 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
     end: number,
     plus: boolean,
     bill: Bill,
+    as?: { id: string; number: string; createdAt: number },
   ) {
-    const prefix = test ? 'TEST' : 'SAL'
-    const count = db.get<{ n: number }>(
-      'SELECT count(*) AS n FROM studio_invoices WHERE number LIKE ?',
-      `${prefix}-%`,
-    )!.n
-    const id = randomUUID()
+    const id = as?.id ?? randomUUID()
     db.run(
       `INSERT INTO studio_invoices(id,organisation_id,number,kind,period_start,period_end,plus,currency,lines,
          subtotal_minor,tax_minor,tax_label,total_minor,status,test,created_at)
        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,'open',?,?)`,
       id,
       org.id,
-      `${prefix}-${String(count + 1).padStart(6, '0')}`,
+      as?.number ?? nextNumber(),
       kind,
       start,
       end,
@@ -274,7 +292,7 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
       bill.taxLabel,
       bill.totalMinor,
       test ? 1 : 0,
-      now(),
+      as?.createdAt ?? now(),
     )
     return invoice(id)!
   }
@@ -320,9 +338,12 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
     return { since, next: nextRetry(since, time, RETRY_DAYS) }
   }
 
-  /** Records what the card service said about one charge. A late or repeated answer changes nothing. */
-  function settle(key: string, outcome: PayOutcome, actorId: string | null): InvoiceStatus {
-    const told = db.transaction(() => {
+  /**
+   * Records what the card service said about one charge, inside the caller's transaction, and
+   * returns the email to send once it is saved. A late or repeated answer changes nothing.
+   */
+  function record(key: string, outcome: PayOutcome, actorId: string | null) {
+    {
       const bill = db.get<InvoiceRow>('SELECT * FROM studio_invoices WHERE attempt_key=?', key)
       if (!bill || bill.status !== 'charging') return null
       const org = ctx.systemOrg(bill.organisation_id)!
@@ -408,7 +429,10 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
         bill.id,
       )
       return { status: 'charging' as const }
-    })
+    }
+  }
+  function settle(key: string, outcome: PayOutcome, actorId: string | null): InvoiceStatus {
+    const told = db.transaction(() => record(key, outcome, actorId))
     if (!told)
       return (
         db.get<{ status: InvoiceStatus }>(
@@ -450,6 +474,20 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
           customerRef: row.card_customer_ref!,
           methodRef: row.card_method_ref!,
           last4: row.card_last4!,
+        },
+        // Enough to find the charge again, and to rebuild its bill, after a restore.
+        marks: {
+          studio: bill.organisation_id,
+          bill: bill.id,
+          number: bill.number,
+          kind: bill.kind,
+          start: String(bill.period_start),
+          end: String(bill.period_end),
+          plus: String(bill.plus),
+          anchor: String(row.anchor_day ?? anchorOf(bill.period_start)),
+          subtotal: String(bill.subtotal_minor),
+          tax: String(bill.tax_minor),
+          made: String(bill.created_at),
         },
       })
     } catch (error) {
@@ -567,6 +605,141 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
       await ask(bill.attempt_key, bill, row, null)
   }
 
+  /** A bill made after the backup, put back from what its charge carries; null when it cannot be. */
+  function rebuild(org: Org, charge: ChargeRecord) {
+    const mark = charge.marks
+    const start = Number(mark.start),
+      end = Number(mark.end),
+      subtotal = Number(mark.subtotal)
+    if (!mark.bill || !mark.number || !start || !end || !Number.isInteger(subtotal)) return null
+    const kind = mark.kind === 'plus' ? 'plus' : 'month'
+    const plus = mark.plus === '1'
+    if (kind === 'month') {
+      const same = db.get<InvoiceRow>(
+        "SELECT * FROM studio_invoices WHERE organisation_id=? AND kind='month' AND period_start=? AND status<>'void'",
+        org.id,
+        start,
+      )
+      if (same) return same
+    }
+    // Its own lines when they still add up to what was taken; otherwise one line for the lot.
+    const fresh = kind === 'month' ? monthBill(regionOf(org), locationsOf(org), plus) : null
+    const bill =
+      fresh?.totalMinor === charge.amountMinor
+        ? fresh
+        : taxed(regionOf(org), [
+            {
+              text: `${kind === 'plus' ? 'Plus' : 'SALEANE'}, as charged`,
+              quantity: 1,
+              unitMinor: subtotal,
+              amountMinor: subtotal,
+            },
+          ])
+    const taken = !!db.get('SELECT 1 FROM studio_invoices WHERE number=?', mark.number)
+    return addInvoice(org, kind, start, end, plus, bill, {
+      id: mark.bill,
+      number: taken ? nextNumber() : mark.number,
+      createdAt: Number(mark.made) || now(),
+    })
+  }
+
+  /**
+   * After a restore, asks the card service what it took for this studio, so nothing is charged
+   * twice: a bill it took is marked paid (one made after the backup is put back from what its
+   * charge carries), a bill it did not take is owed again, and the plan then carries on by itself.
+   * While a charge is still being worked on, or the card service cannot be asked, the plan stays
+   * held and is asked about again on the next run. False when the card service could not be asked.
+   */
+  async function reconcile(row: PlanRow) {
+    const org = ctx.systemOrg(row.organisation_id)
+    if (!org) return true
+    const found = await provider.charges({ key: 'studio', value: org.id })
+    if (!found) return false
+    const billOf = (charge: ChargeRecord) =>
+      charge.marks.bill ?? charge.attemptId.slice(0, charge.attemptId.lastIndexOf('.'))
+    const tries = (charge: ChargeRecord) =>
+      Number(charge.attemptId.slice(charge.attemptId.lastIndexOf('.') + 1)) || 0
+    db.transaction(() => {
+      if (!plan(org.id)?.held_at) return
+      const settled = (charge: ChargeRecord) => invoice(billOf(charge))?.status === 'paid'
+      // Something still being worked on, or taken with nothing to rebuild its bill from, waits.
+      if (found.some((c) => c.status === 'processing' && !settled(c))) return
+      const taken = found
+        .filter((c) => c.status === 'succeeded' && !settled(c))
+        .sort(
+          (a, b) =>
+            Number(a.marks.start) - Number(b.marks.start) ||
+            Number(a.marks.kind === 'plus') - Number(b.marks.kind === 'plus'),
+        )
+      if (taken.some((c) => !invoice(billOf(c)) && !c.marks.number)) {
+        console.error(
+          `[SALEANE] A payment for studio ${org.id} has no bill to match; it stays held to be checked by hand.`,
+        )
+        return
+      }
+      for (const charge of taken) {
+        const bill = invoice(billOf(charge)) ?? rebuild(org, charge)
+        if (!bill || bill.status === 'paid') continue
+        db.run(
+          "UPDATE studio_invoices SET status='charging',attempt_key=?,attempts=MAX(attempts,?) WHERE id=?",
+          charge.attemptId,
+          tries(charge),
+          bill.id,
+        )
+        if (bill.kind === 'month' && Number(charge.marks.anchor))
+          db.run(
+            'UPDATE studio_plans SET anchor_day=? WHERE organisation_id=?',
+            Number(charge.marks.anchor),
+            org.id,
+          )
+        // Its receipt went out when it was taken, so none is sent again.
+        record(charge.attemptId, { status: 'succeeded', providerRef: charge.providerRef }, null)
+      }
+      const after = plan(org.id)!
+      for (const bill of db.all<InvoiceRow>(
+        "SELECT * FROM studio_invoices WHERE organisation_id=? AND status='unknown'",
+        org.id,
+      )) {
+        // The next try uses a key no attempt since the backup has used.
+        const attempts = Math.max(
+          bill.attempts,
+          ...found.filter((c) => billOf(c) === bill.id).map(tries),
+        )
+        const later =
+          bill.kind === 'month' &&
+          !!db.get(
+            "SELECT 1 FROM studio_invoices WHERE organisation_id=? AND kind='month' AND status='paid' AND period_start>?",
+            org.id,
+            bill.period_start,
+          )
+        if (bill.kind === 'plus' || later || after.status === 'stopped')
+          db.run(
+            "UPDATE studio_invoices SET status='void',attempts=?,detail=?,closed_at=? WHERE id=?",
+            attempts,
+            later
+              ? 'Not charged: a later month was paid.'
+              : 'Not charged: checked with the card service after a restore.',
+            now(),
+            bill.id,
+          )
+        else
+          db.run(
+            "UPDATE studio_invoices SET status='open',attempts=?,detail=? WHERE id=?",
+            attempts,
+            'Not taken: checked with the card service after a restore.',
+            bill.id,
+          )
+      }
+      db.run(
+        'UPDATE studio_plans SET held_at=NULL,updated_at=? WHERE organisation_id=?',
+        now(),
+        org.id,
+      )
+      ctx.audit(org, null, 'billing.checked', org.id)
+    })
+    return true
+  }
+
   /** Everything that is due: trials ending, months renewing, retries, grace ending, rechecks. */
   async function run() {
     if (running) return
@@ -581,6 +754,18 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
             console.error('[SALEANE] A studio plan could not be brought up to date.', error)
           }
       }
+      // After a restore, nothing is charged by itself until the card service has said what it took.
+      let unasked = 0
+      for (const row of db.all<PlanRow>('SELECT * FROM studio_plans WHERE held_at IS NOT NULL'))
+        try {
+          if (!(await reconcile(row))) unasked++
+        } catch (error) {
+          console.error('[SALEANE] A restored studio plan could not be checked.', error)
+        }
+      if (unasked)
+        console.error(
+          `[SALEANE] The card service could not be asked what it took for ${unasked} restored studio plans; asking again on the next run.`,
+        )
       // Real studios made before plans existed start their trial now.
       for (const { id } of db.all<{ id: string }>(
         "SELECT id FROM organisations WHERE json_extract(state,'$.operations.mode')='local' AND id NOT IN (SELECT organisation_id FROM studio_plans)",
@@ -661,7 +846,8 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
       })
       return { ...row, org }
     })
-    if (!setup?.then_pay) return null
+    // After a restore the card is kept, and paying waits until the payments have been checked.
+    if (!setup?.then_pay || plan(setup.org.id)?.held_at) return null
     return pay(setup.org, setup.account_id)
   }
 
@@ -669,6 +855,7 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
   async function pay(org: Org, actorId: string): Promise<InvoiceStatus> {
     const bill = db.transaction(() => {
       const row = planFor(org)!
+      if (row.held_at) fail(409, RESTORED)
       if (waiting(org.id))
         fail(409, 'A payment is still being checked. Nothing more is taken until it is.')
       if (!row.card_method_ref) fail(409, 'Add a card first.')
@@ -719,6 +906,7 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
     }
     if (row.status !== 'active') fail(409, 'Pay the open bill before adding Plus.')
     if (!row.card_method_ref) fail(409, 'Add a card first.')
+    if (row.held_at) fail(409, RESTORED)
     const time = now()
     const part = plusBill(regionOf(org), locationsOf(org), time, row.period_start!, row.period_end!)
     if (part.totalMinor < SMALLEST_CHARGE_MINOR) {
@@ -767,16 +955,36 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
     paidAt: bill.paid_at,
   })
 
+  /** One page of a studio's bills, newest first, and where the next page starts. */
+  function page(orgId: string, before?: string) {
+    const [at, seq] = (before ?? '').split('.').map(Number)
+    const rows = db.all<InvoiceRow & { seq: number }>(
+      `SELECT rowid AS seq,* FROM studio_invoices WHERE organisation_id=?
+         ${before ? 'AND (created_at<? OR (created_at=? AND rowid<?))' : ''}
+       ORDER BY created_at DESC,rowid DESC LIMIT ?`,
+      orgId,
+      ...(before ? [at, at, seq] : []),
+      BILLS_PAGE + 1,
+    )
+    const shown = rows.slice(0, BILLS_PAGE)
+    const last = shown.at(-1)
+    return {
+      invoices: shown.map(viewOf),
+      next: rows.length > BILLS_PAGE && last ? `${last.created_at}.${last.seq}` : null,
+    }
+  }
+
   function view(org: Org): BillingView {
     const row = planFor(org)!
     const region = regionOf(org)
     const locations = locationsOf(org)
     const time = now()
-    const bills = db.all<InvoiceRow>(
-      'SELECT * FROM studio_invoices WHERE organisation_id=? ORDER BY created_at DESC, number DESC LIMIT 24',
+    const bills = page(org.id)
+    // The month that is owed, including while a try at it is still being checked.
+    const open = db.get<InvoiceRow>(
+      "SELECT * FROM studio_invoices WHERE organisation_id=? AND kind='month' AND status IN ('open','charging','unknown') ORDER BY created_at DESC",
       org.id,
     )
-    const open = openMonth(org.id)
     const coming = monthBill(region, locations, !!row.plus_next)
     const used = current(storedUsage(ctx, org.id), new Date(time).toISOString()).used
     const ai = allowance(org).monthly
@@ -824,7 +1032,8 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
           : null,
       checking: waiting(org.id),
       held: !!row.held_at,
-      invoices: bills.map(viewOf),
+      invoices: bills.invoices,
+      moreBills: bills.next,
       ai: {
         typed: { used: used.typed, of: ai.typed },
         guestChats: { used: used.guestChats, of: ai.guestChats },
@@ -896,7 +1105,7 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
         )
     },
     async routes(_: Context, route: Route): Promise<boolean> {
-      const { request, method, path, body, reply } = route
+      const { request, method, path, url, body, reply } = route
       // The test card page stands in for the card service's page while billing is in test mode.
       if (path[1] === 'test-billing' && path.length === 3) {
         if (provider.name !== 'test') fail(404, 'This endpoint was not found.')
@@ -955,6 +1164,13 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
       if (path.length === 4) {
         if (method !== 'GET') fail(405, 'Use GET.')
         reply(200, view(org))
+        return true
+      }
+      // Older bills, a page at a time: every bill stays here for as long as the studio does.
+      if (path[4] === 'bills') {
+        if (method !== 'GET') fail(405, 'Use GET.')
+        const { before } = routeInput.bills.parse(Object.fromEntries(url.searchParams))
+        reply(200, page(org.id, before))
         return true
       }
       if (method !== 'POST') fail(405, 'Use POST.')

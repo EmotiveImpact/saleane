@@ -61,7 +61,9 @@ export type BillingView = {
   checking: boolean
   /** SALEANE was restored from a backup: nothing is charged by itself until payments are checked. */
   held: boolean
+  /** The newest bills; `moreBills` is where the older ones start, or null when there are none. */
   invoices: InvoiceView[]
+  moreBills: string | null
   ai: { typed: Meter; guestChats: Meter; talkSeconds: Meter }
 }
 /** What every role's studio record carries: enough for a banner, and dates only for the owner. */

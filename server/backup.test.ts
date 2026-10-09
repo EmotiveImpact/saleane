@@ -7,6 +7,7 @@ import { LocalDatabase, migrations } from './database'
 import { createApiHandler } from './app'
 import type { ApiHandler } from './app'
 import { backupDatabase, restoreDatabase, validateDatabase } from './backup'
+import { testBillingProvider } from './billing'
 import { metaSignature } from './messaging/meta'
 
 let directory: string
@@ -189,10 +190,16 @@ describe('consistent local backups and fresh-path recovery', () => {
       appSecret: 'a-long-meta-app-secret-2026',
       verifyToken: 'a-long-verify-token-2026',
     }
+    // The card service, which cannot be asked at first.
+    let asked = false
     const recovered = createApiHandler({
       origin: 'http://127.0.0.1:5173',
       databasePath: restored,
       social: meta,
+      billingProvider: {
+        ...testBillingProvider('http://127.0.0.1:5173'),
+        charges: async () => (asked ? [] : null),
+      },
     })
     try {
       // The access key no longer reads anything.
@@ -204,12 +211,13 @@ describe('consistent local backups and fresh-path recovery', () => {
       expect(recovered.database.all('SELECT * FROM recovery_codes WHERE used_at IS NULL')).toEqual(
         [],
       )
-      // Nothing is charged by itself, and no trial ends, until the payments have been checked.
-      expect(
-        recovered.database.get<{ status: string }>(
-          "SELECT status FROM studio_invoices WHERE id='bill-owed'",
-        )!.status,
-      ).toBe('unknown')
+      // Nothing is charged by itself, and no trial ends, until the card service has said what
+      // it took since the backup.
+      const owed = () =>
+        recovered.database.get<{ status: string; detail: string }>(
+          "SELECT status,detail FROM studio_invoices WHERE id='bill-owed'",
+        )!
+      expect(owed().status).toBe('unknown')
       recovered.database.run('UPDATE studio_plans SET trial_ends_at=0')
       await recovered.billing.run()
       expect(
@@ -217,6 +225,16 @@ describe('consistent local backups and fresh-path recovery', () => {
           "SELECT * FROM studio_plans WHERE status<>'trial' OR held_at IS NULL",
         ),
       ).toEqual([])
+      // It took nothing, so the bill is owed again and the plan carries on by itself.
+      asked = true
+      await recovered.billing.run()
+      expect(
+        recovered.database.all('SELECT * FROM studio_plans WHERE held_at IS NOT NULL'),
+      ).toEqual([])
+      expect(owed()).not.toMatchObject({ status: 'unknown' })
+      expect(
+        recovered.database.all("SELECT * FROM audit_events WHERE action='billing.checked'"),
+      ).toHaveLength(1)
       // The connection is off until the owner turns it on, and what waited for it is not sent.
       expect(recovered.database.all('SELECT * FROM connections WHERE active=1')).toEqual([])
       expect(

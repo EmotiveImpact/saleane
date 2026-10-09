@@ -25,6 +25,15 @@ const BILL_WORDS: Record<InvoiceView['status'], string> = {
   unknown: 'Being checked',
   void: 'Not charged',
 }
+/** What a payment that did not go through says, in place of the words for success. */
+const NOT_PAID: Record<string, string> = {
+  open: 'The payment did not go through. Nothing was taken. Try again or use another card.',
+  void: 'The card was declined, so nothing was taken. Try again or use another card.',
+  charging:
+    'The card service has not said yet whether the payment went through. Nothing more is taken until it does; look here again in a few minutes.',
+  unknown:
+    'The card service has not said yet whether the payment went through. Nothing more is taken until it does; look here again in a few minutes.',
+}
 /** What the card page sent the owner back to say. */
 const RETURNS: Record<string, string> = {
   saved: 'Your card is saved.',
@@ -51,6 +60,8 @@ export function PlanBilling() {
     return card ? (RETURNS[paid ? `${card}-${paid}` : card] ?? '') : ''
   })
   const [asking, setAsking] = useState<'plus' | 'stop' | null>(null)
+  // Bills older than the newest page, once the owner asks for them.
+  const [older, setOlder] = useState<{ invoices: InvoiceView[]; next: string | null } | null>(null)
   const now = Date.parse(useClock())
   const cash = (minor: number) => money(minor, org, true)
   const day = (at: number) => planDate(org, at)
@@ -78,6 +89,7 @@ export function PlanBilling() {
   async function load() {
     try {
       setPlan(await api<BillingView>(base))
+      setOlder(null)
     } catch {
       // The error from the action that failed is the one to show.
     }
@@ -93,10 +105,12 @@ export function PlanBilling() {
         body,
       })
       setPlan(result.billing)
+      setOlder(null)
+      // Only a payment that went through, or a change that needed none, is spoken of as done.
       setSaid(
-        result.outcome === 'open'
-          ? 'The payment did not go through. Nothing was taken. Try again or use another card.'
-          : done,
+        result.outcome === 'paid' || result.outcome === 'saved'
+          ? done
+          : (NOT_PAID[result.outcome] ?? NOT_PAID.unknown),
       )
       await reload()
     } catch (e) {
@@ -105,6 +119,23 @@ export function PlanBilling() {
     } finally {
       setBusy(false)
       setAsking(null)
+    }
+  }
+  async function showOlder(before: string) {
+    setBusy(true)
+    setError('')
+    try {
+      const page = await api<{ invoices: InvoiceView[]; next: string | null }>(
+        `${base}/bills?before=${encodeURIComponent(before)}`,
+      )
+      setOlder((was) => ({
+        invoices: [...(was?.invoices ?? []), ...page.invoices],
+        next: page.next,
+      }))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'The older bills could not be read.')
+    } finally {
+      setBusy(false)
     }
   }
   async function addCard() {
@@ -158,7 +189,7 @@ export function PlanBilling() {
   const plusAddOn = ADD_ONS[0]
   const phone = ADD_ONS[1]
   const owed = plan.status === 'overdue' || plan.status === 'stopped'
-  const payable = owed && plan.nextBill && !plan.checking
+  const payable = owed && plan.nextBill && !plan.checking && !plan.held
   const plusNow =
     plan.status === 'active' && !plan.plus && plan.periodStart && plan.periodEnd
       ? plusBill(plan.region, plan.locations, now, plan.periodStart, plan.periodEnd)
@@ -177,16 +208,17 @@ export function PlanBilling() {
 
       <div className="plan-now">
         <p className="plan-summary">{summary(plan, now, cash, day)}</p>
-        {plan.checking && (
+        {plan.held ? (
           <p className="ops-help">
-            A payment is being checked with the card service. Nothing more is taken until it is.
+            Payments are paused because SALEANE was restored from a backup. They start again by
+            themselves once the card service has confirmed what it took, so nothing is taken twice.
           </p>
-        )}
-        {plan.held && (
-          <p className="ops-help">
-            Automatic payments are paused because SALEANE was restored from a backup. Nothing is
-            taken by itself until the payments have been checked.
-          </p>
+        ) : (
+          plan.checking && (
+            <p className="ops-help">
+              A payment is being checked with the card service. Nothing more is taken until it is.
+            </p>
+          )
         )}
         {said && (
           <p className="ops-save-note" role="status">
@@ -330,7 +362,7 @@ export function PlanBilling() {
         <div className="plan-block">
           <h3>Bills</h3>
           <ul className="ops-ledger plan-bills">
-            {plan.invoices.map((bill) => (
+            {[...plan.invoices, ...(older?.invoices ?? [])].map((bill) => (
               <li className="ops-record" key={bill.id}>
                 <div className="ops-record-copy">
                   <strong>
@@ -358,6 +390,15 @@ export function PlanBilling() {
               </li>
             ))}
           </ul>
+          {(older ? older.next : plan.moreBills) && (
+            <Button
+              variant="secondary"
+              disabled={busy}
+              onClick={() => void showOlder((older ? older.next : plan.moreBills)!)}
+            >
+              Show older bills
+            </Button>
+          )}
         </div>
       )}
 
@@ -467,7 +508,7 @@ function summary(
       ? `Paid until ${day(plan.periodEnd!)}. The plan stops then, and the studio becomes read only.`
       : `Paid until ${day(plan.periodEnd!)}. The next bill, ${cash(next!)}, is taken that day from ${card ?? 'your card'}.`
   if (plan.status === 'overdue' && plan.overdue)
-    return `We could not take ${cash(next ?? 0)}. ${
+    return `We could not take ${next === undefined ? 'this month’s payment' : cash(next)}. ${
       plan.overdue.nextAttemptAt
         ? `We will try the card again on ${day(plan.overdue.nextAttemptAt)}.`
         : 'We will not try the card again by ourselves.'

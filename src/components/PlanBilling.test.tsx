@@ -43,6 +43,7 @@ const plan = (extra: Partial<BillingView> = {}): BillingView => ({
   checking: false,
   held: false,
   invoices: [],
+  moreBills: null,
   ai: {
     typed: { used: 12, of: 300 },
     guestChats: { used: 0, of: 200 },
@@ -185,6 +186,86 @@ test('a declined payment says nothing was taken', async () => {
   )
 })
 
+test('only a payment that went through is spoken of as paid', async () => {
+  const user = userEvent.setup()
+  const stopped = plan({
+    status: 'stopped',
+    stopReason: 'unpaid',
+    card,
+    nextBill: { at: now, bill: monthBill('UK', 1, false) },
+  })
+  let outcome = 'void'
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path === base) return stopped as never
+    if (path === `${base}/pay`) return { outcome, billing: stopped } as never
+    throw new Error(`Unexpected route ${path}`)
+  })
+  open()
+  await user.click(await screen.findByRole('button', { name: 'Pay £58.80 now' }))
+  expect(await screen.findByRole('status')).toHaveTextContent(
+    'The card was declined, so nothing was taken. Try again or use another card.',
+  )
+  expect(screen.queryByText(/Everything works again/)).not.toBeInTheDocument()
+  // No clear answer yet: nothing is said to be paid, and nothing more is taken.
+  outcome = 'charging'
+  await user.click(screen.getByRole('button', { name: 'Pay £58.80 now' }))
+  expect(await screen.findByRole('status')).toHaveTextContent(
+    'The card service has not said yet whether the payment went through. Nothing more is taken until it does',
+  )
+  outcome = 'paid'
+  await user.click(screen.getByRole('button', { name: 'Pay £58.80 now' }))
+  expect(await screen.findByRole('status')).toHaveTextContent(
+    'Paid. Everything works again, and the bill is below.',
+  )
+})
+
+test('after a restore, says payments wait for the card service and offers nothing to pay', async () => {
+  vi.mocked(api).mockResolvedValue(
+    plan({
+      status: 'overdue',
+      card,
+      held: true,
+      checking: true,
+      overdue: { since: now - DAY_MS, graceEndsAt: now + 13 * DAY_MS, nextAttemptAt: now },
+      invoices: [invoice({ status: 'unknown', paidAt: null })],
+    }) as never,
+  )
+  open()
+  expect(
+    await screen.findByText(/Payments are paused because SALEANE was restored from a backup/),
+  ).toBeInTheDocument()
+  expect(screen.queryByText(/A payment is being checked/)).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /^Pay/ })).not.toBeInTheDocument()
+  expect(screen.getByText('Being checked')).toBeInTheDocument()
+})
+
+test('shows older bills a page at a time', async () => {
+  const user = userEvent.setup()
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path === base)
+      return plan({
+        status: 'active',
+        card,
+        periodStart: now,
+        periodEnd: now + 30 * DAY_MS,
+        invoices: [invoice({ id: 'b-25', number: 'TEST-000025' })],
+        moreBills: '100.25',
+      }) as never
+    if (path === `${base}/bills?before=100.25`)
+      return { invoices: [invoice({ id: 'b-24', number: 'TEST-000024' })], next: '90.24' } as never
+    if (path === `${base}/bills?before=90.24`)
+      return { invoices: [invoice({ id: 'b-1', number: 'TEST-000001' })], next: null } as never
+    throw new Error(`Unexpected route ${path}`)
+  })
+  open()
+  await user.click(await screen.findByRole('button', { name: 'Show older bills' }))
+  expect(await screen.findByText('TEST-000024')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Show older bills' }))
+  expect(await screen.findByText('TEST-000001')).toBeInTheDocument()
+  expect(screen.getByText('TEST-000025')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Show older bills' })).not.toBeInTheDocument()
+})
+
 test('a read only studio can pay for a month from today, and cannot add Plus or stop', async () => {
   vi.mocked(api).mockResolvedValue(
     plan({
@@ -215,7 +296,7 @@ test('asks before stopping, and says nothing is deleted', async () => {
     if (path === base) return plan({ card }) as never
     if (path === `${base}/stop`)
       return {
-        outcome: 'stopping',
+        outcome: 'saved',
         billing: plan({ card, cancelAtPeriodEnd: true, nextBill: null }),
       } as never
     throw new Error(`Unexpected route ${path}`)
