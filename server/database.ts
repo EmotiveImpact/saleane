@@ -596,6 +596,10 @@ export const migrations: Migration[] = [
       connection.exec(`
         ALTER TABLE studio_plans ADD COLUMN lock_at INTEGER;
         ALTER TABLE studio_plans ADD COLUMN locked_at INTEGER;
+        -- A studio already read only locks 30 days after the end of its last paid month, or of its
+        -- trial when it never paid; the billing loop locks those whose day has already passed.
+        UPDATE studio_plans SET lock_at=COALESCE(period_end,trial_ends_at)+${30 * 86_400_000}
+          WHERE status='stopped';
       `),
   },
 ]
