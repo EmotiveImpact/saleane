@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { checkPassword, digest, passwordHash } from '../auth'
 import { COOKIE, fail, sessionToken } from '../http'
 import { createWorkspace, workspaceInput } from '../workspace'
+import { claimLink, linkInLog, mailLink, openLink, tooManyLinks } from '../accountMail'
 import { emailSchema, registration } from '../context'
 import { brandFigures, brandGroup } from '../../src/domain/brandGroup'
 import type { Context, Invitation, Route } from '../context'
@@ -42,8 +43,12 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
   }
   if (method === 'GET' && url.pathname === '/api/session') {
     const actor = actorFor(request)
+    const confirmed = db.get<{ at: number | null }>(
+      'SELECT email_confirmed_at AS at FROM accounts WHERE id=?',
+      actor.id,
+    )?.at
     reply(200, {
-      user: { id: actor.id, name: actor.name, email: actor.email },
+      user: { id: actor.id, name: actor.name, email: actor.email, emailConfirmed: !!confirmed },
       csrf: actor.csrf,
       workspaces: memberships(actor),
       localOnly: true,
@@ -78,7 +83,97 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
         ? join(invite, accountId)
         : insertWorkspace(createWorkspace(data.workspace!), accountId).id
     })
+    // The address is confirmed by a link sent to it. Nothing waits on it; the account works at once.
+    mailLink(ctx, { id: accountId, name: data.name, email: data.email }, 'confirm')
     reply(201, { orgId, csrf: signIn(response, accountId) })
+    return true
+  }
+  if (method === 'POST' && url.pathname === '/api/auth/forgot') {
+    rateLimit(request, 'auth', 10, 5 * 60000)
+    const data = z.object({ email: emailSchema }).strict().parse(body)
+    const account = db.get<{ id: string; name: string; email: string }>(
+      'SELECT id,name,email FROM accounts WHERE email=?',
+      data.email,
+    )
+    // The same answer, just as quickly, either way, so the page never tells anyone which
+    // addresses have accounts. An inbox already sent an hour's worth of links gets no more.
+    if (account && !tooManyLinks(ctx, account.id, 'reset')) mailLink(ctx, account, 'reset')
+    reply(200, { ok: true, emailConnected: ctx.messaging.email.live, linkInLog: linkInLog(ctx) })
+    return true
+  }
+  if (method === 'POST' && url.pathname === '/api/auth/reset') {
+    rateLimit(request, 'auth', 10, 5 * 60000)
+    const data = z
+      .object({ token: z.string().min(32).max(100), password: z.string().min(12).max(128) })
+      .strict()
+      .parse(body)
+    const closed =
+      'This link has expired or has already been used. Ask for a new one from the sign-in page.'
+    if (!openLink(ctx, data.token, 'reset')) fail(400, closed)
+    const hash = await passwordHash(data.password)
+    const accountId = db.transaction(() => {
+      // Checked again here: the same link may have been used while the password was hashed.
+      const link = claimLink(ctx, data.token, 'reset')
+      if (!link) fail(400, closed)
+      // Opening the emailed link also shows the address is theirs.
+      db.run(
+        'UPDATE accounts SET password_hash=?, email_confirmed_at=COALESCE(email_confirmed_at,?) WHERE id=?',
+        hash,
+        now(),
+        link!.account_id,
+      )
+      // Every signed-in device is signed out, and any other reset link stops working.
+      db.run('DELETE FROM sessions WHERE account_id=?', link!.account_id)
+      db.run(
+        "UPDATE account_links SET used_at=? WHERE account_id=? AND kind='reset' AND used_at IS NULL",
+        now(),
+        link!.account_id,
+      )
+      return link!.account_id
+    })
+    reply(200, { csrf: signIn(response, accountId) })
+    return true
+  }
+  if (method === 'POST' && url.pathname === '/api/auth/confirm') {
+    rateLimit(request, 'auth', 10, 5 * 60000)
+    const data = z
+      .object({ token: z.string().min(32).max(100) })
+      .strict()
+      .parse(body)
+    db.transaction(() => {
+      const link = claimLink(ctx, data.token, 'confirm')
+      if (!link)
+        fail(400, 'This link has expired or has already been used. Sign in to send a new one.')
+      db.run(
+        'UPDATE accounts SET email_confirmed_at=COALESCE(email_confirmed_at,?) WHERE id=?',
+        now(),
+        link!.account_id,
+      )
+    })
+    reply(200, { ok: true })
+    return true
+  }
+  if (method === 'POST' && url.pathname === '/api/auth/confirm/resend') {
+    const actor = actorFor(request, true)
+    rateLimit(request, 'auth', 10, 5 * 60000)
+    const confirmed = db.get<{ at: number | null }>(
+      'SELECT email_confirmed_at AS at FROM accounts WHERE id=?',
+      actor.id,
+    )?.at
+    if (!confirmed) {
+      if (tooManyLinks(ctx, actor.id, 'confirm'))
+        fail(
+          429,
+          'Several links have gone out in the last hour. Use the newest, or try again later.',
+        )
+      mailLink(ctx, actor, 'confirm')
+    }
+    reply(200, {
+      ok: true,
+      emailConnected: ctx.messaging.email.live,
+      linkInLog: linkInLog(ctx),
+      confirmed: !!confirmed,
+    })
     return true
   }
   if (method === 'POST' && url.pathname === '/api/auth/login') {

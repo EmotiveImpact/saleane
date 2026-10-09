@@ -2,6 +2,18 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-09 · Forgotten password and email confirmation (NEXT-03)
+
+**Status: built locally on 9 October 2026; nothing deployed and no email sent.** [Evidence](docs/evidence/NEXT-03-ACCOUNT-LINKS.md).
+
+- The sign-in page has "Forgotten your password?". It gives the same answer whether or not the address has an account. The link works once, for an hour; choosing a new password signs out every other device and signs in here.
+- A new account gets a link to confirm its email, and works fully in the meantime. Until it is confirmed, the studios page asks for it and can send a fresh link; earlier links stop working.
+- Email is still in test mode, so the page says plainly that nothing was sent and the link is written in the server log. The link is written there only when SALEANE runs for this computer alone; on any other address it is never written, and the page says nothing was sent. Each account email is recorded with what really happened (`test`, `accepted`, `failed` or `unknown`), never as sent when it was not.
+- No inbox gets more than five links of one kind in an hour, the answer comes back before the email is sent (so its timing gives nothing away), and two requests with the same link cannot both use it.
+- Restoring a backup retires every open link, so a link from before the restore never works after it.
+- Migration 23 adds the link and email records and the account's confirmed date.
+- The roadmap records the owner's yes to the price (£49 / $59 a month for each location, with the AI allowance and add-ons) and to the five moving-in answers.
+
 ## 2026-10-09 · Whole app review and fixes
 
 **Status: built locally on 9 October 2026 and merged (#72); nothing deployed.** [Evidence](docs/evidence/APP-REVIEW-2026-10-09.md).

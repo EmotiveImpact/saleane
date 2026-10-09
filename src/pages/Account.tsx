@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowRight, ArrowLeft, ShieldCheck } from 'lucide-react'
 import { useStore } from '../state/context'
@@ -12,12 +12,15 @@ import { InvitationSummary } from '../components/InvitationSummary'
 import type { InvitationPreview } from '../components/InvitationSummary'
 import '../account.css'
 
+/** What the server says after it is asked for a password or confirmation link. */
+type LinkAnswer = { emailConnected: boolean; linkInLog: boolean }
+
 export function Account() {
   const store = useStore(),
     navigate = useNavigate()
   const [params] = useSearchParams()
   const invitation = params.get('invitation') ?? ''
-  const [view, setView] = useState<'signin' | 'create' | 'workspace'>(
+  const [view, setView] = useState<'signin' | 'create' | 'workspace' | 'forgot'>(
     invitation ? 'create' : 'signin',
   )
   const [name, setName] = useState(''),
@@ -31,6 +34,16 @@ export function Account() {
     [pending, setPending] = useState(false),
     [error, setError] = useState('')
   const [ready, setReady] = useState(false)
+  // NEXT-03: what happened after asking for a password link or a fresh confirmation link.
+  const [linkSent, setLinkSent] = useState<LinkAnswer | null>(null)
+  const [confirmSent, setConfirmSent] = useState<LinkAnswer | null>(null)
+  const [confirmProblem, setConfirmProblem] = useState('')
+  const emailField = useRef<HTMLInputElement>(null),
+    sentNote = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    // The control that was pressed has gone, so the focus moves to what replaced it.
+    if (view === 'forgot') (linkSent ? sentNote : emailField).current?.focus()
+  }, [view, linkSent])
   // A team invitation names its studio and role before anyone signs in.
   const [invited, setInvited] = useState<InvitationPreview | null>(null)
   const [inviteProblem, setInviteProblem] = useState('')
@@ -106,6 +119,15 @@ export function Account() {
     try {
       let orgId = ''
       let current: Session | null = null
+      if (view === 'forgot') {
+        setLinkSent(
+          await api<LinkAnswer>('/api/auth/forgot', {
+            method: 'POST',
+            body: { email },
+          }),
+        )
+        return
+      }
       if (view === 'signin') {
         await api('/api/auth/login', { method: 'POST', body: { email, password } })
         current = await store.refreshSession()
@@ -154,28 +176,7 @@ export function Account() {
   const otherEmail = !!invited && !!store.session && store.session.user.email !== invited.email
   return (
     <div className="account-layout">
-      <aside className="account-story">
-        <Link className="wordmark" to="/today">
-          SALEANE
-        </Link>
-        <div>
-          <span className="eyebrow">A considered way to run your business</span>
-          <p className="account-story-title">
-            A place for
-            <br />
-            every promise.
-          </p>
-          <p>Your team, visits and clients, remembered together.</p>
-        </div>
-        <img
-          src="/images/saleane-studio-warm.jpg"
-          alt="A calm fictional studio with natural light"
-        />
-        <small>
-          A preview on this computer · card payments and email not connected yet ·{' '}
-          <Link to="/pricing">Pricing</Link>
-        </small>
-      </aside>
+      <AccountStory />
       <main className="account-main">
         {/* Signed in with no studio open, the workspace would only bring them back here. */}
         {store.landing !== '/account' && (
@@ -189,6 +190,49 @@ export function Account() {
             <p className="date-caption">Welcome, {store.session.user.name}</p>
             <h1>Your studios</h1>
             <p className="subtle">Choose where to work today.</p>
+            {store.session.user.emailConfirmed === false && (
+              <div className="account-confirm" role="status">
+                <p>
+                  Please confirm your email, {store.session.user.email}, with the link we send to
+                  it. Everything works in the meantime.
+                </p>
+                {confirmSent ? (
+                  <p className="subtle">
+                    {confirmSent.emailConnected
+                      ? 'A link is on its way, and any earlier one no longer works. If nothing arrives in a few minutes, look in your spam folder.'
+                      : confirmSent.linkInLog
+                        ? 'Email is not connected on this computer, so nothing was sent. The new link is written in the server log for whoever runs SALEANE here.'
+                        : 'Email is not connected yet, so nothing was sent.'}
+                  </p>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    disabled={pending}
+                    onClick={async () => {
+                      setPending(true)
+                      setConfirmProblem('')
+                      try {
+                        const sent = await api<LinkAnswer & { confirmed: boolean }>(
+                          '/api/auth/confirm/resend',
+                          { method: 'POST', body: {} },
+                        )
+                        if (sent.confirmed) await store.refreshSession()
+                        else setConfirmSent(sent)
+                      } catch (e) {
+                        setConfirmProblem(
+                          e instanceof Error ? e.message : 'A link could not be made.',
+                        )
+                      } finally {
+                        setPending(false)
+                      }
+                    }}
+                  >
+                    Send a confirmation link
+                  </Button>
+                )}
+                <ErrorMessage error={confirmProblem} />
+              </div>
+            )}
             <div className="account-workspaces">
               {store.session.workspaces.map((w) => (
                 <button disabled={pending} onClick={() => void enter(w.id)} key={w.id}>
@@ -269,156 +313,190 @@ export function Account() {
             <h1>
               {view === 'signin'
                 ? 'Welcome back.'
-                : view === 'workspace'
-                  ? 'Make room for your studio.'
-                  : invitation
-                    ? `Join ${invited?.studio ?? 'your studio'}.`
-                    : 'Begin with your business.'}
+                : view === 'forgot'
+                  ? 'Choose a new password.'
+                  : view === 'workspace'
+                    ? 'Make room for your studio.'
+                    : invitation
+                      ? `Join ${invited?.studio ?? 'your studio'}.`
+                      : 'Begin with your business.'}
             </h1>
             {invitation && view !== 'workspace' && invited && (
               <InvitationSummary invitation={invited} />
             )}
             {invitation && view !== 'workspace' && <ErrorMessage error={inviteProblem} />}
             <p className="account-intro">
-              {view === 'signin'
-                ? invited
-                  ? `Sign in with ${invited.email} to join ${invited.studio}.`
-                  : 'Sign in to continue with the records saved on this computer.'
-                : invited && view === 'create'
-                  ? 'Create your account with the email your invitation was sent to. Accounts and studio records are kept on this computer for now.'
-                  : 'Accounts and studio records are kept on this computer for now. Card payments and emails are not connected yet.'}
+              {view === 'forgot'
+                ? 'Enter the email you sign in with. If it has an account, we will send a link to choose a new password. The link works for an hour.'
+                : view === 'signin'
+                  ? invited
+                    ? `Sign in with ${invited.email} to join ${invited.studio}.`
+                    : 'Sign in to continue with the records saved on this computer.'
+                  : invited && view === 'create'
+                    ? 'Create your account with the email your invitation was sent to. Accounts and studio records are kept on this computer for now.'
+                    : 'Accounts and studio records are kept on this computer for now. Card payments and emails are not connected yet.'}
             </p>
-            <form onSubmit={submit}>
-              {view !== 'workspace' && (
-                <>
-                  <label>
-                    Email
-                    <input
-                      type="email"
-                      autoComplete="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                    />
-                    {invited && (
-                      <small>
-                        {email.trim().toLowerCase() === invited.email
-                          ? 'Your invitation was sent to this address.'
-                          : `Your invitation was sent to ${invited.email}.`}
-                      </small>
-                    )}
-                  </label>
-                  {view === 'create' && (
+            {view === 'forgot' && linkSent ? (
+              <div className="account-confirm" role="status" tabIndex={-1} ref={sentNote}>
+                <p>
+                  {linkSent.emailConnected
+                    ? `If ${email} has an account, a link is on its way. It works for an hour, and only once. If nothing arrives in a few minutes, look in your spam folder or ask again.`
+                    : linkSent.linkInLog
+                      ? `Email is not connected on this computer, so nothing was sent. If ${email} has an account, the link is written in the server log for whoever runs SALEANE here. It works for an hour, and only once.`
+                      : 'Email is not connected yet, so nothing was sent and the password cannot be changed this way.'}
+                </p>
+              </div>
+            ) : (
+              <form onSubmit={submit}>
+                {view !== 'workspace' && (
+                  <>
                     <label>
-                      Your name
+                      Email
                       <input
-                        autoComplete="name"
+                        ref={emailField}
+                        type="email"
+                        autoComplete="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                      />
+                      {invited && (
+                        <small>
+                          {email.trim().toLowerCase() === invited.email
+                            ? 'Your invitation was sent to this address.'
+                            : `Your invitation was sent to ${invited.email}.`}
+                        </small>
+                      )}
+                    </label>
+                    {view === 'create' && (
+                      <label>
+                        Your name
+                        <input
+                          autoComplete="name"
+                          required
+                          minLength={2}
+                          maxLength={100}
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                        />
+                      </label>
+                    )}
+                    {view !== 'forgot' && (
+                      <label>
+                        Password
+                        <input
+                          type="password"
+                          autoComplete={view === 'signin' ? 'current-password' : 'new-password'}
+                          required
+                          minLength={view === 'signin' ? 1 : 12}
+                          maxLength={128}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                        />
+                        {view === 'create' && <small>Use at least 12 characters.</small>}
+                      </label>
+                    )}
+                    {view === 'signin' && (
+                      <button
+                        type="button"
+                        className="account-forgot"
+                        onClick={() => {
+                          setView('forgot')
+                          setError('')
+                          setLinkSent(null)
+                        }}
+                      >
+                        Forgotten your password?
+                      </button>
+                    )}
+                  </>
+                )}
+                {(view === 'workspace' || (view === 'create' && !invitation)) && (
+                  <>
+                    <label>
+                      Business name
+                      <input
                         required
                         minLength={2}
                         maxLength={100}
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
+                        value={business}
+                        onChange={(e) => setBusiness(e.target.value)}
                       />
                     </label>
-                  )}
-                  <label>
-                    Password
-                    <input
-                      type="password"
-                      autoComplete={view === 'signin' ? 'current-password' : 'new-password'}
-                      required
-                      minLength={view === 'signin' ? 1 : 12}
-                      maxLength={128}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                    />
-                    {view === 'create' && <small>Use at least 12 characters.</small>}
-                  </label>
-                </>
-              )}
-              {(view === 'workspace' || (view === 'create' && !invitation)) && (
-                <>
-                  <label>
-                    Business name
-                    <input
-                      required
-                      minLength={2}
-                      maxLength={100}
-                      value={business}
-                      onChange={(e) => setBusiness(e.target.value)}
-                    />
-                  </label>
-                  <label>
-                    Location name
-                    <input
-                      required
-                      maxLength={120}
-                      placeholder="For example, Marylebone studio"
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                    />
-                  </label>
-                  <div className="form-grid">
                     <label>
-                      Market
-                      <select
-                        value={region}
-                        onChange={(e) => {
-                          const next = e.target.value as 'UK' | 'US'
-                          setRegion(next)
-                          setTimeZone(next === 'UK' ? 'Europe/London' : 'America/New_York')
-                        }}
-                      >
-                        <option value="UK">United Kingdom · GBP</option>
-                        <option value="US">United States · USD</option>
-                      </select>
+                      Location name
+                      <input
+                        required
+                        maxLength={120}
+                        placeholder="For example, Marylebone studio"
+                        value={location}
+                        onChange={(e) => setLocation(e.target.value)}
+                      />
                     </label>
-                    <label>
-                      Venue time zone
-                      <select value={timeZone} onChange={(e) => setTimeZone(e.target.value)}>
-                        {(region === 'UK'
-                          ? ['Europe/London']
-                          : [
-                              'America/New_York',
-                              'America/Chicago',
-                              'America/Denver',
-                              'America/Los_Angeles',
-                              'America/Phoenix',
-                              'Pacific/Honolulu',
-                            ]
-                        ).map((zone) => (
-                          <option key={zone}>{zone}</option>
-                        ))}
-                      </select>
+                    <div className="form-grid">
+                      <label>
+                        Market
+                        <select
+                          value={region}
+                          onChange={(e) => {
+                            const next = e.target.value as 'UK' | 'US'
+                            setRegion(next)
+                            setTimeZone(next === 'UK' ? 'Europe/London' : 'America/New_York')
+                          }}
+                        >
+                          <option value="UK">United Kingdom · GBP</option>
+                          <option value="US">United States · USD</option>
+                        </select>
+                      </label>
+                      <label>
+                        Venue time zone
+                        <select value={timeZone} onChange={(e) => setTimeZone(e.target.value)}>
+                          {(region === 'UK'
+                            ? ['Europe/London']
+                            : [
+                                'America/New_York',
+                                'America/Chicago',
+                                'America/Denver',
+                                'America/Los_Angeles',
+                                'America/Phoenix',
+                                'Pacific/Honolulu',
+                              ]
+                          ).map((zone) => (
+                            <option key={zone}>{zone}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={sample}
+                        onChange={(e) => setSample(e.target.checked)}
+                      />
+                      Start with made-up sample clients and visits
                     </label>
-                  </div>
-                  <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={sample}
-                      onChange={(e) => setSample(e.target.checked)}
-                    />
-                    Start with made-up sample clients and visits
-                  </label>
-                  <small className="subtle">
-                    {sample
-                      ? 'The sample is set on one fixed day, and its money is simulated.'
-                      : 'Your studio starts empty. A short list on Today takes you through treatments, your team, rooms and opening hours.'}
-                  </small>
-                </>
-              )}
-              <ErrorMessage error={error} />
-              <Button type="submit" disabled={pending || !ready}>
-                {pending
-                  ? 'Saving…'
-                  : view === 'signin'
-                    ? 'Sign in'
-                    : invitation
-                      ? 'Join studio'
-                      : 'Create your studio'}
-                <ArrowRight size={16} />
-              </Button>
-            </form>
+                    <small className="subtle">
+                      {sample
+                        ? 'The sample is set on one fixed day, and its money is simulated.'
+                        : 'Your studio starts empty. A short list on Today takes you through treatments, your team, rooms and opening hours.'}
+                    </small>
+                  </>
+                )}
+                <ErrorMessage error={error} />
+                <Button type="submit" disabled={pending || !ready}>
+                  {pending
+                    ? 'Saving…'
+                    : view === 'signin'
+                      ? 'Sign in'
+                      : view === 'forgot'
+                        ? 'Send the link'
+                        : invitation
+                          ? 'Join studio'
+                          : 'Create your studio'}
+                  <ArrowRight size={16} />
+                </Button>
+              </form>
+            )}
             <div className="account-actions">
               {view === 'workspace' ? (
                 <Button variant="quiet" onClick={() => setView('signin')}>
@@ -430,9 +508,14 @@ export function Account() {
                   onClick={() => {
                     setView(view === 'signin' ? 'create' : 'signin')
                     setError('')
+                    setLinkSent(null)
                   }}
                 >
-                  {view === 'signin' ? 'Create an account' : 'Already have an account? Sign in'}
+                  {view === 'signin'
+                    ? 'Create an account'
+                    : view === 'forgot'
+                      ? 'Back to sign in'
+                      : 'Already have an account? Sign in'}
                 </Button>
               )}
               <Button
@@ -448,13 +531,39 @@ export function Account() {
             <div className="account-footnote">
               <ShieldCheck size={19} />
               <span>
-                This preview runs on this computer only. There is no email check or password
-                recovery yet, so use made-up client details while you try it.
+                This preview runs on this computer only, so use made-up client details while you try
+                it. Email is not connected yet, so password and confirmation links are written in
+                the server log rather than sent.
               </span>
             </div>
           </>
         )}
       </main>
     </div>
+  )
+}
+
+/** The photograph and words beside every account page. */
+export function AccountStory() {
+  return (
+    <aside className="account-story">
+      <Link className="wordmark" to="/today">
+        SALEANE
+      </Link>
+      <div>
+        <span className="eyebrow">A considered way to run your business</span>
+        <p className="account-story-title">
+          A place for
+          <br />
+          every promise.
+        </p>
+        <p>Your team, visits and clients, remembered together.</p>
+      </div>
+      <img src="/images/saleane-studio-warm.jpg" alt="A calm fictional studio with natural light" />
+      <small>
+        A preview on this computer · card payments and email not connected yet ·{' '}
+        <Link to="/pricing">Pricing</Link>
+      </small>
+    </aside>
   )
 }
