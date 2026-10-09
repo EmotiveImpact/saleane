@@ -32,51 +32,62 @@ export function Waitlist() {
     )
   const summary = waitlistSummary(state, feedbackSince(state, 30), clock)
   const rows = waiting(state, clock).sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+  // Before anyone has used the list, one welcoming page replaces three figures at zero.
+  const unused = !rows.length && !summary.filled
+  const add = allowed && (
+    <Button onClick={() => setAdding(true)}>
+      <Plus size={16} aria-hidden="true" /> Add to the waitlist
+    </Button>
+  )
   return (
     <div className="waitlist-page">
       <PageHeader
         variant="compact"
-        photo={{ src: photos.tea, position: 'center 58%' }}
+        photo={unused ? undefined : { src: photos.tea, position: 'center 58%' }}
         eyebrow="Waitlist"
         title="Who would take a time."
         description="When a time opens that suits someone, it appears beside their name. Nobody is contacted by itself."
-        actions={
-          allowed ? (
-            <Button onClick={() => setAdding(true)}>
-              <Plus size={16} aria-hidden="true" /> Add to the waitlist
-            </Button>
-          ) : undefined
-        }
+        actions={unused ? undefined : add}
       />
-      <Stats>
-        <Stat label="Waiting now" value={summary.waiting} />
-        <Stat label="Times filled from the list, last 30 days" value={summary.filled} />
-        <Stat
-          label="Value of those visits"
-          value={wholeMoney(summary.valueMinor, state.organisation)}
-        />
-      </Stats>
-      <PassOnOffers />
-      <section className="surface ops-panel" aria-labelledby="waiting-heading">
-        <header>
-          <div>
-            <h2 id="waiting-heading">Waiting</h2>
-            <p>Longest waiting first. Times are checked against the diary as you look.</p>
-          </div>
-          <Hourglass size={21} aria-hidden="true" />
-        </header>
-        {rows.length ? (
-          <ul className="waitlist-cards">
-            {rows.map((entry) => (
-              <WaitlistCard key={entry.id} entry={entry} />
-            ))}
-          </ul>
-        ) : (
-          <Empty title="Nobody is waiting">
-            Add someone who wants a time that is full, or guests can ask from their own visit page.
-          </Empty>
-        )}
-      </section>
+      {unused ? (
+        <Empty photo={photos.tea} level={2} title="Nobody is waiting yet." action={add}>
+          Add a guest who wants a time that is full, and a time that suits them appears here the
+          moment one opens.
+        </Empty>
+      ) : (
+        <>
+          <Stats>
+            <Stat label="Waiting now" value={summary.waiting} />
+            <Stat label="Times filled from the list, last 30 days" value={summary.filled} />
+            <Stat
+              label="Value of those visits"
+              value={wholeMoney(summary.valueMinor, state.organisation)}
+            />
+          </Stats>
+          <PassOnOffers />
+          <section className="surface ops-panel" aria-labelledby="waiting-heading">
+            <header>
+              <div>
+                <h2 id="waiting-heading">Waiting</h2>
+                <p>Longest waiting first. Times are checked against the diary as you look.</p>
+              </div>
+              <Hourglass size={21} aria-hidden="true" />
+            </header>
+            {rows.length ? (
+              <ul className="waitlist-cards">
+                {rows.map((entry) => (
+                  <WaitlistCard key={entry.id} entry={entry} />
+                ))}
+              </ul>
+            ) : (
+              <Empty title="Nobody is waiting">
+                Add someone who wants a time that is full, or guests can ask from their own visit
+                page.
+              </Empty>
+            )}
+          </section>
+        </>
+      )}
       {adding && <WaitlistForm onClose={() => setAdding(false)} />}
     </div>
   )

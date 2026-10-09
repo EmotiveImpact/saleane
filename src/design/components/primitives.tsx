@@ -1,6 +1,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import { initials } from '../../domain/format'
 import { Definition } from './Definition'
+import { photos } from '../photos'
 
 export function Button({
   children,
@@ -93,21 +94,32 @@ export function Metric({
 export function Empty({
   title,
   children,
-  photo = false,
+  photo,
+  action,
   level = 3,
 }: {
   title: string
   children?: ReactNode
-  /** A quiet photograph above the words, for a page with nothing to show yet. */
-  photo?: boolean
+  /**
+   * A page with nothing in it yet: a house photograph beside the words. `true` uses the stacked
+   * towels; pass one of `photos` to choose. Leave it off for a small gap inside a list or panel.
+   */
+  photo?: boolean | string
+  /** The one next step, usually a single Button. A second, quieter one may sit beside it. */
+  action?: ReactNode
   /** 2 when the empty state sits straight under the page title, so no heading level is skipped. */
-  level?: 2 | 3
+  level?: 1 | 2 | 3
 }) {
-  const Heading = level === 2 ? 'h2' : 'h3'
+  const Heading = level === 1 ? 'h1' : level === 2 ? 'h2' : 'h3'
+  const picture = photo === true ? photos.towels : photo
   return (
-    <div className={`empty ${photo ? 'empty-photo' : ''}`}>
-      <Heading>{title}</Heading>
-      <p>{children}</p>
+    <div className={`empty ${picture ? 'empty-photo' : ''}`}>
+      {picture && <img className="empty-picture" src={picture} alt="" />}
+      <div className="empty-words">
+        <Heading>{title}</Heading>
+        {children && <p>{children}</p>}
+        {action && <div className="empty-action">{action}</div>}
+      </div>
     </div>
   )
 }

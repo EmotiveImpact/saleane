@@ -2219,21 +2219,6 @@ fieldset {
   color: var(--muted);
   font-size: var(--text-small);
 }
-.empty {
-  text-align: center;
-  padding: 50px 25px;
-}
-.empty :is(h2, h3) {
-  font-family: var(--font-display);
-  font-size: 18px;
-  margin-bottom: 10px;
-}
-.empty p {
-  max-width: 62ch;
-  margin-inline: auto;
-  color: var(--muted);
-  font-size: var(--text-body);
-}
 .dialog-overlay {
   position: fixed;
   inset: 0;
@@ -4268,15 +4253,6 @@ fieldset {
   margin-bottom: var(--space-4);
   border-radius: var(--radius-inner);
   background: center 60% / cover no-repeat;
-}
-.empty-photo::before {
-  content: '';
-  display: block;
-  width: 112px;
-  height: 112px;
-  margin: 0 auto var(--space-4);
-  border-radius: var(--radius-round);
-  background: url('/images/library/details/towels-stacked.webp') center / cover no-repeat;
 }
 .business-photos {
   display: grid;

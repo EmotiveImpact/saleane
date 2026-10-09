@@ -466,3 +466,250 @@
     font-weight: var(--weight-strong);
   }
 }
+
+/* The quality bar: empty pages, loading shapes, more options and one way of moving -------- */
+/* Motion. Everything that arrives uses calm: a fade with a few pixels of settling, nothing
+   more. Reduced motion removes it (styles.css), and the content is simply there. */
+@keyframes calm-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes calm-settle {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+}
+@keyframes calm-arrive-side {
+  from {
+    opacity: 0.6;
+    translate: 32px 0;
+  }
+}
+@keyframes calm-breathe {
+  50% {
+    opacity: 0.5;
+  }
+}
+/* For anything that appears in place: a wizard step, a saved line, a panel's new content. */
+.settle {
+  animation: calm-settle var(--motion-calm) var(--ease-calm) both;
+}
+.dialog-overlay[data-state='open'] {
+  animation: calm-fade var(--motion-calm) ease-out;
+}
+.dialog-content[data-state='open'] {
+  animation: calm-settle var(--motion-calm) var(--ease-calm);
+}
+.dialog-content.dialog-side[data-state='open'] {
+  animation-name: calm-arrive-side;
+}
+.definition-content[data-state='open'] {
+  animation: calm-fade var(--motion-quick) ease-out;
+}
+
+/* Empty states. Small ones sit inside a list or panel; a page with nothing in it yet takes a
+   house photograph beside the words, one line and one next step. */
+.empty {
+  padding: var(--space-10) var(--space-6);
+  text-align: center;
+}
+/* Older screens write the markup by hand, so their heading and line take the same look. */
+.empty > :is(h1, h2, h3),
+.empty .empty-words > :is(h1, h2, h3) {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-editorial);
+  font-size: 22px;
+  font-weight: var(--weight-editorial);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+.empty > p,
+.empty .empty-words > p {
+  max-width: 52ch;
+  margin: 0 auto;
+  color: var(--muted);
+  font-size: var(--text-body);
+  line-height: 1.55;
+}
+.empty-action {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+.empty-photo {
+  display: grid;
+  grid-template-columns: minmax(180px, 260px) minmax(0, 420px);
+  justify-content: center;
+  align-items: center;
+  gap: 52px;
+  padding: 56px var(--space-6);
+  text-align: left;
+  animation: calm-settle var(--motion-calm) var(--ease-calm) both;
+}
+.empty-picture {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  border-radius: var(--radius-panel);
+  background: var(--stone);
+}
+.empty-photo .empty-words > :is(h1, h2, h3) {
+  margin-bottom: var(--space-3);
+  font-size: clamp(28px, 2.6vw, 34px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.empty-photo .empty-words > p {
+  margin: 0;
+  max-width: 44ch;
+  line-height: 1.6;
+}
+.empty-photo .empty-action {
+  justify-content: flex-start;
+  margin-top: var(--space-6);
+}
+@media (max-width: 650px) {
+  .empty {
+    padding: var(--space-8) var(--space-4);
+  }
+  /* On a phone the photograph sits above the words and the next step fills the width, where
+     a thumb reaches it. */
+  .empty-photo {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-6);
+    padding: var(--space-4) 0 var(--space-8);
+  }
+  .empty-picture {
+    aspect-ratio: 16 / 10;
+  }
+  .empty-photo .empty-action {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* Loading shapes: the outline of what is coming, held back a moment so a quick load never
+   flickers, then breathing slowly until the content arrives. */
+.loading-shapes {
+  display: grid;
+  align-content: start;
+  gap: var(--space-8);
+  animation: calm-fade var(--motion-calm) ease-out 0.2s both;
+}
+.shape {
+  display: block;
+  height: 12px;
+  border-radius: var(--radius-pill);
+  /* See-through, so the shapes sit as lightly on a white panel as on the page. */
+  background: color-mix(in srgb, var(--line2) 72%, transparent);
+  animation: calm-breathe 1.8s ease-in-out infinite;
+}
+.loading-heading {
+  display: grid;
+  gap: var(--space-4);
+  padding-top: var(--space-6);
+}
+.shape-title {
+  width: min(360px, 62%);
+  height: 36px;
+  border-radius: var(--radius-inner);
+}
+.shape-line {
+  width: min(540px, 88%);
+}
+.loading-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+/* Large shapes are paler, so the page reads as resting rather than grey. */
+.shape-tile {
+  height: 112px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--line) 75%, transparent);
+}
+.loading-rows {
+  display: grid;
+}
+.loading-row {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 64px;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--line);
+}
+.loading-row:first-child {
+  border-top: 0;
+}
+.shape-round {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-round);
+}
+.loading-row-words {
+  display: grid;
+  gap: var(--space-2);
+}
+.shape-text {
+  width: 46%;
+}
+.loading-row:nth-child(3n + 2) .shape-text {
+  width: 58%;
+}
+.loading-row:nth-child(3n) .shape-text {
+  width: 36%;
+}
+.shape-detail {
+  width: 26%;
+  height: 10px;
+}
+@media (max-width: 650px) {
+  .loading-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .shape-tile {
+    height: 84px;
+  }
+}
+
+/* More options: one quiet line that opens in place. */
+.more-options > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target);
+  list-style: none;
+  cursor: pointer;
+  color: var(--brand-ink);
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+}
+.more-options > summary::-webkit-details-marker {
+  display: none;
+}
+.more-options > summary svg {
+  transition: transform var(--motion-quick);
+}
+.more-options[open] > summary svg {
+  transform: rotate(180deg);
+}
+.more-options > summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+  border-radius: var(--radius-inner);
+}
+.more-options-body {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-2) 0 var(--space-4);
+}
+.more-options[open] > .more-options-body {
+  animation: calm-settle var(--motion-calm) var(--ease-calm);
+}

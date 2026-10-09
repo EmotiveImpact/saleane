@@ -22,7 +22,7 @@ import { hasLocations, places } from './domain/locations'
 import { regions } from './domain/group'
 import { staleOffer } from './domain/waitlist'
 import { nudges } from './domain/nudges'
-import { Avatar, Modal, ScrollNav } from './design'
+import { Avatar, Empty, LoadingShapes, Modal, ScrollNav } from './design'
 import { SearchDialog } from './components/SearchDialog'
 import { BillingBanner } from './components/BillingBanner'
 import { Today } from './pages/Today'
@@ -418,13 +418,7 @@ function WorkspaceApp() {
               ))}
             </ScrollNav>
           )}
-          <Suspense
-            fallback={
-              <div className="route-loading" role="status">
-                <span className="sr-only">Loading…</span>
-              </div>
-            }
-          >
+          <Suspense fallback={<LoadingShapes kind="page" className="route-loading" />}>
             <Routes>
               <Route path="/" element={<Navigate to="/today" replace />} />
               <Route path="/today" element={<Today />} />
@@ -490,10 +484,18 @@ function WorkspaceApp() {
               <Route
                 path="*"
                 element={
-                  <div className="empty empty-photo">
-                    <h1>This page isn’t here.</h1>
-                    <Link to="/today">Return to Today</Link>
-                  </div>
+                  <Empty
+                    photo
+                    level={1}
+                    title="This page isn’t here."
+                    action={
+                      <Link className="button button-primary" to="/today">
+                        Return to Today
+                      </Link>
+                    }
+                  >
+                    The link may be old, or the page may have moved.
+                  </Empty>
                 }
               />
             </Routes>
