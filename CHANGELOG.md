@@ -2,28 +2,9 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
-## 2026-10-07 · V2 · Several locations
-
-**Status: built locally on 7 October 2026, in review; nothing deployed.**
-
-- Settings has a new Locations section. The owner adds further locations with a name, address, an optional "before you arrive" note and, if different, their own opening hours. A location can be closed for good; its history stays.
-- Each room or chair belongs to one location, and each person works at one location on a given day, set on their weekly hours under Team.
-- When a studio has more than one location, guests choose where they would like to come first, on both the live booking page and the demo one. Only places where someone does the chosen treatment are offered, and only the people who work there that day are shown. Reminders, the guest's own visit page, the day sheet and the practitioner's day name the visit's location and address.
-- The calendar has an "All locations" filter, booking from the desk or through Ask Saleane only offers times at the place the person is working that day, and Today shows where each person is.
-- Changing hours, rooms or someone's location is checked against booked visits first: a visit that would end up at a closed location, in a room at another location, or with someone working elsewhere is listed and the change is refused.
-- A visit can move to another location. It keeps its booked price, and the timeline says where it moved from and to.
-- Stock is kept per location. Stock can be filtered by location, stock can be moved between locations, and deliveries, counts, walk-in sales and supplier orders each say where. Products sold with a visit come off that location's shelf, and the ledger checks every move balances.
-- A treatment can cost more or less at another location, or be left off a location's menu. Guests see the price where they are coming, and a list where prices differ says "From".
-- Business figures, including time booked, can be filtered by location.
-- Each location has its own booking link that opens with it chosen.
-- A waitlist request can be for one location, and the schedule history records rooms and people moving between locations.
-- A booking link the AI receptionist texts a guest opens at the location where the professional works that day.
-- Texts name the location, imported visits go to the location where the professional works that day, and the calendar showing every location spans all their opening hours.
-- A studio with one location works exactly as before.
-
 ## 2026-10-09 · V5 · The client map
 
-**Status: built locally on 9 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-MAP.md).
+**Status: built locally on 9 October 2026 and merged (#64); nothing deployed.** [Evidence](docs/evidence/V5-MAP.md).
 
 - Client areas now has a map above the list. Each named area is a circle sized by clients or by treatment sales, with every location pinned and rings at one and three miles.
 - Choosing a circle or an area in the list shows its clients, visits, sales and the change on the period before. With nothing chosen, a short summary says where most clients come from, which area is growing fastest and how many come from within a mile.
@@ -32,7 +13,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-09 · V5 · Shared brand rules
 
-**Status: built locally on 9 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-BRAND.md).
+**Status: built locally on 9 October 2026 and merged (#63); nothing deployed.** [Evidence](docs/evidence/V5-BRAND.md).
 
 - The studio's colours are now kept with the studio, not in one browser, so every location, every device and the guest booking page show the same colours. Owners and managers choose them as before.
 - Settings, Locations has "House rules for every location", set by the owner: how far a location's price may differ from the house price (any, the same everywhere, or within 5% to 25%), and core treatments that stay on every location's menu.
@@ -40,7 +21,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-08 · V5 · Where clients come from
 
-**Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-AREAS.md).
+**Status: built locally on 8 October 2026 and merged (#62); nothing deployed.** [Evidence](docs/evidence/V5-AREAS.md).
 
 - A client's page has a Postcode area panel (ZIP area in the US). The desk, managers and the owner record the first half of a postcode, such as N1, or the first three digits of a ZIP code. A full postcode typed in is cut to its first half before it is saved, and the client's timeline notes the change. Practitioners cannot record it.
 - Business has a Client areas tab for owners, managers and general managers: clients with a visit in the past year or one booked, grouped by area, with each area's share, and filtered by location when there is more than one. A general manager sees their own location's.
@@ -49,7 +30,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-08 · V5 · General managers who run one location
 
-**Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-GENERAL.md).
+**Status: built locally on 8 October 2026 and merged (#61); nothing deployed.** [Evidence](docs/evidence/V5-GENERAL.md).
 
 - Once a studio has more than one location, the owner can invite a general manager for one of them, or change someone's access to it, under Settings, Team.
 - A general manager works as a manager at their location: its diary, check-ins and takings, card payments and refunds, stock and orders, branch visits and requests for a sign-off, and the clients they look after. The calendar, Business and Stock open on their location, and the sidebar names it.
@@ -58,7 +39,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-08 · V5 · Requests that pass up to the right person
 
-**Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-APPROVALS.md).
+**Status: built locally on 8 October 2026 and merged (#60); nothing deployed.** [Evidence](docs/evidence/V5-APPROVALS.md).
 
 - Business has a Requests tab for owners and managers. Anyone there can ask for a sign-off at a location: spending (with the cost) or something else, with a reason.
 - A request goes to the regional manager of the location's region. It passes up to the owner when it costs more than a regional manager may approve, when the location is in no region, or when the region has no regional manager, and the request says which.
@@ -66,7 +47,9 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - A regional manager raises and decides requests at their own locations from their own page, and their morning summary says how many are waiting for them. Requests already over their limit show who they are waiting on, without a button.
 - A decision is final and kept with who made it, when and any word back. The desk and practitioners do not receive requests. Approving a request records the decision only; no money moves.
 
-**Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-REGIONAL.md).
+## 2026-10-08 · V5 · Regional managers who see only their own region
+
+**Status: built locally on 8 October 2026 and merged (#59); nothing deployed.** [Evidence](docs/evidence/V5-REGIONAL.md).
 
 - The owner can invite a regional manager for one region, or change someone's access to it, under Settings, Team.
 - A regional manager opens their own page: a greeting, their region's figures by location, how many visits each has booked today, a short morning summary (what is waiting to be put right and which locations are due a branch visit), and their region's branch visits.
@@ -75,7 +58,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-08 · V5 · Branch visit checklists
 
-**Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-BRANCH-VISITS.md).
+**Status: built locally on 8 October 2026 and merged (#58); nothing deployed.** [Evidence](docs/evidence/V5-BRANCH-VISITS.md).
 
 - Business has a Branch visits tab for owners and managers. A visit is recorded on a phone against a checklist: each line is answered yes, no or not checked, with a note.
 - Every line answered no stays on "To put right" until someone marks it done, with who and when.
@@ -84,7 +67,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-08 · V5 · The whole business at a glance
 
-**Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-GROUP.md).
+**Status: built locally on 8 October 2026 and merged (#57); nothing deployed.** [Evidence](docs/evidence/V5-GROUP.md).
 
 - With more than one location, Business opens with "The whole business": every location's completed takings over the last 28 days against the 28 before, the change, rebooking, and this month against its target, with what is booked but not yet taken shown apart.
 - A short summary in plain words names the totals, the location doing best and the one that needs a look, and the month so far.
@@ -176,9 +159,28 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Settings › Messages has saved replies, looked after by owners and managers.
 - Guests' replies are in their data export, text export and erasure review. Messages approved for sending are kept when erasure is reviewed, because they may have gone out.
 
+## 2026-10-07 · V2 · Several locations
+
+**Status: built locally on 7 October 2026 and merged (#39); nothing deployed.**
+
+- Settings has a new Locations section. The owner adds further locations with a name, address, an optional "before you arrive" note and, if different, their own opening hours. A location can be closed for good; its history stays.
+- Each room or chair belongs to one location, and each person works at one location on a given day, set on their weekly hours under Team.
+- When a studio has more than one location, guests choose where they would like to come first, on both the live booking page and the demo one. Only places where someone does the chosen treatment are offered, and only the people who work there that day are shown. Reminders, the guest's own visit page, the day sheet and the practitioner's day name the visit's location and address.
+- The calendar has an "All locations" filter, booking from the desk or through Ask Saleane only offers times at the place the person is working that day, and Today shows where each person is.
+- Changing hours, rooms or someone's location is checked against booked visits first: a visit that would end up at a closed location, in a room at another location, or with someone working elsewhere is listed and the change is refused.
+- A visit can move to another location. It keeps its booked price, and the timeline says where it moved from and to.
+- Stock is kept per location. Stock can be filtered by location, stock can be moved between locations, and deliveries, counts, walk-in sales and supplier orders each say where. Products sold with a visit come off that location's shelf, and the ledger checks every move balances.
+- A treatment can cost more or less at another location, or be left off a location's menu. Guests see the price where they are coming, and a list where prices differ says "From".
+- Business figures, including time booked, can be filtered by location.
+- Each location has its own booking link that opens with it chosen.
+- A waitlist request can be for one location, and the schedule history records rooms and people moving between locations.
+- A booking link the AI receptionist texts a guest opens at the location where the professional works that day.
+- Texts name the location, imported visits go to the location where the professional works that day, and the calendar showing every location spans all their opening hours.
+- A studio with one location works exactly as before.
+
 ## 2026-10-07 · V1.5 · Consultations
 
-**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-CONSULT.md).
+**Status: built locally on 7 October 2026 and merged (#47); nothing deployed and no message sent.** [Evidence](docs/evidence/V15-CONSULT.md).
 
 - A client's page has a new Consultations panel. The desk notes the date, who held it, the treatments talked about, what the guest would like, what was agreed and any price given. Health details are refused, as they are for guest forms.
 - Each update is kept as a new version, with who saved it. Earlier versions stay readable.
@@ -187,7 +189,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-07 · V1.5 · Versioned consent for email news
 
-**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-CONSENT.md).
+**Status: built locally on 7 October 2026 and merged (#46); nothing deployed and no message sent.** [Evidence](docs/evidence/V15-CONSENT.md).
 
 - Settings › Messages to guests has a new panel for the studio's own words asking about email news. Each change is kept as a numbered version; SALEANE's standard words are version 1.
 - The booking page shows the studio's current words beside the optional box. Every time a guest's email permission is given or stopped (booking online, at the desk, editing the client, or from the guest's own link) SALEANE keeps a record of the words agreed to, where, when and who.
@@ -197,7 +199,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-07 · V1.5 · Guest forms before a visit
 
-**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-FORMS.md).
+**Status: built locally on 7 October 2026 and merged (#45); nothing deployed and no message sent.** [Evidence](docs/evidence/V15-FORMS.md).
 
 - Settings has a new Guest forms section. Owners and managers set up short forms for some or all services, asked before every visit or once per guest: short or longer answers, yes or no, pick one, and something to agree to by typing a name. The sample studio has one for haircuts.
 - Forms are for everyday questions. A form that asks about health (allergies, pregnancy, medication, medical conditions and similar) is refused; those wait for the separate clinical part of SALEANE.
@@ -206,21 +208,21 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-07 · V1.5 · Booking from a missed call
 
-**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-CALLBOOK.md).
+**Status: built locally on 7 October 2026 and merged (#43); nothing deployed and no message sent.** [Evidence](docs/evidence/V15-CALLBOOK.md).
 
 - Each call on Today's Missed calls list has a Book button. It opens the booking window for that caller: a client matched by their number is already chosen, and anyone else can be found by number or added as a new client while booking, with their number filled in.
 - Booking takes the call off the list, counts as calling back, links the call to the visit and notes it on the visit's timeline. The client's data export shows which visit a call led to. The panel says how many calls this week became a booked visit.
 
 ## 2026-10-07 · V1.5 · Neutral review requests and room resting time
 
-**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-REVIEWS.md).
+**Status: built locally on 7 October 2026 and merged (#42); nothing deployed and no message sent.** [Evidence](docs/evidence/V15-REVIEWS.md).
 
 - A studio can add its public review page (Settings › Studio details). After a completed visit, every guest's private page invites them, in the same words, to leave a public review, and the feedback email gains one line with the link. It never asks for a good review and is never held back because of a private rating. Only https addresses are accepted.
 - A room or chair can rest for 10 to 120 minutes after each visit (Settings › Spaces & equipment), for airing, cooling or a deep clean. New bookings and moves leave it empty for that long before and after each visit and use another free room instead; the professional stays free. Visits already booked stay as they are.
 
 ## 2026-10-07 · V1.5 · Missed-call text-back and "I've arrived"
 
-**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-ARRIVALS.md).
+**Status: built locally on 7 October 2026 and merged (#41); nothing deployed and no message sent.** [Evidence](docs/evidence/V15-ARRIVALS.md).
 
 - Today has a Missed calls panel for the desk: calls nobody could answer, newest first, matched to a client by their number, with how many times they rang, a Call link and "Called back" to take them off the list. Reception can write a call down by typing the number as people say it (07700 900123 or +44 7700 900123). Practitioners do not see it.
 - If the studio switches it on (Settings › Messages to guests, off by default), a missed caller gets one text within 15 minutes: sorry we missed you, we will call back, and the booking link. At most one a day per number, never after someone has called back, and never to a client who asked for no texts. With no provider configured it stays in test mode.
@@ -230,7 +232,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-07 · V1.5 · Birthday and "we miss you"
 
-**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-BIRTHDAY.md).
+**Status: built locally on 7 October 2026 and merged (#40); nothing deployed and no message sent.** [Evidence](docs/evidence/V15-BIRTHDAY.md).
 
 - Each client page has a Birthday panel: month and day only, never the year. Recording or removing it goes on the client's timeline. Owners, managers and reception can change it; practitioners never see it.
 - A guest who agreed to hear from the studio and shared their birthday gets one birthday email on the day, in the daytime on the studio's clock, with a gentle link to book (or none, if they already have a visit booked). 29 February birthdays get theirs on the 28th in other years.
@@ -240,7 +242,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-07 · V1.5 · Due back and aftercare
 
-**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-DUEBACK.md).
+**Status: built locally on 7 October 2026 and merged (#38); nothing deployed and no message sent.** [Evidence](docs/evidence/V15-DUEBACK.md).
 
 - Each treatment can carry aftercare advice (Settings › Studio details, "Before and after a visit"). Half an hour after checkout the guest gets it by email, once, up to two days later. The sample facial and Gloss & Tone have some.
 - A treatment can say when guests are usually back, in weeks (Settings › Services, "Usually back after"). Gloss & Tone in the sample studio is six weeks.
@@ -250,7 +252,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-07 · V3 · Smart insights, first pass
 
-**Status: built locally on 7 October 2026, in review; nothing deployed, sent or changed automatically.** Every insight is worked out from the studio's own records by fixed rules that can be explained; no AI service is involved.
+**Status: built locally on 7 October 2026 and merged (#32); nothing deployed, sent or changed automatically.** Every insight is worked out from the studio's own records by fixed rules that can be explained; no AI service is involved.
 
 - Today's "Saleane noticed" panel now gives a short brief: visits and hours booked against a usual day of the same weekday over the last four weeks, and (for owners and managers) yesterday's takings against usual.
 - It points out what looks unusual against the studio's own recent weeks: a quiet day tomorrow, more cancellations or missed visits than usual, takings down on the week (owners and managers only), a client with two missed visits who is booked today or tomorrow, and low stock (owners and managers only). A studio without enough history sees nothing rather than a false alarm.
@@ -264,7 +266,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-07 · V1.5 · Patch tests
 
-**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** A salon record and a reminder, not a clinical record. [Evidence](docs/evidence/V15-PATCH.md).
+**Status: built locally on 7 October 2026 and merged (#36); nothing deployed and no message sent.** A salon record and a reminder, not a clinical record. [Evidence](docs/evidence/V15-PATCH.md).
 
 - A treatment can be marked as needing a patch test, such as a colour (Settings › Services). The sample studio has a new Gloss & Tone colour service with three visits later in the week.
 - Each client page has a Patch tests panel: what was tested, when, by whom, where it was placed and, once the skin is checked, clear or a reaction with what was seen. A test can be called clear only once the studio's waiting time has passed; a reaction can be recorded straight away. Tests are kept side by side and never deleted.
@@ -278,7 +280,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-07 · V2 · Accountant exports
 
-**Status: built locally on 7 October 2026, in review; nothing deployed. Nothing is sent to Xero or QuickBooks.**
+**Status: built locally on 7 October 2026 and merged (#31); nothing deployed. Nothing is sent to Xero or QuickBooks.**
 
 - Business has a new Accounts page for owners and managers. For this month or last month it shows the takings, tax, tips and money given back, day by day, with three spreadsheets for the accountant: money in and out, sales by receipt, and a tax summary. Demo and test payments are marked as such.
 - The owner chooses Xero or QuickBooks and fills in the account codes the accountant gives them. "Prepare" turns each day with takings into a balanced journal in that software's own format, shows a preview, and keeps a record of the batch with who prepared it. It is marked test mode and nothing is sent.
@@ -286,7 +288,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-07 · V2 · Reordering from suppliers
 
-**Status: built locally on 7 October 2026, in review; nothing deployed. SALEANE never sends an order to a supplier.**
+**Status: built locally on 7 October 2026 and merged (#31); nothing deployed. SALEANE never sends an order to a supplier.**
 
 - Stock has a new "Orders from suppliers" section. Owners and managers keep a list of suppliers, and each product can name its supplier and how many are usually ordered.
 - When products run low, the section suggests an order for each supplier with the usual quantity, leaving out anything already on order. "Prepare order" fills in the order, shows it in plain words to paste into an email or read out, and records it once the studio confirms it has placed it.
@@ -295,7 +297,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-07 · V2 · Chair and room rent
 
-**Status: built locally on 7 October 2026, in review; nothing deployed. SALEANE records rent paid to the studio and collects nothing.**
+**Status: built locally on 7 October 2026 and merged (#31); nothing deployed. SALEANE records rent paid to the studio and collects nothing.**
 
 - Pay has a new section for self-employed people who rent a chair or room. Owners and managers set up a rental (who, chair or room, which one, the rent, weekly or monthly, from which day) and end it when it stops. Ended rentals and their payments stay on record.
 - Rent is due at the start of each week or month. Monthly rent keeps the same day, moving to the last day in shorter months. The section shows the latest periods as paid or owed and the total still owed.
@@ -304,7 +306,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-07 · V2 · Rota, holidays and time off
 
-**Status: built locally on 7 October 2026, in review; nothing deployed.**
+**Status: built locally on 7 October 2026 and merged (#31); nothing deployed.**
 
 - Business has a new Rota page. It shows the week for each person from their usual hours, how many visits they have each day, and who is on holiday, off sick or away. Owners, managers and reception can see it.
 - Owners and managers add time off for whole days (holiday, sick or away, with an optional note) and can cancel it. Cancelled time off stays on record with who cancelled it.
@@ -314,7 +316,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-07 · V2 · Commission and tips per person
 
-**Status: built locally on 7 October 2026, in review; nothing deployed. SALEANE works out what each person has earned and pays nobody.**
+**Status: built locally on 7 October 2026 and merged (#31); nothing deployed. SALEANE works out what each person has earned and pays nobody.**
 
 - Business has a new Pay page for owners and managers. For this month or last month it shows each person's visits, commission on services and on products, tips and what they are owed, with a line-by-line breakdown and a spreadsheet download for payroll.
 - Commission is counted without tax and after discounts. Tips go in full to the person who did the visit. Money given back comes off in the month it is given back, in proportion to what the receipt was for and at the rate it was earned on; the tip stays with the person.
@@ -325,7 +327,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-07 · V2 · Walk-in product sales and returns
 
-**Status: built locally on 7 October 2026, in review; nothing deployed and no money moved.**
+**Status: built locally on 7 October 2026 and merged (#31); nothing deployed and no money moved.**
 
 - Stock has a "Sold without a visit" section for someone who pops in for a product. The desk picks products and how many, can link a client, and records how it was paid: cash or the studio's own card terminal (a reference is required for the terminal). SALEANE records the sale and does not take the money. Each sale gets its own receipt number (SC-1, SC-2 and so on) and takes the products out of stock on that receipt.
 - Owners and managers can give money back on a walk-in sale and say how many of each product went back on the shelf. A refund on a visit receipt with products can now put them back too. Stock shows these as "Brought back" against the refund.
@@ -334,7 +336,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-07 · V2 · Stock and products at the till
 
-**Status: built locally on 7 October 2026, in review; nothing deployed and no card charged outside test mode.**
+**Status: built locally on 7 October 2026 and merged (#31); nothing deployed and no card charged outside test mode.**
 
 - Business has a new Stock page. Owners and managers add products, mark the ones only used in treatments, and record deliveries, use in treatments and shelf counts. Each change is kept with who made it; nothing is deleted. Reception can see what is in stock but not change it.
 - The page shows what is on the shelf, what is running low against each product's reorder level, products sold in the last 30 days and, for owners and managers, the stock's value at cost.
@@ -362,9 +364,9 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Choosing a treatment now starts with the kinds of treatment (for example Skin, Body, Hair), each with a photograph and how many treatments it holds; picking one shows just those treatments, with a way back to all kinds. A search box above searches every treatment by name, kind and description. Nothing is chosen until the guest picks, so the Continue bar appears only then. A studio with a single kind of treatment goes straight to its list, as before.
 - The demo booking page now uses the demo studio's own name instead of always "Atelier House".
 
-## 2026-10-07 · In review · Browser demo
+## 2026-10-07 · Browser demo
 
-**Status: in review; nothing deployed. The demo link is a private claude.ai page.**
+**Status: merged (#21, refreshed in #37 and #44); nothing deployed. The demo link is a private claude.ai page.**
 
 - `npm run demo:build` writes one HTML file that runs the real app and server code inside a browser tab, with two fictional sample studios and the owner already signed in.
 - The London studio runs as a real studio in test mode, so a guest can pay a deposit on the test payment page and messages appear in the Inbox. It starts on today's date without the sample's payment history. New York stays a sample studio.
@@ -423,7 +425,7 @@ Look and flow only; booking rules, holds, prices and deposits are unchanged.
 
 ## 2026-10-07 · Lumane · Assistant engine and first Ask Saleane skills
 
-**Status: built locally on 7 October 2026, in review; no real AI connected yet.** Everything runs with a test-mode brain that recognises a few plain questions and answers from the studio record, so nothing is sent to an AI supplier and nothing costs money. Talking (voice), guest chat and the ChatGPT and Claude connection come later.
+**Status: built locally on 7 October 2026 and merged (#29); no real AI connected yet.** Everything runs with a test-mode brain that recognises a few plain questions and answers from the studio record, so nothing is sent to an AI supplier and nothing costs money. Talking (voice), guest chat and the ChatGPT and Claude connection come later.
 
 - Lumane is a separate engine in `lumane/`, built so other products can reuse it. A test makes sure it never imports anything from SALEANE.
 - Skills are either read skills, which answer from the studio's own records, or action skills, which only propose a change. A proposal does nothing until a person approves it, and it expires after 30 minutes.
@@ -437,7 +439,7 @@ Look and flow only; booking rules, holds, prices and deposits are unchanged.
 
 ## 2026-10-07 · V1.5 · Private client feedback and ratings
 
-**Status: built locally on 7 October 2026, in review; nothing deployed and no message sent.** The feedback request joins the message outbox like any other message; with no provider connected it waits there unsent.
+**Status: built locally on 7 October 2026 and merged (#28); nothing deployed and no message sent.** The feedback request joins the message outbox like any other message; with no provider connected it waits there unsent.
 
 - After checkout, a guest with an email address is queued one private "How was your visit?" message, two hours later (never more than two days after checkout, and never once the visit is a week old). Studios can turn it off in Settings, Messages.
 - The guest's private visit link shows a short form once the visit is complete: stars for the visit and for the person who looked after them, and an optional comment. One answer per visit; sending the same answer twice lands once, and an answer cannot be changed afterwards. The guest sees a thank-you with their own ratings, never anyone else's.
@@ -447,7 +449,7 @@ Look and flow only; booking rules, holds, prices and deposits are unchanged.
 
 ## 2026-10-07 · V1.5 · Packages and memberships
 
-**Status: built locally on 7 October 2026, in review; nothing deployed.** Plan payments are recorded by the desk (cash or the studio's own card terminal); paying for a plan by card through SALEANE and automatic monthly renewal come in a later stage.
+**Status: built locally on 7 October 2026 and merged (#27); nothing deployed.** Plan payments are recorded by the desk (cash or the studio's own card terminal); paying for a plan by card through SALEANE and automatic monthly renewal come in a later stage.
 
 - Settings has a new "Packages & memberships" section. A package is a number of visits bought at one price and used within a set number of months. A membership is paid each month and can include visits each month, a discount on other visits, or both. Changing a plan affects future sales only: each client keeps the terms they bought, and a plan is taken off sale rather than deleted.
 - On a client's page the desk can sell a plan, take a membership's monthly payment and see what is left. Only owners and managers can end a plan; any money returned is capped at what was paid and not yet used (for a membership, only the current paid month), recorded with a reference that cannot be reused, and never processed by SALEANE.
@@ -638,7 +640,7 @@ Second pass, for speed at the desk and for guests (same draft). Bookings still p
 - An erasure review shows what a decided policy could remove and what must be kept, with reasons. Recording a request deletes nothing. Email marketing can be withdrawn through the existing consent command.
 - Added a proposed retention register in [PRIVACY.md](docs/PRIVACY.md). Evidence: [LOCAL-03](docs/evidence/LOCAL-03.md).
 
-## In review · LOCAL-02 guest manage and cancel
+## 2026-10-07 · Merged · LOCAL-02 guest manage and cancel
 
 **Status: merged into main on 7 October 2026; not deployed.** Schema migration 3 adds `guest_links`. Live services stay unconfigured; nothing is emailed or refunded automatically.
 
