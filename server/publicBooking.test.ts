@@ -291,3 +291,38 @@ describe('finding a day and a time', () => {
     )
   })
 })
+
+describe('locations offered to guests', () => {
+  it('leaves a location being set up off the booking page until it can take a visit', async () => {
+    const owner = await register('UK')
+    const placeNames = async () =>
+      (await api.inject({ url: `/api/public/${(await studio(owner)).slug}` }))
+        .json<{ locations: { name: string }[] }>()
+        .locations.map((place) => place.name)
+    await run(owner, {
+      type: 'location',
+      input: { name: 'Islington', address: '1 Upper Street, London' },
+    })
+    // No one works there and there is no room yet, so guests are not offered it.
+    expect(await placeNames()).toEqual(['London'])
+    const { state } = await studio(owner)
+    const islington = state.operations!.locations![0].id
+    await run(owner, {
+      type: 'resource',
+      input: { name: 'Islington room', type: 'treatment', locationId: islington },
+    })
+    // A room alone is not enough: someone who does a treatment must work there too.
+    expect(await placeNames()).toEqual(['London'])
+    await run(owner, {
+      type: 'staff',
+      input: {
+        name: 'Nia Fictional',
+        role: 'Facialist',
+        serviceIds: ['service-facial'],
+        tone: 'sage',
+        hours: state.operations!.hours.map((h) => ({ ...h, locationId: islington })),
+      },
+    })
+    expect(await placeNames()).toEqual(['London', 'Islington'])
+  })
+})

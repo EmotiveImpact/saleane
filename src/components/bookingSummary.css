@@ -209,3 +209,17 @@
     transition: none;
   }
 }
+
+/* A narrower photograph beside the steps: a tighter panel, so it reads without crowding. */
+@media (min-width: 651px) and (max-width: 1000px) {
+  .your-visit-panel {
+    padding: var(--space-4) var(--space-5);
+  }
+  .your-visit-panel .your-visit-rows > div {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: var(--space-2);
+  }
+  .your-visit-panel .your-visit-treatment strong {
+    font-size: 19px;
+  }
+}

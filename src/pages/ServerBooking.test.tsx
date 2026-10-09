@@ -642,3 +642,42 @@ test('a booking page that fails to load can be tried again', async () => {
   await user.click(screen.getByRole('button', { name: 'Try again' }))
   expect(await screen.findByRole('button', { name: 'Choose a time' })).toBeVisible()
 })
+
+test('with two locations, guests choose where, or are told where when only one offers it', async () => {
+  const user = userEvent.setup()
+  const locations = [
+    { id: 'loc-london', name: 'Marylebone, London', address: '24 Devonshire Place, London W1G' },
+    { id: 'loc-islington', name: 'Islington', address: '1 Upper Street, London' },
+  ]
+  const studioWith = (sophiaAt: string) => ({
+    ...catalog,
+    locations,
+    staff: state.staff.map((person) => ({
+      ...person,
+      locationIds: [person.id === 'staff-sophia' ? sophiaAt : 'loc-london'],
+    })),
+  })
+  let page = studioWith('loc-london')
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path === base) return page as never
+    if (path.startsWith(`${base}/days?`))
+      return { days: fortnight(queryOf(path).get('from')!, {}) } as never
+    if (path.startsWith(`${base}/availability?`)) return { times: [600] } as never
+    throw new Error(`Unexpected route ${path}`)
+  })
+  const first = view()
+  await user.click(await screen.findByRole('button', { name: 'Choose a time' }))
+  expect(
+    await screen.findByText('Skin Renewal Facial is offered at Marylebone, London only.'),
+  ).toBeVisible()
+  expect(
+    screen.queryByRole('group', { name: 'Where would you like to come?' }),
+  ).not.toBeInTheDocument()
+  first.unmount()
+  page = studioWith('loc-islington')
+  view()
+  await user.click(await screen.findByRole('button', { name: 'Choose a time' }))
+  const where = await screen.findByRole('group', { name: 'Where would you like to come?' })
+  expect(within(where).getAllByRole('button')).toHaveLength(2)
+  expect(screen.queryByText(/is offered at .* only\./)).not.toBeInTheDocument()
+})

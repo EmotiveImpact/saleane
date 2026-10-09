@@ -688,3 +688,28 @@
 .booking-step-content > h2 {
   margin-bottom: var(--space-5);
 }
+
+/* When only one of the studio's locations offers the treatment, the guest is told where. */
+.booking-place-note {
+  margin: 0 0 var(--space-5);
+  font-size: var(--text-small);
+  color: var(--muted);
+}
+
+/*
+ * Progress through the steps: where four labels would wrap, only the current step is named.
+ * The others keep their names for screen readers.
+ */
+@media (max-width: 1000px) {
+  .booking-steps > span:not([aria-current]) small {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .booking-steps > span[aria-current] small {
+    white-space: nowrap;
+  }
+}

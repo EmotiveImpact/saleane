@@ -12,12 +12,45 @@ import { HOLD_LIMITS, holdInput, guestContact } from '../context'
 import type { Context, Org, Route, HoldAllocation, HoldRow } from '../context'
 import { issueGuestLink } from './guest'
 import { bookingChannel } from '../../src/domain/bookingChannel'
-import { places, serviceAt, staffLocationOn, staffPlaces } from '../../src/domain/locations'
+import {
+  offeredAt,
+  places,
+  resourceLocation,
+  serviceAt,
+  staffLocationOn,
+  staffPlaces,
+} from '../../src/domain/locations'
 import { isOn } from '../../src/assistant/receptionist'
 import { guestPhone, phoneProblem } from '../../src/domain/phone'
 import { GUEST_CANCEL_CUTOFF_HOURS } from '../../src/domain/guest'
 import { BOOKING_DAYS, NEXT_FREE_DAYS, STRIP_DAYS } from '../../src/domain/bookingTerms'
 import { guestPaymentFor } from '../payments/service'
+
+/**
+ * The open locations a guest can book at: somewhere a treatment is offered, someone who does it
+ * works there, and a room or chair it needs is there. A new location still being set up stays
+ * off the booking page until it can take a visit.
+ */
+function bookablePlaces(s: BusinessState) {
+  const people = s.staff.filter((person) => !person.archived)
+  return places(s).filter((place) =>
+    s.services.some(
+      (service) =>
+        !service.archived &&
+        offeredAt(service, place.id) &&
+        people.some(
+          (person) =>
+            person.serviceIds.includes(service.id) && staffPlaces(s, person.id).includes(place.id),
+        ) &&
+        s.resources.some(
+          (resource) =>
+            !resource.archived &&
+            resource.type === service.resourceType &&
+            resourceLocation(s, resource) === place.id,
+        ),
+    ),
+  )
+}
 
 /** A location shut all day: closed on its weekly hours, or closed for the whole of its hours. */
 function placeClosed(s: BusinessState, date: string, locationId?: string) {
@@ -56,8 +89,9 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
             // V2: where they work, so a guest choosing a location sees only who is there.
             locationIds: staffPlaces(state, person.id),
           })),
-        // V2: open locations for the guest to choose from, main first.
-        locations: places(state).map(({ id, name, address, arrivalNote }) => ({
+        // V2: open locations for the guest to choose from, main first; only those that can take
+        // a visit, so a location still being set up is never offered.
+        locations: bookablePlaces(state).map(({ id, name, address, arrivalNote }) => ({
           id,
           name,
           address,

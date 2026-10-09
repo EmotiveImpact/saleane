@@ -1108,6 +1108,11 @@ function BookingFlow({
                       setError('')
                     }}
                   />
+                  {locations.length > 1 && offered.length === 1 && (
+                    <p className="booking-place-note">
+                      {service.name} is offered at {offered[0].name} only.
+                    </p>
+                  )}
                   <label>
                     Your professional
                     <select
