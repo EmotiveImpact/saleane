@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { availableAllocation } from './allocation'
 import { execute, previewTogether, slots } from './commands'
 import type { Command, CommandResult } from './commands'
 import { seed } from './seed'
@@ -115,6 +116,51 @@ describe('visits booked together', () => {
       makeId,
     )
     expect(stranger.ok).toBe(false)
+  })
+
+  it('lets visits that follow one another in a room for two each sit beside a third', () => {
+    const s = seed('UK')
+    s.appointments = s.appointments.filter((a) => a.date !== day)
+    const visit = bookCouple(s).lead
+    const inRoom = (id: string, staffId: string, startMinutes: number) => ({
+      ...visit,
+      id,
+      staffId,
+      startMinutes,
+      bookedDurationMinutes: 60,
+      bookedBufferMinutes: 0,
+      together: { id: 'party' },
+    })
+    const fits = (state: BusinessState, together: string) =>
+      availableAllocation(
+        state,
+        'service-restore',
+        'staff-maya',
+        day,
+        630,
+        60,
+        0,
+        'treatment',
+        undefined,
+        now,
+        'room-two',
+        15,
+        undefined,
+        together,
+      )
+    // Sophia's guest from 10:00 to 11:00, then Theo's from 11:00: never more than one at a time.
+    const following = {
+      ...s,
+      appointments: [inRoom('one', 'staff-sophia', 600), inRoom('two', 'staff-theo', 660)],
+    }
+    expect(fits(following, 'party')).toBe('room-two')
+    expect(fits(following, 'strangers')).toBeNull()
+    // Two already in the room at 10:30 leave no space for a third.
+    const crowded = {
+      ...s,
+      appointments: [inRoom('one', 'staff-sophia', 600), inRoom('two', 'staff-theo', 630)],
+    }
+    expect(fits(crowded, 'party')).toBeNull()
   })
 
   it('puts people in rooms of their own when no room for two is free', () => {
