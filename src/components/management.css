@@ -482,6 +482,14 @@
   .ops-panel > header {
     flex-wrap: wrap;
   }
+  /* A header whose only companion is a small icon keeps the icon beside the title. */
+  .ops-panel > header:has(> svg:last-child) {
+    flex-wrap: nowrap;
+  }
+  .ops-panel > header:has(> svg:last-child) > :first-child {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
   .ops-banner {
     padding: 13px;
   }

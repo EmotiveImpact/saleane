@@ -3,10 +3,13 @@
   margin-bottom: 25px;
   border-bottom: 1px solid var(--line);
 }
+/* Each link carries 8px either side, so even a short one is a full tap wide; the track's
+   negative margin keeps the first word in line with the page. */
 .scroll-nav-track {
   position: relative;
   display: flex;
-  gap: 24px;
+  gap: 8px;
+  margin-inline: -8px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
@@ -32,25 +35,36 @@
   );
 }
 .scroll-nav-track > a {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: none;
   min-width: 40px;
   min-height: var(--target);
-  padding: 2px 0;
-  border-bottom: 2px solid transparent;
+  padding: 2px 8px;
   color: var(--muted);
   font-size: var(--text-small);
   white-space: nowrap;
+}
+/* The open section is underlined across its words only. */
+.scroll-nav-track > a::after {
+  content: '';
+  position: absolute;
+  right: 8px;
+  bottom: 0;
+  left: 8px;
+  height: 2px;
 }
 .scroll-nav-track > a:hover {
   color: var(--ink);
 }
 .scroll-nav-track > a.active {
   color: var(--ink);
-  border-color: var(--ink);
   font-weight: var(--weight-strong);
+}
+.scroll-nav-track > a.active::after {
+  background: var(--ink);
 }
 /* Inside the scrolling row, the focus ring is drawn inward so it is never cut off. */
 .scroll-nav-track > a:focus-visible {
@@ -62,8 +76,9 @@
     margin: 0 -16px 20px;
   }
   .scroll-nav-track {
-    gap: 22px;
-    padding: 0 16px;
-    scroll-padding-inline: 16px;
+    gap: 6px;
+    margin-inline: 0;
+    padding: 0 8px;
+    scroll-padding-inline: 8px;
   }
 }

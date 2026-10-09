@@ -306,7 +306,11 @@ function WorkspaceApp() {
               <Sparkles size={17} />
               <span>
                 Ask Saleane
-                {noticed > 0 && `, ${noticed} ${noticed === 1 ? 'thing' : 'things'} to mention`}
+                {noticed > 0 && (
+                  <span className="ask-count">
+                    , {noticed} {noticed === 1 ? 'thing' : 'things'} to mention
+                  </span>
+                )}
               </span>
               {noticed > 0 && <i className="ask-dot" aria-hidden="true" />}
             </button>

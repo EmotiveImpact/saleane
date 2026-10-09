@@ -200,7 +200,7 @@ export function Pay() {
                   </dl>
                   <div className="stock-actions">
                     <Button
-                      variant="quiet"
+                      variant="secondary"
                       aria-label={`${expanded ? 'Hide' : 'Details'} for ${row.staff.name}`}
                       aria-expanded={expanded}
                       aria-controls={`pay-lines-${row.staff.id}`}
@@ -210,7 +210,7 @@ export function Pay() {
                     </Button>
                     {canRate && (
                       <Button
-                        variant="quiet"
+                        variant="secondary"
                         aria-label={`Rates for ${row.staff.name}`}
                         onClick={() => {
                           setRating(row.staff)

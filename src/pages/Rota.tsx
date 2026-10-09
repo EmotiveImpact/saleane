@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { CalendarOff, ChevronLeft, ChevronRight, Plus, Sun } from 'lucide-react'
 import { useStore } from '../state/context'
@@ -14,7 +14,7 @@ import {
   rotaWeek,
   workingDaysAway,
 } from '../domain/timeOff'
-import { Avatar, Button, ErrorMessage, Modal, PageHeader } from '../design'
+import { Avatar, Button, ErrorMessage, Modal, PageHeader, useScrollEdges } from '../design'
 import '../components/management.css'
 import '../rota.css'
 
@@ -37,6 +37,9 @@ export function Rota() {
   const dates = Array.from({ length: 7 }, (_, i) => addDays(monday, i))
   const year = Number(today.slice(0, 4))
   const name = (id: string) => state.staff.find((p) => p.id === id)?.name ?? 'Someone'
+  // On a narrow screen the week scrolls sideways; the far edge fades while there is more to see.
+  const scroller = useRef<HTMLDivElement>(null)
+  const edges = useScrollEdges(scroller)
   const away = [...(operations(state).timeOff ?? [])]
     .filter((t) => t.to >= addDays(today, -31))
     .sort((a, b) => a.from.localeCompare(b.from))
@@ -86,11 +89,7 @@ export function Rota() {
             >
               <ChevronLeft size={16} aria-hidden="true" />
             </Button>
-            <Button
-              variant="secondary"
-              disabled={monday === mondayOf(today)}
-              onClick={() => setMonday(mondayOf(today))}
-            >
+            <Button variant="secondary" onClick={() => setMonday(mondayOf(today))}>
               This week
             </Button>
             <Button
@@ -102,7 +101,14 @@ export function Rota() {
             </Button>
           </div>
         </header>
-        <div className="rota-scroll" role="region" aria-label="Rota for the week" tabIndex={0}>
+        <div
+          className="rota-scroll"
+          ref={scroller}
+          data-more-after={edges.after || undefined}
+          role="region"
+          aria-label="Rota for the week"
+          tabIndex={0}
+        >
           <table className="rota-table">
             <thead>
               <tr>
@@ -112,6 +118,12 @@ export function Rota() {
                 {dates.map((date) => (
                   <th scope="col" key={date} className={date === today ? 'rota-today' : ''}>
                     {dateLabel(date, org.locale, true)}
+                    {date === today && (
+                      <>
+                        {' '}
+                        <span className="rota-today-tag">Today</span>
+                      </>
+                    )}
                   </th>
                 ))}
               </tr>
@@ -126,7 +138,10 @@ export function Rota() {
                     </span>
                   </th>
                   {days.map((day) => (
-                    <td key={day.date} className={`rota-${day.state}`}>
+                    <td
+                      key={day.date}
+                      className={`rota-${day.state}${day.date === today ? ' rota-today' : ''}`}
+                    >
                       {day.state === 'working' ? (
                         <>
                           <strong>
@@ -190,7 +205,7 @@ export function Rota() {
                     canEdit &&
                     t.to >= today && (
                       <Button
-                        variant="quiet"
+                        variant="secondary"
                         aria-label={`Cancel ${name(t.staffId)}'s ${TIME_OFF_LABEL[t.kind].toLowerCase()} from ${dateLabel(t.from, org.locale)}`}
                         onClick={() => void cancel(t)}
                       >
@@ -236,7 +251,7 @@ export function Rota() {
                     )}
                     {canEdit && (
                       <Button
-                        variant="quiet"
+                        variant="secondary"
                         aria-label={`Allowance for ${person.name}`}
                         onClick={() => {
                           setAllowanceFor(person.id)

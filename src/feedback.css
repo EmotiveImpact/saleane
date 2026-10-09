@@ -27,6 +27,10 @@
   gap: 22px;
   align-items: start;
 }
+/* The grid gap spaces the two cards; a stacked-card margin would push the second one lower. */
+.feedback-layout > .ops-panel + .ops-panel {
+  margin-top: 0;
+}
 .feedback-list {
   list-style: none;
   margin: 0;

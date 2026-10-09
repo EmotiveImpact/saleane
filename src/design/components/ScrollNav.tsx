@@ -1,5 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
+import { useScrollEdges } from './useScrollEdges'
 import './scrollNav.css'
 
 /**
@@ -19,28 +20,7 @@ export function ScrollNav({
   children: ReactNode
 }) {
   const track = useRef<HTMLDivElement>(null)
-  const [more, setMore] = useState({ before: false, after: false })
-  useEffect(() => {
-    const row = track.current
-    if (!row) return
-    const measure = () => {
-      const before = row.scrollLeft > 1
-      const after = row.scrollLeft + row.clientWidth < row.scrollWidth - 1
-      setMore((was) => (was.before === before && was.after === after ? was : { before, after }))
-    }
-    measure()
-    row.addEventListener('scroll', measure, { passive: true })
-    // The row's width changes with the window, and its contents once the fonts arrive.
-    const resized = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
-    resized?.observe(row)
-    for (const link of Array.from(row.children)) resized?.observe(link)
-    window.addEventListener('resize', measure)
-    return () => {
-      row.removeEventListener('scroll', measure)
-      resized?.disconnect()
-      window.removeEventListener('resize', measure)
-    }
-  }, [])
+  const more = useScrollEdges(track)
   useLayoutEffect(() => {
     const row = track.current
     const open = row?.querySelector<HTMLElement>('[aria-current="page"]')

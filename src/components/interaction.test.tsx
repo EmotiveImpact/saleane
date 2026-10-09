@@ -590,6 +590,33 @@ describe('the Business tab bar', () => {
   })
 })
 
+describe('the rota week', () => {
+  it('marks today and keeps This week ready to press', async () => {
+    const user = userEvent.setup()
+    show('/business/rota')
+    expect(screen.getByRole('heading', { name: 'Week of Monday 5 October' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /6 Oct Today$/ })).toBeInTheDocument()
+    const thisWeek = screen.getByRole('button', { name: 'This week' })
+    expect(thisWeek).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: 'Next week' }))
+    expect(screen.getByRole('heading', { name: 'Week of Monday 12 October' })).toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: /Today/ })).not.toBeInTheDocument()
+    await user.click(thisWeek)
+    expect(screen.getByRole('heading', { name: 'Week of Monday 5 October' })).toBeInTheDocument()
+  })
+})
+
+describe('Business overview wording', () => {
+  it('says one completed visit, not one completed visits', () => {
+    show('/business')
+    const counts = screen
+      .getAllByText(/^\d+ completed visits?\b/)
+      .map((node) => /^(\d+) completed (visits?)\b/.exec(node.textContent ?? '')!)
+    expect(counts.length).toBeGreaterThan(0)
+    for (const [, count, word] of counts) expect(word).toBe(count === '1' ? 'visit' : 'visits')
+  })
+})
+
 describe('reviewed CSV client import', () => {
   it('previews duplicates and invalid rows, ignores consent columns and saves only reviewed contacts', async () => {
     const user = userEvent.setup()

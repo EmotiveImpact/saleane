@@ -18,6 +18,8 @@ import {
   treatmentPhoto,
 } from '../design'
 
+const completedVisits = (count: number) => `${count} completed ${count === 1 ? 'visit' : 'visits'}`
+
 export function Business() {
   const { state, today, branch } = useStore()
   const [days, setDays] = useState(7)
@@ -107,7 +109,7 @@ export function Business() {
         <Metric
           label="Completed service revenue"
           value={money(data.revenue, state.organisation)}
-          detail={`${data.completed} completed visits`}
+          detail={completedVisits(data.completed)}
         />
         <Metric
           label="Average service sale"
@@ -223,7 +225,7 @@ export function Business() {
               <div key={service.id}>
                 <span>
                   <strong>{service.name}</strong>
-                  <small>{visits} completed visits</small>
+                  <small>{completedVisits(visits)}</small>
                 </span>
                 <strong>{money(revenue, state.organisation)}</strong>
                 <div className="performance-track">
@@ -243,7 +245,7 @@ export function Business() {
               <span>
                 <strong>{staff.name}</strong>
                 <small>
-                  {visits} completed visits
+                  {completedVisits(visits)}
                   {visits > 0 && ` · ${Math.round((rebooked / visits) * 100)}% rebooked`}
                 </small>
               </span>

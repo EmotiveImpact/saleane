@@ -1,8 +1,13 @@
 /* SALEANE design language: styles for the library components added in 0.3. */
 
 /* Page header ------------------------------------------------------------ */
+/* The actions keep to one row beside the title; the description wraps instead. */
+.page-heading > div:first-child {
+  min-width: 0;
+}
 .page-actions {
   display: flex;
+  flex-shrink: 0;
   gap: var(--space-3);
   flex-wrap: wrap;
   align-items: center;
