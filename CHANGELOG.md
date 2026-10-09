@@ -21,6 +21,14 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Texts name the location, imported visits go to the location where the professional works that day, and the calendar showing every location spans all their opening hours.
 - A studio with one location works exactly as before.
 
+## 2026-10-09 · V5 · Several brands, one owner
+
+**Status: built locally on 9 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-BRANDS.md).
+
+- When someone owns two or more studios, "Your studios" now has "Your brands together" underneath: each brand's last 28 days, the change on the 28 before, how many visits were rebooked, this month's takings and what is booked but not yet taken, and how many clients it has, with an Open button.
+- A few plain lines add the brands up. Pounds and dollars are never added together, and sample studios are never added to real ones. The brand clearly ahead is named, and a brand is said to need a look only when its takings fell. Sample studios are only ranked when there is no real brand, because they run on a fixed demonstration day.
+- Each brand keeps its own clients, team and money. The overview shows totals only, and studios where the person is a manager or on the desk are left out.
+
 ## 2026-10-09 · V5 · The client map
 
 **Status: built locally on 9 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-MAP.md).
