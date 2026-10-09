@@ -1,0 +1,180 @@
+/*
+ * A run of days side by side. Each day is a tile with its weekday, date and how much space it
+ * has; closed days are dashed and say so in words, full days are quiet, the chosen day is filled
+ * with the studio's colour. The row scrolls sideways, with buttons for a mouse on wider screens.
+ */
+.day-strip {
+  margin: var(--space-6) 0 var(--space-2);
+  min-width: 0;
+}
+.day-strip-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+.day-strip-label {
+  margin-right: auto;
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+}
+.day-strip-scroll {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+.day-strip-scroll button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-round);
+  background: var(--paper);
+  color: var(--ink);
+}
+.day-strip-scroll button:hover {
+  background: var(--stone);
+}
+/* Room around the tiles, so a focused day's outline is never cut off by the scrolling row. */
+.day-strip-row {
+  position: relative;
+  display: flex;
+  gap: var(--space-2);
+  margin: 0 -6px;
+  padding: 6px 6px 10px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 6px;
+  scrollbar-width: thin;
+}
+.day-strip-days {
+  display: flex;
+  gap: var(--space-2);
+}
+.day-strip-day {
+  position: relative;
+  flex: 0 0 auto;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 2px;
+  min-width: 70px;
+  min-height: 76px;
+  padding: 10px 8px;
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: var(--weight-body);
+  scroll-snap-align: start;
+  cursor: pointer;
+  transition:
+    background var(--motion-quick),
+    border-color var(--motion-quick);
+}
+.day-strip-day input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.day-strip-day:hover {
+  border-color: var(--brand);
+}
+.day-strip-day:has(input:focus-visible) {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+.day-strip-weekday {
+  font-size: var(--text-micro);
+  color: var(--muted);
+}
+.day-strip-day strong {
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.day-strip-day small {
+  font-size: var(--text-micro);
+  color: var(--brand-ink);
+  white-space: nowrap;
+}
+.day-strip-day.is-full {
+  background: var(--stone);
+  border-color: var(--line);
+}
+.day-strip-day.is-full strong,
+.day-strip-day.is-full small {
+  color: var(--muted);
+}
+.day-strip-day.is-closed {
+  background: var(--stone);
+  border-style: dashed;
+  cursor: not-allowed;
+}
+.day-strip-day.is-closed input {
+  cursor: not-allowed;
+}
+.day-strip-day.is-closed:hover {
+  border-color: var(--line2);
+}
+.day-strip-day.is-closed strong,
+.day-strip-day.is-closed small {
+  color: var(--muted);
+}
+.day-strip-day.is-chosen {
+  background: var(--action);
+  border-color: var(--action);
+}
+.day-strip-day.is-chosen .day-strip-weekday,
+.day-strip-day.is-chosen strong,
+.day-strip-day.is-chosen small {
+  color: #fff;
+}
+/* A closed day can be the chosen one only when a link chose it; it stays plainly closed. */
+.day-strip-day.is-chosen.is-closed {
+  background: var(--stone);
+  border: 1.5px solid var(--ink);
+}
+.day-strip-day.is-chosen.is-closed .day-strip-weekday,
+.day-strip-day.is-chosen.is-closed strong,
+.day-strip-day.is-chosen.is-closed small {
+  color: var(--ink);
+}
+.day-strip-more {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 76px;
+  padding: 10px 14px;
+  border: 1px dashed var(--line2);
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--brand-ink);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+  white-space: nowrap;
+}
+.day-strip-more:hover {
+  background: var(--stone);
+}
+@media (max-width: 650px) {
+  /* On a phone the row is swiped, so the scroll buttons step aside. */
+  .day-strip-scroll {
+    display: none;
+  }
+  .day-strip-day {
+    min-width: 64px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .day-strip-day {
+    transition: none;
+  }
+}

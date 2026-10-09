@@ -3,7 +3,8 @@ import { addDays } from './format'
 import { businessDate, operations } from './operations'
 import { MISSED_CALL_LIMIT } from './missedCallsSchema'
 import type { MissedCall } from './missedCallsSchema'
-import { clientsWithNumber, textNumber } from './reminders'
+import { clientsWithNumber } from './reminders'
+import { internationalNumber, numberLabel } from './phone'
 
 /**
  * V1.5: missed-call text-back. When the studio cannot pick up, the call is written down (by the
@@ -11,14 +12,7 @@ import { clientsWithNumber, textNumber } from './reminders'
  * switches it on, the caller also gets one text with the booking link, once a day at most.
  */
 
-/** A stored number spaced for reading: +44 7700 900123, +1 212 555 0100. */
-export function numberLabel(number: string) {
-  const uk = /^\+44(\d{4})(\d{6})$/.exec(number)
-  if (uk) return `+44 ${uk[1]} ${uk[2]}`
-  const us = /^\+1(\d{3})(\d{3})(\d{4})$/.exec(number)
-  if (us) return `+1 ${us[1]} ${us[2]} ${us[3]}`
-  return number
-}
+export { numberLabel }
 
 /** Open calls stay on the desk's list for this many days. */
 export const MISSED_CALL_DAYS = 7
@@ -28,19 +22,8 @@ export const MISSED_CALL_DAYS = 7
  * number in the studio's own country (07700 900123 in the UK, (212) 555-0100 in the US).
  */
 export function callerNumber(s: BusinessState, typed: string) {
-  // "+44 (0)7700 900123" is a common way to write a UK number; the 0 is not dialled from abroad.
-  const compact = typed.replace(/\(0\)/g, '').replace(/[\s().-]/g, '')
-  if (compact.startsWith('+')) return textNumber(compact)
-  if (compact.startsWith('00')) return textNumber(`+${compact.slice(2)}`)
-  const digits = compact.replace(/\D/g, '')
-  if (digits !== compact) return null
-  if (s.organisation.region === 'UK' && /^0\d{9,10}$/.test(digits))
-    return textNumber(`+44${digits.slice(1)}`)
-  if (s.organisation.region === 'US') {
-    if (/^\d{10}$/.test(digits)) return textNumber(`+1${digits}`)
-    if (/^1\d{10}$/.test(digits)) return textNumber(`+${digits}`)
-  }
-  return null
+  // The same reading as a guest's number on the booking page.
+  return internationalNumber(s.organisation.region, typed)
 }
 
 /** Calls nobody has called back yet, newest first, from the last week. */

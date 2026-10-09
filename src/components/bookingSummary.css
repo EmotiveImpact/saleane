@@ -1,0 +1,225 @@
+/*
+ * A guest's visit in one place. On a wide screen the panel is a frosted card over the studio's
+ * photograph, always open. On a phone it is a slim bar at the top of the page that opens to the
+ * full summary. The receipt is the same summary on the confirmation, always open.
+ * Its classes start "your-visit", as .booking-summary already belongs to the staff booking dialog.
+ */
+.your-visit {
+  color: var(--ink);
+  text-align: left;
+}
+.your-visit-toggle {
+  display: none;
+}
+.your-visit-body {
+  display: grid;
+  gap: var(--space-4);
+}
+.your-visit-title {
+  margin: 0;
+  font-family: var(--font-editorial);
+  font-weight: var(--weight-editorial);
+  font-size: 26px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.your-visit-treatment {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+}
+.your-visit-photo {
+  display: block;
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  background-color: var(--stone);
+  background-size: cover;
+}
+.your-visit-treatment small {
+  display: block;
+  font-size: var(--text-micro);
+  color: var(--muted);
+}
+.your-visit-treatment strong {
+  display: block;
+  font-family: var(--font-editorial);
+  font-weight: 400;
+  font-size: 21px;
+  line-height: 1.2;
+}
+.your-visit-treatment span > span {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-meta);
+  color: var(--muted);
+}
+.your-visit-rows {
+  display: grid;
+  margin: 0;
+}
+.your-visit-rows > div {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.your-visit-rows dt {
+  font-size: var(--text-meta);
+  color: var(--muted);
+}
+.your-visit-rows dd {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.your-visit-rows dd small {
+  display: block;
+  font-size: var(--text-meta);
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* The panel over the photograph on a wide screen. */
+.your-visit-panel {
+  width: min(100%, 420px);
+  max-height: 100%;
+  overflow-y: auto;
+  padding: var(--space-5) var(--space-6);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--paper) 90%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(1.1);
+  backdrop-filter: blur(18px) saturate(1.1);
+  box-shadow: var(--shadow-float);
+}
+
+/* The receipt once the visit is booked. */
+.your-visit-receipt {
+  padding: var(--space-5) var(--space-6);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+}
+.your-visit-receipt .your-visit-title {
+  font-size: 22px;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .your-visit-panel {
+    background: var(--paper);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* Phones: a slim bar that opens to the full summary. */
+@media (max-width: 650px) {
+  .your-visit-panel {
+    width: 100%;
+    max-height: none;
+    overflow: visible;
+    padding: 0;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    border-radius: 0;
+    background: color-mix(in srgb, var(--paper) 96%, transparent);
+    box-shadow: 0 6px 18px rgba(46, 43, 51, 0.06);
+  }
+  .your-visit-panel .your-visit-toggle {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    min-height: 60px;
+    padding: 8px 16px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--ink);
+    text-align: left;
+  }
+  .your-visit-toggle .your-visit-photo {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+  }
+  .your-visit-glance {
+    min-width: 0;
+  }
+  .your-visit-glance strong,
+  .your-visit-glance small {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .your-visit-glance strong {
+    font-size: var(--text-small);
+    font-weight: var(--weight-strong);
+  }
+  .your-visit-glance small {
+    font-size: var(--text-meta);
+    color: var(--muted);
+  }
+  .your-visit-more {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--text-meta);
+    font-weight: var(--weight-strong);
+    color: var(--brand-ink);
+  }
+  .your-visit-more svg {
+    transition: transform var(--motion-quick);
+  }
+  .your-visit-panel.is-open .your-visit-more svg {
+    transform: rotate(180deg);
+  }
+  .your-visit-panel .your-visit-body {
+    display: none;
+    max-height: 65vh;
+    overflow-y: auto;
+    padding: 0 16px 16px;
+  }
+  .your-visit-panel.is-open .your-visit-body {
+    display: grid;
+  }
+  /* In the open bar the treatment's name and photograph are already shown above. */
+  .your-visit-panel .your-visit-title,
+  .your-visit-panel .your-visit-treatment .your-visit-photo {
+    display: none;
+  }
+  .your-visit-panel .your-visit-treatment {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .your-visit-receipt {
+    padding: var(--space-4);
+  }
+  .your-visit-rows > div {
+    grid-template-columns: 80px minmax(0, 1fr);
+  }
+}
+@media (max-width: 650px) and (prefers-reduced-motion: reduce) {
+  .your-visit-more svg {
+    transition: none;
+  }
+}
+
+/* A narrower photograph beside the steps: a tighter panel, so it reads without crowding. */
+@media (min-width: 651px) and (max-width: 1000px) {
+  .your-visit-panel {
+    padding: var(--space-4) var(--space-5);
+  }
+  .your-visit-panel .your-visit-rows > div {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: var(--space-2);
+  }
+  .your-visit-panel .your-visit-treatment strong {
+    font-size: 19px;
+  }
+}

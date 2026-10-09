@@ -1,0 +1,20 @@
+/* The end of a test payment: what happened, said plainly as a test, and the way back. */
+.test-pay-ending {
+  display: grid;
+  justify-items: start;
+  gap: 14px;
+  margin: 0 0 18px;
+}
+.test-pay-ending p {
+  margin: 0;
+  line-height: 1.6;
+}
+.test-pay-mark {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--brand-soft);
+  color: var(--brand-ink);
+}
