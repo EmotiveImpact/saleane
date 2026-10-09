@@ -69,7 +69,7 @@ After, three short screens first.
 ## Limits
 
 - Prices for a location are said, not charged: charging studios is NEXT-02, owned by the build thread. The last screen says "Nothing is charged in this test version", or that a sample studio is never charged.
-- The setup screens use the existing house photographs. `docs/setup-photo-prompts.md` holds a prompt for each screen if the owner wants a fresh set.
+- The setup screens, the welcome and several app screens still borrow the existing house photographs. `docs/photo-prompts.md` holds 21 prompts, one for each of those screens, and one message to paste into ChatGPT for the whole set. The three empty photographs in the photo library pull request only need saving again from their originals.
 - Setup asks for everyone to work the studio's opening hours to begin with; each person's own days stay in Settings under Team. Inviting the team to sign in also stays in Settings.
 - A location's photograph, its own colours and moving existing rooms into it stay in Settings.
 - The first weeks list remembers "I am starting fresh", "I work on my own", "The usual ones are right" and hiding in this browser only, like the ready list. Whether the team has been invited is read from the owner's team list, so managers do not see that step.

@@ -13,6 +13,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Once the studio is ready, Today shows "Your first weeks" to the owner and managers: share the booking page, bring clients across, invite the team, check out a first visit, check the visit reminders and turn on two-step sign-in. Each ticks itself (the link once a guest books online, inviting once someone else is asked or there is no one to ask), "I am starting fresh", "I work on my own" and "The usual ones are right" are answers too, and the list goes when everything is done, when hidden, or eight weeks after the first visit booked. It never says a message or card payment went out while they are not connected.
 - Someone joining from an invitation now reads three short screens before their studio opens: what their role does, the three places they will use most, and keeping their sign-in safe, where they can turn on two-step sign-in (the only place a practitioner can). "Skip the welcome" is always there, and nothing on these screens changes the studio.
 - No migration: where setup reached is kept with the studio's settings, and the first weeks list reads the record, the sign-in and the team list.
+- `docs/photo-prompts.md` has 21 photograph prompts, one for each setup and welcome screen and for each app or guest screen that still borrows a library photograph, with a mix of people and one message to paste into ChatGPT for the whole set. Nothing on screen changes until the photographs arrive.
 
 ## 2026-10-09 · Who changed what (NEXT-05)
 
