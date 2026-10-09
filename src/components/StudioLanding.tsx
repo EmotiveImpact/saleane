@@ -3,7 +3,15 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { useStore } from '../state/context'
 
 /** Pages that are not the studio workspace; each opens whatever the person is signed in as. */
-const OUTSIDE = new Set(['/account', '/join', '/manage', '/pay/test', '/pricing', '/day-sheet'])
+const OUTSIDE = new Set([
+  '/account',
+  '/join',
+  '/manage',
+  '/pay/test',
+  '/billing/test-card',
+  '/pricing',
+  '/day-sheet',
+])
 const OWN_PAGES = ['/practice/', '/area/', '/book/']
 
 /**

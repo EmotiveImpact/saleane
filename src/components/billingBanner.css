@@ -1,0 +1,36 @@
+/* NEXT-02: the plan line above every screen. Full width, no side stripe. */
+.billing-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 12px 36px;
+  font-size: var(--text-small);
+  background: var(--sage);
+  color: var(--ink);
+}
+.billing-banner.is-due,
+.billing-banner.is-stopped {
+  background: #fbecdf;
+  color: #704820;
+}
+.billing-banner span {
+  min-width: 0;
+  flex: 1 1 320px;
+}
+.billing-banner button {
+  padding: 6px 12px;
+  background: var(--paper, #fff);
+  color: inherit;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  font: inherit;
+  font-weight: var(--weight-strong);
+  white-space: nowrap;
+  cursor: pointer;
+}
+@media (max-width: 650px) {
+  .billing-banner {
+    padding: 12px 18px;
+  }
+}

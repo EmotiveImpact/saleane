@@ -144,6 +144,23 @@ function snapshot(source: string, destination: string, restore: boolean) {
               ).changes,
           ),
         }
+        // NEXT-02: a studio's bill may have been paid, or a month renewed, since the backup. Nothing
+        // is charged by itself until someone has checked each studio's payments with the card
+        // service; studios keep working meanwhile, and the owner can still pay by hand.
+        Object.assign(held, {
+          billsToCheck: Number(
+            recovered
+              .prepare(
+                "UPDATE studio_invoices SET status='unknown',detail=? WHERE status IN ('open','charging')",
+              )
+              .run('Restored from a backup: check with the card service before charging again.')
+              .changes,
+          ),
+          plansHeld: Number(
+            recovered.prepare('UPDATE studio_plans SET held_at=? WHERE held_at IS NULL').run(time)
+              .changes,
+          ),
+        })
         recovered
           .prepare(
             "UPDATE connection_deliveries SET status='skipped',detail=?,updated_at=? WHERE status='pending'",
