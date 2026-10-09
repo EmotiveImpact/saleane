@@ -61,6 +61,23 @@ describe('chair and room rent', () => {
     expect(rentReceived(s, '2026-10-01', '2026-10-31')).toBe(28000)
   })
 
+  it('counts rent on the studio’s own day, not the day in London or UTC', () => {
+    const studio = createWorkspace({ name: 'Rent test studio', region: 'US' })
+    const sample = seed('US')
+    for (const key of ['clients', 'services', 'staff', 'resources'] as const)
+      Object.assign(studio, {
+        [key]: sample[key].map((row) => ({ ...row, organisationId: studio.organisation.id })),
+      })
+    expect(studio.organisation.timeZone).toBe('America/New_York')
+    let s = apply(studio, weekly('2026-10-26'), '2026-10-26T14:00:00.000Z')
+    const rental = s.operations!.rentals![0]
+    // 21:00 in New York on 31 October is already 1 November in UTC.
+    s = apply(s, pay(rental.id, '2026-10-26'), '2026-11-01T01:00:00.000Z')
+    expect(s.operations!.rentPayments![0].paidAt).toBe('2026-11-01T01:00:00.000Z')
+    expect(rentReceived(s, '2026-10-01', '2026-10-31')).toBe(18000)
+    expect(rentReceived(s, '2026-11-01', '2026-11-30')).toBe(0)
+  })
+
   it('refuses more than is due, a period that is not one, and rent not yet due', () => {
     const s = apply(local(), weekly())
     const id = s.operations!.rentals![0].id
