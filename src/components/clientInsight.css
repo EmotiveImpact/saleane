@@ -1,0 +1,202 @@
+/*
+ * "At a glance" on the client page: one sentence, a few calm facts in a grid, and the suggested
+ * next step on the studio's soft colour. Facts are separated by a hairline above each one, never
+ * by a stripe at the side.
+ */
+.client-insight {
+  margin-bottom: 22px;
+  padding: 24px 28px 26px;
+}
+.client-insight-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.client-insight-heading h2 {
+  font-size: var(--text-title-s);
+}
+.client-insight-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: var(--text-micro);
+}
+.client-insight-source svg {
+  color: var(--brand-ink);
+}
+.client-insight-summary {
+  margin-top: 6px;
+  font-size: var(--text-lead);
+  line-height: 1.45;
+}
+.client-insight-facts {
+  display: grid;
+  /* Three to a row; four sit in one row on a wide screen; one or two take half each. */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px 28px;
+  margin: 20px 0 0;
+}
+.client-insight-facts[data-count='1'],
+.client-insight-facts[data-count='2'] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.client-insight-facts[data-count='4'] {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.client-insight-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.client-insight-fact dt {
+  display: flex;
+  align-items: center;
+  min-height: 22px;
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+.client-insight-value {
+  font-family: var(--font-display);
+  font-size: var(--text-title-s);
+  font-weight: var(--weight-body);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.client-insight-detail {
+  color: var(--muted);
+  font-size: var(--text-micro);
+  line-height: 1.45;
+}
+.client-insight-step {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px 24px;
+  margin-top: 24px;
+  padding: 16px 20px;
+  border-radius: var(--radius-panel);
+  background: var(--brand-soft);
+}
+.client-insight-step-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.client-insight-step-copy .eyebrow {
+  color: var(--brand-ink);
+}
+.client-insight-step-copy h3 {
+  font-size: var(--text-body);
+  font-weight: var(--weight-strong);
+  line-height: 1.4;
+}
+.client-insight-step-copy p:not(.eyebrow) {
+  color: var(--muted);
+  font-size: var(--text-meta);
+  line-height: 1.5;
+}
+.client-insight-step-action:empty {
+  display: none;
+}
+.client-insight-step-action .button {
+  min-height: 40px;
+  padding: 8px 18px;
+  white-space: nowrap;
+}
+.client-insight-draft,
+.client-insight-saved,
+.client-insight-error {
+  grid-column: 1 / -1;
+}
+.client-insight-draft {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--radius-inner);
+  background: var(--paper);
+}
+.client-insight-draft p {
+  font-size: var(--text-small);
+  line-height: 1.55;
+}
+.client-insight-draft small {
+  color: var(--muted);
+  font-size: var(--text-micro);
+}
+.client-insight-draft > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.client-insight-saved {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--brand-ink);
+  font-size: var(--text-meta);
+}
+.client-insight-saved a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.client-insight-error {
+  color: var(--danger);
+  font-size: var(--text-meta);
+}
+
+@media (max-width: 1080px) {
+  .client-insight-facts[data-count='4'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Phones: two facts to a row and the next step's button beneath its words, full width. */
+@media (max-width: 650px) {
+  .client-insight {
+    margin-bottom: 18px;
+    padding: 20px;
+  }
+  .client-insight-heading {
+    flex-direction: column;
+    gap: 4px;
+  }
+  .client-insight-summary {
+    font-size: var(--text-body);
+  }
+  .client-insight-facts,
+  .client-insight-facts[data-count] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 16px;
+    margin-top: 16px;
+  }
+  .client-insight-fact {
+    padding-top: 12px;
+  }
+  .client-insight-value {
+    font-size: var(--text-lead);
+  }
+  .client-insight-step {
+    grid-template-columns: 1fr;
+    margin-top: 20px;
+    padding: 16px;
+  }
+  .client-insight-step-action .button {
+    width: 100%;
+    min-height: var(--target);
+    white-space: normal;
+  }
+  .client-insight-draft > div .button {
+    flex: 1 1 auto;
+  }
+}

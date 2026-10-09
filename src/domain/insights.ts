@@ -215,6 +215,15 @@ const mostCommon = (ids: string[]) =>
   )[0]?.[0]
 
 /**
+ * Days without a visit after which a client with nothing booked counts as drifting away: half as
+ * long again as their usual gap (and at least two weeks more), or five weeks when there are too
+ * few visits to tell. The client page's "At a glance" uses the same rule (clientInsight.ts).
+ */
+export function driftDays(usual: number | null) {
+  return usual ? Math.max(usual * 7 * 1.5, usual * 7 + 14) : 35
+}
+
+/**
  * Clients who have gone longer than their own usual gap without booking. A client who comes
  * every three weeks is noticed sooner than one who comes every ten; when there are too few visits
  * to tell, five weeks without a booking counts.
@@ -237,7 +246,7 @@ export function drifting(s: BusinessState, today: string): Drifter[] {
         .sort()
         .at(-1)!
       const days = (Date.parse(today) - Date.parse(last)) / DAY
-      const threshold = weeks ? Math.max(weeks * 7 * 1.5, weeks * 7 + 14) : 35
+      const threshold = driftDays(weeks)
       if (days < threshold) return null
       const recent = [...visits].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5)
       return {
