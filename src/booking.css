@@ -613,12 +613,16 @@
 
 /* The details step says what is being booked before asking for anything. */
 .booking-step-content > p.booking-step-lead {
-  margin: var(--space-2) 0 var(--space-1);
+  margin: var(--space-2) 0 var(--space-5);
   color: var(--ink);
 }
 .booking-step-content > p.booking-hold-time {
   margin: 0 0 var(--space-5);
   font-size: var(--text-meta);
+}
+/* The countdown sits right under the line it belongs to. */
+.booking-step-content > p.booking-step-lead + p.booking-hold-time {
+  margin-top: calc(-1 * var(--space-4));
 }
 
 /* After booking: the guest's own next steps, then the visit in full. */

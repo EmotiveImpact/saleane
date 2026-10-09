@@ -699,7 +699,8 @@ function BookingFlow({
           const { times: free } = await api<{ times: number[] }>(
             `${base}/availability?${searchFor({ date: on })}`,
           )
-          near = [...free]
+          near = free
+            .filter((time) => time !== at)
             .sort((a, b) => Math.abs(a - at) - Math.abs(b - at) || a - b)
             .slice(0, 4)
             .sort((a, b) => a - b)

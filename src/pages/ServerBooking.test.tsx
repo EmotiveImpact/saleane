@@ -402,7 +402,8 @@ test('when a hold runs out one tap holds the same time again; a time that has go
     if (path.startsWith(`${base}/days?`))
       return { days: fortnight(queryOf(path).get('from')!, {}) } as never
     if (path.startsWith(`${base}/availability?`))
-      return { times: taken ? [540, 570, 660, 900, 1020] : [600] } as never
+      // Once 10:00 is taken a listing may still show it for a moment; it is never offered back.
+      return { times: taken ? [540, 570, 600, 660, 900, 1020] : [600] } as never
     if (path === `${base}/holds`) {
       holds += 1
       if (taken && holds === 3)
@@ -466,6 +467,7 @@ test('when a hold runs out one tap holds the same time again; a time that has go
     .getAllByRole('button', { name: /^Hold .* instead$/ })
     .map((button) => button.textContent)
   expect(nearest).toEqual(['09:00', '09:30', '11:00', '15:00'])
+  expect(screen.queryByRole('button', { name: 'Hold 10:00 instead' })).not.toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Hold 09:30 instead' }))
   expect(await screen.findByText(/Wednesday 7 October at 09:30/)).toBeVisible()
   // A different time has its own cutoff, so the terms are agreed again.
