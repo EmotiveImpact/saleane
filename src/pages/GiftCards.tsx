@@ -24,6 +24,7 @@ import { usePayment, useRun } from '../components/usePayment'
 import '../components/management.css'
 import '../components/plans.css'
 import '../giftCards.css'
+import { StudioDateField } from '../components/StudioDateField'
 
 const STATE_LABEL = {
   active: 'Ready to spend',
@@ -415,13 +416,7 @@ export function GiftCards() {
               {dialog.kind === 'extend' && (
                 <label className="ops-field">
                   New last day
-                  <input
-                    type="date"
-                    value={expiresOn}
-                    min={today}
-                    required
-                    onChange={(e) => setExpiresOn(e.target.value)}
-                  />
+                  <StudioDateField value={expiresOn} min={today} required onChange={setExpiresOn} />
                 </label>
               )}
               {dialog.kind === 'cancel' && (

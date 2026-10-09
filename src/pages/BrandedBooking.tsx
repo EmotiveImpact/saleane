@@ -5,7 +5,7 @@ import { useStore } from '../state/context'
 import { DEMO_DATE } from '../domain/model'
 import { slots } from '../domain/commands'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
-import { Avatar, Button, DateStrip, ErrorMessage, TimeChoices } from '../design'
+import { Avatar, Button, DateField, DateStrip, ErrorMessage, TimeChoices } from '../design'
 import { operations } from '../domain/operations'
 import { BookingFrame } from '../components/BookingFrame'
 import { TreatmentPicker } from '../components/TreatmentPicker'
@@ -421,14 +421,15 @@ export function BrandedBooking() {
                 />
                 <label className="date-strip-other">
                   Or pick another date
-                  <input
-                    type="date"
+                  <DateField
                     value={date}
+                    locale={state.organisation.locale}
+                    today={DEMO_DATE}
                     min={DEMO_DATE}
                     max="2027-10-06"
-                    onChange={(e) => {
-                      if (!e.target.value) return
-                      setDate(e.target.value)
+                    onChange={(next) => {
+                      if (!next) return
+                      setDate(next)
                       setStart(null)
                     }}
                   />

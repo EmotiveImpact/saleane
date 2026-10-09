@@ -21,6 +21,7 @@ import type { Command } from '../domain/commands'
 import '../components/management.css'
 import '../components/plans.css'
 import '../components/branchVisits.css'
+import { StudioDateField } from '../components/StudioDateField'
 
 /** Past visits are shown thirty at a time; every one stays reachable. */
 const HISTORY_PAGE = 30
@@ -437,14 +438,13 @@ export function VisitForm({
           </label>
           <label>
             Date of the visit
-            <input
-              type="date"
+            <StudioDateField
               value={date}
               max={today}
               min={addDays(today, -VISIT_BACKDATE_DAYS)}
               required
               disabled={pending}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={setDate}
             />
           </label>
         </div>

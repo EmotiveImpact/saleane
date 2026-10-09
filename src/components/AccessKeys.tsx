@@ -6,6 +6,7 @@ import { api } from '../state/api'
 import { Button, ErrorMessage } from '../design'
 import { places } from '../domain/locations'
 import { fullDateLabel } from '../domain/format'
+import { StudioDateField } from './StudioDateField'
 
 type Scope = 'appointments:read' | 'clients:read' | 'services:read' | 'takings:read'
 type AccessKey = {
@@ -37,7 +38,7 @@ const scopes = Object.keys(scopeLabel) as Scope[]
  * kept to one location and stop on a chosen day, and can be revoked at any time.
  */
 export function AccessKeys() {
-  const { mode, session, state, role } = useStore()
+  const { mode, session, state, role, today } = useStore()
   const allowed = mode === 'server' && !!session && role === 'owner'
   const base = `/api/workspaces/${encodeURIComponent(state.organisation.id)}/api-keys`
   const [listing, setListing] = useState<Listing | null>(null)
@@ -234,7 +235,7 @@ export function AccessKeys() {
           </fieldset>
           <label>
             Stops working after (optional)
-            <input type="date" value={endsOn} onChange={(e) => setEndsOn(e.target.value)} />
+            <StudioDateField value={endsOn} min={today} onChange={setEndsOn} />
           </label>
           <div className="ops-actions">
             <Button variant="quiet" disabled={pending} onClick={() => setAdding(false)}>

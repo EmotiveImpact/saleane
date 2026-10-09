@@ -17,6 +17,7 @@ import {
 import { Avatar, Button, ErrorMessage, Modal, PageHeader, useScrollEdges } from '../design'
 import '../components/management.css'
 import '../rota.css'
+import { StudioDateField } from '../components/StudioDateField'
 
 /**
  * V2: the week's rota from everyone's usual hours, who is away, and each person's holiday
@@ -365,25 +366,18 @@ function TimeOffDialog({
           </label>
           <label>
             First day
-            <input
-              type="date"
+            <StudioDateField
               value={from}
               required
-              onChange={(e) => {
-                setFrom(e.target.value)
-                if (to < e.target.value) setTo(e.target.value)
+              onChange={(day) => {
+                setFrom(day)
+                if (to < day) setTo(day)
               }}
             />
           </label>
           <label>
             Last day
-            <input
-              type="date"
-              value={to}
-              min={from}
-              required
-              onChange={(e) => setTo(e.target.value)}
-            />
+            <StudioDateField value={to} min={from} required onChange={setTo} />
           </label>
           <label>
             Kind

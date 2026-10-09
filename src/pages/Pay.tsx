@@ -23,6 +23,7 @@ import {
 import '../components/management.css'
 import '../stock.css'
 import '../pay.css'
+import { StudioDateField } from '../components/StudioDateField'
 
 /**
  * V2: commission and tips per person for a month. SALEANE works out what each person has earned;
@@ -412,7 +413,7 @@ function RulesDialog({
         </fieldset>
         <label>
           Starting
-          <input type="date" value={from} required onChange={(e) => setFrom(e.target.value)} />
+          <StudioDateField value={from} required onChange={setFrom} />
         </label>
         {history.length > 0 && (
           <div className="pay-history">
@@ -527,7 +528,7 @@ function RateDialog({
           </label>
           <label>
             Starting
-            <input type="date" value={from} required onChange={(e) => setFrom(e.target.value)} />
+            <StudioDateField value={from} required onChange={setFrom} />
           </label>
         </div>
         {history.length > 0 && (
