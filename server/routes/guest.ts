@@ -110,7 +110,15 @@ export function openGuestLink(ctx: Context, raw: string) {
   if (!state.appointments.some((a) => a.id === link!.appointment_id)) fail(404, INVALID)
   if (visitStart(state, link!.appointment_id) + GUEST_LINK_AFTER_VISIT_MS <= now())
     fail(404, INVALID)
-  const org: Org = { id: row!.id, slug: row!.slug, state, role: 'owner', staffId: null }
+  const org: Org = {
+    id: row!.id,
+    slug: row!.slug,
+    state,
+    role: 'owner',
+    staffId: null,
+    areaId: null,
+    locationId: null,
+  }
   return { org, appointmentId: link!.appointment_id }
 }
 

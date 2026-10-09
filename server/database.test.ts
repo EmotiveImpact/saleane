@@ -109,6 +109,144 @@ describe('numbered schema migrations', () => {
     ])
     after.close()
   })
+  it('keeps every membership and invitation when regional managers are added (V5)', () => {
+    const path = file()
+    const before = new LocalDatabase(
+      path,
+      migrations.filter((migration) => migration.version <= 19),
+    )
+    before.run(
+      'INSERT INTO organisations(id,slug,state,revision,created_at) VALUES(?,?,?,?,?)',
+      'org-1',
+      'linden',
+      JSON.stringify({ organisation: { id: 'org-1' }, revision: 0 }),
+      0,
+      1,
+    )
+    for (const [id, role, staff] of [
+      ['a1', 'owner', null],
+      ['a2', 'practitioner', 'staff-maya'],
+    ] as const) {
+      before.run(
+        'INSERT INTO accounts(id,email,name,password_hash,created_at) VALUES(?,?,?,?,?)',
+        id,
+        `${id}@example.invalid`,
+        'Fictional',
+        'hash',
+        1,
+      )
+      before.run(
+        'INSERT INTO memberships(organisation_id,account_id,role,staff_id) VALUES(?,?,?,?)',
+        'org-1',
+        id,
+        role,
+        staff,
+      )
+    }
+    before.run(
+      "INSERT INTO invitations(token_hash,organisation_id,email,role,staff_id,created_at,expires_at) VALUES('t1','org-1','m@example.invalid','manager',NULL,1,2)",
+    )
+    expect(() =>
+      before.run(
+        "INSERT INTO memberships(organisation_id,account_id,role) VALUES('org-1','a3','regional')",
+      ),
+    ).toThrow()
+    before.close()
+    const after = new LocalDatabase(path)
+    expect(
+      after.all('SELECT account_id,role,staff_id,area_id FROM memberships ORDER BY account_id'),
+    ).toEqual([
+      { account_id: 'a1', role: 'owner', staff_id: null, area_id: null },
+      { account_id: 'a2', role: 'practitioner', staff_id: 'staff-maya', area_id: null },
+    ])
+    expect(after.all('SELECT token_hash,role,area_id FROM invitations')).toEqual([
+      { token_hash: 't1', role: 'manager', area_id: null },
+    ])
+    after.run(
+      'INSERT INTO accounts(id,email,name,password_hash,created_at) VALUES(?,?,?,?,?)',
+      'a3',
+      'a3@example.invalid',
+      'Fictional',
+      'hash',
+      1,
+    )
+    // A regional manager always names a region, and only a regional manager does.
+    expect(() =>
+      after.run(
+        "INSERT INTO memberships(organisation_id,account_id,role) VALUES('org-1','a3','regional')",
+      ),
+    ).toThrow()
+    expect(() =>
+      after.run(
+        "INSERT INTO memberships(organisation_id,account_id,role,area_id) VALUES('org-1','a3','manager','r1')",
+      ),
+    ).toThrow()
+    after.run(
+      "INSERT INTO memberships(organisation_id,account_id,role,area_id) VALUES('org-1','a3','regional','r1')",
+    )
+    after.close()
+  })
+  it('keeps every membership and invitation when general managers are added (V5)', () => {
+    const path = file()
+    const before = new LocalDatabase(
+      path,
+      migrations.filter((migration) => migration.version <= 20),
+    )
+    before.run(
+      'INSERT INTO organisations(id,slug,state,revision,created_at) VALUES(?,?,?,?,?)',
+      'org-1',
+      'linden',
+      JSON.stringify({ organisation: { id: 'org-1' }, revision: 0 }),
+      0,
+      1,
+    )
+    for (const id of ['a1', 'a2', 'a3'])
+      before.run(
+        'INSERT INTO accounts(id,email,name,password_hash,created_at) VALUES(?,?,?,?,?)',
+        id,
+        `${id}@example.invalid`,
+        'Fictional',
+        'hash',
+        1,
+      )
+    before.run(
+      "INSERT INTO memberships(organisation_id,account_id,role,staff_id,area_id) VALUES('org-1','a1','owner',NULL,NULL),('org-1','a2','regional',NULL,'r1')",
+    )
+    before.run(
+      "INSERT INTO invitations(token_hash,organisation_id,email,role,staff_id,created_at,expires_at,area_id) VALUES('t1','org-1','r@example.invalid','regional',NULL,1,2,'r1')",
+    )
+    expect(() =>
+      before.run(
+        "INSERT INTO memberships(organisation_id,account_id,role) VALUES('org-1','a3','general')",
+      ),
+    ).toThrow()
+    before.close()
+    const after = new LocalDatabase(path)
+    expect(
+      after.all('SELECT account_id,role,area_id,location_id FROM memberships ORDER BY account_id'),
+    ).toEqual([
+      { account_id: 'a1', role: 'owner', area_id: null, location_id: null },
+      { account_id: 'a2', role: 'regional', area_id: 'r1', location_id: null },
+    ])
+    expect(after.all('SELECT token_hash,role,area_id,location_id FROM invitations')).toEqual([
+      { token_hash: 't1', role: 'regional', area_id: 'r1', location_id: null },
+    ])
+    // A general manager always names a location, and only a general manager does.
+    expect(() =>
+      after.run(
+        "INSERT INTO memberships(organisation_id,account_id,role) VALUES('org-1','a3','general')",
+      ),
+    ).toThrow()
+    expect(() =>
+      after.run(
+        "INSERT INTO memberships(organisation_id,account_id,role,location_id) VALUES('org-1','a3','manager','l1')",
+      ),
+    ).toThrow()
+    after.run(
+      "INSERT INTO memberships(organisation_id,account_id,role,location_id) VALUES('org-1','a3','general','l1')",
+    )
+    after.close()
+  })
   it('rolls a failed step back and leaves the last good version', () => {
     const path = file()
     new LocalDatabase(path).close()

@@ -13,7 +13,17 @@ export const receptionistSettingsSchema = z
     handOver: z.boolean(),
     /** Whether it also answers texts to the studio's text line. Off unless chosen. */
     texts: z.boolean().optional(),
+    /** Whether it also answers messages to the studio's Instagram, Facebook and WhatsApp. */
+    social: z.boolean().optional(),
   })
   .strict()
 export type ReceptionistSettings = z.infer<typeof receptionistSettingsSchema>
 export const defaultReceptionist: ReceptionistSettings = { enabled: false, handOver: true }
+
+/**
+ * V4: Book with Google. The owner chooses whether the studio's treatments and free times are
+ * offered for booking inside Google Search and Maps, through SALEANE's Actions Center connection.
+ * Off until chosen; a sample studio is never offered.
+ */
+export const googleBookingSchema = z.object({ enabled: z.boolean() }).strict()
+export type GoogleBookingSettings = z.infer<typeof googleBookingSchema>

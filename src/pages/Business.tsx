@@ -3,8 +3,10 @@ import { Download, Info, TrendingUp } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useStore } from '../state/context'
 import { bookedTimeShare, dueClients, report } from '../domain/selectors'
+import { hasLocations, placeOf, places } from '../domain/locations'
 import { bookedTimeDefinition } from '../components/definitions'
 import { RetentionPanel } from '../components/RetentionPanel'
+import { WholeBusiness } from '../components/WholeBusiness'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import {
   Avatar,
@@ -17,18 +19,23 @@ import {
 } from '../design'
 
 export function Business() {
-  const { state, today } = useStore()
+  const { state, today, branch } = useStore()
   const [days, setDays] = useState(7)
   const [definitions, setDefinitions] = useState(false)
-  const data = report(state, days)
+  // V2: figures for one location, or the whole studio.
+  const multiSite = hasLocations(state)
+  const [where, setWhere] = useState(branch ?? 'all')
+  const place = multiSite && where !== 'all' ? where : undefined
+  const data = report(state, days, place)
   const due = dueClients(state)
   const maxRevenue = Math.max(...data.byDay.map((d) => d.revenue), 1)
   // Today's close: visits still open, and who the studio sees first tomorrow.
   const live = (a: (typeof state.appointments)[number]) =>
     a.status !== 'cancelled' && a.status !== 'no_show'
-  const todays = state.appointments.filter((a) => a.date === today && live(a))
+  const here = (a: (typeof state.appointments)[number]) => !place || a.locationId === place
+  const todays = state.appointments.filter((a) => a.date === today && live(a) && here(a))
   const first = state.appointments
-    .filter((a) => a.date === addDays(today, 1) && live(a))
+    .filter((a) => a.date === addDays(today, 1) && live(a) && here(a))
     .sort((a, b) => a.startMinutes - b.startMinutes)[0]
   const closing = {
     total: todays.length,
@@ -50,7 +57,10 @@ export function Business() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `saleane-report-${state.organisation.region}-${today}.csv`
+    const placeSlug = place
+      ? `-${(placeOf(state, place)?.name ?? 'location').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
+      : ''
+    link.download = `saleane-report-${state.organisation.region}${placeSlug}-${today}.csv`
     link.click()
     URL.revokeObjectURL(url)
   }
@@ -74,11 +84,25 @@ export function Business() {
           onChange={(value) => setDays(Number(value))}
           options={[7, 28].map((value) => ({ value: String(value), label: `Last ${value} days` }))}
         />
+        {multiSite && (
+          <label className="business-where">
+            <span className="sr-only">Location</span>
+            <select id="business-location" value={where} onChange={(e) => setWhere(e.target.value)}>
+              <option value="all">All locations</option>
+              {places(state).map((site) => (
+                <option key={site.id} value={site.id}>
+                  {site.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <span>
           {dateLabel(data.from, state.organisation.locale, true)} –{' '}
           {dateLabel(today, state.organisation.locale, true)}
         </span>
       </div>
+      {multiSite && !place && <WholeBusiness />}
       <div className="metrics-band">
         <Metric
           label="Completed service revenue"
@@ -96,7 +120,7 @@ export function Business() {
         <Metric
           label="Time booked"
           value={`${Math.round(data.utilisation * 100)}%`}
-          detail={`Last ${days} days · today ${Math.round(bookedTimeShare(state, today) * 100)}%`}
+          detail={`Last ${days} days · today ${Math.round(bookedTimeShare(state, today, place) * 100)}%`}
           definition={bookedTimeDefinition.map((line) => (
             <p key={line}>{line}</p>
           ))}

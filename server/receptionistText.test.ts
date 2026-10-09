@@ -70,6 +70,7 @@ async function run(login: Login, command: Command) {
   return response.json<{ recordId: string }>().recordId
 }
 let serviceId: string
+let staffId: string
 let clientId: string
 async function studio(texts = true) {
   const response = await api.inject({
@@ -101,7 +102,7 @@ async function studio(texts = true) {
       resourceType: 'treatment',
     },
   })
-  await run(login, {
+  staffId = await run(login, {
     type: 'staff',
     input: { name: 'Maya Lind', role: 'Facialist', serviceIds: [serviceId], tone: 'sage' },
   })
@@ -246,6 +247,76 @@ describe('the AI receptionist answering texts', () => {
     clock += 60000
     await text(slug, 'When are you open?', '+447700900999')
     expect(answers()[1].client_id).toBe(clientId)
+  })
+
+  it('sends a guest the private link to their own visit, only to the number on the booking', async () => {
+    const { login, slug } = await studio()
+    const book = (date: string) =>
+      run(login, {
+        type: 'book',
+        input: { serviceId, staffId, date, startMinutes: 600, clientId, source: 'desk' },
+      })
+    const first = await book('2026-10-08')
+    // Someone else's number is never sent a link, nor told whether a visit exists.
+    await text(slug, 'I need to cancel my appointment', '+447700900999')
+    expect(answers()[0].body).toMatch(/only send the link to change a visit to the phone number/)
+    clock += 61 * 60000
+    await text(slug, 'Can I move my appointment?')
+    const answer = answers()[1]
+    expect(answer).toMatchObject({ appointment_id: first, client_id: clientId })
+    // The stored answer keeps a placeholder; the link is made only as it goes.
+    expect(answer.body).toContain('{{manage_link}}')
+    expect(answer.body).toMatch(/Restorative facial with Maya Lind, Thursday 8 October at 10:00/)
+    await api.outbox.tick()
+    const fromReception = () => sent.filter((m) => m.body.includes('AI receptionist:'))
+    const linked = fromReception().at(-1)!
+    const link = /\/manage#(\S+)/.exec(linked.body)![1]
+    expect(linked.to).toBe('+447700900456')
+    const visit = await api.inject({
+      method: 'POST',
+      url: '/api/guest/visit',
+      payload: { token: link },
+    })
+    expect(visit.statusCode, visit.body).toBe(200)
+    expect(JSON.stringify(api.database.all('SELECT body FROM outbox'))).not.toContain(link)
+    // If the visit moves before the answer goes, it would name the old time: nothing is sent.
+    clock += 61 * 60000
+    await text(slug, 'Can I cancel my visit?')
+    expect(answers()[2]).toMatchObject({ appointment_id: first, status: 'pending' })
+    await run(login, {
+      type: 'reschedule',
+      appointmentId: first,
+      staffId,
+      date: '2026-10-09',
+      startMinutes: 600,
+    })
+    await api.outbox.tick()
+    expect(answers()[2]).toMatchObject({ status: 'skipped' })
+    // With two visits to come, it asks which, then sends the one chosen.
+    const second = await book('2026-10-15')
+    clock += 61 * 60000
+    await text(slug, 'I need to reschedule')
+    expect(answers()[3].body).toMatch(
+      /Which visit would you like to change\? Reply with its number/,
+    )
+    clock += 60000
+    await text(slug, '2')
+    expect(answers()[4]).toMatchObject({ appointment_id: second })
+    // If the number on the booking changes before it goes, nothing is sent.
+    await run(login, {
+      type: 'client-edit',
+      clientId,
+      contact: {
+        name: 'Rosa Field',
+        email: 'rosa@example.invalid',
+        phone: '+44 7700 900111',
+        marketingConsent: false,
+      },
+      preferences: '',
+    })
+    await api.outbox.tick()
+    expect(fromReception().filter((m) => m.body.includes('/manage#'))).toHaveLength(1)
+    expect(answers()[4]).toMatchObject({ status: 'skipped' })
   })
 
   it('does not send an answer if texts are turned off before it goes out', async () => {

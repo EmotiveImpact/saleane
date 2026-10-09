@@ -13,17 +13,20 @@ import { daySheetRoutes } from './routes/daysheet'
 import { privacyRoutes } from './routes/privacy'
 import { messagingRoutes } from './routes/messaging'
 import { createOutbox } from './messaging/outbox'
-import { recordPhoneCall, recordReply } from './messaging/calls'
+import { recordPhoneCall, recordReply, recordSocialMessage } from './messaging/calls'
+import { metaChallenge, metaGenuine, metaMessages, socialFromEnv } from './messaging/meta'
+import { socialRoutes } from './routes/social'
 import type { Outbox } from './messaging/outbox'
 import { paymentRoutes } from './routes/payments'
 import { assistantRoutes } from './routes/assistant'
 import { receptionistRoutes } from './routes/receptionist'
-import { answerText } from './messaging/receptionistText'
+import { answerSocial, answerText } from './messaging/receptionistText'
 import { createPayments } from './payments/service'
 import type { Payments } from './payments/service'
 import { connectionTransportFromEnv, createConnections } from './connections'
 import type { Connections } from './connections'
 import { partnerApi } from './partnerApi'
+import { googleBooking, googleBookingFromEnv } from './googleBooking'
 
 export type { ApiOptions } from './context'
 export type { InjectOptions, InjectResponse } from './http'
@@ -60,9 +63,13 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     options.connectionTransport ?? connectionTransportFromEnv(),
   )
   const partners = partnerApi()
+  const google = googleBooking(options.googleBooking ?? googleBookingFromEnv(process.env))
+  const social = options.social ?? socialFromEnv(process.env)
   const routes = [
     partners.read,
     partners.manage,
+    google.manage,
+    socialRoutes(social),
     connections.routes,
     messagingRoutes(outbox),
     paymentRoutes(payments),
@@ -171,6 +178,36 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
         } else reply(200, { ok: true })
         return
       }
+      // V4: Meta posts every message to the studio's Instagram, Facebook or WhatsApp accounts here,
+      // signed with the app secret; it checks the address first with the verify token.
+      if (url.pathname === '/api/hooks/meta') {
+        if (social.mode === 'off') fail(404, 'This endpoint was not found.')
+        if (method === 'GET') {
+          const challenge = metaChallenge(social, url.searchParams)
+          if (challenge === null) fail(403, 'This check could not be verified.')
+          response.statusCode = 200
+          response.setHeader('Content-Type', 'text/plain; charset=utf-8')
+          response.end(challenge)
+          return
+        }
+        if (method !== 'POST') fail(405, 'Use GET or POST.')
+        const body = (await readBody(request, true)) as string
+        if (!metaGenuine(social, body, header(request, 'x-hub-signature-256')))
+          fail(403, 'This message could not be verified.')
+        let payload: unknown
+        try {
+          payload = JSON.parse(body)
+        } catch {
+          fail(400, 'Send JSON.')
+        }
+        for (const message of metaMessages(payload)) {
+          recordSocialMessage(ctx, message)
+          // The AI receptionist answers a kept message when the studio chose that, once.
+          if ((await answerSocial(ctx, message)) && options.outboxIntervalMs) outbox.soon()
+        }
+        reply(200, { ok: true })
+        return
+      }
       if (url.pathname === '/api/hooks/stripe') {
         if (method !== 'POST') fail(405, 'Use POST.')
         const body = (await readBody(request, true)) as string
@@ -183,6 +220,24 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
         reply(200, { ok: true })
         return
       }
+      // V4: Google's Actions Center calls in with partner credentials, not a session or origin.
+      if (
+        await google.partner(
+          ctx,
+          request,
+          method,
+          url.pathname,
+          async () => {
+            try {
+              return JSON.parse(((await readBody(request, true)) as string) || '{}') as unknown
+            } catch {
+              return fail(400, 'Send JSON.')
+            }
+          },
+          reply,
+        )
+      )
+        return
       const path = url.pathname
         .split('/')
         .filter(Boolean)

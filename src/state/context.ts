@@ -15,6 +15,8 @@ export type Store = {
   mode: 'demo' | 'server'
   today: string
   role: WorkspaceAccess['role']
+  /** V5: the location a general manager runs; screens open on it. Null for everyone else. */
+  branch?: string | null
   slug: string
   session: Session | null
   loading: boolean

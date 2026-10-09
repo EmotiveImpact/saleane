@@ -1,9 +1,13 @@
 import type { BusinessState, RelationshipEvent } from './model'
+import { areaHint, postcodeArea } from './clientAreas'
+import { serviceRuleRefusal } from './brandRules'
 import { isReviewUrl } from './model'
 import type { OperatingCommand } from './commandSchema'
+import { hasLocations, placeField, placeOf, places } from './locations'
 import {
   PAY_RATE_LIMIT,
   PAY_RULES_LIMIT,
+  LOCATION_LIMIT,
   SCHEDULE_HISTORY_LIMIT,
   TIME_OFF_DAYS,
   TIME_OFF_LIMIT,
@@ -63,6 +67,7 @@ export function runOperatingCommand(
   ) => void,
 ) {
   const scheduling = [
+    'location',
     'hours',
     'closure',
     'remove-closure',
@@ -172,6 +177,23 @@ export function runOperatingCommand(
     if (!o.closures.some((c) => c.id === command.closureId)) throw new Error('Closure not found.')
     o.closures = o.closures.filter((c) => c.id !== command.closureId)
     recordId = command.closureId
+  } else if (command.type === 'location') {
+    const list = (o.locations ??= [])
+    const old = command.id ? list.find((l) => l.id === command.id) : undefined
+    if (command.id && !old) throw new Error('Location does not belong to this workspace.')
+    const name = command.input.name.toLowerCase()
+    if (places(next, true).some((p) => p.id !== command.id && p.name.toLowerCase() === name))
+      throw new Error('Another location already has that name.')
+    if (!old && list.length >= LOCATION_LIMIT) throw new Error('Too many locations to keep.')
+    const record = { ...command.input, id: command.id ?? makeId() }
+    if (!record.arrivalNote) delete record.arrivalNote
+    if (old) {
+      Object.assign(old, record)
+      if (!command.input.hours) delete old.hours
+      if (!command.input.arrivalNote) delete old.arrivalNote
+      if (!command.input.archived) delete old.archived
+    } else list.push(record)
+    recordId = record.id
   } else if (
     command.type === 'service' ||
     command.type === 'staff' ||
@@ -189,23 +211,55 @@ export function runOperatingCommand(
     if (command.type === 'service') {
       if (command.input.depositMinor > command.input.priceMinor)
         throw new Error('Deposit cannot exceed the service price.')
+      // V2: prices and availability at other locations name real ones, never the main location,
+      // whose price is the service price itself.
+      const known = new Set(places(next, true).map((p) => p.id))
+      const main = next.organisation.locationId
+      for (const row of command.input.locationPrices ?? []) {
+        if (!known.has(row.locationId) || row.locationId === main)
+          throw new Error('Choose one of your other locations for each price.')
+        if (command.input.depositMinor > row.priceMinor)
+          throw new Error('Deposit cannot exceed the price at any location.')
+      }
+      if ((command.input.notOfferedAt ?? []).some((place) => !known.has(place)))
+        throw new Error('Choose one of your locations.')
+      if (places(next).every((p) => command.input.notOfferedAt?.includes(p.id)))
+        throw new Error('Offer the treatment at one location at least, or archive it.')
       if (command.input.durationMinutes + command.input.bufferMinutes > 1440)
         throw new Error('A service must fit within one day.')
+      // V5: the owner's house rules for every location.
+      const refusal = serviceRuleRefusal(next, { ...command.input, id: record.id })
+      if (refusal) throw new Error(refusal)
       const { returnWeeks, ...input } = command.input
       const weeks = returnWeeks ? { returnWeeks } : {}
       if (old) {
         Object.assign(old, { ...input, ...weeks, ...scope, id: record.id })
         if (returnWeeks === null) delete (old as { returnWeeks?: number }).returnWeeks
+        if (!input.locationPrices?.length)
+          delete (old as { locationPrices?: unknown }).locationPrices
+        if (!input.notOfferedAt?.length) delete (old as { notOfferedAt?: unknown }).notOfferedAt
       } else next.services.push({ ...input, ...weeks, ...scope, id: record.id })
     } else if (command.type === 'staff') {
+      for (const day of command.input.hours ?? []) {
+        const site = day.locationId && placeOf(next, day.locationId)
+        if (day.locationId && (!site || (site.archived && !day.closed)))
+          throw new Error('Choose an open location for each working day.')
+      }
       if (old) {
         Object.assign(old, record)
         // Without hours of their own, a professional follows the venue opening hours.
         if (!command.input.hours) delete (old as { hours?: unknown }).hours
       } else next.staff.push({ ...command.input, ...scope, id: record.id })
     } else {
+      const place = command.input.locationId
+      if (place && place !== (old as { locationId?: string } | undefined)?.locationId) {
+        const site = placeOf(next, place)
+        if (!site || site.archived) throw new Error('Choose an open location for this room.')
+      }
       if (old) {
         Object.assign(old, record)
+        // Without a location of its own, a room is at the main location.
+        if (!place) delete (old as { locationId?: unknown }).locationId
         // The form sends every field, so no resting time means None.
         if (!command.input.restMinutes) delete (old as { restMinutes?: number }).restMinutes
       } else next.resources.push({ ...command.input, ...scope, id: record.id })
@@ -214,6 +268,7 @@ export function runOperatingCommand(
   }
   if (
     command.type === 'organisation' ||
+    command.type === 'location' ||
     command.type === 'hours' ||
     command.type === 'closure' ||
     command.type === 'remove-closure' ||
@@ -249,6 +304,11 @@ export function runOperatingCommand(
     recordId = next.organisation.id
   } else if (command.type === 'receptionist') {
     o.receptionist = { ...command.settings }
+    recordId = next.organisation.id
+  } else if (command.type === 'google-booking') {
+    if (command.settings.enabled && o.mode === 'sandbox')
+      throw new Error('A sample studio is never offered on Google. Use a studio of your own.')
+    o.googleBooking = { ...command.settings }
     recordId = next.organisation.id
   } else if (command.type === 'contact-preferences') {
     const client = next.clients.find((c) => c.id === command.clientId)
@@ -647,8 +707,17 @@ export function runOperatingCommand(
       throw new Error('Received stock must increase the quantity.')
     if (['consumed', 'retail'].includes(command.reason) && command.quantity > 0)
       throw new Error('Usage and retail movements must reduce the quantity.')
-    if (stock(next, product.id) + command.quantity < 0)
-      throw new Error('There is not enough stock for this movement.')
+    const place = command.locationId ?? next.organisation.locationId
+    const site = placeOf(next, place)
+    // A closed location can still be counted down to empty, never restocked.
+    if (!site || (site.archived && command.quantity > 0))
+      throw new Error('Choose an open location.')
+    if (stock(next, product.id, place) + command.quantity < 0)
+      throw new Error(
+        hasLocations(next)
+          ? `There is not enough ${product.name} at ${site.name} for this.`
+          : 'There is not enough stock for this movement.',
+      )
     const movement = {
       id: makeId(),
       productId: product.id,
@@ -658,9 +727,43 @@ export function runOperatingCommand(
       appointmentId: command.appointmentId,
       createdAt: now,
       actor: 'Local operator',
+      ...placeField(next, place),
     }
     o.movements.push(movement)
     recordId = movement.id
+  } else if (command.type === 'stock-move') {
+    const product = o.products.find((p) => p.id === command.productId)
+    if (!product || product.archived) throw new Error('Choose an active product.')
+    const from = placeOf(next, command.from),
+      to = placeOf(next, command.to)
+    if (!from || !to) throw new Error('Choose two of your locations.')
+    if (from.id === to.id) throw new Error('Choose two different locations.')
+    if (to.archived) throw new Error(`${to.name} is closed. Choose an open location.`)
+    const left = stock(next, product.id, from.id)
+    if (left < command.quantity)
+      throw new Error(
+        left > 0
+          ? `Only ${left} ${product.name} at ${from.name}.`
+          : `There is no ${product.name} at ${from.name}.`,
+      )
+    const transferId = makeId()
+    const note = command.note?.trim() || `Moved from ${from.name} to ${to.name}`
+    for (const [place, quantity] of [
+      [from.id, -command.quantity],
+      [to.id, command.quantity],
+    ] as const)
+      o.movements.push({
+        id: makeId(),
+        productId: product.id,
+        quantity,
+        reason: 'moved',
+        note,
+        createdAt: now,
+        actor: 'Local operator',
+        transferId,
+        ...placeField(next, place),
+      })
+    recordId = transferId
   } else if (command.type === 'client-birthday') {
     const client = next.clients.find((c) => c.id === command.clientId)
     if (!client) throw new Error('Client does not belong to this workspace.')
@@ -673,6 +776,25 @@ export function runOperatingCommand(
         type: 'profile',
         title: command.birthday ? 'Birthday recorded' : 'Birthday removed',
         detail: 'Month and day only.',
+      })
+    }
+    recordId = client.id
+  } else if (command.type === 'client-area') {
+    const client = next.clients.find((c) => c.id === command.clientId)
+    if (!client) throw new Error('Client does not belong to this workspace.')
+    const region = next.organisation.region
+    const area = command.area === null ? null : postcodeArea(command.area, region)
+    if (command.area !== null && !area) throw new Error(areaHint(region))
+    if ((client.postcodeArea ?? null) !== area) {
+      if (area) client.postcodeArea = area
+      else delete client.postcodeArea
+      addEvent({
+        clientId: client.id,
+        type: 'profile',
+        title: `${region === 'UK' ? 'Postcode' : 'ZIP'} area ${area ? 'recorded' : 'removed'}`,
+        detail: area
+          ? `${area}. ${region === 'UK' ? 'The first half of the postcode' : 'The first three digits of the ZIP code'} only.`
+          : 'No area is kept.',
       })
     }
     recordId = client.id

@@ -1,5 +1,6 @@
 import type { BusinessState, Sale } from './model'
 import type { Operations, Tax } from './operations'
+import { hasLocations, placeField, placeOf } from './locations'
 import { operations, stock } from './operations'
 import type { CounterSale, RetailItems, SaleRetail } from './retailSchema'
 
@@ -44,18 +45,21 @@ export function retailRevenue(sale: Pick<Sale, 'retail'>) {
 export function priceRetail(
   s: BusinessState,
   items: RetailItems | undefined,
+  /** V2: the location whose shelf it comes off. Absent means the main location. */
+  locationId = s.organisation.locationId,
 ): SaleRetail | undefined {
   if (!items?.length) return undefined
   const config = operations(s)
   const lines = items.map((item) => {
     const product = config.products.find((p) => p.id === item.productId)
     if (!product || !sellable(product)) throw new Error('Choose products that are on sale here.')
-    const left = stock(s, product.id)
+    const left = stock(s, product.id, locationId)
+    const where = hasLocations(s) ? ` at ${placeOf(s, locationId)?.name ?? 'this location'}` : ''
     if (left < item.quantity)
       throw new Error(
         left > 0
-          ? `Only ${left} ${product.name} left in stock.`
-          : `${product.name} is out of stock. Record the delivery in Stock first.`,
+          ? `Only ${left} ${product.name} left in stock${where}.`
+          : `${product.name} is out of stock${where}. Record the delivery in Stock first.`,
       )
     return {
       productId: product.id,
@@ -86,6 +90,8 @@ export function recordRetailMovements(
   actor = 'Local operator',
 ) {
   next.operations ??= operations(next)
+  // Products sold with a visit come off the shelf where the visit is.
+  const place = next.appointments.find((a) => a.id === sale.appointmentId)?.locationId
   for (const line of retail.lines)
     next.operations.movements.push({
       id: makeId(),
@@ -97,6 +103,7 @@ export function recordRetailMovements(
       actor,
       appointmentId: sale.appointmentId,
       saleId: sale.id,
+      ...placeField(next, place),
     })
 }
 
@@ -231,6 +238,13 @@ export function restockReturn(
     if (!line) throw new Error('Only products on this receipt can come back.')
     if (item.quantity > line.left)
       throw new Error(`Only ${line.left} ${line.name} can come back from this receipt.`)
+    // It goes back on the shelf it was sold from.
+    const sold = next.operations.movements.find(
+      (m) =>
+        m.reason === 'retail' &&
+        m.productId === item.productId &&
+        (m.saleId ?? m.counterSaleId) === receiptId,
+    )
     next.operations.movements.push({
       id: makeId(),
       productId: item.productId,
@@ -242,6 +256,7 @@ export function restockReturn(
       [kind]: receiptId,
       refundId,
       ...(appointmentId ? { appointmentId } : {}),
+      ...placeField(next, sold?.locationId),
     })
   }
 }
@@ -252,6 +267,7 @@ export function sellAtCounter(
   command: {
     clientId?: string
     staffId?: string
+    locationId?: string
     products: RetailItems
     method: CounterSale['method']
     reference?: string
@@ -265,13 +281,17 @@ export function sellAtCounter(
     throw new Error('Choose someone on the team.')
   if (command.method === 'external_card' && !command.reference?.trim())
     throw new Error('Enter the card terminal reference.')
-  const retail = priceRetail(next, command.products)!
+  const place = command.locationId ?? next.organisation.locationId
+  const site = placeOf(next, place)
+  if (!site || site.archived) throw new Error('Choose an open location.')
+  const retail = priceRetail(next, command.products, place)!
   next.counterSales ??= []
   const sale: CounterSale = {
     id: makeId(),
     organisationId: next.organisation.id,
     ...(command.clientId ? { clientId: command.clientId } : {}),
     ...(command.staffId ? { staffId: command.staffId } : {}),
+    ...placeField(next, place),
     receiptNumber: `SC-${next.counterSales.length + 1}`,
     currency: next.organisation.currency,
     retail,
@@ -293,14 +313,18 @@ export function sellAtCounter(
       createdAt: now,
       actor: 'Local operator',
       counterSaleId: sale.id,
+      ...placeField(next, place),
     })
   return sale
 }
 
-/** Each product with what is on the shelf, whether to reorder, and its value at cost. */
-export function stockSummary(s: BusinessState) {
+/**
+ * Each product with what is on the shelf, whether to reorder, and its value at cost: at one
+ * location when given (V2), otherwise across the studio.
+ */
+export function stockSummary(s: BusinessState, locationId?: string) {
   return products(s).map((product) => {
-    const onHand = stock(s, product.id)
+    const onHand = stock(s, product.id, locationId)
     return {
       product,
       onHand,

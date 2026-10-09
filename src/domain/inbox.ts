@@ -3,9 +3,14 @@ import {
   REPLY_LIMIT,
   REPLY_TEXT_LIMIT,
   SAVED_REPLY_LIMIT,
+  SOCIAL_ANSWER_COUNT_LIMIT,
+  SOCIAL_ANSWER_LIMIT,
+  SOCIAL_WINDOW_MS,
+  isSocialChannel,
   savedReplyInputSchema,
+  socialLabel,
 } from './inboxSchema'
-import type { Reply, SavedReply, noteWays } from './inboxSchema'
+import type { Reply, SavedReply, SocialAnswer, SocialChannel, noteWays } from './inboxSchema'
 import { healthWordIn } from './forms'
 import { operations } from './operations'
 
@@ -21,6 +26,9 @@ type AddEvent = (
 
 export const repliesList = (s: BusinessState) => s.replies ?? []
 export const savedReplies = (s: BusinessState) => s.savedReplies ?? []
+export const socialAnswers = (s: BusinessState) => s.socialAnswers ?? []
+/** The channels a guest's reply can arrive on from outside, rather than be noted by the team. */
+export type ArrivalChannel = 'email' | 'sms' | 'chat' | SocialChannel
 /** A number with its country code, as the text line gives it. Kept here: reminders loads the model. */
 const textNumber = (phone: string) => {
   const compact = phone.replace(/[\s().-]/g, '')
@@ -30,9 +38,18 @@ const textNumber = (phone: string) => {
 export const unreadReplies = (s: BusinessState) => repliesList(s).filter((r) => !r.readAt)
 
 /** The one client an address or number belongs to, or undefined when none or several do. */
-export function senderClient(s: BusinessState, channel: 'email' | 'sms' | 'chat', from: string) {
-  // A chat leaves an email or a number, whichever the guest gave.
-  const by = channel === 'chat' ? (from.includes('@') ? 'email' : 'sms') : channel
+export function senderClient(s: BusinessState, channel: ArrivalChannel, from: string) {
+  // Instagram and Facebook give only an id of their own, so the team matches those by hand.
+  if (channel === 'instagram' || channel === 'facebook') return undefined
+  // A chat leaves an email or a number, whichever the guest gave; WhatsApp gives the number.
+  const by =
+    channel === 'chat'
+      ? from.includes('@')
+        ? 'email'
+        : 'sms'
+      : channel === 'whatsapp'
+        ? 'sms'
+        : channel
   const matches =
     by === 'sms'
       ? s.clients.filter((c) => textNumber(c.phone) === textNumber(from))
@@ -47,14 +64,36 @@ export function snippet(text: string, max = 140) {
   return `${line.slice(0, line.lastIndexOf(' ', max - 1) > 40 ? line.lastIndexOf(' ', max - 1) : max - 1)}…`
 }
 
+/**
+ * V4: until when the studio can answer a sender on Instagram, Facebook or WhatsApp: a day after
+ * their latest message there. Null when they never wrote on that app.
+ */
+export function socialWindowEnds(
+  s: BusinessState,
+  channel: SocialChannel,
+  from: string,
+  account: string | undefined,
+) {
+  // A sender's id belongs to the studio account they wrote to, so only messages there count.
+  const last = repliesList(s)
+    .filter((r) => r.channel === channel && r.from === from && r.account === account)
+    .reduce((latest, r) => Math.max(latest, Date.parse(r.receivedAt)), 0)
+  return last ? last + SOCIAL_WINDOW_MS : null
+}
+
 export type InboxCommand =
   | {
       type: 'reply-received'
-      channel: 'email' | 'sms' | 'chat'
+      channel: ArrivalChannel
       from: string
       body: string
       providerRef?: string
+      /** V4: the name Instagram, Facebook or WhatsApp gave the sender. */
+      name?: string
+      /** V4: the studio's account it was sent to. */
+      account?: string
     }
+  | { type: 'social-answer'; replyId: string; body: string }
   | { type: 'reply-note'; clientId: string; how: (typeof noteWays)[number]; body: string }
   | { type: 'replies-read'; replyIds: string[] }
   | { type: 'reply-link'; replyId: string; clientId: string }
@@ -129,6 +168,51 @@ export function runInboxCommand(
     next.savedReplies = list.filter((r) => r.id !== command.id)
     return command.id
   }
+  if (command.type === 'social-answer') {
+    const reply = repliesList(next).find((r) => r.id === command.replyId)
+    if (!reply || !isSocialChannel(reply.channel))
+      throw new Error('That message did not come in on Instagram, Facebook or WhatsApp.')
+    const channel = reply.channel
+    const app = socialLabel[channel]
+    if (!reply.account) throw new Error('This message does not say which account it came to.')
+    const ends = socialWindowEnds(next, channel, reply.from, reply.account)
+    if (!ends || Date.parse(now) >= ends)
+      throw new Error(
+        `${app} lets a business answer only within a day of the guest's last message. Answer another way, or wait for them to write again.`,
+      )
+    const body = command.body.trim()
+    if (!body) throw new Error('Write an answer first.')
+    if (body.length > SOCIAL_ANSWER_LIMIT)
+      throw new Error(`Keep an answer under ${SOCIAL_ANSWER_LIMIT} characters.`)
+    refuseHealth(body, 'Answers')
+    const answers = (next.socialAnswers ??= [])
+    if (answers.length >= SOCIAL_ANSWER_COUNT_LIMIT)
+      throw new Error('The studio cannot keep more answers. Please contact support.')
+    const answer: SocialAnswer = {
+      id: makeId(),
+      organisationId: next.organisation.id,
+      ...(reply.clientId ? { clientId: reply.clientId } : {}),
+      channel,
+      to: reply.from,
+      account: reply.account,
+      body,
+      answeredAt: now,
+      actor: '',
+    }
+    answers.push(answer)
+    // Answering is reading: everything they sent on that app is now seen.
+    for (const r of next.replies ?? [])
+      if (r.channel === channel && r.from === reply.from && !r.readAt)
+        Object.assign(r, { readAt: now, readBy: '' })
+    if (reply.clientId)
+      addEvent({
+        clientId: reply.clientId,
+        type: 'message',
+        title: `Answered on ${app}`,
+        detail: snippet(body, 120),
+      })
+    return answer.id
+  }
   const list = (next.replies ??= [])
   if (command.type === 'replies-read') {
     const wanted = new Set(command.replyIds)
@@ -147,6 +231,8 @@ export function runInboxCommand(
     for (const r of list)
       if (!r.clientId && r.channel === reply.channel && r.from === reply.from)
         r.clientId = client.id
+    for (const a of next.socialAnswers ?? [])
+      if (!a.clientId && a.channel === reply.channel && a.to === reply.from) a.clientId = client.id
     addEvent({
       clientId: client.id,
       type: 'message',
@@ -206,6 +292,8 @@ export function runInboxCommand(
     body,
     receivedAt: now,
     ...(command.providerRef ? { providerRef: command.providerRef.slice(0, 200) } : {}),
+    ...(command.name?.trim() ? { name: command.name.trim().slice(0, 100) } : {}),
+    ...(command.account ? { account: command.account.slice(0, 200) } : {}),
     actor: '',
   }
   list.push(reply)
@@ -213,8 +301,9 @@ export function runInboxCommand(
     addEvent({
       clientId: client.id,
       type: 'message',
-      title:
-        command.channel === 'sms'
+      title: isSocialChannel(command.channel)
+        ? `${socialLabel[command.channel]} message received`
+        : command.channel === 'sms'
           ? 'Text received'
           : command.channel === 'chat'
             ? 'Message left with the AI receptionist'
@@ -232,6 +321,8 @@ export function stampInboxActors(before: BusinessState, after: BusinessState, ac
     if (!old) r.actor = actor
     if (r.readAt && !old?.readAt) r.readBy = actor
   }
+  const answered = new Set(socialAnswers(before).map((a) => a.id))
+  for (const a of socialAnswers(after)) if (!answered.has(a.id)) a.actor = actor
 }
 
 /** parseState checks for replies and saved replies. */
@@ -246,6 +337,13 @@ export function inboxProblem(s: BusinessState) {
     if (r.organisationId !== s.organisation.id) return 'Foreign workspace record.'
     if (r.clientId && !clients.has(r.clientId)) return 'A reply does not match its client.'
     if (r.channel === 'desk' && !r.clientId) return 'A noted reply must be with a client.'
+  }
+  const answers = socialAnswers(s)
+  if (answers.length > SOCIAL_ANSWER_COUNT_LIMIT) return 'Too many answers.'
+  if (new Set(answers.map((a) => a.id)).size !== answers.length) return 'Duplicate answer IDs.'
+  for (const a of answers) {
+    if (a.organisationId !== s.organisation.id) return 'Foreign workspace record.'
+    if (a.clientId && !clients.has(a.clientId)) return 'An answer does not match its client.'
   }
   const saved = savedReplies(s)
   if (saved.length > SAVED_REPLY_LIMIT) return 'Too many saved replies.'
@@ -265,7 +363,7 @@ export type SentItem = {
   id: string
   clientId: string
   kind: string
-  channel: 'email' | 'sms'
+  channel: 'email' | 'sms' | SocialChannel
   recipient: string
   subject: string
   body: string
@@ -276,6 +374,8 @@ export type SentItem = {
   updatedAt: string
   /** For a message the studio wrote in the inbox, its id in the studio record. */
   messageId?: string
+  /** V4: for an answer on Instagram, Facebook or WhatsApp, its id in the studio record. */
+  answerId?: string
 }
 
 type Message = ReturnType<typeof operations>['messages'][number]
@@ -283,6 +383,7 @@ export type ThreadItem =
   | { kind: 'reply'; at: string; reply: Reply }
   | { kind: 'message'; at: string; message: Message; delivery?: Delivery }
   | { kind: 'sent'; at: string; sent: SentItem }
+  | { kind: 'answer'; at: string; answer: SocialAnswer; delivery?: Delivery }
 
 export type Conversation = {
   /** `client:<id>` for a guest, `from:<address>` for a sender who matches no client. */
@@ -319,8 +420,8 @@ export function conversations(s: BusinessState, sent: SentItem[] = []): Conversa
   }
   const deliveries = new Map<string, Delivery>()
   for (const row of sent) {
-    if (row.messageId) {
-      deliveries.set(row.messageId, {
+    if (row.messageId || row.answerId) {
+      deliveries.set((row.messageId ?? row.answerId)!, {
         status: row.status,
         provider: row.provider,
         detail: row.detail,
@@ -344,6 +445,15 @@ export function conversations(s: BusinessState, sent: SentItem[] = []): Conversa
       ...(delivery ? { delivery } : {}),
     })
     if (message.status === 'draft') t.drafts += 1
+  }
+  for (const answer of socialAnswers(s)) {
+    const delivery = deliveries.get(answer.id)
+    thread(answer.clientId, answer.to).items.push({
+      kind: 'answer',
+      at: answer.answeredAt,
+      answer,
+      ...(delivery ? { delivery } : {}),
+    })
   }
   for (const reply of repliesList(s)) {
     const t = thread(reply.clientId, reply.from)

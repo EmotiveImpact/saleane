@@ -14,7 +14,7 @@ import { consentRecordSchema, consentWordingSchema } from './consentSchema'
 import { consentProblem } from './consent'
 import { consultationSchema, visitConsultationSchema } from './consultationsSchema'
 import { consultationsProblem } from './consultations'
-import { replySchema, savedReplySchema } from './inboxSchema'
+import { replySchema, savedReplySchema, socialAnswerSchema } from './inboxSchema'
 import { inboxProblem } from './inbox'
 import { feedbackProblem, feedbackSchema } from './feedback'
 import { specialSchema, specialsProblem } from './specialsSchema'
@@ -25,6 +25,10 @@ import { rentProblem } from './rent'
 import { purchasingProblem } from './purchasing'
 import { waitlistEntrySchema } from './waitlistSchema'
 import { waitlistProblem } from './waitlist'
+import { locationsProblem } from './locations'
+import { groupProblem } from './group'
+import { branchVisitsProblem } from './branchVisits'
+import { approvalsProblem } from './approvals'
 export { paymentMethodSchema, paymentMethods, processorSchema } from './paymentMethods'
 
 export const DEMO_DATE = '2026-10-06'
@@ -88,6 +92,14 @@ export const clientSchema = z.object({
     .regex(/^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/)
     .refine((value) => birthdayIsReal(value), 'Choose a real date.')
     .optional(),
+  /**
+   * V5: the first half of their postcode only ("N1", "SW1A"; US the first three ZIP digits), for
+   * seeing where clients come from in groups. Never the full postcode or an address.
+   */
+  postcodeArea: z
+    .string()
+    .regex(/^[A-Z0-9]{1,4}$/)
+    .optional(),
 })
 /** Whether a "MM-DD" birthday exists in some year (29 February does). */
 export function birthdayIsReal(value: string) {
@@ -109,6 +121,18 @@ export const serviceSchema = z.object({
   prepNote: z.string().max(GUEST_NOTE_LIMIT).optional(),
   /** V1.5: guests need a clear patch test before this treatment, such as a colour. */
   patchTest: z.boolean().optional(),
+  /** V2: a different price at another location. Absent means the same price everywhere. */
+  locationPrices: z
+    .array(z.object({ locationId: id, priceMinor: minor }))
+    .max(20)
+    .refine((rows) => new Set(rows.map((r) => r.locationId)).size === rows.length)
+    .optional(),
+  /** V2: locations where this treatment is not offered. Absent means offered everywhere. */
+  notOfferedAt: z
+    .array(id)
+    .max(20)
+    .refine((ids) => new Set(ids).size === ids.length)
+    .optional(),
   /** V1.5: practical care advice emailed after the visit, such as "Avoid hot water for a day". */
   aftercareNote: z.string().max(GUEST_NOTE_LIMIT).optional(),
   /** V1.5: how many weeks until a guest usually comes back for this, for a "due back" nudge. */
@@ -130,6 +154,8 @@ export const resourceSchema = z.object({
   name: z.string().trim().min(2).max(100),
   type: z.enum(['treatment', 'chair']),
   archived: z.boolean().optional(),
+  /** V2: the location the room or chair is at. Absent means the main location. */
+  locationId: id.optional(),
   /**
    * V1.5: minutes the room rests empty after each visit (airing, cooling, a deep clean). Only the
    * room waits; the professional is free. Absent means none.
@@ -211,6 +237,8 @@ const allocationSchema = z.object({
   startMinutes: z.number().int().min(0).max(1439),
   staffId: id,
   resourceId: id,
+  /** V2: where the visit was, when a move took it to another location. */
+  locationId: id.optional(),
 })
 export const eventSchema = z.object({
   ...scoped,
@@ -295,6 +323,8 @@ export const stateSchema = z.object({
   /** V1.5: what guests wrote back, and the studio's saved replies to start a message from. */
   replies: z.array(replySchema).optional(),
   savedReplies: z.array(savedReplySchema).optional(),
+  /** V4: the team's answers on Instagram, Facebook and WhatsApp. */
+  socialAnswers: z.array(socialAnswerSchema).optional(),
 })
 export type BusinessState = z.infer<typeof stateSchema>
 export type Client = z.infer<typeof clientSchema>
@@ -356,7 +386,6 @@ export function parseState(value: unknown, region: Region): BusinessState {
       throw new Error('Missing staff service.')
   for (const a of s.appointments) {
     if (
-      a.locationId !== org.locationId ||
       !exists(s.clients, a.clientId) ||
       !exists(s.staff, a.staffId) ||
       !exists(s.services, a.serviceId) ||
@@ -572,7 +601,9 @@ export function parseState(value: unknown, region: Region): BusinessState {
               ? change.before === null && !!change.after && 'date' in change.after
               : change.kind === 'closure-removed'
                 ? !!change.before && 'date' in change.before && change.after === null
-                : [change.before, change.after].every((v) => !!v && 'archived' in v)
+                : change.kind === 'resource-moved'
+                  ? [change.before, change.after].every((v) => !!v && 'locationId' in v)
+                  : [change.before, change.after].every((v) => !!v && 'archived' in v)
       // Professionals and rooms are archived, never deleted, so their history keeps its link.
       const subjectFits = change.kind.startsWith('staff')
         ? !!change.subjectId && exists(s.staff, change.subjectId)
@@ -637,6 +668,14 @@ export function parseState(value: unknown, region: Region): BusinessState {
   if (purchasing) throw new Error(purchasing)
   const waitlist = waitlistProblem(s)
   if (waitlist) throw new Error(waitlist)
+  const location = locationsProblem(s)
+  if (location) throw new Error(location)
+  const group = groupProblem(s)
+  if (group) throw new Error(group)
+  const visits = branchVisitsProblem(s)
+  if (visits) throw new Error(visits)
+  const approvals = approvalsProblem(s)
+  if (approvals) throw new Error(approvals)
   try {
     new Intl.DateTimeFormat('en', { timeZone: org.timeZone }).format(new Date())
   } catch {

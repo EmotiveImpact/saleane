@@ -10,6 +10,7 @@ import {
   timeOffOn,
 } from './operations'
 import { TIME_OFF_LABEL } from './timeOff'
+import { placeOf, resourceLocation, staffLocationOn } from './locations'
 import type { Operations } from './operations'
 
 /**
@@ -70,12 +71,19 @@ export function scheduleConflict(s: BusinessState, a: Appointment): string | nul
     return `${staffName} would no longer offer ${serviceName}`
   if (a.bookedResourceType && resource.type !== a.bookedResourceType)
     return `${roomName} would no longer suit ${serviceName}`
-  const venue = hoursFor(s, a.date),
+  // V2: the visit's location must stay open, with the room there and the person working there.
+  const place = placeOf(s, a.locationId)
+  if (!place || place.archived) return `${place?.name ?? 'The location'} would be closed`
+  if (resourceLocation(s, resource) !== a.locationId)
+    return `${roomName} would be at another location`
+  const venue = hoursFor(s, a.date, a.locationId),
     own = staffHoursFor(s, a.staffId, a.date)
   if (venue.closed) return 'The venue would be closed that day'
   const away = timeOffOn(s, a.staffId, a.date)
   if (away) return `${staffName} would be away (${TIME_OFF_LABEL[away.kind].toLowerCase()})`
   if (own.closed) return `${staffName} would not be working that day`
+  if (staffLocationOn(s, a.staffId, a.date) !== a.locationId)
+    return `${staffName} would be working at another location that day`
   const treatmentEnd = a.startMinutes + a.bookedDurationMinutes
   const end = treatmentEnd + a.bookedBufferMinutes
   if (a.startMinutes < venue.open) return 'It would start before opening'
@@ -145,12 +153,20 @@ function proposed(s: BusinessState, command: OperatingCommand) {
       ...(o.timeOff ?? []),
       { ...command.input, id: 'proposed', createdAt: new Date(0).toISOString(), actor: '' },
     ]
-  else if (command.type === 'staff' || command.type === 'resource') {
+  else if (command.type === 'location') {
+    const list = (o.locations ??= [])
+    const old = command.id ? list.find((l) => l.id === command.id) : undefined
+    if (!old) return null
+    Object.assign(old, command.input)
+    if (!command.input.hours) delete old.hours
+  } else if (command.type === 'staff' || command.type === 'resource') {
     const rows: { id: string }[] = command.type === 'staff' ? next.staff : next.resources
     const old = command.id ? rows.find((r) => r.id === command.id) : undefined
     if (!old) return null
     Object.assign(old, command.input)
     if (command.type === 'staff' && !command.input.hours) delete (old as { hours?: unknown }).hours
+    if (command.type === 'resource' && !command.input.locationId)
+      delete (old as { locationId?: unknown }).locationId
   } else return null
   return next
 }
@@ -204,6 +220,17 @@ function weekDifference(before: WeeklyHours, after: WeeklyHours, locale: string)
       const from = dayText(a, locale),
         to = dayText(b, locale)
       return from === to ? '' : `${weekdays[day]} ${from} became ${to}`
+    })
+    .filter(Boolean)
+}
+/** Days a person's location changed (V2), as "Thursday at Islington, was Marylebone". */
+function placeDifference(s: BusinessState, before: WeeklyHours, after: WeeklyHours) {
+  const main = s.organisation.locationId
+  return weekOrder
+    .map((day) => {
+      const a = before.find((h) => h.day === day)?.locationId ?? main,
+        b = after.find((h) => h.day === day)?.locationId ?? main
+      return a === b ? '' : `${weekdays[day]} at ${placeOf(s, b)?.name}, was ${placeOf(s, a)?.name}`
     })
     .filter(Boolean)
 }
@@ -272,7 +299,10 @@ export function scheduleChanges(
       next = after.staff.find((p) => p.id === subjectId)
     if (!old || !next) return []
     if (JSON.stringify(old.hours ?? null) !== JSON.stringify(next.hours ?? null)) {
-      const changed = weekDifference(old.hours ?? was.hours, next.hours ?? now.hours, locale)
+      const changed = [
+        ...weekDifference(old.hours ?? was.hours, next.hours ?? now.hours, locale),
+        ...placeDifference(after, old.hours ?? was.hours, next.hours ?? now.hours),
+      ]
       const basis = !next.hours
         ? ' They now follow the venue opening hours.'
         : !old.hours
@@ -300,6 +330,15 @@ export function scheduleChanges(
   if (command.type === 'resource') {
     const old = before.resources.find((r) => r.id === subjectId),
       next = after.resources.find((r) => r.id === subjectId)
+    const main = after.organisation.locationId
+    if (old && next && (old.locationId ?? main) !== (next.locationId ?? main))
+      entries.push({
+        kind: 'resource-moved',
+        subjectId,
+        summary: `${next.name} moved from ${placeOf(after, old.locationId)?.name} to ${placeOf(after, next.locationId)?.name}.`,
+        before: { locationId: old.locationId ?? main },
+        after: { locationId: next.locationId ?? main },
+      })
     if (old && next && !!old.archived !== !!next.archived)
       entries.push({
         kind: next.archived ? 'resource-archived' : 'resource-restored',

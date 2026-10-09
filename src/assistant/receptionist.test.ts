@@ -138,6 +138,35 @@ describe('the AI receptionist in test mode', () => {
     expect(closed.proposals).toEqual([])
   })
 
+  it('changes no visit in the booking page chat, and shows no one else’s visits', async () => {
+    const result = await chat('I need to cancel my appointment')
+    expect(result.text).toMatch(/cannot change a visit in this chat/)
+    expect(result.proposals).toEqual([])
+    // A known guest gets only their own coming visit, though other guests have visits too.
+    const visit = base.appointments.find(
+      (a) => a.status === 'confirmed' && `${a.date}T23:59` > now,
+    )!
+    const known = await askReceptionist({
+      state: {
+        ...on(base),
+        appointments: base.appointments.filter(
+          (a) => a.clientId !== visit.clientId || a.id === visit.id,
+        ),
+      },
+      today,
+      now,
+      visitorId: 'v1',
+      text: 'Can I move my booking?',
+      usage: undefined,
+      guestId: visit.clientId,
+    })
+    if (known.status !== 'answered') throw new Error(known.text)
+    expect(known.proposals.map((p) => p.effect)).toEqual([
+      { kind: 'manage', appointmentId: visit.id },
+    ])
+    expect(known.text).toContain('[[manage-link]]')
+  })
+
   it('reads dates and times the way guests write them', () => {
     expect(dateIn('tomorrow', today)).toBe('2026-10-07')
     expect(dateIn('on Tuesday', today)).toBe('2026-10-06')

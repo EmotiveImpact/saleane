@@ -1,29 +1,17 @@
 import { useEffect } from 'react'
 
+import { firstColours, secondColours } from '../domain/brandRulesSchema'
+import type { StudioLook } from '../domain/brandRulesSchema'
+
 /**
  * A studio's own first and second colours. Everything else in the palette is
  * derived from these two in tokens.css, so changing them re-tints buttons,
  * selections, the now line and tags together.
  *
- * For now the choice is kept in this browser, one entry per studio. Once
- * studio settings are stored on the server it moves there so guests see it too.
+ * V5: the choice is kept with the studio, so every location, device and guest sees it. A choice
+ * an earlier version kept in this browser still applies until the studio has one of its own.
  */
-export const firstColours = [
-  { name: 'Sage', value: '#5f8471' },
-  { name: 'Heather', value: '#7a6690' },
-  { name: 'Slate', value: '#557089' },
-  { name: 'Teal', value: '#3f7f80' },
-  { name: 'Clay', value: '#a35f4b' },
-  { name: 'Rosewood', value: '#a5566d' },
-] as const
-
-export const secondColours = [
-  { name: 'Soft rose', value: '#c27286' },
-  { name: 'Apricot', value: '#c98a5e' },
-  { name: 'Lavender', value: '#9a86b8' },
-  { name: 'Sky', value: '#6f9cbc' },
-  { name: 'Olive', value: '#8c9a5b' },
-] as const
+export { firstColours, secondColours }
 
 export type StudioColours = { first: string; second: string }
 export const defaultColours: StudioColours = {
@@ -70,15 +58,34 @@ function apply(colours: StudioColours) {
   root.setProperty('--rose', colours.second)
 }
 
-/** Applies the studio's colours to the page and follows later changes. */
-export function useStudioColours(organisationId: string) {
+/** The colours to show: the studio's own, or an earlier choice kept in this browser. */
+export const coloursFor = (organisationId: string, look?: StudioLook): StudioColours =>
+  look ?? readColours(organisationId)
+
+/**
+ * Applies the studio's colours to the page and follows later changes. Off on pages that apply
+ * another studio's colours, such as a guest booking page.
+ */
+export function useStudioColours(organisationId: string, look?: StudioLook, enabled = true) {
+  const first = look?.first
+  const second = look?.second
   useEffect(() => {
-    apply(readColours(organisationId))
+    if (!enabled) return
+    apply(first && second ? { first, second } : readColours(organisationId))
     const follow = (e: Event) => {
       const detail = (e as CustomEvent<{ organisationId: string; colours: StudioColours }>).detail
       if (detail.organisationId === organisationId) apply(detail.colours)
     }
     window.addEventListener(event, follow)
     return () => window.removeEventListener(event, follow)
-  }, [organisationId])
+  }, [organisationId, first, second, enabled])
+}
+
+/** V5: a guest booking page shows the studio's colours, or the house colours. */
+export function useGuestColours(look?: StudioLook) {
+  const first = look?.first
+  const second = look?.second
+  useEffect(() => {
+    apply({ first: first ?? defaultColours.first, second: second ?? defaultColours.second })
+  }, [first, second])
 }

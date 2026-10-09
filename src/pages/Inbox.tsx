@@ -9,10 +9,10 @@ import { Avatar, Button, ErrorMessage, Modal, PageHeader, SegmentedControl } fro
 import type { BusinessState } from '../domain/model'
 import { useInboxView } from '../state/inboxView'
 import { isWaitlistOffer, staleOffer } from '../domain/waitlist'
-import { conversations, savedReplies, snippet } from '../domain/inbox'
+import { conversations, savedReplies, snippet, socialWindowEnds } from '../domain/inbox'
 import type { Conversation, Delivery, ThreadItem } from '../domain/inbox'
-import { noteWays } from '../domain/inboxSchema'
-import type { Reply } from '../domain/inboxSchema'
+import { SOCIAL_ANSWER_LIMIT, isSocialChannel, noteWays, socialLabel } from '../domain/inboxSchema'
+import type { Reply, SocialChannel } from '../domain/inboxSchema'
 import { numberLabel } from '../domain/missedCalls'
 import { outboxStatusLabel, textNumber } from '../domain/reminders'
 import { SentMessages } from '../components/AppointmentMessages'
@@ -29,17 +29,31 @@ const statusLabel = {
   suppressed: 'Not sent',
 } as const
 
+/** The guest's latest message on Instagram, Facebook or WhatsApp in a conversation, if any. */
+function latestSocial(c: Conversation) {
+  const found = [...c.items]
+    .reverse()
+    .find((item) => item.kind === 'reply' && isSocialChannel(item.reply.channel))
+  return found?.kind === 'reply' ? found.reply : undefined
+}
+
 /** Who a conversation is with: a client's name, or the address or number that wrote in. */
 function who(state: BusinessState, c: Conversation) {
   const client = c.clientId ? state.clients.find((x) => x.id === c.clientId) : undefined
   if (client) return client.name
   if (c.clientId) return 'Client no longer available'
+  const social = latestSocial(c)
+  // Instagram and Facebook give only an id; WhatsApp gives a name and a number.
+  if (social?.name) return social.name
+  if (social && social.channel !== 'whatsapp')
+    return `Someone on ${socialLabel[social.channel as SocialChannel]}`
   return c.from?.startsWith('+') ? numberLabel(c.from) : (c.from ?? 'Unknown sender')
 }
 
 function itemText(item: ThreadItem) {
   if (item.kind === 'reply') return item.reply.body
   if (item.kind === 'message') return item.message.body
+  if (item.kind === 'answer') return item.answer.body
   return `${kindLabel[item.sent.kind as keyof typeof kindLabel] ?? 'Message'}: ${item.sent.body}`
 }
 
@@ -260,6 +274,8 @@ export function Inbox() {
       return `Noted by ${reply.actor} · ${reply.from === 'elsewhere' ? 'answered another way' : `by ${reply.from}`}`
     const from = reply.from.startsWith('+') ? numberLabel(reply.from) : reply.from
     if (reply.channel === 'chat') return `Left with the AI receptionist · answer on ${from}`
+    if (isSocialChannel(reply.channel))
+      return `${socialLabel[reply.channel]} message${reply.channel === 'whatsapp' ? ` from ${from}` : ''}`
     return `${reply.channel === 'sms' ? 'Text' : 'Email'} from ${from}`
   }
 
@@ -267,6 +283,7 @@ export function Inbox() {
     const recipient = c.clientId ? state.clients.find((item) => item.id === c.clientId) : undefined
     const name = who(state, c)
     const unreadIds = c.items.filter((i) => i.kind === 'reply' && !i.reply.readAt).length
+    const social = latestSocial(c)
     return (
       <>
         <header className="inbox-pane-header">
@@ -300,13 +317,33 @@ export function Inbox() {
                   <p>{item.reply.body}</p>
                 </li>
               )
+            if (item.kind === 'answer')
+              return (
+                <li key={item.answer.id} className="inbox-bubble inbox-bubble-ours">
+                  <small>
+                    Answered on {socialLabel[item.answer.channel]} by {item.answer.actor} ·{' '}
+                    {at(item.answer.answeredAt)} ·{' '}
+                    {item.delivery
+                      ? outboxStatusLabel[item.delivery.status]
+                      : sends
+                        ? 'Waiting to go'
+                        : 'Not sent: nothing leaves this sample studio'}
+                  </small>
+                  <p>{item.answer.body}</p>
+                  {item.delivery?.detail && <p className="subtle">{item.delivery.detail}</p>}
+                </li>
+              )
             if (item.kind === 'sent')
               return (
                 <li key={item.sent.id} className="inbox-bubble inbox-bubble-ours is-automatic">
                   <small>
                     {kindLabel[item.sent.kind as keyof typeof kindLabel] ?? 'Message'} ·{' '}
-                    {item.sent.channel === 'email' ? 'email' : 'text'} · {at(item.sent.createdAt)} ·{' '}
-                    {outboxStatusLabel[item.sent.status]}
+                    {item.sent.channel === 'email'
+                      ? 'email'
+                      : isSocialChannel(item.sent.channel)
+                        ? socialLabel[item.sent.channel]
+                        : 'text'}{' '}
+                    · {at(item.sent.createdAt)} · {outboxStatusLabel[item.sent.status]}
                   </small>
                   {item.sent.subject && <strong>{item.sent.subject}</strong>}
                   <p>{item.sent.body}</p>
@@ -368,6 +405,31 @@ export function Inbox() {
             )
           })}
         </ol>
+        {social && (
+          <SocialAnswer
+            key={`${c.key}:${social.id}`}
+            app={socialLabel[social.channel as SocialChannel]}
+            ends={socialWindowEnds(
+              state,
+              social.channel as SocialChannel,
+              social.from,
+              social.account,
+            )}
+            now={Date.parse(clock)}
+            allowed={allowedQueue}
+            pending={!!pending}
+            onSend={(words) =>
+              act(
+                'answer',
+                async () =>
+                  (await attempt({ type: 'social-answer', replyId: social.id, body: words })).ok,
+                sends
+                  ? 'Answer saved. It goes out on the next send.'
+                  : 'Answer saved. Nothing leaves this sample studio.',
+              )
+            }
+          />
+        )}
         <footer className="inbox-pane-actions">
           {recipient ? (
             <>
@@ -845,5 +907,55 @@ function NoteReply({
         </div>
       </form>
     </Modal>
+  )
+}
+
+/** V4: the team's answer on the app the guest wrote on, within the day the app allows. */
+function SocialAnswer({
+  app,
+  ends,
+  now,
+  allowed,
+  pending,
+  onSend,
+}: {
+  app: string
+  ends: number | null
+  now: number
+  allowed: boolean
+  pending: boolean
+  onSend: (words: string) => Promise<boolean>
+}) {
+  const [words, setWords] = useState('')
+  const open = !!ends && now < ends
+  const hours = ends ? Math.max(1, Math.ceil((ends - now) / 3600000)) : 0
+  return (
+    <form
+      className="inbox-social"
+      onSubmit={(event) => {
+        event.preventDefault()
+        if (!words.trim()) return
+        void onSend(words).then((ok) => ok && setWords(''))
+      }}
+    >
+      <label>
+        Answer on {app}
+        <textarea
+          value={words}
+          maxLength={SOCIAL_ANSWER_LIMIT}
+          rows={3}
+          disabled={!open || !allowed || pending}
+          onChange={(event) => setWords(event.target.value)}
+        />
+      </label>
+      <p className="ops-help">
+        {open
+          ? `${app} lets you answer for about ${hours} more ${hours === 1 ? 'hour' : 'hours'}, until a day after their last message.`
+          : `${app} lets a business answer only within a day of the guest’s last message. Answer another way, or wait for them to write again.`}
+      </p>
+      <Button type="submit" disabled={!open || !allowed || pending || !words.trim()}>
+        Send on {app}
+      </Button>
+    </form>
   )
 }

@@ -14,11 +14,16 @@ import { TreatmentPicker } from '../components/TreatmentPicker'
 import { PriceSentence } from '../components/PriceSentence'
 import { BeforeYouArrive } from '../components/BeforeYouArrive'
 import { AddToCalendar } from '../components/AddToCalendar'
+import { LocationChoice } from '../components/LocationChoice'
+import { listPrice, offeredAt, serviceAt } from '../domain/locations'
+import type { LocationOption } from '../components/LocationChoice'
 import { ReceptionistChat } from '../components/ReceptionistChat'
 import { visitUid } from '../domain/calendarFile'
 import { bookingChannel } from '../domain/bookingChannel'
 import { fullPriceMinor } from '../domain/priceSentence'
 import type { PriceTax } from '../domain/priceSentence'
+import { useGuestColours } from '../state/studioColours'
+import type { StudioLook } from '../domain/brandRulesSchema'
 import '../guest.css'
 
 const pendingBookingSchema = z.object({
@@ -33,6 +38,7 @@ const pendingBookingSchema = z.object({
   date: z.iso.date(),
   start: z.number().int(),
   expiresAt: z.iso.datetime(),
+  locationId: z.string().optional(),
 })
 type PendingBooking = z.infer<typeof pendingBookingSchema>
 function readPendingBooking(key: string) {
@@ -58,7 +64,8 @@ function urlChannel() {
 type Catalog = {
   organisation: BusinessState['organisation']
   services: BusinessState['services']
-  staff: BusinessState['staff']
+  /** V2: locationIds says where each person works; older servers send none. */
+  staff: (BusinessState['staff'][number] & { locationIds?: string[] })[]
   today: string
   sample: boolean
   patchTestHours?: number
@@ -66,8 +73,12 @@ type Catalog = {
   emailNews?: { version: number; text: string }
   botCheck?: { siteKey: string } | null
   tax?: PriceTax
+  /** V2: open locations, main first. Older servers send none. */
+  locations?: LocationOption[]
   /** V4: the AI receptionist chat is switched on for this page. */
   receptionist?: boolean
+  /** V5: the studio's colours. Older servers send none, and the house colours show. */
+  look?: StudioLook
 }
 export function ServerBooking() {
   const { slug } = useParams(),
@@ -75,6 +86,7 @@ export function ServerBooking() {
   const [catalog, setCatalog] = useState<Catalog | null>(null),
     [error, setError] = useState(''),
     [pending, setPending] = useState(false)
+  useGuestColours(catalog?.look)
   useEffect(() => {
     let active = true
     api<Catalog>(base)
@@ -142,6 +154,7 @@ function BookingFlow({
   setPending: (value: boolean) => void
 }) {
   const { organisation: org, services, staff, today, sample, botCheck, tax, receptionist } = catalog
+  const locations = catalog.locations ?? []
   const store = useStore(),
     navigate = useNavigate()
   const journalKey = `saleane.guest-confirmation:${base}`
@@ -160,13 +173,56 @@ function BookingFlow({
       recovery.value?.serviceId ?? linked?.serviceId ?? services[0]?.id ?? '',
     ),
     [staffId, setStaffId] = useState(recovery.value?.staffId ?? linked?.staffId ?? 'any'),
-    [date, setDate] = useState(recovery.value?.date ?? linked?.date ?? addDays(today, 1))
+    [date, setDate] = useState(recovery.value?.date ?? linked?.date ?? addDays(today, 1)),
+    [chosenLocation, setLocationId] = useState(
+      recovery.value?.locationId ??
+        // V2: a location's own booking link opens with it chosen.
+        locations.find((l) => l.id === new URLSearchParams(window.location.search).get('location'))
+          ?.id ??
+        locations[0]?.id ??
+        '',
+    )
+  // Only places where someone does the chosen treatment are offered.
+  /** A treatment's list price, from the locations where a guest can book it (V2). */
+  const shown = (s: Catalog['services'][number]) =>
+    listPrice(
+      s,
+      locations
+        .filter(
+          (l) =>
+            offeredAt(s, l.id) &&
+            staff.some(
+              (p) =>
+                p.serviceIds.includes(s.id) && (!p.locationIds || p.locationIds.includes(l.id)),
+            ),
+        )
+        .map((l) => l.id),
+    )
+  const chosenService = services.find((s) => s.id === serviceId)
+  const offered = locations.filter(
+    (l) =>
+      (!chosenService || offeredAt(chosenService, l.id)) &&
+      staff.some(
+        (p) => p.serviceIds.includes(serviceId) && (!p.locationIds || p.locationIds.includes(l.id)),
+      ),
+  )
+  const locationId = offered.some((l) => l.id === chosenLocation)
+    ? chosenLocation
+    : (offered[0]?.id ?? chosenLocation)
+  // Where the visit is: the chosen location, or the studio itself when it has only one.
+  const place = locations.find((l) => l.id === locationId)
+  const where = {
+    name: place?.name ?? org.locationName,
+    address: place?.address ?? org.address,
+    arrivalNote: place ? place.arrivalNote : org.arrivalNote,
+  }
+  const located: { locationId?: string } = locations.length > 1 && locationId ? { locationId } : {}
   const [availability, setAvailability] = useState<{ key: string; times: number[] }>({
       key: '',
       times: [],
     }),
     [start, setStart] = useState<number | null>(recovery.value?.start ?? linked?.start ?? null)
-  const queryKey = [serviceId, staffId, date, base, step].join('|'),
+  const queryKey = [serviceId, staffId, date, base, step, locationId].join('|'),
     loadingTimes = availability.key !== queryKey,
     times = loadingTimes ? [] : availability.times
   const [hold, setHold] = useState<{ hold: string; expiresAt: string } | null>(
@@ -195,7 +251,7 @@ function BookingFlow({
     if (!serviceId || step !== 2) return
     let active = true
     api<{ times: number[] }>(
-      `${base}/availability?${new URLSearchParams({ serviceId, staffId, date })}`,
+      `${base}/availability?${new URLSearchParams(located.locationId ? { serviceId, staffId, date, locationId: located.locationId } : { serviceId, staffId, date })}`,
     )
       .then((r) => {
         if (active) setAvailability({ key: queryKey, times: r.times })
@@ -209,6 +265,8 @@ function BookingFlow({
     return () => {
       active = false
     }
+    // `located` follows locationId, which is part of the query key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serviceId, staffId, date, base, step, queryKey])
   useEffect(() => {
     if (!hold) return
@@ -231,6 +289,7 @@ function BookingFlow({
             staffId,
             date,
             startMinutes: start,
+            ...located,
             // Hand back any earlier hold so this guest never holds two times at once.
             ...(hold ? { replaces: hold.hold } : {}),
             ...(botCheck ? { botCheck: botToken } : {}),
@@ -281,6 +340,7 @@ function BookingFlow({
       date,
       start: start!,
       expiresAt: hold.expiresAt,
+      ...located,
     }
     try {
       // Preserve the exact consent/contact snapshot before any request leaves this tab.
@@ -328,7 +388,7 @@ function BookingFlow({
   return (
     <BookingFrame
       studio={org.name}
-      location={org.locationName}
+      location={where.name}
       notice={
         sample
           ? 'Fictional sample studio. Reservations and deposits are simulated.'
@@ -350,8 +410,14 @@ function BookingFlow({
             {dateLabel(date, org.locale)} at {timeLabel(start!, org.locale)}
           </p>
           <p>Booking reference: {confirmed.slice(-8).toUpperCase()}</p>
+          {locations.length > 1 && (
+            <p>
+              {where.name}
+              {where.address ? `, ${where.address}` : ''}
+            </p>
+          )}
           <BeforeYouArrive
-            studioNote={org.arrivalNote}
+            studioNote={where.arrivalNote}
             serviceNote={service?.prepNote}
             patchTestHours={service?.patchTest ? (catalog.patchTestHours ?? 48) : undefined}
           />
@@ -365,7 +431,7 @@ function BookingFlow({
                 startMinutes: start,
                 durationMinutes: service.durationMinutes,
                 timeZone: org.timeZone,
-                location: org.address || org.locationName,
+                location: where.address || where.name,
               }}
             />
           )}
@@ -483,13 +549,16 @@ function BookingFlow({
                             </p>
                           )}
                           <PriceSentence
-                            service={s}
+                            service={{ ...s, priceMinor: shown(s).priceMinor }}
                             organisation={org}
                             tax={tax}
                             simulated={sample}
                           />
                         </span>
-                        <strong>{money(fullPriceMinor(s, tax), org)}</strong>
+                        <strong>
+                          {shown(s).from ? 'From ' : ''}
+                          {money(fullPriceMinor({ priceMinor: shown(s).priceMinor }, tax), org)}
+                        </strong>
                       </button>
                     )}
                     footer={
@@ -507,6 +576,18 @@ function BookingFlow({
               )}
               {step === 2 && (
                 <>
+                  <LocationChoice
+                    locations={offered}
+                    value={locationId}
+                    onChange={(id) => {
+                      setLocationId(id)
+                      // Someone who never works at the new location is no longer a choice.
+                      if (!staff.find((p) => p.id === staffId)?.locationIds?.includes(id))
+                        setStaffId('any')
+                      setStart(null)
+                      setError('')
+                    }}
+                  />
                   <label>
                     Your professional
                     <select
@@ -519,7 +600,13 @@ function BookingFlow({
                     >
                       <option value="any">No preference · first available</option>
                       {staff
-                        .filter((p) => p.serviceIds.includes(serviceId))
+                        .filter(
+                          (p) =>
+                            p.serviceIds.includes(serviceId) &&
+                            (!located.locationId ||
+                              !p.locationIds ||
+                              p.locationIds.includes(located.locationId)),
+                        )
                         .map((p) => (
                           <option key={p.id} value={p.id}>
                             {p.name}
@@ -671,11 +758,14 @@ function BookingFlow({
                       {service.durationMinutes} minutes ·{' '}
                       {professional?.name ?? 'First available professional'}
                       <br />
-                      {org.locationName}
+                      {where.name}
+                      {locations.length > 1 && where.address ? `, ${where.address}` : ''}
                     </p>
                     <div className="receipt-line">
                       <span>Service total</span>
-                      <strong>{money(fullPriceMinor(service, tax), org)}</strong>
+                      <strong>
+                        {money(fullPriceMinor(serviceAt(service, place?.id), tax), org)}
+                      </strong>
                     </div>
                     <div className="receipt-line">
                       <span>{sample ? 'Simulated deposit' : 'Online payment'}</span>

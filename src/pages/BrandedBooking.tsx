@@ -15,6 +15,8 @@ import { AddToCalendar } from '../components/AddToCalendar'
 import { visitUid } from '../domain/calendarFile'
 import { bookingChannel } from '../domain/bookingChannel'
 import { fullPriceMinor } from '../domain/priceSentence'
+import { listPrice, offeredAt, places, serviceAt, staffPlaces } from '../domain/locations'
+import { LocationChoice } from '../components/LocationChoice'
 import { patchTestSettings } from '../domain/patchTests'
 import { currentWording } from '../domain/consent'
 
@@ -30,6 +32,13 @@ export function BrandedBooking() {
   const [staffId, setStaffId] = useState('any')
   const [date, setDate] = useState(addDays(DEMO_DATE, 1))
   const [start, setStart] = useState<number | null>(null)
+  // V2: where the visit is, when the studio has more than one location.
+  const locations = places(state)
+  const [locationId, setLocationId] = useState(
+    // V2: a location's own booking link opens with it chosen.
+    locations.find((l) => l.id === new URLSearchParams(window.location.search).get('location'))
+      ?.id ?? locations[0].id,
+  )
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -38,7 +47,22 @@ export function BrandedBooking() {
   const [error, setError] = useState('')
   const [confirmedId, setConfirmedId] = useState('')
   const service = state.services.find((s) => s.id === serviceId)!
-  const professionals = state.staff.filter((s) => s.serviceIds.includes(serviceId))
+  const qualified = state.staff.filter((s) => s.serviceIds.includes(serviceId))
+  // With several locations, offer only places where someone does this treatment, and only the
+  // people who work at the chosen one.
+  const offered =
+    locations.length < 2
+      ? locations
+      : locations.filter(
+          (l) =>
+            offeredAt(service, l.id) &&
+            qualified.some((p) => staffPlaces(state, p.id).includes(l.id)),
+        )
+  const where = offered.find((l) => l.id === locationId) ?? offered[0] ?? locations[0]
+  const professionals =
+    locations.length < 2
+      ? qualified
+      : qualified.filter((p) => staffPlaces(state, p.id).includes(where.id))
   const anyone = staffId === 'any' && professionals.length > 1
   const pool = anyone
     ? professionals
@@ -48,11 +72,14 @@ export function BrandedBooking() {
         .slice(0, 1)
   /** Every time someone in the pool is free on a day, earliest first. */
   const freeTimes = (day: string) =>
-    [...new Set(pool.flatMap((p) => slots(state, serviceId, p.id, day)))].sort((a, b) => a - b)
+    [...new Set(pool.flatMap((p) => slots(state, serviceId, p.id, day, undefined, where.id)))].sort(
+      (a, b) => a - b,
+    )
   const times = freeTimes(date)
   // With no preference, the visit goes to the first professional free at the chosen time.
   const staff =
-    (start !== null && pool.find((p) => slots(state, serviceId, p.id, date).includes(start))) ||
+    (start !== null &&
+      pool.find((p) => slots(state, serviceId, p.id, date, undefined, where.id).includes(start))) ||
     pool[0]
   // Only work out the fortnight and the next opening while the guest is choosing a time.
   const fortnight =
@@ -78,6 +105,25 @@ export function BrandedBooking() {
   }, [step, confirmedId])
   const tax = operations(state).tax
   const fullPrice = (s: { priceMinor: number }) => fullPriceMinor(s, tax)
+  // V2: the treatment as priced where the guest is coming.
+  const booked = serviceAt(service, where.id)
+  /** A treatment's list price, from the locations where a guest can book it. */
+  const shown = (s: (typeof state.services)[number]) =>
+    listPrice(
+      s,
+      locations
+        .filter(
+          (l) =>
+            offeredAt(s, l.id) &&
+            state.staff.some(
+              (p) =>
+                !p.archived &&
+                p.serviceIds.includes(s.id) &&
+                staffPlaces(state, p.id).includes(l.id),
+            ),
+        )
+        .map((l) => l.id),
+    )
   async function confirm() {
     if (start === null || !policy) {
       setError('Choose a time and acknowledge the demo booking policy.')
@@ -90,6 +136,7 @@ export function BrandedBooking() {
         staffId: staff.id,
         date,
         startMinutes: start,
+        ...(where.main ? {} : { locationId: where.id }),
         contact: { name, email, phone, marketingConsent: consent },
         source: 'online',
         // Where the guest came from, when they followed one of the studio's shared links.
@@ -106,7 +153,7 @@ export function BrandedBooking() {
   return (
     <BookingFrame
       studio={state.organisation.name}
-      location={state.organisation.locationName}
+      location={where.name}
       notice="Demo booking experience. Use fictional details. No real reservation or payment is made."
       pastWelcome={step > 1 || !!confirmedId}
       team
@@ -143,14 +190,14 @@ export function BrandedBooking() {
           </p>
           <div className="confirmation-details">
             <span>
-              Service total<strong>{money(fullPrice(service), state.organisation)}</strong>
+              Service total<strong>{money(fullPrice(booked), state.organisation)}</strong>
             </span>
             <span>
               Demo deposit<strong>{money(service.depositMinor, state.organisation)}</strong>
             </span>
           </div>
           <BeforeYouArrive
-            studioNote={state.organisation.arrivalNote}
+            studioNote={where.arrivalNote}
             serviceNote={service.prepNote}
             patchTestHours={service.patchTest ? patchTestSettings(state).hoursBefore : undefined}
           />
@@ -164,7 +211,7 @@ export function BrandedBooking() {
                 startMinutes: start,
                 durationMinutes: service.durationMinutes,
                 timeZone: state.organisation.timeZone,
-                location: state.organisation.address || state.organisation.locationName,
+                location: where.address || where.name,
                 description: `With ${staff.name.split(' ')[0]}.`,
               }}
             />
@@ -262,14 +309,20 @@ export function BrandedBooking() {
                           {s.durationMinutes} minutes
                         </span>
                         <PriceSentence
-                          service={s}
+                          service={{ ...s, priceMinor: shown(s).priceMinor }}
                           organisation={state.organisation}
                           tax={tax}
                           simulated
                         />
                       </div>
                       <span>
-                        <strong>{money(fullPrice(s), state.organisation)}</strong>
+                        <strong>
+                          {shown(s).from ? 'From ' : ''}
+                          {money(
+                            fullPrice({ priceMinor: shown(s).priceMinor }),
+                            state.organisation,
+                          )}
+                        </strong>
                         <span className="selection-circle">
                           {ready && serviceId === s.id && <Check size={14} />}
                         </span>
@@ -281,7 +334,7 @@ export function BrandedBooking() {
                       <div className="booking-next">
                         <span>
                           {service.name}
-                          <strong>{money(fullPrice(service), state.organisation)}</strong>
+                          <strong>{money(fullPrice(booked), state.organisation)}</strong>
                         </span>
                         <Button
                           onClick={() => {
@@ -298,6 +351,16 @@ export function BrandedBooking() {
             )}
             {step === 2 && (
               <>
+                <LocationChoice
+                  locations={offered}
+                  value={where.id}
+                  onChange={(id) => {
+                    setLocationId(id)
+                    setStaffId('any')
+                    setStart(null)
+                    setError('')
+                  }}
+                />
                 <fieldset className="time-fieldset">
                   <legend>Your professional</legend>
                   <div className="professional-choices">
@@ -484,11 +547,12 @@ export function BrandedBooking() {
                     {dateLabel(date, state.organisation.locale)} at{' '}
                     {timeLabel(start!, state.organisation.locale)}
                     <br /> {service.durationMinutes} minutes with {staff.name}
-                    <br /> {state.organisation.locationName}
+                    <br /> {where.name}
+                    {locations.length > 1 && where.address ? `, ${where.address}` : ''}
                   </p>
                   <div className="receipt-line">
                     <span>Service total</span>
-                    <strong>{money(fullPrice(service), state.organisation)}</strong>
+                    <strong>{money(fullPrice(booked), state.organisation)}</strong>
                   </div>
                   <div className="receipt-line">
                     <span>Demo deposit today</span>
@@ -497,7 +561,7 @@ export function BrandedBooking() {
                   <div className="receipt-line subtle">
                     <span>Remaining at visit</span>
                     <span>
-                      {money(fullPrice(service) - service.depositMinor, state.organisation)}
+                      {money(fullPrice(booked) - service.depositMinor, state.organisation)}
                     </span>
                   </div>
                   <div className="detail-divider" />

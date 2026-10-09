@@ -83,10 +83,13 @@ export function createWorkspace(input: WorkspaceInput): BusinessState {
     state.consentRecords ?? [],
     state.consultations ?? [],
     state.replies ?? [],
+    state.socialAnswers ?? [],
   ]) {
     for (const row of collection) row.organisationId = organisationId
   }
   for (const appointment of state.appointments) appointment.locationId = locationId
+  // V5: the sample branch visit is at the new studio's own location.
+  for (const visit of state.operations.branchVisits ?? []) visit.locationId = locationId
   state.revision = 0
   return parseState(state, input.region)
 }

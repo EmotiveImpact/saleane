@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
-import type { MessageChannel } from '../../src/domain/reminders'
+import type { OutboxChannel } from '../../src/domain/reminders'
 
 /**
  * PILOT-01 provider seam. Each channel has one provider. The default is test mode, which sends
@@ -10,12 +10,14 @@ import type { MessageChannel } from '../../src/domain/reminders'
  */
 export type OutgoingMessage = {
   id: string
-  channel: MessageChannel
+  channel: OutboxChannel
   to: string
   subject: string
   body: string
   /** Shown as the sender's name on email. */
   fromName: string
+  /** V4: the studio's Instagram account, Page or WhatsApp number an answer goes from. */
+  account?: string
 }
 export type SendResult =
   | { outcome: 'test' }
@@ -28,7 +30,7 @@ export type SendResult =
 export type MessageProvider = {
   name: 'test' | 'postmark' | 'twilio'
   live: boolean
-  channel: MessageChannel
+  channel: OutboxChannel
   send: (message: OutgoingMessage) => Promise<SendResult>
 }
 /** A delivery receipt the provider posted back, already verified. */
@@ -41,6 +43,10 @@ export type ReceiptRequest = {
 export type Providers = {
   email: MessageProvider
   sms: MessageProvider
+  /** V4: answers on the studio's social accounts. Test mode only until Meta approves SALEANE. */
+  instagram?: MessageProvider
+  facebook?: MessageProvider
+  whatsapp?: MessageProvider
   /** Verifies and reads a receipt for the named provider; null when it is not genuine. */
   receipt: (provider: string, request: ReceiptRequest) => Receipt[] | null
   /**
@@ -63,9 +69,12 @@ export type VoiceCall = { from: string; missed: boolean }
 const MISSED_DIAL = new Set(['busy', 'no-answer', 'failed', 'canceled'])
 type Fetch = typeof fetch
 
-export function testProvider(channel: MessageChannel): MessageProvider {
+export function testProvider(channel: OutboxChannel): MessageProvider {
   return { name: 'test', live: false, channel, send: async () => ({ outcome: 'test' }) }
 }
+/** The provider for a channel; a social app without one is in test mode. */
+export const providerFor = (providers: Providers, channel: OutboxChannel) =>
+  providers[channel] ?? testProvider(channel)
 
 const TIMEOUT_MS = 15000
 /** Network errors that prove the request never left this computer, so a retry cannot duplicate. */
@@ -246,6 +255,9 @@ export function providersFromEnv(
   return {
     email,
     sms,
+    instagram: testProvider('instagram'),
+    facebook: testProvider('facebook'),
+    whatsapp: testProvider('whatsapp'),
     voice(slug, request) {
       if (!twilioToken) return null
       const params = new URLSearchParams(request.body)

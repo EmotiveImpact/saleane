@@ -7,7 +7,7 @@ import { businessDate } from '../domain/operations'
 import { StoreContext } from './context'
 import { commitWorkspace, loadBrowserWorkspace, resetWorkspace } from './storage'
 import { api, ApiError, onUnreachable, setCsrf, unreachable } from './api'
-import type { PractitionerWorkspace, RemoteWorkspace, Session } from './api'
+import type { AreaWorkspace, PractitionerWorkspace, RemoteWorkspace, Session } from './api'
 import { readPendingKeys, requestFingerprint, writePendingKeys } from './journal'
 import { daySheetSchema } from '../domain/daySheet'
 import { clearDaySheet, readDaySheet, storeDaySheet } from './daySheet'
@@ -17,11 +17,18 @@ import type { Store } from './context'
 const OFFLINE_RETRY_MS = 15000
 const PAUSED = 'Offline. Changes are paused until SALEANE reconnects and checks your access.'
 
-/** Practitioners receive a scoped record with no studio state; their day has its own screen. */
-function studioRecord(next: RemoteWorkspace | PractitionerWorkspace): RemoteWorkspace {
+/**
+ * Practitioners and regional managers receive a scoped record with no studio state; each has its
+ * own screen.
+ */
+function studioRecord(
+  next: RemoteWorkspace | PractitionerWorkspace | AreaWorkspace,
+): RemoteWorkspace {
   if (next.view !== 'studio' || !next.state)
     throw new Error(
-      'This account opens a practitioner day. Choose the studio from your account page.',
+      next.view === 'area'
+        ? 'This account opens a regional view. Choose the studio from your account page.'
+        : 'This account opens a practitioner day. Choose the studio from your account page.',
     )
   next.state = parseState(next.state, next.state.organisation.region)
   return next
@@ -314,6 +321,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         mode: remote ? 'server' : 'demo',
         today: businessDate(state),
         role: remote?.role ?? 'owner',
+        branch: remote?.locationId ?? null,
         slug: remote?.slug ?? '',
         session,
         loading,

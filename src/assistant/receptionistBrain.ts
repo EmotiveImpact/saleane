@@ -27,13 +27,18 @@ export function receptionistBrain(
   }
 }
 
-/** Where the guest is talking: the booking page's chat, or a text to the studio's line. */
+/**
+ * Where the guest is talking: the booking page's chat, or (`text`) a message to the studio's text
+ * line, Instagram, Facebook or WhatsApp, where there is no page around the answer.
+ */
 export type ReceptionChannel = 'web' | 'text'
 /** Stands in a text answer for the link that books an offered time; the server fills it in. */
 export const BOOKING_LINK = '[[booking-link]]'
-/** By text the team already has the guest's message and number in the inbox. */
+/** Stands in a text answer for the visit's private link; the outbox mints it as it sends. */
+export const MANAGE_LINK_SPOT = '[[manage-link]]'
+/** By message the team already has the guest's words and how to answer them in the inbox. */
 const TEXT_HANDOVER =
-  'I have passed this to the team. Someone will text you back here as soon as they can.'
+  'I have passed this to the team. Someone will reply to you here as soon as they can.'
 
 export const RECEPTION_HELP =
   'I can tell you about our treatments and prices, our opening hours, and find you a free time to book. I can also pass a message to the team. Try "how much is a facial?" or "any times on Thursday for a haircut?"'
@@ -43,6 +48,12 @@ const HEALTH =
   'I am an AI, so I cannot help with health or medical questions, and please do not share health details here. The team can talk it through with you.'
 
 const ASK_TREATMENT = 'Which treatment would you like?'
+const ASK_WHICH_VISIT = 'Which visit would you like to change?'
+/** Only someone writing from the number on a booking can be sent its link. */
+const CHANGE_ELSEWHERE_TEXT =
+  'I can only send the link to change a visit to the phone number on the booking. Please use the link in your booking confirmation, or text us from that number. The team can see your message and will reply to you here.'
+const CHANGE_ELSEWHERE_WEB =
+  'I cannot change a visit in this chat. Please use the link in your booking confirmation, or ask me to pass a message to the team.'
 
 type Step = { text?: string; calls: ToolCall[] }
 type Result = { name: string; input: Record<string, unknown>; ok: boolean; data: unknown }
@@ -100,6 +111,8 @@ const WANTS_PERSON =
   /\b(person|human|someone|somebody|staff|the team|call me|call back|ring me|speak|talk to|leave a message|message the|contact)\b/
 const WANTS_TIME =
   /\b(book|booking|appointment|available|availability|free|slots?|times?|when can|space|opening for)\b/
+const WANTS_CHANGE =
+  /\b(cancel|cancell?ing|move|moving|change|changing|reschedule|rearrange|postpone|can'?t make|cannot make|can’t make)\b/
 const WANTS_HOURS =
   /\b(open|opening hours|hours|close|closed|closing|address|where are you|located|location|find you)\b/
 const WANTS_MENU =
@@ -225,10 +238,25 @@ const firstDate = (talk: Talk, today: string) => {
   return null
 }
 
+/** Which of the listed visits the guest means: its number in the list, or its day. */
+function visitIn(said: string, visits: { id: string; date: string }[], today: string) {
+  const q = said.toLowerCase()
+  const ordinal = ['first', 'second', 'third', 'fourth', 'fifth'].findIndex((w) =>
+    new RegExp(`\\b${w}\\b`).test(q),
+  )
+  const number = /^\s*#?(\d)\b/.exec(q)?.[1]
+  const index = number ? Number(number) - 1 : ordinal
+  if (index >= 0 && index < visits.length) return visits[index]
+  const date = dateIn(q, today)
+  const onDay = visits.filter((v) => v.date === date)
+  return onDay.length === 1 ? onDay[0] : null
+}
+
 function intent(talk: Talk) {
   const q = talk.latest.toLowerCase()
   if (healthWordIn(talk.latest)) return 'health'
   if (WANTS_PERSON.test(q) || talk.lastAnswer === ASK_CONTACT) return 'person'
+  if (WANTS_CHANGE.test(q) || talk.lastAnswer.startsWith(ASK_WHICH_VISIT)) return 'change'
   if (
     WANTS_TIME.test(q) ||
     timeIn(q) ||
@@ -252,7 +280,7 @@ function firstStep(
   switch (intent(talk)) {
     case 'health':
       if (channel === 'text')
-        return say(`${HEALTH} They can see your message and will text you back.`)
+        return say(`${HEALTH} They can see your message and will reply to you here.`)
       return say(
         offered.has('pass_to_team')
           ? `${HEALTH} If you would like, I can pass them a message: tell me your name and an email or phone number.`
@@ -279,6 +307,9 @@ function firstStep(
           .slice(0, 1000) || 'Please get in touch.'
       return call('pass_to_team', { name, contact, message })
     }
+    case 'change':
+      if (offered.has('my_visits')) return call('my_visits')
+      return say(channel === 'text' ? CHANGE_ELSEWHERE_TEXT : CHANGE_ELSEWHERE_WEB)
     case 'hours':
       return call('studio_info')
     case 'time':
@@ -320,6 +351,29 @@ function nextStep(
         .join('\n'),
     )
   }
+  if (last.name === 'my_visits') {
+    const visits = last.data as { id: string; date: string; summary: string }[]
+    if (!visits.length)
+      return say(
+        'I cannot find a visit still to come booked with this number. The team can see your message and will reply to you here.',
+      )
+    // Several visits: only the guest's answer to "which visit" picks one.
+    const chosen =
+      visits.length === 1
+        ? visits[0]
+        : talk.lastAnswer.startsWith(ASK_WHICH_VISIT)
+          ? visitIn(talk.latest, visits, today)
+          : null
+    if (chosen && offered.has('send_manage_link'))
+      return call('send_manage_link', { visitId: chosen.id })
+    return say(
+      `${ASK_WHICH_VISIT} Reply with its number.\n${visits.map((v, i) => `${i + 1}. ${v.summary}`).join('\n')}`,
+    )
+  }
+  if (last.name === 'send_manage_link')
+    return say(
+      `Here is the private link for your ${(last.data as { summary: string }).summary}: ${MANAGE_LINK_SPOT} You can move or cancel it there. Please keep it to yourself.`,
+    )
   if (last.name === 'pass_to_team')
     return say(
       'Here is your message. Tap “Send to the team” and they will answer you. Nothing is sent until you do.',

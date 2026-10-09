@@ -1,7 +1,16 @@
 import { z } from 'zod'
-import { receptionistSettingsSchema } from './receptionistSchema'
+import { googleBookingSchema, receptionistSettingsSchema } from './receptionistSchema'
 import type { BusinessState } from './model'
 import { reminderSettingsSchema } from './reminderSettings'
+import { REGION_LIMIT, TARGET_LIMIT, regionSchema, targetSchema } from './groupSchema'
+import { REQUEST_LIMIT, approvalRequestSchema, approvalSettingsSchema } from './approvalsSchema'
+import { houseRulesSchema, lookSchema } from './brandRulesSchema'
+import {
+  BRANCH_VISIT_LIMIT,
+  CHECKLIST_LIMIT,
+  branchVisitSchema,
+  checklistSchema,
+} from './branchVisitSchema'
 import { patchTestSettingsSchema } from './patchTestsSchema'
 import { MISSED_CALL_LIMIT, missedCallSchema } from './missedCallsSchema'
 import { paymentMethodSchema, processorSchema } from './paymentMethods'
@@ -26,12 +35,29 @@ export const hoursSchema = z
     open: z.number().int().min(0).max(1439),
     close: z.number().int().min(1).max(1440),
     closed: z.boolean(),
+    /** V2: on a person's own hours, the location they work at that day. Absent means the main one. */
+    locationId: id.optional(),
   })
   .refine((h) => h.closed || h.close > h.open, 'Closing time must follow opening time.')
 export const weeklyHoursSchema = z
   .array(hoursSchema)
   .length(7)
   .refine((hours) => new Set(hours.map((h) => h.day)).size === 7, 'Each weekday must appear once.')
+/**
+ * V2: a further location of the studio. The main location stays on the organisation (its id, name,
+ * address and arrival note), so a single-location studio is unchanged. Opening hours are the
+ * studio's unless the location sets its own.
+ */
+export const LOCATION_LIMIT = 20
+export const locationInputSchema = z.object({
+  name: z.string().trim().min(2).max(100),
+  address: z.string().trim().max(300),
+  arrivalNote: z.string().trim().max(400).optional(),
+  hours: weeklyHoursSchema.optional(),
+  archived: z.boolean().optional(),
+})
+export const locationSchema = locationInputSchema.extend({ id })
+export type Location = z.infer<typeof locationSchema>
 export const closureInputSchema = z
   .object({
     date: z.iso.date(),
@@ -46,6 +72,8 @@ const scheduleValueSchema = z.union([
   weeklyHoursSchema,
   closureInputSchema.and(z.object({ id })),
   z.object({ archived: z.boolean() }),
+  /** V2: where a room is. */
+  z.object({ locationId: id }),
 ])
 /**
  * LOCAL-04: who changed the schedule, when, and what it was before and after. Optional so older
@@ -64,6 +92,7 @@ export const scheduleChangeSchema = z.object({
     'staff-restored',
     'resource-archived',
     'resource-restored',
+    'resource-moved',
   ]),
   /** The professional, room or closure the change was about; absent for venue hours. */
   subjectId: id.optional(),
@@ -221,8 +250,11 @@ export const operationsSchema = z.object({
       id,
       productId: id,
       quantity: z.number().int().min(-100000).max(100000),
-      /** `returned` puts a product a guest brought back on the shelf, with its refund (V2). */
-      reason: z.enum(['received', 'consumed', 'adjustment', 'retail', 'returned']),
+      /**
+       * `returned` puts a product a guest brought back on the shelf, with its refund (V2). `moved`
+       * takes stock from one location to another, as a pair sharing a `transferId`.
+       */
+      reason: z.enum(['received', 'consumed', 'adjustment', 'retail', 'returned', 'moved']),
       note: z.string().max(300),
       createdAt: z.iso.datetime(),
       actor: z.string(),
@@ -235,6 +267,10 @@ export const operationsSchema = z.object({
       refundId: id.optional(),
       /** V2: the supplier order a delivery arrived on. */
       purchaseOrderId: id.optional(),
+      /** V2: where the stock is. Absent means the main location. */
+      locationId: id.optional(),
+      /** V2: the two halves of moving stock between locations. */
+      transferId: id.optional(),
     }),
   ),
   messages: z.array(
@@ -280,6 +316,8 @@ export const operationsSchema = z.object({
   /** V2: commission rates per person, kept as a history. */
   payRates: z.array(payRateSchema).max(PAY_RATE_LIMIT).optional(),
   payRules: z.array(payRulesSchema).max(PAY_RULES_LIMIT).optional(),
+  /** V2: locations beyond the main one. */
+  locations: z.array(locationSchema).max(LOCATION_LIMIT).optional(),
   /** V2: holidays, sickness and other days away, and each person's yearly holiday allowance. */
   timeOff: z.array(timeOffSchema).max(TIME_OFF_LIMIT).optional(),
   /** V2: chairs and rooms rented to self-employed people, and the rent they have paid. */
@@ -297,9 +335,31 @@ export const operationsSchema = z.object({
   missedCalls: z.array(missedCallSchema).max(MISSED_CALL_LIMIT).optional(),
   /** V4: the AI receptionist on the booking page. Absent means it is off. */
   receptionist: receptionistSettingsSchema.optional(),
+  googleBooking: googleBookingSchema.optional(),
+  /** V5: locations grouped into regions, and each location's monthly takings target. */
+  regions: z.array(regionSchema).max(REGION_LIMIT).optional(),
+  targets: z.array(targetSchema).max(TARGET_LIMIT).optional(),
+  /** V5: branch visit checklists and the visits recorded with them. */
+  checklists: z.array(checklistSchema).max(CHECKLIST_LIMIT).optional(),
+  branchVisits: z.array(branchVisitSchema).max(BRANCH_VISIT_LIMIT).optional(),
+  /** V5: requests needing a sign-off, and what a regional manager may approve. */
+  requests: z.array(approvalRequestSchema).max(REQUEST_LIMIT).optional(),
+  approvals: approvalSettingsSchema.optional(),
+  /** V5: the studio's colours and the house rules every location follows. */
+  look: lookSchema.optional(),
+  houseRules: houseRulesSchema.optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
-export type Role = 'owner' | 'manager' | 'reception' | 'practitioner'
+/**
+ * V5: a regional manager ('regional') looks after the locations in one region. They receive only
+ * their area's view, never the studio record, and record branch visits there.
+ */
+export type Role = 'owner' | 'manager' | 'reception' | 'practitioner' | 'regional' | 'general'
+/** The roles that receive the whole studio record (reception and general managers with some parts left out). */
+export const studioRole = (role: Role) =>
+  role === 'owner' || role === 'manager' || role === 'reception' || role === 'general'
+/** Owners, managers and general managers (V5, who run one location): the people who lead a team. */
+export const leads = (role: Role) => role === 'owner' || role === 'manager' || role === 'general'
 export function defaultOperations(mode: Operations['mode'] = 'sandbox'): Operations {
   return {
     mode,
@@ -383,9 +443,14 @@ export function instantIn(timeZone: string, date: string, minute: number) {
     )
   return new Date(matches[0]).toISOString()
 }
-export function hoursFor(s: BusinessState, date: string) {
+/** Opening hours for a day: the location's own when it sets them, otherwise the studio's. */
+export function hoursFor(s: BusinessState, date: string, locationId?: string) {
   const day = new Date(`${date}T12:00:00Z`).getUTCDay()
-  return operations(s).hours.find((h) => h.day === day)!
+  const own =
+    locationId && locationId !== s.organisation.locationId
+      ? operations(s).locations?.find((l) => l.id === locationId)?.hours
+      : undefined
+  return (own ?? operations(s).hours).find((h) => h.day === day)!
 }
 /** A person's usual hours for a day from their weekly pattern, ignoring time off. */
 export function usualHoursFor(s: BusinessState, staffId: string, date: string) {
@@ -406,9 +471,14 @@ export function staffHoursFor(s: BusinessState, staffId: string, date: string) {
   const usual = usualHoursFor(s, staffId, date)
   return timeOffOn(s, staffId, date) ? { ...usual, closed: true } : usual
 }
-export function stock(s: BusinessState, productId: string) {
+/** What is on the shelf: at one location when given (V2), otherwise across the studio. */
+export function stock(s: BusinessState, productId: string, locationId?: string) {
   return operations(s)
-    .movements.filter((m) => m.productId === productId)
+    .movements.filter(
+      (m) =>
+        m.productId === productId &&
+        (!locationId || (m.locationId ?? s.organisation.locationId) === locationId),
+    )
     .reduce((sum, m) => sum + m.quantity, 0)
 }
 export function permissionFor(command: { type: string; approve?: boolean }) {
@@ -422,7 +492,8 @@ export function permissionFor(command: { type: string; approve?: boolean }) {
     )
   )
     return 'hours'
-  if (command.type === 'message-queue') return 'message.queue'
+  if (command.type === 'stock-move') return 'stock'
+  if (command.type === 'message-queue' || command.type === 'social-answer') return 'message.queue'
   if (command.type === 'special-plan' || command.type === 'special-stop') return 'special'
   if (command.type === 'task-add' || command.type === 'task-done') return 'task'
   if (command.type === 'missed-call-done') return 'missed-call'
@@ -435,6 +506,52 @@ export function permissionFor(command: { type: string; approve?: boolean }) {
   return command.type
 }
 export const commandPermission = permissionFor
+/**
+ * V5: permission names (see `permissionFor`) a general manager may use at all; `branchRefusal`
+ * in src/domain/branch.ts then checks the location of each change.
+ */
+export const GENERAL_ACTIONS = [
+  'read',
+  'book',
+  'reschedule',
+  'cancel',
+  'no-show',
+  'arrive',
+  'checkout',
+  'deposit',
+  'fee',
+  'refund',
+  'note',
+  'client',
+  'client-edit',
+  'client-birthday',
+  'client-area',
+  'consent',
+  'contact-preferences',
+  'consultation',
+  'patch-test',
+  'patch-test-result',
+  'message',
+  'message.queue',
+  'gift-card-sell',
+  'plan-sell',
+  'plan-renew',
+  'balance-settle',
+  'task',
+  'missed-call',
+  'waitlist-add',
+  'waitlist-offer',
+  'waitlist-remove',
+  'counter-sale',
+  'stock',
+  'purchase-order',
+  'receive-order',
+  'cancel-order',
+  'branch-visit',
+  'branch-visit-fix',
+  'request-raise',
+] as const
+
 export function can(role: Role, action: string) {
   // Feedback, a guest's own waitlist choices, forms, "I've arrived" and stopping email news come
   // only from their private link.
@@ -451,16 +568,30 @@ export function can(role: Role, action: string) {
     ].includes(action)
   )
     return false
+  // V5: a regional manager records branch visits and raises and signs off requests, only at their
+  // area's locations (the server checks which).
+  if (role === 'regional')
+    return ['branch-visit', 'branch-visit-fix', 'request-raise', 'request-decide'].includes(action)
+  // V5: a general manager works as a manager at their own location only (the server checks where).
+  if (role === 'general') return (GENERAL_ACTIONS as readonly string[]).includes(action)
   if (role === 'owner') return true
   if (
     [
+      'request-decide',
+      'approval-limit',
+      'house-rules',
       'membership',
       'restore',
       'organisation',
       'tax',
+      'google-booking',
       'pay-rate',
       'pay-rules',
+      'location',
       'accounting-settings',
+      'region',
+      'region-remove',
+      'targets',
     ].includes(action)
   )
     return false
@@ -497,6 +628,12 @@ export function can(role: Role, action: string) {
       'forms',
       'consent-wording',
       'receptionist',
+      'checklist-save',
+      'checklist-archive',
+      'branch-visit',
+      'branch-visit-fix',
+      'request-raise',
+      'studio-look',
     ].includes(action)
   )
     return false

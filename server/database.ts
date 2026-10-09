@@ -342,18 +342,124 @@ export const migrations: Migration[] = [
         ]),
       ),
   },
+  {
+    version: 18,
+    // V4: bookings made inside Google, so Google can look them up, cancel them or repeat a request.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE google_bookings (
+          booking_id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          user_id TEXT NOT NULL, idempotency_token TEXT NOT NULL,
+          slot TEXT NOT NULL CHECK(json_valid(slot)),
+          user_information TEXT NOT NULL CHECK(json_valid(user_information)),
+          created_at INTEGER NOT NULL,
+          UNIQUE(organisation_id,idempotency_token)
+        ) STRICT;
+        CREATE INDEX google_bookings_user ON google_bookings(user_id);
+      `),
+  },
+  {
+    version: 19,
+    // V4: the team's answers on Instagram, Facebook and WhatsApp go through the outbox, and each
+    // studio's accounts on those apps, so a message that comes in reaches the right studio.
+    up: (connection) =>
+      connection.exec(
+        outboxWithKinds(
+          [
+            'confirmation',
+            'changed',
+            'reminder',
+            'cancelled',
+            'feedback',
+            'patch_test',
+            'aftercare',
+            'due_back',
+            'birthday',
+            'miss_you',
+            'missed_call',
+            'message',
+            'receptionist',
+            'social',
+          ],
+          ['email', 'sms', 'instagram', 'facebook', 'whatsapp'],
+        ) +
+          `
+        CREATE TABLE social_accounts (
+          channel TEXT NOT NULL CHECK(channel IN ('instagram','facebook','whatsapp')),
+          account_id TEXT NOT NULL, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          connected_at INTEGER NOT NULL,
+          PRIMARY KEY(channel,account_id), UNIQUE(organisation_id,channel)
+        ) STRICT;
+      `,
+      ),
+  },
+  {
+    version: 20,
+    // V5: a regional manager looks after one region's locations. SQLite cannot widen the role
+    // check in place, so both tables are rebuilt with the same columns, keys and rows, plus the
+    // region (area_id) a regional manager's access covers.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE memberships_next (
+          organisation_id TEXT NOT NULL REFERENCES organisations(id), account_id TEXT NOT NULL REFERENCES accounts(id),
+          role TEXT NOT NULL CHECK(role IN ('owner','manager','reception','practitioner','regional')), staff_id TEXT,
+          area_id TEXT, CHECK((role='regional')=(area_id IS NOT NULL)),
+          PRIMARY KEY(organisation_id,account_id)
+        ) STRICT;
+        INSERT INTO memberships_next(organisation_id,account_id,role,staff_id) SELECT organisation_id,account_id,role,staff_id FROM memberships;
+        DROP TABLE memberships;
+        ALTER TABLE memberships_next RENAME TO memberships;
+        CREATE TABLE invitations_next (
+          token_hash TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id), email TEXT NOT NULL,
+          role TEXT NOT NULL CHECK(role IN ('manager','reception','practitioner','regional')), staff_id TEXT,
+          created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, used_at INTEGER,
+          area_id TEXT, CHECK((role='regional')=(area_id IS NOT NULL))
+        ) STRICT;
+        INSERT INTO invitations_next(token_hash,organisation_id,email,role,staff_id,created_at,expires_at,used_at) SELECT token_hash,organisation_id,email,role,staff_id,created_at,expires_at,used_at FROM invitations;
+        DROP TABLE invitations;
+        ALTER TABLE invitations_next RENAME TO invitations;
+      `),
+  },
+  {
+    version: 21,
+    // V5: a general manager runs one location. Both tables are rebuilt again with the same
+    // columns, keys and rows, plus the location (location_id) a general manager's access covers.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE memberships_next (
+          organisation_id TEXT NOT NULL REFERENCES organisations(id), account_id TEXT NOT NULL REFERENCES accounts(id),
+          role TEXT NOT NULL CHECK(role IN ('owner','manager','reception','practitioner','regional','general')), staff_id TEXT,
+          area_id TEXT, location_id TEXT,
+          CHECK((role='regional')=(area_id IS NOT NULL)), CHECK((role='general')=(location_id IS NOT NULL)),
+          PRIMARY KEY(organisation_id,account_id)
+        ) STRICT;
+        INSERT INTO memberships_next(organisation_id,account_id,role,staff_id,area_id) SELECT organisation_id,account_id,role,staff_id,area_id FROM memberships;
+        DROP TABLE memberships;
+        ALTER TABLE memberships_next RENAME TO memberships;
+        CREATE TABLE invitations_next (
+          token_hash TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id), email TEXT NOT NULL,
+          role TEXT NOT NULL CHECK(role IN ('manager','reception','practitioner','regional','general')), staff_id TEXT,
+          created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, used_at INTEGER,
+          area_id TEXT, location_id TEXT,
+          CHECK((role='regional')=(area_id IS NOT NULL)), CHECK((role='general')=(location_id IS NOT NULL))
+        ) STRICT;
+        INSERT INTO invitations_next(token_hash,organisation_id,email,role,staff_id,created_at,expires_at,used_at,area_id) SELECT token_hash,organisation_id,email,role,staff_id,created_at,expires_at,used_at,area_id FROM invitations;
+        DROP TABLE invitations;
+        ALTER TABLE invitations_next RENAME TO invitations;
+      `),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the
  * outbox with the same columns, keys and indexes, keeping every row.
  */
-function outboxWithKinds(kinds: string[]) {
+function outboxWithKinds(kinds: string[], channels = ['email', 'sms']) {
   return `
     CREATE TABLE outbox_next (
       id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
       dedupe_key TEXT NOT NULL, appointment_id TEXT NOT NULL, client_id TEXT NOT NULL,
       kind TEXT NOT NULL CHECK(kind IN (${kinds.map((kind) => `'${kind}'`).join(',')})),
-      channel TEXT NOT NULL CHECK(channel IN ('email','sms')), slot TEXT NOT NULL,
+      channel TEXT NOT NULL CHECK(channel IN (${channels.map((c) => `'${c}'`).join(',')})), slot TEXT NOT NULL,
       recipient TEXT NOT NULL, subject TEXT NOT NULL, body TEXT NOT NULL,
       status TEXT NOT NULL CHECK(status IN ('pending','test','accepted','delivered','failed','unknown','skipped')),
       provider TEXT, provider_ref TEXT, detail TEXT, attempts INTEGER NOT NULL DEFAULT 0,

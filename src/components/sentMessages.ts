@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useStore } from '../state/context'
 import { api } from '../state/api'
-import type { MessageChannel, MessageKind, OutboxStatus } from '../domain/reminders'
+import type { MessageKind, OutboxChannel, OutboxStatus } from '../domain/reminders'
 
 export type SentMessage = {
   id: string
   appointmentId: string
   clientId: string
   kind: MessageKind
-  channel: MessageChannel
+  channel: OutboxChannel
   recipient: string
   subject: string
   body: string
@@ -19,6 +19,8 @@ export type SentMessage = {
   updatedAt: string
   /** V1.5: for a message written in the inbox, its id in the studio record. */
   messageId?: string
+  /** V4: for an answer on a social app, its id in the studio record. */
+  answerId?: string
 }
 type ProviderMode = { name: string; live: boolean }
 export type OutboxReply = {
@@ -40,6 +42,7 @@ export const kindLabel: Record<MessageKind, string> = {
   missed_call: 'Missed call',
   message: 'Written in the inbox',
   receptionist: 'AI receptionist',
+  social: 'Answered by the team',
 }
 /** The outbox for one studio, or one client. Reads only; staff can ask a failed message to go again. */
 export function useSentMessages(

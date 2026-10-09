@@ -119,6 +119,8 @@ export function receptionistRoutes() {
       held.delete(path[5])
       if (decision.outcome !== 'approved') fail(404, 'This has expired. Ask again.')
       const effect = (decision as { effect: ReceptionEffect }).effect
+      // A visit's link goes only by text to the number on the booking, never through this chat.
+      if (effect.kind === 'manage') fail(404, 'This has expired. Ask again.')
       if (effect.kind === 'time') {
         // The page books it through its own steps: hold, details, policy and confirmation.
         reply(200, effect)

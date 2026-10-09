@@ -2,9 +2,126 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-07 · V2 · Several locations
+
+**Status: built locally on 7 October 2026, in review; nothing deployed.**
+
+- Settings has a new Locations section. The owner adds further locations with a name, address, an optional "before you arrive" note and, if different, their own opening hours. A location can be closed for good; its history stays.
+- Each room or chair belongs to one location, and each person works at one location on a given day, set on their weekly hours under Team.
+- When a studio has more than one location, guests choose where they would like to come first, on both the live booking page and the demo one. Only places where someone does the chosen treatment are offered, and only the people who work there that day are shown. Reminders, the guest's own visit page, the day sheet and the practitioner's day name the visit's location and address.
+- The calendar has an "All locations" filter, booking from the desk or through Ask Saleane only offers times at the place the person is working that day, and Today shows where each person is.
+- Changing hours, rooms or someone's location is checked against booked visits first: a visit that would end up at a closed location, in a room at another location, or with someone working elsewhere is listed and the change is refused.
+- A visit can move to another location. It keeps its booked price, and the timeline says where it moved from and to.
+- Stock is kept per location. Stock can be filtered by location, stock can be moved between locations, and deliveries, counts, walk-in sales and supplier orders each say where. Products sold with a visit come off that location's shelf, and the ledger checks every move balances.
+- A treatment can cost more or less at another location, or be left off a location's menu. Guests see the price where they are coming, and a list where prices differ says "From".
+- Business figures, including time booked, can be filtered by location.
+- Each location has its own booking link that opens with it chosen.
+- A waitlist request can be for one location, and the schedule history records rooms and people moving between locations.
+- A booking link the AI receptionist texts a guest opens at the location where the professional works that day.
+- Texts name the location, imported visits go to the location where the professional works that day, and the calendar showing every location spans all their opening hours.
+- A studio with one location works exactly as before.
+
+## 2026-10-09 · V5 · Shared brand rules
+
+**Status: built locally on 9 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-BRAND.md).
+
+- The studio's colours are now kept with the studio, not in one browser, so every location, every device and the guest booking page show the same colours. Owners and managers choose them as before.
+- Settings, Locations has "House rules for every location", set by the owner: how far a location's price may differ from the house price (any, the same everywhere, or within 5% to 25%), and core treatments that stay on every location's menu.
+- A treatment saved against the rules is refused with the reason, and its form says what the rules ask. Treatments already out of line are listed under "Not yet in line" and are never changed automatically.
+
+## 2026-10-08 · V5 · Where clients come from
+
+**Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-AREAS.md).
+
+- A client's page has a Postcode area panel (ZIP area in the US). The desk, managers and the owner record the first half of a postcode, such as N1, or the first three digits of a ZIP code. A full postcode typed in is cut to its first half before it is saved, and the client's timeline notes the change. Practitioners cannot record it.
+- Business has a Client areas tab for owners, managers and general managers: clients with a visit in the past year or one booked, grouped by area, with each area's share, and filtered by location when there is more than one. A general manager sees their own location's.
+- An area with fewer than three clients is counted under "Other areas", so no one person can be picked out, and clients with no area are counted as such. Nobody is shown on a map; a drawn map would need an outside map service, which is not connected.
+- The postcode area is included when a client asks for a copy of their record.
+
+## 2026-10-08 · V5 · General managers who run one location
+
+**Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-GENERAL.md).
+
+- Once a studio has more than one location, the owner can invite a general manager for one of them, or change someone's access to it, under Settings, Team.
+- A general manager works as a manager at their location: its diary, check-ins and takings, card payments and refunds, stock and orders, branch visits and requests for a sign-off, and the clients they look after. The calendar, Business and Stock open on their location, and the sidebar names it.
+- They change nothing at other locations and nothing that affects the whole business, such as treatments, prices, the team, hours, settings, checklists or the regional limit, and they do not see the team's pay rates or other locations' branch visits and requests.
+- If their location closes they see nothing until the owner updates their access. Stored access needs a database step (migration 21) that keeps every existing member and invitation.
+
+## 2026-10-08 · V5 · Requests that pass up to the right person
+
+**Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-APPROVALS.md).
+
+- Business has a Requests tab for owners and managers. Anyone there can ask for a sign-off at a location: spending (with the cost) or something else, with a reason.
+- A request goes to the regional manager of the location's region. It passes up to the owner when it costs more than a regional manager may approve, when the location is in no region, or when the region has no regional manager, and the request says which.
+- The owner sets the regional limit (£500 or $500 to start) and can decide any request. Managers raise requests but do not decide them.
+- A regional manager raises and decides requests at their own locations from their own page, and their morning summary says how many are waiting for them. Requests already over their limit show who they are waiting on, without a button.
+- A decision is final and kept with who made it, when and any word back. The desk and practitioners do not receive requests. Approving a request records the decision only; no money moves.
+
+**Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-REGIONAL.md).
+
+- The owner can invite a regional manager for one region, or change someone's access to it, under Settings, Team.
+- A regional manager opens their own page: a greeting, their region's figures by location, how many visits each has booked today, a short morning summary (what is waiting to be put right and which locations are due a branch visit), and their region's branch visits.
+- They can record a branch visit and mark a line put right, at their own locations only. They never receive clients, diaries, staff, prices, payments, settings or other locations, and every other part of SALEANE refuses them.
+- If their region is removed or emptied they see nothing until the owner updates their access. Stored access needs a database step (migration 20) that keeps every existing member and invitation.
+
+## 2026-10-08 · V5 · Branch visit checklists
+
+**Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-BRANCH-VISITS.md).
+
+- Business has a Branch visits tab for owners and managers. A visit is recorded on a phone against a checklist: each line is answered yes, no or not checked, with a note.
+- Every line answered no stays on "To put right" until someone marks it done, with who and when.
+- Each location shows when it was last visited and how it went, and past visits are kept exactly as they were answered, even after a checklist changes. The whole-business view shows each location's last visit.
+- Checklists are kept and can be put away, never deleted. Sample studios start with one checklist and one visit. The desk and practitioners do not receive any of it.
+
+## 2026-10-08 · V5 · The whole business at a glance
+
+**Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-GROUP.md).
+
+- With more than one location, Business opens with "The whole business": every location's completed takings over the last 28 days against the 28 before, the change, rebooking, and this month against its target, with what is booked but not yet taken shown apart.
+- A short summary in plain words names the totals, the location doing best and the one that needs a look, and the month so far.
+- The owner can group locations into regions, each location in one region, and set each location a monthly target. Regions show their own totals.
+
+## 2026-10-08 · V4 · The AI receptionist helps a guest move or cancel
+
+**Status: built locally on 8 October 2026 and merged (#56); nothing deployed, no AI supplier or text line connected and nothing sent.** [Evidence](docs/evidence/V4-RECEPTIONIST.md#moving-or-cancelling-a-visit-stage-6).
+
+- A guest who texts or sends a WhatsApp message from the phone number on their booking, asking to move or cancel, is sent the private link to that visit. They move or cancel it there under the studio's usual rules. With more than one visit coming, the receptionist lists them and asks which.
+- The link goes only back to that same number. Someone writing from another number, on Instagram or Facebook, or in the booking page chat, is told to use the link in their booking confirmation or text from the number on the booking, and is never told whether a visit exists.
+- The link is made only as the answer goes out and is never stored. If the number on the client's record changes, or the visit is cancelled or has started, before it goes, nothing is sent.
+
+## 2026-10-08 · V4 · AI receptionist on Instagram, Facebook and WhatsApp
+
+**Status: built locally on 8 October 2026 and merged (#55); nothing deployed, no AI supplier connected, SALEANE is not approved by Meta yet and nothing is sent.** [Evidence](docs/evidence/V4-SOCIAL.md#the-ai-receptionist-on-these-apps).
+
+- The AI receptionist can also answer messages to the studio's Instagram, Facebook and WhatsApp, when the studio ticks "Also answer messages to your Instagram, Facebook and WhatsApp". It is off unless chosen.
+- It answers in the same app, from the account the guest wrote to, and every answer starts with the studio's name and "AI receptionist". A free time is offered as a link to the booking page with that time chosen; the guest still confirms it there.
+- It steps back for an hour once someone from the team answers that guest, and a guest who asks for a person is told the team will reply there. On texts it now says the same.
+
+## 2026-10-08 · V4 · Instagram, Facebook and WhatsApp messages in the Inbox
+
+**Status: built locally on 8 October 2026 and merged (#54); nothing deployed, SALEANE is not approved by Meta yet and nothing is sent to Instagram, Facebook or WhatsApp.** [Evidence](docs/evidence/V4-SOCIAL.md).
+
+- The owner can connect the studio's Instagram account, Facebook Page and WhatsApp Business number in Settings › Studio details. Each account can belong to one studio only, and a sample studio never connects.
+- Guests' messages to those accounts arrive in the Inbox beside their emails and texts. A WhatsApp number is matched to its client, with the name WhatsApp gives. Instagram and Facebook give only an id, so the team matches those by hand, and the conversation then moves to the client.
+- The team answers in the conversation, on the app the guest wrote on. The apps allow answers only within a day of the guest's last message, so the box says how long is left and closes after that. Health words are refused.
+- Answers go through the outbox once. In test mode they are recorded as they would go and marked "Test mode, not sent". An answer goes only from the account the guest wrote to, and is not sent if that account was disconnected or changed, or the day ended, before it could go.
+- Only messages signed with SALEANE's Meta app secret are read, and the same message sent twice is kept once.
+- Clients' answers are included in their privacy export and their deletion review.
+
+## 2026-10-08 · V4 · Book with Google
+
+**Status: built locally on 8 October 2026 and merged (#53); nothing deployed, SALEANE is not a Google partner yet and nothing is sent to Google.** [Evidence](docs/evidence/V4-GOOGLE.md).
+
+- The owner can tick "Offer my studio for booking on Google" in Settings › Studio details. It is off unless chosen, and a sample studio is never offered.
+- SALEANE can now answer Google's booking calls: check a time, book it, look it up, list a guest's visits and cancel. A Google booking takes the same path as the studio's own booking page, so it lands in the diary with the usual confirmation and a "Google" source.
+- Test mode answers only on this computer, so it can never book into a real studio's diary. The same time is never booked twice, even when Google sends a request again. A guest can cancel on Google until the visit starts, the same as with their own booking link.
+- Treatments that need a deposit are not offered on Google, because Google takes no payment here; they stay on the studio's own booking page.
+- The owner sees how many treatments and free times Google would show and how many visits came through Google. The Instagram book button is the studio's existing Instagram booking link.
+- A tick box among other settings now sits beside its words instead of above them.
+
 ## 2026-10-08 · V4 · AI receptionist answers texts
 
-**Status: built locally on 8 October 2026, in review; nothing deployed, no AI supplier or text line connected and no text sent.** [Evidence](docs/evidence/V4-RECEPTIONIST.md#answering-texts-stage-2).
+**Status: built locally on 8 October 2026 and merged (#52); nothing deployed, no AI supplier or text line connected and no text sent.** [Evidence](docs/evidence/V4-RECEPTIONIST.md#answering-texts-stage-2).
 
 - The AI receptionist can also answer texts to the studio's text line, when the studio ticks "Also answer texts to your text line". It is off unless chosen.
 - Each answer starts with the studio's name and "AI receptionist", so a guest always knows it is an AI. Answers go out through the same outbox as reminders, once, and show in the guest's Inbox conversation with what became of them. Nothing is called sent until the text provider accepts it.
@@ -14,7 +131,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-08 · V4 · AI receptionist on the booking page
 
-**Status: built locally on 8 October 2026, in review; nothing deployed, no AI supplier connected and nothing sent outside the computer.** [Evidence](docs/evidence/V4-RECEPTIONIST.md).
+**Status: built locally on 8 October 2026 and merged (#51); nothing deployed, no AI supplier connected and nothing sent outside the computer.** [Evidence](docs/evidence/V4-RECEPTIONIST.md).
 
 - A studio can show an AI receptionist on its booking page (Settings › Colours & booking page, owners and managers). It is off until turned on.
 - Guests tap "Ask a question" and can ask about treatments, prices, opening hours and free times. The chat always says it is an AI, never asks about health and never shares anything about other guests.
@@ -24,7 +141,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-08 · V5 · Access keys for other software
 
-**Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-ACCESS.md). [Guide](docs/CONNECTIONS.md#reading-from-saleane).
+**Status: built locally on 8 October 2026 and merged (#50); nothing deployed.** [Evidence](docs/evidence/V5-ACCESS.md). [Guide](docs/CONNECTIONS.md#reading-from-saleane).
 
 - Settings › Connected software has a new Access keys panel for the owner. A key lets other software (an accountant's tool, the studio's own reports) read visits, clients or treatments and the team, whichever the owner ticks.
 - A key can never change anything. It is shown once, kept only as a hash, shows when it was last used, and stops working the moment it is revoked.
@@ -32,7 +149,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-08 · V5 · Connected software
 
-**Status: built locally on 8 October 2026, in review; nothing deployed and nothing sent outside the computer.** [Evidence](docs/evidence/V5-CONNECTIONS.md). [Guide for the receiving end](docs/CONNECTIONS.md).
+**Status: built locally on 8 October 2026 and merged (#49); nothing deployed and nothing sent outside the computer.** [Evidence](docs/evidence/V5-CONNECTIONS.md). [Guide for the receiving end](docs/CONNECTIONS.md).
 
 - Settings has a new Connected software section for the owner. It tells other software (a Zapier hook, the studio's own system) when a visit is booked, moved, cancelled, checked out or missed, or a new client is added. The owner chooses the events for each connection.
 - Guest names, email and phone go only to a connection the owner chose to share them with.
@@ -42,7 +159,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-08 · V1.5 · The inbox
 
-**Status: built locally on 8 October 2026, in review; nothing deployed and no message sent.** [Evidence](docs/evidence/V15-INBOX.md).
+**Status: built locally on 8 October 2026 and merged (#48); nothing deployed and no message sent.** [Evidence](docs/evidence/V15-INBOX.md).
 
 - The Inbox now shows one conversation per guest: what the studio wrote, what went out on its own (confirmations, reminders and the rest) and what the guest wrote back. Filters show new replies and drafts to approve.
 - Guests' replies to the studio's text line or email address arrive in the right conversation once those lines are connected. A reply from an address or number nobody has can be matched to a client. The desk can note a reply given by phone or in person. Opening a conversation marks its replies read, with who read them.

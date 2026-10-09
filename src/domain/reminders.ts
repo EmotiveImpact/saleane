@@ -1,5 +1,7 @@
+import { hasLocations, visitPlace } from './locations'
 import type { Appointment, BusinessState, Client } from './model'
 import type { MissedCall } from './missedCallsSchema'
+import type { SocialChannel } from './inboxSchema'
 import { formsWaiting } from './forms'
 import { businessDate, businessMinutes, instantFor, operations } from './operations'
 import { dateLabel, timeLabel } from './format'
@@ -53,6 +55,7 @@ export const messageKinds = [
   'missed_call',
   'message',
   'receptionist',
+  'social',
 ] as const
 export type MessageKind = (typeof messageKinds)[number]
 /** Messages about the guest rather than one visit. Their rows carry no appointment. */
@@ -61,12 +64,14 @@ export type ClientKind = (typeof clientKinds)[number]
 /** Messages about one visit. */
 export type VisitKind = Exclude<
   MessageKind,
-  ClientKind | 'missed_call' | 'message' | 'receptionist'
+  ClientKind | 'missed_call' | 'message' | 'receptionist' | 'social'
 >
 export const isClientKind = (kind: string): kind is ClientKind =>
   (clientKinds as readonly string[]).includes(kind)
 export const messageChannels = ['email', 'sms'] as const
 export type MessageChannel = (typeof messageChannels)[number]
+/** Where the outbox can send: the studio's email and text lines, and (V4) its social accounts. */
+export type OutboxChannel = MessageChannel | SocialChannel
 /** Where a link to manage the visit goes. The outbox swaps it for a fresh private link. */
 export const MANAGE_LINK = '{{manage_link}}'
 /** Where a link to book again goes. The outbox swaps it for the studio's public booking page. */
@@ -78,7 +83,7 @@ export type RecordedMessage = {
   /** Needed for messages about the guest rather than a visit. */
   clientId?: string
   kind: MessageKind
-  channel: MessageChannel
+  channel: OutboxChannel
   slot: string
   status: OutboxStatus
   /** When it was queued, so a reminder from before a reaction does not stand in for a new one. */
@@ -89,7 +94,7 @@ export type PlannedMessage = {
   appointmentId: string
   clientId: string
   kind: MessageKind
-  channel: MessageChannel
+  channel: OutboxChannel
   slot: string
   recipient: string
   subject: string
@@ -570,8 +575,28 @@ export function planMessages(
       body: message.body,
     })
   }
+  // V4: the team's answer on Instagram, Facebook or WhatsApp, once, as it was written.
+  for (const answer of s.socialAnswers ?? []) {
+    if (now - Date.parse(answer.answeredAt) > RECENT_MS) continue
+    const slot = socialSlot(answer.id)
+    if (recorded.some((row) => row.kind === 'social' && row.slot === slot)) continue
+    plan.push({
+      dedupeKey: `${answer.id}:social:${answer.channel}`,
+      appointmentId: '',
+      clientId: answer.clientId ?? '',
+      kind: 'social',
+      channel: answer.channel,
+      slot,
+      recipient: answer.to,
+      subject: '',
+      body: answer.body,
+    })
+  }
   return plan
 }
+
+/** The outbox slot of an answer on a social app, which names the answer. */
+export const socialSlot = (answerId: string) => `social:${answerId}`
 
 /** Whether a client asked for no appointment messages on this channel. */
 export const appointmentMessagesOff = (client: Client, channel: MessageChannel) =>
@@ -640,7 +665,9 @@ export function composeMessage(
   const when = `${dateLabel(a.date, org.locale)} at ${timeLabel(a.startMinutes, org.locale)}`
   const withWhom = professional ? ` with ${professional}` : ''
   const greeting = client ? `Hello ${firstName(client.name)},` : 'Hello,'
-  const arrival = org.arrivalNote?.trim()
+  // V2: the name, address and arrival note of the location the visit is at.
+  const place = visitPlace(s, a)
+  const arrival = place.arrivalNote?.trim()
   const prep = s.services.find((x) => x.id === a.serviceId)?.prepNote?.trim()
   // V1.5: ordinary forms the visit still waits for, filled in from the same private link.
   const forms = formsWaiting(s, a).map((item) => item.current.content.title)
@@ -653,10 +680,14 @@ export function composeMessage(
     : 'Call us or reply to book when it suits you.'
   const policy = `If your plans change, please let us know at least ${GUEST_CANCEL_CUTOFF_HOURS} hours before.`
   if (channel === 'sms') {
+    // V2: with several locations, a text says which one, since it has no address block.
+    const at = hasLocations(s)
+      ? `, at ${[place.name, place.address].filter(Boolean).join(', ')}`
+      : ''
     const lead = {
-      confirmation: `${org.name}: you're booked for ${service}${withWhom}, ${when}.`,
-      changed: `${org.name}: your visit has moved to ${when}, ${service}${withWhom}.`,
-      reminder: `${org.name}: a reminder of ${service}${withWhom}, ${when}.`,
+      confirmation: `${org.name}: you're booked for ${service}${withWhom}, ${when}${at}.`,
+      changed: `${org.name}: your visit has moved to ${when}${at}, ${service}${withWhom}.`,
+      reminder: `${org.name}: a reminder of ${service}${withWhom}, ${when}${at}.`,
       cancelled: `${org.name}: your ${service} on ${when} is cancelled.`,
       feedback: `${org.name}: thank you for visiting. How was it? Tell us privately:`,
       patch_test: `${org.name}: your ${service} on ${when} needs a quick patch test at least ${patchTestSettings(s).hoursBefore} hours before. Please call or pop in to arrange one.`,
@@ -710,7 +741,7 @@ export function composeMessage(
     lines.push(
       `${service}${withWhom}`,
       when,
-      [org.locationName, org.address].filter(Boolean).join(', '),
+      [place.name, place.address].filter(Boolean).join(', '),
     )
   // Aftercare and due back are about a visit that is over: no visit details or manage link.
   if (kind === 'feedback') {

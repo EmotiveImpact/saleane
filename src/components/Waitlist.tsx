@@ -13,6 +13,7 @@ import { addDays, dateLabel, timeLabel } from '../domain/format'
 import { feedbackDay } from '../domain/feedback'
 import type { Command } from '../domain/commands'
 import { Button, ErrorMessage, Modal } from '../design'
+import { hasLocations, places } from '../domain/locations'
 import './management.css'
 import './waitlist.css'
 
@@ -73,8 +74,11 @@ export function WaitlistForm({ clientId, onClose }: { clientId?: string; onClose
     setInput((current) => ({ ...current, ...patch }))
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const { staffId, ...rest } = input
-    if (await run({ type: 'waitlist-add', input: staffId ? input : rest })) onClose()
+    // Leave out a professional or location that was not chosen.
+    const chosen = Object.fromEntries(
+      Object.entries(input).filter(([, value]) => value !== undefined),
+    ) as WaitlistInput
+    if (await run({ type: 'waitlist-add', input: chosen })) onClose()
   }
   const client = state.clients.find((c) => c.id === clientId)
   return (
@@ -132,6 +136,22 @@ export function WaitlistForm({ clientId, onClose }: { clientId?: string; onClose
               ))}
             </select>
           </label>
+          {hasLocations(state) && (
+            <label>
+              Where
+              <select
+                value={input.locationId ?? ''}
+                onChange={(e) => change({ locationId: e.target.value || undefined })}
+              >
+                <option value="">Any location</option>
+                {places(state).map((place) => (
+                  <option key={place.id} value={place.id}>
+                    {place.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label>
             From
             <input

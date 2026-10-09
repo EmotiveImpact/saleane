@@ -1,5 +1,6 @@
 import type { Appointment, BusinessState } from './model'
 import { operations } from './operations'
+import { isSocialChannel, socialLabel } from './inboxSchema'
 import { localDate } from './patchTests'
 import { consentRecords, wordingFor } from './consent'
 import type { Role } from './operations'
@@ -105,6 +106,7 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
       goodToRemember: client.preferences,
       clientSince: client.createdAt,
       ...(client.birthday ? { birthday: client.birthday } : {}),
+      ...(client.postcodeArea ? { postcodeArea: client.postcodeArea } : {}),
     },
     consent: {
       emailMarketing: client.marketingConsent,
@@ -380,12 +382,22 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
         how:
           r.channel === 'desk'
             ? `Noted by ${r.actor} (${r.from === 'elsewhere' ? 'answered another way' : `by ${r.from}`})`
-            : r.channel === 'sms'
-              ? `Text from ${r.from}`
-              : r.channel === 'chat'
-                ? `Left with the AI receptionist, to answer on ${r.from}`
-                : `Email from ${r.from}`,
+            : isSocialChannel(r.channel)
+              ? `${socialLabel[r.channel]} message from ${r.name ? `${r.name}, ` : ''}${r.from}`
+              : r.channel === 'sms'
+                ? `Text from ${r.from}`
+                : r.channel === 'chat'
+                  ? `Left with the AI receptionist, to answer on ${r.from}`
+                  : `Email from ${r.from}`,
         words: r.body,
+      })),
+    // V4: the team's answers to them on Instagram, Facebook or WhatsApp.
+    answers: (state.socialAnswers ?? [])
+      .filter((a) => a.clientId === client.id)
+      .map((a) => ({
+        answeredAt: a.answeredAt,
+        how: `Answered on ${socialLabel[a.channel]} by ${a.actor}`,
+        words: a.body,
       })),
     // V1.5: consultations held with them, every version, and the visits booked from each.
     consultations: (state.consultations ?? [])
@@ -435,6 +447,7 @@ export function previewClientExport(file: ClientExport): ExportPreview {
       { label: 'Timeline entries', count: file.timeline.length },
       { label: 'Messages written in the inbox', count: file.messages.length },
       { label: 'Replies they sent, as written', count: file.replies.length },
+      { label: 'Answers sent on Instagram, Facebook or WhatsApp', count: file.answers.length },
       { label: 'Client connections, type only', count: file.connections.length },
       { label: 'Private feedback they gave', count: file.feedback.length },
       { label: 'Waitlist requests', count: file.waitlist.length },
@@ -498,6 +511,10 @@ export function previewStudioExport(file: StudioExport): ExportPreview {
       { label: 'Timeline entries', count: r.events.length },
       { label: 'Messages written in the inbox', count: r.operations.messages.length },
       { label: 'Guests’ replies, as written', count: (r.replies ?? []).length },
+      {
+        label: 'Answers on Instagram, Facebook or WhatsApp',
+        count: (r.socialAnswers ?? []).length,
+      },
       { label: 'Client connections', count: r.relationships.length },
       { label: 'Private guest feedback, comments as written', count: (r.feedback ?? []).length },
       { label: 'Waitlist requests', count: (r.waitlist ?? []).length },
@@ -589,6 +606,11 @@ export function erasureReview(
         label: 'Replies they sent',
         count: (state.replies ?? []).filter((r) => r.clientId === client.id).length,
         reason: 'Their own words to the studio. Not linked to money.',
+      },
+      {
+        label: 'Answers sent to them on Instagram, Facebook or WhatsApp',
+        count: (state.socialAnswers ?? []).filter((a) => a.clientId === client.id).length,
+        reason: 'The team’s words to them on those apps. Not linked to money.',
       },
       {
         label: 'Missed calls from their number',
@@ -814,6 +836,9 @@ export function clientExportText(file: ClientExport, locale = 'en-GB') {
     '',
     `REPLIES (${file.replies.length})`,
     ...file.replies.map((r) => `${r.receivedAt.slice(0, 10)} · ${r.how} · ${r.words}`),
+    '',
+    `ANSWERS ON SOCIAL APPS (${file.answers.length})`,
+    ...file.answers.map((a) => `${a.answeredAt.slice(0, 10)} · ${a.how} · ${a.words}`),
     '',
     `CONNECTIONS (${file.connections.length})`,
     ...file.connections.map((c) => `${c.role} · since ${c.since.slice(0, 10)}`),

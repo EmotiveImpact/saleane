@@ -4,6 +4,7 @@ import type { Appointment, BusinessState, Region } from './model'
 import { addDays, dateLabel, timeLabel } from './format'
 import { defaultOperations } from './operations'
 import { standardWording } from './consent'
+import { STARTER_CHECKLIST } from './branchVisits'
 
 export function seed(region: Region): BusinessState {
   const uk = region === 'UK'
@@ -55,6 +56,42 @@ export function seed(region: Region): BusinessState {
       createdAt,
       // V1.5: a few guests shared their birthday, month and day only.
       ...(i === 0 ? { birthday: '10-09' } : i === 4 ? { birthday: '03-14' } : {}),
+      // V5: most guests gave the first half of their postcode; two did not.
+      ...(i < 13
+        ? {
+            postcodeArea: (uk
+              ? [
+                  'W1G',
+                  'W1G',
+                  'NW1',
+                  'W1G',
+                  'W2',
+                  'NW1',
+                  'NW8',
+                  'W2',
+                  'W1G',
+                  'NW1',
+                  'W2',
+                  'N1',
+                  'NW8',
+                ]
+              : [
+                  '100',
+                  '100',
+                  '112',
+                  '100',
+                  '070',
+                  '112',
+                  '100',
+                  '113',
+                  '112',
+                  '100',
+                  '070',
+                  '104',
+                  '100',
+                ])[i],
+          }
+        : {}),
     })),
     services: [
       {
@@ -387,6 +424,7 @@ export function seed(region: Region): BusinessState {
   seedStock(state, uk)
   seedSuppliers(state)
   seedPay(state)
+  seedBranchVisits(state)
   seedTimeOff(state, uk)
   seedRent(state, uk)
   seedAccounting(state, uk)
@@ -883,6 +921,35 @@ function seedPay(state: BusinessState) {
     createdAt: `${from}T09:00:00.000Z`,
     actor: 'Owner · demo fixture',
   }))
+}
+
+/** V5: the starter branch checklist and one visit, so Branch visits has something to show. */
+function seedBranchVisits(state: BusinessState) {
+  const o = (state.operations ??= defaultOperations('sandbox'))
+  const items = STARTER_CHECKLIST.items.map((text, i) => ({ id: `check-line-${i + 1}`, text }))
+  o.checklists = [{ id: 'checklist-1', name: STARTER_CHECKLIST.name, items, archived: false }]
+  const answers: Record<number, ['no' | 'na', string]> = {
+    3: ['no', 'Two serums out of stock on the shelf; order placed.'],
+    4: ['na', 'Counted at close instead.'],
+  }
+  o.branchVisits = [
+    {
+      id: 'branch-visit-1',
+      locationId: state.organisation.locationId,
+      checklistId: 'checklist-1',
+      checklistName: STARTER_CHECKLIST.name,
+      date: '2026-10-02',
+      answers: items.map((item, i) => ({
+        itemId: item.id,
+        text: item.text,
+        answer: answers[i]?.[0] ?? 'yes',
+        ...(answers[i] ? { note: answers[i][1] } : {}),
+      })),
+      note: 'A calm, well-run Friday. Thank the team for the window display.',
+      recordedAt: '2026-10-02T16:30:00.000Z',
+      actor: 'Owner · demo fixture',
+    },
+  ]
 }
 
 /**

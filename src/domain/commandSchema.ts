@@ -1,5 +1,9 @@
 import { z } from 'zod'
-import { receptionistSettingsSchema } from './receptionistSchema'
+import { groupCommandSchemas } from './groupSchema'
+import { branchVisitCommandSchemas } from './branchVisitSchema'
+import { approvalCommandSchemas } from './approvalsSchema'
+import { brandCommandSchemas } from './brandRulesSchema'
+import { googleBookingSchema, receptionistSettingsSchema } from './receptionistSchema'
 import { missedCallSources } from './missedCallsSchema'
 import { offerInputSchema } from './plansSchema'
 import { specialInputSchema } from './specialsSchema'
@@ -25,6 +29,7 @@ import {
 } from './model'
 import {
   closureInputSchema,
+  locationInputSchema,
   messageInputSchema,
   payRulesInputSchema,
   protectionSchema,
@@ -40,7 +45,13 @@ import { accountingProviders, accountingSettingsSchema } from './accountsSchema'
 import { reminderSettingsSchema } from './reminderSettings'
 import { CONSENT_TEXT_LIMIT } from './consentSchema'
 import { consultationContentSchema } from './consultationsSchema'
-import { REPLY_TEXT_LIMIT, noteWays, savedReplyInputSchema } from './inboxSchema'
+import {
+  REPLY_TEXT_LIMIT,
+  SOCIAL_ANSWER_LIMIT,
+  noteWays,
+  savedReplyInputSchema,
+  socialChannels,
+} from './inboxSchema'
 const id = z.string().min(1).max(150)
 const money = z.number().int().nonnegative().max(100_000_000)
 const method = paymentMethodSchema
@@ -62,6 +73,8 @@ export const contactSchema = clientSchema
 export const importContactSchema = contactSchema
 export const bookingSchema = z.object({
   resourceId: id.optional(),
+  /** V2: where the visit is. Absent means the main location. */
+  locationId: id.optional(),
   serviceId: id,
   staffId: id,
   date: z.iso.date(),
@@ -93,6 +106,8 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     reviewUrl: z.string().trim().max(300).optional(),
   }),
   z.object({ type: z.literal('hours'), hours: weeklyHoursSchema }),
+  // V2: a further location; the main one is edited with the organisation.
+  z.object({ type: z.literal('location'), id: id.optional(), input: locationInputSchema }),
   // Guest-facing "before you arrive" notes; an empty note removes it.
   z.object({
     type: z.literal('guest-notes'),
@@ -144,6 +159,7 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('message-queue'), messageId: id }),
   // V4: the AI receptionist on the booking page.
   z.object({ type: z.literal('receptionist'), settings: receptionistSettingsSchema }),
+  z.object({ type: z.literal('google-booking'), settings: googleBookingSchema }),
   // PILOT-01: the studio's confirmation and reminder settings.
   z.object({ type: z.literal('reminders'), settings: reminderSettingsSchema }),
   // PILOT-01: a client's own wish about appointment emails and texts.
@@ -200,6 +216,7 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('purchase-order'),
     supplierId: id,
+    locationId: id.optional(),
     lines: orderLinesSchema,
     note: z.string().trim().max(300).optional(),
   }),
@@ -254,12 +271,29 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     reason: z.enum(['received', 'consumed', 'adjustment', 'retail']),
     note: z.string().trim().min(2).max(300),
     appointmentId: id.optional(),
+    /** V2: the location whose shelf this changes. Absent means the main location. */
+    locationId: id.optional(),
+  }),
+  // V2: stock taken from one location to another.
+  z.object({
+    type: z.literal('stock-move'),
+    productId: id,
+    from: id,
+    to: id,
+    quantity: z.number().int().min(1).max(100000),
+    note: z.string().trim().max(300).optional(),
   }),
   // V1.5: month and day only; null removes it.
   z.object({
     type: z.literal('client-birthday'),
     clientId: id,
     birthday: clientSchema.shape.birthday.unwrap().nullable(),
+  }),
+  // V5: the first half of a postcode; null removes it. The handler keeps only the area.
+  z.object({
+    type: z.literal('client-area'),
+    clientId: id,
+    area: z.string().trim().min(1).max(12).nullable(),
   }),
   z.object({
     type: z.literal('client-edit'),
@@ -280,6 +314,10 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
             archived: true,
             prepNote: true,
             aftercareNote: true,
+            // An import brings one house price; prices and menus at other locations are set in
+            // Services, where the house rules are checked.
+            locationPrices: true,
+            notOfferedAt: true,
           })
           .extend({ staffIds: z.array(id).max(100) }),
       )
@@ -350,6 +388,8 @@ export const commandSchema = z.discriminatedUnion('type', [
     date: z.iso.date(),
     startMinutes: z.number().int().min(0).max(1439),
     staffId: id,
+    /** V2: move the visit to another location. Absent keeps it where it is. */
+    locationId: id.optional(),
   }),
   z.object({
     type: z.literal('cancel'),
@@ -387,6 +427,8 @@ export const commandSchema = z.discriminatedUnion('type', [
     clientId: id.optional(),
     /** V2: who made the sale, for their commission. */
     staffId: id.optional(),
+    /** V2: where it was sold. Absent means the main location. */
+    locationId: id.optional(),
     products: retailItemsSchema.refine((items) => items.length > 0, 'Add a product.'),
     method,
     reference: z.string().trim().max(150).optional(),
@@ -410,10 +452,18 @@ export const commandSchema = z.discriminatedUnion('type', [
   // V1.5: the inbox. A guest's reply arrives only from the studio's email or text line.
   z.object({
     type: z.literal('reply-received'),
-    channel: z.enum(['email', 'sms', 'chat']),
+    channel: z.enum(['email', 'sms', 'chat', ...socialChannels]),
     from: z.string().trim().min(1).max(320),
     body: z.string().max(20000),
     providerRef: z.string().max(200).optional(),
+    name: z.string().max(200).optional(),
+    account: z.string().max(200).optional(),
+  }),
+  // V4: the team answers a guest on Instagram, Facebook or WhatsApp, within the app's day.
+  z.object({
+    type: z.literal('social-answer'),
+    replyId: id,
+    body: z.string().max(SOCIAL_ANSWER_LIMIT + 1000),
   }),
   z.object({
     type: z.literal('reply-note'),
@@ -538,6 +588,14 @@ export const commandSchema = z.discriminatedUnion('type', [
     notes: z.string().trim().max(300),
   }),
   z.object({ type: z.literal('patch-test-settings'), settings: patchTestSettingsSchema }),
+  // V5: regions and monthly targets for the whole business.
+  ...groupCommandSchemas,
+  // V5: branch visit checklists.
+  ...branchVisitCommandSchemas,
+  // V5: requests that pass up for a sign-off.
+  ...approvalCommandSchemas,
+  // V5: the studio's look and the house rules every location follows.
+  ...brandCommandSchemas,
   ...operatingCommandSchema.options,
 ])
 export type BookingInput = z.infer<typeof bookingSchema>

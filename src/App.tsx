@@ -17,7 +17,8 @@ import {
 } from 'lucide-react'
 import { useStore } from './state/context'
 import { useStudioColours } from './state/studioColours'
-import { operations } from './domain/operations'
+import { leads, operations } from './domain/operations'
+import { places } from './domain/locations'
 import { staleOffer } from './domain/waitlist'
 import { nudges } from './domain/nudges'
 import { Avatar, Modal } from './design'
@@ -31,6 +32,9 @@ import { Stock } from './pages/Stock'
 import { Pay } from './pages/Pay'
 import { Rota } from './pages/Rota'
 import { Accounts } from './pages/Accounts'
+import { BranchVisits } from './pages/BranchVisits'
+import { Requests } from './pages/Requests'
+import { ClientAreas } from './pages/ClientAreas'
 import { BrandedBooking } from './pages/BrandedBooking'
 const Account = lazy(() =>
   import('./pages/Account').then((module) => ({ default: module.Account })),
@@ -58,6 +62,7 @@ const DesignLanguage = lazy(() =>
 )
 import { AccessPanel } from './components/AccessPanel'
 import { PractitionerDay } from './pages/PractitionerDay'
+import { AreaHome } from './pages/AreaHome'
 import { ManageVisit } from './pages/ManageVisit'
 import { TestPayment } from './pages/TestPayment'
 import { Pricing } from './pages/Pricing'
@@ -75,7 +80,7 @@ const navigation = [
 ]
 
 function WorkspaceApp() {
-  const { state, warning, mode, slug, loading, session, role, reload, today } = useStore()
+  const { state, warning, mode, slug, loading, session, role, reload, today, branch } = useStore()
   const operator = session?.user.name ?? 'Demo operator'
   const initials = state.organisation.name
     .split(' ')
@@ -83,12 +88,17 @@ function WorkspaceApp() {
     .slice(0, 2)
     .join('')
   const location = useLocation()
+  // V5: the studio's own colours; a guest booking page applies the colours of the studio it books.
+  useStudioColours(
+    state.organisation.id,
+    operations(state).look,
+    !location.pathname.startsWith('/book/'),
+  )
   const [search, setSearch] = useState(false)
   const [asking, setAsking] = useState(false)
   const navigate = useNavigate()
   const openSettings = (section: string) => navigate(`/settings?section=${section}`)
   const [mobileNav, setMobileNav] = useState(false)
-  useStudioColours(state.organisation.id)
   // Waitlist offers whose time has gone are not counted as waiting for approval.
   const clock = useClock()
   // Read again each minute too, so a waitlist time that has passed stops counting.
@@ -113,6 +123,12 @@ function WorkspaceApp() {
   if (location.pathname === '/manage') return <ManageVisit />
   if (location.pathname === '/pay/test') return <TestPayment />
   if (location.pathname === '/pricing') return <Pricing />
+  if (location.pathname.startsWith('/area/'))
+    return (
+      <Routes>
+        <Route path="/area/:orgId" element={<AreaHome />} />
+      </Routes>
+    )
   if (location.pathname.startsWith('/practice/'))
     return (
       <Routes>
@@ -167,7 +183,11 @@ function WorkspaceApp() {
           <span className="workspace-monogram">{initials}</span>
           <span>
             <strong>{state.organisation.name}</strong>
-            <small>{state.organisation.locationName}</small>
+            <small>
+              {branch
+                ? `General manager · ${places(state, true).find((p) => p.id === branch)?.name ?? 'your location'}`
+                : state.organisation.locationName}
+            </small>
           </span>
           <ChevronDown size={14} />
         </button>
@@ -309,7 +329,14 @@ function WorkspaceApp() {
                 <>
                   <NavLink to="/business/pay">Pay</NavLink>
                   <NavLink to="/business/accounts">Accounts</NavLink>
+                </>
+              )}
+              {leads(role) && (
+                <>
                   <NavLink to="/business/feedback">Feedback</NavLink>
+                  <NavLink to="/business/visits">Branch visits</NavLink>
+                  <NavLink to="/business/requests">Requests</NavLink>
+                  <NavLink to="/business/areas">Client areas</NavLink>
                 </>
               )}
             </nav>
@@ -352,6 +379,18 @@ function WorkspaceApp() {
                   <Navigate to="/business" replace />
                 )
               }
+            />
+            <Route
+              path="/business/visits"
+              element={leads(role) ? <BranchVisits /> : <Navigate to="/business" replace />}
+            />
+            <Route
+              path="/business/requests"
+              element={leads(role) ? <Requests /> : <Navigate to="/business" replace />}
+            />
+            <Route
+              path="/business/areas"
+              element={leads(role) ? <ClientAreas /> : <Navigate to="/business" replace />}
             />
             <Route path="/business/gift-cards" element={<GiftCards />} />
             <Route path="/settings" element={<Manage accessPanel={<AccessPanel />} />} />
