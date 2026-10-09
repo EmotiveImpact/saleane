@@ -25,18 +25,55 @@ import { nudges } from './domain/nudges'
 import { Avatar, Modal, ScrollNav } from './design'
 import { SearchDialog } from './components/SearchDialog'
 import { Today } from './pages/Today'
-import { Calendar } from './pages/Calendar'
-import { Clients } from './pages/Clients'
-import { ClientRelationship } from './pages/ClientRelationship'
-import { Business } from './pages/Business'
-import { Stock } from './pages/Stock'
-import { Pay } from './pages/Pay'
-import { Rota } from './pages/Rota'
-import { Accounts } from './pages/Accounts'
-import { BranchVisits } from './pages/BranchVisits'
-import { Requests } from './pages/Requests'
-import { ClientAreas } from './pages/ClientAreas'
-import { BrandedBooking } from './pages/BrandedBooking'
+// Every page but Today loads when it is first opened, so the first screen arrives sooner.
+const Calendar = lazy(() =>
+  import('./pages/Calendar').then((module) => ({ default: module.Calendar })),
+)
+const Clients = lazy(() =>
+  import('./pages/Clients').then((module) => ({ default: module.Clients })),
+)
+const ClientRelationship = lazy(() =>
+  import('./pages/ClientRelationship').then((module) => ({ default: module.ClientRelationship })),
+)
+const Business = lazy(() =>
+  import('./pages/Business').then((module) => ({ default: module.Business })),
+)
+const Stock = lazy(() => import('./pages/Stock').then((module) => ({ default: module.Stock })))
+const Pay = lazy(() => import('./pages/Pay').then((module) => ({ default: module.Pay })))
+const Rota = lazy(() => import('./pages/Rota').then((module) => ({ default: module.Rota })))
+const Accounts = lazy(() =>
+  import('./pages/Accounts').then((module) => ({ default: module.Accounts })),
+)
+const BranchVisits = lazy(() =>
+  import('./pages/BranchVisits').then((module) => ({ default: module.BranchVisits })),
+)
+const Requests = lazy(() =>
+  import('./pages/Requests').then((module) => ({ default: module.Requests })),
+)
+const ClientAreas = lazy(() =>
+  import('./pages/ClientAreas').then((module) => ({ default: module.ClientAreas })),
+)
+const BrandedBooking = lazy(() =>
+  import('./pages/BrandedBooking').then((module) => ({ default: module.BrandedBooking })),
+)
+const AccessPanel = lazy(() =>
+  import('./components/AccessPanel').then((module) => ({ default: module.AccessPanel })),
+)
+const PractitionerDay = lazy(() =>
+  import('./pages/PractitionerDay').then((module) => ({ default: module.PractitionerDay })),
+)
+const AreaHome = lazy(() =>
+  import('./pages/AreaHome').then((module) => ({ default: module.AreaHome })),
+)
+const ManageVisit = lazy(() =>
+  import('./pages/ManageVisit').then((module) => ({ default: module.ManageVisit })),
+)
+const TestPayment = lazy(() =>
+  import('./pages/TestPayment').then((module) => ({ default: module.TestPayment })),
+)
+const Pricing = lazy(() =>
+  import('./pages/Pricing').then((module) => ({ default: module.Pricing })),
+)
 const Account = lazy(() =>
   import('./pages/Account').then((module) => ({ default: module.Account })),
 )
@@ -61,12 +98,6 @@ const AskSaleane = lazy(() =>
 const DesignLanguage = lazy(() =>
   import('./pages/DesignLanguage').then((module) => ({ default: module.DesignLanguage })),
 )
-import { AccessPanel } from './components/AccessPanel'
-import { PractitionerDay } from './pages/PractitionerDay'
-import { AreaHome } from './pages/AreaHome'
-import { ManageVisit } from './pages/ManageVisit'
-import { TestPayment } from './pages/TestPayment'
-import { Pricing } from './pages/Pricing'
 import { useClock } from './state/clock'
 import './account.css'
 
@@ -366,74 +397,82 @@ function WorkspaceApp() {
               ))}
             </ScrollNav>
           )}
-          <Routes>
-            <Route path="/" element={<Navigate to="/today" replace />} />
-            <Route path="/today" element={<Today />} />
-            <Route path="/calendar" element={<Calendar />} />
-            <Route path="/clients" element={<Clients />} />
-            <Route path="/clients/:clientId" element={<ClientRelationship />} />
-            <Route path="/inbox" element={<Inbox />} />
-            <Route path="/waitlist" element={<Waitlist />} />
-            <Route
-              path="/business"
-              element={desk ? <Navigate to="/business/money" replace /> : <Business />}
-            />
-            <Route path="/business/money" element={<Money />} />
-            <Route
-              path="/business/feedback"
-              element={leads(role) ? <Feedback /> : <Navigate to="/business" replace />}
-            />
-            <Route path="/business/stock" element={<Stock />} />
-            <Route
-              path="/business/accounts"
-              element={
-                role === 'owner' || role === 'manager' ? (
-                  <Accounts />
-                ) : (
-                  <Navigate to="/business" replace />
-                )
-              }
-            />
-            <Route
-              path="/business/rota"
-              element={role === 'practitioner' ? <Navigate to="/today" replace /> : <Rota />}
-            />
-            <Route
-              path="/business/pay"
-              element={
-                role === 'owner' || role === 'manager' ? (
-                  <Pay />
-                ) : (
-                  <Navigate to="/business" replace />
-                )
-              }
-            />
-            <Route
-              path="/business/visits"
-              element={leads(role) ? <BranchVisits /> : <Navigate to="/business" replace />}
-            />
-            <Route
-              path="/business/requests"
-              element={leads(role) ? <Requests /> : <Navigate to="/business" replace />}
-            />
-            <Route
-              path="/business/areas"
-              element={leads(role) ? <ClientAreas /> : <Navigate to="/business" replace />}
-            />
-            <Route path="/business/gift-cards" element={<GiftCards />} />
-            <Route path="/settings" element={<Manage accessPanel={<AccessPanel />} />} />
-            <Route path="/business/manage" element={<Navigate to="/settings" replace />} />
-            <Route path="/design-language" element={<DesignLanguage />} />
-            <Route
-              path="*"
-              element={
-                <div className="empty empty-photo">
-                  <h1>This page isn’t here.</h1>
-                  <Link to="/today">Return to Today</Link>
-                </div>
-              }
-            />
-          </Routes>
+          <Suspense
+            fallback={
+              <div className="route-loading" role="status">
+                <span className="sr-only">Loading…</span>
+              </div>
+            }
+          >
+            <Routes>
+              <Route path="/" element={<Navigate to="/today" replace />} />
+              <Route path="/today" element={<Today />} />
+              <Route path="/calendar" element={<Calendar />} />
+              <Route path="/clients" element={<Clients />} />
+              <Route path="/clients/:clientId" element={<ClientRelationship />} />
+              <Route path="/inbox" element={<Inbox />} />
+              <Route path="/waitlist" element={<Waitlist />} />
+              <Route
+                path="/business"
+                element={desk ? <Navigate to="/business/money" replace /> : <Business />}
+              />
+              <Route path="/business/money" element={<Money />} />
+              <Route
+                path="/business/feedback"
+                element={leads(role) ? <Feedback /> : <Navigate to="/business" replace />}
+              />
+              <Route path="/business/stock" element={<Stock />} />
+              <Route
+                path="/business/accounts"
+                element={
+                  role === 'owner' || role === 'manager' ? (
+                    <Accounts />
+                  ) : (
+                    <Navigate to="/business" replace />
+                  )
+                }
+              />
+              <Route
+                path="/business/rota"
+                element={role === 'practitioner' ? <Navigate to="/today" replace /> : <Rota />}
+              />
+              <Route
+                path="/business/pay"
+                element={
+                  role === 'owner' || role === 'manager' ? (
+                    <Pay />
+                  ) : (
+                    <Navigate to="/business" replace />
+                  )
+                }
+              />
+              <Route
+                path="/business/visits"
+                element={leads(role) ? <BranchVisits /> : <Navigate to="/business" replace />}
+              />
+              <Route
+                path="/business/requests"
+                element={leads(role) ? <Requests /> : <Navigate to="/business" replace />}
+              />
+              <Route
+                path="/business/areas"
+                element={leads(role) ? <ClientAreas /> : <Navigate to="/business" replace />}
+              />
+              <Route path="/business/gift-cards" element={<GiftCards />} />
+              <Route path="/settings" element={<Manage accessPanel={<AccessPanel />} />} />
+              <Route path="/business/manage" element={<Navigate to="/settings" replace />} />
+              <Route path="/design-language" element={<DesignLanguage />} />
+              <Route
+                path="*"
+                element={
+                  <div className="empty empty-photo">
+                    <h1>This page isn’t here.</h1>
+                    <Link to="/today">Return to Today</Link>
+                  </div>
+                }
+              />
+            </Routes>
+          </Suspense>
           <footer className="workspace-footer">
             <span>SALEANE</span>
             <Link className="text-link" to="/design-language">
@@ -467,7 +506,7 @@ export function App() {
       fallback={
         <main className="candidate-loading">
           <span className="wordmark">SALEANE</span>
-          <p role="status">Opening your workspace…</p>
+          <p role="status">Loading…</p>
         </main>
       }
     >

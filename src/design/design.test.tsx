@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { StoreProvider } from '../state/StoreProvider'
 import { App } from '../App'
 
-function show(route: string) {
+async function show(route: string) {
   render(
     <MemoryRouter initialEntries={[route]}>
       <StoreProvider>
@@ -13,12 +13,16 @@ function show(route: string) {
       </StoreProvider>
     </MemoryRouter>,
   )
+  // Pages load when they are first opened; wait for this one before looking at it.
+  await waitFor(() =>
+    expect(document.querySelector('.route-loading, .candidate-loading')).toBeNull(),
+  )
 }
 
 describe('design language in the workspace', () => {
   it('switches the reporting period with a single-choice segmented control', async () => {
     const user = userEvent.setup()
-    show('/business')
+    await show('/business')
     const group = screen.getByRole('radiogroup', { name: 'Reporting period' })
     expect(within(group).getByRole('radio', { name: 'Last 7 days' })).toHaveAttribute(
       'aria-checked',
@@ -39,17 +43,17 @@ describe('design language in the workspace', () => {
   })
   it('explains time booked the same way on Today and Business', async () => {
     const user = userEvent.setup()
-    show('/today')
+    await show('/today')
     await user.click(screen.getByRole('button', { name: 'How Time booked is measured' }))
     expect(await screen.findByText(/Booked service minutes divided by/)).toBeInTheDocument()
   })
-  it('shows each professional’s free time in the narrow calendar', () => {
-    show('/calendar')
+  it('shows each professional’s free time in the narrow calendar', async () => {
+    await show('/calendar')
     expect(screen.getByRole('region', { name: 'Maya Lewis' })).toBeInTheDocument()
     expect(screen.getAllByText(/^Free \d{2}:\d{2} to \d{2}:\d{2}$/).length).toBeGreaterThan(0)
   })
   it('renders the living library inside the workspace', async () => {
-    show('/design-language')
+    await show('/design-language')
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Design language' }),
     ).toBeInTheDocument()
@@ -59,7 +63,7 @@ describe('design language in the workspace', () => {
 
 describe('shared page parts', () => {
   it('pairs each headline figure with its label', async () => {
-    show('/business/pay')
+    await show('/business/pay')
     const label = await screen.findByText('Owed to the team')
     expect(label.tagName).toBe('DT')
     const [figure, detail] = within(label.closest('.stat') as HTMLElement).getAllByRole(
@@ -69,7 +73,7 @@ describe('shared page parts', () => {
     expect(detail).toHaveTextContent('Before any deductions')
   })
   it('opens the waitlist with the shared header and its action', async () => {
-    show('/waitlist')
+    await show('/waitlist')
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Who would take a time.' }),
     ).toBeInTheDocument()
