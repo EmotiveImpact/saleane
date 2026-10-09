@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import { api, setCsrf } from '../state/api'
 import { Button, ErrorMessage } from '../design'
@@ -10,11 +10,14 @@ import '../account.css'
  * NEXT-03: the pages an emailed link opens. /reset-password chooses a new password and signs in,
  * signing every other device out. /confirm-email confirms the address and needs no sign-in.
  */
+/** A used link leaves the address bar and this tab's history. */
+const forget = () => window.history.replaceState(null, '', window.location.pathname)
+
 export function AccountLink() {
   const navigate = useNavigate()
-  const { pathname } = useLocation()
-  const [params] = useSearchParams()
-  const token = params.get('token') ?? ''
+  // The code is in the address fragment, which browsers never send to a server.
+  const { pathname, hash } = useLocation()
+  const [token] = useState(() => hash.slice(1))
   const reset = pathname === '/reset-password'
   const [password, setPassword] = useState(''),
     [again, setAgain] = useState('')
@@ -28,7 +31,10 @@ export function AccountLink() {
     if (reset || !token || asked.current) return
     asked.current = true
     api('/api/auth/confirm', { method: 'POST', body: { token } })
-      .then(() => setConfirm({ done: true, error: '' }))
+      .then(() => {
+        setConfirm({ done: true, error: '' })
+        forget()
+      })
       .catch((e) =>
         setConfirm({
           done: false,
@@ -54,6 +60,7 @@ export function AccountLink() {
       setCsrf(result.csrf)
       setPassword('')
       setAgain('')
+      forget()
       // The account page reads the new session when it opens; reading it here would move away.
       setDone(true)
     } catch (e) {

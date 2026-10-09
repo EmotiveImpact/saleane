@@ -61,8 +61,9 @@ async function register(email = 'owner@example.invalid') {
   expect(response.statusCode, response.body).toBe(201)
   return { ...response.json<{ csrf: string }>(), cookie: cookie(response) }
 }
-const linkIn = (message: OutgoingMessage) => message.body.match(/token=([^\s]+)/)![1]
-const tokenOf = (message: OutgoingMessage) => decodeURIComponent(linkIn(message))
+/** The link's code travels in the fragment, never the query, so no request log sees it. */
+const tokenOf = (message: OutgoingMessage) =>
+  message.body.match(/\/(?:reset-password|confirm-email)#([A-Za-z0-9_-]{32,})\s/)![1]
 const forgot = (email: string) =>
   api.inject({ method: 'POST', url: '/api/auth/forgot', payload: { email } })
 const reset = (token: string, next = 'A brand new password 2026') =>
@@ -96,7 +97,8 @@ describe('forgotten password', () => {
     expect(mail).toHaveLength(1)
     expect(mail[0].to).toBe('owner@example.invalid')
     expect(mail[0].subject).toBe('Choose a new SALEANE password')
-    expect(mail[0].body).toContain(`${origin}/reset-password?token=`)
+    expect(mail[0].body).toContain(`${origin}/reset-password#`)
+    expect(mail[0].body).not.toContain('?')
   })
 
   it('writes test-mode links in the log only when SALEANE runs for this computer alone', async () => {
@@ -144,14 +146,14 @@ describe('forgotten password', () => {
     expect((await reset(tokenOf(mail.at(-1)!))).statusCode).toBe(400)
   })
 
-  it('retires an earlier link when a new one is asked for', async () => {
+  it('keeps earlier links working until one is used, as emails can arrive out of order', async () => {
     await register()
     await forgot('owner@example.invalid')
     const first = tokenOf(mail.at(-1)!)
     await forgot('owner@example.invalid')
     const second = tokenOf(mail.at(-1)!)
-    expect((await reset(first)).statusCode).toBe(400)
-    expect((await reset(second)).statusCode).toBe(200)
+    expect((await reset(first)).statusCode).toBe(200)
+    expect((await reset(second)).statusCode).toBe(400)
   })
 
   it('stops working when the account email changes', async () => {
@@ -186,9 +188,10 @@ describe('forgotten password', () => {
     gate = new Promise((done) => (release = done))
     const answered = await forgot('owner@example.invalid')
     expect(answered.statusCode).toBe(200)
-    expect(await records()).toHaveLength(1)
+    // Recorded before the answer, as not known yet, so a server that stops now still has it.
+    expect((await records()).at(-1)).toMatchObject({ kind: 'reset', status: 'unknown' })
     release()
-    expect(await records()).toHaveLength(2)
+    expect((await records()).at(-1)).toMatchObject({ kind: 'reset', status: 'test' })
   })
 
   it('sends one inbox no more than five links an hour, with the same answer', async () => {
@@ -260,9 +263,9 @@ describe('confirming an email address', () => {
       confirmed: false,
     })
     expect(mail).toHaveLength(2)
-    // The earlier link is retired.
-    expect((await confirm(first)).statusCode).toBe(400)
-    expect((await confirm(tokenOf(mail[1]))).statusCode).toBe(200)
+    // Either link works; once one is used, the other no longer does.
+    expect((await confirm(first)).statusCode).toBe(200)
+    expect((await confirm(tokenOf(mail[1]))).statusCode).toBe(400)
     expect((await resend()).json()).toEqual({
       ok: true,
       emailConnected: false,

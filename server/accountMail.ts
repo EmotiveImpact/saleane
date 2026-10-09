@@ -22,16 +22,15 @@ const LOOPBACK = new Set(['127.0.0.1', 'localhost', '[::1]'])
 export const linkInLog = (ctx: Context) =>
   !ctx.messaging.email.live && LOOPBACK.has(ctx.origin.hostname)
 
-/** Makes a new link, retiring any earlier unused link of the same kind for the account. */
+/**
+ * Makes a new link. Earlier links of the same kind keep working until they expire or one of them
+ * is used, because emails can arrive out of order and the newest-looking one may be the older.
+ * The token travels in the address fragment, which browsers never send to a server or in a
+ * Referer, so it stays out of request logs.
+ */
 export function newLink(ctx: Context, accountId: string, email: string, kind: LinkKind) {
   const raw = token(),
     time = ctx.now()
-  ctx.db.run(
-    'UPDATE account_links SET used_at=? WHERE account_id=? AND kind=? AND used_at IS NULL',
-    time,
-    accountId,
-    kind,
-  )
   ctx.db.run(
     'INSERT INTO account_links(token_hash,account_id,kind,email,created_at,expires_at) VALUES(?,?,?,?,?,?)',
     digest(raw),
@@ -41,7 +40,7 @@ export function newLink(ctx: Context, accountId: string, email: string, kind: Li
     time,
     time + LINK_MINUTES[kind] * 60000,
   )
-  return `${ctx.allowedOrigin}${PATH[kind]}?token=${encodeURIComponent(raw)}`
+  return `${ctx.allowedOrigin}${PATH[kind]}#${raw}`
 }
 
 /** The account a link belongs to, if it is still open and was made for the account's current email. */
@@ -56,8 +55,9 @@ export function openLink(ctx: Context, raw: string, kind: LinkKind) {
 }
 
 /**
- * Uses up a link and returns its account, or nothing when it is no longer open. Call it inside
- * the transaction that acts on the link, so two requests with the same link cannot both act.
+ * Uses up a link, and every other open link of the same kind for the account, and returns its
+ * account, or nothing when it is no longer open. Call it inside the transaction that acts on the
+ * link, so two requests with the same link cannot both act.
  */
 export function claimLink(ctx: Context, raw: string, kind: LinkKind) {
   const link = openLink(ctx, raw, kind)
@@ -67,7 +67,14 @@ export function claimLink(ctx: Context, raw: string, kind: LinkKind) {
     ctx.now(),
     digest(raw),
   ).changes
-  return claimed === 1 ? link : undefined
+  if (claimed !== 1) return undefined
+  ctx.db.run(
+    'UPDATE account_links SET used_at=? WHERE account_id=? AND kind=? AND used_at IS NULL',
+    ctx.now(),
+    link.account_id,
+    kind,
+  )
+  return link
 }
 
 /** True when the account has already been sent as many links of this kind as an hour allows. */
@@ -125,6 +132,20 @@ export async function sendAccountMail(
   const words = WORDING[kind]
   const id = randomUUID()
   const provider = ctx.messaging.email
+  // Recorded before the answer goes back, as not known yet. If the server stops before the
+  // provider answers, the record still says honestly that nobody knows whether it went.
+  ctx.db.run(
+    'INSERT INTO account_mail(id,account_id,kind,recipient,subject,status,provider,detail,created_at) VALUES(?,?,?,?,?,?,?,?,?)',
+    id,
+    account.id,
+    kind,
+    account.email,
+    words.subject,
+    'unknown',
+    provider.name,
+    'Handed to the email service; no answer yet.',
+    ctx.now(),
+  )
   let status: 'test' | 'accepted' | 'failed' | 'unknown'
   let ref: string | null = null
   let detail: string | null = null
@@ -151,17 +172,11 @@ export async function sendAccountMail(
         : `[SALEANE] Email is not connected, so a ${kind} link for ${account.email} was not sent. It is not written here, as this server is not for this computer alone.`,
     )
   ctx.db.run(
-    'INSERT INTO account_mail(id,account_id,kind,recipient,subject,status,provider,provider_ref,detail,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)',
-    id,
-    account.id,
-    kind,
-    account.email,
-    words.subject,
+    'UPDATE account_mail SET status=?, provider_ref=?, detail=? WHERE id=?',
     status,
-    provider.name,
     ref,
     detail,
-    ctx.now(),
+    id,
   )
   return status
 }

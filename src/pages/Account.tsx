@@ -199,7 +199,7 @@ export function Account() {
                 {confirmSent ? (
                   <p className="subtle">
                     {confirmSent.emailConnected
-                      ? 'A link is on its way, and any earlier one no longer works. If nothing arrives in a few minutes, look in your spam folder.'
+                      ? 'A link is on its way. If nothing arrives in a few minutes, look in your spam folder.'
                       : confirmSent.linkInLog
                         ? 'Email is not connected on this computer, so nothing was sent. The new link is written in the server log for whoever runs SALEANE here.'
                         : 'Email is not connected yet, so nothing was sent.'}

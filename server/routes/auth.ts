@@ -122,13 +122,8 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
         now(),
         link!.account_id,
       )
-      // Every signed-in device is signed out, and any other reset link stops working.
+      // Every signed-in device is signed out.
       db.run('DELETE FROM sessions WHERE account_id=?', link!.account_id)
-      db.run(
-        "UPDATE account_links SET used_at=? WHERE account_id=? AND kind='reset' AND used_at IS NULL",
-        now(),
-        link!.account_id,
-      )
       return link!.account_id
     })
     reply(200, { csrf: signIn(response, accountId) })
