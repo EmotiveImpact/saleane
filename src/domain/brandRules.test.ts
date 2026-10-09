@@ -6,6 +6,7 @@ import { can } from './operations'
 import { seed } from './seed'
 import { houseRuleNote, priceRange, ruleBreaches, serviceRuleRefusal } from './brandRules'
 import { branchRefusal } from './branch'
+import { commandSchema } from './commandSchema'
 
 // V5: the studio's colours and the house rules every location follows.
 const now = '2026-10-06T15:00:00.000Z'
@@ -126,6 +127,37 @@ describe('house rules', () => {
     expect(
       branchRefusal(s, islington, { type: 'house-rules', priceBandPercent: 0, coreServiceIds: [] }),
     ).toContain('whole business')
+  })
+})
+
+describe('imported treatments', () => {
+  it('bring one house price, never prices or menus at other locations', () => {
+    const parsed = commandSchema.parse({
+      type: 'import-services',
+      source: 'Fresha',
+      reviewed: true,
+      services: [
+        {
+          name: 'Brow shape',
+          description: '',
+          category: 'Skin',
+          durationMinutes: 30,
+          bufferMinutes: 0,
+          priceMinor: 2500,
+          depositMinor: 0,
+          resourceType: 'treatment',
+          staffIds: [],
+          locationPrices: [{ locationId: 'elsewhere', priceMinor: 9900 }],
+          notOfferedAt: ['elsewhere'],
+        },
+      ],
+    })
+    expect(parsed.type === 'import-services' && parsed.services[0]).not.toHaveProperty(
+      'locationPrices',
+    )
+    expect(parsed.type === 'import-services' && parsed.services[0]).not.toHaveProperty(
+      'notOfferedAt',
+    )
   })
 })
 

@@ -314,6 +314,10 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
             archived: true,
             prepNote: true,
             aftercareNote: true,
+            // An import brings one house price; prices and menus at other locations are set in
+            // Services, where the house rules are checked.
+            locationPrices: true,
+            notOfferedAt: true,
           })
           .extend({ staffIds: z.array(id).max(100) }),
       )
