@@ -169,6 +169,56 @@ describe('hours worked', () => {
     expect(run(s, save({ reason: 'no' })).ok).toBe(false)
   })
 
+  it('keeps clocked seconds when only the break is put right', () => {
+    let s = apply(studio(), { type: 'clock-in', staffId: 'staff-maya' }, '2026-10-06T08:00:37.000Z')
+    s = apply(
+      s,
+      { type: 'clock-out', staffId: 'staff-maya', breakMinutes: 0 },
+      '2026-10-06T16:10:12.000Z',
+    )
+    const [clocked] = shifts(s)
+    const later = '2026-10-06T17:00:00.000Z'
+    s = apply(
+      s,
+      save({ date: '2026-10-06', start: '09:00', end: '17:10', breakMinutes: 30 }, clocked.id),
+      later,
+    )
+    expect(shifts(s)[0]).toMatchObject({
+      start: '2026-10-06T08:00:37.000Z',
+      end: '2026-10-06T16:10:12.000Z',
+      breakMinutes: 30,
+    })
+    expect(shiftMinutes(shifts(s)[0])).toBe(490 - 30)
+    // A time that is changed is the minute chosen.
+    s = apply(s, save({ date: '2026-10-06', start: '09:00', end: '17:30' }, clocked.id), later)
+    expect(shifts(s)[0]).toMatchObject({
+      start: '2026-10-06T08:00:37.000Z',
+      end: '2026-10-06T16:30:00.000Z',
+    })
+  })
+
+  it('moves hours put on another day to where the person worked that day', () => {
+    let s = apply(studio(), {
+      type: 'location',
+      input: { name: 'Islington', address: '1 Upper Street' },
+    })
+    const main = s.organisation.locationId
+    const islington = s.operations!.locations![0].id
+    // Maya works at Islington on Mondays and at the main location otherwise.
+    s.staff.find((p) => p.id === 'staff-maya')!.hours = Array.from({ length: 7 }, (_, day) => ({
+      day,
+      open: 540,
+      close: 1080,
+      closed: false,
+      ...(day === 1 ? { locationId: islington } : {}),
+    }))
+    s = apply(s, save({ date: '2026-10-03' }))
+    const [added] = shifts(s)
+    expect(added.locationId).toBe(main)
+    s = apply(s, save({ date: '2026-10-05', reason: 'Wrong day' }, added.id))
+    expect(shifts(s)[0]).toMatchObject({ date: '2026-10-05', locationId: islington })
+  })
+
   it('removes hours without deleting them', () => {
     let s = apply(studio(), save({}))
     const [shift] = shifts(s)

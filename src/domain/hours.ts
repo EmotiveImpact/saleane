@@ -173,11 +173,17 @@ export function runHoursCommand(
   const who = person(input.staffId, false)
   if (input.date > today) throw new Error('Add hours only for days that have started.')
   if (input.date < addDays(today, -400)) throw new Error('That day is too long ago to change.')
-  const start = Date.parse(instantFor(next, input.date, toMinutes(input.start)))
+  // A time left as it was keeps its clocked seconds, so changing only the break moves nothing else.
+  const kept = (chosen: number, was: string | undefined) =>
+    was && Math.floor(Date.parse(was) / MINUTE) * MINUTE === chosen ? Date.parse(was) : chosen
+  const start = kept(
+    Date.parse(instantFor(next, input.date, toMinutes(input.start))),
+    existing?.start,
+  )
   // A finish at or before the start is the next morning, for a shift that ran past midnight.
   const endDate =
     toMinutes(input.end) <= toMinutes(input.start) ? addDays(input.date, 1) : input.date
-  const end = Date.parse(instantFor(next, endDate, toMinutes(input.end)))
+  const end = kept(Date.parse(instantFor(next, endDate, toMinutes(input.end))), existing?.end)
   if (end - start > MAX_OPEN)
     throw new Error(`A shift can be up to ${SHIFT_MAX_HOURS} hours. Check the start and finish.`)
   if (end > at) throw new Error('That finish time has not come yet.')
@@ -210,6 +216,9 @@ export function runHoursCommand(
     }
     existing.earlier = [...(existing.earlier ?? []), before].slice(-SHIFT_EARLIER)
     Object.assign(existing, times, { byHand })
+    // Hours moved to another day belong where the person worked that day.
+    if (existing.date !== before.date && hasLocations(next))
+      existing.locationId = staffLocationOn(next, who.id, input.date)
     return existing.id
   }
   if (list.length >= SHIFT_LIMIT) throw new Error('Too many shifts to keep.')

@@ -10,7 +10,8 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Pay has Hours worked: each person's hours for the month, less breaks, with their shifts newest first. Owners and managers add hours nobody clocked and change or remove wrong ones, always saying why. Nothing is deleted: a changed shift keeps the times it had before (shown under Before when it is opened), removed hours keep who removed them and why, and who changed what records each change.
 - Someone still clocked in after 16 hours is shown as a forgotten clock-out. Their hours count once an owner or manager sets when they finished.
 - Download for payroll now has Hours worked, Shifts and Shifts with no finish time for each person, and includes anyone who has left but worked in the period.
-- A practitioner can clock only themselves in and out; a general manager only the people working at their location that day. Reception can clock people in and out but not change hours.
+- A practitioner can clock only themselves in and out; a general manager only the people working at their location that day, and clocks out only a shift clocked in there. Reception can clock people in and out but not change hours.
+- Changing only the break keeps the clocked start and finish to the second, and hours moved to another day count where the person worked that day.
 - Sample studios have a fortnight of clocked hours. Help has guides for clocking in and out and for putting hours right.
 - SALEANE adds up the hours; it pays nobody and does not work out hourly pay, overtime or holiday pay.
 
