@@ -8,7 +8,12 @@ import type { Context, Route } from '../context'
 import { dispatch } from '../../src/domain/commands'
 import { businessDate } from '../../src/domain/operations'
 import { callerNumber } from '../../src/domain/missedCalls'
-import { CHAT_HISTORY_TURNS, askReceptionist, isOn } from '../../src/assistant/receptionist'
+import {
+  CHAT_HISTORY_TURNS,
+  askReceptionist,
+  isOn,
+  listedTimes,
+} from '../../src/assistant/receptionist'
 import type { ReceptionEffect } from '../../src/assistant/receptionist'
 
 type Held = PendingProposal<ReceptionEffect> & { organisationId: string; visitor: string }
@@ -104,6 +109,8 @@ export function receptionistRoutes() {
           kind: effect.kind,
           expiresAt,
         })),
+        // The free times the answer lists, each a button that starts booking it on this page.
+        times: listedTimes(result),
       })
       return true
     }

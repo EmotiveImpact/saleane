@@ -1,10 +1,10 @@
 import { z } from 'zod'
 import { SkillRefusal, actionSkill, readSkill, runTurn } from '../../lumane'
-import type { Allowance, BrainMessage, Skill, TurnResult, Usage } from '../../lumane'
+import type { Allowance, BrainMessage, Skill, ToolCall, TurnResult, Usage } from '../../lumane'
 import type { BusinessState, Service } from '../domain/model'
 import { availableProfessionals, slots } from '../domain/commands'
 import { addDays, dateLabel, timeLabel } from '../domain/format'
-import { operations } from '../domain/operations'
+import { hoursFor, operations } from '../domain/operations'
 import { priceSentence } from '../domain/priceSentence'
 import { healthWordIn } from '../domain/forms'
 import { defaultReceptionist } from '../domain/receptionistSchema'
@@ -15,6 +15,7 @@ import {
   listPrice,
   offeredAt,
   placeOf,
+  places,
   serviceAt,
   staffLocationOn,
   staffPlaces,
@@ -189,6 +190,29 @@ function bookableDate(ctx: ReceptionContext, date: string) {
 }
 const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5))
 
+/**
+ * When a location is open on a date, after any closure of the whole studio: its usual hours, or
+ * its own when it sets them, less the closed part. Empty when it is closed all day.
+ */
+export function openingOn(s: BusinessState, date: string, locationId: string) {
+  const h = hoursFor(s, date, locationId)
+  if (!h || h.closed) return []
+  let spans = [{ open: h.open, close: h.close }]
+  for (const c of operations(s).closures.filter((c) => !c.staffId && c.date === date))
+    spans = spans.flatMap((span) =>
+      c.endMinutes <= span.open || c.startMinutes >= span.close
+        ? [span]
+        : [
+            ...(c.startMinutes > span.open ? [{ open: span.open, close: c.startMinutes }] : []),
+            ...(c.endMinutes < span.close ? [{ open: c.endMinutes, close: span.close }] : []),
+          ],
+    )
+  return spans
+}
+/** "09:00 to 18:00", or several parts of a day when the studio closes for part of it. */
+const spanLabels = (ctx: ReceptionContext, spans: { open: number; close: number }[]) =>
+  spans.map((span) => `${clock(ctx, span.open)} to ${clock(ctx, span.close)}`)
+
 const isoDate = z.iso.date()
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)
 const contactPattern = /^(\+?[\d\s().-]{7,20}|[^\s@]+@[^\s@]+\.[^\s@]+)$/
@@ -244,54 +268,96 @@ export function receptionistSkills(): Skill<ReceptionContext, ReceptionEffect>[]
         )
       },
     }),
-    readSkill<ReceptionContext, Record<string, never>>({
+    readSkill<ReceptionContext, { date?: string }>({
       name: 'studio_info',
       description:
-        "The studio's name, address, opening hours for each day of the week, and days it is closed in the next month.",
-      input: z.object({}).strict(),
+        "The studio's name, address and how to find it, opening hours for each day of the week, and days it is closed or keeps different hours in the next month. With several locations, each one's own. Given a date, also when each location is open that day, after any closure.",
+      input: z.object({ date: isoDate.optional() }).strict(),
       allowed: () => true,
-      run: (ctx) => {
+      run: (ctx, input) => {
         const o = operations(ctx.state)
-        const weekday = (n: number) =>
-          new Intl.DateTimeFormat(ctx.state.organisation.locale, {
-            weekday: 'long',
-            timeZone: 'UTC',
-          }).format(new Date(Date.UTC(2026, 0, 4 + n)))
+        const open = places(ctx.state)
+        const main = ctx.state.organisation.locationId
+        // Monday 5 October 2026 starts a week; each location's own hours, or the studio's.
+        const week = (locationId: string) =>
+          [0, 1, 2, 3, 4, 5, 6].map((i) => {
+            const date = addDays('2026-10-05', i)
+            const h = hoursFor(ctx.state, date, locationId)
+            return {
+              day: new Intl.DateTimeFormat(ctx.state.organisation.locale, {
+                weekday: 'long',
+                timeZone: 'UTC',
+              }).format(new Date(`${date}T12:00:00Z`)),
+              open: h && !h.closed ? `${clock(ctx, h.open)} to ${clock(ctx, h.close)}` : 'Closed',
+            }
+          })
         const soon = addDays(ctx.today, 31)
+        const closed = [
+          ...new Set(
+            o.closures
+              .filter((c) => !c.staffId && c.date >= ctx.today && c.date <= soon)
+              .map((c) => c.date),
+          ),
+        ].sort()
+        const shut = (date: string) => open.every((p) => !openingOn(ctx.state, date, p.id).length)
         return {
           name: ctx.state.organisation.name,
           address: ctx.state.organisation.address || null,
-          hours: [1, 2, 3, 4, 5, 6, 0].map((n) => {
-            const h = o.hours.find((x) => x.day === n)
-            return {
-              day: weekday(n),
-              open: h && !h.closed ? `${clock(ctx, h.open)} to ${clock(ctx, h.close)}` : 'Closed',
-            }
-          }),
-          closedDays: [
-            ...new Set(
-              o.closures
-                .filter((c) => !c.staffId && c.date >= ctx.today && c.date <= soon)
-                .map((c) => day(ctx, c.date)),
-            ),
-          ],
+          arrivalNote: ctx.state.organisation.arrivalNote || null,
+          hours: week(main),
+          closedDays: closed.filter(shut).map((date) => day(ctx, date)),
+          // A closure for part of a day: open, but not all day.
+          changedDays: closed.filter((date) => !shut(date)).map((date) => day(ctx, date)),
           bookingOpen: o.bookingEnabled,
+          ...(open.length > 1
+            ? {
+                locations: open.map((p) => ({
+                  id: p.id,
+                  name: p.name,
+                  address: p.address || null,
+                  arrivalNote: p.arrivalNote ?? null,
+                  hours: week(p.id),
+                })),
+              }
+            : {}),
+          ...(input.date
+            ? {
+                on: {
+                  date: input.date,
+                  day: day(ctx, input.date),
+                  places: open.map((p) => ({
+                    id: p.id,
+                    name: p.name,
+                    open: spanLabels(ctx, openingOn(ctx.state, input.date!, p.id)),
+                  })),
+                },
+              }
+            : {}),
         }
       },
     }),
     readSkill<
       ReceptionContext,
-      { treatmentId: string; date: string; professionalId?: string; locationId?: string }
+      {
+        treatmentId: string
+        date: string
+        professionalId?: string
+        locationId?: string
+        after?: string
+        before?: string
+      }
     >({
       name: 'find_times',
       description:
-        'Free start times for one treatment on one date, with anyone or with one professional. With several locations, each time says where it is, and a location can be asked for.',
+        'Free start times for one treatment on one date, with anyone or with one professional, optionally only from one start time (after) and before another (before), such as the afternoon. With several locations, each time says where it is, and a location can be asked for. Also says whether the studio is open then at all, and when it opens and closes that day.',
       input: z
         .object({
           treatmentId: z.string().min(1).max(150),
           date: isoDate,
           professionalId: z.string().min(1).max(150).optional(),
           locationId: z.string().min(1).max(150).optional(),
+          after: time.optional(),
+          before: time.optional(),
         })
         .strict(),
       allowed: () => true,
@@ -300,6 +366,8 @@ export function receptionistSkills(): Skill<ReceptionContext, ReceptionEffect>[]
         const person = professional(ctx, service.id, input.professionalId)
         const place = askedPlace(ctx, service, input.locationId)
         bookableDate(ctx, input.date)
+        const from = input.after ? minutes(input.after) : 0
+        const until = input.before ? minutes(input.before) : 1440
         const times = slots(
           ctx.state,
           service.id,
@@ -307,13 +375,30 @@ export function receptionistSkills(): Skill<ReceptionContext, ReceptionEffect>[]
           input.date,
           ctx.now,
           place?.id,
-        )
+        ).filter((m) => m >= from && m < until)
         const several = hasLocations(ctx.state)
+        // When the places the guest could go are open that day, to say when it is closed then.
+        const where = place
+          ? [place.id]
+          : person
+            ? [staffLocationOn(ctx.state, person.id, input.date)]
+            : bookablePlaces(ctx.state, service).map((p) => p.id)
+        const spans = (where.length ? where : places(ctx.state).map((p) => p.id)).flatMap((id) =>
+          openingOn(ctx.state, input.date, id),
+        )
         return {
           treatment: service.name,
           professional: person?.name ?? 'anyone',
           date: input.date,
           day: day(ctx, input.date),
+          ...(input.after ? { after: input.after } : {}),
+          ...(input.before ? { before: input.before } : {}),
+          closed: spans.length === 0,
+          openThen: spans.some((span) => span.open < until && span.close > from),
+          // Closed by the time asked about, rather than not yet open.
+          closedBy: spans.length > 0 && spans.every((span) => span.close <= from),
+          opens: spans.length ? clock(ctx, Math.min(...spans.map((span) => span.open))) : null,
+          closes: spans.length ? clock(ctx, Math.max(...spans.map((span) => span.close))) : null,
           times: times.slice(0, 12).map((m) => {
             const where = several
               ? placeOfTime(ctx, service.id, person?.id, input.date, m, place?.id)
@@ -445,6 +530,66 @@ export function receptionistSkills(): Skill<ReceptionContext, ReceptionEffect>[]
 }
 
 export type ReceptionTurn = { from: 'guest' | 'receptionist'; text: string }
+
+/** A free time an answer lists, which the booking page offers as a button (V4). */
+export type ListedTime = {
+  serviceId: string
+  staffId: string
+  date: string
+  startMinutes: number
+  label: string
+  /** With several locations, where it is. */
+  locationId?: string
+  location?: string
+}
+const searched = z.object({
+  treatmentId: z.string(),
+  professionalId: z.string().optional(),
+})
+const foundTimes = z.object({
+  date: isoDate,
+  times: z.array(
+    z.object({
+      time,
+      label: z.string(),
+      locationId: z.string().optional(),
+      location: z.string().optional(),
+    }),
+  ),
+})
+/**
+ * The free times an answer lists, when the receptionist's last step was looking for them, so the
+ * booking page can show each as a button that starts booking it. Choosing one holds and books
+ * nothing: the guest still goes through the page's own steps.
+ */
+export function listedTimes(result: TurnResult<ReceptionEffect>): ListedTime[] {
+  if (result.status !== 'answered') return []
+  const calls = new Map<string, ToolCall>()
+  let last: { call: ToolCall; result: string } | null = null
+  for (const m of result.messages) {
+    if (m.role === 'assistant') for (const c of m.calls) calls.set(c.id, c)
+    if (m.role === 'tool' && calls.has(m.callId))
+      last = m.isError ? null : { call: calls.get(m.callId)!, result: m.result }
+  }
+  if (last?.call.name !== 'find_times') return []
+  const input = searched.safeParse(last.call.input)
+  let found: z.infer<typeof foundTimes>
+  try {
+    found = foundTimes.parse(JSON.parse(last.result))
+  } catch {
+    return []
+  }
+  if (!input.success) return []
+  return found.times.map((t) => ({
+    serviceId: input.data.treatmentId,
+    staffId: input.data.professionalId ?? 'any',
+    date: found.date,
+    startMinutes: minutes(t.time),
+    label: t.label,
+    ...(t.locationId ? { locationId: t.locationId } : {}),
+    ...(t.location ? { location: t.location } : {}),
+  }))
+}
 
 export type ReceptionInput = {
   state: BusinessState

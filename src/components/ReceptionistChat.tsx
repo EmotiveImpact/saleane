@@ -6,7 +6,14 @@ import { Button, ErrorMessage } from '../design'
 import './receptionistChat.css'
 
 type Proposal = { id: string; summary: string; kind: 'time' | 'message'; expiresAt: string }
-type Turn = { from: 'guest' | 'receptionist'; text: string; proposals?: Proposal[] }
+/** A free time the answer lists, shown as a button that starts booking it. */
+type ListedTime = OfferedTime & { label: string; location?: string }
+type Turn = {
+  from: 'guest' | 'receptionist'
+  text: string
+  proposals?: Proposal[]
+  times?: ListedTime[]
+}
 /** A time the receptionist offered. With several locations it names where it is (V2). */
 export type OfferedTime = {
   serviceId: string
@@ -17,12 +24,14 @@ export type OfferedTime = {
 }
 
 const HISTORY = 8
-const starters = ['When are you open?', 'How much is a facial?', 'Any times tomorrow?']
+// No treatment is named here, since not every studio offers the same ones.
+const starters = ['When are you open?', 'What treatments do you offer?', 'Any times tomorrow?']
 
 /**
  * V4: the AI receptionist on the booking page. It says it is an AI, answers from the studio's own
- * menu and diary, and offers a time for the guest to finish booking on this page. A message for
- * the team goes to the studio only when the guest taps to send it.
+ * menu and diary, and offers a time for the guest to finish booking on this page: each free time
+ * it lists is a button that opens the booking steps with that time chosen. A message for the team
+ * goes to the studio only when the guest taps to send it.
  */
 export function ReceptionistChat({
   base,
@@ -60,17 +69,24 @@ export function ReceptionistChat({
     setTurns((now) => [...now, { from: 'guest', text: said }])
     setText('')
     try {
-      const answer = await api<{ text: string; proposals: Proposal[]; chat: string | null }>(
-        `${base}/receptionist`,
-        {
-          method: 'POST',
-          body: chat && history.length ? { text: said, chat, history } : { text: said },
-        },
-      )
+      const answer = await api<{
+        text: string
+        proposals: Proposal[]
+        chat: string | null
+        times?: ListedTime[]
+      }>(`${base}/receptionist`, {
+        method: 'POST',
+        body: chat && history.length ? { text: said, chat, history } : { text: said },
+      })
       setChat(answer.chat)
       setTurns((now) => [
         ...now,
-        { from: 'receptionist', text: answer.text, proposals: answer.proposals },
+        {
+          from: 'receptionist',
+          text: answer.text,
+          proposals: answer.proposals,
+          times: answer.times ?? [],
+        },
       ])
     } catch (e) {
       setError(e instanceof Error ? e.message : 'The receptionist could not answer. Try again.')
@@ -104,6 +120,11 @@ export function ReceptionistChat({
     } finally {
       setPending(false)
     }
+  }
+  /** A listed time starts the booking steps with it chosen; nothing is held until the guest does. */
+  function choose({ serviceId, staffId, date, startMinutes, locationId }: ListedTime) {
+    setOpen(false)
+    onTime({ serviceId, staffId, date, startMinutes, ...(locationId ? { locationId } : {}) })
   }
   function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -151,6 +172,23 @@ export function ReceptionistChat({
             {turn.text.split('\n').map((line, j) => (
               <p key={j}>{line}</p>
             ))}
+            {!!turn.times?.length && (
+              <div className="reception-times" role="group" aria-label="Free times">
+                {turn.times.map((time) => (
+                  <button
+                    key={`${time.date}-${time.startMinutes}-${time.locationId ?? ''}`}
+                    type="button"
+                    className="reception-time"
+                    disabled={pending}
+                    aria-label={`Choose ${time.label}${time.location ? ` at ${time.location}` : ''}`}
+                    onClick={() => choose(time)}
+                  >
+                    {time.label}
+                    {time.location && <small>{time.location}</small>}
+                  </button>
+                ))}
+              </div>
+            )}
             {turn.proposals?.map((proposal) => (
               <div key={proposal.id} className="reception-offer">
                 <p>{proposal.summary}</p>

@@ -40,8 +40,14 @@ export const MANAGE_LINK_SPOT = '[[manage-link]]'
 const TEXT_HANDOVER =
   'I have passed this to the team. Someone will reply to you here as soon as they can.'
 
+// The examples name no treatment, since not every studio offers the same ones.
 export const RECEPTION_HELP =
-  'I can tell you about our treatments and prices, our opening hours, and find you a free time to book. I can also pass a message to the team. Try "how much is a facial?" or "any times on Thursday for a haircut?"'
+  'I can tell you about our treatments and prices, our opening hours and how to find us, and find you a free time to book. I can also pass a message to the team. Try "what treatments do you offer?" or "any times on Thursday afternoon?"'
+/** What the receptionist says when it does not know: it never guesses. */
+const NOT_SURE = 'I am not sure about that, so I will not guess.'
+/** Offered when it cannot answer, so the guest's next message can be their details. */
+const OFFER_TEAM =
+  'If you would like, I can pass your question to the team. Tell me your name and an email address or phone number they can answer on.'
 const ASK_CONTACT =
   'Of course. What is your name, and an email address or phone number the team can answer on? Then tell me your message.'
 const HEALTH =
@@ -113,10 +119,52 @@ const WANTS_TIME =
   /\b(book|booking|appointment|available|availability|free|slots?|times?|when can|space|opening for)\b/
 const WANTS_CHANGE =
   /\b(cancel|cancell?ing|move|moving|change|changing|reschedule|rearrange|postpone|can'?t make|cannot make|can’t make)\b/
-const WANTS_HOURS =
-  /\b(open|opening hours|hours|close|closed|closing|address|where are you|located|location|find you)\b/
+/** Opening hours: "are you open on Sunday?", "what time do you close?" */
+const WANTS_HOURS = /\b(open|opening|hours|close|closed|closing|shut)\b/
+/** A booking word makes it a question about free times, even with "open" in it. */
+const BOOKING_WORDS =
+  /\b(book|booking|appointment|available|availability|free|slots?|space|any times?|opening for|an opening|openings)\b/
 const WANTS_MENU =
   /\b(price|prices|cost|costs|how much|treatments?|menu|services?|offer|do you do)\b/
+/** Asking for one thing by name: "do you do nails?" */
+const DO_YOU = /\b(do you (do|offer|have)|have you got|can i (get|have|book))\b/
+const WHOLE_MENU = /\b(what|which|treatments?|services?|menu|list|anything)\b/
+/** A greeting, or asking who is answering: the receptionist says what it is and what it does. */
+const GREETING =
+  /^\s*(hi|hello|hey|hiya|good (morning|afternoon|evening))\b[^?]*$|\bis (that|this) (the )?(studio|salon|spa)\b/i
+const THANKS = /^\s*(thanks|thank you|cheers|lovely|perfect|great)\b[^?]*$/i
+/**
+ * Finding the studio and arriving: what a guest asks, and the words in an arrival note that answer
+ * it. Directions are answered by the address and any note.
+ */
+const ARRIVAL = {
+  parking: { asked: /\b(park|parking|car)\b/, noted: /park/, about: 'parking' },
+  transport: {
+    asked: /\b(station|tube|bus|buses|train|underground|overground|public transport)\b/,
+    noted: /station|tube|bus|train|underground|overground|walk/,
+    about: 'getting here by public transport',
+  },
+  access: {
+    asked:
+      /\b(wheelchair|accessible|accessibility|step-?free|stairs|steps|lift|elevator|pram|buggy)\b/,
+    noted: /wheelchair|accessible|step|stair|lift|ground floor|ramp/,
+    about: 'access',
+  },
+  entrance: {
+    asked: /\b(door|entrance|bell|buzzer|which floor|gate)\b/,
+    noted: /door|entrance|bell|buzzer|floor|ring|gate|reception/,
+    about: 'the way in',
+  },
+  directions: {
+    asked:
+      /\b(directions?|get there|get to you|find you|where are you|address|located|whereabouts|postcode)\b/,
+    noted: /./,
+    about: 'directions',
+  },
+} as const
+type Arrival = keyof typeof ARRIVAL
+const arrivalIn = (q: string) =>
+  (Object.keys(ARRIVAL) as Arrival[]).find((topic) => ARRIVAL[topic].asked.test(q)) ?? null
 
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
 const MONTHS = [
@@ -178,6 +226,41 @@ export function timeIn(text: string): string | null {
   return `${String(hour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
 }
 
+/**
+ * The part of the day a guest asks for, as the earliest start (after) and the start to be before,
+ * or null. "Morning", "afternoon", "evening", "lunchtime", "after 5", "before 11am".
+ */
+export function partOfDay(text: string): { after?: string; before?: string; name: string } | null {
+  const q = text.toLowerCase()
+  const clock = (hour: number, minutes: number) =>
+    `${String(hour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+  const edge = /\b(after|before)\s+(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)?\b/.exec(q)
+  if (edge) {
+    let hour = Number(edge[2])
+    const minutes = Number(edge[3] ?? 0)
+    if (hour > 23 || minutes > 59) return null
+    // "After 5" in a salon means the evening, not five in the morning.
+    if (edge[4] === 'pm' ? hour < 12 : !edge[4] && hour >= 1 && hour <= 7) hour += 12
+    else if (edge[4] === 'am' && hour === 12) hour = 0
+    const at = clock(hour, minutes)
+    return edge[1] === 'after'
+      ? { after: at, name: `after ${at}` }
+      : { before: at, name: `before ${at}` }
+  }
+  if (/\bmorning\b/.test(q)) return { before: '12:00', name: 'morning' }
+  if (/\blunch ?time\b|\blunch\b/.test(q))
+    return { after: '12:00', before: '14:00', name: 'lunchtime' }
+  if (/\bafternoon\b/.test(q)) return { after: '12:00', before: '17:00', name: 'afternoon' }
+  if (/\b(evening|tonight|after work)\b/.test(q)) return { after: '17:00', name: 'evening' }
+  return null
+}
+/** "evening times", "times after 17:00". */
+const partTimes = (name: string) =>
+  /^(after|before) /.test(name) ? `times ${name}` : `${name} times`
+/** "in the evening", "at lunchtime", "after 17:00". */
+const partPhrase = (name: string) =>
+  /^(after|before) /.test(name) ? name : name === 'lunchtime' ? 'at lunchtime' : `in the ${name}`
+
 /** An email address or phone number in what the guest wrote. */
 function contactIn(text: string) {
   return (
@@ -205,6 +288,12 @@ type Treatment = {
   professionals: { id: string; name: string }[]
 }
 
+const COMMON = new Set(['the', 'and', 'for', 'with', 'our', 'you', 'your', 'her', 'his', 'new'])
+/**
+ * A short word in a treatment's name, such as "cut", "wax" or "tan": on its own, in the plural,
+ * with "-ing" or at the end of a longer word ("haircut"), but not inside one ("cuticle").
+ */
+const shortWordIn = (q: string, w: string) => new RegExp(`${w}(s|es|\\w?ing)?\\b`).test(q)
 /** The treatment the guest means, from the newest thing they said that names one. */
 function treatmentIn(talk: Talk, list: Treatment[]) {
   for (const said of talk.guest) {
@@ -212,11 +301,14 @@ function treatmentIn(talk: Talk, list: Treatment[]) {
     let best: Treatment | null = null,
       score = 0
     for (const t of list) {
+      // Short words count too when they mean something here: "cut", "wax", "tan".
       const words = t.name
         .toLowerCase()
         .split(/\W+/)
-        .filter((w) => w.length > 3)
-      const hits = words.filter((w) => q.includes(w.replace(/s$/, ''))).length
+        .filter((w) => w.length > 3 || (w.length === 3 && !COMMON.has(w)))
+      const hits = words.filter((w) =>
+        w.length === 3 ? shortWordIn(q, w) : q.includes(w.replace(/s$/, '')),
+      ).length
       if (hits > score) [best, score] = [t, hits]
     }
     if (best) return best
@@ -241,7 +333,9 @@ const placesOf = (list: Treatment[]) => [
 ]
 /** The location the guest names, from the newest thing they said that names one. */
 function placeIn(talk: Talk, list: Treatment[]) {
-  const known = placesOf(list)
+  return namedPlace(talk, placesOf(list))
+}
+function namedPlace<T extends { name: string }>(talk: Talk, known: T[]) {
   if (known.length < 2) return null
   for (const said of talk.guest) {
     const q = said.toLowerCase()
@@ -265,6 +359,15 @@ const firstDate = (talk: Talk, today: string) => {
   }
   return null
 }
+const firstPart = (talk: Talk) => {
+  for (const said of talk.guest) {
+    const part = partOfDay(said)
+    if (part) return part
+  }
+  return null
+}
+/** A clock time the guest names, unless it is the edge of a part of the day ("after 5pm"). */
+const exactTime = (said: string) => (/\b(after|before)\s+\d/i.test(said) ? null : timeIn(said))
 
 /** Which of the listed visits the guest means: its number in the list, or its day. */
 function visitIn(said: string, visits: { id: string; date: string }[], today: string) {
@@ -283,19 +386,42 @@ function visitIn(said: string, visits: { id: string; date: string }[], today: st
 function intent(talk: Talk) {
   const q = talk.latest.toLowerCase()
   if (healthWordIn(talk.latest)) return 'health'
-  if (WANTS_PERSON.test(q) || talk.lastAnswer === ASK_CONTACT) return 'person'
+  // After "I can pass your question to the team", the guest's details answer it.
+  if (
+    WANTS_PERSON.test(q) ||
+    talk.lastAnswer === ASK_CONTACT ||
+    talk.lastAnswer.endsWith(OFFER_TEAM)
+  )
+    return 'person'
   if (WANTS_CHANGE.test(q) || talk.lastAnswer.startsWith(ASK_WHICH_VISIT)) return 'change'
+  // Before free times: "are you open on Sunday?" names a day but asks for no booking.
+  if (WANTS_HOURS.test(q) && !BOOKING_WORDS.test(q)) return 'hours'
+  if (arrivalIn(q)) return 'arrival'
   if (
     WANTS_TIME.test(q) ||
+    BOOKING_WORDS.test(q) ||
     timeIn(q) ||
+    partOfDay(q) ||
+    // "Do you have anything on Saturday?"
+    (/\b(any|anything|something)\b/.test(q) && dateIn(q, '2000-01-01')) ||
     (dateIn(q, '2000-01-01') && talk.guest.length > 1) ||
     // A bare treatment name answers "Which treatment would you like?", so the search goes on.
     talk.lastAnswer.startsWith(ASK_TREATMENT)
   )
     return 'time'
-  if (WANTS_HOURS.test(q)) return 'hours'
   if (WANTS_MENU.test(q)) return 'menu'
-  return 'other'
+  if (GREETING.test(talk.latest)) return 'greeting'
+  if (THANKS.test(talk.latest)) return 'thanks'
+  return 'unknown'
+}
+
+/** When the receptionist cannot answer, the team can. */
+function teamCan(offered: Set<string>, channel: ReceptionChannel) {
+  if (channel === 'text')
+    return 'I have passed your question to the team. Someone will reply to you here as soon as they can.'
+  return offered.has('pass_to_team')
+    ? OFFER_TEAM
+    : 'Please call or email the studio, and the team will help.'
 }
 
 function firstStep(
@@ -304,7 +430,6 @@ function firstStep(
   today: string,
   channel: ReceptionChannel,
 ): Step {
-  void today
   switch (intent(talk)) {
     case 'health':
       if (channel === 'text')
@@ -338,13 +463,21 @@ function firstStep(
     case 'change':
       if (offered.has('my_visits')) return call('my_visits')
       return say(channel === 'text' ? CHANGE_ELSEWHERE_TEXT : CHANGE_ELSEWHERE_WEB)
-    case 'hours':
+    case 'hours': {
+      const date = dateIn(talk.latest, today)
+      return call('studio_info', date ? { date } : {})
+    }
+    case 'arrival':
       return call('studio_info')
     case 'time':
     case 'menu':
       return call('treatments')
-    default:
+    case 'greeting':
       return say(`Hello, I am the studio's AI receptionist. ${RECEPTION_HELP}`)
+    case 'thanks':
+      return say('You are welcome. Is there anything else I can help with?')
+    default:
+      return say(`${NOT_SURE} ${teamCan(offered, channel)}`)
   }
 }
 
@@ -362,21 +495,11 @@ function nextStep(
     return say(String(last.data))
   }
   if (last.name === 'studio_info') {
-    const info = last.data as {
-      name: string
-      address: string | null
-      hours: { day: string; open: string }[]
-      closedDays: string[]
-    }
+    const info = last.data as StudioInfo
     return say(
-      [
-        `${info.name} is open:`,
-        ...info.hours.map((h) => `${h.day}: ${h.open}`),
-        info.closedDays.length ? `Closed on ${info.closedDays.join(', ')}.` : '',
-        info.address ? `You will find us at ${info.address}.` : '',
-      ]
-        .filter(Boolean)
-        .join('\n'),
+      intent(talk) === 'arrival'
+        ? arrivalAnswer(talk, info, offered, channel)
+        : hoursAnswer(talk, info),
     )
   }
   if (last.name === 'my_visits') {
@@ -422,20 +545,42 @@ function nextStep(
       day: string
       times: { time: string; label: string; location?: string }[]
       more: number
+      after?: string
+      before?: string
+      closed: boolean
+      openThen: boolean
+      closedBy: boolean
+      opens: string | null
+      closes: string | null
     }
     const named = firstDate(talk, today)
     const tries = results.filter((r) => r.name === 'find_times').length
-    // With no day named, look on through the week for the first free one.
-    if (!found.times.length && !named && tries < 5)
+    // With no day named, look on through the next few days for the first free one. Four looks
+    // and the answer fit in the six steps one message may take.
+    if (!found.times.length && !named && tries < 4)
       return call('find_times', {
         ...last.input,
         date: addDays(found.date, 1),
       })
+    const part = found.after || found.before ? firstPart(talk) : null
+    const again = 'Tell me another day or time and I will look again.'
+    if (!found.times.length && !named)
+      return say(
+        `There is nothing free for ${found.treatment}${part ? ` ${partPhrase(part.name)}` : ''} over the next four days. ${again}`,
+      )
+    if (!found.times.length && found.closed) return say(`We are closed on ${found.day}. ${again}`)
+    // Asked for a part of the day the studio is not open: say so, rather than offer another.
+    if (!found.times.length && part && !found.openThen)
+      return say(
+        found.closedBy
+          ? `We close at ${found.closes} on ${found.day}, so there are no ${partTimes(part.name)}. ${again}`
+          : `We open at ${found.opens} on ${found.day}, so there are no ${partTimes(part.name)}. ${again}`,
+      )
     if (!found.times.length)
       return say(
-        `There is nothing free for ${found.treatment} on ${found.day}. Tell me another day and I will look again.`,
+        `There is nothing free for ${found.treatment}${part ? ` ${partPhrase(part.name)}` : ''} on ${found.day}. ${again}`,
       )
-    const wanted = timeIn(talk.latest)
+    const wanted = exactTime(talk.latest)
     if (wanted && found.times.some((t) => t.time === wanted) && offered.has('offer_time'))
       return call('offer_time', { ...last.input, time: wanted })
     const who = found.professional === 'anyone' ? '' : ` with ${found.professional}`
@@ -480,17 +625,29 @@ function nextStep(
         return say(
           `${chosen.name} is not offered at ${place.name}. You can book it at ${names(chosen.locations ?? [])}.`,
         )
+      // Only the part of the day the guest asked for, such as the afternoon or after 5.
+      const part = firstPart(talk)
       const input = {
         treatmentId: chosen.id,
         date: firstDate(talk, today) ?? addDays(today, 1),
         ...(person ? { professionalId: person.id } : {}),
         ...(place ? { locationId: place.id } : {}),
       }
-      const wanted = timeIn(talk.latest)
+      const wanted = exactTime(talk.latest)
       if (wanted && /\bbook\b/i.test(talk.latest) && offered.has('offer_time'))
         return call('offer_time', { ...input, time: wanted })
-      return call('find_times', input)
+      return call('find_times', {
+        ...input,
+        ...(part?.after ? { after: part.after } : {}),
+        ...(part?.before ? { before: part.before } : {}),
+      })
     }
+    // Asked for something by name that is not on the menu: say so, and never suggest another.
+    const q = talk.latest.toLowerCase()
+    if (!chosen && DO_YOU.test(q) && !WHOLE_MENU.test(q))
+      return say(
+        `I cannot find that on our menu. We offer ${names(list.slice(0, 8))}. ${teamCan(offered, channel)}`,
+      )
     const more = '\nAsk about any of them, or ask me for a free time.'
     // V2: at the location the guest names, only what is offered there, at its price there.
     const place = placeIn(talk, list)
@@ -520,5 +677,101 @@ function nextStep(
     const shown = chosen ? [chosen] : list.slice(0, 8)
     return say(`${shown.map(line).join('\n')}${chosen ? '' : more}`)
   }
-  return say(RECEPTION_HELP)
+  return say(`${NOT_SURE} ${teamCan(offered, channel)}`)
+}
+
+type Site = {
+  id: string
+  name: string
+  address: string | null
+  arrivalNote: string | null
+  hours: { day: string; open: string }[]
+}
+type StudioInfo = {
+  name: string
+  address: string | null
+  arrivalNote: string | null
+  hours: { day: string; open: string }[]
+  closedDays: string[]
+  changedDays: string[]
+  locations?: Site[]
+  on?: { date: string; day: string; places: { id: string; name: string; open: string[] }[] }
+}
+
+/** Opening hours: on the day asked about, after any closure, or the usual week. */
+function hoursAnswer(talk: Talk, info: StudioInfo) {
+  const named = namedPlace(talk, info.locations ?? [])
+  if (info.on) {
+    const { day } = info.on
+    const spans = (open: string[]) => open.join(' and ')
+    if (named) {
+      const site = info.on.places.find((p) => p.id === named.id)!
+      return site.open.length
+        ? `On ${day}, ${site.name} is open ${spans(site.open)}.`
+        : `${site.name} is closed on ${day}.`
+    }
+    const sites = info.on.places
+    if (sites.every((p) => !p.open.length)) return `We are closed on ${day}.`
+    if (sites.length === 1) return `On ${day} we are open ${spans(sites[0].open)}.`
+    return `On ${day}:\n${sites.map((p) => `${p.name}: ${p.open.length ? spans(p.open) : 'Closed'}`).join('\n')}`
+  }
+  // The usual week: one list when every location keeps the same hours.
+  const sites = named ? [named] : (info.locations ?? [])
+  const same = sites.every((site) => JSON.stringify(site.hours) === JSON.stringify(info.hours))
+  const week = (title: string, hours: StudioInfo['hours']) => [
+    `${title} is open:`,
+    ...hours.map((h) => `${h.day}: ${h.open}`),
+  ]
+  return [
+    ...(named
+      ? week(named.name, named.hours)
+      : same
+        ? week(info.name, info.hours)
+        : sites.flatMap((site) => week(site.name, site.hours))),
+    info.closedDays.length ? `Closed on ${info.closedDays.join(', ')}.` : '',
+    info.changedDays.length ? `Different hours on ${info.changedDays.join(', ')}.` : '',
+    named?.address
+      ? `You will find ${named.name} at ${named.address}.`
+      : !info.locations && info.address
+        ? `You will find us at ${info.address}.`
+        : '',
+  ]
+    .filter(Boolean)
+    .join('\n')
+}
+
+/**
+ * Finding the studio and arriving: the address, and the arrival note when it covers what was
+ * asked. Otherwise it says plainly that it does not know, and the team can answer.
+ */
+function arrivalAnswer(
+  talk: Talk,
+  info: StudioInfo,
+  offered: Set<string>,
+  channel: ReceptionChannel,
+) {
+  const topic = arrivalIn(talk.latest.toLowerCase()) ?? 'directions'
+  const all: Omit<Site, 'hours'>[] = info.locations ?? [
+    { id: '', name: info.name, address: info.address, arrivalNote: info.arrivalNote },
+  ]
+  const named = namedPlace(talk, info.locations ?? [])
+  const sites = named ? [named] : all
+  const several = sites.length > 1
+  const addresses = sites
+    .filter((site) => site.address)
+    .map((site) =>
+      several
+        ? `${site.name}: ${site.address}`
+        : `You will find ${named ? site.name : 'us'} at ${site.address}.`,
+    )
+  const notes = sites
+    .filter((site) => site.arrivalNote && ARRIVAL[topic].noted.test(site.arrivalNote.toLowerCase()))
+    .map((site) => `${several ? `${site.name}: ` : ''}${site.arrivalNote}`)
+  if (notes.length) return [...notes, ...addresses].join('\n')
+  if (topic === 'directions' && addresses.length) return addresses.join('\n')
+  return [
+    `I do not know about ${ARRIVAL[topic].about}.`,
+    ...addresses,
+    teamCan(offered, channel),
+  ].join(several ? '\n' : ' ')
 }
