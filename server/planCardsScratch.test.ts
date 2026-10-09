@@ -152,6 +152,8 @@ it('moves a scratch membership so the real loop reminds, then charges', async ()
     `${holdingId}:2026-10-12`,
     `${holdingId}:2026-10-12`,
   ])
+  // The outbox writes them down in test mode, as the running server does within 30 seconds.
+  await api.outbox.tick()
   api.close()
   expect(
     execFileSync('node', [script, file, 'rosa@example.invalid', 'due', '2026-10-09']).toString(),

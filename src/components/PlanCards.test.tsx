@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { ClientPlans, PlansLedger } from './Plans'
@@ -420,6 +420,15 @@ test('says card payments are paused while the studio is read only for its SALEAN
   expect(screen.queryByText('Upcoming')).toBeNull()
   // There is nothing to turn back on: paying the SALEANE bill opens the studio again.
   expect(screen.queryByRole('button', { name: 'Turn card payments back on' })).toBeNull()
+  cleanup()
+  // Said even when no payment falls in this month.
+  vi.setSystemTime(new Date('2026-11-10T10:00:00.000Z'))
+  render(<PlansLedger />)
+  expect(
+    await screen.findByText(
+      'Card payments for memberships are paused while the studio is read only.',
+    ),
+  ).toBeInTheDocument()
 })
 
 test('offers the saved card when selling a membership, then shows the words to agree', async () => {

@@ -347,7 +347,13 @@ export function MembershipCardPayments() {
       setResuming(false)
     }
   }
-  if (!rows.length && !upcoming.length && !reply.held) return null
+  // While the studio is read only, say so wherever a membership is set to be paid from a card.
+  const paused =
+    !!reply.paused &&
+    holdings(state).some(
+      (h) => h.status === 'active' && h.kind === 'membership' && mine(h) && !!openCardAgreement(h),
+    )
+  if (!rows.length && !upcoming.length && !reply.held && !paused) return null
   // What needs a person comes first; long months are tucked behind "See all".
   const rank = (c: PlanCharge) => (c.status === 'succeeded' ? 3 : c.status === 'failed' ? 1 : 0)
   const entries = [
@@ -425,7 +431,7 @@ export function MembershipCardPayments() {
           Test mode: no card is charged and no money moves.
         </p>
       )}
-      {reply.paused && (
+      {paused && (
         <div className="plan-card-held" role="status">
           <PauseCircle size={20} aria-hidden="true" />
           <div>

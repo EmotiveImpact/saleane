@@ -77,7 +77,19 @@ const moved =
         )
         .run(`${holdingId}:${due}`, before, due, `${holdingId}:${before}`).changes
     : 0
+// Only a reminder that went out (written down in test mode, or accepted) lets the card be tried.
+const waiting =
+  mode === 'due'
+    ? db
+        .prepare(
+          "SELECT count(*) AS n FROM outbox WHERE kind='plan_reminder' AND slot=? AND status NOT IN ('test','accepted','delivered')",
+        )
+        .get(`${holdingId}:${due}`).n
+    : 0
 console.log(
   `Membership ${holdingId}: first month ${started}, next card payment ${due}.` +
-    (mode === 'due' ? ` Reminders moved to it: ${moved}.` : ''),
+    (mode === 'due' ? ` Reminders moved to it: ${moved}.` : '') +
+    (waiting
+      ? ` ${waiting} of them had not gone out yet, so the card will not be tried: start the server after "remind" and wait for the reminder first.`
+      : ''),
 )
