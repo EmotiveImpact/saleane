@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { AreaHome } from './AreaHome'
@@ -13,6 +14,7 @@ vi.mock('../state/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../state/api')>()),
   api: vi.fn(),
 }))
+const logout = vi.fn()
 const session = {
   user: { id: 'account-priya', name: 'Priya Shah', email: 'priya@example.invalid' },
 }
@@ -21,6 +23,7 @@ vi.mock('../state/context', () => ({
     session,
     refreshSession: async () => session,
     openWorkspace: vi.fn(),
+    logout,
     connection: 'online',
   }),
 }))
@@ -46,6 +49,7 @@ function view(orgId: string) {
     <MemoryRouter initialEntries={[`/area/${orgId}`]}>
       <Routes>
         <Route path="/area/:orgId" element={<AreaHome />} />
+        <Route path="/account" element={<p>Sign in to SALEANE</p>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -68,4 +72,14 @@ test('greets the regional manager by their own first name, not the region', asyn
   expect(screen.queryByText(/Good morning, Somerset/)).not.toBeInTheDocument()
   // The region is still named beside the studio.
   expect(screen.getByText('Regional manager · Somerset')).toBeInTheDocument()
+})
+
+test('signs out from the area as from the account page', async () => {
+  logout.mockResolvedValue(undefined)
+  const record = areaRecord()
+  vi.mocked(api).mockResolvedValue(record as never)
+  view(record.id)
+  await userEvent.click(await screen.findByRole('button', { name: 'Sign out' }))
+  await screen.findByText('Sign in to SALEANE')
+  expect(logout).toHaveBeenCalledTimes(1)
 })

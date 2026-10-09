@@ -1,0 +1,43 @@
+/* The role and place a team invitation offers, on the join page. */
+.invitation-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 16px;
+  margin: 22px 0 6px;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--sage-soft);
+}
+.invitation-summary-icon {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-round);
+  background: var(--brand-soft);
+  color: var(--brand-ink);
+}
+.invitation-summary dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 32px;
+  margin: 0;
+}
+.invitation-summary dt {
+  font-size: var(--text-micro);
+  color: var(--muted);
+}
+.invitation-summary dd {
+  margin: 2px 0 0;
+  font-size: var(--text-lead);
+  font-weight: var(--weight-strong);
+}
+.invitation-summary p {
+  grid-column: 2;
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: var(--text-meta);
+  line-height: 1.55;
+}

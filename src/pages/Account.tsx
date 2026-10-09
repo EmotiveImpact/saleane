@@ -5,6 +5,8 @@ import { useStore } from '../state/context'
 import { api } from '../state/api'
 import type { Session } from '../state/api'
 import { Button, ErrorMessage } from '../design'
+import { InvitationSummary } from '../components/InvitationSummary'
+import type { InvitationPreview } from '../components/InvitationSummary'
 import '../account.css'
 
 export function Account() {
@@ -26,6 +28,27 @@ export function Account() {
     [pending, setPending] = useState(false),
     [error, setError] = useState('')
   const [ready, setReady] = useState(false)
+  // A team invitation names its studio and role before anyone signs in.
+  const [invited, setInvited] = useState<InvitationPreview | null>(null)
+  const [inviteProblem, setInviteProblem] = useState('')
+  useEffect(() => {
+    if (!invitation) return
+    let active = true
+    api<InvitationPreview>('/api/invitations/preview', { method: 'POST', body: { invitation } })
+      .then((found) => {
+        if (!active) return
+        setInvited(found)
+        // The invitation works only with the address it was sent to.
+        setEmail((typed) => typed || found.email)
+      })
+      .catch((e) => {
+        if (active)
+          setInviteProblem(e instanceof Error ? e.message : 'This invitation could not be read.')
+      })
+    return () => {
+      active = false
+    }
+  }, [invitation])
   useEffect(() => {
     let active = true
     store
@@ -121,6 +144,8 @@ export function Account() {
       setPending(false)
     }
   }
+  // Joining works only with the address the invitation was sent to.
+  const otherEmail = !!invited && !!store.session && store.session.user.email !== invited.email
   return (
     <div className="account-layout">
       <aside className="account-story">
@@ -171,9 +196,17 @@ export function Account() {
             {!store.session.workspaces.length && (
               <p>You do not have an active studio membership.</p>
             )}
+            {invitation && invited && <InvitationSummary invitation={invited} />}
+            {invitation && <ErrorMessage error={inviteProblem} />}
+            {invitation && otherEmail && (
+              <p className="subtle">
+                This invitation was sent to {invited?.email}. Sign out, then sign in or create an
+                account with that address to join.
+              </p>
+            )}
             {invitation && (
               <Button
-                disabled={pending}
+                disabled={pending || otherEmail}
                 onClick={async () => {
                   setPending(true)
                   try {
@@ -189,7 +222,7 @@ export function Account() {
                   }
                 }}
               >
-                Accept studio invitation
+                {invited ? `Join ${invited.studio}` : 'Accept studio invitation'}
               </Button>
             )}
             <div className="account-actions">
@@ -225,13 +258,21 @@ export function Account() {
                 : view === 'workspace'
                   ? 'Make room for your studio.'
                   : invitation
-                    ? 'Join your studio.'
+                    ? `Join ${invited?.studio ?? 'your studio'}.`
                     : 'Begin with your business.'}
             </h1>
+            {invitation && view !== 'workspace' && invited && (
+              <InvitationSummary invitation={invited} />
+            )}
+            {invitation && view !== 'workspace' && <ErrorMessage error={inviteProblem} />}
             <p className="account-intro">
               {view === 'signin'
-                ? 'Sign in to continue with the records saved on this computer.'
-                : 'Accounts and studio records are saved by the local server. Card payments and email sending are not connected yet.'}
+                ? invited
+                  ? `Sign in with ${invited.email} to join ${invited.studio}.`
+                  : 'Sign in to continue with the records saved on this computer.'
+                : invited && view === 'create'
+                  ? 'Create your account with the email your invitation was sent to. Accounts and studio records are saved by the local server.'
+                  : 'Accounts and studio records are saved by the local server. Card payments and email sending are not connected yet.'}
             </p>
             <form onSubmit={submit}>
               {view !== 'workspace' && (
@@ -245,6 +286,13 @@ export function Account() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
+                    {invited && (
+                      <small>
+                        {email.trim().toLowerCase() === invited.email
+                          ? 'Your invitation was sent to this address.'
+                          : `Your invitation was sent to ${invited.email}.`}
+                      </small>
+                    )}
                   </label>
                   {view === 'create' && (
                     <label>

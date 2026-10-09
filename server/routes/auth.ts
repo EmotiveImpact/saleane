@@ -4,7 +4,9 @@ import { checkPassword, digest, passwordHash } from '../auth'
 import { COOKIE, fail, sessionToken } from '../http'
 import { createWorkspace, workspaceInput } from '../workspace'
 import { emailSchema, registration } from '../context'
-import type { Context, Route } from '../context'
+import type { Context, Invitation, Route } from '../context'
+import { placeOf } from '../../src/domain/locations'
+import { regions } from '../../src/domain/group'
 
 /** Health, session, account and workspace-creation routes. Returns false when the request belongs to another module. */
 export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
@@ -21,6 +23,7 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
     insertWorkspace,
     invitationFor,
     join,
+    systemOrg,
   } = ctx
   const { request, response, method, url, body, reply } = route
   if (method === 'GET' && url.pathname === '/api/health') {
@@ -127,6 +130,44 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
     const data = z.object({ workspace: workspaceInput }).strict().parse(body)
     const org = db.transaction(() => insertWorkspace(createWorkspace(data.workspace), actor.id))
     reply(201, { orgId: org.id, slug: org.slug })
+    return true
+  }
+  // The join page names the studio and the role before anyone signs in. A link that is still open
+  // reads only the studio's name, the role, the location or region it covers and the email it was
+  // sent to. Reading it changes nothing; the link is used up only when someone joins.
+  if (method === 'POST' && url.pathname === '/api/invitations/preview') {
+    rateLimit(request, 'invitation-read', 30, 5 * 60000)
+    const data = z
+      .object({ invitation: z.string().min(32).max(100) })
+      .strict()
+      .parse(body)
+    const invite = db.get<Invitation>(
+      'SELECT * FROM invitations WHERE token_hash=? AND expires_at>? AND used_at IS NULL',
+      digest(data.invitation),
+      now(),
+    )
+    const org = invite ? systemOrg(invite.organisation_id) : null
+    if (!invite || !org)
+      fail(
+        404,
+        'This invitation has expired or has already been used. Ask the studio owner for a new link.',
+      )
+    const state = org!.state
+    const location =
+      invite!.role === 'general' && invite!.location_id
+        ? placeOf(state, invite!.location_id)?.name
+        : undefined
+    const region =
+      invite!.role === 'regional'
+        ? regions(state).find((r) => r.id === invite!.area_id)?.name
+        : undefined
+    reply(200, {
+      studio: state.organisation.name,
+      role: invite!.role,
+      ...(location ? { location } : {}),
+      ...(region ? { region } : {}),
+      email: invite!.email,
+    })
     return true
   }
   if (method === 'POST' && url.pathname === '/api/invitations/accept') {
