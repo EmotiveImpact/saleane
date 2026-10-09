@@ -1,0 +1,82 @@
+/* Where the studio is and how to reach it, on the guest's visit page. */
+.studio-contact {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0 0 22px;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--sage-soft);
+}
+.studio-contact h2 {
+  margin: 0;
+  font-family: var(--font-editorial);
+  font-weight: var(--weight-editorial);
+  font-size: var(--text-title-s);
+}
+.studio-contact-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.studio-contact-row > svg {
+  margin-top: 3px;
+  color: var(--brand-ink);
+}
+.studio-contact-row p {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.studio-contact-row strong {
+  font-weight: var(--weight-strong);
+}
+.studio-contact a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--target);
+  color: var(--brand-ink);
+  font-weight: var(--weight-strong);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--brand-ink) 35%, transparent);
+  text-underline-offset: 3px;
+}
+.studio-contact a:hover {
+  text-decoration-color: currentColor;
+}
+.studio-contact-ways {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 28px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.studio-contact-ways a {
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.studio-contact-ways a > span {
+  display: grid;
+}
+.studio-contact-ways small {
+  font-size: var(--text-micro);
+  font-weight: var(--weight-body);
+  color: var(--muted);
+}
+.studio-contact-value {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--brand-ink) 35%, transparent);
+  text-underline-offset: 3px;
+}
+.studio-contact-ways a:hover .studio-contact-value {
+  text-decoration-color: currentColor;
+}
+.studio-contact-none {
+  margin: 0;
+  color: var(--muted);
+}

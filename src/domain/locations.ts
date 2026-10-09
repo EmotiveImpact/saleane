@@ -12,6 +12,9 @@ export type Place = {
   name: string
   address: string
   arrivalNote?: string
+  /** How guests reach this location, when it has its own number or address. */
+  phone?: string
+  email?: string
   main: boolean
   archived: boolean
 }
@@ -23,6 +26,8 @@ export function places(s: BusinessState, includeArchived = false): Place[] {
     name: org.locationName,
     address: org.address,
     ...(org.arrivalNote ? { arrivalNote: org.arrivalNote } : {}),
+    ...(org.phone ? { phone: org.phone } : {}),
+    ...(org.email ? { email: org.email } : {}),
     main: true,
     archived: false,
   }
@@ -31,6 +36,8 @@ export function places(s: BusinessState, includeArchived = false): Place[] {
     name: l.name,
     address: l.address,
     ...(l.arrivalNote ? { arrivalNote: l.arrivalNote } : {}),
+    ...(l.phone ? { phone: l.phone } : {}),
+    ...(l.email ? { email: l.email } : {}),
     main: false,
     archived: !!l.archived,
   }))

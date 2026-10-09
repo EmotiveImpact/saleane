@@ -15,7 +15,7 @@ const contact = {
   phone: '+44 7700 900222',
   marketingConsent: false,
 }
-const INVALID = 'This link is no longer valid. Contact the studio to manage your visit.'
+const INVALID = 'This link has expired or been replaced. Ask the studio for a new one.'
 type Login = { cookie: string; csrf: string; orgId: string }
 type Manage = { url: string; expiresAt: string; delivery: string }
 let api: ApiHandler
@@ -111,6 +111,25 @@ describe('guest manage links (LOCAL-02)', () => {
     for (const secret of [contact.email, contact.phone, contact.name, appointmentId, 'clientId'])
       expect(response.body).not.toContain(secret)
     invalid(await visit('x'.repeat(43)))
+  })
+
+  it('refuses a broken, truncated or missing link exactly like an expired one', async () => {
+    const owner = await register()
+    const { slug } = await studio(owner)
+    const { manage } = await book(slug)
+    invalid(await visit('badtoken'))
+    invalid(await visit(tokenOf(manage).slice(0, 20)))
+    invalid(await visit(''))
+    invalid(await api.inject({ method: 'POST', url: '/api/guest/visit', payload: {} }))
+    invalid(await cancel('badtoken', 'refund_due'))
+    // A whole link with something else wrong is still a form error, not a broken link.
+    const extra = await api.inject({
+      method: 'POST',
+      url: '/api/guest/visit',
+      payload: { token: tokenOf(manage), extra: true },
+    })
+    expect(extra.statusCode).toBe(400)
+    expect((await visit(tokenOf(manage))).statusCode).toBe(200)
   })
 
   it('flags the deposit for refund before the cutoff, without making a refund, and replays', async () => {
@@ -230,5 +249,45 @@ describe('guest manage links (LOCAL-02)', () => {
     const view = (await visit(token)).json<GuestView>()
     expect(view.visit.status).toBe('cancelled')
     expect(view.cancellation.available).toBe(false)
+  })
+})
+
+describe('how guests reach the studio', () => {
+  it('shows the phone and email the studio gave on the visit page and the booking page', async () => {
+    const owner = await register()
+    const { slug } = await studio(owner)
+    const { manage } = await book(slug)
+    const { state } = await studio(owner)
+    const details = (contact: { phone?: string; email?: string }): Command => ({
+      type: 'organisation',
+      name: state.organisation.name,
+      locationName: state.organisation.locationName,
+      address: state.organisation.address,
+      timeZone: state.organisation.timeZone,
+      bookingEnabled: true,
+      ...contact,
+    })
+    // Nothing is invented before the studio gives them.
+    expect((await visit(tokenOf(manage))).json<GuestView>().organisation).not.toHaveProperty(
+      'phone',
+    )
+    const refused = await run(owner, state.revision, details({ phone: 'call us' }))
+    expect(refused.statusCode).toBe(422)
+    expect(refused.json().error).toMatch(/as guests would dial it/)
+    expect((await run(owner, state.revision, details({ email: 'hello' }))).statusCode).toBe(422)
+    const saved = await run(
+      owner,
+      state.revision,
+      details({ phone: '020 7946 0123', email: 'hello@reference.example' }),
+    )
+    expect(saved.statusCode, saved.body).toBe(200)
+    const reach = { phone: '020 7946 0123', email: 'hello@reference.example' }
+    expect((await visit(tokenOf(manage))).json<GuestView>().organisation).toMatchObject(reach)
+    const page = (await api.inject({ url: `/api/public/${slug}` })).json<{
+      organisation: object
+      locations: object[]
+    }>()
+    expect(page.organisation).toMatchObject(reach)
+    expect(page.locations[0]).toMatchObject(reach)
   })
 })

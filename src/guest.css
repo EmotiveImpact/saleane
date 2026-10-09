@@ -371,3 +371,173 @@
   font-family: var(--font-editorial);
   font-weight: var(--weight-editorial);
 }
+
+/* The visit page opens on the studio's photograph and wears its colours, like its booking page. */
+.visit-page {
+  gap: 0;
+  padding: 0 0 48px;
+}
+.visit-hero {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  min-height: clamp(210px, 30vw, 320px);
+  overflow: hidden;
+  background: var(--stone);
+}
+.visit-hero-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 62%;
+}
+/* The photograph softens into the page where the studio's name sits, with no hard edge or box. */
+.visit-hero::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 75%;
+  pointer-events: none;
+  -webkit-backdrop-filter: blur(18px) saturate(1.1);
+  backdrop-filter: blur(18px) saturate(1.1);
+  background: linear-gradient(
+    0deg,
+    rgba(250, 248, 245, 0.96) 0%,
+    rgba(250, 248, 245, 0.72) 42%,
+    rgba(250, 248, 245, 0) 100%
+  );
+  -webkit-mask-image: linear-gradient(0deg, #000 50%, transparent);
+  mask-image: linear-gradient(0deg, #000 50%, transparent);
+}
+.visit-hero-brand {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: min(560px, calc(100% - 40px));
+  padding: 0 4px 68px;
+}
+.visit-hero-brand .atelier-monogram {
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  border-color: rgba(46, 43, 51, 0.16);
+  background: rgba(255, 255, 255, 0.66);
+  font-size: var(--text-body);
+  letter-spacing: 0;
+}
+.visit-hero-brand > span:last-child {
+  font-family: var(--font-editorial);
+  font-weight: var(--weight-editorial);
+  font-size: clamp(25px, 3vw, 32px);
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+}
+.visit-hero-brand small {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--font-display);
+  font-size: var(--text-small);
+  letter-spacing: 0;
+  color: var(--muted);
+}
+.visit-card {
+  position: relative;
+  z-index: 2;
+  width: min(560px, calc(100% - 40px));
+  margin-top: -48px;
+  box-shadow: var(--shadow-float);
+}
+.visit-card h1 {
+  margin-top: 0;
+}
+.visit-card .studio-contact,
+.visit-card .guest-pay,
+.visit-card .guest-here {
+  margin-bottom: 22px;
+}
+.guest-notice:focus {
+  outline: none;
+}
+.guest-notice:focus-visible {
+  outline: 2px solid var(--brand-ink);
+  outline-offset: 3px;
+}
+/* Moving or cancelling, together under one heading. */
+.visit-plans {
+  display: grid;
+  gap: var(--space-6);
+  margin-top: 26px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.visit-plans h2,
+.visit-again h2 {
+  margin: 0;
+  font-family: var(--font-editorial);
+  font-weight: var(--weight-editorial);
+  font-size: var(--text-title-m);
+}
+.visit-plan {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+}
+.visit-plan > p {
+  margin: 0;
+}
+.visit-plan .button,
+.visit-again .button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.visit-plan .guest-confirm {
+  justify-self: stretch;
+  margin: 0;
+}
+.visit-plan .form-error {
+  margin: 0;
+}
+.visit-locked {
+  margin: 26px 0 0;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+}
+.visit-again {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  margin-top: 26px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.visit-again p {
+  margin: 0;
+}
+.visit-again .button {
+  text-decoration: none;
+}
+.visit-wordmark {
+  margin-top: 36px;
+  font-size: 17px;
+  color: var(--muted);
+}
+@media (max-width: 480px) {
+  .visit-hero-brand {
+    width: calc(100% - 32px);
+    padding-bottom: 60px;
+  }
+  .visit-card {
+    width: calc(100% - 24px);
+    margin-top: -40px;
+  }
+}

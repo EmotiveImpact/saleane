@@ -1,4 +1,5 @@
-import type { BusinessState, RelationshipEvent } from './model'
+import type { BusinessState, Region, RelationshipEvent } from './model'
+import { emailProblem, phoneProblem } from './studioContact'
 import { areaHint, postcodeArea } from './clientAreas'
 import { serviceRuleRefusal } from './brandRules'
 import { isReviewUrl } from './model'
@@ -56,6 +57,11 @@ export function paymentDetail(method: string, processor?: { provider: string; li
       ? 'Paid by card through the payment provider.'
       : 'Test card payment: the provider is in test mode and no money moved.'
   return `Payment recorded as ${method === 'cash' ? 'cash received' : 'already paid at an external terminal'}. SALEANE did not process a payment.`
+}
+/** Why a phone number or email address guests would use cannot be saved; empty means none. */
+function contactProblem(field: 'phone' | 'email', value: string, region: Region) {
+  if (!value) return null
+  return field === 'phone' ? phoneProblem(value, region) : emailProblem(value)
 }
 export function runOperatingCommand(
   next: BusinessState,
@@ -126,6 +132,15 @@ export function runOperatingCommand(
         throw new Error('Enter the review page as a full web address starting with https://.')
       else next.organisation.reviewUrl = command.reviewUrl
     }
+    // How guests reach the studio: absent leaves each as it is, empty removes it.
+    for (const field of ['phone', 'email'] as const) {
+      const value = command[field]
+      if (value === undefined) continue
+      const problem = contactProblem(field, value, next.organisation.region)
+      if (problem) throw new Error(problem)
+      if (value) next.organisation[field] = value
+      else delete next.organisation[field]
+    }
     recordId = next.organisation.id
   } else if (command.type === 'hours') {
     o.hours = command.hours
@@ -187,11 +202,19 @@ export function runOperatingCommand(
     if (!old && list.length >= LOCATION_LIMIT) throw new Error('Too many locations to keep.')
     const record = { ...command.input, id: command.id ?? makeId() }
     if (!record.arrivalNote) delete record.arrivalNote
+    // A location's own phone and email; without them guests see the studio's.
+    for (const field of ['phone', 'email'] as const) {
+      const problem = contactProblem(field, record[field] ?? '', next.organisation.region)
+      if (problem) throw new Error(problem)
+      if (!record[field]) delete record[field]
+    }
     if (old) {
       Object.assign(old, record)
       if (!command.input.hours) delete old.hours
       if (!command.input.arrivalNote) delete old.arrivalNote
       if (!command.input.archived) delete old.archived
+      if (!record.phone) delete old.phone
+      if (!record.email) delete old.email
     } else list.push(record)
     recordId = record.id
   } else if (
