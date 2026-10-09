@@ -132,6 +132,16 @@ export const productInputSchema = z.object({
   /** V2: who the studio orders it from, and how many it usually orders. */
   supplierId: id.optional(),
   reorderQuantity: z.number().int().min(1).max(10000).optional(),
+  /**
+   * Stage 2: the barcode printed on the product. The product command checks it (EAN-13, EAN-8
+   * and UPC-A check digits) and keeps it in its normal form, once per studio.
+   */
+  barcode: z.string().trim().max(60).optional(),
+  /** Stage 2: the product's photo, kept in the server's images table and shown only to the team. */
+  imageId: z
+    .string()
+    .regex(/^[A-Za-z0-9-]{8,64}$/)
+    .optional(),
 })
 export const protectionSchema = z
   .object({

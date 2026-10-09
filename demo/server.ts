@@ -56,7 +56,7 @@ function sendSoon() {
 async function call(
   method: string,
   url: string,
-  body?: string,
+  body?: string | Uint8Array,
   extra: Record<string, string> = {},
 ) {
   const result = await api.inject({
@@ -235,6 +235,35 @@ async function seed() {
 
 let appBase = ''
 
+/** A request body as the server reads it: text as it is, a photo as its bytes. */
+async function bodyOf(body: RequestInit['body']): Promise<string | Uint8Array | undefined> {
+  if (typeof body === 'string') return body
+  if (body instanceof Blob) return new Uint8Array(await body.arrayBuffer())
+  if (body instanceof ArrayBuffer) return new Uint8Array(body)
+  if (ArrayBuffer.isView(body)) return new Uint8Array(body.buffer, body.byteOffset, body.byteLength)
+  return undefined
+}
+
+/**
+ * Stage 2: a product photo cannot be fetched by its address inside this page, so the app asks
+ * here and shows the photo from the bytes the in-page server returns. A photo never changes once
+ * added, so each is read once per visit.
+ */
+const photos = new Map<string, Promise<string>>()
+function demoImage(address: string) {
+  const known = photos.get(address)
+  if (known) return known
+  const loading = call('GET', address.slice(address.indexOf('/api/'))).then((result) => {
+    const type = String(result.headers['content-type'] ?? '')
+    if (result.statusCode !== 200 || !/^image\/(jpeg|png|webp)$/.test(type))
+      throw new Error('This photo could not be shown.')
+    return `data:${type};base64,${Buffer.from(result.rawBody).toString('base64')}`
+  })
+  photos.set(address, loading)
+  loading.catch(() => photos.delete(address))
+  return loading
+}
+
 export async function startDemoServer(base = '') {
   appBase = base
   const restored = saved()
@@ -277,6 +306,7 @@ export async function startDemoServer(base = '') {
     // Without session storage the app opens its browser-only sample instead.
   }
 
+  ;(window as unknown as { saleaneDemoImage: typeof demoImage }).saleaneDemoImage = demoImage
   const realFetch = window.fetch.bind(window)
   window.fetch = async (input: RequestInfo | URL, init: RequestInit = {}) => {
     const url = new URL(
@@ -293,7 +323,7 @@ export async function startDemoServer(base = '') {
     const result = await call(
       (init.method ?? 'GET').toUpperCase(),
       path,
-      typeof init.body === 'string' ? init.body : undefined,
+      await bodyOf(init.body),
       headers,
     )
     try {
@@ -305,8 +335,12 @@ export async function startDemoServer(base = '') {
     for (const [key, value] of Object.entries(result.headers))
       if (key !== 'set-cookie')
         responseHeaders.set(key, Array.isArray(value) ? value.join(', ') : value)
+    // A product photo goes back as its bytes.
+    const binary = /^image\//.test(responseHeaders.get('content-type') ?? '')
     // Links the server writes (such as a guest's manage link) point back into this demo page.
-    const body = result.body.split(ORIGIN).join(`${location.origin}${appBase}`)
+    const body = binary
+      ? new Uint8Array(result.rawBody)
+      : result.body.split(ORIGIN).join(`${location.origin}${appBase}`)
     return new Response(result.statusCode === 204 ? null : body, {
       status: result.statusCode,
       headers: responseHeaders,

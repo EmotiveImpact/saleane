@@ -22,12 +22,15 @@ export type InjectOptions = {
   headers?: Record<string, string>
   payload?: unknown
   remoteAddress?: string
-  rawPayload?: string
+  /** A body sent as it is: text, or bytes such as a photo. */
+  rawPayload?: string | Uint8Array
 }
 export type InjectResponse = {
   statusCode: number
   headers: Record<string, string | string[]>
   body: string
+  /** The body's bytes, for a response that is not text (a product photo). */
+  rawBody: Buffer
   json: <T = Record<string, unknown>>() => T
 }
 type Handler = (request: IncomingMessage, response: ServerResponse) => Promise<void>
@@ -45,10 +48,24 @@ export function sessionToken(request: IncomingMessage): string | undefined {
 }
 /** Reads a bounded body as JSON, or as text when `raw` is set (provider receipts). */
 export async function readBody(request: IncomingMessage, raw = false): Promise<unknown> {
+  const text = (await readBytes(request, BODY_LIMIT)).toString('utf8')
+  if (raw) return text
+  try {
+    return JSON.parse(text)
+  } catch {
+    return fail(400, 'Use a valid JSON request.')
+  }
+}
+/** Reads a bounded body as bytes (Stage 2: a product photo), refusing anything over `limit`. */
+export async function readBytes(
+  request: IncomingMessage,
+  limit: number,
+  tooLarge = 'This request is too large.',
+): Promise<Buffer> {
   const length = Number(header(request, 'content-length'))
-  if (Number.isFinite(length) && length > BODY_LIMIT) {
+  if (Number.isFinite(length) && length > limit) {
     request.resume()
-    fail(413, 'This request is too large.')
+    fail(413, tooLarge)
   }
   if (header(request, 'content-encoding') && header(request, 'content-encoding') !== 'identity')
     fail(415, 'Encoded request bodies are not supported.')
@@ -56,7 +73,7 @@ export async function readBody(request: IncomingMessage, raw = false): Promise<u
     let size = 0
     const chunks: Buffer[] = []
     let done = false
-    const finish = (error?: Error, value?: unknown) => {
+    const finish = (error?: Error, value?: Buffer) => {
       if (done) return
       done = true
       clearTimeout(timer)
@@ -69,22 +86,15 @@ export async function readBody(request: IncomingMessage, raw = false): Promise<u
         request.once('error', () => {})
         request.resume()
         reject(error)
-      } else resolve(value)
+      } else resolve(value!)
     }
     const onData = (chunk: Buffer | string) => {
       const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
       size += data.length
-      if (size > BODY_LIMIT) finish(new HttpError(413, 'This request is too large.'))
+      if (size > limit) finish(new HttpError(413, tooLarge))
       else chunks.push(data)
     }
-    const onEnd = () => {
-      try {
-        const text = Buffer.concat(chunks).toString('utf8')
-        finish(undefined, raw ? text : JSON.parse(text))
-      } catch {
-        finish(new HttpError(400, 'Use a valid JSON request.'))
-      }
-    }
+    const onEnd = () => finish(undefined, Buffer.concat(chunks))
     const onError = () => finish(new HttpError(400, 'The request could not be read.'))
     const onAborted = () => finish(new HttpError(400, 'The request was interrupted.'))
     const timer = setTimeout(() => finish(new HttpError(408, 'The request took too long.')), 10000)
@@ -110,7 +120,9 @@ export async function inject(
   const method = input.method ?? 'GET'
   const payload =
     input.rawPayload ?? (input.payload === undefined ? '' : JSON.stringify(input.payload))
-  const request = Readable.from(payload ? [Buffer.from(payload)] : []) as unknown as IncomingMessage
+  const request = Readable.from(
+    payload.length ? [Buffer.from(payload)] : [],
+  ) as unknown as IncomingMessage
   Object.assign(request, {
     method,
     url: input.url,
@@ -139,6 +151,13 @@ export async function inject(
   const finished = new Promise<void>((resolve) => response.on('finish', resolve))
   await handler(request, response)
   await finished
-  const body = Buffer.concat(chunks).toString('utf8')
-  return { statusCode: response.statusCode, headers, body, json: <T>() => JSON.parse(body) as T }
+  const rawBody = Buffer.concat(chunks)
+  const body = rawBody.toString('utf8')
+  return {
+    statusCode: response.statusCode,
+    headers,
+    body,
+    rawBody,
+    json: <T>() => JSON.parse(body) as T,
+  }
 }

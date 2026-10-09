@@ -22,6 +22,7 @@ import { cancelOrder, placeOrder, receiveOrder, saveSupplier } from './purchasin
 import { prepareAccountingExport } from './accounts'
 import { RENT_LIMIT, RENT_PAYMENT_LIMIT } from './rentSchema'
 import { restockReturn } from './retail'
+import { checkBarcode, productWithBarcode } from './barcode'
 import { assertSchedulePreserved, scheduleChanges, scheduleSnapshot } from './schedule'
 import { isWaitlistOffer, staleOffer } from './waitlist'
 import { otherLedgerRefund, otherLedgerReference, referenceTaken } from './references'
@@ -622,7 +623,20 @@ export function runOperatingCommand(
       !(o.suppliers ?? []).some((x) => x.id === command.input.supplierId)
     )
       throw new Error('Choose a supplier from the list.')
-    const product = { ...command.input, id: command.id ?? makeId() }
+    // Stage 2: a barcode is checked, kept in its normal form and belongs to one product only.
+    const { barcode: typed, ...input } = command.input
+    let barcode: string | undefined
+    if (typed?.trim()) {
+      const checked = checkBarcode(typed)
+      if (!checked.ok) throw new Error(checked.error)
+      const holder = productWithBarcode(o.products, checked.code, command.id)
+      if (holder)
+        throw new Error(
+          `${holder.name}${holder.archived ? ' (no longer stocked)' : ''} already has barcode ${holder.barcode}. Each barcode belongs to one product.`,
+        )
+      barcode = checked.code
+    }
+    const product = { ...input, ...(barcode ? { barcode } : {}), id: command.id ?? makeId() }
     // Replaced whole, so a cleared optional field such as the cost price really clears.
     if (old) o.products[o.products.indexOf(old)] = product
     else o.products.push(product)

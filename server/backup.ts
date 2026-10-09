@@ -11,7 +11,7 @@ import {
 import { dirname, resolve } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { fileURLToPath } from 'node:url'
-import { SCHEMA_VERSION } from './database'
+import { migrations } from './database'
 import { UNCONFIRMED } from './messaging/meta'
 import { parseState } from '../src/domain/model'
 import type { BusinessState } from '../src/domain/model'
@@ -28,10 +28,11 @@ export function validateDatabase(path: string) {
     const versions = database
       .prepare('SELECT version FROM schema_migrations ORDER BY version')
       .all()
-    // Exactly the contiguous steps this build knows: older files open through the app first.
+    // Exactly the steps this build knows, in order: older files open through the app first.
+    const known = migrations.map((migration) => migration.version)
     if (
-      versions.length !== SCHEMA_VERSION ||
-      versions.some((row, index) => Number(row.version) !== index + 1)
+      versions.length !== known.length ||
+      versions.some((row, index) => Number(row.version) !== known[index])
     )
       throw new Error('This database migration version is not supported.')
     const tables = database

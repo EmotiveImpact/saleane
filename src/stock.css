@@ -301,3 +301,112 @@
 .stock-where select {
   min-width: min(14rem, 100%);
 }
+
+/* Stage 2: finding a product by barcode on the shelf. */
+.stock-scan {
+  max-width: 40rem;
+  margin: 0 0 18px;
+}
+/* The product a scan found: a soft tint all round, never a stripe. */
+.shelf-record.is-found {
+  border-radius: var(--radius-control);
+  background: var(--brand-soft);
+  box-shadow: 0 0 0 8px var(--brand-soft);
+}
+.shelf-record.is-found:focus {
+  outline: none;
+}
+.shelf-record.is-found + .shelf-record {
+  border-top-color: transparent;
+}
+/* The product form's less often changed fields, behind one quiet line that shows what they hold. */
+.stock-more {
+  border-top: 1px solid var(--line);
+}
+.stock-more > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target);
+  padding-top: var(--space-3);
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+  list-style: none;
+}
+.stock-more > summary::-webkit-details-marker {
+  display: none;
+}
+.stock-more > summary > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.stock-more > summary small {
+  color: var(--muted);
+  font-weight: var(--weight-body);
+  overflow-wrap: anywhere;
+}
+/* A small chevron that turns when the fold opens. */
+.stock-more > summary::after {
+  content: '';
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  margin: -3px 4px 0 auto;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+}
+.stock-more[open] > summary::after {
+  margin-top: 4px;
+  transform: rotate(-135deg);
+}
+.stock-more > .ops-fields {
+  padding-top: var(--space-4);
+}
+/* The barcode field in the product form, with the camera beside it on a phone or tablet. */
+.stock-barcode input {
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.stock-barcode > .button {
+  align-self: flex-start;
+}
+/* Stage 2: a product's photo in the product form. */
+.photo-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+}
+.photo-field-copy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--text-small);
+}
+.photo-field-copy strong {
+  font-weight: var(--weight-strong);
+}
+.photo-field-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.photo-field-status {
+  margin: 0;
+  color: var(--brand-ink);
+}
+.photo-field-copy .form-error {
+  margin: 0;
+}
+@media (max-width: 480px) {
+  .photo-field {
+    flex-direction: column;
+    gap: 14px;
+  }
+  .photo-field-actions .button {
+    flex: 1 1 auto;
+  }
+}

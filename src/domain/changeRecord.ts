@@ -258,6 +258,8 @@ const civilDate = /^\d{4}-\d{2}-\d{2}$/
 /** The value of a detail, if it may be kept; otherwise undefined. */
 function keepable(collection: string, field: string, value: unknown): Value | undefined {
   if (personal.has(collection)) return undefined
+  // A photo's id means nothing to the owner; the record says the photo changed.
+  if (field === 'imageId') return undefined
   if (value === null || value === undefined) return null
   if (typeof value === 'number' || typeof value === 'boolean') return value
   if (typeof value !== 'string') return undefined
@@ -452,6 +454,8 @@ const fieldWords: Record<string, string> = {
   refundMinor: 'refunded',
   method: 'paid by',
   access: 'access',
+  barcode: 'barcode',
+  imageId: 'photo',
   day1: 'Monday',
   day2: 'Tuesday',
   day3: 'Wednesday',

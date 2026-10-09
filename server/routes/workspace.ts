@@ -15,6 +15,7 @@ import { giftCardHoldProblem } from '../payments/service'
 import { workspaceView } from '../projections'
 import type { Reader } from '../projections'
 import { followGuestLinks, issueGuestLink, revokeGuestLinks } from './guest'
+import { imageBelongs } from './images'
 
 /** Signed-in workspace routes: records, commands, team, invitations and audit. Returns false when the request belongs to another module. */
 export async function workspaceRoutes(ctx: Context, route: Route): Promise<boolean> {
@@ -115,6 +116,16 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         }
         if (org.state.revision !== data.revision)
           fail(409, 'Someone else saved a change just now. Reload to see it, then try again.')
+        // Stage 2: a product takes on a new photo only when that photo is this studio's own.
+        for (const part of parts)
+          if (part.type === 'product' && part.input.imageId) {
+            const before = operations(org.state).products.find((p) => p.id === part.id)
+            if (
+              before?.imageId !== part.input.imageId &&
+              !imageBelongs(db, org.id, part.input.imageId)
+            )
+              fail(422, 'That photo could not be found. Add it again.')
+          }
         let command: Command = data.command
         // V5: a request goes to its region's manager only when the region has one, and never to
         // the person who raised it; the client's own list and claims are never trusted.

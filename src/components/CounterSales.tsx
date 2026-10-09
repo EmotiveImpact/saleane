@@ -227,7 +227,13 @@ function SellDialog({
       description="Products are priced with your current tax and must be in stock."
     >
       <form onSubmit={save} className="plan-form">
-        <CheckoutProducts items={items} retail={retail} disabled={pending} onChange={setItems} />
+        <CheckoutProducts
+          items={items}
+          retail={retail}
+          locationId={placeId}
+          disabled={pending}
+          onChange={setItems}
+        />
         <div className="ops-fields">
           <label className="ops-wide">
             Client (optional)
