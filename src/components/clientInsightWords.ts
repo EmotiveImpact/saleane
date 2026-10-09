@@ -220,7 +220,11 @@ export function stepWords(
     case 'membership-unpaid':
       return {
         title: `${step.name} needs this month’s payment`,
-        detail: `Unpaid since ${dayMonth(step.paidUntil, today, locale)}. Covered visits and the member discount wait until it is paid.`,
+        detail: `Unpaid since ${dayMonth(step.paidUntil, today, locale)}. ${
+          step.cardLast4
+            ? `It is taken from their card ending ${step.cardLast4}; Packages & memberships shows how the last try went. `
+            : ''
+        }Covered visits and the member discount wait until it is paid.`,
       }
     case 'invite-back': {
       const weeks = count(step.weeksSince, 'week')

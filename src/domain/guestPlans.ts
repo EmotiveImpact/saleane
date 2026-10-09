@@ -5,6 +5,7 @@ import {
   addMonths,
   clientHoldings,
   memberDiscountPercent,
+  openCardAgreement,
   planStanding,
   plansForVisit,
 } from './plans'
@@ -54,8 +55,14 @@ export const guestPlanSchema = z
     discountPercent: z.number().int().min(1).max(50).optional(),
     /** While a membership is active: the day its next month starts. */
     nextMonthOn: civilDate.optional(),
-    // How a membership is paid each month (for example "Paid by card each month") belongs here,
-    // beside nextMonthOn, once monthly card payments exist. Give it a field of its own.
+    /**
+     * A membership the studio takes from the guest's saved card each month: that card's brand and
+     * last four digits, which the visit page already shows the guest when the card is saved.
+     */
+    paidByCard: z
+      .object({ brand: z.string().min(1).max(40), last4: z.string().regex(/^\d{4}$/) })
+      .strict()
+      .optional(),
     /**
      * What the plan can mean for this visit, while the visit is still to be paid for. Absent when
      * there is nothing to say: another plan pays, or it does not cover this treatment.
@@ -143,6 +150,7 @@ export function guestPlans(s: BusinessState, appointmentId: string, now: number)
   return shown.map(({ holding, standing }) => {
     const thisVisit = outcomes.get(holding.id)
     const active = standing.state === 'active'
+    const card = openCardAgreement(holding)
     return guestPlanSchema.parse({
       kind: holding.kind,
       name: holding.name,
@@ -154,6 +162,9 @@ export function guestPlans(s: BusinessState, appointmentId: string, now: number)
         : {}),
       ...(holding.kind === 'membership' && active
         ? { nextMonthOn: nextMonthStart(holding, today) }
+        : {}),
+      ...(holding.kind === 'membership' && card
+        ? { paidByCard: { brand: card.brand, last4: card.last4 } }
         : {}),
       ...(thisVisit ? { thisVisit } : {}),
     })

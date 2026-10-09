@@ -105,6 +105,52 @@ describe('a guest’s packages and memberships on their visit page', () => {
     expect(section).not.toHaveTextContent(/visits left|next month/)
   })
 
+  it('says which saved card pays a membership each month, and that a month is due from it', () => {
+    const { unmount } = render(
+      <GuestPlans view={view([club({ paidByCard: { brand: 'Visa', last4: '4242' } })])} />,
+    )
+    expect(screen.getByRole('region', { name: 'Your membership Facial club' })).toHaveTextContent(
+      'Each month is paid from your Visa card ending 4242, with a reminder three days before.',
+    )
+    unmount()
+    render(
+      <GuestPlans
+        view={view([
+          {
+            kind: 'membership',
+            name: 'Facial club',
+            state: 'unpaid',
+            discountPercent: 10,
+            paidByCard: { brand: 'Visa', last4: '0002' },
+          },
+        ])}
+      />,
+    )
+    const section = screen.getByRole('region', { name: 'Your membership Facial club' })
+    expect(section).toHaveTextContent(
+      'This month is not paid yet. It is due from your Visa card ending 0002. To use another card or pay another way, please speak to the studio.',
+    )
+    expect(section).not.toHaveTextContent(/paid from your|When you are ready/)
+  })
+
+  it('calls it a test card in test mode, as the saved card above it does', () => {
+    const testing = {
+      ...view([club({ paidByCard: { brand: 'Visa', last4: '4242' } })]),
+      payment: {
+        testMode: true,
+        depositDueMinor: 0,
+        saveCardOffered: true,
+        savedCard: { brand: 'Visa', last4: '4242' },
+        policy: 'Your card is saved for visits at Reference Studio.',
+        pending: false,
+      },
+    }
+    render(<GuestPlans view={testing} />)
+    expect(screen.getByRole('region')).toHaveTextContent(
+      'Each month is paid from your Visa test card ending 4242, with a reminder three days before. While the studio is in test mode, no money moves.',
+    )
+  })
+
   it('explains a later unpaid month, a deposit and a package that ends first', () => {
     render(
       <GuestPlans

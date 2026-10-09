@@ -267,6 +267,30 @@ describe('At a glance', () => {
     expect(screen.getByRole('region', { name: 'Packages & memberships' })).toHaveFocus()
   })
 
+  it('says an unpaid membership is taken from a saved card, and where the last try is', () => {
+    const { s, client } = drifter()
+    const holding = addMembership(s, client.id, '2026-08-01', '2026-09-01')
+    holding.cardAgreements = [
+      {
+        id: 'agreement-1',
+        cardId: 'card-1',
+        brand: 'Visa',
+        last4: '0002',
+        wording: 'Fictional agreement words, as read to the client at the desk.',
+        agreedAt: '2026-08-01T10:00:00.000Z',
+        recordedBy: 'owner',
+        startsOn: '2026-09-01',
+      },
+    ]
+    show(s, client)
+    const step = stepNamed('Glow Membership needs this month’s payment')
+    expect(
+      within(step).getByText(
+        'Unpaid since 1 Sept. It is taken from their card ending 0002; Packages & memberships shows how the last try went. Covered visits and the member discount wait until it is paid.',
+      ),
+    ).toBeInTheDocument()
+  })
+
   it('suggests mentioning a membership to a monthly client who spends more than it costs', () => {
     const s = studio()
     const client = addClient(s, 'Amelia Carter')

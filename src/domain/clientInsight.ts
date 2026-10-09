@@ -5,7 +5,7 @@ import { driftDays } from './insights'
 import { dueBackOn } from './dueBack'
 import { retailRevenue } from './retail'
 import { recordDay } from './tillCount'
-import { clientHoldings, offers, planStanding } from './plans'
+import { clientHoldings, offers, openCardAgreement, planStanding } from './plans'
 import type { PatchTestState } from './patchTests'
 import { patchTestStanding, serviceNeedsPatchTest, visitPatchTest } from './patchTests'
 import { GUEST_CANCEL_CUTOFF_HOURS } from './guest'
@@ -68,7 +68,14 @@ export type BookingSuggestion = {
 }
 
 export type NextStep =
-  | { kind: 'membership-unpaid'; holdingId: string; name: string; paidUntil: string }
+  | {
+      kind: 'membership-unpaid'
+      holdingId: string
+      name: string
+      paidUntil: string
+      /** The saved card it is taken from each month, when the client agreed to that. */
+      cardLast4?: string
+    }
   | {
       kind: 'invite-back'
       weeksSince: number
@@ -416,14 +423,18 @@ export function clientInsight(
   )
   const unpaid = plans.find((p) => p.kind === 'membership' && p.state === 'unpaid')
   let next: NextStep | null = null
-  if (unpaid)
+  if (unpaid) {
+    const card = openCardAgreement(
+      clientHoldings(s, client.id).find((h) => h.id === unpaid.holdingId) ?? {},
+    )
     next = {
       kind: 'membership-unpaid',
       holdingId: unpaid.holdingId,
       name: unpaid.name,
       paidUntil: unpaid.paidUntil!,
+      ...(card ? { cardLast4: card.last4 } : {}),
     }
-  else if (drifting) {
+  } else if (drifting) {
     const invited = invitationSince(s, client.id, last!.date)
     next = {
       kind: 'invite-back',

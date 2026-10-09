@@ -6,8 +6,18 @@
 .plan-form .ops-actions {
   margin-top: 4px;
 }
+/* The client page's side column is narrow, so a plan reads top to bottom: its name and standing,
+   then its buttons on one line beneath, rather than squeezing the name beside them. */
 .client-plans .ops-record {
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+.client-plans .ops-record-copy {
+  flex: none;
+}
+.client-plans .plan-controls {
+  justify-content: flex-start;
 }
 .client-plans .ops-tag {
   margin-top: 8px;

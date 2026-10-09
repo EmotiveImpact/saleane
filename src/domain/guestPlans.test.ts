@@ -279,6 +279,45 @@ describe('the plans a guest sees on their visit page', () => {
     expect(JSON.stringify(view)).not.toContain('Six facials')
   })
 
+  it('says a membership is paid from the saved card each month, until card payments end', () => {
+    const { s, holding } = sell(local(), club)
+    const agreed = {
+      id: 'agreement-1',
+      cardId: 'card-1',
+      brand: 'Visa',
+      last4: '4242',
+      wording: 'Fictional agreement words, as read to the client at the desk.',
+      agreedAt: now,
+      recordedBy: 'owner',
+      startsOn: '2026-11-06',
+    }
+    const withCard = (ended?: string) => {
+      const next = structuredClone(s)
+      next.holdings!.find((h) => h.id === holding.id)!.cardAgreements = [
+        ended ? { ...agreed, endedAt: ended, endReason: 'turned_off' as const } : agreed,
+      ]
+      return next
+    }
+    const v = visit(withCard(), '2026-10-20')
+    const [plan] = plansFor(v.s, v.a.id)
+    expect(plan).toMatchObject({ state: 'active', paidByCard: { brand: 'Visa', last4: '4242' } })
+    // Only the brand and last four digits, never the card's or the agreement's record.
+    const text = JSON.stringify(plan)
+    for (const secret of ['card-1', 'agreement-1', 'Fictional agreement'])
+      expect(text).not.toContain(secret)
+    // A month the card has not paid yet still says which card it is due from.
+    const at = '2026-11-10T10:00:00.000Z'
+    const later = visit(withCard(), '2026-11-20', {}, at)
+    expect(plansFor(later.s, later.a.id, at)[0]).toMatchObject({
+      state: 'unpaid',
+      paidByCard: { last4: '4242' },
+    })
+    // Once card payments are turned off, nothing is said about a card.
+    const off = visit(withCard('2026-10-07T09:00:00.000Z'), '2026-10-20')
+    expect(plansFor(off.s, off.a.id)[0].paidByCard).toBeUndefined()
+    expect(guestViewSchema.safeParse(guestView(v.s, v.a.id, Date.parse(now))).success).toBe(true)
+  })
+
   it('carries nothing about money, payments or record IDs', () => {
     const { s, holding } = sell(local(), club)
     const v = visit(s, '2026-10-20')
