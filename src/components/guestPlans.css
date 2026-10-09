@@ -1,0 +1,50 @@
+/* Stage 1: a package or membership the guest holds, on their visit page. */
+.guest-plan {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 0 22px;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--paper);
+}
+.guest-plan h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 2px;
+  font-family: var(--font-editorial);
+  font-weight: var(--weight-editorial);
+  font-size: var(--text-title-s);
+}
+.guest-plan h2 svg {
+  flex: none;
+  color: var(--brand-ink);
+}
+.guest-plan p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.guest-plan-name {
+  font-weight: var(--weight-strong);
+}
+/* What the plan can mean for this visit, on a soft ground of its own. */
+.guest-plan-visit {
+  display: grid;
+  grid-template-columns: 17px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  margin-top: var(--space-1);
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--sage-soft);
+}
+.guest-plan-visit svg {
+  margin-top: 3px;
+  color: var(--brand-ink);
+}
+@media (max-width: 480px) {
+  .guest-plan {
+    padding: 16px;
+  }
+}

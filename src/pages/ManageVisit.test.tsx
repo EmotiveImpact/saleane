@@ -557,3 +557,34 @@ test('reads dates with the weekday and times on a 12-hour clock for a studio in 
     screen.getByRole('group', { name: 'Free times on Thursday, October 8' }),
   ).toBeInTheDocument()
 })
+
+test('shows the guest’s package, and stops offering it for a visit they cancel', async () => {
+  const user = userEvent.setup()
+  const plan = {
+    kind: 'package' as const,
+    name: 'Six facials',
+    state: 'active' as const,
+    visits: 6,
+    visitsLeft: 3,
+    endsOn: '2027-03-14',
+  }
+  vi.mocked(api).mockImplementation(
+    async (path) =>
+      (path === '/api/guest/visit'
+        ? { ...view('none'), plans: [{ ...plan, thisVisit: { outcome: 'covers' } }] }
+        : { ...view('none', 'cancelled'), plans: [plan] }) as never,
+  )
+  render(<ManageVisit />)
+  const section = await screen.findByRole('region', { name: 'Your package Six facials' })
+  expect(section).toHaveTextContent('3 of 6 visits left, until 14 March 2027.')
+  expect(section).toHaveTextContent('This visit can come off your package.')
+  // It sits with the visit, before how to reach the studio.
+  const contact = screen.getByRole('region', { name: 'Your studio' })
+  expect(section.compareDocumentPosition(contact) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  await user.click(screen.getByRole('button', { name: 'Cancel this visit' }))
+  await user.click(screen.getByRole('button', { name: 'Yes, cancel my visit' }))
+  await screen.findByRole('heading', { name: 'Your visit is cancelled.' })
+  const after = screen.getByRole('region', { name: 'Your package Six facials' })
+  expect(after).toHaveTextContent('3 of 6 visits left')
+  expect(after).not.toHaveTextContent('This visit')
+})

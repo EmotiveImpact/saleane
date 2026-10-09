@@ -15,6 +15,7 @@ import { GuestReview } from '../components/GuestReview'
 import { GuestForms } from '../components/GuestFormFill'
 import { GuestEmailNews } from '../components/GuestEmailNews'
 import { GuestMove } from '../components/GuestMove'
+import { GuestPlans } from '../components/GuestPlans'
 import { StudioContact } from '../components/StudioContact'
 import { returnNote, returnedToken } from '../state/guestReturn'
 import { readPendingMove } from '../state/guestMove'
@@ -309,6 +310,7 @@ export function ManageVisit() {
         {view.payment && !done && (
           <GuestPayment token={token} payment={view.payment} organisation={org} />
         )}
+        <GuestPlans view={view} />
         <StudioContact studio={org} />
         <GuestForms token={token} view={view} onChange={setView} />
         <GuestFeedback token={token} view={view} onChange={setView} />
