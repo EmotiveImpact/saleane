@@ -21,6 +21,15 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Texts name the location, imported visits go to the location where the professional works that day, and the calendar showing every location spans all their opening hours.
 - A studio with one location works exactly as before.
 
+## 2026-10-09 · V5 · The client map
+
+**Status: built locally on 9 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-MAP.md).
+
+- Client areas now has a map above the list. Each named area is a circle sized by clients or by treatment sales, with every location pinned and rings at one and three miles.
+- Choosing a circle or an area in the list shows its clients, visits, sales and the change on the period before. With nothing chosen, a short summary says where most clients come from, which area is growing fastest and how many come from within a mile.
+- The page can count the past year or the past 90 days.
+- Only areas with three or more clients appear, and no one is ever placed on the map. A real studio's map appears once a map service is connected; until then the list shows every area, and sample studios show a sample map without streets.
+
 ## 2026-10-09 · V5 · Shared brand rules
 
 **Status: built locally on 9 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-BRAND.md).

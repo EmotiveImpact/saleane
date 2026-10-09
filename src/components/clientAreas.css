@@ -71,3 +71,274 @@
     grid-row: 2;
   }
 }
+/* V5: the client map. Soft circles on a calm ground; pins in the second colour. */
+.areas-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.areas-controls .areas-where {
+  margin: 0;
+}
+.areas-map-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 16rem;
+  gap: var(--space-4);
+  align-items: start;
+}
+.area-map {
+  margin: 0;
+}
+.area-map > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+}
+.area-map-ground {
+  fill: color-mix(in srgb, var(--stone) 70%, var(--panel));
+}
+.area-map-gridline {
+  fill: none;
+  stroke: color-mix(in srgb, var(--line) 75%, transparent);
+  stroke-width: 1;
+}
+.area-map-park path {
+  fill: color-mix(in srgb, var(--brand) 12%, var(--panel));
+  stroke: color-mix(in srgb, var(--brand) 22%, transparent);
+  stroke-width: 1;
+}
+.area-map-water path {
+  fill: none;
+  stroke: color-mix(in srgb, #6f9cbc 30%, var(--panel));
+  stroke-width: 14;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.area-map-park text,
+.area-map-water text {
+  font-size: 10px;
+  font-style: italic;
+  text-anchor: middle;
+  fill: color-mix(in srgb, var(--muted) 80%, transparent);
+}
+.area-map-rings circle {
+  fill: none;
+  stroke: color-mix(in srgb, var(--ink) 22%, transparent);
+  stroke-dasharray: 3 5;
+}
+.area-map-rings text,
+.area-map-scale text,
+.area-map-north text {
+  font-size: 11px;
+  fill: var(--muted);
+  text-anchor: middle;
+}
+.area-map-scale path {
+  stroke: var(--muted);
+  stroke-width: 1.5;
+}
+.area-map-north path {
+  fill: var(--muted);
+}
+.area-map-glow-in {
+  stop-color: var(--brand);
+  stop-opacity: 0.16;
+}
+.area-map-glow-out {
+  stop-color: var(--brand);
+  stop-opacity: 0;
+}
+.area-map-area {
+  cursor: pointer;
+}
+.area-map-area:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+  border-radius: 50%;
+}
+.area-map-circle {
+  fill: var(--brand);
+  fill-opacity: 0.22;
+  stroke: var(--brand);
+  stroke-opacity: 0.45;
+  stroke-width: 1.5;
+  transition:
+    fill-opacity 160ms ease,
+    stroke-width 160ms ease;
+}
+.area-map-area.growing .area-map-circle {
+  fill-opacity: 0.4;
+}
+.area-map-area:hover .area-map-circle,
+.area-map-area:focus-visible .area-map-circle {
+  fill-opacity: 0.5;
+  stroke-width: 2.5;
+}
+.area-map-area.active .area-map-circle {
+  fill-opacity: 0.55;
+  stroke: var(--ink);
+  stroke-opacity: 1;
+  stroke-width: 2.5;
+}
+.area-map-name {
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--ink);
+  text-anchor: middle;
+}
+.area-map-value {
+  font-size: 11px;
+  fill: var(--ink);
+  text-anchor: middle;
+}
+.area-map-pin {
+  pointer-events: none;
+}
+.area-map-pin circle {
+  fill: var(--rose);
+  stroke: var(--panel);
+  stroke-width: 2;
+}
+.area-map-pin .area-map-pin-dot {
+  fill: var(--panel);
+  stroke: none;
+}
+.area-map-pin text {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--ink);
+  paint-order: stroke;
+  stroke: var(--panel);
+  stroke-width: 3px;
+}
+.area-map figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-top: var(--space-2, 8px);
+  font-size: var(--text-meta);
+  color: var(--muted);
+}
+.area-map figcaption > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.area-map-key {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--brand) 30%, transparent);
+  border: 1px solid var(--brand);
+}
+.areas-detail {
+  display: grid;
+  gap: var(--space-2, 8px);
+  padding: var(--space-4);
+  border-radius: 16px;
+  background: var(--sage-soft);
+  border: 1px solid var(--line);
+  font-size: var(--text-small);
+}
+.areas-detail h3 {
+  margin: 0;
+  font-family: var(--font-editorial);
+  font-weight: var(--weight-editorial);
+  font-size: 28px;
+}
+.areas-detail-eyebrow {
+  font-size: var(--text-eyebrow);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.areas-detail dl {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+.areas-detail dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.areas-detail dt {
+  color: var(--muted);
+}
+.areas-detail dd {
+  margin: 0;
+  text-align: right;
+}
+.areas-detail ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 6px;
+}
+.areas-map-off {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-4);
+  border-radius: 16px;
+  background: var(--sage-soft);
+  border: 1px solid var(--line);
+}
+.areas-map-off p {
+  margin: 4px 0 0;
+  font-size: var(--text-small);
+  color: var(--muted);
+}
+.areas-list button.areas-name {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 6px 0;
+  min-height: 32px;
+  text-align: left;
+  font: inherit;
+  font-weight: var(--weight-strong);
+  color: var(--ink);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 3px;
+}
+.areas-list > li.areas-chosen {
+  background: var(--sage-soft);
+}
+.area-map-empty {
+  margin: 0;
+}
+@media (max-width: 820px) {
+  .areas-map-layout {
+    grid-template-columns: 1fr;
+  }
+}
+/* On a phone the map is drawn smaller, so its words are set larger to stay readable. */
+@media (max-width: 560px) {
+  .area-map-name {
+    font-size: 24px;
+  }
+  .area-map-value {
+    font-size: 20px;
+  }
+  .area-map-pin text {
+    font-size: 20px;
+  }
+  .area-map-park text,
+  .area-map-water text,
+  .area-map-rings text,
+  .area-map-scale text,
+  .area-map-north text {
+    font-size: 17px;
+  }
+}
