@@ -158,6 +158,10 @@ describe('consistent local backups and fresh-path recovery', () => {
        VALUES('outbox-waiting',?,'waiting','','client-x','missed_call','sms','call:1','+447700900456','','Sorry we missed you','pending',0,0,0)`,
       orgId,
     )
+    // NEXT-04: an unused recovery code, which may be used after the backup is taken.
+    api.database.run(
+      "INSERT INTO recovery_codes(account_id,code_hash,created_at) SELECT id,'code-hash',0 FROM accounts",
+    )
     const backup = join(directory, 'before.sqlite'),
       restored = join(directory, 'after.sqlite')
     backupDatabase(api.database.path, backup)
@@ -165,6 +169,7 @@ describe('consistent local backups and fresh-path recovery', () => {
       sessionsRevoked: true,
       // The confirmation link sent when the account was made.
       accountLinksRetired: 1,
+      recoveryCodesRetired: 1,
       accessKeysRevoked: 1,
       connectionsTurnedOff: 1,
       socialAccountsToConfirm: 1,
@@ -186,6 +191,9 @@ describe('consistent local backups and fresh-path recovery', () => {
       expect((await reads(recovered)).statusCode).toBe(401)
       expect(recovered.database.all('SELECT * FROM api_keys WHERE revoked_at IS NULL')).toEqual([])
       expect(recovered.database.all('SELECT * FROM account_links WHERE used_at IS NULL')).toEqual(
+        [],
+      )
+      expect(recovered.database.all('SELECT * FROM recovery_codes WHERE used_at IS NULL')).toEqual(
         [],
       )
       // The connection is off until the owner turns it on, and what waited for it is not sent.

@@ -16,6 +16,18 @@ The owner said yes to the five moving-in answers. Stage 1 brings the client list
 - Long lists are saved in parts the server accepts; a dropped connection keeps the files and says how many came across.
 - Visit, gift card, package and payment files are recognised and named, not saved; the screen says a later step brings them across. The older one-file client import is replaced by this screen.
 
+## 2026-10-09 · Two-step sign-in (NEXT-04)
+
+**Status: built locally on 9 October 2026; nothing deployed and no email sent.** [Evidence](docs/evidence/NEXT-04-TWO-STEP.md).
+
+- Settings, Team, Who can sign in has "Two-step sign-in". Scan the QR code with any authenticator app (or type the key), enter the code it shows, and save ten recovery codes, which are shown once. Turning it on signs out everywhere else.
+- Signing in then asks for the six-digit code after the password, or a recovery code for a lost phone. Nobody is signed in until the code is right; five wrong codes or five minutes means starting again, and a code never works twice.
+- A password reset from the email still asks for the code before signing in, so an inbox alone is not enough.
+- Turning it off or making new recovery codes needs the password. A password reset or change ends any sign-in still waiting for its code, and restoring a backup retires its recovery codes, since one may have been used since. Each change, and each recovery code used, is emailed to the account (recorded as not sent while email is in test mode).
+- The owner sees who has it on beside each person in Who can sign in, and nothing about their keys or codes.
+- Practitioners and regional managers have no Settings page, so they cannot turn it on yet, and a studio cannot yet require it.
+- Migration 24 adds the key, the recovery codes, the sign-in step and the set-up in progress, and lets account emails carry sign-in notices. QR codes are drawn in the browser with `qrcode-generator`.
+
 ## 2026-10-09 · Forgotten password and email confirmation (NEXT-03)
 
 **Status: built locally on 9 October 2026; nothing deployed and no email sent.** [Evidence](docs/evidence/NEXT-03-ACCOUNT-LINKS.md).

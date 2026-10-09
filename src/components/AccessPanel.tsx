@@ -6,6 +6,7 @@ import { Button, ErrorMessage } from '../design'
 import { regions } from '../domain/group'
 import { areaPlaces } from '../domain/area'
 import { hasLocations, places } from '../domain/locations'
+import { TwoStepSettings } from './TwoStepSettings'
 import './accessPanel.css'
 
 type Team = {
@@ -17,6 +18,8 @@ type Team = {
     staffId: string | null
     areaId: string | null
     locationId?: string | null
+    /** NEXT-04: whether this person has two-step sign-in on. */
+    twoStep?: boolean
   }[]
   invitations: {
     email: string
@@ -130,7 +133,10 @@ export function AccessPanel() {
               <div className="access-row" key={m.id}>
                 <span>
                   <strong>{m.name}</strong>
-                  <small>{m.email}</small>
+                  <small>
+                    {m.email}
+                    {m.twoStep ? ' · Two-step sign-in on' : ''}
+                  </small>
                 </span>
                 {m.role === 'owner' ? (
                   <span>Owner</span>
@@ -419,6 +425,15 @@ export function AccessPanel() {
           </div>
         </form>
       </details>
+      <TwoStepSettings
+        onChange={() => {
+          // The owner's own row says whether two-step sign-in is on.
+          if (role === 'owner')
+            api<Team>(`${base}/team`)
+              .then(setTeam)
+              .catch(() => {})
+        }}
+      />
       <ErrorMessage error={error} />
     </section>
   )

@@ -479,6 +479,41 @@ export const migrations: Migration[] = [
         CREATE INDEX account_mail_recent ON account_mail(account_id,created_at);
       `),
   },
+  {
+    version: 24,
+    // NEXT-04, two-step sign-in: the authenticator key once it is confirmed (and the last code
+    // step used, so a code never works twice), a key being set up, recovery codes stored as
+    // hashes, the short step between password and code, and sign-in notices by email.
+    up: (connection) =>
+      connection.exec(`
+        ALTER TABLE accounts ADD COLUMN totp_secret TEXT;
+        ALTER TABLE accounts ADD COLUMN totp_enabled_at INTEGER;
+        ALTER TABLE accounts ADD COLUMN totp_last_step INTEGER;
+        CREATE TABLE totp_setup (
+          account_id TEXT PRIMARY KEY REFERENCES accounts(id), secret TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        ) STRICT;
+        CREATE TABLE recovery_codes (
+          account_id TEXT NOT NULL REFERENCES accounts(id), code_hash TEXT NOT NULL,
+          created_at INTEGER NOT NULL, used_at INTEGER, PRIMARY KEY(account_id,code_hash)
+        ) STRICT;
+        CREATE TABLE login_challenges (
+          token_hash TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id),
+          created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL,
+          attempts INTEGER NOT NULL DEFAULT 0, used_at INTEGER
+        ) STRICT;
+        CREATE TABLE account_mail_next (
+          id TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id),
+          kind TEXT NOT NULL CHECK(kind IN ('reset','confirm','security')), recipient TEXT NOT NULL,
+          subject TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('test','accepted','failed','unknown')),
+          provider TEXT, provider_ref TEXT, detail TEXT, created_at INTEGER NOT NULL
+        ) STRICT;
+        INSERT INTO account_mail_next SELECT id,account_id,kind,recipient,subject,status,provider,provider_ref,detail,created_at FROM account_mail;
+        DROP TABLE account_mail;
+        ALTER TABLE account_mail_next RENAME TO account_mail;
+        CREATE INDEX account_mail_recent ON account_mail(account_id,created_at);
+      `),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the
