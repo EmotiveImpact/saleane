@@ -106,11 +106,11 @@ export function SavedReplies() {
           </label>
           <ErrorMessage error={error} />
           <div className="ops-actions">
-            <Button type="submit" disabled={pending}>
-              {pending ? 'Saving…' : 'Save'}
-            </Button>
             <Button variant="quiet" disabled={pending} onClick={() => setEditing(null)}>
               Cancel
+            </Button>
+            <Button type="submit" disabled={pending}>
+              {pending ? 'Saving…' : 'Save'}
             </Button>
           </div>
         </form>

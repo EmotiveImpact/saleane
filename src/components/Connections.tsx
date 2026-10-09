@@ -329,11 +329,11 @@ export function Connections() {
             them.
           </label>
           <div className="ops-actions">
-            <Button type="submit" disabled={pending || events.length === 0}>
-              {pending ? 'Connecting…' : 'Connect'}
-            </Button>
             <Button variant="quiet" disabled={pending} onClick={() => setAdding(false)}>
               Cancel
+            </Button>
+            <Button type="submit" disabled={pending || events.length === 0}>
+              {pending ? 'Connecting…' : 'Connect'}
             </Button>
           </div>
         </form>

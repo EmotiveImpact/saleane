@@ -868,12 +868,30 @@
   }
 }
 
-/* Settings: one page for personal preferences, the studio and this workspace. */
+/* Settings: one page for personal preferences, the studio and this workspace. Its header is
+   the slimmest of the family, so the sections start sooner. */
 .settings-page .ops-layout {
   grid-template-columns: minmax(0, 1fr);
 }
-.settings-page .ops-aside {
-  display: none;
+.settings-page > .page-heading-compact {
+  margin-bottom: var(--space-5);
+}
+.settings-page > .page-heading-compact h1 {
+  font-size: clamp(30px, 2.6vw, 36px);
+}
+/* Every form here ends with its one save button on the right, across the whole form. */
+.settings-page form .ops-actions {
+  justify-content: flex-end;
+  justify-self: stretch;
+  align-self: stretch;
+}
+/* A treatment's house photograph beside it, as on the Business overview. */
+.ops-record-photo {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-inner);
+  background: var(--stone) center / cover no-repeat;
 }
 .settings-panel .colour-choice + .colour-choice {
   margin-top: 18px;
@@ -924,6 +942,15 @@
 @media (max-width: 650px) {
   .settings-panel > header > svg {
     display: none;
+  }
+  /* A treatment's photograph keeps its words beside it; the price and Edit go beneath. */
+  .ops-record-photo {
+    width: 48px;
+    height: 48px;
+    align-self: flex-start;
+  }
+  .ops-record:has(> .ops-record-photo) > .ops-record-copy {
+    flex-basis: calc(100% - 60px);
   }
   .settings-booking-link {
     flex-wrap: wrap;

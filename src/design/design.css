@@ -403,6 +403,42 @@
   font-weight: var(--weight-strong);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 6%, transparent);
 }
+/* Grouped vertical tabs: short lists under quiet headings, kept in view while the panel
+   scrolls. A list taller than the window scrolls on its own. */
+.tabs-vertical .tabs-groups {
+  position: sticky;
+  top: 96px;
+  display: grid;
+  gap: var(--space-4);
+  max-height: calc(100vh - 112px);
+  /* Room for the focus ring inside the scrolling list. */
+  margin: -4px;
+  padding: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.tabs-grouped.tabs-vertical .tabs-list {
+  position: static;
+  gap: 1px;
+}
+.tabs-grouped.tabs-vertical .tabs-trigger {
+  min-height: 34px;
+  padding-block: 6px;
+}
+.tabs-group-label {
+  margin: 0 0 2px;
+  padding: 0 var(--space-4);
+  color: var(--muted);
+  font-size: var(--text-eyebrow);
+  font-weight: var(--weight-strong);
+  line-height: 1.4;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.tabs-picker {
+  display: none;
+}
 @media (max-width: 900px) {
   .tabs-vertical {
     grid-template-columns: minmax(0, 1fr);
@@ -416,5 +452,17 @@
   }
   .tabs-vertical .tabs-trigger {
     white-space: nowrap;
+  }
+  /* Narrow screens choose a section from one select, in the same groups. */
+  .tabs-vertical.has-picker .tabs-groups,
+  .tabs-vertical.has-picker > .tabs-list {
+    display: none;
+  }
+  .tabs-picker {
+    display: grid;
+    gap: 6px;
+    max-width: 460px;
+    font-size: var(--text-small);
+    font-weight: var(--weight-strong);
   }
 }

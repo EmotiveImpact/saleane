@@ -84,12 +84,12 @@ export function ReceptionistSettings() {
         <ErrorMessage error={error} />
         {allowed && (
           <div className="ops-actions">
-            <Button type="submit" variant="secondary" disabled={pending}>
-              {pending ? 'Saving…' : 'Save receptionist settings'}
-            </Button>
             <span role="status" className="ops-help">
               {saved ? 'Saved.' : ''}
             </span>
+            <Button type="submit" disabled={pending}>
+              {pending ? 'Saving…' : 'Save receptionist settings'}
+            </Button>
           </div>
         )}
       </form>

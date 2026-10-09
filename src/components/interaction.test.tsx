@@ -301,7 +301,7 @@ describe('local operating surfaces', () => {
   it('edits catalogue pricing without rewriting booked promises and preserves a conflicting closure draft', async () => {
     const user = userEvent.setup()
     show('/settings')
-    await user.click(await screen.findByRole('tab', { name: 'Services' }))
+    await user.click(await screen.findByRole('tab', { name: 'Treatments' }))
     await user.click(screen.getByRole('button', { name: 'Edit Skin Renewal Facial' }))
     await user.clear(screen.getByLabelText('Price (GBP)'))
     await user.type(screen.getByLabelText('Price (GBP)'), '120')
@@ -690,6 +690,50 @@ describe('gift cards', () => {
       screen.getByText(/Sell the first one with Sell a gift card, above\./),
     ).toBeInTheDocument()
     expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+  })
+})
+
+describe('the Settings page', () => {
+  it('groups the sections under five headings, with treatments by that name', async () => {
+    show('/settings')
+    const sections = await screen.findByRole('group', { name: 'Settings sections' })
+    const lists = within(sections).getAllByRole('tablist')
+    expect(lists.map((list) => list.getAttribute('aria-label'))).toEqual([
+      'Studio',
+      'Team',
+      'Treatments and money',
+      'Guests and messages',
+      'Your account and data',
+    ])
+    expect(
+      within(lists[2])
+        .getAllByRole('tab')
+        .map((tab) => tab.textContent),
+    ).toEqual(['Treatments', 'Packages & memberships', 'Payments'])
+    expect(screen.queryByRole('tab', { name: 'Services' })).not.toBeInTheDocument()
+    // Studio details opens first; a narrow screen picks the same sections from one select.
+    expect(screen.getByRole('tab', { name: 'Studio details' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    const picker = screen.getByRole('combobox', { name: 'Section' })
+    expect(picker).toHaveValue('business')
+    expect(within(picker).getByRole('group', { name: 'Guests and messages' })).toBeInTheDocument()
+  })
+
+  it('keeps the old section addresses and shows a photograph beside each treatment', async () => {
+    const user = userEvent.setup()
+    show('/settings?section=service')
+    expect(await screen.findByRole('heading', { name: 'Treatments' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Treatments' })).toHaveAttribute('aria-selected', 'true')
+    const rows = document.querySelectorAll('.ops-record')
+    expect(rows.length).toBeGreaterThan(0)
+    for (const row of rows) expect(row.querySelector('.ops-record-photo')).not.toBeNull()
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Section' }), 'receptionist')
+    expect(screen.getByRole('heading', { name: 'AI receptionist' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save receptionist settings' })).toHaveClass(
+      'button-primary',
+    )
   })
 })
 

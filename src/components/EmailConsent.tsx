@@ -69,9 +69,11 @@ export function EmailNewsWording() {
         <ErrorMessage error={error} />
         {saved && <p role="status">{saved}</p>}
         {allowed && (
-          <Button type="submit" disabled={pending || text.trim() === current.text}>
-            {pending ? 'Saving…' : `Save as version ${current.version + 1}`}
-          </Button>
+          <div className="ops-actions">
+            <Button type="submit" disabled={pending || text.trim() === current.text}>
+              {pending ? 'Saving…' : `Save as version ${current.version + 1}`}
+            </Button>
+          </div>
         )}
       </form>
       {earlier.length > 0 && (
