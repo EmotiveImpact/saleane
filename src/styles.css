@@ -2223,7 +2223,7 @@ fieldset {
   text-align: center;
   padding: 50px 25px;
 }
-.empty h3 {
+.empty :is(h2, h3) {
   font-family: var(--font-display);
   font-size: 18px;
   margin-bottom: 10px;

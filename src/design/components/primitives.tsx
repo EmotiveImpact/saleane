@@ -94,15 +94,19 @@ export function Empty({
   title,
   children,
   photo = false,
+  level = 3,
 }: {
   title: string
   children?: ReactNode
   /** A quiet photograph above the words, for a page with nothing to show yet. */
   photo?: boolean
+  /** 2 when the empty state sits straight under the page title, so no heading level is skipped. */
+  level?: 2 | 3
 }) {
+  const Heading = level === 2 ? 'h2' : 'h3'
   return (
     <div className={`empty ${photo ? 'empty-photo' : ''}`}>
-      <h3>{title}</h3>
+      <Heading>{title}</Heading>
       <p>{children}</p>
     </div>
   )

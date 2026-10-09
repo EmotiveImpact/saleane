@@ -432,7 +432,7 @@ export function Requests() {
       )}
       {all.length === 0 ? (
         <section className="surface" aria-label="No requests yet">
-          <Empty title="No requests yet">
+          <Empty title="No requests yet" level={2}>
             When a manager needs to spend money or change something at a location, such as a new
             basin or closing early on a Friday, they ask here.{' '}
             {regional
