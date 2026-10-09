@@ -400,12 +400,15 @@ function BookingFlow({
       return real
     }
   })()
+  // The chosen time, unless it is already known not to be free.
+  const shownStart =
+    step === 2 && !loadingTimes && start !== null && !times.includes(start) ? null : start
   const terms =
-    start === null
+    shownStart === null
       ? null
       : cancellationTerms({
           date,
-          startMinutes: start,
+          startMinutes: shownStart,
           timeZone: org.timeZone,
           locale: org.locale,
           depositMinor,
@@ -468,9 +471,9 @@ function BookingFlow({
           label: 'When',
           value: dateLabel(date, org.locale),
           detail:
-            start === null
+            shownStart === null
               ? 'Choose a time'
-              : `${timeLabel(start, org.locale)} to ${timeLabel(start + service.durationMinutes, org.locale)}`,
+              : `${timeLabel(shownStart, org.locale)} to ${timeLabel(shownStart + service.durationMinutes, org.locale)}`,
         },
         {
           label: 'Price',
@@ -483,7 +486,9 @@ function BookingFlow({
               value: money(depositMinor, org),
               detail: sample
                 ? 'Simulated in this sample studio. Nothing is charged.'
-                : 'Paid by card once you confirm. It comes off your bill.',
+                : confirmed
+                  ? 'Not paid yet. It comes off your bill on the day.'
+                  : 'Paid by card once you confirm. It comes off your bill.',
             }
           : { label: 'Deposit', value: 'None', detail: 'You pay at the studio.' },
         {
@@ -508,7 +513,7 @@ function BookingFlow({
         duration={`${service.durationMinutes} minutes`}
         photo={treatmentPhoto(service.category)}
         rows={summaryRows}
-        glance={`${dateLabel(date, org.locale, true)}${start === null ? '' : `, ${timeLabel(start, org.locale)}`} · ${money(priceMinor, org)}`}
+        glance={`${dateLabel(date, org.locale, true)}${shownStart === null ? '' : ` at ${timeLabel(shownStart, org.locale)}`} · ${money(priceMinor, org)}`}
       />
     ) : null
   async function payDeposit() {

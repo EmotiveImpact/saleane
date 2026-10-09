@@ -552,7 +552,7 @@ test('one summary of the visit follows the guest through every step and onto the
   await user.click(await screen.findByRole('button', { name: 'Choose a time' }))
   const summary = screen.getByRole('region', { name: 'Your visit' })
   const row = (label: string) => within(summary).getByText(label).closest('div')!
-  expect(summary.querySelector('.booking-summary-treatment')).toHaveTextContent(
+  expect(summary.querySelector('.your-visit-treatment')).toHaveTextContent(
     'SkinSkin Renewal Facial60 minutes',
   )
   expect(row('With')).toHaveTextContent('Any available professional')
@@ -572,7 +572,7 @@ test('one summary of the visit follows the guest through every step and onto the
   // Choosing a time fills it in, with the cutoff on the studio's clock.
   await user.click(await screen.findByRole('radio', { name: '10:00' }))
   expect(row('When')).toHaveTextContent('Wednesday 7 October10:00 to 11:00')
-  expect(bar).toHaveTextContent('Wed 7 Oct, 10:00 · £95')
+  expect(bar).toHaveTextContent('Wed 7 Oct at 10:00 · £95')
   expect(row('Cancelling')).toHaveTextContent(
     'Free to cancel until Tuesday 6 October at 10:00, and the studio refunds your deposit.',
   )

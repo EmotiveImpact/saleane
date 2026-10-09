@@ -47,40 +47,40 @@ export function BookingSummary({
   const Heading = headingLevel === 3 ? 'h3' : 'h2'
   const thumb = photo ? (
     <span
-      className="booking-summary-photo"
+      className="your-visit-photo"
       aria-hidden="true"
       style={{ backgroundImage: `url(${photo.src})`, backgroundPosition: photo.position }}
     />
   ) : null
   return (
     <section
-      className={`booking-summary booking-summary-${variant}${open ? ' is-open' : ''}`}
+      className={`your-visit your-visit-${variant}${open ? ' is-open' : ''}`}
       aria-labelledby={titleId}
     >
       {variant === 'panel' && (
         <button
           type="button"
-          className="booking-summary-toggle"
+          className="your-visit-toggle"
           aria-expanded={open}
           aria-controls={bodyId}
           onClick={() => setOpen(!open)}
         >
           {thumb}
-          <span className="booking-summary-glance">
+          <span className="your-visit-glance">
             <strong>{treatment}</strong>
             {glance && <small>{glance}</small>}
           </span>
-          <span className="booking-summary-more">
+          <span className="your-visit-more">
             {open ? 'Hide' : 'Details'}
             <ChevronDown size={16} aria-hidden="true" />
           </span>
         </button>
       )}
-      <div className="booking-summary-body" id={bodyId}>
-        <Heading className="booking-summary-title" id={titleId}>
+      <div className="your-visit-body" id={bodyId}>
+        <Heading className="your-visit-title" id={titleId}>
           {title}
         </Heading>
-        <div className="booking-summary-treatment">
+        <div className="your-visit-treatment">
           {thumb}
           <span>
             {category && <small>{category}</small>}
@@ -88,7 +88,7 @@ export function BookingSummary({
             {duration && <span>{duration}</span>}
           </span>
         </div>
-        <dl className="booking-summary-rows">
+        <dl className="your-visit-rows">
           {rows.map((row) => (
             <div key={row.label}>
               <dt>{row.label}</dt>

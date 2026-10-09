@@ -573,7 +573,7 @@
   grid-column: 2;
   grid-row: 1;
 }
-.booking-summary-slot {
+.booking-visit-slot {
   grid-column: 1;
   grid-row: 1;
   position: sticky;
@@ -589,7 +589,7 @@
   padding: 96px clamp(20px, 2.4vw, 36px) clamp(20px, 2.4vw, 36px);
   pointer-events: none;
 }
-.booking-summary-slot > * {
+.booking-visit-slot > * {
   pointer-events: auto;
 }
 .has-summary .booking-story-card {
@@ -600,7 +600,7 @@
     grid-column: 1;
     grid-row: 3;
   }
-  .booking-summary-slot {
+  .booking-visit-slot {
     grid-column: 1;
     grid-row: 2;
     top: 0;
@@ -640,7 +640,7 @@
 .booking-confirmation .manage-link {
   margin-bottom: var(--space-6);
 }
-.booking-confirmation .booking-summary-receipt {
+.booking-confirmation .your-visit-receipt {
   margin: 0 0 var(--space-5);
 }
 
@@ -653,7 +653,7 @@
   min-height: 100vh;
   min-height: 100dvh;
   padding: var(--space-10) var(--space-4);
-  background: var(--paper);
+  background: var(--bg);
 }
 .booking-unavailable-card {
   display: grid;
@@ -682,4 +682,9 @@
 }
 .booking-unavailable .booking-powered {
   margin: 0;
+}
+
+/* Each step's heading has room before the first thing to choose. */
+.booking-step-content > h2 {
+  margin-bottom: var(--space-5);
 }

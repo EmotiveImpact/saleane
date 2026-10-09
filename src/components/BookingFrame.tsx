@@ -91,7 +91,7 @@ export function BookingFrame({
             </span>
           </div>
         </aside>
-        {summary && <div className="booking-summary-slot">{summary}</div>}
+        {summary && <div className="booking-visit-slot">{summary}</div>}
         <main className="booking-main" id="main-content" tabIndex={-1} data-focus-fallback>
           {notice && <p className="booking-notice">{notice}</p>}
           {children}

@@ -2,19 +2,20 @@
  * A guest's visit in one place. On a wide screen the panel is a frosted card over the studio's
  * photograph, always open. On a phone it is a slim bar at the top of the page that opens to the
  * full summary. The receipt is the same summary on the confirmation, always open.
+ * Its classes start "your-visit", as .booking-summary already belongs to the staff booking dialog.
  */
-.booking-summary {
+.your-visit {
   color: var(--ink);
   text-align: left;
 }
-.booking-summary-toggle {
+.your-visit-toggle {
   display: none;
 }
-.booking-summary-body {
+.your-visit-body {
   display: grid;
   gap: var(--space-4);
 }
-.booking-summary-title {
+.your-visit-title {
   margin: 0;
   font-family: var(--font-editorial);
   font-weight: var(--weight-editorial);
@@ -22,13 +23,13 @@
   line-height: 1.1;
   letter-spacing: -0.02em;
 }
-.booking-summary-treatment {
+.your-visit-treatment {
   display: grid;
   grid-template-columns: 64px minmax(0, 1fr);
   align-items: center;
   gap: var(--space-3);
 }
-.booking-summary-photo {
+.your-visit-photo {
   display: block;
   width: 64px;
   height: 64px;
@@ -36,46 +37,46 @@
   background-color: var(--stone);
   background-size: cover;
 }
-.booking-summary-treatment small {
+.your-visit-treatment small {
   display: block;
   font-size: var(--text-micro);
   color: var(--muted);
 }
-.booking-summary-treatment strong {
+.your-visit-treatment strong {
   display: block;
   font-family: var(--font-editorial);
   font-weight: 400;
   font-size: 21px;
   line-height: 1.2;
 }
-.booking-summary-treatment span > span {
+.your-visit-treatment span > span {
   display: block;
   margin-top: 2px;
   font-size: var(--text-meta);
   color: var(--muted);
 }
-.booking-summary-rows {
+.your-visit-rows {
   display: grid;
   margin: 0;
 }
-.booking-summary-rows > div {
+.your-visit-rows > div {
   display: grid;
   grid-template-columns: 88px minmax(0, 1fr);
   gap: var(--space-3);
   padding: 10px 0;
   border-top: 1px solid var(--line);
 }
-.booking-summary-rows dt {
+.your-visit-rows dt {
   font-size: var(--text-meta);
   color: var(--muted);
 }
-.booking-summary-rows dd {
+.your-visit-rows dd {
   margin: 0;
   font-size: var(--text-small);
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
-.booking-summary-rows dd small {
+.your-visit-rows dd small {
   display: block;
   font-size: var(--text-meta);
   line-height: 1.5;
@@ -83,7 +84,7 @@
 }
 
 /* The panel over the photograph on a wide screen. */
-.booking-summary-panel {
+.your-visit-panel {
   width: min(100%, 420px);
   max-height: 100%;
   overflow-y: auto;
@@ -97,18 +98,18 @@
 }
 
 /* The receipt once the visit is booked. */
-.booking-summary-receipt {
+.your-visit-receipt {
   padding: var(--space-5) var(--space-6);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--paper);
 }
-.booking-summary-receipt .booking-summary-title {
+.your-visit-receipt .your-visit-title {
   font-size: 22px;
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .booking-summary-panel {
+  .your-visit-panel {
     background: var(--paper);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
@@ -117,7 +118,7 @@
 
 /* Phones: a slim bar that opens to the full summary. */
 @media (max-width: 650px) {
-  .booking-summary-panel {
+  .your-visit-panel {
     width: 100%;
     max-height: none;
     overflow: visible;
@@ -128,7 +129,7 @@
     background: color-mix(in srgb, var(--paper) 96%, transparent);
     box-shadow: 0 6px 18px rgba(46, 43, 51, 0.06);
   }
-  .booking-summary-panel .booking-summary-toggle {
+  .your-visit-panel .your-visit-toggle {
     display: grid;
     grid-template-columns: 44px minmax(0, 1fr) auto;
     align-items: center;
@@ -142,30 +143,30 @@
     color: var(--ink);
     text-align: left;
   }
-  .booking-summary-toggle .booking-summary-photo {
+  .your-visit-toggle .your-visit-photo {
     width: 44px;
     height: 44px;
     border-radius: 10px;
   }
-  .booking-summary-glance {
+  .your-visit-glance {
     min-width: 0;
   }
-  .booking-summary-glance strong,
-  .booking-summary-glance small {
+  .your-visit-glance strong,
+  .your-visit-glance small {
     display: block;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
   }
-  .booking-summary-glance strong {
+  .your-visit-glance strong {
     font-size: var(--text-small);
     font-weight: var(--weight-strong);
   }
-  .booking-summary-glance small {
+  .your-visit-glance small {
     font-size: var(--text-meta);
     color: var(--muted);
   }
-  .booking-summary-more {
+  .your-visit-more {
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -173,38 +174,38 @@
     font-weight: var(--weight-strong);
     color: var(--brand-ink);
   }
-  .booking-summary-more svg {
+  .your-visit-more svg {
     transition: transform var(--motion-quick);
   }
-  .booking-summary-panel.is-open .booking-summary-more svg {
+  .your-visit-panel.is-open .your-visit-more svg {
     transform: rotate(180deg);
   }
-  .booking-summary-panel .booking-summary-body {
+  .your-visit-panel .your-visit-body {
     display: none;
     max-height: 65vh;
     overflow-y: auto;
     padding: 0 16px 16px;
   }
-  .booking-summary-panel.is-open .booking-summary-body {
+  .your-visit-panel.is-open .your-visit-body {
     display: grid;
   }
   /* In the open bar the treatment's name and photograph are already shown above. */
-  .booking-summary-panel .booking-summary-title,
-  .booking-summary-panel .booking-summary-treatment .booking-summary-photo {
+  .your-visit-panel .your-visit-title,
+  .your-visit-panel .your-visit-treatment .your-visit-photo {
     display: none;
   }
-  .booking-summary-panel .booking-summary-treatment {
+  .your-visit-panel .your-visit-treatment {
     grid-template-columns: minmax(0, 1fr);
   }
-  .booking-summary-receipt {
+  .your-visit-receipt {
     padding: var(--space-4);
   }
-  .booking-summary-rows > div {
+  .your-visit-rows > div {
     grid-template-columns: 80px minmax(0, 1fr);
   }
 }
 @media (max-width: 650px) and (prefers-reduced-motion: reduce) {
-  .booking-summary-more svg {
+  .your-visit-more svg {
     transition: none;
   }
 }
