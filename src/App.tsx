@@ -88,12 +88,17 @@ function WorkspaceApp() {
     .slice(0, 2)
     .join('')
   const location = useLocation()
+  // V5: the studio's own colours; a guest booking page applies the colours of the studio it books.
+  useStudioColours(
+    state.organisation.id,
+    operations(state).look,
+    !location.pathname.startsWith('/book/'),
+  )
   const [search, setSearch] = useState(false)
   const [asking, setAsking] = useState(false)
   const navigate = useNavigate()
   const openSettings = (section: string) => navigate(`/settings?section=${section}`)
   const [mobileNav, setMobileNav] = useState(false)
-  useStudioColours(state.organisation.id)
   // Waitlist offers whose time has gone are not counted as waiting for approval.
   const clock = useClock()
   // Read again each minute too, so a waitlist time that has passed stops counting.

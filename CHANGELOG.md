@@ -21,6 +21,14 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Texts name the location, imported visits go to the location where the professional works that day, and the calendar showing every location spans all their opening hours.
 - A studio with one location works exactly as before.
 
+## 2026-10-09 · V5 · Shared brand rules
+
+**Status: built locally on 9 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-BRAND.md).
+
+- The studio's colours are now kept with the studio, not in one browser, so every location, every device and the guest booking page show the same colours. Owners and managers choose them as before.
+- Settings, Locations has "House rules for every location", set by the owner: how far a location's price may differ from the house price (any, the same everywhere, or within 5% to 25%), and core treatments that stay on every location's menu.
+- A treatment saved against the rules is refused with the reason, and its form says what the rules ask. Treatments already out of line are listed under "Not yet in line" and are never changed automatically.
+
 ## 2026-10-08 · V5 · Where clients come from
 
 **Status: built locally on 8 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-AREAS.md).

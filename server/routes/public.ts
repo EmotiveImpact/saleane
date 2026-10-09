@@ -64,6 +64,8 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
         botCheck: operations(state).botCheck && turnstile ? { siteKey: turnstile.siteKey } : null,
         // V4: whether the AI receptionist chat shows on this page.
         receptionist: isOn(state),
+        // V5: the studio's colours, the same at every location.
+        ...(operations(state).look ? { look: operations(state).look } : {}),
       })
       return true
     }

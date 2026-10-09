@@ -7,6 +7,7 @@ import type { Command, ContactInput } from './commandSchema'
 import { assertMethod, paymentDetail, runOperatingCommand } from './operatingCommands'
 import { runGroupCommand } from './group'
 import { runApprovalCommand, stampRequestActors } from './approvals'
+import { runBrandCommand } from './brandRules'
 import { branchVisitUnchanged, runBranchVisitCommand, stampBranchVisitActors } from './branchVisits'
 import { channelLabel } from './bookingChannel'
 import { checkoutTotals } from './money'
@@ -810,6 +811,8 @@ export function execute(
       command.type === 'approval-limit'
     ) {
       recordId = runApprovalCommand(next, command, now, makeId)
+    } else if (command.type === 'studio-look' || command.type === 'house-rules') {
+      recordId = runBrandCommand(next, command)
     } else {
       recordId = runOperatingCommand(next, command, now, makeId, addEvent)
     }

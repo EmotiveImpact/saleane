@@ -4,8 +4,10 @@ import { Download, Palette, RotateCcw, SlidersHorizontal, Store } from 'lucide-r
 import { useStore } from '../state/context'
 import { storageKey } from '../state/storage'
 import { Button, ErrorMessage } from '../design'
-import { firstColours, readColours, saveColours, secondColours } from '../state/studioColours'
+import { coloursFor, firstColours, saveColours, secondColours } from '../state/studioColours'
 import type { StudioColours } from '../state/studioColours'
+import type { StudioLook } from '../domain/brandRulesSchema'
+import { can, operations } from '../domain/operations'
 import { readInboxView, saveInboxView } from '../state/inboxView'
 import type { InboxView } from '../state/inboxView'
 
@@ -83,12 +85,32 @@ export function PreferencesSection() {
 }
 
 export function BrandSection() {
-  const { state, mode, role } = useStore()
-  const [colours, setColours] = useState(() => readColours(state.organisation.id))
-  const canStyle = mode === 'demo' || role === 'owner' || role === 'manager'
-  function choose(next: StudioColours) {
+  const { state, role, blocked, commit } = useStore()
+  const look = operations(state).look
+  const [colours, setColours] = useState(() => coloursFor(state.organisation.id, look))
+  const [error, setError] = useState('')
+  const [pending, setPending] = useState(false)
+  const canStyle = !blocked && can(role, 'studio-look')
+  // V5: kept with the studio, so every location, device and guest sees the same colours.
+  async function choose(next: StudioColours) {
+    if (pending) return
+    const before = colours
     setColours(next)
-    saveColours(state.organisation.id, next)
+    setError('')
+    setPending(true)
+    try {
+      const result = await commit({ type: 'studio-look', look: next as StudioLook })
+      if (result.ok) saveColours(state.organisation.id, next)
+      else {
+        setColours(before)
+        setError(result.error)
+      }
+    } catch {
+      setColours(before)
+      setError('Could not save the colours. Try again.')
+    } finally {
+      setPending(false)
+    }
   }
   return (
     <section className="surface ops-panel settings-panel">
@@ -97,8 +119,8 @@ export function BrandSection() {
           <h2>Studio colours</h2>
           <p>
             Your first colour leads buttons and selections. Your second marks the now line and
-            clients ready to return. Saved in this browser for now, so guests and other devices see
-            the house colours until studio settings are stored on the server.
+            clients ready to return. They are kept with the studio, so every location, every device
+            and your booking page show the same colours.
           </p>
         </div>
         <Palette size={21} />
@@ -107,18 +129,19 @@ export function BrandSection() {
         legend="First colour"
         name="first-colour"
         value={colours.first}
-        disabled={!canStyle}
-        onChange={(first) => choose({ ...colours, first })}
+        disabled={!canStyle || pending}
+        onChange={(first) => void choose({ ...colours, first })}
         options={firstColours.map((c) => ({ value: c.value, label: c.name, swatch: c.value }))}
       />
       <Choice
         legend="Second colour"
         name="second-colour"
         value={colours.second}
-        disabled={!canStyle}
-        onChange={(second) => choose({ ...colours, second })}
+        disabled={!canStyle || pending}
+        onChange={(second) => void choose({ ...colours, second })}
         options={secondColours.map((c) => ({ value: c.value, label: c.name, swatch: c.value }))}
       />
+      <ErrorMessage error={error} />
       {!canStyle && <p className="ops-help">Only owners and managers can change the colours.</p>}
       <div className="settings-booking-link">
         <img src="/images/saleane-studio-warm-small.jpg" alt="" />

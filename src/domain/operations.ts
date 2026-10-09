@@ -4,6 +4,7 @@ import type { BusinessState } from './model'
 import { reminderSettingsSchema } from './reminderSettings'
 import { REGION_LIMIT, TARGET_LIMIT, regionSchema, targetSchema } from './groupSchema'
 import { REQUEST_LIMIT, approvalRequestSchema, approvalSettingsSchema } from './approvalsSchema'
+import { houseRulesSchema, lookSchema } from './brandRulesSchema'
 import {
   BRANCH_VISIT_LIMIT,
   CHECKLIST_LIMIT,
@@ -344,6 +345,9 @@ export const operationsSchema = z.object({
   /** V5: requests needing a sign-off, and what a regional manager may approve. */
   requests: z.array(approvalRequestSchema).max(REQUEST_LIMIT).optional(),
   approvals: approvalSettingsSchema.optional(),
+  /** V5: the studio's colours and the house rules every location follows. */
+  look: lookSchema.optional(),
+  houseRules: houseRulesSchema.optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 /**
@@ -575,6 +579,7 @@ export function can(role: Role, action: string) {
     [
       'request-decide',
       'approval-limit',
+      'house-rules',
       'membership',
       'restore',
       'organisation',
@@ -628,6 +633,7 @@ export function can(role: Role, action: string) {
       'branch-visit',
       'branch-visit-fix',
       'request-raise',
+      'studio-look',
     ].includes(action)
   )
     return false
