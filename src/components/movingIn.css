@@ -112,19 +112,20 @@
   color: var(--rose-ink);
   font-size: var(--text-small);
 }
-.moving-questions .moving-field {
-  border-color: color-mix(in srgb, var(--rose) 22%, var(--line));
+.moving-questions > p + .moving-field {
+  margin-top: 12px;
 }
+.moving-questions .moving-field {
+  border-top-color: color-mix(in srgb, var(--rose) 28%, var(--line));
+}
+/* Each column is a row with a hairline above it, never a box inside a box. */
 .moving-field {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 14px;
-  margin-top: 10px;
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
-  background: var(--paper);
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
 }
 .moving-field label {
   display: block;
@@ -227,10 +228,7 @@
 .moving-columns ul {
   list-style: none;
   margin: 0;
-  padding: 0 14px 14px;
-}
-.moving-columns .moving-field {
-  margin-top: 8px;
+  padding: 0 16px 4px;
 }
 .moving-lead {
   margin: 0 0 14px;

@@ -156,6 +156,10 @@
     min-height: 56px;
     padding: 0 14px;
   }
+  /* The way forward fills the width, within reach of a thumb; Back stays a quiet partner. */
+  .wizard-footer > .button:last-child {
+    flex: 1;
+  }
 }
 /* Matches the dialog's own padding on small screens. */
 @media (max-width: 650px) {

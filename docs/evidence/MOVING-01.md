@@ -49,6 +49,22 @@ The move is listed under Settings, Switching over, What has come across ("Client
 
 ![Phone, 390 pixels](MOVING-01-phone-390.jpg)
 
+## Quality bar
+
+Worked through at 1440 and 390 pixels against the checklist in the design language (Quality bar).
+
+- [x] **One main job and one primary button.** Each step has one heading and one primary button: Continue, then "Bring 14 clients across". "Yes, that’s right" on a question is secondary.
+- [x] **Rarely used options tucked away.** How each column was read is folded away for each file; rows to look at appear only when there are some.
+- [x] **No card inside a card.** Questions and column choices are rows with a hairline between them; the rows to look at are rows in one panel.
+- [x] **At most one photograph.** None: these are working steps.
+- [ ] **Empty welcome.** Not applicable: this is a dialog, not a page.
+- [ ] **Loading shapes.** Not yet: reading files shows "Reading your files…" as a status line, usually for under a second. `LoadingShapes` is not on main yet; this switches to `LoadingShapes kind="list"` once it is.
+- [x] **One way of moving.** Each step body carries `settle`, which takes the shared calm motion once that lands on main and does nothing until then; the dialog already opens with the shared motion. Nothing here moves on its own, so reduced motion loses nothing.
+- [x] **At 390 pixels.** Nothing scrolls sideways. Every target is at least 44 pixels except the dialog's own Close (40 pixels, from the shared `Modal`, unchanged here). Continue fills the width at the foot of each step and stays there while a long check scrolls.
+- [x] **Words.** Plain British English saying what happens next ("Nothing is saved until the last one").
+- [x] **Built from the library.** The step bar, tiles, footer and step focus are `src/design` pieces; `npm run check` and `npm run format:check` pass.
+- [x] **Before and after pictures.** [Moving in, before and after](https://claude.ai/artifact/7Ute6J7S84kfY45akDFxNE) and the screenshots above.
+
 ## Not done yet, said plainly
 
 - **No real export files yet.** Fresha's client list marketing columns, Square, Vagaro and GlossGenius are confirmed from published sources; Phorest and Timely layouts are likely, from their report labels and API names. Treatwell and Booksy have no published headings, so their files are read by meaning, and an unsure column is asked about. Real files will confirm or correct this.

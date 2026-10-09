@@ -15,6 +15,7 @@ The owner said yes to the five moving-in answers. Stage 1 brings the client list
 - A moved-in client may have a phone number and no email. Guest booking and new clients at the desk still need an email.
 - Long lists are saved in parts the server accepts; a dropped connection keeps the files and says how many came across.
 - Visit, gift card, package and payment files are recognised and named, not saved; the screen says a later step brings them across. The older one-file client import is replaced by this screen.
+- Questions and column choices are rows with a fine line between them, not boxes inside boxes; Continue fills the width at the foot of each step on a phone; each step settles in with the shared calm motion.
 - The step bar, large choice tiles, the footer that stays in reach and the step focus are shared design pieces (`WizardSteps`, `ChoiceTiles`, `WizardFooter`, `useWizardStep` in `src/design`), so later wizards such as studio setup look and behave the same.
 
 ## 2026-10-09 · Studios paying for SALEANE (NEXT-02)

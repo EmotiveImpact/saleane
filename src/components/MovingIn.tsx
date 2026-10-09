@@ -230,7 +230,7 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
         <WizardSteps steps={STEPS} current={step} label="Moving in steps" />
 
         {step === 1 && (
-          <section aria-labelledby={headingId}>
+          <section className="settle" aria-labelledby={headingId}>
             <h3 id={headingId} ref={heading} tabIndex={-1} className="wizard-heading">
               Where are you moving from?
             </h3>
@@ -250,7 +250,7 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
         )}
 
         {step === 2 && system && (
-          <section aria-labelledby={headingId}>
+          <section className="settle" aria-labelledby={headingId}>
             <h3 id={headingId} ref={heading} tabIndex={-1} className="wizard-heading">
               {systemName ? `Add your ${systemName} client list` : 'Add your client list'}
             </h3>
@@ -329,7 +329,7 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
         )}
 
         {step === 3 && (
-          <section aria-labelledby={headingId}>
+          <section className="settle" aria-labelledby={headingId}>
             <h3 id={headingId} ref={heading} tabIndex={-1} className="wizard-heading">
               {questions.length ? 'Check a few things first' : 'Check your clients'}
             </h3>
@@ -406,7 +406,7 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
         )}
 
         {step === 4 && (
-          <section aria-labelledby={headingId}>
+          <section className="settle" aria-labelledby={headingId}>
             <h3 id={headingId} ref={heading} tabIndex={-1} className="wizard-heading">
               Bring them across
             </h3>
