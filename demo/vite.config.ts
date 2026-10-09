@@ -119,6 +119,8 @@ export default defineConfig({
   root: here('.'),
   base: './',
   publicDir: false,
+  // Each build gets its own saved database, so visitors always start from the newest sample studios.
+  define: { __DEMO_BUILD__: JSON.stringify(Date.now().toString(36)) },
   plugins: [inlineImages(), sampleMessages(), react(), singleFile()],
   resolve: {
     alias: [
@@ -127,6 +129,9 @@ export default defineConfig({
       { find: 'node:stream', replacement: here('./shims/stream.ts') },
       { find: 'node:fs', replacement: here('./shims/fs.ts') },
       { find: 'node:path', replacement: here('./shims/path.ts') },
+      { find: /^node:dns(\/promises)?$/, replacement: here('./shims/dns.ts') },
+      { find: /^node:https?$/, replacement: here('./shims/http.ts') },
+      { find: 'node:net', replacement: here('./shims/net.ts') },
     ],
   },
   build: {
