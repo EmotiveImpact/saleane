@@ -468,8 +468,22 @@ test('when a hold runs out one tap holds the same time again; a time that has go
     .map((button) => button.textContent)
   expect(nearest).toEqual(['09:00', '09:30', '11:00', '15:00'])
   expect(screen.queryByRole('button', { name: 'Hold 10:00 instead' })).not.toBeInTheDocument()
+  // The summary says so too, and gives the rule without a time to count back from.
+  const summary = screen.getByRole('region', { name: 'Your visit' })
+  const row = (label: string) => within(summary).getByText(label).closest('div')!
+  const bar = within(summary).getByRole('button', { name: /Skin Renewal Facial/ })
+  expect(row('When')).toHaveTextContent(
+    'Wednesday 7 October10:00 is no longer free. Choose another time.',
+  )
+  expect(row('Cancelling')).toHaveTextContent(
+    'Free to cancel until 24 hours before your visit, and the studio refunds your deposit.',
+  )
+  expect(bar).toHaveTextContent('Wed 7 Oct · ')
+  expect(bar).not.toHaveTextContent('10:00')
   await user.click(screen.getByRole('button', { name: 'Hold 09:30 instead' }))
   expect(await screen.findByText(/Wednesday 7 October at 09:30/)).toBeVisible()
+  expect(row('When')).toHaveTextContent('Wednesday 7 October09:30 to 10:30')
+  expect(bar).toHaveTextContent('Wed 7 Oct at 09:30 · ')
   // A different time has its own cutoff, so the terms are agreed again.
   const terms = screen.getByRole('checkbox', { name: /I agree to the deposit/ })
   expect(terms).not.toBeChecked()

@@ -403,6 +403,8 @@ function BookingFlow({
   // The chosen time, unless it is already known not to be free.
   const shownStart =
     step === 2 && !loadingTimes && start !== null && !times.includes(start) ? null : start
+  // On the details and review steps: the held time ran out and someone else has taken it since.
+  const timeGone = (step === 3 || step === 4) && holdGone !== null
   const terms =
     shownStart === null
       ? null
@@ -473,7 +475,9 @@ function BookingFlow({
           detail:
             shownStart === null
               ? 'Choose a time'
-              : `${timeLabel(shownStart, org.locale)} to ${timeLabel(shownStart + service.durationMinutes, org.locale)}`,
+              : timeGone
+                ? `${timeLabel(shownStart, org.locale)} is no longer free. Choose another time.`
+                : `${timeLabel(shownStart, org.locale)} to ${timeLabel(shownStart + service.durationMinutes, org.locale)}`,
         },
         {
           label: 'Price',
@@ -494,7 +498,7 @@ function BookingFlow({
         {
           label: 'Cancelling',
           value:
-            terms?.rule ??
+            (timeGone ? null : terms?.rule) ??
             cancellationRule({
               cutoffHours: catalog.cancellation?.cutoffHours ?? GUEST_CANCEL_CUTOFF_HOURS,
               feePercent: catalog.cancellation?.feePercent ?? 0,
@@ -513,7 +517,7 @@ function BookingFlow({
         duration={`${service.durationMinutes} minutes`}
         photo={treatmentPhoto(service.category)}
         rows={summaryRows}
-        glance={`${dateLabel(date, org.locale, true)}${shownStart === null ? '' : ` at ${timeLabel(shownStart, org.locale)}`} · ${money(priceMinor, org)}`}
+        glance={`${dateLabel(date, org.locale, true)}${shownStart === null || timeGone ? '' : ` at ${timeLabel(shownStart, org.locale)}`} · ${money(priceMinor, org)}`}
       />
     ) : null
   async function payDeposit() {
