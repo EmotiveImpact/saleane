@@ -815,6 +815,7 @@ export function AppointmentDialog({
           <CheckoutProducts
             items={items}
             retail={retail}
+            locationId={appointment.locationId}
             disabled={busy}
             onChange={(next) => {
               setItems(next)
@@ -919,6 +920,7 @@ export function AppointmentDialog({
                   <span className="checkout-gift-row">
                     <input
                       value={giftCode}
+                      data-scan-field
                       maxLength={20}
                       autoComplete="off"
                       placeholder="ABCD-EFGH-JKLM"

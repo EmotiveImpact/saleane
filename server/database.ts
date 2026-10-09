@@ -3,7 +3,10 @@ import type { SQLInputValue } from 'node:sqlite'
 import { chmodSync, mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
-/** One forward schema step. Versions are contiguous from 1; never edit a released step. */
+/**
+ * One forward schema step. Versions rise from 1 in order (contiguous once work built alongside has
+ * merged); never edit a released step.
+ */
 export type Migration = { version: number; up: (connection: DatabaseSync) => void }
 
 export const migrations: Migration[] = [
@@ -586,6 +589,25 @@ export const migrations: Migration[] = [
         DROP TABLE account_mail;
         ALTER TABLE account_mail_next RENAME TO account_mail;
         CREATE INDEX account_mail_recent ON account_mail(account_id,created_at);
+      `),
+  },
+  {
+    version: 28,
+    // Stage 2, product photos (27 belongs to membership card payments, merging alongside). Each studio's
+    // pictures, checked by their first bytes (JPEG, PNG or WebP only) and bounded in size, served
+    // only to that studio's team. A product keeps the id; a new photo gets a new id.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE images (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          kind TEXT NOT NULL CHECK(kind IN ('product')),
+          content_type TEXT NOT NULL CHECK(content_type IN ('image/jpeg','image/png','image/webp')),
+          bytes BLOB NOT NULL CHECK(length(bytes) BETWEEN 1 AND 409600),
+          width INTEGER NOT NULL CHECK(width BETWEEN 1 AND 2000),
+          height INTEGER NOT NULL CHECK(height BETWEEN 1 AND 2000),
+          created_at INTEGER NOT NULL, created_by TEXT NOT NULL REFERENCES accounts(id)
+        ) STRICT;
+        CREATE INDEX images_scope ON images(organisation_id,created_at);
       `),
   },
 ]

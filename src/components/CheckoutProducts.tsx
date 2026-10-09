@@ -4,26 +4,34 @@ import { Minus, Plus, X } from 'lucide-react'
 import { useStore } from '../state/context'
 import { stock } from '../domain/operations'
 import { money } from '../domain/format'
-import { products, sellable } from '../domain/retail'
+import { priceRetail, products, sellable } from '../domain/retail'
+import type { Product } from '../domain/retail'
 import type { RetailItems, SaleRetail } from '../domain/retailSchema'
 import { RETAIL_LINE_LIMIT, RETAIL_QUANTITY_LIMIT } from '../domain/retailSchema'
 import { ProductTile } from './ProductTile'
+import { ScanField } from './ScanField'
+import type { ScanOutcome } from './ScanField'
 import './checkout-products.css'
 
 /**
  * V2: products a guest buys with their visit. The desk picks from what is on sale and in stock;
  * the receipt keeps each product's name and price as they were at the moment of sale.
+ * Stage 2: or scans them: a scan adds the product, or one more of it, after the same checks the
+ * till makes when the sale is recorded, at the location whose shelf it comes off.
  */
 export function CheckoutProducts({
   items,
   retail,
   disabled,
   onChange,
+  locationId,
 }: {
   items: RetailItems
   retail: SaleRetail | undefined
   disabled: boolean
   onChange: (items: RetailItems) => void
+  /** The location whose shelf the products come off; absent means the main location. */
+  locationId?: string
 }) {
   const { state } = useStore()
   const org = state.organisation
@@ -65,16 +73,47 @@ export function CheckoutProducts({
     setChoosing(false)
     setQuery('')
   }
+  /** A scanned product: added, or one more, if the till would accept it. */
+  function scanned(product: Product): ScanOutcome {
+    const existing = items.find((item) => item.productId === product.id)
+    if (!existing && items.length >= RETAIL_LINE_LIMIT)
+      return { problem: `A receipt holds up to ${RETAIL_LINE_LIMIT} different products.` }
+    if (existing && existing.quantity >= RETAIL_QUANTITY_LIMIT)
+      return { problem: `A receipt holds up to ${RETAIL_QUANTITY_LIMIT} of one product.` }
+    const quantity = (existing?.quantity ?? 0) + 1
+    const next = existing
+      ? items.map((item) => (item.productId === product.id ? { ...item, quantity } : item))
+      : [...items, { productId: product.id, quantity }]
+    try {
+      priceRetail(state, next, locationId)
+    } catch (problem) {
+      return { problem: problem instanceof Error ? problem.message : 'Check the products.' }
+    }
+    onChange(next)
+    setChoosing(false)
+    return {
+      done:
+        quantity > 1
+          ? `One more ${product.name}: ${quantity} on this receipt.`
+          : `Added ${product.name}.`,
+    }
+  }
   return (
     <fieldset className="checkout-products" ref={list}>
       <legend>Products</legend>
+      <ScanField onProduct={scanned} disabled={disabled} />
       {items.map((item) => {
         const product = onSale.find((p) => p.id === item.productId)
         if (!product) return null
         const left = stock(state, product.id)
         return (
           <div className="checkout-product" key={item.productId} data-product={product.id}>
-            <ProductTile id={product.id} name={product.name} size="small" />
+            <ProductTile
+              id={product.id}
+              name={product.name}
+              imageId={product.imageId}
+              size="small"
+            />
             <span className="checkout-product-name">
               {product.name}
               <small>
@@ -161,7 +200,7 @@ export function CheckoutProducts({
                       className="product-picker-item"
                       onClick={() => add(product.id)}
                     >
-                      <ProductTile id={product.id} name={product.name} />
+                      <ProductTile id={product.id} name={product.name} imageId={product.imageId} />
                       <span className="product-picker-name">
                         {product.name}
                         <small>{stock(state, product.id)} in stock</small>

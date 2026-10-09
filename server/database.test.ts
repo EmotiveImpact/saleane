@@ -19,7 +19,7 @@ const versions = (db: LocalDatabase) =>
   db
     .all<{ version: number }>('SELECT version FROM schema_migrations ORDER BY version')
     .map((row) => row.version)
-const next = migrations.length + 1
+const next = SCHEMA_VERSION + 1
 const known = migrations.map((migration) => migration.version)
 const addNotes: Migration = {
   version: next,
@@ -31,7 +31,9 @@ describe('numbered schema migrations', () => {
   it('records every known step on a fresh database', () => {
     const db = new LocalDatabase(':memory:')
     expect(versions(db)).toEqual(migrations.map((migration) => migration.version))
-    expect(SCHEMA_VERSION).toBe(migrations.length)
+    // Steps rise in order and the newest names the schema version.
+    expect(known.every((version, index) => index === 0 || version > known[index - 1])).toBe(true)
+    expect(SCHEMA_VERSION).toBe(known[known.length - 1])
     db.close()
   })
   it('applies only pending steps when an existing file opens, keeping its records', () => {

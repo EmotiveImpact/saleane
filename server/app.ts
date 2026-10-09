@@ -3,11 +3,18 @@ import { z } from 'zod'
 import type { LocalDatabase } from './database'
 import { createContext } from './context'
 import type { ApiOptions, Route } from './context'
-import { HttpError, fail, header, inject, readBody } from './http'
+import { HttpError, fail, header, inject, readBody, readBytes } from './http'
 import type { InjectOptions, InjectResponse } from './http'
 import { authRoutes } from './routes/auth'
 import { benchmarkRoutes } from './routes/benchmark'
 import { workspaceRoutes } from './routes/workspace'
+import {
+  IMAGE_BYTES_LIMIT,
+  IMAGE_PATH,
+  IMAGE_TOO_LARGE,
+  UPLOAD_PATH,
+  imageRoutes,
+} from './routes/images'
 import { publicRoutes } from './routes/public'
 import { guestRoutes } from './routes/guest'
 import { daySheetRoutes } from './routes/daysheet'
@@ -53,6 +60,7 @@ export type ApiHandler = ((
 const baseRoutes = [
   authRoutes,
   privacyRoutes,
+  imageRoutes,
   workspaceRoutes,
   publicRoutes,
   guestRoutes,
@@ -122,9 +130,13 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     try {
       if (header(request, 'host') !== origin.host)
         fail(403, 'This request must use the configured SALEANE address.')
-      rateLimit(request, 'api', 180, 60000)
       const method = request.method ?? 'GET'
       const url = new URL(request.url!, allowedOrigin)
+      // Stage 2: a page of product photos asks for each one once (they are cached), so photos
+      // have their own allowance and never use up the one for saving work.
+      if (method === 'GET' && IMAGE_PATH.test(url.pathname))
+        rateLimit(request, 'images', 600, 60000)
+      else rateLimit(request, 'api', 180, 60000)
       // Provider delivery receipts come from the provider, not a SALEANE page, and prove
       // themselves by signature instead of by origin and session.
       const hook = /^\/api\/hooks\/(postmark|twilio)$/.exec(url.pathname)
@@ -290,9 +302,16 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
           header(request, 'sec-fetch-site') === 'cross-site'
         )
           fail(403, 'This request must come from your SALEANE workspace.')
-        if (!/^application\/json(?:\s*;|$)/i.test(header(request, 'content-type') ?? ''))
-          fail(415, 'Use a JSON request.')
-        body = await readBody(request)
+        if (method === 'POST' && UPLOAD_PATH.test(url.pathname)) {
+          // Stage 2: a product photo arrives as its own bytes; the route checks what they are.
+          if (!/^image\/(?:jpeg|png|webp)$/i.test(header(request, 'content-type') ?? ''))
+            fail(415, 'Choose a JPEG, PNG or WebP photo.')
+          body = await readBytes(request, IMAGE_BYTES_LIMIT, IMAGE_TOO_LARGE)
+        } else {
+          if (!/^application\/json(?:\s*;|$)/i.test(header(request, 'content-type') ?? ''))
+            fail(415, 'Use a JSON request.')
+          body = await readBody(request)
+        }
       }
       const route: Route = { request, response, method, url, path, body, reply }
       // NEXT-02: a studio that has stopped paying is read only for its team.

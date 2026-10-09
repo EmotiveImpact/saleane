@@ -1391,6 +1391,17 @@ function seedBranchVisits(state: BusinessState) {
   ]
 }
 
+/** Stage 2: the sample shelf's barcodes, in shelf order, each with a correct check digit. */
+export const SAMPLE_BARCODES = [
+  '2000000000015',
+  '2000000000022',
+  '2000000000039',
+  '2000000000046',
+  '2000000000053',
+  '2000000000060',
+  '2000000000077',
+]
+
 /**
  * V2: a small shelf of products. Guests buy them with about one visit in six; deliveries keep the
  * shelf stocked, the treatment rooms use oil and peel, and one guest bought body oil without a
@@ -1414,11 +1425,14 @@ function seedStock(
     ['massage-oil', 'Massage Oil, 1 litre', 0, 0, 22, 3, 2, false],
     ['enzyme-peel', 'Enzyme Peel, professional size', 0, 0, 30, 1, 2, false],
   ]
-  for (const [id, name, gbp, usd, cost, , reorderAt, forSale = true] of shelf)
+  // Stage 2: fictional in-store barcodes (the GS1 range starting 20 is never a real product's),
+  // so a scanner or a typed code finds each sample product.
+  for (const [index, [id, name, gbp, usd, cost, , reorderAt, forSale = true]] of shelf.entries())
     o.products.push({
       id: `product-${id}`,
       name,
       sku: id.toUpperCase(),
+      barcode: SAMPLE_BARCODES[index],
       priceMinor: price(gbp, usd),
       reorderAt,
       archived: false,

@@ -17,3 +17,42 @@
   border-radius: var(--radius-inner);
   font-size: 17px;
 }
+/* Stage 2: the product form shows the photo, or the letter, a little larger to judge the crop. */
+.product-tile-large {
+  width: 80px;
+  height: 80px;
+  border-radius: var(--radius-panel);
+  font-size: 34px;
+}
+/*
+ * Stage 2: a studio's own product photo, cropped to the same square as the letter tile. The tile's
+ * colour shows while the photo loads, and a hairline keeps a white product off a white page.
+ */
+.product-tile-photo {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.product-tile-photo::before {
+  content: attr(data-initial);
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: -1;
+}
+.product-tile-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+.product-tile-photo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
+  border-radius: inherit;
+  pointer-events: none;
+}

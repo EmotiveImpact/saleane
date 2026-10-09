@@ -112,3 +112,41 @@ export async function api<T>(
   if (payload?.csrf) setCsrf(payload.csrf)
   return payload as T
 }
+
+/** Stage 2: where a studio's product photo is served, to its own team only. */
+export function imageUrl(workspaceId: string, imageId: string) {
+  return `/api/workspaces/${encodeURIComponent(workspaceId)}/images/${encodeURIComponent(imageId)}`
+}
+
+/**
+ * Stage 2: sends a product photo the browser has already shrunk, as its own bytes. The server
+ * checks what it really is and returns the id the product keeps.
+ */
+export async function uploadImage(workspaceId: string, photo: Blob) {
+  let response: Response
+  try {
+    response = await fetch(`/api/workspaces/${encodeURIComponent(workspaceId)}/images`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': photo.type, ...(csrf ? { 'X-CSRF-Token': csrf } : {}) },
+      body: photo,
+      signal: AbortSignal.timeout(30000),
+    })
+  } catch {
+    throw report(
+      new ApiError('The photo could not reach SALEANE. Check the connection and try again.', 0),
+    )
+  }
+  const payload = (await response.json().catch(() => null)) as {
+    error?: string
+    id?: string
+  } | null
+  if (!response.ok || !payload?.id)
+    throw report(
+      new ApiError(
+        payload?.error ?? `The photo could not be added (${response.status}).`,
+        response.status,
+      ),
+    )
+  return { id: payload.id }
+}
