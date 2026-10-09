@@ -194,11 +194,14 @@ function nameIn(text: string) {
   )
 }
 
+type Place = { id: string; name: string; price: string }
 type Treatment = {
   id: string
   name: string
   kind: string
   price: string
+  /** With several locations: where it can be booked, and its price there. */
+  locations?: Place[]
   professionals: { id: string; name: string }[]
 }
 
@@ -230,6 +233,31 @@ function professionalIn(talk: Talk, t: Treatment) {
   }
   return null
 }
+/** A location's own name, before any town after a comma: "Marylebone" for "Marylebone, London". */
+const placeWord = (name: string) => name.split(',')[0].trim().toLowerCase()
+/** Every location the listed treatments can be booked at. */
+const placesOf = (list: Treatment[]) => [
+  ...new Map(list.flatMap((t) => t.locations ?? []).map((p) => [p.id, p])).values(),
+]
+/** The location the guest names, from the newest thing they said that names one. */
+function placeIn(talk: Talk, list: Treatment[]) {
+  const known = placesOf(list)
+  if (known.length < 2) return null
+  for (const said of talk.guest) {
+    const q = said.toLowerCase()
+    const named = known.find((p) => placeWord(p.name).length > 2 && q.includes(placeWord(p.name)))
+    if (named) return named
+  }
+  return null
+}
+const names = (list: { name: string }[]) =>
+  list.length < 2
+    ? (list[0]?.name ?? '')
+    : `${list
+        .slice(0, -1)
+        .map((p) => p.name)
+        .join(', ')} and ${list.at(-1)!.name}`
+
 const firstDate = (talk: Talk, today: string) => {
   for (const said of talk.guest) {
     const date = dateIn(said, today)
@@ -439,10 +467,34 @@ function nextStep(
         return call('offer_time', { ...input, time: wanted })
       return call('find_times', input)
     }
+    const more = '\nAsk about any of them, or ask me for a free time.'
+    // V2: at the location the guest names, only what is offered there, at its price there.
+    const place = placeIn(talk, list)
+    if (place) {
+      const here = (t: Treatment) => t.locations?.find((p) => p.id === place.id)
+      if (chosen && !here(chosen))
+        return say(
+          `${chosen.name} is not offered at ${place.name}. You can book it at ${names(chosen.locations ?? [])}.`,
+        )
+      if (chosen) return say(`${chosen.name} at ${place.name}: ${here(chosen)!.price}`)
+      return say(
+        `At ${place.name}:\n${list
+          .filter(here)
+          .slice(0, 8)
+          .map((t) => `${t.name}: ${here(t)!.price}`)
+          .join('\n')}${more}`,
+      )
+    }
+    // Otherwise the lowest price, and where a treatment is offered when not everywhere.
+    const everywhere = placesOf(list).length
+    const line = (t: Treatment) =>
+      `${t.name}: ${t.price}${t.locations && t.locations.length < everywhere ? ` Only at ${names(t.locations)}.` : ''}`
+    if (chosen && chosen.locations && new Set(chosen.locations.map((p) => p.price)).size > 1)
+      return say(
+        `${chosen.name}:\n${chosen.locations.map((p) => `At ${p.name}: ${p.price}`).join('\n')}`,
+      )
     const shown = chosen ? [chosen] : list.slice(0, 8)
-    return say(
-      `${shown.map((t) => `${t.name}: ${t.price}`).join('\n')}${chosen ? '' : '\nAsk about any of them, or ask me for a free time.'}`,
-    )
+    return say(`${shown.map(line).join('\n')}${chosen ? '' : more}`)
   }
   return say(RECEPTION_HELP)
 }

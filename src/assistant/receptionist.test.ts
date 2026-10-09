@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { seed } from '../domain/seed'
 import type { BusinessState } from '../domain/model'
-import { askReceptionist } from './receptionist'
+import { operations } from '../domain/operations'
+import { askReceptionist, receptionContext, receptionistSkills } from './receptionist'
 import type { ReceptionEffect, ReceptionTurn } from './receptionist'
 import { dateIn, timeIn } from './receptionistBrain'
 
@@ -178,5 +179,90 @@ describe('the AI receptionist in test mode', () => {
     expect(timeIn('at 3')).toBe('15:00')
     expect(timeIn('10am')).toBe('10:00')
     expect(timeIn('no time')).toBeNull()
+  })
+})
+
+// V2: a studio with a second location, Islington. Maya works there on Thursdays, with treatment
+// room 2; the facial costs more there and the lymphatic massage is not offered there.
+const islington = 'loc-islington'
+function twoSites(state = on(base)): BusinessState {
+  const o = operations(state)
+  return {
+    ...state,
+    operations: {
+      ...o,
+      locations: [{ id: islington, name: 'Islington', address: '1 Upper Street, London' }],
+    },
+    resources: state.resources.map((r) =>
+      r.id === 'room-two' ? { ...r, locationId: islington } : r,
+    ),
+    staff: state.staff.map((p) =>
+      p.id === 'staff-maya'
+        ? { ...p, hours: o.hours.map((h) => (h.day === 4 ? { ...h, locationId: islington } : h)) }
+        : p,
+    ),
+    services: state.services.map((x) =>
+      x.id === 'service-facial'
+        ? { ...x, locationPrices: [{ locationId: islington, priceMinor: 11000 }] }
+        : x.id === 'service-lymphatic'
+          ? { ...x, notOfferedAt: [islington] }
+          : x,
+    ),
+  }
+}
+
+describe('the AI receptionist with several locations', () => {
+  it('quotes the lowest price as a starting price and says where a treatment is offered', async () => {
+    const menu = await chat('What treatments do you offer?', [], twoSites())
+    expect(menu.text).toMatch(/^Skin Renewal Facial: From £95 for 60 minutes/m)
+    expect(menu.text).toMatch(
+      /^Lymphatic Massage: £120 for 75 minutes.* Only at Marylebone, London\.$/m,
+    )
+    expect(menu.text).toMatch(/^Deep Restore Massage: £90 for 60 minutes[^\n]*the studio\.$/m)
+    // Asked about one treatment, each location's own price.
+    const facial = await chat('How much is the facial?', [], twoSites())
+    expect(facial.text).toMatch(
+      /^Skin Renewal Facial:\nAt Marylebone, London: £95 for 60 minutes.*\nAt Islington: £110 for 60 minutes/,
+    )
+  })
+
+  it('gives the price at the location the guest names, and only what is offered there', async () => {
+    const facial = await chat('How much is a facial in Islington?', [], twoSites())
+    expect(facial.text).toMatch(/^Skin Renewal Facial at Islington: £110 for 60 minutes/)
+    const there = await chat('What do you offer at Islington?', [], twoSites())
+    expect(there.text).toMatch(/^At Islington:\nSkin Renewal Facial: £110 for 60 minutes/)
+    expect(there.text).toMatch(/Deep Restore Massage: £90/)
+    expect(there.text).not.toMatch(/Lymphatic|Signature Cut|Gloss/)
+    const massage = await chat('How much is the lymphatic massage at Islington?', [], twoSites())
+    expect(massage.text).toBe(
+      'Lymphatic Massage is not offered at Islington. You can book it at Marylebone, London.',
+    )
+  })
+
+  it('lists no treatment that no open location offers or that nobody there does', () => {
+    const state = twoSites()
+    const nowhere: BusinessState = {
+      ...state,
+      services: state.services.map((x) =>
+        x.id === 'service-lymphatic'
+          ? { ...x, notOfferedAt: [state.organisation.locationId, islington] }
+          : x,
+      ),
+      // Theo, who does both hair treatments, has left.
+      staff: state.staff.map((p) => (p.id === 'staff-theo' ? { ...p, archived: true } : p)),
+    }
+    const skill = receptionistSkills().find((x) => x.name === 'treatments')!
+    if (skill.kind !== 'read') throw new Error('treatments is a read skill')
+    const run = skill.run as (ctx: unknown, input: object) => { id: string; locations?: unknown }[]
+    const listed = run(receptionContext(nowhere, today, now), {})
+    expect(listed.map((x) => x.id)).toEqual(['service-facial', 'service-restore'])
+    expect(listed[0].locations).toEqual([
+      expect.objectContaining({ id: state.organisation.locationId, name: 'Marylebone, London' }),
+      expect.objectContaining({ id: islington, name: 'Islington' }),
+    ])
+    // A studio with one location keeps its plain list, with no locations named.
+    const single = run(receptionContext(on(base), today, now), {})
+    expect(single).toHaveLength(5)
+    expect(single[0].locations).toBeUndefined()
   })
 })

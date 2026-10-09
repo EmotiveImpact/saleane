@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { SkillRefusal, actionSkill, readSkill, runTurn } from '../../lumane'
 import type { Allowance, BrainMessage, Skill, TurnResult, Usage } from '../../lumane'
-import type { BusinessState } from '../domain/model'
+import type { BusinessState, Service } from '../domain/model'
 import { slots } from '../domain/commands'
 import { addDays, dateLabel, timeLabel } from '../domain/format'
 import { operations } from '../domain/operations'
@@ -9,6 +9,13 @@ import { priceSentence } from '../domain/priceSentence'
 import { healthWordIn } from '../domain/forms'
 import { defaultReceptionist } from '../domain/receptionistSchema'
 import { visitStart } from '../domain/guest'
+import {
+  bookablePlaces,
+  hasLocations,
+  listPrice,
+  serviceAt,
+  staffPlaces,
+} from '../domain/locations'
 import { ALLOWANCES } from './saleane'
 import { receptionistBrain } from './receptionistBrain'
 import type { ReceptionChannel } from './receptionistBrain'
@@ -111,6 +118,19 @@ const day = (ctx: ReceptionContext, date: string) => dateLabel(date, ctx.state.o
 const clock = (ctx: ReceptionContext, minutes: number) =>
   timeLabel(minutes, ctx.state.organisation.locale)
 
+/**
+ * A treatment's price in one sentence, at one location's price. `from` marks the lowest of
+ * several, which the sentence then says.
+ */
+function priceFor(ctx: ReceptionContext, x: Service, priceMinor: number, from = false) {
+  const said = priceSentence(
+    { ...x, priceMinor, depositMinor: ctx.sample ? x.depositMinor : 0 },
+    ctx.state.organisation,
+    { tax: operations(ctx.state).tax, simulated: ctx.sample },
+  )
+  return from ? `From ${said[0].toLowerCase()}${said.slice(1)}` : said
+}
+
 function treatment(ctx: ReceptionContext, id: string) {
   const service = services(ctx.state).find((x) => x.id === id)
   if (!service) throw new SkillRefusal('That treatment is not on the menu.')
@@ -139,30 +159,50 @@ export function receptionistSkills(): Skill<ReceptionContext, ReceptionEffect>[]
     readSkill<ReceptionContext, { search?: string }>({
       name: 'treatments',
       description:
-        'The treatments the studio offers: name, kind, what it is, length, full price and who does it. Optionally narrowed by a word.',
+        'The treatments the studio offers: name, kind, what it is, length, full price and who does it. With several locations, also each location that offers it and its price there; the price shown first is the lowest of them. Optionally narrowed by a word.',
       input: z.object({ search: z.string().max(60).optional() }).strict(),
       allowed: () => true,
       run: (ctx, { search }) => {
         const words = (search ?? '').toLowerCase().split(/\s+/).filter(Boolean)
-        const tax = operations(ctx.state).tax
-        return services(ctx.state)
-          .filter((x) => words.every((w) => `${x.name} ${x.category}`.toLowerCase().includes(w)))
-          .slice(0, 20)
-          .map((x) => ({
-            id: x.id,
-            name: x.name,
-            kind: x.category,
-            about: x.description,
-            durationMinutes: x.durationMinutes,
-            price: priceSentence(
-              { ...x, depositMinor: ctx.sample ? x.depositMinor : 0 },
-              ctx.state.organisation,
-              { tax, simulated: ctx.sample },
-            ),
-            professionals: team(ctx.state)
-              .filter((p) => p.serviceIds.includes(x.id))
-              .map((p) => ({ id: p.id, name: p.name })),
-          }))
+        const several = hasLocations(ctx.state)
+        return (
+          services(ctx.state)
+            .filter((x) => words.every((w) => `${x.name} ${x.category}`.toLowerCase().includes(w)))
+            // V2: only what a guest can book: on the menu at an open location, with someone there.
+            .map((x) => ({ x, where: bookablePlaces(ctx.state, x) }))
+            .filter(({ where }) => where.length > 0)
+            .slice(0, 20)
+            .map(({ x, where }) => {
+              const { priceMinor, from } = listPrice(
+                x,
+                where.map((p) => p.id),
+              )
+              return {
+                id: x.id,
+                name: x.name,
+                kind: x.category,
+                about: x.description,
+                durationMinutes: x.durationMinutes,
+                price: priceFor(ctx, x, priceMinor, from),
+                ...(several
+                  ? {
+                      locations: where.map((p) => ({
+                        id: p.id,
+                        name: p.name,
+                        price: priceFor(ctx, x, serviceAt(x, p.id).priceMinor),
+                      })),
+                    }
+                  : {}),
+                professionals: team(ctx.state)
+                  .filter(
+                    (p) =>
+                      p.serviceIds.includes(x.id) &&
+                      staffPlaces(ctx.state, p.id).some((id) => where.some((w) => w.id === id)),
+                  )
+                  .map((p) => ({ id: p.id, name: p.name })),
+              }
+            })
+        )
       },
     }),
     readSkill<ReceptionContext, Record<string, never>>({

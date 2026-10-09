@@ -113,6 +113,23 @@ export function listPrice(
 }
 
 /**
+ * The open locations where a guest can book a treatment: it is on the menu there and someone who
+ * does it works there in a usual week (V2).
+ */
+export function bookablePlaces(s: BusinessState, service: Pick<Service, 'id' | 'notOfferedAt'>) {
+  return places(s).filter(
+    (place) =>
+      offeredAt(service, place.id) &&
+      s.staff.some(
+        (p) =>
+          !p.archived &&
+          p.serviceIds.includes(service.id) &&
+          staffPlaces(s, p.id).includes(place.id),
+      ),
+  )
+}
+
+/**
  * The studio as seen from one location, for figures: its visits and their receipts, and walk-in
  * sales, gift cards, packages and memberships sold there (anything sold before locations were
  * recorded counts at the main one). Everything else is unchanged.
