@@ -391,6 +391,7 @@ test('the day strip starts on the studio’s today, shows closed and full days, 
   expect(datesAsked().filter((date) => date < '2026-10-06')).toEqual([])
 })
 
+// The countdown runs on real seconds and the hold runs out twice, so this journey needs longer.
 test('when a hold runs out one tap holds the same time again; a time that has gone offers the nearest', async () => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date('2026-10-06T07:00:00.000Z'))
@@ -493,7 +494,7 @@ test('when a hold runs out one tap holds the same time again; a time that has go
   const booked = vi.mocked(api).mock.calls.find(([path]) => path === `${base}/book`)!
   expect((booked[1]?.body as typeof payload).hold).toBe('4'.repeat(48))
   expect((booked[1]?.body as typeof payload).contact.name).toBe(payload.contact.name)
-})
+}, 15_000)
 
 test('a time from an earlier day is never offered again; choosing another starts on the studio’s today', async () => {
   vi.useFakeTimers({ toFake: ['Date'] })
