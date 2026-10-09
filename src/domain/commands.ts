@@ -898,6 +898,8 @@ function bookRepeat(
             date: when.date,
             startMinutes: when.startMinutes,
             ...('resourceId' in when && when.resourceId ? { resourceId: when.resourceId } : {}),
+            // Every visit is where the first is: a person works at the same place each weekday.
+            locationId: first.locationId,
             source: 'desk' as const,
             ...(booking.consultationId ? { consultationId: booking.consultationId } : {}),
           }

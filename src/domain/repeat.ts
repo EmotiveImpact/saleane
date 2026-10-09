@@ -12,7 +12,7 @@ export const REPEAT_EVERY = [1, 2, 3, 4, 5, 6, 8, 10, 12] as const
 /** How many visits the desk can choose, the first included. */
 export const REPEAT_COUNTS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const
 /** The most visits one repeat can hold, the first included. */
-export const REPEAT_MOST = 26
+export const REPEAT_MOST = REPEAT_COUNTS.at(-1)!
 /** Repeat visits go no further ahead than a booking can. */
 export const REPEAT_AHEAD_DAYS = 365
 

@@ -136,6 +136,16 @@ describe('repeat visits at the desk', { timeout: 20000 }, () => {
         name: 'This visit and the 1 after it, to Thursday 12 November',
       }),
     )
+    // Keeping the visit and coming back starts again from this visit alone.
+    await user.click(within(panel).getByRole('button', { name: 'Keep visit' }))
+    await user.click(within(panel).getByRole('button', { name: 'Cancel visit' }))
+    const again = within(panel).getByRole('group', { name: 'This visit repeats every 2 weeks' })
+    expect(within(again).getByRole('radio', { name: 'Just this visit' })).toBeChecked()
+    await user.click(
+      within(again).getByRole('radio', {
+        name: 'This visit and the 1 after it, to Thursday 12 November',
+      }),
+    )
     await user.type(within(panel).getByLabelText('Operational reason'), 'Moving away')
     await user.click(within(panel).getByRole('button', { name: 'Confirm cancellation' }))
     expect(

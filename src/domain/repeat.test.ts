@@ -103,6 +103,18 @@ describe('repeat visits', () => {
       [1, 2, 3, 4, 5].map((n) => addDays(first, n * 84)),
     )
     expect(tooFar.ok || tooFar.error).toBe('Repeat visits can be booked up to a year ahead.')
+    // Twelve visits at most, the first included, whatever a request asks for.
+    const thirteen = book(
+      1,
+      Array.from({ length: 12 }, (_, n) => addDays(first, (n + 1) * 7)),
+    )
+    expect(thirteen.ok).toBe(false)
+    expect(
+      book(
+        1,
+        Array.from({ length: 11 }, (_, n) => addDays(first, (n + 1) * 7)),
+      ).ok,
+    ).toBe(true)
     const online = book(4, [addDays(first, 28)], 'online')
     expect(online.ok || online.error).toBe('Repeat visits are booked by the studio.')
     expect(

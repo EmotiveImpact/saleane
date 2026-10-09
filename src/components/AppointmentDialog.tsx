@@ -308,6 +308,8 @@ export function AppointmentDialog({
     setMode(next)
     setError('')
     setNotice('')
+    // Cancelling always starts from this visit alone, whatever was chosen last time.
+    setAndLater(false)
     setReason(next === 'cancel' ? 'Client requested cancellation' : 'Client did not attend')
   }
   async function move() {

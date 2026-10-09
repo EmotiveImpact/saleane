@@ -548,57 +548,49 @@ export function BookingDialog({
               ) : (
                 <>
                   <ul className="repeat-plan" aria-label="The later visits">
-                    {repeatRows.map((row) => {
-                      const place = multiSite ? staffLocationOn(state, staffId, row.date) : ''
-                      const away =
-                        place && place !== staffLocationOn(state, staffId, date)
-                          ? ` At ${placeOf(state, place)?.name}, where they work that day.`
-                          : ''
-                      return (
-                        <li key={row.date} className={row.start === null ? 'repeat-left' : ''}>
-                          <span>
-                            <strong>{dateLabel(row.date, locale)}</strong>
-                            <small>
+                    {repeatRows.map((row) => (
+                      <li key={row.date} className={row.start === null ? 'repeat-left' : ''}>
+                        <span>
+                          <strong>{dateLabel(row.date, locale)}</strong>
+                          <small>
+                            {
                               {
-                                {
-                                  same: `Free at ${timeLabel(start, locale)}.`,
-                                  moved:
-                                    picks[row.date] === row.start
-                                      ? 'At the time you chose.'
-                                      : `${timeLabel(start, locale)} is taken, so the nearest free time.`,
-                                  full: 'Nothing free near that time, so it is left out.',
-                                  beyond: 'More than a year ahead, so it is left out.',
-                                  left: 'Left out.',
-                                }[row.why]
-                              }
-                              {away}
-                            </small>
-                          </span>
-                          {row.times.length > 0 && (
-                            <select
-                              aria-label={`Time on ${dateLabel(row.date, locale)}`}
-                              value={row.start ?? 'left'}
-                              disabled={busy}
-                              onChange={(e) => {
-                                const value = e.target.value
-                                setPicks({
-                                  ...picks,
-                                  [row.date]: value === 'left' ? 'left' : Number(value),
-                                })
-                                setError('')
-                              }}
-                            >
-                              {row.times.map((time) => (
-                                <option key={time} value={time}>
-                                  {timeLabel(time, locale)}
-                                </option>
-                              ))}
-                              <option value="left">Leave this one out</option>
-                            </select>
-                          )}
-                        </li>
-                      )
-                    })}
+                                same: `Free at ${timeLabel(start, locale)}.`,
+                                moved:
+                                  picks[row.date] === row.start
+                                    ? 'At the time you chose.'
+                                    : `${timeLabel(start, locale)} is taken, so the nearest free time.`,
+                                full: 'Nothing free near that time, so it is left out.',
+                                beyond: 'More than a year ahead, so it is left out.',
+                                left: 'Left out.',
+                              }[row.why]
+                            }
+                          </small>
+                        </span>
+                        {row.times.length > 0 && (
+                          <select
+                            aria-label={`Time on ${dateLabel(row.date, locale)}`}
+                            value={row.start ?? 'left'}
+                            disabled={busy}
+                            onChange={(e) => {
+                              const value = e.target.value
+                              setPicks({
+                                ...picks,
+                                [row.date]: value === 'left' ? 'left' : Number(value),
+                              })
+                              setError('')
+                            }}
+                          >
+                            {row.times.map((time) => (
+                              <option key={time} value={time}>
+                                {timeLabel(time, locale)}
+                              </option>
+                            ))}
+                            <option value="left">Leave this one out</option>
+                          </select>
+                        )}
+                      </li>
+                    ))}
                   </ul>
                   <p className="subtle">
                     {repeatVisits.length + 1} visits, each its own booking: any one can move or be
