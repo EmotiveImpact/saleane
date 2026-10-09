@@ -21,6 +21,15 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Texts name the location, imported visits go to the location where the professional works that day, and the calendar showing every location spans all their opening hours.
 - A studio with one location works exactly as before.
 
+## 2026-10-09 · V5 · Partner access
+
+**Status: built locally on 9 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-PARTNERS.md).
+
+- An access key can now be kept to one location, for a partner that works with one branch. It reads only that location's visits, plus the treatments and team, and stops if the location closes.
+- A key can stop working after a chosen day, up to a year ahead.
+- A new "Takings by day" permission lets an accountant's software read the same daily lines as the accountant's export, with no names or receipts.
+- Still read only. No real partner has been connected.
+
 ## 2026-10-09 · V5 · Branch map
 
 **Status: built locally on 9 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-BRANCH-MAP.md).

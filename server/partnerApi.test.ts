@@ -223,3 +223,104 @@ describe('read-only access for other software', () => {
     expect(body.data.map((c) => c.id)).toEqual([ids.clientId])
   })
 })
+
+describe('partner access', () => {
+  it('keeps a key to one location, with only its visits and the menu', async () => {
+    const login = await owner()
+    await run(login, {
+      type: 'location',
+      input: { name: 'Islington', address: '1 Upper Street, London N1 0PN' },
+    })
+    const s = await state(login)
+    const [main, islington] = [s.organisation.locationId, s.operations!.locations![0].id]
+    await book(login)
+    // Clients and takings belong to the whole studio, so a one-location key cannot have them.
+    for (const scope of ['clients:read', 'takings:read']) {
+      const refused = await keys(login, '', {
+        name: 'Branch',
+        scopes: ['appointments:read', scope],
+        locationId: islington,
+      })
+      expect(refused.statusCode).toBe(422)
+    }
+    expect(
+      (
+        await keys(login, '', {
+          name: 'Branch',
+          scopes: ['appointments:read'],
+          locationId: 'nowhere',
+        })
+      ).statusCode,
+    ).toBe(422)
+    const make = async (locationId: string) => {
+      const response = await keys(login, '', {
+        name: 'Branch till',
+        scopes: ['appointments:read', 'services:read'],
+        locationId,
+      })
+      expect(response.statusCode, response.body).toBe(201)
+      return response.json<{ key: string; keys: { locationId: string | null }[] }>()
+    }
+    const there = await make(islington)
+    const here = await make(main)
+    expect(there.keys.map((k) => k.locationId)).toContain(islington)
+    const visits = async (key: string) =>
+      (await read(key, 'appointments?from=2026-10-01&to=2026-10-31')).json<{ total: number }>()
+        .total
+    expect(await visits(there.key)).toBe(0)
+    expect(await visits(here.key)).toBe(1)
+    expect((await read(there.key, 'studio')).json<{ locationId: string }>().locationId).toBe(
+      islington,
+    )
+    expect((await read(there.key, 'services')).statusCode).toBe(200)
+    expect((await read(there.key, 'clients')).statusCode).toBe(403)
+    // Closing the location stops its key.
+    await run(login, {
+      type: 'location',
+      id: islington,
+      input: { name: 'Islington', address: '1 Upper Street, London N1 0PN', archived: true },
+    })
+    expect((await read(there.key, 'studio')).statusCode).toBe(401)
+    expect((await read(here.key, 'studio')).statusCode).toBe(200)
+  })
+
+  it('stops a key after its last day', async () => {
+    const login = await owner()
+    for (const endsOn of ['2026-10-05', '2027-10-08']) {
+      const refused = await keys(login, '', { name: 'Audit', scopes: ['takings:read'], endsOn })
+      expect(refused.statusCode).toBe(422)
+    }
+    const made = await keys(login, '', {
+      name: 'Audit',
+      scopes: ['takings:read'],
+      endsOn: '2026-10-07',
+    })
+    expect(made.statusCode, made.body).toBe(201)
+    const { key } = made.json<{ key: string }>()
+    expect((await read(key, 'studio')).json<{ endsOn: string }>().endsOn).toBe('2026-10-07')
+    // Still works through the whole of its last day in the studio's own time.
+    clock = Date.parse('2026-10-07T22:30:00.000Z')
+    expect((await read(key, 'studio')).statusCode).toBe(200)
+    clock = Date.parse('2026-10-07T23:30:00.000Z')
+    const ended = await read(key, 'studio')
+    expect(ended.statusCode).toBe(401)
+    expect(ended.body).toContain('end date')
+  })
+
+  it('reads takings by day, with no receipts or names', async () => {
+    const login = await owner()
+    await book(login)
+    const { key } = await makeKey(login, ['takings:read'])
+    const takings = await read(key, 'takings?from=2026-10-01&to=2026-10-31')
+    expect(takings.statusCode, takings.body).toBe(200)
+    const body = takings.json<{ currency: string; data: unknown[] }>()
+    expect(body.currency).toBe('GBP')
+    expect(Array.isArray(body.data)).toBe(true)
+    expect(takings.body).not.toContain('Grace')
+    expect((await read(key, 'takings?from=2026-10-01&to=2026-12-31')).statusCode).toBe(400)
+    const visitsOnly = await makeKey(login, ['appointments:read'])
+    expect((await read(visitsOnly.key, 'takings?from=2026-10-01&to=2026-10-31')).statusCode).toBe(
+      403,
+    )
+  })
+})
