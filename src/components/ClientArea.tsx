@@ -6,6 +6,7 @@ import { can } from '../domain/operations'
 import { areaHint, postcodeArea } from '../domain/clientAreas'
 import type { Client } from '../domain/model'
 import { Button, ErrorMessage } from '../design'
+import '../guest-extras.css'
 
 /**
  * V5: the first half of a client's postcode, for seeing where clients come from in groups. A

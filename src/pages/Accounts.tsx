@@ -23,6 +23,8 @@ import type { AccountCodes, AccountingProvider } from '../domain/accountsSchema'
 import { Button, ErrorMessage, Modal, PageHeader, SegmentedControl, Stat, Stats } from '../design'
 import '../components/management.css'
 import '../pay.css'
+import '../rota.css'
+import '../stock.css'
 import '../accounts.css'
 
 /**

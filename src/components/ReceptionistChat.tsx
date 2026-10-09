@@ -160,7 +160,12 @@ export function ReceptionistChat({
         {turns.length === 0 && (
           <div className="reception-starters">
             {starters.map((s) => (
-              <button key={s} className="ask-starter" disabled={pending} onClick={() => ask(s)}>
+              <button
+                key={s}
+                className="reception-starter"
+                disabled={pending}
+                onClick={() => ask(s)}
+              >
                 {s}
               </button>
             ))}

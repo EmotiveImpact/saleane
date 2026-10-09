@@ -56,6 +56,18 @@
   flex-wrap: wrap;
   gap: var(--space-2);
 }
+.reception-starter {
+  min-height: var(--target);
+  padding: var(--space-2) var(--space-4);
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-pill);
+}
+.reception-starter:hover {
+  border-color: var(--field-line);
+  background: var(--hover);
+}
 .reception-bubble {
   display: flex;
   flex-direction: column;
