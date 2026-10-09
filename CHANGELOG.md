@@ -70,6 +70,13 @@ Behind the scenes:
 - The project notes for future helpers say what is merged, how merging works and the new rules (47).
 - Each change inside a combined change is checked on its own, outgoing connections treat NAT64 addresses as private, and three unused bits of code are gone (48).
 
+## 2026-10-09 · Roadmap · What's left before release
+
+**Status: documentation only; nothing built or deployed.**
+
+- The roadmap now lists everything left before release, grouped by what each item waits on: the owner's word, outside accounts or live sources, things still to build (NEXT-01 to NEXT-12 in the build queue), and the steps to release 1.0.
+- V3's row records what is built locally, a V5.5 row holds the ideas agreed to come after real studios, and hosting is shown as parked and undecided.
+
 ## 2026-10-09 · V1.5 · Passing an unanswered waitlist offer on
 
 **Status: built locally on 9 October 2026 and merged (#71); nothing deployed.** [Evidence](docs/evidence/V15-WAITLIST.md#passing-an-unanswered-offer-on).
