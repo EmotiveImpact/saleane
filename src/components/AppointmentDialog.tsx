@@ -8,6 +8,7 @@ import {
   CircleX,
   CreditCard,
   MessageSquareText,
+  Repeat2,
   UserX,
 } from 'lucide-react'
 import { useStore } from '../state/context'
@@ -32,8 +33,10 @@ import { VisitPatchTest } from './PatchTests'
 import { VisitForms } from './GuestForms'
 import { VisitConsultation } from './Consultations'
 import { shownStatus } from '../domain/selectors'
+import { everyLabel, laterInRepeat, repeatLabel } from '../domain/repeat'
 import { servicePhoto } from './servicePhoto'
 import './visitPanel.css'
+import './repeat.css'
 
 export function AppointmentDialog({
   appointmentId,
@@ -86,6 +89,7 @@ export function AppointmentDialog({
     proposal?.startMinutes ?? appointment?.startMinutes ?? null,
   )
   const [reason, setReason] = useState('')
+  const [andLater, setAndLater] = useState(false)
   const [notice, setNotice] = useState('')
   const rebookHeading = useId()
   if (!appointment)
@@ -115,6 +119,8 @@ export function AppointmentDialog({
       </Modal>
     )
   const sale = state.sales.find((s) => s.appointmentId === appointmentId)
+  // NEXT-09: the visits of its repeat still to come, which can be cancelled with this one.
+  const later = laterInRepeat(state, appointment)
   const locale = state.organisation.locale
   const firstName = client.name.split(' ')[0]
   const serviceName = appointment.bookedServiceName ?? service.name
@@ -327,11 +333,22 @@ export function AppointmentDialog({
   }
   async function endVisit() {
     if (mode !== 'cancel' && mode !== 'no-show') return
-    if (!(await run({ type: mode, appointmentId, reason }))) return
+    const withLater = mode === 'cancel' && andLater && later.length > 0
+    if (
+      !(await run(
+        mode === 'cancel'
+          ? { type: 'cancel', appointmentId, reason, ...(withLater ? { andLater: true } : {}) }
+          : { type: mode, appointmentId, reason },
+      ))
+    )
+      return
     setMode('details')
+    setAndLater(false)
     setNotice(
       mode === 'cancel'
-        ? 'Cancellation recorded in the client’s history.'
+        ? withLater
+          ? `This visit and the ${later.length} after it are cancelled. Each is recorded in the client’s history.`
+          : 'Cancellation recorded in the client’s history.'
         : 'Missed visit recorded in the client’s history.',
     )
   }
@@ -553,6 +570,9 @@ export function AppointmentDialog({
             <p>
               {staff.name} · {appointment.bookedServiceName ?? service.name}
             </p>
+            {appointment.repeat && (
+              <p>Only this visit moves; the others in its repeat stay as they are.</p>
+            )}
           </div>
           <div className="form-grid">
             <label>
@@ -669,6 +689,30 @@ export function AppointmentDialog({
               {timeLabel(appointment.startMinutes, state.organisation.locale)} with {staff.name}
             </p>
           </div>
+          {mode === 'cancel' && later.length > 0 && (
+            <fieldset className="repeat-cancel">
+              <legend>This visit repeats {everyLabel(appointment.repeat!.everyWeeks)}</legend>
+              <label>
+                <input
+                  type="radio"
+                  name="repeat-cancel"
+                  checked={!andLater}
+                  onChange={() => setAndLater(false)}
+                />
+                Just this visit
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="repeat-cancel"
+                  checked={andLater}
+                  onChange={() => setAndLater(true)}
+                />
+                This visit and the {later.length} after it, to{' '}
+                {dateLabel(later.at(-1)!.date, state.organisation.locale)}
+              </label>
+            </fieldset>
+          )}
           <label>
             Operational reason
             <input
@@ -1060,6 +1104,15 @@ export function AppointmentDialog({
             {appointment.bookedBufferMinutes} minute turnaround
             {resource.restMinutes ? ` · room rests ${resource.restMinutes} minutes` : ''}
           </p>
+          {appointment.repeat && (
+            <p className="visit-repeat">
+              <Repeat2 size={15} aria-hidden="true" />
+              {repeatLabel(state, appointment)}
+              {later[0]
+                ? `. Next: ${dateLabel(later[0].date, state.organisation.locale)} at ${timeLabel(later[0].startMinutes, state.organisation.locale)}.`
+                : '.'}
+            </p>
+          )}
           {strips}
           <div className="visit-client">
             {identity}

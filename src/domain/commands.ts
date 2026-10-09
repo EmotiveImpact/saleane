@@ -16,7 +16,8 @@ import { recordTillCount } from './tillCount'
 export { commandSchema } from './commandSchema'
 export type { Command, BookingInput, ContactInput } from './commandSchema'
 import type { Appointment, BusinessState, RelationshipEvent } from './model'
-import { dateLabel, money, timeLabel } from './format'
+import { addDays, dateLabel, money, timeLabel } from './format'
+import { REPEAT_AHEAD_DAYS, REPEAT_MOST, everyLabel, laterInRepeat, repeatDates } from './repeat'
 import { availableAllocation } from './allocation'
 import { runSwitchingCommand } from './switching'
 import { coverVisit, runPlanCommand, stampPlanActors } from './plans'
@@ -201,6 +202,7 @@ export function execute(
         recordId,
       }
     }
+    if (command.type === 'book-repeat') return bookRepeat(s, command, now, makeId)
     const next = structuredClone(s)
     const org = s.organisation
     const addEvent = (
@@ -425,30 +427,42 @@ export function execute(
         followMovedVisit(s, next, appointment, now)
       } else {
         const status = command.type === 'cancel' ? 'cancelled' : 'no_show'
-        if (appointment.status === status) return { ok: true, state: s, recordId: appointment.id }
-        if (appointment.status !== 'confirmed')
+        // NEXT-09: the later visits of its repeat go too, when the studio asks for that.
+        const later =
+          command.type === 'cancel' && command.andLater
+            ? laterInRepeat(s, appointment).map((x) =>
+                next.appointments.find((y) => y.id === x.id)!,
+              )
+            : []
+        if (command.type === 'cancel' && command.andLater && command.deposit)
+          throw new Error('A guest cancels one visit at a time.')
+        if (appointment.status === status && !later.length)
+          return { ok: true, state: s, recordId: appointment.id }
+        if (appointment.status !== 'confirmed' && appointment.status !== status)
           throw new Error('Only an upcoming visit can be changed this way.')
         if (status === 'no_show' && appointment.date > businessDate(s, now))
           throw new Error('A visit still to come cannot be marked as missed.')
         const reason = command.reason.trim()
         if (reason.length < 2 || reason.length > 300)
           throw new Error('Enter an operational reason between 2 and 300 characters.')
-        appointment.status = status
-        if (status === 'cancelled') closeForCancelledVisit(s, next, appointment.id, now)
-        const paid = depositPaid(s, appointment.id)
-        const deposit =
-          command.type === 'cancel' && command.deposit && paid
-            ? command.deposit === 'refund_due'
-              ? `Deposit of ${money(paid, org, true)} flagged for refund under the 24-hour cancellation policy. No refund has been made; record it in Money once returned. No message sent.`
-              : `Deposit of ${money(paid, org, true)} retained under the 24-hour cancellation policy. No fee, sale or message created.`
-            : 'Deposit history retained for review. No refund, fee, sale or message created.'
-        addEvent({
-          clientId: appointment.clientId,
-          appointmentId: appointment.id,
-          type: status,
-          title: status === 'cancelled' ? 'Visit cancelled' : 'Visit marked as missed',
-          detail: `${reason}. ${deposit}`,
-        })
+        for (const visit of appointment.status === status ? later : [appointment, ...later]) {
+          visit.status = status
+          if (status === 'cancelled') closeForCancelledVisit(s, next, visit.id, now)
+          const paid = depositPaid(s, visit.id)
+          const deposit =
+            command.type === 'cancel' && command.deposit && paid
+              ? command.deposit === 'refund_due'
+                ? `Deposit of ${money(paid, org, true)} flagged for refund under the 24-hour cancellation policy. No refund has been made; record it in Money once returned. No message sent.`
+                : `Deposit of ${money(paid, org, true)} retained under the 24-hour cancellation policy. No fee, sale or message created.`
+              : 'Deposit history retained for review. No refund, fee, sale or message created.'
+          addEvent({
+            clientId: visit.clientId,
+            appointmentId: visit.id,
+            type: status,
+            title: status === 'cancelled' ? 'Visit cancelled' : 'Visit marked as missed',
+            detail: `${reason}.${visit !== appointment ? ' Cancelled with the earlier visit of its repeat.' : ''} ${deposit}`,
+          })
+        }
       }
       recordId = appointment.id
     } else if (command.type === 'arrive' || command.type === 'checkout') {
@@ -842,6 +856,74 @@ export function execute(
             ? error.message
             : 'Unable to save this change.',
     }
+  }
+}
+
+/**
+ * NEXT-09: books a visit and the later ones that repeat it, each through the ordinary booking so
+ * it is checked in full, all together or not at all. The later visits are for the client and
+ * professional the first one got, wherever that person works on the day.
+ */
+function bookRepeat(
+  s: BusinessState,
+  command: Extract<Command, { type: 'book-repeat' }>,
+  now: string,
+  makeId: () => string,
+): CommandResult {
+  const { booking, everyWeeks, visits } = command
+  const { locale } = s.organisation
+  if (booking.source === 'online') throw new Error('Repeat visits are booked by the studio.')
+  const onRhythm = new Set(repeatDates(booking.date, everyWeeks, REPEAT_MOST))
+  let last = booking.date
+  for (const visit of visits) {
+    if (visit.date <= last || !onRhythm.has(visit.date))
+      throw new Error(`Each repeat visit falls ${everyLabel(everyWeeks)} after the first.`)
+    last = visit.date
+  }
+  if (last > addDays(businessDate(s, now), REPEAT_AHEAD_DAYS))
+    throw new Error('Repeat visits can be booked up to a year ahead.')
+  const repeat = { id: makeId(), everyWeeks }
+  const all = [{ date: booking.date, startMinutes: booking.startMinutes }, ...visits]
+  const made: Appointment[] = []
+  let current = s
+  for (const [index, when] of all.entries()) {
+    const first = made[0]
+    const input =
+      index === 0
+        ? booking
+        : {
+            serviceId: first.serviceId,
+            staffId: first.staffId,
+            clientId: first.clientId,
+            date: when.date,
+            startMinutes: when.startMinutes,
+            ...('resourceId' in when && when.resourceId ? { resourceId: when.resourceId } : {}),
+            source: 'desk' as const,
+            ...(booking.consultationId ? { consultationId: booking.consultationId } : {}),
+          }
+    const result = execute(current, { type: 'book', input }, now, makeId)
+    if (!result.ok)
+      return index === 0
+        ? result
+        : {
+            ok: false,
+            error: `${dateLabel(when.date, locale)} at ${timeLabel(when.startMinutes, locale)}: ${result.error}`,
+          }
+    current = result.state
+    const visit = current.appointments.find((a) => a.id === result.recordId)!
+    visit.repeat = repeat
+    made.push(visit)
+  }
+  // Each visit's own "Visit booked" line says where it sits in the repeat.
+  const ids = new Map(made.map((visit, index) => [visit.id, index + 1]))
+  const before = new Set(s.events.map((e) => e.id))
+  for (const event of current.events)
+    if (!before.has(event.id) && event.type === 'booked' && ids.has(event.appointmentId ?? ''))
+      event.detail += ` Visit ${ids.get(event.appointmentId!)} of ${made.length}, repeating ${everyLabel(everyWeeks)}.`
+  return {
+    ok: true,
+    state: parseState({ ...current, revision: s.revision + 1 }, s.organisation.region),
+    recordId: made[0].id,
   }
 }
 

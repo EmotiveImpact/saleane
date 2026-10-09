@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { REPEAT_EVERY, REPEAT_MOST } from './repeat'
 import { groupCommandSchemas } from './groupSchema'
 import { branchVisitCommandSchemas } from './branchVisitSchema'
 import { hoursCommandSchemas } from './hoursSchema'
@@ -405,6 +406,31 @@ export const commandSchema = z.discriminatedUnion('type', [
     reason: z.string().trim().min(2).max(300),
     // Set only when the guest cancels through their private link (LOCAL-02).
     deposit: z.enum(['refund_due', 'retained']).optional(),
+    /** NEXT-09: also cancel the later visits of its repeat. Only the studio sets it. */
+    andLater: z.literal(true).optional(),
+  }),
+  // NEXT-09: a visit and the ones that repeat it every few weeks, booked together or not at all.
+  z.object({
+    type: z.literal('book-repeat'),
+    booking: bookingSchema,
+    everyWeeks: z
+      .number()
+      .int()
+      .refine((weeks) => (REPEAT_EVERY as readonly number[]).includes(weeks)),
+    /** The later visits, soonest first; each on the rhythm, at a time the desk chose. */
+    visits: z
+      .array(
+        z
+          .object({
+            date: z.iso.date(),
+            startMinutes: z.number().int().min(0).max(1439),
+            /** Set by the server, which checks the time against guests holding it online. */
+            resourceId: id.optional(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(REPEAT_MOST - 1),
   }),
   z.object({
     type: z.literal('no-show'),

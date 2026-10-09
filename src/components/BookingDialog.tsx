@@ -1,6 +1,6 @@
 import { useId, useState } from 'react'
 import { hasLocations, placeOf, serviceAt, staffLocationOn } from '../domain/locations'
-import { Check, CalendarDays, Search } from 'lucide-react'
+import { Check, CalendarDays, Repeat2, Search } from 'lucide-react'
 import { useStore } from '../state/context'
 import { operations, can } from '../domain/operations'
 import { slots } from '../domain/commands'
@@ -10,6 +10,22 @@ import { numberLabel } from '../domain/missedCalls'
 import { consultationsList, latestVersion } from '../domain/consultations'
 import { Button, ErrorMessage, Modal, TimeChoices } from '../design'
 import { StudioDateField } from './StudioDateField'
+import {
+  REPEAT_AHEAD_DAYS,
+  REPEAT_COUNTS,
+  REPEAT_EVERY,
+  everyLabel,
+  repeatDates,
+} from '../domain/repeat'
+import './repeat.css'
+
+/** NEXT-09: a later visit of a repeat, at the time it would be booked, or left out. */
+type RepeatRow = {
+  date: string
+  times: number[]
+  start: number | null
+  why: 'same' | 'moved' | 'full' | 'beyond' | 'left'
+}
 
 export type BookingDefaults = {
   clientId?: string
@@ -102,7 +118,35 @@ export function BookingDialog({
   })
   const [error, setError] = useState('')
   const [confirmedId, setConfirmedId] = useState('')
+  const [booked, setBooked] = useState<{ date: string; start: number }[]>([])
   const available = free(serviceId, staffId, date)
+  // NEXT-09: repeat visits, every few weeks after the first, each at a time free that day.
+  const [everyWeeks, setEveryWeeks] = useState(0)
+  const [count, setCount] = useState(6)
+  const [picks, setPicks] = useState<Record<string, number | 'left'>>({})
+  const lastDay = addDays(today, REPEAT_AHEAD_DAYS)
+  const repeatRows: RepeatRow[] =
+    everyWeeks && start !== null && staffId
+      ? repeatDates(date, everyWeeks, count)
+          .slice(1)
+          .map((day) => {
+            if (day > lastDay) return { date: day, times: [], start: null, why: 'beyond' }
+            const times = free(serviceId, staffId, day)
+            const pick = picks[day]
+            if (pick === 'left') return { date: day, times, start: null, why: 'left' }
+            if (pick !== undefined && times.includes(pick))
+              return { date: day, times, start: pick, why: pick === start ? 'same' : 'moved' }
+            if (times.includes(start)) return { date: day, times, start, why: 'same' }
+            const near = [...times].sort(
+              (a, b) => Math.abs(a - start) - Math.abs(b - start) || a - b,
+            )[0]
+            return near !== undefined && Math.abs(near - start) <= 90
+              ? { date: day, times, start: near, why: 'moved' }
+              : { date: day, times, start: null, why: 'full' }
+          })
+      : []
+  const repeatVisits = repeatRows.filter((row) => row.start !== null)
+  const repeating = everyWeeks > 0
   const client = state.clients.find((c) => c.id === clientId)
   const bookedClient = state.clients.find(
     (c) => c.id === (state.appointments.find((a) => a.id === confirmedId)?.clientId ?? clientId),
@@ -127,6 +171,7 @@ export function BookingDialog({
     : []
   function chooseDate(next: string) {
     setDate(next)
+    setPicks({})
     // Keep a familiar time when it is free on the new day.
     const keep = defaults.startMinutes
     setStart(keep !== undefined && free(serviceId, staffId, next).includes(keep) ? keep : null)
@@ -141,37 +186,53 @@ export function BookingDialog({
       setError('Choose an available time.')
       return
     }
+    if (repeating && !repeatVisits.length) {
+      setError('Every later visit is left out. Give one a time, or choose Just this visit.')
+      return
+    }
     setPending(true)
     setError('')
     try {
-      const result = await commit({
-        type: 'book',
-        input: {
-          ...(someoneNew
-            ? {
-                contact: {
-                  name: newName.trim(),
-                  email: newEmail.trim(),
-                  phone: newPhone.trim(),
-                  marketingConsent: false,
-                },
-              }
-            : { clientId }),
-          serviceId,
-          staffId,
-          date,
-          startMinutes: start,
-          ...(multiSite ? { locationId: staffLocationOn(state, staffId, date) } : {}),
-          source: defaults.rebookedFromId ? 'rebook' : 'desk',
-          rebookedFromId: defaults.rebookedFromId,
-          ...(call ? { callId: call.id } : {}),
-          ...(consultation ? { consultationId: consultation.id } : {}),
-        },
-      })
+      const booking = {
+        ...(someoneNew
+          ? {
+              contact: {
+                name: newName.trim(),
+                email: newEmail.trim(),
+                phone: newPhone.trim(),
+                marketingConsent: false,
+              },
+            }
+          : { clientId }),
+        serviceId,
+        staffId,
+        date,
+        startMinutes: start,
+        ...(multiSite ? { locationId: staffLocationOn(state, staffId, date) } : {}),
+        source: defaults.rebookedFromId ? 'rebook' : 'desk',
+        rebookedFromId: defaults.rebookedFromId,
+        ...(call ? { callId: call.id } : {}),
+        ...(consultation ? { consultationId: consultation.id } : {}),
+      } as const
+      const result = await commit(
+        repeating
+          ? {
+              type: 'book-repeat',
+              booking,
+              everyWeeks,
+              visits: repeatVisits.map((row) => ({ date: row.date, startMinutes: row.start! })),
+            }
+          : { type: 'book', input: booking },
+      )
       if (!result.ok) {
         setError(result.error)
         return
       }
+      setBooked(
+        repeating
+          ? [{ date, start }, ...repeatVisits.map((row) => ({ date: row.date, start: row.start! }))]
+          : [],
+      )
       setConfirmedId(result.recordId)
     } catch {
       setError('Could not save this visit. Your choices are still here; try again.')
@@ -218,11 +279,26 @@ export function BookingDialog({
             <Check />
           </span>
           <h3>{bookedClient?.name}</h3>
-          <p>
-            {service.name}
-            <br /> {dateLabel(date, state.organisation.locale)} at{' '}
-            {timeLabel(start!, state.organisation.locale)}
-          </p>
+          {booked.length > 1 ? (
+            <>
+              <p>
+                {service.name}, {booked.length} visits {everyLabel(everyWeeks)}
+              </p>
+              <ul className="repeat-booked" aria-label="Visits booked">
+                {booked.map((visit) => (
+                  <li key={visit.date}>
+                    {dateLabel(visit.date, locale)} at {timeLabel(visit.start, locale)}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p>
+              {service.name}
+              <br /> {dateLabel(date, state.organisation.locale)} at{' '}
+              {timeLabel(start!, state.organisation.locale)}
+            </p>
+          )}
           <p className="subtle">
             {sandbox
               ? 'Deposit simulated. No real payment taken.'
@@ -416,6 +492,115 @@ export function BookingDialog({
               setError('')
             }}
           />
+          <fieldset className="booking-repeat">
+            <legend>
+              <Repeat2 size={17} aria-hidden="true" /> Repeat
+            </legend>
+            <div className="form-grid">
+              <label>
+                How often
+                <select
+                  value={everyWeeks}
+                  disabled={busy}
+                  onChange={(e) => {
+                    setEveryWeeks(Number(e.target.value))
+                    setPicks({})
+                    setError('')
+                  }}
+                >
+                  <option value={0}>Just this visit</option>
+                  {REPEAT_EVERY.map((weeks) => (
+                    <option key={weeks} value={weeks}>
+                      {weeks === 1 ? 'Every week' : `Every ${weeks} weeks`}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {repeating && (
+                <label>
+                  Visits in all
+                  <select
+                    value={count}
+                    disabled={busy}
+                    onChange={(e) => {
+                      setCount(Number(e.target.value))
+                      setError('')
+                    }}
+                  >
+                    {REPEAT_COUNTS.map((n) => (
+                      <option key={n} value={n}>
+                        {n} visits
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </div>
+            {repeating &&
+              (start === null ? (
+                <p className="subtle">Choose a time for the first visit; the others follow it.</p>
+              ) : (
+                <>
+                  <ul className="repeat-plan" aria-label="The later visits">
+                    {repeatRows.map((row) => {
+                      const place = multiSite ? staffLocationOn(state, staffId, row.date) : ''
+                      const away =
+                        place && place !== staffLocationOn(state, staffId, date)
+                          ? ` At ${placeOf(state, place)?.name}, where they work that day.`
+                          : ''
+                      return (
+                        <li key={row.date} className={row.start === null ? 'repeat-left' : ''}>
+                          <span>
+                            <strong>{dateLabel(row.date, locale)}</strong>
+                            <small>
+                              {
+                                {
+                                  same: `Free at ${timeLabel(start, locale)}.`,
+                                  moved:
+                                    picks[row.date] === row.start
+                                      ? 'At the time you chose.'
+                                      : `${timeLabel(start, locale)} is taken, so the nearest free time.`,
+                                  full: 'Nothing free near that time, so it is left out.',
+                                  beyond: 'More than a year ahead, so it is left out.',
+                                  left: 'Left out.',
+                                }[row.why]
+                              }
+                              {away}
+                            </small>
+                          </span>
+                          {row.times.length > 0 && (
+                            <select
+                              aria-label={`Time on ${dateLabel(row.date, locale)}`}
+                              value={row.start ?? 'left'}
+                              disabled={busy}
+                              onChange={(e) => {
+                                const value = e.target.value
+                                setPicks({
+                                  ...picks,
+                                  [row.date]: value === 'left' ? 'left' : Number(value),
+                                })
+                                setError('')
+                              }}
+                            >
+                              {row.times.map((time) => (
+                                <option key={time} value={time}>
+                                  {timeLabel(time, locale)}
+                                </option>
+                              ))}
+                              <option value="left">Leave this one out</option>
+                            </select>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                  <p className="subtle">
+                    {repeatVisits.length + 1} visits, each its own booking: any one can move or be
+                    cancelled alone.
+                  </p>
+                </>
+              ))}
+          </fieldset>
           <div className="booking-summary">
             <CalendarDays size={20} />
             <span>
@@ -424,7 +609,7 @@ export function BookingDialog({
             </span>
           </div>
           <div className="receipt-line">
-            <span>Treatment total</span>
+            <span>{repeating ? 'Treatment total, each visit' : 'Treatment total'}</span>
             <strong>
               {money(
                 serviceAt(service, staffId ? staffLocationOn(state, staffId, date) : undefined)
@@ -434,7 +619,10 @@ export function BookingDialog({
             </strong>
           </div>
           <div className="receipt-line subtle">
-            <span>{sandbox ? 'Simulated deposit' : 'Deposit requested'}</span>
+            <span>
+              {sandbox ? 'Simulated deposit' : 'Deposit requested'}
+              {repeating ? ', each visit' : ''}
+            </span>
             <span>{money(service.depositMinor, state.organisation)}</span>
           </div>
           <ErrorMessage error={error} />
@@ -453,7 +641,13 @@ export function BookingDialog({
                 !available.includes(start)
               }
             >
-              {busy ? 'Saving visit…' : sandbox ? 'Confirm demo booking' : 'Confirm booking'}
+              {busy
+                ? 'Saving visit…'
+                : repeating && start !== null && repeatVisits.length
+                  ? `Confirm ${repeatVisits.length + 1} visits`
+                  : sandbox
+                    ? 'Confirm demo booking'
+                    : 'Confirm booking'}
             </Button>
           </div>
         </>
