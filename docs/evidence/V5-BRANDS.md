@@ -14,7 +14,7 @@ Screenshots: [the page](V5-BRANDS-page.png), [on a phone](V5-BRANDS-390.png).
 
 ## Automated checks
 
-`src/domain/brandGroup.test.ts` covers: each brand's figures matching its own Business view; totals kept per currency; the brand ahead and the one behind named only when clearly apart, and "needs a look" only when takings fell. `server/brandGroup.test.ts` covers: every owned studio listed, sample and real studios never added together, nothing but totals in the response, studios where the person is a manager or on the desk left out, and signed-out requests refused.
+`src/domain/brandGroup.test.ts` covers: each brand's figures matching its own Business view; totals kept per currency; the brand ahead and the one behind named only when clearly apart, "needs a look" only when takings fell, and sample studios never ranked against real ones. `server/brandGroup.test.ts` covers: every owned studio listed, sample and real studios never added together, nothing but totals in the response, studios where the person is a manager or on the desk left out, and signed-out requests refused.
 
 ## Limits
 

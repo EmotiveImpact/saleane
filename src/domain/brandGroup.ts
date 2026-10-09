@@ -104,13 +104,14 @@ export function brandGroup(brands: BrandFigures[]) {
   // Real studios first, then samples; pounds before dollars.
   totals.sort((a, b) => Number(a.sample) - Number(b.sample) || a.currency.localeCompare(b.currency))
   // Growth is a share, so brands in different currencies can still be compared on it.
-  const ranked = brands.filter((b) => b.growth !== null).sort((a, b) => b.growth! - a.growth!)
+  // Samples run on a fixed demonstration day, so they are ranked only when there is no real brand.
+  const live = brands.some((b) => !b.sample)
+  const ranked = brands
+    .filter((b) => b.growth !== null && b.sample === !live)
+    .sort((a, b) => b.growth! - a.growth!)
   const whole = (b: BrandFigures) => Math.round(b.growth! * 100)
   // Named only when clearly ahead or behind the rest, and only "needs a look" when it fell.
-  const best =
-    ranked.length > 1 && whole(ranked[0]) > whole(ranked[1]) && whole(ranked[0]) > 0
-      ? ranked[0]
-      : null
+  const best = ranked.length > 1 && whole(ranked[0]) > whole(ranked[1]) ? ranked[0] : null
   const weakest =
     ranked.length > 1 && whole(ranked.at(-1)!) < whole(ranked.at(-2)!) && whole(ranked.at(-1)!) < 0
       ? ranked.at(-1)!
