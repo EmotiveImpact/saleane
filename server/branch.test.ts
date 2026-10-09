@@ -285,4 +285,60 @@ describe('general manager access (V5)', () => {
     expect(gone.statusCode).toBe(403)
     expect(gone.body).toMatch(/location has closed/)
   })
+
+  it('is refused on every route once their location closes, before anything is saved', async () => {
+    const { owner, islington } = await twoSites()
+    const gia = await general(owner, 'gia@example.invalid', islington)
+    const later = await post(owner, '/invitations', {
+      email: 'gus@example.invalid',
+      role: 'general',
+      locationId: islington,
+    })
+    // Open, they read the day sheet and their own pages.
+    expect((await get(gia, '/day-sheet')).statusCode).toBe(200)
+    expect((await get(gia, '/audit')).statusCode).toBe(200)
+    let state = await studio(owner)
+    const close = await run(owner, state.revision, {
+      type: 'location',
+      id: islington,
+      input: { name: 'Islington', address: '1 Upper Street', archived: true },
+    } as Command)
+    expect(close.statusCode, close.body).toBe(200)
+    state = await studio(owner)
+    const before = state.revision
+    // A change to a client passes the location rules, but is refused before it is saved.
+    const note = await run(gia, before, {
+      type: 'note',
+      clientId: state.clients[0].id,
+      text: 'Prefers mornings',
+    })
+    expect(note.statusCode).toBe(403)
+    expect(note.json<{ error: string }>().error).toMatch(/^Your location has closed\./)
+    expect((await studio(owner)).revision).toBe(before)
+    expect((await studio(owner)).events.some((e) => e.detail === 'Prefers mornings')).toBe(false)
+    // Nothing else reads or changes anything for them either.
+    for (const path of ['', '/day-sheet', '/audit', '/payments', '/outbox', '/assistant']) {
+      const response = await get(gia, path)
+      expect(response.statusCode, path).toBe(403)
+      expect(response.json<{ error: string }>().error, path).toMatch(/^Your location has closed\./)
+    }
+    const ask = await post(gia, '/assistant', { text: 'Who is in today?' })
+    expect(ask.statusCode).toBe(403)
+    expect(ask.json<{ error: string }>().error).toMatch(/^Your location has closed\./)
+    const link = await post(gia, '/guest-links', { appointmentId: state.appointments[0].id })
+    expect(link.statusCode).toBe(403)
+    // An invitation to the closed location can no longer be accepted.
+    const join = await api.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: {
+        name: 'Gus General',
+        email: 'gus@example.invalid',
+        password,
+        invitation: later.json<{ invitation: string }>().invitation,
+      },
+    })
+    expect(join.statusCode).toBe(403)
+    expect((await get(owner, '/team')).json<{ members: unknown[] }>().members).toHaveLength(2)
+  })
 })
