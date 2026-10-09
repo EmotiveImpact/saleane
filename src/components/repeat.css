@@ -70,7 +70,7 @@
 /* The visit card names the repeat it belongs to, in the same quiet line as the visit's facts. */
 .visit-repeat {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   margin: 6px 0 0;
   color: var(--muted);
@@ -79,6 +79,7 @@
 }
 .visit-repeat svg {
   flex: none;
+  margin-top: 3px;
   color: var(--brand-ink);
 }
 /* Cancelling a repeat visit: one choice, this visit alone or with the ones after it. */
@@ -92,15 +93,21 @@
   font-weight: var(--weight-strong);
 }
 .repeat-cancel > label {
-  display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 10px;
   min-height: var(--target);
+  font-weight: var(--weight-body);
   line-height: 1.4;
 }
-.repeat-cancel > label input {
-  flex: none;
+.repeat-cancel > label input[type='radio'] {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
   margin: 0;
+  padding: 0;
+  flex: none;
+  accent-color: var(--ink);
 }
 /* A small mark on the calendar for a visit that repeats. */
 .block-repeat {

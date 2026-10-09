@@ -56,7 +56,7 @@ describe('repeat visits at the desk', { timeout: 20000 }, () => {
     expect(rows[1]).toHaveTextContent('At the time you chose.')
     expect(within(dialog).getByText(/3 visits, each its own booking/)).toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Confirm 3 visits' }))
-    expect(screen.getByText('A visit to look forward to')).toBeInTheDocument()
+    expect(screen.getByText('Visits to look forward to')).toBeInTheDocument()
     const booked = screen.getByRole('list', { name: 'Visits booked' })
     expect(
       within(booked)

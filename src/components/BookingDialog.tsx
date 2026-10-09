@@ -248,7 +248,9 @@ export function BookingDialog({
       }}
       title={
         confirmedId
-          ? 'A visit to look forward to'
+          ? booked.length > 1
+            ? 'Visits to look forward to'
+            : 'A visit to look forward to'
           : defaults.rebookedFromId
             ? 'Keep the relationship going'
             : 'Book a visit'
@@ -301,8 +303,12 @@ export function BookingDialog({
           )}
           <p className="subtle">
             {sandbox
-              ? 'Deposit simulated. No real payment taken.'
-              : 'Visit reserved. Record any deposit already received in Money; no card has been charged.'}
+              ? booked.length > 1
+                ? 'Deposits simulated. No real payment taken.'
+                : 'Deposit simulated. No real payment taken.'
+              : booked.length > 1
+                ? 'Visits reserved. Record any deposit already received in Money; no card has been charged.'
+                : 'Visit reserved. Record any deposit already received in Money; no card has been charged.'}
           </p>
           {call && <p className="subtle">The call is off the missed calls list.</p>}
           <Button autoFocus onClick={onClose}>
