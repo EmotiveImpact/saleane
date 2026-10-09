@@ -104,6 +104,7 @@ Route links (main navigation, the Business sub-navigation) stay as links. They a
 - **Long records.** Lists that grow with time (receipts, client history) show recent items first in slim rows, grouped by day where money is totalled, with a way to see earlier ones. Past visits fold to one line and open in place.
 - **Figures on phones.** Below 650px, metric groups become one slim strip and their detail lines are hidden; the label and value stay.
 - **Nothing lost on small screens.** When a column is hidden at a narrower width, its value moves under the row's name rather than disappearing.
+- **Setting up.** A new owner's setup is a full page beside a house photograph, one job per screen, each saved on Continue so they can leave and pick up where they left off. Adding a location is a wizard in a `Modal` that saves only on its last step, because it adds a place guests can book and a monthly price.
 - **Plain words.** Say what is not connected yet in studio language ("Card payments are not connected yet"), never configuration names or internal codes.
 - **Start where you are.** Free time on the calendar books there, and a dragged visit opens the move step at its new spot. Shortcuts fill in choices; the same checks and confirmation still decide.
 - **Times in groups.** Long runs of times sit under Morning, Afternoon and Evening.

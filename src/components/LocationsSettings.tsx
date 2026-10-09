@@ -9,12 +9,14 @@ import type { Place } from '../domain/locations'
 import { scheduleImpact } from '../domain/schedule'
 import { Button, ErrorMessage, Modal, TimeField } from '../design'
 import { AffectedVisits } from './ScheduleImpact'
+import { LocationOpening } from './LocationOpening'
 
 /**
  * V2: the studio's locations. The main one is edited in Studio details; further locations have a
  * name, an address, an optional note, phone and email for guests and, if they differ, their own
  * opening hours.
- * Rooms are placed in Spaces and each person's working days in Team.
+ * Rooms are placed in Spaces and each person's working days in Team. A new location is added
+ * through "Add a location" (LocationOpening.tsx), with its rooms, team and menu in one go.
  */
 type WeeklyHours = ReturnType<typeof operations>['hours']
 const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -117,9 +119,18 @@ export function LocationsSettings() {
         The main location&rsquo;s name and address are in Studio details. Put rooms in a location
         under Spaces, and choose where each person works each day under Team.
       </p>
-      {editing && (
+      {editing === 'new' && (
+        <LocationOpening
+          onClose={() => setEditing(null)}
+          onDone={(message) => {
+            setEditing(null)
+            setSaved(message)
+          }}
+        />
+      )}
+      {editing && editing !== 'new' && (
         <LocationDialog
-          place={editing === 'new' ? null : editing}
+          place={editing}
           onClose={() => setEditing(null)}
           onDone={(message) => {
             setEditing(null)

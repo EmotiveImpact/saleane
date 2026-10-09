@@ -276,9 +276,33 @@ export function roomsDraft(s: BusinessState): RoomsDraft {
     removed: [],
   }
 }
-/** The next free name for another room or chair: "Treatment room 3". */
-export function nextRoomName(rows: readonly RoomRow[], type: Place) {
-  const base = type === 'treatment' ? 'Treatment room' : 'Styling chair'
+/** The days of the week, Sunday first as dates count them. */
+export const WEEKDAYS = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+] as const
+/** The week as a studio reads it, Monday first. */
+export const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0] as const
+let made = 0
+/** A key for a card made on a screen, before it has an id of its own. */
+export const newRowKey = () => `new-${++made}`
+
+/** The next free name for a room or chair, such as "Treatment room 2" or "Islington chair 2". */
+export function nextRoomName(
+  rows: readonly Pick<RoomRow, 'name' | 'type'>[],
+  type: Place,
+  at = '',
+) {
+  const base = at
+    ? `${at} ${type === 'treatment' ? 'room' : 'chair'}`
+    : type === 'treatment'
+      ? 'Treatment room'
+      : 'Styling chair'
   let n = rows.filter((row) => row.type === type).length + 1
   while (rows.some((row) => row.name.trim().toLowerCase() === `${base} ${n}`.toLowerCase())) n++
   return `${base} ${n}`

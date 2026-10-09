@@ -2,6 +2,16 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-09 · Set up your studio, and add a location
+
+**Status: built locally on 9 October 2026; nothing deployed and nothing charged.** [Evidence](docs/evidence/SETUP-WIZARDS.md).
+
+- A new owner who creates a studio of their own now lands on "Set up your studio": eight short screens beside a house photograph (where guests find you, opening hours, treatments, team, rooms and chairs, colours, deposits and tax, and opening for bookings). Each screen saves when they press Continue, so they can stop with "Finish later" and pick up where they left off from Today, on any device. A sample studio still opens on Today.
+- Treatments can be added from a short list of common ones by kind, with the length filled in and the price always left to the owner. Rooms and chairs are suggested from the menu. Colours show across the page as they are chosen. VAT or sales tax is never assumed: the owner says whether they charge it.
+- "Add location" in Settings, Locations is now six short steps (where, hours, treatments, rooms, team, check), saved together at the end: its own hours or the main location's, which treatments it offers and at what price, its rooms and chairs, who works there on which days, and new people starting there. Days with visits already booked are marked, and choosing one lists the visits it would strand before anything is saved. Core treatments and the price band from the house rules apply. The last step says each location is £49 a month (or $59), and that nothing is charged in this version.
+- Both are made of the changes Settings already makes, so every check still applies, and only the owner can use them. "Who changed what" lists them as "Saved a screen of setting up the studio" and "Added a location with its rooms and team".
+- No migration: where setup reached is kept with the studio's settings.
+
 ## 2026-10-09 · Who changed what (NEXT-05)
 
 **Status: built locally on 9 October 2026; nothing deployed.** [Evidence](docs/evidence/NEXT-05-WHO-CHANGED-WHAT.md).

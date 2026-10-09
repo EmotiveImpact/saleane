@@ -205,4 +205,28 @@ describe('Get your studio ready', () => {
     expect(list()).toBeInTheDocument()
     read.mockRestore()
   })
+
+  it('offers the owner the setup screens until they finish them', () => {
+    const fresh = createWorkspace({ name: 'Fernleaf Rooms', region: 'UK' })
+    const first = show(fresh)
+    expect(screen.getByRole('link', { name: 'Set up step by step' })).toHaveAttribute(
+      'href',
+      '/setup',
+    )
+    first.unmount()
+    const started = { ...fresh, operations: { ...fresh.operations!, setup: { next: 'team' } } }
+    const second = show(started as BusinessState)
+    expect(screen.getByRole('link', { name: 'Pick up where you left off' })).toHaveAttribute(
+      'href',
+      '/setup',
+    )
+    second.unmount()
+    // A manager uses Settings; the setup screens are the owner's.
+    const manager = show(fresh, { role: 'manager' })
+    expect(screen.queryByRole('link', { name: 'Set up step by step' })).toBeNull()
+    manager.unmount()
+    const done = { ...fresh, operations: { ...fresh.operations!, setup: { next: 'done' } } }
+    show(done as BusinessState)
+    expect(screen.queryByRole('link', { name: /step by step|left off/ })).toBeNull()
+  })
 })

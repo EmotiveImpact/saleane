@@ -1,7 +1,7 @@
 import { useEffect, useId, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Check, Copy, FlaskConical, Plus, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Copy, FlaskConical, Plus } from 'lucide-react'
 import { useStore } from '../state/context'
 import type { BusinessState, Service } from '../domain/model'
 import type { StudioLook } from '../domain/brandRulesSchema'
@@ -22,7 +22,7 @@ import {
   lookScreen,
   moneyDraft,
   moneyScreen,
-  nextRoomName,
+  newRowKey,
   openScreen,
   roomsDraft,
   roomsScreen,
@@ -47,12 +47,12 @@ import {
   ChoiceTiles,
   ErrorMessage,
   SegmentedControl,
-  TimeField,
   WizardFooter,
   WizardSteps,
   photos,
   useWizardStep,
 } from '../design'
+import { HoursList, RemoveButton, RoomCards } from '../components/SetupParts'
 import '../components/management.css'
 import './studioSetup.css'
 
@@ -94,18 +94,8 @@ const STORY: Record<SetupStep, { photo: string; line: string }> = {
   deposits: { photo: photos.tea, line: 'Clear terms, kindly put.' },
   open: { photo: photos.reception, line: 'Ready for your first guests.' },
 }
-const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-const weekOrder = [1, 2, 3, 4, 5, 6, 0]
 const LENGTHS = [15, 30, 45, 60, 75, 90, 105, 120, 150, 180, 210, 240]
 const KINDS = ['Skin', 'Body', 'Hair'] as const
-let made = 0
-const newKey = () => `new-${++made}`
-const clock = (value: number) =>
-  `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`
-const minutesOf = (value: string) => {
-  const [h, m] = value.split(':').map(Number)
-  return h * 60 + m
-}
 function lengthLabel(minutes: number) {
   const h = Math.floor(minutes / 60),
     m = minutes % 60
@@ -428,67 +418,13 @@ function HoursScreen({
   onChange: (value: WeekHours) => void
   locale: string
 }) {
-  const update = (day: number, patch: Partial<WeekHours[number]>) =>
-    onChange(value.map((item) => (item.day === day ? { ...item, ...patch } : item)))
-  const monday = value.find((d) => d.day === 1)!
   return (
     <>
       <Intro>
         Guests can book only while you are open. Each person can have their own working days later,
         in Settings under Team.
       </Intro>
-      <div className="setup-hours">
-        {weekOrder.map((weekday) => {
-          const day = value.find((item) => item.day === weekday)!
-          return (
-            <div className="setup-day" key={weekday}>
-              <label className="setup-day-name">
-                <input
-                  type="checkbox"
-                  checked={!day.closed}
-                  onChange={(e) => update(weekday, { closed: !e.target.checked })}
-                />
-                {weekdays[weekday]}
-              </label>
-              {day.closed ? (
-                <span className="setup-day-closed">Closed</span>
-              ) : (
-                <div className="setup-day-times">
-                  <TimeField
-                    locale={locale}
-                    aria-label={`${weekdays[weekday]} opens`}
-                    value={clock(day.open)}
-                    onChange={(time) => update(weekday, { open: minutesOf(time) })}
-                  />
-                  <span aria-hidden="true">to</span>
-                  <TimeField
-                    locale={locale}
-                    aria-label={`${weekdays[weekday]} closes`}
-                    value={clock(day.close)}
-                    from="00:15"
-                    onChange={(time) => update(weekday, { close: minutesOf(time) })}
-                  />
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-      {!monday.closed && (
-        <Button
-          variant="secondary"
-          className="setup-quiet-action"
-          onClick={() =>
-            onChange(
-              value.map((day) =>
-                day.closed ? day : { ...day, open: monday.open, close: monday.close },
-              ),
-            )
-          }
-        >
-          Use Monday’s hours on every open day
-        </Button>
-      )}
+      <HoursList value={value} onChange={onChange} locale={locale} />
     </>
   )
 }
@@ -537,7 +473,7 @@ function TreatmentsScreen({
                 key={t.name}
                 type="button"
                 className="setup-chip"
-                onClick={() => add(treatmentRow(newKey(), kind, t.name, t.minutes))}
+                onClick={() => add(treatmentRow(newRowKey(), kind, t.name, t.minutes))}
               >
                 <Plus size={14} aria-hidden="true" />
                 {t.name}
@@ -637,20 +573,12 @@ function TreatmentsScreen({
       <Button
         variant="secondary"
         className="setup-quiet-action"
-        onClick={() => add(treatmentRow(newKey(), kind))}
+        onClick={() => add(treatmentRow(newRowKey(), kind))}
       >
         <Plus size={16} />
         Add a treatment
       </Button>
     </>
-  )
-}
-
-function RemoveButton({ name, onClick }: { name: string; onClick: () => void }) {
-  return (
-    <button type="button" className="setup-remove" aria-label={`Remove ${name}`} onClick={onClick}>
-      <X size={16} />
-    </button>
   )
 }
 
@@ -766,7 +694,7 @@ function TeamScreen({
             variant={rows.length ? 'secondary' : 'primary'}
             onClick={() =>
               add({
-                key: newKey(),
+                key: newRowKey(),
                 name: you.trim(),
                 role: '',
                 serviceIds: services.map((x) => x.id),
@@ -779,7 +707,7 @@ function TeamScreen({
         )}
         <Button
           variant="secondary"
-          onClick={() => add({ key: newKey(), name: '', role: '', serviceIds: [] })}
+          onClick={() => add({ key: newRowKey(), name: '', role: '', serviceIds: [] })}
         >
           <Plus size={16} />
           Add someone
@@ -802,80 +730,27 @@ function RoomsScreen({
   onChange: (value: RoomsDraft) => void
   services: Service[]
 }) {
-  const rows = value.rows
-  const update = (key: string, patch: Partial<(typeof rows)[number]>) =>
-    onChange({ ...value, rows: rows.map((row) => (row.key === key ? { ...row, ...patch } : row)) })
-  const add = (type: 'treatment' | 'chair') =>
-    onChange({ ...value, rows: [...rows, { key: newKey(), name: nextRoomName(rows, type), type }] })
-  const uses = (type: 'treatment' | 'chair') =>
-    services.filter((x) => x.resourceType === type).map((x) => x.name)
   return (
     <>
       <Intro>
         Each visit takes a room or a chair, so SALEANE never books two guests into the same one at
         once. Add each one you have.
       </Intro>
-      {!!rows.length && (
-        <ul className="setup-rows" aria-label="Your rooms and chairs">
-          {rows.map((row) => (
-            <li className="setup-row" key={row.key}>
-              <div className="setup-row-grid setup-room">
-                <label>
-                  Name
-                  <input
-                    value={row.name}
-                    maxLength={100}
-                    aria-invalid={row.name.trim().length < 2 || undefined}
-                    onChange={(e) => update(row.key, { name: e.target.value })}
-                  />
-                </label>
-                <label>
-                  Kind
-                  <select
-                    value={row.type}
-                    onChange={(e) =>
-                      update(row.key, { type: e.target.value as 'treatment' | 'chair' })
-                    }
-                  >
-                    <option value="treatment">Treatment room</option>
-                    <option value="chair">Styling chair</option>
-                  </select>
-                </label>
-                <RemoveButton
-                  name={row.name || 'this room'}
-                  onClick={() =>
-                    onChange({
-                      rows: rows.filter((x) => x.key !== row.key),
-                      removed: row.id ? [...value.removed, row.id] : value.removed,
-                    })
-                  }
-                />
-              </div>
-              {!!uses(row.type).length && (
-                <small className="setup-row-note">For {listOf(uses(row.type))}</small>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="setup-actions">
-        <Button variant="secondary" onClick={() => add('treatment')}>
-          <Plus size={16} />
-          Add a treatment room
-        </Button>
-        <Button variant="secondary" onClick={() => add('chair')}>
-          <Plus size={16} />
-          Add a styling chair
-        </Button>
-      </div>
+      <RoomCards
+        rows={value.rows}
+        services={services}
+        onChange={(rows) => onChange({ ...value, rows })}
+        onRemove={(row) => {
+          if (row.id)
+            onChange({
+              rows: value.rows.filter((x) => x.key !== row.key),
+              removed: [...value.removed, row.id],
+            })
+        }}
+      />
     </>
   )
 }
-
-const listOf = (names: string[]) =>
-  new Intl.ListFormat('en-GB', { type: 'conjunction' }).format(
-    names.length > 3 ? [...names.slice(0, 3), `${names.length - 3} more`] : names,
-  )
 
 function LookScreen({
   value,
