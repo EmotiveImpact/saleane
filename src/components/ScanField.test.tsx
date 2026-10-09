@@ -104,9 +104,9 @@ describe('scanning at a walk-in sale', { timeout: 20000 }, () => {
 
     await user.clear(field)
     await user.keyboard(`${MASSAGE_OIL}{Enter}`)
-    // The same words the till uses when the sale is recorded.
+    // Named, so whoever scanned knows which product the code belongs to.
     expect(within(dialog).getByRole('alert')).toHaveTextContent(
-      'Choose products that are on sale here.',
+      'Massage Oil, 1 litre is used in treatments, so it is not sold at the till.',
     )
     expect(lines(dialog)).toEqual([])
   })

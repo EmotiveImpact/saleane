@@ -7,7 +7,7 @@ Built 9 October 2026 in a worktree, on top of main at `016f3ca`. Everything belo
 - **Barcodes.** Each product can have one optional barcode, set in the product form. EAN-13, EAN-8 and UPC-A are checked by their check digit, with a plain message when it is wrong ("EAN-13 barcodes end in a check digit. For this one it should be 0, not 1. Check the number on the product."). Any other code of 4 to 40 letters and digits is accepted as it is. Codes are kept in one normal form (spaces removed, capitals), and a 12-digit UPC-A finds the same product as the 13-digit EAN with a leading 0. The product command on the server refuses a barcode another product holds and names it: "Hydrating Serum already has barcode 2000000000022. Each barcode belongs to one product." The studio record is also checked as a whole, so two products can never share one.
 - **Scanning with a USB or Bluetooth scanner.** One shared hook (`src/components/barcodeScan.ts`) recognises a scanner by its burst: at least 4 characters, each no more than 50 ms after the last, ending in Enter. Slower typing and its Enter are left alone. A burst that lands in another field is taken back out of that field, and its Enter never presses a button or sends a form. The newest screen on view takes the scan, and a screen under an open dialog waits.
 - **Where scanning works.** Each place shows a "Scan or type a barcode" field, so a code can also be typed by hand:
-  - Checkout at a visit and Sell without a visit: a scan adds the product, or one more of it ("Added Hydrating Serum.", "One more Hydrating Serum: 2 on this receipt."). A product that is out of stock or only used in treatments gets the till's own words ("Choose products that are on sale here.").
+  - Checkout at a visit and Sell without a visit: a scan adds the product, or one more of it ("Added Hydrating Serum.", "One more Hydrating Serum: 2 on this receipt."). A product that is out of stock gets the till's own words ("Olive Oil Soap is out of stock. Record the delivery in Stock first."), and one only used in treatments is named ("Massage Oil, 1 litre is used in treatments, so it is not sold at the till.").
   - Stock: a scan finds the product. Owners and managers have it opened in the product form; everyone else has it shown and highlighted in the list with its count.
   - Product form: a scan anywhere in the form puts the code in its Barcode field.
   - Delivery, Used, Count and Move: each scan of that product adds one ("2 counted."). Another product is named: "That is Hydrating Serum. This is for Calming Cleansing Balm."
@@ -97,6 +97,7 @@ Checked on 9 October 2026 in Chromium against the local server, signed up as a n
 Found and fixed in this pass:
 
 - After an unknown code, the next scan ran on from the code left in the field. The code now stays selected, so the next scan or typing replaces it.
+- A product only used in treatments was refused as "Choose products that are on sale here.", which did not say which product the code was. It is now named.
 - A scan typed while the page or a side panel's heading held focus drew a focus ring round it, because a scanner is a keyboard. Those two never take Tab and hold focus only to keep a reader's place, so they no longer show the ring.
 
 ## Browser steps for the lead
@@ -124,7 +125,7 @@ Typing the same at a person's pace (100 ms or more between keys) must not be tre
 1. Stock (owner, sample studio): the list shows "barcode 2000000000022" under Hydrating Serum. Scan 2000000000022 with focus on the page: "Edit Hydrating Serum" opens. Open "Barcode, code and supplier" to see the code.
 2. Stock as reception: the same scan highlights the serum's row and says how many are in stock.
 3. Add a product: type a name, scan 5012345678900 with focus in the name: the name stays, the fold opens with the barcode. Choose a photo (any JPEG over 1 MB): "Photo ready. Save the product to keep it."; save; the tile shows the photo in the list. Replace it, then remove it.
-4. Sell without a visit: scan 2000000000022 twice ("One more Hydrating Serum: 2 on this receipt."), scan 2000000000060 (treatment only: "Choose products that are on sale here."), scan 5012345678900 ("No product has barcode 5012345678900." with "Add it to a product"), then record the sale.
+4. Sell without a visit: scan 2000000000022 twice ("One more Hydrating Serum: 2 on this receipt."), scan 2000000000060 (treatment only: "Massage Oil, 1 litre is used in treatments, so it is not sold at the till."), scan 5012345678900 ("No product has barcode 5012345678900." with "Add it to a product"), then record the sale.
 5. Checkout at a visit: scan 2000000000015; type a gift card code in its field and press Enter, which still applies the code.
 6. Count on Calming Cleansing Balm: scan 2000000000015 three times ("3 counted."), scan 2000000000022 (refused by name), Save.
 7. Order PO-1 arrived: scan 2000000000046 twice: the count reads 2.

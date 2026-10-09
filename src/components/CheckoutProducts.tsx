@@ -80,6 +80,10 @@ export function CheckoutProducts({
       return { problem: `A receipt holds up to ${RETAIL_LINE_LIMIT} different products.` }
     if (existing && existing.quantity >= RETAIL_QUANTITY_LIMIT)
       return { problem: `A receipt holds up to ${RETAIL_QUANTITY_LIMIT} of one product.` }
+    // Named, so whoever scanned knows which product the code belongs to.
+    if (product.archived) return { problem: `${product.name} is no longer stocked.` }
+    if (!sellable(product))
+      return { problem: `${product.name} is used in treatments, so it is not sold at the till.` }
     const quantity = (existing?.quantity ?? 0) + 1
     const next = existing
       ? items.map((item) => (item.productId === product.id ? { ...item, quantity } : item))
