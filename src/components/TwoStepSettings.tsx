@@ -35,7 +35,14 @@ function save(name: string, content: string) {
  * NEXT-04: turning two-step sign-in on and off for the person signed in. The key is shown once,
  * as a QR code and as text; recovery codes are shown once and kept only as hashes.
  */
-export function TwoStepSettings({ onChange }: { onChange?: () => void }) {
+export function TwoStepSettings({
+  onChange,
+  startOpen,
+}: {
+  onChange?: () => void
+  /** Shown open, as on the welcome for someone who has just joined. */
+  startOpen?: boolean
+}) {
   const store = useStore()
   const user = store.session?.user
   const on = user?.twoStep ?? null
@@ -127,7 +134,7 @@ export function TwoStepSettings({ onChange }: { onChange?: () => void }) {
     </Button>
   )
   return (
-    <details className="access-password access-two-step">
+    <details className="access-password access-two-step" open={startOpen || undefined}>
       <summary>
         Two-step sign-in
         <span className={`access-two-step-state${on ? ' is-on' : ''}`}>{on ? 'On' : 'Off'}</span>

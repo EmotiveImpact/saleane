@@ -39,9 +39,38 @@ After, six short steps, saved together at the end.
 ![Added](LOCATION-06-added.jpg)
 ![On a phone](LOCATION-07-phone-390.jpg)
 
+## The first weeks, and a welcome for the team
+
+Added on 9 October 2026 after the owner said yes to both. Checked in `src/domain/firstWeeks.test.ts` (each step ticks itself from the record, the sign-in and the team list; starting fresh, working alone and the usual reminders count as answers; the eight weeks start with the first visit booked here, not with visits brought across), `src/domain/welcome.test.ts` (three lines and three places for every role, in plain words, naming the location or region), `src/components/GetReady.test.tsx` (the list follows once the studio is ready, the links, never saying a message or payment went out, a manager seeing five steps, hiding, sample studios) and `src/pages/TeamWelcome.test.tsx` and `src/pages/Account.test.tsx` (a practitioner joining from an invitation reads the three screens, then opens their own day; skipping; where a manager can turn on two-step sign-in later).
+
+In Chromium against the local server, the owner who had just opened Linden Studio saw "Your first weeks" on Today, answered "I am starting fresh", and invited Priya Shah as a practitioner, which ticked "Invite your team". Priya joined from the link in a separate browser, went through the welcome, opened the two-step setup from it, and landed on her own day. No horizontal scrolling at 390 pixels.
+
+Before, Today had nothing after the ready list was done.
+
+![Before: Today once the studio was ready](WEEKS-01-before-today.jpg)
+
+After, "Your first weeks" follows, and each step ticks itself.
+
+![Your first weeks on Today](WEEKS-02-today.jpg)
+![Two steps done: starting fresh, and Priya invited](WEEKS-03-ticking.jpg)
+![On a phone](WEEKS-04-phone-390.jpg)
+
+Before, someone joining landed straight on their day (a practitioner's is shown; it is still where the welcome ends).
+
+![Before: straight to the practitioner's day](WELCOME-01-before-day.jpg)
+
+After, three short screens first.
+
+![Welcome to the studio, and what you can do](WELCOME-02-hello.jpg)
+![The three places you will use most](WELCOME-03-your-day.jpg)
+![Keep your sign-in safe, with two-step sign-in](WELCOME-04-sign-in.jpg)
+![On a phone](WELCOME-05-phone-390.jpg)
+
 ## Limits
 
 - Prices for a location are said, not charged: charging studios is NEXT-02, owned by the build thread. The last screen says "Nothing is charged in this test version", or that a sample studio is never charged.
 - The setup screens use the existing house photographs. `docs/setup-photo-prompts.md` holds a prompt for each screen if the owner wants a fresh set.
 - Setup asks for everyone to work the studio's opening hours to begin with; each person's own days stay in Settings under Team. Inviting the team to sign in also stays in Settings.
 - A location's photograph, its own colours and moving existing rooms into it stay in Settings.
+- The first weeks list remembers "I am starting fresh", "I work on my own", "The usual ones are right" and hiding in this browser only, like the ready list. Whether the team has been invited is read from the owner's team list, so managers do not see that step.
+- The welcome shows once, when someone joins from an invitation. It is not shown again on later sign-ins or to people who joined before it existed.
