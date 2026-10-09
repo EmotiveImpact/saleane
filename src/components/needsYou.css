@@ -27,6 +27,10 @@
   gap: var(--space-5);
   align-items: start;
 }
+/* With no special to show, or for the front desk, what SALEANE noticed takes the full width. */
+.today-ideas > :only-child {
+  grid-column: 1 / -1;
+}
 .needs-you {
   display: grid;
   gap: var(--space-3);

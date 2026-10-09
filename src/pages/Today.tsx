@@ -37,12 +37,16 @@ function daySummary(day: Appointment[], clients: Client[], all: Appointment[]) {
   ).length
   const inRoom = day.find((a) => a.status === 'arrived')
   const name = inRoom && clients.find((c) => c.id === inRoom.clientId)?.name.split(' ')[0]
-  const people = `${spell(guests.size)} ${guests.size === 1 ? 'guest' : 'guests'} today`
-  const fresh = firstVisits
-    ? `, ${firstVisits === guests.size ? 'all' : spell(firstVisits).toLowerCase()} of them new`
-    : ''
   const now = name ? ` ${name} is in the studio now.` : ''
-  return `${people}${fresh}.${now}`
+  if (guests.size === 1) return `${firstVisits ? 'One new guest' : 'One guest'} today.${now}`
+  const fresh = !firstVisits
+    ? ''
+    : firstVisits < guests.size
+      ? `, ${spell(firstVisits).toLowerCase()} of them new`
+      : guests.size === 2
+        ? ', both new'
+        : ', all of them new'
+  return `${spell(guests.size)} guests today${fresh}.${now}`
 }
 
 export function Today() {
