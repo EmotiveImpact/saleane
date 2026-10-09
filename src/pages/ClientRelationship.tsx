@@ -31,6 +31,7 @@ import { ClientWaitlist } from '../components/Waitlist'
 import { ClientPatchTests } from '../components/PatchTests'
 import { ClientPrivacy } from '../components/Privacy'
 import { ClientBirthday } from '../components/ClientBirthday'
+import { ClientArea } from '../components/ClientArea'
 import { ConsentHistory } from '../components/EmailConsent'
 import { ClientConsultations } from '../components/Consultations'
 
@@ -647,6 +648,7 @@ export function ClientRelationship() {
             <ClientMessagePreferences client={client} />
           </section>
           <ClientBirthday key={client.id} client={client} />
+          <ClientArea key={`area-${client.id}`} client={client} />
           <ClientPlans clientId={client.id} />
           <ClientConsultations clientId={client.id} />
           <ClientPatchTests clientId={client.id} />

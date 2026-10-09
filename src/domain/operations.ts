@@ -521,6 +521,7 @@ export const GENERAL_ACTIONS = [
   'client',
   'client-edit',
   'client-birthday',
+  'client-area',
   'consent',
   'contact-preferences',
   'consultation',

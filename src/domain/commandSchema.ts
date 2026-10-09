@@ -288,6 +288,12 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     clientId: id,
     birthday: clientSchema.shape.birthday.unwrap().nullable(),
   }),
+  // V5: the first half of a postcode; null removes it. The handler keeps only the area.
+  z.object({
+    type: z.literal('client-area'),
+    clientId: id,
+    area: z.string().trim().min(1).max(12).nullable(),
+  }),
   z.object({
     type: z.literal('client-edit'),
     clientId: id,

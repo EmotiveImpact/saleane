@@ -18,6 +18,7 @@ const CLIENT_COMMANDS = new Set([
   'client',
   'client-edit',
   'client-birthday',
+  'client-area',
   'note',
   'consent',
   'contact-preferences',
