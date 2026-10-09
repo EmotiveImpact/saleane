@@ -83,7 +83,7 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
           fail(403, 'Your role cannot make this change.')
         if (org.role === 'regional') {
           const refusal = org.areaId
-            ? areaRefusal(org.state, org.areaId, data.command)
+            ? areaRefusal(org.state, org.areaId, data.command, actor.id)
             : 'Your access is not linked to a region.'
           if (refusal) fail(403, refusal)
         }
@@ -116,8 +116,8 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         if (org.state.revision !== data.revision)
           fail(409, 'This workspace changed. Reload before saving.')
         let command: Command = data.command
-        // V5: a request goes to its region's manager only when the region has one; the client's
-        // own list is never trusted.
+        // V5: a request goes to its region's manager only when the region has one, and never to
+        // the person who raised it; the client's own list and claims are never trusted.
         const managedRegions = () =>
           db
             .all<{ area_id: string }>(
@@ -126,7 +126,12 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
             )
             .map((row) => row.area_id)
         if (command.type === 'request-raise') {
-          command = { ...command, managedRegions: managedRegions() }
+          command = {
+            ...command,
+            managedRegions: managedRegions(),
+            raisedById: actor.id,
+            raiserRegion: org.role === 'regional' ? (org.areaId ?? undefined) : undefined,
+          }
         } else if (command.type === 'book') {
           // A general manager books at their own location unless they say otherwise.
           if (org.role === 'general' && !command.input.locationId)

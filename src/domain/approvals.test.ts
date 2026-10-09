@@ -5,6 +5,7 @@ import type { BusinessState } from './model'
 import { can, permissionFor } from './operations'
 import { seed } from './seed'
 import { requests, waitingOn } from './approvals'
+import { areaRefusal } from './area'
 
 // V5: requests that pass up to the right person for a sign-off.
 const now = '2026-10-06T15:00:00.000Z'
@@ -99,6 +100,56 @@ describe('requests for sign-off', () => {
       false,
       false,
     ])
+  })
+
+  it('never go to the regional manager who raised them, and record who did', () => {
+    const { s: start, islington, london } = business()
+    const by = (raisedById: string, raiserRegion?: string): Command =>
+      ({
+        ...raise(islington, 120_00, [london]),
+        raisedById,
+        ...(raiserRegion ? { raiserRegion } : {}),
+      }) as Command
+    let s = apply(start, by('account-rae', london))
+    s = apply(s, by('account-gia'))
+    const [own, theirs] = requests(s)
+    // Within the limit, but raised by London's own manager: the owner signs it off.
+    expect(own).toMatchObject({ routedTo: { level: 'owner' }, raisedById: 'account-rae' })
+    expect(own.passedUp).toBeUndefined()
+    expect(waitingOn(s, own)).toBe('the owner')
+    expect(theirs).toMatchObject({
+      routedTo: { level: 'regional', regionId: london },
+      raisedById: 'account-gia',
+    })
+    const decide = (requestId: string): Command => ({
+      type: 'request-decide',
+      requestId,
+      outcome: 'approved',
+    })
+    expect(areaRefusal(s, london, decide(own.id), 'account-rae')).toBe(
+      'This request has passed up to the owner.',
+    )
+    expect(areaRefusal(s, london, decide(theirs.id), 'account-rae')).toBeNull()
+    // Someone who raised a request before looking after the region still may not decide it.
+    expect(areaRefusal(s, london, decide(theirs.id), 'account-gia')).toBe(
+      'You raised this request, so the owner decides it.',
+    )
+  })
+
+  it('raised before the raiser was recorded are decided as before', () => {
+    const { s: start, islington, london } = business()
+    const s = apply(start, raise(islington, 120_00, [london]))
+    const request = requests(s)[0]
+    expect(request.raisedById).toBeUndefined()
+    expect(request.routedTo).toEqual({ level: 'regional', regionId: london })
+    expect(
+      areaRefusal(
+        s,
+        london,
+        { type: 'request-decide', requestId: request.id, outcome: 'approved' },
+        'account-rae',
+      ),
+    ).toBeNull()
   })
 
   it('fall to the owner when their location leaves the region', () => {
