@@ -78,6 +78,9 @@ const TestPayment = lazy(() =>
 const TestBillingCard = lazy(() =>
   import('./pages/TestBillingCard').then((module) => ({ default: module.TestBillingCard })),
 )
+const LockedStudio = lazy(() =>
+  import('./pages/LockedStudio').then((module) => ({ default: module.LockedStudio })),
+)
 const Pricing = lazy(() =>
   import('./pages/Pricing').then((module) => ({ default: module.Pricing })),
 )
@@ -125,7 +128,8 @@ const within = (pathname: string, section: string) =>
   pathname === section || pathname.startsWith(`${section}/`)
 
 function WorkspaceApp() {
-  const { state, warning, mode, slug, loading, session, role, reload, today, branch } = useStore()
+  const { state, warning, mode, slug, loading, session, role, reload, today, branch, billing } =
+    useStore()
   const operator = session?.user.name ?? 'Demo operator'
   const initials = state.organisation.name
     .split(' ')
@@ -223,6 +227,8 @@ function WorkspaceApp() {
         <p role="status">Loading your saved records.</p>
       </main>
     )
+  // NEXT-02: a locked studio opens only for its owner, and only to pay or download its records.
+  if (mode === 'server' && billing?.locked) return <LockedStudio />
   if (location.pathname === '/booking')
     return mode === 'server' ? (
       <Navigate to={`/book/${slug}${location.search}`} replace />

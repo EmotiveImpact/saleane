@@ -588,6 +588,16 @@ export const migrations: Migration[] = [
         CREATE INDEX account_mail_recent ON account_mail(account_id,created_at);
       `),
   },
+  {
+    version: 27,
+    // NEXT-02, the owner's decision of 9 October 2026: a read-only studio locks 30 days after the
+    // last day paid for (the missed payment, or the end of its trial or plan), until it is paid.
+    up: (connection) =>
+      connection.exec(`
+        ALTER TABLE studio_plans ADD COLUMN lock_at INTEGER;
+        ALTER TABLE studio_plans ADD COLUMN locked_at INTEGER;
+      `),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the

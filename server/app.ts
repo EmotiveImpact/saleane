@@ -72,6 +72,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   ctx.plans.begin = (org) => void billing.planFor(org)
   ctx.plans.summary = billing.summary
   ctx.plans.allowance = billing.allowance
+  ctx.plans.locked = billing.locked
   const connections = createConnections(
     ctx,
     options.connectionTransport ?? connectionTransportFromEnv(),
