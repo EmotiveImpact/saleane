@@ -1,6 +1,6 @@
 # LEFT-2A · Barcodes, scanning and product photos
 
-Built 9 October 2026 in a worktree, on top of main at `016f3ca`. Everything below was checked with unit, component and server tests. Nothing was opened in a browser yet: the browser journey at the end is for the lead to run after merging.
+Built 9 October 2026 in a worktree, on top of main at `016f3ca`. Everything below was checked with unit, component and server tests, then in a browser (see Seen in a browser).
 
 ## What it does
 
@@ -41,7 +41,7 @@ Built 9 October 2026 in a worktree, on top of main at `016f3ca`. Everything belo
 
 - `src/domain/barcode.test.ts` (15): check digits for EAN-13, EAN-8 and UPC-A; kinds; the wrong-digit message; length and character refusals; normal form; UPC-A and EAN-13 as one code; the product command storing the normal form, refusing a duplicate by name (also across UPC-A and EAN-13, and "(no longer stocked)" for an archived holder), keeping or clearing its own code; the studio record refusing a shared code; the sample barcodes.
 - `src/components/barcodeScan.test.tsx` (12): a fast burst ending in Enter is a scan, slow typing is not, Enter must come at scanner speed, at least 4 characters, only the burst after someone was typing, Shift for capitals, held keys, shortcuts, input methods and arrow keys break a burst; on a screen the field it landed in is put back, a scanner's Enter does not send a form, slow typing and its Enter reach the form as before, a `data-scan-field` handles its own code, and the newest screen takes the scan unless hidden under a dialog.
-- `src/components/ScanField.test.tsx` (7, whole app in the browser sample): **scanning adds a product at a walk-in sale**, and one more on a second scan; a scan while another field has focus adds the product and leaves that field as it was, and the sale is then recorded; unknown code, wrong check digit and a treatment-only product, each in plain words; on Stock a scan opens the product; in the product form a scan fills the barcode, keeps the name as typed and opens the fold; each scan in a count adds one and another product is refused; a supplier order counts each scan from zero and names a product not on the order.
+- `src/components/ScanField.test.tsx` (8, whole app in the browser sample): **scanning adds a product at a walk-in sale**, and one more on a second scan; after an unknown code the next scan replaces it in the field rather than running on from it; a scan while another field has focus adds the product and leaves that field as it was, and the sale is then recorded; unknown code, wrong check digit and a treatment-only product, each in plain words; on Stock a scan opens the product; in the product form a scan fills the barcode, keeps the name as typed and opens the fold; each scan in a count adds one and another product is refused; a supplier order counts each scan from zero and names a product not on the order.
 - `src/components/CameraScan.test.tsx` (5): no button without `BarcodeDetector`; the camera is asked for only on press, with the rear camera, and stops once a code is read; it stops when the view is closed; a refused camera is explained; photos are shrunk to 800 pixels and never enlarged.
 - `server/images.test.ts` (13): JPEG, PNG and WebP read from their bytes, SVG, GIF, HTML and truncated files refused; owner upload and the served headers; type decided by the first bytes (SVG sent as PNG or JPEG refused, a JPEG sent as PNG stored as JPEG); over 400 KB (also with a false length) and over 2000 pixels refused, exactly 400 KB accepted, an empty body refused; request token and address; managers may add, reception may only view, practitioners neither; general managers view but cannot add; another studio's photo is "not found" to read and refused to attach; unused photos cleared after a day; barcode duplicates, wrong digits and the normal form through the command route; reception cannot change a barcode; backup and restore keep the photo.
 
@@ -51,6 +51,7 @@ Built 9 October 2026 in a worktree, on top of main at `016f3ca`. Everything belo
 - Server suite: 327 passed, 2 skipped (unchanged skips).
 - Front-end suite: 993 passed on the final run, after every change here. On earlier runs, while other builds loaded the machine (load average about 9), one or two untouched tests failed on timing: `dateFields.test.tsx` (staff hours), `interaction.test.tsx` (client note) and `remote.test.tsx` (stale revision). Each passed when run again on its own, and none touches products or scanning. They were not rerun on a separate clean checkout of main, because this worktree is isolated.
 - The scanning tests hold the keyboard clock still during a burst, so a busy machine cannot slow a test scanner down; the slow-typing test uses real time.
+- Stage 2 joined together with Stage 1, after the browser pass and its fixes: lint, types, format and build pass; front end 135 files, 1,188 tests passed; server 53 files, 401 passed and 2 skipped.
 
 ## Decisions
 
@@ -70,10 +71,10 @@ Built 9 October 2026 in a worktree, on top of main at `016f3ca`. Everything belo
 - **Empty pages.** No new page can be empty: the scan fields sit inside existing panels and dialogs.
 - **Loading.** `LoadingShapes` is not on main yet. A photo shows the product's letter on its tile colour until it loads, never a blank. The camera view says "Starting the camera…" inside its frame, and the photo field says "Preparing the photo…" then "Adding the photo…" beside the tile while Save waits. These can move to `LoadingShapes` after PR #83.
 - **Motion.** `--motion-calm` is not on main yet, so this change adds no new motion: the found row's tint and the camera view appear without a transition, and scrolling to a found row is instant with reduced motion.
-- **390 px.** The scan row wraps, with the field on its own line and the buttons sharing the next at full width; buttons and fields are at least 44 px, links in scan notes become 44 px targets on phones, long codes wrap instead of scrolling sideways, and the photo field stacks the tile above full-width buttons. Dialog primary buttons stay at their foot, where they were. To confirm in a browser.
+- **390 px.** The scan row wraps, with the field on its own line and the buttons sharing the next at full width; buttons and fields are at least 44 px, links in scan notes become 44 px targets on phones, long codes wrap instead of scrolling sideways, and the photo field stacks the tile above full-width buttons. Dialog primary buttons stay at their foot, where they were. Seen in a browser: Stock, Settings and Money are 390 px wide with nothing scrolling sideways, and Sell without a visit wraps as described.
 - **Words.** Plain British English with no exclamation marks and no dashes, saying what happens next: "Photo ready. Save the product to keep it." Errors keep what was typed.
 - **Built from the library.** Tokens and components from `src/design` only (Button, Modal), no new raw colours except the white frame and dimmed surround of the camera view over live video, no left-edge stripes (the edges test passes), and nothing claims a payment or a message.
-- **Before and after pictures**: for the lead to take after merging (list below).
+- **Before and after pictures**: taken in a browser at 1440 and 390 px (see Seen in a browser).
 
 ## Limits and notes
 
@@ -82,16 +83,43 @@ Built 9 October 2026 in a worktree, on top of main at `016f3ca`. Everything belo
 - In the browser demo, photos are saved with the demo database in the browser's local storage, which holds a few megabytes, so after about ten photos the demo stops saving between visits (it keeps working until the tab closes). The demo was not built here (its dependencies are not installed); `demo/server.ts` was type-checked on its own.
 - Camera scanning depends on `BarcodeDetector`, which Chrome on Android and Safari on recent iPhones and iPads offer and most desktop browsers do not.
 
+## Seen in a browser
+
+Checked on 9 October 2026 in Chromium against the local server, signed up as a new owner with the sample studio, at 1440 px and 390 px, with scans sent as above. Before and after pictures are on the Stage 2 before and after page.
+
+- Stock: a scan with focus on the page opens "Edit Hydrating Serum"; the list shows each barcode.
+- Add a product: a scan with focus in Name keeps the name, opens the fold and fills the barcode. A 1 MB photo became "Photo ready. Save the product to keep it." and the saved product shows it in the list; after its first delivery it sells like any other.
+- Sell without a visit: two scans of the serum, one of the new product, a treatment-only product refused in words, an unknown code offered "Add it to a product"; the sale recorded and its receipt printed on the test printer.
+- Count: three scans read "3 counted."; another product's scan was refused by name.
+- Checkout at a visit: a scan added Calming Cleansing Balm to the visit's products.
+- 390 px: the scan rows wrap with nothing scrolling sideways (page width 390 on Stock, Settings and Money).
+
+Found and fixed in this pass:
+
+- After an unknown code, the next scan ran on from the code left in the field. The code now stays selected, so the next scan or typing replaces it.
+- A scan typed while the page or a side panel's heading held focus drew a focus ring round it, because a scanner is a keyboard. Those two never take Tab and hold focus only to keep a reader's place, so they no longer show the ring.
+
 ## Browser steps for the lead
 
-Simulate a scanner with Playwright by typing fast while focus is anywhere on the screen:
+Simulate a scanner by sending each key with its own time stamp, a few milliseconds apart, as the operating system does for a real scanner. Playwright's `keyboard.type` is not a scanner: in the development server its keys land about 100 ms apart whatever `delay` says, so SALEANE rightly treats them as typing. With the Chrome DevTools Protocol:
 
 ```ts
-await page.keyboard.type('2000000000022', { delay: 5 })
-await page.keyboard.press('Enter')
+const cdp = await page.context().newCDPSession(page)
+let time = Date.now() / 1000
+for (const key of [...'2000000000022', 'Enter']) {
+  const enter = key === 'Enter'
+  const base = { key, code: enter ? 'Enter' : `Digit${key}`, timestamp: (time += 0.008) }
+  await cdp.send('Input.dispatchKeyEvent', {
+    ...base,
+    type: 'keyDown',
+    text: enter ? '\r' : key,
+    windowsVirtualKeyCode: enter ? 13 : key.charCodeAt(0),
+  })
+  await cdp.send('Input.dispatchKeyEvent', { ...base, type: 'keyUp' })
+}
 ```
 
-Typing the same with `{ delay: 120 }` is a person and must not be treated as a scan.
+Typing the same at a person's pace (100 ms or more between keys) must not be treated as a scan.
 
 1. Stock (owner, sample studio): the list shows "barcode 2000000000022" under Hydrating Serum. Scan 2000000000022 with focus on the page: "Edit Hydrating Serum" opens. Open "Barcode, code and supplier" to see the code.
 2. Stock as reception: the same scan highlights the serum's row and says how many are in stock.

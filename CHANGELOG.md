@@ -2,6 +2,18 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-09 · The till, built properly (left-out Stage 2)
+
+**Status: built locally on 9 October 2026 and checked in a browser; test mode only, so no receipt printer, cash drawer or email service is connected, no money moves and nothing is deployed.** Evidence: [barcodes and product photos](docs/evidence/LEFT-2A-BARCODES-AND-PHOTOS.md), [receipts, the receipt printer and the cash drawer](docs/evidence/LEFT-2B-RECEIPTS-PRINTER-DRAWER.md).
+
+- **Barcodes and scanning.** Each product can carry one barcode, checked by its check digit and never shared with another product. An ordinary USB or Bluetooth scanner works anywhere on the screen: at checkout and Sell without a visit a scan adds the product, on Stock it finds it, and in a delivery, count, move or supplier order each scan adds one. A phone or tablet can scan with its camera where the browser allows it. An unknown code is said plainly, and owners and managers can add it to a product there and then. Migration 30.
+- **Product photos.** A product can have a photo, taken on a phone or chosen from the computer, made smaller before it is sent and checked by the server. It shows as a small square tile wherever products are picked.
+- **Receipts.** Every visit, walk-in sale, gift card and plan payment has a receipt with the studio, the VAT number or tax ID, each line, tax as the studio shows it, the deposit, the total and how it was paid in honest words. It prints through the computer's print window on an 80 mm or 58 mm roll, on a receipt printer on the studio's network, or on the test printer, which shows what it would have printed. A receipt can also be emailed to the client. Money lists gift card and plan receipts too. Migration 31.
+- **The cash drawer.** A drawer connected through a network receipt printer opens for cash payments and cash refunds, and "Open the drawer" asks why for a no sale. Money's till count lists every opening for the day. SALEANE says the drawer was sent the signal, never that it opened.
+- **A card refund puts products back on the shelf** once the card service confirms it.
+- Money files receipts, recorded funds and refunds under the studio's own day, so one paid just after midnight is no longer listed under the day before.
+- **Help** has five new guides: barcodes, product photos, receipts, the cash drawer and setting up the receipt printer.
+
 ## 2026-10-09 · Clients and memberships, built properly (left-out Stage 1)
 
 **Status: built locally on 9 October 2026 and checked in a browser; test mode only, so no card is charged, no message is sent and nothing is deployed.** Evidence: [membership card payments](docs/evidence/LEFT-1A-MEMBERSHIP-CARD-PAYMENTS.md), [guest plans](docs/evidence/LEFT-1B-GUEST-PLANS.md), [STOP replies](docs/evidence/LEFT-1C-STOP-REPLIES.md), [at a glance](docs/evidence/LEFT-1D-CLIENT-INSIGHT.md).
