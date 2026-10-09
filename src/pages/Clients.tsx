@@ -102,25 +102,29 @@ export function Clients() {
   const first = !rows.length
   return (
     <>
-      {!first && <PhotoStrip src={photos.windowLight} />}
-      <PageHeader
-        variant="compact"
-        eyebrow="Clients"
-        title="Relationships, remembered."
-        actions={
-          !first && (
-            <>
-              {importAction}
-              {addAction('Add client')}
-            </>
-          )
-        }
-      />
+      {!first && (
+        <>
+          <PhotoStrip src={photos.windowLight} />
+          <PageHeader
+            variant="compact"
+            eyebrow="Clients"
+            title="Relationships, remembered."
+            actions={
+              <>
+                {importAction}
+                {addAction('Add client')}
+              </>
+            }
+          />
+        </>
+      )}
       <section className={first ? undefined : 'surface directory'}>
         {first ? (
           <Empty
             photo={photos.reception}
-            level={2}
+            photoPosition="44% center"
+            eyebrow="Clients"
+            level={1}
             title="Your clients will gather here."
             action={
               <>

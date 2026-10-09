@@ -95,16 +95,24 @@ export function Empty({
   title,
   children,
   photo,
+  photoPosition,
+  eyebrow,
   action,
   level = 3,
 }: {
   title: string
   children?: ReactNode
   /**
-   * A page with nothing in it yet: a house photograph beside the words. `true` uses the stacked
-   * towels; pass one of `photos` to choose. Leave it off for a small gap inside a list or panel.
+   * A page with nothing in it yet opens with a welcome: the words on the left and a house
+   * photograph filling the right, washed softly into them the way the wizards do it. It takes
+   * the place of the page header, so pass the page's `eyebrow` and `level` 1. `true` uses the
+   * stacked towels; pass one of `photos` to choose. Leave it off for a small gap in a list.
    */
   photo?: boolean | string
+  /** Where the photograph is anchored, such as '40% center', to keep its subject in view. */
+  photoPosition?: string
+  /** The small capitalised line above the title, naming the part of SALEANE. */
+  eyebrow?: ReactNode
   /** The one next step, usually a single Button. A second, quieter one may sit beside it. */
   action?: ReactNode
   /** 2 when the empty state sits straight under the page title, so no heading level is skipped. */
@@ -114,12 +122,21 @@ export function Empty({
   const picture = photo === true ? photos.towels : photo
   return (
     <div className={`empty ${picture ? 'empty-photo' : ''}`}>
-      {picture && <img className="empty-picture" src={picture} alt="" />}
       <div className="empty-words">
+        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
         <Heading>{title}</Heading>
-        {children && <p>{children}</p>}
+        {children && <p className="empty-line">{children}</p>}
         {action && <div className="empty-action">{action}</div>}
       </div>
+      {picture && (
+        <div className="empty-picture">
+          <img
+            src={picture}
+            alt=""
+            style={photoPosition ? { objectPosition: photoPosition } : undefined}
+          />
+        </div>
+      )}
     </div>
   )
 }

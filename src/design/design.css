@@ -509,8 +509,9 @@
   animation: calm-fade var(--motion-quick) ease-out;
 }
 
-/* Empty states. Small ones sit inside a list or panel; a page with nothing in it yet takes a
-   house photograph beside the words, one line and one next step. */
+/* Empty states. Small ones sit inside a list or panel. A page with nothing in it yet opens with
+   a welcome in the wizards' manner: the words on a warm stone ground and a house photograph
+   filling the other side, washed softly into the words so there is no hard join. */
 .empty {
   padding: var(--space-10) var(--space-6);
   text-align: center;
@@ -526,7 +527,7 @@
   letter-spacing: -0.01em;
 }
 .empty > p,
-.empty .empty-words > p {
+.empty .empty-words > .empty-line {
   max-width: 52ch;
   margin: 0 auto;
   color: var(--muted);
@@ -543,51 +544,107 @@
 }
 .empty-photo {
   display: grid;
-  grid-template-columns: minmax(180px, 260px) minmax(0, 420px);
-  justify-content: center;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
   align-items: center;
-  gap: 52px;
-  padding: 56px var(--space-6);
+  min-height: clamp(440px, 62vh, 580px);
+  padding: 0;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: var(--radius-large);
+  background: var(--stone);
   text-align: left;
   animation: calm-settle var(--motion-calm) var(--ease-calm) both;
 }
-.empty-picture {
-  display: block;
-  width: 100%;
-  aspect-ratio: 4 / 5;
-  object-fit: cover;
-  border-radius: var(--radius-panel);
-  background: var(--stone);
+.empty-photo .empty-words {
+  grid-area: 1 / 1;
+  z-index: 1;
+  max-width: 540px;
+  padding: clamp(36px, 4.6vw, 72px);
+}
+.empty-photo .empty-words > .eyebrow {
+  margin: 0 0 var(--space-4);
 }
 .empty-photo .empty-words > :is(h1, h2, h3) {
-  margin-bottom: var(--space-3);
-  font-size: clamp(28px, 2.6vw, 34px);
-  line-height: 1.1;
+  margin-bottom: var(--space-4);
+  font-size: var(--text-display);
+  line-height: 1.06;
   letter-spacing: -0.02em;
+  text-wrap: balance;
 }
-.empty-photo .empty-words > p {
+.empty-photo .empty-words > .empty-line {
   margin: 0;
-  max-width: 44ch;
+  max-width: 40ch;
+  font-size: var(--text-lead);
   line-height: 1.6;
+  text-wrap: pretty;
 }
 .empty-photo .empty-action {
   justify-content: flex-start;
-  margin-top: var(--space-6);
+  margin-top: var(--space-8);
+}
+/* The photograph runs to the panel's edges and reaches a little under the words, fading into
+   the stone there, so the two read as one picture rather than a photo beside a paragraph. */
+.empty-picture {
+  position: relative;
+  grid-area: 1 / 2;
+  align-self: stretch;
+  margin-left: -18%;
+}
+.empty-picture img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  -webkit-mask-image: var(--empty-wash);
+  mask-image: var(--empty-wash);
+  animation: calm-fade 0.9s ease-out both;
+  --empty-wash: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgb(0 0 0 / 0.3) 14%,
+    rgb(0 0 0 / 0.78) 30%,
+    #000 46%
+  );
 }
 @media (max-width: 650px) {
   .empty {
     padding: var(--space-8) var(--space-4);
   }
-  /* On a phone the photograph sits above the words and the next step fills the width, where
-     a thumb reaches it. */
+}
+/* On a narrow screen the photograph opens the panel and fades down into the words, and the next
+   step fills the width, where a thumb reaches it. */
+@media (max-width: 760px) {
   .empty-photo {
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-6);
-    padding: var(--space-4) 0 var(--space-8);
+    align-items: start;
+    min-height: 0;
+    padding: 0;
   }
   .empty-picture {
-    aspect-ratio: 16 / 10;
+    grid-area: 1 / 1;
+    margin: 0;
+    height: clamp(240px, 52vw, 320px);
   }
+  .empty-picture img {
+    --empty-wash: linear-gradient(180deg, #000 48%, rgb(0 0 0 / 0.35) 80%, transparent 100%);
+  }
+  .empty-photo .empty-words {
+    grid-area: 2 / 1;
+    max-width: none;
+    padding: var(--space-2) var(--space-5) var(--space-6);
+  }
+  .empty-photo .empty-words > :is(h1, h2, h3) {
+    font-size: 32px;
+  }
+  .empty-photo .empty-words > .empty-line {
+    font-size: var(--text-body);
+  }
+  .empty-photo .empty-action {
+    margin-top: var(--space-6);
+  }
+}
+@media (max-width: 650px) {
   .empty-photo .empty-action {
     flex-direction: column;
     align-items: stretch;

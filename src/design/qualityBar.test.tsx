@@ -36,18 +36,22 @@ describe('the shared pieces', () => {
     render(
       <Empty
         photo={photos.tea}
-        level={2}
+        eyebrow="Waitlist"
+        level={1}
         title="Nobody is waiting yet."
         action={<Button>Add</Button>}
       >
         One line.
       </Empty>,
     )
-    expect(screen.getByRole('heading', { level: 2, name: 'Nobody is waiting yet.' })).toBeVisible()
-    // The photograph is decoration beside the words, so screen readers pass over it.
-    const picture = document.querySelector('.empty-picture')
+    // The welcome stands in for the page header, so it carries the page's name and its heading.
+    const heading = screen.getByRole('heading', { level: 1, name: 'Nobody is waiting yet.' })
+    expect(heading.previousElementSibling).toHaveTextContent('Waitlist')
+    // The words come first for screen readers; the photograph is decoration and is passed over.
+    const picture = document.querySelector('.empty-picture img')
     expect(picture).toHaveAttribute('src', photos.tea)
     expect(picture).toHaveAttribute('alt', '')
+    expect(document.querySelector('.empty-photo')?.firstElementChild).toHaveClass('empty-words')
     expect(screen.getByRole('button', { name: 'Add' })).toBeVisible()
   })
   it('keeps a small gap in a list to its words', () => {
@@ -90,8 +94,10 @@ describe('a new studio', () => {
         <Clients />
       </MemoryRouter>,
     )
+    // The welcome takes the place of the page header: one heading, not two stacked titles.
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     expect(
-      screen.getByRole('heading', { level: 2, name: 'Your clients will gather here.' }),
+      screen.getByRole('heading', { level: 1, name: 'Your clients will gather here.' }),
     ).toBeVisible()
     expect(screen.queryByRole('table')).toBeNull()
     expect(screen.queryByRole('radiogroup', { name: 'Client segments' })).toBeNull()
@@ -109,8 +115,9 @@ describe('a new studio', () => {
       </MemoryRouter>,
     )
     const page = document.querySelector('.waitlist-page') as HTMLElement
+    expect(within(page).getAllByRole('heading', { level: 1 })).toHaveLength(1)
     expect(
-      within(page).getByRole('heading', { level: 2, name: 'Nobody is waiting yet.' }),
+      within(page).getByRole('heading', { level: 1, name: 'Nobody is waiting yet.' }),
     ).toBeVisible()
     expect(screen.queryByText('Waiting now')).toBeNull()
     expect(screen.getAllByRole('button', { name: 'Add to the waitlist' })).toHaveLength(1)

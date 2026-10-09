@@ -41,21 +41,28 @@ export function Waitlist() {
   )
   return (
     <div className="waitlist-page">
-      <PageHeader
-        variant="compact"
-        photo={unused ? undefined : { src: photos.tea, position: 'center 58%' }}
-        eyebrow="Waitlist"
-        title="Who would take a time."
-        description="When a time opens that suits someone, it appears beside their name. Nobody is contacted by itself."
-        actions={unused ? undefined : add}
-      />
       {unused ? (
-        <Empty photo={photos.tea} level={2} title="Nobody is waiting yet." action={add}>
-          Add a guest who wants a time that is full, and a time that suits them appears here the
-          moment one opens.
+        <Empty
+          photo={photos.tea}
+          photoPosition="center 62%"
+          eyebrow="Waitlist"
+          level={1}
+          title="Nobody is waiting yet."
+          action={add}
+        >
+          Add a guest who wants a time that is full. When one opens that suits them, it appears here
+          for you to offer.
         </Empty>
       ) : (
         <>
+          <PageHeader
+            variant="compact"
+            photo={{ src: photos.tea, position: 'center 58%' }}
+            eyebrow="Waitlist"
+            title="Who would take a time."
+            description="When a time opens that suits someone, it appears beside their name. Nobody is contacted by itself."
+            actions={add}
+          />
           <Stats>
             <Stat label="Waiting now" value={summary.waiting} />
             <Stat label="Times filled from the list, last 30 days" value={summary.filled} />

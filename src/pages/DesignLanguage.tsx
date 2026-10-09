@@ -464,12 +464,15 @@ export function DesignLanguage() {
         <div className="library-specimen">
           <h3>Empty and error states</h3>
           <p>
-            A small gap in a list says so in one line. A page with nothing in it yet takes a house
-            photograph, one line and one next step.
+            A small gap in a list says so in one line. A page with nothing in it yet opens with a
+            welcome in place of its header: the words on warm stone, a house photograph fading into
+            them, one line and one next step.
           </p>
           <Empty title="A little breathing room">No visits on this day.</Empty>
           <Empty
             photo={photos.tea}
+            photoPosition="center 62%"
+            eyebrow="Waitlist"
             title="Nobody is waiting yet."
             action={
               <Button>
@@ -477,8 +480,8 @@ export function DesignLanguage() {
               </Button>
             }
           >
-            Add a guest who wants a time that is full, and a time that suits them appears here the
-            moment one opens.
+            Add a guest who wants a time that is full. When one opens that suits them, it appears
+            here for you to offer.
           </Empty>
           <ErrorMessage error="Could not save your note. Your writing is still here; try again." />
         </div>
