@@ -13,6 +13,7 @@ import { PriceSentence } from '../components/PriceSentence'
 import { BeforeYouArrive } from '../components/BeforeYouArrive'
 import { AddToCalendar } from '../components/AddToCalendar'
 import { visitUid } from '../domain/calendarFile'
+import { guestPhone, phoneProblem } from '../domain/phone'
 import { bookingChannel } from '../domain/bookingChannel'
 import { fullPriceMinor } from '../domain/priceSentence'
 import { listPrice, offeredAt, places, serviceAt, staffPlaces } from '../domain/locations'
@@ -129,6 +130,12 @@ export function BrandedBooking() {
       setError('Choose a time and acknowledge the demo booking policy.')
       return
     }
+    // A local number in the studio's own country works as well as one with its country code.
+    const number = guestPhone(region, phone)
+    if (!number) {
+      setError(phoneProblem(region))
+      return
+    }
     const result = await commit({
       type: 'book',
       input: {
@@ -137,7 +144,7 @@ export function BrandedBooking() {
         date,
         startMinutes: start,
         ...(where.main ? {} : { locationId: where.id }),
-        contact: { name, email, phone, marketingConsent: consent },
+        contact: { name, email, phone: number, marketingConsent: consent },
         source: 'online',
         // Where the guest came from, when they followed one of the studio's shared links.
         channel: bookingChannel(new URLSearchParams(window.location.search).get('from')),
@@ -503,15 +510,14 @@ export function BrandedBooking() {
                     />
                   </label>
                   <label>
-                    Phone with country code
+                    Phone
                     <input
                       autoComplete="off"
                       required
                       type="tel"
-                      pattern={String.raw`\+[0-9\s\(\)\-]{6,29}`}
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      placeholder={region === 'UK' ? '+44 7700 900123' : '+1 212 555 0123'}
+                      placeholder={region === 'UK' ? '07700 900123' : '(212) 555-0123'}
                     />
                   </label>
                   <label className="checkbox-label">

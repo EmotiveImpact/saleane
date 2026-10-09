@@ -186,18 +186,16 @@ describe('connected operator journeys', () => {
     await user.click(screen.getByRole('button', { name: 'Your details' }))
     await user.type(screen.getByRole('textbox', { name: 'Full name' }), 'Alex Demo')
     await user.type(screen.getByRole('textbox', { name: 'Email' }), 'alex@example.com')
-    await user.type(
-      screen.getByRole('textbox', { name: 'Phone with country code' }),
-      '+44 7700 900111',
-    )
+    await user.type(screen.getByRole('textbox', { name: 'Phone' }), '07700 900111')
     await user.click(screen.getByRole('button', { name: 'Review your visit' }))
     await user.click(screen.getByRole('checkbox', { name: /I understand this is a demo/ }))
     await user.click(screen.getByRole('button', { name: 'Confirm demo visit' }))
     expect(screen.getByText(/Something to/)).toBeInTheDocument()
     const saved = JSON.parse(localStorage.getItem('saleane.demo.v1.UK')!)
-    expect(
-      saved.clients.find((c: { name: string }) => c.name === 'Alex Demo').marketingConsent,
-    ).toBe(false)
+    const alex = saved.clients.find((c: { name: string }) => c.name === 'Alex Demo')
+    expect(alex.marketingConsent).toBe(false)
+    // Typed as a local UK mobile, kept as an international number.
+    expect(alex.phone).toBe('+44 7700 900111')
     expect(saved.appointments.some((a: { source: string }) => a.source === 'online')).toBe(true)
   })
   it('books anyone available in the afternoon and gives the visit to a professional free then', async () => {
@@ -215,10 +213,7 @@ describe('connected operator journeys', () => {
     await user.click(screen.getByRole('button', { name: 'Your details' }))
     await user.type(screen.getByRole('textbox', { name: 'Full name' }), 'Robin Anyone')
     await user.type(screen.getByRole('textbox', { name: 'Email' }), 'robin@example.com')
-    await user.type(
-      screen.getByRole('textbox', { name: 'Phone with country code' }),
-      '+44 7700 900222',
-    )
+    await user.type(screen.getByRole('textbox', { name: 'Phone' }), '+44 7700 900222')
     await user.click(screen.getByRole('button', { name: 'Review your visit' }))
     await user.click(screen.getByRole('checkbox', { name: /I understand this is a demo/ }))
     await user.click(screen.getByRole('button', { name: 'Confirm demo visit' }))
