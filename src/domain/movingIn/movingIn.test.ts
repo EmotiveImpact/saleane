@@ -471,6 +471,56 @@ describe('a Fresha client list, end to end', () => {
     ).toBe(false)
   })
 
+  it('knows everyone in a household that shares one email, here and in the files', async () => {
+    const shared = 'lee.family@example.com'
+    const s = apply(studio(), {
+      type: 'import-clients',
+      reviewed: true,
+      contacts: [
+        { name: 'Ann Lee', email: shared, phone: '', marketingConsent: false },
+        { name: 'Bob Lee', email: shared, phone: '', marketingConsent: false },
+      ],
+    })
+    const file = understandFile(
+      await readSheet(
+        'household.csv',
+        bytes(
+          `Name,Email,Mobile\nAnn Lee,${shared},\nCy Lee,${shared},\nDee Lee,${shared},\nDee Lee,${shared},07700 900321`,
+        ),
+      ),
+    )
+    const review = reviewClients([file], s, 'other')
+    expect(review.rows.map((r) => r.status)).toEqual(['here', 'ready', 'ready', 'combined'])
+    expect(review.ready.find((c) => c.name === 'Dee Lee')?.phone).toBe('+447700900321')
+    // The server agrees, so the move is not refused.
+    expect(
+      execute(s, { type: 'import-clients', reviewed: true, contacts: review.ready }, now, makeId)
+        .ok,
+    ).toBe(true)
+  })
+
+  it('combines a person whose rows only meet once every detail is known', async () => {
+    const file = understandFile(
+      await readSheet(
+        'chain.csv',
+        bytes(
+          'Name,Email,Mobile\nEve Cole,eve@example.com,\nEve Cole,,07700 900654\nEve Cole,eve@example.com,07700 900654',
+        ),
+      ),
+    )
+    const review = reviewClients([file], studio(), 'other')
+    expect(review.counts).toMatchObject({ ready: 1, combined: 2 })
+    expect(review.ready[0]).toMatchObject({ email: 'eve@example.com', phone: '+447700900654' })
+    expect(
+      execute(
+        studio(),
+        { type: 'import-clients', reviewed: true, contacts: review.ready },
+        now,
+        makeId,
+      ).ok,
+    ).toBe(true)
+  })
+
   it('combines the same person from two of the old system’s files', async () => {
     const emails = understandFile(
       await readSheet('emails.csv', bytes('First Name,Last Name,Email\nAnn,Lee,ann@example.com')),

@@ -840,6 +840,25 @@ describe('moving clients in from another system', () => {
     expect(amelia).toHaveLength(1)
   })
 
+  it('says so when more files are chosen than can be read at once', async () => {
+    const user = userEvent.setup()
+    await show('/clients')
+    await user.click(screen.getByRole('button', { name: 'Import clients' }))
+    const files = Array.from(
+      { length: 22 },
+      (_, i) =>
+        new File([`name,email\nPerson ${i},p${i}@example.com`], `list-${i}.csv`, {
+          type: 'text/csv',
+        }),
+    )
+    await user.upload(screen.getByLabelText(/Drop files here/), files)
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Only 20 files can be added at once, so the first 20 were added. Add the other 2 next.',
+    )
+    expect(screen.getByText('list-19.csv')).toBeInTheDocument()
+    expect(screen.queryByText('list-20.csv')).toBeNull()
+  })
+
   it('keeps the files after a failed save and asks for the review again', async () => {
     const user = userEvent.setup()
     await show('/clients')

@@ -14,7 +14,7 @@ The owner said yes to the five moving-in answers. Stage 1 brings the client list
 - Email marketing comes across only when the old file records that the client agreed. The consent record keeps the old system's own words as evidence with source "previous system", and the client page and privacy file show it. Anything else starts off.
 - A moved-in client may have a phone number and no email. Guest booking and new clients at the desk still need an email.
 - Long lists are saved in parts the server accepts; a dropped connection keeps the files and says how many came across.
-- Visit, gift card, package and payment files are recognised and kept for the next stages. The older one-file client import is replaced by this screen.
+- Visit, gift card, package and payment files are recognised and named, not saved; the screen says a later step brings them across. The older one-file client import is replaced by this screen.
 
 ## 2026-10-09 · Forgotten password and email confirmation (NEXT-03)
 

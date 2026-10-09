@@ -36,7 +36,7 @@ export const SYSTEM_NAME: Record<OldSystem, string> = {
 /** The five most UK studios come from, offered first. */
 export const UK_FIRST: OldSystem[] = ['fresha', 'phorest', 'timely', 'treatwell', 'booksy']
 
-/** What a file holds. Stage 1 brings clients across; the others are recognised and kept for later. */
+/** What a file holds. Stage 1 brings clients across; the others are recognised and named, not saved. */
 export type FileKind = 'clients' | 'visits' | 'giftCards' | 'packages' | 'payments' | 'unknown'
 
 export const KIND_LABEL: Record<FileKind, string> = {

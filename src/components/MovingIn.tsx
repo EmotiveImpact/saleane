@@ -25,6 +25,8 @@ type Answers = Record<string, Record<string, ClientField | null>>
 
 /** Rows that need the owner's eye are listed; everyone else is counted. */
 const LIST_LIMIT = 60
+/** Files read in one go; more can be added straight after. */
+const FILES_AT_ONCE = 20
 
 /**
  * Moving in, stage 1: the owner adds the files from their old system as they come, SALEANE works
@@ -130,7 +132,8 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
     setError('')
     setReviewed(false)
     const added: Added[] = []
-    for (const file of Array.from(list).slice(0, 20)) {
+    const chosen = Array.from(list)
+    for (const file of chosen.slice(0, FILES_AT_ONCE)) {
       const id = `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(36).slice(2, 7)}`
       try {
         const sheet = await readSheet(file.name, new Uint8Array(await file.arrayBuffer()))
@@ -145,6 +148,10 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
     }
     setFiles((current) => [...current, ...added])
     setReading(false)
+    if (chosen.length > FILES_AT_ONCE)
+      setError(
+        `Only ${FILES_AT_ONCE} files can be added at once, so the first ${FILES_AT_ONCE} were added. Add the other ${chosen.length - FILES_AT_ONCE} next.`,
+      )
   }
 
   function answer(fileId: string, heading: string, field: ClientField | null) {
@@ -417,7 +424,7 @@ function fileSummary(file: MovingFile) {
   if (file.kind === 'unknown')
     return `${count}. SALEANE could not tell what this list is. If it is your clients, check it has a name column and an email or phone column.`
   return capital(
-    `${from}${file.report ?? KIND_LABEL[file.kind]} · ${count}. Kept for the next step of moving in, which brings ${KIND_LABEL[file.kind]} across.`,
+    `${from}${file.report ?? KIND_LABEL[file.kind]} · ${count}. Not brought across yet: a later step of moving in brings ${KIND_LABEL[file.kind]} across, and you add this file again then.`,
   )
 }
 

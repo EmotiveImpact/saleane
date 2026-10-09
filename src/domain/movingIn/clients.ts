@@ -242,15 +242,30 @@ export function reviewClients(
 ): ClientReview {
   const region = state.organisation.region
   const rows: ClientRow[] = []
-  const byEmail = new Map<string, ClientRow>()
-  const byPhone = new Map<string, ClientRow>()
-  const existingEmail = new Map<string, string>()
-  const existingPhone = new Map<string, string>()
-  for (const c of state.clients) {
-    if (c.email.trim()) existingEmail.set(c.email.trim().toLowerCase(), c.name)
-    const phone = internationalPhone(c.phone, region)
-    if (phone) existingPhone.set(phone, c.name)
+  // Households often share an email or a phone, so each one can belong to several people.
+  const byEmail = new Map<string, ClientRow[]>()
+  const byPhone = new Map<string, ClientRow[]>()
+  const existingEmail = new Map<string, string[]>()
+  const existingPhone = new Map<string, string[]>()
+  const add = <T>(map: Map<string, T[]>, key: string, value: T) => {
+    const list = map.get(key) ?? []
+    if (!list.includes(value)) map.set(key, [...list, value])
   }
+  const index = (row: ClientRow) => {
+    if (row.client?.email) add(byEmail, row.client.email, row)
+    if (row.client?.phone) add(byPhone, row.client.phone, row)
+  }
+  for (const c of state.clients) {
+    if (c.email.trim()) add(existingEmail, c.email.trim().toLowerCase(), c.name)
+    const phone = internationalPhone(c.phone, region)
+    if (phone) add(existingPhone, phone, c.name)
+  }
+  // Already in SALEANE, by the server's own rule: the same name with the same email or phone.
+  const named = (names: string[] | undefined, name: string) =>
+    !!names?.some((other) => other.toLowerCase() === name.toLowerCase())
+  const alreadyHere = (c: MovingClient) =>
+    (!!c.email && named(existingEmail.get(c.email), c.name)) ||
+    (!!c.phone && named(existingPhone.get(c.phone), c.name))
   for (const file of files.filter((f) => f.kind === 'clients')) {
     const system = SYSTEM_NAME[file.system ?? chosenSystem]
     const birthdayColumn = file.matches.find((m) => m.field === 'birthday')
@@ -336,12 +351,8 @@ export function reviewClients(
         ...(area ? { postcodeArea: area } : {}),
         ...(preferences ? { preferences } : {}),
       }
-      // Already in SALEANE: the same name with the same email or phone. Left alone, never merged.
-      const sameName = (other?: string) => other?.toLowerCase() === name.toLowerCase()
-      if (
-        (email && sameName(existingEmail.get(email))) ||
-        (phone && sameName(existingPhone.get(phone)))
-      ) {
+      // Already in SALEANE: left alone, never merged.
+      if (alreadyHere(client)) {
         rows.push({
           ...base,
           status: 'here',
@@ -350,34 +361,19 @@ export function reviewClients(
         })
         return
       }
-      if (email && existingEmail.has(email))
+      const hereByEmail = (email && existingEmail.get(email)) || []
+      const hereByPhone = (phone && existingPhone.get(phone)) || []
+      if (hereByEmail.length || hereByPhone.length)
         notes.push(
-          `Shares an email with ${existingEmail.get(email)}, who is already here. Both are kept.`,
-        )
-      else if (phone && existingPhone.has(phone))
-        notes.push(
-          `Shares a phone number with ${existingPhone.get(phone)}, who is already here. Both are kept.`,
+          `Shares ${hereByEmail.length ? 'an email' : 'a phone number'} with ${hereByEmail[0] ?? hereByPhone[0]}, who is already here. Both are kept.`,
         )
       // The same person twice in the old system's files: combine, filling gaps.
-      const earlier = (email && byEmail.get(email)) || (phone && byPhone.get(phone)) || undefined
-      if (earlier?.client && earlier.client.name.toLowerCase() === name.toLowerCase()) {
-        const merged = earlier.client
-        if (!merged.email && email) merged.email = email
-        if (!merged.phone && phone) merged.phone = phone
-        if (!merged.birthday && birthday) merged.birthday = birthday
-        if (!merged.postcodeArea && area) merged.postcodeArea = area
-        if (preferences && !(merged.preferences ?? '').includes(preferences))
-          merged.preferences = [merged.preferences, preferences]
-            .filter(Boolean)
-            .join('\n')
-            .slice(0, NOTES_LIMIT)
-        if (!merged.marketingConsent && consentEvidence) {
-          merged.marketingConsent = true
-          merged.consentEvidence = consentEvidence
-        }
-        if (textMarketing) merged.textMarketing = true
-        if (merged.email) byEmail.set(merged.email, earlier)
-        if (merged.phone) byPhone.set(merged.phone, earlier)
+      const sharingEmail = (email && byEmail.get(email)) || []
+      const sharing = [...sharingEmail, ...((phone && byPhone.get(phone)) || [])]
+      const earlier = sharing.find((r) => r.client?.name.toLowerCase() === name.toLowerCase())
+      if (earlier?.client) {
+        fold(earlier.client, client)
+        index(earlier)
         rows.push({
           ...base,
           status: 'combined',
@@ -385,9 +381,9 @@ export function reviewClients(
         })
         return
       }
-      if (earlier?.client)
+      if (sharing[0]?.client)
         notes.push(
-          `Shares ${email && byEmail.get(email) === earlier ? 'an email' : 'a phone number'} with ${earlier.client.name}. Both are kept.`,
+          `Shares ${sharingEmail.length ? 'an email' : 'a phone number'} with ${sharing[0].client.name}. Both are kept.`,
         )
       const ready: ClientRow = {
         ...base,
@@ -398,9 +394,35 @@ export function reviewClients(
         client,
       }
       rows.push(ready)
-      if (email && !byEmail.has(email)) byEmail.set(email, ready)
-      if (phone && !byPhone.has(phone)) byPhone.set(phone, ready)
+      index(ready)
     })
+  }
+  // Combining can give a client a second email or phone, so the finished list is checked once
+  // more: against everyone already here, and against itself.
+  const seen = new Map<string, ClientRow>()
+  for (const r of rows) {
+    if (r.status !== 'ready' || !r.client) continue
+    const c = r.client
+    if (alreadyHere(c)) {
+      r.status = 'here'
+      r.detail = `${c.name} is already in SALEANE. Their record stays as it is.`
+      continue
+    }
+    const keys = (row: MovingClient) =>
+      [
+        row.email && `${row.name.toLowerCase()}|${row.email}`,
+        row.phone && `${row.name.toLowerCase()}|${row.phone}`,
+      ].filter((key): key is string => !!key)
+    const first = keys(c)
+      .map((key) => seen.get(key))
+      .find((row) => row?.client)
+    if (first?.client) {
+      fold(first.client, c)
+      r.status = 'combined'
+      r.detail = `Combined with ${c.name} from ${first.fileName}, line ${first.line}.`
+      delete r.client
+      for (const key of keys(first.client)) seen.set(key, first)
+    } else for (const key of keys(c)) seen.set(key, r)
   }
   // Email marketing needs an email to go to. A client with none, even after combining, starts off.
   for (const r of rows)
@@ -423,6 +445,24 @@ export function reviewClients(
     birthdays: ready.filter((c) => c.birthday).length,
     withNotes: ready.filter((c) => c.preferences).length,
   }
+}
+
+/** Two rows for the same person become one client: gaps are filled and every note is kept. */
+function fold(into: MovingClient, from: MovingClient) {
+  if (!into.email && from.email) into.email = from.email
+  if (!into.phone && from.phone) into.phone = from.phone
+  if (!into.birthday && from.birthday) into.birthday = from.birthday
+  if (!into.postcodeArea && from.postcodeArea) into.postcodeArea = from.postcodeArea
+  if (from.preferences && !(into.preferences ?? '').includes(from.preferences))
+    into.preferences = [into.preferences, from.preferences]
+      .filter(Boolean)
+      .join('\n')
+      .slice(0, NOTES_LIMIT)
+  if (!into.marketingConsent && from.consentEvidence) {
+    into.marketingConsent = true
+    into.consentEvidence = from.consentEvidence
+  }
+  if (from.textMarketing) into.textMarketing = true
 }
 
 /** Requests stay under the server's size limit, so a long list goes in several parts. */
