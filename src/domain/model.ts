@@ -74,6 +74,9 @@ export const organisationSchema = z.object({
     .max(300)
     .refine(isReviewUrl, 'Use a full web address starting with https://.')
     .optional(),
+  /** How guests reach the studio, shown on their visit page. Checked when saved (studioContact). */
+  phone: z.string().max(40).optional(),
+  email: z.email().max(254).optional(),
 })
 export const clientSchema = z.object({
   ...scoped,

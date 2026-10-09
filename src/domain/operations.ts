@@ -55,6 +55,9 @@ export const locationInputSchema = z.object({
   arrivalNote: z.string().trim().max(400).optional(),
   hours: weeklyHoursSchema.optional(),
   archived: z.boolean().optional(),
+  /** This location's own phone and email for guests; without them guests see the studio's. */
+  phone: z.string().trim().max(40).optional(),
+  email: z.string().trim().max(254).optional(),
 })
 export const locationSchema = locationInputSchema.extend({ id })
 export type Location = z.infer<typeof locationSchema>

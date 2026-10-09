@@ -151,6 +151,31 @@ test('shows the studio notes and downloads a calendar file without the private l
   click.mockRestore()
 })
 
+test('shows how to reach the studio wherever the page says to contact it', async () => {
+  const contactable = view('none', 'arrived')
+  contactable.organisation = {
+    ...contactable.organisation,
+    phone: '020 7946 0123',
+    email: 'hello@reference.example',
+  }
+  vi.mocked(api).mockResolvedValue(contactable as never)
+  render(<ManageVisit />)
+  expect(await screen.findByText(/Contact the studio/)).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Call 020 7946 0123' })).toHaveAttribute(
+    'href',
+    'tel:+442079460123',
+  )
+  expect(screen.getByRole('link', { name: 'Email hello@reference.example' })).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: /Directions/ })).toBeInTheDocument()
+})
+
+test('points to the confirmation email when the studio gave no phone or email', async () => {
+  vi.mocked(api).mockResolvedValue(view('none', 'arrived') as never)
+  render(<ManageVisit />)
+  expect(await screen.findByText(/Contact the studio/)).toBeInTheDocument()
+  expect(screen.getByText('To get in touch, reply to your confirmation email.')).toBeInTheDocument()
+})
+
 test('offers no calendar file or notes once a visit is cancelled', async () => {
   vi.mocked(api).mockResolvedValue({
     ...view('none', 'cancelled'),

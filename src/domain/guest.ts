@@ -15,8 +15,8 @@ import { feedbackForVisit, feedbackOpen } from './feedback'
  * LOCAL-02: what a guest holding a private manage link may see and do.
  *
  * Read: their one visit (service, professional's first name, time, status) and the deposit
- * already recorded against it, the studio address and its "before you arrive" notes. No contact
- * details, client notes, history or other visits.
+ * already recorded against it, the studio's address, phone and email, and its "before you arrive"
+ * notes. None of the guest's own contact details, no client notes, history or other visits.
  * Write: cancel that visit while it is still upcoming. A paid deposit is flagged for refund when
  * the guest cancels at least GUEST_CANCEL_CUTOFF_HOURS before the start, and retained after that.
  * Nothing is refunded automatically; the studio records any refund in Money.
@@ -97,6 +97,9 @@ export const guestViewSchema = z
         currency: true,
         region: true,
         address: true,
+        // How to reach the visit's location, or the studio when the location has none of its own.
+        phone: true,
+        email: true,
       })
       .strict(),
     visit: z
@@ -250,6 +253,8 @@ export function guestView(
   const professional = s.staff.find((p) => p.id === a.staffId)?.name.split(' ')[0] ?? 'The studio'
   // V2: the guest sees the location their visit is at.
   const place = visitPlace(s, a)
+  const phone = place.phone ?? s.organisation.phone
+  const email = place.email ?? s.organisation.email
   return guestViewSchema.parse({
     organisation: {
       name: s.organisation.name,
@@ -259,6 +264,8 @@ export function guestView(
       currency: s.organisation.currency,
       region: s.organisation.region,
       address: place.address,
+      ...(phone ? { phone } : {}),
+      ...(email ? { email } : {}),
     },
     visit: {
       serviceName:

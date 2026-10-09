@@ -26,6 +26,7 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
         sample = operations(state).mode === 'sandbox',
         tax = operations(state).tax
       reply(200, {
+        // Includes the studio's phone and email for guests, when it gave them.
         organisation: state.organisation,
         services: state.services
           .filter((service) => !service.archived)
@@ -42,11 +43,13 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
             locationIds: staffPlaces(state, person.id),
           })),
         // V2: open locations for the guest to choose from, main first.
-        locations: places(state).map(({ id, name, address, arrivalNote }) => ({
+        locations: places(state).map(({ id, name, address, arrivalNote, phone, email }) => ({
           id,
           name,
           address,
           ...(arrivalNote ? { arrivalNote } : {}),
+          ...(phone ? { phone } : {}),
+          ...(email ? { email } : {}),
         })),
         today: businessDate(state, new Date(now()).toISOString()),
         sample,

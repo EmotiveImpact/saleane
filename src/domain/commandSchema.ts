@@ -104,6 +104,9 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     botCheck: z.boolean().optional(),
     /** V1.5: the public review page; empty removes it. Absent leaves it as it is. */
     reviewUrl: z.string().trim().max(300).optional(),
+    /** The studio's phone and email for guests; empty removes one. Absent leaves it as it is. */
+    phone: z.string().trim().max(40).optional(),
+    email: z.string().trim().max(254).optional(),
   }),
   z.object({ type: z.literal('hours'), hours: weeklyHoursSchema }),
   // V2: a further location; the main one is edited with the organisation.

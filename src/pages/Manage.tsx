@@ -381,6 +381,8 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                         bookingEnabled: data.get('bookingEnabled') === 'on',
                         botCheck: data.get('botCheck') === 'on',
                         reviewUrl: text(data, 'reviewUrl'),
+                        phone: text(data, 'phone'),
+                        email: text(data, 'email'),
                       },
                       'Business settings saved.',
                     )
@@ -414,6 +416,30 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                         rows={2}
                         maxLength={300}
                         defaultValue={state.organisation.address}
+                      />
+                    </label>
+                    <label>
+                      Phone for guests (optional)
+                      <input
+                        name="phone"
+                        type="tel"
+                        maxLength={40}
+                        autoComplete="off"
+                        placeholder={
+                          state.organisation.region === 'UK' ? '020 7946 0123' : '(212) 555-0123'
+                        }
+                        defaultValue={state.organisation.phone ?? ''}
+                      />
+                    </label>
+                    <label>
+                      Email for guests (optional)
+                      <input
+                        name="email"
+                        type="email"
+                        maxLength={254}
+                        autoComplete="off"
+                        placeholder="hello@yourstudio.com"
+                        defaultValue={state.organisation.email ?? ''}
                       />
                     </label>
                     <label className="ops-wide">

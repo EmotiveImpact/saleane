@@ -251,3 +251,43 @@ describe('guest manage links (LOCAL-02)', () => {
     expect(view.cancellation.available).toBe(false)
   })
 })
+
+describe('how guests reach the studio', () => {
+  it('shows the phone and email the studio gave on the visit page and the booking page', async () => {
+    const owner = await register()
+    const { slug } = await studio(owner)
+    const { manage } = await book(slug)
+    const { state } = await studio(owner)
+    const details = (contact: { phone?: string; email?: string }): Command => ({
+      type: 'organisation',
+      name: state.organisation.name,
+      locationName: state.organisation.locationName,
+      address: state.organisation.address,
+      timeZone: state.organisation.timeZone,
+      bookingEnabled: true,
+      ...contact,
+    })
+    // Nothing is invented before the studio gives them.
+    expect((await visit(tokenOf(manage))).json<GuestView>().organisation).not.toHaveProperty(
+      'phone',
+    )
+    const refused = await run(owner, state.revision, details({ phone: 'call us' }))
+    expect(refused.statusCode).toBe(422)
+    expect(refused.json().error).toMatch(/as guests would dial it/)
+    expect((await run(owner, state.revision, details({ email: 'hello' }))).statusCode).toBe(422)
+    const saved = await run(
+      owner,
+      state.revision,
+      details({ phone: '020 7946 0123', email: 'hello@reference.example' }),
+    )
+    expect(saved.statusCode, saved.body).toBe(200)
+    const reach = { phone: '020 7946 0123', email: 'hello@reference.example' }
+    expect((await visit(tokenOf(manage))).json<GuestView>().organisation).toMatchObject(reach)
+    const page = (await api.inject({ url: `/api/public/${slug}` })).json<{
+      organisation: object
+      locations: object[]
+    }>()
+    expect(page.organisation).toMatchObject(reach)
+    expect(page.locations[0]).toMatchObject(reach)
+  })
+})

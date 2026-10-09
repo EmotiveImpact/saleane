@@ -14,6 +14,7 @@ import { GuestHere } from '../components/GuestHere'
 import { GuestReview } from '../components/GuestReview'
 import { GuestForms } from '../components/GuestFormFill'
 import { GuestEmailNews } from '../components/GuestEmailNews'
+import { StudioContact } from '../components/StudioContact'
 import { returnNote, returnedToken } from '../state/guestReturn'
 import '../guest.css'
 
@@ -166,12 +167,6 @@ export function ManageVisit() {
               <small>{visit.durationMinutes} minutes</small>
             </dd>
           </div>
-          {org.address && (
-            <div>
-              <dt>Where</dt>
-              <dd>{org.address}</dd>
-            </div>
-          )}
           <div>
             <dt>With</dt>
             <dd>{visit.professional}</dd>
@@ -192,6 +187,7 @@ export function ManageVisit() {
             </dd>
           </div>
         </dl>
+        <StudioContact studio={org} />
         {paymentNote && (
           <p className="guest-notice" role="status">
             {paymentNote.startsWith('Thank you') &&
