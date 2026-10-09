@@ -361,6 +361,8 @@ const PRIVACY_ACTIONS: Record<string, string> = {
   'client.erasure_requested': 'Erasure request recorded',
   'studio.exported': 'Whole studio exported',
 }
+/** Asked for by kind, so a busy studio's other changes never push these out of the list. */
+const privacyRecord = `audit?actions=${Object.keys(PRIVACY_ACTIONS).join(',')}`
 
 /** The whole-studio export and the privacy record, in Manage studio. */
 export function StudioPrivacy() {
@@ -377,13 +379,13 @@ export function StudioPrivacy() {
     studioExport(state, { generatedAt: new Date().toISOString(), generatedBy: by })
   async function refreshRecord() {
     if (mode !== 'server' || !['owner', 'manager'].includes(role)) return
-    const audit = await api<{ events: AuditEvent[] }>(`${base}/audit`)
+    const audit = await api<{ events: AuditEvent[] }>(`${base}/${privacyRecord}`)
     setEvents(audit.events.filter((e) => e.action in PRIVACY_ACTIONS))
   }
   useEffect(() => {
     let active = true
     if (mode === 'server' && ['owner', 'manager'].includes(role))
-      api<{ events: AuditEvent[] }>(`${base}/audit`)
+      api<{ events: AuditEvent[] }>(`${base}/${privacyRecord}`)
         .then((audit) => {
           if (active) setEvents(audit.events.filter((e) => e.action in PRIVACY_ACTIONS))
         })
