@@ -130,6 +130,10 @@ async function sweep(context, routes, label) {
     for (const route of routes) {
       errors.length = 0
       await page.goto(base + route, { waitUntil: 'networkidle' })
+      // Pages load when first opened, so wait for the page itself rather than its placeholder.
+      await page
+        .waitForSelector('.route-loading', { state: 'detached', timeout: 15000 })
+        .catch(() => {})
       await page.waitForTimeout(250)
       const entry = {
         mode: label,
@@ -186,9 +190,7 @@ async function dialogs(context, label) {
   }
   await check('search', () => page.getByRole('button', { name: 'Find a client' }).click())
   await check('appointment', () => page.locator('.agenda-row').first().click())
-  await check('new appointment', () =>
-    page.getByRole('button', { name: 'New appointment' }).click(),
-  )
+  await check('new visit', () => page.getByRole('button', { name: 'New visit' }).click())
   await check('measure definition', () => page.locator('.definition-trigger').first().click())
   await page.close()
   return results
