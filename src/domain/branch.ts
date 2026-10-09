@@ -61,6 +61,8 @@ export function branchRefusal(
     case 'book':
       // Where the visit lands is checked again once it is made (see branchChangeRefusal).
       return command.input.locationId && !mine(command.input.locationId) ? ELSEWHERE : null
+    case 'book-repeat':
+      return command.booking.locationId && !mine(command.booking.locationId) ? ELSEWHERE : null
     case 'batch':
       for (const part of command.commands) {
         const refusal = branchRefusal(s, locationId, part as Command)

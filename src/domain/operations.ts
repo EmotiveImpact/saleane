@@ -524,6 +524,8 @@ export function permissionFor(command: { type: string; approve?: boolean }) {
   )
     return 'hours'
   if (command.type === 'stock-move') return 'stock'
+  // NEXT-09: booking repeat visits is booking.
+  if (command.type === 'book-repeat') return 'book'
   // NEXT-07: clocking in and out is for everyone in the studio; changing hours is for managers.
   if (command.type === 'clock-in' || command.type === 'clock-out') return 'clock'
   if (command.type === 'shift-save' || command.type === 'shift-remove') return 'shift-fix'

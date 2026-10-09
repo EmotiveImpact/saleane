@@ -2,6 +2,17 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-09 · Repeat visits (NEXT-09)
+
+**Status: built locally on 9 October 2026.** [Evidence](docs/evidence/NEXT-09-REPEAT.md).
+
+- Booking a visit at the desk has Repeat: How often (every week up to every 12 weeks) and Visits in all (2 to 12). The later visits are listed with their dates: each says it is free at the same time, has the nearest free time within an hour and a half, or is left out because nothing is free or it is more than a year ahead. The desk can choose another time for any one or leave it out, and the button says how many visits it books.
+- All the visits are booked together or none are; a clash names the date and time. Each is a visit of its own, with the same professional, that can move or be cancelled alone. Guests cannot book repeats online.
+- The visit card says where a visit sits, such as "Visit 2 of 6, repeating every 4 weeks. Next: Thursday 12 November at 10:00.", and the Calendar marks repeat visits. Cancelling one offers Just this visit or this visit and the ones after it.
+- Messages: the first visit's confirmation lists the others ("Also booked, every 4 weeks: …"), later visits are not confirmed again, and visits cancelled together are one message naming them. Each visit keeps its own reminder. Messages stay in test mode until a message service is connected.
+- On the server, each later visit is checked against guests holding a time online, as a single booking is. A general manager books repeats only at their own location.
+- Help has a guide, Book visits that repeat.
+
 ## 2026-10-09 · Hours worked for payroll (NEXT-07)
 
 **Status: built locally on 9 October 2026.** [Evidence](docs/evidence/NEXT-07-HOURS.md).

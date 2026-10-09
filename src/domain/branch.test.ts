@@ -112,6 +112,36 @@ describe('general manager', () => {
     expect(branchChangeRefusal(moved, after, main)).toBeNull()
   })
 
+  it('books repeat visits only at their own location', () => {
+    const { s, main, islington } = twoSites()
+    const repeat = (locationId: string): Command => ({
+      type: 'book-repeat',
+      booking: {
+        clientId: 'client-1',
+        serviceId: 'service-facial',
+        staffId: 'staff-maya',
+        date: '2026-10-07',
+        startMinutes: 540,
+        source: 'desk',
+        locationId,
+      },
+      everyWeeks: 4,
+      visits: [{ date: '2026-11-04', startMinutes: 540 }],
+    })
+    expect(branchRefusal(s, islington, repeat(main))).toBe('That visit is at another location.')
+    expect(branchRefusal(s, main, repeat(main))).toBeNull()
+    // A later visit that falls at another location is caught once the visits are booked.
+    const booked = apply(s, repeat(main))
+    const later = booked.appointments.find((a) => a.date === '2026-11-04' && a.repeat)!
+    const elsewhere: BusinessState = {
+      ...booked,
+      appointments: booked.appointments.map((a) =>
+        a.id === later.id ? { ...a, locationId: islington } : a,
+      ),
+    }
+    expect(branchChangeRefusal(s, elsewhere, main)).not.toBeNull()
+  })
+
   it('catches a change that lands a visit at another location', () => {
     const { s, main, islington } = twoSites()
     const visit = s.appointments.find((a) => a.locationId === main)!

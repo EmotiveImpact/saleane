@@ -36,6 +36,7 @@ type Words = readonly [ChangeGroup, string, string?]
 /** Every change the team makes through the app. A new command fails to compile until it has words. */
 const commandWords: Record<Command['type'], Words> = {
   book: ['visits', 'Booked a visit'],
+  'book-repeat': ['visits', 'Booked repeat visits'],
   reschedule: ['visits', 'Moved a visit'],
   cancel: ['visits', 'Cancelled a visit'],
   'no-show': ['visits', 'Marked a visit as a no-show'],

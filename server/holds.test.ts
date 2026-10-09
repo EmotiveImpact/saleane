@@ -375,3 +375,48 @@ describe('tax during a hold', () => {
     expect((await book(slug, held)).statusCode).toBe(200)
   })
 })
+
+describe('repeat visits booked at the desk', () => {
+  const booking = {
+    clientId: 'client-1',
+    serviceId: 'service-facial',
+    staffId: 'staff-maya',
+    date: '2026-10-07',
+    startMinutes: 540,
+    source: 'desk' as const,
+  }
+  it('keeps every time a guest is holding online, the later visits included', async () => {
+    const owner = await register()
+    // A guest is choosing Maya at 09:00 four weeks after the first visit.
+    expect((await hold(owner.slug, { date: '2026-11-04' })).statusCode).toBe(201)
+    const refused = await command(owner, owner.state.revision, {
+      type: 'book-repeat',
+      booking,
+      everyWeeks: 4,
+      visits: [{ date: '2026-11-04', startMinutes: 540 }],
+    })
+    expect(refused.statusCode).toBe(409)
+    expect(refused.json<{ error: string }>().error).toMatch(
+      /^Wednesday 4 November at 09:00: that time was just taken\./,
+    )
+    const booked = await command(owner, owner.state.revision, {
+      type: 'book-repeat',
+      booking,
+      everyWeeks: 4,
+      visits: [
+        { date: '2026-11-04', startMinutes: 630 },
+        { date: '2026-12-02', startMinutes: 540 },
+      ],
+    })
+    expect(booked.statusCode, booked.body).toBe(200)
+    const visits = booked
+      .json<{ state: BusinessState }>()
+      .state.appointments.filter((a) => a.repeat)
+      .map((a) => `${a.date} ${a.startMinutes} ${a.staffId}`)
+    expect(visits).toEqual([
+      '2026-10-07 540 staff-maya',
+      '2026-11-04 630 staff-maya',
+      '2026-12-02 540 staff-maya',
+    ])
+  })
+})
