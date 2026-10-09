@@ -51,6 +51,8 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         mode: operations(org.state).mode,
         deliveryConfigured: ctx.messaging.email.live || ctx.messaging.sms.live,
         paymentsConfigured: ctx.paymentProvider.live,
+        // NEXT-02: whether the studio is read only, and its plan's dates for the owner.
+        billing: ctx.plans.summary(org),
       })
       return true
     }

@@ -20,6 +20,7 @@ import {
   MessageCircle,
   Plug,
   History,
+  Receipt,
 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { useStore } from '../state/context'
@@ -36,6 +37,7 @@ import { Avatar, Button, ErrorMessage, Modal, PageHeader, Tabs, treatmentPhoto }
 import { AffectedVisits, ScheduleHistory } from '../components/ScheduleImpact'
 import { StudioPrivacy } from '../components/Privacy'
 import { ChangeRecord } from '../components/ChangeRecord'
+import { PlanBilling } from '../components/PlanBilling'
 import { BrandSection, PreferencesSection, WorkspaceSection } from '../components/SettingsSections'
 import { MessageSettings } from '../components/AppointmentMessages'
 import { GuestNotesSettings } from '../components/GuestNotesSettings'
@@ -99,6 +101,7 @@ const groups = [
     label: 'Your account and data',
     sections: [
       { id: 'preferences', label: 'Your preferences', icon: SlidersHorizontal },
+      { id: 'billing', label: 'Plan and billing', icon: Receipt },
       { id: 'connections', label: 'Connected software', icon: Plug },
       { id: 'privacy', label: 'Data & privacy', icon: ShieldCheck },
       { id: 'changes', label: 'Who changed what', icon: History },
@@ -168,8 +171,8 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
   // The open section lives in the address, so links elsewhere can open Settings at the right place.
   const [params, setParams] = useSearchParams()
   const requested = params.get('section')
-  // NEXT-05: only the owner sees who changed what.
-  const shownSection = (id: SectionId) => id !== 'changes' || role === 'owner'
+  // NEXT-05 and NEXT-02: only the owner sees who changed what, and the SALEANE plan.
+  const shownSection = (id: SectionId) => (id !== 'changes' && id !== 'billing') || role === 'owner'
   const section: SectionId =
     isSection(requested) && shownSection(requested) ? requested : 'business'
   const setSection = (id: SectionId) => setParams({ section: id }, { replace: true })
@@ -400,6 +403,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
             {section === 'workspace' && <WorkspaceSection onReset={() => setReplaced(true)} />}
             {section === 'privacy' && <StudioPrivacy />}
             {section === 'changes' && <ChangeRecord />}
+            {section === 'billing' && <PlanBilling />}
             {section === 'connections' && (
               <>
                 <Connections />

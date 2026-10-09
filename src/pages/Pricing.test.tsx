@@ -3,34 +3,64 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { expect, test } from 'vitest'
 import { Pricing } from './Pricing'
-import { PRICE, priceLabel } from '../domain/pricing'
+import { ADD_ONS, ALLOWANCES, PRICE, priceLabel } from '../domain/pricing'
 
-// PILOT-04: one published price per studio, shown for the UK and the US.
+// PILOT-04 and NEXT-02: one published price for each location, shown for the UK and the US.
 test('formats the price in each currency without pence', () => {
   expect(priceLabel('UK')).toBe('£49')
   expect(priceLabel('US')).toBe('$59')
-  expect(PRICE.UK.monthlyMinor % 100).toBe(0)
+  expect(priceLabel('UK', 'plusMinor')).toBe('£39')
+  expect(priceLabel('UK', 'phoneMinor')).toBe('£79')
+  for (const price of Object.values(PRICE))
+    for (const amount of [price.monthlyMinor, price.plusMinor, price.phoneMinor])
+      expect(amount % 100).toBe(0)
 })
 
-test('shows one price, everything included, and switches country', async () => {
+test('shows one price for each location and switches country', async () => {
   render(
     <MemoryRouter>
       <Pricing />
     </MemoryRouter>,
   )
-  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('One price')
+  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('One price for each location')
   await userEvent.click(screen.getByRole('radio', { name: 'United Kingdom' }))
-  expect(screen.getByText('£49')).toBeInTheDocument()
-  expect(screen.getByText(/plus VAT/)).toBeInTheDocument()
+  const offer = within(screen.getByRole('region', { name: 'The price' }))
+  expect(offer.getByText('£49')).toBeInTheDocument()
+  expect(offer.getByText(/plus VAT/)).toHaveTextContent('per location, month to month')
+  expect(offer.getByText(/14 days free, no card needed/)).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'No commission on your clients' })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'No locked tiers' })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'No fee to leave' })).toBeInTheDocument()
   await userEvent.click(screen.getByRole('radio', { name: 'United States' }))
-  expect(screen.getByText('$59')).toBeInTheDocument()
-  expect(screen.getByText(/plus any sales tax/)).toBeInTheDocument()
+  expect(offer.getByText('$59')).toBeInTheDocument()
+  expect(offer.getByText(/plus any sales tax/)).toBeInTheDocument()
 })
 
-test('says which included features wait for a card or text account, and keeps visitors on the page', () => {
+test('lists the two add-ons with their prices, and the AI each location includes', async () => {
+  render(
+    <MemoryRouter>
+      <Pricing />
+    </MemoryRouter>,
+  )
+  await userEvent.click(screen.getByRole('radio', { name: 'United Kingdom' }))
+  const addOns = within(screen.getByRole('region', { name: 'Add-ons' })).getAllByRole('listitem')
+  expect(addOns).toHaveLength(ADD_ONS.length)
+  expect(addOns[0]).toHaveTextContent('Plus')
+  expect(addOns[0]).toHaveTextContent('£39 a month for each location, plus VAT')
+  expect(addOns[0]).toHaveTextContent(`${ALLOWANCES.plus.monthly.typed} typed questions`)
+  expect(addOns[1]).toHaveTextContent('Phone receptionist')
+  expect(addOns[1]).toHaveTextContent('£79 a month for each location')
+  expect(addOns[1]).toHaveTextContent('300 minutes of calls a month')
+  expect(addOns[1]).toHaveTextContent('Arrives when phone calls are connected')
+  // The price includes exactly the AI the app allows a location.
+  const offer = within(screen.getByRole('region', { name: 'The price' }))
+  expect(offer.getByText(/300 typed questions a month/)).toBeInTheDocument()
+  expect(offer.getByText(/30 minutes a month/)).toBeInTheDocument()
+  expect(offer.getByText(/200 guest chats a month/)).toBeInTheDocument()
+  expect(ALLOWANCES.included.monthly).toEqual({ typed: 300, talkSeconds: 1800, guestChats: 200 })
+})
+
+test('says which included features wait for a card or text account or voice, and keeps visitors on the page', () => {
   render(
     <MemoryRouter>
       <Pricing />
@@ -44,9 +74,12 @@ test('says which included features wait for a card or text account, and keeps vi
   expect(line('Saved cards, card readers')).toHaveTextContent(
     'Arrives when you connect your card account',
   )
+  expect(line('Talking to Ask Saleane')).toHaveTextContent(
+    'Arrives when talking to Ask Saleane is switched on',
+  )
   expect(line('Booking confirmations and reminders by email')).not.toHaveTextContent('Arrives')
   // Only the lines that need a connection carry the note.
-  expect(included.filter((item) => item.textContent?.includes('Arrives'))).toHaveLength(2)
+  expect(included.filter((item) => item.textContent?.includes('Arrives'))).toHaveLength(3)
   // The logo stays on the price page instead of opening the fictional demo.
   expect(screen.getAllByRole('link', { name: 'SALEANE' })[0]).toHaveAttribute('href', '/pricing')
 })

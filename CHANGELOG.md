@@ -2,6 +2,21 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-09 · Studios paying for SALEANE (NEXT-02)
+
+**Status: built locally on 9 October 2026; test mode only, so no card is charged and no money moves.** [Evidence](docs/evidence/NEXT-02-STUDIOS-PAYING.md).
+
+- A new studio of its own starts with 14 days free and no card. The owner gets a reminder email three days before the end, and a line above every screen in the last week if no card is saved.
+- Settings, Your account and data, "Plan and billing", for the owner only: the plan in a sentence, the next bill line by line (£49 for each open location, Plus if chosen, VAT at 20% in the UK), the saved card, the two add-ons, this month's AI use against its allowance, every bill, and stopping at the end of a month. Nothing is ever deleted when a plan stops.
+- The card is typed on the card service's own page. In test mode that is SALEANE's labelled test card page: card 4242 goes through and 0002 saves, then is declined when a bill is taken.
+- Each month is billed in advance on the day the trial ended (or the last day of a shorter month). Plus added part way through a paid month is charged only for the days left, after the owner sees the amount; turning it off keeps it until the month ends.
+- A declined payment is emailed to the owner and tried again after 1, 3 and 7 days while everything keeps working for 14 days. After that, or when a trial ends with no card, or at the end of a month after the owner chose to stop, the studio becomes read only: everyone can still see and download everything, guests can still book, people can still be removed and keys revoked, and Ask Saleane and the AI receptionist rest. Paying starts a fresh month from that day.
+- A bill is never charged twice: it is claimed before the card is asked, an unclear answer is asked about again with the same key, and pressing Pay twice takes one payment. A restore from a backup marks open bills to check and pauses payments until the card service has said what it took since the backup: those bills are marked paid (or put back, when they were made after the backup), the rest are owed again, and the plan then carries on by itself.
+- A payment that was declined, or that the card service has not answered yet, never shows as paid; the screen says nothing was taken, or that nothing more is taken until it answers.
+- Every bill is kept: the newest 24 show first, with "Show older bills" for the rest.
+- The AI allowance is now each location's 300 typed questions, 30 talking minutes and 200 guest chats, times the open locations, or Plus's 800, 150 and 500. The price page says "for each location", lists Plus (£39) and the phone receptionist (£79, which waits on phone calls), and starts with 14 days free.
+- Sample studios and the browser demo are never charged. Migration 26 adds the plans, bills and card set-ups, and lets account emails carry billing notices.
+
 ## 2026-10-09 · Who changed what (NEXT-05)
 
 **Status: built locally on 9 October 2026; nothing deployed.** [Evidence](docs/evidence/NEXT-05-WHO-CHANGED-WHAT.md).

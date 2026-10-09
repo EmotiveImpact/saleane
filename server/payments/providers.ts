@@ -32,6 +32,14 @@ export type PaymentEvent = {
   detail?: string
   card?: SavedCardDetails
 }
+/** A charge the provider holds a record of, found by a mark it was given when it was made. */
+export type ChargeRecord = {
+  attemptId: string
+  providerRef: string
+  status: 'succeeded' | 'processing' | 'failed'
+  amountMinor: number
+  marks: Record<string, string>
+}
 export type HostedInput = {
   attemptId: string
   mode: 'payment' | 'setup'
@@ -58,6 +66,8 @@ export type PaymentProvider = {
     currency: 'GBP' | 'USD'
     description: string
     card: Pick<SavedCardDetails, 'customerRef' | 'methodRef' | 'last4'>
+    /** Kept with the charge by the provider, so it can be found again by `charges`. */
+    marks?: Record<string, string>
   }) => Promise<PayOutcome>
   reader: (input: {
     attemptId: string
@@ -73,6 +83,11 @@ export type PaymentProvider = {
   }) => Promise<PayOutcome>
   /** Detaches a saved card from the provider's customer, so it can never be charged again. */
   removeCard: (methodRef: string) => Promise<boolean>
+  /**
+   * Every charge made with this mark, from the provider's own records, so a server restored from
+   * a backup can learn what was taken since. Null when the provider could not be asked.
+   */
+  charges: (mark: { key: string; value: string }) => Promise<ChargeRecord[] | null>
   /** Closes a guest's unpaid payment page. False when it can no longer be closed (it was paid). */
   closeHosted: (providerRef: string) => Promise<boolean>
   /** Verifies a webhook and reads its events; null when it is not genuine. */
@@ -116,6 +131,10 @@ export function testPaymentProvider(origin: string): PaymentProvider {
     },
     async removeCard() {
       return true
+    },
+    // Test mode never takes money, so there is never a charge to find.
+    async charges() {
+      return []
     },
     async closeHosted() {
       return true
@@ -291,6 +310,9 @@ export function stripeProvider(config: {
           off_session: 'true',
           confirm: 'true',
           description: input.description,
+          ...Object.fromEntries(
+            Object.entries(input.marks ?? {}).map(([key, value]) => [`metadata[${key}]`, value]),
+          ),
           'metadata[attempt]': input.attemptId,
         },
         input.attemptId,
@@ -344,6 +366,45 @@ export function stripeProvider(config: {
     async removeCard(methodRef) {
       const result = await call(`payment_methods/${encodeURIComponent(methodRef)}/detach`, {})
       return !('error' in result) && result.status === 200
+    },
+    // Stripe's search finds payments by metadata. It can lag about a minute behind a new charge,
+    // which is fine for a restore: the charges it needs are older than the restore itself.
+    async charges(mark) {
+      if (!/^[\w-]+$/.test(mark.key) || !/^[\w.:-]+$/.test(mark.value)) return null
+      const found: ChargeRecord[] = []
+      let page = ''
+      for (let pages = 0; pages < 20; pages++) {
+        const search = new URLSearchParams({
+          query: `metadata['${mark.key}']:'${mark.value}'`,
+          limit: '100',
+          ...(page ? { page } : {}),
+        })
+        const result = await call(`payment_intents/search?${search}`, null)
+        if ('error' in result || result.status !== 200) return null
+        for (const intent of (result.json.data as Record<string, unknown>[] | undefined) ?? []) {
+          const marks = Object.fromEntries(
+            Object.entries((intent.metadata ?? {}) as Record<string, unknown>).map(([k, v]) => [
+              k,
+              String(v),
+            ]),
+          )
+          found.push({
+            attemptId: marks.attempt ?? '',
+            providerRef: String(intent.id ?? ''),
+            status:
+              intent.status === 'succeeded'
+                ? 'succeeded'
+                : intent.status === 'processing' || intent.status === 'requires_capture'
+                  ? 'processing'
+                  : 'failed',
+            amountMinor: Number(intent.amount_received || intent.amount || 0),
+            marks,
+          })
+        }
+        if (!result.json.has_more || typeof result.json.next_page !== 'string') return found
+        page = result.json.next_page
+      }
+      return null
     },
     async events(request) {
       const header = request.headers['stripe-signature'] ?? ''

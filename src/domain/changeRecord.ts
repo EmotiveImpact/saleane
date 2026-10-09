@@ -195,6 +195,19 @@ const serverWords: Record<string, Words> = {
   'inbox.reply': ['messages', 'A message came in'],
   'inbox.test-text': ['messages', 'Delivered a test text to the studio’s line'],
   'receptionist.message': ['messages', 'Passed on a message from the AI receptionist'],
+  // NEXT-02: the studio's own SALEANE plan.
+  'billing.card': ['settings', 'Saved a card for the SALEANE plan'],
+  'billing.plus': ['settings', 'Changed Plus on the SALEANE plan'],
+  'billing.stop': ['settings', 'Asked to stop the SALEANE plan at the end of the month'],
+  'billing.keep': ['settings', 'Kept the SALEANE plan going'],
+  'billing.paid': ['settings', 'Paid a SALEANE bill'],
+  'billing.test-paid': ['settings', 'Settled a test SALEANE bill. No money moved'],
+  'billing.failed': ['settings', 'A SALEANE bill could not be taken'],
+  'billing.read-only': ['settings', 'The studio became read only until it is paid'],
+  'billing.checked': [
+    'settings',
+    'Checked the SALEANE payments with the card service after a restore',
+  ],
 }
 
 export const changeWords: Readonly<Record<string, Words>> = { ...commandWords, ...serverWords }

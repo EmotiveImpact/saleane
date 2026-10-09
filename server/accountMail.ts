@@ -170,11 +170,26 @@ export function mailNotice(ctx: Context, account: Account, notice: Notice) {
   ).catch((error) => console.error('[SALEANE] An account email could not be recorded.', error))
 }
 
+/**
+ * NEXT-02: a note about the studio's SALEANE plan to its owner, without holding up the answer.
+ * `says` is the whole message after the greeting.
+ */
+export function mailBilling(ctx: Context, account: Account, subject: string, says: string) {
+  void deliver(
+    ctx,
+    account,
+    'billing',
+    subject,
+    `Hello ${firstName(account)},\n\n${says}\n\nSALEANE`,
+    `this billing note was not sent to ${account.email}: ${subject}`,
+  ).catch((error) => console.error('[SALEANE] An account email could not be recorded.', error))
+}
+
 /** Sends an account email and records what happened. Never claims a test-mode email was sent. */
 async function deliver(
   ctx: Context,
   account: Account,
-  kind: LinkKind | 'security',
+  kind: LinkKind | 'security' | 'billing',
   subject: string,
   body: string,
   unsent: string,
