@@ -32,7 +32,12 @@ async function show(route = '/today') {
  * the front desk reads the studio record without guests' feedback, pay rates, branch visits or
  * requests (server/projections.ts).
  */
-async function signedIn(role: Role, route: string, studio?: (state: BusinessState) => void) {
+async function signedIn(
+  role: Role,
+  route: string,
+  studio?: (state: BusinessState) => void,
+  record: Partial<RemoteWorkspace> = {},
+) {
   const sample = seed('UK')
   studio?.(sample)
   const state =
@@ -47,6 +52,7 @@ async function signedIn(role: Role, route: string, studio?: (state: BusinessStat
     role,
     today: '2026-10-06',
     mode: 'sandbox',
+    ...record,
   }
   const session: Session = {
     user: { id: 'account-desk', name: 'Rosa Desk', email: 'desk@example.invalid' },
@@ -772,6 +778,57 @@ describe('the Settings page', () => {
     const picker = screen.getByRole('combobox', { name: 'Section' })
     expect(picker).toHaveValue('business')
     expect(within(picker).getByRole('group', { name: 'Guests and messages' })).toBeInTheDocument()
+  })
+
+  it('shows who changed what to the owner only (NEXT-05)', async () => {
+    await signedIn('manager', '/settings?section=changes')
+    expect(await screen.findByRole('tab', { name: 'Studio details' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(screen.queryByRole('tab', { name: 'Who changed what' })).not.toBeInTheDocument()
+    cleanup()
+    await signedIn('owner', '/settings?section=changes')
+    expect(await screen.findByRole('tab', { name: 'Who changed what' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(screen.getByRole('heading', { name: 'Who changed what' })).toBeInTheDocument()
+  })
+
+  it('shows the SALEANE plan to the owner only, and a line above every screen when it needs them (NEXT-02)', async () => {
+    const user = userEvent.setup()
+    await signedIn('manager', '/settings?section=billing', undefined, {
+      billing: { readOnly: true },
+    })
+    expect(await screen.findByRole('tab', { name: 'Studio details' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(screen.queryByRole('tab', { name: 'Plan and billing' })).not.toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'This studio is read only until the owner pays its SALEANE bill. You can still see everything.',
+    )
+    // Nobody but the owner is offered a way to pay.
+    expect(screen.queryByRole('button', { name: 'Pay now' })).not.toBeInTheDocument()
+    cleanup()
+    await signedIn('owner', '/today', undefined, {
+      billing: {
+        readOnly: false,
+        status: 'trial',
+        trialEndsAt: Date.now() + 3 * 86400000,
+        hasCard: false,
+      },
+    })
+    const notice = await screen.findByText(/Your free trial ends on/)
+    expect(notice.parentElement).toHaveTextContent('Add a card to carry on without a break.')
+    await user.click(screen.getByRole('button', { name: 'Add a card' }))
+    expect(await screen.findByRole('tab', { name: 'Plan and billing' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(screen.getByRole('heading', { name: 'Plan and billing' })).toBeInTheDocument()
+    expect(screen.getByText(/Sample studios are never charged/)).toBeInTheDocument()
   })
 
   it('keeps the old section addresses and shows a photograph beside each treatment', async () => {

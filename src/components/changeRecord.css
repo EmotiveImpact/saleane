@@ -1,0 +1,84 @@
+/* NEXT-05: who changed what, in Settings for the owner. */
+.change-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  align-items: end;
+}
+.change-filters .ops-field .date-field,
+.change-filters .ops-field .date-field-trigger {
+  width: 100%;
+}
+.change-filter-clear {
+  justify-self: start;
+}
+.change-day {
+  margin-top: 28px;
+}
+.change-day h3 {
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+  color: var(--muted);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.change-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.change-entry {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 14px;
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+}
+.change-entry:first-child {
+  border-top: 0;
+}
+.change-entry time {
+  padding-top: 2px;
+  color: var(--muted);
+  font-size: var(--text-small);
+  font-variant-numeric: tabular-nums;
+}
+.change-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.change-copy strong {
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+.change-about {
+  overflow-wrap: anywhere;
+}
+.change-details {
+  list-style: none;
+  display: grid;
+  gap: 3px;
+  margin: 4px 0 2px;
+  padding: 0;
+  font-size: var(--text-small);
+  overflow-wrap: anywhere;
+}
+.change-details s {
+  color: var(--muted);
+}
+.change-details b {
+  font-weight: var(--weight-strong);
+}
+.change-copy small {
+  color: var(--muted);
+}
+@media (max-width: 650px) {
+  .change-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .change-entry {
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 10px;
+  }
+}

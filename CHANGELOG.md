@@ -17,6 +17,31 @@ The owner said yes to the five moving-in answers. Stage 1 brings the client list
 - Visit, gift card, package and payment files are recognised and named, not saved; the screen says a later step brings them across. The older one-file client import is replaced by this screen.
 - The step bar, large choice tiles, the footer that stays in reach and the step focus are shared design pieces (`WizardSteps`, `ChoiceTiles`, `WizardFooter`, `useWizardStep` in `src/design`), so later wizards such as studio setup look and behave the same.
 
+## 2026-10-09 · Studios paying for SALEANE (NEXT-02)
+
+**Status: built locally on 9 October 2026; test mode only, so no card is charged and no money moves.** [Evidence](docs/evidence/NEXT-02-STUDIOS-PAYING.md).
+
+- A new studio of its own starts with 14 days free and no card. The owner gets a reminder email three days before the end, and a line above every screen in the last week if no card is saved.
+- Settings, Your account and data, "Plan and billing", for the owner only: the plan in a sentence, the next bill line by line (£49 for each open location, Plus if chosen, VAT at 20% in the UK), the saved card, the two add-ons, this month's AI use against its allowance, every bill, and stopping at the end of a month. Nothing is ever deleted when a plan stops.
+- The card is typed on the card service's own page. In test mode that is SALEANE's labelled test card page: card 4242 goes through and 0002 saves, then is declined when a bill is taken.
+- Each month is billed in advance on the day the trial ended (or the last day of a shorter month). Plus added part way through a paid month is charged only for the days left, after the owner sees the amount; turning it off keeps it until the month ends.
+- A declined payment is emailed to the owner and tried again after 1, 3 and 7 days while everything keeps working for 14 days. After that, or when a trial ends with no card, or at the end of a month after the owner chose to stop, the studio becomes read only: everyone can still see and download everything, guests can still book, people can still be removed and keys revoked, and Ask Saleane and the AI receptionist rest. Paying starts a fresh month from that day.
+- A bill is never charged twice: it is claimed before the card is asked, an unclear answer is asked about again with the same key, and pressing Pay twice takes one payment. A restore from a backup marks open bills to check and pauses payments until the card service has said what it took since the backup: those bills are marked paid (or put back, when they were made after the backup), the rest are owed again, and the plan then carries on by itself.
+- A payment that was declined, or that the card service has not answered yet, never shows as paid; the screen says nothing was taken, or that nothing more is taken until it answers.
+- Every bill is kept: the newest 24 show first, with "Show older bills" for the rest.
+- The AI allowance is now each location's 300 typed questions, 30 talking minutes and 200 guest chats, times the open locations, or Plus's 800, 150 and 500. The price page says "for each location", lists Plus (£39) and the phone receptionist (£79, which waits on phone calls), and starts with 14 days free.
+- Sample studios and the browser demo are never charged. Migration 26 adds the plans, bills and card set-ups, and lets account emails carry billing notices.
+
+## 2026-10-09 · Who changed what (NEXT-05)
+
+**Status: built locally on 9 October 2026; nothing deployed.** [Evidence](docs/evidence/NEXT-05-WHO-CHANGED-WHAT.md).
+
+- Settings, Your account and data, "Who changed what", for the owner only: every saved change, newest first, under the studio's own days, with who made it, what it was about and what changed, such as "Price £95.00 became £105.00" or "Professional Maya Lewis became Sophia Reed".
+- For clients it keeps only which details changed ("Changed email and phone"), never what they say. Guests and automatic changes are named by where they came from, such as "A guest booking online".
+- Filter by person, by kind (visits, clients, money, team and pay, stock, messages, settings, sign-in and access) and up to a day, page back 50 at a time, and download up to 5,000 changes as a spreadsheet.
+- An invitation and a change of someone's access keep the access given. The Data and privacy record now asks only for its own entries, so other changes no longer push them off its list.
+- Migration 25 adds the changed details to each audit entry. Changes saved before it show without their details.
+
 ## 2026-10-09 · Two-step sign-in (NEXT-04)
 
 **Status: built locally on 9 October 2026; nothing deployed and no email sent.** [Evidence](docs/evidence/NEXT-04-TWO-STEP.md).

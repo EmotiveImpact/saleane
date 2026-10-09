@@ -19,6 +19,8 @@ import {
   ClipboardList,
   MessageCircle,
   Plug,
+  History,
+  Receipt,
 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { useStore } from '../state/context'
@@ -34,6 +36,8 @@ import { parseMinor } from '../domain/money'
 import { Avatar, Button, ErrorMessage, Modal, PageHeader, Tabs, treatmentPhoto } from '../design'
 import { AffectedVisits, ScheduleHistory } from '../components/ScheduleImpact'
 import { StudioPrivacy } from '../components/Privacy'
+import { ChangeRecord } from '../components/ChangeRecord'
+import { PlanBilling } from '../components/PlanBilling'
 import { BrandSection, PreferencesSection, WorkspaceSection } from '../components/SettingsSections'
 import { MessageSettings } from '../components/AppointmentMessages'
 import { GuestNotesSettings } from '../components/GuestNotesSettings'
@@ -97,8 +101,10 @@ const groups = [
     label: 'Your account and data',
     sections: [
       { id: 'preferences', label: 'Your preferences', icon: SlidersHorizontal },
+      { id: 'billing', label: 'Plan and billing', icon: Receipt },
       { id: 'connections', label: 'Connected software', icon: Plug },
       { id: 'privacy', label: 'Data & privacy', icon: ShieldCheck },
+      { id: 'changes', label: 'Who changed what', icon: History },
       { id: 'switching', label: 'Switching over', icon: ArrowRightLeft },
       { id: 'workspace', label: 'About this version', icon: Store },
     ],
@@ -165,7 +171,10 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
   // The open section lives in the address, so links elsewhere can open Settings at the right place.
   const [params, setParams] = useSearchParams()
   const requested = params.get('section')
-  const section: SectionId = isSection(requested) ? requested : 'business'
+  // NEXT-05 and NEXT-02: only the owner sees who changed what, and the SALEANE plan.
+  const shownSection = (id: SectionId) => (id !== 'changes' && id !== 'billing') || role === 'owner'
+  const section: SectionId =
+    isSection(requested) && shownSection(requested) ? requested : 'business'
   const setSection = (id: SectionId) => setParams({ section: id }, { replace: true })
   const [editor, setEditor] = useState<Editor | null>(null)
   const [pending, setPending] = useState(false)
@@ -364,16 +373,18 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
         }}
         groups={groups.map((group) => ({
           label: group.label,
-          tabs: group.sections.map(({ id, label, icon: Icon }) => ({
-            value: id,
-            text: label,
-            label: (
-              <>
-                <Icon size={17} aria-hidden="true" />
-                {label}
-              </>
-            ),
-          })),
+          tabs: group.sections
+            .filter(({ id }) => shownSection(id))
+            .map(({ id, label, icon: Icon }) => ({
+              value: id,
+              text: label,
+              label: (
+                <>
+                  <Icon size={17} aria-hidden="true" />
+                  {label}
+                </>
+              ),
+            })),
         }))}
       >
         <div className="ops-layout">
@@ -391,6 +402,8 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
             {section === 'payments' && <PaymentSettings />}
             {section === 'workspace' && <WorkspaceSection onReset={() => setReplaced(true)} />}
             {section === 'privacy' && <StudioPrivacy />}
+            {section === 'changes' && <ChangeRecord />}
+            {section === 'billing' && <PlanBilling />}
             {section === 'connections' && (
               <>
                 <Connections />

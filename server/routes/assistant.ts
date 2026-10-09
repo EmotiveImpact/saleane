@@ -4,7 +4,6 @@ import type { PendingProposal, Usage } from '../../lumane'
 import { fail } from '../http'
 import type { Context, Route } from '../context'
 import { HISTORY_TURNS, TYPED_WORST_CASE_MINOR, askSaleane } from '../../src/assistant/ask'
-import { ALLOWANCES } from '../../src/assistant/saleane'
 import type { Command } from '../../src/domain/commands'
 
 type Held = PendingProposal<Command> & { organisationId: string; accountId: string }
@@ -26,7 +25,8 @@ export function assistantRoutes() {
     if (org.role === 'practitioner') fail(403, 'Ask SALEANE is not available for your role yet.')
     const at = new Date(ctx.now()).toISOString()
     for (const [id, proposal] of held) if (proposal.expiresAt < at) held.delete(id)
-    const allowance = ALLOWANCES.included
+    // NEXT-02: each open location's allowance, Plus once paid for, and none once read only.
+    const allowance = ctx.plans.allowance(org)
     const stored = () =>
       ((raw) => (raw ? (JSON.parse(raw.usage) as Usage) : undefined))(
         ctx.db.get<{ usage: string }>(
