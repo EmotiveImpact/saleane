@@ -10,7 +10,7 @@ import type { AreaView } from '../domain/area'
 import type { Command } from '../domain/commands'
 import { dateLabel, money } from '../domain/format'
 import { GROUP_WINDOW_DAYS } from '../domain/group'
-import { venueMinutes } from '../domain/pocket'
+import { firstName, venueMinutes } from '../domain/pocket'
 import { Button, ErrorMessage, PageHeader } from '../design'
 import { PutRightList, VisitForm, VisitHistory } from './BranchVisits'
 import { DecideForm, DecidedRequests, RequestForm, WaitingRequests } from './Requests'
@@ -204,7 +204,9 @@ export function AreaHome() {
               {day(record.today)}
             </>
           }
-          title={`${greeting(venueMinutes(org.timeZone, openedAt))}, ${record.area.name}.`}
+          title={`${greeting(venueMinutes(org.timeZone, openedAt))}${
+            store.session ? `, ${firstName(store.session.user.name)}` : ''
+          }.`}
           actions={
             <>
               {record.checklists.length > 0 && (
