@@ -560,3 +560,126 @@
   align-items: center;
   gap: var(--space-2);
 }
+
+/*
+ * The guest's visit so far. On a wide screen it sits over the photograph, in the welcome's place,
+ * and stays in view as the steps scroll; on a phone it is a bar that stays at the top.
+ */
+.public-booking-layout > .booking-story {
+  grid-column: 1;
+  grid-row: 1;
+}
+.public-booking-layout > .booking-main {
+  grid-column: 2;
+  grid-row: 1;
+}
+.booking-summary-slot {
+  grid-column: 1;
+  grid-row: 1;
+  position: sticky;
+  top: var(--preview-h);
+  z-index: 3;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-start;
+  height: calc(100vh - var(--preview-h));
+  height: calc(100dvh - var(--preview-h));
+  padding: 96px clamp(20px, 2.4vw, 36px) clamp(20px, 2.4vw, 36px);
+  pointer-events: none;
+}
+.booking-summary-slot > * {
+  pointer-events: auto;
+}
+.has-summary .booking-story-card {
+  display: none;
+}
+@media (max-width: 650px) {
+  .public-booking-layout > .booking-main {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  .booking-summary-slot {
+    grid-column: 1;
+    grid-row: 2;
+    top: 0;
+    z-index: 20;
+    display: block;
+    height: auto;
+    padding: 0;
+  }
+}
+
+/* The details step says what is being booked before asking for anything. */
+.booking-step-content > p.booking-step-lead {
+  margin: var(--space-2) 0 var(--space-1);
+  color: var(--ink);
+}
+.booking-step-content > p.booking-hold-time {
+  margin: 0 0 var(--space-5);
+  font-size: var(--text-meta);
+}
+
+/* After booking: the guest's own next steps, then the visit in full. */
+.booking-guest-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
+.booking-guest-actions .add-to-calendar {
+  margin: 0;
+}
+.booking-confirmation > p.booking-copied {
+  min-height: 1.5em;
+  margin: var(--space-2) 0 var(--space-4);
+  font-size: var(--text-meta);
+  color: var(--brand-ink);
+}
+.booking-confirmation .manage-link {
+  margin-bottom: var(--space-6);
+}
+.booking-confirmation .booking-summary-receipt {
+  margin: 0 0 var(--space-5);
+}
+
+/* A booking page that isn't there: said kindly, with no way into the studio's workspace. */
+.booking-unavailable {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: var(--space-6);
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: var(--space-10) var(--space-4);
+  background: var(--paper);
+}
+.booking-unavailable-card {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-4);
+  width: min(100%, 520px);
+  text-align: center;
+}
+.booking-unavailable-card h1 {
+  margin: 0;
+  font-family: var(--font-editorial);
+  font-weight: var(--weight-editorial);
+  font-size: clamp(30px, 6vw, 40px);
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+}
+.booking-unavailable-card p {
+  margin: 0;
+  max-width: 44ch;
+  font-size: var(--text-body);
+  line-height: 1.6;
+  color: var(--muted);
+}
+.booking-unavailable-card p.booking-unavailable-detail {
+  font-size: var(--text-meta);
+}
+.booking-unavailable .booking-powered {
+  margin: 0;
+}

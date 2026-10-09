@@ -1,5 +1,8 @@
-import { dateLabel, timeLabel } from './format'
+import { dateLabel, money, timeLabel } from './format'
+import type { BusinessState } from './model'
 import { instantIn } from './operations'
+import { addedTaxMinor } from './priceSentence'
+import type { PriceTax } from './priceSentence'
 
 /** How far ahead a guest can book online, counting the studio's today. */
 export const BOOKING_DAYS = 366
@@ -51,34 +54,64 @@ export function civilTime(instant: number, timeZone: string) {
   }
 }
 
-export function cancellationTerms(input: CancellationInput) {
+/** The rule in words, given when the free cancellation ends, or that it already has. */
+function ruleWords(
+  input: Pick<CancellationInput, 'cutoffHours' | 'feePercent' | 'depositMinor'>,
+  cutoff: string,
+  passed: boolean,
+) {
   const { cutoffHours: hours, feePercent: fee, depositMinor: deposit } = input
+  const share = `up to ${fee}% of the price`
+  if (!deposit && !fee) return 'Free to cancel online any time before your visit.'
+  if (passed)
+    return `Your visit is less than ${hours} hours away, so if you cancel or miss it, the studio ${
+      deposit
+        ? `keeps your deposit${fee ? ` and may charge ${share}, less the deposit` : ''}`
+        : `may charge ${share}`
+    }.`
+  if (deposit)
+    return `Free to cancel until ${cutoff}, and the studio refunds your deposit. After that it keeps the deposit${
+      fee
+        ? `, and for a late cancellation or a missed visit it may charge ${share}, less the deposit`
+        : ''
+    }.`
+  return `Free to cancel until ${cutoff}. After that, or if you miss your visit, the studio may charge ${share}.`
+}
+
+export function cancellationTerms(input: CancellationInput) {
   let start: number
   try {
     start = Date.parse(instantIn(input.timeZone, input.date, input.startMinutes))
   } catch {
     start = NaN
   }
-  const cutoffAt = Number.isNaN(start) ? null : start - hours * 60 * 60000
+  const cutoffAt = Number.isNaN(start) ? null : start - input.cutoffHours * 60 * 60000
   const at = cutoffAt === null ? null : civilTime(cutoffAt, input.timeZone)
   const cutoff = at ? whenLabel(at.date, at.minutes, input.locale) : ''
   const passed = cutoffAt === null || input.now >= cutoffAt
-  const share = `up to ${fee}% of the price`
-  let rule: string
-  if (!deposit && !fee) rule = 'Free to cancel online any time before your visit.'
-  else if (passed)
-    rule = `Your visit is less than ${hours} hours away, so if you cancel or miss it, the studio ${
-      deposit
-        ? `keeps your deposit${fee ? ` and may charge ${share}, less the deposit` : ''}`
-        : `may charge ${share}`
-    }.`
-  else if (deposit)
-    rule = `Free to cancel until ${cutoff}, and the studio refunds your deposit. After that it keeps the deposit${
-      fee
-        ? `, and for a late cancellation or a missed visit it may charge ${share}, less the deposit`
-        : ''
-    }.`
-  else
-    rule = `Free to cancel until ${cutoff}. After that, or if you miss your visit, the studio may charge ${share}.`
-  return { cutoffAt, cutoff, passed, rule }
+  return { cutoffAt, cutoff, passed, rule: ruleWords(input, cutoff, passed) }
+}
+
+/** The same rule before a time is chosen, counted back from whenever the visit will be. */
+export function cancellationRule(
+  input: Pick<CancellationInput, 'cutoffHours' | 'feePercent' | 'depositMinor'>,
+) {
+  return ruleWords(input, `${input.cutoffHours} hours before your visit`, false)
+}
+
+/**
+ * What a full price already includes, such as "Including VAT" or "Including £3.20 sales tax",
+ * worded as the treatment's price sentence words it. Empty when the studio charges no tax.
+ */
+export function taxIncluded(
+  basePriceMinor: number,
+  tax: PriceTax,
+  organisation: Pick<BusinessState['organisation'], 'locale' | 'currency'>,
+) {
+  if (!tax || tax.rateBps <= 0 || basePriceMinor <= 0) return ''
+  const label = tax.label.trim()
+  const name = !label ? 'tax' : label === label.toUpperCase() ? label : label.toLowerCase()
+  const added = addedTaxMinor(basePriceMinor, tax)
+  if (added) return `Including ${money(added, organisation)} ${name}`
+  return tax.inclusive ? `Including ${name}` : ''
 }

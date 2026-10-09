@@ -16,6 +16,7 @@ export function BookingFrame({
   pastWelcome,
   team,
   controls,
+  summary,
   children,
 }: {
   studio: string
@@ -28,6 +29,11 @@ export function BookingFrame({
   team: boolean
   /** Extra preview controls, such as the demo market. */
   controls?: ReactNode
+  /**
+   * The guest's visit so far. On a wide screen it takes the welcome's place over the photograph
+   * and stays in view; on a phone it is a bar that stays at the top of the page.
+   */
+  summary?: ReactNode
   children: ReactNode
 }) {
   const [params] = useSearchParams()
@@ -56,7 +62,9 @@ export function BookingFrame({
           </div>
         </section>
       )}
-      <div className={`public-booking-layout ${pastWelcome ? 'booking-past-welcome' : ''}`}>
+      <div
+        className={`public-booking-layout ${pastWelcome ? 'booking-past-welcome' : ''} ${summary ? 'has-summary' : ''}`}
+      >
         <aside className="booking-story" aria-label={`Welcome to ${studio}`}>
           <img
             className="booking-story-image"
@@ -83,6 +91,7 @@ export function BookingFrame({
             </span>
           </div>
         </aside>
+        {summary && <div className="booking-summary-slot">{summary}</div>}
         <main className="booking-main" id="main-content" tabIndex={-1} data-focus-fallback>
           {notice && <p className="booking-notice">{notice}</p>}
           {children}

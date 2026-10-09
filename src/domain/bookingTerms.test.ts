@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { cancellationTerms, civilTime, whenLabel } from './bookingTerms'
+import {
+  cancellationRule,
+  cancellationTerms,
+  civilTime,
+  taxIncluded,
+  whenLabel,
+} from './bookingTerms'
 
 const uk = {
   date: '2026-10-07',
@@ -78,5 +84,33 @@ describe('the cancellation rule shown before a guest confirms', () => {
       date: '2026-10-07',
       minutes: 30,
     })
+  })
+})
+
+describe('the summary’s words before a time is chosen', () => {
+  it('counts the cutoff back from the visit, whenever it will be', () => {
+    expect(cancellationRule({ cutoffHours: 24, depositMinor: 2500, feePercent: 0 })).toBe(
+      'Free to cancel until 24 hours before your visit, and the studio refunds your deposit. After that it keeps the deposit.',
+    )
+    expect(cancellationRule({ cutoffHours: 24, depositMinor: 0, feePercent: 0 })).toBe(
+      'Free to cancel online any time before your visit.',
+    )
+  })
+
+  it('says what a full price already includes', () => {
+    const uk = { locale: 'en-GB', currency: 'GBP' } as const
+    expect(taxIncluded(8000, { label: 'VAT', rateBps: 2000, inclusive: false }, uk)).toBe(
+      'Including £16 VAT',
+    )
+    expect(taxIncluded(8000, { label: 'VAT', rateBps: 2000, inclusive: true }, uk)).toBe(
+      'Including VAT',
+    )
+    expect(
+      taxIncluded(10000, { label: 'Sales tax', rateBps: 888, inclusive: false }, {
+        locale: 'en-US',
+        currency: 'USD',
+      } as const),
+    ).toBe('Including $8.88 sales tax')
+    expect(taxIncluded(8000, null, uk)).toBe('')
   })
 })

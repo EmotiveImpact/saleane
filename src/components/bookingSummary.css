@@ -1,0 +1,210 @@
+/*
+ * A guest's visit in one place. On a wide screen the panel is a frosted card over the studio's
+ * photograph, always open. On a phone it is a slim bar at the top of the page that opens to the
+ * full summary. The receipt is the same summary on the confirmation, always open.
+ */
+.booking-summary {
+  color: var(--ink);
+  text-align: left;
+}
+.booking-summary-toggle {
+  display: none;
+}
+.booking-summary-body {
+  display: grid;
+  gap: var(--space-4);
+}
+.booking-summary-title {
+  margin: 0;
+  font-family: var(--font-editorial);
+  font-weight: var(--weight-editorial);
+  font-size: 26px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.booking-summary-treatment {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+}
+.booking-summary-photo {
+  display: block;
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  background-color: var(--stone);
+  background-size: cover;
+}
+.booking-summary-treatment small {
+  display: block;
+  font-size: var(--text-micro);
+  color: var(--muted);
+}
+.booking-summary-treatment strong {
+  display: block;
+  font-family: var(--font-editorial);
+  font-weight: 400;
+  font-size: 21px;
+  line-height: 1.2;
+}
+.booking-summary-treatment span > span {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-meta);
+  color: var(--muted);
+}
+.booking-summary-rows {
+  display: grid;
+  margin: 0;
+}
+.booking-summary-rows > div {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.booking-summary-rows dt {
+  font-size: var(--text-meta);
+  color: var(--muted);
+}
+.booking-summary-rows dd {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.booking-summary-rows dd small {
+  display: block;
+  font-size: var(--text-meta);
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* The panel over the photograph on a wide screen. */
+.booking-summary-panel {
+  width: min(100%, 420px);
+  max-height: 100%;
+  overflow-y: auto;
+  padding: var(--space-5) var(--space-6);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--paper) 90%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(1.1);
+  backdrop-filter: blur(18px) saturate(1.1);
+  box-shadow: var(--shadow-float);
+}
+
+/* The receipt once the visit is booked. */
+.booking-summary-receipt {
+  padding: var(--space-5) var(--space-6);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+}
+.booking-summary-receipt .booking-summary-title {
+  font-size: 22px;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .booking-summary-panel {
+    background: var(--paper);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* Phones: a slim bar that opens to the full summary. */
+@media (max-width: 650px) {
+  .booking-summary-panel {
+    width: 100%;
+    max-height: none;
+    overflow: visible;
+    padding: 0;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    border-radius: 0;
+    background: color-mix(in srgb, var(--paper) 96%, transparent);
+    box-shadow: 0 6px 18px rgba(46, 43, 51, 0.06);
+  }
+  .booking-summary-panel .booking-summary-toggle {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    min-height: 60px;
+    padding: 8px 16px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--ink);
+    text-align: left;
+  }
+  .booking-summary-toggle .booking-summary-photo {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+  }
+  .booking-summary-glance {
+    min-width: 0;
+  }
+  .booking-summary-glance strong,
+  .booking-summary-glance small {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .booking-summary-glance strong {
+    font-size: var(--text-small);
+    font-weight: var(--weight-strong);
+  }
+  .booking-summary-glance small {
+    font-size: var(--text-meta);
+    color: var(--muted);
+  }
+  .booking-summary-more {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--text-meta);
+    font-weight: var(--weight-strong);
+    color: var(--brand-ink);
+  }
+  .booking-summary-more svg {
+    transition: transform var(--motion-quick);
+  }
+  .booking-summary-panel.is-open .booking-summary-more svg {
+    transform: rotate(180deg);
+  }
+  .booking-summary-panel .booking-summary-body {
+    display: none;
+    max-height: 65vh;
+    overflow-y: auto;
+    padding: 0 16px 16px;
+  }
+  .booking-summary-panel.is-open .booking-summary-body {
+    display: grid;
+  }
+  /* In the open bar the treatment's name and photograph are already shown above. */
+  .booking-summary-panel .booking-summary-title,
+  .booking-summary-panel .booking-summary-treatment .booking-summary-photo {
+    display: none;
+  }
+  .booking-summary-panel .booking-summary-treatment {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .booking-summary-receipt {
+    padding: var(--space-4);
+  }
+  .booking-summary-rows > div {
+    grid-template-columns: 80px minmax(0, 1fr);
+  }
+}
+@media (max-width: 650px) and (prefers-reduced-motion: reduce) {
+  .booking-summary-more svg {
+    transition: none;
+  }
+}

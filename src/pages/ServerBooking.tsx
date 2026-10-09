@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Check } from 'lucide-react'
+import { useParams } from 'react-router-dom'
+import { ArrowLeft, ArrowRight, Check, Copy } from 'lucide-react'
 import { api, ApiError } from '../state/api'
 import { z } from 'zod'
 import { contactSchema } from '../domain/commandSchema'
 import { useStore } from '../state/context'
 import type { BusinessState } from '../domain/model'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
-import { Button, ErrorMessage, TimeChoices } from '../design'
+import { Button, ErrorMessage, TimeChoices, treatmentPhoto } from '../design'
 import { BotCheck } from '../components/BotCheck'
 import { BookingFrame } from '../components/BookingFrame'
 import { TreatmentPicker } from '../components/TreatmentPicker'
@@ -30,10 +30,14 @@ import type { GuestPayment as GuestPaymentView } from '../domain/guest'
 import {
   BOOKING_DAYS,
   STRIP_DAYS,
+  cancellationRule,
   cancellationTerms,
   civilTime,
+  taxIncluded,
   whenLabel,
 } from '../domain/bookingTerms'
+import { BookingSummary } from '../components/BookingSummary'
+import type { SummaryRow } from '../components/BookingSummary'
 import { DayStrip } from '../components/DayStrip'
 import type { DayStripDay } from '../components/DayStrip'
 import { instantIn } from '../domain/operations'
@@ -127,7 +131,8 @@ export function ServerBooking() {
   const { slug } = useParams(),
     base = `/api/public/${encodeURIComponent(slug ?? '')}`
   const [catalog, setCatalog] = useState<Catalog | null>(null),
-    [error, setError] = useState(''),
+    [problem, setProblem] = useState<{ message: string; missing: boolean } | null>(null),
+    [tries, setTries] = useState(0),
     [pending, setPending] = useState(false)
   useGuestColours(catalog?.look)
   useEffect(() => {
@@ -137,21 +142,53 @@ export function ServerBooking() {
         if (active) setCatalog(c)
       })
       .catch((e) => {
-        if (active) setError(e.message)
+        if (active)
+          setProblem({
+            message: e instanceof Error ? e.message : '',
+            missing: e instanceof ApiError && e.status === 404,
+          })
       })
     return () => {
       active = false
     }
-  }, [base])
+  }, [base, tries])
+  // A guest who reaches a page that isn't there is told so kindly, and never sent into the
+  // studio's own workspace.
   if (!catalog)
     return (
-      <main className="account-main">
-        <Link className="wordmark" to="/today">
-          SALEANE
-        </Link>
-        <h1>{error ? 'Booking is unavailable.' : 'A moment for you…'}</h1>
-        <ErrorMessage error={error} />
-        <Link to="/today">Back to workspace</Link>
+      <main className="booking-unavailable" id="main-content">
+        <div className="booking-unavailable-card">
+          <h1>
+            {!problem
+              ? 'A moment for you…'
+              : problem.missing
+                ? 'This booking page isn’t available'
+                : 'This page didn’t load'}
+          </h1>
+          {problem?.missing && (
+            <p>
+              The link may be out of date, or the studio may not be taking bookings online just now.
+              Please check the link with the studio.
+            </p>
+          )}
+          {problem && !problem.missing && (
+            <>
+              <p>Something went wrong while opening the booking page. Please try again.</p>
+              {problem.message && <p className="booking-unavailable-detail">{problem.message}</p>}
+              <Button
+                onClick={() => {
+                  setProblem(null)
+                  setTries((n) => n + 1)
+                }}
+              >
+                Try again
+              </Button>
+            </>
+          )}
+        </div>
+        <p className="booking-powered">
+          Considered care. Connected by <span className="mini-saleane">SALEANE</span>
+        </p>
       </main>
     )
   return (
@@ -200,8 +237,7 @@ function BookingFlow({
   const { cardPayments, emailsLive } = catalog
   const locations = catalog.locations ?? []
   const clock = useClock(30_000)
-  const store = useStore(),
-    navigate = useNavigate()
+  const store = useStore()
   const journalKey = `saleane.guest-confirmation:${base}`
   const [recovery] = useState(() => readPendingBooking(journalKey))
   // V4: a link from the AI receptionist opens step 2 with the offered time already chosen.
@@ -384,6 +420,97 @@ function BookingFlow({
       : `${money(depositMinor, org)} deposit, which you can pay by card as soon as you confirm. It comes off your bill on the day.${cardPayments?.testMode ? ' Card payments are in test mode, so no money moves.' : ''}`
   // The private link's token, which opens the guest's own visit page and its payment.
   const manageToken = manageUrl.split('#')[1] ?? ''
+  // A real deposit still to pay, offered straight after booking.
+  const payDue =
+    payment && payment.depositDueMinor > 0 && !payment.pending && manageToken ? payment : null
+  const [copied, setCopied] = useState('')
+  const linkField = useRef<HTMLInputElement>(null)
+  /** Opens the guest's own visit page through the private link. */
+  function openVisit(event: React.MouseEvent<HTMLAnchorElement>) {
+    // A new tab or window opens the link as it is.
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    event.preventDefault()
+    window.location.assign(manageUrl)
+  }
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(manageUrl)
+      setCopied('Link copied. Keep it somewhere safe.')
+    } catch {
+      linkField.current?.select()
+      setCopied('This browser could not copy it, so the link is selected below to copy yourself.')
+    }
+  }
+  const calendarVisit =
+    confirmed && service && start !== null
+      ? {
+          uid: visitUid(confirmed),
+          serviceName: service.name,
+          studioName: org.name,
+          date,
+          startMinutes: start,
+          durationMinutes: service.durationMinutes,
+          timeZone: org.timeZone,
+          location: where.address || where.name,
+        }
+      : null
+  // One summary of the visit, the same through every step and after booking.
+  const summaryRows: SummaryRow[] = service
+    ? [
+        {
+          label: 'With',
+          value:
+            professional?.name ??
+            (staffId === 'any' ? 'Any available professional' : 'Your professional'),
+        },
+        { label: 'Where', value: where.name, detail: where.address || undefined },
+        {
+          label: 'When',
+          value: dateLabel(date, org.locale),
+          detail:
+            start === null
+              ? 'Choose a time'
+              : `${timeLabel(start, org.locale)} to ${timeLabel(start + service.durationMinutes, org.locale)}`,
+        },
+        {
+          label: 'Price',
+          value: money(priceMinor, org),
+          detail: taxIncluded(serviceAt(service, place?.id).priceMinor, tax, org) || undefined,
+        },
+        depositMinor
+          ? {
+              label: 'Deposit',
+              value: money(depositMinor, org),
+              detail: sample
+                ? 'Simulated in this sample studio. Nothing is charged.'
+                : 'Paid by card once you confirm. It comes off your bill.',
+            }
+          : { label: 'Deposit', value: 'None', detail: 'You pay at the studio.' },
+        {
+          label: 'Cancelling',
+          value:
+            terms?.rule ??
+            cancellationRule({
+              cutoffHours: catalog.cancellation?.cutoffHours ?? GUEST_CANCEL_CUTOFF_HOURS,
+              feePercent: catalog.cancellation?.feePercent ?? 0,
+              depositMinor,
+            }),
+        },
+      ]
+    : []
+  const visitSummary = (variant: 'panel' | 'receipt') =>
+    service ? (
+      <BookingSummary
+        variant={variant}
+        headingLevel={variant === 'receipt' ? 3 : 2}
+        treatment={service.name}
+        category={service.category}
+        duration={`${service.durationMinutes} minutes`}
+        photo={treatmentPhoto(service.category)}
+        rows={summaryRows}
+        glance={`${dateLabel(date, org.locale, true)}${start === null ? '' : `, ${timeLabel(start, org.locale)}`} · ${money(priceMinor, org)}`}
+      />
+    ) : null
   async function payDeposit() {
     setPaying(true)
     setPayError('')
@@ -641,6 +768,11 @@ function BookingFlow({
       setManageUrl(result.manage?.url ?? '')
       setPayment(result.payment ?? null)
       setConfirmed(result.appointmentId)
+      // A team member trying their own page finds the visit in their calendar when they go back.
+      if (store.mode === 'server' && store.session && store.state.organisation.id === org.id)
+        store.reload().catch(() => {
+          /* The workspace offers its own recovery. */
+        })
       setAttempt(null)
       try {
         sessionStorage.removeItem(journalKey)
@@ -753,6 +885,7 @@ function BookingFlow({
       }
       pastWelcome={step > 1 || !!confirmed}
       team={!!store.session}
+      summary={!confirmed && step > 1 ? visitSummary('panel') : undefined}
     >
       {confirmed ? (
         <div className="booking-confirmation">
@@ -762,25 +895,19 @@ function BookingFlow({
           <p className="date-caption">Saved in the studio calendar</p>
           <h2>Something to look forward to.</h2>
           <p>
-            {service?.name}
+            {service ? `${service.name}, ` : ''}
+            {whenLabel(date, start!, org.locale)}.
             <br />
-            {dateLabel(date, org.locale)} at {timeLabel(start!, org.locale)}
+            Your booking reference is {confirmed.slice(-8).toUpperCase()}.
           </p>
-          <p>Booking reference: {confirmed.slice(-8).toUpperCase()}</p>
-          {locations.length > 1 && (
-            <p>
-              {where.name}
-              {where.address ? `, ${where.address}` : ''}
-            </p>
-          )}
-          {payment && payment.depositDueMinor > 0 && !payment.pending && manageToken && (
+          {payDue && (
             <section className="booking-pay-now" aria-labelledby="booking-pay-now-heading">
               <h3 id="booking-pay-now-heading">Secure your visit</h3>
               <p>
-                {org.name} asks for a {money(payment.depositDueMinor, org, true)} deposit. It comes
+                {org.name} asks for a {money(payDue.depositDueMinor, org, true)} deposit. It comes
                 off your bill on the day. You can also pay it later from your visit page.
               </p>
-              {payment.testMode && (
+              {payDue.testMode && (
                 <p className="booking-test-note">
                   Test mode: the payment page is a test page. No card is asked for and no money
                   moves.
@@ -789,30 +916,58 @@ function BookingFlow({
               <Button disabled={paying} onClick={() => void payDeposit()}>
                 {paying
                   ? 'Opening the payment page…'
-                  : `Pay your ${money(payment.depositDueMinor, org, true)} deposit now`}
+                  : `Pay your ${money(payDue.depositDueMinor, org, true)} deposit now`}
               </Button>
               <ErrorMessage error={payError} />
             </section>
           )}
+          <div className="booking-guest-actions">
+            {manageUrl && (
+              <a
+                className={`button ${payDue ? 'button-secondary' : 'button-primary'}`}
+                href={manageUrl}
+                onClick={openVisit}
+              >
+                View my visit
+              </a>
+            )}
+            {calendarVisit && <AddToCalendar visit={calendarVisit} />}
+            {manageUrl && (
+              <Button variant="secondary" onClick={() => void copyLink()}>
+                <Copy size={16} aria-hidden="true" />
+                Copy link
+              </Button>
+            )}
+          </div>
+          <p className="booking-copied" role="status">
+            {copied}
+          </p>
+          {manageUrl && (
+            <div className="manage-link">
+              <label htmlFor="manage-link">Your private link to view or cancel this visit</label>
+              <input
+                id="manage-link"
+                ref={linkField}
+                readOnly
+                value={manageUrl}
+                onFocus={(e) => e.target.select()}
+              />
+              <small>
+                Not sent anywhere. Keep it safe: anyone with this link can view or cancel the visit.
+              </small>
+            </div>
+          )}
+          {visitSummary('receipt')}
           <BeforeYouArrive
             studioNote={where.arrivalNote}
             serviceNote={service?.prepNote}
             patchTestHours={service?.patchTest ? (catalog.patchTestHours ?? 48) : undefined}
           />
-          {service && start !== null && (
-            <AddToCalendar
-              visit={{
-                uid: visitUid(confirmed),
-                serviceName: service.name,
-                studioName: org.name,
-                date,
-                startMinutes: start,
-                durationMinutes: service.durationMinutes,
-                timeZone: org.timeZone,
-                location: where.address || where.name,
-              }}
-            />
-          )}
+          {/*
+            Studio contact, to come with B2's StudioContact component: the studio's phone and
+            email, and a "Directions" link to the address above, go here once the public booking
+            payload carries them. No contact fields exist in the schema yet, so nothing shows.
+          */}
           <p className="subtle">
             {sample
               ? 'This is a fictional sample visit, and its deposit is simulated. Nothing is emailed.'
@@ -820,34 +975,6 @@ function BookingFlow({
                 ? 'Keep your private link to view or cancel this visit.'
                 : 'Nothing has been emailed, so keep this page or your private link.'}
           </p>
-          {manageUrl && (
-            <div className="manage-link">
-              <label htmlFor="manage-link">Your private link to view or cancel this visit</label>
-              <input
-                id="manage-link"
-                readOnly
-                value={manageUrl}
-                onFocus={(e) => e.target.select()}
-              />
-              <small>
-                Not sent anywhere. Copy it now; anyone with this link can cancel the visit.
-              </small>
-            </div>
-          )}
-          <Button
-            onClick={async () => {
-              if (store.mode === 'server' && store.state.organisation.id === org.id) {
-                try {
-                  await store.reload()
-                } catch {
-                  /* The workspace offers recovery controls. */
-                }
-              }
-              navigate(`/calendar?date=${date}`)
-            }}
-          >
-            Back to workspace
-          </Button>
         </div>
       ) : !service && attempt ? (
         <div className="booking-confirmation">
@@ -895,8 +1022,14 @@ function BookingFlow({
                 booking before choosing another time.
               </p>
             )}
+            {step === 3 && start !== null && (
+              <p className="booking-step-lead">
+                You’re booking {service.name} on {whenLabel(date, start, org.locale)}. {org.name}{' '}
+                uses your details to confirm the visit and to reach you if anything changes.
+              </p>
+            )}
             {step >= 3 && hold && !attempt && seconds > 0 && (
-              <p className="subtle">
+              <p className="subtle booking-hold-time">
                 This time is held for {Math.floor(seconds / 60)}:
                 {String(seconds % 60).padStart(2, '0')}.
               </p>
@@ -1278,6 +1411,11 @@ function BookingFlow({
             )}
           </div>
           <footer className="booking-powered">
+            {/*
+              Studio contact, to come with B2's StudioContact component: the studio's phone,
+              email and a "Directions" link belong in this footer once the public booking
+              payload carries them. No contact fields exist in the schema yet.
+            */}
             Considered care. Connected by <span className="mini-saleane">SALEANE</span>
           </footer>
         </>

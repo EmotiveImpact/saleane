@@ -425,7 +425,8 @@ test('when a hold runs out one tap holds the same time again; a time that has go
   await user.type(screen.getByLabelText('Phone number'), payload.contact.phone)
   await user.click(screen.getByRole('button', { name: 'Review your visit' }))
   // A guest with no preference sees who the held time is with.
-  expect(await screen.findByText(/Maya Lewis/)).toBeVisible()
+  await screen.findByRole('checkbox', { name: /I agree to the deposit/ })
+  expect(screen.getByText(/Maya Lewis/, { selector: '.booking-review p' })).toBeVisible()
   await user.click(screen.getByRole('checkbox', { name: /I agree to the deposit/ }))
   expect(screen.getByRole('button', { name: 'Confirm visit' })).toBeEnabled()
   // Six minutes later the hold has run out.
@@ -513,4 +514,131 @@ test('a time from an earlier day is never offered again; choosing another starts
   expect(within(days).queryByRole('radio', { name: /Friday 2 October/ })).not.toBeInTheDocument()
   expect(await screen.findByRole('group', { name: 'Times on Tuesday 6 October' })).toBeVisible()
   expect(datesAsked().filter((date) => date < '2026-10-06')).toEqual([])
+})
+
+test('one summary of the visit follows the guest through every step and onto the confirmation', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  // Noon on Monday 5 October: the visit is on Wednesday 7 October at 10:00.
+  vi.setSystemTime(new Date('2026-10-05T12:00:00.000Z'))
+  const user = userEvent.setup()
+  const token = 'm'.repeat(43),
+    manage = `http://localhost:3000/manage#${token}`
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path === base)
+      return {
+        ...catalog,
+        organisation: { ...state.organisation, arrivalNote: 'Ring the bell by the blue door.' },
+        services: [{ ...state.services[0], prepNote: 'Come with a clean face.' }],
+        tax: { label: 'VAT', rateBps: 2000, inclusive: true },
+        depositPolicy: 'card',
+        cardPayments: { testMode: true },
+        emailsLive: false,
+        cancellation: { cutoffHours: 24, feePercent: 0 },
+      } as never
+    if (path.startsWith(`${base}/days?`))
+      return { days: fortnight(queryOf(path).get('from')!, {}) } as never
+    if (path.startsWith(`${base}/availability?`)) return { times: [600] } as never
+    if (path === `${base}/holds`)
+      return {
+        hold: payload.hold,
+        expiresAt: new Date(Date.now() + 300000).toISOString(),
+        staffId: 'staff-maya',
+      } as never
+    if (path === `${base}/book`)
+      return { appointmentId: 'visit-1a2b3c4d', manage: { url: manage } } as never
+    throw new Error(`Unexpected route ${path}`)
+  })
+  view()
+  await user.click(await screen.findByRole('button', { name: 'Choose a time' }))
+  const summary = screen.getByRole('region', { name: 'Your visit' })
+  const row = (label: string) => within(summary).getByText(label).closest('div')!
+  expect(summary.querySelector('.booking-summary-treatment')).toHaveTextContent(
+    'SkinSkin Renewal Facial60 minutes',
+  )
+  expect(row('With')).toHaveTextContent('Any available professional')
+  expect(row('Where')).toHaveTextContent('Marylebone, London24 Devonshire Place, London W1G')
+  expect(row('When')).toHaveTextContent('Wednesday 7 OctoberChoose a time')
+  expect(row('Price')).toHaveTextContent('£95Including VAT')
+  expect(row('Deposit')).toHaveTextContent('£25Paid by card once you confirm.')
+  expect(row('Cancelling')).toHaveTextContent(
+    'Free to cancel until 24 hours before your visit, and the studio refunds your deposit. After that it keeps the deposit.',
+  )
+  // On a phone the summary is a bar that opens to the whole of it.
+  const bar = within(summary).getByRole('button', { name: /Skin Renewal Facial/ })
+  expect(bar).toHaveAttribute('aria-expanded', 'false')
+  expect(bar).toHaveTextContent('Wed 7 Oct · £95')
+  await user.click(bar)
+  expect(bar).toHaveAttribute('aria-expanded', 'true')
+  // Choosing a time fills it in, with the cutoff on the studio's clock.
+  await user.click(await screen.findByRole('radio', { name: '10:00' }))
+  expect(row('When')).toHaveTextContent('Wednesday 7 October10:00 to 11:00')
+  expect(bar).toHaveTextContent('Wed 7 Oct, 10:00 · £95')
+  expect(row('Cancelling')).toHaveTextContent(
+    'Free to cancel until Tuesday 6 October at 10:00, and the studio refunds your deposit.',
+  )
+  await user.click(screen.getByRole('button', { name: 'Hold this time' }))
+  // The details step says what is being booked, and the summary says who it is with.
+  expect(
+    await screen.findByText(
+      'You’re booking Skin Renewal Facial on Wednesday 7 October at 10:00. Atelier House uses your details to confirm the visit and to reach you if anything changes.',
+    ),
+  ).toBeVisible()
+  expect(row('With')).toHaveTextContent('Maya Lewis')
+  await user.type(screen.getByLabelText('Full name'), payload.contact.name)
+  await user.type(screen.getByLabelText('Email'), payload.contact.email)
+  await user.type(screen.getByLabelText('Phone number'), payload.contact.phone)
+  await user.click(screen.getByRole('button', { name: 'Review your visit' }))
+  expect(screen.getByRole('region', { name: 'Your visit' })).toBe(summary)
+  await user.click(screen.getByRole('checkbox', { name: /I agree to the deposit/ }))
+  await user.click(screen.getByRole('button', { name: 'Confirm visit' }))
+  await screen.findByText('Saved in the studio calendar')
+  // The guest's own next steps, and no way into the studio's workspace.
+  expect(screen.queryByRole('button', { name: /workspace/i })).not.toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: /workspace/i })).not.toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'View my visit' })).toHaveAttribute('href', manage)
+  expect(screen.getByRole('button', { name: 'Add to calendar' })).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Copy link' }))
+  expect(await screen.findByText('Link copied. Keep it somewhere safe.')).toBeVisible()
+  expect(await navigator.clipboard.readText()).toBe(manage)
+  expect(screen.getByText(/Your booking reference is 1A2B3C4D\./)).toBeVisible()
+  // The whole visit again, with the address and what to know before arriving.
+  const receipt = screen.getByRole('region', { name: 'Your visit' })
+  expect(receipt).not.toBe(summary)
+  expect(within(receipt).getByText('24 Devonshire Place, London W1G')).toBeVisible()
+  expect(within(receipt).getByText('10:00 to 11:00')).toBeVisible()
+  expect(within(receipt).getByText('Maya Lewis')).toBeVisible()
+  const arrive = screen.getByRole('region', { name: 'Before you arrive' })
+  expect(arrive).toHaveTextContent('Ring the bell by the blue door.')
+  expect(arrive).toHaveTextContent('Come with a clean face.')
+})
+
+test('a booking page that is not there says so kindly, with no way into the workspace', async () => {
+  vi.mocked(api).mockRejectedValue(
+    new ApiError('Online booking is not available for this studio.', 404),
+  )
+  view()
+  expect(
+    await screen.findByRole('heading', { name: 'This booking page isn’t available' }),
+  ).toBeVisible()
+  expect(screen.getByText(/check the link with the studio/)).toBeVisible()
+  expect(screen.queryAllByRole('link')).toEqual([])
+  expect(screen.queryByText(/workspace/i)).not.toBeInTheDocument()
+})
+
+test('a booking page that fails to load can be tried again', async () => {
+  const user = userEvent.setup()
+  let fail = true
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path === base) {
+      if (fail) throw new ApiError('The service is busy.', 503)
+      return catalog as never
+    }
+    throw new Error(`Unexpected route ${path}`)
+  })
+  view()
+  expect(await screen.findByRole('heading', { name: 'This page didn’t load' })).toBeVisible()
+  expect(screen.queryAllByRole('link')).toEqual([])
+  fail = false
+  await user.click(screen.getByRole('button', { name: 'Try again' }))
+  expect(await screen.findByRole('button', { name: 'Choose a time' })).toBeVisible()
 })
