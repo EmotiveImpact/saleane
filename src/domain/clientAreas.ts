@@ -51,8 +51,9 @@ export function clientAreas(
   s: BusinessState,
   today: string,
   locationId: string | 'all' = 'all',
+  days = AREA_WINDOW_DAYS,
 ): ClientAreas {
-  const from = addDays(today, -AREA_WINDOW_DAYS)
+  const from = addDays(today, -days)
   const ids = new Set(
     s.appointments
       .filter(

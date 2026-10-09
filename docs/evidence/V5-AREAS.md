@@ -27,6 +27,6 @@ Screenshots: [the page](V5-AREAS-page.png), [on a phone](V5-AREAS-390.png), [the
 
 ## Limits
 
-- This is a list with bars, not a drawn map. A drawn map needs an outside map service (map tiles), which is not connected here.
+- This stage was a list with bars. A map above it followed in the next stage ([evidence](V5-MAP.md)); its streets need an outside map service, which is not connected.
 - Areas are recorded by hand on each client's page. Online bookings do not ask for a postcode.
 - A map of branches showing how each is doing is covered by the side-by-side whole-business view ([evidence](V5-GROUP.md)); there is no drawn branch map for the same reason.
