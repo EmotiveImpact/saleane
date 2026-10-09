@@ -213,6 +213,22 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     roles: ['practitioner'],
     words: 'clock in out hours timesheet shift start finish break',
   },
+  {
+    id: 'practitioner-diary',
+    title: 'See your visits in Google or Apple Calendar',
+    group: 'The day',
+    summary: 'A private link keeps the calendar on your phone up to date with your visits.',
+    steps: [
+      'Under your day, choose Your visits in Google or Apple Calendar.',
+      'Choose what each visit shows: the treatment and the client’s first name, or the treatment only. Then choose Make the link.',
+      'Choose Copy link, or Open in Apple Calendar. In Google Calendar on a computer, choose the plus beside Other calendars, then From URL, and paste the link.',
+      'The link is shown only once. To stop it, open the same place, choose Stop link, then Stop it now.',
+    ],
+    note: 'The calendar only shows your visits, from two weeks back to four weeks ahead; changes are still made in SALEANE. Google checks for changes every few hours. The link stops working if your access to the studio ends.',
+    screens: ['/practice'],
+    roles: ['practitioner'],
+    words: 'google calendar apple calendar ical ics outlook phone sync subscribe diary my calendar',
+  },
 
   {
     id: 'book-visit',
@@ -649,6 +665,26 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     screens: ['/business/rota'],
     roles: DESK,
     words: 'rota holiday time off sick shift leave',
+  },
+  {
+    id: 'diaries',
+    title: 'See visits in Google or Apple Calendar',
+    group: 'Team',
+    summary:
+      'A private link keeps a calendar app up to date with your own visits, one professional’s, a location’s or the whole studio’s.',
+    steps: [
+      'Open Settings, then Google & Apple diaries.',
+      'Under Whose visits, choose your own, one professional, a location or Everyone at the studio.',
+      'Choose what each visit shows: the treatment and the client’s first name, or the treatment only. Then choose Make the link.',
+      'Choose Copy link and send it to whoever will use it, or choose Open in Apple Calendar. In Google Calendar on a computer, choose the plus beside Other calendars, then From URL, and paste the link.',
+      'To stop a link, choose Stop link beside it, then Stop it now.',
+    ],
+    note: 'Owners and managers can make a link for anyone, a general manager for their own location, and everyone else for their own visits. The calendar only shows: changes are still made in SALEANE. A link stops working if the person who made it loses access. While SALEANE runs only on this computer, Google Calendar cannot reach a link.',
+    to: '/settings?section=diaries',
+    screens: ['/settings?section=diaries'],
+    roles: DESK,
+    words:
+      'google calendar apple calendar ical ics outlook phone sync subscribe diary team calendar feed',
   },
   {
     id: 'clock',

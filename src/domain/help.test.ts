@@ -84,6 +84,7 @@ describe('help inside the app', () => {
       'practitioner-day',
       'practitioner-patch',
       'practitioner-clock',
+      'practitioner-diary',
       'day-sheet',
     ])
     expect(helpForScreen('/today', '', 'owner')[0].id).toBe('get-ready')

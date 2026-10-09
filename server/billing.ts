@@ -181,6 +181,7 @@ function stillAllowed(path: string[], body: unknown) {
     path[3] === 'privacy' ||
     (path[3] === 'membership' && (body as { role?: unknown } | null)?.role === 'remove') ||
     (path[3] === 'api-keys' && path[5] === 'revoke') ||
+    (path[3] === 'diary-links' && path[5] === 'stop') ||
     (path[3] === 'guest-links' && path[4] === 'revoke') ||
     (path[3] === 'connections' && path[4] === 'pause-all')
   )

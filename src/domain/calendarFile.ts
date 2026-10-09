@@ -26,13 +26,22 @@ export type CalendarVisit = {
  * ID itself never leaves the studio, yet the confirmation page and the manage page agree.
  */
 export function visitUid(appointmentId: string) {
+  return stableUid('visit', appointmentId)
+}
+
+/**
+ * A calendar UID for a record of one kind, such as "visit" or "diary", from a one-way hash of its
+ * ID. Different kinds never share a UID, so the same visit in a guest's calendar and a team diary
+ * are two events.
+ */
+export function stableUid(kind: string, id: string) {
   // 64-bit FNV-1a. Stable, dependency free and synchronous; this is an identifier, not a secret.
   let hash = 0xcbf29ce484222325n
-  for (const byte of new TextEncoder().encode(`saleane-visit:${appointmentId}`)) {
+  for (const byte of new TextEncoder().encode(`saleane-${kind}:${id}`)) {
     hash ^= BigInt(byte)
     hash = (hash * 0x100000001b3n) & 0xffffffffffffffffn
   }
-  return `visit-${hash.toString(16).padStart(16, '0')}@saleane`
+  return `${kind}-${hash.toString(16).padStart(16, '0')}@saleane`
 }
 
 /** Escapes a TEXT value: backslash, semicolon, comma and line breaks (RFC 5545 3.3.11). */
@@ -69,7 +78,7 @@ export function foldLine(line: string) {
 }
 
 /** 20261007T080000Z */
-function utcStamp(instant: number) {
+export function utcStamp(instant: number) {
   return new Date(instant)
     .toISOString()
     .replace(/[-:]/g, '')

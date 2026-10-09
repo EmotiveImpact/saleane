@@ -2,6 +2,18 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-09 · Team diaries in Google or Apple Calendar (NEXT-10)
+
+**Status: built locally on 9 October 2026.** [Evidence](docs/evidence/NEXT-10-DIARIES.md).
+
+- Settings has Google & Apple diaries, under Team. Anyone with visits of their own makes a private link to them; owners and managers can also make one for another professional, a location or the whole studio, and a general manager for their own location. A practitioner makes theirs from "Your visits in Google or Apple Calendar" under their day.
+- The link goes into Google Calendar (Other calendars, From URL) or Apple Calendar (Open in Apple Calendar), which then checks it by itself, so visits appear, move and go as they do in SALEANE. It only shows: nothing made in the calendar app comes back.
+- Each visit shows its time, room and treatment, with the client's first name unless the studio chooses the treatment only. Never a surname, phone, email, note, form, price or payment. Time off shows as Time off, never why. A diary for a location or the studio says who does each visit.
+- A practitioner's diary reaches four weeks ahead, as their own page does; others reach six months. Both go two weeks back.
+- The link is shown once, kept only as a hash, and can be stopped at any time. It also stops working when the person who made it loses access, when the studio is locked or when the studio is restored from a backup. Who changed what records each link made and stopped.
+- Sample studios make no links. While SALEANE runs only on this computer, only calendar apps on this computer can read a link; the screen says so.
+- Help has two guides: See your visits in Google or Apple Calendar for practitioners, and See visits in Google or Apple Calendar for everyone else (58 guides).
+
 ## 2026-10-09 · Booking several people together (NEXT-08)
 
 **Status: built locally on 9 October 2026.** [Evidence](docs/evidence/NEXT-08-TOGETHER.md).

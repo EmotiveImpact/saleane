@@ -161,6 +161,8 @@ const serverWords: Record<string, Words> = {
   'guest_link.revoked': ['visits', 'Turned off a guest’s visit link'],
   'api-key.created': ['access', 'Made a partner access key'],
   'api-key.revoked': ['access', 'Turned off a partner access key'],
+  'diary-link.made': ['access', 'Made a diary link for Google or Apple Calendar'],
+  'diary-link.stopped': ['access', 'Stopped a diary link'],
   'connection.created': ['settings', 'Connected software'],
   'connection.paused-all': ['settings', 'Paused all connected software'],
   'connection.changed': ['settings', 'Changed connected software'],
