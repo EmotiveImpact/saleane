@@ -78,7 +78,11 @@ describe('help inside the app', () => {
       'unpaid',
     ])
     expect(helpForScreen('/settings', '?section=billing', 'manager')).toEqual([])
-    expect(ids(helpForScreen('/business/money', '', 'reception'))).toEqual(['till'])
+    expect(ids(helpForScreen('/business/money', '', 'reception'))).toEqual([
+      'till',
+      'receipts',
+      'cash-drawer',
+    ])
     expect(ids(helpForScreen('/clients/abc', '', 'owner'))).toContain('patch-tests')
     expect(ids(helpForScreen('/practice/org-1', '', 'practitioner'))).toEqual([
       'practitioner-day',
@@ -110,6 +114,11 @@ describe('help inside the app', () => {
     expect(first('client replied STOP')).toBe('text-stop')
     expect(first('unsubscribe from texts')).toBe('text-stop')
     expect(first('client insight')).toBe('at-a-glance')
+    expect(first('barcode scanner')).toBe('barcodes')
+    expect(first('no sale')).toBe('cash-drawer')
+    expect(first('set up a receipt printer')).toBe('till-printer')
+    expect(first('email a receipt')).toBe('receipts')
+    expect(first('product picture')).toBe('product-photo')
     expect(searchHelp('the', 'owner')).toEqual([])
     expect(searchHelp('rocket launch', 'owner')).toEqual([])
     expect(helpWords("Customer's bookings")).toEqual(['client', 'visit'])
