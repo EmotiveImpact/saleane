@@ -21,6 +21,8 @@ function recording(channel: 'email' | 'sms'): MessageProvider {
     live: true,
     channel,
     send: async (message) => {
+      // Account emails (NEXT-03) are tested in accountMail.test.ts.
+      if (message.fromName === 'SALEANE') return { outcome: 'test' }
       sent.push(message)
       return { outcome: 'accepted', providerRef: `ref-${sent.length}` }
     },

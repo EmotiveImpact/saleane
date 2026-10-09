@@ -80,6 +80,9 @@ const Pricing = lazy(() =>
 const Account = lazy(() =>
   import('./pages/Account').then((module) => ({ default: module.Account })),
 )
+const AccountLink = lazy(() =>
+  import('./pages/AccountLink').then((module) => ({ default: module.AccountLink })),
+)
 const ServerBooking = lazy(() =>
   import('./pages/ServerBooking').then((module) => ({ default: module.ServerBooking })),
 )
@@ -184,6 +187,8 @@ function WorkspaceApp() {
       ? 'Design language'
       : (navigation.find((n) => location.pathname.startsWith(n.to))?.label ?? 'Today')
   if (location.pathname === '/account' || location.pathname === '/join') return <Account />
+  if (location.pathname === '/reset-password' || location.pathname === '/confirm-email')
+    return <AccountLink />
   if (location.pathname === '/manage') return <ManageVisit />
   if (location.pathname === '/pay/test') return <TestPayment />
   if (location.pathname === '/pricing') return <Pricing />

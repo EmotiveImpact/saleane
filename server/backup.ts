@@ -105,6 +105,12 @@ function snapshot(source: string, destination: string, restore: boolean) {
         // sent since would go twice. The owner turns each back on, and the team sends again.
         const time = Date.now()
         held = {
+          // An emailed password or confirmation link from before the restore stops working;
+          // the person asks for a new one.
+          accountLinksRetired: Number(
+            recovered.prepare('UPDATE account_links SET used_at=? WHERE used_at IS NULL').run(time)
+              .changes,
+          ),
           accessKeysRevoked: Number(
             recovered.prepare('UPDATE api_keys SET revoked_at=? WHERE revoked_at IS NULL').run(time)
               .changes,

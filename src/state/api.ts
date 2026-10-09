@@ -12,7 +12,7 @@ export type WorkspaceAccess = {
   staffId?: string
 }
 export type Session = {
-  user: { id: string; name: string; email: string }
+  user: { id: string; name: string; email: string; emailConfirmed?: boolean }
   csrf: string
   workspaces: WorkspaceAccess[]
   services: { email: boolean; payments: boolean }
