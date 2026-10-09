@@ -524,6 +524,52 @@ export const migrations: Migration[] = [
         CREATE INDEX audit_actor ON audit_events(organisation_id,actor_id,occurred_at);
       `),
   },
+  {
+    version: 29,
+    // Stage 2, the till: a receipt the desk chose to email goes through the outbox like any other
+    // message; and every time SALEANE asked a receipt printer to print or open its cash drawer,
+    // with who, when, why, which sale and what the printer answered. A test printer's job is kept
+    // as bytes so it can be shown; nothing else about a client is stored here.
+    up: (connection) =>
+      connection.exec(
+        outboxWithKinds(
+          [
+            'confirmation',
+            'changed',
+            'reminder',
+            'cancelled',
+            'feedback',
+            'patch_test',
+            'aftercare',
+            'due_back',
+            'birthday',
+            'miss_you',
+            'missed_call',
+            'message',
+            'receptionist',
+            'social',
+            'receipt',
+          ],
+          ['email', 'sms', 'instagram', 'facebook', 'whatsapp'],
+        ) +
+          `
+        CREATE TABLE till_events (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          location_id TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK(kind IN ('drawer','print')),
+          cause TEXT NOT NULL CHECK(cause IN ('cash','refund','no_sale','receipt','test_page')),
+          receipt TEXT, receipt_number TEXT, amount_minor INTEGER, reason TEXT,
+          printer TEXT NOT NULL CHECK(printer IN ('network','test')), host TEXT, port INTEGER,
+          status TEXT NOT NULL CHECK(status IN ('pending','sending','sent','test','failed','skipped')),
+          detail TEXT, bytes TEXT, actor_id TEXT, actor_name TEXT NOT NULL,
+          created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+        ) STRICT;
+        CREATE INDEX till_events_day ON till_events(organisation_id,kind,created_at);
+        CREATE INDEX till_events_receipt ON till_events(organisation_id,receipt);
+        CREATE INDEX till_events_due ON till_events(status,created_at);
+      `,
+      ),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the

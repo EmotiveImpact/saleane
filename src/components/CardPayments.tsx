@@ -6,6 +6,7 @@ import { api } from '../state/api'
 import { can, operations } from '../domain/operations'
 import { minorInput, parseMinor } from '../domain/money'
 import { mayRemoveSavedCard } from '../domain/paymentMethods'
+import { returnable } from '../domain/retail'
 import { money as formatMoney } from '../domain/format'
 import { Button, ErrorMessage } from '../design'
 
@@ -616,6 +617,13 @@ export function CardRefund({
   const { attempt, error, busy, charge, check } = useCharge(onDone)
   const [amount, setAmount] = useState(minorInput(maxMinor))
   const [reason, setReason] = useState('')
+  // Stage 2: products the guest brought back, back on the shelf once the provider confirms.
+  const [back, setBack] = useState<Record<string, number>>({})
+  const lines =
+    'saleId' in target ? returnable(state, target.saleId).filter((line) => line.left > 0) : []
+  const restock = lines
+    .map((line) => ({ productId: line.productId, quantity: back[line.productId] ?? 0 }))
+    .filter((item) => Number.isInteger(item.quantity) && item.quantity > 0)
   const amountMinor = parseMinor(amount, 0)
   const valid =
     Number.isFinite(amountMinor) &&
@@ -628,7 +636,13 @@ export function CardRefund({
       aria-busy={busy}
       onSubmit={(event) => {
         event.preventDefault()
-        if (valid) void charge('/card-refunds', { ...target, amountMinor, reason: reason.trim() })
+        if (valid)
+          void charge('/card-refunds', {
+            ...target,
+            amountMinor,
+            reason: reason.trim(),
+            ...(restock.length ? { restock } : {}),
+          })
       }}
     >
       <h3 className="ops-section-title">Refund to the card</h3>
@@ -662,6 +676,20 @@ export function CardRefund({
             onChange={(e) => setReason(e.target.value)}
           />
         </label>
+        {lines.map((line) => (
+          <label key={line.productId}>
+            {line.name} back on the shelf
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={line.left}
+              value={back[line.productId] ?? 0}
+              onChange={(e) => setBack({ ...back, [line.productId]: Number(e.target.value) })}
+            />
+            <small>Goes back on the shelf only once the refund is confirmed.</small>
+          </label>
+        ))}
       </div>
       {attempt && (
         <AttemptState

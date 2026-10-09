@@ -3,6 +3,7 @@ import { groupCommandSchemas } from './groupSchema'
 import { branchVisitCommandSchemas } from './branchVisitSchema'
 import { approvalCommandSchemas } from './approvalsSchema'
 import { brandCommandSchemas } from './brandRulesSchema'
+import { tillCommandSchemas } from './tillSchema'
 import { googleBookingSchema, receptionistSettingsSchema } from './receptionistSchema'
 import { missedCallSources } from './missedCallsSchema'
 import { offerInputSchema } from './plansSchema'
@@ -611,6 +612,8 @@ export const commandSchema = z.discriminatedUnion('type', [
   ...approvalCommandSchemas,
   // V5: the studio's look and the house rules every location follows.
   ...brandCommandSchemas,
+  // Stage 2: how receipts print and whether the cash drawer opens by itself.
+  ...tillCommandSchemas,
   ...operatingCommandSchema.options,
 ])
 export type BookingInput = z.infer<typeof bookingSchema>

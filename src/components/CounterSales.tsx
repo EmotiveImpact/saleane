@@ -11,6 +11,7 @@ import { hasLocations, placeOf, places } from '../domain/locations'
 import type { CounterSale, RetailItems } from '../domain/retailSchema'
 import { Button, ErrorMessage, Modal } from '../design'
 import { CheckoutProducts } from './CheckoutProducts'
+import { ReceiptActions } from './ReceiptActions'
 
 /**
  * V2: products sold to someone without a visit, and money back when they return one. Paid in
@@ -53,6 +54,9 @@ export function CounterSales() {
   const [selling, setSelling] = useState(false)
   const [returning, setReturning] = useState<CounterSale | null>(null)
   const [notice, setNotice] = useState('')
+  // Stage 2: the sale just recorded, so its receipt can be printed or emailed straight away.
+  const [soldNumber, setSoldNumber] = useState('')
+  const sold = (state.counterSales ?? []).find((sale) => sale.receiptNumber === soldNumber)
   const sales = [...(state.counterSales ?? [])]
     .sort((a, b) => b.paidAt.localeCompare(a.paidAt))
     .slice(0, 8)
@@ -79,6 +83,7 @@ export function CounterSales() {
           {notice}
         </p>
       )}
+      {notice && sold && <ReceiptActions receiptKey={`walk-in:${sold.id}`} />}
       {sales.length > 0 && (
         <div className="ops-ledger">
           {sales.map((sale) => {
@@ -109,6 +114,7 @@ export function CounterSales() {
                     onClick={() => {
                       setReturning(sale)
                       setNotice('')
+                      setSoldNumber('')
                     }}
                   >
                     Give money back
@@ -138,6 +144,7 @@ export function CounterSales() {
           onClose={() => setSelling(false)}
           onDone={(sale) => {
             setSelling(false)
+            setSoldNumber(sale)
             setNotice(
               `Receipt ${sale} recorded. ${sandbox ? 'Demo sale: no money moved.' : 'SALEANE did not take the money; it records what you took.'}`,
             )

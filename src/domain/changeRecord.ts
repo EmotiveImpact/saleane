@@ -95,6 +95,7 @@ const commandWords: Record<Command['type'], Words> = {
   'request-decide': ['team', 'Answered a request'],
   'approval-limit': ['settings', 'Changed the sign-off limit'],
   'studio-look': ['settings', 'Changed the studio’s look'],
+  'till-settings': ['settings', 'Changed how receipts print'],
   'house-rules': ['settings', 'Changed the house rules'],
   'benchmark-sharing': ['settings', 'Changed sharing for How you compare'],
   organisation: ['settings', 'Changed the studio details'],
@@ -194,6 +195,8 @@ const serverWords: Record<string, Words> = {
   'phone.missed-call': ['messages', 'Wrote down a missed call'],
   'inbox.reply': ['messages', 'A message came in'],
   'receptionist.message': ['messages', 'Passed on a message from the AI receptionist'],
+  'till.drawer': ['money', 'Opened the cash drawer without a sale'],
+  'receipt.emailed': ['messages', 'Emailed a receipt'],
 }
 
 export const changeWords: Readonly<Record<string, Words>> = { ...commandWords, ...serverWords }
@@ -301,6 +304,7 @@ const settingsOf: Partial<Record<string, (s: BusinessState) => unknown>> = {
   'accounting-settings': (s) => s.operations?.accounting,
   'approval-limit': (s) => s.operations?.approvals,
   'studio-look': (s) => s.operations?.look,
+  'till-settings': (s) => s.operations?.till,
   'house-rules': (s) => s.operations?.houseRules,
   'benchmark-sharing': (s) => s.operations?.benchmark,
   'group-checks': (s) => s.operations?.groupChecks,
@@ -451,6 +455,8 @@ const fieldWords: Record<string, string> = {
   amountMinor: 'amount',
   refundMinor: 'refunded',
   method: 'paid by',
+  printers: 'receipt printer',
+  taxNumber: 'VAT number or tax ID',
   access: 'access',
   day1: 'Monday',
   day2: 'Tuesday',

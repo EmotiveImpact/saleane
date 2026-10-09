@@ -24,6 +24,8 @@ import { CardRefund } from '../components/CardPayments'
 import { CarriedBalances } from '../components/Switching'
 import { PlansLedger } from '../components/Plans'
 import { giftCards, refundableOnReceipt } from '../domain/giftCards'
+import { otherReceipts } from '../domain/receipt'
+import { ReceiptActions, ReceiptDialog } from '../components/ReceiptActions'
 
 const methodLabel = (method: string) =>
   ({
@@ -52,6 +54,10 @@ export function Money() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [shownDays, setShownDays] = useState(5)
+  // Stage 2: a walk-in, gift card or plan receipt open on its own, by its receipt key.
+  const [slipKey, setSlipKey] = useState('')
+  const [allOthers, setAllOthers] = useState(false)
+  const others = otherReceipts(state).sort((a, b) => b.at.localeCompare(a.at))
   const receipt = state.sales.find((sale) => sale.id === receiptId)
   const refundedPayment = state.payments.find((payment) => payment.id === cardRefundId)
   const paymentRefunded = (paymentId: string) =>
@@ -337,8 +343,14 @@ export function Money() {
                     </span>
                   </h3>
                   {counter.map((sale) => (
-                    <Link className="receipt-row" key={sale.id} to="/business/stock">
+                    <button
+                      type="button"
+                      className="receipt-row"
+                      key={sale.id}
+                      onClick={() => setSlipKey(`walk-in:${sale.id}`)}
+                    >
                       <span className="receipt-row-copy">
+                        <span className="sr-only">Open walk-in receipt </span>
                         <strong>Products without a visit</strong>
                         <small>
                           {sale.retail.lines.map((line) => line.name).join(', ')} ·{' '}
@@ -350,7 +362,7 @@ export function Money() {
                       </span>
                       <span className="ops-record-money">{format(sale.totalMinor)}</span>
                       <ChevronRight size={16} />
-                    </Link>
+                    </button>
                   ))}
                   {sales.map((sale) => (
                     <button
@@ -384,6 +396,37 @@ export function Money() {
                 <Button variant="quiet" onClick={() => setShownDays((days) => days + 7)}>
                   Show earlier receipts
                 </Button>
+              )}
+              {others.length > 0 && (
+                <section className="receipt-day" aria-label="Gift cards and plans">
+                  <h3 className="receipt-day-heading">
+                    <span>Gift cards and plans</span>
+                  </h3>
+                  {(allOthers ? others : others.slice(0, 5)).map((other) => (
+                    <button
+                      type="button"
+                      className="receipt-row"
+                      key={other.key}
+                      onClick={() => setSlipKey(other.key)}
+                    >
+                      <span className="receipt-row-copy">
+                        <span className="sr-only">Open receipt for </span>
+                        <strong>{other.name}</strong>
+                        <small>
+                          {other.title} · {methodLabel(other.method)} · {other.number} ·{' '}
+                          {dateLabel(other.at.slice(0, 10), locale)}
+                        </small>
+                      </span>
+                      <span className="ops-record-money">{format(other.amountMinor)}</span>
+                      <ChevronRight size={16} />
+                    </button>
+                  ))}
+                  {others.length > 5 && !allOthers && (
+                    <Button variant="quiet" onClick={() => setAllOthers(true)}>
+                      See all {others.length}
+                    </Button>
+                  )}
+                </section>
               )}
               {!receiptDays.length && (
                 <EmptyMoney
@@ -659,6 +702,7 @@ export function Money() {
                   : 'Paid with a test card; no money moved.'
                 : 'A receipt for money recorded by hand; no card company was involved.'}
           </p>
+          {!refund && <ReceiptActions receiptKey={`visit:${receipt.id}`} />}
           {visit && (
             <Link className="text-link" onClick={close} to={`/clients/${visit.clientId}`}>
               Open client page
@@ -787,6 +831,15 @@ export function Money() {
             )
           )}
         </Modal>
+      )}
+      {slipKey && (
+        <ReceiptDialog receiptKey={slipKey} onClose={() => setSlipKey('')}>
+          {slipKey.startsWith('walk-in:') && can(role, 'refund') && (
+            <Link className="text-link" to="/business/stock">
+              Give money back from Stock
+            </Link>
+          )}
+        </ReceiptDialog>
       )}
       {refundedPayment && (
         <Modal

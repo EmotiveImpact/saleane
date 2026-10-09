@@ -1,0 +1,216 @@
+/* Stage 2: a receipt as a till roll, on screen and on paper. Tokens only; no accent edges. */
+.receipt-slip {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 302px;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4);
+  background: var(--paper);
+  color: var(--ink);
+  /* Paper, not a card: torn-roll hairlines above and below rather than a box. */
+  border-top: 1px dashed var(--line-strong);
+  border-bottom: 1px dashed var(--line-strong);
+  font-size: var(--text-small);
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+}
+.receipt-slip-58 {
+  max-width: 219px;
+  padding: var(--space-4) var(--space-3);
+  font-size: var(--text-micro);
+}
+.receipt-slip-head,
+.receipt-slip-foot {
+  display: grid;
+  gap: 2px;
+  text-align: center;
+}
+.receipt-slip-name {
+  font-family: var(--font-editorial);
+  font-size: 1.35em;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+.receipt-slip-meta {
+  display: grid;
+  gap: 2px;
+  margin-top: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px dashed var(--line-strong);
+}
+.receipt-slip-rows {
+  padding: var(--space-2) 0;
+  border-bottom: 1px dashed var(--line-strong);
+}
+.receipt-slip-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: 2px 0;
+}
+.receipt-slip-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.receipt-slip-label small {
+  display: block;
+  padding-left: var(--space-2);
+  color: var(--muted);
+  font-size: 0.92em;
+}
+.receipt-slip-amount {
+  white-space: nowrap;
+}
+.receipt-slip-total {
+  margin-top: var(--space-1);
+  padding-top: var(--space-2);
+  border-top: 1px dashed var(--line-strong);
+  font-weight: var(--weight-strong);
+}
+.receipt-slip-notes {
+  padding-top: var(--space-2);
+  color: var(--muted);
+}
+.receipt-slip-notes p,
+.receipt-slip-foot p {
+  margin: 0;
+}
+.receipt-slip-foot {
+  margin-top: var(--space-3);
+}
+
+/* The receipt's own buttons and what happened to it, under the slip or a sale. */
+.receipt-actions {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+.receipt-actions-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.receipt-actions-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.receipt-actions-note:empty {
+  display: none;
+}
+.receipt-paper {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 340px;
+  margin: 0;
+  padding: var(--space-3) 0;
+  overflow-x: auto;
+  color: var(--ink);
+  border-top: 1px dashed var(--line-strong);
+  border-bottom: 1px dashed var(--line-strong);
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre;
+}
+.receipt-paper .receipt-paper-bold {
+  font-weight: 700;
+}
+.receipt-paper .receipt-paper-large {
+  font-size: 1.5em;
+}
+.receipt-paper .receipt-paper-cut {
+  display: block;
+  margin-top: var(--space-2);
+  color: var(--muted);
+  font-family: var(--font-display);
+  white-space: normal;
+}
+
+/* Drawn off screen so it can be measured, and shown only while it is being printed. */
+#receipt-print-root {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  visibility: hidden;
+  pointer-events: none;
+}
+#receipt-print-root .receipt-slip {
+  max-width: none;
+  margin: 0;
+  padding: 2mm 3mm 6mm;
+  border: 0;
+  font-size: 9.5pt;
+}
+#receipt-print-root .receipt-slip-80 {
+  width: 80mm;
+}
+#receipt-print-root .receipt-slip-58 {
+  width: 58mm;
+  font-size: 8pt;
+}
+@media print {
+  body.printing-receipt {
+    margin: 0;
+    background: #fff;
+  }
+  body.printing-receipt > :not(#receipt-print-root) {
+    display: none !important;
+  }
+  body.printing-receipt #receipt-print-root {
+    position: static;
+    visibility: visible;
+  }
+  /* Black on white only: a thermal printer has no grey, and a page colour would waste the roll. */
+  body.printing-receipt #receipt-print-root,
+  body.printing-receipt #receipt-print-root * {
+    color: #000 !important;
+    background: #fff !important;
+    border-color: #000 !important;
+    box-shadow: none !important;
+  }
+}
+
+/* Settings, Till and printer. */
+.till-modes {
+  display: grid;
+  gap: var(--space-2);
+}
+.till-modes small {
+  display: block;
+}
+.till-more {
+  display: grid;
+  gap: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+.till-more > summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--muted);
+  font-size: var(--text-small);
+  cursor: pointer;
+}
+.till-more[open] > summary {
+  margin-bottom: var(--space-2);
+}
+.till-more > label {
+  display: grid;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+
+/* The cash drawer, in the till count. */
+.cash-drawer-summary {
+  margin: 0 0 var(--space-3);
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.cash-drawer-summary:empty {
+  display: none;
+}
+.cash-drawer-form {
+  margin-top: var(--space-3);
+}

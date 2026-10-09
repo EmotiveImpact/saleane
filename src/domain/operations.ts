@@ -18,6 +18,7 @@ import {
   checklistSchema,
 } from './branchVisitSchema'
 import { patchTestSettingsSchema } from './patchTestsSchema'
+import { tillSettingsSchema } from './tillSchema'
 import { MISSED_CALL_LIMIT, missedCallSchema } from './missedCallsSchema'
 import { paymentMethodSchema, processorSchema } from './paymentMethods'
 import { RENT_LIMIT, RENT_PAYMENT_LIMIT, rentPaymentSchema, rentalSchema } from './rentSchema'
@@ -361,6 +362,8 @@ export const operationsSchema = z.object({
   houseRules: houseRulesSchema.optional(),
   /** V5: anonymous comparison with similar studios, only when the owner chooses to share. */
   benchmark: benchmarkSharingSchema.optional(),
+  /** Stage 2: how each location's receipts print and whether its cash drawer opens by itself. */
+  till: tillSettingsSchema.optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 /**
@@ -664,6 +667,7 @@ export function can(role: Role, action: string) {
       'branch-visit-fix',
       'request-raise',
       'studio-look',
+      'till-settings',
     ].includes(action)
   )
     return false

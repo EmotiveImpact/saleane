@@ -28,6 +28,7 @@ import { Avatar, Button, ErrorMessage, Modal, Status, TimeChoices, photos } from
 import { StudioDateField } from './StudioDateField'
 import { BookingDialog } from './BookingDialog'
 import { CardCheckout, VisitCardPanel } from './CardPayments'
+import { ReceiptActions } from './ReceiptActions'
 import { VisitPatchTest } from './PatchTests'
 import { VisitForms } from './GuestForms'
 import { VisitConsultation } from './Consultations'
@@ -507,6 +508,7 @@ export function AppointmentDialog({
                   : 'Paid with a test card. Test mode: no money moved.'
                 : 'This receipt records money handled outside SALEANE. No card company was contacted.'}
           </p>
+          <ReceiptActions receiptKey={`visit:${sale.id}`} />
           <section className="rebook-moment" aria-labelledby={rebookHeading}>
             <div
               className="rebook-moment-photo"
