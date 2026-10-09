@@ -34,6 +34,7 @@ import { ClientBirthday } from '../components/ClientBirthday'
 import { ClientArea } from '../components/ClientArea'
 import { ConsentHistory } from '../components/EmailConsent'
 import { ClientConsultations } from '../components/Consultations'
+import { ClientInsight } from '../components/ClientInsight'
 
 // A booking's detail opens with the service, date and time already shown in
 // the visit heading; only the sentence after it (payment state) is new.
@@ -306,6 +307,7 @@ export function ClientRelationship() {
           </div>
         </div>
       </section>
+      <ClientInsight key={`insight-${client.id}`} client={client} />
       <div className="relationship-layout">
         <section className="surface timeline-surface">
           <div className="section-heading">
