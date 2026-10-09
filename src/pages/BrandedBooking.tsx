@@ -197,7 +197,7 @@ export function BrandedBooking() {
           </p>
           <div className="confirmation-details">
             <span>
-              Service total<strong>{money(fullPrice(booked), state.organisation)}</strong>
+              Treatment price<strong>{money(fullPrice(booked), state.organisation)}</strong>
             </span>
             <span>
               Demo deposit<strong>{money(service.depositMinor, state.organisation)}</strong>

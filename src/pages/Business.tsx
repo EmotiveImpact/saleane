@@ -182,7 +182,7 @@ export function Business() {
               <thead>
                 <tr>
                   <th>Date</th>
-                  <th>Service revenue ({state.organisation.currency})</th>
+                  <th>Treatment takings ({state.organisation.currency})</th>
                 </tr>
               </thead>
               <tbody>

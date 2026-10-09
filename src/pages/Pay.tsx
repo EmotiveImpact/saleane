@@ -242,7 +242,7 @@ export function Pay() {
                 {expanded && (
                   <div className="pay-lines" id={`pay-lines-${row.staff.id}`}>
                     <p className="pay-sums">
-                      Services {money(row.servicesMinor, org, true)} · Products{' '}
+                      Treatments {money(row.servicesMinor, org, true)} · Products{' '}
                       {money(row.productsMinor, org, true)}
                       {row.givenBackMinor
                         ? ` · Given back ${money(row.givenBackMinor, org, true)}`

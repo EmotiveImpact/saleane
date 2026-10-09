@@ -328,7 +328,7 @@ export function BookingDialog({
           )}
           <div className="form-grid">
             <label className="form-grid-wide">
-              Service
+              Treatment
               <select
                 value={serviceId}
                 disabled={busy}

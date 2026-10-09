@@ -414,7 +414,7 @@ export function ClientRelationship() {
                             <div className="timeline-money">
                               <strong>{money(sale.serviceMinor, state.organisation)}</strong>
                               <span>
-                                Service · {money(sale.tipMinor, state.organisation)} tip
+                                Treatment · {money(sale.tipMinor, state.organisation)} tip
                                 {sale.retail
                                   ? ` · bought ${sale.retail.lines.map((line) => line.name).join(', ')}`
                                   : ''}

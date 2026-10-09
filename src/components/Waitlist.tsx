@@ -119,7 +119,7 @@ export function WaitlistForm({ clientId, onClose }: { clientId?: string; onClose
             </label>
           )}
           <label>
-            Service
+            Treatment
             <select
               value={input.serviceId}
               onChange={(e) => change({ serviceId: e.target.value, staffId: undefined })}
