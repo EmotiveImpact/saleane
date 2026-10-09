@@ -811,8 +811,12 @@ export function execute(
       command.type === 'approval-limit'
     ) {
       recordId = runApprovalCommand(next, command, now, makeId)
-    } else if (command.type === 'studio-look' || command.type === 'house-rules') {
-      recordId = runBrandCommand(next, command)
+    } else if (
+      command.type === 'studio-look' ||
+      command.type === 'house-rules' ||
+      command.type === 'benchmark-sharing'
+    ) {
+      recordId = runBrandCommand(next, command, businessDate(s, now))
     } else {
       recordId = runOperatingCommand(next, command, now, makeId, addEvent)
     }

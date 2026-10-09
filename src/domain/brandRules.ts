@@ -78,8 +78,13 @@ export function ruleBreaches(s: BusinessState): RuleBreach[] {
   return breaches
 }
 
-export function runBrandCommand(next: BusinessState, command: BrandCommand) {
+export function runBrandCommand(next: BusinessState, command: BrandCommand, today: string) {
   const o = next.operations!
+  if (command.type === 'benchmark-sharing') {
+    if (command.share) o.benchmark = { sharing: true, since: o.benchmark?.since ?? today }
+    else o.benchmark = { sharing: false }
+    return 'benchmark'
+  }
   if (command.type === 'studio-look') {
     o.look = command.look
     return 'look'

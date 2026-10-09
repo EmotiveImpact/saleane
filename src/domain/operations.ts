@@ -4,7 +4,7 @@ import type { BusinessState } from './model'
 import { reminderSettingsSchema } from './reminderSettings'
 import { REGION_LIMIT, TARGET_LIMIT, regionSchema, targetSchema } from './groupSchema'
 import { REQUEST_LIMIT, approvalRequestSchema, approvalSettingsSchema } from './approvalsSchema'
-import { houseRulesSchema, lookSchema } from './brandRulesSchema'
+import { benchmarkSharingSchema, houseRulesSchema, lookSchema } from './brandRulesSchema'
 import {
   BRANCH_VISIT_LIMIT,
   CHECKLIST_LIMIT,
@@ -348,6 +348,8 @@ export const operationsSchema = z.object({
   /** V5: the studio's colours and the house rules every location follows. */
   look: lookSchema.optional(),
   houseRules: houseRulesSchema.optional(),
+  /** V5: anonymous comparison with similar studios, only when the owner chooses to share. */
+  benchmark: benchmarkSharingSchema.optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 /**
@@ -580,6 +582,7 @@ export function can(role: Role, action: string) {
       'request-decide',
       'approval-limit',
       'house-rules',
+      'benchmark-sharing',
       'membership',
       'restore',
       'organisation',

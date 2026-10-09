@@ -21,6 +21,14 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Texts name the location, imported visits go to the location where the professional works that day, and the calendar showing every location spans all their opening hours.
 - A studio with one location works exactly as before.
 
+## 2026-10-09 · V5 · How you compare
+
+**Status: built locally on 9 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-COMPARE.md).
+
+- Business has a new "How you compare" page for owners and managers. The owner chooses to share anonymously; only a studio that shares can compare.
+- Four figures are compared with similar studios in the same market over the last 90 days: the average treatment sale, visits rebooked before leaving, clients who came more than once, and missed appointments. Each shows where most studios sit, the middle studio, and whether this studio is ahead of most, typical or behind.
+- Nothing is shown until at least five other studios share, no other studio's name or figures are ever shown, sample studios are only compared with samples, and stopping sharing takes the studio out of every comparison at once.
+
 ## 2026-10-09 · V5 · Month-end estimate and the week in brief
 
 **Status: built locally on 9 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-GROUP.md#month-end-estimate-and-the-week-in-brief-9-october-2026).
