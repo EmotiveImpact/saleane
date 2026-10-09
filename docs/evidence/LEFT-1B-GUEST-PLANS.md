@@ -9,7 +9,7 @@ On their private visit page (`/manage#…`), under the visit details and any dep
 - **A package:** "Your package", its name, then "3 of 6 visits left, until 14 March." The year is added when the last day is in another year from the visit.
 - **A membership:** "Your membership", its name, then "1 of 1 visit left this month." (or "No visits left this month."), "Your member discount is 10%." when it gives one, and "Your next month starts on 6 November."
 - **A membership whose month is not paid:** "This month is not paid yet. When you are ready, please speak to the studio." Nothing else about what it includes.
-- **What it means for this visit**, while the visit is still to be paid for, on a soft ground under the plan:
+- **What it means for this visit**, while the visit is still to be paid for, in quieter type under the plan:
   - "This visit can come off your package. The studio will take it off at checkout." (or "membership")
   - "Your 10% member discount applies to this treatment. The studio will take it off at checkout."
   - "This visit has a deposit. If you would rather it came off your package, please ask the studio."
@@ -36,7 +36,7 @@ The view carries, per plan: kind, name, active or unpaid, visits and visits left
 
 ## Limits
 
-- Not yet seen in a browser, at desktop or phone width. The section reuses the page's own type, spacing, line and soft sage colours; it is a bordered panel like the others, with no stripe on its edge (the edges test passes).
+- The section reuses the page's own type, spacing and hairlines. After the lead's browser check it sits under a hairline inside the visit card, with no box or tint of its own, so there is no card inside a card (the quality bar), and no stripe on its edge (the edges test passes).
 - In sample studios every visit is booked with a simulated deposit, so checkout never offers a plan there and the guest reads the deposit sentence. To see "can come off your package" in a sample studio, set the treatment's deposit to nothing first and book a new visit.
 - Plans are shown for the client of the visit only. If the studio sold the plan to a duplicate record of the same person, the guest does not see it.
 - The page asks for any deposit the treatment takes even when a plan could pay; it now says to ask the studio first, but the deposit request itself is unchanged.

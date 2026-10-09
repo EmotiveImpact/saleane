@@ -6,7 +6,7 @@ Recorded 9 October 2026 in a separate worktree from main at `016f3ca`. All names
 
 Edem asked on 6 October for insight on a client's page. Each client page now has an **At a glance** section between the heading and the relationship timeline:
 
-- one sentence about the client: "Usually every 4 weeks, on Saturday mornings.", or for someone new "New client. 1 visit so far." and nothing more;
+- one sentence about the client that adds to the heading, which already says how often they come: "Usually comes on Saturday mornings.", "6 visits so far, with no set rhythm yet.", or for someone new "New client. 1 visit so far." When the heading has already said it all, there is no sentence;
 - up to six facts, most useful first: a patch test that is not in order, their package or membership, when they are due back (and whether they are drifting away), their favourite treatment and professional, what they spent in the last 12 months and per visit, missed visits and late cancellations, and how often they book the next visit before leaving;
 - one suggested next step with its button, chosen in this order: a membership waiting for this month's payment; drifting away ("Invite them back"); due back with nothing booked ("Book their usual", or "Book their next visit" when there is no clear favourite); a patch test needed before the next visit; "Comes every month and spends more than the Glow Membership costs: mention it"; otherwise nothing.
 
