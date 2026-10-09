@@ -96,6 +96,40 @@ test('lists changes under the studio’s days, filters by person, and pages back
   ).toBeInTheDocument()
 })
 
+test('drops an older page that arrives after the filter changed', async () => {
+  const user = userEvent.setup()
+  let older!: (page: unknown) => void
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path === `${base}?`)
+      return {
+        entries: [change('a', '2026-10-06T08:05:00.000Z')],
+        next: '1.2',
+        people: [{ id: 'account-max', name: 'Max Manager' }],
+      } as never
+    if (path === `${base}?before=1.2`) return new Promise((resolve) => (older = resolve)) as never
+    if (path === `${base}?who=account-max`)
+      return {
+        entries: [change('m', '2026-10-06T09:00:00.000Z', { who: 'Max Manager' })],
+        next: null,
+        people: [],
+      } as never
+    throw new Error(`Unexpected route ${path}`)
+  })
+  render(<ChangeRecord />)
+  await user.click(await screen.findByRole('button', { name: 'Show older changes' }))
+  await user.selectOptions(screen.getByLabelText('Who'), 'Max Manager')
+  expect(await screen.findByText('By Max Manager')).toBeInTheDocument()
+  // The page asked for before the filter changed arrives late, and is left out.
+  older({
+    entries: [change('c', '2026-10-04T10:00:00.000Z', { what: 'Changed a client’s details' })],
+    next: null,
+  })
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  expect(screen.queryByText('Changed a client’s details')).toBeNull()
+  expect(screen.queryByText('By Ada Owner')).toBeNull()
+  expect(screen.getByText('By Max Manager')).toBeInTheDocument()
+})
+
 test('says the browser demo keeps no change record', () => {
   mode = 'demo'
   render(<ChangeRecord />)

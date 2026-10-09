@@ -95,12 +95,20 @@ export function ChangeRecord() {
   }, [loading, shown, org.timeZone])
 
   async function more() {
-    if (!shown?.next) return
+    if (!shown?.next || loading) return
+    const asked = shown
     setPending(true)
     setError('')
     try {
-      const page = await api<Page>(`${base}?${key}${key ? '&' : ''}before=${shown.next}`)
-      setShown({ ...shown, entries: [...shown.entries, ...page.entries], next: page.next })
+      const page = await api<Page>(
+        `${base}?${asked.key}${asked.key ? '&' : ''}before=${asked.next}`,
+      )
+      // A filter changed while this page was on its way: it belongs to the old list, so drop it.
+      setShown((now) =>
+        now === asked
+          ? { ...asked, entries: [...asked.entries, ...page.entries], next: page.next }
+          : now,
+      )
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Older changes could not be read.')
     } finally {

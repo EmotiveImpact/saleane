@@ -172,6 +172,7 @@ const serverWords: Record<string, Words> = {
   'payment.balance': ['money', 'Recorded a card payment for a visit'],
   'payment.fee': ['money', 'Recorded a card payment for a fee'],
   'payment.save_card': ['money', 'Recorded a saved card'],
+  'payment.refund': ['money', 'Recorded a card refund'],
   'card.removed': ['money', 'Removed a saved card'],
   'assistant.proposed': ['settings', 'Asked Ask Saleane to suggest a change'],
   'assistant.approved': ['settings', 'Approved a change Ask Saleane suggested'],

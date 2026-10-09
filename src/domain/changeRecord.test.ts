@@ -54,11 +54,14 @@ describe('the words for each change', () => {
         found.add(match[1])
     expect(found.size).toBeGreaterThan(25)
     for (const action of found) expect(changeWords, action).toHaveProperty([action])
-    // And those built from a payment's purpose or an Ask Saleane answer.
-    for (const purpose of ['deposit', 'balance', 'fee', 'save_card']) {
+    // And those built from a payment's purpose (every purpose a card payment can have, refunds
+    // included) or an Ask Saleane answer.
+    const purposes = /purpose IN \(([^)]*)\)/.exec(readFileSync('server/database.ts', 'utf8'))![1]
+    for (const purpose of purposes.match(/[a-z_]+/g)!) {
       expect(changeWords).toHaveProperty([`payment.${purpose}`])
       expect(changeWords).toHaveProperty([`payment.${purpose}.started`])
     }
+    expect(actionsIn('money')).toContain('payment.refund')
     for (const outcome of ['approved', 'declined'])
       expect(changeWords).toHaveProperty([`assistant.${outcome}`])
   })
