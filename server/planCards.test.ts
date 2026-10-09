@@ -787,6 +787,58 @@ describe('memberships paid from a saved card (Stage 1)', () => {
     expect((await setUp(owner, holdingId, cardId)).statusCode).toBe(200)
   })
 
+  it('pauses reminders and payments while the studio is read only for its SALEANE bill', async () => {
+    const { owner, holdingId, cardId } = await studioWithMember('0002')
+    expect((await setUp(owner, holdingId, cardId, '0002')).statusCode).toBe(200)
+    const readOnly = (on: boolean) =>
+      api.database.run(
+        on
+          ? "UPDATE studio_plans SET status='stopped',stop_reason='unpaid' WHERE organisation_id=?"
+          : "UPDATE studio_plans SET status='trial',stop_reason=NULL WHERE organisation_id=?",
+        owner.orgId,
+      )
+    // A reminder queued before the studio became read only is not sent: no payment will follow.
+    await at('2026-11-03T10:00:00.000Z')
+    expect(outbox().map((r) => r.status)).toEqual(['pending', 'pending'])
+    readOnly(true)
+    await api.outbox.tick()
+    expect(outbox().map((r) => [r.status, r.detail])).toEqual([
+      ['skipped', 'The studio is read only, so no membership payment will be taken.'],
+      ['skipped', 'The studio is read only, so no membership payment will be taken.'],
+    ])
+    // The due date passes with no try at the card, and staff are told why.
+    await at('2026-11-06T09:00:00.000Z')
+    expect(calls).toEqual([])
+    expect(rows()).toEqual([])
+    expect(await list(owner)).toMatchObject({ paused: true, charges: [] })
+
+    // Open again before December: reminded, then tried; a decline is tried again only while open.
+    readOnly(false)
+    expect(await list(owner)).toMatchObject({ paused: false })
+    await due('2026-12')
+    expect(calls).toHaveLength(1)
+    // November's reminder never went out, so November was not taken when the studio opened.
+    expect(rows().find((r) => r.period_start === '2026-11-06')!.detail).toContain(
+      'Not taken: no reminder went out three days before',
+    )
+    const declined = rows().find((r) => r.period_start === '2026-12-06')!
+    expect(declined).toMatchObject({ status: 'failed', try_number: 1 })
+    readOnly(true)
+    await at('2026-12-07T09:00:00.000Z')
+    expect(calls).toHaveLength(1)
+    expect(rows().find((r) => r.id === declined.id)).toMatchObject({ next_try_at: null })
+    expect(rows().find((r) => r.id === declined.id)!.detail).toContain(
+      'No more tries: The studio was read only until its SALEANE bill was paid.',
+    )
+    // Open again: December's declined card is not tried by itself; the desk takes it by hand.
+    readOnly(false)
+    await at('2026-12-08T09:00:00.000Z')
+    expect(calls).toHaveLength(1)
+    expect(planStanding(holdingIn(await studio(owner), holdingId), '2026-12-08').state).toBe(
+      'unpaid',
+    )
+  })
+
   it('never charges or reminds in a sample studio', async () => {
     const { owner, holdingId, cardId } = await studioWithMember('4242', true)
     const response = await post(owner, `/plan-cards/${holdingId}`, {

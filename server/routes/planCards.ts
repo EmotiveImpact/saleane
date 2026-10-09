@@ -100,6 +100,7 @@ export function planCardRoutes(payments: Payments, charges: MembershipCharges) {
         provider: { name: provider.name, live: provider.live },
         available: operations(org.state).mode === 'local',
         held: membershipCardsHeld(ctx, org.id),
+        paused: ctx.plans.readOnly(org.id),
         cards: input.clientId ? payments.cards(org.id, input.clientId).map(cardView) : [],
         charges: rows
           .filter((row) => here(org, byId.get(row.holding_id)))

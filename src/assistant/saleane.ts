@@ -19,6 +19,7 @@ import {
 import { GUEST_CANCEL_CUTOFF_HOURS, visitStart } from '../domain/guest'
 import { holdings, planStanding } from '../domain/plans'
 import { dueTasks, openTasks } from '../domain/tasks'
+import { searchHelp } from '../domain/help'
 import { openingFree, openings, serviceLabel, timesLabel, waiting } from '../domain/waitlist'
 import {
   currentSpecials,
@@ -57,7 +58,8 @@ Write in warm, plain British English for a busy owner or receptionist. Lead with
 Only state facts the skills return. If a skill has no answer, say so; never guess names, times or amounts.
 You can only propose changes. Every proposal waits for a person to approve it. Never say a message was sent,
 a payment was taken or a visit was moved: say what you have prepared for them to approve.
-Only offer marketing messages to clients who agreed to them. Never share one client's details with another.`
+Only offer marketing messages to clients who agreed to them. Never share one client's details with another.
+When someone asks how to do something in SALEANE, answer from the how_to guides, using the labels they give.`
 
 const studio = (ctx: AskContext) => ctx.role !== 'practitioner' && can(ctx.role, 'read')
 const managers = (ctx: AskContext) => leads(ctx.role)
@@ -105,6 +107,23 @@ export function askSaleaneSkills(): Skill<AskContext, Command>[] {
               .map((seg) => `${time(ctx, seg.from)} to ${time(ctx, seg.to)}`),
           }))
         return { date, visits, free }
+      },
+    }),
+    readSkill<AskContext, { question: string }>({
+      name: 'how_to',
+      description:
+        "SALEANE's own help guides: how to do something in the app, such as moving a visit, refunding a payment or inviting someone. Returns the best matching guides with their steps, in the app's own labels.",
+      input: z.object({ question: z.string().trim().min(2).max(300) }).strict(),
+      allowed: studio,
+      run(ctx, { question }) {
+        return searchHelp(question, ctx.role)
+          .slice(0, 2)
+          .map((guide) => ({
+            title: guide.title,
+            summary: guide.summary,
+            steps: guide.steps,
+            note: guide.note ?? null,
+          }))
       },
     }),
     readSkill<AskContext, { name: string }>({

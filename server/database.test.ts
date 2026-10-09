@@ -249,6 +249,49 @@ describe('numbered schema migrations', () => {
     )
     after.close()
   })
+  it('gives studios already read only a lock day when the lock arrives (NEXT-02)', () => {
+    const path = file()
+    const before = new LocalDatabase(
+      path,
+      migrations.filter((migration) => migration.version <= 26),
+    )
+    const day = 86_400_000
+    for (const id of ['paid', 'trial', 'open'])
+      before.run(
+        'INSERT INTO organisations(id,slug,state,revision,created_at) VALUES(?,?,?,?,?)',
+        id,
+        id,
+        JSON.stringify({ organisation: { id }, revision: 0 }),
+        0,
+        1,
+      )
+    const plan = (id: string, status: string, reason: string | null, periodEnd: number | null) =>
+      before.run(
+        'INSERT INTO studio_plans(organisation_id,status,stop_reason,trial_ends_at,period_end,created_at,updated_at) VALUES(?,?,?,?,?,?,?)',
+        id,
+        status,
+        reason,
+        10 * day,
+        periodEnd,
+        0,
+        0,
+      )
+    plan('paid', 'stopped', 'unpaid', 40 * day)
+    plan('trial', 'stopped', 'trial_ended', null)
+    plan('open', 'trial', null, null)
+    before.close()
+    const after = new LocalDatabase(path)
+    expect(
+      after.all(
+        'SELECT organisation_id AS id,lock_at,locked_at FROM studio_plans ORDER BY organisation_id',
+      ),
+    ).toEqual([
+      { id: 'open', lock_at: null, locked_at: null },
+      { id: 'paid', lock_at: 70 * day, locked_at: null },
+      { id: 'trial', lock_at: 40 * day, locked_at: null },
+    ])
+    after.close()
+  })
   it('rolls a failed step back and leaves the last good version', () => {
     const path = file()
     new LocalDatabase(path).close()

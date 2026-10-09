@@ -183,7 +183,9 @@ export function runInboxCommand(
     refuseHealth(body, 'Answers')
     const answers = (next.socialAnswers ??= [])
     if (answers.length >= SOCIAL_ANSWER_COUNT_LIMIT)
-      throw new Error('The studio cannot keep more answers. Please contact support.')
+      throw new Error(
+        'The studio cannot keep more answers. Write to the SALEANE team from Help, at the top of the screen.',
+      )
     const answer: SocialAnswer = {
       id: makeId(),
       organisationId: next.organisation.id,
@@ -238,7 +240,9 @@ export function runInboxCommand(
     return reply.id
   }
   if (list.length >= REPLY_LIMIT)
-    throw new Error('The studio cannot keep more replies. Please contact support.')
+    throw new Error(
+      'The studio cannot keep more replies. Write to the SALEANE team from Help, at the top of the screen.',
+    )
   if (command.type === 'reply-note') {
     const client = next.clients.find((c) => c.id === command.clientId)
     if (!client) throw new Error('Client does not belong to this studio.')

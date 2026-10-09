@@ -16,7 +16,14 @@ import { operations } from '../src/domain/operations'
 import { places } from '../src/domain/locations'
 import { fullDateLabel, money } from '../src/domain/format'
 import { venueDate } from '../src/domain/tillCount'
-import { GRACE_DAYS, PRICE, RETRY_DAYS, TRIAL_DAYS, allowanceFor } from '../src/domain/pricing'
+import {
+  GRACE_DAYS,
+  LOCK_DAYS,
+  PRICE,
+  RETRY_DAYS,
+  TRIAL_DAYS,
+  allowanceFor,
+} from '../src/domain/pricing'
 import type { PriceRegion } from '../src/domain/pricing'
 import {
   DAY_MS,
@@ -24,6 +31,7 @@ import {
   monthBill,
   nextRetry,
   plusBill,
+  lockedMessage,
   readOnlyMessage,
   taxed,
 } from '../src/domain/billing'
@@ -59,6 +67,9 @@ type PlanRow = {
   card_exp_year: number | null
   /** Set by a restore: nothing is charged by itself until the payments have been checked. */
   held_at: number | null
+  /** When a read-only studio locks, and when it did: only the owner can open it, to pay. */
+  lock_at: number | null
+  locked_at: number | null
   created_at: number
   updated_at: number
 }
@@ -362,7 +373,7 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
           db.run(
             `UPDATE studio_plans SET status='active',stop_reason=NULL,period_start=?,period_end=?,
                anchor_day=COALESCE(anchor_day,?),plus=?,overdue_since=NULL,next_attempt_at=NULL,
-               cancel_at_period_end=0,updated_at=? WHERE organisation_id=?`,
+               cancel_at_period_end=0,lock_at=NULL,locked_at=NULL,updated_at=? WHERE organisation_id=?`,
             bill.period_start,
             bill.period_end,
             anchorOf(bill.period_start),
@@ -503,10 +514,14 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
   function stop(org: Org, from: PlanStatus, reason: StopReason, actorId: string | null = null) {
     const stopped = db.transaction(() => {
       const time = now()
+      // Thirty days after the last day paid for: the missed payment, or the end of the trial or plan.
+      const lockAt =
+        (reason === 'unpaid' ? (plan(org.id)?.overdue_since ?? time) : time) + LOCK_DAYS * DAY_MS
       const changed = db.run(
         `UPDATE studio_plans SET status='stopped',stop_reason=?,cancel_at_period_end=0,overdue_since=NULL,
-           next_attempt_at=NULL,updated_at=? WHERE organisation_id=? AND status=?`,
+           next_attempt_at=NULL,lock_at=?,locked_at=NULL,updated_at=? WHERE organisation_id=? AND status=?`,
         reason,
+        lockAt,
         time,
         org.id,
         from,
@@ -519,7 +534,7 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
         org.id,
       )
       ctx.audit(org, actorId, 'billing.read-only', org.id)
-      return true
+      return lockAt
     })
     if (!stopped) return
     const name = org.state.organisation.name
@@ -532,7 +547,32 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
           : reason === 'unpaid'
             ? `The SALEANE bill for ${name} is still unpaid after ${GRACE_DAYS} days, so the studio is now read only.`
             : `As you asked, the SALEANE plan for ${name} has stopped, so the studio is now read only.`
-      } Nothing has been deleted. Your team can still see and download everything, and guests can still book and manage their visits. To carry on, pay in Settings, Plan and billing.`,
+      } Nothing has been deleted. Your team can still see and download everything, and guests can still book and manage their visits. On ${when(org, stopped)} the studio locks: only you will be able to open it, to pay or to download its records, and online booking closes. To carry on, pay in Settings, Plan and billing.`,
+    )
+  }
+
+  /** A read-only studio's lock day has come: only the owner can open it, and booking closes. */
+  function lock(row: PlanRow) {
+    const org = ctx.systemOrg(row.organisation_id)
+    if (!org) return
+    const locked = db.transaction(() => {
+      const changed = db.run(
+        "UPDATE studio_plans SET locked_at=?,updated_at=? WHERE organisation_id=? AND status='stopped' AND locked_at IS NULL AND lock_at<=?",
+        now(),
+        now(),
+        org.id,
+        now(),
+      ).changes
+      if (Number(changed) !== 1) return false
+      ctx.audit(org, null, 'billing.locked', org.id)
+      return true
+    })
+    if (!locked) return
+    const name = org.state.organisation.name
+    tell(
+      org,
+      `${name} is now locked`,
+      `The SALEANE bill for ${name} has not been paid, so the studio is now locked. Only you can open it, to pay or to download its records; your team cannot. Online booking is closed, and bookings already made still stand. Nothing has been deleted. To open it again for everyone, pay in Settings, Plan and billing.`,
     )
   }
 
@@ -798,6 +838,13 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
         db.all<PlanRow>("SELECT * FROM studio_plans WHERE status='overdue' AND held_at IS NULL"),
         chase,
       )
+      await each(
+        db.all<PlanRow>(
+          "SELECT * FROM studio_plans WHERE status='stopped' AND locked_at IS NULL AND lock_at<=? AND held_at IS NULL",
+          time,
+        ),
+        lock,
+      )
       for (const bill of db.all<InvoiceRow>(
         "SELECT * FROM studio_invoices WHERE status='charging' AND charged_at<=?",
         time - RECHECK_MS,
@@ -1032,6 +1079,8 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
           : null,
       checking: waiting(org.id),
       held: !!row.held_at,
+      lockAt: row.status === 'stopped' ? row.lock_at : null,
+      locked: !!row.locked_at,
       invoices: bills.invoices,
       moreBills: bills.next,
       ai: {
@@ -1059,9 +1108,12 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
       const row = planFor(org)
       if (!row) return null
       const readOnly = row.status === 'stopped'
-      if (org.role !== 'owner') return { readOnly }
+      // Everyone hears when a read-only studio will lock, since it shuts the team out.
+      const lock = readOnly ? { locked: !!row.locked_at, lockAt: row.lock_at } : {}
+      if (org.role !== 'owner') return { readOnly, ...lock }
       return {
         readOnly,
+        ...lock,
         status: row.status,
         stopReason: row.stop_reason,
         trialEndsAt: row.trial_ends_at,
@@ -1074,11 +1126,27 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
         hasCard: !!row.card_method_ref,
       }
     },
-    /** Refuses a change to a read-only studio, after the usual sign-in and access checks. */
+    /** Whether a studio is locked: only its owner can open it, and online booking is closed. */
+    locked: (orgId: string) => !!plan(orgId)?.locked_at,
+    /** Whether a studio is read only (or locked) until its SALEANE bill is paid. */
+    readOnly: (orgId: string) => plan(orgId)?.status === 'stopped',
+    /**
+     * Refuses a change to a read-only studio, after the usual sign-in and access checks. A locked
+     * studio is refused to everyone but the owner, even to read; the owner can still open the
+     * studio's record, pay, download its records and close doors for safety.
+     */
     guard(route: Route) {
       const { request, method, path, body } = route
-      if (method === 'GET' || path[1] !== 'workspaces' || !path[2] || path.length < 4) return
-      if (plan(path[2])?.status !== 'stopped' || stillAllowed(path, body)) return
+      if (path[1] !== 'workspaces' || !path[2]) return
+      const row = plan(path[2])
+      if (row?.status !== 'stopped') return
+      if (row.locked_at) {
+        const org = ctx.orgFor(path[2], ctx.actorFor(request, method !== 'GET'), { area: true })
+        if (org.role !== 'owner') fail(402, lockedMessage(org.role))
+        if (path.length === 3 || stillAllowed(path, body)) return
+        fail(402, lockedMessage(org.role))
+      }
+      if (method === 'GET' || path.length < 4 || stillAllowed(path, body)) return
       const org = ctx.orgFor(path[2], ctx.actorFor(request, true), { area: true })
       fail(402, readOnlyMessage(org.role))
     },

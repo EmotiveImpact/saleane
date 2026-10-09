@@ -137,6 +137,8 @@ export type ApiOptions = {
   paymentProvider?: PaymentProvider
   /** NEXT-02: SALEANE's own card account for studios' plans. Omitted reads SALEANE_BILLING_PROVIDER. */
   billingProvider?: PaymentProvider
+  /** NEXT-06: where help requests are emailed; unset reads SALEANE_SUPPORT_EMAIL, null keeps them. */
+  supportEmail?: string | null
   /** V5: how connected software is reached. Omitted uses fetch with private addresses refused. */
   connectionTransport?: ConnectionTransport
   /** V4: Book with Google's partner credentials; read from the environment when left out. */
@@ -228,18 +230,24 @@ export function createContext(options: ApiOptions) {
     return csrf
   }
   const memberships = (actor: Actor) =>
-    db.all<{
-      id: string
-      slug: string
-      role: Role
-      staffId: string | null
-      name: string
-      region: string
-      mode: string
-    }>(
-      `SELECT o.id,o.slug,m.role,m.staff_id AS staffId,json_extract(o.state,'$.organisation.name') AS name,json_extract(o.state,'$.organisation.region') AS region,json_extract(o.state,'$.operations.mode') AS mode FROM memberships m JOIN organisations o ON o.id=m.organisation_id WHERE m.account_id=? ORDER BY o.created_at,o.id`,
-      actor.id,
-    )
+    db
+      .all<{
+        id: string
+        slug: string
+        role: Role
+        staffId: string | null
+        name: string
+        region: string
+        mode: string
+        locked: number
+      }>(
+        `SELECT o.id,o.slug,m.role,m.staff_id AS staffId,json_extract(o.state,'$.organisation.name') AS name,json_extract(o.state,'$.organisation.region') AS region,json_extract(o.state,'$.operations.mode') AS mode,
+           EXISTS(SELECT 1 FROM studio_plans p WHERE p.organisation_id=o.id AND p.locked_at IS NOT NULL) AS locked
+         FROM memberships m JOIN organisations o ON o.id=m.organisation_id WHERE m.account_id=? ORDER BY o.created_at,o.id`,
+        actor.id,
+      )
+      // NEXT-02: a studio locked for an unpaid bill says so before anyone tries to open it.
+      .map(({ locked, ...row }) => (locked ? { ...row, locked: true } : row))
   /**
    * A signed-in member's studio. A regional manager is refused everywhere except the routes that
    * pass `area: true` and then serve only their area's view (fail closed: new routes stay shut).
@@ -297,7 +305,7 @@ export function createContext(options: ApiOptions) {
     if (!row) fail(404, 'Online booking is not available for this studio.')
     const raw = JSON.parse(row!.state) as BusinessState
     const state = parseState(raw, raw.organisation.region)
-    if (!operations(state).bookingEnabled)
+    if (!operations(state).bookingEnabled || plans.locked(row!.id))
       fail(404, 'Online booking is not available for this studio.')
     return {
       id: row!.id,
@@ -413,9 +421,15 @@ export function createContext(options: ApiOptions) {
     begin: (org: Org) => void
     summary: (org: Org) => BillingSummary | null
     allowance: (org: Org) => Allowance
+    /** A locked studio takes no online bookings and answers no access key. */
+    locked: (orgId: string) => boolean
+    /** A read-only studio takes no membership payments from its clients' cards. */
+    readOnly: (orgId: string) => boolean
   } = {
     begin: () => {},
     summary: () => null,
+    locked: () => false,
+    readOnly: () => false,
     allowance: (org) => allowanceFor({ locations: places(org.state).length, plus: false }),
   }
   const withHolds = (org: Org, excludeHash = '') => {
