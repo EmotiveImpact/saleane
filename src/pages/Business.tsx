@@ -7,7 +7,7 @@ import { hasLocations, placeOf, places } from '../domain/locations'
 import { bookedTimeDefinition } from '../components/definitions'
 import { RetentionPanel } from '../components/RetentionPanel'
 import { WholeBusiness } from '../components/WholeBusiness'
-import { addDays, dateLabel, money, timeLabel } from '../domain/format'
+import { addDays, dateLabel, money, timeLabel, wholeMoney } from '../domain/format'
 import {
   Avatar,
   Button,
@@ -108,12 +108,12 @@ export function Business() {
       <div className="metrics-band">
         <Metric
           label="Completed service revenue"
-          value={money(data.revenue, state.organisation)}
+          value={wholeMoney(data.revenue, state.organisation)}
           detail={completedVisits(data.completed)}
         />
         <Metric
           label="Average service sale"
-          value={money(
+          value={wholeMoney(
             data.completed ? Math.round(data.revenue / data.completed) : 0,
             state.organisation,
           )}
@@ -140,7 +140,7 @@ export function Business() {
               <h2>Revenue has a rhythm.</h2>
               <p>Completed services, with deposits counted once.</p>
             </div>
-            <span className="chart-total">{money(data.revenue, state.organisation)}</span>
+            <span className="chart-total">{wholeMoney(data.revenue, state.organisation)}</span>
           </div>
           <div
             className="revenue-chart"
@@ -207,11 +207,11 @@ export function Business() {
           </Link>
           <div className="insight-rule" />
           <span>Tips recorded in this period</span>
-          <strong>{money(data.tips, state.organisation)}</strong>
+          <strong>{wholeMoney(data.tips, state.organisation)}</strong>
           <small>Reported separately from service revenue.</small>
           <div className="insight-rule" />
           <span>Products sold with visits</span>
-          <strong>{money(data.retail, state.organisation)}</strong>
+          <strong>{wholeMoney(data.retail, state.organisation)}</strong>
           <small>
             Before tax, separate from service revenue. <Link to="/business/stock">See stock</Link>
           </small>

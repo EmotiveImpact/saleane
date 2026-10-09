@@ -661,14 +661,9 @@ fieldset {
   font-size: var(--text-small);
   color: var(--muted);
 }
+/* The figure itself shares the headline figure style in design.css. */
 .metric > strong {
-  font-family: var(--font-display);
-  font-size: clamp(26px, 2.4vw, var(--text-stat));
-  letter-spacing: -0.01em;
-  line-height: 1.1;
   margin: 4px 0;
-  font-weight: var(--weight-body);
-  font-variant-numeric: tabular-nums;
 }
 .metric small {
   font-size: var(--text-micro);
@@ -2256,9 +2251,10 @@ fieldset {
 }
 .business-insight > strong {
   font-family: var(--font-display);
-  font-weight: var(--weight-nav);
+  font-weight: var(--weight-body);
   font-size: 26px;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
   margin: 5px 0;
 }
 .business-insight > small {
@@ -3529,9 +3525,6 @@ fieldset {
   }
   .metric > span {
     font-size: var(--text-micro);
-  }
-  .metric > strong {
-    font-size: 28px;
   }
   .metric small {
     font-size: var(--text-micro);

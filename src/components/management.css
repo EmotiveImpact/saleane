@@ -256,13 +256,10 @@
   font-size: var(--text-meta);
   color: var(--muted);
 }
+/* The figure shares the headline figure style in design.css. */
 .ops-summary strong {
   display: block;
   margin: 5px 0;
-  font-size: 28px;
-  font-weight: var(--weight-strong);
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
 }
 .ops-summary small {
   color: var(--muted);
@@ -457,10 +454,6 @@
     display: block;
     font-size: var(--text-micro);
     line-height: 1.3;
-  }
-  .ops-summary strong {
-    margin: 0;
-    font-size: 22px;
   }
   .ops-summary small {
     display: none;

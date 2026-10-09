@@ -5,9 +5,18 @@ import { useStore } from '../state/context'
 import { businessDate, can, operations } from '../domain/operations'
 import { giftCardMonths, giftCards, giftStanding, normaliseCode } from '../domain/giftCards'
 import type { GiftCard } from '../domain/giftCardsSchema'
-import { fullDateLabel, money } from '../domain/format'
+import { fullDateLabel, money, wholeMoney } from '../domain/format'
 import { parseMinor } from '../domain/money'
-import { Button, Empty, ErrorMessage, Modal, PageHeader, SegmentedControl } from '../design'
+import {
+  Button,
+  Empty,
+  ErrorMessage,
+  Modal,
+  PageHeader,
+  SegmentedControl,
+  Stat,
+  Stats,
+} from '../design'
 import { PaymentFields } from '../components/Plans'
 import { usePayment, useRun } from '../components/usePayment'
 import '../components/management.css'
@@ -186,20 +195,11 @@ export function GiftCards() {
           ) : undefined
         }
       />
-      <dl className="plans-totals gift-totals">
-        <div>
-          <dt>Waiting to be spent</dt>
-          <dd>{money(held, org, true)}</dd>
-        </div>
-        <div>
-          <dt>Spent at visits</dt>
-          <dd>{money(spent, org, true)}</dd>
-        </div>
-        <div>
-          <dt>Sold in total</dt>
-          <dd>{money(sold, org, true)}</dd>
-        </div>
-      </dl>
+      <Stats className="gift-totals">
+        <Stat label="Waiting to be spent" value={wholeMoney(held, org)} />
+        <Stat label="Spent at visits" value={wholeMoney(spent, org)} />
+        <Stat label="Sold in total" value={wholeMoney(sold, org)} />
+      </Stats>
       <p className="ops-help">
         Money paid for a gift card counts as takings only when the card pays for a visit. Until then
         it belongs to whoever holds the card.

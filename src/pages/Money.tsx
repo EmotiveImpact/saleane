@@ -6,9 +6,18 @@ import { returnable } from '../domain/retail'
 import { useStore } from '../state/context'
 import { depositPaid } from '../domain/commands'
 import { operations, can } from '../domain/operations'
-import { dateLabel, money } from '../domain/format'
+import { dateLabel, money, wholeMoney } from '../domain/format'
 import { parseMinor } from '../domain/money'
-import { Button, ErrorMessage, Modal, Status, PageHeader, SegmentedControl } from '../design'
+import {
+  Button,
+  ErrorMessage,
+  Modal,
+  Status,
+  PageHeader,
+  SegmentedControl,
+  Stat,
+  Stats,
+} from '../design'
 import '../components/management.css'
 import { TillCount } from '../components/TillCount'
 import { CardRefund } from '../components/CardPayments'
@@ -236,31 +245,31 @@ export function Money() {
           </p>
         </div>
       </div>
-      <div className="ops-summary">
-        <div>
-          <span>{sandbox ? 'Simulated funds received' : 'Funds recorded'}</span>
-          <strong>{format(received)}</strong>
-          <small>
-            {state.payments.some((p) => p.method === 'previous_system')
+      <Stats>
+        <Stat
+          label={sandbox ? 'Simulated funds received' : 'Funds recorded'}
+          value={wholeMoney(received, state.organisation)}
+          detail={
+            state.payments.some((p) => p.method === 'previous_system')
               ? `Includes ${format(
                   state.payments
                     .filter((p) => p.method === 'previous_system')
                     .reduce((total, p) => total + p.amountMinor, 0),
                 )} paid to your old system before switching`
-              : 'Deposits and settlements counted once'}
-          </small>
-        </div>
-        <div>
-          <span>Unapplied deposits</span>
-          <strong>{format(deposits)}</strong>
-          <small>Includes cancelled and missed visits awaiting review</small>
-        </div>
-        <div>
-          <span>{sandbox ? 'Simulated refunds' : 'External refunds recorded'}</span>
-          <strong>{format(refunded)}</strong>
-          <small>Net recorded funds: {format(received - refunded)}</small>
-        </div>
-      </div>
+              : 'Deposits and settlements counted once'
+          }
+        />
+        <Stat
+          label="Unapplied deposits"
+          value={wholeMoney(deposits, state.organisation)}
+          detail="Includes cancelled and missed visits awaiting review"
+        />
+        <Stat
+          label={sandbox ? 'Simulated refunds' : 'External refunds recorded'}
+          value={wholeMoney(refunded, state.organisation)}
+          detail={`Net recorded funds: ${format(received - refunded)}`}
+        />
+      </Stats>
       <SegmentedControl
         label="Money records"
         className="ops-switch"

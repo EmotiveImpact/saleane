@@ -4,6 +4,7 @@ import './design.css'
 
 export { Avatar, Button, Empty, ErrorMessage, Metric, Status } from './components/primitives'
 export { Definition } from './components/Definition'
+export { Stat, Stats } from './components/Stats'
 export { Modal } from './components/Modal'
 export { PageHeader } from './components/PageHeader'
 export { SegmentedControl } from './components/SegmentedControl'

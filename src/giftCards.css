@@ -135,9 +135,6 @@
     height: auto;
   }
 }
-.gift-totals dd {
-  margin-left: 0;
-}
 .gift-row-money small {
   white-space: nowrap;
 }

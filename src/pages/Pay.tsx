@@ -3,14 +3,23 @@ import type { FormEvent } from 'react'
 import { Download, Wallet } from 'lucide-react'
 import { useStore } from '../state/context'
 import { businessDate, can } from '../domain/operations'
-import { addDays, dateLabel, money } from '../domain/format'
+import { addDays, dateLabel, money, wholeMoney } from '../domain/format'
 import { payCsv, payPeriod, rateFor, rateHistory, rulesFor, rulesHistory } from '../domain/pay'
 import type { PaySummary } from '../domain/pay'
 import type { Staff } from '../domain/model'
 import type { PayRules } from '../domain/operations'
 import { rentalOn } from '../domain/rent'
 import { RentPanel } from '../components/RentPanel'
-import { Avatar, Button, ErrorMessage, Modal, PageHeader, SegmentedControl } from '../design'
+import {
+  Avatar,
+  Button,
+  ErrorMessage,
+  Modal,
+  PageHeader,
+  SegmentedControl,
+  Stat,
+  Stats,
+} from '../design'
 import '../components/management.css'
 import '../stock.css'
 import '../pay.css'
@@ -99,39 +108,30 @@ export function Pay() {
         {monthName}
         {period === 'this' ? `, up to ${dateLabel(to, org.locale)}` : ''}
       </p>
-      <dl className="stock-totals">
-        <div>
-          <dt>Commission</dt>
-          <dd>
-            {money(
-              total((row) => row.commissionMinor),
-              org,
-              true,
-            )}
-          </dd>
-        </div>
-        <div>
-          <dt>Tips</dt>
-          <dd>
-            {money(
-              total((row) => row.tipsMinor),
-              org,
-              true,
-            )}
-          </dd>
-        </div>
-        <div>
-          <dt>Owed to the team</dt>
-          <dd>
-            {money(
-              total((row) => row.owedMinor),
-              org,
-              true,
-            )}
-            <small>Before any deductions</small>
-          </dd>
-        </div>
-      </dl>
+      <Stats>
+        <Stat
+          label="Commission"
+          value={wholeMoney(
+            total((row) => row.commissionMinor),
+            org,
+          )}
+        />
+        <Stat
+          label="Tips"
+          value={wholeMoney(
+            total((row) => row.tipsMinor),
+            org,
+          )}
+        />
+        <Stat
+          label="Owed to the team"
+          value={wholeMoney(
+            total((row) => row.owedMinor),
+            org,
+          )}
+          detail="Before any deductions"
+        />
+      </Stats>
       {notice && (
         <p className="success-strip" role="status">
           {notice}

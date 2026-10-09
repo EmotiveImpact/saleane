@@ -13,6 +13,16 @@ export function money(
     maximumFractionDigits: 2,
   }).format(amountMinor / 100)
 }
+/**
+ * A headline figure in whole pounds (or dollars), rounded to the nearest: £1,200 rather than
+ * £1,199.60. Receipts, tables and anything to be paid keep the pence through `money`.
+ */
+export function wholeMoney(
+  amountMinor: number,
+  organisation: Pick<BusinessState['organisation'], 'locale' | 'currency'>,
+) {
+  return money(Math.round(amountMinor / 100) * 100, organisation)
+}
 export function dateLabel(date: string, locale = 'en-GB', short = false) {
   return new Intl.DateTimeFormat(locale, {
     timeZone: 'UTC',

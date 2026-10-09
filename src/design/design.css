@@ -29,6 +29,25 @@
   font-size: var(--text-body);
 }
 
+/* Headline figures -------------------------------------------------------- */
+/*
+ * One style for every headline number: Figtree, light, one size, tabular digits. Stat and
+ * Metric tiles use it, and any other headline figure takes the class .stat-figure. Money in a
+ * headline is whole pounds (wholeMoney); receipts and tables keep the pence.
+ */
+.stat-figure,
+.metric > strong,
+.ops-summary strong,
+.plans-totals dd {
+  font-family: var(--font-display);
+  font-size: var(--text-figure);
+  font-weight: var(--weight-body);
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
 /* Definition popover ------------------------------------------------------ */
 .definition-trigger {
   display: inline-flex;
@@ -250,6 +269,21 @@
     overflow-x: auto;
     scrollbar-width: none;
   }
+  .ops-switch[data-more-after] {
+    mask-image: linear-gradient(to left, transparent, #000 40px);
+  }
+  .ops-switch[data-more-before] {
+    mask-image: linear-gradient(to right, transparent, #000 40px);
+  }
+  .ops-switch[data-more-before][data-more-after] {
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 40px,
+      #000 calc(100% - 40px),
+      transparent
+    );
+  }
   .ops-switch .segmented-item {
     white-space: nowrap;
   }
@@ -291,7 +325,8 @@
     font-size: var(--text-micro);
     line-height: 1.3;
   }
-  .metrics-band .metric > strong,
+  .stat-figure,
+  .metric > strong,
   .ops-summary strong {
     margin: 0;
     font-size: 22px;

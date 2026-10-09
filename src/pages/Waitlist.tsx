@@ -3,9 +3,9 @@ import { Hourglass, Plus } from 'lucide-react'
 import { useStore } from '../state/context'
 import { useClock } from '../state/clock'
 import { feedbackSince } from '../domain/feedback'
-import { money } from '../domain/format'
+import { wholeMoney } from '../domain/format'
 import { waiting, waitlistSummary } from '../domain/waitlist'
-import { Button, Empty, PageHeader } from '../design'
+import { Button, Empty, PageHeader, Stat, Stats } from '../design'
 import { WaitlistCard, WaitlistForm } from '../components/Waitlist'
 import { can } from '../domain/operations'
 import '../components/management.css'
@@ -39,20 +39,14 @@ export function Waitlist() {
         title="Who would take a time."
         description="When a time opens that suits someone, it appears beside their name. Book it, move their visit, or write them an offer to approve. Nobody is contacted by itself."
       />
-      <dl className="plans-totals waitlist-totals">
-        <div>
-          <dt>Waiting now</dt>
-          <dd>{summary.waiting}</dd>
-        </div>
-        <div>
-          <dt>Times filled from the list, last 30 days</dt>
-          <dd>{summary.filled}</dd>
-        </div>
-        <div>
-          <dt>Value of those visits</dt>
-          <dd>{money(summary.valueMinor, state.organisation, true)}</dd>
-        </div>
-      </dl>
+      <Stats className="waitlist-totals">
+        <Stat label="Waiting now" value={summary.waiting} />
+        <Stat label="Times filled from the list, last 30 days" value={summary.filled} />
+        <Stat
+          label="Value of those visits"
+          value={wholeMoney(summary.valueMinor, state.organisation)}
+        />
+      </Stats>
       <section className="surface ops-panel" aria-labelledby="waiting-heading">
         <header>
           <div>
