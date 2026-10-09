@@ -1,11 +1,31 @@
 /*
- * Today's right-hand column: what needs someone now, as small cards with a count each, then
- * what SALEANE noticed, one special and the team. Long lists show their first few.
+ * Today's right-hand column: what needs someone now, as small cards with a count each, then the
+ * team. Long lists show their first few. What SALEANE noticed and one special sit side by side
+ * under the day ahead, so neither column runs on alone.
  */
+.today-layout {
+  grid-template-areas:
+    'day aside'
+    'ideas aside';
+  grid-template-rows: auto 1fr;
+}
+.today-layout > .schedule-surface {
+  grid-area: day;
+}
+.today-layout > .today-aside {
+  grid-area: aside;
+}
 .today-aside {
   display: grid;
   gap: var(--space-5);
   align-content: start;
+}
+.today-ideas {
+  grid-area: ideas;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
+  align-items: start;
 }
 .needs-you {
   display: grid;
@@ -192,6 +212,16 @@
     min-height: 40px;
   }
 }
+/* One column from tablets down: the day ahead, what needs someone, then the ideas. */
+@media (max-width: 1080px) {
+  .today-layout {
+    grid-template-areas:
+      'day'
+      'aside'
+      'ideas';
+    grid-template-rows: auto;
+  }
+}
 /* Tablets: the cards flow down two columns, each kept whole. */
 @media (max-width: 1080px) and (min-width: 651px) {
   .today-aside {
@@ -207,13 +237,13 @@
     grid-column: auto;
     margin-top: 0;
   }
-  .today-aside > .intelligence-panel {
-    grid-row: auto;
-  }
 }
 @media (max-width: 650px) {
   .today-aside {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-5);
+  }
+  .today-ideas {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

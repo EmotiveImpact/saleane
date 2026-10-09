@@ -3191,9 +3191,6 @@ fieldset {
     margin-top: -85px;
     align-self: end;
   }
-  .intelligence-panel {
-    grid-row: span 2;
-  }
   .intelligence-panel h2 br {
     display: none;
   }

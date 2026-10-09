@@ -153,8 +153,6 @@ export function Today() {
         <aside className="today-aside">
           <NeedsYou />
           <TeamToday />
-          <SmartInsights onBook={setBooking} />
-          <Specials />
           <Link className="booking-prompt" to="/booking">
             <span className="mini-wordmark">
               {state.organisation.name
@@ -170,6 +168,10 @@ export function Today() {
             <ArrowUpRight size={18} />
           </Link>
         </aside>
+        <div className="today-ideas">
+          <SmartInsights onBook={setBooking} />
+          <Specials />
+        </div>
       </div>
       {appointmentId && (
         <AppointmentDialog
