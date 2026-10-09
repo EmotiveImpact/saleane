@@ -4,6 +4,7 @@ import { ArrowRight } from 'lucide-react'
 import { api, setCsrf } from '../state/api'
 import { Button, ErrorMessage } from '../design'
 import { AccountStory } from './Account'
+import { TwoStepCode } from '../components/TwoStepCode'
 import '../account.css'
 
 /**
@@ -23,7 +24,9 @@ export function AccountLink() {
     [again, setAgain] = useState('')
   const [pending, setPending] = useState(false),
     [error, setError] = useState(''),
-    [done, setDone] = useState(false)
+    [done, setDone] = useState(false),
+    [challenge, setChallenge] = useState(''),
+    [restart, setRestart] = useState('')
   // A confirmation link does its work as soon as it opens, once.
   const [confirm, setConfirm] = useState<{ done: boolean; error: string } | null>(null)
   const asked = useRef(false)
@@ -53,14 +56,19 @@ export function AccountLink() {
     setPending(true)
     setError('')
     try {
-      const result = await api<{ csrf: string }>('/api/auth/reset', {
-        method: 'POST',
-        body: { token, password },
-      })
-      setCsrf(result.csrf)
+      const result = await api<{ csrf?: string; twoStep?: boolean; challenge?: string }>(
+        '/api/auth/reset',
+        { method: 'POST', body: { token, password } },
+      )
       setPassword('')
       setAgain('')
       forget()
+      // NEXT-04: the new password is saved; with two-step sign-in on, the code finishes signing in.
+      if (result.twoStep && result.challenge) {
+        setChallenge(result.challenge)
+        return
+      }
+      setCsrf(result.csrf!)
       // The account page reads the new session when it opens; reading it here would move away.
       setDone(true)
     } catch (e) {
@@ -75,7 +83,31 @@ export function AccountLink() {
       <main className="account-main">
         <p className="date-caption">Your SALEANE account</p>
         {reset ? (
-          done ? (
+          challenge ? (
+            <>
+              <h1>Your new password is saved.</h1>
+              <p className="account-intro">
+                Two-step sign-in is on, so enter a code to finish signing in. Anywhere else you were
+                signed in has been signed out.
+              </p>
+              <TwoStepCode
+                challenge={challenge}
+                onSignedIn={() => {
+                  setChallenge('')
+                  setDone(true)
+                }}
+                onRestart={(message) => {
+                  setChallenge('')
+                  setRestart(message)
+                }}
+              />
+            </>
+          ) : restart ? (
+            <>
+              <h1>Your new password is saved.</h1>
+              <p className="account-intro">{restart} Use your new password on the sign-in page.</p>
+            </>
+          ) : done ? (
             <>
               <h1>Your new password is set.</h1>
               <p className="account-intro">
@@ -139,7 +171,7 @@ export function AccountLink() {
             <ErrorMessage error={confirmError} />
           </>
         )}
-        {!(reset && done) && (
+        {!(reset && (done || challenge)) && (
           <div className="account-actions">
             <Link className="button button-quiet" to="/account">
               {reset ? 'Back to sign in' : 'Open SALEANE'}

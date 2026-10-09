@@ -9,6 +9,7 @@ import { roleNames } from '../domain/operations'
 import { Button, ErrorMessage } from '../design'
 import { BrandsTogether } from '../components/BrandsTogether'
 import { InvitationSummary } from '../components/InvitationSummary'
+import { TwoStepCode } from '../components/TwoStepCode'
 import type { InvitationPreview } from '../components/InvitationSummary'
 import '../account.css'
 
@@ -38,6 +39,7 @@ export function Account() {
   const [linkSent, setLinkSent] = useState<LinkAnswer | null>(null)
   const [confirmSent, setConfirmSent] = useState<LinkAnswer | null>(null)
   const [confirmProblem, setConfirmProblem] = useState('')
+  const [challenge, setChallenge] = useState('')
   const emailField = useRef<HTMLInputElement>(null),
     sentNote = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -112,6 +114,21 @@ export function Account() {
       setPending(false)
     }
   }
+  /** After the password (and the code, with two-step sign-in on): join or open a studio. */
+  async function finishSignIn() {
+    let current = await store.refreshSession()
+    let orgId = current?.workspaces[0]?.id ?? ''
+    if (invitation) {
+      const joined = await api<{ orgId: string }>('/api/invitations/accept', {
+        method: 'POST',
+        body: { invitation },
+      })
+      orgId = joined.orgId
+      current = await store.refreshSession()
+    }
+    if (orgId) await open(orgId, current)
+    else setView('workspace')
+  }
   async function submit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     setPending(true)
@@ -129,17 +146,17 @@ export function Account() {
         return
       }
       if (view === 'signin') {
-        await api('/api/auth/login', { method: 'POST', body: { email, password } })
-        current = await store.refreshSession()
-        if (invitation) {
-          const joined = await api<{ orgId: string }>('/api/invitations/accept', {
-            method: 'POST',
-            body: { invitation },
-          })
-          orgId = joined.orgId
-          current = await store.refreshSession()
-        } else orgId = current?.workspaces[0]?.id ?? ''
-      } else if (view === 'workspace') {
+        const answer = await api<{ twoStep?: boolean; challenge?: string }>('/api/auth/login', {
+          method: 'POST',
+          body: { email, password },
+        })
+        setPassword('')
+        // NEXT-04: two-step sign-in asks for the code before anyone is signed in.
+        if (answer.twoStep && answer.challenge) setChallenge(answer.challenge)
+        else await finishSignIn()
+        return
+      }
+      if (view === 'workspace') {
         const result = await api<{ orgId: string }>('/api/workspaces', {
           method: 'POST',
           body: { workspace: { name: business, region, locationName: location, timeZone, sample } },
@@ -311,32 +328,52 @@ export function Account() {
               {invitation ? 'A place on the team' : 'Your SALEANE account'}
             </p>
             <h1>
-              {view === 'signin'
-                ? 'Welcome back.'
-                : view === 'forgot'
-                  ? 'Choose a new password.'
-                  : view === 'workspace'
-                    ? 'Make room for your studio.'
-                    : invitation
-                      ? `Join ${invited?.studio ?? 'your studio'}.`
-                      : 'Begin with your business.'}
+              {challenge
+                ? 'One more step.'
+                : view === 'signin'
+                  ? 'Welcome back.'
+                  : view === 'forgot'
+                    ? 'Choose a new password.'
+                    : view === 'workspace'
+                      ? 'Make room for your studio.'
+                      : invitation
+                        ? `Join ${invited?.studio ?? 'your studio'}.`
+                        : 'Begin with your business.'}
             </h1>
             {invitation && view !== 'workspace' && invited && (
               <InvitationSummary invitation={invited} />
             )}
             {invitation && view !== 'workspace' && <ErrorMessage error={inviteProblem} />}
             <p className="account-intro">
-              {view === 'forgot'
-                ? 'Enter the email you sign in with. If it has an account, we will send a link to choose a new password. The link works for an hour.'
-                : view === 'signin'
-                  ? invited
-                    ? `Sign in with ${invited.email} to join ${invited.studio}.`
-                    : 'Sign in to continue with the records saved on this computer.'
-                  : invited && view === 'create'
-                    ? 'Create your account with the email your invitation was sent to. Accounts and studio records are kept on this computer for now.'
-                    : 'Accounts and studio records are kept on this computer for now. Card payments and emails are not connected yet.'}
+              {challenge
+                ? `Two-step sign-in is on for ${email}, so signing in needs a code as well as the password.`
+                : view === 'forgot'
+                  ? 'Enter the email you sign in with. If it has an account, we will send a link to choose a new password. The link works for an hour.'
+                  : view === 'signin'
+                    ? invited
+                      ? `Sign in with ${invited.email} to join ${invited.studio}.`
+                      : 'Sign in to continue with the records saved on this computer.'
+                    : invited && view === 'create'
+                      ? 'Create your account with the email your invitation was sent to. Accounts and studio records are kept on this computer for now.'
+                      : 'Accounts and studio records are kept on this computer for now. Card payments and emails are not connected yet.'}
             </p>
-            {view === 'forgot' && linkSent ? (
+            {challenge ? (
+              <TwoStepCode
+                challenge={challenge}
+                onSignedIn={async () => {
+                  setChallenge('')
+                  try {
+                    await finishSignIn()
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : 'This studio could not be opened.')
+                  }
+                }}
+                onRestart={(message) => {
+                  setChallenge('')
+                  setError(message)
+                }}
+              />
+            ) : view === 'forgot' && linkSent ? (
               <div className="account-confirm" role="status" tabIndex={-1} ref={sentNote}>
                 <p>
                   {linkSent.emailConnected
@@ -506,16 +543,19 @@ export function Account() {
                 <Button
                   variant="quiet"
                   onClick={() => {
-                    setView(view === 'signin' ? 'create' : 'signin')
+                    setView(view === 'signin' && !challenge ? 'create' : 'signin')
                     setError('')
                     setLinkSent(null)
+                    setChallenge('')
                   }}
                 >
-                  {view === 'signin'
-                    ? 'Create an account'
-                    : view === 'forgot'
-                      ? 'Back to sign in'
-                      : 'Already have an account? Sign in'}
+                  {challenge
+                    ? 'Back to sign in'
+                    : view === 'signin'
+                      ? 'Create an account'
+                      : view === 'forgot'
+                        ? 'Back to sign in'
+                        : 'Already have an account? Sign in'}
                 </Button>
               )}
               <Button

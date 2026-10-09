@@ -92,11 +92,7 @@ export function tooManyLinks(ctx: Context, accountId: string, kind: LinkKind) {
  * Makes a fresh link and sends it without holding up the answer. A slow email service never
  * delays signing up, and how long the answer takes never shows whether an address has an account.
  */
-export function mailLink(
-  ctx: Context,
-  account: { id: string; name: string; email: string },
-  kind: LinkKind,
-) {
+export function mailLink(ctx: Context, account: Account, kind: LinkKind) {
   const failed = (error: unknown) =>
     console.error('[SALEANE] An account email could not be made or recorded.', error)
   try {
@@ -122,14 +118,67 @@ const WORDING: Record<LinkKind, { subject: string; body: (name: string, link: st
     },
   }
 
-/** Sends an account email and records what happened. Never claims a test-mode email was sent. */
-export async function sendAccountMail(
-  ctx: Context,
-  account: { id: string; name: string; email: string },
-  kind: LinkKind,
-  link: string,
-) {
+type Account = { id: string; name: string; email: string }
+const firstName = (account: Account) => account.name.split(' ')[0]
+
+/** Sends an account email with a link and records what happened. */
+export function sendAccountMail(ctx: Context, account: Account, kind: LinkKind, link: string) {
   const words = WORDING[kind]
+  return deliver(
+    ctx,
+    account,
+    kind,
+    words.subject,
+    words.body(firstName(account), link),
+    linkInLog(ctx)
+      ? `this ${kind} link was not sent to ${account.email}: ${link}`
+      : `a ${kind} link for ${account.email} was not sent. It is not written here, as this server is not for this computer alone.`,
+  )
+}
+
+/** NEXT-04: a change to how someone signs in is always told to their inbox. */
+export type Notice = 'two-step-on' | 'two-step-off' | 'recovery-used' | 'recovery-new'
+const NOTICES: Record<Notice, { subject: string; says: string }> = {
+  'two-step-on': {
+    subject: 'Two-step sign-in is on for SALEANE',
+    says: 'Two-step sign-in is now on for your SALEANE account. Signing in will ask for a code from your authenticator app as well as your password.',
+  },
+  'two-step-off': {
+    subject: 'Two-step sign-in is off for SALEANE',
+    says: 'Two-step sign-in has been turned off for your SALEANE account. Signing in now needs only your password.',
+  },
+  'recovery-used': {
+    subject: 'A SALEANE recovery code was used',
+    says: 'One of your recovery codes was just used to sign in to your SALEANE account. Each code works once.',
+  },
+  'recovery-new': {
+    subject: 'New SALEANE recovery codes',
+    says: 'New recovery codes were made for your SALEANE account. The old ones no longer work.',
+  },
+}
+
+/** Sends a sign-in notice without holding up the answer. */
+export function mailNotice(ctx: Context, account: Account, notice: Notice) {
+  const words = NOTICES[notice]
+  void deliver(
+    ctx,
+    account,
+    'security',
+    words.subject,
+    `Hello ${firstName(account)},\n\n${words.says}\n\nIf this was not you, choose a new password from the sign-in page straight away and tell the studio owner.\n\nSALEANE`,
+    `this notice was not sent to ${account.email}: ${words.subject}`,
+  ).catch((error) => console.error('[SALEANE] An account email could not be recorded.', error))
+}
+
+/** Sends an account email and records what happened. Never claims a test-mode email was sent. */
+async function deliver(
+  ctx: Context,
+  account: Account,
+  kind: LinkKind | 'security',
+  subject: string,
+  body: string,
+  unsent: string,
+) {
   const id = randomUUID()
   const provider = ctx.messaging.email
   // Recorded before the answer goes back, as not known yet. If the server stops before the
@@ -140,7 +189,7 @@ export async function sendAccountMail(
     account.id,
     kind,
     account.email,
-    words.subject,
+    subject,
     'unknown',
     provider.name,
     'Handed to the email service; no answer yet.',
@@ -154,8 +203,8 @@ export async function sendAccountMail(
       id,
       channel: 'email',
       to: account.email,
-      subject: words.subject,
-      body: words.body(account.name.split(' ')[0], link),
+      subject,
+      body,
       fromName: 'SALEANE',
     })
     status = result.outcome
@@ -166,11 +215,7 @@ export async function sendAccountMail(
     detail = error instanceof Error ? error.message : 'The email provider did not answer.'
   }
   if (status === 'test' && !process.env.VITEST)
-    console.log(
-      linkInLog(ctx)
-        ? `[SALEANE] Email is not connected, so this ${kind} link was not sent to ${account.email}: ${link}`
-        : `[SALEANE] Email is not connected, so a ${kind} link for ${account.email} was not sent. It is not written here, as this server is not for this computer alone.`,
-    )
+    console.log(`[SALEANE] Email is not connected, so ${unsent}`)
   ctx.db.run(
     'UPDATE account_mail SET status=?, provider_ref=?, detail=? WHERE id=?',
     status,

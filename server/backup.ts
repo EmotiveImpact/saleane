@@ -98,7 +98,7 @@ function snapshot(source: string, destination: string, restore: boolean) {
       })
       try {
         recovered.exec(
-          'BEGIN IMMEDIATE; DELETE FROM sessions; DELETE FROM invitations; DELETE FROM booking_holds; DELETE FROM guest_links;',
+          'BEGIN IMMEDIATE; DELETE FROM sessions; DELETE FROM login_challenges; DELETE FROM totp_setup; DELETE FROM invitations; DELETE FROM booking_holds; DELETE FROM guest_links;',
         )
         // Nothing that reaches outside the studio comes back by itself: a key revoked since the
         // backup would read again, a connection removed since would be sent to, and a message

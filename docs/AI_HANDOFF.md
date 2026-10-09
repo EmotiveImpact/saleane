@@ -11,7 +11,7 @@ Prepared 6 October 2026 for transfer to Claude; current state brought up to date
 
 ## Repository and consolidation
 
-Private GitHub: https://github.com/EmotiveImpact/saleane; foundation review: https://github.com/EmotiveImpact/saleane/pull/1. Inspect current Git status and remote main; do not assume a stale branch is the latest authority. Work arrives as pull requests from several threads at once, so check what merged since your branch started and the next free migration number (23 is the latest on 9 October 2026, so the next is 24).
+Private GitHub: https://github.com/EmotiveImpact/saleane; foundation review: https://github.com/EmotiveImpact/saleane/pull/1. Inspect current Git status and remote main; do not assume a stale branch is the latest authority. Work arrives as pull requests from several threads at once, so check what merged since your branch started and the next free migration number (24 is the latest on 9 October 2026, so the next is 25).
 
 Implementation baseline `09dc3bd` is the local V1 candidate. The handoff increment fixes the review finding about browser reset revision reuse and adds regression coverage. The old server draft `f73d084` on `wip/saleane-server-authority` is preserved through an explicit **history-only merge**, keeping the current implementation tree. That draft used Fastify/PGlite/Postgres and broad state endpoints. The current Node/SQLite implementation supersedes its account, workspace and command ambitions with tested local boundaries. Do not cherry-pick its package lock or replace the current server. Preserving history does not mean claiming every abandoned implementation ships.
 
@@ -34,6 +34,7 @@ Merged on top of that, all built locally and in test mode where a provider would
 - V5: the whole business view, regions and regional managers, general managers, requests that pass up, branch visits, client areas and maps, brand rules, several brands, month-end estimate, benchmarking, branch map, partner access keys, automatic checks.
 - The 9 October app review (48 items) fixed the problems it found and polished the daily screens; see the changelog entry of that date.
 - NEXT-03: a forgotten password link and an email confirmation link (migration 23, `server/accountMail.ts`). With email in test mode nothing is sent: the link is written in the server log and the record says `test`.
+- NEXT-04: two-step sign-in with an authenticator app and recovery codes (`server/twoStep.ts`, `src/components/TwoStepSettings.tsx`). Authenticator keys sit in SQLite like connection secrets; a hosted database should encrypt them at rest.
 
 There is no hosted service, real card capture/refund, sent email/SMS (so password and confirmation links reach only the server log), AI supplier, map service, production identity qualification, verified guest identity (manage links are bearer capabilities copied by hand), comprehensive privacy programme or real studio pilot. Stable 1.0 requires the roadmap’s release gates, not a cosmetic version change.
 

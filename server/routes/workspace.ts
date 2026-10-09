@@ -246,10 +246,13 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
       const org = orgFor(orgId, actor)
       if (org.role !== 'owner') fail(403, 'Only the owner can manage access.')
       reply(200, {
-        members: db.all(
-          'SELECT a.id,a.name,a.email,m.role,m.staff_id AS staffId,m.area_id AS areaId,m.location_id AS locationId FROM memberships m JOIN accounts a ON a.id=m.account_id WHERE m.organisation_id=? ORDER BY a.name',
-          org.id,
-        ),
+        // NEXT-04: the owner sees who has two-step sign-in on, never their keys or codes.
+        members: db
+          .all<Record<string, unknown> & { twoStep: number }>(
+            'SELECT a.id,a.name,a.email,m.role,m.staff_id AS staffId,m.area_id AS areaId,m.location_id AS locationId,(a.totp_enabled_at IS NOT NULL) AS twoStep FROM memberships m JOIN accounts a ON a.id=m.account_id WHERE m.organisation_id=? ORDER BY a.name',
+            org.id,
+          )
+          .map((member) => ({ ...member, twoStep: member.twoStep === 1 })),
         invitations: db.all(
           'SELECT email,role,staff_id AS staffId,area_id AS areaId,location_id AS locationId,expires_at AS expiresAt FROM invitations WHERE organisation_id=? AND used_at IS NULL AND expires_at>?',
           org.id,
