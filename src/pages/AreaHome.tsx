@@ -19,6 +19,7 @@ import '../practitioner.css'
 import '../components/management.css'
 import '../components/plans.css'
 import '../components/group.css'
+import { BranchMap } from '../components/BranchMap'
 import '../components/branchVisits.css'
 
 function greeting(minutes: number) {
@@ -296,6 +297,17 @@ export function AreaHome() {
               </li>
             ))}
           </ul>
+          <div className="group-map">
+            <h3>Where each location stands</h3>
+            {record.map ? (
+              <BranchMap org={org} pins={record.map.pins} features={record.map.features} />
+            ) : (
+              <p className="subtle">
+                A map appears once a map service is connected and two or more of your locations can
+                be placed on it. Until then, every figure is in the list above.
+              </p>
+            )}
+          </div>
         </section>
         <section className="surface ops-panel" aria-labelledby="area-put-right">
           <header>

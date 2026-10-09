@@ -18,6 +18,9 @@ import {
 } from '../domain/group'
 import type { PlaceFigures, RegionFigures } from '../domain/group'
 import type { Command } from '../domain/commands'
+import { branchMap } from '../domain/branchMap'
+import { mapFeatures, mapReady } from '../domain/areaMap'
+import { BranchMap } from './BranchMap'
 import './group.css'
 
 const pct = (n: number) => `${Math.round(n * 100)}%`
@@ -38,6 +41,7 @@ export function WholeBusiness() {
   const [saved, setSaved] = useState('')
   const view = wholeBusiness(state, today)
   const week = weekInBrief(state, today)
+  const map = branchMap(state, today)
   const org = state.organisation
   const allowed = !blocked && can(role, 'targets')
   const monthName = new Intl.DateTimeFormat(org.locale, {
@@ -91,6 +95,26 @@ export function WholeBusiness() {
         {week.lines.map((line) => (
           <p key={line}>{line}</p>
         ))}
+      </div>
+      <div className="group-map">
+        <h3>Where each location stands</h3>
+        {map.ready ? (
+          <>
+            <BranchMap org={org} pins={map.pins} features={mapFeatures(state)} />
+            {map.unplaced.length > 0 && (
+              <p className="subtle">
+                Not on the map yet, as the map cannot place its postcode: {map.unplaced.join(', ')}.
+                Its figures are in the list below.
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="subtle">
+            {mapReady(state)
+              ? 'The map appears once two or more locations have an address with a postcode we can place.'
+              : 'A map of your locations appears once a map service is connected. Until then, every figure is in the list below.'}
+          </p>
+        )}
       </div>
       <p role="status" className="ops-help">
         {saved}

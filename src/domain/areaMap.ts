@@ -270,19 +270,25 @@ export function mapAreas(
       centre: areaCentre(s, key) ?? null,
     }))
     .sort((a, b) => b.clients - a.clients || a.area.localeCompare(b.area))
-  const region = s.organisation.region
   const sites = places(s).filter((p) => locationId === 'all' || p.id === locationId)
   return {
     total,
     areas,
-    places: sites.map((p) => {
-      // A sample studio's main location sits in its sample home area when its address has none.
-      const key =
-        addressArea(p.address, region) ??
-        (mapReady(s) && p.id === s.organisation.locationId ? SAMPLE_HOME[region] : null)
-      return { id: p.id, name: p.name, centre: (key && areaCentre(s, key)) || null }
-    }),
+    places: sites.map((p) => ({ id: p.id, name: p.name, centre: placeCentre(s, p) })),
   }
+}
+
+/** Where a location sits on the map, from the postcode area in its address. */
+export function placeCentre(
+  s: BusinessState,
+  place: { id: string; address: string },
+): [number, number] | null {
+  const region = s.organisation.region
+  // A sample studio's main location sits in its sample home area when its address has none.
+  const key =
+    addressArea(place.address, region) ??
+    (mapReady(s) && place.id === s.organisation.locationId ? SAMPLE_HOME[region] : null)
+  return (key && areaCentre(s, key)) || null
 }
 
 /** Web Mercator: a latitude and longitude as a point on a square world of `size` units. */

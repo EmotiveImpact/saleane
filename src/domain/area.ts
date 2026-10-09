@@ -9,6 +9,8 @@ import { branchVisits, checklists } from './branchVisits'
 import { branchVisitSchema, checklistSchema } from './branchVisitSchema'
 import { approvalRequestSchema } from './approvalsSchema'
 import { regionalLimit, requests } from './approvals'
+import { branchMap } from './branchMap'
+import { mapFeatures } from './areaMap'
 
 /**
  * V5: what a regional manager may read and change.
@@ -80,6 +82,34 @@ export const areaViewSchema = z
     /** Requests at their locations, and what they may approve. */
     requests: z.array(approvalRequestSchema),
     regionalLimitMinor: z.number().int().nonnegative(),
+    /** Their locations on a map, only where a map is ready; null otherwise. */
+    map: z
+      .object({
+        pins: z.array(
+          z
+            .object({
+              locationId: id,
+              name: z.string(),
+              centre: z.tuple([z.number(), z.number()]),
+              takingsMinor: z.number().int(),
+              growth: z.number().nullable(),
+              trend: z.enum(['up', 'level', 'down', 'new']),
+              tag: z.enum(['Doing best', 'Needs a look']).nullable(),
+            })
+            .strict(),
+        ),
+        features: z.array(
+          z
+            .object({
+              kind: z.enum(['park', 'water']),
+              name: z.string(),
+              points: z.array(z.tuple([z.number(), z.number()])),
+            })
+            .strict(),
+        ),
+      })
+      .strict()
+      .nullable(),
   })
   .strict()
 export type AreaView = z.infer<typeof areaViewSchema>
@@ -97,6 +127,7 @@ export function areaView(s: BusinessState, regionId: string, today: string): Are
   if (!region || !ids.size) throw new Error('This area has no open locations.')
   const org = s.organisation
   const view = wholeBusiness(s, today, ids)
+  const map = branchMap(s, today, ids)
   const visits = branchVisits(s).filter((v) => ids.has(v.locationId))
   const booked = (locationId: string) =>
     s.appointments.filter(
@@ -178,6 +209,7 @@ export function areaView(s: BusinessState, regionId: string, today: string): Are
     visits,
     requests: areaRequests,
     regionalLimitMinor: regionalLimit(s),
+    map: map.ready ? { pins: map.pins, features: mapFeatures(s) } : null,
   }
 }
 

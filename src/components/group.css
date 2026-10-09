@@ -107,3 +107,63 @@
 .group-week h3 {
   font-size: var(--text-body);
 }
+.group-map {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: var(--space-3);
+}
+.group-map h3 {
+  font-size: var(--text-body);
+}
+.branch-up {
+  --pin: var(--brand);
+}
+.branch-down {
+  --pin: var(--rose);
+}
+.branch-level,
+.branch-new {
+  --pin: color-mix(in srgb, var(--muted) 70%, var(--panel));
+}
+.branch-halo {
+  fill: var(--pin);
+  fill-opacity: 0.14;
+}
+.branch-dot {
+  fill: var(--pin);
+  fill-opacity: 0.85;
+  stroke: var(--panel);
+  stroke-width: 2;
+}
+.branch-name,
+.branch-value {
+  fill: var(--ink);
+  paint-order: stroke;
+  stroke: var(--panel);
+  stroke-width: 3px;
+}
+.branch-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+.branch-value {
+  font-size: 11.5px;
+}
+.branch-key {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--pin);
+}
+@media (max-width: 560px) {
+  /* The map shrinks to about half on a phone, so its words are drawn larger to stay readable. */
+  .branch-name {
+    font-size: 22px;
+  }
+  .branch-value {
+    font-size: 18px;
+  }
+}

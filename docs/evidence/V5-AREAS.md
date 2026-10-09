@@ -29,4 +29,4 @@ Screenshots: [the page](V5-AREAS-page.png), [on a phone](V5-AREAS-390.png), [the
 
 - This stage was a list with bars. A map above it followed in the next stage ([evidence](V5-MAP.md)); its streets need an outside map service, which is not connected.
 - Areas are recorded by hand on each client's page. Online bookings do not ask for a postcode.
-- A map of branches showing how each is doing is covered by the side-by-side whole-business view ([evidence](V5-GROUP.md)); there is no drawn branch map for the same reason.
+- A map of branches showing how each is doing is drawn above the whole-business list ([evidence](V5-BRANCH-MAP.md)), for sample studios only for the same reason.
