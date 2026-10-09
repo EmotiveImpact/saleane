@@ -1,6 +1,7 @@
 import type { Role } from './operations'
 import type { HelpArticle } from './help'
 import { GRACE_DAYS, LOCK_DAYS, RETRY_DAYS } from './pricing'
+import { RETRY_DAYS as CARD_RETRY_DAYS } from './planCards'
 
 const DESK: readonly Role[] = ['owner', 'manager', 'reception', 'general']
 const LEADS: readonly Role[] = ['owner', 'manager', 'general']
@@ -8,6 +9,7 @@ const RUNS: readonly Role[] = ['owner', 'manager']
 const OWNER: readonly Role[] = ['owner']
 const IN_STUDIO: readonly Role[] = ['owner', 'manager', 'reception', 'general', 'practitioner']
 const retries = `${RETRY_DAYS.slice(0, -1).join(', ')} and ${RETRY_DAYS[RETRY_DAYS.length - 1]}`
+const cardRetries = `${CARD_RETRY_DAYS.slice(0, -1).join(', ')} and ${CARD_RETRY_DAYS.at(-1)}`
 
 /**
  * NEXT-06: the guides in Help. Each uses the labels on screen, word for word, so a person can
@@ -346,6 +348,22 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     words: 'note remember preference history',
   },
   {
+    id: 'at-a-glance',
+    title: 'See a client at a glance',
+    group: 'Clients',
+    summary: 'The top of each client page sums up their habits and suggests one next step.',
+    steps: [
+      'Open the client. At a glance says when they usually come, when they are due back, their favourite treatment and who they usually see.',
+      'It also shows what they spent in the last 12 months, how reliably they keep their visits and how far ahead they book.',
+      'Below that is one next step, such as booking their usual visit, inviting them back, a patch test due or a membership month not paid yet. Choose its button to do it.',
+    ],
+    note: 'It is worked out from the studio’s own records, so it says more after a few visits.',
+    to: '/clients',
+    screens: ['/clients'],
+    roles: DESK,
+    words: 'insight summary habits regular usual due back spend reliable next step',
+  },
+  {
     id: 'patch-tests',
     title: 'Record a patch test',
     group: 'Clients',
@@ -460,6 +478,25 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     screens: ['/clients', '/settings?section=plans'],
     roles: DESK,
     words: 'package course membership plan bundle',
+  },
+  {
+    id: 'membership-card',
+    title: 'Take a membership from a saved card each month',
+    group: 'Money',
+    summary:
+      'A client can pay their membership each month from a card they saved, with a reminder three days before each payment.',
+    steps: [
+      'Open the client. Under Packages & memberships, choose Pay each month from a saved card.',
+      'Read the words to the client, or let them read them. Tick that they have agreed to these words, then choose Set up card payments.',
+      `SALEANE reminds them three days before each payment and takes it on the day from 09:00. A declined card is tried again ${cardRetries} days later.`,
+      'To see this month’s card payments, open Business, then Money, then Plans. Choose Check again on a payment marked unclear.',
+      'To stop, choose Turn off card payments on the client page. Each month is then paid at the desk.',
+    ],
+    note: 'The client saves a card from the link to their visit. Test mode: no card is charged and no money moves. Card payments pause while the studio is read only for its SALEANE bill.',
+    to: '/clients',
+    screens: ['/clients', '/business/money'],
+    roles: LEADS,
+    words: 'membership monthly recurring saved card automatic declined renew direct debit',
   },
   {
     id: 'gift-cards',
@@ -676,6 +713,22 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     screens: ['/inbox'],
     roles: DESK,
     words: 'message email text write reply draft approve',
+  },
+  {
+    id: 'text-stop',
+    title: 'When a client texts STOP',
+    group: 'Messages and AI',
+    summary: 'A client who replies STOP gets no more texts from the studio until they ask again.',
+    steps: [
+      'When a client texts STOP, SALEANE turns their visit texts off and texts nothing more to that number. The Inbox shows the reply, and their page says when.',
+      'If they text START, texts come back on wherever STOP turned them off.',
+      'If they ask you in person to text them again, open the client, tick Visit texts and confirm they asked.',
+    ],
+    note: 'Emails and email news are separate and stay as they were. A client who texts HELP is left for the team to answer.',
+    to: '/inbox',
+    screens: ['/inbox', '/clients'],
+    roles: DESK,
+    words: 'stop start unsubscribe opt out texts sms turn off help reply',
   },
   {
     id: 'ask-saleane',

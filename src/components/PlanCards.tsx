@@ -90,9 +90,11 @@ export function MembershipCardLine({
         <p>
           <CreditCard size={15} aria-hidden="true" /> Paid by {agreement.brand} ending{' '}
           {agreement.last4} each month.
-          {next
-            ? ` Next payment ${money(holding.priceMinor, org, true)} on ${dayMonth(next, org.locale)}.`
-            : ''}
+          {reply.paused
+            ? ' Paused while the studio is read only.'
+            : next
+              ? ` Next payment ${money(holding.priceMinor, org, true)} on ${dayMonth(next, org.locale)}.`
+              : ''}
         </p>
       )}
       {shown.map((charge) => {
@@ -368,7 +370,7 @@ export function MembershipCardPayments() {
               {card?.last4 ?? ''}.
             </small>
           </div>
-          <span className="ops-tag">Upcoming</span>
+          <span className="ops-tag">{reply.paused ? 'Paused' : 'Upcoming'}</span>
           <span className="ops-record-money">{money(holding.priceMinor, org, true)}</span>
         </div>
       )
@@ -422,6 +424,18 @@ export function MembershipCardPayments() {
           <FlaskConical size={16} aria-hidden="true" />
           Test mode: no card is charged and no money moves.
         </p>
+      )}
+      {reply.paused && (
+        <div className="plan-card-held" role="status">
+          <PauseCircle size={20} aria-hidden="true" />
+          <div>
+            <strong>Card payments for memberships are paused while the studio is read only.</strong>
+            <p>
+              No client's card is tried until the SALEANE bill is paid. A month that falls due
+              meanwhile is not taken from the card, so take it at the desk once the bill is paid.
+            </p>
+          </div>
+        </div>
       )}
       {reply.held && (
         <div className="plan-card-held" role="status">

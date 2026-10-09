@@ -80,6 +80,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   ctx.plans.summary = billing.summary
   ctx.plans.allowance = billing.allowance
   ctx.plans.locked = billing.locked
+  ctx.plans.readOnly = billing.readOnly
   const memberships = createMembershipCharges(ctx, payments, () => {
     if (options.outboxIntervalMs) outbox.soon()
   })

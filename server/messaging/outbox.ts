@@ -255,6 +255,8 @@ export function createOutbox(ctx: Context, providers: Providers) {
       if (isPlanCardKind(fresh.kind)) {
         // Stage 1: about a membership's card payment. Checked again now: still running, still
         // unpaid, still due to be taken (for a reminder), and the client still reachable this way.
+        if (fresh.kind === 'plan_reminder' && ctx.plans.readOnly(org.id))
+          return skip('The studio is read only, so no membership payment will be taken.')
         const { holdingId, periodStart } = readPlanCardSlot(fresh.slot)
         const text = planCardMessage(
           org.state,

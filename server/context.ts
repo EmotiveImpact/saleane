@@ -409,10 +409,13 @@ export function createContext(options: ApiOptions) {
     allowance: (org: Org) => Allowance
     /** A locked studio takes no online bookings and answers no access key. */
     locked: (orgId: string) => boolean
+    /** A read-only studio takes no membership payments from its clients' cards. */
+    readOnly: (orgId: string) => boolean
   } = {
     begin: () => {},
     summary: () => null,
     locked: () => false,
+    readOnly: () => false,
     allowance: (org) => allowanceFor({ locations: places(org.state).length, plus: false }),
   }
   const withHolds = (org: Org, excludeHash = '') => {

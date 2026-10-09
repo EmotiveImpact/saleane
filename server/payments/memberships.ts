@@ -239,6 +239,10 @@ export function createMembershipCharges(
           })
         return null
       }
+      // A studio that is read only until its SALEANE bill is paid cannot change or refund a
+      // membership, so its clients' cards are not tried meanwhile.
+      if (ctx.plans.readOnly(org.id))
+        return stop('The studio was read only until its SALEANE bill was paid.')
       const holding = holdings(org.state).find((h) => h.id === holdingId)
       const agreement = holding && openCardAgreement(holding)
       const problem = cardChargeProblem(
@@ -362,7 +366,9 @@ export function createMembershipCharges(
     })
   const reminded = (organisationId: string, holdingId: string, periodStart: string) =>
     !!db.get(
-      "SELECT id FROM outbox WHERE organisation_id=? AND kind='plan_reminder' AND slot=?",
+      // A reminder the outbox stopped (the studio went read only, the client lost their address)
+      // or the provider refused never reached the client, so it does not count.
+      "SELECT id FROM outbox WHERE organisation_id=? AND kind='plan_reminder' AND slot=? AND status NOT IN ('skipped','failed')",
       organisationId,
       planCardSlot(holdingId, periodStart),
     )
@@ -614,7 +620,9 @@ export function createMembershipCharges(
     )
     let added = 0
     for (const { id } of orgs) {
-      if (membershipCardsHeld(ctx, id)) continue
+      // Held after a restore, or read only until the studio's SALEANE bill is paid: no reminder
+      // and no payment. A month due meanwhile was never reminded about, so it is never taken.
+      if (membershipCardsHeld(ctx, id) || ctx.plans.readOnly(id)) continue
       const org = ctx.systemOrg(id)
       if (!org) continue
       const at = iso()

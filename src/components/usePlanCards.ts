@@ -37,6 +37,8 @@ export type PlanCardsReply = {
   provider: { name: string; live: boolean }
   available: boolean
   held: boolean
+  /** The studio is read only until its SALEANE bill is paid, so no card is tried meanwhile. */
+  paused?: boolean
   cards: SavedCard[]
   charges: PlanCharge[]
 }

@@ -393,6 +393,35 @@ test('shows the desk this month’s card payments without the owner’s controls
   expect(screen.queryByRole('button', { name: 'Turn card payments back on' })).toBeNull()
 })
 
+test('says card payments are paused while the studio is read only for its SALEANE bill', async () => {
+  const sold = studio(true)
+  const state = apply(
+    sold,
+    {
+      type: 'plan-renew',
+      holdingId: holdings(sold)[0].id,
+      method: 'card',
+      reference: 'pi_1',
+      processor: { provider: 'test', live: false },
+      periodStart: '2026-11-06',
+    },
+    '2026-11-06T09:00:00.000Z',
+  )
+  vi.mocked(api).mockImplementation(async () => reply(state, { paused: true, cards: [] }) as never)
+  use(state, 'owner')
+  vi.setSystemTime(new Date('2026-12-01T10:00:00.000Z'))
+  render(<PlansLedger />)
+  expect(
+    await screen.findByText(
+      'Card payments for memberships are paused while the studio is read only.',
+    ),
+  ).toBeInTheDocument()
+  expect(screen.getByText('Paused')).toBeInTheDocument()
+  expect(screen.queryByText('Upcoming')).toBeNull()
+  // There is nothing to turn back on: paying the SALEANE bill opens the studio again.
+  expect(screen.queryByRole('button', { name: 'Turn card payments back on' })).toBeNull()
+})
+
 test('offers the saved card when selling a membership, then shows the words to agree', async () => {
   const user = userEvent.setup()
   const state = studio(false)
