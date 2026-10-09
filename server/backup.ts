@@ -143,6 +143,29 @@ function snapshot(source: string, destination: string, restore: boolean) {
                 time,
               ).changes,
           ),
+          // Stage 1: a membership's card may have been charged since the backup, and the restored
+          // record would not know, so card payments wait until the team checks the provider and
+          // turns them back on. A payment that was still waiting is kept as unclear.
+          membershipCardPaymentsHeld: Number(
+            recovered
+              .prepare(
+                `INSERT OR IGNORE INTO membership_card_holds(organisation_id,held_at)
+                 SELECT o.id,? FROM organisations o WHERE EXISTS (
+                   SELECT 1 FROM json_each(o.state,'$.holdings') h, json_each(h.value,'$.cardAgreements') a
+                   WHERE json_extract(a.value,'$.endedAt') IS NULL)`,
+              )
+              .run(time).changes,
+          ),
+          membershipPaymentsHeld: Number(
+            recovered
+              .prepare(
+                "UPDATE membership_charges SET status='unknown',detail=?,updated_at=? WHERE status IN ('started','processing')",
+              )
+              .run(
+                'Held when the studio was restored from a backup. It may have gone through, so check again.',
+                time,
+              ).changes,
+          ),
         }
         recovered
           .prepare(

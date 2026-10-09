@@ -326,6 +326,17 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
           reason: r.reason,
           recordedAt: r.createdAt,
         })),
+        // Stage 1: what the client agreed to about paying from a saved card, and when it stopped.
+        ...(h.cardAgreements?.length
+          ? {
+              cardPayments: h.cardAgreements.map((a) => ({
+                card: `${a.brand} ending ${a.last4}`,
+                agreed: a.wording,
+                agreedAt: a.agreedAt,
+                ...(a.endedAt ? { stoppedAt: a.endedAt } : {}),
+              })),
+            }
+          : {}),
       })),
     // V1.5: gift cards and vouchers this client bought, and what each has paid for since.
     giftCards: (state.giftCards ?? [])

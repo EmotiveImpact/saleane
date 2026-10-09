@@ -29,6 +29,7 @@ import { socialWindowEnds } from '../../src/domain/inbox'
 import { isSocialChannel } from '../../src/domain/inboxSchema'
 import { answersSocial, answersTexts, visitSummary } from '../../src/assistant/receptionist'
 import { visitStart } from '../../src/domain/guest'
+import { isPlanCardKind, planCardMessage, readPlanCardSlot } from '../../src/domain/planCards'
 import type { Context } from '../context'
 import { issueGuestLink } from '../routes/guest'
 import { providerFor } from './providers'
@@ -246,6 +247,23 @@ export function createOutbox(ctx: Context, providers: Providers) {
         return skip('This message cannot go on a social app.')
       if (!org || !client) return skip('The visit is no longer in the studio record.')
       if (operations(org.state).mode !== 'local') return skip('Sample studios never send.')
+      if (isPlanCardKind(fresh.kind)) {
+        // Stage 1: about a membership's card payment. Checked again now: still running, still
+        // unpaid, still due to be taken (for a reminder), and the client still reachable this way.
+        const { holdingId, periodStart } = readPlanCardSlot(fresh.slot)
+        const text = planCardMessage(
+          org.state,
+          fresh.kind,
+          holdingId,
+          periodStart,
+          fresh.channel,
+          new Date(now()).toISOString(),
+        )
+        if (!text) return skip('Paid, ended or changed before it went out.')
+        const to = fresh.channel === 'email' ? client.email.trim() : textNumber(client.phone)
+        if (!to) return skip('The client has no address for this channel now.')
+        return send(fresh, org, to, text.subject, text.body, text.body)
+      }
       if (fresh.kind === 'message') {
         // V1.5: written in the inbox. Checked again now: still queued, still agreed, still reachable.
         const message = operations(org.state).messages.find((m) => messageSlot(m.id) === fresh.slot)
