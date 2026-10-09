@@ -366,9 +366,10 @@ export function createMembershipCharges(
     })
   const reminded = (organisationId: string, holdingId: string, periodStart: string) =>
     !!db.get(
-      // A reminder the outbox stopped (the studio went read only, the client lost their address)
-      // or the provider refused never reached the client, so it does not count.
-      "SELECT id FROM outbox WHERE organisation_id=? AND kind='plan_reminder' AND slot=? AND status NOT IN ('skipped','failed')",
+      // Only a reminder that went out counts: accepted or delivered by the email or text service, or
+      // written down in test mode. One still waiting, stopped by the outbox (the studio went read
+      // only, the client lost their address), refused or unclear never surely reached the client.
+      "SELECT id FROM outbox WHERE organisation_id=? AND kind='plan_reminder' AND slot=? AND status IN ('test','accepted','delivered')",
       organisationId,
       planCardSlot(holdingId, periodStart),
     )

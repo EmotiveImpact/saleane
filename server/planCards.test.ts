@@ -213,9 +213,10 @@ const at = async (when: string) => {
   move(when)
   await api.memberships.tick()
 }
-/** The reminder three days before, then the due date at 09:00. */
+/** The reminder three days before, written down by the outbox in test mode, then the due date. */
 const due = async (month: string) => {
   await at(`${month}-03T10:00:00.000Z`)
+  await api.outbox.tick()
   await at(`${month}-06T09:00:00.000Z`)
 }
 const rows = () =>
@@ -462,6 +463,7 @@ describe('memberships paid from a saved card (Stage 1)', () => {
     expect(view.charges[0]).toMatchObject({ status: 'failed', nextTryAt: null })
     // November stays unpaid, and December is still reminded about before it is taken.
     await at('2026-12-03T10:00:00.000Z')
+    await api.outbox.tick()
     expect(
       outbox()
         .filter((r) => r.kind === 'plan_reminder')
@@ -474,6 +476,27 @@ describe('memberships paid from a saved card (Stage 1)', () => {
       method: 'card',
       periodStart: '2026-12-06',
     })
+  })
+
+  it('takes a month only once its reminder went out, never while it is still waiting', async () => {
+    const { owner, holdingId, cardId } = await studioWithMember()
+    expect((await setUp(owner, holdingId, cardId)).statusCode).toBe(200)
+    // Queued, but the outbox had not written it down or sent it by the due date.
+    await at('2026-11-03T10:00:00.000Z')
+    expect(outbox().map((r) => r.status)).toEqual(['pending', 'pending'])
+    await at('2026-11-06T09:00:00.000Z')
+    expect(calls).toEqual([])
+    expect(rows()[0].detail).toContain('Not taken: no reminder went out three days before')
+    // December: the email was refused, but the text went (written down in test mode), so it is taken.
+    await at('2026-12-03T10:00:00.000Z')
+    await api.outbox.tick()
+    api.database.run(
+      "UPDATE outbox SET status='failed' WHERE slot=? AND channel='email'",
+      `${holdingId}:2026-12-06`,
+    )
+    await at('2026-12-06T09:00:00.000Z')
+    expect(calls).toHaveLength(1)
+    expect(rows().at(-1)).toMatchObject({ period_start: '2026-12-06', status: 'succeeded' })
   })
 
   it('turns card payments off on request, recorded, and never charges an ended plan', async () => {
@@ -859,6 +882,7 @@ describe('memberships paid from a saved card (Stage 1)', () => {
     const { owner, holdingId, cardId } = await studioWithMember()
     expect((await setUp(owner, holdingId, cardId)).statusCode).toBe(200)
     await at('2026-11-03T10:00:00.000Z')
+    await api.outbox.tick()
     // The server stops while the provider is still answering.
     let release!: () => void
     charges = []
