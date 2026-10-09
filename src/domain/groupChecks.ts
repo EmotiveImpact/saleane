@@ -1,6 +1,6 @@
 import type { BusinessState } from './model'
 import { addDays, dateLabel, money } from './format'
-import { operations } from './operations'
+import { businessDate, operations } from './operations'
 import { places } from './locations'
 import { takings, wholeBusiness } from './group'
 import { checklists, lastVisits } from './branchVisits'
@@ -60,8 +60,10 @@ export function groupAlerts(
       const now = takings(s, p.id, from, today).minor
       const before = takings(s, p.id, addDays(from, -7), addDays(from, -1)).minor
       if (before <= 0) continue
-      const drop = Math.round((1 - now / before) * 100)
-      if (drop >= set.takingsDropPct)
+      // The exact share is compared with the setting; only the figure shown is rounded.
+      const share = 1 - now / before
+      const drop = Math.round(share * 100)
+      if (share * 100 >= set.takingsDropPct)
         alerts.push({
           id: `takings-drop-${p.id}-${today}`,
           kind: 'takings-drop',
@@ -78,8 +80,7 @@ export function groupAlerts(
     for (const p of view.places) {
       const target = p.month.targetMinor
       if (!target) continue
-      const short = Math.round((1 - p.month.forecastMinor / target) * 100)
-      if (short >= set.targetShortPct)
+      if ((1 - p.month.forecastMinor / target) * 100 >= set.targetShortPct)
         alerts.push({
           id: `target-short-${p.locationId}-${view.month}`,
           kind: 'target-short',
@@ -110,7 +111,8 @@ export function groupAlerts(
   if (set.requestWaitDays !== null) {
     for (const r of requests(s)) {
       if (r.decision || (only && !only.has(r.locationId))) continue
-      const waited = between(r.raisedAt.slice(0, 10), today)
+      // Counted in the studio's own days, as `today` is.
+      const waited = between(businessDate(s, r.raisedAt), today)
       if (waited < set.requestWaitDays) continue
       alerts.push({
         id: `request-waiting-${r.id}`,

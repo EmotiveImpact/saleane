@@ -83,6 +83,11 @@ describe('automatic checks', () => {
     visit(islington, '2026-10-09', 10000)
     visit(leeds, '2026-10-17', 7000)
     visit(leeds, '2026-10-10', 10000)
+    // A fall just under the setting is not rounded up into it: 19.5% stays under 20%.
+    const nearly = business()
+    nearly.visit(nearly.main, '2026-10-15', 8050)
+    nearly.visit(nearly.main, '2026-10-08', 10000)
+    expect(groupAlerts(nearly.s, today).some((a) => a.kind === 'takings-drop')).toBe(false)
     const alerts = groupAlerts(s, today).filter((a) => a.kind === 'takings-drop')
     // The default is 20%: Leeds (down 30%) is named, Islington (down 19%) is not.
     expect(alerts.map((a) => a.locationId)).toEqual([leeds])
@@ -183,6 +188,22 @@ describe('automatic checks', () => {
     expect(groupAlerts(s, '2026-10-17').some((a) => a.kind === 'request-waiting')).toBe(false)
     const area = areaView(s, north, today)
     expect(area.alerts.map((a) => a.locationId)).toEqual([leeds])
+    // With no checklist in use, the regional summary names no branch visit as due either.
+    expect(area.summary.some((line) => line.startsWith('Due a branch visit'))).toBe(false)
+    // The day a request was raised is the studio's own day: 23:30 UTC is 00:30 the next day in London.
+    const late = execute(
+      s,
+      {
+        type: 'request-raise',
+        input: { locationId: leeds, kind: 'spend', title: 'Late basin', amountMinor: 20000 },
+        managedRegions: [],
+      },
+      '2026-10-16T23:30:00.000Z',
+      () => `grp-${++sequence}`,
+    )
+    if (!late.ok) throw new Error(late.error)
+    const lateAlert = groupAlerts(late.state, today).find((a) => a.detail.includes('Late basin'))!
+    expect(lateAlert.title).toMatch(/has waited 3 days$/)
   })
 
   it('only lets the owner change the checks, within sensible numbers', () => {

@@ -156,8 +156,9 @@ export function areaView(s: BusinessState, regionId: string, today: string): Are
   const open = visits.flatMap((v) => v.answers.filter((a) => a.answer === 'no' && !a.fixed)).length
   // A location not visited for as long as the owner's check allows is named in the summary.
   const dueDays = groupCheckSettings(s).visitDueDays
+  // Only once there is a checklist in use, the same as the automatic checks.
   const due =
-    dueDays === null
+    dueDays === null || !checklists(s).some((c) => !c.archived)
       ? []
       : list.filter((p) => {
           const last = lastVisit(p.id)
