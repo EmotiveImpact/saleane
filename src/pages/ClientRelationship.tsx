@@ -115,6 +115,10 @@ export function ClientRelationship() {
     (a) => a.clientId === client.id && a.status !== 'cancelled' && a.status !== 'no_show',
   )
   const firstVisit = kept.map((a) => a.date).sort()[0]
+  // As in the client list, someone in the studio today, or seen already, was last here today.
+  const seenToday = kept.some(
+    (a) => a.date === today && (a.status === 'arrived' || a.status === 'completed'),
+  )
   const completedDates = kept.filter((a) => a.status === 'completed').map((a) => a.date)
   const rhythm = usualWeeks(completedDates)
   const monthYear = new Intl.DateTimeFormat(state.organisation.locale, {
@@ -261,9 +265,11 @@ export function ClientRelationship() {
           <div>
             <dt>Last visit</dt>
             <dd>
-              {stats.last
-                ? dateLabel(stats.last.date, state.organisation.locale, true).split(',').pop()
-                : 'Not yet'}
+              {seenToday
+                ? 'Today'
+                : stats.last
+                  ? dateLabel(stats.last.date, state.organisation.locale, true).split(',').pop()
+                  : 'Not yet'}
             </dd>
           </div>
           <div>

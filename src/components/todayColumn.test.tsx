@@ -81,7 +81,7 @@ describe('Today’s side column', { timeout: 20000 }, () => {
     show()
     const noticed = screen.getByRole('region', { name: 'A fuller day than usual.' })
     expect(noticed).toHaveTextContent(
-      'Today has 12 visits, about 13 hours of treatment. A usual Tuesday has about 2 hours.',
+      'Today has 12 visits, about 13 hours of treatment. A usual Tuesday has about an hour and a half.',
     )
     expect(noticed).not.toHaveTextContent(/\d\.5 hours|familiar face/)
     // Clients drifting away: the first two, with the rest a tap away.

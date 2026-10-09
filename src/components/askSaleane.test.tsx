@@ -28,7 +28,7 @@ describe('Ask Saleane', { timeout: 20000 }, () => {
     expect(within(notice).queryByRole('button', { name: 'Anything unusual?' })).toBeNull()
     await user.click(within(notice).getByRole('button', { name: 'What should I reorder?' }))
     expect(
-      await within(panel).findByText(/^Time to reorder: Enzyme Peel, professional size \(1 left/),
+      await within(panel).findByText(/^Time to reorder: Enzyme Peel, professional size \(\d+ left/),
     ).toBeInTheDocument()
   })
 

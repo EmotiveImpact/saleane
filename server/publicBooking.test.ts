@@ -153,6 +153,16 @@ async function realStudio(feePercent = 0) {
   })
   if (feePercent)
     await run(owner, { type: 'protection', settings: { saveCard: false, feePercent } })
+  // A new studio takes online bookings only once the owner switches them on.
+  const { name, locationName, address, timeZone } = (await studio(owner)).state.organisation
+  await run(owner, {
+    type: 'organisation',
+    name,
+    locationName,
+    address,
+    timeZone,
+    bookingEnabled: true,
+  })
   return { owner, serviceId, staffId, slug: (await studio(owner)).slug }
 }
 

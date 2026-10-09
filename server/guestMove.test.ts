@@ -501,7 +501,16 @@ describe('guests moving their own visit', () => {
     const offer = (await times(token)).json<MoveTimes>()
     expect(offer.days.at(-1)!.date).toBe('2026-10-24')
     refused(await move(token, { date: '2026-10-30', startMinutes: 660 }), 409, /open days shown/)
-    expect((await move(token, { date: '2026-10-24', startMinutes: 660 })).statusCode).toBe(200)
+    // The last day offered still takes a move, at a time the page shows as free that day.
+    const [free] = (await times(token, { date: '2026-10-24', anyone: true })).json<MoveTimes>()
+      .times
+    expect(free).toBeDefined()
+    const moved = await move(token, {
+      date: '2026-10-24',
+      startMinutes: free.startMinutes,
+      staffId: free.staffId,
+    })
+    expect(moved.statusCode, moved.body).toBe(200)
   })
 
   it('keeps the guest link open for a visit the desk moves later', async () => {
@@ -555,6 +564,16 @@ describe('guests moving their own visit', () => {
     const staffId = await send({
       type: 'staff',
       input: { name: 'Maya Lind', role: 'Facialist', serviceIds: [serviceId], tone: 'sage' },
+    })
+    // A new studio takes online bookings only once the owner switches them on.
+    const { name, locationName, address, timeZone } = (await studio(owner)).state.organisation
+    await send({
+      type: 'organisation',
+      name,
+      locationName,
+      address,
+      timeZone,
+      bookingEnabled: true,
     })
     const { slug } = await studio(owner)
     const { token } = await book(slug, 600, '2026-10-08', staffId, serviceId)

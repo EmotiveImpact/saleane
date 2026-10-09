@@ -90,6 +90,16 @@ async function booked() {
     type: 'staff',
     input: { name: 'Maya Lind', role: 'Facialist', serviceIds: [serviceId], tone: 'sage' },
   })
+  // A new studio takes online bookings only once the owner switches them on.
+  const { name, locationName, address, timeZone } = (await workspace(owner)).state.organisation
+  await run(owner, {
+    type: 'organisation',
+    name,
+    locationName,
+    address,
+    timeZone,
+    bookingEnabled: true,
+  })
   const { slug } = await workspace(owner)
   const held = await api.inject({
     method: 'POST',

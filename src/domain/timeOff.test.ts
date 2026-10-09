@@ -56,7 +56,8 @@ describe('time off', () => {
   it('stops a person being booked while they are away', () => {
     const s = apply(local(), away('staff-maya', '2026-10-12', '2026-10-16'))
     expect(staffHoursFor(s, 'staff-maya', '2026-10-12').closed).toBe(true)
-    expect(staffHoursFor(s, 'staff-maya', '2026-10-17').closed).toBe(false)
+    // Back at work on the Monday after; Maya does not work weekends.
+    expect(staffHoursFor(s, 'staff-maya', '2026-10-19').closed).toBe(false)
     expect(availableMinutes(s, '2026-10-12')).toBeLessThan(availableMinutes(local(), '2026-10-12'))
     expect(run(s, away('staff-maya', '2026-10-16', '2026-10-20')).ok).toBe(false)
     // Booking Maya on a day away is refused.

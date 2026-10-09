@@ -4,6 +4,11 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { StoreProvider } from '../state/StoreProvider'
 import { App } from '../App'
+import { seed } from '../domain/seed'
+import { stock } from '../domain/operations'
+
+/** How many of a sample product the shelf holds before any test changes it. */
+const onShelf = (id: string) => stock(seed('UK'), `product-${id}`)
 
 function show() {
   render(
@@ -31,14 +36,14 @@ describe('the shelf', { timeout: 20000 }, () => {
     ).toEqual(['Delivery', 'Used', 'Count', 'Edit'])
     const row = balm.parentElement!
     expect(within(row).getByText('For sale')).toBeInTheDocument()
-    expect(within(row).getByLabelText('10 in stock')).toBeInTheDocument()
+    expect(within(row).getByLabelText(`${onShelf('cleansing-balm')} in stock`)).toBeInTheDocument()
 
     const peel = screen.getByRole('group', {
       name: 'Stock and details for Enzyme Peel, professional size',
     }).parentElement!
     expect(within(peel).getByText('Used in treatments')).toBeInTheDocument()
     expect(within(peel).getByText('Running low')).toBeInTheDocument()
-    expect(within(peel).getByLabelText('1 in stock')).toBeInTheDocument()
+    expect(within(peel).getByLabelText(`${onShelf('enzyme-peel')} in stock`)).toBeInTheDocument()
   })
 
   it('records a delivery from a product’s actions', async () => {
@@ -54,6 +59,8 @@ describe('the shelf', { timeout: 20000 }, () => {
     await user.type(within(dialog).getByLabelText('How many arrived'), '5')
     await user.click(within(dialog).getByRole('button', { name: 'Save' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(within(balm.parentElement!).getByLabelText('15 in stock')).toBeInTheDocument()
+    expect(
+      within(balm.parentElement!).getByLabelText(`${onShelf('cleansing-balm') + 5} in stock`),
+    ).toBeInTheDocument()
   })
 })

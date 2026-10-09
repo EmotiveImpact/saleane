@@ -18,6 +18,7 @@ import { firstName, nextUp, previousWithYou, untilLabel, venueMinutes } from '..
 import { PRACTITIONER_AVERAGE_MIN } from '../domain/feedback'
 import { venueDate } from '../domain/tillCount'
 import { Avatar, Button, Empty, ErrorMessage, PageHeader, Status } from '../design'
+import { SignOut } from '../components/SignOut'
 import '../practitioner.css'
 
 /** Matches the single-column breakpoint in practitioner.css. */
@@ -179,11 +180,20 @@ export function PractitionerDay() {
   const locale = organisation.locale
   const isToday = date === record.today
   const visits = record.appointments.filter((a) => a.date === date)
-  const visit = visits.find((a) => a.id === selected) ?? visits[0]
-  const client = visit && record.clients.find((c) => c.id === visit.clientId)
   const minutes = venueMinutes(organisation.timeZone, now)
   const next = isToday ? nextUp(visits, minutes) : undefined
   const nextClient = next && record.clients.find((c) => c.id === next.clientId)
+  // Until a visit is chosen, the brief shows the next one still to come: never a cancelled or
+  // finished visit, and nothing on a day that has passed.
+  const upcoming = isToday
+    ? next
+    : date > record.today
+      ? visits
+          .filter((a) => a.status === 'confirmed' || a.status === 'arrived')
+          .sort((a, b) => a.startMinutes - b.startMinutes)[0]
+      : undefined
+  const visit = visits.find((a) => a.id === selected) ?? upcoming
+  const client = visit && record.clients.find((c) => c.id === visit.clientId)
   const earlier = visit && client ? previousWithYou(record, visit, client) : null
   const clearLabel = (instant: string) =>
     `${dateLabel(venueDate(organisation.timeZone, instant), locale, true)}, ${timeLabel(
@@ -226,6 +236,7 @@ export function PractitionerDay() {
             {staff.name} · {organisation.locationName}
           </small>
         </span>
+        <SignOut onError={setError} />
       </header>
       <main id="main-content" className="practitioner-main" data-open={open ? 'visit' : 'day'}>
         <div className="practitioner-day-heading">

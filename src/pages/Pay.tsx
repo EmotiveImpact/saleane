@@ -164,6 +164,16 @@ export function Pay() {
           {rows.map((row) => {
             const rate = rateFor(state, row.staff.id, to)
             const expanded = open === row.staff.id
+            // Visits while renting earn no commission, but they still happened.
+            const renting = state.appointments.filter(
+              (a) =>
+                a.staffId === row.staff.id &&
+                a.status === 'completed' &&
+                a.date >= from &&
+                a.date <= to &&
+                rentalOn(state, a.staffId, a.date),
+            ).length
+            const visits = (n: number) => `${n} ${n === 1 ? 'visit' : 'visits'}`
             return (
               <div className="pay-person" key={row.staff.id}>
                 <div className="ops-record pay-record">
@@ -176,7 +186,12 @@ export function Pay() {
                   <div className="ops-record-copy">
                     <strong>{row.staff.name}</strong>
                     <small>
-                      {row.visits} {row.visits === 1 ? 'visit' : 'visits'} ·{' '}
+                      {!renting
+                        ? visits(row.visits)
+                        : row.visits
+                          ? `${visits(row.visits)} on commission, ${renting} while renting`
+                          : `${visits(renting)} while renting`}{' '}
+                      ·{' '}
                       {rentalOn(state, row.staff.id, to)
                         ? 'Rents a chair or room, keeps own takings'
                         : rate

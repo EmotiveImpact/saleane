@@ -9,13 +9,14 @@ import { seed } from '../domain/seed'
 import { DEMO_DATE } from '../domain/model'
 import { execute } from '../domain/commands'
 import { practitionerView } from '../domain/practitioner'
-import { dateLabel } from '../domain/format'
+import { addDays, dateLabel } from '../domain/format'
 
 vi.mock('../state/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../state/api')>()),
   api: vi.fn(),
 }))
 const openWorkspace = vi.fn()
+const logout = vi.fn()
 const session = {
   user: { id: 'account-maya', name: 'Maya Lewis', email: 'maya@example.invalid' },
 }
@@ -24,6 +25,7 @@ vi.mock('../state/context', () => ({
     session,
     refreshSession: async () => session,
     openWorkspace,
+    logout,
     connection: 'online',
     syncDaySheet: async () => {},
   }),
@@ -47,6 +49,7 @@ function view() {
       <Routes>
         <Route path="/practice/:orgId" element={<PractitionerDay />} />
         <Route path="/today" element={<p>Studio workspace</p>} />
+        <Route path="/account" element={<p>Sign in to SALEANE</p>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -195,4 +198,78 @@ test('pocket view: moves between days with buttons and a today shortcut', async 
   await user.click(screen.getByRole('button', { name: 'Today' }))
   expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Your day, Maya.')
   expect(screen.getByRole('button', { name: 'Today' })).toBeDisabled()
+})
+
+test('on another day the brief opens the next visit to come, never a cancelled one', async () => {
+  const at = `${DEMO_DATE}T08:00:00.000Z`
+  const tomorrow = addDays(DEMO_DATE, 1)
+  let state = studio
+  const book = (clientId: string, startMinutes: number) => {
+    const result = execute(
+      state,
+      {
+        type: 'book',
+        input: {
+          serviceId: 'service-facial',
+          staffId: 'staff-maya',
+          date: tomorrow,
+          startMinutes,
+          clientId,
+          source: 'desk',
+        },
+      },
+      at,
+    )
+    if (!result.ok) throw new Error(result.error)
+    state = result.state
+    return result.recordId
+  }
+  const early = book('client-14', 600)
+  book('client-15', 720)
+  const cancelled = execute(state, { type: 'cancel', appointmentId: early, reason: 'Unwell' }, at)
+  if (!cancelled.ok) throw new Error(cancelled.error)
+  vi.mocked(api).mockResolvedValue(record(cancelled.state) as never)
+  const user = userEvent.setup()
+  view()
+  await screen.findByRole('list', { name: 'Assigned to you' })
+  await user.click(screen.getByRole('button', { name: 'Next day' }))
+  const [gone, next] = ['client-14', 'client-15'].map(
+    (id) => studio.clients.find((c) => c.id === id)!.name,
+  )
+  expect(screen.getByRole('button', { name: new RegExp(gone) })).toHaveTextContent('Cancelled')
+  expect(screen.getByRole('region', { name: next })).toBeInTheDocument()
+  expect(screen.queryByRole('region', { name: gone })).not.toBeInTheDocument()
+  // A day that has passed opens no brief until a visit is chosen: back to Maya's latest one.
+  await user.click(screen.getByRole('button', { name: 'Today' }))
+  await user.click(screen.getByRole('button', { name: 'Previous day' }))
+  for (let back = 1; back < 14 && !screen.queryByRole('list', { name: 'Assigned to you' }); back++)
+    await user.click(screen.getByRole('button', { name: 'Previous day' }))
+  const past = screen.getByRole('list', { name: 'Assigned to you' })
+  expect(within(past).getAllByRole('listitem').length).toBeGreaterThan(0)
+  expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
+    'Assigned to you',
+  ])
+})
+
+test('signs out from the day as from the account page', async () => {
+  logout.mockResolvedValue(undefined)
+  vi.mocked(api).mockResolvedValue(record() as never)
+  const user = userEvent.setup()
+  view()
+  await user.click(await screen.findByRole('button', { name: 'Sign out' }))
+  await screen.findByText('Sign in to SALEANE')
+  expect(logout).toHaveBeenCalledTimes(1)
+})
+
+test('keeps the day open and says so when sign out cannot be confirmed', async () => {
+  logout.mockRejectedValue(new ApiError('The local server could not confirm this request.', 0))
+  vi.mocked(api).mockResolvedValue(record() as never)
+  const user = userEvent.setup()
+  view()
+  await user.click(await screen.findByRole('button', { name: 'Sign out' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'The local server could not confirm this request.',
+  )
+  expect(screen.getByRole('list', { name: 'Assigned to you' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Sign out' })).toBeEnabled()
 })

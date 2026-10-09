@@ -1,0 +1,118 @@
+/* "Get your studio ready" at the top of Today. Done steps read from their tick and their words. */
+.get-ready {
+  margin: 0 0 28px;
+  padding: 24px 24px 12px;
+}
+.get-ready-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.get-ready-head .eyebrow {
+  margin-bottom: 8px;
+}
+.get-ready-head p:not(.eyebrow) {
+  max-width: 620px;
+  margin-top: 6px;
+  color: var(--muted);
+}
+.get-ready-hide {
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 8px 14px;
+  color: var(--muted);
+}
+.get-ready-progress {
+  height: 4px;
+  margin: 20px 0 4px;
+  border-radius: var(--radius-pill);
+  background: var(--stone);
+  overflow: hidden;
+}
+.get-ready-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand);
+}
+.get-ready-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  column-gap: 32px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.get-ready-step {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  column-gap: 14px;
+  align-content: start;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+.get-ready-mark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line2);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--muted);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-strong);
+}
+.get-ready-step.is-done .get-ready-mark {
+  border-color: var(--brand-mid);
+  background: var(--brand-soft);
+  color: var(--brand-ink);
+}
+.get-ready-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: 4px;
+}
+.get-ready-text strong {
+  font-weight: var(--weight-strong);
+}
+.get-ready-text small,
+.get-ready-owner {
+  color: var(--muted);
+}
+.get-ready-step.is-done .get-ready-text strong {
+  color: var(--muted);
+  font-weight: var(--weight-nav);
+}
+.get-ready-actions {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-top: 12px;
+}
+.get-ready-actions .button {
+  min-height: 40px;
+  padding: 8px 16px;
+}
+@media (max-width: 560px) {
+  .get-ready {
+    padding: 20px 16px 8px;
+  }
+  .get-ready-hide {
+    width: 40px;
+    padding: 0;
+  }
+  .get-ready-hide-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+}

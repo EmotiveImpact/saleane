@@ -414,9 +414,15 @@ export function businessDate(s: BusinessState, now = new Date().toISOString()) {
   const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)!.value
   return `${part('year')}-${part('month')}-${part('day')}`
 }
-/** Minutes past midnight on the studio's own clock, for the calendar's "now" line. */
-export function businessMinutes(s: BusinessState, now = new Date().toISOString()) {
-  const parts = localFormatter(s.organisation.timeZone).formatToParts(new Date(now))
+/** Where a sample studio's clock stands on its sample day: 10:45, so its diary agrees with it. */
+export const DEMO_MINUTES = 10 * 60 + 45
+/**
+ * Minutes past midnight on the studio's own clock, for the calendar's "now" line: now, or at the
+ * instant given. A sample studio's clock stands still at 10:45, as its date does.
+ */
+export function businessMinutes(s: BusinessState, now?: string) {
+  if (now === undefined && operations(s).mode === 'sandbox') return DEMO_MINUTES
+  const parts = localFormatter(s.organisation.timeZone).formatToParts(new Date(now ?? Date.now()))
   const n = (type: Intl.DateTimeFormatPartTypes) =>
     Number(parts.find((p) => p.type === type)!.value)
   return n('hour') * 60 + n('minute')

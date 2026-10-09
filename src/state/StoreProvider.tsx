@@ -13,6 +13,7 @@ import { daySheetSchema } from '../domain/daySheet'
 import { clearDaySheet, readDaySheet, storeDaySheet } from './daySheet'
 import type { SavedDaySheet } from './daySheet'
 import type { Store } from './context'
+import { rememberStudio, scopedHome, signedInHere, startingStudio } from './lastStudio'
 
 const OFFLINE_RETRY_MS = 15000
 const PAUSED = 'Offline. Changes are paused until SALEANE reconnects and checks your access.'
@@ -57,9 +58,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [remote, setRemote] = useState<RemoteWorkspace | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const sessionRef = useRef<Session | null>(null)
+  // A signed-in person stays in the fictional demo only when they chose it.
+  const [demoChosen, setDemoChosen] = useState(false)
+  // Someone signed in on this browser before, but the session could not be checked at start.
+  const [unsure, setUnsure] = useState(false)
   function adopt(next: Session | null) {
+    if (next?.user.id !== sessionRef.current?.user.id) setDemoChosen(false)
     sessionRef.current = next
     setSession(next)
+    setUnsure(false)
+    if (next) rememberStudio(next.user.id)
   }
   // OFF-01: the day sheet this tab holds, and whether the service can be reached.
   const [restored] = useState(() => {
@@ -107,12 +115,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }
   /** Refreshes after a load or save; a failure keeps the previous sheet until it expires. */
   const refreshSheet = (workspaceId: string) => void syncDaySheet(workspaceId).catch(() => {})
-  const [loading, setLoading] = useState(() => !!remembered('saleane.workspace'))
+  // A new tab with no studio chosen asks who is signed in before showing anything, once someone
+  // has signed in on this browser: they open their own studio, never the demo by accident.
+  const [checking] = useState(() => !remembered('saleane.workspace') && signedInHere())
+  const [loading, setLoading] = useState(() => !!remembered('saleane.workspace') || checking)
   const [saving, setSaving] = useState(false)
   const busy = useRef(false),
     generation = useRef(0),
     activeId = useRef<string | null>(null),
-    transitioning = useRef(!!remembered('saleane.workspace'))
+    transitioning = useRef(!!remembered('saleane.workspace') || checking)
   const [pendingJournal] = useState(readPendingKeys)
   const pendingKeys = useRef(pendingJournal.keys)
   function keepKey(fingerprint: string, key?: string) {
@@ -155,7 +166,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       activeId.current = id
       setRemote(next)
       setWorkspace({ state: next.state, warning: '', blocked: false })
+      setDemoChosen(false)
       remember('saleane.workspace', id)
+      if (sessionRef.current) rememberStudio(sessionRef.current.user.id, id)
       if (sheet === 'await') await syncDaySheet(id)
       else refreshSheet(id)
     } finally {
@@ -173,6 +186,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     transitioning.current = false
     setRemote(null)
     setLoading(false)
+    setDemoChosen(true)
+    setUnsure(false)
     remember('saleane.workspace')
     setWorkspace(loadBrowserWorkspace(region))
   }
@@ -224,11 +239,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Event listeners and timers call the latest functions without re-subscribing.
   const reconnectRef = useRef(reconnect),
     syncRef = useRef(syncDaySheet),
-    forgetRef = useRef(forgetSheet)
+    forgetRef = useRef(forgetSheet),
+    openRef = useRef(openWorkspace)
   useEffect(() => {
     reconnectRef.current = reconnect
     syncRef.current = syncDaySheet
     forgetRef.current = forgetSheet
+    openRef.current = openWorkspace
   })
   useEffect(() => {
     // Any unreachable request, or the browser reporting no network, pauses writes for a signed-in studio.
@@ -287,6 +304,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         activeId.current = id
         setRemote(next)
         setWorkspace({ state: next.state, warning: '', blocked: false })
+        rememberStudio(found.user.id, id)
         void syncRef.current(id).catch(() => {})
       } catch (error) {
         // An unreachable service shows the saved day sheet instead (see the reachability effect);
@@ -312,6 +330,56 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
     // restoredSheet is fixed for the life of this provider.
   }, [restoredSheet])
+  useEffect(() => {
+    if (!checking) return
+    const ticket = generation.current
+    let cancelled = false
+    const current = () => !cancelled && ticket === generation.current
+    const start = async () => {
+      // Opening a studio takes over the loading screen and its own late-response checks.
+      let opening = false
+      try {
+        const found = await api<Session>('/api/session')
+        if (!current()) return
+        adopt(found)
+        // A sheet restored in this tab must belong to the account now signed in.
+        if (restoredSheet && restoredSheet.accountId !== found.user.id)
+          forgetRef.current(scope.current)
+        // Practitioners and regional managers are sent to their own page (see `landing`).
+        const studio = startingStudio(found)
+        if (studio && !scopedHome(studio)) {
+          opening = true
+          await openRef.current(studio.id)
+        }
+      } catch (error) {
+        // A studio that could not be opened leaves the account page to choose from.
+        if (opening || !current()) return
+        if (error instanceof ApiError && (error.status === 401 || error.status === 404)) {
+          adopt(null)
+          setCsrf('')
+        } else setUnsure(true)
+      } finally {
+        if (!opening && current()) {
+          transitioning.current = false
+          setLoading(false)
+        }
+      }
+    }
+    void start()
+    return () => {
+      cancelled = true
+    }
+  }, [checking, restoredSheet])
+  /**
+   * Where a signed-in person belongs while this tab has no studio open: their own day or area, or
+   * the account page to choose a studio. Workspace pages send them there instead of the demo.
+   */
+  let landing: string | null = null
+  if (!loading && !remote && !demoChosen) {
+    const studio = session && startingStudio(session)
+    if (studio) landing = scopedHome(studio) ?? '/account'
+    else if (session || unsure) landing = '/account'
+  }
   return (
     <StoreContext.Provider
       value={{
@@ -324,6 +392,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         branch: remote?.locationId ?? null,
         slug: remote?.slug ?? '',
         session,
+        landing,
         loading,
         saving,
         refreshSession,
@@ -455,6 +524,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           generation.current++
           forgetSheet()
           connect('online')
+          setDemoChosen(true)
           activeId.current = null
           transitioning.current = false
           remember('saleane.region', next)

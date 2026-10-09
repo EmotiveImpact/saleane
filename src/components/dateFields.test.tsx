@@ -80,15 +80,18 @@ describe('dates and times written the studio’s way in staff forms', { timeout:
     const user = userEvent.setup()
     show('/settings?section=staff')
     await user.click(await screen.findByRole('button', { name: 'Edit Theo Bennett' }))
-    await user.click(screen.getByRole('checkbox', { name: 'Follows the venue opening hours' }))
-    const starts = screen.getByRole('combobox', { name: 'Monday starts' })
+    // Theo keeps his own week, Tuesday to Saturday, so his days show already.
+    expect(
+      screen.getByRole('checkbox', { name: 'Follows the venue opening hours' }),
+    ).not.toBeChecked()
+    const starts = screen.getByRole('combobox', { name: 'Tuesday starts' })
     expect(within(starts).getByRole('option', { name: '09:00' })).toHaveProperty('selected', true)
     await user.selectOptions(starts, '10:30')
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Monday finishes' }), '17:45')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Tuesday finishes' }), '17:45')
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     const theo = stored().staff.find((p: { id: string }) => p.id === 'staff-theo')
-    expect(theo.hours.find((d: { day: number }) => d.day === 1)).toMatchObject({
+    expect(theo.hours.find((d: { day: number }) => d.day === 2)).toMatchObject({
       open: 630,
       close: 1065,
     })

@@ -131,6 +131,16 @@ async function localStudio() {
     type: 'staff',
     input: { name: 'Maya Lind', role: 'Facialist', serviceIds: [serviceId], tone: 'sage' },
   })
+  // A new studio takes online bookings once the owner switches them on.
+  const { name, locationName, address, timeZone } = (await workspace(owner)).state.organisation
+  await run(owner, {
+    type: 'organisation',
+    name,
+    locationName,
+    address,
+    timeZone,
+    bookingEnabled: true,
+  })
   return { owner, serviceId, staffId, slug: (await workspace(owner)).slug }
 }
 async function book(

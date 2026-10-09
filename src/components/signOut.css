@@ -1,0 +1,28 @@
+/* Sign out, at the right of the practitioner and regional headers. */
+.sign-out {
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 8px 16px;
+}
+/* The studio's name and the sign out sit together on the right. */
+.practitioner-header > span:has(+ .sign-out) {
+  margin-left: auto;
+}
+@media (max-width: 560px) {
+  .practitioner-header:has(> .sign-out) {
+    gap: 12px;
+  }
+  .sign-out {
+    width: 40px;
+    padding: 0;
+  }
+  .sign-out-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+}

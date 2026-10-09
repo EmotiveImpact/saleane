@@ -115,6 +115,16 @@ async function studio(texts = true) {
       marketingConsent: false,
     },
   })
+  // The receptionist answers for a studio that takes online bookings, switched on by the owner.
+  const { name, locationName, address, timeZone } = (await workspace(login)).state.organisation
+  await run(login, {
+    type: 'organisation',
+    name,
+    locationName,
+    address,
+    timeZone,
+    bookingEnabled: true,
+  })
   await run(login, {
     type: 'receptionist',
     settings: { enabled: true, handOver: true, texts },

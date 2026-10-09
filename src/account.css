@@ -253,15 +253,6 @@
   border: 1px solid var(--line);
   border-radius: 50%;
 }
-.setup-prompt {
-  margin: 0 0 28px;
-  padding: 24px;
-}
-.setup-prompt p {
-  max-width: 680px;
-  color: var(--muted);
-  margin-bottom: 18px;
-}
 .access-list {
   margin: 20px 0;
 }

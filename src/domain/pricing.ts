@@ -19,18 +19,28 @@ export function priceLabel(region: PriceRegion) {
   }).format(price.monthlyMinor / 100)
 }
 
-/** Everything a studio gets for that price. Nothing here sits behind a higher tier. */
-export const INCLUDED = [
-  'Your own booking page, with Google and Instagram links',
-  'Calendar, rooms and chairs, opening hours and time away',
-  'Every client remembered: notes, visits, family and referrals',
-  'Booking confirmations and reminders by email and text',
-  'Deposits, saved cards, card readers and missed visit fees',
-  'Money, receipts, refunds and the end-of-day till count',
-  'Help moving across from your old system',
-  'Your whole team, with the right access for each role',
-  'Client data exports and privacy tools',
-] as const
+/**
+ * Everything a studio gets for that price. Nothing here sits behind a higher tier. A line with
+ * `connect` works once the studio connects its own card or text account, which SALEANE cannot do
+ * for it yet, so the page says so beside that line rather than claiming it works today.
+ */
+export const INCLUDED: readonly { text: string; connect?: 'card' | 'text' }[] = [
+  { text: 'Your own booking page, with Google and Instagram links' },
+  { text: 'Calendar, rooms and chairs, opening hours and time away' },
+  { text: 'Every client remembered: notes, visits, family and referrals' },
+  { text: 'Booking confirmations and reminders by email' },
+  { text: 'Reminders by text', connect: 'text' },
+  { text: 'Deposits and missed visit fees, kept with every visit' },
+  { text: 'Saved cards, card readers and deposits paid online', connect: 'card' },
+  { text: 'Money, receipts, refunds and the end-of-day till count' },
+  { text: 'Help moving across from your old system' },
+  { text: 'Your whole team, with the right access for each role' },
+  { text: 'Client data exports and privacy tools' },
+]
+export const CONNECT_NOTES = {
+  card: 'Arrives when you connect your card account',
+  text: 'Arrives when you connect your text account',
+} as const
 
 /** The promises the price page makes, each one something SALEANE's design already keeps. */
 export const PROMISES = [

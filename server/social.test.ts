@@ -125,6 +125,18 @@ async function connected(login: Login, channel: string, accountId: string) {
   const confirmed = await confirm(login, channel)
   expect(confirmed.statusCode, confirmed.body).toBe(200)
 }
+/** A new studio takes online bookings, and so its receptionist answers, once the owner switches them on. */
+async function bookingOn(login: Login) {
+  const { name, locationName, address, timeZone } = (await workspace(login)).state.organisation
+  await run(login, {
+    type: 'organisation',
+    name,
+    locationName,
+    address,
+    timeZone,
+    bookingEnabled: true,
+  })
+}
 let clientId: string
 async function studio() {
   const login = await register()
@@ -137,6 +149,7 @@ async function studio() {
       marketingConsent: false,
     },
   })
+  await bookingOn(login)
   await connected(login, 'instagram', '17841400000000001')
   await connected(login, 'whatsapp', '106540352242922')
   return login
@@ -283,6 +296,7 @@ describe('Instagram, Facebook and WhatsApp messages', () => {
 
   it('keeps a newly added account waiting until the owner confirms it is theirs', async () => {
     const login = await register()
+    await bookingOn(login)
     await run(login, {
       type: 'receptionist',
       settings: { enabled: true, handOver: true, social: true },

@@ -92,10 +92,23 @@ async function run(login: Login, command: Command) {
 const rows = () => api.database.all<OutboxRow>('SELECT * FROM outbox ORDER BY created_at')
 const textBack = (owner: Login) =>
   run(owner, { type: 'reminders', settings: { ...defaultReminderSettings, missedCall: true } })
+/** A new studio takes online bookings once the owner switches them on. */
+async function bookOnline(owner: Login) {
+  const { name, locationName, address, timeZone } = (await workspace(owner)).state.organisation
+  await run(owner, {
+    type: 'organisation',
+    name,
+    locationName,
+    address,
+    timeZone,
+    bookingEnabled: true,
+  })
+}
 
 describe('missed-call text-back', () => {
   it('texts a caller once with the booking link, and only when switched on', async () => {
     const owner = await register()
+    await bookOnline(owner)
     const { slug } = await workspace(owner)
     await run(owner, { type: 'missed-call', number: '07700 900456' })
     await api.outbox.tick()
@@ -221,6 +234,7 @@ describe("I've arrived", () => {
       type: 'staff',
       input: { name: 'Maya Lind', role: 'Facialist', serviceIds: [serviceId], tone: 'sage' },
     })
+    await bookOnline(owner)
     const { slug } = await workspace(owner)
     const held = await api.inject({
       method: 'POST',
