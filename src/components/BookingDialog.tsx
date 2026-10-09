@@ -9,6 +9,7 @@ import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import { numberLabel } from '../domain/missedCalls'
 import { consultationsList, latestVersion } from '../domain/consultations'
 import { Button, ErrorMessage, Modal, TimeChoices } from '../design'
+import { StudioDateField } from './StudioDateField'
 
 export type BookingDefaults = {
   clientId?: string
@@ -391,13 +392,12 @@ export function BookingDialog({
             )}
             <label>
               Date
-              <input
-                type="date"
+              <StudioDateField
                 value={date}
                 min={today}
                 max={addDays(today, 365)}
                 disabled={busy}
-                onChange={(e) => chooseDate(e.target.value)}
+                onChange={chooseDate}
               />
             </label>
           </div>

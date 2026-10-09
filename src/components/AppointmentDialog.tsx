@@ -16,6 +16,7 @@ import { CheckoutProducts, ReceiptProducts } from './CheckoutProducts'
 import { findGiftCard, giftCards, giftStanding } from '../domain/giftCards'
 import '../components/plans.css'
 import { Avatar, Button, ErrorMessage, Modal, Status, TimeChoices } from '../design'
+import { StudioDateField } from './StudioDateField'
 import { BookingDialog } from './BookingDialog'
 import { CardCheckout, VisitCardPanel } from './CardPayments'
 import { VisitPatchTest } from './PatchTests'
@@ -443,14 +444,13 @@ export function AppointmentDialog({
           <div className="form-grid">
             <label>
               New date
-              <input
-                type="date"
+              <StudioDateField
                 min={today}
                 max={addDays(today, 365)}
                 disabled={busy}
                 value={date}
-                onChange={(e) => {
-                  setDate(e.target.value)
+                onChange={(next) => {
+                  setDate(next)
                   setStart(null)
                   setError('')
                 }}

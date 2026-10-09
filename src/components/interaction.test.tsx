@@ -27,8 +27,11 @@ describe('connected operator journeys', () => {
     await user.click(screen.getAllByRole('button', { name: /Noor Ahmed Skin Renewal Facial/ })[0])
     await user.click(screen.getByRole('button', { name: 'Move appointment' }))
     expect(screen.getByRole('heading', { name: 'Move appointment' })).toHaveFocus()
-    await user.clear(screen.getByLabelText('New date'))
-    await user.type(screen.getByLabelText('New date'), '2026-10-07')
+    // The new date is chosen from the calendar, written out the studio's way.
+    expect(screen.getByLabelText('New date')).toHaveTextContent('Tue 6 Oct 2026')
+    await user.click(screen.getByLabelText('New date'))
+    await user.click(screen.getByRole('button', { name: 'Wednesday 7 October 2026' }))
+    expect(screen.getByLabelText('New date')).toHaveTextContent('Wed 7 Oct 2026')
     const first = screen.getByRole('radio', { name: '09:00' })
     await user.click(first)
     await user.keyboard('{ArrowRight}{ArrowRight}')
@@ -43,7 +46,7 @@ describe('connected operator journeys', () => {
     })
     expect(saved.events.filter((e: { type: string }) => e.type === 'rescheduled')).toHaveLength(1)
     await user.keyboard('{Escape}')
-    expect(screen.getByLabelText('Jump to date')).toHaveValue('2026-10-07')
+    expect(screen.getByLabelText('Jump to date')).toHaveTextContent('Wed 7 Oct 2026')
     expect(
       screen.getAllByRole('button', { name: /09:30 .*Noor Ahmed Skin Renewal Facial/ }).length,
     ).toBeGreaterThan(0)
@@ -251,7 +254,8 @@ describe('local operating surfaces', () => {
     ).toBe(9500)
     await user.click(screen.getByRole('tab', { name: 'Hours & closures' }))
     await user.click(screen.getByRole('button', { name: 'Add closure' }))
-    await user.type(screen.getByLabelText('Date'), '2026-10-06')
+    await user.click(screen.getByLabelText('Date'))
+    await user.click(screen.getByRole('button', { name: 'Tuesday 6 October 2026' }))
     await user.type(screen.getByLabelText('Reason'), 'Maintenance')
     // LOCAL-04: the affected visits are named before saving, and saving waits until they move.
     const dialog = screen.getByRole('dialog')
@@ -263,7 +267,7 @@ describe('local operating surfaces', () => {
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(screen.getByLabelText('Reason')).toHaveValue('Maintenance')
-    expect(screen.getByLabelText('Date')).toHaveValue('2026-10-06')
+    expect(screen.getByLabelText('Date')).toHaveTextContent('Tue 6 Oct 2026')
     expect(
       JSON.parse(localStorage.getItem('saleane.demo.v1.UK')!).operations.closures,
     ).toHaveLength(0)

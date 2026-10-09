@@ -22,6 +22,7 @@ import { Agenda } from '../components/Agenda'
 import { PeopleColumns } from '../components/PeopleColumns'
 import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
+import { StudioDateField } from '../components/StudioDateField'
 import type { BookingDefaults } from '../components/BookingDialog'
 
 export function Calendar() {
@@ -184,13 +185,7 @@ export function Calendar() {
           <div className="calendar-filters">
             <label className="calendar-date-picker">
               Jump to date
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => {
-                  if (e.target.value) setDate(e.target.value)
-                }}
-              />
+              <StudioDateField className="date-field-compact" value={date} onChange={setDate} />
             </label>
             <label className="sr-only" htmlFor="staff-filter">
               Filter professional

@@ -17,7 +17,8 @@ import type { PatchTestState } from '../domain/patchTests'
 import type { PatchTest } from '../domain/patchTestsSchema'
 import type { Appointment } from '../domain/model'
 import { dateLabel, timeLabel } from '../domain/format'
-import { Button, ErrorMessage, Modal } from '../design'
+import { Button, ErrorMessage, Modal, TimeField } from '../design'
+import { StudioDateField } from './StudioDateField'
 import { useRun } from './usePayment'
 import './management.css'
 import './patchTests.css'
@@ -119,17 +120,16 @@ export function PatchTestForm({ clientId, onClose }: { clientId: string; onClose
         <div className="ops-fields">
           <label>
             Date
-            <input
-              type="date"
-              required
-              max={today}
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
+            <StudioDateField max={today} value={date} onChange={setDate} />
           </label>
           <label>
             Time
-            <input type="time" required value={time} onChange={(e) => setTime(e.target.value)} />
+            <TimeField
+              locale={state.organisation.locale}
+              required
+              value={time}
+              onChange={setTime}
+            />
           </label>
           <label className="ops-wide">
             Product or shade tested
