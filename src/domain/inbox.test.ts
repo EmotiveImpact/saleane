@@ -311,13 +311,13 @@ describe('the inbox (V1.5)', () => {
     expect(review.kept.find((k) => k.label === 'Messages approved for sending')?.count).toBe(1)
   })
 
-  it('respects a client who asked for no appointment texts, and needs the right to approve', () => {
+  it('respects a client who asked for no texts about their visits, and needs the right to approve', () => {
     let s = seed('UK')
     const written = draft(s, { channel: 'sms' })
     s = structuredClone(written.state)
     s.clients.find((c) => c.id === 'client-3')!.noTextReminders = true
     const approve = execute(s, { type: 'message-queue', messageId: written.recordId! }, NOW, makeId)
-    expect(approve.ok || approve.error).toMatch(/asked for no appointment texts/)
+    expect(approve.ok || approve.error).toMatch(/asked for no texts about their visits/)
     // Approved before they asked: it is not planned after all.
     const before = run(written.state, { type: 'message-queue', messageId: written.recordId! }).state
     before.clients.find((c) => c.id === 'client-3')!.noTextReminders = true

@@ -446,7 +446,7 @@ export function GiftCards() {
               {dialog.kind !== 'extend' && (
                 <p className="subtle demo-note">
                   {sandbox
-                    ? 'Sample workspace: no real money moves.'
+                    ? 'Sample studio: no real money moves.'
                     : 'SALEANE records this; it does not take or return the money itself.'}
                 </p>
               )}

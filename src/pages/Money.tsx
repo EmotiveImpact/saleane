@@ -149,7 +149,7 @@ export function Money() {
     if (!receipt || pending || blocked || !can(role, 'refund')) return
     const data = new FormData(event.currentTarget)
     if (data.get('confirmed') !== 'on') {
-      setError('Confirm the provenance of this refund first.')
+      setError('Tick the box to confirm where this refund was made first.')
       return
     }
     // V2: products the guest brought back, to go back on the shelf.
@@ -179,7 +179,7 @@ export function Money() {
       setNotice(
         sandbox
           ? 'Simulated refund recorded. No money moved.'
-          : 'External refund recorded. Saleane did not move any money.',
+          : 'Refund recorded. SALEANE did not move any money.',
       )
     } catch {
       setError('The record could not be saved. Your entries are still here; try again.')
@@ -192,7 +192,7 @@ export function Money() {
     if (!depositVisit || pending || blocked || !can(role, 'deposit')) return
     const data = new FormData(event.currentTarget)
     if (data.get('confirmed') !== 'on') {
-      setError('Confirm the provenance of these funds first.')
+      setError('Tick the box to confirm this money has already been received first.')
       return
     }
     setPending(true)
@@ -234,8 +234,8 @@ export function Money() {
         <div>
           <strong>
             {sandbox
-              ? 'Fictional money in a sandbox.'
-              : 'A local record of funds handled elsewhere.'}
+              ? 'Made-up money in a sample studio.'
+              : 'A record of money taken at the desk or elsewhere.'}
           </strong>
           <p>
             {sandbox
@@ -257,7 +257,7 @@ export function Money() {
                     .filter((p) => p.method === 'previous_system')
                     .reduce((total, p) => total + p.amountMinor, 0),
                 )} paid to your old system before switching`
-              : 'Deposits and settlements counted once'
+              : 'Deposits and payments, each counted once'
           }
         />
         <Stat
@@ -388,7 +388,7 @@ export function Money() {
               {!receiptDays.length && (
                 <EmptyMoney
                   title="The first receipt starts with a visit."
-                  detail="Complete checkout from an arrived appointment to record a sale."
+                  detail="Check out a client who has arrived to record a sale."
                 />
               )}
             </>
@@ -444,7 +444,7 @@ export function Money() {
               {!state.payments.length && (
                 <EmptyMoney
                   title="No funds recorded yet."
-                  detail="Recorded deposits and checkout settlements will appear here."
+                  detail="Deposits and payments you record will appear here."
                 />
               )}
             </>
@@ -537,7 +537,7 @@ export function Money() {
               {!config.refunds.length && (
                 <EmptyMoney
                   title="No refunds recorded."
-                  detail="Open a settled receipt to record a refund already handled externally, or a simulation in the sandbox."
+                  detail="Open a paid receipt to record a refund you have already given back."
                 />
               )}
             </>
@@ -547,8 +547,8 @@ export function Money() {
           <h2>The numbers should agree.</h2>
           <p>A deposit is part-payment. Applying it at checkout does not collect it again.</p>
           <p>
-            Service revenue, tips, refunds and unapplied deposits have different meanings. Keep each
-            source visible.
+            Treatment takings, tips, refunds and deposits not yet used mean different things, so
+            each is shown on its own.
           </p>
           <p>
             {session?.services.payments
@@ -563,13 +563,7 @@ export function Money() {
           open
           placement="side"
           onClose={close}
-          title={
-            refund
-              ? sandbox
-                ? 'Record a simulated refund'
-                : 'Record an external refund'
-              : 'Receipt'
-          }
+          title={refund ? (sandbox ? 'Record a simulated refund' : 'Record a refund') : 'Receipt'}
           description={`${clientName(receipt.appointmentId)} · ${receipt.receiptNumber ?? receipt.id}`}
         >
           <p className="ops-save-note" role="status">
@@ -663,7 +657,7 @@ export function Money() {
                 ? receipt.processor?.live
                   ? 'Paid by card; the payment provider confirmed it.'
                   : 'Paid with a test card; no money moved.'
-                : 'A local receipt for manually recorded funds; it is not matched to a payment provider.'}
+                : 'A receipt for money recorded by hand; no card company was involved.'}
           </p>
           {visit && (
             <Link className="text-link" onClick={close} to={`/clients/${visit.clientId}`}>
@@ -759,7 +753,7 @@ export function Money() {
                 <input type="checkbox" name="confirmed" required />
                 {sandbox
                   ? 'I understand this is a simulated refund.'
-                  : 'I confirm these funds have already been returned outside Saleane.'}
+                  : 'I confirm this money has already been given back outside SALEANE.'}
               </label>
               <ErrorMessage error={error} />
               <div className="ops-actions">
@@ -822,8 +816,8 @@ export function Money() {
           <form onSubmit={recordDeposit} aria-busy={pending}>
             <p className="ops-editor-note">
               {sandbox
-                ? 'This is a fictional payment entry. No real funds move.'
-                : 'Record funds already received. Saleane will not charge a card or contact a payment provider.'}
+                ? 'This is a simulated payment. No real money moves.'
+                : 'Record money already received. SALEANE will not charge a card or contact a card company.'}
             </p>
             <div className="ops-fields">
               <label>
@@ -871,7 +865,7 @@ export function Money() {
               <input type="checkbox" name="confirmed" required />
               {sandbox
                 ? 'I understand this is a simulated deposit.'
-                : 'I confirm these funds have already been received outside Saleane.'}
+                : 'I confirm this money has already been received outside SALEANE.'}
             </label>
             <ErrorMessage error={error} />
             <div className="ops-actions">

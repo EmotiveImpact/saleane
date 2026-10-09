@@ -150,7 +150,7 @@ export function runGiftCardCommand(
       : undefined
     if (input.kind === 'service' && !service) throw new Error('Choose a treatment offered here.')
     const client = input.clientId ? next.clients.find((c) => c.id === input.clientId) : undefined
-    if (input.clientId && !client) throw new Error('Client does not belong to this workspace.')
+    if (input.clientId && !client) throw new Error('Client does not belong to this studio.')
     const valueMinor = service ? service.priceMinor : input.valueMinor!
     if (valueMinor <= 0) throw new Error('This treatment has no price to put on a voucher.')
     assertMethod(next, command.method, command.reference)

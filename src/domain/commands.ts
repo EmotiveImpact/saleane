@@ -236,7 +236,7 @@ export function execute(
         title: 'Client relationship opened',
         detail: clean.marketingConsent
           ? 'Email marketing consent recorded.'
-          : 'Marketing remains off. Appointment updates are separate.',
+          : 'Marketing stays off. Messages about their visits are separate.',
       })
       return client
     }
@@ -290,7 +290,7 @@ export function execute(
       let client = input.clientId
         ? next.clients.find((item) => item.id === input.clientId)
         : undefined
-      if (input.clientId && !client) throw new Error('Client does not belong to this workspace.')
+      if (input.clientId && !client) throw new Error('Client does not belong to this studio.')
       if (!client && input.contact) client = createClient(input.contact)
       if (!client) throw new Error('Choose a client or enter their details.')
       if (input.source === 'rebook' && !input.rebookedFromId)
@@ -354,7 +354,7 @@ export function execute(
         clientId: client.id,
         appointmentId: appointment.id,
         type: 'booked',
-        title: input.source === 'rebook' ? 'Next visit booked' : 'Appointment booked',
+        title: input.source === 'rebook' ? 'Next visit booked' : 'Visit booked',
         detail: `${service.name} · ${dateLabel(input.date, org.locale)} at ${timeLabel(input.startMinutes, org.locale)}. ${operations(s).mode === 'sandbox' ? 'Deposit simulated; no payment taken.' : 'No payment collected. Any required deposit remains outstanding.'}${input.channel ? ` Booked through your ${channelLabel(input.channel)} link.` : ''}${input.callId ? ' Booked when the studio called back after a missed call.' : ''}`,
       })
       if (input.waitlistId) fillFromWaitlist(next, input.waitlistId, appointment, now, 'book')
@@ -366,10 +366,10 @@ export function execute(
       command.type === 'no-show'
     ) {
       const appointment = next.appointments.find((a) => a.id === command.appointmentId)
-      if (!appointment) throw new Error('Appointment does not belong to this workspace.')
+      if (!appointment) throw new Error('Visit does not belong to this studio.')
       if (command.type === 'reschedule') {
         if (appointment.status !== 'confirmed')
-          throw new Error('Only an upcoming appointment can be moved.')
+          throw new Error('Only an upcoming visit can be moved.')
         const input = z
           .object({
             date: z.iso.date(),
@@ -415,9 +415,9 @@ export function execute(
           clientId: appointment.clientId,
           appointmentId: appointment.id,
           type: 'rescheduled',
-          title: 'Appointment moved',
+          title: 'Visit moved',
           allocationChange: { from, to },
-          detail: `${dateLabel(from.date, org.locale)} at ${timeLabel(from.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === from.staffId)!.name}${moved ? ` at ${placeOf(s, from.locationId)?.name}` : ''} → ${dateLabel(to.date, org.locale)} at ${timeLabel(to.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === to.staffId)!.name}${moved ? ` at ${placeOf(s, place)?.name}` : ''}. Booked service, price and deposit retained; no message sent.`,
+          detail: `${dateLabel(from.date, org.locale)} at ${timeLabel(from.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === from.staffId)!.name}${moved ? ` at ${placeOf(s, from.locationId)?.name}` : ''} → ${dateLabel(to.date, org.locale)} at ${timeLabel(to.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === to.staffId)!.name}${moved ? ` at ${placeOf(s, place)?.name}` : ''}. Booked treatment, price and deposit kept; no message sent.`,
         })
         if (command.waitlistId)
           fillFromWaitlist(next, command.waitlistId, appointment, now, 'move', from.date)
@@ -426,9 +426,9 @@ export function execute(
         const status = command.type === 'cancel' ? 'cancelled' : 'no_show'
         if (appointment.status === status) return { ok: true, state: s, recordId: appointment.id }
         if (appointment.status !== 'confirmed')
-          throw new Error('Only an upcoming appointment can be changed this way.')
+          throw new Error('Only an upcoming visit can be changed this way.')
         if (status === 'no_show' && appointment.date > businessDate(s, now))
-          throw new Error('A future appointment cannot be marked as missed.')
+          throw new Error('A visit still to come cannot be marked as missed.')
         const reason = command.reason.trim()
         if (reason.length < 2 || reason.length > 300)
           throw new Error('Enter an operational reason between 2 and 300 characters.')
@@ -445,14 +445,14 @@ export function execute(
           clientId: appointment.clientId,
           appointmentId: appointment.id,
           type: status,
-          title: status === 'cancelled' ? 'Appointment cancelled' : 'Visit marked as missed',
+          title: status === 'cancelled' ? 'Visit cancelled' : 'Visit marked as missed',
           detail: `${reason}. ${deposit}`,
         })
       }
       recordId = appointment.id
     } else if (command.type === 'arrive' || command.type === 'checkout') {
       const appointment = next.appointments.find((a) => a.id === command.appointmentId)
-      if (!appointment) throw new Error('Appointment does not belong to this workspace.')
+      if (!appointment) throw new Error('Visit does not belong to this studio.')
       if (command.type === 'arrive') {
         if (appointment.status === 'arrived')
           return { ok: true, state: s, recordId: appointment.id }
@@ -479,7 +479,7 @@ export function execute(
           command.tipMinor < 0 ||
           command.tipMinor > appointment.bookedPriceMinor * 2
         )
-          throw new Error('Enter a valid tip up to twice the service price.')
+          throw new Error('Enter a tip of up to twice the treatment price.')
         assertMethod(s, command.method, command.reference, command.processor)
         if (referenceTaken(s, command.reference))
           throw new Error(
@@ -487,7 +487,7 @@ export function execute(
           )
         const deposit = depositPaid(s, appointment.id)
         if (deposit > appointment.bookedPriceMinor)
-          throw new Error('Deposit exceeds this service. Review the ledger.')
+          throw new Error('The deposit is more than this treatment costs. Check the money records.')
         const saleId = makeId()
         // A plan pays its share of the visit; the rest of the booked price is the plan's saving.
         const plan = command.holdingId
@@ -499,7 +499,7 @@ export function execute(
           ? appointment.bookedPriceMinor - plan.valueMinor
           : (command.discountMinor ?? 0)
         if (discount > appointment.bookedPriceMinor)
-          throw new Error('Discount cannot exceed the booked service price.')
+          throw new Error('The discount cannot be more than the booked treatment price.')
         // A plan's price already includes any tax, so its share is tax-inclusive.
         const bookedTax = visitTax(s, appointment)
         const tax = plan && bookedTax ? { ...bookedTax, inclusive: true } : bookedTax
@@ -611,7 +611,7 @@ export function execute(
       }
     } else if (command.type === 'note' || command.type === 'consent') {
       const client = next.clients.find((c) => c.id === command.clientId)
-      if (!client) throw new Error('Client does not belong to this workspace.')
+      if (!client) throw new Error('Client does not belong to this studio.')
       if (command.type === 'note') {
         const text = command.text.trim()
         if (text.length < 2 || text.length > 1000)
@@ -642,7 +642,7 @@ export function execute(
       recordId = client.id
     } else if (command.type === 'client') {
       if (command.referredById && !s.clients.some((c) => c.id === command.referredById))
-        throw new Error('Referrer does not belong to this workspace.')
+        throw new Error('Referrer does not belong to this studio.')
       const client = createClient(command.contact)
       if (command.referredById) {
         next.relationships.push({
@@ -701,7 +701,7 @@ export function execute(
       recordId = runWaitlistCommand(next, command, now, makeId, addEvent)
     } else if (command.type === 'guest-here') {
       const appointment = next.appointments.find((a) => a.id === command.appointmentId)
-      if (!appointment) throw new Error('Appointment does not belong to this workspace.')
+      if (!appointment) throw new Error('Visit does not belong to this studio.')
       // Telling the desk twice, or after the desk has welcomed them, changes nothing.
       if (appointment.guestHereAt || appointment.status === 'arrived')
         return { ok: true, state: s, recordId: appointment.id }

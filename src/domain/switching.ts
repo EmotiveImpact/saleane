@@ -42,7 +42,7 @@ export function placeImportedVisit(
 ): { resourceId: string } | { problem: string } {
   const service = work.services.find((item) => item.id === row.serviceId)
   const staff = work.staff.find((item) => item.id === row.staffId)
-  if (!service || service.archived) return { problem: 'The service is not offered here.' }
+  if (!service || service.archived) return { problem: 'The treatment is not offered here.' }
   if (!staff || staff.archived) return { problem: 'The professional is not on the team here.' }
   if (!staff.serviceIds.includes(service.id))
     return { problem: `${staff.name} is not set up to give ${service.name}.` }
@@ -131,7 +131,7 @@ export function runSwitchingCommand(
   const org = next.organisation
   if (command.type === 'balance-settle') {
     const balance = (o.balances ?? []).find((b) => b.id === command.balanceId)
-    if (!balance) throw new Error('Balance does not belong to this workspace.')
+    if (!balance) throw new Error('Balance does not belong to this studio.')
     if (balance.settled) return balance.id
     balance.settled = { at: now, actor: 'Local operator', note: command.note }
     addEvent({
@@ -164,21 +164,21 @@ export function runSwitchingCommand(
     for (const { staffIds, ...input } of command.services) {
       const name = input.name.trim()
       if (names.has(name.toLowerCase()))
-        throw new Error(`A service called ${name} already exists. Review duplicates first.`)
+        throw new Error(`A treatment called ${name} already exists. Review duplicates first.`)
       names.add(name.toLowerCase())
       if (input.depositMinor > input.priceMinor)
-        throw new Error('Deposit cannot exceed the service price.')
+        throw new Error('The deposit cannot be more than the treatment price.')
       if (input.durationMinutes + input.bufferMinutes > 1440)
-        throw new Error('A service must fit within one day.')
+        throw new Error('A treatment must fit within one day.')
       if (!next.resources.some((r) => !r.archived && r.type === input.resourceType))
         throw new Error(
-          `Add a ${input.resourceType === 'chair' ? 'chair' : 'treatment room'} before importing services that need one.`,
+          `Add a ${input.resourceType === 'chair' ? 'chair' : 'treatment room'} before importing treatments that need one.`,
         )
       const service = { ...input, name, id: makeId(), organisationId: org.id }
       next.services.push(service)
       for (const staffId of new Set(staffIds)) {
         const person = next.staff.find((p) => p.id === staffId)
-        if (!person) throw new Error('Professional does not belong to this workspace.')
+        if (!person) throw new Error('Professional does not belong to this studio.')
         person.serviceIds.push(service.id)
       }
       batch.recordIds.push(service.id)
@@ -190,7 +190,7 @@ export function runSwitchingCommand(
       if (row.depositPaidMinor > row.priceMinor)
         throw new Error('A deposit paid cannot be more than the visit price.')
       let client = row.clientId ? next.clients.find((c) => c.id === row.clientId) : undefined
-      if (row.clientId && !client) throw new Error('Client does not belong to this workspace.')
+      if (row.clientId && !client) throw new Error('Client does not belong to this studio.')
       // Several visits for one new guest share the client added by the first of them.
       const contact = row.contact
       if (!client && contact) {
@@ -269,7 +269,7 @@ export function runSwitchingCommand(
     o.balances ??= []
     for (const row of command.balances) {
       const client = next.clients.find((c) => c.id === row.clientId)
-      if (!client) throw new Error('Client does not belong to this workspace.')
+      if (!client) throw new Error('Client does not belong to this studio.')
       if (o.balances.some((b) => b.clientId === client.id && !b.settled))
         throw new Error(`${client.name} already has an open carried-over balance.`)
       const balance = {

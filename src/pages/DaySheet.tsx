@@ -90,8 +90,8 @@ function OfflineNotice({ saved, preview }: { saved: SavedDaySheet | null; previe
         </p>
         {preview && (
           <p className="subtle">
-            In a signed-in studio this screen replaces the workspace whenever SALEANE cannot be
-            reached, and every change waits until your access is checked again.
+            In a signed-in studio this page takes over whenever SALEANE cannot be reached, and every
+            change waits until your access is checked again.
           </p>
         )}
         {!preview && (

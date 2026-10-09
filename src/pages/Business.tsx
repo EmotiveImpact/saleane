@@ -108,17 +108,17 @@ export function Business() {
       {multiSite && !place && <WholeBusiness />}
       <div className="metrics-band">
         <Metric
-          label="Completed service revenue"
+          label="Takings from completed treatments"
           value={wholeMoney(data.revenue, state.organisation)}
           detail={completedVisits(data.completed)}
         />
         <Metric
-          label="Average service sale"
+          label="Average treatment sale"
           value={wholeMoney(
             data.completed ? Math.round(data.revenue / data.completed) : 0,
             state.organisation,
           )}
-          detail="Service revenue ÷ completed visits"
+          detail="Treatment takings ÷ completed visits"
         />
         <Metric
           label="Time booked"
@@ -139,14 +139,14 @@ export function Business() {
           <div className="section-heading">
             <div>
               <h2>Revenue has a rhythm.</h2>
-              <p>Completed services, with deposits counted once.</p>
+              <p>Completed treatments, with deposits counted once.</p>
             </div>
             <span className="chart-total">{wholeMoney(data.revenue, state.organisation)}</span>
           </div>
           <div
             className="revenue-chart"
             role="img"
-            aria-label={`Completed service revenue by day over the last ${days} days, ${money(data.revenue, state.organisation)} total. Exact values are available in the table below.`}
+            aria-label={`Takings from completed treatments by day over the last ${days} days, ${money(data.revenue, state.organisation)} total. Exact values are available in the table below.`}
           >
             <div className="chart-axis">
               <span>{money(maxRevenue, state.organisation)}</span>
@@ -178,7 +178,7 @@ export function Business() {
           <details className="chart-data">
             <summary>View daily values</summary>
             <table>
-              <caption>Completed service revenue by visit date</caption>
+              <caption>Takings from completed treatments by visit date</caption>
               <thead>
                 <tr>
                   <th>Date</th>
@@ -209,17 +209,17 @@ export function Business() {
           <div className="insight-rule" />
           <span>Tips recorded in this period</span>
           <strong>{wholeMoney(data.tips, state.organisation)}</strong>
-          <small>Reported separately from service revenue.</small>
+          <small>Reported separately from treatment takings.</small>
           <div className="insight-rule" />
           <span>Products sold with visits</span>
           <strong>{wholeMoney(data.retail, state.organisation)}</strong>
           <small>
-            Before tax, separate from service revenue. <Link to="/business/stock">See stock</Link>
+            Before tax, separate from treatment takings. <Link to="/business/stock">See stock</Link>
           </small>
           <div className="insight-rule" />
           <span>Gift cards, packages and memberships sold</span>
           <strong>{money(data.giftCardsSold + data.plansSold, state.organisation)}</strong>
-          <small>Money taken where they were sold, separate from service revenue.</small>
+          <small>Money taken where they were sold, separate from treatment takings.</small>
         </section>
       </div>
       <div className="business-tables">
@@ -258,7 +258,7 @@ export function Business() {
             </div>
           ))}
           <p className="subtle">
-            Service revenue only.
+            Treatment takings only.
             {data.rebookRate !== null &&
               ` Rebooked means the next visit was booked at checkout; the studio as a whole rebooked ${Math.round(data.rebookRate * 100)}%.`}{' '}
             Commission and tips per person are on <Link to="/business/pay">Pay</Link>.
@@ -340,14 +340,14 @@ export function Business() {
         </button>
         {definitions && (
           <p>
-            Revenue uses completed service receipts by appointment date, excludes tips and counts
-            service value after discounts and excluding included tax, once. A deposit is a
+            Takings use completed treatment receipts by visit date, leave out tips and count each
+            treatment's value after discounts and without included tax, once. A deposit is a
             part-payment. Refunds are shown separately in Money and are not deducted here. Time
-            booked uses booked service minutes against configured opening and professional hours,
-            less recorded closures. Earlier days use the current schedule; schedule versions are not
-            yet retained. Rebooking counts explicit links created through checkout, rather than
-            assuming another appointment is a rebook. All figures come from this workspace’s
-            records. A manual payment record is not processor settlement evidence.
+            booked uses booked treatment minutes against opening and professional hours, less
+            recorded closures. Earlier days use the current schedule; schedule versions are not yet
+            retained. Rebooking counts explicit links created through checkout, rather than assuming
+            another visit is a rebook. All figures come from this studio’s records. Money recorded
+            by hand has not been checked against a card company.
           </p>
         )}
       </div>

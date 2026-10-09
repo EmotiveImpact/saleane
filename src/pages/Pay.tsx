@@ -179,7 +179,7 @@ export function Pay() {
                       {rentalOn(state, row.staff.id, to)
                         ? 'Rents a chair or room, keeps own takings'
                         : rate
-                          ? `${percent(rate.serviceBps)} on services, ${percent(rate.productBps)} on products`
+                          ? `${percent(rate.serviceBps)} on treatments, ${percent(rate.productBps)} on products`
                           : 'No commission rate set'}
                     </small>
                   </div>
@@ -242,7 +242,7 @@ export function Pay() {
                                 {dateLabel(line.date, org.locale, true)}
                                 {line.receipt ? ` · ${line.receipt}` : ''}
                                 {line.servicesMinor
-                                  ? ` · services ${money(line.servicesMinor, org, true)}`
+                                  ? ` · treatments ${money(line.servicesMinor, org, true)}`
                                   : ''}
                                 {line.productsMinor
                                   ? ` · products ${money(line.productsMinor, org, true)}`
@@ -487,7 +487,7 @@ function RateDialog({
       if (!result.ok) setError(result.error)
       else
         onDone(
-          `${staff.name} is on ${percent(serviceBps)} on services and ${percent(productBps)} on products from ${dateLabel(from, org.locale)}.`,
+          `${staff.name} is on ${percent(serviceBps)} on treatments and ${percent(productBps)} on products from ${dateLabel(from, org.locale)}.`,
         )
     } catch {
       setError('This could not be saved. Your entries are still here; try again.')

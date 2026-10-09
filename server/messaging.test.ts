@@ -264,7 +264,7 @@ describe('appointment messages (PILOT-01)', () => {
     await api.outbox.tick()
     expect(sent).toEqual([])
     const timeline = (await workspace(owner)).state.events.filter((e) => e.clientId === clientId)
-    expect(timeline.map((e) => e.title)).toContain('Appointment messages updated')
+    expect(timeline.map((e) => e.title)).toContain('Visit messages updated')
   })
 
   it('skips a message whose visit changed after it was planned', async () => {

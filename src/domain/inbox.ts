@@ -221,7 +221,7 @@ export function runInboxCommand(
     if (!reply) throw new Error('That reply is not in this studio.')
     if (reply.clientId) throw new Error('This reply is already with a client.')
     const client = next.clients.find((c) => c.id === command.clientId)
-    if (!client) throw new Error('Client does not belong to this workspace.')
+    if (!client) throw new Error('Client does not belong to this studio.')
     // Every reply from the same address or number goes with it, so the conversation stays whole.
     for (const r of list)
       if (!r.clientId && r.channel === reply.channel && r.from === reply.from)
@@ -240,7 +240,7 @@ export function runInboxCommand(
     throw new Error('The studio cannot keep more replies. Please contact support.')
   if (command.type === 'reply-note') {
     const client = next.clients.find((c) => c.id === command.clientId)
-    if (!client) throw new Error('Client does not belong to this workspace.')
+    if (!client) throw new Error('Client does not belong to this studio.')
     const body = command.body.trim()
     refuseHealth(body, 'Notes')
     const reply: Reply = {

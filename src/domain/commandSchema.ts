@@ -120,7 +120,7 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
       .max(500)
       .refine(
         (rows) => new Set(rows.map((row) => row.serviceId)).size === rows.length,
-        'Each service appears once.',
+        'Each treatment appears once.',
       ),
     /** V1.5: care advice emailed after the visit. Absent leaves every note as it is. */
     aftercareNotes: z
@@ -128,7 +128,7 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
       .max(500)
       .refine(
         (rows) => new Set(rows.map((row) => row.serviceId)).size === rows.length,
-        'Each service appears once.',
+        'Each treatment appears once.',
       )
       .optional(),
   }),

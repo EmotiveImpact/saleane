@@ -462,7 +462,7 @@ export function previewClientExport(file: ClientExport): ExportPreview {
       'Staff names appear where they recorded an entry or looked after a visit.',
       'Messages show their status in the studio record. One approved for sending may have gone out; in test mode nothing does.',
       ...(file.studio.sandbox
-        ? ['This is the fictional sandbox. Its money and people are not real.']
+        ? ['This is a sample studio. Its money and people are made up.']
         : []),
     ],
   }
@@ -524,7 +524,7 @@ export function previewStudioExport(file: StudioExport): ExportPreview {
       { label: 'Email permission records', count: (r.consentRecords ?? []).length },
       { label: 'Consultations', count: (r.consultations ?? []).length },
       {
-        label: 'Services, professionals and spaces',
+        label: 'Treatments, professionals and spaces',
         count: r.services.length + r.staff.length + r.resources.length,
       },
       {
@@ -542,7 +542,7 @@ export function previewStudioExport(file: StudioExport): ExportPreview {
         : []),
       'Record identifiers are kept so the file can be imported or reconciled later.',
       ...(file.studio.sandbox
-        ? ['This is the fictional sandbox. Its money and people are not real.']
+        ? ['This is a sample studio. Its money and people are made up.']
         : []),
     ],
   }
@@ -590,7 +590,7 @@ export function erasureReview(
         label: 'Good to remember',
         count: client.preferences.trim() ? 1 : 0,
         reason:
-          'Service preferences help care, but are not needed for any record that must be kept.',
+          'Treatment preferences help care, but are not needed for any record that must be kept.',
       },
       {
         label: 'Relationship notes',
@@ -688,7 +688,8 @@ export function erasureReview(
       {
         label: 'Booked visit terms',
         count: visits.length,
-        reason: 'Receipts, deposits and the diary depend on the original service, price and time.',
+        reason:
+          'Receipts, deposits and the diary depend on the original treatment, price and time.',
       },
       {
         label: 'Consent history',
@@ -728,7 +729,7 @@ export function clientExportText(file: ClientExport, locale = 'en-GB') {
   const lines = [
     `Personal data held by ${file.studio.name}`,
     `Prepared ${file.generatedAt} by ${file.generatedBy}`,
-    ...(file.studio.sandbox ? ['Fictional sandbox data. Nothing here is real.'] : []),
+    ...(file.studio.sandbox ? ['Sample studio data. Nothing here is real.'] : []),
     '',
     'PROFILE',
     `Name: ${file.subject.name}`,

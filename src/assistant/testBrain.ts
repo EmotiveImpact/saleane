@@ -385,7 +385,7 @@ function nextStep(
       }
       const span = last.input.days === 1 ? 'Today' : `In the last ${String(last.input.days)} days`
       return say(
-        `${span}: ${t.takings} in service takings${/[1-9]/.test(t.tips) ? ` and ${t.tips} in tips` : ''}, from ${t.completedVisits} completed ${t.completedVisits === 1 ? 'visit' : 'visits'}.${t.rebookRate ? ` ${t.rebookRate} rebooked.` : ''}${t.topService ? ` ${t.topService} earned the most.` : ''}`,
+        `${span}: ${t.takings} in treatment takings${/[1-9]/.test(t.tips) ? ` and ${t.tips} in tips` : ''}, from ${t.completedVisits} completed ${t.completedVisits === 1 ? 'visit' : 'visits'}.${t.rebookRate ? ` ${t.rebookRate} rebooked.` : ''}${t.topService ? ` ${t.topService} earned the most.` : ''}`,
       )
     }
     case 'money_owed': {

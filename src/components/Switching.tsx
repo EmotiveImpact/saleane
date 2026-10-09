@@ -22,8 +22,8 @@ import './switching.css'
 
 const KIND_COPY = {
   services: {
-    title: 'Services',
-    noun: ['service', 'services'],
+    title: 'Treatments',
+    noun: ['treatment', 'treatments'],
     body: 'Names, lengths, prices and deposits, and who gives each one.',
     example:
       'name,duration,price,deposit,category,professionals\nSignature facial,60,85.00,20.00,Skin,Amara Okafor',
@@ -44,7 +44,7 @@ const KIND_COPY = {
 } as const
 const KIND_LABEL: Record<ImportBatch['kind'], string> = {
   clients: 'Clients',
-  services: 'Services',
+  services: 'Treatments',
   appointments: 'Upcoming visits',
   balances: 'Balances',
 }
@@ -91,7 +91,7 @@ export function SwitchingSettings() {
             <p>
               Export each list from your old system as a CSV file. You see every row before it is
               saved, with totals to check against your old system’s own report. Add your team and
-              spaces first, so services and visits have somewhere to go.
+              spaces first, so treatments and visits have somewhere to go.
             </p>
           </div>
         </div>
@@ -404,7 +404,7 @@ function ImportReview({ kind, onClose }: { kind: SwitchKind; onClose: () => void
                       ? 'At the prices guests were quoted'
                       : kind === 'balances'
                         ? 'For clients to use or have returned'
-                        : 'Across the chosen services'}
+                        : 'Across the chosen treatments'}
                   </small>
                 </div>
                 <div>
@@ -421,7 +421,7 @@ function ImportReview({ kind, onClose }: { kind: SwitchKind; onClose: () => void
                       ? 'Paid to the old system, not again'
                       : kind === 'balances'
                         ? 'Collected at the desk as usual'
-                        : 'Across the chosen services'}
+                        : 'Across the chosen treatments'}
                   </small>
                 </div>
               </div>

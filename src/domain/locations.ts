@@ -166,7 +166,7 @@ export function locationsProblem(s: BusinessState) {
   if (s.staff.some((p) => p.hours?.some((h) => h.locationId && !known.has(h.locationId))))
     return 'Working hours name a missing location.'
   if (s.appointments.some((a) => !known.has(a.locationId)))
-    return 'An appointment names a missing location.'
+    return 'A visit names a missing location.'
   const o = operations(s)
   if (o.hours.some((h) => h.locationId)) return 'Studio opening hours cannot name a location.'
   const main = s.organisation.locationId

@@ -224,8 +224,7 @@ export function BrandedBooking() {
             />
           )}
           <p className="subtle">
-            No money was taken and no email was sent. This fictional booking is saved in this
-            browser’s workspace.
+            No money was taken and no email was sent. This made-up booking is saved in this browser.
           </p>
           <Link className="button button-primary" to="/calendar">
             View in the workspace <ArrowRight size={17} />
@@ -280,7 +279,7 @@ export function BrandedBooking() {
                 : step === 2
                   ? 'A familiar professional, at a time that suits you.'
                   : step === 3
-                    ? 'Just what we need to look after your appointment.'
+                    ? 'Just what we need to look after your visit.'
                     : 'Take a moment to review your visit.'}
             </p>
             {step === 1 && (
@@ -557,7 +556,7 @@ export function BrandedBooking() {
                     {locations.length > 1 && where.address ? `, ${where.address}` : ''}
                   </p>
                   <div className="receipt-line">
-                    <span>Service total</span>
+                    <span>Treatment total</span>
                     <strong>{money(fullPrice(booked), state.organisation)}</strong>
                   </div>
                   <div className="receipt-line">

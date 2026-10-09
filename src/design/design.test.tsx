@@ -45,7 +45,7 @@ describe('design language in the workspace', () => {
     const user = userEvent.setup()
     await show('/today')
     await user.click(screen.getByRole('button', { name: 'How Time booked is measured' }))
-    expect(await screen.findByText(/Booked service minutes divided by/)).toBeInTheDocument()
+    expect(await screen.findByText(/Booked treatment minutes divided by/)).toBeInTheDocument()
   })
   it('shows each professional’s free time in the narrow calendar', async () => {
     await show('/calendar')

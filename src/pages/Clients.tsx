@@ -164,7 +164,7 @@ export function Clients() {
         <div className="client-table-wrap">
           <table className="client-table">
             <caption className="sr-only">
-              Client directory with last and next visit, completed visits and service spend
+              Client directory with last and next visit, completed visits and treatment spend
             </caption>
             <thead>
               <tr>
@@ -330,8 +330,8 @@ export function Clients() {
             </label>
             <p className="subtle">
               {operations(state).mode === 'sandbox'
-                ? 'Use fictional details only. This is a sandbox workspace.'
-                : 'The record is saved to your local workspace. Marketing permission is independent of booking.'}
+                ? 'This is a sample studio, so use made-up details only.'
+                : 'Saved to your studio. Permission for marketing is separate from booking.'}
             </p>
             <ErrorMessage error={error} />
             <div className="dialog-footer">

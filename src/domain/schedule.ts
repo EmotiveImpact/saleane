@@ -62,7 +62,7 @@ export function scheduleConflict(s: BusinessState, a: Appointment): string | nul
   const person = s.staff.find((p) => p.id === a.staffId)
   const resource = s.resources.find((r) => r.id === a.resourceId)
   const serviceName =
-    a.bookedServiceName ?? s.services.find((x) => x.id === a.serviceId)?.name ?? 'this service'
+    a.bookedServiceName ?? s.services.find((x) => x.id === a.serviceId)?.name ?? 'this treatment'
   const staffName = person?.name ?? 'The professional'
   const roomName = resource?.name ?? 'The room'
   if (!person || person.archived) return `${staffName} would be archived`

@@ -304,7 +304,7 @@ export function AccessPanel() {
               )}
             </div>
             <p className="ops-help">
-              Managers can configure the studio and review money. Reception can manage appointments,
+              Managers can configure the studio and review money. Reception can manage visits,
               clients and checkout. A practitioner sees only their own visits, with each client's
               name, preferences and notes, and can welcome their client and add notes. They see no
               contact details, prices, payments or other diaries.

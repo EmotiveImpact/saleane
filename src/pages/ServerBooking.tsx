@@ -1334,8 +1334,8 @@ function BookingFlow({
                         `I’d like occasional email news from ${org.name}.`}
                     </label>
                     <p className="subtle">
-                      Optional. Booking does not depend on marketing consent. Use fictional contact
-                      details while this local candidate is under review.
+                      Optional. You can book without it.
+                      {sample ? ' This is a sample studio, so use made-up contact details.' : ''}
                     </p>
                   </div>
                   {holdPanel}

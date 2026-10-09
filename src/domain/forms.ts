@@ -138,7 +138,7 @@ export function runFormCommand(
       )
     for (const serviceId of command.settings.serviceIds)
       if (!next.services.some((x) => x.id === serviceId))
-        throw new Error('Choose services from this studio.')
+        throw new Error('Choose treatments from this studio.')
     const forms = (next.forms ??= [])
     if (!command.id) {
       if (forms.filter((f) => !f.archived).length >= FORM_LIMIT)

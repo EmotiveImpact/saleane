@@ -244,7 +244,7 @@ export function PlanSettings() {
                 </label>
               )}
               <fieldset className="ops-checks ops-wide">
-                <legend>Services it covers</legend>
+                <legend>Treatments it covers</legend>
                 {state.services
                   .filter((s) => !s.archived || input.serviceIds.includes(s.id))
                   .map((service) => (
@@ -564,7 +564,7 @@ export function ClientPlans({ clientId }: { clientId: string }) {
             )}
             <p className="subtle demo-note">
               {sandbox
-                ? 'Sample workspace: no real money moves.'
+                ? 'Sample studio: no real money moves.'
                 : 'SALEANE records this; it does not take or return the money itself.'}
             </p>
             <ErrorMessage error={error} />

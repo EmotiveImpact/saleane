@@ -289,7 +289,13 @@ function WorkspaceApp() {
           <div className="sidebar-footer">
             <span>
               <span className="live-dot" />
-              Local V1 candidate
+              {mode === 'demo'
+                ? 'Fictional demo'
+                : state.operations?.mode === 'sandbox'
+                  ? 'Sample studio'
+                  : session?.services.payments || session?.services.email
+                    ? 'On this computer'
+                    : 'Test mode'}
             </span>
           </div>
         </div>
@@ -298,8 +304,8 @@ function WorkspaceApp() {
         <Modal
           open
           onClose={() => setMobileNav(false)}
-          title="Your workspace"
-          description={`Choose where to work in ${state.organisation.name}.`}
+          title="Menu"
+          description={`Choose where to go in ${state.organisation.name}.`}
         >
           <nav className="mobile-route-menu">
             {links.map(({ to, href, active, label, icon: Icon }) => (
@@ -368,7 +374,7 @@ function WorkspaceApp() {
             {mode === 'demo'
               ? 'Fictional demo. Records are saved in this browser.'
               : state.operations?.mode === 'sandbox'
-                ? 'Local sample studio. Fictional appointments and simulated payments.'
+                ? 'Sample studio. Its clients, visits and payments are made up.'
                 : session?.services.payments || session?.services.email
                   ? 'Local studio. Connected services are named in Settings.'
                   : 'Local studio. Messages and card payments run in test mode: nothing is sent or charged.'}

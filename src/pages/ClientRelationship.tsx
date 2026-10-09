@@ -511,7 +511,7 @@ export function ClientRelationship() {
                   Shown to everyone who looks after this client, including on the visit. Ordinary
                   service preferences only.{' '}
                   {operations(state).mode === 'sandbox'
-                    ? 'Use fictional information in this sandbox.'
+                    ? 'This is a sample studio, so use made-up details.'
                     : ''}
                 </p>
                 <ErrorMessage error={preferencesError} />
@@ -600,7 +600,7 @@ export function ClientRelationship() {
               <p className="subtle">
                 Ordinary service preferences only.{' '}
                 {operations(state).mode === 'sandbox'
-                  ? 'Use fictional information in this sandbox. '
+                  ? 'This is a sample studio, so use made-up details. '
                   : ''}
                 Clinical records belong in a separate future product.
               </p>

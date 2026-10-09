@@ -98,7 +98,7 @@ const groups = [
       { id: 'connections', label: 'Connected software', icon: Plug },
       { id: 'privacy', label: 'Data & privacy', icon: ShieldCheck },
       { id: 'switching', label: 'Switching over', icon: ArrowRightLeft },
-      { id: 'workspace', label: 'This workspace', icon: Store },
+      { id: 'workspace', label: 'About this version', icon: Store },
     ],
   },
 ] as const

@@ -255,14 +255,14 @@ describe('guests moving their own visit', () => {
     expect(event).toMatchObject({
       appointmentId,
       type: 'rescheduled',
-      title: 'Appointment moved',
+      title: 'Visit moved',
       actor: 'Guest (private link)',
       allocationChange: {
         from: { date: '2026-10-07', startMinutes: 540, staffId: 'staff-maya' },
         to: { date: '2026-10-27', startMinutes: 660, staffId: 'staff-sophia' },
       },
     })
-    expect(event.detail).toMatch(/Booked service, price and deposit retained/)
+    expect(event.detail).toMatch(/Booked treatment, price and deposit kept/)
     const audit = () =>
       api.database.all<{ record_id: string; actor_id: string | null }>(
         "SELECT record_id,actor_id FROM audit_events WHERE action='guest.move'",
