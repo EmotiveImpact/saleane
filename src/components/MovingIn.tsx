@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Check, FileUp, Upload, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, FileUp, Upload, X } from 'lucide-react'
 import { useStore } from '../state/context'
 import { can } from '../domain/operations'
 import { Button, ErrorMessage, Modal } from '../design'
@@ -21,6 +21,8 @@ import './management.css'
 import './movingIn.css'
 
 type Added = { id: string; fileName: string; sheet?: Sheet; error?: string }
+type Step = 1 | 2 | 3 | 4
+const STEPS = ['Old system', 'Your files', 'Check', 'Bring across'] as const
 type Answers = Record<string, Record<string, ClientField | null>>
 
 /** Rows that need the owner's eye are listed; everyone else is counted. */
@@ -29,8 +31,8 @@ const LIST_LIMIT = 60
 const FILES_AT_ONCE = 20
 
 /**
- * Moving in, stage 1: the owner adds the files from their old system as they come, SALEANE works
- * out what each file and column is, and the client list comes across after one review.
+ * Moving in, stage 1, as four steps: the old system, its files exactly as they come, one check
+ * (with a question only where SALEANE is unsure of a column), then bringing the clients across.
  */
 export function MovingIn({ onClose }: { onClose: () => void }) {
   const { state, commit, role, blocked, saving } = useStore()
@@ -46,9 +48,23 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
     null,
   )
   const [done, setDone] = useState<number | null>(null)
+  const [step, setStep] = useState<Step>(1)
   const sending = useRef(false)
+  const top = useRef<HTMLDivElement>(null)
+  const heading = useRef<HTMLHeadingElement>(null)
+  const shownStep = useRef<Step>(1)
   const inputId = useId()
   const helpId = useId()
+  const headingId = useId()
+
+  // Each new step starts at the top, with its heading read out.
+  useEffect(() => {
+    if (shownStep.current === step) return
+    shownStep.current = step
+    const dialog = top.current?.closest('.dialog-content')
+    if (dialog) dialog.scrollTop = 0
+    heading.current?.focus({ preventScroll: true })
+  }, [step])
 
   const understood = useMemo(
     () =>
@@ -164,6 +180,22 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
 
   const ready = review.ready.length
   const canSave = allowed && !running && !saving && reviewed && ready > 0 && !questions.length
+  const systemName = system && system !== 'other' ? SYSTEM_NAME[system] : ''
+  const canContinue =
+    step === 1
+      ? !!system
+      : step === 2
+        ? !reading && clientFiles.length > 0
+        : step === 3
+          ? !questions.length && ready > 0
+          : false
+
+  function go(next: Step) {
+    setError('')
+    // Going back means looking again, so the last step asks for the tick afresh.
+    if (next < step) setReviewed(false)
+    setStep(next)
+  }
 
   if (done !== null)
     return (
@@ -195,130 +227,161 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
         if (!running) onClose()
       }}
       title="Move your clients in"
-      description="Add the files from your old system exactly as they come. You check everything before anything is saved."
+      description="Four short steps. Nothing is saved until the last one."
     >
-      <div className="moving">
-        <section aria-labelledby="moving-from">
-          <h3 id="moving-from" className="moving-step">
-            Where are you moving from?
-          </h3>
-          <div className="moving-systems" role="group" aria-label="Your old system">
-            {[...UK_FIRST, ...oldSystems.filter((s) => !UK_FIRST.includes(s))].map((s) => (
-              <button
-                key={s}
-                type="button"
-                className="moving-system"
-                aria-pressed={system === s}
-                disabled={running}
-                onClick={() => setSystem(s)}
+      <div className="moving" ref={top}>
+        <ol className="moving-steps" aria-label="Moving in steps">
+          {STEPS.map((name, i) => {
+            const n = (i + 1) as Step
+            return (
+              <li
+                key={name}
+                aria-current={step === n ? 'step' : undefined}
+                className={n < step ? 'is-done' : undefined}
               >
-                {s === 'other' ? 'Something else' : SYSTEM_NAME[s]}
-              </button>
-            ))}
-          </div>
-          {system && <p className="moving-guide">{WHERE_TO_EXPORT[system]}</p>}
-        </section>
+                <span className="moving-steps-mark" aria-hidden="true">
+                  {n < step ? <Check size={13} /> : n}
+                </span>
+                <span className="moving-steps-label">
+                  {name}
+                  {n < step && <span className="sr-only"> (done)</span>}
+                </span>
+              </li>
+            )
+          })}
+        </ol>
 
-        <section aria-labelledby="moving-files">
-          <h3 id="moving-files" className="moving-step">
-            Add your files
-          </h3>
-          <label
-            htmlFor={inputId}
-            className={`moving-drop${dragging ? ' is-dragging' : ''}`}
-            onDragOver={(event) => {
-              event.preventDefault()
-              setDragging(true)
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(event) => {
-              event.preventDefault()
-              setDragging(false)
-              if (allowed) void add(event.dataTransfer.files)
-            }}
-          >
-            <Upload size={22} aria-hidden="true" />
-            <strong>Drop files here, or choose them</strong>
-            <span id={helpId}>
-              CSV or Excel, as many as you like, straight from your old system. No need to rename
-              anything.
-            </span>
-            <input
-              id={inputId}
-              className="sr-only"
-              type="file"
-              multiple
-              accept=".csv,.xlsx,.txt,.tsv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-              disabled={!allowed || running}
-              aria-describedby={helpId}
-              onChange={(event) => {
-                void add(event.target.files)
-                event.target.value = ''
-              }}
-            />
-          </label>
-          {reading && <p role="status">Reading your files…</p>}
-          {!!files.length && (
-            <ul className="moving-files">
-              {files.map((f) => {
-                const u = understood.find((x) => x.id === f.id)
-                return (
-                  <li key={f.id}>
-                    <FileUp size={18} aria-hidden="true" />
-                    <div>
-                      <strong>{f.fileName}</strong>
-                      <span>{f.error ?? (u ? fileSummary(u.file) : '')}</span>
-                    </div>
-                    <button
-                      type="button"
-                      className="moving-remove"
-                      aria-label={`Remove ${f.fileName}`}
-                      disabled={running}
-                      onClick={() => {
-                        setFiles((current) => current.filter((x) => x.id !== f.id))
-                        setReviewed(false)
-                      }}
-                    >
-                      <X size={16} />
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </section>
-
-        {!!questions.length && (
-          <section aria-labelledby="moving-questions" className="moving-questions">
-            <h3 id="moving-questions" className="moving-step">
-              {questions.length === 1
-                ? 'One thing to check'
-                : `${questions.length} things to check`}
+        {step === 1 && (
+          <section aria-labelledby={headingId}>
+            <h3 id={headingId} ref={heading} tabIndex={-1} className="moving-step">
+              Where are you moving from?
             </h3>
             <p className="ops-help">
-              SALEANE was not sure about these columns. Look at the examples and choose what each
-              one is.
+              Choose the system your clients are in now. SALEANE knows how each one lays out its
+              files.
             </p>
-            {questions.map(({ fileId, file, match }) => (
-              <FieldChoice
-                key={`${fileId}-${match.index}`}
-                id={`${fileId}-${match.index}`}
-                heading={match.heading}
-                samples={samples(file, match.index)}
-                value={match.field}
-                prompt={`Is “${match.heading}” in ${file.fileName} the ${FIELD_LABEL[match.field!].toLowerCase()}?`}
-                onChange={(field) => answer(fileId, match.heading, field)}
-                confirm
-              />
-            ))}
+            <div className="moving-tiles" role="group" aria-label="Your old system">
+              {[...UK_FIRST, ...oldSystems.filter((s) => !UK_FIRST.includes(s))].map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  className="moving-tile"
+                  aria-pressed={system === s}
+                  onClick={() => setSystem(s)}
+                >
+                  {s === 'other' ? 'Something else' : SYSTEM_NAME[s]}
+                  {system === s && <Check size={16} aria-hidden="true" />}
+                </button>
+              ))}
+            </div>
           </section>
         )}
 
-        {!!clientFiles.length && (
-          <section aria-labelledby="moving-review">
-            <h3 id="moving-review" className="moving-step">
-              Check before it comes across
+        {step === 2 && system && (
+          <section aria-labelledby={headingId}>
+            <h3 id={headingId} ref={heading} tabIndex={-1} className="moving-step">
+              {systemName ? `Add your ${systemName} client list` : 'Add your client list'}
             </h3>
+            <div className="moving-guide">
+              <strong>{systemName ? `Downloading it from ${systemName}` : 'Downloading it'}</strong>
+              <p>{WHERE_TO_EXPORT[system]}</p>
+            </div>
+            <label
+              htmlFor={inputId}
+              className={`moving-drop${dragging ? ' is-dragging' : ''}`}
+              onDragOver={(event) => {
+                event.preventDefault()
+                setDragging(true)
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(event) => {
+                event.preventDefault()
+                setDragging(false)
+                if (allowed) void add(event.dataTransfer.files)
+              }}
+            >
+              <Upload size={22} aria-hidden="true" />
+              <strong>Drop files here, or choose them</strong>
+              <span id={helpId}>
+                CSV or Excel, exactly as they come. Add other lists from the same system too.
+              </span>
+              <input
+                id={inputId}
+                className="sr-only"
+                type="file"
+                multiple
+                accept=".csv,.xlsx,.txt,.tsv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                disabled={!allowed}
+                aria-describedby={helpId}
+                onChange={(event) => {
+                  void add(event.target.files)
+                  event.target.value = ''
+                }}
+              />
+            </label>
+            {reading && <p role="status">Reading your files…</p>}
+            {!!files.length && (
+              <ul className="moving-files">
+                {files.map((f) => {
+                  const u = understood.find((x) => x.id === f.id)
+                  return (
+                    <li key={f.id}>
+                      <FileUp size={18} aria-hidden="true" />
+                      <div>
+                        <strong>{f.fileName}</strong>
+                        <span>{f.error ?? (u ? fileSummary(u.file) : '')}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="moving-remove"
+                        aria-label={`Remove ${f.fileName}`}
+                        onClick={() => {
+                          setFiles((current) => current.filter((x) => x.id !== f.id))
+                          setReviewed(false)
+                        }}
+                      >
+                        <X size={16} />
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+            {!!files.length && !reading && !clientFiles.length && (
+              <p className="ops-help">
+                None of these is a client list yet. Add the list with your clients’ names and their
+                emails or phone numbers.
+              </p>
+            )}
+          </section>
+        )}
+
+        {step === 3 && (
+          <section aria-labelledby={headingId}>
+            <h3 id={headingId} ref={heading} tabIndex={-1} className="moving-step">
+              {questions.length ? 'Check a few things first' : 'Check your clients'}
+            </h3>
+            {!!questions.length && (
+              <div className="moving-questions">
+                <p>
+                  SALEANE was not sure about{' '}
+                  {questions.length === 1 ? 'one column' : `${questions.length} columns`}. Look at
+                  the examples and choose what each one is.
+                </p>
+                {questions.map(({ fileId, file, match }) => (
+                  <FieldChoice
+                    key={`${fileId}-${match.index}`}
+                    id={`${fileId}-${match.index}`}
+                    heading={match.heading}
+                    samples={samples(file, match.index)}
+                    value={match.field}
+                    prompt={`Is “${match.heading}” in ${file.fileName} the ${FIELD_LABEL[match.field!].toLowerCase()}?`}
+                    onChange={(field) => answer(fileId, match.heading, field)}
+                    confirm
+                  />
+                ))}
+              </div>
+            )}
             <div className="ops-summary">
               <div>
                 <span>Ready to come across</span>
@@ -346,14 +409,10 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
                 client.
               </p>
             )}
-            <p className="ops-help">
-              Marketing comes across only for clients your old system shows agreed. Everyone else
-              starts with marketing off. Nobody is merged with a client already here.
-            </p>
             <Attention rows={review.rows} />
             {clientFiles.map((u) => (
               <details key={u.id} className="moving-columns">
-                <summary>What each column in {u.file.fileName} becomes</summary>
+                <summary>How each column in {u.file.fileName} was read</summary>
                 <ul>
                   {u.file.matches.map((m) => (
                     <li key={m.index}>
@@ -371,11 +430,47 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
                 </ul>
               </details>
             ))}
+          </section>
+        )}
+
+        {step === 4 && (
+          <section aria-labelledby={headingId}>
+            <h3 id={headingId} ref={heading} tabIndex={-1} className="moving-step">
+              Bring them across
+            </h3>
+            <p className="moving-lead">
+              {ready.toLocaleString(state.organisation.locale)}{' '}
+              {ready === 1 ? 'client is' : 'clients are'} ready to come across from{' '}
+              {fromNames || 'your old system'}.
+            </p>
+            <ul className="moving-facts">
+              <li>
+                {review.marketing} agreed to marketing in their old system. Everyone else starts
+                with marketing off.
+              </li>
+              <li>
+                {review.birthdays} {review.birthdays === 1 ? 'birthday' : 'birthdays'} and{' '}
+                {review.withNotes} {review.withNotes === 1 ? 'client' : 'clients'} with notes come
+                with them.
+              </li>
+              {!!review.counts.here && (
+                <li>
+                  {review.counts.here} already in SALEANE{' '}
+                  {review.counts.here === 1 ? 'stays' : 'stay'} exactly as they are.
+                </li>
+              )}
+              {!!review.counts.problem && (
+                <li>
+                  {review.counts.problem} {review.counts.problem === 1 ? 'row' : 'rows'} cannot come
+                  across; the Check step shows why.
+                </li>
+              )}
+            </ul>
             <label className="ops-check">
               <input
                 type="checkbox"
                 checked={reviewed}
-                disabled={!ready || running || !!questions.length}
+                disabled={!ready || running}
                 onChange={(event) => setReviewed(event.target.checked)}
               />
               <span>
@@ -383,34 +478,45 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
                 against my old system and may bring them across.
               </span>
             </label>
+            {running && (
+              <p role="status" className="moving-progress">
+                Bringing clients across: part {Math.min(run.next + 1, run.parts.length)} of{' '}
+                {run.parts.length}…
+              </p>
+            )}
           </section>
         )}
 
         {!allowed && <p className="ops-help">Only an owner or manager can bring clients across.</p>}
-        {running && (
-          <p role="status" className="moving-progress">
-            Bringing clients across: part {Math.min(run.next + 1, run.parts.length)} of{' '}
-            {run.parts.length}…
-          </p>
-        )}
         <ErrorMessage error={error} />
-        <div className="ops-actions">
-          <Button
-            disabled={!canSave}
-            onClick={() => {
-              setError('')
-              setRun({ parts: movingParts(review.ready), next: 0, saved: 0 })
-            }}
-          >
-            {running
-              ? 'Bringing clients across…'
-              : ready
-                ? `Bring ${ready.toLocaleString(state.organisation.locale)} ${ready === 1 ? 'client' : 'clients'} across`
-                : 'Bring clients across'}
-          </Button>
-          <Button variant="secondary" disabled={running} onClick={onClose}>
-            Cancel
-          </Button>
+        <div className="moving-next">
+          {step > 1 ? (
+            <Button variant="quiet" disabled={running} onClick={() => go((step - 1) as Step)}>
+              <ArrowLeft size={16} />
+              Back
+            </Button>
+          ) : (
+            <Button variant="quiet" onClick={onClose}>
+              Cancel
+            </Button>
+          )}
+          {step < 4 ? (
+            <Button disabled={!canContinue} onClick={() => go((step + 1) as Step)}>
+              Continue <ArrowRight size={17} />
+            </Button>
+          ) : (
+            <Button
+              disabled={!canSave}
+              onClick={() => {
+                setError('')
+                setRun({ parts: movingParts(review.ready), next: 0, saved: 0 })
+              }}
+            >
+              {running
+                ? 'Bringing clients across…'
+                : `Bring ${ready.toLocaleString(state.organisation.locale)} ${ready === 1 ? 'client' : 'clients'} across`}
+            </Button>
+          )}
         </div>
       </div>
     </Modal>

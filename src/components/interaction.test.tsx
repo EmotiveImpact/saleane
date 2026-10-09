@@ -797,22 +797,38 @@ describe('moving clients in from another system', () => {
     'Alex,Import,alex.import@example.com,07700 900123,Yes,Yes,14/03/1990,Prefers mornings\n' +
     ',,,,No,No,,'
 
-  it('recognises a Fresha client list and brings new clients across with notes, birthdays and recorded marketing', async () => {
+  it('walks through four steps to bring a Fresha client list across with notes, birthdays and recorded marketing', async () => {
     const user = userEvent.setup()
     await show('/clients')
     await user.click(screen.getByRole('button', { name: 'Import clients' }))
+    expect(screen.getByRole('heading', { name: 'Where are you moving from?' })).toBeInTheDocument()
+    const next = () => screen.getByRole('button', { name: 'Continue' })
+    expect(next()).toBeDisabled()
     await user.click(screen.getByRole('button', { name: 'Fresha' }))
+    expect(screen.getByRole('button', { name: 'Fresha' })).toHaveAttribute('aria-pressed', 'true')
+    await user.click(next())
+
+    expect(screen.getByRole('heading', { name: 'Add your Fresha client list' })).toHaveFocus()
     expect(screen.getByText(/In Fresha, go to Clients/)).toBeInTheDocument()
+    expect(next()).toBeDisabled()
     await user.upload(
       screen.getByLabelText(/Drop files here/),
       new File([fresha], 'export_customer_list.csv', { type: 'text/csv' }),
     )
     expect(await screen.findByText(/Fresha client list · 3 rows/)).toBeInTheDocument()
+    await user.click(next())
+
+    expect(screen.getByRole('heading', { name: 'Check your clients' })).toBeInTheDocument()
     const summary = document.querySelector('.ops-summary')!
     expect(
       within(summary as HTMLElement).getByText('Ready to come across').nextSibling,
     ).toHaveTextContent('1')
     expect(screen.getByText(/1 agreed to marketing, 1 with birthdays/)).toBeInTheDocument()
+    await user.click(next())
+
+    expect(screen.getByRole('heading', { name: 'Bring them across' })).toBeInTheDocument()
+    expect(screen.getByText('1 client is ready to come across from Fresha.')).toBeInTheDocument()
+    expect(screen.getByText(/1 already in SALEANE stays exactly as they are/)).toBeInTheDocument()
     const submit = screen.getByRole('button', { name: 'Bring 1 client across' })
     expect(submit).toBeDisabled()
     await user.click(screen.getByRole('checkbox', { name: /I have checked these 1 clients/ }))
@@ -844,6 +860,8 @@ describe('moving clients in from another system', () => {
     const user = userEvent.setup()
     await show('/clients')
     await user.click(screen.getByRole('button', { name: 'Import clients' }))
+    await user.click(screen.getByRole('button', { name: 'Something else' }))
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
     const files = Array.from(
       { length: 22 },
       (_, i) =>
@@ -859,27 +877,36 @@ describe('moving clients in from another system', () => {
     expect(screen.queryByText('list-20.csv')).toBeNull()
   })
 
-  it('keeps the files after a failed save and asks for the review again', async () => {
+  it('keeps the files after a failed save and asks for the tick again', async () => {
     const user = userEvent.setup()
     await show('/clients')
     await user.click(screen.getByRole('button', { name: 'Import clients' }))
+    await user.click(screen.getByRole('button', { name: 'Something else' }))
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
     await user.upload(
       screen.getByLabelText(/Drop files here/),
       new File(['name,email,phone\nRetry Person,retry@example.com,+442071234567'], 'retry.csv', {
         type: 'text/csv',
       }),
     )
-    const review = await screen.findByRole('checkbox', { name: /I have checked these 1 clients/ })
-    await user.click(review)
+    await screen.findByText(/Client list · 1 row/)
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+    const tick = () => screen.getByRole('checkbox', { name: /I have checked these 1 clients/ })
+    await user.click(tick())
     const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
       throw new Error('Storage unavailable')
     })
     await user.click(screen.getByRole('button', { name: 'Bring 1 client across' }))
     await waitFor(() => expect(screen.getByRole('alert')).not.toBeEmptyDOMElement())
     write.mockRestore()
+    expect(tick()).not.toBeChecked()
+    await user.click(screen.getByRole('button', { name: 'Back' }))
+    await user.click(screen.getByRole('button', { name: 'Back' }))
     expect(screen.getByText('retry.csv')).toBeInTheDocument()
-    expect(review).not.toBeChecked()
-    await user.click(review)
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+    await user.click(tick())
     await user.click(screen.getByRole('button', { name: 'Bring 1 client across' }))
     expect(
       await screen.findByRole('heading', { name: '1 client brought across from your old system' }),

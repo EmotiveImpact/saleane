@@ -6,17 +6,18 @@ The owner said yes to all five moving-in answers on 9 October 2026: the UK five 
 
 ## What the owner sees
 
-Clients, Import clients, and Settings, Switching over, Clients, now open the same screen, "Move your clients in".
+Clients, Import clients, and Settings, Switching over, Clients, now open the same screen, "Move your clients in": four short steps, named along the top, with finished steps ticked. Nothing is saved until the last one. Back and Continue stay at the bottom of the window however long a step is, Continue waits until a step is complete, and each new step starts at the top with its heading read out to a screen reader. On the owner's first try this was one long page; after "is it good enough? should it be a kind of wizard and should it be cleaner" it became these four steps, with the same reading and saving underneath.
 
-1. **Where are you moving from?** The UK five come first, then Square, Vagaro, GlossGenius and "Something else". Choosing one shows where to find the export in that system, in plain words.
-2. **Add your files.** Drop or choose as many files as they like, CSV or Excel (.xlsx), exactly as the old system gave them. Each file is named with what SALEANE thinks it is ("Fresha client list · 11 rows", "Phorest client export · 4 rows"). Visit, gift card, package and payment files are recognised and named rather than refused; they are not saved, and the screen says a later step brings them across and the owner adds the file again then.
-3. **One thing to check.** Only a column SALEANE is unsure of becomes a question, with three examples from the file ("Is “Contact” in VIP list.csv the mobile?").
-4. **Check before it comes across.** Ready, already here, and needing a look, with how many agreed to marketing and how many have birthdays; who was combined; each row that cannot come across and why; and, folded away, what every column becomes, which the owner can change.
-5. **Bring N clients across.** Long lists go in parts the server accepts, one after another. A dropped connection keeps the files and says how many came across; anyone saved shows as already here on the next review.
+1. **Old system.** "Where are you moving from?" Nine large tiles: the UK five first, then Square, Vagaro, GlossGenius and "Something else".
+2. **Your files.** "Add your Fresha client list", with where to find the export in that system, in plain words, then the drop area. Drop or choose as many files as they like, CSV or Excel (.xlsx), exactly as the old system gave them. Each file is named with what SALEANE thinks it is ("Fresha client list · 11 rows", "Phorest client export · 4 rows"). Visit, gift card, package and payment files are recognised and named rather than refused; they are not saved, and the screen says a later step brings them across and the owner adds the file again then. Continue waits until there is a client list.
+3. **Check.** Any column SALEANE is unsure of comes first as a question, with three examples from the file ("Is “Contact” in VIP list.csv the mobile?"), and Continue waits for the answer. Below it: ready, already here, and needing a look, with how many agreed to marketing and how many have birthdays; who was combined; each row that cannot come across and why; and, folded away, what every column becomes, which the owner can change.
+4. **Bring across.** "14 clients are ready to come across from Fresha and Phorest", then four plain sentences (marketing, birthdays and notes, who stays as they are, rows left out), one tick and "Bring 14 clients across". Long lists go in parts the server accepts, one after another. A dropped connection keeps the files and says how many came across; anyone saved shows as already here on the next review. Going back to an earlier step clears the tick.
 
-![The start](MOVING-01-start.jpg)
-![Four files added and one question](MOVING-01-files-and-question.jpg)
-![The review with every column](MOVING-01-review.jpg)
+![Step 1, the old system](MOVING-01-start.jpg)
+![Step 2, four files added](MOVING-01-files.jpg)
+![Step 3, one question and the check](MOVING-01-files-and-question.jpg)
+![Step 3 answered, every column folded away](MOVING-01-review.jpg)
+![Step 4, bring them across](MOVING-01-bring.jpg)
 ![Done](MOVING-01-done.jpg)
 
 ## Rules kept
@@ -43,8 +44,8 @@ The move is listed under Settings, Switching over, What has come across ("Client
 
 - `npm run check` (lint, all tests, build) and `npm run format:check` pass.
 - 23 domain tests in `src/domain/movingIn/movingIn.test.ts`: comma, semicolon and tab files, a byte-order mark, Windows text and UTF-16; an Excel workbook with dates stored as numbers; files it cannot read (.xls, a web page saved as .xls) explained; synonyms; headings checked against contents; title and totals rows; the layouts for Fresha, Phorest, Timely, Square, Vagaro and GlossGenius; visits and gift card files told apart; phones, birthdays and names; a Fresha list end to end, including the saved studio read back and moved again (everyone already here); consent refused without evidence; a client already here left untouched; a household sharing one email, here and in the files; rows for one person that only meet once every detail is known; two files combined; marketing off for a client with no email; a US Square export; long lists split into parts; editing a client without an email; the privacy file wording.
-- Three interaction tests on the Clients page: a Fresha list brought across with notes, birthday and recorded marketing; more than 20 files chosen at once says so; a failed save keeps the files and asks for the review again.
-- Chromium at 1440 and 390 pixels wide on the browser demo, with four files at once: a Fresha client list (11 rows, with a duplicate, a client already here, a dropped leading zero, a name in capitals, "Unknown" marketing and a row with no contact details), a Phorest client export in Excel with a title row and real Excel dates, a Fresha appointments list, and a hand-made VIP spreadsheet. Result: 14 ready, 1 already here, 1 needing a look, 2 combined, 6 with marketing, 7 with birthdays; 14 clients saved.
+- Three interaction tests on the Clients page: the four steps walked with a Fresha list (Continue held until a system and a client list are chosen, focus on each new step's heading), bringing it across with notes, birthday and recorded marketing; more than 20 files chosen at once says so; a failed save keeps the files, clears the tick, and works after going back and forward again.
+- Chromium at 1440 by 900 and 390 by 844 pixels on the browser demo, every step walked including Back (which clears the tick), Continue held while a question is open, each step starting at the top, Back and Continue in view at the bottom of a long check, and no sideways scrolling. Four files at once: a Fresha client list (11 rows, with a duplicate, a client already here, a dropped leading zero, a name in capitals, "Unknown" marketing and a row with no contact details), a Phorest client export in Excel with a title row and real Excel dates, a Fresha appointments list, and a hand-made VIP spreadsheet. Result: 14 ready, 1 already here, 1 needing a look, 2 combined, 6 with marketing, 7 with birthdays; 14 clients saved.
 
 ![Phone, 390 pixels](MOVING-01-phone-390.jpg)
 

@@ -13,46 +13,131 @@
   font-weight: var(--weight-editorial);
   color: var(--ink);
 }
-.moving-systems {
-  display: flex;
-  flex-wrap: wrap;
+/* Where the owner is: four steps along the top, done ones ticked. */
+.moving-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
-.moving-system {
-  min-height: var(--target);
+.moving-steps li {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+/* A thin line joins each step to the next. */
+.moving-steps li:not(:last-child)::after {
+  content: '';
+  flex: 1;
+  min-width: 10px;
+  height: 1px;
+  background: var(--line2);
+}
+.moving-steps li.is-done:not(:last-child)::after {
+  background: var(--brand-mid);
+}
+.moving-steps-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-round);
+  background: var(--paper);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-strong);
+}
+.moving-steps-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.moving-steps li[aria-current='step'] {
+  color: var(--ink);
+  font-weight: var(--weight-strong);
+}
+.moving-steps li[aria-current='step'] .moving-steps-mark {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+}
+.moving-steps li.is-done .moving-steps-mark {
+  border-color: var(--brand-mid);
+  background: var(--brand-soft);
+  color: var(--brand-ink);
+}
+.moving-step {
+  outline: none;
+}
+.moving-step + .ops-help {
+  margin: -6px 0 16px;
+}
+.moving-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.moving-tile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 64px;
   padding: 0 18px;
   border: 1px solid var(--line2);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
   background: var(--paper);
   color: var(--ink);
   font: inherit;
-  font-size: var(--text-small);
+  font-size: var(--text-body);
   font-weight: var(--weight-nav);
+  text-align: left;
   cursor: pointer;
   transition:
     background var(--motion-quick),
     border-color var(--motion-quick);
 }
-.moving-system:hover:not(:disabled) {
+.moving-tile:hover {
   border-color: var(--brand-mid);
   background: var(--sage-soft);
 }
-.moving-system[aria-pressed='true'] {
+.moving-tile[aria-pressed='true'] {
   border-color: var(--brand);
   background: var(--sage);
   color: var(--brand-ink);
+  font-weight: var(--weight-strong);
 }
-.moving-system:disabled {
-  cursor: default;
-  opacity: 0.6;
+.moving-tile svg {
+  flex: none;
+  color: var(--brand);
+}
+.moving-tile:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 .moving-guide {
-  margin: 14px 0 0;
-  padding: 14px 18px;
+  margin: 0 0 16px;
+  padding: 16px 18px;
   border-radius: var(--radius-control);
   background: var(--sage-soft);
   color: var(--ink);
   font-size: var(--text-small);
+}
+.moving-guide strong {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: var(--weight-strong);
+}
+.moving-guide p {
+  margin: 0;
+  color: var(--brand-ink);
 }
 .moving-drop {
   display: grid;
@@ -133,9 +218,15 @@
   color: var(--ink);
 }
 .moving-questions {
+  margin-bottom: 20px;
   padding: 20px;
   border-radius: var(--radius-panel);
   background: var(--rose-soft);
+}
+.moving-questions > p {
+  margin: 0;
+  color: var(--rose-ink);
+  font-size: var(--text-small);
 }
 .moving-questions .moving-field {
   border-color: color-mix(in srgb, var(--rose) 22%, var(--line));
@@ -257,6 +348,49 @@
 .moving-columns .moving-field {
   margin-top: 8px;
 }
+.moving-lead {
+  margin: 0 0 14px;
+  color: var(--ink);
+  font-size: var(--text-lead);
+}
+.moving-facts {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+.moving-facts li {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--brand-ink);
+  font-size: var(--text-small);
+}
+.moving-facts li::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-round);
+  background: var(--brand);
+  transform: translateY(-2px);
+}
+/* Back and Continue stay in reach while a long check scrolls. */
+.moving-next {
+  position: sticky;
+  bottom: -28px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 -28px -28px;
+  padding: 16px 28px 28px;
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+}
 .moving-progress {
   margin: 0;
   padding: 14px 18px;
@@ -268,6 +402,32 @@
 @media (max-width: 640px) {
   .moving {
     gap: 22px;
+  }
+  /* On a phone only the step you are on is named. */
+  .moving-steps li:not([aria-current='step']) .moving-steps-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .moving-steps {
+    display: flex;
+    gap: 6px;
+  }
+  .moving-steps li {
+    flex: 1 1 0;
+    gap: 6px;
+  }
+  .moving-steps li[aria-current='step'] {
+    flex: 2 1 auto;
+  }
+  .moving-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .moving-tile {
+    min-height: 56px;
+    padding: 0 14px;
   }
   .moving-field {
     grid-template-columns: minmax(0, 1fr);
@@ -282,5 +442,13 @@
   }
   .moving-questions {
     padding: 14px;
+  }
+}
+/* Matches the dialog's own padding on small screens. */
+@media (max-width: 650px) {
+  .moving-next {
+    bottom: -22px;
+    margin: 0 -18px -22px;
+    padding: 14px 18px 22px;
   }
 }
