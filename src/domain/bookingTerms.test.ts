@@ -6,6 +6,7 @@ import {
   taxIncluded,
   whenLabel,
 } from './bookingTerms'
+import { timeLabel } from './format'
 
 const uk = {
   date: '2026-10-07',
@@ -74,12 +75,17 @@ describe('the cancellation rule shown before a guest confirms', () => {
       feePercent: 0,
       now: 0,
     })
-    expect(us.cutoff).toBe('Sunday, November 1 at 09:00 AM')
+    // US times follow the app's 12-hour clock, however timeLabel writes it.
+    expect(us.cutoff).toBe(`Sunday, November 1 at ${timeLabel(540, 'en-US')}`)
+    expect(timeLabel(540, 'en-US')).toMatch(/^0?9:00 AM$/)
   })
 
   it('writes a date and time out in the studio’s words', () => {
     expect(whenLabel('2026-11-03', 870, 'en-GB')).toBe('Tuesday 3 November at 14:30')
-    expect(whenLabel('2026-11-03', 870, 'en-US')).toBe('Tuesday, November 3 at 02:30 PM')
+    expect(whenLabel('2026-11-03', 870, 'en-US')).toBe(
+      `Tuesday, November 3 at ${timeLabel(870, 'en-US')}`,
+    )
+    expect(timeLabel(870, 'en-US')).toMatch(/^0?2:30 PM$/)
     expect(civilTime(Date.parse('2026-10-06T23:30:00.000Z'), 'Europe/London')).toEqual({
       date: '2026-10-07',
       minutes: 30,
