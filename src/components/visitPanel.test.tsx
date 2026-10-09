@@ -35,7 +35,7 @@ describe('the visit panel, one place for a visit in every state', { timeout: 200
       within(actions)
         .getAllByRole('button')
         .map((button) => button.textContent),
-    ).toEqual(['Move appointment', 'Cancel appointment', 'Mark as missed'])
+    ).toEqual(['Move visit', 'Cancel visit', 'Mark as missed'])
     expect(within(actions).getByRole('link', { name: 'Message Noor' })).toBeInTheDocument()
     expect(within(panel).getByRole('button', { name: 'Welcome client' })).toBeInTheDocument()
   })

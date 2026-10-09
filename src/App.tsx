@@ -346,7 +346,7 @@ function WorkspaceApp() {
             <button className="ask-button" onClick={() => setAsking(true)}>
               <Sparkles size={17} />
               <span>
-                Ask Saleane
+                Ask SALEANE
                 {noticed > 0 && (
                   <span className="ask-count">
                     , {noticed} {noticed === 1 ? 'thing' : 'things'} to mention

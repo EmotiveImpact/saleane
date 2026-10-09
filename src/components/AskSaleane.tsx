@@ -116,7 +116,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
       ])
     } catch (caught) {
       setError(
-        caught instanceof Error ? caught.message : 'Ask Saleane could not answer. Try again.',
+        caught instanceof Error ? caught.message : 'Ask SALEANE could not answer. Try again.',
       )
     } finally {
       setBusy(false)
@@ -175,7 +175,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
       open
       onClose={onClose}
       placement="side"
-      title="Ask Saleane"
+      title="Ask SALEANE"
       description="Ask about your day, your clients and your takings. Changes wait for your approval."
     >
       <div className="ask-saleane">
@@ -187,7 +187,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
           {!entries.length && opening.length > 0 && (
             <div className="ask-nudges">
               <span className="ask-name">
-                <Sparkles size={14} aria-hidden="true" /> Saleane noticed
+                <Sparkles size={14} aria-hidden="true" /> SALEANE noticed
               </span>
               <ul>
                 {opening.map((n) => (
@@ -219,7 +219,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
             ) : (
               <div key={entry.id} className="ask-bubble ask-reply">
                 <span className="ask-name">
-                  <Sparkles size={14} aria-hidden="true" /> Saleane
+                  <Sparkles size={14} aria-hidden="true" /> SALEANE
                 </span>
                 <p>{entry.text}</p>
                 {entry.suggestions.map((s) => (

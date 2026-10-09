@@ -291,7 +291,7 @@ export function DesignLanguage() {
               eyebrow="Tuesday 6 October"
               title="A good day begins here."
               description="Everything you need to give today your best."
-              actions={<Button>New appointment</Button>}
+              actions={<Button>New visit</Button>}
             />
           </div>
           <div className="library-frame">

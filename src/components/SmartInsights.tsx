@@ -53,7 +53,7 @@ export function SmartInsights({ onBook }: { onBook: (defaults: BookingDefaults) 
       />
       <div className="intelligence-symbol">
         <Leaf size={22} />
-        <span>Saleane noticed</span>
+        <span>SALEANE noticed</span>
       </div>
       <h2 id="smart-insights-title">{headline}</h2>
       <p>

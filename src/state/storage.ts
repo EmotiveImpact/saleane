@@ -30,7 +30,7 @@ export function loadWorkspace(storage: Storage, region: Region): LoadedWorkspace
     return {
       state: seed(region),
       warning:
-        'Saved demo data could not be read. Changes are paused to preserve it. Export the saved data or reset this demo workspace.',
+        'Saved demo data could not be read. Changes are paused to preserve it. Export the saved data or reset this demo studio.',
       blocked: true,
     }
   }

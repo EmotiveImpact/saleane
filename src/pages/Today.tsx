@@ -71,7 +71,7 @@ export function Today() {
           <div className="page-actions">
             <Button onClick={() => setBooking({ date: today })}>
               <Plus size={17} />
-              New appointment
+              New visit
             </Button>
             <Link className="button button-secondary" to="/calendar">
               Open calendar

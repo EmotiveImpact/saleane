@@ -20,8 +20,8 @@ describe('Ask Saleane', { timeout: 20000 }, () => {
   it('follows a notice with its own question and answers it', async () => {
     const user = userEvent.setup()
     show()
-    await user.click(screen.getByRole('button', { name: /^Ask Saleane/ }))
-    const panel = await screen.findByRole('dialog', { name: 'Ask Saleane' })
+    await user.click(screen.getByRole('button', { name: /^Ask SALEANE/ }))
+    const panel = await screen.findByRole('dialog', { name: 'Ask SALEANE' })
     const notice = within(panel).getByText(
       /Enzyme Peel, professional size is running low/,
     ).parentElement!
@@ -35,7 +35,7 @@ describe('Ask Saleane', { timeout: 20000 }, () => {
   it('keeps the question box’s hint short enough for a phone', async () => {
     const user = userEvent.setup()
     show()
-    await user.click(screen.getByRole('button', { name: /^Ask Saleane/ }))
+    await user.click(screen.getByRole('button', { name: /^Ask SALEANE/ }))
     const box = await screen.findByLabelText('Your question')
     expect(box).toHaveAttribute('placeholder', 'Ask about today or a client…')
     expect(box.getAttribute('placeholder')!.length).toBeLessThanOrEqual(30)

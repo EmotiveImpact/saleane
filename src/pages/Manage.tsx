@@ -541,7 +541,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                       name="bookingEnabled"
                       defaultChecked={config.bookingEnabled}
                     />
-                    Allow bookings in this local workspace
+                    Take bookings online
                   </label>
                   <label className="ops-check">
                     <input type="checkbox" name="botCheck" defaultChecked={!!config.botCheck} />
@@ -619,11 +619,11 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                       type="checkbox"
                       defaultChecked={config.tax?.inclusive ?? false}
                     />
-                    Tax is already included in service prices
+                    Tax is already included in treatment prices
                   </label>
                   <p className="ops-help">
-                    No automatic jurisdiction lookup or tax filing is connected. Choose the rate and
-                    price basis that apply to your business.
+                    SALEANE does not look up tax rates or file tax returns. Choose the rate, and
+                    whether prices include it, for your business.
                   </p>
                   <div className="ops-actions">
                     <Button type="submit" disabled={pending || !allowed('tax')}>
@@ -739,8 +739,8 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
               <section className="surface ops-panel">
                 <header>
                   <div>
-                    <h2>A place for every service</h2>
-                    <p>Spaces shared across the team, with one appointment at a time.</p>
+                    <h2>A place for every treatment</h2>
+                    <p>Spaces shared across the team, with one visit at a time.</p>
                   </div>
                   <Button disabled={!allowed('catalogue')} onClick={() => open('resource')}>
                     <Plus size={16} />
@@ -924,7 +924,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
               ? 'Time away'
               : `${editor.id ? 'Edit' : 'Add'} ${{ service: 'treatment', staff: 'professional', resource: 'resource' }[editor.kind]}`
           }
-          description="Changes are saved to this workspace. Existing history is preserved."
+          description="Changes are saved to this studio. Existing history is kept."
         >
           <form
             onSubmit={submitEditor}
@@ -1094,7 +1094,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                     </select>
                   </label>
                   <fieldset className="ops-checks ops-wide">
-                    <legend>Qualified services</legend>
+                    <legend>Treatments they give</legend>
                     {state.services
                       .filter((item) => !item.archived || person?.serviceIds.includes(item.id))
                       .map((item) => (
@@ -1109,9 +1109,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                           {item.archived ? ' (archived)' : ''}
                         </label>
                       ))}
-                    {!state.services.length && (
-                      <p>Add a service before assigning qualifications.</p>
-                    )}
+                    {!state.services.length && <p>Add a treatment before choosing who gives it.</p>}
                   </fieldset>
                   <fieldset className="ops-checks ops-wide">
                     <legend>Working hours</legend>

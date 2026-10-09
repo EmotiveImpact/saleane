@@ -142,7 +142,7 @@ export function Calendar() {
         actions={
           <Button onClick={() => setBooking({})}>
             <Plus size={17} />
-            New appointment
+            New visit
           </Button>
         }
       />
@@ -294,7 +294,7 @@ export function Calendar() {
                 style={{ height: hourCount * 82 }}
                 key={s.id}
                 data-lane={s.id}
-                aria-label={`${s.name} appointments`}
+                aria-label={`${s.name} visits`}
               >
                 {Array.from({ length: hourCount }, (_, i) => (
                   <div className="hour-line" style={{ top: i * 82 }} key={i} />
@@ -308,7 +308,7 @@ export function Calendar() {
                         date === today
                           ? Math.max(segment.from, Math.ceil(clock / 15) * 15)
                           : segment.from
-                      // A gap shorter than a comfortable tap (24px) is booked from New appointment instead.
+                      // A gap shorter than a comfortable tap (24px) is booked from New visit instead.
                       if (segment.to - from < 15 || ((segment.to - from) / 60) * 82 < 24)
                         return null
                       return (
@@ -485,7 +485,7 @@ export function Calendar() {
         )}
         {!day.length && view === 'grid' && (
           <div className="calendar-grid-desktop">
-            <Empty title="A clear day">Use New appointment to reserve a time.</Empty>
+            <Empty title="A clear day">Use New visit to reserve a time.</Empty>
           </div>
         )}
       </section>

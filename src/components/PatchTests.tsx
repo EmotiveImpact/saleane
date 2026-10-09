@@ -196,7 +196,9 @@ export function PatchTestForm({ clientId, onClose }: { clientId: string; onClose
         </div>
         <p className="ops-help">
           Salon details only: no medical history.{' '}
-          {operations(state).mode === 'sandbox' ? 'Use fictional details in this sandbox.' : ''}
+          {operations(state).mode === 'sandbox'
+            ? 'This is a sample studio, so use made-up details.'
+            : ''}
         </p>
         <ErrorMessage error={error} />
         <div className="ops-actions">
@@ -496,7 +498,7 @@ export function PatchTestRules() {
               disabled={!allowed}
               onChange={(e) => setRemind(e.target.checked)}
             />
-            Message a booked guest who needs a test, using their usual appointment email and text
+            Message a booked guest who needs a test, using their usual visit email and text
             settings. Sent once, up to two weeks before, while there is still time.
           </label>
         </div>

@@ -504,7 +504,7 @@ export function Stock() {
             if (!pending) setEditing(null)
           }}
           title={editing.id ? `Edit ${form.name || 'product'}` : 'Add a product'}
-          description="Prices include tax the same way your services do. A price change applies to future sales only."
+          description="Prices include tax the same way your treatments do. A price change applies to future sales only."
         >
           <form onSubmit={saveProduct} className="plan-form">
             <div className="ops-fields">

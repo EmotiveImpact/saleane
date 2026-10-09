@@ -190,7 +190,7 @@ export function BookingDialog({
           ? 'A visit to look forward to'
           : defaults.rebookedFromId
             ? 'Keep the relationship going'
-            : 'Book an appointment'
+            : 'Book a visit'
       }
       description={
         confirmedId
@@ -205,8 +205,8 @@ export function BookingDialog({
             {!state.clients.length
               ? 'Add a client before reserving their visit.'
               : !service
-                ? 'Add an active service in Business management.'
-                : 'Qualify an active professional for this service in Business management.'}
+                ? 'Add a treatment in Settings first.'
+                : 'In Settings, choose who gives this treatment first.'}
           </p>
           <Button variant="secondary" disabled={busy} onClick={onClose}>
             Close
@@ -424,7 +424,7 @@ export function BookingDialog({
             </span>
           </div>
           <div className="receipt-line">
-            <span>Service total</span>
+            <span>Treatment total</span>
             <strong>
               {money(
                 serviceAt(service, staffId ? staffLocationOn(state, staffId, date) : undefined)

@@ -94,7 +94,7 @@ export function AppointmentDialog({
         open
         onClose={onClose}
         title="Visit unavailable"
-        description="This visit is no longer available in your current workspace."
+        description="This visit is no longer in the diary. Reload to see the latest."
       >
         <Button onClick={onClose}>Close</Button>
       </Modal>
@@ -109,7 +109,7 @@ export function AppointmentDialog({
         open
         onClose={onClose}
         title="Visit needs review"
-        description="A related record is unavailable. Reload this workspace before changing the visit."
+        description="Something this visit relies on is missing. Reload before changing the visit."
       >
         <Button onClick={onClose}>Close</Button>
       </Modal>
@@ -273,7 +273,7 @@ export function AppointmentDialog({
   }
   async function pay() {
     if (needsConfirm && !collected) {
-      setError('Confirm that the balance has already been received outside Saleane.')
+      setError('Confirm the balance has already been received outside SALEANE.')
       return
     }
     // With nothing left to pay the payment fields are hidden; the visit closes at nothing due.
@@ -322,7 +322,7 @@ export function AppointmentDialog({
     )
       return
     setMode('details')
-    setNotice('Appointment saved. Booked service and deposit history retained. No message sent.')
+    setNotice('Visit saved. Booked treatment and deposit history kept. No message sent.')
     onMoved?.(date, staffId)
   }
   async function endVisit() {
@@ -408,9 +408,9 @@ export function AppointmentDialog({
           : checkout
             ? 'Checkout'
             : mode === 'move'
-              ? 'Move appointment'
+              ? 'Move visit'
               : mode === 'cancel'
-                ? 'Cancel appointment'
+                ? 'Cancel visit'
                 : mode === 'no-show'
                   ? 'Record a missed visit'
                   : serviceName
@@ -423,7 +423,7 @@ export function AppointmentDialog({
               ? 'Receipt saved. The payment provider confirmed the card payment.'
               : 'Local receipt saved. No payment provider was contacted.'
           : checkout
-            ? 'Review the service, any products, the deposit and an optional tip before recording payment.'
+            ? 'Check the treatment, any products, the deposit and an optional tip before recording payment.'
             : details
               ? `${dateLabel(appointment.date, locale)}, ${timeLabel(appointment.startMinutes, locale)} to ${timeLabel(ends, locale)}`
               : `${dateLabel(appointment.date, locale)} at ${timeLabel(appointment.startMinutes, locale)}`
@@ -505,7 +505,7 @@ export function AppointmentDialog({
                 ? sale.processor?.live
                   ? 'Paid by card through SALEANE. The payment provider confirmed it.'
                   : 'Paid with a test card. Test mode: no money moved.'
-                : 'This receipt records funds handled outside Saleane. No payment provider was contacted.'}
+                : 'This receipt records money handled outside SALEANE. No card company was contacted.'}
           </p>
           <section className="rebook-moment" aria-labelledby={rebookHeading}>
             <div
@@ -656,7 +656,7 @@ export function AppointmentDialog({
               onClick={move}
               disabled={!allowed('reschedule') || start === null || !available.includes(start)}
             >
-              {busy ? 'Saving…' : 'Save appointment'}
+              {busy ? 'Saving…' : 'Save visit'}
             </Button>
           </div>
         </>
@@ -687,8 +687,8 @@ export function AppointmentDialog({
             <p className="preference-note">
               Confirm that the scheduled visit time has passed and the client did not attend.{' '}
               {sandbox
-                ? 'The sandbox checks the visit date; it does not enforce elapsed time.'
-                : 'The local workspace checks elapsed venue time before recording this status.'}
+                ? 'In a sample studio only the date is checked, not the time of day.'
+                : 'SALEANE checks the visit’s time has passed at the studio before recording this.'}
             </p>
           )}
           <div className="deposit-review">
@@ -701,7 +701,7 @@ export function AppointmentDialog({
           <ErrorMessage error={error} />
           <div className="dialog-footer">
             <Button variant="secondary" disabled={busy} onClick={() => changeMode('details')}>
-              Keep appointment
+              Keep visit
             </Button>
             <Button onClick={endVisit} disabled={!allowed(mode) || reason.trim().length < 2}>
               {busy
@@ -985,7 +985,7 @@ export function AppointmentDialog({
                       checked={collected}
                       onChange={(event) => setCollected(event.target.checked)}
                     />
-                    I confirm the balance has already been received outside Saleane.
+                    I confirm the balance has already been received outside SALEANE.
                   </label>
                 </>
               )}
@@ -1109,7 +1109,7 @@ export function AppointmentDialog({
                   onClick={() => changeMode('move')}
                 >
                   <CalendarClock size={18} aria-hidden="true" />
-                  <span>Move appointment</span>
+                  <span>Move visit</span>
                   <ChevronRight size={16} aria-hidden="true" />
                 </button>
               )}
@@ -1122,7 +1122,7 @@ export function AppointmentDialog({
                   onClick={() => changeMode('cancel')}
                 >
                   <CircleX size={18} aria-hidden="true" />
-                  <span>Cancel appointment</span>
+                  <span>Cancel visit</span>
                   <ChevronRight size={16} aria-hidden="true" />
                 </button>
               )}

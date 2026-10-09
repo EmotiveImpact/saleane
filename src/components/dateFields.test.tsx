@@ -21,7 +21,7 @@ describe('dates and times written the studio’s way in staff forms', { timeout:
   it('books a new visit on a day chosen from the calendar', async () => {
     const user = userEvent.setup()
     show('/today')
-    await user.click(screen.getAllByRole('button', { name: /New appointment/ })[0])
+    await user.click(screen.getAllByRole('button', { name: /New visit/ })[0])
     const dialog = screen.getByRole('dialog')
     await user.type(within(dialog).getByRole('searchbox', { name: 'Client' }), 'grace')
     await user.click(within(dialog).getByRole('button', { name: /Grace Chen/ }))
