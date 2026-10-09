@@ -617,6 +617,82 @@ describe('Business overview wording', () => {
   })
 })
 
+describe('requests and branch visits before regions', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    sessionStorage.clear()
+  })
+  const secondLocation = (state: BusinessState) => {
+    state.operations!.locations = [
+      { id: 'loc-islington', name: 'Islington', address: '5 Upper Street, London N1' },
+    ]
+  }
+
+  it('says nothing of regional managers until the studio has a region', async () => {
+    signedIn('owner', '/business/requests', secondLocation)
+    expect(await screen.findByRole('heading', { name: 'No requests yet' })).toBeInTheDocument()
+    expect(
+      screen.getByText(/The owner approves or declines it, and every decision is kept/),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ask for a sign-off' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Regional limit' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/regional/i)).not.toBeInTheDocument()
+  })
+
+  it('shows the regional limit once the locations are grouped into a region', async () => {
+    signedIn('owner', '/business/requests', (state) => {
+      secondLocation(state)
+      state.operations!.regions = [
+        {
+          id: 'region-london',
+          name: 'London',
+          locationIds: [state.organisation.locationId, 'loc-islington'],
+        },
+      ]
+    })
+    expect(await screen.findByRole('button', { name: 'Regional limit' })).toBeInTheDocument()
+    expect(screen.getByText(/Regional managers approve up to £500/)).toBeInTheDocument()
+  })
+
+  it('explains branch visits and the first step before the first visit', async () => {
+    signedIn('owner', '/business/visits', (state) => {
+      secondLocation(state)
+      state.operations!.branchVisits = []
+    })
+    expect(await screen.findByRole('heading', { name: 'No visits yet' })).toBeInTheDocument()
+    expect(screen.getByText(/Start with Start a visit, above\./)).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'To put right' })).not.toBeInTheDocument()
+  })
+})
+
+describe('gift cards', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    sessionStorage.clear()
+  })
+
+  it('shows each card as a card, with its balance, code and who it is for', async () => {
+    const user = userEvent.setup()
+    show('/business/gift-cards')
+    const card = await screen.findByRole('button', { name: /LAKE-7K4M-2QHN/ })
+    expect(card).toHaveTextContent('£75')
+    expect(card).toHaveTextContent(/for Hannah/)
+    await user.click(card)
+    expect(screen.getByRole('dialog', { name: 'Gift card' })).toHaveTextContent('For Hannah')
+  })
+
+  it('shows what a card looks like before the first one is sold', async () => {
+    signedIn('owner', '/business/gift-cards', (state) => {
+      state.giftCards = []
+    })
+    expect(await screen.findByRole('heading', { name: 'No gift cards yet' })).toBeInTheDocument()
+    expect(
+      screen.getByText(/Sell the first one with Sell a gift card, above\./),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+  })
+})
+
 describe('reviewed CSV client import', () => {
   it('previews duplicates and invalid rows, ignores consent columns and saves only reviewed contacts', async () => {
     const user = userEvent.setup()

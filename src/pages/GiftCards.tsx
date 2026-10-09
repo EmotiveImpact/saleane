@@ -216,36 +216,37 @@ export function GiftCards() {
         </label>
       )}
       {rows.length === 0 ? (
-        <Empty title="No gift cards yet">
-          When you sell one, its code, balance and every visit it pays for appear here.
-        </Empty>
+        <section className="surface gift-empty" aria-labelledby="gift-empty-title">
+          <GiftCardSample />
+          <div>
+            <h2 id="gift-empty-title">No gift cards yet</h2>
+            <p>
+              A gift card or a treatment voucher is paid for now and spent at checkout. Each one has
+              its own code, like this, and its balance and every visit it pays for show here.
+            </p>
+            {may('gift-card-sell') && <p>Sell the first one with Sell a gift card, above.</p>}
+          </div>
+        </section>
       ) : shown.length === 0 ? (
         <p className="ops-help">No card matches that search.</p>
       ) : (
-        <ul className="gift-list">
+        <ul className="gift-grid">
           {shown.map(({ card, standing }) => (
             <li key={card.id}>
               <button
                 type="button"
-                className="gift-row"
+                className="gift-tile"
                 onClick={() => open({ kind: 'view', cardId: card.id })}
               >
-                <span className="gift-row-copy">
-                  <strong className="gift-code">{card.code}</strong>
+                <GiftCardMini card={card} standing={standing} />
+                <span className="gift-tile-copy">
+                  <strong>
+                    {card.kind === 'service' ? `${card.serviceName} voucher` : 'Gift card'}
+                  </strong>
                   <small>
-                    {card.kind === 'service' ? `${card.serviceName} voucher` : 'Gift card'} from{' '}
-                    {card.purchaserName}
+                    From {card.purchaserName}
                     {card.recipientName ? ` for ${card.recipientName}` : ''}
                   </small>
-                  <small>
-                    {standing.state === 'active'
-                      ? `Use by ${fullDateLabel(card.expiresOn, org.locale)}`
-                      : STATE_LABEL[standing.state]}
-                  </small>
-                </span>
-                <span className="gift-row-money">
-                  <strong>{money(standing.balanceMinor, org, true)}</strong>
-                  <small>of {money(card.valueMinor, org, true)}</small>
                 </span>
               </button>
             </li>
@@ -487,21 +488,81 @@ function printCard() {
   window.print()
 }
 
-/** The card as the guest would see it, for reading out or printing. */
+/** The card as the guest would see it, in the studio's colours, for reading out or printing. */
 function GiftCardFace({ card }: { card: GiftCard }) {
   const { state } = useStore()
   const org = state.organisation
   return (
     <figure className="gift-face">
-      <p className="gift-face-studio">{org.name}</p>
-      <p className="gift-face-value">
-        {card.kind === 'service' ? card.serviceName : money(card.valueMinor, org, true)}
-      </p>
-      {card.recipientName && <p className="gift-face-for">For {card.recipientName}</p>}
-      {card.message && <blockquote>{card.message}</blockquote>}
-      <p className="gift-face-code">{card.code}</p>
-      <figcaption>Use by {fullDateLabel(card.expiresOn, org.locale)}</figcaption>
+      <div className="gift-face-top">
+        <span className="gift-face-studio">{org.name}</span>
+        <span>{card.kind === 'service' ? 'Treatment voucher' : 'Gift card'}</span>
+      </div>
+      <div className="gift-face-middle">
+        {card.kind === 'service' ? (
+          <span className="gift-face-value gift-face-treatment">{card.serviceName}</span>
+        ) : (
+          <span className="gift-face-value">{money(card.valueMinor, org)}</span>
+        )}
+        {card.recipientName && <span className="gift-face-for">For {card.recipientName}</span>}
+        {card.message && <blockquote>{card.message}</blockquote>}
+      </div>
+      <div className="gift-face-bottom">
+        <span className="gift-face-code">{card.code}</span>
+        <span>Use by {fullDateLabel(card.expiresOn, org.locale)}</span>
+      </div>
     </figure>
+  )
+}
+
+/** A card on the list: what is left on it, its code and its last day, in the studio's colours. */
+function GiftCardMini({
+  card,
+  standing,
+}: {
+  card: GiftCard
+  standing: ReturnType<typeof giftStanding>
+}) {
+  const { state } = useStore()
+  const org = state.organisation
+  return (
+    <span className="gift-face gift-face-mini" data-state={standing.state}>
+      <span className="gift-face-top" aria-hidden="true">
+        <span className="gift-face-studio">{org.name}</span>
+        <span>{card.kind === 'service' ? 'Voucher' : 'Gift card'}</span>
+      </span>
+      <span className="gift-face-middle">
+        <span className="gift-face-value">{money(standing.balanceMinor, org)}</span>
+        <span className="gift-face-of">left of {money(card.valueMinor, org)}</span>
+      </span>
+      <span className="gift-face-bottom">
+        <span className="gift-face-code">{card.code}</span>
+        <span>
+          {standing.state === 'active'
+            ? `Use by ${fullDateLabel(card.expiresOn, org.locale)}`
+            : STATE_LABEL[standing.state]}
+        </span>
+      </span>
+    </span>
+  )
+}
+
+/** What a card will look like, shown before the studio has sold one. */
+function GiftCardSample() {
+  const { state } = useStore()
+  return (
+    <span className="gift-face gift-face-mini gift-face-sample" aria-hidden="true">
+      <span className="gift-face-top">
+        <span className="gift-face-studio">{state.organisation.name}</span>
+        <span>Gift card</span>
+      </span>
+      <span className="gift-face-middle">
+        <span className="gift-face-value">{money(5000, state.organisation)}</span>
+      </span>
+      <span className="gift-face-bottom">
+        <span className="gift-face-code">ABCD-EFGH-JKLM</span>
+      </span>
+    </span>
   )
 }
 

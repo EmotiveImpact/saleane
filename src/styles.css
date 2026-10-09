@@ -2347,6 +2347,8 @@ fieldset {
   margin-bottom: 10px;
 }
 .empty p {
+  max-width: 62ch;
+  margin-inline: auto;
   color: var(--muted);
   font-size: var(--text-body);
 }
