@@ -18,10 +18,11 @@ import {
 import { useStore } from './state/context'
 import { useStudioColours } from './state/studioColours'
 import { leads, operations } from './domain/operations'
-import { places } from './domain/locations'
+import { hasLocations, places } from './domain/locations'
+import { regions } from './domain/group'
 import { staleOffer } from './domain/waitlist'
 import { nudges } from './domain/nudges'
-import { Avatar, Modal } from './design'
+import { Avatar, Modal, ScrollNav } from './design'
 import { SearchDialog } from './components/SearchDialog'
 import { Today } from './pages/Today'
 import { Calendar } from './pages/Calendar'
@@ -121,6 +122,9 @@ function WorkspaceApp() {
     active: within(location.pathname, item.to),
   }))
   const owns = role === 'owner' || role === 'manager'
+  // Branch visits and Requests are about running several branches, so they wait until there are
+  // more locations or any regions. A general manager runs one of several, so always has them.
+  const branches = hasLocations(state) || regions(state).length > 0 || role === 'general'
   const businessTabs = [
     { to: '/business', label: 'Overview', show: !desk },
     { to: '/business/money', label: 'Money', show: true },
@@ -130,8 +134,8 @@ function WorkspaceApp() {
     { to: '/business/pay', label: 'Pay', show: owns },
     { to: '/business/accounts', label: 'Accounts', show: owns },
     { to: '/business/feedback', label: 'Feedback', show: leads(role) },
-    { to: '/business/visits', label: 'Branch visits', show: leads(role) },
-    { to: '/business/requests', label: 'Requests', show: leads(role) },
+    { to: '/business/visits', label: 'Branch visits', show: leads(role) && branches },
+    { to: '/business/requests', label: 'Requests', show: leads(role) && branches },
     { to: '/business/areas', label: 'Client areas', show: leads(role) },
   ].filter((tab) => tab.show)
   useEffect(() => {
@@ -346,13 +350,17 @@ function WorkspaceApp() {
           className="workspace-main"
         >
           {within(location.pathname, '/business') && (
-            <nav className="business-subnav" aria-label="Business sections">
+            <ScrollNav
+              label="Business sections"
+              className="business-subnav"
+              current={location.pathname}
+            >
               {businessTabs.map((tab) => (
                 <NavLink key={tab.to} end={tab.to === '/business'} to={tab.to}>
                   {tab.label}
                 </NavLink>
               ))}
-            </nav>
+            </ScrollNav>
           )}
           <Routes>
             <Route path="/" element={<Navigate to="/today" replace />} />

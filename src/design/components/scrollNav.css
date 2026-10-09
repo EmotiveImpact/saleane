@@ -1,0 +1,67 @@
+/* Section links in one row (Business). Wider than the screen, the row scrolls sideways. */
+.scroll-nav {
+  margin-bottom: 25px;
+  border-bottom: 1px solid var(--line);
+}
+.scroll-nav-track {
+  position: relative;
+  display: flex;
+  gap: 24px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.scroll-nav-track::-webkit-scrollbar {
+  display: none;
+}
+/* A soft fade says there is more to scroll to, on whichever side has more. */
+.scroll-nav[data-more-before] .scroll-nav-track {
+  mask-image: linear-gradient(to right, transparent, #000 40px);
+}
+.scroll-nav[data-more-after] .scroll-nav-track {
+  mask-image: linear-gradient(to left, transparent, #000 40px);
+}
+.scroll-nav[data-more-before][data-more-after] .scroll-nav-track {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 40px,
+    #000 calc(100% - 40px),
+    transparent
+  );
+}
+.scroll-nav-track > a {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  min-height: var(--target);
+  padding: 2px 0;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-size: var(--text-small);
+  white-space: nowrap;
+}
+.scroll-nav-track > a:hover {
+  color: var(--ink);
+}
+.scroll-nav-track > a.active {
+  color: var(--ink);
+  border-color: var(--ink);
+  font-weight: var(--weight-strong);
+}
+/* Inside the scrolling row, the focus ring is drawn inward so it is never cut off. */
+.scroll-nav-track > a:focus-visible {
+  outline-offset: -2px;
+  border-radius: var(--radius-inner);
+}
+@media (max-width: 650px) {
+  .scroll-nav {
+    margin: 0 -16px 20px;
+  }
+  .scroll-nav-track {
+    gap: 22px;
+    padding: 0 16px;
+    scroll-padding-inline: 16px;
+  }
+}

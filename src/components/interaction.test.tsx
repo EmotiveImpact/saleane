@@ -10,6 +10,7 @@ import { withoutPayRates } from '../domain/pay'
 import { withoutBranchVisits } from '../domain/branchVisits'
 import { withoutRequests } from '../domain/approvals'
 import type { Role } from '../domain/operations'
+import type { BusinessState } from '../domain/model'
 import type { RemoteWorkspace, Session } from '../state/api'
 
 function show(route = '/today') {
@@ -27,8 +28,9 @@ function show(route = '/today') {
  * the front desk reads the studio record without guests' feedback, pay rates, branch visits or
  * requests (server/projections.ts).
  */
-function signedIn(role: Role, route: string) {
+function signedIn(role: Role, route: string, studio?: (state: BusinessState) => void) {
   const sample = seed('UK')
+  studio?.(sample)
   const state =
     role === 'reception'
       ? withoutRequests(withoutBranchVisits(withoutPayRates(withoutFeedback(sample))))
@@ -537,6 +539,54 @@ describe('front desk access to Business', () => {
       expect.arrayContaining(['Overview', 'Money', 'Pay', 'Accounts', 'Feedback', 'Client areas']),
     )
     expect(screen.getByRole('link', { name: 'Business' })).toHaveAttribute('href', '/business')
+  })
+})
+
+describe('the Business tab bar', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    sessionStorage.clear()
+  })
+
+  it('leaves out Branch visits and Requests while the studio has one location', () => {
+    show('/business')
+    const sections = screen.getByRole('navigation', { name: 'Business sections' })
+    expect(
+      within(sections)
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual([
+      'Overview',
+      'Money',
+      'Stock',
+      'Rota',
+      'Gift cards',
+      'Pay',
+      'Accounts',
+      'Feedback',
+      'Client areas',
+    ])
+    expect(within(sections).getByRole('link', { name: 'Overview' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+  })
+
+  it('shows Branch visits and Requests once there is a second location', async () => {
+    signedIn('owner', '/business/requests', (state) => {
+      state.operations!.locations = [
+        { id: 'loc-islington', name: 'Islington', address: '5 Upper Street, London N1' },
+      ]
+    })
+    const sections = await screen.findByRole('navigation', { name: 'Business sections' })
+    expect(within(sections).getByRole('link', { name: 'Branch visits' })).toHaveAttribute(
+      'href',
+      '/business/visits',
+    )
+    expect(within(sections).getByRole('link', { name: 'Requests' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
   })
 })
 
