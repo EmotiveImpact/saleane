@@ -135,7 +135,7 @@ function WorkspaceApp() {
     { to: '/business/areas', label: 'Client areas', show: leads(role) },
   ].filter((tab) => tab.show)
   useEffect(() => {
-    document.title = `SALEANE — ${state.organisation.name}`
+    document.title = `${state.organisation.name} · SALEANE`
   }, [state.organisation.name])
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0 })
@@ -252,9 +252,6 @@ function WorkspaceApp() {
               <span className="live-dot" />
               Local V1 candidate
             </span>
-            <Link className="icon-button" aria-label="Settings" to="/settings">
-              <Settings2 size={18} />
-            </Link>
           </div>
         </div>
       </aside>
