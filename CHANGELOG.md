@@ -21,6 +21,14 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Texts name the location, imported visits go to the location where the professional works that day, and the calendar showing every location spans all their opening hours.
 - A studio with one location works exactly as before.
 
+## 2026-10-09 · V5 · Branch map
+
+**Status: built locally on 9 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-BRANCH-MAP.md).
+
+- The whole business view has a map of every location. Each pin is sized by what it took over the last 28 days and coloured by whether that is up, level or down on the 28 days before, with the best and the one that needs a look named.
+- A regional manager sees the same map with only their own region's locations.
+- Places come from a map service, which is not connected, so only sample studios show the map. A real studio sees a short note and the same figures in the list, and a location the map cannot place is named under it.
+
 ## 2026-10-09 · V5 · How you compare
 
 **Status: built locally on 9 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-COMPARE.md).

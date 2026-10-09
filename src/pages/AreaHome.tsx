@@ -19,6 +19,7 @@ import '../practitioner.css'
 import '../components/management.css'
 import '../components/plans.css'
 import '../components/group.css'
+import { BranchMap } from '../components/BranchMap'
 import '../components/branchVisits.css'
 
 function greeting(minutes: number) {
@@ -296,6 +297,12 @@ export function AreaHome() {
               </li>
             ))}
           </ul>
+          {record.map && (
+            <div className="group-map">
+              <h3>Where each location stands</h3>
+              <BranchMap org={org} pins={record.map.pins} features={record.map.features} />
+            </div>
+          )}
         </section>
         <section className="surface ops-panel" aria-labelledby="area-put-right">
           <header>
