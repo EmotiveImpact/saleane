@@ -182,6 +182,7 @@ export function Today() {
           key={appointmentId}
           appointmentId={appointmentId}
           onClose={() => setAppointmentId('')}
+          onOpenVisit={setAppointmentId}
         />
       )}
       {booking && <BookingDialog defaults={booking} onClose={() => setBooking(null)} />}

@@ -1,6 +1,6 @@
-import { useId, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { hasLocations, placeOf, serviceAt, staffLocationOn } from '../domain/locations'
-import { Check, CalendarDays, Repeat2, Search } from 'lucide-react'
+import { Check, CalendarDays, Repeat2 } from 'lucide-react'
 import { useStore } from '../state/context'
 import { operations, can } from '../domain/operations'
 import { slots } from '../domain/commands'
@@ -10,6 +10,11 @@ import { numberLabel } from '../domain/missedCalls'
 import { consultationsList, latestVersion } from '../domain/consultations'
 import { Button, ErrorMessage, Modal, TimeChoices } from '../design'
 import { StudioDateField } from './StudioDateField'
+import { ClientPicker } from './ClientPicker'
+import { TogetherSection } from './BookingTogether'
+import { partyRows } from './party'
+import type { PartyGuest } from './party'
+import { togetherLine, togetherVisits } from '../domain/together'
 import {
   REPEAT_AHEAD_DAYS,
   REPEAT_COUNTS,
@@ -147,7 +152,76 @@ export function BookingDialog({
       : []
   const repeatVisits = repeatRows.filter((row) => row.start !== null)
   const repeating = everyWeeks > 0
+  // NEXT-08: others coming with them on the same day, each a client with a visit of their own.
+  const [guests, setGuests] = useState<PartyGuest[]>([])
+  const together = guests.length > 0 && !repeating
+  const firstPlace = multiSite && staffId ? staffLocationOn(state, staffId, date) : undefined
+  const leadFirst =
+    (someoneNew ? newName : state.clients.find((c) => c.id === clientId)?.name)
+      ?.trim()
+      .split(/\s+/)[0] || 'the first person'
+  const personName = (index: number) =>
+    index === 0
+      ? leadFirst
+      : (() => {
+          const guest = guests[index - 1]
+          const name = guest?.someoneNew
+            ? guest.name
+            : state.clients.find((c) => c.id === guest?.clientId)?.name
+          return name?.trim().split(/\s+/)[0] || `Person ${index + 1}`
+        })()
+  // The others' treatments, at the first person's location, for the totals.
+  const partyTotal = (field: 'priceMinor' | 'depositMinor') =>
+    guests.reduce((sum, guest) => {
+      const item = state.services.find((x) => x.id === guest.serviceId)
+      return (
+        sum +
+        (item
+          ? field === 'priceMinor'
+            ? serviceAt(item, firstPlace).priceMinor
+            : item.depositMinor
+          : 0)
+      )
+    }, 0)
+  const rows = useMemo(
+    () =>
+      together
+        ? partyRows(
+            state,
+            date,
+            start !== null && serviceId && staffId
+              ? {
+                  ...(clientId && !someoneNew ? { clientId } : {}),
+                  serviceId,
+                  staffId,
+                  startMinutes: start,
+                }
+              : null,
+            guests,
+            firstPlace,
+            personName,
+          )
+        : [],
+    // personName reads only the names held in the values listed here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      together,
+      state,
+      date,
+      start,
+      serviceId,
+      staffId,
+      clientId,
+      someoneNew,
+      newName,
+      guests,
+      firstPlace,
+    ],
+  )
   const client = state.clients.find((c) => c.id === clientId)
+  const confirmedVisit = state.appointments.find((a) => a.id === confirmedId)
+  const party = confirmedVisit ? togetherVisits(state, confirmedVisit) : []
+  const several = booked.length > 1 || party.length > 1
   const bookedClient = state.clients.find(
     (c) => c.id === (state.appointments.find((a) => a.id === confirmedId)?.clientId ?? clientId),
   )
@@ -190,6 +264,21 @@ export function BookingDialog({
       setError('Every later visit is left out. Give one a time, or choose Just this visit.')
       return
     }
+    if (together)
+      for (const [i, guest] of guests.entries()) {
+        const person = `Person ${i + 2}`
+        const problem = guest.someoneNew
+          ? guest.name.trim().length < 2 || !guest.email.trim() || !guest.phone.trim()
+            ? `Enter ${person}’s name, email and phone.`
+            : ''
+          : !guest.clientId
+            ? `Choose who ${person} is, or add them as someone new.`
+            : ''
+        if (problem || rows[i]?.start == null) {
+          setError(problem || `Choose a time for ${person}.`)
+          return
+        }
+      }
     setPending(true)
     setError('')
     try {
@@ -222,7 +311,27 @@ export function BookingDialog({
               everyWeeks,
               visits: repeatVisits.map((row) => ({ date: row.date, startMinutes: row.start! })),
             }
-          : { type: 'book', input: booking },
+          : together
+            ? {
+                type: 'book-together',
+                booking,
+                guests: guests.map((guest, i) => ({
+                  ...(guest.someoneNew
+                    ? {
+                        contact: {
+                          name: guest.name.trim(),
+                          email: guest.email.trim(),
+                          phone: guest.phone.trim(),
+                          marketingConsent: false,
+                        },
+                      }
+                    : { clientId: guest.clientId }),
+                  serviceId: guest.serviceId,
+                  staffId: guest.staffId,
+                  startMinutes: rows[i].start!,
+                })),
+              }
+            : { type: 'book', input: booking },
       )
       if (!result.ok) {
         setError(result.error)
@@ -248,7 +357,7 @@ export function BookingDialog({
       }}
       title={
         confirmedId
-          ? booked.length > 1
+          ? several
             ? 'Visits to look forward to'
             : 'A visit to look forward to'
           : defaults.rebookedFromId
@@ -281,7 +390,19 @@ export function BookingDialog({
             <Check />
           </span>
           <h3>{bookedClient?.name}</h3>
-          {booked.length > 1 ? (
+          {party.length > 1 ? (
+            <>
+              <p>
+                {party.length} people, booked together on{' '}
+                {dateLabel(party[0].date, state.organisation.locale)}
+              </p>
+              <ul className="repeat-booked" aria-label="Visits booked">
+                {party.map((visit) => (
+                  <li key={visit.id}>{togetherLine(state, visit)}</li>
+                ))}
+              </ul>
+            </>
+          ) : booked.length > 1 ? (
             <>
               <p>
                 {service.name}, {booked.length} visits {everyLabel(everyWeeks)}
@@ -303,10 +424,10 @@ export function BookingDialog({
           )}
           <p className="subtle">
             {sandbox
-              ? booked.length > 1
+              ? several
                 ? 'Deposits simulated. No real payment taken.'
                 : 'Deposit simulated. No real payment taken.'
-              : booked.length > 1
+              : several
                 ? 'Visits reserved. Record any deposit already received in Money; no card has been charged.'
                 : 'Visit reserved. Record any deposit already received in Money; no card has been charged.'}
           </p>
@@ -498,130 +619,166 @@ export function BookingDialog({
               setError('')
             }}
           />
-          <fieldset className="booking-repeat">
-            <legend>
-              <Repeat2 size={17} aria-hidden="true" /> Repeat
-            </legend>
-            <div className="form-grid">
-              <label>
-                How often
-                <select
-                  value={everyWeeks}
-                  disabled={busy}
-                  onChange={(e) => {
-                    setEveryWeeks(Number(e.target.value))
-                    setPicks({})
-                    setError('')
-                  }}
-                >
-                  <option value={0}>Just this visit</option>
-                  {REPEAT_EVERY.map((weeks) => (
-                    <option key={weeks} value={weeks}>
-                      {weeks === 1 ? 'Every week' : `Every ${weeks} weeks`}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {repeating && (
+          {!repeating && (
+            <TogetherSection
+              state={state}
+              guests={guests}
+              rows={rows}
+              firstName={leadFirst}
+              firstStart={start}
+              firstServiceId={serviceId}
+              chosen={[clientId, ...guests.map((guest) => guest.clientId)].filter(Boolean)}
+              locationId={firstPlace}
+              busy={busy}
+              onChange={(next) => {
+                setGuests(next)
+                setError('')
+              }}
+            />
+          )}
+          {guests.length > 0 ? (
+            <p className="subtle booking-repeat-off">
+              A repeat is for one person, so it is off while others are coming.
+            </p>
+          ) : (
+            <fieldset className="booking-repeat">
+              <legend>
+                <Repeat2 size={17} aria-hidden="true" /> Repeat
+              </legend>
+              <div className="form-grid">
                 <label>
-                  Visits in all
+                  How often
                   <select
-                    value={count}
+                    value={everyWeeks}
                     disabled={busy}
                     onChange={(e) => {
-                      setCount(Number(e.target.value))
+                      setEveryWeeks(Number(e.target.value))
+                      setPicks({})
                       setError('')
                     }}
                   >
-                    {REPEAT_COUNTS.map((n) => (
-                      <option key={n} value={n}>
-                        {n} visits
+                    <option value={0}>Just this visit</option>
+                    {REPEAT_EVERY.map((weeks) => (
+                      <option key={weeks} value={weeks}>
+                        {weeks === 1 ? 'Every week' : `Every ${weeks} weeks`}
                       </option>
                     ))}
                   </select>
                 </label>
-              )}
-            </div>
-            {repeating &&
-              (start === null ? (
-                <p className="subtle">Choose a time for the first visit; the others follow it.</p>
-              ) : (
-                <>
-                  <ul className="repeat-plan" aria-label="The later visits">
-                    {repeatRows.map((row) => (
-                      <li key={row.date} className={row.start === null ? 'repeat-left' : ''}>
-                        <span>
-                          <strong>{dateLabel(row.date, locale)}</strong>
-                          <small>
-                            {
+                {repeating && (
+                  <label>
+                    Visits in all
+                    <select
+                      value={count}
+                      disabled={busy}
+                      onChange={(e) => {
+                        setCount(Number(e.target.value))
+                        setError('')
+                      }}
+                    >
+                      {REPEAT_COUNTS.map((n) => (
+                        <option key={n} value={n}>
+                          {n} visits
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+              </div>
+              {repeating &&
+                (start === null ? (
+                  <p className="subtle">Choose a time for the first visit; the others follow it.</p>
+                ) : (
+                  <>
+                    <ul className="repeat-plan" aria-label="The later visits">
+                      {repeatRows.map((row) => (
+                        <li key={row.date} className={row.start === null ? 'repeat-left' : ''}>
+                          <span>
+                            <strong>{dateLabel(row.date, locale)}</strong>
+                            <small>
                               {
-                                same: `Free at ${timeLabel(start, locale)}.`,
-                                moved:
-                                  picks[row.date] === row.start
-                                    ? 'At the time you chose.'
-                                    : `${timeLabel(start, locale)} is taken, so the nearest free time.`,
-                                full: 'Nothing free near that time, so it is left out.',
-                                beyond: 'More than a year ahead, so it is left out.',
-                                left: 'Left out.',
-                              }[row.why]
-                            }
-                          </small>
-                        </span>
-                        {row.times.length > 0 && (
-                          <select
-                            aria-label={`Time on ${dateLabel(row.date, locale)}`}
-                            value={row.start ?? 'left'}
-                            disabled={busy}
-                            onChange={(e) => {
-                              const value = e.target.value
-                              setPicks({
-                                ...picks,
-                                [row.date]: value === 'left' ? 'left' : Number(value),
-                              })
-                              setError('')
-                            }}
-                          >
-                            {row.times.map((time) => (
-                              <option key={time} value={time}>
-                                {timeLabel(time, locale)}
-                              </option>
-                            ))}
-                            <option value="left">Leave this one out</option>
-                          </select>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="subtle">
-                    {repeatVisits.length + 1} visits, each its own booking: any one can move or be
-                    cancelled alone.
-                  </p>
-                </>
-              ))}
-          </fieldset>
+                                {
+                                  same: `Free at ${timeLabel(start, locale)}.`,
+                                  moved:
+                                    picks[row.date] === row.start
+                                      ? 'At the time you chose.'
+                                      : `${timeLabel(start, locale)} is taken, so the nearest free time.`,
+                                  full: 'Nothing free near that time, so it is left out.',
+                                  beyond: 'More than a year ahead, so it is left out.',
+                                  left: 'Left out.',
+                                }[row.why]
+                              }
+                            </small>
+                          </span>
+                          {row.times.length > 0 && (
+                            <select
+                              aria-label={`Time on ${dateLabel(row.date, locale)}`}
+                              value={row.start ?? 'left'}
+                              disabled={busy}
+                              onChange={(e) => {
+                                const value = e.target.value
+                                setPicks({
+                                  ...picks,
+                                  [row.date]: value === 'left' ? 'left' : Number(value),
+                                })
+                                setError('')
+                              }}
+                            >
+                              {row.times.map((time) => (
+                                <option key={time} value={time}>
+                                  {timeLabel(time, locale)}
+                                </option>
+                              ))}
+                              <option value="left">Leave this one out</option>
+                            </select>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="subtle">
+                      {repeatVisits.length + 1} visits, each its own booking: any one can move or be
+                      cancelled alone.
+                    </p>
+                  </>
+                ))}
+            </fieldset>
+          )}
           <div className="booking-summary">
             <CalendarDays size={20} />
             <span>
+              {together ? `${leadFirst[0].toUpperCase()}${leadFirst.slice(1)}: ` : ''}
               {service.durationMinutes} minutes, with {service.bufferMinutes} minutes to turn the
               room around.
             </span>
           </div>
           <div className="receipt-line">
-            <span>{repeating ? 'Treatment total, each visit' : 'Treatment total'}</span>
+            <span>
+              {repeating
+                ? 'Treatment total, each visit'
+                : together
+                  ? `Treatment total, ${guests.length + 1} people`
+                  : 'Treatment total'}
+            </span>
             <strong>
               {money(
-                serviceAt(service, staffId ? staffLocationOn(state, staffId, date) : undefined)
-                  .priceMinor,
+                serviceAt(service, firstPlace).priceMinor +
+                  (together ? partyTotal('priceMinor') : 0),
                 state.organisation,
               )}
             </strong>
           </div>
           <div className="receipt-line subtle">
             <span>
-              {sandbox ? 'Simulated deposit' : 'Deposit requested'}
-              {repeating ? ', each visit' : ''}
+              {together
+                ? `${sandbox ? 'Simulated deposits' : 'Deposits requested'}, ${guests.length + 1} people`
+                : `${sandbox ? 'Simulated deposit' : 'Deposit requested'}${repeating ? ', each visit' : ''}`}
             </span>
-            <span>{money(service.depositMinor, state.organisation)}</span>
+            <span>
+              {money(
+                service.depositMinor + (together ? partyTotal('depositMinor') : 0),
+                state.organisation,
+              )}
+            </span>
           </div>
           <ErrorMessage error={error} />
           <div className="dialog-footer">
@@ -643,104 +800,15 @@ export function BookingDialog({
                 ? 'Saving visit…'
                 : repeating && start !== null && repeatVisits.length
                   ? `Confirm ${repeatVisits.length + 1} visits`
-                  : sandbox
-                    ? 'Confirm demo booking'
-                    : 'Confirm booking'}
+                  : together
+                    ? `Confirm ${guests.length + 1} visits`
+                    : sandbox
+                      ? 'Confirm demo booking'
+                      : 'Confirm booking'}
             </Button>
           </div>
         </>
       )}
     </Modal>
-  )
-}
-
-/** Type a few letters to find a client, rather than scrolling one long list. */
-function ClientPicker({
-  clientId,
-  locked,
-  initialQuery = '',
-  onChange,
-}: {
-  clientId: string
-  locked: boolean
-  /** Starts the search with this, such as a caller's number. */
-  initialQuery?: string
-  onChange: (id: string) => void
-}) {
-  const { state } = useStore()
-  const id = useId()
-  const [query, setQuery] = useState(initialQuery)
-  const [editing, setEditing] = useState(!clientId)
-  const chosen = state.clients.find((c) => c.id === clientId)
-  const words = query.trim().toLowerCase()
-  const matches = state.clients
-    .filter(
-      (c) =>
-        !words ||
-        c.name.toLowerCase().includes(words) ||
-        c.email.toLowerCase().includes(words) ||
-        c.phone.replace(/\s/g, '').includes(words.replace(/\s/g, '')),
-    )
-    .slice(0, 6)
-  if (chosen && !editing)
-    return (
-      <div className="client-picker-chosen">
-        <span className="client-picker-label">Client</span>
-        <strong>{chosen.name}</strong>
-        <small>{chosen.email}</small>
-        {!locked && (
-          <Button
-            variant="quiet"
-            onClick={() => {
-              setQuery('')
-              setEditing(true)
-            }}
-          >
-            Change
-          </Button>
-        )}
-      </div>
-    )
-  return (
-    <div className="client-picker">
-      <label htmlFor={id}>Client</label>
-      <div className="client-picker-field">
-        <Search size={16} aria-hidden />
-        <input
-          id={id}
-          type="search"
-          autoComplete="off"
-          placeholder="Type a name, email or phone"
-          value={query}
-          disabled={locked}
-          aria-controls={`${id}-results`}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && matches[0]) {
-              e.preventDefault()
-              onChange(matches[0].id)
-              setEditing(false)
-            }
-          }}
-        />
-      </div>
-      <ul className="client-picker-results" id={`${id}-results`} aria-label="Matching clients">
-        {matches.map((c) => (
-          <li key={c.id}>
-            <button
-              type="button"
-              disabled={locked}
-              onClick={() => {
-                onChange(c.id)
-                setEditing(false)
-              }}
-            >
-              <strong>{c.name}</strong> <small>{c.email}</small>
-            </button>
-          </li>
-        ))}
-        {!matches.length && <li className="subtle">No client matches “{query}”.</li>}
-      </ul>
-    </div>
   )
 }

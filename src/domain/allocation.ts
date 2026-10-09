@@ -25,6 +25,8 @@ export function availableAllocation(
   preferredResourceId?: string,
   step = 15,
   locationId?: string,
+  /** NEXT-08: the visits this one is booked together with, who may share a room for two. */
+  together?: string,
 ): string | null {
   // V2: a visit is at one location (by default where the person works that day); the person must
   // work there that day and the room be there.
@@ -102,9 +104,17 @@ export function availableAllocation(
       )
         return false
       const rest = resource.restMinutes ?? 0
-      return !busy.some(
+      const sharing = busy.filter(
         (a) =>
           a.resourceId === resource.id && start < visitEnd(a) + rest && end + rest > a.startMinutes,
+      )
+      // NEXT-08: a room for two takes one other visit booked together with this one.
+      return (
+        !sharing.length ||
+        (!!resource.forTwo &&
+          !!together &&
+          sharing.length === 1 &&
+          sharing[0].together?.id === together)
       )
     })?.id ?? null
   )

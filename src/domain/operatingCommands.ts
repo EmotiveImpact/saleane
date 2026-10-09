@@ -285,6 +285,7 @@ export function runOperatingCommand(
         if (!place) delete (old as { locationId?: unknown }).locationId
         // The form sends every field, so no resting time means None.
         if (!command.input.restMinutes) delete (old as { restMinutes?: number }).restMinutes
+        if (!command.input.forTwo) delete (old as { forTwo?: true }).forTwo
       } else next.resources.push({ ...command.input, ...scope, id: record.id })
     }
     recordId = record.id
