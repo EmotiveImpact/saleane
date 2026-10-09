@@ -619,6 +619,27 @@ export const migrations: Migration[] = [
         CREATE INDEX support_requests_recent ON support_requests(account_id,created_at);
       `),
   },
+  {
+    version: 29,
+    // NEXT-10, team diaries in Google or Apple: a private link to a read-only calendar of one
+    // person's visits, one location's or the whole studio's. Stored only as a hash, with who made
+    // it, since it works only while they still may see what it shows. Stopped, never deleted.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE diary_links (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          account_id TEXT NOT NULL REFERENCES accounts(id),
+          kind TEXT NOT NULL CHECK(kind IN ('person','location','studio')),
+          staff_id TEXT, location_id TEXT,
+          detail TEXT NOT NULL CHECK(detail IN ('names','treatment')),
+          prefix TEXT NOT NULL UNIQUE, token_hash TEXT NOT NULL,
+          created_at INTEGER NOT NULL, last_read_at INTEGER, stopped_at INTEGER, stopped_by TEXT,
+          CHECK((kind='person')=(staff_id IS NOT NULL)),
+          CHECK((kind='location')=(location_id IS NOT NULL))
+        ) STRICT;
+        CREATE INDEX diary_links_org ON diary_links(organisation_id);
+      `),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the

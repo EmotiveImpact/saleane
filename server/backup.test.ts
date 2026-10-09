@@ -118,6 +118,12 @@ describe('consistent local backups and fresh-path recovery', () => {
     const reads = (handler: ApiHandler) =>
       handler.inject({ url: '/api/v1/studio', headers: { authorization: `Bearer ${key}` } })
     expect((await reads(api)).statusCode).toBe(200)
+    // NEXT-10: a diary link a calendar app reads.
+    const diary = await write('/diary-links', { scope: { kind: 'studio' }, detail: 'names' })
+    expect(diary.statusCode, diary.body).toBe(201)
+    const diaryPath = new URL(diary.json<{ link: string }>().link).pathname
+    const diaryReads = (handler: ApiHandler) => handler.inject({ url: diaryPath })
+    expect((await diaryReads(api)).statusCode).toBe(200)
     const hook = await write('/connections', {
       name: 'Bookkeeping',
       url: 'https://hooks.example.com/saleane',
@@ -180,6 +186,7 @@ describe('consistent local backups and fresh-path recovery', () => {
       accountLinksRetired: 1,
       recoveryCodesRetired: 1,
       accessKeysRevoked: 1,
+      diaryLinksStopped: 1,
       connectionsTurnedOff: 1,
       socialAccountsToConfirm: 1,
       messagesHeld: 1,
@@ -205,6 +212,8 @@ describe('consistent local backups and fresh-path recovery', () => {
       // The access key no longer reads anything.
       expect((await reads(recovered)).statusCode).toBe(401)
       expect(recovered.database.all('SELECT * FROM api_keys WHERE revoked_at IS NULL')).toEqual([])
+      // Nor does the diary link; whoever wants it makes a new one.
+      expect((await diaryReads(recovered)).statusCode).toBe(404)
       expect(recovered.database.all('SELECT * FROM account_links WHERE used_at IS NULL')).toEqual(
         [],
       )

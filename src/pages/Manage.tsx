@@ -5,6 +5,7 @@ import {
   BellRing,
   Building2,
   CalendarDays,
+  CalendarSync,
   Palette,
   Plus,
   Scissors,
@@ -53,6 +54,7 @@ import { EmailNewsWording } from '../components/EmailConsent'
 import { SavedReplies } from '../components/SavedReplies'
 import { Connections } from '../components/Connections'
 import { AccessKeys } from '../components/AccessKeys'
+import { DiaryLinks } from '../components/DiaryLinks'
 import { ReceptionistSettings } from '../components/ReceptionistSettings'
 import { GoogleBooking } from '../components/GoogleBooking'
 import { HouseRules } from '../components/HouseRules'
@@ -79,6 +81,7 @@ const groups = [
     sections: [
       { id: 'staff', label: 'Team', icon: Users },
       { id: 'resource', label: 'Spaces & equipment', icon: Armchair },
+      { id: 'diaries', label: 'Google & Apple diaries', icon: CalendarSync },
     ],
   },
   {
@@ -166,7 +169,7 @@ function TreatmentPhoto({ category, nth }: { category: string; nth: number }) {
 }
 
 export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
-  const { state, commit, blocked, role } = useStore()
+  const { state, commit, blocked, role, mode } = useStore()
   const config = operations(state)
   // The open section lives in the address, so links elsewhere can open Settings at the right place.
   const [params, setParams] = useSearchParams()
@@ -405,6 +408,9 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
             {section === 'privacy' && <StudioPrivacy />}
             {section === 'changes' && <ChangeRecord />}
             {section === 'billing' && <PlanBilling />}
+            {section === 'diaries' && (
+              <DiaryLinks workspaceId={state.organisation.id} demo={mode !== 'server'} />
+            )}
             {section === 'connections' && (
               <>
                 <Connections />
