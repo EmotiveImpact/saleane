@@ -331,8 +331,8 @@ export function AppointmentDialog({
     setMode('details')
     setNotice(
       mode === 'cancel'
-        ? 'Cancellation recorded in the client relationship.'
-        : 'Missed visit recorded in the client relationship.',
+        ? 'Cancellation recorded in the client’s history.'
+        : 'Missed visit recorded in the client’s history.',
     )
   }
   const details = !sale && !checkout && mode === 'details'
@@ -418,10 +418,10 @@ export function AppointmentDialog({
       description={
         sale
           ? sandbox
-            ? 'Demo receipt saved to the client relationship.'
+            ? 'Demo receipt saved to the client’s history.'
             : sale.method === 'card'
               ? 'Receipt saved. The payment provider confirmed the card payment.'
-              : 'Local receipt saved. No payment provider was contacted.'
+              : 'Receipt saved. The payment was recorded by hand; no card company was contacted.'
           : checkout
             ? 'Check the treatment, any products, the deposit and an optional tip before recording payment.'
             : details

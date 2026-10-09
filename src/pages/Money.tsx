@@ -661,7 +661,7 @@ export function Money() {
           </p>
           {visit && (
             <Link className="text-link" onClick={close} to={`/clients/${visit.clientId}`}>
-              Open client relationship
+              Open client page
             </Link>
           )}
           {refund && receipt.method === 'card' && cardRefundable(receipt.id) > 0 ? (
