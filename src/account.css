@@ -308,3 +308,15 @@
   text-underline-offset: 3px;
   cursor: pointer;
 }
+/* NEXT-04: the code step after the password. */
+.two-step-code {
+  display: grid;
+  gap: 18px;
+}
+.two-step-code input {
+  letter-spacing: 0.12em;
+}
+.two-step-code > .button {
+  margin-top: 6px;
+  min-height: 46px;
+}

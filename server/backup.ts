@@ -98,7 +98,7 @@ function snapshot(source: string, destination: string, restore: boolean) {
       })
       try {
         recovered.exec(
-          'BEGIN IMMEDIATE; DELETE FROM sessions; DELETE FROM invitations; DELETE FROM booking_holds; DELETE FROM guest_links;',
+          'BEGIN IMMEDIATE; DELETE FROM sessions; DELETE FROM login_challenges; DELETE FROM totp_setup; DELETE FROM invitations; DELETE FROM booking_holds; DELETE FROM guest_links;',
         )
         // Nothing that reaches outside the studio comes back by itself: a key revoked since the
         // backup would read again, a connection removed since would be sent to, and a message
@@ -109,6 +109,12 @@ function snapshot(source: string, destination: string, restore: boolean) {
           // the person asks for a new one.
           accountLinksRetired: Number(
             recovered.prepare('UPDATE account_links SET used_at=? WHERE used_at IS NULL').run(time)
+              .changes,
+          ),
+          // Recovery codes used since the backup would work again, so none of the restored ones
+          // do; signing in warns that none are left until new ones are made.
+          recoveryCodesRetired: Number(
+            recovered.prepare('UPDATE recovery_codes SET used_at=? WHERE used_at IS NULL').run(time)
               .changes,
           ),
           accessKeysRevoked: Number(

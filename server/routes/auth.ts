@@ -3,7 +3,19 @@ import { z } from 'zod'
 import { checkPassword, digest, passwordHash } from '../auth'
 import { COOKIE, fail, sessionToken } from '../http'
 import { createWorkspace, workspaceInput } from '../workspace'
-import { claimLink, linkInLog, mailLink, openLink, tooManyLinks } from '../accountMail'
+import { claimLink, linkInLog, mailLink, mailNotice, openLink, tooManyLinks } from '../accountMail'
+import {
+  CHALLENGE_TRIES,
+  matchStep,
+  newChallenge,
+  newRecoveryCodes,
+  newSecret,
+  openChallenge,
+  recoveryLeft,
+  setupUri,
+  useCode,
+} from '../twoStep'
+import type { TwoStepAccount } from '../twoStep'
 import { emailSchema, registration } from '../context'
 import { brandFigures, brandGroup } from '../../src/domain/brandGroup'
 import type { Context, Invitation, Route } from '../context'
@@ -29,6 +41,21 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
     systemOrg,
   } = ctx
   const { request, response, method, url, body, reply } = route
+  const twoStepAccount = (accountId: string) =>
+    db.get<TwoStepAccount>(
+      'SELECT id,totp_secret,totp_last_step FROM accounts WHERE id=? AND totp_enabled_at IS NOT NULL',
+      accountId,
+    )
+  const twoStepOn = (accountId: string) => !!twoStepAccount(accountId)
+  /** Changing how someone signs in asks for their password again. */
+  async function passwordFor(accountId: string, password: string) {
+    const account = db.get<{ password_hash: string }>(
+      'SELECT password_hash FROM accounts WHERE id=?',
+      accountId,
+    )!
+    if (!(await checkPassword(password, account.password_hash)))
+      fail(403, 'The password is incorrect.')
+  }
   if (method === 'GET' && url.pathname === '/api/health') {
     reply(200, {
       ok: true,
@@ -43,12 +70,21 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
   }
   if (method === 'GET' && url.pathname === '/api/session') {
     const actor = actorFor(request)
-    const confirmed = db.get<{ at: number | null }>(
-      'SELECT email_confirmed_at AS at FROM accounts WHERE id=?',
+    const account = db.get<{ confirmed: number | null; twoStep: number | null }>(
+      'SELECT email_confirmed_at AS confirmed, totp_enabled_at AS twoStep FROM accounts WHERE id=?',
       actor.id,
-    )?.at
+    )
     reply(200, {
-      user: { id: actor.id, name: actor.name, email: actor.email, emailConfirmed: !!confirmed },
+      user: {
+        id: actor.id,
+        name: actor.name,
+        email: actor.email,
+        emailConfirmed: !!account?.confirmed,
+        // NEXT-04: when two-step sign-in was turned on, and how many recovery codes are left.
+        twoStep: account?.twoStep
+          ? { since: account.twoStep, recoveryLeft: recoveryLeft(ctx, actor.id) }
+          : null,
+      },
       csrf: actor.csrf,
       workspaces: memberships(actor),
       localOnly: true,
@@ -111,7 +147,7 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
       'This link has expired or has already been used. Ask for a new one from the sign-in page.'
     if (!openLink(ctx, data.token, 'reset')) fail(400, closed)
     const hash = await passwordHash(data.password)
-    const accountId = db.transaction(() => {
+    const { accountId, twoStep } = db.transaction(() => {
       // Checked again here: the same link may have been used while the password was hashed.
       const link = claimLink(ctx, data.token, 'reset')
       if (!link) fail(400, closed)
@@ -122,11 +158,20 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
         now(),
         link!.account_id,
       )
-      // Every signed-in device is signed out.
+      // Every signed-in device is signed out, and a sign-in started with the old password that
+      // is waiting for its code can no longer finish.
       db.run('DELETE FROM sessions WHERE account_id=?', link!.account_id)
-      return link!.account_id
+      db.run('DELETE FROM login_challenges WHERE account_id=?', link!.account_id)
+      const on = db.get<{ at: number | null }>(
+        'SELECT totp_enabled_at AS at FROM accounts WHERE id=?',
+        link!.account_id,
+      )?.at
+      return { accountId: link!.account_id, twoStep: !!on }
     })
-    reply(200, { csrf: signIn(response, accountId) })
+    // NEXT-04: an emailed link proves the inbox, not the phone. With two-step sign-in on, the
+    // new password is saved and the code is still asked for before anyone is signed in.
+    if (twoStep) reply(200, { twoStep: true, challenge: newChallenge(ctx, accountId) })
+    else reply(200, { csrf: signIn(response, accountId) })
     return true
   }
   if (method === 'POST' && url.pathname === '/api/auth/confirm') {
@@ -177,13 +222,160 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
       .object({ email: emailSchema, password: z.string().min(1).max(128) })
       .strict()
       .parse(body)
-    const account = db.get<{ id: string; password_hash: string }>(
-      'SELECT id,password_hash FROM accounts WHERE email=?',
+    const account = db.get<{ id: string; password_hash: string; twoStep: number | null }>(
+      'SELECT id,password_hash,totp_enabled_at AS twoStep FROM accounts WHERE email=?',
       data.email,
     )
     const valid = await checkPassword(data.password, account?.password_hash ?? (await dummyHash))
     if (!valid || !account) fail(401, 'Email or password is incorrect.')
-    reply(200, { csrf: signIn(response, account!.id) })
+    // NEXT-04: with two-step sign-in on, the password opens only a short step that asks for the code.
+    if (account!.twoStep) reply(200, { twoStep: true, challenge: newChallenge(ctx, account!.id) })
+    else reply(200, { csrf: signIn(response, account!.id) })
+    return true
+  }
+  if (method === 'POST' && url.pathname === '/api/auth/login/code') {
+    rateLimit(request, 'auth', 10, 5 * 60000)
+    const data = z
+      .object({ challenge: z.string().min(32).max(100), code: z.string().trim().min(6).max(20) })
+      .strict()
+      .parse(body)
+    const restart =
+      'This sign-in has timed out or had too many wrong codes. Start again with your password.'
+    const outcome = db.transaction(() => {
+      // 410: this sign-in step is gone, so the page goes back to the password.
+      const found = openChallenge(ctx, data.challenge)
+      if (!found) fail(410, restart)
+      const used = useCode(ctx, found!, data.code)
+      if (!used) {
+        // Counted, not thrown, so the wrong try is kept when the answer goes back.
+        db.run(
+          'UPDATE login_challenges SET attempts=attempts+1 WHERE token_hash=?',
+          digest(data.challenge),
+        )
+        return { accountId: '', used, left: CHALLENGE_TRIES - found!.attempts - 1 }
+      }
+      db.run(
+        'UPDATE login_challenges SET used_at=? WHERE token_hash=?',
+        now(),
+        digest(data.challenge),
+      )
+      return { accountId: found!.id, used, left: 0 }
+    })
+    if (!outcome.used)
+      if (outcome.left > 0)
+        fail(400, 'That code is not right. Check your authenticator app and try the newest code.')
+      else fail(410, restart)
+    if (outcome.used === 'recovery') {
+      const account = db.get<{ id: string; name: string; email: string }>(
+        'SELECT id,name,email FROM accounts WHERE id=?',
+        outcome.accountId,
+      )!
+      mailNotice(ctx, account, 'recovery-used')
+    }
+    reply(200, {
+      csrf: signIn(response, outcome.accountId),
+      recoveryLeft: outcome.used === 'recovery' ? recoveryLeft(ctx, outcome.accountId) : undefined,
+    })
+    return true
+  }
+  if (method === 'POST' && url.pathname === '/api/auth/two-step/start') {
+    const actor = actorFor(request, true)
+    z.object({}).strict().parse(body)
+    if (twoStepOn(actor.id)) fail(409, 'Two-step sign-in is already on.')
+    const secret = newSecret()
+    db.run(
+      'INSERT INTO totp_setup(account_id,secret,created_at) VALUES(?,?,?) ON CONFLICT(account_id) DO UPDATE SET secret=excluded.secret, created_at=excluded.created_at',
+      actor.id,
+      secret,
+      now(),
+    )
+    reply(200, { secret, uri: setupUri(secret, actor.email) })
+    return true
+  }
+  if (method === 'POST' && url.pathname === '/api/auth/two-step/confirm') {
+    const actor = actorFor(request, true)
+    rateLimit(request, 'auth', 10, 5 * 60000)
+    const data = z
+      .object({ code: z.string().trim().min(6).max(12) })
+      .strict()
+      .parse(body)
+    const codes = db.transaction(() => {
+      if (twoStepOn(actor.id)) fail(409, 'Two-step sign-in is already on.')
+      // A key waiting more than half an hour is set up again, with a fresh one.
+      const setup = db.get<{ secret: string }>(
+        'SELECT secret FROM totp_setup WHERE account_id=? AND created_at>?',
+        actor.id,
+        now() - 30 * 60000,
+      )
+      if (!setup) fail(400, 'Setting up took too long. Start again to get a new key.')
+      const step = matchStep(setup!.secret, data.code.replace(/\s/g, ''), now())
+      if (step === undefined)
+        fail(
+          400,
+          'That code is not right. Check the time on your phone is set automatically, then try the newest code.',
+        )
+      db.run(
+        'UPDATE accounts SET totp_secret=?, totp_enabled_at=?, totp_last_step=? WHERE id=?',
+        setup!.secret,
+        now(),
+        step!,
+        actor.id,
+      )
+      db.run('DELETE FROM totp_setup WHERE account_id=?', actor.id)
+      // Anyone else signed in as this person signs in again, now with a code.
+      db.run(
+        'DELETE FROM sessions WHERE account_id=? AND token_hash<>?',
+        actor.id,
+        digest(sessionToken(request)!),
+      )
+      return newRecoveryCodes(ctx, actor.id)
+    })
+    mailNotice(ctx, actor, 'two-step-on')
+    reply(200, { recoveryCodes: codes })
+    return true
+  }
+  if (method === 'POST' && url.pathname === '/api/auth/two-step/off') {
+    const actor = actorFor(request, true)
+    rateLimit(request, 'auth', 10, 5 * 60000)
+    const data = z
+      .object({ password: z.string().min(1).max(128), code: z.string().trim().min(6).max(20) })
+      .strict()
+      .parse(body)
+    await passwordFor(actor.id, data.password)
+    db.transaction(() => {
+      const account = twoStepAccount(actor.id)
+      if (!account) fail(409, 'Two-step sign-in is already off.')
+      if (!useCode(ctx, account!, data.code))
+        fail(400, 'That code is not right. Use the newest code from your app, or a recovery code.')
+      db.run(
+        'UPDATE accounts SET totp_secret=NULL, totp_enabled_at=NULL, totp_last_step=NULL WHERE id=?',
+        actor.id,
+      )
+      db.run('DELETE FROM recovery_codes WHERE account_id=?', actor.id)
+      db.run(
+        'UPDATE login_challenges SET used_at=? WHERE account_id=? AND used_at IS NULL',
+        now(),
+        actor.id,
+      )
+    })
+    mailNotice(ctx, actor, 'two-step-off')
+    reply(200, { ok: true })
+    return true
+  }
+  if (method === 'POST' && url.pathname === '/api/auth/two-step/recovery') {
+    const actor = actorFor(request, true)
+    rateLimit(request, 'auth', 10, 5 * 60000)
+    const data = z
+      .object({ password: z.string().min(1).max(128) })
+      .strict()
+      .parse(body)
+    await passwordFor(actor.id, data.password)
+    const codes = db.transaction(() => {
+      if (!twoStepOn(actor.id)) fail(409, 'Turn on two-step sign-in first.')
+      return newRecoveryCodes(ctx, actor.id)
+    })
+    mailNotice(ctx, actor, 'recovery-new')
+    reply(200, { recoveryCodes: codes })
     return true
   }
   if (method === 'POST' && url.pathname === '/api/auth/logout') {
@@ -213,6 +405,7 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
     db.transaction(() => {
       db.run('UPDATE accounts SET password_hash=? WHERE id=?', hash, actor.id)
       db.run('DELETE FROM sessions WHERE account_id=?', actor.id)
+      db.run('DELETE FROM login_challenges WHERE account_id=?', actor.id)
     })
     reply(200, { csrf: signIn(response, actor.id) })
     return true

@@ -12,7 +12,14 @@ export type WorkspaceAccess = {
   staffId?: string
 }
 export type Session = {
-  user: { id: string; name: string; email: string; emailConfirmed?: boolean }
+  user: {
+    id: string
+    name: string
+    email: string
+    emailConfirmed?: boolean
+    /** NEXT-04: when two-step sign-in was turned on and how many recovery codes are left. */
+    twoStep?: { since: number; recoveryLeft: number } | null
+  }
   csrf: string
   workspaces: WorkspaceAccess[]
   services: { email: boolean; payments: boolean }
