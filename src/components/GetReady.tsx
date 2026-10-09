@@ -5,6 +5,7 @@ import { useStore } from '../state/context'
 import { Button, ErrorMessage } from '../design'
 import { can, operations } from '../domain/operations'
 import { bookable, readySteps, stepPermission } from '../domain/readiness'
+import { setupFinished, setupPlace } from '../domain/setup'
 import type { ReadyStep } from '../domain/readiness'
 import './getReady.css'
 
@@ -92,7 +93,8 @@ function copyFor(id: ReadyStep, uk: boolean): Copy {
 /**
  * "Get your studio ready", at the top of Today for the owner and managers of a studio that has not
  * finished setting up. Each step ticks itself once it is set and links to the place in Settings
- * where it is set; the list goes once every step is done, or when it is hidden.
+ * where it is set; the list goes once every step is done, or when it is hidden. The owner can also
+ * go through "Set up your studio" (StudioSetup.tsx), a screen at a time, until they finish it.
  */
 export function GetReady() {
   const { state, role, mode, blocked, commit } = useStore()
@@ -147,6 +149,12 @@ export function GetReady() {
           </p>
           <h2 id="get-ready-title">Get your studio ready</h2>
           <p>A few things to set before your first guests book. Each one ticks itself once set.</p>
+          {role === 'owner' && !setupFinished(state) && (
+            <Link className="button button-primary get-ready-guide" to="/setup">
+              {setupPlace(state) ? 'Pick up where you left off' : 'Set up step by step'}
+              <ArrowRight size={15} aria-hidden="true" />
+            </Link>
+          )}
         </div>
         <Button
           variant="quiet"

@@ -20,6 +20,7 @@ import {
 import { patchTestSettingsSchema } from './patchTestsSchema'
 import { MISSED_CALL_LIMIT, missedCallSchema } from './missedCallsSchema'
 import { paymentMethodSchema, processorSchema } from './paymentMethods'
+import { setupProgressSchema } from './setupSchema'
 import { RENT_LIMIT, RENT_PAYMENT_LIMIT, rentPaymentSchema, rentalSchema } from './rentSchema'
 import {
   ACCOUNTING_EXPORT_LIMIT,
@@ -361,6 +362,8 @@ export const operationsSchema = z.object({
   houseRules: houseRulesSchema.optional(),
   /** V5: anonymous comparison with similar studios, only when the owner chooses to share. */
   benchmark: benchmarkSharingSchema.optional(),
+  /** Set up your studio: the screen the owner picks up at. Absent until they first use it. */
+  setup: setupProgressSchema.optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 /**
@@ -521,6 +524,8 @@ export function permissionFor(command: { type: string; approve?: boolean }) {
   )
     return 'hours'
   if (command.type === 'stock-move') return 'stock'
+  // Adding a location also places its rooms, team and menu, all of which the owner may change.
+  if (command.type === 'location-open') return 'location'
   if (command.type === 'message-queue' || command.type === 'social-answer') return 'message.queue'
   if (command.type === 'special-plan' || command.type === 'special-stop') return 'special'
   if (command.type === 'task-add' || command.type === 'task-done') return 'task'
@@ -622,6 +627,8 @@ export function can(role: Role, action: string) {
       'region-remove',
       'targets',
       'group-checks',
+      // The setup screens include the studio's details and tax, which only the owner sets.
+      'setup-step',
     ].includes(action)
   )
     return false

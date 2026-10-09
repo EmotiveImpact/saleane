@@ -101,6 +101,9 @@ const Feedback = lazy(() =>
 const AskSaleane = lazy(() =>
   import('./components/AskSaleane').then((module) => ({ default: module.AskSaleane })),
 )
+const StudioSetup = lazy(() =>
+  import('./pages/StudioSetup').then((module) => ({ default: module.StudioSetup })),
+)
 const DesignLanguage = lazy(() =>
   import('./pages/DesignLanguage').then((module) => ({ default: module.DesignLanguage })),
 )
@@ -218,6 +221,7 @@ function WorkspaceApp() {
         <p role="status">Loading your saved records.</p>
       </main>
     )
+  if (location.pathname === '/setup') return <StudioSetup key={state.organisation.id} />
   if (location.pathname === '/booking')
     return mode === 'server' ? (
       <Navigate to={`/book/${slug}${location.search}`} replace />

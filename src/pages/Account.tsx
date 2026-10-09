@@ -87,7 +87,7 @@ export function Account() {
    * Practitioners open their own day and regional managers their area; every other role opens
    * the studio workspace.
    */
-  async function open(id: string, current: Session | null) {
+  async function open(id: string, current: Session | null, landing = '/today') {
     const role = current?.workspaces.find((w) => w.id === id)?.role
     // A new tab opens this studio again for them (the studio itself is noted once it opens).
     if (current && (role === 'practitioner' || role === 'regional'))
@@ -101,7 +101,7 @@ export function Account() {
       return
     }
     await store.openWorkspace(id)
-    navigate('/today')
+    navigate(landing)
   }
   async function enter(id: string, current = store.session) {
     setPending(true)
@@ -181,7 +181,9 @@ export function Account() {
         current = await store.refreshSession()
       }
       setPassword('')
-      if (orgId) await open(orgId, current)
+      // A studio of their own starts with "Set up your studio"; a sample one is ready to explore.
+      const fresh = !sample && (view === 'workspace' || !invitation)
+      if (orgId) await open(orgId, current, fresh ? '/setup' : '/today')
       else setView('workspace')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'This request could not be completed.')
@@ -515,7 +517,7 @@ export function Account() {
                     <small className="subtle">
                       {sample
                         ? 'The sample is set on one fixed day, and its money is simulated.'
-                        : 'Your studio starts empty. A short list on Today takes you through treatments, your team, rooms and opening hours.'}
+                        : 'Your studio starts empty. A few short screens take you through your hours, treatments, team and booking page, and you can stop at any point.'}
                     </small>
                   </>
                 )}

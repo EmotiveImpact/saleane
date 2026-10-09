@@ -12,6 +12,7 @@ import { branchVisitUnchanged, runBranchVisitCommand, stampBranchVisitActors } f
 import { channelLabel } from './bookingChannel'
 import { checkoutTotals } from './money'
 import { recordTillCount } from './tillCount'
+import { openLocation, withSetupProgress } from './setup'
 export { commandSchema } from './commandSchema'
 export type { Command, BookingInput, ContactInput } from './commandSchema'
 import type { Appointment, BusinessState, RelationshipEvent } from './model'
@@ -193,6 +194,27 @@ export function execute(
         current = result.state
         recordId = result.recordId
       }
+      if (current === s) return { ok: true, state: s, recordId }
+      return {
+        ok: true,
+        state: parseState({ ...current, revision: s.revision + 1 }, s.organisation.region),
+        recordId,
+      }
+    }
+    // The setup wizards: several ordinary Settings changes, applied together or not at all.
+    if (command.type === 'setup-step' || command.type === 'location-open') {
+      let current = s
+      const run = (part: Command) => {
+        const result = execute(current, part, now, makeId)
+        if (!result.ok) throw new Error(result.error)
+        current = result.state
+        return result.recordId
+      }
+      let recordId = s.organisation.id
+      if (command.type === 'setup-step') {
+        for (const part of command.changes) run(part as Command)
+        current = withSetupProgress(current, command.next, now)
+      } else recordId = openLocation(s, command, run)
       if (current === s) return { ok: true, state: s, recordId }
       return {
         ok: true,

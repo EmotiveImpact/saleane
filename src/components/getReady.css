@@ -17,6 +17,9 @@
   margin-top: 6px;
   color: var(--muted);
 }
+.get-ready-guide {
+  margin-top: 16px;
+}
 .get-ready-hide {
   flex-shrink: 0;
   min-height: 40px;

@@ -78,7 +78,14 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
       const result = db.transaction(() => {
         const org = orgFor(orgId, actor, { area: true })
         reader = org
-        const parts = data.command.type === 'batch' ? data.command.commands : [data.command]
+        // A batch is allowed by its changes; a setup screen needs the right to set up the studio
+        // and to make each of its changes.
+        const parts =
+          data.command.type === 'batch'
+            ? data.command.commands
+            : data.command.type === 'setup-step'
+              ? [data.command, ...data.command.changes]
+              : [data.command]
         if (parts.some((part) => !can(org.role, permissionFor(part))))
           fail(403, 'Your role cannot make this change.')
         if (org.role === 'regional') {
