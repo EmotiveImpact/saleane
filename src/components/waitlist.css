@@ -103,3 +103,32 @@ button.waitlist-time:hover {
 .client-waitlist .waitlist-card {
   grid-template-columns: 1fr;
 }
+/* Offers nobody has answered, ready to pass on. */
+.waitlist-pass-on {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.waitlist-pass-on-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--stone);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.waitlist-pass-on-row > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 280px;
+}
+.waitlist-pass-on-row small {
+  color: var(--muted);
+  font-size: var(--text-small);
+}

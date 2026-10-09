@@ -25,3 +25,17 @@ Screenshots: [waitlist page](V15-WAITLIST-page.png), [offer written](V15-WAITLIS
 - Openings are searched across the whole requested window (at most 90 days) on a 15-minute grid, and the earliest three are shown. For a guest with a visit, times are checked with the length and room their visit was booked with.
 - Removing a request is a status change with a reason; nothing is deleted. Requests are kept 90 days after their dates end, then wait for an owner or manager to approve deletion or keep them longer.
 - Safari and Firefox were not checked.
+
+## Passing an unanswered offer on
+
+Recorded 9 October 2026 in Chromium (Playwright) against the built app with a fresh local database and a signed-in sample studio.
+
+- An offer for Charlotte (facial with Maya, Tuesday 6 October at 12:15) was written from the Waitlist page and approved. Amelia was added for the same treatment with anyone, any time. The offer's approval time was then set three hours back in the local database to stand in for the wait.
+- The Waitlist page showed "Not answered yet" with "Offered to Charlotte Hayes, approved 3 hours ago, with no reply yet. Amelia Carter is next on the list and this time suits them." and an "Offer it to Amelia Carter" button. axe found nothing.
+- Choosing it showed "An offer for Amelia Carter on Tuesday 6 October at 12:15 is waiting in the Inbox for you to approve. Nothing has been sent." The new message was a draft for Amelia. After a reload at 390px the panel was gone, since the time had been passed on. No console errors.
+
+Screenshots: [not answered yet](V15-WAITLIST-pass-on.png), [passed on](V15-WAITLIST-passed.png).
+
+`src/domain/waitlist.test.ts` covers: a draft offer not yet approved is never suggested; under 2 hours after approval is too soon; the next person is the longest waiting whose request suits the time; a reply from the client since approval counts as an answer; passing on writes a draft for the next person and the time is not suggested again; a booked time is not suggested.
+
+Limits: "no reply" means no reply recorded in the Inbox. An approved offer is not a sent one, and with no provider connected nothing reaches the guest. The first offer stays open, as the wording already says the first to answer gets the time.

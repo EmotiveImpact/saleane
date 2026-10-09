@@ -6,7 +6,7 @@ import { feedbackSince } from '../domain/feedback'
 import { money } from '../domain/format'
 import { waiting, waitlistSummary } from '../domain/waitlist'
 import { Button, Empty, PageHeader } from '../design'
-import { WaitlistCard, WaitlistForm } from '../components/Waitlist'
+import { PassOnOffers, WaitlistCard, WaitlistForm } from '../components/Waitlist'
 import { can } from '../domain/operations'
 import '../components/management.css'
 import '../components/waitlist.css'
@@ -53,6 +53,7 @@ export function Waitlist() {
           <dd>{money(summary.valueMinor, state.organisation, true)}</dd>
         </div>
       </dl>
+      <PassOnOffers />
       <section className="surface ops-panel" aria-labelledby="waiting-heading">
         <header>
           <div>

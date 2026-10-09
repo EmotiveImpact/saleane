@@ -21,6 +21,14 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Texts name the location, imported visits go to the location where the professional works that day, and the calendar showing every location spans all their opening hours.
 - A studio with one location works exactly as before.
 
+## 2026-10-09 · V1.5 · Passing an unanswered waitlist offer on
+
+**Status: built locally on 9 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V15-WAITLIST.md#passing-an-unanswered-offer-on).
+
+- The Waitlist page has a "Not answered yet" panel. It lists offers approved at least 2 hours ago with no reply from the client since, where the time is still free and someone else waiting could take it.
+- "Offer it to" the next person (the longest waiting whose request suits that time) writes a new offer that waits in the Inbox for approval, like any other. Nothing is sent by itself, and the first offer is not withdrawn: the first to answer gets the time.
+- A time already passed on, booked, or no longer free leaves the panel. Approving a message is not the same as sending it; with no provider connected, approved offers still wait unsent.
+
 ## 2026-10-09 · V5 · Automatic checks
 
 **Status: built locally on 9 October 2026, in review; nothing deployed.** [Evidence](docs/evidence/V5-CHECKS.md).
