@@ -20,6 +20,8 @@ import {
 import { patchTestSettingsSchema } from './patchTestsSchema'
 import { tillSettingsSchema } from './tillSchema'
 import { SHIFT_LIMIT, shiftSchema } from './hoursSchema'
+import { ROTA_CHANGE_LIMIT, ROTA_COMMANDS, rotaChangeSchema } from './rotaSchema'
+import type { RotaChange } from './rotaSchema'
 import { MISSED_CALL_LIMIT, missedCallSchema } from './missedCallsSchema'
 import { paymentMethodSchema, processorSchema } from './paymentMethods'
 import { RENT_LIMIT, RENT_PAYMENT_LIMIT, rentPaymentSchema, rentalSchema } from './rentSchema'
@@ -377,6 +379,8 @@ export const operationsSchema = z.object({
   till: tillSettingsSchema.optional(),
   /** NEXT-07: hours worked, clocked in and out or added by hand, for payroll. */
   shifts: z.array(shiftSchema).max(SHIFT_LIMIT).optional(),
+  /** Stage 3: single days on the rota changed from someone's usual hours, or added. */
+  rotaChanges: z.array(rotaChangeSchema).max(ROTA_CHANGE_LIMIT).optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 /**
@@ -510,10 +514,43 @@ export function timeOffOn(s: BusinessState, staffId: string, date: string) {
     (t) => !t.cancelledAt && t.staffId === staffId && t.from <= date && t.to >= date,
   )
 }
-/** The hours a person can be booked on a day: their usual hours, closed while they are away. */
-export function staffHoursFor(s: BusinessState, staffId: string, date: string) {
+// Availability asks for a person's day thousands of times a request, so the changes still in
+// force are looked up by person and day. A list is never changed in place once read: the rota
+// commands always save a new one.
+const rotaIndex = new WeakMap<RotaChange[], Map<string, RotaChange>>()
+/** Stage 3: the change on the rota for one person on one day, if one applies. */
+export function rotaChangeOn(s: BusinessState, staffId: string, date: string) {
+  const list = operations(s).rotaChanges
+  if (!list?.length) return undefined
+  let index = rotaIndex.get(list)
+  if (!index) {
+    index = new Map(list.filter((c) => !c.ended).map((c) => [`${c.staffId} ${c.date}`, c]))
+    rotaIndex.set(list, index)
+  }
+  return index.get(`${staffId} ${date}`)
+}
+/**
+ * The shared answer to "when does this person work on this day": their usual weekly hours, or the
+ * day as changed on the rota (Stage 3). Every booking, move, offer, suggestion and screen reads
+ * it through `staffHoursFor` and `staffLocationOn`.
+ */
+export function plannedHoursFor(s: BusinessState, staffId: string, date: string) {
   const usual = usualHoursFor(s, staffId, date)
-  return timeOffOn(s, staffId, date) ? { ...usual, closed: true } : usual
+  const change = rotaChangeOn(s, staffId, date)
+  if (!change) return usual
+  if (!change.working) return { ...usual, closed: true }
+  return {
+    day: usual.day,
+    open: change.open!,
+    close: change.close!,
+    closed: false,
+    ...(change.locationId ? { locationId: change.locationId } : {}),
+  }
+}
+/** The hours a person can be booked on a day: as planned on the rota, closed while they are away. */
+export function staffHoursFor(s: BusinessState, staffId: string, date: string) {
+  const planned = plannedHoursFor(s, staffId, date)
+  return timeOffOn(s, staffId, date) ? { ...planned, closed: true } : planned
 }
 /** What is on the shelf: at one location when given (V2), otherwise across the studio. */
 export function stock(s: BusinessState, productId: string, locationId?: string) {
@@ -536,6 +573,8 @@ export function permissionFor(command: { type: string; approve?: boolean }) {
     )
   )
     return 'hours'
+  // Stage 3: changing a day on the rota is changing hours, for owners and managers.
+  if ((ROTA_COMMANDS as readonly string[]).includes(command.type)) return 'hours'
   if (command.type === 'stock-move') return 'stock'
   // NEXT-09: booking repeat visits is booking.
   if (command.type === 'book-repeat') return 'book'

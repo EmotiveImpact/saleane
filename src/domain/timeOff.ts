@@ -1,10 +1,9 @@
 import type { BusinessState } from './model'
 import { addDays } from './format'
-import { hoursFor, operations, timeOffOn, usualHoursFor } from './operations'
+import { hoursFor, operations, plannedHoursFor } from './operations'
 import type { TimeOff } from './operations'
-import { dayAppointments } from './selectors'
 
-/** V2: rotas, holidays and time off. */
+/** V2: holidays and time off. The week's rota itself is in rota.ts (Stage 3). */
 export const TIME_OFF_LABEL: Record<TimeOff['kind'], string> = {
   holiday: 'Holiday',
   sick: 'Sick',
@@ -15,10 +14,13 @@ export function daysBetween(from: string, to: string) {
   return Math.round((Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / 86400000)
 }
 
-/** Whether a person would normally work that day, from the venue's and their own weekly hours. */
-export function usuallyWorks(s: BusinessState, staffId: string, date: string) {
-  const venue = hoursFor(s, date)
-  const own = usualHoursFor(s, staffId, date)
+/**
+ * Whether a person is planned to work that day: their weekly hours, or the day as changed on the
+ * rota (Stage 3), within the opening hours of where they work.
+ */
+export function plannedToWork(s: BusinessState, staffId: string, date: string) {
+  const own = plannedHoursFor(s, staffId, date)
+  const venue = hoursFor(s, date, own.locationId)
   return (
     !venue.closed &&
     !own.closed &&
@@ -35,7 +37,8 @@ export function workingDaysAway(
   let days = 0
   for (let date = away.from; date <= away.to; date = addDays(date, 1)) {
     if (year !== undefined && Number(date.slice(0, 4)) !== year) continue
-    if (usuallyWorks(s, away.staffId, date)) days += 1
+    // The days they were planned to work, so a changed or extra day on the rota counts as planned.
+    if (plannedToWork(s, away.staffId, date)) days += 1
   }
   return days
 }
@@ -52,38 +55,6 @@ export function holidaySummary(s: BusinessState, staffId: string, year: number) 
     .reduce((sum, t) => sum + workingDaysAway(s, t, year), 0)
   const allowance = allowanceFor(s, staffId)
   return { booked, allowance, left: allowance === undefined ? undefined : allowance - booked }
-}
-
-export type RotaDay =
-  | { date: string; state: 'working'; open: number; close: number; visits: number }
-  | { date: string; state: 'off' }
-  | { date: string; state: 'away'; away: TimeOff }
-  | { date: string; state: 'closed' }
-
-/** One person's week: hours they work, days off, days away and how many visits are booked. */
-export function rotaWeek(s: BusinessState, monday: string) {
-  const dates = Array.from({ length: 7 }, (_, i) => addDays(monday, i))
-  const visitsOn = new Map(dates.map((date) => [date, dayAppointments(s, date)]))
-  return s.staff
-    .filter((person) => !person.archived)
-    .map((person) => ({
-      person,
-      days: dates.map((date): RotaDay => {
-        const venue = hoursFor(s, date)
-        const away = timeOffOn(s, person.id, date)
-        if (away) return { date, state: 'away', away }
-        if (venue.closed) return { date, state: 'closed' }
-        if (!usuallyWorks(s, person.id, date)) return { date, state: 'off' }
-        const own = usualHoursFor(s, person.id, date)
-        return {
-          date,
-          state: 'working',
-          open: Math.max(venue.open, own.open),
-          close: Math.min(venue.close, own.close),
-          visits: visitsOn.get(date)!.filter((a) => a.staffId === person.id).length,
-        }
-      }),
-    }))
 }
 
 /** The Monday on or before a day. */

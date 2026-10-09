@@ -193,7 +193,8 @@ export type DaySegment =
  * `minimumFree` minutes are left out because nothing can be booked there.
  */
 export function staffDay(s: BusinessState, staffId: string, date: string, minimumFree = 15) {
-  const h = hoursFor(s, date)
+  // The opening hours of where they work that day, which the rota may change (Stage 3).
+  const h = hoursFor(s, date, staffLocationOn(s, staffId, date))
   const ph = staffHoursFor(s, staffId, date)
   const visits = dayAppointments(s, date).filter((a) => a.staffId === staffId)
   const start = Math.max(h.open, ph.open)

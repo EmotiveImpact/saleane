@@ -11,6 +11,7 @@ import { runBrandCommand } from './brandRules'
 import { runTillCommand } from './till'
 import { branchVisitUnchanged, runBranchVisitCommand, stampBranchVisitActors } from './branchVisits'
 import { runHoursCommand, stampShiftActors } from './hours'
+import { runRotaCommand, stampRotaActors } from './rota'
 import { channelLabel } from './bookingChannel'
 import { checkoutTotals } from './money'
 import { recordTillCount } from './tillCount'
@@ -846,6 +847,13 @@ export function execute(
     ) {
       recordId = runHoursCommand(next, command, now, businessDate(s, now), makeId)
     } else if (
+      command.type === 'rota-day' ||
+      command.type === 'rota-day-usual' ||
+      command.type === 'rota-week-copy' ||
+      command.type === 'rota-week-clear'
+    ) {
+      recordId = runRotaCommand(next, command, now, makeId)
+    } else if (
       command.type === 'studio-look' ||
       command.type === 'house-rules' ||
       command.type === 'benchmark-sharing'
@@ -966,6 +974,7 @@ export function dispatch(
   stampBranchVisitActors(s, result.state, actorName)
   stampRequestActors(s, result.state, actorName)
   stampShiftActors(s, result.state, actorName)
+  stampRotaActors(s, result.state, actorName)
   const known = new Map((operations(s).missedCalls ?? []).map((c) => [c.id, c]))
   for (const call of operations(result.state).missedCalls ?? []) {
     const before = known.get(call.id)

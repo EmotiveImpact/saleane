@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, ChevronRight, Clock3, NotebookPen, Star, Sun } from 'lucide-react'
+import {
+  ArrowLeft,
+  ArrowRight,
+  CalendarClock,
+  ChevronRight,
+  Clock3,
+  NotebookPen,
+  Star,
+  Sun,
+} from 'lucide-react'
 import { useStore } from '../state/context'
 import { api, ApiError } from '../state/api'
 import type { PractitionerWorkspace, RemoteWorkspace } from '../state/api'
@@ -18,6 +27,7 @@ import { firstName, nextUp, previousWithYou, untilLabel, venueMinutes } from '..
 import { PRACTITIONER_AVERAGE_MIN } from '../domain/feedback'
 import { venueDate } from '../domain/tillCount'
 import { hoursLabel } from '../domain/hours'
+import { span } from '../domain/rota'
 import { Avatar, Button, Empty, ErrorMessage, Modal, PageHeader, Status } from '../design'
 import { SignOut } from '../components/SignOut'
 import { HelpButton } from '../components/HelpButton'
@@ -209,6 +219,20 @@ export function PractitionerDay() {
   const clockAt = (instant: number) =>
     timeLabel(venueMinutes(organisation.timeZone, instant), locale)
   const hours = record.hours
+  // Stage 3: their own day as planned on the rota, and their changed days still to come.
+  const planned = record.plan?.find((d) => d.date === date)
+  const changedDays = (record.plan ?? []).filter((d) => d.change && d.date >= record.today)
+  const planWords = (day: NonNullable<typeof planned>) =>
+    day.away
+      ? 'Away'
+      : day.working && day.open !== undefined && day.close !== undefined
+        ? `${span(day.open, day.close, locale)}${day.place ? ` at ${day.place}` : ''}`
+        : 'Not working'
+  const changeWords = {
+    hours: 'Changed for this day',
+    extra: 'Extra day',
+    off: 'Changed for this day',
+  }
 
   function changeDay(target: string) {
     setDate(target)
@@ -292,6 +316,47 @@ export function PractitionerDay() {
           />
         </div>
         <ErrorMessage error={error} />
+        {planned && (
+          <section className="practitioner-plan" aria-label="Your hours on the rota">
+            <p>
+              <CalendarClock size={18} aria-hidden="true" />
+              <span>
+                {planned.working ? 'Working ' : ''}
+                <strong>
+                  {planned.working
+                    ? planWords(planned)
+                    : planned.away
+                      ? 'Away this day'
+                      : 'Not working this day'}
+                </strong>
+              </span>
+              {planned.change && (
+                <span className="practitioner-plan-tag">{changeWords[planned.change]}</span>
+              )}
+            </p>
+            {changedDays.length > 0 && (
+              <details className="practitioner-plan-changes">
+                <summary>
+                  {changedDays.length === 1
+                    ? 'One changed day coming up'
+                    : `${changedDays.length} changed days coming up`}
+                </summary>
+                <ul>
+                  {changedDays.map((day) => (
+                    <li key={day.date}>
+                      <button type="button" onClick={() => changeDay(day.date)}>
+                        <strong>{dateLabel(day.date, locale, true)}</strong>
+                        <span>
+                          {planWords(day)} · {changeWords[day.change!]}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </section>
+        )}
         {isToday && hours && (
           <section className="practitioner-clock" aria-label="Your hours">
             <p>

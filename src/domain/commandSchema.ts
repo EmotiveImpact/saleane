@@ -3,6 +3,7 @@ import { REPEAT_EVERY, REPEAT_MOST } from './repeat'
 import { groupCommandSchemas } from './groupSchema'
 import { branchVisitCommandSchemas } from './branchVisitSchema'
 import { hoursCommandSchemas } from './hoursSchema'
+import { rotaCommandSchemas } from './rotaSchema'
 import { approvalCommandSchemas } from './approvalsSchema'
 import { brandCommandSchemas } from './brandRulesSchema'
 import { tillCommandSchemas } from './tillSchema'
@@ -674,6 +675,8 @@ export const commandSchema = z.discriminatedUnion('type', [
   ...tillCommandSchemas,
   // NEXT-07: hours worked, for payroll.
   ...hoursCommandSchemas,
+  // Stage 3: one day on the rota changed or added, and a week's changes copied or cleared.
+  ...rotaCommandSchemas,
   ...operatingCommandSchema.options,
 ])
 export type BookingInput = z.infer<typeof bookingSchema>
