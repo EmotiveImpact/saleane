@@ -1,4 +1,11 @@
 /* Stage 2: finding products by barcode, with a scanner, the camera or typed by hand. */
+/* A scanner is a keyboard, so a scan makes the browser ring whatever holds focus. The page and a
+   side panel's heading only hold focus to keep a reader's place and are never tabbed to, so they
+   stay unringed rather than outlined after every scan. */
+.workspace-main:focus-visible,
+.dialog-heading h2[tabindex='-1']:focus-visible {
+  outline: none;
+}
 .scan-field {
   display: grid;
   gap: 8px;

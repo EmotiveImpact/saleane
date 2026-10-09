@@ -20,6 +20,7 @@ import {
 } from '../design'
 import '../components/management.css'
 import { TillCount } from '../components/TillCount'
+import { recordDay } from '../domain/tillCount'
 import { CardRefund } from '../components/CardPayments'
 import { CarriedBalances } from '../components/Switching'
 import { PlansLedger } from '../components/Plans'
@@ -110,15 +111,16 @@ export function Money() {
         service.id ===
         state.appointments.find((appointment) => appointment.id === appointmentId)?.serviceId,
     )?.name ?? 'Visit'
-  // V2: products sold without a visit appear on their day beside the visit receipts.
+  // V2: products sold without a visit appear on their day beside the visit receipts. Each is
+  // filed under the studio's own day, the day its receipt and the till count give it.
   const counterByDay = (state.counterSales ?? []).reduce<
     Record<string, NonNullable<typeof state.counterSales>>
   >((days, sale) => {
-    ;(days[sale.paidAt.slice(0, 10)] ??= []).push(sale)
+    ;(days[recordDay(state, sale.paidAt)] ??= []).push(sale)
     return days
   }, {})
   const visitDays = state.sales.reduce<Record<string, typeof state.sales>>((days, sale) => {
-    ;(days[sale.paidAt.slice(0, 10)] ??= []).push(sale)
+    ;(days[recordDay(state, sale.paidAt)] ??= []).push(sale)
     return days
   }, {})
   const receiptDays = [...new Set([...Object.keys(visitDays), ...Object.keys(counterByDay)])]
@@ -414,7 +416,7 @@ export function Money() {
                         <strong>{other.name}</strong>
                         <small>
                           {other.title} · {methodLabel(other.method)} · {other.number} ·{' '}
-                          {dateLabel(other.at.slice(0, 10), locale)}
+                          {dateLabel(recordDay(state, other.at), locale)}
                         </small>
                       </span>
                       <span className="ops-record-money">{format(other.amountMinor)}</span>
@@ -455,7 +457,7 @@ export function Money() {
                       </strong>
                       <small>
                         {methodLabel(payment.method)} ·{' '}
-                        {dateLabel(payment.recordedAt.slice(0, 10), state.organisation.locale)}
+                        {dateLabel(recordDay(state, payment.recordedAt), state.organisation.locale)}
                       </small>
                       <small>
                         {payment.reference
@@ -569,8 +571,8 @@ export function Money() {
                           {sandbox ? 'Simulated' : 'Recorded externally'}
                         </small>
                         <small>
-                          {dateLabel(entry.createdAt.slice(0, 10), state.organisation.locale)} ·{' '}
-                          {entry.actor}
+                          {dateLabel(recordDay(state, entry.createdAt), state.organisation.locale)}{' '}
+                          · {entry.actor}
                         </small>
                       </div>
                       <span className="ops-record-money">−{format(entry.amountMinor)}</span>

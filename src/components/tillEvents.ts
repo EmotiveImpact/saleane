@@ -24,7 +24,7 @@ export type PaperPreviewLines = {
 
 /** What a drawer opening came to, in words that never claim more than SALEANE knows. */
 export function drawerWords(event: Pick<TillEvent, 'status' | 'detail'>) {
-  if (event.status === 'test') return 'Test drawer: it would have opened now.'
+  if (event.status === 'test') return 'Test drawer: it would have opened.'
   if (event.status === 'sent') return 'The drawer was sent the signal to open.'
   if (event.status === 'pending' || event.status === 'sending') return 'Opening the drawer…'
   if (event.status === 'skipped') return event.detail ?? 'The drawer was not opened.'

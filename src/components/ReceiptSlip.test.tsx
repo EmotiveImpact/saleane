@@ -196,7 +196,7 @@ describe('Print receipt and Email receipt', () => {
       throw new Error(`Unexpected route ${path}`)
     })
     render(<ReceiptActions receiptKey={key} />)
-    expect(await screen.findByText('Test drawer: it would have opened now.')).toBeInTheDocument()
+    expect(await screen.findByText('Test drawer: it would have opened.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Print receipt' }))
     expect(
       await screen.findByText(
