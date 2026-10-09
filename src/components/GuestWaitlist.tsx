@@ -35,6 +35,8 @@ export function GuestWaitlist({
   const [error, setError] = useState('')
   if (!view.waitlist) return null
   const who = view.visit.professional
+  // Only the parts of the day the treatment can start in at this studio.
+  const offered = view.waitlist.offered ?? WAITLIST_TIMES
   async function send(join: boolean) {
     setSaving(true)
     setError('')
@@ -64,7 +66,7 @@ export function GuestWaitlist({
         <h2 id="sooner-heading">You are on the waitlist</h2>
         <p role="status">
           If an earlier time opens with {joined.anyone ? 'anyone' : who}{' '}
-          {joined.times.length && joined.times.length < 3
+          {joined.times.length && joined.times.length < offered.length
             ? joined.times.map((t) => `in the ${t}`).join(' or ')
             : 'at any time of day'}
           , {view.organisation.name} will be in touch. Your visit stays as it is until you say yes.
@@ -94,7 +96,7 @@ export function GuestWaitlist({
         </label>
         <fieldset className="guest-waitlist-times">
           <legend>Times that suit you (leave empty for any time)</legend>
-          {WAITLIST_TIMES.map((time) => (
+          {offered.map((time) => (
             <label key={time}>
               <input
                 type="checkbox"
@@ -102,7 +104,7 @@ export function GuestWaitlist({
                 onChange={(e) =>
                   setTimes(
                     e.target.checked
-                      ? WAITLIST_TIMES.filter((t) => t === time || times.includes(t))
+                      ? offered.filter((t) => t === time || times.includes(t))
                       : times.filter((t) => t !== time),
                   )
                 }

@@ -208,8 +208,12 @@ describe('waitlist', () => {
       appointmentId: visit.id,
     })
     expect(apply(joined, join)).toBe(joined)
+    // A facial with its resting time cannot start after 4.45pm at a studio closing at 6pm, so
+    // evenings are not offered.
+    const offered = ['morning', 'afternoon']
     expect(guestView(joined, visit.id, Date.parse(now)).waitlist).toEqual({
       joined: { anyone: false, times: [] },
+      offered,
     })
     // Changing their answer replaces the request rather than adding another.
     const changed = apply(joined, { ...join, anyone: true, times: ['evening'] } as Command)
@@ -217,7 +221,7 @@ describe('waitlist', () => {
     expect(waiting(changed, now).find((e) => e.appointmentId === visit.id)!.staffId).toBeUndefined()
     const left = apply(changed, { type: 'waitlist-leave', appointmentId: visit.id })
     expect(waiting(left, now).some((e) => e.appointmentId === visit.id)).toBe(false)
-    expect(guestView(left, visit.id, Date.parse(now)).waitlist).toEqual({ joined: null })
+    expect(guestView(left, visit.id, Date.parse(now)).waitlist).toEqual({ joined: null, offered })
     // Only the guest's private link may do this; no staff role can act for them.
     for (const role of ['owner', 'manager', 'reception', 'practitioner'] as const) {
       expect(can(role, 'waitlist-join')).toBe(false)
