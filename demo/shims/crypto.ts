@@ -62,8 +62,55 @@ function sha256(data: Uint8Array): Buffer {
   return out
 }
 
+/** SHA-1, only for authenticator codes: RFC 6238 time-based codes are HMAC-SHA1. */
+function sha1(data: Uint8Array): Buffer {
+  const length = data.length
+  const padded = new Uint8Array(((length + 9 + 63) >> 6) << 6)
+  padded.set(data)
+  padded[length] = 0x80
+  const view = new DataView(padded.buffer)
+  view.setUint32(padded.length - 4, length * 8)
+  view.setUint32(padded.length - 8, Math.floor(length / 0x20000000))
+  const h = new Uint32Array([0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0])
+  const w = new Uint32Array(80)
+  const rotl = (x: number, n: number) => (x << n) | (x >>> (32 - n))
+  for (let offset = 0; offset < padded.length; offset += 64) {
+    for (let i = 0; i < 16; i++) w[i] = view.getUint32(offset + i * 4)
+    for (let i = 16; i < 80; i++) w[i] = rotl(w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16], 1)
+    let [a, b, c, d, e] = h
+    for (let i = 0; i < 80; i++) {
+      const [f, k] =
+        i < 20
+          ? [(b & c) | (~b & d), 0x5a827999]
+          : i < 40
+            ? [b ^ c ^ d, 0x6ed9eba1]
+            : i < 60
+              ? [(b & c) | (b & d) | (c & d), 0x8f1bbcdc]
+              : [b ^ c ^ d, 0xca62c1d6]
+      const t = (rotl(a, 5) + f + e + k + w[i]) | 0
+      e = d
+      d = c
+      c = rotl(b, 30)
+      b = a
+      a = t
+    }
+    h[0] += a
+    h[1] += b
+    h[2] += c
+    h[3] += d
+    h[4] += e
+  }
+  const out = new Buffer(20)
+  const outView = new DataView(out.buffer)
+  h.forEach((value, i) => outView.setUint32(i * 4, value))
+  return out
+}
+
+const HASHES: Record<string, (data: Uint8Array) => Buffer> = { sha256, sha1 }
+
 export function createHash(algorithm: string) {
-  if (algorithm !== 'sha256') throw new Error(`The demo supports sha256 only, not ${algorithm}.`)
+  const run = HASHES[algorithm]
+  if (!run) throw new Error(`The demo supports sha256 and sha1 only, not ${algorithm}.`)
   const parts: Uint8Array[] = []
   const hash = {
     update(value: string | Uint8Array) {
@@ -71,7 +118,7 @@ export function createHash(algorithm: string) {
       return hash
     },
     digest(encoding?: string) {
-      const result = sha256(Buffer.concat(parts))
+      const result = run(Buffer.concat(parts))
       return encoding ? result.toString(encoding) : result
     },
   }
@@ -85,6 +132,17 @@ export function randomBytes(size: number): Buffer {
 }
 
 export const randomUUID = () => crypto.randomUUID()
+
+/** A uniform whole number from min (inclusive) to max (exclusive); one argument means 0 to max. */
+export function randomInt(min: number, max?: number): number {
+  if (max === undefined) [min, max] = [0, min]
+  const range = max - min
+  const limit = Math.floor(0x100000000 / range) * range
+  const value = new Uint32Array(1)
+  do crypto.getRandomValues(value)
+  while (value[0] >= limit)
+  return min + (value[0] % range)
+}
 
 export function scrypt(
   password: string,
@@ -106,20 +164,21 @@ export function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
   return diff === 0
 }
 
-/** HMAC-SHA256, used to sign the sample deliveries that connected software would receive. */
+/** HMAC-SHA256 signs the sample deliveries to connected software; HMAC-SHA1 makes authenticator codes. */
 export function createHmac(algorithm: string, key: string | Uint8Array) {
-  if (algorithm !== 'sha256') throw new Error(`The demo supports sha256 only, not ${algorithm}.`)
+  if (!HASHES[algorithm])
+    throw new Error(`The demo supports sha256 and sha1 only, not ${algorithm}.`)
   let secret: Uint8Array = typeof key === 'string' ? Buffer.from(key) : key
-  if (secret.length > 64) secret = sha256(secret)
+  if (secret.length > 64) secret = HASHES[algorithm](secret)
   const block = (pad: number) => Uint8Array.from({ length: 64 }, (_, i) => (secret[i] ?? 0) ^ pad)
-  const inner = createHash('sha256').update(block(0x36))
+  const inner = createHash(algorithm).update(block(0x36))
   const hmac = {
     update(value: string | Uint8Array) {
       inner.update(value)
       return hmac
     },
     digest(encoding?: string) {
-      const result = createHash('sha256')
+      const result = createHash(algorithm)
         .update(block(0x5c))
         .update(inner.digest() as Uint8Array)
         .digest()
