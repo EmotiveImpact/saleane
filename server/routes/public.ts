@@ -7,16 +7,18 @@ import { businessDate, operations } from '../../src/domain/operations'
 import { patchTestSettings } from '../../src/domain/patchTests'
 import { currentWording } from '../../src/domain/consent'
 import { HOLD_LIMITS, holdInput, guestContact } from '../context'
-import type { Context, Route, HoldAllocation, HoldRow } from '../context'
+import type { Context, Org, Route, HoldAllocation, HoldRow } from '../context'
 import { issueGuestLink } from './guest'
 import { bookingChannel } from '../../src/domain/bookingChannel'
 import { places, serviceAt, staffLocationOn, staffPlaces } from '../../src/domain/locations'
 import { isOn } from '../../src/assistant/receptionist'
 import { guestPhone, phoneProblem } from '../../src/domain/phone'
+import { GUEST_CANCEL_CUTOFF_HOURS } from '../../src/domain/guest'
+import { guestPaymentFor } from '../payments/service'
 
 /** Public booking routes. These never return clients, histories or money. Returns false when the request belongs to another module. */
 export async function publicRoutes(ctx: Context, route: Route): Promise<boolean> {
-  const { db, now, rateLimit, address, visitorFor, turnstile } = ctx
+  const { db, now, rateLimit, address, visitorFor, turnstile, paymentProvider, messaging } = ctx
   const { publicOrg, persist, withHolds, chooseStaff } = ctx
   const { request, method, url, path, body, reply } = route
   if (path[1] === 'public' && path[2]) {
@@ -28,9 +30,8 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
         tax = operations(state).tax
       reply(200, {
         organisation: state.organisation,
-        services: state.services
-          .filter((service) => !service.archived)
-          .map((service) => ({ ...service, depositMinor: sample ? service.depositMinor : 0 })),
+        // Each treatment's deposit as it will be booked, so the guest sees it before choosing.
+        services: state.services.filter((service) => !service.archived),
         staff: state.staff
           .filter((person) => !person.archived)
           .map((person) => ({
@@ -55,8 +56,20 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
         patchTestHours: patchTestSettings(state).hoursBefore,
         // V1.5: the studio's current words for email news, so a ticked box records what was read.
         emailNews: (({ version, text }) => ({ version, text }))(currentWording(state)),
-        depositPolicy: sample ? 'simulated' : 'pay_at_studio',
-        paymentCollectionConfigured: false,
+        // PILOT-02: a sample studio only simulates its deposits. A real studio's guest pays the
+        // deposit by card once the visit is booked, on the provider's own page: SALEANE's
+        // labelled test page while payments are in test mode, where no money moves.
+        depositPolicy: sample ? 'simulated' : 'card',
+        cardPayments: sample ? null : { testMode: !paymentProvider.live },
+        // PILOT-01: whether emails really go out, so the page never says one was sent when not.
+        emailsLive: !sample && messaging.email.live,
+        // LOCAL-02: the rule the guest agrees to. Cancelling online is open until the visit
+        // starts; a paid deposit is refunded until the cutoff and kept after it. The studio may
+        // charge a share of the price for a late cancellation or a missed visit (PILOT-02).
+        cancellation: {
+          cutoffHours: GUEST_CANCEL_CUTOFF_HOURS,
+          feePercent: operations(state).protection?.feePercent ?? 0,
+        },
         // Only the rate and basis, so each service can show its full price including any tax.
         tax:
           tax && tax.rateBps > 0
@@ -190,6 +203,12 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
       return true
     }
     if (path[3] === 'book' && path.length === 4 && method === 'POST') {
+      // The deposit still to pay, read the same way as on the guest's own visit page, so the
+      // page can offer to pay it straight away. Absent when there is nothing to pay.
+      const depositDue = (booked: Org, appointmentId: string) => {
+        const payment = guestPaymentFor(ctx, booked, appointmentId)
+        return payment ? { payment } : {}
+      }
       rateLimit(request, 'public-write', 20, 5 * 60000)
       const data = z
         .object({
@@ -227,6 +246,7 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
             appointmentId: hold!.appointment_id,
             replayed: true,
             manage: issueGuestLink(ctx, org, hold!.appointment_id!, 'booking'),
+            ...depositDue(org, hold!.appointment_id!),
           }
         }
         if (hold!.expires_at <= now()) fail(409, 'This reservation expired. Choose a time again.')
@@ -277,11 +297,13 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
           fingerprint,
           hash,
         )
+        const booked = { ...org, state: result.state }
         return {
           appointmentId: result.recordId,
-          manage: issueGuestLink(ctx, { ...org, state: result.state }, result.recordId, 'booking'),
+          manage: issueGuestLink(ctx, booked, result.recordId, 'booking'),
           sample: operations(org.state).mode === 'sandbox',
-          depositPolicy: operations(org.state).mode === 'sandbox' ? 'simulated' : 'pay_at_studio',
+          depositPolicy: operations(org.state).mode === 'sandbox' ? 'simulated' : 'card',
+          ...depositDue(booked, result.recordId),
           confirmation: 'local_only',
         }
       })

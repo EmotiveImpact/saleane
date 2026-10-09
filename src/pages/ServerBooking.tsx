@@ -25,6 +25,12 @@ import type { PriceTax } from '../domain/priceSentence'
 import { useGuestColours } from '../state/studioColours'
 import type { StudioLook } from '../domain/brandRulesSchema'
 import { guestPhone, phoneProblem } from '../domain/phone'
+import { GUEST_CANCEL_CUTOFF_HOURS } from '../domain/guest'
+import type { GuestPayment as GuestPaymentView } from '../domain/guest'
+import { cancellationTerms, civilTime } from '../domain/bookingTerms'
+import { instantIn } from '../domain/operations'
+import { useClock } from '../state/clock'
+import { startGuestPayment } from '../state/guestPay'
 import '../guest.css'
 
 const pendingBookingSchema = z.object({
@@ -80,6 +86,14 @@ type Catalog = {
   receptionist?: boolean
   /** V5: the studio's colours. Older servers send none, and the house colours show. */
   look?: StudioLook
+  /** PILOT-02: a sample studio simulates deposits; a real one takes them by card after booking. */
+  depositPolicy?: 'simulated' | 'card'
+  /** PILOT-02: card payments in a real studio; in test mode no money moves. Null for a sample. */
+  cardPayments?: { testMode: boolean } | null
+  /** PILOT-01: emails really go out. Absent or false: nothing is emailed. */
+  emailsLive?: boolean
+  /** LOCAL-02: the cancellation rule, and any late cancellation charge (PILOT-02). */
+  cancellation?: { cutoffHours: number; feePercent: number }
 }
 export function ServerBooking() {
   const { slug } = useParams(),
@@ -155,7 +169,9 @@ function BookingFlow({
   setPending: (value: boolean) => void
 }) {
   const { organisation: org, services, staff, today, sample, botCheck, tax, receptionist } = catalog
+  const { cardPayments, emailsLive } = catalog
   const locations = catalog.locations ?? []
+  const clock = useClock(30_000)
   const store = useStore(),
     navigate = useNavigate()
   const journalKey = `saleane.guest-confirmation:${base}`
@@ -242,10 +258,56 @@ function BookingFlow({
     [policy, setPolicy] = useState(!!recovery.value),
     [error, setError] = useState(''),
     [confirmed, setConfirmed] = useState(''),
-    [manageUrl, setManageUrl] = useState('')
+    [manageUrl, setManageUrl] = useState(''),
+    [payment, setPayment] = useState<GuestPaymentView | null>(null),
+    [paying, setPaying] = useState(false),
+    [payError, setPayError] = useState('')
   const phoneField = useRef<HTMLInputElement>(null)
   const service = services.find((s) => s.id === serviceId),
     professional = staff.find((s) => s.id === staffId)
+  // What the visit costs where it will be, and the deposit asked for when it is booked.
+  const priceMinor = service ? fullPriceMinor(serviceAt(service, place?.id), tax) : 0
+  const depositMinor = service ? Math.min(service.depositMinor, priceMinor) : 0
+  // A sample studio lives on its own fixed day, so its clock reads the time of day on that day.
+  const nowAt = (() => {
+    const real = Date.parse(clock)
+    if (!sample) return real
+    try {
+      return Date.parse(instantIn(org.timeZone, today, civilTime(real, org.timeZone).minutes))
+    } catch {
+      return real
+    }
+  })()
+  const terms =
+    start === null
+      ? null
+      : cancellationTerms({
+          date,
+          startMinutes: start,
+          timeZone: org.timeZone,
+          locale: org.locale,
+          depositMinor,
+          cutoffHours: catalog.cancellation?.cutoffHours ?? GUEST_CANCEL_CUTOFF_HOURS,
+          feePercent: catalog.cancellation?.feePercent ?? 0,
+          now: nowAt,
+        })
+  const depositWords = !depositMinor
+    ? 'No deposit. You pay at the studio.'
+    : sample
+      ? `${money(depositMinor, org)} simulated deposit when you book. Nothing is charged in this sample studio.`
+      : `${money(depositMinor, org)} deposit, which you can pay by card as soon as you confirm. It comes off your bill on the day.${cardPayments?.testMode ? ' Card payments are in test mode, so no money moves.' : ''}`
+  // The private link's token, which opens the guest's own visit page and its payment.
+  const manageToken = manageUrl.split('#')[1] ?? ''
+  async function payDeposit() {
+    setPaying(true)
+    setPayError('')
+    try {
+      await startGuestPayment(manageToken, 'deposit')
+    } catch (e) {
+      setPayError(e instanceof Error ? e.message : 'The payment page could not be opened.')
+      setPaying(false)
+    }
+  }
   // Each step starts at the top, so a guest on a phone isn't left at the foot of the last one.
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0 })
@@ -349,15 +411,17 @@ function BookingFlow({
       // Preserve the exact consent/contact snapshot before any request leaves this tab.
       sessionStorage.setItem(journalKey, JSON.stringify(submitted))
       setAttempt(submitted)
-      const result = await api<{ appointmentId: string; manage?: { url: string } }>(
-        `${base}/book`,
-        {
-          method: 'POST',
-          // Where the guest came from, when they followed one of the studio's shared links.
-          body: { ...submitted.payload, from: bookingChannel(urlChannel()) },
-        },
-      )
+      const result = await api<{
+        appointmentId: string
+        manage?: { url: string }
+        payment?: GuestPaymentView
+      }>(`${base}/book`, {
+        method: 'POST',
+        // Where the guest came from, when they followed one of the studio's shared links.
+        body: { ...submitted.payload, from: bookingChannel(urlChannel()) },
+      })
       setManageUrl(result.manage?.url ?? '')
+      setPayment(result.payment ?? null)
       setConfirmed(result.appointmentId)
       setAttempt(null)
       try {
@@ -395,7 +459,12 @@ function BookingFlow({
       notice={
         sample
           ? 'Fictional sample studio. Reservations and deposits are simulated.'
-          : 'Local booking preview. Pay at the studio; online payments and emails are not connected yet.'
+          : [
+              cardPayments?.testMode && 'Card payments are in test mode, so no money moves.',
+              !emailsLive && 'Emails are not sent yet.',
+            ]
+              .filter(Boolean)
+              .join(' ')
       }
       pastWelcome={step > 1 || !!confirmed}
       team={!!store.session}
@@ -419,6 +488,27 @@ function BookingFlow({
               {where.address ? `, ${where.address}` : ''}
             </p>
           )}
+          {payment && payment.depositDueMinor > 0 && !payment.pending && manageToken && (
+            <section className="booking-pay-now" aria-labelledby="booking-pay-now-heading">
+              <h3 id="booking-pay-now-heading">Secure your visit</h3>
+              <p>
+                {org.name} asks for a {money(payment.depositDueMinor, org, true)} deposit. It comes
+                off your bill on the day. You can also pay it later from your visit page.
+              </p>
+              {payment.testMode && (
+                <p className="booking-test-note">
+                  Test mode: the payment page is a test page. No card is asked for and no money
+                  moves.
+                </p>
+              )}
+              <Button disabled={paying} onClick={() => void payDeposit()}>
+                {paying
+                  ? 'Opening the payment page…'
+                  : `Pay your ${money(payment.depositDueMinor, org, true)} deposit now`}
+              </Button>
+              <ErrorMessage error={payError} />
+            </section>
+          )}
           <BeforeYouArrive
             studioNote={where.arrivalNote}
             serviceNote={service?.prepNote}
@@ -440,9 +530,10 @@ function BookingFlow({
           )}
           <p className="subtle">
             {sample
-              ? 'This is a fictional sample reservation.'
-              : 'Your reservation is saved on this local server.'}{' '}
-            No money was collected and no email was sent. Keep this page for your records.
+              ? 'This is a fictional sample visit, and its deposit is simulated. Nothing is emailed.'
+              : emailsLive
+                ? 'Keep your private link to view or cancel this visit.'
+                : 'Nothing has been emailed, so keep this page or your private link.'}
           </p>
           {manageUrl && (
             <div className="manage-link">
@@ -792,17 +883,21 @@ function BookingFlow({
                       {locations.length > 1 && where.address ? `, ${where.address}` : ''}
                     </p>
                     <div className="receipt-line">
-                      <span>Service total</span>
-                      <strong>
-                        {money(fullPriceMinor(serviceAt(service, place?.id), tax), org)}
-                      </strong>
+                      <span>Treatment price</span>
+                      <strong>{money(priceMinor, org)}</strong>
                     </div>
-                    <div className="receipt-line">
-                      <span>{sample ? 'Simulated deposit' : 'Online payment'}</span>
-                      <strong>
-                        {sample ? money(service.depositMinor, org) : 'None collected'}
-                      </strong>
-                    </div>
+                    {depositMinor > 0 && (
+                      <>
+                        <div className="receipt-line">
+                          <span>{sample ? 'Simulated deposit' : 'Deposit'}</span>
+                          <strong>{money(depositMinor, org)}</strong>
+                        </div>
+                        <div className="receipt-line">
+                          <span>Left to pay at the studio</span>
+                          <strong>{money(priceMinor - depositMinor, org)}</strong>
+                        </div>
+                      </>
+                    )}
                     <p>
                       {name}
                       <br />
@@ -811,6 +906,11 @@ function BookingFlow({
                       {phone}
                     </p>
                   </div>
+                  <section className="booking-terms" aria-labelledby="booking-terms-heading">
+                    <h3 id="booking-terms-heading">Deposit and cancellation</h3>
+                    <p>{depositWords}</p>
+                    {terms && <p>{terms.rule}</p>}
+                  </section>
                   <label className="checkbox-label">
                     <input
                       type="checkbox"
@@ -818,7 +918,9 @@ function BookingFlow({
                       disabled={!!attempt}
                       onChange={(e) => setPolicy(e.target.checked)}
                     />
-                    I understand this is a local booking preview. No real payment or email is sent.
+                    {sample
+                      ? 'I understand this is a sample studio: nothing is charged or sent.'
+                      : 'I agree to the deposit and cancellation terms.'}
                   </label>
                   <div className="booking-next">
                     <Button variant="quiet" disabled={!!attempt} onClick={() => setStep(3)}>

@@ -544,7 +544,8 @@ describe('public booking privacy and reservation races', () => {
     expect(data).toMatchObject({
       sample: true,
       depositPolicy: 'simulated',
-      paymentCollectionConfigured: false,
+      cardPayments: null,
+      emailsLive: false,
     })
     for (const key of [
       'clients',
@@ -839,10 +840,17 @@ describe('public booking privacy and reservation races', () => {
     const staffId = person.json<{ recordId: string }>().recordId
     const org = await workspace(owner)
     const catalogue = await api.inject({ url: `/api/public/${org.slug}` })
-    expect(catalogue.json()).toMatchObject({ sample: false, depositPolicy: 'pay_at_studio' })
+    // The deposit shows before the guest chooses; it is paid by card once the visit is booked.
+    expect(catalogue.json()).toMatchObject({
+      sample: false,
+      depositPolicy: 'card',
+      cardPayments: { testMode: true },
+      emailsLive: false,
+      cancellation: { cutoffHours: 24, feePercent: 0 },
+    })
     expect(
       catalogue.json<{ services: { depositMinor: number }[] }>().services[0].depositMinor,
-    ).toBe(0)
+    ).toBe(2500)
     const reservation = await api.inject({
       method: 'POST',
       url: `/api/public/${org.slug}/holds`,
@@ -857,8 +865,9 @@ describe('public booking privacy and reservation races', () => {
     expect(booked.statusCode, booked.body).toBe(200)
     expect(booked.json()).toMatchObject({
       sample: false,
-      depositPolicy: 'pay_at_studio',
+      depositPolicy: 'card',
       confirmation: 'local_only',
+      payment: { testMode: true, depositDueMinor: 2500, pending: false },
     })
     const state = (await workspace(owner)).state
     expect(state.appointments).toHaveLength(1)

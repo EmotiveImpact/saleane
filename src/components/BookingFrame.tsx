@@ -20,6 +20,7 @@ export function BookingFrame({
 }: {
   studio: string
   location: string
+  /** An honest note about what the page does, such as test mode. Empty when there is none. */
   notice: string
   /** On phones the photo greets the guest on the first step only. */
   pastWelcome: boolean
@@ -83,7 +84,7 @@ export function BookingFrame({
           </div>
         </aside>
         <main className="booking-main" id="main-content" tabIndex={-1} data-focus-fallback>
-          <p className="booking-notice">{notice}</p>
+          {notice && <p className="booking-notice">{notice}</p>}
           {children}
         </main>
       </div>

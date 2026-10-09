@@ -454,3 +454,54 @@
 .booking-field input[aria-invalid='true'] {
   border-color: var(--danger);
 }
+
+/* The deposit and the cancellation rule, read before the guest confirms. */
+.booking-terms {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-5) 0 var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--paper);
+}
+.booking-terms h3 {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-body);
+  font-weight: var(--weight-strong);
+}
+.booking-terms p {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+/* After booking: paying the deposit straight away. */
+.booking-pay-now {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  margin: 0 auto var(--space-6);
+  padding: var(--space-5);
+  border-radius: var(--radius-panel);
+  background: var(--brand-soft);
+  text-align: center;
+}
+.booking-pay-now h3 {
+  margin: 0;
+  font-family: var(--font-editorial);
+  font-weight: var(--weight-editorial);
+  font-size: 24px;
+}
+.booking-pay-now p {
+  margin: 0;
+  max-width: 46ch;
+  font-size: var(--text-small);
+  line-height: 1.55;
+  color: var(--ink);
+}
+.booking-pay-now .booking-test-note {
+  font-size: var(--text-meta);
+  color: var(--muted);
+}

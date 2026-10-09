@@ -68,7 +68,7 @@ test('unknown confirmation retains its exact snapshot through expiry and reload,
   await user.type(screen.getByLabelText('Phone number'), payload.contact.phone)
   await user.click(screen.getByRole('button', { name: 'Review your visit' }))
   await user.click(
-    screen.getByRole('checkbox', { name: /I understand this is a local booking preview/ }),
+    screen.getByRole('checkbox', { name: /I agree to the deposit and cancellation terms/ }),
   )
   await user.click(screen.getByRole('button', { name: 'Confirm visit' }))
   await screen.findByText('Connection interrupted; confirmation is uncertain.')
@@ -219,10 +219,88 @@ test('a local phone number is accepted and kept international; rubbish gets a fr
   await user.click(screen.getByRole('button', { name: 'Review your visit' }))
   expect(await screen.findByText(/\+44 7700 900456/)).toBeVisible()
   await user.click(
-    screen.getByRole('checkbox', { name: /I understand this is a local booking preview/ }),
+    screen.getByRole('checkbox', { name: /I agree to the deposit and cancellation terms/ }),
   )
   await user.click(screen.getByRole('button', { name: 'Confirm visit' }))
   await screen.findByText('Saved in the studio calendar')
   const sent = vi.mocked(api).mock.calls.find(([path]) => path === `${base}/book`)!
   expect((sent[1]?.body as typeof payload).contact.phone).toBe('+44 7700 900456')
+})
+
+test('a real studio shows its deposit and cancellation rule before confirming, then offers to pay', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  // Noon on Monday 5 October: the visit is on Wednesday 7 October at 10:00.
+  vi.setSystemTime(new Date('2026-10-05T12:00:00.000Z'))
+  const user = userEvent.setup()
+  const token = 't'.repeat(43)
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path === base)
+      return {
+        ...catalog,
+        depositPolicy: 'card',
+        cardPayments: { testMode: true },
+        emailsLive: false,
+        cancellation: { cutoffHours: 24, feePercent: 0 },
+      } as never
+    if (path.startsWith(`${base}/availability`)) return { times: [600] } as never
+    if (path === `${base}/holds`)
+      return { hold: payload.hold, expiresAt: new Date(Date.now() + 300000).toISOString() } as never
+    if (path === `${base}/book`)
+      return {
+        appointmentId: 'visit-with-deposit',
+        manage: { url: `http://localhost:3000/manage#${token}` },
+        payment: {
+          testMode: true,
+          depositDueMinor: 2500,
+          saveCardOffered: false,
+          savedCard: null,
+          policy: '',
+          pending: false,
+        },
+      } as never
+    if (path === '/api/guest/pay') return { url: 'http://localhost:3000/pay/test#attempt' } as never
+    throw new Error(`Unexpected route ${path}`)
+  })
+  view()
+  // The deposit is on the treatment itself.
+  expect(
+    await screen.findByText(/£25 deposit when you book, the rest at the studio\./),
+  ).toBeVisible()
+  expect(
+    screen.getByText('Card payments are in test mode, so no money moves. Emails are not sent yet.'),
+  ).toBeVisible()
+  await user.click(screen.getByRole('button', { name: 'Choose a time' }))
+  await user.click(await screen.findByRole('radio', { name: '10:00' }))
+  await user.click(screen.getByRole('button', { name: 'Hold this time' }))
+  await user.type(await screen.findByLabelText('Full name'), payload.contact.name)
+  await user.type(screen.getByLabelText('Email'), payload.contact.email)
+  await user.type(screen.getByLabelText('Phone number'), payload.contact.phone)
+  await user.click(screen.getByRole('button', { name: 'Review your visit' }))
+  const terms = await screen.findByRole('region', { name: 'Deposit and cancellation' })
+  expect(terms).toHaveTextContent(
+    '£25 deposit, which you can pay by card as soon as you confirm. It comes off your bill on the day. Card payments are in test mode, so no money moves.',
+  )
+  expect(terms).toHaveTextContent(
+    'Free to cancel until Tuesday 6 October at 10:00, and the studio refunds your deposit. After that it keeps the deposit.',
+  )
+  expect(screen.getByText('Left to pay at the studio').nextSibling).toHaveTextContent('£70')
+  await user.click(
+    screen.getByRole('checkbox', { name: 'I agree to the deposit and cancellation terms.' }),
+  )
+  await user.click(screen.getByRole('button', { name: 'Confirm visit' }))
+  const pay = await screen.findByRole('button', { name: 'Pay your £25.00 deposit now' })
+  expect(
+    screen.getByText(
+      'Test mode: the payment page is a test page. No card is asked for and no money moves.',
+    ),
+  ).toBeVisible()
+  await user.click(pay)
+  await waitFor(() =>
+    expect(vi.mocked(api)).toHaveBeenCalledWith('/api/guest/pay', {
+      method: 'POST',
+      body: { token, purpose: 'deposit', saveCard: false },
+    }),
+  )
+  // The guest comes back to their own visit after the payment page.
+  expect(sessionStorage.getItem('saleane-manage-token')).toBe(token)
 })
