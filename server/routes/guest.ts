@@ -18,10 +18,30 @@ import { waitlistTimesSchema } from '../../src/domain/waitlistSchema'
 import { formAnswersSchema } from '../../src/domain/formsSchema'
 import { guestPaymentFor } from '../payments/service'
 
-const INVALID = 'This link is no longer valid. Contact the studio to manage your visit.'
+const INVALID = 'This link has expired or been replaced. Ask the studio for a new one.'
 export const tokenSchema = z.string().min(32).max(100)
 /** An email and a text each for the latest two messages. */
 const MESSAGE_LINKS = 4
+/** The paths this module answers under /api/guest. */
+const GUEST_PATHS = new Set([
+  'visit',
+  'feedback',
+  'form',
+  'email-news',
+  'here',
+  'waitlist',
+  'cancel',
+])
+
+/**
+ * The private link's token from a request body. A missing or malformed one is refused exactly
+ * like an expired or replaced link, so a mistyped or truncated link reads the same as any other.
+ */
+function linkToken(body: unknown) {
+  const parsed = z.object({ token: tokenSchema }).safeParse(body)
+  if (!parsed.success) fail(404, INVALID)
+  return parsed.data!.token
+}
 
 /**
  * Issues a private manage link for one visit and revokes every earlier one for it, so only the
@@ -127,6 +147,9 @@ export async function guestRoutes(ctx: Context, route: Route): Promise<boolean> 
   const { db, now, rateLimit, persist } = ctx
   const { request, method, path, body, reply } = route
   if (path[1] !== 'guest' || path.length !== 3 || method !== 'POST') return false
+  if (!GUEST_PATHS.has(path[2])) return false
+  // Checked before the rest of the request, so a broken link never reads as a form error.
+  linkToken(body)
 
   const open = (raw: string) => openGuestLink(ctx, raw)
 

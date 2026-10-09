@@ -28,6 +28,15 @@ function linkToken() {
   return token
 }
 
+const EXPIRED = 'This link has expired or been replaced. Ask the studio for a new one.'
+/** The shape of a token the server issues; anything else cannot open a visit. */
+const wellFormed = (token: string) => /^[A-Za-z0-9_-]{32,100}$/.test(token)
+/** A refused link reads the same whether it was mistyped, replaced or has expired. */
+function loadError(e: unknown) {
+  if (e instanceof ApiError && (e.status === 400 || e.status === 404)) return EXPIRED
+  return e instanceof Error ? e.message : 'Your visit could not be loaded.'
+}
+
 /**
  * LOCAL-02: a guest's private page for one visit. It can show that visit and cancel it under the
  * studio's 24-hour policy. Nothing here is sent by email; the link was copied by hand.
@@ -36,7 +45,11 @@ export function ManageVisit() {
   const [token] = useState(linkToken)
   const [view, setView] = useState<GuestView | null>(null)
   const [error, setError] = useState(() =>
-    token ? '' : 'This link is incomplete. Open the full link you were given.',
+    !token
+      ? 'This link is incomplete. Open the full link you were given.'
+      : wellFormed(token)
+        ? ''
+        : EXPIRED,
   )
   const [confirming, setConfirming] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -52,7 +65,7 @@ export function ManageVisit() {
   }
   useEffect(() => {
     document.title = 'SALEANE · Your visit'
-    if (!token) return
+    if (!token || !wellFormed(token)) return
     ;(async () => {
       try {
         // Coming back without paying closes the provider's page, so the guest can start again.
@@ -63,7 +76,7 @@ export function ManageVisit() {
         if (paymentNote && (first.payment?.pending || first.payment?.depositDueMinor))
           setTimeout(() => void load().catch(() => null), 4000)
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Your visit could not be loaded.')
+        setError(loadError(e))
       }
     })()
     // Loads once for the token in the address.

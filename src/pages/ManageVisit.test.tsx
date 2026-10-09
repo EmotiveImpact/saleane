@@ -90,6 +90,36 @@ test('never asks the server without a token and explains the broken link', async
   expect(vi.mocked(api)).not.toHaveBeenCalled()
 })
 
+const EXPIRED = 'This link has expired or been replaced. Ask the studio for a new one.'
+
+test('explains a broken link without asking the server', async () => {
+  window.location.hash = '#badtoken'
+  render(<ManageVisit />)
+  expect(await screen.findByText(EXPIRED)).toBeInTheDocument()
+  expect(screen.queryByText(/Check the required fields/)).not.toBeInTheDocument()
+  expect(vi.mocked(api)).not.toHaveBeenCalled()
+})
+
+test.each([
+  ['refused as malformed', 400, 'Check the required fields and try again.'],
+  ['replaced or expired', 404, EXPIRED],
+])('explains a link the server %s the same way', async (_, status, message) => {
+  vi.mocked(api).mockRejectedValue(new ApiError(message, status))
+  render(<ManageVisit />)
+  expect(await screen.findByText(EXPIRED)).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'We couldn’t open this visit.' })).toBeInTheDocument()
+  expect(screen.queryByText(/Check the required fields/)).not.toBeInTheDocument()
+})
+
+test('keeps other failures in their own words, so the guest knows to try again', async () => {
+  vi.mocked(api).mockRejectedValue(
+    new ApiError('Too many requests. Wait before trying again.', 429),
+  )
+  render(<ManageVisit />)
+  expect(await screen.findByText(/Too many requests/)).toBeInTheDocument()
+  expect(screen.queryByText(EXPIRED)).not.toBeInTheDocument()
+})
+
 test('shows the studio notes and downloads a calendar file without the private link', async () => {
   const user = userEvent.setup()
   vi.mocked(api).mockResolvedValue({
