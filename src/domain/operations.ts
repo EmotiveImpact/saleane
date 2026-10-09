@@ -574,6 +574,8 @@ export const GENERAL_ACTIONS = [
   'gift-card-sell',
   'plan-sell',
   'plan-renew',
+  // Stage 1: card payments for memberships sold at their location (the server checks where).
+  'plan-card',
   'balance-settle',
   'task',
   'missed-call',
@@ -603,6 +605,8 @@ export function can(role: Role, action: string) {
       'guest-consent-stop',
       // V1.5: a guest's reply arrives only from the studio's email or text line.
       'reply-received',
+      // Stage 1: a declined membership card payment is noted only by the server.
+      'plan-card-try',
     ].includes(action)
   )
     return false
@@ -653,6 +657,8 @@ export function can(role: Role, action: string) {
       'fee',
       'protection',
       'plan-cancel',
+      // Stage 1: setting a membership to be paid from a saved card is for managers and owners.
+      'plan-card',
       'special',
       'rental',
       'end-rental',

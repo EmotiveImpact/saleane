@@ -57,6 +57,9 @@ export const messageKinds = [
   'message',
   'receptionist',
   'social',
+  // Stage 1: before a membership's card payment, and after its last decline.
+  'plan_reminder',
+  'plan_declined',
 ] as const
 export type MessageKind = (typeof messageKinds)[number]
 /** Messages about the guest rather than one visit. Their rows carry no appointment. */
@@ -65,7 +68,13 @@ export type ClientKind = (typeof clientKinds)[number]
 /** Messages about one visit. */
 export type VisitKind = Exclude<
   MessageKind,
-  ClientKind | 'missed_call' | 'message' | 'receptionist' | 'social'
+  | ClientKind
+  | 'missed_call'
+  | 'message'
+  | 'receptionist'
+  | 'social'
+  | 'plan_reminder'
+  | 'plan_declined'
 >
 export const isClientKind = (kind: string): kind is ClientKind =>
   (clientKinds as readonly string[]).includes(kind)

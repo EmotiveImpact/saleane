@@ -7,6 +7,11 @@
   padding: 18px 0 0;
   border-top: 1px solid var(--line);
 }
+/* The card section above already ends on a hairline, so the first plan does not draw another. */
+.guest-pay + .guest-plan {
+  padding-top: 0;
+  border-top: 0;
+}
 .guest-plan h2 {
   display: flex;
   align-items: center;

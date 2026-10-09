@@ -118,6 +118,13 @@ export function branchRefusal(
     }
     case 'request-raise':
       return mine(command.input.locationId) ? null : 'That is at another location.'
+    case 'plan-card': {
+      // Stage 1: card payments only for a membership sold at their own location.
+      const holding = (s.holdings ?? []).find((h) => h.id === command.holdingId)
+      return holding && mine(holding.locationId)
+        ? null
+        : 'That membership was sold at another location.'
+    }
   }
   return WHOLE_BUSINESS
 }

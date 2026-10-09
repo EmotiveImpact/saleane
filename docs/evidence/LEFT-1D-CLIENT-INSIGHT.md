@@ -1,6 +1,6 @@
 # Stage 1, part D · At a glance on the client page: evidence
 
-Recorded 9 October 2026 in a separate worktree from main at `016f3ca`. All names and amounts are fictional. The house rules for this stage kept the browser checks for the lead, so nothing here was seen in a browser: the screens were checked through tests that render them, and the steps to see them are listed at the end.
+Recorded 9 October 2026 in a separate worktree from main at `016f3ca`. All names and amounts are fictional. The house rules for this stage kept the browser checks for the lead, who looked at it after merging (see "Seen in a browser").
 
 ## What was built
 
@@ -63,9 +63,13 @@ In the demo or a sample studio (UK or US, the same named clients):
 
 Check it at 1280px and 390px: the facts sit three or four to a row on a wide screen and two to a row on a phone, and the next step's button goes full width under its words.
 
+## Seen in a browser
+
+On 9 October 2026 on the merged branch, at 1440px and 390px in Chromium: Charlotte Hayes ("Invite them back"), Grace Chen (patch test), Elias Hamilton (a package and spending) in a UK sample studio, and Theo Park (a membership month due from a declined card) in a US studio of its own. Three things changed after looking: the next step was a box inside the section and is now set off by a hairline; its buttons are secondary, so the heading's "Book next visit" stays the page's one primary button; and the sentence under the heading no longer repeats the rhythm the heading already gives.
+
 ## Limits
 
-- Not seen in a browser by this part (kept for the lead), so no axe sweep or screenshots yet.
+- No axe sweep yet.
 - The samples hold no memberships, so the two membership steps show only after one is set up.
 - Spending does not take off refunds, matching the Business page; refunds stay in Money.
 - The section reads the record already in the browser; it is not a server report and adds nothing to any role's view.

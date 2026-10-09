@@ -1,6 +1,6 @@
 # Stage 1, part B · A guest's package or membership on their visit page: evidence
 
-Recorded 9 October 2026 in a separate worktree from main at `016f3ca`. Automated checks only: no server was started and no browser was opened for this part, so the screens below have not yet been looked at in a browser. The lead checks them after merging (steps at the end). All names and amounts are fictional.
+Recorded 9 October 2026 in a separate worktree from main at `016f3ca`. Built with automated checks only; the lead then looked at it in a browser after merging (see "Seen in a browser"). All names and amounts are fictional.
 
 ## What a guest now sees
 
@@ -33,6 +33,10 @@ The view carries, per plan: kind, name, active or unpaid, visits and visits left
 - `src/components/GuestPlans.test.tsx` (8 tests): nothing for a guest with no plan; each heading, name and sentence above; never "paid", "free" or an amount on a package; the unpaid wording; the deposit-still-to-pay wording; US dates; no em or en dashes.
 - `src/pages/ManageVisit.test.tsx` (1 new test): the section appears before "Your studio", and after the guest cancels it stays with what is left but no longer speaks about the visit.
 - Full checks: `npm run lint`, `npx tsc -b`, `npm run format:check`, `npm test` (114 files and 976 tests, then 46 server files with 321 passing and 2 skipped) and `npm run build` all pass.
+
+## Seen in a browser
+
+On 9 October 2026 on the merged branch, at 1440px and 390px in Chromium: in a UK sample studio, Elias Hamilton's visit page with a six-visit package and Alice Grant's with a monthly membership (both read the deposit sentence, as sample visits carry a simulated deposit); and in a US studio of its own, Rosa Field's membership paid from her saved card and Theo Park's month due after a declined card (part A). The section first drew a tinted box inside the visit card and two hairlines after the card section; it is now one hairline section with no box, in line with the quality bar.
 
 ## Limits
 

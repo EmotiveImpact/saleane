@@ -25,8 +25,18 @@ function guestPlanWords(plan: GuestPlan, view: GuestView) {
   const noun = plan.kind === 'package' ? 'package' : 'membership'
   const percent = plan.discountPercent ?? 0
   const standing: string[] = []
+  // Said the way the saved card itself is described above it, a test card while in test mode.
+  const test = !!view.payment?.testMode
+  const card =
+    plan.paidByCard &&
+    `${plan.paidByCard.brand}${test ? ' test' : ''} card ending ${plan.paidByCard.last4}`
+  const testNote = test ? ' While the studio is in test mode, no money moves.' : ''
   if (plan.state === 'unpaid')
-    standing.push('This month is not paid yet. When you are ready, please speak to the studio.')
+    standing.push(
+      card
+        ? `This month is not paid yet. It is due from your ${card}.${testNote} To use another card or pay another way, please speak to the studio.`
+        : 'This month is not paid yet. When you are ready, please speak to the studio.',
+    )
   else if (plan.kind === 'package') {
     if (plan.visits !== undefined && plan.visitsLeft !== undefined && plan.endsOn)
       standing.push(
@@ -41,8 +51,10 @@ function guestPlanWords(plan: GuestPlan, view: GuestView) {
       )
     if (percent) standing.push(`Your member discount is ${percent}%.`)
     if (plan.nextMonthOn) standing.push(`Your next month starts on ${day(plan.nextMonthOn)}.`)
-    // How the membership is paid each month ("Paid by card each month.") goes here, once the
-    // view carries it beside nextMonthOn (see guestPlanSchema).
+    if (card)
+      standing.push(
+        `Each month is paid from your ${card}, with a reminder three days before.${testNote}`,
+      )
   }
   const later = (then: string) =>
     plan.state === 'unpaid' || !plan.thisVisit?.monthOn

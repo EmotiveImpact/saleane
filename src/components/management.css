@@ -968,6 +968,8 @@
   gap: var(--space-3);
   margin-top: var(--space-4);
   padding: var(--space-4);
+  /* Narrow beside a client's timeline, wide elsewhere: each row follows its own panel's width. */
+  container-type: inline-size;
 }
 .sent-messages header h2 {
   margin: 0;
@@ -978,22 +980,24 @@
 }
 .sent-list {
   display: grid;
-  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
 }
+/* Rows divided by hairlines inside the panel, never boxes inside it (the quality bar). */
 .sent-item details {
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
-  background: var(--surface, #fff);
+  border-top: 1px solid var(--line);
+}
+.sent-item:first-child details {
+  border-top: 0;
 }
 .sent-item summary {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  min-height: 44px;
+  padding: var(--space-2) 0;
   cursor: pointer;
   list-style: none;
 }
@@ -1024,7 +1028,7 @@
   display: grid;
   gap: var(--space-2);
   justify-items: start;
-  padding: 0 var(--space-3) var(--space-3);
+  padding: 0 0 var(--space-3);
 }
 .sent-body p {
   margin: 0;
@@ -1043,7 +1047,7 @@
   margin-bottom: var(--space-1);
   font-weight: var(--weight-strong);
 }
-@media (max-width: 520px) {
+@container (max-width: 520px) {
   .sent-item summary {
     grid-template-columns: auto minmax(0, 1fr);
   }

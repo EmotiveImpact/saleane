@@ -376,6 +376,21 @@ describe('At a glance on the client page', () => {
       name: 'Glow Membership',
       paidUntil: '2026-09-01',
     })
+    // Taken from a saved card each month: the step names the card, until card payments end.
+    const agreement = {
+      id: 'agreement-1',
+      cardId: 'card-1',
+      brand: 'Visa',
+      last4: '0002',
+      wording: 'Fictional agreement words, as read to the client at the desk.',
+      agreedAt: '2026-08-01T10:00:00.000Z',
+      recordedBy: 'owner',
+      startsOn: '2026-09-01',
+    }
+    holding.cardAgreements = [agreement]
+    expect(clientInsight(s, client, TODAY).next).toMatchObject({ cardLast4: '0002' })
+    holding.cardAgreements = [{ ...agreement, endedAt: '2026-09-20T10:00:00.000Z' }]
+    expect(clientInsight(s, client, TODAY).next).not.toHaveProperty('cardLast4')
     // Once paid it is a plain fact again and drifting away comes first.
     holding.paidUntil = '2026-11-01'
     expect(clientInsight(s, client, TODAY).next?.kind).toBe('invite-back')

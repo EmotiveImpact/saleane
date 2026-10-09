@@ -12,6 +12,7 @@ import { branchChangeRefusal, branchRefusal } from '../../src/domain/branch'
 import { areaRefusal } from '../../src/domain/area'
 import { openingFree, staleOffer } from '../../src/domain/waitlist'
 import { giftCardHoldProblem } from '../payments/service'
+import { membershipCardHold } from '../payments/memberships'
 import { workspaceView } from '../projections'
 import type { Reader } from '../projections'
 import { followGuestLinks, issueGuestLink, revokeGuestLinks } from './guest'
@@ -68,6 +69,10 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         'processor' in data.command
       )
         fail(403, 'Card payments are taken through the payment screen, not recorded by hand.')
+      // Stage 1: a membership's saved card is chosen on the client's page, which the server
+      // checks; a declined try is noted only by the server.
+      if (data.command.type === 'plan-card' || data.command.type === 'plan-card-try')
+        fail(403, 'Card payments for a membership are set up from the client’s page.')
       if (data.command.type === 'organisation' && data.command.botCheck && !ctx.turnstile)
         fail(
           422,
@@ -225,6 +230,11 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         }
         const held = giftCardHoldProblem(ctx, org.id, result.state)
         if (held) fail(409, held)
+        // Stage 1: nothing is recorded by hand for a membership while its card is out.
+        if (command.type === 'plan-renew' || command.type === 'plan-cancel') {
+          const busy = membershipCardHold(ctx, org.id, command.holdingId)
+          if (busy) fail(409, busy)
+        }
         if (result.state.revision !== org.state.revision)
           persist(org, result.state, actor.id, command.type, result.recordId)
         // Open guest links follow a visit the desk moves, as they do when the guest moves it.

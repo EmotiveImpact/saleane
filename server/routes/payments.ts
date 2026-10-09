@@ -10,6 +10,7 @@ import { balanceDue, feeAllowed, giftCardHoldProblem, guestPaymentFor } from '..
 import type { AttemptRow, CardRow, Payments } from '../payments/service'
 import { retailItemsSchema } from '../../src/domain/retailSchema'
 import { mayRemoveSavedCard } from '../../src/domain/paymentMethods'
+import { holdings, openCardAgreement } from '../../src/domain/plans'
 import { openGuestLink, tokenSchema } from './guest'
 
 const keySchema = /^[A-Za-z0-9._:-]{8,100}$/
@@ -642,10 +643,38 @@ export function paymentRoutes(payments: Payments) {
       if (!card) fail(404, 'This card was not found.')
       if (!mayRemoveSavedCard(org.state, org.role, card!.client_id, org.locationId))
         fail(403, 'That client’s visits are at another location. Ask the owner or a manager.')
+      // Stage 1: an unclear membership payment is checked against this card before it goes.
+      if (
+        db.get(
+          "SELECT id FROM membership_charges WHERE organisation_id=? AND card_id=? AND status IN ('started','processing','unknown')",
+          org.id,
+          card!.id,
+        )
+      )
+        fail(
+          409,
+          'A membership payment from this card is still under way or unclear. Check it first.',
+        )
       if (!(await provider.removeCard(card!.method_ref)))
         fail(502, 'The payment provider did not confirm the card was removed. Try again.')
-      db.run('UPDATE saved_cards SET removed_at=? WHERE id=?', now(), card!.id)
-      ctx.audit(org, actor.id, 'card.removed', card!.id)
+      db.transaction(() => {
+        db.run('UPDATE saved_cards SET removed_at=? WHERE id=?', now(), card!.id)
+        ctx.audit(org, actor.id, 'card.removed', card!.id)
+        // Stage 1: a membership paid from this card stops being charged, and its record says why.
+        let fresh = ctx.orgFor(org.id, actor)
+        for (const holding of holdings(fresh.state))
+          if (openCardAgreement(holding)?.cardId === card!.id) {
+            const result = dispatch(
+              fresh.state,
+              { type: 'plan-card', holdingId: holding.id, reason: 'card_removed' },
+              actor.name,
+              new Date(now()).toISOString(),
+            )
+            if (!result.ok || result.state.revision === fresh.state.revision) continue
+            ctx.persist(fresh, result.state, actor.id, 'plan-card', result.recordId)
+            fresh = { ...fresh, state: result.state }
+          }
+      })
       reply(200, { ok: true })
       return true
     }

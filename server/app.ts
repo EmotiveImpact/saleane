@@ -33,6 +33,9 @@ import { receptionistRoutes } from './routes/receptionist'
 import { answerSocial, answerText } from './messaging/receptionistText'
 import { createPayments } from './payments/service'
 import type { Payments } from './payments/service'
+import { createMembershipCharges } from './payments/memberships'
+import type { MembershipCharges } from './payments/memberships'
+import { planCardRoutes } from './routes/planCards'
 import { connectionTransportFromEnv, createConnections } from './connections'
 import type { Connections } from './connections'
 import { partnerApi } from './partnerApi'
@@ -50,6 +53,8 @@ export type ApiHandler = ((
   database: LocalDatabase
   outbox: Outbox
   payments: Payments
+  /** Stage 1: memberships paid each month from a saved card. */
+  memberships: MembershipCharges
   connections: Connections
   billing: Billing
   close: () => void
@@ -81,6 +86,9 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   ctx.plans.begin = (org) => void billing.planFor(org)
   ctx.plans.summary = billing.summary
   ctx.plans.allowance = billing.allowance
+  const memberships = createMembershipCharges(ctx, payments, () => {
+    if (options.outboxIntervalMs) outbox.soon()
+  })
   const connections = createConnections(
     ctx,
     options.connectionTransport ?? connectionTransportFromEnv(),
@@ -98,6 +106,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     testTextRoutes(outbox),
     paymentRoutes(payments),
     billing.routes,
+    planCardRoutes(payments, memberships),
     assistantRoutes(),
     receptionistRoutes(),
     ...baseRoutes,
@@ -107,6 +116,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     connections.start(options.outboxIntervalMs)
     // Trials, renewals and retries are due by the day; once a minute is plenty.
     billing.start(60000)
+    memberships.start(options.outboxIntervalMs)
   }
 
   const handler = (async (
@@ -247,7 +257,8 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
           body,
         })
         if (!events) fail(403, 'This event could not be verified.')
-        for (const event of events!) payments.apply(event)
+        // A membership's monthly card payment or refund has its own record (Stage 1).
+        for (const event of events!) if (!payments.apply(event)) memberships.apply(event)
         reply(200, { ok: true })
         return
       }
@@ -322,6 +333,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
           if (method !== 'GET' && options.outboxIntervalMs) {
             outbox.soon()
             connections.soon()
+            memberships.soon()
           }
           return
         }
@@ -342,12 +354,14 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   handler.database = db
   handler.outbox = outbox
   handler.payments = payments
+  handler.memberships = memberships
   handler.connections = connections
   handler.billing = billing
   handler.close = () => {
     outbox.stop()
     connections.stop()
     billing.stop()
+    memberships.stop()
     db.close()
   }
   handler.inject = (input) => inject(handler, allowedOrigin, input)
