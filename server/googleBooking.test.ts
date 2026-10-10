@@ -761,7 +761,7 @@ describe('Moving a Google booking to a new time', () => {
     })
   })
 
-  it('takes no new Google bookings for a locked studio, while its guests can still cancel', async () => {
+  it('takes no new Google bookings for a locked studio, while its guests can still move or cancel', async () => {
     const login = await studio()
     const times = await freeTimes(login)
     const { booking } = (await book(onDay(times, '2026-10-12'))).json<{ booking: Booking }>()
@@ -775,6 +775,14 @@ describe('Moving a Google booking to a new time', () => {
       count_available: 0,
     })
     await failure(await book(time, 'token-locked'), 'SLOT_UNAVAILABLE')
+    // A guest who already booked can still move it, as with their own link.
+    const moved = await answer(
+      await moveTo(booking.booking_id, {
+        start_sec: at('2026-10-13', '11:00'),
+        duration_sec: 3600,
+      }),
+    )
+    expect(moved.booking?.slot.start_sec).toBe(at('2026-10-13', '11:00'))
     expect(
       (
         await call('UpdateBooking', {
