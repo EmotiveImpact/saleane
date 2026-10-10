@@ -18,13 +18,37 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 **Status: built locally on 9 October 2026 and checked in a browser; test mode only, so no card is charged, no message is sent and nothing is deployed.** Evidence: [membership card payments](docs/evidence/LEFT-1A-MEMBERSHIP-CARD-PAYMENTS.md), [guest plans](docs/evidence/LEFT-1B-GUEST-PLANS.md), [STOP replies](docs/evidence/LEFT-1C-STOP-REPLIES.md), [at a glance](docs/evidence/LEFT-1D-CLIENT-INSIGHT.md).
 
-- **Memberships paid from a saved card each month.** Selling a membership can now take it from the client's saved card: the desk reads the client the exact words of the agreement and ticks that they agreed. SALEANE reminds the client three days before each payment, takes it on the day from 09:00, and records the month only when the card service confirms it. A declined card is tried again after 1, 3 and 7 days, then SALEANE stops and tells the client and the team. An unclear answer is never retried by itself; "Check again" asks the same question. Ending a month the card paid can refund it to the card. Money, Plans shows this month's card payments, and the till never counts them as cash. Sample studios never charge. Migration 29.
+- **Memberships paid from a saved card each month.** Selling a membership can now take it from the client's saved card: the desk reads the client the exact words of the agreement and ticks that they agreed. SALEANE reminds the client three days before each payment, takes it on the day from 09:00, and records the month only when the card service confirms it. A declined card is tried again after 1, 3 and 7 days, then SALEANE stops and tells the client and the team. An unclear answer is never retried by itself; "Check again" asks the same question. Ending a month the card paid can refund it to the card. Money, Plans shows this month's card payments, and the till never counts them as cash. Sample studios never charge. Migration 30.
 - **Guests see their package or membership** on their visit page: what is left, when the next month starts, which card pays it each month, and what it can mean for this visit, using checkout's own rules. Never a price, a payment or a record ID.
 - **STOP and START by text.** A client who texts STOP has texts turned off and nothing more is texted to that number; START turns them back on only where STOP turned them off. HELP is left for the team. The Inbox labels each one, and the client page says when they replied STOP. Owners and managers can deliver a test text from the Inbox to try it, with nothing sent.
 - **At a glance on each client page:** when they usually come, when they are due back, their favourite treatment and professional, what they spent in the last 12 months, how reliable they are and how often they book ahead, with one suggested next step (invite them back, book their usual, a patch test, a membership to mention or a month to pay). Nothing is sent from it.
 - **While a studio is read only for its SALEANE bill,** no membership reminder goes and no client's card is tried. Money, Plans says card payments are paused, and a month that fell due meanwhile is taken at the desk once the bill is paid. Only a reminder that went out counts, so a month is never taken while its reminder is still waiting, stopped or refused.
 - **Help** has three new guides: taking a membership from a saved card each month, when a client texts STOP, and seeing a client at a glance.
 - On the client page a plan now reads top to bottom instead of squeezing its name beside its buttons, and visit messages are rows divided by hairlines.
+
+## 2026-10-09 · Team diaries in Google or Apple Calendar (NEXT-10)
+
+**Status: built locally on 9 October 2026.** [Evidence](docs/evidence/NEXT-10-DIARIES.md).
+
+- Settings has Google & Apple diaries, under Team. Anyone with visits of their own makes a private link to them; owners and managers can also make one for another professional, a location or the whole studio, and a general manager for their own location. A practitioner makes theirs from "Your visits in Google or Apple Calendar" under their day.
+- The link goes into Google Calendar (Other calendars, From URL) or Apple Calendar (Open in Apple Calendar), which then checks it by itself, so visits appear, move and go as they do in SALEANE. It only shows: nothing made in the calendar app comes back.
+- Each visit shows its time, room and treatment, with the client's first name unless the studio chooses the treatment only. Never a surname, phone, email, note, form, price or payment. Time off shows as Time off, never why. A diary for a location or the studio says who does each visit.
+- A practitioner's diary reaches four weeks ahead, as their own page does; others reach six months. Both go two weeks back.
+- The link is shown once, kept only as a hash, and can be stopped at any time. It also stops working when the person who made it loses access, when the studio is locked or when the studio is restored from a backup. Who changed what records each link made and stopped.
+- Sample studios make no links. While SALEANE runs only on this computer, only calendar apps on this computer can read a link; the screen says so.
+- Help has two guides: See your visits in Google or Apple Calendar for practitioners, and See visits in Google or Apple Calendar for everyone else (58 guides).
+
+## 2026-10-09 · Booking several people together (NEXT-08)
+
+**Status: built locally on 9 October 2026.** [Evidence](docs/evidence/NEXT-08-TOGETHER.md).
+
+- Booking a visit at the desk has Others coming: Add someone, up to 8 people in all, each chosen from the clients or added as someone new with their own email and phone. Each has their own treatment and professional (or Anyone free) and is offered the first person's time, or the nearest free time when that is taken; any time can be changed. Each person's line says who they will be with and where, such as "With Sophia in Treatment room 2, beside Grace.", and the button says how many visits it books.
+- Everyone is booked together or no one is; a clash names the person. Each is a client with a visit of their own that can move or be cancelled alone. Moving one to another day takes it out of the group. Guests cannot book several people online.
+- A room can be marked "A room for two" in Settings, Spaces & equipment. Two people booked together, such as a couple, can have it at the same time; anyone else has it to themselves. The sample studio's Treatment room 2 is one.
+- The visit card lists who a visit is booked with, each a row that opens their visit, and the Calendar marks those visits. Cancelling one offers Just this visit or this visit and the ones booked with it.
+- Messages: each person is confirmed at their own email and phone. The person it was booked for is told who else is coming ("Also booked with you: …"); the others are told who booked them ("Booked together with Grace Chen."). When the visits are cancelled together, everyone is told and the first person hears the others are off too. Messages stay in test mode until a message service is connected.
+- On the server, everyone in the booking is checked against guests holding a time online, as a single booking is. A general manager books several people only at their own location.
+- Help has a guide, Book several people together.
 
 ## 2026-10-09 · Repeat visits (NEXT-09)
 

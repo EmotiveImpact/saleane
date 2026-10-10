@@ -121,6 +121,12 @@ function snapshot(source: string, destination: string, restore: boolean) {
             recovered.prepare('UPDATE api_keys SET revoked_at=? WHERE revoked_at IS NULL').run(time)
               .changes,
           ),
+          // NEXT-10: a diary link stopped since the backup would be read again by a calendar app.
+          diaryLinksStopped: Number(
+            recovered
+              .prepare('UPDATE diary_links SET stopped_at=? WHERE stopped_at IS NULL')
+              .run(time).changes,
+          ),
           connectionsTurnedOff: Number(
             recovered
               .prepare('UPDATE connections SET active=0,updated_at=? WHERE active=1')

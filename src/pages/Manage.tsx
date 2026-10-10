@@ -5,6 +5,7 @@ import {
   BellRing,
   Building2,
   CalendarDays,
+  CalendarSync,
   Palette,
   Plus,
   Scissors,
@@ -55,6 +56,7 @@ import { EmailNewsWording } from '../components/EmailConsent'
 import { SavedReplies } from '../components/SavedReplies'
 import { Connections } from '../components/Connections'
 import { AccessKeys } from '../components/AccessKeys'
+import { DiaryLinks } from '../components/DiaryLinks'
 import { ReceptionistSettings } from '../components/ReceptionistSettings'
 import { GoogleBooking } from '../components/GoogleBooking'
 import { HouseRules } from '../components/HouseRules'
@@ -81,6 +83,7 @@ const groups = [
     sections: [
       { id: 'staff', label: 'Team', icon: Users },
       { id: 'resource', label: 'Spaces & equipment', icon: Armchair },
+      { id: 'diaries', label: 'Google & Apple diaries', icon: CalendarSync },
     ],
   },
   {
@@ -169,7 +172,7 @@ function TreatmentPhoto({ category, nth }: { category: string; nth: number }) {
 }
 
 export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
-  const { state, commit, blocked, role } = useStore()
+  const { state, commit, blocked, role, mode } = useStore()
   const config = operations(state)
   // The open section lives in the address, so links elsewhere can open Settings at the right place.
   const [params, setParams] = useSearchParams()
@@ -306,6 +309,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
           ...(numeric(data, 'restMinutes') > 0
             ? { restMinutes: numeric(data, 'restMinutes') }
             : {}),
+          ...(data.get('forTwo') ? { forTwo: true as const } : {}),
           archived,
           ...(text(data, 'locationId') && text(data, 'locationId') !== state.organisation.locationId
             ? { locationId: text(data, 'locationId') }
@@ -408,6 +412,9 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
             {section === 'privacy' && <StudioPrivacy />}
             {section === 'changes' && <ChangeRecord />}
             {section === 'billing' && <PlanBilling />}
+            {section === 'diaries' && (
+              <DiaryLinks workspaceId={state.organisation.id} demo={mode !== 'server'} />
+            )}
             {section === 'connections' && (
               <>
                 <Connections />
@@ -779,6 +786,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                           {item.restMinutes
                             ? ` · rests ${item.restMinutes} minutes after each visit`
                             : ''}
+                          {item.forTwo ? ' · room for two' : ''}
                         </small>
                       </div>
                       <div className="ops-record-controls">
@@ -1252,6 +1260,18 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                     they are.
                   </small>
                 </label>
+              )}
+              {editor.kind === 'resource' && (
+                <>
+                  <label className="ops-check">
+                    <input type="checkbox" name="forTwo" defaultChecked={!!resource?.forTwo} />A
+                    room for two
+                  </label>
+                  <p className="ops-help">
+                    Two people booked together, such as a couple, can have it at the same time.
+                    Anyone else has it to themselves.
+                  </p>
+                </>
               )}
               {editor.kind === 'closure' && (
                 <>

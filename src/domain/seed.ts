@@ -436,7 +436,8 @@ function build(region: Region, regularCount: number): BusinessState {
     ],
     resources: [
       { ...scope, id: 'room-one', name: 'Treatment room 1', type: 'treatment' },
-      { ...scope, id: 'room-two', name: 'Treatment room 2', type: 'treatment' },
+      // NEXT-08: a room for two, so a couple can be booked side by side.
+      { ...scope, id: 'room-two', name: 'Treatment room 2', type: 'treatment', forTwo: true },
       { ...scope, id: 'chair-one', name: 'Styling chair', type: 'chair' },
     ],
     appointments: [],

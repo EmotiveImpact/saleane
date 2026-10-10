@@ -38,9 +38,9 @@ Roles: owners, managers and reception print, email and open the drawer (they tak
 
 Full results: `npm run lint`, `npx tsc -b`, `npm run format:check` and `npm run build` pass. `npm test` passes in full (front end 116 files, 991 tests; server 46 files, 336 tests, 2 skipped), as first built. Stage 2 joined together with Stage 1, after the browser pass and its fixes: lint, types, format and build pass; front end 135 files, 1,188 tests passed; server 53 files, 401 passed and 2 skipped.
 
-## Migration 31
+## Migration 32
 
-This part was built as migration 29. Main took 26 to 28, Stage 1 took 29 and product photos took 30 while it waited, so it is **31**. It rebuilds the outbox to add the `receipt` kind, restating every kind before it (including Stage 1's `plan_reminder` and `plan_declined`); any later step that rebuilds the outbox's kinds must restate `receipt` too. It also creates `till_events`.
+This part was built as migration 29. Main took 26 to 29, Stage 1 took 30 and product photos took 31 while it waited, so it is **32**. It rebuilds the outbox to add the `receipt` kind, restating every kind before it (including Stage 1's `plan_reminder` and `plan_declined`); any later step that rebuilds the outbox's kinds must restate `receipt` too. It also creates `till_events`.
 
 ## Seen in a browser
 
