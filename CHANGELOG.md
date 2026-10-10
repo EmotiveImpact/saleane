@@ -2,6 +2,14 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-10 · A new location needs someone who gives its treatments
+
+**Status: built locally on 10 October 2026.** [Evidence](docs/evidence/SETUP-WIZARDS.md#someone-at-a-new-location-who-gives-its-treatments-10-october-2026).
+
+- Adding a location no longer lets it open with nobody working there who gives a treatment on its menu, which left it unable to take a single booking. The Team step says so and waits, and saving refuses it on the server too.
+- Treatments on its menu that nobody working there gives yet are named on the Team step and on Check, so the owner knows guests cannot book those there until someone does. The location can still open.
+- The Team step shows each person's role beside where they work, so the owner can see who gives what.
+
 ## 2026-10-10 · Filling a cancelled time (NEXT-11)
 
 **Status: built locally on 10 October 2026.** [Evidence](docs/evidence/NEXT-11-CANCELLED-TIMES.md).
