@@ -109,7 +109,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
         })
         .catch(() => {
           // A talk SALEANE no longer knows has ended; a few failed reads in a row end it here.
-          if (++tries >= 5) finish()
+          if (++tries >= 5 && talkId.current === talking) finish()
         })
         .finally(() => {
           reading = false
@@ -230,7 +230,11 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
   function show(view: TalkView) {
     addTurns(view.turns)
     setMeter(meterFrom(view.usage))
-    if (view.status === 'ended') return finish()
+    // A late answer about an earlier talk never ends the one now running.
+    if (view.status === 'ended') {
+      if (view.id === talkId.current) finish()
+      return
+    }
     setTalk((now) =>
       now && now.id === view.id
         ? {
@@ -265,7 +269,13 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
           const r = await api<
             | { status: 'talking'; id: string; sdp: string; seconds: number; usage: ServerUsage }
             | { status: 'refused' | 'unavailable'; text: string; usage: ServerUsage }
-          >(`${base}/talk`, { method: 'POST', body: { sdp } })
+          >(`${base}/talk`, {
+            method: 'POST',
+            body: { sdp },
+            // Longer than SALEANE's own two waits on OpenAI (10 seconds each), so a slow start
+            // is never left running with nobody holding its id.
+            timeoutMs: 30_000,
+          })
           setMeter(meterFrom(r.usage))
           if (r.status !== 'talking') {
             setNotice({ text: r.text })
@@ -276,8 +286,9 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
           talkId.current = r.id
           return { sdp: r.sdp }
         },
-        // The voice hung up or the line dropped: the next reading shows how the talk ended.
-        () => setTalk((now) => (now ? { ...now, ending: true } : now)),
+        // The voice hung up or the line failed: SALEANE is told at once, so it counts only the
+        // time used and holds nothing more, and the panel shows how the talk ended.
+        () => void stopTalk(),
         call.signal,
       )
       if (call.signal.aborted) {
@@ -291,6 +302,11 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
         return
       }
       if (!connection || !started.id) return
+      if (talkId.current !== started.id) {
+        // The line failed while it was connecting, and the talk has already been ended.
+        connection.stop()
+        return
+      }
       line.current = connection
       setTalk({ id: started.id, secondsLeft: started.seconds ?? 0, thinking: false, ending: false })
       setNotice({ text: 'Talking. Ask whenever you are ready.', quiet: true })
@@ -318,7 +334,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
         }),
       )
     } catch {
-      finish()
+      if (talkId.current === id) finish()
     }
   }
 

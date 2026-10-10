@@ -94,6 +94,7 @@ describe('talking to Ask SALEANE', () => {
     expect(mocked).toHaveBeenCalledWith(`${base}/talk`, {
       method: 'POST',
       body: { sdp: 'v=0 offer' },
+      timeoutMs: 30_000,
     })
     expect(await within(panel).findByRole('timer')).toBeInTheDocument()
     expect(within(panel).getByRole('timer').parentElement).toHaveTextContent('Talking · 10:00 left')
@@ -202,6 +203,52 @@ describe('talking to Ask SALEANE', () => {
     await vi.waitFor(() =>
       expect(mocked).toHaveBeenCalledWith(`${base}/talk/talk-1/end`, { method: 'POST', body: {} }),
     )
+    expect(stop).toHaveBeenCalledTimes(1)
+  })
+
+  it('tells SALEANE at once when the line fails, so nothing more is held', async () => {
+    let lineEnded!: () => void
+    connect.mockImplementation(async (start, onEnded) => {
+      lineEnded = onEnded
+      return (await start('v=0 offer')) ? { stop } : null
+    })
+    const user = userEvent.setup()
+    render(<AskSaleane onClose={() => {}} />)
+    const panel = await screen.findByRole('dialog', { name: 'Ask SALEANE' })
+    await user.click(await within(panel).findByRole('button', { name: 'Talk' }))
+    await within(panel).findByRole('timer')
+    lineEnded()
+    expect(await within(panel).findByText('The talk has ended.')).toBeInTheDocument()
+    expect(mocked).toHaveBeenCalledWith(`${base}/talk/talk-1/end`, { method: 'POST', body: {} })
+    expect(within(panel).getByRole('button', { name: 'Talk' })).toBeInTheDocument()
+  })
+
+  it('never lets a late reading of an earlier talk end the one now running', async () => {
+    let lateReading!: (view: unknown) => void
+    const general = mocked.getMockImplementation()!
+    mocked.mockImplementation(async (path, options) => {
+      // The first talk's reading is slow to come back.
+      if (path === `${base}/talk/talk-1` && !options)
+        return new Promise((done) => (lateReading = done))
+      if (path === `${base}/talk/talk-2` && !options)
+        return { id: 'talk-2', status: 'talking', secondsLeft: 590, turns: [], usage: usage(600) }
+      return general(path, options)
+    })
+    const user = userEvent.setup()
+    render(<AskSaleane onClose={() => {}} />)
+    const panel = await screen.findByRole('dialog', { name: 'Ask SALEANE' })
+    await user.click(await within(panel).findByRole('button', { name: 'Talk' }))
+    await within(panel).findByRole('timer')
+    await vi.waitFor(() => expect(lateReading).toBeTypeOf('function'), { timeout: 3000 })
+    await user.click(within(panel).getByRole('button', { name: 'Stop' }))
+    await within(panel).findByText('The talk has ended.')
+    // The second talk is running when the first one's reading finally arrives, saying it ended.
+    started = { ...started, id: 'talk-2' }
+    await user.click(within(panel).getByRole('button', { name: 'Talk' }))
+    await within(panel).findByRole('timer')
+    lateReading({ id: 'talk-1', status: 'ended', secondsLeft: 0, turns: [], usage: usage(215) })
+    await new Promise((done) => setTimeout(done, 50))
+    expect(within(panel).getByRole('timer')).toBeInTheDocument()
     expect(stop).toHaveBeenCalledTimes(1)
   })
 })

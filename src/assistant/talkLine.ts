@@ -73,15 +73,19 @@ export async function connectTalk(
   audio.autoplay = true
   let stopped = false
   let ended = false
+  const channel = peer.createDataChannel('oai-events')
+  // The voice hung up or the line failed: the microphone stops here, whatever the panel does next.
   const end = () => {
     if (ended) return
     ended = true
+    stop()
     onEnded()
   }
-  const channel = peer.createDataChannel('oai-events')
-  const stop = () => {
+  function stop() {
     if (stopped) return
     stopped = true
+    // Hung up from here: the panel already knows.
+    ended = true
     try {
       if (channel.readyState === 'open') channel.send(JSON.stringify({ type: 'session.close' }))
     } catch {

@@ -112,6 +112,29 @@ describe('the browser’s line to a talk', () => {
     expect(onEnded).toHaveBeenCalledTimes(1)
   })
 
+  it('lets the microphone go itself when the line fails', async () => {
+    const onEnded = vi.fn()
+    const line = await connectTalk(async () => ({ sdp: 'v=0 answer' }), onEnded)
+    const [peer] = peers
+    peer.connectionState = 'failed'
+    for (const listener of peer.listeners.connectionstatechange) listener({})
+    expect(peer.closed).toBe(true)
+    expect(track.stop).toHaveBeenCalledTimes(1)
+    expect(onEnded).toHaveBeenCalledTimes(1)
+    // Hanging up afterwards changes nothing more.
+    line!.stop()
+    expect(track.stop).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not report back a hang-up the panel asked for', async () => {
+    const onEnded = vi.fn()
+    const line = await connectTalk(async () => ({ sdp: 'v=0 answer' }), onEnded)
+    line!.stop()
+    peers[0].connectionState = 'closed'
+    for (const listener of peers[0].listeners.connectionstatechange) listener({})
+    expect(onEnded).not.toHaveBeenCalled()
+  })
+
   it('lets everything go when SALEANE does not start the talk', async () => {
     expect(await connectTalk(async () => null, vi.fn())).toBeNull()
     expect(peers[0].closed).toBe(true)
