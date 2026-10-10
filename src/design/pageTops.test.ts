@@ -50,6 +50,7 @@ const ownFrame = [
   'ManageVisit',
   'NewsStop',
   'Pricing',
+  'ProtectAccount',
   'ServerBooking',
   'StudioSetup',
   'TeamWelcome',
