@@ -23,6 +23,7 @@ import { tillSettingsSchema } from './tillSchema'
 import { SHIFT_LIMIT, shiftSchema } from './hoursSchema'
 import { ROTA_CHANGE_LIMIT, ROTA_COMMANDS, rotaChangeSchema } from './rotaSchema'
 import { NEWS_LIMIT, newsMessageSchema } from './newsSchema'
+import { messageOfferSchema, quietOfferSettingsSchema } from './quietOffersSchema'
 import type { RotaChange } from './rotaSchema'
 import { STAFF_MOVE_LIMIT, staffMoveSchema } from './staffMovesSchema'
 import type { StaffMove } from './staffMovesSchema'
@@ -349,6 +350,11 @@ export const operationsSchema = z.object({
         })
         .strict()
         .optional(),
+      /**
+       * Stage 5: the lower price an invitation carries for that time, fixed when it was written.
+       * A guest books it only through the private link in their email, once.
+       */
+      offer: messageOfferSchema.optional(),
     }),
   ),
   refunds: z.array(
@@ -438,6 +444,8 @@ export const operationsSchema = z.object({
   staffTargets: z.array(staffTargetSchema).max(STAFF_TARGET_LIMIT).optional(),
   /** Stage 4: messages from the studio to its clients, for the whole group or chosen locations. */
   news: z.array(newsMessageSchema).max(NEWS_LIMIT).optional(),
+  /** Stage 5: whether invitations to a quiet or freed time carry a lower price. Absent means none. */
+  quietOffers: quietOfferSettingsSchema.optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 /**
@@ -690,6 +698,9 @@ export function permissionFor(command: { type: string; approve?: boolean }) {
   // Stage 4: a message to clients is drafted by leads, approved and sent only by the owner.
   if (command.type === 'news-save' || command.type === 'news-discard') return 'news'
   if (command.type === 'news-approve') return 'news-send'
+  // Stage 5: an invitation to a quiet time at a lower price is written by whoever writes messages;
+  // the lower price itself is the owner's setting.
+  if (command.type === 'offer-invite') return 'message'
   if (command.type === 'task-add' || command.type === 'task-done') return 'task'
   if (command.type === 'missed-call-done') return 'missed-call'
   if (command.type === 'form-save' || command.type === 'form-archive') return 'forms'
@@ -814,6 +825,8 @@ export function can(role: Role, action: string) {
       'group-checks',
       // Stage 4: only the owner approves a message to clients, which sends it.
       'news-send',
+      // Stage 5: a lower price for quiet times is money, which only the owner sets.
+      'quiet-offers',
       // The setup screens include the studio's details and tax, which only the owner sets.
       'setup-step',
     ].includes(action)

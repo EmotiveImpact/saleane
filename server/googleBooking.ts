@@ -127,6 +127,12 @@ const moveFailure = (refusal: MoveRefusal) => {
         'OUTSIDE_CANCELLATION_WINDOW',
         `It is less than ${GUEST_CANCEL_CUTOFF_HOURS} hours until this visit, so it can no longer be moved online.`,
       )
+    // Stage 5: a visit booked at a quiet-time price was for that time only.
+    case 'offer':
+      return new BookingFailure(
+        'BOOKING_NOT_CANCELLABLE',
+        'This visit was booked at a lower price for that time only, so it can no longer be moved online.',
+      )
     case 'off':
       return new BookingFailure(
         'BOOKING_NOT_CANCELLABLE',

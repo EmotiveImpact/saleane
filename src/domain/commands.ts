@@ -72,6 +72,8 @@ import {
   invitesUnchanged,
   runInviteCommand,
 } from './cancelledTimes'
+import { offerInviteUnchanged, offerToBook, runOfferInvite } from './quietInvites'
+import { offerPrices } from './quietOffers'
 
 export type CommandResult =
   { ok: true; state: BusinessState; recordId: string } | { ok: false; error: string }
@@ -227,6 +229,11 @@ export type ExecuteOptions = {
    * for a time the plan frees, since the rest of the plan may close it.
    */
   inBatch?: boolean
+  /**
+   * Stage 5: the invitation whose quiet-time price this online booking takes. Only the public
+   * booking route passes it, after checking the guest's private link; it never comes from a body.
+   */
+  offer?: { messageId: string }
 }
 
 export function execute(
@@ -371,6 +378,26 @@ export function execute(
       if (!resourceId)
         throw new Error('That time is no longer available. Choose another time or professional.')
       const service = s.services.find((item) => item.id === input.serviceId)!
+      // Stage 5: a quiet-time price from the guest's invitation, for exactly its time.
+      if (options.offer && input.source !== 'online')
+        throw new Error('A quiet-time price is booked only from the guest’s own link.')
+      const offer = options.offer
+        ? offerToBook(
+            s,
+            options.offer.messageId,
+            {
+              serviceId: service.id,
+              staffId,
+              date: input.date,
+              startMinutes: input.startMinutes,
+              locationId,
+            },
+            now,
+          )
+        : undefined
+      // The deposit follows the treatment's own rule and is never more than the price booked.
+      const priceMinor = offer ? offer.priceMinor : serviceAt(service, locationId).priceMinor
+      const depositMinor = Math.min(service.depositMinor, priceMinor)
       let client = input.clientId
         ? next.clients.find((item) => item.id === input.clientId)
         : undefined
@@ -412,24 +439,27 @@ export function execute(
         ...(input.channel ? { channel: input.channel } : {}),
         createdAt: now,
         rebookedFromId: input.rebookedFromId,
-        bookedPriceMinor: serviceAt(service, locationId).priceMinor,
-        bookedDepositMinor: service.depositMinor,
+        bookedPriceMinor: priceMinor,
+        bookedDepositMinor: depositMinor,
         bookedDurationMinutes: service.durationMinutes,
         bookedBufferMinutes: service.bufferMinutes,
         bookedResourceType: service.resourceType,
         bookedServiceName: service.name,
         bookedTax: operations(s).tax ?? null,
         ...(consultation ? { consultation } : {}),
+        ...(offer
+          ? { bookedOffer: { messageId: offer.messageId, usualPriceMinor: offer.usualPriceMinor } }
+          : {}),
       }
       next.appointments.push(appointment)
       // Simulated deposit receipt is deliberately separate from the service-price snapshot.
-      if (operations(s).mode === 'sandbox' && service.depositMinor > 0)
+      if (operations(s).mode === 'sandbox' && depositMinor > 0)
         next.payments.push({
           id: makeId(),
           organisationId: org.id,
           appointmentId: appointment.id,
           kind: 'deposit',
-          amountMinor: service.depositMinor,
+          amountMinor: depositMinor,
           currency: org.currency,
           recordedAt: now,
           method: 'demo_card',
@@ -439,7 +469,7 @@ export function execute(
         appointmentId: appointment.id,
         type: 'booked',
         title: input.source === 'rebook' ? 'Next visit booked' : 'Visit booked',
-        detail: `${service.name} · ${dateLabel(input.date, org.locale)} at ${timeLabel(input.startMinutes, org.locale)}. ${operations(s).mode === 'sandbox' ? 'Deposit simulated; no payment taken.' : 'No payment collected. Any required deposit remains outstanding.'}${input.channel ? ` ${channelNote(input.channel)}` : ''}${input.callId ? ' Booked when the studio called back after a missed call.' : ''}`,
+        detail: `${service.name} · ${dateLabel(input.date, org.locale)} at ${timeLabel(input.startMinutes, org.locale)}. ${offer ? `Booked at a quiet-time price of ${offerPrices(s, offer)}, from an invitation. ` : ''}${operations(s).mode === 'sandbox' ? 'Deposit simulated; no payment taken.' : 'No payment collected. Any required deposit remains outstanding.'}${input.channel ? ` ${channelNote(input.channel)}` : ''}${input.callId ? ' Booked when the studio called back after a missed call.' : ''}`,
       })
       if (input.waitlistId) fillFromWaitlist(next, input.waitlistId, appointment, now, 'book')
       if (input.callId) linkCallToVisit(next, input.callId, appointment.id, client.id, now)
@@ -504,7 +534,7 @@ export function execute(
           type: 'rescheduled',
           title: 'Visit moved',
           allocationChange: { from, to },
-          detail: `${dateLabel(from.date, org.locale)} at ${timeLabel(from.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === from.staffId)!.name}${moved ? ` at ${placeOf(s, from.locationId)?.name}` : ''} → ${dateLabel(to.date, org.locale)} at ${timeLabel(to.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === to.staffId)!.name}${moved ? ` at ${placeOf(s, place)?.name}` : ''}. Booked treatment, price and deposit kept; no message sent.${leaves ? ' No longer booked together with the others.' : ''}`,
+          detail: `${dateLabel(from.date, org.locale)} at ${timeLabel(from.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === from.staffId)!.name}${moved ? ` at ${placeOf(s, from.locationId)?.name}` : ''} → ${dateLabel(to.date, org.locale)} at ${timeLabel(to.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === to.staffId)!.name}${moved ? ` at ${placeOf(s, place)?.name}` : ''}. Booked treatment, price and deposit kept; no message sent.${appointment.bookedOffer ? ' The quiet-time price stays with the visit.' : ''}${leaves ? ' No longer booked together with the others.' : ''}`,
         })
         if (command.waitlistId)
           fillFromWaitlist(next, command.waitlistId, appointment, now, 'move', from.date)
@@ -825,6 +855,16 @@ export function execute(
       const same = invitesUnchanged(s, command)
       if (same) return { ok: true, state: s, recordId: same }
       recordId = runInviteCommand(next, command, now, makeId, addEvent)
+    } else if (command.type === 'offer-invite') {
+      const same = offerInviteUnchanged(s, command)
+      if (same) return { ok: true, state: s, recordId: same }
+      recordId = runOfferInvite(next, command, now, makeId, addEvent)
+    } else if (command.type === 'quiet-offers') {
+      const known = new Set(s.services.map((service) => service.id))
+      if (command.settings.leftOutIds.some((id) => !known.has(id)))
+        throw new Error('Choose treatments from this studio to leave out.')
+      next.operations = { ...operations(next), quietOffers: { ...command.settings } }
+      recordId = org.id
     } else if (command.type === 'guest-here') {
       const appointment = next.appointments.find((a) => a.id === command.appointmentId)
       if (!appointment) throw new Error('Visit does not belong to this studio.')

@@ -206,6 +206,11 @@ describe('help inside the app', () => {
       'news-who',
       'news-approve',
     ])
+    // Stage 5: a lower price for a quiet time.
+    expect(first('discount a quiet time')).toBe('quiet-offers')
+    expect(first('cheaper off peak price')).toBe('quiet-offers')
+    expect(first('lower price for a gap', 'reception')).toBe('quiet-offers')
+    expect(ids(searchHelp('discount quiet time', 'practitioner'))).not.toContain('quiet-offers')
     // Stage 5: booking on Google, with its new way to change the time.
     expect(first('book on google maps')).toBe('google-booking')
     expect(first('reserve with google')).toBe('google-booking')

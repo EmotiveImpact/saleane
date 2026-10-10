@@ -6,6 +6,7 @@ import { branchVisitCommandSchemas } from './branchVisitSchema'
 import { hoursCommandSchemas } from './hoursSchema'
 import { rotaCommandSchemas } from './rotaSchema'
 import { newsCommandSchemas } from './newsSchema'
+import { quietOfferCommandSchemas } from './quietOffersSchema'
 import { commissionCommandSchemas } from './commissionSchema'
 import { approvalCommandSchemas } from './approvalsSchema'
 import { brandCommandSchemas } from './brandRulesSchema'
@@ -796,6 +797,8 @@ export const commandSchema = z.discriminatedUnion('type', [
   ...staffMoveCommandSchemas,
   // Stage 4: one message from the studio to its clients, drafted, approved, stopped.
   ...newsCommandSchemas,
+  // Stage 5: a lower price for quiet times, and an invitation to one of Today's open times with it.
+  ...quietOfferCommandSchemas,
   ...operatingCommandSchema.options,
 ])
 export type BookingInput = z.infer<typeof bookingSchema>

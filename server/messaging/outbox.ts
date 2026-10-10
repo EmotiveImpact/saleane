@@ -1,5 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { staleInvitation } from '../../src/domain/cancelledTimes'
+import { offerStale } from '../../src/domain/quietOffers'
+import { OFFER_LINK } from '../../src/domain/quietOffersSchema'
+import { issueOfferLink } from '../offers'
 import { agreedEverywhere } from '../../src/domain/dueBack'
 import {
   BOOK_LINK,
@@ -339,10 +342,36 @@ export function createOutbox(ctx: Context, providers: Providers) {
         // NEXT-11: an invitation to a freed time goes only while that time is still free.
         if (staleInvitation(org.state, message.id, new Date(now()).toISOString()))
           return skip('The time was booked, or had passed, before it went out.')
+        // Stage 5: a lower price goes only while it still holds as written.
+        if (offerStale(org.state, message.id, new Date(now()).toISOString()))
+          return skip(
+            'The lower price ended, or the treatment’s price changed, before it went out.',
+          )
         const to = fresh.channel === 'email' ? client.email.trim() : textNumber(client.phone)
         if (!to) return skip('The client has no address for this channel now.')
-        const body = message.body.replaceAll(BOOK_LINK, `${ctx.allowedOrigin}/book/${org.slug}`)
-        return send(fresh, org, to, message.subject, message.body, body)
+        let body = message.body.replaceAll(BOOK_LINK, `${ctx.allowedOrigin}/book/${org.slug}`)
+        // Its private link is made as it goes and never written down; only its hash is kept.
+        let offerLink: string | undefined
+        if (message.offer && body.includes(OFFER_LINK)) {
+          const raw = issueOfferLink(
+            ctx,
+            org.id,
+            message.id,
+            fresh.id,
+            Date.parse(message.offer.endsAt),
+          )
+          body = body.replaceAll(OFFER_LINK, `#offer=${raw}`)
+          offerLink = body.match(/\S+#offer=\S+/)?.[0]
+        }
+        const sent = send(
+          fresh,
+          org,
+          to,
+          message.subject,
+          message.body,
+          body.replaceAll(OFFER_LINK, ''),
+        )
+        return sent && offerLink ? { ...sent, offerLink } : sent
       }
       // V1.5: a birthday or "we miss you" is about the guest, not a visit. Checked again now.
       const kind = fresh.kind
@@ -476,8 +505,15 @@ export function createOutbox(ctx: Context, providers: Providers) {
       if (!claimed) continue
       const { row, message } = claimed
       const result = await providerFor(providers, row.channel).send(message)
-      if (result.outcome === 'test') finish(row, 'test', { detail: null })
-      else if (result.outcome === 'accepted')
+      if (result.outcome === 'test') {
+        finish(row, 'test', { detail: null })
+        // Stage 5: with email in test mode the private link went nowhere, so it is shown here for
+        // whoever runs SALEANE locally to try. Never in tests, never stored.
+        if ('offerLink' in claimed && !process.env.VITEST)
+          console.log(
+            `[SALEANE] Email is not connected, so this invitation’s link to book at its quiet-time price was not sent: ${claimed.offerLink}`,
+          )
+      } else if (result.outcome === 'accepted')
         finish(row, 'accepted', { provider_ref: result.providerRef, detail: null })
       else if (result.outcome === 'unknown') finish(row, 'unknown', { detail: result.detail })
       else if (result.retry && row.attempts < MAX_ATTEMPTS)

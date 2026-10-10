@@ -44,6 +44,8 @@ const GUEST_ACTOR = 'Guest (private link)'
 /** Why a visit cannot move online, as the guest reads it. */
 const MOVE_REFUSALS = {
   closed: 'This visit can no longer be moved online. Contact the studio.',
+  offer:
+    'This visit was booked at a quiet-time price for that time only, so it cannot be moved online. Contact the studio to change it.',
   off: 'The studio is not taking changes online at the moment. Contact the studio to move your visit.',
   cutoff: `It is less than ${GUEST_CANCEL_CUTOFF_HOURS} hours until your visit, so it can no longer be moved online. Contact the studio to change it.`,
 } as const
@@ -187,7 +189,7 @@ export function followGuestLinks(ctx: Context, org: Org, appointmentId: string) 
 
 /** Why a move a guest asked for online was not made. */
 export type MoveRefusal =
-  | { reason: 'closed' | 'off' | 'cutoff' | 'day' | 'passed' | 'taken' }
+  | { reason: 'closed' | 'offer' | 'off' | 'cutoff' | 'day' | 'passed' | 'taken' }
   | { reason: 'patch' | 'failed'; message: string }
 
 /**

@@ -217,10 +217,11 @@ export const guestViewSchema = z
       .optional(),
     /**
      * Moving this upcoming visit online. Absent once it can no longer change. `reason` says why
-     * it cannot move now: the cutoff has passed, or the studio has switched online booking off.
+     * it cannot move now: the cutoff has passed, the studio has switched online booking off, or
+     * (Stage 5) it was booked at a quiet-time price for that time only.
      */
     move: z
-      .object({ available: z.boolean(), reason: z.enum(['cutoff', 'off']).optional() })
+      .object({ available: z.boolean(), reason: z.enum(['cutoff', 'off', 'offer']).optional() })
       .strict()
       .optional(),
     /** The studio's own colours, so the page looks like its booking page. */
@@ -284,17 +285,19 @@ export function guestCancellation(s: BusinessState, appointmentId: string, now: 
 /**
  * Why a guest cannot move this visit online now, or null when they can. A visit moves online up to
  * the same cutoff as a cancellation with the deposit given back, and only while the studio takes
- * bookings online. `closed` means it is no longer upcoming: cancelled, under way or over.
+ * bookings online. `closed` means it is no longer upcoming: cancelled, under way or over. Stage 5:
+ * a visit booked at a quiet-time price was for that time only, so only the studio moves it.
  */
 export function guestMoveBlock(
   s: BusinessState,
   appointmentId: string,
   now: number,
-): 'closed' | 'off' | 'cutoff' | null {
+): 'closed' | 'offer' | 'off' | 'cutoff' | null {
   const a = s.appointments.find((item) => item.id === appointmentId)
   if (!a) throw new Error('This visit is not in the studio record.')
   const start = visitStart(s, appointmentId)
   if (a.status !== 'confirmed' || now >= start) return 'closed'
+  if (a.bookedOffer) return 'offer'
   if (!operations(s).bookingEnabled) return 'off'
   if (now >= start - GUEST_CANCEL_CUTOFF_HOURS * 60 * 60000) return 'cutoff'
   return null

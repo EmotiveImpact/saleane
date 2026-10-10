@@ -47,6 +47,7 @@ import { StudioContact } from '../components/StudioContact'
 import { PatchTestFirst } from '../components/PatchTestFirst'
 import { phoneLink } from '../domain/studioContact'
 import '../guest.css'
+import './bookingOffer.css'
 
 const pendingBookingSchema = z.object({
   payload: z.object({
@@ -63,6 +64,8 @@ const pendingBookingSchema = z.object({
   start: z.number().int(),
   expiresAt: z.iso.datetime(),
   locationId: z.string().optional(),
+  /** Stage 5: the time was held at a quiet-time price. */
+  offer: z.object({ priceMinor: z.number().int(), usualPriceMinor: z.number().int() }).optional(),
 })
 type PendingBooking = z.infer<typeof pendingBookingSchema>
 function readPendingBooking(key: string) {
@@ -85,8 +88,41 @@ function urlChannel() {
     return undefined
   }
 }
-/** What a hold answers: its token, when it runs out and, from newer servers, who it is with. */
-type HoldReply = { hold: string; expiresAt: string; staffId?: string }
+/**
+ * What a hold answers: its token, when it runs out and, from newer servers, who it is with.
+ * Stage 5: held at a quiet-time price, or why the guest's link could not give one.
+ */
+type HoldReply = {
+  hold: string
+  expiresAt: string
+  staffId?: string
+  offer?: { priceMinor: number; usualPriceMinor: number }
+  offerProblem?: string
+}
+/** Stage 5: the quiet-time price a guest's private link carries, as the server reads it. */
+type OfferView = {
+  serviceId: string
+  staffId: string
+  locationId?: string
+  date: string
+  startMinutes: number
+  priceMinor: number
+  usualPriceMinor: number
+  endsAt: string
+  ends: string
+  time: string
+}
+/** Stage 5: the private link from an invitation with a quiet-time price, kept in the fragment. */
+function linkedOffer() {
+  try {
+    return /(?:^#|&)offer=([A-Za-z0-9_-]{32,100})(?:&|$)/.exec(window.location.hash)?.[1] ?? null
+  } catch {
+    return null
+  }
+}
+/** A guest whose quiet-time price cannot be used can always book at the usual price. */
+const atUsualPrice = (problem: string) =>
+  /usual price/.test(problem) ? problem : `${problem} You can still book at the usual price.`
 /** A free time on some day, such as the first available one. */
 type FreeTime = { date: string; startMinutes: number }
 /** Whole seconds until a hold runs out, never below zero. */
@@ -299,6 +335,7 @@ function BookingFlow({
             hold: recovery.value.payload.hold,
             expiresAt: recovery.value.expiresAt,
             ...(recovery.value.heldStaffId ? { staffId: recovery.value.heldStaffId } : {}),
+            ...(recovery.value.offer ? { offer: recovery.value.offer } : {}),
           }
         : null,
     ),
@@ -420,12 +457,39 @@ function BookingFlow({
     [paying, setPaying] = useState(false),
     [payError, setPayError] = useState('')
   const phoneField = useRef<HTMLInputElement>(null)
+  // Stage 5: an invitation's private link with a quiet-time price for one time, read once.
+  const [offerToken] = useState(() => (recovery.value ? null : linkedOffer()))
+  const [offerState, setOfferState] = useState<{ offer?: OfferView; problem?: string } | null>(null)
+  const offerView = offerState?.offer
+  /** Whether a time is the one the guest's quiet-time price is for. */
+  const fitsOffer = (at: number | null, on: string) =>
+    !!offerView &&
+    serviceId === offerView.serviceId &&
+    (staffId === offerView.staffId || staffId === 'any') &&
+    on === offerView.date &&
+    at === offerView.startMinutes &&
+    (!located.locationId || !offerView.locationId || located.locationId === offerView.locationId)
   // A held time says who it is with, even when the guest had no preference.
   const service = services.find((s) => s.id === serviceId),
     professional = staff.find((s) => s.id === (hold?.staffId ?? staffId))
+  // Stage 5: the quiet-time price this visit takes: the held one, or before holding, the guest's
+  // link when the chosen time is its time. The hold is the authority once there is one.
+  const quiet =
+    hold?.offer ??
+    (!hold && offerView && fitsOffer(start, date)
+      ? { priceMinor: offerView.priceMinor, usualPriceMinor: offerView.usualPriceMinor }
+      : null)
   // What the visit costs where it will be, and the deposit asked for when it is booked.
-  const priceMinor = service ? fullPriceMinor(serviceAt(service, place?.id), tax) : 0
-  const depositMinor = service ? Math.min(service.depositMinor, priceMinor) : 0
+  const bookedMinor = quiet
+    ? quiet.priceMinor
+    : service
+      ? serviceAt(service, place?.id).priceMinor
+      : 0
+  const priceMinor = service ? fullPriceMinor({ priceMinor: bookedMinor }, tax) : 0
+  const usualMinor = quiet ? fullPriceMinor({ priceMinor: quiet.usualPriceMinor }, tax) : null
+  const depositMinor = service
+    ? Math.min(service.depositMinor, quiet ? quiet.priceMinor : priceMinor)
+    : 0
   // A sample studio lives on its own fixed day, so its clock reads the time of day on that day.
   const nowAt = (() => {
     const real = Date.parse(clock)
@@ -518,7 +582,15 @@ function BookingFlow({
         {
           label: 'Price',
           value: money(priceMinor, org),
-          detail: taxIncluded(serviceAt(service, place?.id).priceMinor, tax, org) || undefined,
+          detail:
+            [
+              usualMinor === null
+                ? ''
+                : `A quiet-time price, instead of the usual ${money(usualMinor, org)}.`,
+              taxIncluded(bookedMinor, tax, org),
+            ]
+              .filter(Boolean)
+              .join(' ') || undefined,
         },
         depositMinor
           ? {
@@ -651,6 +723,26 @@ function BookingFlow({
     // `searchFor` and `date` are part of the next key.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [emptyDay, nextKey])
+  // Stage 5: what the guest's private link offers, asked once. A link that cannot be read leaves
+  // the usual prices, and the guest is told.
+  useEffect(() => {
+    if (!offerToken) return
+    let active = true
+    api<{ offer?: OfferView; problem?: string }>(`${base}/offer`, {
+      method: 'POST',
+      body: { offer: offerToken },
+    })
+      .then((reply) => {
+        if (active) setOfferState(reply)
+      })
+      .catch(() => {
+        if (active)
+          setOfferState({ problem: 'Your quiet-time price could not be checked just now.' })
+      })
+    return () => {
+      active = false
+    }
+  }, [base, offerToken])
   useEffect(() => {
     if (!hold) return
     const update = () => setSeconds(secondsLeft(hold.expiresAt))
@@ -686,16 +778,19 @@ function BookingFlow({
     setSeconds(secondsLeft(reply.expiresAt))
     setHoldGone(null)
   }
-  function holdBody(at: number, on: string) {
+  function holdBody(at: number, on: string, withOffer = true) {
+    // Stage 5: the guest's quiet-time price goes with exactly its own time, with its professional.
+    const quietAt = withOffer && !!offerToken && !!offerView && fitsOffer(at, on)
     return {
       serviceId,
-      staffId,
+      staffId: quietAt ? offerView!.staffId : staffId,
       date: on,
       startMinutes: at,
       ...located,
       // Hand back any earlier hold so this guest never holds two times at once.
       ...(hold ? { replaces: hold.hold } : {}),
       ...(botCheck ? { botCheck: botToken } : {}),
+      ...(quietAt ? { offer: offerToken } : {}),
     }
   }
   async function reserve() {
@@ -719,12 +814,17 @@ function BookingFlow({
    * After a hold runs out: one tap holds the same time again, keeping the guest's details. When
    * the time has gone meanwhile, the guest is told and offered the nearest free times instead.
    */
-  async function holdAgain(at: number, on = date) {
+  async function holdAgain(at: number, on = date, withOffer = true) {
     if (!hold || attempt) return
     setPending(true)
     setError('')
     try {
-      keepHold(await api<HoldReply>(`${base}/holds`, { method: 'POST', body: holdBody(at, on) }))
+      keepHold(
+        await api<HoldReply>(`${base}/holds`, {
+          method: 'POST',
+          body: holdBody(at, on, withOffer && !!offerView),
+        }),
+      )
       if (at !== start || on !== date) {
         setDate(on)
         setStart(at)
@@ -798,6 +898,7 @@ function BookingFlow({
       start: start!,
       expiresAt: hold.expiresAt,
       ...located,
+      ...(hold.offer ? { offer: hold.offer } : {}),
     }
     try {
       // Preserve the exact consent/contact snapshot before any request leaves this tab.
@@ -827,6 +928,26 @@ function BookingFlow({
         /* Receipt replay remains safe if local cleanup fails. */
       }
     } catch (e) {
+      // Stage 5: the quiet-time price ended or was used meanwhile. The guest is told, the same
+      // time is held again at the usual price, and they read the price and agree again.
+      if (
+        e instanceof ApiError &&
+        e.status === 409 &&
+        !attempt &&
+        hold.offer &&
+        /quiet-time price/.test(e.message)
+      ) {
+        setAttempt(null)
+        try {
+          sessionStorage.removeItem(journalKey)
+        } catch {
+          /* Nothing was booked, so there is nothing to recover. */
+        }
+        setOfferState({ problem: e.message })
+        setPolicy(false)
+        await holdAgain(start!, date, false)
+        return
+      }
       if (e instanceof ApiError && [400, 409, 422].includes(e.status)) {
         setAttempt(null)
         // The studio changed its words for email news: the guest reads them again and re-ticks.
@@ -848,6 +969,35 @@ function BookingFlow({
     } finally {
       setPending(false)
     }
+  }
+  // Stage 5: what the guest is told about their quiet-time price, before they confirm.
+  const offerPrices =
+    offerView &&
+    `${money(fullPriceMinor({ priceMinor: offerView.priceMinor }, tax), org)} instead of the usual ${money(fullPriceMinor({ priceMinor: offerView.usualPriceMinor }, tax), org)}`
+  const offerNotice = !offerToken
+    ? null
+    : hold?.offerProblem
+      ? `${hold.offerProblem} This time is held at the usual price.`
+      : offerState?.problem
+        ? hold && !hold.offer && step >= 3
+          ? `${atUsualPrice(offerState.problem)} This time is now held at the usual price.`
+          : atUsualPrice(offerState.problem)
+        : !offerView
+          ? null
+          : hold?.offer || fitsOffer(start, date)
+            ? `Your quiet-time price: ${offerPrices}, for ${offerView.time} only. It is open until ${offerView.ends}.`
+            : `Your quiet-time price of ${offerPrices} is for ${offerView.time} only. Other times are at the usual price.`
+  /** Back to the time the guest's quiet-time price is for. */
+  function chooseOfferTime() {
+    if (!offerView) return
+    setPicked(true)
+    setServiceId(offerView.serviceId)
+    setStaffId(offerView.staffId)
+    setDate(offerView.date)
+    setStart(offerView.startMinutes)
+    if (offerView.locationId) setLocationId(offerView.locationId)
+    setError('')
+    setStep(2)
   }
   // Times are the studio's own; a guest whose device is set elsewhere is told so.
   const zone = deviceZone()
@@ -1071,6 +1221,16 @@ function BookingFlow({
                 ][step - 1]
               }
             </h2>
+            {offerNotice && (
+              <div className="booking-offer-note" role="status">
+                <p>{offerNotice}</p>
+                {offerView && !hold && step <= 2 && !fitsOffer(start, date) && (
+                  <Button variant="secondary" onClick={chooseOfferTime}>
+                    Choose that time
+                  </Button>
+                )}
+              </div>
+            )}
             {step >= 3 && hold && attempt && (
               <p className="subtle" role="status">
                 Confirmation needs checking. Your submitted details are protected; check this
@@ -1421,8 +1581,14 @@ function BookingFlow({
                       {where.name}
                       {locations.length > 1 && where.address ? `, ${where.address}` : ''}
                     </p>
+                    {usualMinor !== null && (
+                      <div className="receipt-line subtle">
+                        <span>Usual price</span>
+                        <span>{money(usualMinor, org)}</span>
+                      </div>
+                    )}
                     <div className="receipt-line">
-                      <span>Treatment price</span>
+                      <span>{usualMinor !== null ? 'Quiet-time price' : 'Treatment price'}</span>
                       <strong>{money(priceMinor, org)}</strong>
                     </div>
                     {depositMinor > 0 && (
