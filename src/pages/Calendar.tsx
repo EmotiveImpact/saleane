@@ -345,7 +345,8 @@ export function Calendar() {
                           height: ((segment.to - segment.from) / 60) * 82,
                         }}
                       >
-                        <span>A pause</span>
+                        {/* A short pause is tinted only; the words need room to sit in. */}
+                        {segment.to - segment.from >= 30 && <span>A pause</span>}
                       </div>
                     ))
                 })()}
