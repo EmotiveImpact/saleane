@@ -72,6 +72,8 @@ export function talks(held: Map<string, Held>) {
   const open = new Map<string, Talk>()
   /** Starts still under way for each person in each studio, so two tabs start one after another. */
   const starting = new Map<string, Promise<unknown>>()
+  /** Set once SALEANE is stopping: a start still waiting on OpenAI then writes nothing more. */
+  let stopped = false
 
   function sweep(ctx: Context) {
     for (const [id, talk] of open)
@@ -202,6 +204,7 @@ export function talks(held: Map<string, Held>) {
     sdp: string,
     askedAt: number,
   ): Promise<Started> {
+    if (stopped) return { status: 'unavailable', text: NOT_NOW }
     sweep(ctx)
     // One that waited too long behind an earlier start is refused before OpenAI is asked.
     if (ctx.now() - askedAt > TALK_START_LIMIT_MS) return { status: 'unavailable', text: NOT_NOW }
@@ -246,6 +249,9 @@ export function talks(held: Map<string, Held>) {
           .supplierVoice,
       })
     } catch (error) {
+      // SALEANE stopped while OpenAI was asked: the records are closed, so nothing is written.
+      // The hold lapses on its own, as it was stored to.
+      if (stopped) return { status: 'unavailable', text: NOT_NOW }
       // A refused start costs nothing; one that may have reached OpenAI counts its start-up time.
       const reached = (error as { kind?: string }).kind === 'unreachable'
       giveBack(reached ? talkCost(0, price) : 0)
@@ -281,12 +287,26 @@ export function talks(held: Map<string, Held>) {
         },
       }),
     }
+    // SALEANE stopped while OpenAI started the session: the browser is never given its answer, so
+    // nothing connects, and the records are closed, so nothing is written; the hold lapses.
+    if (stopped) return { status: 'unavailable', text: NOT_NOW }
     try {
       talk.line = await ctx.voice.attach(session.id, (event) => onEvent(ctx, talk, event))
     } catch (error) {
+      if (stopped) return { status: 'unavailable', text: NOT_NOW }
       // Without its own line SALEANE could not end the talk, so the browser is not let in.
       giveBack(talkCost(0, price))
       console.error(`[SALEANE] Talking could not be followed: ${(error as Error).message}`)
+      return { status: 'unavailable', text: NOT_NOW }
+    }
+    // SALEANE stopped while its line attached: the line asks OpenAI to end the talk and is let go.
+    if (stopped) {
+      try {
+        talk.line.close()
+      } catch {
+        // The line has gone already.
+      }
+      talk.line.detach()
       return { status: 'unavailable', text: NOT_NOW }
     }
     talk.talk.use(talk.line)
@@ -338,6 +358,9 @@ export function talks(held: Map<string, Held>) {
       return talk && talk.organisationId === orgId && talk.accountId === actor.id ? talk : undefined
     },
 
+    /** True once SALEANE is stopping, when the records may already be closed. */
+    stopping: () => stopped,
+
     end(ctx: Context, talk: Talk) {
       close(ctx, talk)
     },
@@ -348,6 +371,8 @@ export function talks(held: Map<string, Held>) {
      * process open or writes afterwards.
      */
     stopAll(ctx: Context) {
+      // Starts still waiting on OpenAI see this when it answers, and write nothing afterwards.
+      stopped = true
       for (const talk of open.values()) {
         if (talk.released) continue
         talk.talk.stop()

@@ -55,6 +55,7 @@ function fakeVoice() {
     startTakesMs?: number
     attachTakesMs?: number
     holdAttach?: Promise<void>
+    holdStart?: Promise<void>
   } = {}
   const layer: VoiceLayer = {
     name: 'openai',
@@ -64,6 +65,7 @@ function fakeVoice() {
     async start(input) {
       starts.push(input)
       clock += state.startTakesMs ?? 0
+      if (state.holdStart) await state.holdStart
       if (state.failStart) throw state.failStart
       return { id: `live_${starts.length}`, sdp: 'v=0 answer' }
     },
@@ -663,6 +665,55 @@ describe('a talk', () => {
     expect(counted!.holds ?? []).toEqual([])
     // Nothing is left to run against the closed records.
     expect(() => vi.advanceTimersByTime(700_000)).not.toThrow()
+  })
+
+  it('writes nothing once SALEANE has stopped, for a talk still starting when it stopped', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    // OpenAI is still attaching SALEANE's line when SALEANE stops.
+    let attached!: () => void
+    voice.state.holdAttach = new Promise<void>((done) => (attached = done))
+    const attaching = talk(login)
+    while (!voice.starts.length) await new Promise((next) => setImmediate(next))
+    const db = api.database
+    const closeRecords = db.close.bind(db)
+    let closed = false
+    db.close = () => {
+      closed = true
+      closeRecords()
+    }
+    api.close()
+    expect(closed).toBe(true)
+    attached()
+    const late = await attaching
+    // The line asks OpenAI to end the talk and is let go; the browser is never let in, and the
+    // closed records are not read or written.
+    expect(late.statusCode, late.body).toBe(200)
+    expect(late.json()).toMatchObject({ status: 'unavailable' })
+    expect(voice.lines[0]).toMatchObject({ closed: true, detached: true })
+    expect(() => vi.advanceTimersByTime(700_000)).not.toThrow()
+    api = undefined as unknown as ApiHandler
+
+    // The same while OpenAI is still starting the session, and when its start then fails.
+    for (const fails of [false, true]) {
+      const again = fakeVoice()
+      start(claude(anthropic([]).fetcher), again.layer)
+      const owner = await register()
+      let started!: () => void
+      again.state.holdStart = new Promise<void>((done) => (started = done))
+      if (fails) again.state.failStart = new VoiceError('unreachable', 'No answer.')
+      const starting = talk(owner)
+      while (!again.starts.length) await new Promise((next) => setImmediate(next))
+      api.close()
+      started()
+      const answer = await starting
+      expect(answer.statusCode, answer.body).toBe(200)
+      expect(answer.json()).toMatchObject({ status: 'unavailable' })
+      expect(again.lines).toEqual([])
+      api = undefined as unknown as ApiHandler
+    }
   })
 
   it('replaces a talk left open, follows a dropped one to end it, and keeps each to its person', async () => {

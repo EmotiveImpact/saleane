@@ -51,6 +51,11 @@ export function assistantRoutes() {
         .strict()
         .parse(body)
       const started = await talking.start(ctx, org, actor, allowance, sdp)
+      // SALEANE stopped while the talk started: its records are closed, so none are read.
+      if (talking.stopping()) {
+        reply(200, started)
+        return true
+      }
       reply(200, { ...started, usage: meter(stored()) })
       return true
     }
