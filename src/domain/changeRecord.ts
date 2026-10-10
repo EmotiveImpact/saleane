@@ -583,6 +583,8 @@ export function recordNames(s: BusinessState): RecordNames {
 /** A value in words, in the studio's money, language and clock. */
 function valueText(s: BusinessState, names: RecordNames, f: string, v: Value) {
   const locale = s.organisation.locale
+  // A rule never turned on was off: the first change reads "no became yes".
+  if (v === null && f === 'stopOnline') return 'no'
   if (v === null) return 'none'
   if ((/^day\d$/.test(f) || f === 'shift') && typeof v === 'string') {
     if (v === 'closed') return 'closed'

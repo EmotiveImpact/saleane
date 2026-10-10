@@ -587,7 +587,7 @@ export function PatchTestRules() {
             Message a booked guest who needs a test, using their usual visit email and text
             settings. Sent once, up to two weeks before, while there is still time.
           </label>
-          <div className="ops-wide">
+          <div className="ops-wide patch-online">
             <label className="ops-check">
               <input
                 type="checkbox"

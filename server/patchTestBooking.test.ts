@@ -587,7 +587,7 @@ describe('the setting itself, and the desk', () => {
     ).json<{ entries: ChangeEntry[] }>()
     const entry = page.entries.find((e) => e.what === 'Changed the patch test rules')!
     expect(entry.lines).toEqual([
-      { what: 'stop online booking without a patch test', from: 'none', to: 'yes' },
+      { what: 'stop online booking without a patch test', from: 'no', to: 'yes' },
     ])
     await ok(owner, { type: 'patch-test-settings', settings: { ...settings, stopOnline: false } })
     const again = (

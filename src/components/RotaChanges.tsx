@@ -365,8 +365,8 @@ function KeepChoice({
         <span>
           <strong>Move {one ? 'it' : 'them'} first</strong>
           <small>
-            Nothing is saved yet. Move {one ? 'it' : 'them'} in the calendar, then come back to this
-            day.
+            Nothing is saved yet. Move {one ? 'it' : 'them'} in the calendar, then come back to this{' '}
+            {withDate ? 'week' : 'day'}.
           </small>
         </span>
       </label>

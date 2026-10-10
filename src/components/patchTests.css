@@ -69,6 +69,14 @@
     flex-direction: column;
   }
 }
+/* Stage 3: the online booking rule sits like the tick box above it, its help under its words. */
+.patch-online > .ops-check {
+  gap: 7px;
+}
+.patch-online > .ops-help {
+  margin: 0;
+  padding-left: calc(1em + 9px);
+}
 /* Stage 3: the desk's booking dialog, for a treatment that needs a patch test. */
 .booking-patch-note {
   display: grid;

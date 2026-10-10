@@ -201,7 +201,14 @@
   font-size: var(--text-small);
   font-weight: var(--weight-strong);
 }
+/* The heading sits under the fieldset's line rather than breaking it. */
+.rota-keep legend {
+  float: left;
+  width: 100%;
+  margin-bottom: 8px;
+}
 .rota-keep ul {
+  clear: both;
   margin: 8px 0 10px;
   padding: 0;
   list-style: none;
@@ -216,6 +223,7 @@
 }
 .rota-keep label {
   display: flex;
+  flex-direction: row;
   align-items: flex-start;
   gap: 10px;
   min-height: var(--target);
@@ -224,8 +232,15 @@
   font-size: var(--text-small);
   cursor: pointer;
 }
-.rota-keep label input {
-  margin-top: 3px;
+/* A small radio beside its words, not the full-width field the form gives every input. */
+.rota-keep label input[type='radio'] {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  margin: 2px 0 0;
+  padding: 0;
+  flex: none;
+  accent-color: var(--ink);
 }
 .rota-keep label strong,
 .rota-keep label small {
