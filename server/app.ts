@@ -51,6 +51,9 @@ export type ApiHandler = ((
   inject: (request: InjectOptions) => Promise<InjectResponse>
 }
 
+/** SendGrid posts its events in batches of up to 768 KiB; anything else stays at the usual limit. */
+const SENDGRID_BATCH_BYTES = 1024 * 1024
+
 // Route modules are tried in order; each claims its own paths and returns false otherwise.
 const baseRoutes = [
   authRoutes,
@@ -174,7 +177,12 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
       const hook = /^\/api\/hooks\/(postmark|twilio|resend|sendgrid|mailgun)$/.exec(url.pathname)
       if (hook) {
         if (method !== 'POST') fail(405, 'Use POST.')
-        const body = (await readBody(request, true)) as string
+        // SendGrid gathers events and posts them in batches of up to 768 KiB.
+        const body = (await readBody(
+          request,
+          true,
+          hook[1] === 'sendgrid' ? SENDGRID_BATCH_BYTES : undefined,
+        )) as string
         const receipts = outbox.providers.receipt(hook[1], {
           url: url.toString(),
           headers: request.headers as Record<string, string | undefined>,

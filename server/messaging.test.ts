@@ -777,9 +777,16 @@ describe('appointment messages (PILOT-01)', () => {
     const text = rows().find((r) => r.channel === 'sms')!
     expect([email.status, email.provider]).toEqual(['accepted', 'sendgrid'])
     expect(email.provider_ref).toMatch(/^sg-\d+$/)
-    const bounce = (outbox: string) => {
+    // `others` stands for the rest of a busy studio's batch, which SendGrid posts together.
+    const bounce = (outbox: string, others = 0) => {
       const timestamp = String(Math.floor(Date.now() / 1000))
-      const body = JSON.stringify([{ event: 'bounce', outbox, reason: '550 mailbox full' }])
+      const body = JSON.stringify([
+        ...Array.from({ length: others }, (_, i) => ({
+          event: 'processed',
+          sg_message_id: `elsewhere-${i}.filter0001.1.2`,
+        })),
+        { event: 'bounce', outbox, reason: '550 mailbox full' },
+      ])
       return api.inject({
         method: 'POST',
         url: '/api/hooks/sendgrid',
@@ -798,7 +805,11 @@ describe('appointment messages (PILOT-01)', () => {
     // A row another sender carried cannot be reached through SendGrid's receipts.
     expect((await bounce(text.id)).statusCode).toBe(200)
     expect(rows().find((r) => r.id === text.id)!.status).toBe(text.status)
-    expect((await bounce(email.id)).statusCode).toBe(200)
+    // A batch past SendGrid's 768 KiB is not one it sends, and stays refused.
+    expect((await bounce(email.id, 20_000)).statusCode).toBe(413)
+    expect(rows().find((r) => r.id === email.id)!.status).toBe('accepted')
+    // About 680 KiB, well past the 64 KiB other requests may carry.
+    expect((await bounce(email.id, 10_000)).statusCode).toBe(200)
     const failed = rows().find((r) => r.id === email.id)!
     expect([failed.status, failed.detail]).toEqual([
       'failed',

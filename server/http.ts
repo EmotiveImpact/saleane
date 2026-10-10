@@ -46,9 +46,14 @@ export function sessionToken(request: IncomingMessage): string | undefined {
     ?.slice(COOKIE.length + 1)
 }
 /** Reads a bounded body as JSON, or as text when `raw` is set (provider receipts). */
-export async function readBody(request: IncomingMessage, raw = false): Promise<unknown> {
+/** Reads a bounded body as JSON, or as text when `raw` is set (provider receipts), up to `limit`. */
+export async function readBody(
+  request: IncomingMessage,
+  raw = false,
+  limit = BODY_LIMIT,
+): Promise<unknown> {
   const length = Number(header(request, 'content-length'))
-  if (Number.isFinite(length) && length > BODY_LIMIT) {
+  if (Number.isFinite(length) && length > limit) {
     request.resume()
     fail(413, 'This request is too large.')
   }
@@ -76,7 +81,7 @@ export async function readBody(request: IncomingMessage, raw = false): Promise<u
     const onData = (chunk: Buffer | string) => {
       const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
       size += data.length
-      if (size > BODY_LIMIT) finish(new HttpError(413, 'This request is too large.'))
+      if (size > limit) finish(new HttpError(413, 'This request is too large.'))
       else chunks.push(data)
     }
     const onEnd = () => {
