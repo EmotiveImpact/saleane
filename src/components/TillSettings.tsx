@@ -22,7 +22,8 @@ const MODES: { value: PrintMode; label: string; detail: string }[] = [
   {
     value: 'network',
     label: 'A receipt printer on the studio’s network',
-    detail: 'SALEANE sends each receipt straight to the printer, and can open its cash drawer.',
+    detail:
+      'For thermal receipt printers that understand ESC/POS, as most do. SALEANE sends each receipt straight to the printer, and can open its cash drawer.',
   },
   {
     value: 'test',
@@ -220,8 +221,9 @@ export function TillSettings() {
                 onChange={(e) => update({ host: e.target.value })}
               />
               <small>
-                Printed on the printer’s own settings page. SALEANE connects only to an address on
-                the studio’s network, never to the internet.
+                Printed on the printer’s settings slip, often by holding the feed button as you
+                switch it on. SALEANE connects only to an address on the studio’s network, never to
+                the internet.
               </small>
             </label>
           )}

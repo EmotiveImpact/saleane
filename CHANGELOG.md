@@ -26,7 +26,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - **The cash drawer.** A drawer connected through a network receipt printer opens for cash payments and cash refunds, and "Open the drawer" asks why for a no sale. Money's till count lists every opening for the day. SALEANE says the drawer was sent the signal, never that it opened.
 - **A card refund puts products back on the shelf** once the card service confirms it.
 - Money files receipts, recorded funds and refunds under the studio's own day, so one paid just after midnight is no longer listed under the day before.
-- **Help** has five new guides: barcodes, product photos, receipts, the cash drawer and setting up the receipt printer.
+- **Help** has six new guides: barcodes, product photos, receipts, the cash drawer, setting up the receipt printer step by step (finding its address, the port, a test page) and which receipt printer and cash drawer to buy.
 
 ## 2026-10-09 · Clients and memberships, built properly (left-out Stage 1)
 

@@ -120,6 +120,14 @@ describe('help inside the app', () => {
     expect(first('barcode scanner')).toBe('barcodes')
     expect(first('no sale')).toBe('cash-drawer')
     expect(first('set up a receipt printer')).toBe('till-printer')
+    expect(first('find the printer ip address')).toBe('till-printer')
+    expect(first('which receipt printer should I buy')).toBe('choose-printer')
+    expect(first('does it work with my printer')).toBe('choose-printer')
+    expect(ids(helpForScreen('/settings', '?section=till', 'owner')).slice(0, 2)).toEqual([
+      'till-printer',
+      'choose-printer',
+    ])
+    expect(ids(searchHelp('which printer to buy', 'reception'))).not.toContain('choose-printer')
     expect(first('email a receipt')).toBe('receipts')
     expect(first('product picture')).toBe('product-photo')
     expect(first('clock in')).toBe('clock')
