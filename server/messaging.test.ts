@@ -13,6 +13,7 @@ import {
 } from './messaging/providers'
 import type { MessageProvider, OutgoingMessage, Providers, SendResult } from './messaging/providers'
 import type { OutboxRow } from './messaging/outbox'
+import { emailPalette } from '../src/email/colours'
 
 // PILOT-01 acceptance: confirmations and reminders go once, honestly labelled, never from samples.
 const origin = 'http://127.0.0.1:5173'
@@ -516,6 +517,13 @@ describe('appointment messages (PILOT-01)', () => {
     ])
     expect(sent[0].body).toContain(`Book when it suits you: ${origin}/book/${slug}`)
     expect(sent[0].body).not.toContain('{{')
+    // NEXT-13: kept apart from visit messages, and the Sent list shows the address it went with.
+    expect(sent[0].stream).toBe('broadcast')
+    expect(sent[0].html).toContain(`href="${origin}/book/${slug}"`)
+    const listed = (await outbox(owner)).json<{ messages: { kind: string; body: string }[] }>()
+    const dueBack = listed.messages.find((m) => m.kind === 'due_back')!
+    expect(dueBack.body).toContain(`Book when it suits you: ${origin}/book/${slug}`)
+    expect(dueBack.body).not.toContain('{{')
     sent = []
     await api.outbox.tick()
     expect(sent).toEqual([])
@@ -595,6 +603,7 @@ describe('appointment messages (PILOT-01)', () => {
     // Already booked for tomorrow, so simply a happy birthday with no invitation.
     expect(sent[0].body).toContain('We look forward to seeing you soon.')
     expect(sent[0].body).not.toContain('{{')
+    expect(sent[0].stream).toBe('broadcast')
     expect(rows().find((r) => r.kind === 'birthday')).toMatchObject({
       appointment_id: '',
       client_id: guest.id,
@@ -704,6 +713,124 @@ describe('appointment messages (PILOT-01)', () => {
   })
 })
 
+describe('designed emails (NEXT-13)', () => {
+  const visible = (html: string) =>
+    html
+      .replace(/<head>[\s\S]*?<\/head>/, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&#x27;/g, "'")
+      .replace(/&amp;/g, '&')
+      .replace(/\s+/g, ' ')
+
+  it('sends each email in the studio colours with the same words, and texts as they were', async () => {
+    const { serviceId, staffId, slug, owner } = await localStudio()
+    await run(owner, { type: 'studio-look', look: { first: '#a35f4b', second: '#c98a5e' } })
+    await book(slug, serviceId, staffId)
+    await api.outbox.tick()
+    await api.outbox.tick()
+    const email = sent.find((m) => m.channel === 'email')!
+    const text = sent.find((m) => m.channel === 'sms')!
+    expect(text.html).toBeUndefined()
+    expect(text.stream).toBeUndefined()
+    expect(email.stream).toBe('transactional')
+    const html = email.html!
+    expect(html.startsWith('<!DOCTYPE html><html lang="en-GB">')).toBe(true)
+    // The private link in the button is the one in the plain words, made once for this email.
+    const link = /(http:\/\/127\.0\.0\.1:5173\/manage#[A-Za-z0-9_-]+)/.exec(email.body)![1]
+    expect(html).toContain(`href="${link}"`)
+    expect(html.match(/\/manage#/g)).toHaveLength(1)
+    // Clay, deepened with ink for white words, and the second colour under the name.
+    const palette = emailPalette({ first: '#a35f4b', second: '#c98a5e' })
+    expect(palette.action).not.toBe('#a35f4b')
+    expect(html).toContain(`background:${palette.action}`)
+    expect(html).toContain('background:#c98a5e')
+    for (const line of email.body.split('\n').filter((l) => l && !l.includes('/manage#')))
+      expect(visible(html)).toContain(line.replace(/:$/, ''))
+    expect(visible(html)).toContain('View, add to your calendar or cancel')
+    // The stored record keeps only the plain words, with the placeholder.
+    expect(rows().every((r) => !r.body.includes('<'))).toBe(true)
+  })
+
+  it('shows a sent email as the guest saw it, and samples before any guest', async () => {
+    const { serviceId, staffId, slug, owner } = await localStudio()
+    await book(slug, serviceId, staffId)
+    await api.outbox.tick()
+    const listed = (await outbox(owner)).json<{
+      messages: { id: string; channel: string }[]
+    }>().messages
+    const emailId = listed.find((m) => m.channel === 'email')!.id
+    const textId = listed.find((m) => m.channel === 'sms')!.id
+    const shown = await outbox(owner, `/${emailId}/email`)
+    expect(shown.statusCode, shown.body).toBe(200)
+    const { subject, html } = shown.json<{ subject: string; html: string }>()
+    expect(subject).toBe('Your visit to Linden Studio is booked')
+    expect(visible(html)).toContain('Restorative facial with Maya')
+    // No private link is made for a look: the button shows and goes nowhere.
+    expect(html).not.toContain('/manage#')
+    expect(visible(html)).toContain('View, add to your calendar or cancel')
+    expect((await outbox(owner, `/${textId}/email`)).statusCode).toBe(404)
+    expect((await outbox(owner, `/missing/email`)).statusCode).toBe(404)
+
+    const sample = await outbox(owner, '/sample?kind=confirmation')
+    expect(sample.statusCode, sample.body).toBe(200)
+    const confirmation = sample.json<{ subject: string; html: string }>()
+    expect(confirmation.subject).toBe('Your visit to Linden Studio is booked')
+    // Tomorrow at 10:00, with the studio's own treatment and professional, for a made-up guest.
+    expect(visible(confirmation.html)).toContain('Hello Alex,')
+    expect(visible(confirmation.html)).toContain('Restorative facial with Maya')
+    expect(visible(confirmation.html)).toContain('Wednesday 7 October at 10:00')
+    const birthday = (await outbox(owner, '/sample?kind=birthday')).json<{ html: string }>()
+    expect(birthday.html).toContain(`href="${origin}/book/${slug}"`)
+    expect((await outbox(owner, '/sample?kind=invoice')).statusCode).toBe(400)
+    // Nothing was written down or sent for a look.
+    expect(rows()).toHaveLength(2)
+
+    // Another studio's owner cannot see this studio's email.
+    const other = await api.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: {
+        name: 'Bea Owner',
+        email: 'bea@example.invalid',
+        password: 'Fictional local account 2026!',
+        workspace: { name: 'Elm Rooms', locationName: 'Leeds', region: 'UK', sample: false },
+      },
+    })
+    const bea = {
+      ...other.json<{ csrf: string; orgId: string }>(),
+      cookie: String(other.headers['set-cookie']).split(';')[0],
+    }
+    expect((await outbox(bea, `/${emailId}/email`)).statusCode).toBe(404)
+
+    // Maya, a practitioner here, sees her own day only: no guest's email, and no samples.
+    const invitation = await api.inject({
+      method: 'POST',
+      url: `/api/workspaces/${owner.orgId}/invitations`,
+      headers: headers(owner),
+      payload: { email: 'maya@example.invalid', role: 'practitioner', staffId },
+    })
+    expect(invitation.statusCode, invitation.body).toBe(201)
+    const joined = await api.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: {
+        name: 'Maya Lind',
+        email: 'maya@example.invalid',
+        password: 'Fictional local account 2026!',
+        invitation: invitation.json<{ invitation: string }>().invitation,
+      },
+    })
+    expect(joined.statusCode, joined.body).toBe(201)
+    const maya = {
+      csrf: joined.json<{ csrf: string }>().csrf,
+      orgId: owner.orgId,
+      cookie: String(joined.headers['set-cookie']).split(';')[0],
+    }
+    expect((await outbox(maya, `/${emailId}/email`)).statusCode).toBe(403)
+    expect((await outbox(maya, '/sample?kind=confirmation')).statusCode).toBe(403)
+  })
+})
+
 describe('message providers', () => {
   const message: OutgoingMessage = {
     id: 'out-1',
@@ -736,7 +863,27 @@ describe('message providers', () => {
       From: 'Linden Studio <hello@example.invalid>',
       To: 'guest@example.invalid',
       TextBody: 'Body',
+      MessageStream: 'outbound',
     })
+    expect(JSON.parse(String(calls[0][1].body))).not.toHaveProperty('HtmlBody')
+    // NEXT-13: the designed email goes with the plain words; news goes on the broadcast stream.
+    await provider.send({ ...message, html: '<p>Body</p>', stream: 'broadcast' })
+    expect(JSON.parse(String(calls[1][1].body))).toMatchObject({
+      TextBody: 'Body',
+      HtmlBody: '<p>Body</p>',
+      MessageStream: 'broadcast',
+    })
+    const own = postmarkProvider({
+      token: 't',
+      from: 'f@example.invalid',
+      broadcastStream: 'studio-news',
+      fetcher: async (url, init) => {
+        calls.push([String(url), init!])
+        return new Response(JSON.stringify({ ErrorCode: 0, MessageID: 'pm-2' }), { status: 200 })
+      },
+    })
+    await own.send({ ...message, stream: 'broadcast' })
+    expect(JSON.parse(String(calls[2][1].body)).MessageStream).toBe('studio-news')
     const refused = postmarkProvider({
       token: 't',
       from: 'f@example.invalid',

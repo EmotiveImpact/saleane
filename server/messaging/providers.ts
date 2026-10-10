@@ -18,6 +18,16 @@ export type OutgoingMessage = {
   fromName: string
   /** V4: the studio's Instagram account, Page or WhatsApp number an answer goes from. */
   account?: string
+  /**
+   * NEXT-13: email only. The designed email, made from `body`, which still goes with it as the
+   * plain-text part.
+   */
+  html?: string
+  /**
+   * NEXT-13: email only. `broadcast` for news and keeping in touch, which providers want kept
+   * apart from visit messages so one guest's complaint never holds up another's confirmation.
+   */
+  stream?: 'transactional' | 'broadcast'
 }
 export type SendResult =
   | { outcome: 'test' }
@@ -111,6 +121,8 @@ const isResult = (value: unknown): value is SendResult =>
 export function postmarkProvider(config: {
   token: string
   from: string
+  /** The Postmark message stream for news and keeping in touch. */
+  broadcastStream?: string
   fetcher?: Fetch
 }): MessageProvider {
   const fetcher = config.fetcher ?? fetch
@@ -131,7 +143,9 @@ export function postmarkProvider(config: {
           To: message.to,
           Subject: message.subject,
           TextBody: message.body,
-          MessageStream: 'outbound',
+          ...(message.html ? { HtmlBody: message.html } : {}),
+          MessageStream:
+            message.stream === 'broadcast' ? (config.broadcastStream ?? 'broadcast') : 'outbound',
           Metadata: { outbox: message.id },
         }),
       })
@@ -229,7 +243,8 @@ export function providersFromEnv(
   if (emailName === 'postmark') {
     const [token, from] = need('POSTMARK_SERVER_TOKEN', 'SALEANE_EMAIL_FROM')
     postmarkSecret = env.POSTMARK_WEBHOOK_SECRET?.trim() || undefined
-    email = postmarkProvider({ token, from, fetcher })
+    const broadcastStream = env.POSTMARK_BROADCAST_STREAM?.trim() || undefined
+    email = postmarkProvider({ token, from, broadcastStream, fetcher })
   } else if (emailName !== 'test') throw new Error(`Unknown email provider "${emailName}".`)
   const twilioCallback = `${origin.replace(/\/$/, '')}/api/hooks/twilio`
   if (smsName === 'twilio') {

@@ -681,7 +681,7 @@ export function composeClientMessage(s: BusinessState, client: Client, kind: Cli
 }
 
 /** Every message sent because a guest agreed to hear from the studio says why, and how to stop. */
-const STOP_LINE =
+export const STOP_LINE =
   'You are hearing this because you said we could keep in touch. To stop these, reply to this email or tell us at your next visit.'
 
 function firstName(name: string) {

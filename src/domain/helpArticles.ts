@@ -794,6 +794,7 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
       'Tick the messages you want: booking confirmations, reminders, the "how was your visit?" request, aftercare, due back, birthdays and "we miss you".',
       'Choose when the reminder goes, and whether by email or text.',
       'Choose Save message settings.',
+      'Under How your emails look, see each email as a guest sees it, in your studio colours.',
     ],
     note: 'Test mode: messages are written down here and nothing is sent until email and texts are connected.',
     to: '/settings?section=messages',
