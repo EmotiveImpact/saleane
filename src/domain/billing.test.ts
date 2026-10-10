@@ -7,6 +7,7 @@ import {
   monthBill,
   nextRetry,
   peopleChange,
+  treatmentChange,
   plusBill,
   readOnlyMessage,
   taxed,
@@ -138,6 +139,35 @@ describe('a bill', () => {
     expect(peopleChange(us, 1, { id: 'p5', serviceIds: [] })).toContain(
       'goes down by $12, plus any sales tax,',
     )
+  })
+  test('tells the owner when archiving or bringing back a treatment moves the bill', () => {
+    const s = seed('UK')
+    const facial = s.services.find((item) => !item.archived)!
+    const six = {
+      ...s,
+      staff: Array.from({ length: 6 }, (_, i) => ({
+        ...s.staff[0],
+        id: `p${i}`,
+        archived: false,
+        serviceIds: [facial.id],
+      })),
+    }
+    // Six people give only this treatment: archiving it leaves none taking bookings.
+    expect(treatmentChange(six, 1, { id: facial.id, archived: true })).toBe(
+      'Saving brings the people taking bookings to 0, so the monthly bill goes down by £9, plus VAT, from the next bill.',
+    )
+    const archived = {
+      ...six,
+      services: six.services.map((item) =>
+        item.id === facial.id ? { ...item, archived: true } : item,
+      ),
+    }
+    expect(treatmentChange(archived, 1, { id: facial.id, archived: false })).toBe(
+      'Saving makes 6 people taking bookings, and your location includes 5, so the monthly bill goes up by £9, plus VAT, from the next bill.',
+    )
+    // An unchanged treatment, or a new one no one gives yet, leaves the bill alone.
+    expect(treatmentChange(six, 1, { id: facial.id, archived: false })).toBe('')
+    expect(treatmentChange(six, 1, { archived: false })).toBe('')
   })
   test('rounds VAT to the penny', () => {
     expect(taxed('UK', [{ text: 'x', quantity: 1, unitMinor: 1, amountMinor: 1 }]).taxMinor).toBe(0)

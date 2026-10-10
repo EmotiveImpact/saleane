@@ -175,12 +175,38 @@ export function peopleChange(
   locations: number,
   person: Pick<Staff, 'serviceIds'> & { id?: string; archived?: boolean },
 ) {
-  const before = bookingPeople(s)
   const others = s.staff.filter((item) => item.id !== person.id)
-  const after = bookingPeople({
+  return billMoves(s, locations, {
     services: s.services,
     staff: [...others, { serviceIds: person.serviceIds, archived: person.archived ?? false }],
   })
+}
+
+/**
+ * The same for saving a treatment: archiving the only treatment some people give stops them
+ * counting, and bringing it back counts them again. A new treatment has no one giving it yet.
+ */
+export function treatmentChange(
+  s: Pick<BusinessState, 'staff' | 'services' | 'organisation'>,
+  locations: number,
+  service: { id?: string; archived?: boolean },
+) {
+  if (!service.id) return ''
+  return billMoves(s, locations, {
+    staff: s.staff,
+    services: s.services.map((item) =>
+      item.id === service.id ? { ...item, archived: service.archived ?? false } : item,
+    ),
+  })
+}
+
+function billMoves(
+  s: Pick<BusinessState, 'staff' | 'services' | 'organisation'>,
+  locations: number,
+  next: Parameters<typeof bookingPeople>[0],
+) {
+  const before = bookingPeople(s)
+  const after = bookingPeople(next)
   const change = extraPeople(after, locations) - extraPeople(before, locations)
   if (!change) return ''
   const region = s.organisation.region

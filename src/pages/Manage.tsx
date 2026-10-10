@@ -39,7 +39,7 @@ import { AffectedVisits, ScheduleHistory } from '../components/ScheduleImpact'
 import { StudioPrivacy } from '../components/Privacy'
 import { ChangeRecord } from '../components/ChangeRecord'
 import { PlanBilling } from '../components/PlanBilling'
-import { peopleChange } from '../domain/billing'
+import { peopleChange, treatmentChange } from '../domain/billing'
 import { BrandSection, PreferencesSection, WorkspaceSection } from '../components/SettingsSections'
 import { MessageSettings } from '../components/AppointmentMessages'
 import { EmailLook } from '../components/EmailPreview'
@@ -199,10 +199,17 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
   const hoursImpact = useMemo(() => previewImpact(state, { type: 'hours', hours }), [state, hours])
   const editorImpact = useMemo(() => previewImpact(state, draft), [state, draft])
   // The per-person price: only the owner, who sees the bill, is told a change moves it.
-  const billNote =
-    role === 'owner' && mode === 'server' && config.mode === 'local' && draft?.type === 'staff'
+  const billed = role === 'owner' && mode === 'server' && config.mode === 'local'
+  const billNote = !billed
+    ? ''
+    : draft?.type === 'staff'
       ? peopleChange(state, places(state).length, { ...draft.input, id: draft.id })
-      : ''
+      : draft?.type === 'service'
+        ? treatmentChange(state, places(state).length, {
+            id: draft.id,
+            archived: draft.input.archived,
+          })
+        : ''
   const locale = state.organisation.locale
   const service = state.services.find((item) => item.id === editor?.id)
   const person = state.staff.find((item) => item.id === editor?.id)
