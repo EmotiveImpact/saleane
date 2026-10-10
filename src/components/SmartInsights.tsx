@@ -10,6 +10,21 @@ import { dayHeadline, daySentence, weekdayName } from './insightWords'
 import { useSeeAll } from './seeAll'
 import { SeeAllButton } from './SeeAllButton'
 import './smart-insights.css'
+import { useClock } from '../state/clock'
+import { agreedEverywhere } from '../domain/dueBack'
+import { shownBody } from '../domain/cancelledTimes'
+import { quietInvitation } from '../domain/quietInvites'
+import { OfferNote } from './QuietOffers'
+import type { GapSuggestion } from '../domain/insights'
+
+/** The open time a gap suggestion names, as an invitation with a lower price takes it. */
+const quietTime = (offer: GapSuggestion) => ({
+  clientId: offer.clientId,
+  serviceId: offer.serviceId,
+  staffId: offer.staffId,
+  date: offer.date,
+  startMinutes: offer.startMinutes,
+})
 
 /**
  * V3 Smart insights on Today: a short brief, anything unusual, and clients drifting away with an
@@ -29,6 +44,12 @@ export function SmartInsights({ onBook }: { onBook: (defaults: BookingDefaults) 
   const drifters = drifting(state, today)
   const more = useSeeAll(drifters)
   const offers = gapSuggestions(state, today)
+  const clock = useClock()
+  // Stage 5: a lower price goes by email only, to a guest who agreed to hear from the studio.
+  const canQuote = (clientId: string) => {
+    const client = state.clients.find((c) => c.id === clientId)
+    return !!client?.email.trim() && agreedEverywhere(state, clientId)
+  }
 
   const headline = dayHeadline(
     brief,
@@ -77,6 +98,10 @@ export function SmartInsights({ onBook }: { onBook: (defaults: BookingDefaults) 
             {more.shown.map((d) => {
               const offer = offers.find((o) => o.clientId === d.clientId)
               const isSaved = saved.includes(d.clientId)
+              const quiet =
+                offer && drafting === d.clientId && canQuote(offer.clientId)
+                  ? quietInvitation(state, quietTime(offer), clock)
+                  : null
               return (
                 <li key={d.clientId}>
                   <span>
@@ -88,19 +113,36 @@ export function SmartInsights({ onBook }: { onBook: (defaults: BookingDefaults) 
                   </span>
                   {offer && offer.marketingConsent && drafting === d.clientId && (
                     <div className="insight-draft">
-                      <p>{gapInvitation(state, offer, today, (m) => timeLabel(m, locale)).body}</p>
+                      {quiet ? (
+                        <>
+                          <p className="quiet-invite-body">{shownBody(quiet.body)}</p>
+                          <OfferNote offer={quiet.offer} writtenAt={clock} />
+                        </>
+                      ) : (
+                        <p>
+                          {gapInvitation(state, offer, today, (m) => timeLabel(m, locale)).body}
+                        </p>
+                      )}
                       <div>
                         <Button
                           onClick={async () => {
                             setError('')
-                            const result = await commit({
-                              type: 'message',
-                              input: {
-                                clientId: offer.clientId,
-                                purpose: 'marketing',
-                                ...gapInvitation(state, offer, today, (m) => timeLabel(m, locale)),
-                              },
-                            })
+                            // Stage 5: with the owner's lower price for quiet times, the
+                            // invitation carries it and a private link to book it.
+                            const result = await commit(
+                              quiet
+                                ? { type: 'offer-invite', ...quietTime(offer) }
+                                : {
+                                    type: 'message',
+                                    input: {
+                                      clientId: offer.clientId,
+                                      purpose: 'marketing',
+                                      ...gapInvitation(state, offer, today, (m) =>
+                                        timeLabel(m, locale),
+                                      ),
+                                    },
+                                  },
+                            )
                             if (!result.ok) return setError(result.error)
                             setSaved((list) => [...list, d.clientId])
                             setDrafting(null)

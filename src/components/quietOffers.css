@@ -1,0 +1,53 @@
+/* Stage 5: a lower price for quiet times, in Settings and beside an invitation. */
+.quiet-offers fieldset label:not(.checkbox-label) {
+  display: grid;
+  gap: 7px;
+}
+.quiet-offer-kinds,
+.quiet-offer-services {
+  display: grid;
+  gap: var(--space-2);
+}
+.quiet-offer-kinds .checkbox-label,
+.quiet-offer-services .checkbox-label {
+  min-height: 44px;
+}
+.quiet-offer-left-out summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: var(--text-small);
+}
+.quiet-offer-services {
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line);
+}
+.quiet-offers .quiet-offer-example,
+.quiet-offers .quiet-offer-taken {
+  margin: 0;
+  max-width: 460px;
+  overflow-wrap: anywhere;
+}
+.offer-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-inner);
+  background: var(--sage-soft);
+  color: var(--ink);
+  font-size: var(--text-small);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.offer-note svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--action);
+}
+.quiet-invite-body {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}

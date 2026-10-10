@@ -5,7 +5,9 @@ import { useStore } from '../state/context'
 import { useClock } from '../state/clock'
 import { can, operations } from '../domain/operations'
 import { feedbackSince } from '../domain/feedback'
-import { wholeMoney } from '../domain/format'
+import { money, wholeMoney } from '../domain/format'
+import { offerPrices, offersTaken, quietOffer } from '../domain/quietOffers'
+import { OfferNote } from './QuietOffers'
 import { hasLocations, placeOf } from '../domain/locations'
 import {
   FREED_DAYS_AHEAD,
@@ -59,6 +61,8 @@ export function CancelledTimes() {
   const clock = useClock()
   const rows = useMemo(() => freedTimes(state, clock), [state, clock])
   const summary = useMemo(() => freedSummary(state, feedbackSince(state, 30)), [state])
+  // Stage 5: visits booked at a quiet-time price, and how far below their usual prices.
+  const taken = useMemo(() => offersTaken(state, feedbackSince(state, 30)), [state])
   const filledParts = [
     summary.invited ? times(summary.invited, 'one by someone invited', '# by someone invited') : '',
     summary.waitlist ? times(summary.waitlist, 'one from the waitlist', '# from the waitlist') : '',
@@ -83,6 +87,12 @@ export function CancelledTimes() {
           {summary.filled === 0
             ? 'none has been booked again yet.'
             : `${times(summary.filled, 'one was', '# were')} booked again${filledParts.length ? ` (${filledParts.join(' and ')})` : ''}, worth ${wholeMoney(summary.valueMinor, state.organisation)}.`}
+        </p>
+      )}
+      {taken.taken > 0 && (
+        <p className="freed-summary">
+          {times(taken.taken, 'One visit was', '# visits were')} booked at a quiet-time price in the
+          last 30 days, {money(taken.givenMinor, state.organisation)} below the usual prices.
         </p>
       )}
       {rows.length ? (
@@ -137,6 +147,8 @@ function FreedTimeCard({
   const where = hasLocations(state) ? ` at ${placeOf(state, time.locationId)?.name}` : ''
   const name = (id: string) => state.clients.find((c) => c.id === id)?.name ?? 'A guest'
   const when = freedWhen(state, time)
+  // Stage 5: the lower price invitations written now would carry, from the owner's setting.
+  const lower = useMemo(() => quietOffer(state, time, clock), [state, time, clock])
   // An offer already written to someone waiting, for just this time.
   const offerFor = (entry: WaitlistEntry) =>
     entry.offers
@@ -245,6 +257,7 @@ function FreedTimeCard({
                       ? `approved ${ago(clock, m.approvedAt)}, no reply yet`
                       : stateWords[now]}
                     {now === 'draft' && m.actor === WRITTEN_BY_SALEANE && ', written by SALEANE'}
+                    {m.offer && `, at a quiet-time price of ${offerPrices(state, m.offer)}`}
                   </li>
                 )
               })}
@@ -284,6 +297,9 @@ function FreedTimeCard({
             Nobody who agreed to hear from you fits this time.
             {operations(state).bookingEnabled && ' It stays open to book online.'}
           </p>
+        )}
+        {allowed && suggestions.length > 0 && lower && (
+          <OfferNote offer={lower} writtenAt={clock} />
         )}
         <ErrorMessage error={error} />
         {allowed && suggestions.length > 0 && (

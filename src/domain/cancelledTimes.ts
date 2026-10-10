@@ -2,7 +2,7 @@ import type { Command } from './commandSchema'
 import type { Appointment, BusinessState, Client, RelationshipEvent } from './model'
 import { availableAllocation } from './allocation'
 import { addDays, dateLabel, timeLabel } from './format'
-import { DEMO_MINUTES, businessDate, instantFor, operations } from './operations'
+import { businessDate, instantFor, operations } from './operations'
 import { hasLocations, placeOf } from './locations'
 import { agreedEverywhere, dueBackOn, returnWeeksFor, DEFAULT_RETURN_DAYS } from './dueBack'
 import { isWaitlistOffer, openingFree, staleOffer, timeOfDay, waiting } from './waitlist'
@@ -10,6 +10,9 @@ import type { WaitlistEntry } from './waitlistSchema'
 import { patchTestStanding, serviceNeedsPatchTest } from './patchTests'
 import { repliesList } from './inbox'
 import { BOOK_LINK, defaultReminderSettings } from './reminderSettings'
+import { OFFER_LINK } from './quietOffersSchema'
+import { minutesUntil, offerParagraph, offerPrices, offerStale, quietOffer } from './quietOffers'
+export { minutesUntil } from './quietOffers'
 
 /**
  * NEXT-11: filling a cancelled time, the second half of "from cancellation to filled slot". A
@@ -77,25 +80,6 @@ export const timeKey = (t: Pick<InvitationTime, 'date' | 'startMinutes' | 'staff
 export function cancelledOn(s: BusinessState, appointmentId: string) {
   return s.events.filter((e) => e.appointmentId === appointmentId && e.type === 'cancelled').at(-1)
     ?.occurredAt
-}
-
-/**
- * Minutes from now until a time on the studio's clock. A sample studio's clock stands still at
- * 10:45 on its sample day, as its diary does.
- */
-export function minutesUntil(s: BusinessState, date: string, start: number, now: string) {
-  if (operations(s).mode === 'sandbox') {
-    const days = Math.round(
-      (Date.parse(`${date}T12:00:00Z`) - Date.parse(`${businessDate(s, now)}T12:00:00Z`)) /
-        86_400_000,
-    )
-    return days * 1440 + start - DEMO_MINUTES
-  }
-  try {
-    return Math.floor((Date.parse(instantFor(s, date, start)) - Date.parse(now)) / 60000)
-  } catch {
-    return -1
-  }
 }
 
 /** Whether the treatment can still be booked at this time with this professional, as it is now. */
@@ -391,8 +375,15 @@ export function suggestionsFor(
     }))
 }
 
-/** The booking line of an invitation: the studio's page with this time already chosen. */
-function bookingLine(s: BusinessState, time: FreedTime) {
+/**
+ * The booking line of an invitation: the studio's page with this time already chosen. With a lower
+ * price, the private offer token follows the link; the outbox fills it in as the email goes.
+ */
+export function bookingLine(
+  s: BusinessState,
+  time: Pick<FreedTime, 'serviceId' | 'staffId' | 'date' | 'startMinutes' | 'locationId'>,
+  offer = false,
+) {
   if (!operations(s).bookingEnabled) return 'If you would like it, reply to this email or call us.'
   const params = new URLSearchParams({
     service: time.serviceId,
@@ -401,7 +392,7 @@ function bookingLine(s: BusinessState, time: FreedTime) {
     start: String(time.startMinutes),
   })
   if (hasLocations(s)) params.set('location', time.locationId)
-  return `If you would like it, book it here: ${BOOK_LINK}?${params}`
+  return `If you would like it, book it here: ${BOOK_LINK}?${params}${offer ? OFFER_LINK : ''}`
 }
 
 /** How a time is named in invitations and on screen: "Saturday 10 October at 10:00". */
@@ -425,6 +416,8 @@ function draft(
   const person = next.staff.find((p) => p.id === time.staffId)!
   const where = hasLocations(next) ? ` at ${placeOf(next, time.locationId)?.name}` : ''
   const when = freedWhen(next, time)
+  // Stage 5: the lower price the owner's setting gives this time, fixed now for every invitation.
+  const offer = quietOffer(next, time, now)
   next.operations = structuredClone(operations(next))
   const opening: InvitationTime = {
     date: time.date,
@@ -440,13 +433,14 @@ function draft(
       clientId: client.id,
       purpose: 'marketing',
       channel: 'email',
-      subject: `A time has opened at ${org.name}`,
+      subject: `A time has opened at ${org.name}${offer ? ', at a lower price' : ''}`,
       body: [
         `Hello ${firstName(client.name)},`,
         '',
         `A time has just opened for ${service.name} with ${firstName(person.name)}${where} on ${when}, and we thought of you.`,
         '',
-        `${bookingLine(next, time)} It is not held for you, so the first to book it gets it.`,
+        ...(offer ? [offerParagraph(next, offer, now), ''] : []),
+        `${bookingLine(next, time, !!offer)} It is not held for you, so the first to book it gets it.`,
         '',
         'You are hearing this because you said we could keep in touch. To stop these, reply to this email or tell us at your next visit.',
         '',
@@ -456,6 +450,7 @@ function draft(
       createdAt: now,
       actor,
       opening,
+      ...(offer ? { offer } : {}),
     }
     next.operations.messages.push(message)
     ids.push(message.id)
@@ -463,7 +458,7 @@ function draft(
       clientId: client.id,
       type: 'message',
       title: actor === WRITTEN_BY_SALEANE ? 'Invitation written by SALEANE' : 'Invitation written',
-      detail: `${service.name} with ${person.name}${where}, ${when}, a time freed by a cancellation. Waiting in the Inbox for approval; delivery is unconfigured.`,
+      detail: `${service.name} with ${person.name}${where}, ${when}, a time freed by a cancellation${offer ? `, at a quiet-time price of ${offerPrices(next, offer)}` : ''}. Waiting in the Inbox for approval; delivery is unconfigured.`,
     })
   }
   return ids[0]
@@ -641,9 +636,16 @@ export function freedSummary(s: BusinessState, since: string) {
   }
 }
 
-/** Why a waitlist offer or an invitation can no longer be approved, or null while it still can. */
+/**
+ * Why a waitlist offer or an invitation can no longer be approved, or null while it still can. An
+ * invitation with a lower price goes stale too once the price has ended or the usual price changed.
+ */
 export function draftStale(s: BusinessState, messageId: string, now: string) {
-  return staleOffer(s, messageId, now) ?? staleInvitation(s, messageId, now)
+  return (
+    staleOffer(s, messageId, now) ??
+    staleInvitation(s, messageId, now) ??
+    offerStale(s, messageId, now)
+  )
 }
 
 /** Whether a draft names a time, so its wording is not changed by hand. */
@@ -657,6 +659,10 @@ export function namesATime(s: BusinessState, messageId: string) {
  */
 export function shownBody(body: string) {
   return body.replace(/\{\{book_link\}\}(\?\S+)?/g, (_, time?: string) =>
-    time ? '[a link to book this time]' : '[a link to your booking page]',
+    !time
+      ? '[a link to your booking page]'
+      : time.includes(OFFER_LINK)
+        ? '[a private link to book this time at its lower price]'
+        : '[a link to book this time]',
   )
 }

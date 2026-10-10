@@ -3,6 +3,7 @@ import { operations } from './operations'
 import { placeOf, places } from './locations'
 import { fullDateLabel, money } from './format'
 import { recordDay } from './tillCount'
+import { bookedOfferLine } from './quietOffers'
 
 /**
  * Stage 2: one receipt, whatever was sold. Built by a pure function from a visit's receipt, a
@@ -274,9 +275,12 @@ function visitReceipt(s: BusinessState, ref: ReceiptRef): Receipt | null {
       : {}),
     totalMinor: sale.totalMinor,
   }
+  // Stage 5: a visit booked at a quiet-time price says so under the treatment, with the usual price.
+  const offer = bookedOfferLine(s, a)
   r.lines.push({
     label: a.bookedServiceName ?? s.services.find((x) => x.id === a.serviceId)?.name ?? 'Treatment',
     amountMinor: sale.serviceMinor,
+    ...(offer ? { detail: offer } : {}),
   })
   const plan = sale.holdingId ? (s.holdings ?? []).find((h) => h.id === sale.holdingId) : undefined
   if (sale.discountMinor) {

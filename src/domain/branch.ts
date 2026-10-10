@@ -7,6 +7,7 @@ import { withoutPayRates } from './pay'
 import { shifts, shiftsAt } from './hours'
 import { roomRefusal, rotaDayRefusal, teamChangeRefusal, teamView, timeOffRefusal } from './team'
 import { newsAt, newsMessage, newsOnlyAt } from './news'
+import { offerPlace } from './quietOffers'
 
 /**
  * V5: a general manager runs one location ('general', with the location in their access). They
@@ -92,8 +93,15 @@ export function branchRefusal(
         : null
     case 'message-queue': {
       const message = operations(s).messages.find((m) => m.id === command.messageId)
-      return message?.appointmentId && !visitHere(message.appointmentId) ? ELSEWHERE : null
+      if (message?.appointmentId && !visitHere(message.appointmentId)) return ELSEWHERE
+      // Stage 5: an invitation to a time, and any lower price with it, at their own location only.
+      return message?.opening && offerPlace(s, message.opening) !== locationId
+        ? 'That invitation is for a time at another location.'
+        : null
     }
+    case 'offer-invite':
+      // Stage 5: an invitation to a quiet time at their own location.
+      return offerPlace(s, command) === locationId ? null : 'That time is at another location.'
     case 'waitlist-add':
       return mine(command.input.locationId ?? locationId)
         ? null

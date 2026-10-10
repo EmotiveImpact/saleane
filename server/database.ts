@@ -815,9 +815,25 @@ export const migrations: Migration[] = [
       `,
       ),
   },
-  // Version 34 belongs to another Stage 5 part, built alongside this one. Until both are merged
-  // this list skips it: the runner applies whatever follows the last applied step, and the checks
-  // that read this list compare against it rather than assume the numbers run without a gap.
+  {
+    version: 34,
+    // Stage 5, a lower price for a quiet time: the private link in an invitation that carries
+    // one is kept only as a hash, for one invitation, runs out with its offer, can be revoked,
+    // and is used once. Only one link for each invitation can ever be used, so a lower price is
+    // booked once at most however many copies went out.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE offer_links (
+          token_hash TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          message_id TEXT NOT NULL, outbox_id TEXT NOT NULL,
+          created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL CHECK(expires_at>created_at),
+          used_at INTEGER, appointment_id TEXT, revoked_at INTEGER,
+          CHECK((used_at IS NULL)=(appointment_id IS NULL))
+        ) STRICT;
+        CREATE INDEX offer_links_message ON offer_links(organisation_id,message_id);
+        CREATE UNIQUE INDEX offer_links_used_once ON offer_links(organisation_id,message_id) WHERE used_at IS NOT NULL;
+      `),
+  },
   {
     version: 35,
     // Stage 5, other software sending things in: each write through an access key carries an

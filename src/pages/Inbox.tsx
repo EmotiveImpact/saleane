@@ -29,6 +29,7 @@ import { SentMessages } from '../components/AppointmentMessages'
 import { kindLabel, useSentMessages } from '../components/sentMessages'
 import { useClock } from '../state/clock'
 import { InboxReply } from '../components/InboxReply'
+import { OfferNote } from '../components/QuietOffers'
 import type { ReplyDraft } from '../components/InboxReply'
 import '../components/management.css'
 
@@ -450,6 +451,13 @@ export function Inbox() {
                 </small>
                 {message.channel !== 'sms' && <strong>{message.subject}</strong>}
                 <p>{shownBody(message.body)}</p>
+                {message.offer && (
+                  <OfferNote
+                    offer={message.offer}
+                    writtenAt={message.createdAt}
+                    booked={state.appointments.some((a) => a.bookedOffer?.messageId === message.id)}
+                  />
+                )}
                 {item.delivery?.detail && <p className="subtle">{item.delivery.detail}</p>}
                 {message.status === 'draft' && (
                   <div className="inbox-bubble-actions">
