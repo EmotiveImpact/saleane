@@ -13,6 +13,7 @@ import { lookSchema } from './brandRulesSchema'
 import { isOpen } from './waitlist'
 import { feedbackForVisit, feedbackOpen } from './feedback'
 import { guestPlanSchema, guestPlans } from './guestPlans'
+import { bookedAhead, guestUsual } from './usual'
 
 /**
  * LOCAL-02: what a guest holding a private manage link may see and do.
@@ -20,7 +21,9 @@ import { guestPlanSchema, guestPlans } from './guestPlans'
  * Read: their one visit (service, professional's first name, time, status) and the deposit
  * already recorded against it, the studio's address, phone and email, and its "before you arrive"
  * notes, and the packages and memberships they hold (what is left, not what was paid). None of the
- * guest's own contact details, no client notes, history or other visits.
+ * guest's own contact details, no client notes, history or other visits. After a completed visit,
+ * a link to book their usual (Stage 5) carries only its treatment, first name, day and location:
+ * nothing about the visits it was worked out from.
  * Write: cancel that visit while it is still upcoming. A paid deposit is flagged for refund when
  * the guest cancels at least GUEST_CANCEL_CUTOFF_HOURS before the start, and retained after that.
  * Nothing is refunded automatically; the studio records any refund in Money.
@@ -228,6 +231,23 @@ export const guestViewSchema = z
       .strict()
       .optional(),
     /**
+     * Stage 5: "Book your usual", after a completed visit while the link is open and nothing else
+     * is booked: the booking page with their usual treatment, professional, next usual day and
+     * location already chosen (usual.ts). Only the link and the words for it, never their visits.
+     */
+    usual: z
+      .object({
+        path: z.string().max(400),
+        serviceName: z.string().max(200),
+        /** The professional's first name, as the visit names them. */
+        professional: z.string().max(100).optional(),
+        date: z.iso.date(),
+        /** With several locations, where. */
+        location: z.string().max(200).optional(),
+      })
+      .strict()
+      .optional(),
+    /**
      * Stage 1: the packages and memberships this guest holds that are active or waiting for this
      * month's payment, and what each can mean for this visit (see guestPlans.ts). Absent when
      * they hold none.
@@ -355,6 +375,8 @@ export function guestView(
   const email = place.email ?? s.organisation.email
   // Only this visit's client's own plans, never another client's.
   const plans = guestPlans(s, a.id, now)
+  const usual =
+    a.status === 'completed' && studio.slug ? usualLink(s, a.clientId, today, studio.slug) : null
   return guestViewSchema.parse({
     organisation: {
       name: s.organisation.name,
@@ -407,6 +429,7 @@ export function guestView(
           },
         }
       : {}),
+    ...(usual ? { usual } : {}),
     ...((a.status === 'confirmed' || a.status === 'arrived') &&
     a.date === businessDate(s, new Date(now).toISOString())
       ? {
@@ -453,4 +476,30 @@ export function guestView(
         }
       : {}),
   })
+}
+
+/**
+ * Stage 5: the booking page with the guest's usual chosen, or null. Offered only while the studio
+ * takes bookings online, when they have a clear usual a guest can book online (no patch test first,
+ * on the menu where someone does it) and nothing is booked ahead under any of their records. The
+ * page opens on its times for that day, with nothing held or chosen until the guest picks a time.
+ */
+function usualLink(s: BusinessState, clientId: string, today: string, slug: string) {
+  if (!operations(s).bookingEnabled) return null
+  const usual = guestUsual(s, clientId, today)
+  if (usual.none || !usual.treatment || usual.onlineStop || !usual.nextDate) return null
+  if (bookedAhead(s, usual.clientIds, today)) return null
+  const query = new URLSearchParams({
+    service: usual.treatment.serviceId,
+    staff: usual.professional?.staffId ?? 'any',
+    date: usual.nextDate,
+  })
+  if (usual.location) query.set('location', usual.location.locationId)
+  return {
+    path: `/book/${encodeURIComponent(slug)}?${query}`,
+    serviceName: usual.treatment.name,
+    ...(usual.professional ? { professional: usual.professional.name.split(' ')[0] } : {}),
+    date: usual.nextDate,
+    ...(usual.location ? { location: usual.location.name } : {}),
+  }
 }

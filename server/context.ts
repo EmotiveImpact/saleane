@@ -11,6 +11,8 @@ import type { Providers } from './messaging/providers'
 import { providersFromEnv } from './messaging/providers'
 import type { PaymentProvider } from './payments/providers'
 import { paymentProviderFromEnv } from './payments/providers'
+import { aiFromEnv } from './ai'
+import type { AiSupplier } from './ai'
 import { parseState } from '../src/domain/model'
 import type { BusinessState } from '../src/domain/model'
 import type { ConnectionTransport } from './connections'
@@ -133,6 +135,12 @@ export type ApiOptions = {
   providers?: Providers
   /** Runs the message outbox on this interval. Omitted leaves it to be run by hand (tests). */
   outboxIntervalMs?: number
+  /**
+   * NEXT-12: how long after starting SALEANE tries again the guests' messages a restart left
+   * unanswered and the allowance then refused. Omitted is once the stopped requests' holds have
+   * run out.
+   */
+  missedAgainMs?: number
   /** Card payments. Omitted reads SALEANE_PAYMENTS_PROVIDER; unset is test mode, charging nothing. */
   paymentProvider?: PaymentProvider
   /** NEXT-02: SALEANE's own card account for studios' plans. Omitted reads SALEANE_BILLING_PROVIDER. */
@@ -152,6 +160,8 @@ export type ApiOptions = {
     network?: import('./till/printers').PrinterTransport
     test?: import('./till/printers').PrinterTransport
   }
+  /** NEXT-12: the AI that answers. Omitted reads SALEANE_AI_PROVIDER; unset is test mode. */
+  ai?: AiSupplier
 }
 
 /** Shared request authority: database, clock, sessions, tenant lookup, holds and audit. */
@@ -174,6 +184,7 @@ export function createContext(options: ApiOptions) {
   const messaging = options.providers ?? providersFromEnv(process.env, allowedOrigin)
   const paymentProvider =
     options.paymentProvider ?? paymentProviderFromEnv(process.env, allowedOrigin)
+  const ai = options.ai ?? aiFromEnv(process.env)
   const rates = new Map<string, { count: number; expires: number }>()
   const address = (request: IncomingMessage) => request.socket?.remoteAddress ?? 'local'
   // Holds last minutes, so a per-process salt keeps stored visitor keys from revealing addresses.
@@ -562,6 +573,7 @@ export function createContext(options: ApiOptions) {
     turnstile,
     messaging,
     paymentProvider,
+    ai,
     actorFor,
     signIn,
     memberships,

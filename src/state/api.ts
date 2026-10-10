@@ -77,7 +77,13 @@ function report(error: ApiError) {
 }
 export async function api<T>(
   path: string,
-  options: { method?: string; body?: unknown; key?: string } = {},
+  options: {
+    method?: string
+    body?: unknown
+    key?: string
+    /** How long to wait for the answer. A real AI's answer may take longer than a save. */
+    timeoutMs?: number
+  } = {},
 ): Promise<T> {
   let response: Response
   try {
@@ -90,7 +96,7 @@ export async function api<T>(
         ...(options.key ? { 'Idempotency-Key': options.key } : {}),
       },
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(options.timeoutMs ?? 15000),
     })
   } catch {
     throw report(
