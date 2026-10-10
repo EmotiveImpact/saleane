@@ -6,8 +6,14 @@ import { parseState } from '../domain/model'
 import { businessDate } from '../domain/operations'
 import { StoreContext } from './context'
 import { commitWorkspace, loadBrowserWorkspace, resetWorkspace } from './storage'
-import { api, ApiError, onUnreachable, setCsrf, unreachable } from './api'
-import type { AreaWorkspace, PractitionerWorkspace, RemoteWorkspace, Session } from './api'
+import { api, ApiError, onTwoStepHold, onUnreachable, setCsrf, unreachable } from './api'
+import type {
+  AreaWorkspace,
+  PractitionerWorkspace,
+  RemoteWorkspace,
+  Session,
+  TwoStepHold,
+} from './api'
 import { readPendingKeys, requestFingerprint, writePendingKeys } from './journal'
 import { daySheetSchema } from '../domain/daySheet'
 import { clearDaySheet, readDaySheet, storeDaySheet } from './daySheet'
@@ -63,8 +69,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [demoChosen, setDemoChosen] = useState(false)
   // Someone signed in on this browser before, but the session could not be checked at start.
   const [unsure, setUnsure] = useState(false)
+  // Stage 6: a studio holding this person until they set up two-step sign-in.
+  const [hold, setHold] = useState<TwoStepHold | null>(null)
+  useEffect(
+    () =>
+      onTwoStepHold((next) => {
+        setHold(next)
+        // The studio's saved day sheet leaves this tab too: nothing of it shows until it opens.
+        if (scope.current === next.workspaceId) forgetRef.current(next.workspaceId)
+      }),
+    [],
+  )
   function adopt(next: Session | null) {
     if (next?.user.id !== sessionRef.current?.user.id) setDemoChosen(false)
+    // A hold belongs to the person signed in; signing out or another person forgets it.
+    if (!next || next.user.id !== sessionRef.current?.user.id) setHold(null)
     sessionRef.current = next
     setSession(next)
     setUnsure(false)
@@ -408,6 +427,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         syncDaySheet,
         forgetDaySheet: () => forgetSheet(scope.current),
         reconnect,
+        hold,
+        releaseHold: () => setHold(null),
         async reload() {
           if (connectionRef.current !== 'online') await reconnect()
           else if (activeId.current) await openWorkspace(activeId.current, 'background', true)

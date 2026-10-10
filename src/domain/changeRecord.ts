@@ -197,6 +197,8 @@ const commandWords: Record<Command['type'], Words> = {
   // Stage 6: records at the end of their keeping period.
   'retention-delete': ['clients', 'Approved deleting records at the end of their keeping period'],
   'retention-keep': ['clients', 'Kept records past the end of their keeping period'],
+  // Stage 6: asking everyone in the studio to use two-step sign-in.
+  'two-step-rule': ['access', 'Changed whether everyone must use two-step sign-in'],
 }
 
 /** Changes the server makes or records itself. */
@@ -414,6 +416,8 @@ const settingsOf: Partial<Record<string, (s: BusinessState) => unknown>> = {
   'group-checks': (s) => s.operations?.groupChecks,
   // Stage 5: the first change reads against the setting as it stood, off.
   'quiet-offers': (s) => s.operations?.quietOffers ?? defaultQuietOffers,
+  // Stage 6: the first change reads against the setting as it stood, off.
+  'two-step-rule': (s) => s.operations?.twoStep ?? { forEveryone: false },
 }
 
 function compare(
@@ -634,6 +638,7 @@ const fieldWords: Record<string, string> = {
   records: 'records',
   count: 'how many',
   keptUntil: 'kept until',
+  forEveryone: 'two-step sign-in for everyone',
 }
 /** A detail's name in words: "cutoffHours" reads "cutoff hours". */
 export function fieldName(field: string) {

@@ -101,8 +101,13 @@ export async function imageRoutes(ctx: Context, route: Route): Promise<boolean> 
     )
     if (!member) fail(404, 'That studio was not found.')
     if (!studioRole(member!.role)) fail(403, 'Product photos are for the studio team.')
-    // A general manager whose location has closed is refused, as on every other route.
-    if (member!.role === 'general') orgFor(orgId, actor)
+    // A general manager whose location has closed is refused, as on every other route. Stage 6:
+    // so is anyone a studio asking everyone for two-step sign-in is holding until they set it up.
+    const everyone = db.get<{ asked: number | null }>(
+      "SELECT json_extract(state,'$.operations.twoStep.forEveryone') AS asked FROM organisations WHERE id=?",
+      orgId,
+    )?.asked
+    if (member!.role === 'general' || everyone === 1) orgFor(orgId, actor)
     const imageId = path[4]
     const image = ID.test(imageId)
       ? db.get<{ content_type: string; bytes: Uint8Array }>(

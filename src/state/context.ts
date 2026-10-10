@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react'
 import type { BusinessState, Region } from '../domain/model'
 import type { Command, CommandResult } from '../domain/commands'
-import type { Session, WorkspaceAccess } from './api'
+import type { Session, TwoStepHold, WorkspaceAccess } from './api'
 import type { SavedDaySheet } from './daySheet'
 import type { BillingSummary } from '../domain/billing'
 
@@ -46,6 +46,13 @@ export type Store = {
   /** Removes the sheet from memory and this tab at the reader's request (a shared device). */
   forgetDaySheet: () => void
   reconnect: () => Promise<void>
+  /**
+   * Stage 6: a studio that asks everyone to use two-step sign-in has refused this person until they
+   * set it up. The app shows "Protect your account" in place of every studio page meanwhile.
+   */
+  hold?: TwoStepHold | null
+  /** Forgets the hold, once two-step sign-in is set up or they choose another studio. */
+  releaseHold?: () => void
 }
 export const StoreContext = createContext<Store | null>(null)
 export function useStore() {

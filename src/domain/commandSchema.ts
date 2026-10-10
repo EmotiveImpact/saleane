@@ -13,6 +13,7 @@ import { commissionCommandSchemas } from './commissionSchema'
 import { approvalCommandSchemas } from './approvalsSchema'
 import { brandCommandSchemas } from './brandRulesSchema'
 import { tillCommandSchemas } from './tillSchema'
+import { twoStepRuleCommandSchemas } from './twoStepRule'
 import { googleBookingSchema, receptionistSettingsSchema } from './receptionistSchema'
 import { aiBookingSchema } from './aiBookingSchema'
 import { missedCallSources } from './missedCallsSchema'
@@ -805,6 +806,8 @@ export const commandSchema = z.discriminatedUnion('type', [
   ...quietOfferCommandSchemas,
   // Stage 6: approving deletion, or keeping longer, records at the end of their keeping period.
   ...retentionCommandSchemas,
+  // Stage 6: the owner asks everyone to use two-step sign-in.
+  ...twoStepRuleCommandSchemas,
   ...operatingCommandSchema.options,
 ])
 export type BookingInput = z.infer<typeof bookingSchema>

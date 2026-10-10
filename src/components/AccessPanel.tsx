@@ -7,6 +7,7 @@ import { regions } from '../domain/group'
 import { areaPlaces } from '../domain/area'
 import { hasLocations, places } from '../domain/locations'
 import { TwoStepSettings } from './TwoStepSettings'
+import { TwoStepForEveryone } from './TwoStepForEveryone'
 import './accessPanel.css'
 
 type Team = {
@@ -135,7 +136,8 @@ export function AccessPanel() {
                   <strong>{m.name}</strong>
                   <small>
                     {m.email}
-                    {m.twoStep ? ' · Two-step sign-in on' : ''}
+                    {/* Stage 6: who has it on and who has not yet, never their key or codes. */}
+                    {m.twoStep ? ' · Two-step sign-in on' : ' · No two-step sign-in yet'}
                   </small>
                 </span>
                 {m.role === 'owner' ? (
@@ -434,6 +436,7 @@ export function AccessPanel() {
               .catch(() => {})
         }}
       />
+      {role === 'owner' && <TwoStepForEveryone members={team?.members} />}
       <ErrorMessage error={error} />
     </section>
   )

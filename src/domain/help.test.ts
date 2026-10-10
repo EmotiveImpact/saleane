@@ -240,6 +240,16 @@ describe('help inside the app', () => {
     expect(ids(searchHelp('two records same email', 'practitioner'))).not.toContain(
       'inbox-one-guest',
     )
+    // Stage 6: two-step sign-in for everyone with an account, and the owner's switch.
+    expect(first('two factor', 'practitioner')).toBe('two-step')
+    expect(first('authenticator app', 'regional')).toBe('two-step')
+    expect(first('recovery codes', 'reception')).toBe('two-step')
+    expect(first('require two factor for everyone')).toBe('two-step-everyone')
+    expect(first('make the whole team use 2fa')).toBe('two-step-everyone')
+    expect(ids(searchHelp('require two factor for everyone', 'manager'))).not.toContain(
+      'two-step-everyone',
+    )
+    expect(ids(helpForScreen('/account', '', 'practitioner'))).toContain('two-step')
     // Stage 5: booking on Google, with its new way to change the time.
     expect(first('book on google maps')).toBe('google-booking')
     expect(first('reserve with google')).toBe('google-booking')

@@ -77,6 +77,7 @@ import {
 import { offerInviteUnchanged, offerToBook, runOfferInvite } from './quietInvites'
 import { runRetentionCommand, stampRetentionActors } from './retentionDue'
 import { offerPrices } from './quietOffers'
+import { twoStepForEveryone } from './twoStepRule'
 
 export type CommandResult =
   { ok: true; state: BusinessState; recordId: string } | { ok: false; error: string }
@@ -884,6 +885,12 @@ export function execute(
     } else if (command.type === 'retention-delete' || command.type === 'retention-keep') {
       // Stage 6: only records due on the studio's own day, each decided once.
       recordId = runRetentionCommand(s, next, command, businessDate(s, now), now, makeId)
+    } else if (command.type === 'two-step-rule') {
+      // Stage 6: asking again for what is already set changes nothing.
+      if (twoStepForEveryone(s) === command.forEveryone)
+        return { ok: true, state: s, recordId: org.id }
+      next.operations = { ...operations(next), twoStep: { forEveryone: command.forEveryone } }
+      recordId = org.id
     } else if (command.type === 'guest-here') {
       const appointment = next.appointments.find((a) => a.id === command.appointmentId)
       if (!appointment) throw new Error('Visit does not belong to this studio.')

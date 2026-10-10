@@ -26,6 +26,7 @@ import { NEWS_LIMIT, newsMessageSchema } from './newsSchema'
 import { messageOfferSchema, quietOfferSettingsSchema } from './quietOffersSchema'
 import { retentionRecordSchema } from './retentionSchema'
 import { canApproveDeletion } from './dataRetention'
+import { twoStepRuleSchema } from './twoStepRule'
 import type { RotaChange } from './rotaSchema'
 import { STAFF_MOVE_LIMIT, staffMoveSchema } from './staffMovesSchema'
 import type { StaffMove } from './staffMovesSchema'
@@ -452,6 +453,8 @@ export const operationsSchema = z.object({
   quietOffers: quietOfferSettingsSchema.optional(),
   /** Stage 6: records kept past their keeping period, and each decision made about them. */
   retention: retentionRecordSchema.optional(),
+  /** Stage 6: whether the owner asks everyone to use two-step sign-in. Absent means no. */
+  twoStep: twoStepRuleSchema.optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 /**
@@ -842,6 +845,8 @@ export function can(role: Role, action: string) {
       'quiet-offers',
       // The setup screens include the studio's details and tax, which only the owner sets.
       'setup-step',
+      // Stage 6: asking everyone to use two-step sign-in is the owner's choice.
+      'two-step-rule',
     ].includes(action)
   )
     return false

@@ -11,9 +11,11 @@ import { BrandsTogether } from '../components/BrandsTogether'
 import { HelpButton } from '../components/HelpButton'
 import { InvitationSummary } from '../components/InvitationSummary'
 import { TwoStepCode } from '../components/TwoStepCode'
+import { TwoStepSettings } from '../components/TwoStepSettings'
 import type { InvitationPreview } from '../components/InvitationSummary'
 import { TeamWelcome } from './TeamWelcome'
 import '../account.css'
+import '../components/accessPanel.css'
 
 /** What the server says after it is asked for a password or confirmation link. */
 type LinkAnswer = { emailConnected: boolean; linkInLog: boolean }
@@ -210,6 +212,7 @@ export function Account() {
         role={studio?.role ?? invited?.role ?? 'reception'}
         place={invited?.location ?? invited?.region}
         name={joined.current?.user.name ?? ''}
+        required={!!studio?.twoStepRequired}
         pending={pending}
         error={error}
         onOpen={() => void enter(joined.id, joined.current)}
@@ -287,6 +290,9 @@ export function Account() {
                         (w.role === 'owner'
                           ? ' · Locked until you pay its SALEANE bill'
                           : ' · Locked until the owner pays its SALEANE bill')}
+                      {w.twoStepRequired &&
+                        !store.session?.user.twoStep &&
+                        ' · Asks you to set up two-step sign-in first'}
                     </small>
                   </span>
                   <ArrowRight size={19} />
@@ -300,6 +306,10 @@ export function Account() {
             {!store.session.workspaces.length && (
               <p>You do not have an active studio membership.</p>
             )}
+            {/* Stage 6: everyone protects their own sign-in here, whatever their role. */}
+            <div className="account-sign-in">
+              <TwoStepSettings />
+            </div>
             {invitation && invited && <InvitationSummary invitation={invited} />}
             {invitation && <ErrorMessage error={inviteProblem} />}
             {invitation && otherEmail && (
