@@ -26,6 +26,13 @@ import {
 import { formAnswersSchema, formContentSchema, formSettingsSchema } from './formsSchema'
 import { feedbackInputSchema } from './feedback'
 import {
+  OPENING_NEW_TEAM_LIMIT,
+  OPENING_ROOM_LIMIT,
+  SETUP_CHANGE_LIMIT,
+  SETUP_CHANGE_TYPES,
+  SETUP_PLACES,
+} from './setupSchema'
+import {
   GUEST_NOTE_LIMIT,
   bookingChannels,
   paymentMethodSchema,
@@ -397,6 +404,12 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     reviewed: z.literal(true),
   }),
 ])
+/** Weekdays, Sunday as 0, each once. */
+const weekdays = z
+  .array(z.number().int().min(0).max(6))
+  .min(1)
+  .max(7)
+  .refine((days) => new Set(days).size === days.length, { message: 'Each day appears once.' })
 /** Whether a value is a complete command, for the changes inside a batch. */
 function validCommand(value: unknown): boolean {
   return commandSchema.safeParse(value).success
@@ -572,6 +585,16 @@ export const commandSchema = z.discriminatedUnion('type', [
     startMinutes: z.number().int().min(0).max(1439),
     staffId: id,
   }),
+  // NEXT-11: invitations to a time a cancelled visit left free, written for the team to approve.
+  z.object({
+    type: z.literal('opening-invite'),
+    appointmentId: id,
+    clientIds: z
+      .array(id)
+      .min(1)
+      .max(5)
+      .refine((ids) => new Set(ids).size === ids.length, 'Choose each guest once.'),
+  }),
   // From the guest's own private link only.
   z.object({
     type: z.literal('waitlist-join'),
@@ -664,6 +687,53 @@ export const commandSchema = z.discriminatedUnion('type', [
       .refine((parts): boolean => parts.every((part) => validCommand(part)), {
         message: 'A change in this plan is not complete.',
       }),
+  }),
+  // Set up your studio: one screen's changes, saved together or not at all, and where the owner
+  // picks up next. Only the changes Settings makes, each checked in full as there.
+  z.object({
+    type: z.literal('setup-step'),
+    next: z.enum(SETUP_PLACES),
+    changes: z
+      .array(z.looseObject({ type: z.enum(SETUP_CHANGE_TYPES) }))
+      .max(SETUP_CHANGE_LIMIT)
+      .refine((parts): boolean => parts.every((part) => validCommand(part)), {
+        message: 'A change on this screen is not complete.',
+      }),
+  }),
+  // Add a location: the place, its rooms and chairs, who works there on which days and what it
+  // offers, saved together or not at all.
+  z.object({
+    type: z.literal('location-open'),
+    location: locationInputSchema.omit({ archived: true }),
+    rooms: z
+      .array(resourceSchema.pick({ name: true, type: true, restMinutes: true }))
+      .min(1)
+      .max(OPENING_ROOM_LIMIT),
+    /** People already on the team and the weekdays they work here. */
+    team: z
+      .array(z.object({ staffId: id, days: weekdays }))
+      .max(500)
+      .refine((rows) => new Set(rows.map((r) => r.staffId)).size === rows.length, {
+        message: 'Each person appears once.',
+      }),
+    /** New people who start at this location. */
+    newTeam: z
+      .array(
+        staffSchema
+          .pick({ name: true, role: true, tone: true, serviceIds: true })
+          .extend({ days: weekdays }),
+      )
+      .max(OPENING_NEW_TEAM_LIMIT),
+    /** Treatments left off this location's menu. */
+    notOffered: z
+      .array(id)
+      .max(500)
+      .refine((ids) => new Set(ids).size === ids.length),
+    /** Treatments with a different price here. */
+    prices: z
+      .array(z.object({ serviceId: id, priceMinor: money }))
+      .max(500)
+      .refine((rows) => new Set(rows.map((r) => r.serviceId)).size === rows.length),
   }),
   // V3: planning a special records it; nothing is sent and no price changes.
   z.object({ type: z.literal('special-plan'), input: specialInputSchema }),

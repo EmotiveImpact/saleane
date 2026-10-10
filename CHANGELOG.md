@@ -52,6 +52,35 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - **Help** has three new guides: taking a membership from a saved card each month, when a client texts STOP, and seeing a client at a glance.
 - On the client page a plan now reads top to bottom instead of squeezing its name beside its buttons, and visit messages are rows divided by hairlines.
 
+## 2026-10-10 · Filling a cancelled time (NEXT-11)
+
+**Status: built locally on 10 October 2026.** [Evidence](docs/evidence/NEXT-11-CANCELLED-TIMES.md).
+
+- The Waitlist page has Cancelled times: each time a cancellation has left free, at least two hours and at most 14 days ahead, with the treatment, who it was with, how long it is and when it was cancelled. A visit carried over from another system off the quarter hour, at 10:05 say, frees the nearest time that can be booked.
+- Anyone on the waitlist the time suits is named first, with Offer it to them, which books it for them or writes them an offer for that exact time. Once an offer is written the card says so.
+- Under Might like it are up to five guests who agreed to hear from the studio and have had this kind of treatment, best fit first, each with why: due back, has seen this professional before, usually comes at that time of day. Guests are left out when they cancelled the time, are already coming that day or have this treatment booked, are on the waitlist, missed a visit in the last three months, were invited to another time in the last week, need a patch test first or had the treatment too recently.
+- Write invitations saves one email each as a draft in the Inbox, with a link to the booking page with that time already chosen. When nobody is waiting and nobody has been invited, the best three are ticked to start with.
+- When a visit is cancelled and nobody on the waitlist could take its time, SALEANE writes invitations to the best three by itself, as drafts. Settings, Messages has "When a visit is cancelled, write invitations to the time for you to approve" to turn this off. A cover plan's cancellations write none.
+- Nothing is sent until it is approved. An invitation cannot be edited, cannot be approved once its time is booked or has passed, and is not sent once the time is taken, even after approval. It is also stopped if any record with the guest's email has not agreed to hear from the studio. The Inbox labels it "invitation by email" and shows the link as "[a link to book this time]".
+- The page counts the last 30 days: times freed by cancellations, those booked again, how many by someone invited or from the waitlist, and what they were worth.
+- Due back emails now say "about a week" rather than "about 1 weeks" for a treatment whose guests come back after one week.
+- Help has a guide, Fill a cancelled time (59 guides).
+
+## 2026-10-09 · Set up your studio, add a location, and the first weeks
+
+**Status: built locally on 9 October 2026; nothing deployed and nothing charged.** [Evidence](docs/evidence/SETUP-WIZARDS.md).
+
+- A new owner who creates a studio of their own now lands on "Set up your studio": eight short screens beside a house photograph (where guests find you, opening hours, treatments, team, rooms and chairs, colours, deposits and tax, and opening for bookings). Each screen saves when they press Continue, so they can stop with "Finish later" and pick up where they left off from Today, on any device. A sample studio still opens on Today.
+- Treatments can be added from a short list of common ones by kind, with the length filled in and the price always left to the owner. Rooms and chairs are suggested from the menu. Colours show across the page as they are chosen. VAT or sales tax is never assumed: the owner says whether they charge it.
+- "Add location" in Settings, Locations is now six short steps (where, hours, treatments, rooms, team, check), saved together at the end: its own hours or the main location's, which treatments it offers and at what price, its rooms and chairs, who works there on which days, and new people starting there. Days with visits already booked are marked, and choosing one lists the visits it would strand before anything is saved. Core treatments and the price band from the house rules apply. The last step says each location is £49 a month (or $59), and that nothing is charged in this version.
+- Both are made of the changes Settings already makes, so every check still applies, and only the owner can use them. "Who changed what" lists them as "Saved a screen of setting up the studio" and "Added a location with its rooms and team".
+- Once the studio is ready, Today shows "Your first weeks" to the owner and managers: share the booking page, bring clients across, invite the team, check out a first visit, check the visit reminders and turn on two-step sign-in. Each ticks itself (the link once a guest books online, inviting once someone else is asked or there is no one to ask), "I am starting fresh", "I work on my own" and "The usual ones are right" are answers too, and the list goes when everything is done, when hidden, or eight weeks after the first visit booked. It never says a message or card payment went out while they are not connected.
+- Someone joining from an invitation now reads three short screens before their studio opens: what their role does, the three places they will use most, and keeping their sign-in safe, where they can turn on two-step sign-in (the only place a practitioner can). "Skip the welcome" is always there, and nothing on these screens changes the studio.
+- No migration: where setup reached is kept with the studio's settings, and the first weeks list reads the record, the sign-in and the team list.
+- Adding a location now says what the owner's own monthly bill becomes, from Settings, Plan and billing: "Your monthly bill goes from £58.80 to £117.60, including VAT at 20%", when the new amount starts, that nothing is taken today, and that card payments are in test mode while they are. A sample studio shows only the price.
+- Checked against the new quality bar at 1440px and 390px: the first weeks list has one main button on the next step, the welcome's sign-in screen has one, every target in these screens is at least 44px on a phone, the main button fills the foot of each wizard step on a phone, the location window lists rows instead of cards inside it, and each step is ready for the shared calm motion.
+- `docs/photo-prompts.md` has 21 photograph prompts, one for each setup and welcome screen and for each app or guest screen that still borrows a library photograph, with a mix of people and one message to paste into ChatGPT for the whole set. Nothing on screen changes until the photographs arrive.
+
 ## 2026-10-09 · Team diaries in Google or Apple Calendar (NEXT-10)
 
 **Status: built locally on 9 October 2026.** [Evidence](docs/evidence/NEXT-10-DIARIES.md).

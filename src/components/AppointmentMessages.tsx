@@ -155,6 +155,14 @@ export function MessageSettings() {
             />
             When you miss a call, text the caller once with your booking link
           </label>
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={draft.openingInvites !== false}
+              onChange={(e) => set('openingInvites', e.target.checked)}
+            />
+            When a visit is cancelled, write invitations to the time for you to approve
+          </label>
           <label>
             When the reminder goes
             <select
@@ -199,7 +207,9 @@ export function MessageSettings() {
           These are messages about a booked visit, not marketing. A client can turn them off on
           their profile. Due back, birthday and &ldquo;we miss you&rdquo; emails go only to guests
           who agreed to hear from you, by email only. A missed-call text goes within 15 minutes of
-          the call, at most once a day to each number, and never to a client who asked for no texts.{' '}
+          the call, at most once a day to each number, and never to a client who asked for no texts.
+          Invitations to a cancelled time go to a few guests who agreed to hear from you, only once
+          you approve them in the Inbox, and never when someone on the waitlist could take it.{' '}
           {mode === 'demo' ? 'The demo studio never sends anything.' : ''}
         </p>
         <ErrorMessage error={error} />

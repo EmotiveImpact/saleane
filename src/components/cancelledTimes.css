@@ -1,0 +1,113 @@
+/* NEXT-11: times a cancellation left free, on the waitlist page. */
+.freed-summary {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.freed-times {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.freed-time {
+  display: grid;
+  grid-template-columns: minmax(180px, 280px) minmax(0, 1fr);
+  gap: 14px 32px;
+  padding: 16px 18px;
+  background: var(--stone);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.freed-time-copy,
+.freed-time-who {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  min-width: 0;
+}
+.freed-time-copy strong {
+  font-size: var(--text-body);
+}
+.freed-time-with {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.freed-time-with > span {
+  display: grid;
+  min-width: 0;
+}
+.freed-time-copy small,
+.freed-guest small {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.freed-time-who > .button {
+  justify-self: start;
+}
+.freed-waiting {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 6px;
+}
+.freed-waiting p {
+  margin: 0;
+  font-size: var(--text-small);
+}
+.freed-offers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.freed-invited p,
+.freed-guests legend {
+  margin: 0 0 4px;
+  padding: 0;
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+}
+.freed-offered,
+.freed-invited ul {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-small);
+}
+.freed-guests {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+/* Each guest is a full-height row with a hairline between, not a box. */
+.freed-guests > .freed-guest {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 8px 0;
+  font-weight: var(--weight-body);
+  border-top: 1px solid var(--line);
+  cursor: pointer;
+}
+.freed-guests > .freed-guest:last-of-type {
+  border-bottom: 1px solid var(--line);
+}
+.freed-guest > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.freed-time .ops-save-note:empty {
+  display: none;
+}
+@media (max-width: 760px) {
+  .freed-time {
+    grid-template-columns: 1fr;
+  }
+}

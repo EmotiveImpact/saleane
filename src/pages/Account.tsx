@@ -12,6 +12,7 @@ import { HelpButton } from '../components/HelpButton'
 import { InvitationSummary } from '../components/InvitationSummary'
 import { TwoStepCode } from '../components/TwoStepCode'
 import type { InvitationPreview } from '../components/InvitationSummary'
+import { TeamWelcome } from './TeamWelcome'
 import '../account.css'
 
 /** What the server says after it is asked for a password or confirmation link. */
@@ -41,6 +42,8 @@ export function Account() {
   const [confirmSent, setConfirmSent] = useState<LinkAnswer | null>(null)
   const [confirmProblem, setConfirmProblem] = useState('')
   const [challenge, setChallenge] = useState('')
+  // Someone joining from an invitation reads a short welcome before their studio opens.
+  const [joined, setJoined] = useState<{ id: string; current: Session | null } | null>(null)
   const emailField = useRef<HTMLInputElement>(null),
     sentNote = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -88,7 +91,7 @@ export function Account() {
    * Practitioners open their own day and regional managers their area; every other role opens
    * the studio workspace.
    */
-  async function open(id: string, current: Session | null) {
+  async function open(id: string, current: Session | null, landing = '/today') {
     const role = current?.workspaces.find((w) => w.id === id)?.role
     // A new tab opens this studio again for them (the studio itself is noted once it opens).
     if (current && (role === 'practitioner' || role === 'regional'))
@@ -102,7 +105,7 @@ export function Account() {
       return
     }
     await store.openWorkspace(id)
-    navigate('/today')
+    navigate(landing)
   }
   async function enter(id: string, current = store.session) {
     setPending(true)
@@ -117,16 +120,17 @@ export function Account() {
   }
   /** After the password (and the code, with two-step sign-in on): join or open a studio. */
   async function finishSignIn() {
-    let current = await store.refreshSession()
-    let orgId = current?.workspaces[0]?.id ?? ''
+    // Signed in now, so the session (and its request token) comes first.
+    const current = await store.refreshSession()
     if (invitation) {
-      const joined = await api<{ orgId: string }>('/api/invitations/accept', {
+      const accepted = await api<{ orgId: string }>('/api/invitations/accept', {
         method: 'POST',
         body: { invitation },
       })
-      orgId = joined.orgId
-      current = await store.refreshSession()
+      setJoined({ id: accepted.orgId, current: await store.refreshSession() })
+      return
     }
+    const orgId = current?.workspaces[0]?.id ?? ''
     if (orgId) await open(orgId, current)
     else setView('workspace')
   }
@@ -182,7 +186,13 @@ export function Account() {
         current = await store.refreshSession()
       }
       setPassword('')
-      if (orgId) await open(orgId, current)
+      if (view === 'create' && invitation && orgId) {
+        setJoined({ id: orgId, current })
+        return
+      }
+      // A studio of their own starts with "Set up your studio"; a sample one is ready to explore.
+      const fresh = !sample && (view === 'workspace' || !invitation)
+      if (orgId) await open(orgId, current, fresh ? '/setup' : '/today')
       else setView('workspace')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'This request could not be completed.')
@@ -192,6 +202,20 @@ export function Account() {
   }
   // Joining works only with the address the invitation was sent to.
   const otherEmail = !!invited && !!store.session && store.session.user.email !== invited.email
+  if (joined) {
+    const studio = joined.current?.workspaces.find((w) => w.id === joined.id)
+    return (
+      <TeamWelcome
+        studio={studio?.name ?? invited?.studio ?? 'your studio'}
+        role={studio?.role ?? invited?.role ?? 'reception'}
+        place={invited?.location ?? invited?.region}
+        name={joined.current?.user.name ?? ''}
+        pending={pending}
+        error={error}
+        onOpen={() => void enter(joined.id, joined.current)}
+      />
+    )
+  }
   return (
     <div className="account-layout">
       <AccountStory />
@@ -294,7 +318,7 @@ export function Account() {
                       method: 'POST',
                       body: { invitation },
                     })
-                    await enter(result.orgId, await store.refreshSession())
+                    setJoined({ id: result.orgId, current: await store.refreshSession() })
                   } catch (e) {
                     setError(e instanceof Error ? e.message : 'Invitation could not be accepted.')
                   } finally {
@@ -521,7 +545,7 @@ export function Account() {
                     <small className="subtle">
                       {sample
                         ? 'The sample is set on one fixed day, and its money is simulated.'
-                        : 'Your studio starts empty. A short list on Today takes you through treatments, your team, rooms and opening hours.'}
+                        : 'Your studio starts empty. A few short screens take you through your hours, treatments, team and booking page, and you can stop at any point.'}
                     </small>
                   </>
                 )}

@@ -27,6 +27,7 @@ import { STAFF_MOVE_LIMIT, staffMoveSchema } from './staffMovesSchema'
 import type { StaffMove } from './staffMovesSchema'
 import { MISSED_CALL_LIMIT, missedCallSchema } from './missedCallsSchema'
 import { paymentMethodSchema, processorSchema } from './paymentMethods'
+import { setupProgressSchema } from './setupSchema'
 import { RENT_LIMIT, RENT_PAYMENT_LIMIT, rentPaymentSchema, rentalSchema } from './rentSchema'
 import {
   COMMISSION_RATE_LIMIT,
@@ -333,6 +334,20 @@ export const operationsSchema = z.object({
        * them have none, and stay queued and unsent rather than going out unexpectedly.
        */
       approvedAt: z.iso.datetime().optional(),
+      /**
+       * NEXT-11: an invitation to a time a cancelled visit left free: the treatment, professional,
+       * day and start it names, so it is checked against the diary before approval and sending.
+       */
+      opening: z
+        .object({
+          date: z.iso.date(),
+          startMinutes: z.number().int().min(0).max(1439),
+          staffId: id,
+          serviceId: id,
+          locationId: id.optional(),
+        })
+        .strict()
+        .optional(),
     }),
   ),
   refunds: z.array(
@@ -403,6 +418,8 @@ export const operationsSchema = z.object({
   benchmark: benchmarkSharingSchema.optional(),
   /** Stage 2: how each location's receipts print and whether its cash drawer opens by itself. */
   till: tillSettingsSchema.optional(),
+  /** Set up your studio: the screen the owner picks up at. Absent until they first use it. */
+  setup: setupProgressSchema.optional(),
   /** NEXT-07: hours worked, clocked in and out or added by hand, for payroll. */
   shifts: z.array(shiftSchema).max(SHIFT_LIMIT).optional(),
   /** Stage 3: single days on the rota changed from someone's usual hours, or added. */
@@ -655,6 +672,8 @@ export function permissionFor(command: { type: string; approve?: boolean }) {
   if (command.type === 'stock-move') return 'stock'
   // Stage 4: cancelling a move still to come is part of moving someone.
   if (command.type === 'staff-move-cancel') return 'staff-move'
+  // Adding a location also places its rooms, team and menu, all of which the owner may change.
+  if (command.type === 'location-open') return 'location'
   // NEXT-09 and NEXT-08: booking repeat visits, or visits for several people, is booking.
   if (command.type === 'book-repeat' || command.type === 'book-together') return 'book'
   // NEXT-07: clocking in and out is for everyone in the studio; changing hours is for managers.
@@ -722,6 +741,7 @@ export const GENERAL_ACTIONS = [
   'waitlist-add',
   'waitlist-offer',
   'waitlist-remove',
+  'opening-invite',
   'counter-sale',
   'stock',
   'purchase-order',
@@ -789,6 +809,8 @@ export function can(role: Role, action: string) {
       'group-checks',
       // Stage 4: only the owner approves a message to clients, which sends it.
       'news-send',
+      // The setup screens include the studio's details and tax, which only the owner sets.
+      'setup-step',
     ].includes(action)
   )
     return false

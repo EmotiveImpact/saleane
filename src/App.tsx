@@ -21,7 +21,7 @@ import { useStudioColours } from './state/studioColours'
 import { leads, operations } from './domain/operations'
 import { hasLocations, places } from './domain/locations'
 import { regions } from './domain/group'
-import { staleOffer } from './domain/waitlist'
+import { draftStale } from './domain/cancelledTimes'
 import { nudges } from './domain/nudges'
 import { Avatar, Modal, ScrollNav } from './design'
 import { SearchDialog } from './components/SearchDialog'
@@ -116,6 +116,9 @@ const Feedback = lazy(() =>
 const AskSaleane = lazy(() =>
   import('./components/AskSaleane').then((module) => ({ default: module.AskSaleane })),
 )
+const StudioSetup = lazy(() =>
+  import('./pages/StudioSetup').then((module) => ({ default: module.StudioSetup })),
+)
 const DesignLanguage = lazy(() =>
   import('./pages/DesignLanguage').then((module) => ({ default: module.DesignLanguage })),
 )
@@ -157,7 +160,7 @@ function WorkspaceApp() {
   const navigate = useNavigate()
   const openSettings = (section: string) => navigate(`/settings?section=${section}`)
   const [mobileNav, setMobileNav] = useState(false)
-  // Waitlist offers whose time has gone are not counted as waiting for approval.
+  // Waitlist offers and invitations whose time has gone are not counted as waiting for approval.
   const clock = useClock()
   // Read again each minute too, so a waitlist time that has passed stops counting.
   const noticed = useMemo(
@@ -166,7 +169,7 @@ function WorkspaceApp() {
   )
   const drafts =
     operations(state).messages.filter(
-      (m) => m.status === 'draft' && !staleOffer(state, m.id, clock),
+      (m) => m.status === 'draft' && !draftStale(state, m.id, clock),
     ).length +
     // Stage 4: a message to clients waits for the owner's approval.
     (role === 'owner'
@@ -247,6 +250,7 @@ function WorkspaceApp() {
     )
   // NEXT-02: a locked studio opens only for its owner, and only to pay or download its records.
   if (mode === 'server' && billing?.locked) return <LockedStudio />
+  if (location.pathname === '/setup') return <StudioSetup key={state.organisation.id} />
   if (location.pathname === '/booking')
     return mode === 'server' ? (
       <Navigate to={`/book/${slug}${location.search}`} replace />

@@ -710,7 +710,8 @@ describe('permissions', () => {
     for (const role of ['reception', 'practitioner', 'regional'] as Role[])
       for (const action of ['rota', 'rooms']) expect(can(role, action), role).toBe(false)
     // Everything a general manager could do before is unchanged (V5, as on the Stage 3 base),
-    // with passing on a gift card and writing to their own location's clients from Stage 4.
+    // with passing on a gift card and writing to their own location's clients from Stage 4, and
+    // NEXT-11's invitations to a cancelled time from main.
     expect(GENERAL_ACTIONS).toEqual([
       ...['read', 'clock', 'book', 'reschedule', 'cancel', 'no-show', 'arrive', 'checkout'],
       ...['deposit', 'fee', 'refund', 'note', 'client', 'client-edit', 'client-birthday'],
@@ -720,7 +721,10 @@ describe('permissions', () => {
       'gift-card-move',
       'plan-sell',
       ...['plan-renew', 'plan-card', 'balance-settle', 'task', 'missed-call', 'waitlist-add'],
-      ...['waitlist-offer', 'waitlist-remove', 'counter-sale', 'stock', 'purchase-order'],
+      ...['waitlist-offer', 'waitlist-remove'],
+      // NEXT-11: inviting guests to a cancelled time at their location.
+      'opening-invite',
+      ...['counter-sale', 'stock', 'purchase-order'],
       ...['receive-order', 'cancel-order', 'branch-visit', 'branch-visit-fix', 'request-raise'],
       'rota',
       'rooms',

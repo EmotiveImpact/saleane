@@ -386,6 +386,23 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     roles: DESK,
     words: 'waiting list cancellation free time offer',
   },
+  {
+    id: 'cancelled-times',
+    title: 'Fill a cancelled time',
+    group: 'The day',
+    summary: 'See who might take a time a cancellation left free, and invite them.',
+    steps: [
+      'Open Waitlist. Cancelled times shows each time a cancellation left free in the next two weeks.',
+      'Anyone on the waitlist it suits is named first. Choose Offer it to book it for them or write them an offer.',
+      'Under Might like it are guests who agreed to hear from you and have had this kind of treatment, with why: due back, seen this professional before, or usually come at that time of day.',
+      'Tick who to invite and choose Write invitations. When nobody is waiting, the best three are ticked already. Each invitation waits in the Inbox for you to approve.',
+    ],
+    note: 'Nobody is sent anything until you approve it. A guest is invited to one time a week at most, and an invitation is not sent once the time is booked. When a visit is cancelled and nobody on the waitlist could take it, SALEANE writes invitations to the best three by itself, for you to approve; turn that off in Settings, Messages.',
+    to: '/waitlist',
+    screens: ['/waitlist'],
+    roles: DESK,
+    words: 'cancellation cancelled gap free time fill invite invitation empty slot',
+  },
   // Clients
   {
     id: 'add-client',

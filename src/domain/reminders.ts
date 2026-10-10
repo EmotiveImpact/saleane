@@ -7,7 +7,7 @@ import { businessDate, businessMinutes, instantFor, operations } from './operati
 import { dateLabel, timeLabel } from './format'
 import { GUEST_CANCEL_CUTOFF_HOURS } from './guest'
 import { FEEDBACK_WINDOW_MS } from './feedback'
-import { defaultReminderSettings } from './reminderSettings'
+import { BOOK_LINK, defaultReminderSettings } from './reminderSettings'
 import type { ReminderSettings } from './reminderSettings'
 import { countsForVisit, patchTestSettings, patchTests, visitPatchTest } from './patchTests'
 import { addDays } from './format'
@@ -48,6 +48,7 @@ import { textsStopped } from './textStop'
  * leaves the computer. A message is called delivered only when a provider receipt says so.
  */
 export {
+  BOOK_LINK,
   defaultReminderSettings,
   missYouDayChoices,
   reminderHourChoices,
@@ -106,8 +107,6 @@ export type MessageChannel = (typeof messageChannels)[number]
 export type OutboxChannel = MessageChannel | SocialChannel
 /** Where a link to manage the visit goes. The outbox swaps it for a fresh private link. */
 export const MANAGE_LINK = '{{manage_link}}'
-/** Where a link to book again goes. The outbox swaps it for the studio's public booking page. */
-export const BOOK_LINK = '{{book_link}}'
 
 /** A message the outbox has already recorded, enough to avoid sending it twice. */
 export type RecordedMessage = {
@@ -806,6 +805,7 @@ export function composeMessage(
     aftercare: `Looking after your ${service}`,
     due_back: `Time for your next visit to ${org.name}?`,
   }[kind]
+  const weeks = returnWeeksFor(s, a) ?? DEFAULT_RETURN_DAYS / 7
   const opening = {
     confirmation: `Thank you for booking. Here are your details.`,
     changed: `Your visit has a new time. Here are the updated details.`,
@@ -814,7 +814,7 @@ export function composeMessage(
     feedback: `Thank you for visiting us. We would love to know how it went.`,
     patch_test: `Your treatment below needs a quick patch test at least ${patchTestSettings(s).hoursBefore} hours before, and we need a new one for you. It takes a few minutes: please call us or pop in to arrange it.`,
     aftercare: `Thank you for coming in. Here is how to look after your ${service} over the next few days.`,
-    due_back: `It is about ${returnWeeksFor(s, a) ?? DEFAULT_RETURN_DAYS / 7} weeks since your ${service}${withWhom}, which is usually when guests come back for the next one.`,
+    due_back: `It is about ${weeks === 1 ? 'a week' : `${weeks} weeks`} since your ${service}${withWhom}, which is usually when guests come back for the next one.`,
   }[kind]
   const lines = [greeting, '', opening, '']
   if (kind === 'aftercare') {
