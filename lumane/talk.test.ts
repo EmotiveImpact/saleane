@@ -83,6 +83,34 @@ describe('a spoken conversation', () => {
     expect(said.at(-1)).toEqual({ kind: 'answer', id: 'd1', text: 'You said hello' })
   })
 
+  it('keeps the rest of a question that arrives after a pause and after it is handed over', async () => {
+    let now = 0
+    const asked: string[] = []
+    const talk = conversation({
+      ...options(async (heard) => {
+        asked.push(heard)
+        return { text: `Answered: ${heard}` }
+      }),
+      quietMs: 300,
+      clock: () => now,
+    })
+    const { fake } = line()
+    talk.use(fake)
+    talk.handle({ type: 'heard', text: 'Who is ' })
+    // OpenAI hands the question over after a pause, and its last words arrive after that.
+    now = 400
+    talk.handle({ type: 'delegated', id: 'd1' })
+    now = 450
+    talk.handle({ type: 'heard', text: 'in at ten?' })
+    now = 2000
+    await talk.settled()
+    talk.handle({ type: 'heard', text: 'Thanks.' })
+    talk.handle({ type: 'delegated', id: 'd2' })
+    now = 4000
+    await talk.settled()
+    expect(asked).toEqual(['Who is in at ten?', 'Thanks.'])
+  })
+
   it('asks again when nothing was heard, and says plainly when no answer came', async () => {
     const talk = conversation(
       options(async () => {

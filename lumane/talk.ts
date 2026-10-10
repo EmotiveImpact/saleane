@@ -61,9 +61,14 @@ export function conversation(options: ConversationOptions) {
 
   const longest = options.waitForWordsMs ?? 1500
   const quiet = options.quietMs ?? 300
-  /** Whether a question's words are complete: some heard, then a moment's quiet, or the longest wait. */
+  /**
+   * Whether a question's words are complete: some heard, then a moment's quiet, or the longest
+   * wait. The quiet is counted from the hand-over at the earliest, so words that arrive just after
+   * a pause and the hand-over still belong to the question they finish.
+   */
   const complete = (q: Asked) =>
-    q.closed || (q.text.trim() ? clock() - q.at >= quiet : clock() - q.since >= longest)
+    q.closed ||
+    (q.text.trim() ? clock() - Math.max(q.at, q.since) >= quiet : clock() - q.since >= longest)
 
   /** Waits for the question's words, then keeps them, whatever is said next. */
   async function words(q: Asked) {
