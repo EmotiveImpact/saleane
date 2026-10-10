@@ -50,6 +50,12 @@ const scoped = { id, organisationId: id }
 /** Shared booking links the studio can hand out; anything else is ignored. */
 export const bookingChannels = ['google', 'instagram'] as const
 export type BookingChannel = (typeof bookingChannels)[number]
+/** Stage 5: the AI assistants a guest can book through; `assistant` when it did not say which. */
+export const assistantChannels = ['chatgpt', 'claude', 'assistant'] as const
+export type AssistantChannel = (typeof assistantChannels)[number]
+/** Where an online guest came from: a shared booking link, or an AI assistant (Stage 5). */
+export const visitChannels = [...bookingChannels, ...assistantChannels] as const
+export type VisitChannel = (typeof visitChannels)[number]
 export const GUEST_NOTE_LIMIT = 400
 /** A public review address must be a secure web address. */
 export function isReviewUrl(value: string) {
@@ -206,8 +212,8 @@ export const appointmentSchema = z.object({
     .object({ keyId: id, name: z.string().min(1).max(60) })
     .strict()
     .optional(),
-  /** Where an online guest came from, when they followed a shared booking link. */
-  channel: z.enum(bookingChannels).optional(),
+  /** Where an online guest came from: a shared booking link or, since Stage 5, an AI assistant. */
+  channel: z.enum(visitChannels).optional(),
   createdAt: z.iso.datetime(),
   rebookedFromId: id.optional(),
   bookedPriceMinor: minor,

@@ -2,6 +2,7 @@ import type { Role } from './operations'
 import type { HelpArticle } from './help'
 import { GRACE_DAYS, LOCK_DAYS, RETRY_DAYS } from './pricing'
 import { RETRY_DAYS as CARD_RETRY_DAYS } from './planCards'
+import { GUEST_CANCEL_CUTOFF_HOURS } from './guest'
 
 const DESK: readonly Role[] = ['owner', 'manager', 'reception', 'general']
 const LEADS: readonly Role[] = ['owner', 'manager', 'general']
@@ -154,6 +155,43 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     screens: ['/settings?section=business', '/settings?section=brand'],
     roles: LEADS,
     words: 'link online google instagram website share url',
+  },
+  {
+    id: 'google-booking',
+    title: 'Let guests book on Google',
+    group: 'Getting started',
+    summary:
+      'Guests book your treatments inside Google Search and Maps, and their visits arrive in your diary.',
+    steps: [
+      'Open Settings, then Studio details, and find Book with Google.',
+      'Tick Offer my studio for booking on Google, then choose Save.',
+      `Guests can then book on Google, cancel there until the visit starts, and change to another free time until ${GUEST_CANCEL_CUTOFF_HOURS} hours before it, as with their own booking link.`,
+      'The relationship timeline on the client’s page and Who changed what say what was booked, changed or cancelled through Google.',
+    ],
+    note: 'SALEANE is not a Google booking partner yet, so Google cannot send bookings. Treatments that need a deposit or a patch test stay on your own booking page.',
+    to: '/settings?section=business',
+    screens: ['/settings?section=business'],
+    roles: OWNER,
+    words: 'google maps search reserve actions center',
+  },
+  {
+    id: 'ai-booking',
+    title: 'Let guests book through ChatGPT or Claude',
+    group: 'Getting started',
+    summary:
+      'An AI assistant a guest is talking to can book a visit for them, with the same checks as your booking page.',
+    steps: [
+      'Open Settings, then Studio details, and find Booking through ChatGPT or Claude.',
+      'Tick Let guests book through ChatGPT or Claude, then choose Save. Online booking needs to be on as well.',
+      'Copy your studio’s address for AI assistants. Once SALEANE is online, the address is added to ChatGPT or Claude as a connector.',
+      'The assistant sees your opening hours, the treatments guests can book online and free times, and books only after the guest says yes. The guest gets their private link to move or cancel.',
+      'The relationship timeline on the client’s page and Who changed what say whether a visit was booked through ChatGPT, Claude or another AI assistant.',
+    ],
+    note: 'This is in test mode: only the computer SALEANE runs on can reach the address, so ChatGPT and Claude cannot book yet. Treatments that need a deposit or a patch test stay on your booking page, and guests are never signed up for news or offers this way.',
+    to: '/settings?section=business',
+    screens: ['/settings?section=business'],
+    roles: OWNER,
+    words: 'chatgpt claude openai anthropic gpt mcp connector chat',
   },
   {
     id: 'colours',

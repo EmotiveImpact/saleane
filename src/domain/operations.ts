@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { googleBookingSchema, receptionistSettingsSchema } from './receptionistSchema'
+import { aiBookingSchema } from './aiBookingSchema'
 import type { BusinessState } from './model'
 import { reminderSettingsSchema } from './reminderSettings'
 import {
@@ -402,6 +403,8 @@ export const operationsSchema = z.object({
   /** V4: the AI receptionist on the booking page. Absent means it is off. */
   receptionist: receptionistSettingsSchema.optional(),
   googleBooking: googleBookingSchema.optional(),
+  /** Stage 5: whether guests can book through ChatGPT or Claude. Absent means it is off. */
+  aiBooking: aiBookingSchema.optional(),
   /** V5: locations grouped into regions, and each location's monthly takings target. */
   regions: z.array(regionSchema).max(REGION_LIMIT).optional(),
   targets: z.array(targetSchema).max(TARGET_LIMIT).optional(),
@@ -804,6 +807,8 @@ export function can(role: Role, action: string) {
       'organisation',
       'tax',
       'google-booking',
+      // Stage 5: letting ChatGPT or Claude book for guests is the owner's choice, as Google is.
+      'ai-booking',
       'pay-rate',
       'pay-rules',
       'location',

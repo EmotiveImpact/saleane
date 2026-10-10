@@ -12,6 +12,7 @@ import { approvalCommandSchemas } from './approvalsSchema'
 import { brandCommandSchemas } from './brandRulesSchema'
 import { tillCommandSchemas } from './tillSchema'
 import { googleBookingSchema, receptionistSettingsSchema } from './receptionistSchema'
+import { aiBookingSchema } from './aiBookingSchema'
 import { missedCallSources } from './missedCallsSchema'
 import { offerInputSchema } from './plansSchema'
 import { specialInputSchema } from './specialsSchema'
@@ -35,7 +36,7 @@ import {
 } from './setupSchema'
 import {
   GUEST_NOTE_LIMIT,
-  bookingChannels,
+  visitChannels,
   paymentMethodSchema,
   processorSchema,
   clientSchema,
@@ -99,7 +100,7 @@ export const bookingSchema = z.object({
   clientId: id.optional(),
   contact: contactSchema.optional(),
   source: z.enum(['desk', 'online', 'rebook']),
-  channel: z.enum(bookingChannels).optional(),
+  channel: z.enum(visitChannels).optional(),
   rebookedFromId: id.optional(),
   /** V1.5: the waitlist request this booking fills. */
   waitlistId: id.optional(),
@@ -180,6 +181,8 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
   // V4: the AI receptionist on the booking page.
   z.object({ type: z.literal('receptionist'), settings: receptionistSettingsSchema }),
   z.object({ type: z.literal('google-booking'), settings: googleBookingSchema }),
+  // Stage 5: booking through ChatGPT or Claude.
+  z.object({ type: z.literal('ai-booking'), settings: aiBookingSchema }),
   // PILOT-01: the studio's confirmation and reminder settings.
   z.object({ type: z.literal('reminders'), settings: reminderSettingsSchema }),
   // PILOT-01: a client's own wish about appointment emails and texts.
