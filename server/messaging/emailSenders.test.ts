@@ -466,6 +466,9 @@ describe('delivery receipts', () => {
       { event: 'delivered', sg_message_id: 'sg-1.filter0001.1.2' },
       { event: 'bounce', sg_message_id: 'sg-2.filter0002.3.4', reason: '550 no such user' },
       { event: 'dropped', sg_message_id: 'sg-3.filter0003.5.6', reason: 'Unsubscribed Address' },
+      // Both forms SendGrid's reference shows: an id holding dots, and ".stfilter-".
+      { event: 'delivered', sg_message_id: '14c5d75ce93.dfd.64b469.filter0001.16648.5515E0B88.0' },
+      { event: 'delivered', sg_message_id: 'LRzXl66.stfilter-recvd-5f8.1234.0' },
     ])
     const signature = sign('sha256', Buffer.from(stamp + body), privateKey).toString('base64')
     const read = (text: string, given: string) =>
@@ -495,6 +498,8 @@ describe('delivery receipts', () => {
         delivered: false,
         detail: 'SendGrid did not send it: Unsubscribed Address',
       },
+      { provider: 'sendgrid', providerRef: '14c5d75ce93.dfd.64b469', delivered: true },
+      { provider: 'sendgrid', providerRef: 'LRzXl66', delivered: true },
     ])
     expect(read(body.replace('sg-1', 'sg-9'), signature)).toBeNull()
     expect(read(body, 'bm90IGEgc2lnbmF0dXJl')).toBeNull()
@@ -580,6 +585,16 @@ describe('choosing the sender', () => {
         GOOGLE_SERVICE_ACCOUNT_JSON: 'not json',
       }),
     ).toThrow('GOOGLE_SERVICE_ACCOUNT_JSON must be the service account’s JSON key.')
+    expect(() =>
+      providersFromEnv({
+        ...base,
+        SALEANE_EMAIL_PROVIDER: 'google',
+        GOOGLE_SERVICE_ACCOUNT_JSON: JSON.stringify({
+          client_email: 'a@b.invalid',
+          private_key: '-----BEGIN PRIVATE KEY-----\nnot a key\n-----END PRIVATE KEY-----\n',
+        }),
+      }),
+    ).toThrow('The Google service account’s private key cannot be read.')
     expect(() => providersFromEnv({ ...base, SALEANE_EMAIL_PROVIDER: 'pigeon' })).toThrow(
       'Unknown email provider "pigeon".',
     )

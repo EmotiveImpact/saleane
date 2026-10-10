@@ -1,4 +1,4 @@
-import { createHmac, createSign, verify } from 'node:crypto'
+import { createHmac, createPrivateKey, createSign, verify } from 'node:crypto'
 import nodemailer from 'nodemailer'
 import MailComposer from 'nodemailer/lib/mail-composer'
 import { signAws } from './aws'
@@ -390,6 +390,15 @@ export function googleProvider(config: {
   fetcher?: Fetch
 }): MessageProvider {
   const fetcher = config.fetcher ?? fetch
+  // A key that cannot sign would fail every email after it was queued, so it stops the server now.
+  let privateKey: ReturnType<typeof createPrivateKey>
+  try {
+    privateKey = createPrivateKey(config.privateKey)
+  } catch {
+    throw new Error(
+      'The Google service account’s private key cannot be read. Paste its JSON key as it was downloaded.',
+    )
+  }
   const token = tokenKeeper(async () => {
     const at = Math.floor(Date.now() / 1000)
     const head = base64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
@@ -405,7 +414,7 @@ export function googleProvider(config: {
     )
     const signature = createSign('RSA-SHA256')
       .update(`${head}.${claims}`)
-      .sign(config.privateKey, 'base64url')
+      .sign(privateKey, 'base64url')
     const result = await post(fetcher, 'https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -595,9 +604,10 @@ export function sendgridReceipts(
   if (!Array.isArray(events)) return []
   const receipts: Receipt[] = []
   for (const event of events as { event?: unknown; sg_message_id?: unknown; reason?: unknown }[]) {
-    // SendGrid's event id is the X-Message-Id it answered with, then ".filter…".
+    // SendGrid's event id is the X-Message-Id it answered with (which may hold dots), then
+    // ".filter…" or ".stfilter-…".
     const ref =
-      typeof event.sg_message_id === 'string' ? event.sg_message_id.split('.filter')[0] : ''
+      typeof event.sg_message_id === 'string' ? event.sg_message_id.split(/\.(?:st)?filter/)[0] : ''
     if (!ref) continue
     if (event.event === 'delivered')
       receipts.push({ provider: 'sendgrid', providerRef: ref, delivered: true })
