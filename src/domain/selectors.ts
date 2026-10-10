@@ -5,6 +5,7 @@ import { dueBackOn, lastCompletedVisit } from './dueBack'
 import { retailByProduct, retailRevenue } from './retail'
 import { recordDay } from './tillCount'
 import { atPlace, staffLocationOn } from './locations'
+import { otherTillSales, renterTillPart, tillDay, tillParts } from './otherTill'
 import {
   renterCounterSale,
   renterPartOfReceipt,
@@ -98,6 +99,23 @@ export function report(whole: BusinessState, days: number, locationId?: string) 
     .flatMap((h) => h.payments)
     .filter((p) => inPeriod(p.recordedAt))
     .reduce((sum, p) => sum + p.amountMinor, 0)
+  // Stage 5: the studio's own takings on a chain's other tills, before tax, kept apart from
+  // SALEANE's visits. A renter's own lines are theirs; money given back is shown in Money.
+  const tillSold = otherTillSales(s).filter((x) => {
+    const day = tillDay(s, x)
+    return x.kind === 'sale' && day >= from && day <= today
+  })
+  const otherTill = tillSold.reduce((sum, sale) => {
+    const parts = tillParts(sale)
+    const theirs = renterTillPart(whole, sale)
+    return (
+      sum +
+      parts.treatmentsMinor +
+      parts.productsMinor -
+      (theirs ? theirs.servicesMinor + theirs.productsMinor : 0)
+    )
+  }, 0)
+  const tills = [...new Set(tillSold.map((sale) => sale.till.name))]
   const booked = appointments.reduce((sum, a) => sum + a.bookedPriceMinor, 0)
   const minutes = appointments.reduce((sum, a) => sum + a.bookedDurationMinutes, 0)
   const wasRebooked = (a: (typeof completed)[number]) =>
@@ -145,6 +163,9 @@ export function report(whole: BusinessState, days: number, locationId?: string) 
     retailByProduct: retailByProduct([...sales, ...counter]),
     giftCardsSold,
     plansSold,
+    /** Stage 5: sold on a chain's other tills in the period, before tax, and which tills. */
+    otherTill,
+    tills,
     booked,
     completed: completed.length,
     /** Stage 3: the studio's own completed visits, which its takings and average come from. */

@@ -206,6 +206,19 @@ describe('help inside the app', () => {
       'news-who',
       'news-approve',
     ])
+    // Stage 5: access keys for other software, what it can send in, and other tills' sales.
+    expect(first('api key')).toBe('access-keys')
+    expect(first('let my booking tool add visits')).toBe('access-keys')
+    expect(first('email news consent from other software')).toBe('send-in')
+    expect(first('sync clients without duplicates')).toBe('send-in')
+    expect(first('epos sales from our shop till')).toBe('other-tills')
+    expect(first('sales from another till', 'general')).toBe('other-tills')
+    expect(ids(searchHelp('api key', 'manager'))).not.toContain('access-keys')
+    expect(ids(searchHelp('other till sales', 'reception'))).not.toContain('other-tills')
+    expect(ids(helpForScreen('/settings', '?section=connections', 'owner'))).toEqual([
+      'access-keys',
+      'send-in',
+    ])
     // Stage 5: a lower price for a quiet time.
     expect(first('discount a quiet time')).toBe('quiet-offers')
     expect(first('cheaper off peak price')).toBe('quiet-offers')

@@ -39,6 +39,8 @@ import {
   stampPatchTestActors,
 } from './patchTests'
 import { referenceTaken } from './references'
+import { runOtherTillCommand } from './otherTill'
+import type { OtherTillSource } from './otherTill'
 import { recordFeedback, repeatedFeedback } from './feedback'
 import { repeatedFormAnswer, runFormCommand, stampFormActors } from './forms'
 import {
@@ -234,6 +236,16 @@ export type ExecuteOptions = {
    * booking route passes it, after checking the guest's private link; it never comes from a body.
    */
   offer?: { messageId: string }
+  /**
+   * Stage 5: other software made this change through an access key. A visit it books records it
+   * as the source, a sale from another till names it, and any email news it records says the
+   * software sent who agreed, when and how. Set only by the server from the key itself.
+   */
+  software?: SoftwareSource
+}
+/** Stage 5: the access key a change came through, and what it said about email news. */
+export type SoftwareSource = OtherTillSource & {
+  consent?: { at: string; how: string; wordingVersion?: number }
 }
 
 export function execute(
@@ -435,7 +447,10 @@ export function execute(
         date: input.date,
         startMinutes: input.startMinutes,
         status: 'confirmed',
-        source: input.source,
+        source: options.software ? 'software' : input.source,
+        ...(options.software
+          ? { software: { keyId: options.software.keyId, name: options.software.name } }
+          : {}),
         ...(input.channel ? { channel: input.channel } : {}),
         createdAt: now,
         rebookedFromId: input.rebookedFromId,
@@ -469,7 +484,7 @@ export function execute(
         appointmentId: appointment.id,
         type: 'booked',
         title: input.source === 'rebook' ? 'Next visit booked' : 'Visit booked',
-        detail: `${service.name} · ${dateLabel(input.date, org.locale)} at ${timeLabel(input.startMinutes, org.locale)}. ${offer ? `Booked at a quiet-time price of ${offerPrices(s, offer)}, from an invitation. ` : ''}${operations(s).mode === 'sandbox' ? 'Deposit simulated; no payment taken.' : 'No payment collected. Any required deposit remains outstanding.'}${input.channel ? ` ${channelNote(input.channel)}` : ''}${input.callId ? ' Booked when the studio called back after a missed call.' : ''}`,
+        detail: `${service.name} · ${dateLabel(input.date, org.locale)} at ${timeLabel(input.startMinutes, org.locale)}. ${offer ? `Booked at a quiet-time price of ${offerPrices(s, offer)}, from an invitation. ` : ''}${operations(s).mode === 'sandbox' ? 'Deposit simulated; no payment taken.' : 'No payment collected. Any required deposit remains outstanding.'}${input.channel ? ` ${channelNote(input.channel)}` : ''}${input.callId ? ' Booked when the studio called back after a missed call.' : ''}${options.software ? ` Booked by ${options.software.name} through its access key.` : ''}`,
       })
       if (input.waitlistId) fillFromWaitlist(next, input.waitlistId, appointment, now, 'book')
       if (input.callId) linkCallToVisit(next, input.callId, appointment.id, client.id, now)
@@ -1019,6 +1034,8 @@ export function execute(
       recordId = runBrandCommand(next, command, businessDate(s, now))
     } else if (command.type === 'till-settings') {
       recordId = runTillCommand(next, command)
+    } else if (command.type === 'other-till-sale' || command.type === 'other-till-refund') {
+      recordId = runOtherTillCommand(next, command, now, makeId, options.software)
     } else if (
       command.type === 'commission-rate' ||
       command.type === 'commission-steps' ||
@@ -1031,7 +1048,7 @@ export function execute(
       if (command.type === 'refund')
         spendRefundApproval(s, next, command, recordId, now, options.refundApprovalAsOf)
     }
-    recordConsentChanges(s, next, command, now, makeId)
+    recordConsentChanges(s, next, command, now, makeId, options.software)
     next.revision += 1
     return { ok: true, state: parseState(next, org.region), recordId }
   } catch (error) {

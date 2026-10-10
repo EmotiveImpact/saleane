@@ -834,6 +834,26 @@ export const migrations: Migration[] = [
         CREATE UNIQUE INDEX offer_links_used_once ON offer_links(organisation_id,message_id) WHERE used_at IS NOT NULL;
       `),
   },
+  {
+    version: 35,
+    // Stage 5, other software sending things in: each write through an access key carries an
+    // Idempotency-Key. The first answer is kept with a hash of what was asked, in the same
+    // transaction as the change, so the same request sent again gets the same answer and changes
+    // nothing, and the same key sent with a different request is refused.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE api_key_writes (
+          key_id TEXT NOT NULL REFERENCES api_keys(id),
+          idempotency_key TEXT NOT NULL CHECK(length(idempotency_key) BETWEEN 1 AND 255),
+          organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          request_hash TEXT NOT NULL, method TEXT NOT NULL, path TEXT NOT NULL,
+          status INTEGER NOT NULL, response TEXT NOT NULL CHECK(json_valid(response)),
+          record_id TEXT, created_at INTEGER NOT NULL,
+          PRIMARY KEY(key_id,idempotency_key)
+        ) STRICT;
+        CREATE INDEX api_key_writes_age ON api_key_writes(created_at);
+      `),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the

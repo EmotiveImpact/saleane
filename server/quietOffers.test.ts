@@ -241,7 +241,8 @@ const book = (slug: string, held: string) =>
 
 describe('quiet-time prices through the server', () => {
   it('keeps each private link in a table of its own from migration 34', () => {
-    expect(SCHEMA_VERSION).toBe(34)
+    // Stage 5's access key writes (migration 35) follow it.
+    expect(SCHEMA_VERSION).toBeGreaterThanOrEqual(34)
     expect(
       api.database.all("SELECT name FROM sqlite_master WHERE type='table' AND name='offer_links'"),
     ).toHaveLength(1)

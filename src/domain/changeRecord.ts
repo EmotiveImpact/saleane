@@ -10,6 +10,8 @@ import { giftMoveDetail } from './giftCards'
 import { staffMoveDetail } from './staffMoves'
 import { timeOffChangeDetail } from './timeOff'
 import { signOffChangeDetail } from './signoffs'
+import { tillLabel } from './otherTill'
+import type { OtherTillSale } from './otherTillSchema'
 import { defaultQuietOffers } from './quietOffersSchema'
 
 /**
@@ -184,6 +186,9 @@ const commandWords: Record<Command['type'], Words> = {
   'news-stop': ['messages', 'Stopped a message to clients'],
   'news-discard': ['messages', 'Put aside a message to clients'],
   'news-unsubscribe': ['clients', 'Stopped news from the link in a message'],
+  // Stage 5: a chain's own till, sending in through its access key.
+  'other-till-sale': ['money', 'Recorded a sale from another till'],
+  'other-till-refund': ['money', 'Recorded money given back on another till'],
   // Stage 5: a lower price for a quiet time.
   'quiet-offers': ['settings', 'Changed the lower price for quiet times'],
   'offer-invite': ['messages', 'Wrote an invitation to a quiet time at a lower price'],
@@ -661,6 +666,8 @@ export function recordNames(s: BusinessState): RecordNames {
       return `${money(r.valueMinor, s.organisation)} gift card`
     // Stage 4: a message to clients is named by its subject, which the owner wrote for them all.
     if (hit.collection === 'news') return text(r, 'subject')
+    // Stage 5: a sale from another till is named by its receipt and the till that sent it.
+    if (hit.collection === 'otherTillSales') return tillLabel(r as unknown as OtherTillSale)
     const own = text(r, 'name') ?? text(r, 'title') ?? text(r, 'label')
     if (own && !['consentRecords', 'formResponses'].includes(hit.collection)) return own
     // Otherwise named after what it belongs to: a refund after its receipt, a payment its visit.
@@ -737,6 +744,8 @@ export type ChangeRow = {
   /** The name of the account a change was about, for changes to someone's access. */
   account: string | null
   detail: string | null
+  /** Stage 5: the access key whose software made the change, when one did. */
+  keyName?: string | null
 }
 
 export function describeChange(s: BusinessState, names: RecordNames, row: ChangeRow): ChangeEntry {
@@ -763,8 +772,10 @@ export function describeChange(s: BusinessState, names: RecordNames, row: Change
   return {
     id: row.id,
     at: row.occurredAt,
-    who: row.actor ?? automaticSource(row.action),
-    person: row.actor !== null,
+    who: row.keyName
+      ? `${row.keyName}, through its access key`
+      : (row.actor ?? automaticSource(row.action)),
+    person: !row.keyName && row.actor !== null,
     group: words?.[0] ?? 'settings',
     what: (detail?.made === 'added' ? words?.[2] : undefined) ?? words?.[1] ?? 'Made a change',
     ...(about ? { about } : {}),

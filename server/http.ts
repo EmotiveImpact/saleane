@@ -9,6 +9,8 @@ export class HttpError extends Error {
   constructor(
     readonly statusCode: number,
     message: string,
+    /** Stage 5: a short code for other software, on the access key API's refusals. */
+    readonly code?: string,
   ) {
     super(message)
   }

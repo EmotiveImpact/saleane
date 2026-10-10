@@ -522,6 +522,8 @@ export function previewStudioExport(file: StudioExport): ExportPreview {
       { label: 'Receipts', count: r.sales.length },
       { label: 'Payments and deposits', count: r.payments.length },
       { label: 'Refunds', count: r.operations.refunds.length },
+      // Stage 5: sales and refunds a chain's own tills sent in. They name no client.
+      { label: 'Sales and refunds from other tills', count: (r.otherTillSales ?? []).length },
       { label: 'Timeline entries', count: r.events.length },
       { label: 'Messages written in the inbox', count: r.operations.messages.length },
       { label: 'Guests’ replies, as written', count: (r.replies ?? []).length },

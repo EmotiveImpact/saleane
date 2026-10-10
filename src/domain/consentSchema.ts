@@ -22,8 +22,17 @@ export const consentWordingSchema = z
   .strict()
 export type ConsentWording = z.infer<typeof consentWordingSchema>
 
-/** Stage 4: 'email link' is the stop link in a message to clients. */
-export const consentSources = ['booking page', 'desk', 'guest link', 'email link'] as const
+/**
+ * Stage 4: 'email link' is the stop link in a message to clients. Stage 5: 'other software' is
+ * software the studio connected with an access key, which said who agreed, when and how.
+ */
+export const consentSources = [
+  'booking page',
+  'desk',
+  'guest link',
+  'email link',
+  'other software',
+] as const
 export const consentRecordSchema = z
   .object({
     id,
@@ -37,6 +46,10 @@ export const consentRecordSchema = z
     source: z.enum(consentSources),
     recordedAt: z.iso.datetime(),
     actor: z.string().max(200),
+    /** Stage 5: when the client said so, as other software reported it. */
+    saidAt: z.iso.datetime().optional(),
+    /** Stage 5: how the client said so, in the other software's words. */
+    how: z.string().max(200).optional(),
   })
   .strict()
 export type ConsentRecord = z.infer<typeof consentRecordSchema>

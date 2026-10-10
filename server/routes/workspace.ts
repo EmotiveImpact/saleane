@@ -550,7 +550,7 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         .filter(Boolean)
       reply(200, {
         events: db.all(
-          `SELECT e.id,e.action,e.record_id AS recordId,e.revision,e.occurred_at AS occurredAt,COALESCE(a.name,CASE WHEN e.action='workspace.restored' THEN 'Local recovery' ELSE 'Guest booking' END) AS actor FROM audit_events e LEFT JOIN accounts a ON a.id=e.actor_id WHERE e.organisation_id=?${
+          `SELECT e.id,e.action,e.record_id AS recordId,e.revision,e.occurred_at AS occurredAt,COALESCE(a.name,k.name||' (access key)',CASE WHEN e.action='workspace.restored' THEN 'Local recovery' ELSE 'Guest booking' END) AS actor FROM audit_events e LEFT JOIN accounts a ON a.id=e.actor_id LEFT JOIN api_keys k ON e.actor_id='key:'||k.id AND k.organisation_id=e.organisation_id WHERE e.organisation_id=?${
             actions?.length ? ' AND e.action IN (SELECT value FROM json_each(?))' : ''
           } ORDER BY e.occurred_at DESC,e.rowid DESC LIMIT 200`,
           org.id,
