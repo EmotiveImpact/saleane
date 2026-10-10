@@ -7,16 +7,16 @@ import type { BusinessState } from './model'
  * to leave. Plus adds more AI time and the phone receptionist answers calls, each also per
  * location. Each location's price includes five people who take bookings; each person beyond
  * that is `personMinor` a month. Anyone who gives no treatments, such as reception or a manager,
- * is free; a manager who also gives treatments counts. The amounts are the
- * owner's decisions (9 and 10 October 2026) and live only here, so the page, the bills and their
- * tests change together. The US amounts for the two add-ons are placeholders until the owner sets
- * them.
+ * is free; a manager who also gives treatments counts. The amounts are the owner's decisions (9
+ * and 10 October 2026; £59 and $69 from 10 October, up from £49 and $59) and live only here, so
+ * the page, the bills and their tests change together. The US amounts for the two add-ons are
+ * placeholders until the owner sets them.
  */
 export const PRICE = {
   UK: {
     currency: 'GBP',
     locale: 'en-GB',
-    monthlyMinor: 4900,
+    monthlyMinor: 5900,
     personMinor: 900,
     plusMinor: 3900,
     phoneMinor: 7900,
@@ -27,7 +27,7 @@ export const PRICE = {
   US: {
     currency: 'USD',
     locale: 'en-US',
-    monthlyMinor: 5900,
+    monthlyMinor: 6900,
     personMinor: 1200,
     plusMinor: 4900,
     phoneMinor: 9900,
@@ -126,7 +126,7 @@ export function allowanceFor(plan: {
   }
 }
 
-/** Whole currency units, as the page shows them: "£49", "£9" for a person or "£39" for Plus. */
+/** Whole currency units, as the page shows them: "£59", "£9" for a person or "£39" for Plus. */
 export function priceLabel(
   region: PriceRegion,
   amount: 'monthlyMinor' | 'personMinor' | 'plusMinor' | 'phoneMinor' = 'monthlyMinor',

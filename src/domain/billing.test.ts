@@ -42,24 +42,24 @@ describe('a bill', () => {
   test('adds VAT at 20% in the UK and leaves US sales tax to the card service', () => {
     const uk = monthBill('UK', 1, false, 0)
     expect(uk).toMatchObject({
-      subtotalMinor: 4900,
-      taxMinor: 980,
+      subtotalMinor: 5900,
+      taxMinor: 1180,
       taxLabel: 'VAT at 20%',
-      totalMinor: 5880,
+      totalMinor: 7080,
     })
     expect(uk.lines).toEqual([
-      { text: 'SALEANE, 1 location', quantity: 1, unitMinor: 4900, amountMinor: 4900 },
+      { text: 'SALEANE, 1 location', quantity: 1, unitMinor: 5900, amountMinor: 5900 },
     ])
     const us = monthBill('US', 1, false, 0)
-    expect(us).toMatchObject({ subtotalMinor: 5900, taxMinor: 0, taxLabel: null, totalMinor: 5900 })
+    expect(us).toMatchObject({ subtotalMinor: 6900, taxMinor: 0, taxLabel: null, totalMinor: 6900 })
   })
   test('charges each location, and Plus for each location', () => {
     const bill = monthBill('UK', 3, true, 0)
     expect(bill.lines.map((line) => [line.text, line.amountMinor])).toEqual([
-      ['SALEANE, 3 locations', 14700],
+      ['SALEANE, 3 locations', 17700],
       ['Plus, 3 locations', 11700],
     ])
-    expect(bill.totalMinor).toBe(Math.round(26400 * 1.2))
+    expect(bill.totalMinor).toBe(Math.round(29400 * 1.2))
     // A studio with no locations listed still has its main one.
     expect(monthBill('UK', 0, false, 0).lines[0].quantity).toBe(1)
   })
@@ -69,10 +69,10 @@ describe('a bill', () => {
     expect(
       uk.lines.map((line) => [line.text, line.quantity, line.unitMinor, line.amountMinor]),
     ).toEqual([
-      ['SALEANE, 1 location', 1, 4900, 4900],
+      ['SALEANE, 1 location', 1, 5900, 5900],
       ['2 more people taking bookings, beyond the 5 included', 2, 900, 1800],
     ])
-    expect(uk.totalMinor).toBe(Math.round(6700 * 1.2))
+    expect(uk.totalMinor).toBe(Math.round(7700 * 1.2))
     // The included places are shared across a group: two locations include ten people.
     expect(monthBill('US', 2, false, 11).lines.slice(1)).toEqual([
       {

@@ -240,10 +240,10 @@ describe('what one more location does to the bill', () => {
 
   it('gives the whole monthly bill before and after, with VAT, and takes nothing during a trial', () => {
     const bill = openingBill(plan(), org)
-    expect(bill.before.totalMinor).toBe(5880)
-    expect(bill.after.totalMinor).toBe(11760)
+    expect(bill.before.totalMinor).toBe(7080)
+    expect(bill.after.totalMinor).toBe(14160)
     expect(bill.heading).toBe(
-      'Your monthly bill goes from £58.80 to £117.60, including VAT at 20%.',
+      'Your monthly bill goes from £70.80 to £141.60, including VAT at 20%.',
     )
     expect(bill.detail).toBe(
       `Your first bill is on ${planDate(org, ends)}, when the free trial ends. Nothing is taken during the trial.`,
@@ -256,7 +256,7 @@ describe('what one more location does to the bill', () => {
       org,
     )
     expect(bill.heading).toBe(
-      'Your monthly bill goes from £117.60 to £176.40, including VAT at 20%.',
+      'Your monthly bill goes from £141.60 to £212.40, including VAT at 20%.',
     )
     expect(bill.detail).toBe(
       `The new amount starts with your next bill on ${planDate(org, ends)}. Nothing is taken today.`,
@@ -266,7 +266,7 @@ describe('what one more location does to the bill', () => {
   it('counts Plus for the new location too', () => {
     const bill = openingBill(plan({ plusNext: true }), org)
     expect(bill.heading).toBe(
-      'Your monthly bill, with Plus, goes from £105.60 to £211.20, including VAT at 20%.',
+      'Your monthly bill, with Plus, goes from £117.60 to £235.20, including VAT at 20%.',
     )
   })
 
@@ -289,17 +289,17 @@ describe('what one more location does to the bill', () => {
     // Five people already, all included; a second location includes five more, and six new
     // professionals make eleven, so one is paid for.
     const bill = openingBill(plan({ people: 5 }), org, 6)
-    expect(bill.before.totalMinor).toBe(5880)
-    expect(bill.after.totalMinor).toBe(11760 + 1080)
+    expect(bill.before.totalMinor).toBe(7080)
+    expect(bill.after.totalMinor).toBe(14160 + 1080)
     expect(bill.heading).toBe(
-      'Your monthly bill goes from £58.80 to £128.40, including VAT at 20%.',
+      'Your monthly bill goes from £70.80 to £152.40, including VAT at 20%.',
     )
   })
 
   it('leaves US sales tax to the provider', () => {
     const us = createWorkspace({ name: 'Linden Studio', region: 'US', locationName: 'Austin' })
     expect(openingBill(plan({ region: 'US' }), us.organisation).heading).toBe(
-      'Your monthly bill goes from $59.00 to $118.00, plus any sales tax.',
+      'Your monthly bill goes from $69.00 to $138.00, plus any sales tax.',
     )
   })
 })
