@@ -323,6 +323,73 @@ describe('a studio’s plan (NEXT-02)', () => {
     expect(changes.filter((e) => e.what.startsWith('Settled a test SALEANE bill'))).toHaveLength(2)
   })
 
+  it('charges each person taking bookings beyond the five each location includes, counted on each bill', async () => {
+    let owner = await register()
+    await saveCard(owner, '4242')
+    const { serviceId } = await bookable(owner)
+    const hire = async (name: string, serviceIds = [serviceId]) => {
+      const response = await command(owner, {
+        type: 'staff',
+        input: { name, role: 'Therapist', serviceIds, tone: 'sage' },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      return response.json<{ recordId: string }>().recordId
+    }
+    for (const name of ['Sophia Reed', 'Theo Grant', 'Isla Moore', 'Noor Haddad']) await hire(name)
+    // Someone on the front desk with no treatments is free.
+    await hire('Ruby Desk', [])
+    expect(await billing(owner)).toMatchObject({ people: 5 })
+    expect((await billing(owner)).nextBill!.bill.lines).toHaveLength(1)
+
+    await hire('Jade Lowe')
+    const seventh = await hire('Ellis Park')
+    const plan = await billing(owner)
+    expect(plan.people).toBe(7)
+    expect(plan.nextBill!.bill.lines).toEqual([
+      { text: 'SALEANE, 1 location', quantity: 1, unitMinor: 4900, amountMinor: 4900 },
+      {
+        text: '2 more people taking bookings, beyond the 5 included',
+        quantity: 2,
+        unitMinor: 900,
+        amountMinor: 1800,
+      },
+    ])
+    expect(plan.nextBill!.bill.totalMinor).toBe(8040)
+
+    // Someone who leaves is archived, and is no longer paid for.
+    const { state } = await record(owner)
+    const leaving = state.staff.find((p) => p.id === seventh)!
+    const left = await command(owner, {
+      type: 'staff',
+      id: seventh,
+      input: {
+        name: leaving.name,
+        role: leaving.role,
+        tone: leaving.tone,
+        serviceIds: leaving.serviceIds,
+        archived: true,
+      },
+    })
+    expect(left.statusCode, left.body).toBe(200)
+    expect((await billing(owner)).nextBill!.bill.totalMinor).toBe(Math.round(5800 * 1.2))
+
+    // The bill taken at the end of the trial counts the people then.
+    await at(trialEnd)
+    owner = await signIn()
+    const [first] = (await billing(owner)).invoices
+    expect(first.lines.map((line) => [line.text, line.amountMinor])).toEqual([
+      ['SALEANE, 1 location', 4900],
+      ['1 more person taking bookings, beyond the 5 included', 900],
+    ])
+    expect(first.totalMinor).toBe(6960)
+
+    // A second location includes five more, so the next month has no line for people.
+    expect((await command(owner, place('Clifton'))).statusCode).toBe(200)
+    expect((await billing(owner)).nextBill!.bill.lines.map((line) => line.text)).toEqual([
+      'SALEANE, 2 locations',
+    ])
+  })
+
   it('tries a declined card again, then makes the studio read only after the grace days', async () => {
     let owner = await register()
     const { serviceId, staffId } = await bookable(owner)
@@ -703,7 +770,7 @@ describe('a studio’s plan (NEXT-02)', () => {
         ['TEST-000002', 'paid'],
         ['TEST-000001', 'paid'],
       ])
-      expect(after.invoices[0].lines).toEqual(monthBill('UK', 1, false).lines)
+      expect(after.invoices[0].lines).toEqual(monthBill('UK', 1, false, 0).lines)
       // Its receipt went out before the server was lost, so none is sent again.
       expect(mail().filter((m) => m.subject.includes('TEST-000002'))).toEqual([])
       // The month after is taken as usual, numbered after it.

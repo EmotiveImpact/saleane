@@ -75,6 +75,14 @@
 .pricing-amount small {
   font-size: var(--text-small);
 }
+.pricing-people {
+  margin: -8px 0 0;
+  color: var(--muted);
+}
+.pricing-people strong {
+  color: var(--ink);
+  font-weight: 600;
+}
 .pricing-included {
   list-style: none;
   margin: 0;

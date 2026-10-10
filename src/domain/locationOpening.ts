@@ -262,8 +262,8 @@ const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'F
  * the new amount starts with the next monthly bill.
  */
 export function openingBill(plan: BillingView, org: BusinessState['organisation']) {
-  const before = monthBill(plan.region, plan.locations, plan.plusNext)
-  const after = monthBill(plan.region, plan.locations + 1, plan.plusNext)
+  const before = monthBill(plan.region, plan.locations, plan.plusNext, plan.people)
+  const after = monthBill(plan.region, plan.locations + 1, plan.plusNext, plan.people)
   const cash = (minor: number) => money(minor, org, true)
   const day = (at: number) => planDate(org, at)
   const tax = after.taxLabel ? `, including ${after.taxLabel}` : ', plus any sales tax'

@@ -11,8 +11,10 @@ test('formats the price in each currency without pence', () => {
   expect(priceLabel('US')).toBe('$59')
   expect(priceLabel('UK', 'plusMinor')).toBe('£39')
   expect(priceLabel('UK', 'phoneMinor')).toBe('£79')
+  expect(priceLabel('UK', 'personMinor')).toBe('£9')
+  expect(priceLabel('US', 'personMinor')).toBe('$12')
   for (const price of Object.values(PRICE))
-    for (const amount of [price.monthlyMinor, price.plusMinor, price.phoneMinor])
+    for (const amount of [price.monthlyMinor, price.personMinor, price.plusMinor, price.phoneMinor])
       expect(amount % 100).toBe(0)
 })
 
@@ -26,14 +28,26 @@ test('shows one price for each location and switches country', async () => {
   await userEvent.click(screen.getByRole('radio', { name: 'United Kingdom' }))
   const offer = within(screen.getByRole('region', { name: 'The price' }))
   expect(offer.getByText('£49')).toBeInTheDocument()
-  expect(offer.getByText(/plus VAT/)).toHaveTextContent('per location, month to month')
+  expect(offer.getByText('per location, month to month').parentElement).toHaveTextContent(
+    'a month, plus VAT',
+  )
   expect(offer.getByText(/14 days free, no card needed/)).toBeInTheDocument()
+  // Five people taking bookings come with each location; reception and managers are free.
+  expect(offer.getByText(/Includes 5 people taking bookings/)).toHaveTextContent(
+    'Includes 5 people taking bookings. Each person beyond that is £9 a month, plus VAT.',
+  )
+  expect(
+    offer.getByText(/5 people taking bookings, and reception and managers free/),
+  ).toBeInTheDocument()
+  expect(screen.getByText(/reception and managers are always free/)).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'No commission on your clients' })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'No locked tiers' })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'No fee to leave' })).toBeInTheDocument()
   await userEvent.click(screen.getByRole('radio', { name: 'United States' }))
   expect(offer.getByText('$59')).toBeInTheDocument()
-  expect(offer.getByText(/plus any sales tax/)).toBeInTheDocument()
+  expect(offer.getByText(/Includes 5 people taking bookings/)).toHaveTextContent(
+    'Each person beyond that is $12 a month, plus any sales tax.',
+  )
 })
 
 test('lists the two add-ons with their prices, and the AI each location includes', async () => {
