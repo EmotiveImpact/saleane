@@ -2,6 +2,12 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-10 · Diaries checked by a calendar app's own reader
+
+**Status: tests only; nothing on screen changes.** [Evidence](docs/evidence/NEXT-10-DIARIES.md#tests).
+
+- The team diaries and a guest's "Add to calendar" file are now read back in the tests by ical.js, Mozilla's open-source iCalendar reader (MPL 2.0, a development dependency that is never shipped), so a file Google or Apple Calendar would misread fails before a studio sees it. It checks times either side of the clocks changing in London and New York, long names with accents and punctuation, whole-day time off and cancelled visits.
+
 ## 2026-10-10 · Talking to Ask SALEANE (NEXT-12, part 2)
 
 **Status: built locally on 10 October 2026; not run against a real OpenAI or Anthropic account.** [Evidence](docs/evidence/NEXT-12-TALKING.md).
