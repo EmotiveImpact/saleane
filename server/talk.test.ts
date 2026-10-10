@@ -245,6 +245,36 @@ describe('a talk', () => {
     ).toBe(1)
   })
 
+  it('keeps a talk’s minutes held for as long as it may run, and gives them back if never counted', async () => {
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    const { id } = (await talk(login)).json<{ id: string }>()
+    // Held for its ten minutes, its fifteen seconds to end and a minute to spare.
+    expect(stored(login).holds).toMatchObject([{ until: '2026-10-06T08:11:15.000Z' }])
+    // Seven minutes in, past the five a question is held for, its minutes are still held.
+    clock += 420_000
+    expect((await api.inject({ url: path(login), headers: headers(login) })).json()).toMatchObject({
+      usage: { used: { talkSeconds: 600 } },
+    })
+    voice.lines[0].fire({ type: 'closed', reason: 'close_requested', seconds: 420 })
+    expect((await read(login, id)).json()).toMatchObject({ status: 'ended' })
+    expect(stored(login)).toMatchObject({ used: { talkSeconds: 420 }, holds: [] })
+
+    // A talk SALEANE never counted, as when it stopped mid-talk, comes back once its time is up.
+    const lost = (await talk(login)).json<{ id: string }>()
+    expect(lost.id).toBeTruthy()
+    expect(stored(login).used.talkSeconds).toBe(420 + 600)
+    api.database.run(
+      `UPDATE assistant_usage SET usage=json_set(usage,'$.holds[0].until',?) WHERE organisation_id=?`,
+      new Date(clock - 1).toISOString(),
+      login.orgId,
+    )
+    expect((await api.inject({ url: path(login), headers: headers(login) })).json()).toMatchObject({
+      usage: { used: { talkSeconds: 420 } },
+    })
+  })
+
   it('shows a change prepared while talking, to approve on screen like a typed one', async () => {
     const claudeSide = anthropic([
       {
