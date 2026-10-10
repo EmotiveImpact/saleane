@@ -2,6 +2,20 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-10 · Finish and feel (left-out Stage 6)
+
+**Status: built locally on 10 October 2026 and checked in a browser; test mode only, so no message is sent, no map service is connected and nothing is deployed.** No migration. Evidence: [small moments](docs/evidence/LEFT-6A-SIGNATURE-MOMENTS.md), [two-step sign-in for everyone](docs/evidence/LEFT-6B-TWO-STEP-FOR-EVERYONE.md), [privacy approvals](docs/evidence/LEFT-6C-PRIVACY-APPROVALS.md), [the Inbox and leftovers](docs/evidence/LEFT-6D-INBOX-AND-LEFTOVERS.md), [page tops, voice and design](docs/evidence/LEFT-6E-PAGE-TOPS-VOICE-AND-DESIGN.md) and [dragging on a tablet](docs/evidence/LEFT-6F-DRAGGING-ON-A-TABLET.md).
+
+- **Small moments.** A paid checkout ends on "Settled." with the receipt and the next visit. A day with no free time says "Fully booked. Beautifully done.", and a gap of half an hour or more between visits reads "A pause". Needs you says "All in hand." when nothing waits. Business closes the day with a short ledger: guests seen, first-timers, rebooked before leaving, takings, products, tips, and who starts tomorrow.
+- **The guest's visit page** greets them by first name ("Your visit, Naomi."), shows the studio's photo, and has a Your studio panel with the address, directions and Add to calendar. The map itself appears once a map service is connected.
+- **Two-step sign-in for everyone.** The owner can ask everyone to use two-step sign-in, once they use it themselves. Settings, Team says who has it on and who has not. Anyone without it is asked to set it up straight after signing in and cannot open the studio until they have; people invited are asked as they join. The booking page, guests' visit links and partner keys work as before.
+- **Privacy decisions.** Nothing is deleted automatically. Settings, Privacy lists client records past the studio's keeping time, and the owner or a manager chooses Delete or Keep for each. A deleted client becomes "Former client"; money records are always kept.
+- **One Inbox conversation per guest.** Messages from a guest's email or number on several records join one conversation, and the reply box is compact, so the conversation has room. Business's empty chart no longer reads "£0.01", and about twenty internal words on screen became plain ones, with a test that keeps them out.
+- **One page top everywhere.** Every page opens the same way, with the photo band kept for the six arrival pages. A wording guide ([How SALEANE speaks](docs/HOW_SALEANE_SPEAKS.md)) and the design language page now set out the voice.
+- **Dragging on a tablet.** On a touch screen a visit is held for a moment before it moves, so the calendar scrolls normally and a visit is never moved by accident.
+- In the browser pass: a short pause is tinted without words that would not fit, and Two-step for everyone says "Nobody has it on yet" rather than "0 of 1 person".
+- **Help** has six new guides: small moments, two-step sign-in, asking everyone to use it, privacy decisions, one conversation per guest, and how SALEANE speaks.
+
 ## 2026-10-10 · Ask SALEANE, the receptionist and other software, built properly (left-out Stage 5)
 
 **Status: built locally on 10 October 2026 and checked in a browser; test mode only, so no message is sent, ChatGPT, Claude and Google cannot reach SALEANE until it is online, and nothing is deployed.** Migration 34 adds the quiet-time price links and migration 35 keeps the answers to writes from other software. Evidence: [my usual](docs/evidence/LEFT-5A-MY-USUAL.md), [a lower price for a quiet time](docs/evidence/LEFT-5B-QUIET-TIME-OFFERS.md), [moving a Google booking](docs/evidence/LEFT-5C-GOOGLE-TIME-CHANGE.md), [booking through ChatGPT or Claude](docs/evidence/LEFT-5D-BOOK-THROUGH-CHATGPT-CLAUDE.md) and [keys for other software](docs/evidence/LEFT-5E-KEYS-FOR-OTHER-SOFTWARE.md).
