@@ -196,7 +196,7 @@ export function clientUsualSkill(
   return readSkill<AskContext, { clientId: string }>({
     name: 'client_usual',
     description:
-      "One client's usual visit, from their completed visits in the last 12 months across every record with the same email: treatment, professional, location, day, part of the day, typical start time (minutes after midnight) and the next usual day. Says what changed, such as someone who has left. Use with free_times and book_visit to book their usual.",
+      "One client's usual visit, from their completed visits in the last 12 months across every record with the same email: treatment, professional, location, day, part of the day, typical start time (minutes after midnight) and the next usual day. Says what changed, such as someone who has left. To book their usual: find_client, then this, then free_times with its serviceId, its staffId when there is one and its nextDate (or the day asked for), then book_visit at the time asked for, or at its startMinutes when that is free; otherwise list the free times and ask.",
     input: z.object({ clientId: z.string().min(1) }).strict(),
     allowed: (ctx) => allowed(ctx) && can(ctx.role, 'read'),
     run(ctx, { clientId }) {
