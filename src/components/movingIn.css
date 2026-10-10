@@ -118,6 +118,10 @@
 .moving-questions .moving-field {
   border-top-color: color-mix(in srgb, var(--rose) 28%, var(--line));
 }
+/* A second set of questions (treatments, then people) starts a little apart from the first. */
+.moving-questions .moving-field + p {
+  margin-top: 18px;
+}
 /* Each column is a row with a hairline above it, never a box inside a box. */
 .moving-field {
   display: grid;
@@ -143,7 +147,6 @@
 .moving-field-actions {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: 8px;
 }
 .moving-field select {
@@ -279,6 +282,9 @@
   background: var(--brand);
   transform: translateY(-2px);
 }
+.moving-narrow {
+  display: none;
+}
 .moving-progress {
   margin: 0;
   padding: 14px 18px;
@@ -286,6 +292,14 @@
   background: var(--sage);
   color: var(--brand-ink);
   font-size: var(--text-small);
+}
+@media (max-width: 650px) {
+  .moving-wide {
+    display: none;
+  }
+  .moving-narrow {
+    display: inline;
+  }
 }
 @media (max-width: 640px) {
   .moving {

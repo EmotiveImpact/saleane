@@ -2,6 +2,21 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-10 · Moving in, stage 2: upcoming visits from the old system's own files
+
+**Status: built locally on 10 October 2026, awaiting the owner's "merge" together with stage 1; nothing deployed.** [Evidence](docs/evidence/MOVING-02.md).
+
+- Moving in now brings upcoming visits across from the file the old system already gives, such as Fresha's appointments list, alongside the client list or on its own. Before, that file was set aside, and Settings refused it unless it was rebuilt in SALEANE's own layout with every guest's email.
+- The steps follow the files: a Visits step appears when a visits file is added. "Your files" says where to download both lists in each system; where a system only gives upcoming visits through its support team, it says so.
+- SALEANE reads dates and times in each system's style (slots such as 10:30:00-11:30:00, "14 Oct 2026, 10:30am", Excel times), recognises Fresha's appointments list and Vagaro's appointments summary, and reads any other file by meaning. A treatment or person it cannot match is asked about with the studio's own list to choose from, or left behind; a likely match ("Theo", most likely Theo Bennett) is confirmed with one press.
+- Each visit is checked against the calendar and the visits before it, the way the server checks it, and any that cannot come across says why in plain words: time away, a day the studio is closed, outside opening hours, a clash, a treatment the person is not set up for, a walk-in, a client with no details, or a request still waiting in the old system. Reasons are grouped with a few of their visits, and totals to check against the old system's report come first.
+- Visits keep the price the guest was quoted and only the deposit they paid, which is recorded as paid before switching; SALEANE takes no payment and sends no confirmation. Past, cancelled and missed visits stay behind. A visit already in SALEANE is left alone, and the same visit in two files comes across once.
+- Visits find their clients by email, then phone, then name, including clients arriving in the same move. A client named only in the visits file, with an email or phone, comes across as a new client with marketing off. A household sharing an email is never merged.
+- Settings, Switching over, Upcoming visits opens the same steps; the older CSV path for visits is gone. Treatments and balances keep their CSV steps.
+- A visit whose deposit was paid to the old system now says "Deposit paid before switching" instead of "Demo deposit recorded".
+- Fixed: saving stalled after the first part when a second part followed. On a phone the save button reads "Bring them across", so it fits.
+- The help guide "Bring clients and visits across from another system" describes the steps as they are now.
+
 ## 2026-10-10 · Filling a cancelled time (NEXT-11)
 
 **Status: built locally on 10 October 2026.** [Evidence](docs/evidence/NEXT-11-CANCELLED-TIMES.md).

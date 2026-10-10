@@ -169,6 +169,11 @@ export function AppointmentDialog({
   // PILOT-02: a signed-in local studio can take a card through the payment provider.
   const cardTaking = storeMode === 'server' && !sandbox
   const deposit = depositPaid(state, appointmentId)
+  // A deposit the guest paid to the studio's old system before moving in, never taken here.
+  const paidBeforeMove = state.payments.some(
+    (p) =>
+      p.appointmentId === appointmentId && p.kind === 'deposit' && p.method === 'previous_system',
+  )
   const tipMinor = parseMinor(tip, 0)
   const coverable = deposit ? [] : plansForVisit(state, appointment, today)
   const memberPercent = memberDiscountPercent(state, appointment, today)
@@ -1224,7 +1229,13 @@ export function AppointmentDialog({
               <strong>{money(appointment.bookedPriceMinor, state.organisation)}</strong>
             </div>
             <div className="receipt-line subtle">
-              <span>{sandbox ? 'Demo deposit recorded' : 'Deposit recorded'}</span>
+              <span>
+                {paidBeforeMove
+                  ? 'Deposit paid before switching'
+                  : sandbox
+                    ? 'Demo deposit recorded'
+                    : 'Deposit recorded'}
+              </span>
               <span>{money(deposit, state.organisation)}</span>
             </div>
           </div>

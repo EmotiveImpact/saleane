@@ -402,19 +402,21 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
   },
   {
     id: 'import-clients',
-    title: 'Bring clients across from another system',
+    title: 'Bring clients and visits across from another system',
     group: 'Clients',
-    summary: 'Import a spreadsheet of clients you have downloaded from your old system.',
+    summary:
+      'Move your client list and upcoming visits in from Fresha, Phorest, Timely, Treatwell, Booksy or any other system, exactly as you download them.',
     steps: [
-      'Open Clients and choose Import clients. For treatments, visits and balances too, open Settings, then Switching over.',
-      'Choose your CSV file and the system it came from.',
-      'Check the records, tick to confirm you have reviewed them, then import.',
+      'Open Clients and choose Import clients, or open Settings, then Switching over. Treatments and balances are there too.',
+      'Choose where you are moving from, then add your client list and your upcoming visits, CSV or Excel, as they come.',
+      'Answer anything SALEANE is unsure of, check the clients and the visits against your old system, then tick and choose Bring them across.',
     ],
-    note: 'Marketing stays off for every client you import.',
+    note: 'Marketing comes across only where your old system recorded that the client agreed. Visits keep the price each guest was quoted, any deposit paid before the move counts as paid, and nobody is sent a confirmation.',
     to: '/clients',
     screens: ['/clients', '/settings?section=switching'],
     roles: RUNS,
-    words: 'import csv spreadsheet move switch fresha phorest timely treatwell booksy',
+    words:
+      'import csv excel spreadsheet move switch fresha phorest timely treatwell booksy appointments bookings',
   },
   {
     id: 'client-notes',

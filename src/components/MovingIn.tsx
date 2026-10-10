@@ -77,6 +77,7 @@ type Plan = {
   past: number
   cancelled: number
   visitsBehind: number
+  visitsLeft: number
   hasVisitFiles: boolean
 }
 
@@ -212,7 +213,8 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
     visitsHere: visits.counts.here,
     past: visits.counts.past,
     cancelled: visits.counts.cancelled,
-    visitsBehind: visits.counts.problem + visits.counts.skipped,
+    visitsBehind: visits.counts.problem,
+    visitsLeft: visits.counts.skipped,
     hasVisitFiles: !!visitFiles.length,
   }
   const plan = run?.plan ?? live
@@ -250,15 +252,17 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
         reviewed: true,
       })
         .then((result) => {
+          // Cleared before the next part is asked for, so its effect is free to send it.
+          sending.current = false
           if (!result.ok) return stop(result.error)
           const saved = { ...run, savedClients: run.savedClients + part.length }
           if (run.next + 1 < total) setRun({ ...saved, next: run.next + 1 })
           else if (run.visitParts.length) setRun({ ...saved, phase: 'visits', next: 0 })
           else finish(saved)
         })
-        .catch(() => stop('The connection dropped.'))
-        .finally(() => {
+        .catch(() => {
           sending.current = false
+          stop('The connection dropped.')
         })
       return
     }
@@ -278,14 +282,15 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
       reviewed: true,
     })
       .then((result) => {
+        sending.current = false
         if (!result.ok) return stop(result.error)
         const saved = { ...run, savedVisits: run.savedVisits + rows.length }
         if (run.next + 1 < run.visitParts.length) setRun({ ...saved, next: run.next + 1 })
         else finish(saved)
       })
-      .catch(() => stop('The connection dropped.'))
-      .finally(() => {
+      .catch(() => {
         sending.current = false
+        stop('The connection dropped.')
       })
   }, [run, saving, commit, label, visitSource, state])
 
@@ -370,6 +375,7 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
   }
 
   const amount = (minor: number) => money(minor, org, true)
+  const bringing = what(plan.clients.length, plan.visits.length) || 'them'
 
   if (done !== null)
     return (
@@ -779,6 +785,12 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
                   stay behind.
                 </li>
               )}
+              {!!plan.visitsLeft && (
+                <li>
+                  {plural(plan.visitsLeft, 'visit')} you chose to leave behind{' '}
+                  {plan.visitsLeft === 1 ? 'stays' : 'stay'} in {plan.from}.
+                </li>
+              )}
               {!!plan.visitsBehind && (
                 <li>
                   {plural(plan.visitsBehind, 'other visit')} cannot come across; the Visits step
@@ -833,6 +845,7 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
           ) : (
             <Button
               disabled={!canSave}
+              aria-label={running ? undefined : `Bring ${bringing} across`}
               onClick={() => {
                 setError('')
                 setRun({
@@ -846,9 +859,19 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
                 })
               }}
             >
-              {running
-                ? 'Bringing them across…'
-                : `Bring ${what(plan.clients.length, plan.visits.length) || 'them'} across`}
+              {running ? (
+                'Bringing them across…'
+              ) : (
+                <>
+                  {/* On a phone the counts stay in the tick above, so the button fits. */}
+                  <span className="moving-wide" aria-hidden="true">
+                    Bring {bringing} across
+                  </span>
+                  <span className="moving-narrow" aria-hidden="true">
+                    Bring them across
+                  </span>
+                </>
+              )}
             </Button>
           )}
         </WizardFooter>
@@ -1094,21 +1117,29 @@ function VisitTotals({ review, from }: { review: VisitReview; from: string }) {
   const { state } = useStore()
   const org = state.organisation
   const lines: ReactNode[] = []
-  if (review.ready.length && review.first && review.last)
+  if (review.ready.length && review.first && review.last) {
+    const when =
+      review.first === review.last
+        ? `on ${dateLabel(review.first, org.locale)}`
+        : `from ${dateLabel(review.first, org.locale)} to ${dateLabel(review.last, org.locale)}`
     lines.push(
-      `Check these against ${from}: ${plural(review.ready.length, 'visit')} from ${dateLabel(review.first, org.locale)} to ${dateLabel(review.last, org.locale)}, ${money(review.valueMinor, org, true)} booked and ${money(review.depositsMinor, org, true)} in deposits paid there.`,
+      `Check these against ${from}: ${plural(review.ready.length, 'visit')} ${when}, ${money(review.valueMinor, org, true)} booked and ${money(review.depositsMinor, org, true)} in deposits paid there.`,
     )
+  }
+  const { past, cancelled, skipped } = review.counts
   const behind = [
-    review.counts.past
-      ? `${plural(review.counts.past, 'past visit')}, which come across in a later step`
+    past
+      ? `${plural(past, 'past visit')}, which ${past === 1 ? 'comes' : 'come'} across in a later step`
       : '',
-    review.counts.cancelled
-      ? `${plural(review.counts.cancelled, 'cancelled or missed visit')}, which stay behind`
+    cancelled
+      ? `${plural(cancelled, 'cancelled or missed visit')}, which ${cancelled === 1 ? 'stays' : 'stay'} behind`
       : '',
   ].filter(Boolean)
   if (behind.length) lines.push(`Also in your files: ${behind.join(', and ')}.`)
-  if (review.counts.skipped)
-    lines.push(`${plural(review.counts.skipped, 'visit')} you chose to leave behind.`)
+  if (skipped)
+    lines.push(
+      `${plural(skipped, 'visit')} you chose to leave behind ${skipped === 1 ? 'stays' : 'stay'} in ${from}.`,
+    )
   if (review.counts.combined)
     lines.push(
       `${plural(review.counts.combined, 'visit')} ${review.counts.combined === 1 ? 'was' : 'were'} listed twice and ${review.counts.combined === 1 ? 'comes' : 'come'} across once.`,
@@ -1135,7 +1166,13 @@ function VisitAttention({ rows }: { rows: VisitRow[] }) {
     for (const note of row.notes) put(note, row)
   }
   if (!groups.size) return null
-  const listed = [...groups.entries()].sort((a, b) => b[1].length - a[1].length)
+  // With one visits file, each example needs only its line.
+  const oneFile = new Set(rows.map((row) => row.fileName)).size === 1
+  // What is not coming across first, then notes on visits that are; the commonest reason leads.
+  const blocking = (group: VisitRow[]) => (group[0].status === 'problem' ? 0 : 1)
+  const listed = [...groups.entries()].sort(
+    (a, b) => blocking(a[1]) - blocking(b[1]) || b[1].length - a[1].length,
+  )
   return (
     <div className="moving-attention" role="region" aria-label="Visits to look at" tabIndex={0}>
       <ul>
@@ -1150,7 +1187,7 @@ function VisitAttention({ rows }: { rows: VisitRow[] }) {
             <ul className="moving-examples">
               {group.slice(0, 3).map((row) => (
                 <li key={`${row.fileName}-${row.line}`}>
-                  {row.label || 'No details'} · {row.fileName}, line {row.line}
+                  {row.label || 'No details'} · {oneFile ? '' : `${row.fileName}, `}line {row.line}
                 </li>
               ))}
               {group.length > 3 && <li>And {plural(group.length - 3, 'more visit')}</li>}

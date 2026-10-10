@@ -984,7 +984,7 @@ describe('moving clients in from another system', () => {
         /Check these against Fresha: 2 visits from .*£160\.00 booked and £20\.00 in deposits paid there\./,
       ),
     ).toBeInTheDocument()
-    expect(screen.getByText(/1 cancelled or missed visit, which stay behind/)).toBeInTheDocument()
+    expect(screen.getByText(/1 cancelled or missed visit, which stays behind/)).toBeInTheDocument()
     const attention = screen.getByRole('region', { name: 'Visits to look at' })
     expect(within(attention).getByText('1 visit not coming across')).toBeInTheDocument()
     expect(within(attention).getByText(/This client is not in SALEANE/)).toBeInTheDocument()
@@ -1025,6 +1025,11 @@ describe('moving clients in from another system', () => {
     expect(
       saved.payments.filter((p: { method: string }) => p.method === 'previous_system'),
     ).toMatchObject([{ appointmentId: moved[0].id, amountMinor: 2000 }])
+    // The visit says where its deposit was paid, never that SALEANE took it.
+    cleanup()
+    await show(`/calendar?date=2026-10-13&appointment=${moved[0].id}`)
+    expect(await screen.findByText('Deposit paid before switching')).toBeInTheDocument()
+    expect(screen.queryByText('Demo deposit recorded')).not.toBeInTheDocument()
   })
 
   it('opens the same steps from Settings for upcoming visits', async () => {
