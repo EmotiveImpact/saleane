@@ -163,7 +163,15 @@ export function ReceptionistChat({
           <span className="sr-only">Close the chat</span>
         </button>
       </header>
-      <div ref={log} className="reception-log" role="log" aria-live="polite">
+      {/* Focusable, so a long conversation can be scrolled from the keyboard. */}
+      <div
+        ref={log}
+        className="reception-log"
+        role="log"
+        aria-live="polite"
+        aria-label="Conversation"
+        tabIndex={0}
+      >
         {turns.length === 0 && (
           <div className="reception-starters">
             {starters.map((s) => (
