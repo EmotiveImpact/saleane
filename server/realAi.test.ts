@@ -59,10 +59,16 @@ function recording(channel: 'email' | 'sms'): MessageProvider {
     },
   }
 }
-function start(ai: AiSupplier, databasePath = ':memory:', at = '2026-10-06T08:00:00.000Z') {
+function start(
+  ai: AiSupplier,
+  databasePath = ':memory:',
+  at = '2026-10-06T08:00:00.000Z',
+  options: { missedAgainMs?: number } = {},
+) {
   clock = Date.parse(at)
   sent = []
   api = createApiHandler({
+    ...options,
     origin,
     databasePath,
     now: () => clock,
@@ -389,6 +395,43 @@ describe('the receptionist with Claude', () => {
     await new Promise((done) => setTimeout(done, 50))
     expect(late.requests).toEqual([])
     expect(answers()).toHaveLength(1)
+  })
+
+  it('answers a text its own stopped request kept from the last guest chat, once that hold runs out', async () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'saleane-held-')), 'studio.sqlite')
+    let stop!: (error: Error) => void
+    const first = anthropic([new Promise((_, fail) => (stop = fail))])
+    start(claude(first.fetcher), file)
+    const { login, slug } = await studio()
+    // 199 of the month's 200 guest chats are used, so this text's chat is the last.
+    api.database.run(
+      'INSERT OR REPLACE INTO assistant_usage(organisation_id,usage,updated_at) VALUES(?,?,?)',
+      login.orgId,
+      JSON.stringify({
+        period: '2026-10',
+        used: { typed: 0, talkSeconds: 0, guestChats: 199 },
+        spendByDay: {},
+        recent: {},
+      }),
+      clock,
+    )
+    expect((await text(slug, 'When are you open?', 'm1')).statusCode).toBe(200)
+    await expect.poll(() => first.requests.length).toBe(1)
+    api.close()
+    stop(new Error('SALEANE stopped'))
+    await new Promise((done) => setTimeout(done, 20))
+    // Started again two minutes on, the stopped request still holds that last chat.
+    const { requests, fetcher } = anthropic([words('We are open 9 to 6.')])
+    start(claude(fetcher), file, '2026-10-06T08:02:00.000Z', { missedAgainMs: 200 })
+    await new Promise((done) => setTimeout(done, 50))
+    expect(requests).toEqual([])
+    expect(stored(login).used.guestChats).toBe(200)
+    // Its five minutes are up when SALEANE looks again, so the chat comes back and is answered.
+    clock = Date.parse('2026-10-06T08:06:00.000Z')
+    await expect.poll(() => answers().length).toBe(1)
+    expect(answers()[0].body).toBe('Linden Studio AI receptionist: We are open 9 to 6.')
+    expect(requests).toHaveLength(1)
+    expect(stored(login)).toMatchObject({ used: { guestChats: 200 }, holds: [] })
   })
 
   it('thanks the text line first, answers once, and never lets the AI write a fill-in', async () => {

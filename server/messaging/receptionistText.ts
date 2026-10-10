@@ -88,17 +88,17 @@ export async function answerSocial(ctx: Context, message: SocialMessage) {
 }
 
 /** How far back SALEANE looks, on starting, for a guest's message it never answered. */
-const MISSED_MS = 10 * 60000
+export const MISSED_MS = 10 * 60000
 
 /**
  * NEXT-12: with a real AI, the provider is thanked before the answer is written, so it will not
  * send the message again. Should SALEANE stop in between, the guest's message is kept in the
  * inbox but never answered; on starting, each one kept in the last ten minutes with no answer is
  * answered now, oldest first. Older ones are left for the team, as an answer would come too late.
- * Returns whether any answer was queued.
+ * The stopped request may still hold the month's last guest chat, so the app looks again, from the
+ * same `since`, once that hold has run out. Returns whether any answer was queued.
  */
-export async function answerMissed(ctx: Context) {
-  const since = ctx.now() - MISSED_MS
+export async function answerMissed(ctx: Context, since = ctx.now() - MISSED_MS) {
   const work: Promise<boolean>[] = []
   for (const { id } of ctx.db.all<{ id: string }>('SELECT id FROM organisations')) {
     const org = ctx.systemOrg(id)

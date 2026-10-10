@@ -23,7 +23,8 @@ import type { Outbox } from './messaging/outbox'
 import { paymentRoutes } from './routes/payments'
 import { assistantRoutes } from './routes/assistant'
 import { receptionistRoutes } from './routes/receptionist'
-import { answerMissed, answerSocial, answerText } from './messaging/receptionistText'
+import { MISSED_MS, answerMissed, answerSocial, answerText } from './messaging/receptionistText'
+import { HOLD_SECONDS } from '../lumane'
 import { createPayments } from './payments/service'
 import type { Payments } from './payments/service'
 import { connectionTransportFromEnv, createConnections } from './connections'
@@ -115,8 +116,17 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     ),
     ...baseRoutes,
   ]
-  // NEXT-12: a guest's message thanked but left unanswered when SALEANE last stopped.
-  if (ctx.ai.live) void answerSoon(answerMissed(ctx), 'messages kept before a restart')
+  // NEXT-12: a guest's message thanked but left unanswered when SALEANE last stopped. A request
+  // that stopped holding the month's last guest chat keeps it until its hold runs out, so SALEANE
+  // looks once more after that.
+  let missedAgain: ReturnType<typeof setTimeout> | undefined
+  if (ctx.ai.live) {
+    const since = ctx.now() - MISSED_MS
+    const missed = () => void answerSoon(answerMissed(ctx, since), 'messages kept before a restart')
+    missed()
+    missedAgain = setTimeout(missed, options.missedAgainMs ?? (HOLD_SECONDS + 15) * 1000)
+    missedAgain.unref?.()
+  }
   if (options.outboxIntervalMs) {
     outbox.start(options.outboxIntervalMs)
     connections.start(options.outboxIntervalMs)
@@ -344,6 +354,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   handler.connections = connections
   handler.billing = billing
   handler.close = () => {
+    clearTimeout(missedAgain)
     outbox.stop()
     connections.stop()
     billing.stop()
