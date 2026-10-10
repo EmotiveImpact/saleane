@@ -603,18 +603,28 @@ export function sendgridReceipts(
   const events = parse(request.body)
   if (!Array.isArray(events)) return []
   const receipts: Receipt[] = []
-  for (const event of events as { event?: unknown; sg_message_id?: unknown; reason?: unknown }[]) {
+  for (const event of events as {
+    event?: unknown
+    sg_message_id?: unknown
+    reason?: unknown
+    outbox?: unknown
+  }[]) {
     // SendGrid's event id is the X-Message-Id it answered with (which may hold dots), then
-    // ".filter…" or ".stfilter-…".
+    // ".filter…" or ".stfilter-…". A bounce that comes back later may have no id, but carries the
+    // outbox row SALEANE sent in custom_args.
     const ref =
       typeof event.sg_message_id === 'string' ? event.sg_message_id.split(/\.(?:st)?filter/)[0] : ''
-    if (!ref) continue
-    if (event.event === 'delivered')
-      receipts.push({ provider: 'sendgrid', providerRef: ref, delivered: true })
+    const outbox = typeof event.outbox === 'string' ? event.outbox : ''
+    if (!ref && !outbox) continue
+    const which = {
+      provider: 'sendgrid',
+      providerRef: ref,
+      ...(outbox ? { outboxId: outbox } : {}),
+    }
+    if (event.event === 'delivered') receipts.push({ ...which, delivered: true })
     else if (event.event === 'bounce' || event.event === 'dropped')
       receipts.push({
-        provider: 'sendgrid',
-        providerRef: ref,
+        ...which,
         delivered: false,
         detail:
           event.event === 'bounce'

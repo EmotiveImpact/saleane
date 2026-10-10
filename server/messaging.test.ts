@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { createHmac } from 'node:crypto'
+import { createHmac, generateKeyPairSync, sign } from 'node:crypto'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createApiHandler } from './app'
 import type { ApiHandler } from './app'
@@ -747,6 +747,63 @@ describe('appointment messages (PILOT-01)', () => {
     expect(rows().find((r) => r.id === email.id)!.status).toBe('accepted')
     expect((await receipt('signing-key')).statusCode).toBe(200)
     expect(rows().find((r) => r.id === email.id)!.status).toBe('delivered')
+  })
+
+  it('marks a SendGrid email failed from a later bounce that names only its outbox row (NEXT-13)', async () => {
+    const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' })
+    let n = 0
+    const fetcher = (async () =>
+      new Response(null, {
+        status: 202,
+        headers: { 'x-message-id': `sg-${++n}` },
+      })) as unknown as typeof fetch
+    const chosen = providersFromEnv(
+      {
+        SALEANE_EMAIL_PROVIDER: 'sendgrid',
+        SENDGRID_API_KEY: 'SG.key',
+        SENDGRID_WEBHOOK_PUBLIC_KEY: publicKey
+          .export({ type: 'spki', format: 'der' })
+          .toString('base64'),
+        SALEANE_EMAIL_FROM: 'hello@example.invalid',
+      },
+      origin,
+      fetcher,
+    )
+    start({ ...chosen, sms: recording('sms') })
+    const { serviceId, staffId, slug } = await localStudio()
+    await book(slug, serviceId, staffId)
+    await api.outbox.tick()
+    const email = rows().find((r) => r.channel === 'email')!
+    const text = rows().find((r) => r.channel === 'sms')!
+    expect([email.status, email.provider]).toEqual(['accepted', 'sendgrid'])
+    expect(email.provider_ref).toMatch(/^sg-\d+$/)
+    const bounce = (outbox: string) => {
+      const timestamp = String(Math.floor(Date.now() / 1000))
+      const body = JSON.stringify([{ event: 'bounce', outbox, reason: '550 mailbox full' }])
+      return api.inject({
+        method: 'POST',
+        url: '/api/hooks/sendgrid',
+        headers: {
+          'content-type': 'application/json',
+          'x-twilio-email-event-webhook-timestamp': timestamp,
+          'x-twilio-email-event-webhook-signature': sign(
+            'sha256',
+            Buffer.from(timestamp + body),
+            privateKey,
+          ).toString('base64'),
+        },
+        rawPayload: body,
+      })
+    }
+    // A row another sender carried cannot be reached through SendGrid's receipts.
+    expect((await bounce(text.id)).statusCode).toBe(200)
+    expect(rows().find((r) => r.id === text.id)!.status).toBe(text.status)
+    expect((await bounce(email.id)).statusCode).toBe(200)
+    const failed = rows().find((r) => r.id === email.id)!
+    expect([failed.status, failed.detail]).toEqual([
+      'failed',
+      'The guest’s email provider sent it back (bounced).',
+    ])
   })
 
   it('keeps the outbox from practitioners and reports test mode by default', async () => {

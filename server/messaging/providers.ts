@@ -64,7 +64,14 @@ export type MessageProvider = {
   send: (message: OutgoingMessage) => Promise<SendResult>
 }
 /** A delivery receipt the provider posted back, already verified. */
-export type Receipt = { provider: string; providerRef: string; delivered: boolean; detail?: string }
+export type Receipt = {
+  provider: string
+  providerRef: string
+  delivered: boolean
+  detail?: string
+  /** The outbox row the sender was told when it was sent, for a receipt that carries no id. */
+  outboxId?: string
+}
 export type ReceiptRequest = {
   url: string
   headers: Record<string, string | undefined>

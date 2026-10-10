@@ -469,6 +469,9 @@ describe('delivery receipts', () => {
       // Both forms SendGrid's reference shows: an id holding dots, and ".stfilter-".
       { event: 'delivered', sg_message_id: '14c5d75ce93.dfd.64b469.filter0001.16648.5515E0B88.0' },
       { event: 'delivered', sg_message_id: 'LRzXl66.stfilter-recvd-5f8.1234.0' },
+      // A bounce that comes back days later may carry no id, only the row SALEANE sent with it.
+      { event: 'bounce', outbox: 'row-1', reason: '550 mailbox full' },
+      { event: 'delivered' },
     ])
     const signature = sign('sha256', Buffer.from(stamp + body), privateKey).toString('base64')
     const read = (text: string, given: string) =>
@@ -500,6 +503,13 @@ describe('delivery receipts', () => {
       },
       { provider: 'sendgrid', providerRef: '14c5d75ce93.dfd.64b469', delivered: true },
       { provider: 'sendgrid', providerRef: 'LRzXl66', delivered: true },
+      {
+        provider: 'sendgrid',
+        providerRef: '',
+        outboxId: 'row-1',
+        delivered: false,
+        detail: 'The guest’s email provider sent it back (bounced).',
+      },
     ])
     expect(read(body.replace('sg-1', 'sg-9'), signature)).toBeNull()
     expect(read(body, 'bm90IGEgc2lnbmF0dXJl')).toBeNull()

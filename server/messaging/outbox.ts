@@ -462,11 +462,20 @@ export function createOutbox(ctx: Context, providers: Providers) {
 
   /** A verified provider receipt. Only a receipt can turn a message into "delivered". */
   const record = (receipt: Receipt) => {
-    const row = db.get<OutboxRow>(
-      'SELECT * FROM outbox WHERE provider=? AND provider_ref=?',
-      receipt.provider,
-      receipt.providerRef,
-    )
+    const row = receipt.providerRef
+      ? db.get<OutboxRow>(
+          'SELECT * FROM outbox WHERE provider=? AND provider_ref=?',
+          receipt.provider,
+          receipt.providerRef,
+        )
+      : receipt.outboxId
+        ? // Only a row that this sender accepted can be named by the id SALEANE gave it.
+          db.get<OutboxRow>(
+            'SELECT * FROM outbox WHERE provider=? AND id=? AND provider_ref IS NOT NULL',
+            receipt.provider,
+            receipt.outboxId,
+          )
+        : undefined
     if (!row || row.status === 'delivered') return false
     finish(row, receipt.delivered ? 'delivered' : 'failed', {
       detail: receipt.delivered ? null : (receipt.detail ?? 'The provider could not deliver it.'),
