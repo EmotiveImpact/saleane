@@ -49,7 +49,13 @@ function fakeVoice() {
     detached: boolean
     fire: (e: LiveEvent) => void
   }[] = []
-  const state: { failStart?: Error; failAttach?: boolean; startTakesMs?: number } = {}
+  const state: {
+    failStart?: Error
+    failAttach?: boolean
+    startTakesMs?: number
+    attachTakesMs?: number
+    holdAttach?: Promise<void>
+  } = {}
   const layer: VoiceLayer = {
     name: 'openai',
     live: true,
@@ -62,6 +68,8 @@ function fakeVoice() {
       return { id: `live_${starts.length}`, sdp: 'v=0 answer' }
     },
     async attach(id, onEvent) {
+      clock += state.attachTakesMs ?? 0
+      if (state.holdAttach) await state.holdAttach
       if (state.failAttach) throw new VoiceError('unreachable', 'No line.')
       const entry = { id, said: [] as Said[], closed: false, detached: false, fire: onEvent }
       lines.push(entry)
@@ -363,6 +371,44 @@ describe('a talk', () => {
     expect((await read(login, id)).json()).toMatchObject({ status: 'ended' })
     expect(stored(login).used.talkSeconds).toBe(45)
     expect(stored(login).spendByDay[day]).toBeCloseTo(45 / 12)
+  })
+
+  it('takes the time spent attaching its own line out of the talk’s window', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    voice.state.attachTakesMs = 9_000
+    const started = (await talk(login)).json<{ id: string; seconds: number }>()
+    expect(started.seconds).toBe(591)
+    vi.advanceTimersByTime(590_000)
+    expect(voice.lines[0].closed).toBe(false)
+    vi.advanceTimersByTime(1_000)
+    expect(voice.lines[0].closed).toBe(true)
+  })
+
+  it('lets go of a line that reattaches only after SALEANE stopped following the talk', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    const { id } = (await talk(login)).json<{ id: string }>()
+    await api.inject({
+      method: 'POST',
+      url: path(login, `/talk/${id}/end`),
+      headers: headers(login),
+      payload: {},
+    })
+    // The line drops while the end is awaited, and the new one takes longer than the grace time.
+    let attached!: () => void
+    voice.state.holdAttach = new Promise<void>((done) => (attached = done))
+    voice.lines[0].fire({ type: 'lost' })
+    clock += 15_000
+    vi.advanceTimersByTime(15_000)
+    expect((await read(login, id)).json()).toMatchObject({ status: 'ended' })
+    attached()
+    await expect.poll(() => voice.lines[1]?.detached).toBe(true)
+    expect(voice.lines[1].closed).toBe(true)
   })
 
   it('asks Claude nothing more once the talk is asked to end, even before OpenAI confirms', async () => {

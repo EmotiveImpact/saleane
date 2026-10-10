@@ -147,6 +147,17 @@ export function talks(held: Map<string, Held>) {
       ctx.voice
         .attach(talk.sessionId, (next) => onEvent(ctx, talk, next))
         .then((line) => {
+          // The grace time ran out while it reattached: SALEANE has stopped following this
+          // talk, so the late line asks for the end once more and is let go at once.
+          if (talk.released) {
+            try {
+              line.close()
+            } catch {
+              // Nothing more can be done for a line that has gone.
+            }
+            line.detach()
+            return
+          }
           talk.line = line
           talk.talk.use(line)
           talk.closing = false
@@ -260,9 +271,11 @@ export function talks(held: Map<string, Held>) {
       count(ctx, talk, 'slow-start')
       return { status: 'unavailable', text: NOT_NOW }
     }
-    // SALEANE ends the talk itself when its window is up.
-    later(talk, talk.window, () => close(ctx, talk))
-    return { status: 'talking', id: talk.id, sdp: session.sdp, seconds: talk.window }
+    // SALEANE ends the talk itself when its window is up, counted from when it started, so the
+    // time taken to attach its own line comes out of the window rather than adding to it.
+    const left = Math.max(0, talk.window - (ctx.now() - talk.startedAt) / 1000)
+    later(talk, left, () => close(ctx, talk))
+    return { status: 'talking', id: talk.id, sdp: session.sdp, seconds: Math.floor(left) }
   }
 
   return {
