@@ -148,7 +148,9 @@ export function recordConsentChanges(
     }
     const records = (next.consentRecords ??= [])
     if (records.length >= CONSENT_RECORD_LIMIT)
-      throw new Error('The studio cannot record more permission changes. Please contact support.')
+      throw new Error(
+        'The studio cannot record more permission changes. Write to the SALEANE team from Help, at the top of the screen.',
+      )
     records.push({
       id: makeId(),
       organisationId: next.organisation.id,

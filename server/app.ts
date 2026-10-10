@@ -12,6 +12,7 @@ import { publicRoutes } from './routes/public'
 import { guestRoutes } from './routes/guest'
 import { daySheetRoutes } from './routes/daysheet'
 import { changeRoutes } from './routes/changes'
+import { supportAddressFromEnv, supportRoutes } from './routes/support'
 import { privacyRoutes } from './routes/privacy'
 import { messagingRoutes } from './routes/messaging'
 import { createOutbox } from './messaging/outbox'
@@ -30,6 +31,7 @@ import type { Connections } from './connections'
 import { partnerApi } from './partnerApi'
 import { googleBooking, googleBookingFromEnv } from './googleBooking'
 import { billingProviderFromEnv, createBilling } from './billing'
+import { diaryRoutes } from './diaries'
 import type { Billing } from './billing'
 
 export type { ApiOptions } from './context'
@@ -72,16 +74,20 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   ctx.plans.begin = (org) => void billing.planFor(org)
   ctx.plans.summary = billing.summary
   ctx.plans.allowance = billing.allowance
+  ctx.plans.locked = billing.locked
   const connections = createConnections(
     ctx,
     options.connectionTransport ?? connectionTransportFromEnv(),
   )
   const partners = partnerApi()
+  const diaries = diaryRoutes()
   const google = googleBooking(options.googleBooking ?? googleBookingFromEnv(process.env))
   const social = options.social ?? socialFromEnv(process.env)
   const routes = [
     partners.read,
     partners.manage,
+    diaries.read,
+    diaries.manage,
     google.manage,
     socialRoutes(social),
     connections.routes,
@@ -90,6 +96,9 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     billing.routes,
     assistantRoutes(),
     receptionistRoutes(),
+    supportRoutes(
+      options.supportEmail === undefined ? supportAddressFromEnv() : options.supportEmail,
+    ),
     ...baseRoutes,
   ]
   if (options.outboxIntervalMs) {

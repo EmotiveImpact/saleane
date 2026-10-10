@@ -5,6 +5,7 @@ import { localDate } from './patchTests'
 import { consentRecords, wordingFor } from './consent'
 import type { Role } from './operations'
 import { isOpen, serviceLabel, withdrawnOffer } from './waitlist'
+import { shownBody } from './cancelledTimes'
 
 /**
  * LOCAL-03 (PRD GOV-01): data exports and erasure review.
@@ -225,7 +226,7 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
         createdAt: m.createdAt,
         purpose: m.purpose,
         subject: m.subject,
-        body: m.body,
+        body: shownBody(m.body),
         status: m.status,
         delivery:
           m.status === 'suppressed' && withdrawnOffer(state, m.id)

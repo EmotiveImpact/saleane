@@ -1,9 +1,10 @@
 import type { BusinessState } from './model'
 import type { Command } from './commands'
-import { operations } from './operations'
+import { businessDate, operations } from './operations'
 import { places, staffLocationOn } from './locations'
 import { branchVisits } from './branchVisits'
 import { withoutPayRates } from './pay'
+import { shifts, shiftsAt } from './hours'
 
 /**
  * V5: a general manager runs one location ('general', with the location in their access). They
@@ -60,6 +61,9 @@ export function branchRefusal(
     case 'book':
       // Where the visit lands is checked again once it is made (see branchChangeRefusal).
       return command.input.locationId && !mine(command.input.locationId) ? ELSEWHERE : null
+    case 'book-repeat':
+    case 'book-together':
+      return command.booking.locationId && !mine(command.booking.locationId) ? ELSEWHERE : null
     case 'batch':
       for (const part of command.commands) {
         const refusal = branchRefusal(s, locationId, part as Command)
@@ -95,10 +99,27 @@ export function branchRefusal(
         ? 'That waitlist place is for another location.'
         : null
     }
+    case 'clock-in':
+      return staffLocationOn(s, command.staffId, businessDate(s)) === locationId
+        ? null
+        : 'That person works at another location today.'
+    case 'clock-out': {
+      // Clocking out closes the shift where it was clocked in, whatever today's rota says.
+      const open = shifts(s)
+        .filter((x) => x.staffId === command.staffId && !x.end)
+        .sort((a, b) => b.start.localeCompare(a.start))[0]
+      if (open) return mine(open.locationId) ? null : 'That person clocked in at another location.'
+      return staffLocationOn(s, command.staffId, businessDate(s)) === locationId
+        ? null
+        : 'That person works at another location today.'
+    }
     case 'waitlist-offer':
       return staffLocationOn(s, command.staffId, command.date) === locationId
         ? null
         : 'That person works at another location that day.'
+    case 'opening-invite':
+      // NEXT-11: a time a visit cancelled at their own location left free.
+      return visitHere(command.appointmentId) ? null : ELSEWHERE
     case 'counter-sale':
     case 'stock':
     case 'purchase-order':
@@ -123,8 +144,8 @@ export function branchRefusal(
 }
 
 /**
- * Checked after a general manager's change is made: every visit it added or changed is at their
- * location, before and after. This catches a booking or move that lands somewhere else.
+ * Checked after a general manager's change is made: every visit and shift it added or changed is
+ * at their location, before and after. This catches a booking or move that lands somewhere else.
  */
 export function branchChangeRefusal(
   before: BusinessState,
@@ -137,6 +158,16 @@ export function branchChangeRefusal(
     if (previous && JSON.stringify(previous) === JSON.stringify(visit)) continue
     if (visit.locationId !== locationId || (previous && previous.locationId !== locationId))
       return 'That would change a visit at another location.'
+  }
+  // Hours worked, likewise: only those at their location, before and after.
+  const main = after.organisation.locationId
+  const at = (shift: { locationId?: string }) => (shift.locationId ?? main) === locationId
+  const was = new Map((before.operations?.shifts ?? []).map((x) => [x.id, x]))
+  for (const shift of after.operations?.shifts ?? []) {
+    const previous = was.get(shift.id)
+    if (previous && JSON.stringify(previous) === JSON.stringify(shift)) continue
+    if (!at(shift) || (previous && !at(previous)))
+      return 'That would change hours worked at another location.'
   }
   return null
 }
@@ -161,6 +192,7 @@ export function branchView(s: BusinessState, locationId: string): BusinessState 
         ? { branchVisits: o.branchVisits.filter((v) => v.locationId === locationId) }
         : {}),
       ...(o.requests ? { requests: o.requests.filter((r) => r.locationId === locationId) } : {}),
+      ...(o.shifts ? { shifts: shiftsAt(o.shifts, locationId, s.organisation.locationId) } : {}),
     },
   }
 }

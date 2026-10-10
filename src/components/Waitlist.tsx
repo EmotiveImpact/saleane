@@ -427,7 +427,8 @@ function PassOnRow({
   )
 }
 
-function FillDialog({
+/** Book a time for someone waiting, move their visit to it, or write them an offer to approve. */
+export function FillDialog({
   entry,
   opening,
   label,

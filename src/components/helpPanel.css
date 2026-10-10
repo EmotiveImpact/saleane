@@ -1,0 +1,199 @@
+/* NEXT-06: Help, in the side panel. */
+.help-panel {
+  display: grid;
+  gap: 22px;
+}
+.help-search {
+  display: grid;
+  gap: 7px;
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+}
+.help-search-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  color: var(--muted);
+}
+.help-search-field:focus-within {
+  outline: 2px solid var(--brand-ink);
+  outline-offset: 1px;
+}
+.help-search-field input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: var(--weight-body);
+  color: var(--ink);
+}
+.help-search-field input:focus {
+  outline: none;
+}
+.help-group h3,
+.help-write h3 {
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+  color: var(--muted);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.help-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.help-list li + li {
+  border-top: 1px solid var(--line);
+}
+.help-list button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  cursor: pointer;
+}
+.help-list button span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.help-list strong {
+  font-weight: var(--weight-strong);
+}
+.help-list small {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.help-list button:hover strong {
+  color: var(--brand-ink);
+}
+.help-list svg {
+  flex: none;
+  color: var(--muted);
+}
+.help-none,
+.help-small {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.help-article {
+  display: grid;
+  gap: 16px;
+  justify-items: start;
+}
+.help-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 0;
+}
+.help-summary {
+  font-size: 17px;
+  line-height: 1.5;
+}
+.help-steps {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 22px;
+  line-height: 1.5;
+}
+.help-steps li::marker {
+  color: var(--brand-ink);
+  font-weight: var(--weight-strong);
+}
+.help-note {
+  display: flex;
+  gap: 9px;
+  padding: 12px 14px;
+  background: var(--stone);
+  border-radius: 4px;
+  font-size: var(--text-small);
+}
+.help-note svg {
+  flex: none;
+  margin-top: 2px;
+}
+.help-ask {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  padding: 16px;
+  background: var(--sage);
+  border-radius: var(--radius);
+  font-size: var(--text-small);
+}
+.help-ask .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.help-write {
+  display: grid;
+  gap: 12px;
+}
+.help-form {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+}
+.help-form label {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+}
+.help-form select,
+.help-form textarea {
+  width: 100%;
+  font: inherit;
+  font-weight: var(--weight-body);
+}
+.help-requests h4 {
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+  margin-bottom: 6px;
+}
+.help-requests ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.help-requests li {
+  display: grid;
+  gap: 3px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  font-size: var(--text-small);
+}
+.help-requests small {
+  color: var(--muted);
+}
+.help-requests span {
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+@media (max-width: 640px) {
+  /* On a phone the one main button runs the width of the form, within reach of a thumb. */
+  .help-form > .button-primary {
+    justify-self: stretch;
+  }
+}

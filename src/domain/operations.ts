@@ -18,8 +18,10 @@ import {
   checklistSchema,
 } from './branchVisitSchema'
 import { patchTestSettingsSchema } from './patchTestsSchema'
+import { SHIFT_LIMIT, shiftSchema } from './hoursSchema'
 import { MISSED_CALL_LIMIT, missedCallSchema } from './missedCallsSchema'
 import { paymentMethodSchema, processorSchema } from './paymentMethods'
+import { setupProgressSchema } from './setupSchema'
 import { RENT_LIMIT, RENT_PAYMENT_LIMIT, rentPaymentSchema, rentalSchema } from './rentSchema'
 import {
   ACCOUNTING_EXPORT_LIMIT,
@@ -293,6 +295,20 @@ export const operationsSchema = z.object({
        * them have none, and stay queued and unsent rather than going out unexpectedly.
        */
       approvedAt: z.iso.datetime().optional(),
+      /**
+       * NEXT-11: an invitation to a time a cancelled visit left free: the treatment, professional,
+       * day and start it names, so it is checked against the diary before approval and sending.
+       */
+      opening: z
+        .object({
+          date: z.iso.date(),
+          startMinutes: z.number().int().min(0).max(1439),
+          staffId: id,
+          serviceId: id,
+          locationId: id.optional(),
+        })
+        .strict()
+        .optional(),
     }),
   ),
   refunds: z.array(
@@ -361,6 +377,10 @@ export const operationsSchema = z.object({
   houseRules: houseRulesSchema.optional(),
   /** V5: anonymous comparison with similar studios, only when the owner chooses to share. */
   benchmark: benchmarkSharingSchema.optional(),
+  /** Set up your studio: the screen the owner picks up at. Absent until they first use it. */
+  setup: setupProgressSchema.optional(),
+  /** NEXT-07: hours worked, clocked in and out or added by hand, for payroll. */
+  shifts: z.array(shiftSchema).max(SHIFT_LIMIT).optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 /**
@@ -521,6 +541,13 @@ export function permissionFor(command: { type: string; approve?: boolean }) {
   )
     return 'hours'
   if (command.type === 'stock-move') return 'stock'
+  // Adding a location also places its rooms, team and menu, all of which the owner may change.
+  if (command.type === 'location-open') return 'location'
+  // NEXT-09 and NEXT-08: booking repeat visits, or visits for several people, is booking.
+  if (command.type === 'book-repeat' || command.type === 'book-together') return 'book'
+  // NEXT-07: clocking in and out is for everyone in the studio; changing hours is for managers.
+  if (command.type === 'clock-in' || command.type === 'clock-out') return 'clock'
+  if (command.type === 'shift-save' || command.type === 'shift-remove') return 'shift-fix'
   if (command.type === 'message-queue' || command.type === 'social-answer') return 'message.queue'
   if (command.type === 'special-plan' || command.type === 'special-stop') return 'special'
   if (command.type === 'task-add' || command.type === 'task-done') return 'task'
@@ -540,6 +567,7 @@ export const commandPermission = permissionFor
  */
 export const GENERAL_ACTIONS = [
   'read',
+  'clock',
   'book',
   'reschedule',
   'cancel',
@@ -570,6 +598,7 @@ export const GENERAL_ACTIONS = [
   'waitlist-add',
   'waitlist-offer',
   'waitlist-remove',
+  'opening-invite',
   'counter-sale',
   'stock',
   'purchase-order',
@@ -622,6 +651,8 @@ export function can(role: Role, action: string) {
       'region-remove',
       'targets',
       'group-checks',
+      // The setup screens include the studio's details and tax, which only the owner sets.
+      'setup-step',
     ].includes(action)
   )
     return false
@@ -664,11 +695,12 @@ export function can(role: Role, action: string) {
       'branch-visit-fix',
       'request-raise',
       'studio-look',
+      'shift-fix',
     ].includes(action)
   )
     return false
   if (role === 'reception') return true
-  return ['read', 'arrive', 'note', 'patch-test', 'patch-test-result'].includes(action)
+  return ['read', 'arrive', 'note', 'patch-test', 'patch-test-result', 'clock'].includes(action)
 }
 
 /**

@@ -42,6 +42,8 @@ const plan = (extra: Partial<BillingView> = {}): BillingView => ({
   overdue: null,
   checking: false,
   held: false,
+  lockAt: null,
+  locked: false,
   invoices: [],
   moreBills: null,
   ai: {

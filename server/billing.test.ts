@@ -416,6 +416,96 @@ describe('a studio’s plan (NEXT-02)', () => {
     expect((await command(owner, place('Open again'))).statusCode).toBe(200)
   })
 
+  it('locks a read only studio 30 days after the missed payment, until it is paid', async () => {
+    let owner = await register()
+    const { serviceId, staffId } = await bookable(owner)
+    const invitation = await post(owner, '/invitations', {
+      email: 'manager@example.invalid',
+      role: 'manager',
+    })
+    expect(invitation.statusCode, invitation.body).toBe(201)
+    const joined = await api.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: {
+        name: 'Max Manager',
+        email: 'manager@example.invalid',
+        password,
+        invitation: invitation.json<{ invitation: string }>().invitation,
+      },
+    })
+    expect(joined.statusCode, joined.body).toBe(201)
+    accounts.set('manager@example.invalid', owner.orgId)
+    await saveCard(owner, '0002')
+    await at(trialEnd)
+    await at(trialEnd + 14 * DAY)
+    owner = await signIn()
+    // Read only first, and everyone is told the day it locks.
+    expect((await record(owner)).billing).toMatchObject({
+      readOnly: true,
+      locked: false,
+      lockAt: trialEnd + 30 * DAY,
+    })
+    expect(mail().at(-1)!.subject).toBe('Fernleaf Rooms is now read only')
+    let manager = await signIn('manager@example.invalid')
+    expect((await record(manager)).billing).toEqual({
+      readOnly: true,
+      locked: false,
+      lockAt: trialEnd + 30 * DAY,
+    })
+    const { slug } = (await get(owner)).json<{ slug: string }>()
+    const hold = (startMinutes: number) =>
+      api.inject({
+        method: 'POST',
+        url: `/api/public/${slug}/holds`,
+        payload: { serviceId, staffId, date: '2026-12-09', startMinutes },
+      })
+    await at(trialEnd + 30 * DAY - 60000)
+    expect((await hold(600)).statusCode).toBe(201)
+
+    // Thirty days on, it locks.
+    await at(trialEnd + 30 * DAY)
+    expect(mail().at(-1)!.subject).toBe('Fernleaf Rooms is now locked')
+    await at(trialEnd + 30 * DAY + 60000)
+    expect(mail().filter((m) => m.subject.endsWith('is now locked'))).toHaveLength(1)
+    // The team cannot open it at all, even to read.
+    manager = await signIn('manager@example.invalid')
+    const shut = await get(manager)
+    expect(shut.statusCode).toBe(402)
+    expect(shut.json<{ error: string }>().error).toBe(
+      'This studio is locked until the owner pays its SALEANE bill. Nothing has been deleted.',
+    )
+    expect((await get(manager, '/changes')).statusCode).toBe(402)
+    // Their list of studios says so before they try.
+    const session = async (login: Login) =>
+      (await api.inject({ url: '/api/session', headers: headers(login) })).json<{
+        workspaces: { id: string; locked?: boolean }[]
+      }>().workspaces
+    expect(await session(manager)).toMatchObject([{ id: owner.orgId, locked: true }])
+    // The owner can open its record, pay and download, and nothing else.
+    owner = await signIn()
+    expect((await record(owner)).billing).toMatchObject({ readOnly: true, locked: true })
+    expect(await billing(owner)).toMatchObject({ locked: true, status: 'stopped' })
+    expect((await get(owner, '/changes')).statusCode).toBe(402)
+    expect((await command(owner, place('Locked'))).statusCode).toBe(402)
+    expect((await post(owner, '/privacy/studio/export')).statusCode).toBe(200)
+    // Online booking is closed; bookings already made stand.
+    expect((await hold(720)).statusCode).toBe(404)
+
+    // Paying opens it again for everyone.
+    expect(await saveCard(owner, '4242')).toBe('/settings?section=billing&card=saved&paid=yes')
+    expect((await record(owner)).billing).toMatchObject({ readOnly: false })
+    expect((await record(owner)).billing).not.toHaveProperty('locked')
+    expect((await get(manager)).statusCode).toBe(200)
+    expect((await session(manager))[0]).not.toHaveProperty('locked')
+    expect((await hold(720)).statusCode).toBe(201)
+    expect(
+      api.database.get<{ lock_at: number | null; locked_at: number | null }>(
+        'SELECT lock_at,locked_at FROM studio_plans',
+      ),
+    ).toEqual({ lock_at: null, locked_at: null })
+  })
+
   it('makes a studio read only when its trial ends without a card, until it pays', async () => {
     await register()
     await at(trialEnd)

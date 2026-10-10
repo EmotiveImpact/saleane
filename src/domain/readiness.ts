@@ -1,12 +1,13 @@
 import type { BusinessState } from './model'
 import { operations } from './operations'
 import { newStudioOperations } from './workspace'
+import { setupPassed } from './setup'
 
 /**
  * "Get your studio ready": what a new studio sets before its first guests book. Each step ticks
  * itself from the studio record. Opening hours and "no deposit or fee" can also be confirmed by
  * hand (`confirmed`), because leaving them as they are is a real choice that leaves no trace in
- * the record.
+ * the record. Going past their screens in "Set up your studio" confirms them for every device.
  */
 export type ReadyStep =
   'hours' | 'treatments' | 'team' | 'rooms' | 'tax' | 'deposits' | 'contact' | 'online'
@@ -52,7 +53,7 @@ export function readySteps(
   const o = operations(s)
   const services = current(s.services)
   const done: Record<ReadyStep, boolean> = {
-    hours: confirmed.has('hours') || !startingWeek(s),
+    hours: confirmed.has('hours') || setupPassed(s, 'hours') || !startingWeek(s),
     treatments: services.length > 0,
     team: current(s.staff).some((person) =>
       services.some((service) => person.serviceIds.includes(service.id)),
@@ -62,6 +63,7 @@ export function readySteps(
     tax: o.tax !== undefined,
     deposits:
       confirmed.has('deposits') ||
+      setupPassed(s, 'deposits') ||
       o.protection !== undefined ||
       services.some((service) => service.depositMinor > 0),
     contact: Boolean(s.organisation.phone || s.organisation.email),

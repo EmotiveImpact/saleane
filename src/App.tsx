@@ -14,13 +14,14 @@ import {
   Mail,
   Hourglass,
   Sparkles,
+  CircleHelp,
 } from 'lucide-react'
 import { useStore } from './state/context'
 import { useStudioColours } from './state/studioColours'
 import { leads, operations } from './domain/operations'
 import { hasLocations, places } from './domain/locations'
 import { regions } from './domain/group'
-import { staleOffer } from './domain/waitlist'
+import { draftStale } from './domain/cancelledTimes'
 import { nudges } from './domain/nudges'
 import { Avatar, Modal, ScrollNav } from './design'
 import { SearchDialog } from './components/SearchDialog'
@@ -63,6 +64,9 @@ const BrandedBooking = lazy(() =>
 const AccessPanel = lazy(() =>
   import('./components/AccessPanel').then((module) => ({ default: module.AccessPanel })),
 )
+const HelpPanel = lazy(() =>
+  import('./components/HelpPanel').then((module) => ({ default: module.HelpPanel })),
+)
 const PractitionerDay = lazy(() =>
   import('./pages/PractitionerDay').then((module) => ({ default: module.PractitionerDay })),
 )
@@ -77,6 +81,9 @@ const TestPayment = lazy(() =>
 )
 const TestBillingCard = lazy(() =>
   import('./pages/TestBillingCard').then((module) => ({ default: module.TestBillingCard })),
+)
+const LockedStudio = lazy(() =>
+  import('./pages/LockedStudio').then((module) => ({ default: module.LockedStudio })),
 )
 const Pricing = lazy(() =>
   import('./pages/Pricing').then((module) => ({ default: module.Pricing })),
@@ -105,6 +112,9 @@ const Feedback = lazy(() =>
 const AskSaleane = lazy(() =>
   import('./components/AskSaleane').then((module) => ({ default: module.AskSaleane })),
 )
+const StudioSetup = lazy(() =>
+  import('./pages/StudioSetup').then((module) => ({ default: module.StudioSetup })),
+)
 const DesignLanguage = lazy(() =>
   import('./pages/DesignLanguage').then((module) => ({ default: module.DesignLanguage })),
 )
@@ -125,7 +135,8 @@ const within = (pathname: string, section: string) =>
   pathname === section || pathname.startsWith(`${section}/`)
 
 function WorkspaceApp() {
-  const { state, warning, mode, slug, loading, session, role, reload, today, branch } = useStore()
+  const { state, warning, mode, slug, loading, session, role, reload, today, branch, billing } =
+    useStore()
   const operator = session?.user.name ?? 'Demo operator'
   const initials = state.organisation.name
     .split(' ')
@@ -141,10 +152,11 @@ function WorkspaceApp() {
   )
   const [search, setSearch] = useState(false)
   const [asking, setAsking] = useState(false)
+  const [helping, setHelping] = useState(false)
   const navigate = useNavigate()
   const openSettings = (section: string) => navigate(`/settings?section=${section}`)
   const [mobileNav, setMobileNav] = useState(false)
-  // Waitlist offers whose time has gone are not counted as waiting for approval.
+  // Waitlist offers and invitations whose time has gone are not counted as waiting for approval.
   const clock = useClock()
   // Read again each minute too, so a waitlist time that has passed stops counting.
   const noticed = useMemo(
@@ -152,7 +164,7 @@ function WorkspaceApp() {
     [state, role, today, clock],
   )
   const drafts = operations(state).messages.filter(
-    (m) => m.status === 'draft' && !staleOffer(state, m.id, clock),
+    (m) => m.status === 'draft' && !draftStale(state, m.id, clock),
   ).length
   // The front desk opens Money, Stock, Rota and Gift cards in Business, not the studio's figures,
   // pay, accounts or private feedback, so their Business link lands on Money.
@@ -223,6 +235,9 @@ function WorkspaceApp() {
         <p role="status">Loading your saved records.</p>
       </main>
     )
+  // NEXT-02: a locked studio opens only for its owner, and only to pay or download its records.
+  if (mode === 'server' && billing?.locked) return <LockedStudio />
+  if (location.pathname === '/setup') return <StudioSetup key={state.organisation.id} />
   if (location.pathname === '/booking')
     return mode === 'server' ? (
       <Navigate to={`/book/${slug}${location.search}`} replace />
@@ -368,6 +383,10 @@ function WorkspaceApp() {
             <button className="global-search" onClick={() => setSearch(true)}>
               <Search size={17} />
               <span>Find a client</span>
+            </button>
+            <button className="ask-button help-button" onClick={() => setHelping(true)}>
+              <CircleHelp size={17} aria-hidden="true" />
+              <span>Help</span>
             </button>
             <span className="header-divider" />
             <button className="operator-button" onClick={() => openSettings('preferences')}>
@@ -516,6 +535,19 @@ function WorkspaceApp() {
         </main>
       </div>
       {search && <SearchDialog onClose={() => setSearch(false)} />}
+      {helping && (
+        <Suspense fallback={null}>
+          <HelpPanel
+            open
+            onClose={() => setHelping(false)}
+            role={role}
+            signedIn={mode === 'server'}
+            workspaceId={mode === 'server' ? state.organisation.id : null}
+            onAsk={() => setAsking(true)}
+            locale={state.organisation.locale}
+          />
+        </Suspense>
+      )}
       {asking && (
         <Suspense fallback={null}>
           <AskSaleane onClose={() => setAsking(false)} />

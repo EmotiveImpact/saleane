@@ -86,6 +86,22 @@ export function scheduleConflict(s: BusinessState, a: Appointment): string | nul
     return `${staffName} would be working at another location that day`
   const treatmentEnd = a.startMinutes + a.bookedDurationMinutes
   const end = treatmentEnd + a.bookedBufferMinutes
+  // NEXT-08: visits booked together share a room only while it is a room for two.
+  if (
+    a.together &&
+    !resource.forTwo &&
+    s.appointments.some(
+      (x) =>
+        x.id !== a.id &&
+        x.resourceId === a.resourceId &&
+        x.date === a.date &&
+        x.status !== 'cancelled' &&
+        x.status !== 'no_show' &&
+        x.startMinutes < end &&
+        a.startMinutes < x.startMinutes + x.bookedDurationMinutes + x.bookedBufferMinutes,
+    )
+  )
+    return `${roomName} would no longer take two at once`
   if (a.startMinutes < venue.open) return 'It would start before opening'
   if (a.startMinutes < own.open) return `It would start before ${staffName} begins`
   const close = Math.min(venue.close, own.close)
@@ -167,6 +183,8 @@ function proposed(s: BusinessState, command: OperatingCommand) {
     if (command.type === 'staff' && !command.input.hours) delete (old as { hours?: unknown }).hours
     if (command.type === 'resource' && !command.input.locationId)
       delete (old as { locationId?: unknown }).locationId
+    if (command.type === 'resource' && !command.input.forTwo)
+      delete (old as { forTwo?: unknown }).forTwo
   } else return null
   return next
 }

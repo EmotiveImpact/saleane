@@ -1,8 +1,15 @@
 import { z } from 'zod'
 import { digest, token } from '../auth'
 import { canonical, fail, header } from '../http'
-import { commandSchema, dispatch, rescheduleResource } from '../../src/domain/commands'
+import {
+  availableResource,
+  commandSchema,
+  dispatch,
+  execute,
+  rescheduleResource,
+} from '../../src/domain/commands'
 import type { Command } from '../../src/domain/commands'
+import { dateLabel, timeLabel } from '../../src/domain/format'
 import { businessDate, can, operations, permissionFor } from '../../src/domain/operations'
 import type { Role } from '../../src/domain/operations'
 import { emailSchema, roleSchema } from '../context'
@@ -46,7 +53,7 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         role: org.role,
         staffId: org.staffId,
         ...(org.role === 'general' ? { locationId: org.locationId } : {}),
-        ...workspaceView(org, org.state, today),
+        ...workspaceView(org, org.state, today, now()),
         today,
         mode: operations(org.state).mode,
         deliveryConfigured: ctx.messaging.email.live || ctx.messaging.sms.live,
@@ -80,7 +87,14 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
       const result = db.transaction(() => {
         const org = orgFor(orgId, actor, { area: true })
         reader = org
-        const parts = data.command.type === 'batch' ? data.command.commands : [data.command]
+        // A batch is allowed by its changes; a setup screen needs the right to set up the studio
+        // and to make each of its changes.
+        const parts =
+          data.command.type === 'batch'
+            ? data.command.commands
+            : data.command.type === 'setup-step'
+              ? [data.command, ...data.command.changes]
+              : [data.command]
         if (parts.some((part) => !can(org.role, permissionFor(part))))
           fail(403, 'Your role cannot make this change.')
         if (org.role === 'regional') {
@@ -140,6 +154,78 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
             command = { ...command, input: { ...command.input, locationId: org.locationId! } }
           const allocation = chooseStaff(withHolds(org), command.input, command.input.resourceId)
           command = { ...command, input: { ...command.input, ...allocation } }
+        } else if (command.type === 'book-repeat') {
+          // NEXT-09: every visit of a repeat respects guests holding a time online, exactly as a
+          // single booking does; the later ones keep the first visit's professional.
+          let booking = command.booking
+          if (org.role === 'general' && !booking.locationId)
+            booking = { ...booking, locationId: org.locationId! }
+          const held = withHolds(org)
+          booking = { ...booking, ...chooseStaff(held, booking, booking.resourceId) }
+          const at = new Date(now()).toISOString()
+          const { locale } = org.state.organisation
+          command = {
+            ...command,
+            booking,
+            visits: command.visits.map((visit) => {
+              const resourceId = availableResource(
+                held,
+                booking.serviceId,
+                booking.staffId,
+                visit.date,
+                visit.startMinutes,
+                at,
+                visit.resourceId,
+              )
+              if (!resourceId)
+                fail(
+                  409,
+                  `${dateLabel(visit.date, locale)} at ${timeLabel(visit.startMinutes, locale)}: that time was just taken. Choose another time or leave that visit out.`,
+                )
+              return { ...visit, resourceId }
+            }),
+          }
+        } else if (command.type === 'book-together') {
+          // NEXT-08: everyone booked together respects guests holding a time online, as a single
+          // booking does. The whole booking is tried with the held times in place, and each
+          // person keeps the professional and room found there.
+          let booking = command.booking
+          if (org.role === 'general' && !booking.locationId)
+            booking = { ...booking, locationId: org.locationId! }
+          const at = new Date(now()).toISOString()
+          const asked = { ...command, booking }
+          // Held times stand in as visits; a stand-in guest lets the booking be tried among them.
+          const held = withHolds(org)
+          held.clients.push({
+            id: 'ephemeral-hold',
+            organisationId: org.id,
+            name: 'Held online',
+            email: 'held-online@example.invalid',
+            phone: '',
+            preferences: '',
+            marketingConsent: false,
+            createdAt: at,
+          })
+          const trial = execute(held, asked, at)
+          if (!trial.ok) {
+            // Refused without anyone's hold too: the booking itself is wrong, so say why below.
+            if (execute(org.state, asked, at).ok) fail(409, trial.error)
+            command = asked
+          } else {
+            const lead = trial.state.appointments.find((a) => a.id === trial.recordId)!
+            const party = trial.state.appointments.filter(
+              (a) => a.together?.id === lead.together!.id,
+            )
+            const pinned = (i: number) => ({
+              staffId: party[i].staffId,
+              resourceId: party[i].resourceId,
+            })
+            command = {
+              ...asked,
+              booking: { ...booking, ...pinned(0) },
+              guests: command.guests.map((guest, i) => ({ ...guest, ...pinned(i + 1) })),
+            }
+          }
         } else if (
           (command.type === 'gift-card-sell' || command.type === 'plan-sell') &&
           org.role === 'general'
@@ -240,7 +326,7 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
       const { state, ...outcome } = result
       reply(200, {
         ...outcome,
-        ...workspaceView(reader, state, businessDate(state, new Date(now()).toISOString())),
+        ...workspaceView(reader, state, businessDate(state, new Date(now()).toISOString()), now()),
       })
       return true
     }
