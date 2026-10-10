@@ -75,6 +75,8 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
   const [notice, setNotice] = useState<{ text: string; quiet?: boolean }>({ text: '' })
   const line = useRef<TalkConnection | null>(null)
   const talkId = useRef<string | null>(null)
+  // A talk still starting when the panel closes is called off, and ended if SALEANE started it.
+  const startCall = useRef<AbortController | null>(null)
   const held = useRef(new Map<string, PendingProposal<Command>>())
   const end = useRef<HTMLDivElement | null>(null)
   const base = orgId ? `/api/workspaces/${encodeURIComponent(orgId)}/assistant` : ''
@@ -118,9 +120,10 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [talking, base])
 
-  // Closing the panel hangs up.
+  // Closing the panel hangs up, and calls off a talk that is still starting.
   useEffect(
     () => () => {
+      startCall.current?.abort()
       line.current?.stop()
       if (talkId.current)
         void api(`${base}/talk/${encodeURIComponent(talkId.current)}/end`, {
@@ -253,9 +256,12 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
     setNotice({ text: '' })
     setStarting(true)
     const started: { id?: string; seconds?: number } = {}
+    const call = new AbortController()
+    startCall.current = call
     try {
       const connection = await connectTalk(
         async (sdp) => {
+          if (call.signal.aborted) return null
           const r = await api<
             | { status: 'talking'; id: string; sdp: string; seconds: number; usage: ServerUsage }
             | { status: 'refused' | 'unavailable'; text: string; usage: ServerUsage }
@@ -272,7 +278,18 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
         },
         // The voice hung up or the line dropped: the next reading shows how the talk ended.
         () => setTalk((now) => (now ? { ...now, ending: true } : now)),
+        call.signal,
       )
+      if (call.signal.aborted) {
+        // The panel closed while the talk was starting: nothing is left listening or held.
+        connection?.stop()
+        if (started.id)
+          void api(`${base}/talk/${encodeURIComponent(started.id)}/end`, {
+            method: 'POST',
+            body: {},
+          }).catch(() => {})
+        return
+      }
       if (!connection || !started.id) return
       line.current = connection
       setTalk({ id: started.id, secondsLeft: started.seconds ?? 0, thinking: false, ending: false })
@@ -281,6 +298,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
       if (talkId.current) void stopTalk()
       setError(caught instanceof Error ? caught.message : 'Talking could not start. Try again.')
     } finally {
+      if (startCall.current === call) startCall.current = null
       setStarting(false)
     }
   }

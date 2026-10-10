@@ -172,4 +172,36 @@ describe('talking to Ask SALEANE', () => {
     expect(stop).toHaveBeenCalled()
     expect(mocked).toHaveBeenCalledWith(`${base}/talk/talk-1/end`, { method: 'POST', body: {} })
   })
+
+  it('calls off a talk still starting when the panel closes, and ends it if it had begun', async () => {
+    // As the real line does: once called off it lets go and starts nothing more.
+    connect.mockImplementation(async (start, _ended, signal) => {
+      const answer = await start('v=0 offer')
+      if (!answer) return null
+      if (signal?.aborted) {
+        stop()
+        return null
+      }
+      return { stop }
+    })
+    let answer!: (value: unknown) => void
+    const talkPosts = () => mocked.mock.calls.filter(([path]) => path === `${base}/talk`)
+    const user = userEvent.setup()
+    const { unmount } = render(<AskSaleane onClose={() => {}} />)
+    const panel = await screen.findByRole('dialog', { name: 'Ask SALEANE' })
+    const general = mocked.getMockImplementation()!
+    mocked.mockImplementation(async (path, options) =>
+      path === `${base}/talk` ? new Promise((done) => (answer = done)) : general(path, options),
+    )
+    await user.click(await within(panel).findByRole('button', { name: 'Talk' }))
+    await vi.waitFor(() => expect(talkPosts()).toHaveLength(1))
+    // The panel closes before SALEANE answers; then the talk it asked for starts.
+    unmount()
+    expect(mocked).not.toHaveBeenCalledWith(`${base}/talk/talk-1/end`, expect.anything())
+    answer(started)
+    await vi.waitFor(() =>
+      expect(mocked).toHaveBeenCalledWith(`${base}/talk/talk-1/end`, { method: 'POST', body: {} }),
+    )
+    expect(stop).toHaveBeenCalledTimes(1)
+  })
 })
