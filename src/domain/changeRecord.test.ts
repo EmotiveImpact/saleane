@@ -71,6 +71,8 @@ describe('the words for each change', () => {
       expect.arrayContaining(['checkout', 'refund', 'card.removed']),
     )
     expect(actionsIn('visits')).toContain('guest.move')
+    // Stage 5: a guest moving their Google booking.
+    expect(changeWords['google.move']).toEqual(['visits', 'Moved through Book with Google'])
     const all = Object.keys(changeWords)
     const grouped = (
       ['visits', 'clients', 'money', 'team', 'stock', 'messages', 'settings', 'access'] as const

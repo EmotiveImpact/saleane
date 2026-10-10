@@ -355,3 +355,432 @@ describe('Book with Google', () => {
     expect(state.appointments.find((a) => a.id === near.booking_id)?.status).toBe('confirmed')
   })
 })
+
+// Stage 5: a guest moves their Google booking to another free time, under the rules of their own
+// visit link, through the desk's own change, and a repeated request never moves it twice.
+describe('Moving a Google booking to a new time', () => {
+  type Booking = {
+    booking_id: string
+    status: string
+    slot: {
+      merchant_id: string
+      service_id: string
+      start_sec: number
+      duration_sec: number
+      resources?: Record<string, string>
+    }
+  }
+  type Answer = { booking?: Booking; booking_failure?: { cause: string; description: string } }
+  /** A new time as Google's UpdateBooking sample sends it: only the start and the length. */
+  const moveTo = (bookingId: string, slot: Record<string, unknown>, status?: string) =>
+    call('UpdateBooking', {
+      booking: {
+        booking_id: bookingId,
+        ...(status ? { status } : {}),
+        slot: Object.fromEntries(
+          Object.entries(slot).map(([k, v]) => [k, typeof v === 'number' ? String(v) : v]),
+        ),
+      },
+    })
+  const answer = async (response: Awaited<ReturnType<typeof call>>) => {
+    expect(response.statusCode, response.body).toBe(200)
+    return response.json<Answer>()
+  }
+  const failure = async (
+    response: Awaited<ReturnType<typeof call>>,
+    cause: string,
+    words?: RegExp,
+  ) => {
+    const body = await answer(response)
+    expect(body.booking_failure?.cause, response.body).toBe(cause)
+    if (words) expect(body.booking_failure?.description).toMatch(words)
+  }
+  const moves = () =>
+    api.database.all<{ record_id: string; actor_id: string | null }>(
+      "SELECT record_id,actor_id FROM audit_events WHERE action='google.move'",
+    )
+  /** The start on Google's clock of a time on the studio's clock in October (London, BST). */
+  const at = (date: string, time: string) => Date.parse(`${date}T${time}:00+01:00`) / 1000
+
+  it('moves the visit, keeps what was booked, records it as Book with Google and says so on Google', async () => {
+    const login = await studio()
+    const first = onDay(await freeTimes(login), '2026-10-09')
+    const { booking } = (await book(first)).json<{ booking: Booking }>()
+    const before = (await workspace(login)).state
+    const booked = before.appointments.find((a) => a.id === booking.booking_id)!
+    const target = at('2026-10-13', '11:00')
+
+    const moved = await answer(
+      await moveTo(booking.booking_id, { start_sec: target, duration_sec: 3600 }),
+    )
+    expect(moved.booking).toMatchObject({
+      booking_id: booking.booking_id,
+      status: 'CONFIRMED',
+      slot: {
+        merchant_id: before.organisation.id,
+        service_id: serviceId,
+        start_sec: target,
+        duration_sec: 3600,
+        resources: { staff_id: first.resources.staff_id },
+      },
+    })
+    const after = (await workspace(login)).state
+    const visit = after.appointments.find((a) => a.id === booking.booking_id)!
+    // The same visit with the same booked terms; only the day, time and room changed.
+    expect(visit).toEqual({
+      ...booked,
+      date: '2026-10-13',
+      startMinutes: 660,
+      resourceId: visit.resourceId,
+    })
+    expect(after.revision).toBe(before.revision + 1)
+    const event = after.events.at(-1)!
+    expect(event).toMatchObject({
+      appointmentId: booking.booking_id,
+      type: 'rescheduled',
+      title: 'Visit moved',
+      actor: 'Book with Google',
+      allocationChange: { to: { date: '2026-10-13', startMinutes: 660 } },
+    })
+    expect(event.id).toMatch(/^google-move-[0-9a-f]{32}$/)
+    expect(event.detail).toMatch(/Booked treatment, price and deposit kept/)
+    expect(moves()).toEqual([{ record_id: booking.booking_id, actor_id: null }])
+    // Who changed what says it came through Google.
+    const changes = await api.inject({
+      url: `/api/workspaces/${login.orgId}/changes`,
+      headers: headers(login),
+    })
+    expect(changes.json<{ entries: { what: string; who: string }[] }>().entries[0]).toMatchObject({
+      what: 'Moved through Book with Google',
+      who: 'A guest, through Google',
+    })
+    // The stored slot follows, and Google reads the new time everywhere.
+    const stored = api.database.get<{ slot: string }>(
+      'SELECT slot FROM google_bookings WHERE booking_id=?',
+      booking.booking_id,
+    )!
+    expect(JSON.parse(stored.slot)).toMatchObject({ start_sec: target, duration_sec: 3600 })
+    const listed = (await call('ListBookings', { user_id: guest.user_id })).json<{
+      bookings: Booking[]
+    }>()
+    expect(listed.bookings.map((b) => b.slot.start_sec)).toEqual([target])
+    expect(
+      (await call('GetBookingStatus', { booking_id: booking.booking_id })).json(),
+    ).toMatchObject({
+      booking_status: 'CONFIRMED',
+    })
+    // The original time is free again for someone else.
+    expect((await call('CheckAvailability', { slot: slotOf(first) })).json()).toMatchObject({
+      count_available: 1,
+    })
+
+    // The same request again (an answer that never reached Google) changes nothing.
+    const again = await answer(
+      await moveTo(booking.booking_id, { start_sec: target, duration_sec: 3600 }),
+    )
+    expect(again.booking?.slot.start_sec).toBe(target)
+    expect((await workspace(login)).state.revision).toBe(after.revision)
+    expect(moves()).toHaveLength(1)
+
+    // A move at the desk shows on Google, and a late retry never moves the visit back.
+    const desk = await run(login, {
+      type: 'reschedule',
+      appointmentId: booking.booking_id,
+      staffId: visit.staffId,
+      date: '2026-10-14',
+      startMinutes: 600,
+    })
+    expect(desk.statusCode, desk.body).toBe(200)
+    const late = await answer(
+      await moveTo(booking.booking_id, { start_sec: target, duration_sec: 3600 }),
+    )
+    expect(late.booking?.slot.start_sec).toBe(at('2026-10-14', '10:00'))
+    expect(moves()).toHaveLength(1)
+    expect(
+      (await call('ListBookings', { user_id: guest.user_id })).json<{ bookings: Booking[] }>()
+        .bookings[0].slot.start_sec,
+    ).toBe(at('2026-10-14', '10:00'))
+    // Once the retry window has passed, asking for that time again is a new move.
+    clock += 16 * 60000
+    const back = await answer(
+      await moveTo(booking.booking_id, { start_sec: target, duration_sec: 3600 }),
+    )
+    expect(back.booking?.slot.start_sec).toBe(target)
+    expect(moves()).toHaveLength(2)
+    expect(
+      (await workspace(login)).state.events.filter((e) => e.id.startsWith('google-move-')),
+    ).toHaveLength(2)
+  })
+
+  it('refuses a time Google cannot have, with the failure Google expects, and changes nothing', async () => {
+    const login = await studio()
+    const times = await freeTimes(login)
+    const mine = onDay(times, '2026-10-09')
+    const { booking } = (await book(mine)).json<{ booking: Booking }>()
+    const theirs = onDay(times, '2026-10-12')
+    await book(theirs, 'token-other', {
+      ...guest,
+      user_id: 'google-user-2',
+      email: 'ines@example.invalid',
+    })
+    const id = booking.booking_id
+    const length = { duration_sec: 3600 }
+    const unavailable = 'SLOT_UNAVAILABLE'
+    // Another length or treatment, or a start Google never offered.
+    await failure(
+      await moveTo(id, { start_sec: at('2026-10-13', '11:00'), duration_sec: 1800 }),
+      unavailable,
+      /same treatment|keeps the treatment/,
+    )
+    await failure(
+      await moveTo(id, {
+        start_sec: at('2026-10-13', '11:00'),
+        ...length,
+        service_id: 'service-other',
+      }),
+      unavailable,
+      /keeps the treatment/,
+    )
+    await failure(
+      await moveTo(id, { start_sec: at('2026-10-13', '11:00') + 30, ...length }),
+      unavailable,
+      /not offered/,
+    )
+    // Taken by another guest, before opening, or with someone who does not do it.
+    await failure(
+      await moveTo(id, { start_sec: theirs.start_sec, ...length }),
+      unavailable,
+      /no longer free/,
+    )
+    await failure(
+      await moveTo(id, { start_sec: at('2026-10-13', '06:00'), ...length }),
+      unavailable,
+      /no longer free/,
+    )
+    await failure(
+      await moveTo(id, {
+        start_sec: at('2026-10-13', '11:00'),
+        ...length,
+        resources: { staff_id: 'staff-unknown' },
+      }),
+      unavailable,
+      /does not offer/,
+    )
+    // Another studio's booking cannot be moved into this one.
+    await failure(
+      await moveTo(id, {
+        start_sec: at('2026-10-13', '11:00'),
+        ...length,
+        merchant_id: 'another-studio',
+      }),
+      unavailable,
+    )
+    // A day the studio is closed, more than 60 days ahead, or a time already gone today.
+    const closed = await run(login, {
+      type: 'closure',
+      input: { date: '2026-10-15', startMinutes: 0, endMinutes: 1440, reason: 'Staff training' },
+    })
+    expect(closed.statusCode, closed.body).toBe(200)
+    await failure(
+      await moveTo(id, { start_sec: at('2026-10-15', '11:00'), ...length }),
+      unavailable,
+      /closed that day/,
+    )
+    await failure(
+      await moveTo(id, { start_sec: Date.parse('2026-12-08T11:00:00Z') / 1000, ...length }),
+      unavailable,
+      /too far ahead/,
+    )
+    clock = Date.parse('2026-10-06T10:00:00.000Z')
+    await failure(
+      await moveTo(id, { start_sec: at('2026-10-06', '10:00'), ...length }),
+      unavailable,
+      /has passed/,
+    )
+    // Anything but cancelling or a new time.
+    await failure(
+      await call('UpdateBooking', { booking: { booking_id: id, status: 'CONFIRMED' } }),
+      'BOOKING_NOT_CANCELLABLE',
+      /cancelling or moving/,
+    )
+    await failure(
+      await moveTo(id, { start_sec: at('2026-10-13', '11:00'), ...length }, 'NO_SHOW'),
+      'BOOKING_NOT_CANCELLABLE',
+    )
+    // A booking Google never made is not found.
+    expect(
+      (await moveTo('not-a-booking', { start_sec: at('2026-10-13', '11:00'), ...length }))
+        .statusCode,
+    ).toBe(404)
+    // Nothing moved.
+    const { state } = await workspace(login)
+    expect(state.appointments.find((a) => a.id === id)).toMatchObject({
+      date: '2026-10-09',
+      startMinutes: 540,
+    })
+    expect(moves()).toEqual([])
+  })
+
+  it('keeps to the guest’s own move rules: the cutoff, the visit starting, online changes off, cancelled', async () => {
+    const login = await studio()
+    const times = await freeTimes(login)
+    const soon = onDay(times, '2026-10-07')
+    const later = onDay(times, '2026-10-12')
+    const near = (await book(soon, 'token-soon')).json<{ booking: Booking }>().booking
+    const far = (await book(later, 'token-later')).json<{ booking: Booking }>().booking
+    const target = { start_sec: at('2026-10-13', '11:00'), duration_sec: 3600 }
+    // 09:00 on the 7th is less than 24 hours away from 10:00 on the 6th.
+    clock = Date.parse('2026-10-06T09:00:00.000Z')
+    await failure(
+      await moveTo(near.booking_id, target),
+      'OUTSIDE_CANCELLATION_WINDOW',
+      /less than 24 hours/,
+    )
+    // Once it has started.
+    clock = soon.start_sec * 1000 + 60000
+    await failure(await moveTo(near.booking_id, target), 'OUTSIDE_CANCELLATION_WINDOW', /started/)
+    clock = Date.parse('2026-10-06T07:00:00.000Z')
+    // A cancelled visit, from Google or from anywhere else.
+    expect(
+      (
+        await call('UpdateBooking', {
+          booking: { booking_id: near.booking_id, status: 'CANCELED' },
+        })
+      ).json(),
+    ).toMatchObject({ booking: { status: 'CANCELED' } })
+    await failure(await moveTo(near.booking_id, target), 'BOOKING_ALREADY_CANCELLED')
+    // A studio that switched online booking off takes no changes online either.
+    const { state } = await workspace(login)
+    const off = await run(login, {
+      type: 'organisation',
+      name: state.organisation.name,
+      locationName: state.organisation.locationName,
+      address: state.organisation.address,
+      timeZone: state.organisation.timeZone,
+      bookingEnabled: false,
+    })
+    expect(off.statusCode, off.body).toBe(200)
+    await failure(
+      await moveTo(far.booking_id, target),
+      'BOOKING_NOT_CANCELLABLE',
+      /not taking changes online/,
+    )
+    expect(moves()).toEqual([])
+  })
+
+  it('stops a time the guest’s patch test does not cover, as their own link does', async () => {
+    const login = await studio()
+    const { booking } = (await book(onDay(await freeTimes(login), '2026-10-12'))).json<{
+      booking: Booking
+    }>()
+    // The studio marks the treatment as needing a patch test and stops it online without one.
+    const { state } = await workspace(login)
+    const facial = state.services.find((x) => x.id === serviceId)!
+    await ok(login, { type: 'service', id: serviceId, input: { ...facial, patchTest: true } })
+    await ok(login, {
+      type: 'patch-test-settings',
+      settings: { hoursBefore: 48, validMonths: 6, remind: true, stopOnline: true },
+    })
+    await failure(
+      await moveTo(booking.booking_id, {
+        start_sec: at('2026-10-13', '11:00'),
+        duration_sec: 3600,
+      }),
+      'SLOT_UNAVAILABLE',
+      /patch test/,
+    )
+    expect(moves()).toEqual([])
+  })
+
+  it('moves a guest who booked with anyone to whoever is free, and one who chose a professional only with them', async () => {
+    const login = await studio()
+    await ok(login, { type: 'resource', input: { name: 'Room Two', type: 'treatment' } })
+    const ines = await ok(login, {
+      type: 'staff',
+      input: { name: 'Ines Hart', role: 'Facialist', serviceIds: [serviceId], tone: 'blue' },
+    })
+    const times = await freeTimes(login)
+    const maya = times[0].resources.staff_id
+    const day = (date: string) =>
+      times.find(
+        (e) =>
+          e.resources.staff_id === maya &&
+          new Date(e.start_sec * 1000).toISOString().startsWith(date),
+      )!
+    const named9 = slotOf(day('2026-10-09'))
+    const anyone = {
+      merchant_id: named9.merchant_id,
+      service_id: named9.service_id,
+      start_sec: named9.start_sec,
+      duration_sec: named9.duration_sec,
+    }
+    const open = (
+      await call('CreateBooking', {
+        slot: anyone,
+        user_information: guest,
+        idempotency_token: 'token-any',
+      })
+    ).json<{ booking: Booking }>().booking
+    expect(open.slot.resources).toBeUndefined()
+    const named = (
+      await book(day('2026-10-12'), 'token-named', { ...guest, user_id: 'google-user-2' })
+    ).json<{
+      booking: Booking
+    }>().booking
+    // Maya is busy at 11:00 on the 13th with another guest.
+    await book({ ...day('2026-10-13'), start_sec: at('2026-10-13', '11:00') }, 'token-busy', {
+      ...guest,
+      user_id: 'google-user-3',
+      email: 'busy@example.invalid',
+    })
+    const busy = { start_sec: at('2026-10-13', '11:00'), duration_sec: 3600 }
+    // Chose a professional: only with them, so the busy time is refused.
+    await failure(await moveTo(named.booking_id, busy), 'SLOT_UNAVAILABLE', /no longer free/)
+    // Booked with anyone: Ines is free, so the visit moves to her and Google still shows no name.
+    const moved = await answer(await moveTo(open.booking_id, busy))
+    expect(moved.booking?.slot.resources).toBeUndefined()
+    let { state } = await workspace(login)
+    expect(state.appointments.find((a) => a.id === open.booking_id)).toMatchObject({
+      staffId: ines,
+      date: '2026-10-13',
+    })
+    // Google can name a professional for the new time.
+    const withInes = await answer(
+      await moveTo(named.booking_id, {
+        start_sec: at('2026-10-14', '12:00'),
+        duration_sec: 3600,
+        resources: { staff_id: ines },
+      }),
+    )
+    expect(withInes.booking?.slot.resources).toEqual({ staff_id: ines })
+    ;({ state } = await workspace(login))
+    expect(state.appointments.find((a) => a.id === named.booking_id)).toMatchObject({
+      staffId: ines,
+      date: '2026-10-14',
+      startMinutes: 720,
+    })
+  })
+
+  it('takes no new Google bookings for a locked studio, while its guests can still cancel', async () => {
+    const login = await studio()
+    const times = await freeTimes(login)
+    const { booking } = (await book(onDay(times, '2026-10-12'))).json<{ booking: Booking }>()
+    api.database.run(
+      'UPDATE studio_plans SET locked_at=? WHERE organisation_id=?',
+      clock,
+      login.orgId,
+    )
+    const time = onDay(times, '2026-10-13')
+    expect((await call('CheckAvailability', { slot: slotOf(time) })).json()).toMatchObject({
+      count_available: 0,
+    })
+    await failure(await book(time, 'token-locked'), 'SLOT_UNAVAILABLE')
+    expect(
+      (
+        await call('UpdateBooking', {
+          booking: { booking_id: booking.booking_id, status: 'CANCELED' },
+        })
+      ).json(),
+    ).toMatchObject({ booking: { status: 'CANCELED' } })
+  })
+})

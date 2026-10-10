@@ -2,6 +2,7 @@ import type { Role } from './operations'
 import type { HelpArticle } from './help'
 import { GRACE_DAYS, LOCK_DAYS, RETRY_DAYS } from './pricing'
 import { RETRY_DAYS as CARD_RETRY_DAYS } from './planCards'
+import { GUEST_CANCEL_CUTOFF_HOURS } from './guest'
 
 const DESK: readonly Role[] = ['owner', 'manager', 'reception', 'general']
 const LEADS: readonly Role[] = ['owner', 'manager', 'general']
@@ -154,6 +155,24 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     screens: ['/settings?section=business', '/settings?section=brand'],
     roles: LEADS,
     words: 'link online google instagram website share url',
+  },
+  {
+    id: 'google-booking',
+    title: 'Let guests book on Google',
+    group: 'Getting started',
+    summary:
+      'Guests book your treatments inside Google Search and Maps, and their visits arrive in your diary.',
+    steps: [
+      'Open Settings, then Studio details, and find Book with Google.',
+      'Tick Offer my studio for booking on Google, then choose Save.',
+      `Guests can then book on Google, cancel there until the visit starts, and change to another free time until ${GUEST_CANCEL_CUTOFF_HOURS} hours before it, as with their own booking link.`,
+      'The relationship timeline on the client’s page and Who changed what say what was booked, changed or cancelled through Google.',
+    ],
+    note: 'SALEANE is not a Google booking partner yet, so Google cannot send bookings. Treatments that need a deposit or a patch test stay on your own booking page.',
+    to: '/settings?section=business',
+    screens: ['/settings?section=business'],
+    roles: OWNER,
+    words: 'google maps search reserve actions center',
   },
   {
     id: 'colours',

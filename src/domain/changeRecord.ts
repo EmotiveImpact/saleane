@@ -239,6 +239,8 @@ const serverWords: Record<string, Words> = {
   'guest.move': ['visits', 'Moved their visit'],
   'google.book': ['visits', 'Booked through Book with Google'],
   'google.cancel': ['visits', 'Cancelled through Book with Google'],
+  // Stage 5: a guest moving their Google booking to a new time.
+  'google.move': ['visits', 'Moved through Book with Google'],
   'phone.missed-call': ['messages', 'Wrote down a missed call'],
   'inbox.reply': ['messages', 'A message came in'],
   'inbox.test-text': ['messages', 'Delivered a test text to the studio’s line'],

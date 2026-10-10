@@ -199,6 +199,10 @@ describe('help inside the app', () => {
       'news-who',
       'news-approve',
     ])
+    // Stage 5: booking on Google, with its new way to change the time.
+    expect(first('book on google maps')).toBe('google-booking')
+    expect(first('reserve with google')).toBe('google-booking')
+    expect(ids(searchHelp('google maps', 'manager'))).not.toContain('google-booking')
     expect(searchHelp('the', 'owner')).toEqual([])
     expect(searchHelp('rocket launch', 'owner')).toEqual([])
     expect(helpWords("Customer's bookings")).toEqual(['client', 'visit'])
