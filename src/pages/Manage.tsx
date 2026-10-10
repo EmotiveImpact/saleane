@@ -41,6 +41,7 @@ import { ChangeRecord } from '../components/ChangeRecord'
 import { PlanBilling } from '../components/PlanBilling'
 import { BrandSection, PreferencesSection, WorkspaceSection } from '../components/SettingsSections'
 import { MessageSettings } from '../components/AppointmentMessages'
+import { EmailLook } from '../components/EmailPreview'
 import { GuestNotesSettings } from '../components/GuestNotesSettings'
 import { PatchTestRules } from '../components/PatchTests'
 import { ShareBookingPage } from '../components/ShareBookingPage'
@@ -399,6 +400,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
             {section === 'messages' && (
               <>
                 <MessageSettings />
+                <EmailLook />
                 <SavedReplies />
                 <EmailNewsWording />
               </>

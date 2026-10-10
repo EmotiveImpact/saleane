@@ -2,6 +2,17 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-10 · Emails in each studio's own colours (NEXT-13, part 1)
+
+**Status: built locally on 10 October 2026; email is still in test mode, so nothing is sent.** [Evidence](docs/evidence/NEXT-13-EMAILS.md).
+
+- Every email to a guest now goes as a designed email as well as plain words: the studio's name in the serif on a warm off-white page, one white card with the subject as its heading, the visit's treatment, time and place on the studio's soft tint, and a rounded button in the studio's first colour, deepened just enough for white words to read. The studio's address and phone sit at the foot, and the line about keeping in touch moves there too.
+- The design is made from the plain words when the email goes, and nothing is added or reworded: every word of the plain version appears in the email, in the same order, and email apps that show no design show the plain version. A line ending in a link becomes a button: "View, add to your calendar or cancel" stands on the button itself; a longer sentence stays, followed by a button named for what it does ("Rate your visit and Maya", "Book this time", "Leave a review").
+- Password, email confirmation, sign-in and billing emails go in SALEANE's own sage and soft rose, with the link on a button ("Choose a new password", "Confirm your email").
+- Settings, Messages has How your emails look: the booking confirmation, reminder, after the visit and birthday emails as a guest sees them, written for a made-up guest, Alex, on the studio's own first treatment tomorrow at 10:00. Each email in a Sent list has See the email. Neither makes a private link, so the button to manage a visit goes nowhere there.
+- Birthday, "we miss you", due back emails and news go on Postmark's broadcast stream, apart from visit messages, as Postmark asks (`POSTMARK_BROADCAST_STREAM`, required with Postmark: the stream's Stream ID, copied from Postmark).
+- A Sent list now shows a message's booking page link as the address it went with, where it showed `{{book_link}}`.
+
 ## 2026-10-10 · Diaries checked by a calendar app's own reader
 
 **Status: tests only; nothing on screen changes.** [Evidence](docs/evidence/NEXT-10-DIARIES.md#tests).

@@ -201,6 +201,7 @@ describe('the inbox through the server', () => {
         SALEANE_EMAIL_PROVIDER: 'postmark',
         POSTMARK_SERVER_TOKEN: 'token',
         SALEANE_EMAIL_FROM: 'hello@studio.example.invalid',
+        POSTMARK_BROADCAST_STREAM: 'broadcasts',
         POSTMARK_WEBHOOK_SECRET: 'hook-secret',
       },
       'https://studio.example.invalid',
