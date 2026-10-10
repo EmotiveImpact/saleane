@@ -77,7 +77,7 @@ export type ReceptionEffect =
 export const LOOK_AHEAD_DAYS = 90
 /**
  * What one chat message may cost with a real AI, in pence or cents: no further call to the AI
- * starts once a message has spent this much. Most cost under 1; see docs/evidence/NEXT-12.
+ * starts that would take a message past this, judged by its costliest call so far. Most cost under 1; see docs/evidence/NEXT-12.
  */
 export const CHAT_WORST_CASE_MINOR = 4
 /**

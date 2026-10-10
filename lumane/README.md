@@ -15,8 +15,8 @@ Lumane owns the parts that are the same for every app:
 - **The brain.** A small interface so the AI supplier can be swapped. The test-mode
   `scriptedBrain` sends nothing and costs nothing. `claudeBrain` calls Claude through Anthropic's
   Messages API with the app's key, works out each call's cost from the tokens Anthropic reports,
-  and never falls back to a cheaper model. A turn stops before another call once it has spent its
-  share or run out of time, and a supplier that cannot answer ends the turn as `unavailable`, with
+  and never falls back to a cheaper model. A turn starts no call that, costing as much as its
+  costliest call so far, would pass its share, nor one after its time is up, and a supplier that cannot answer ends the turn as `unavailable`, with
   whatever it cost still recorded.
 - **Audit.** Every skill use is recorded with who asked and what happened.
 

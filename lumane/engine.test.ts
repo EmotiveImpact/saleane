@@ -208,7 +208,7 @@ describe('Lumane engine', () => {
     expect(result.costMinor).toBe(6)
   })
 
-  it('starts no further call once a request has spent its share', async () => {
+  it('starts no further call that would take a request past its share', async () => {
     const brain = scriptedBrain(() => ({
       calls: [{ id: 'c', name: 'count', input: {} }],
       costMinor: 2,
@@ -216,8 +216,15 @@ describe('Lumane engine', () => {
     const result = await turn(brain, { worstCaseMinor: 5 })
     if (result.status !== 'answered') throw new Error('expected an answer')
     expect(result.text).toMatch(/more steps/)
-    // 2, 4, then 6: the third call starts with 4 spent, and no fourth with 6.
-    expect(result.costMinor).toBe(6)
+    // 2, then 4: a third call costing 2 like the others would pass 5, so it does not start.
+    expect(result.costMinor).toBe(4)
+    // Calls grow as the conversation does: the costliest so far is the guide, not the first.
+    let step = 0
+    const growing = scriptedBrain(() => ({
+      calls: [{ id: 'c', name: 'count', input: {} }],
+      costMinor: [1, 3][step++] ?? 3,
+    }))
+    expect(await turn(growing, { worstCaseMinor: 5 })).toMatchObject({ costMinor: 4 })
   })
 
   it('starts no further call once a request has taken too long, and passes the facts on', async () => {

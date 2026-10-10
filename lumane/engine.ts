@@ -42,7 +42,8 @@ export type TurnInput<Ctx> = {
     amount?: number
     /**
      * The most this turn should cost, in minor units. It is checked against the daily ceiling
-     * first, and no further call to the AI starts once the turn has spent this much.
+     * first, and no further call to the AI starts that, costing as much as the costliest call so
+     * far, would take the turn past it.
      */
     worstCaseMinor: number
   }
@@ -134,12 +135,15 @@ export async function runTurn<Ctx>(input: TurnInput<Ctx>): Promise<TurnResult> {
   const clock = input.clock ?? Date.now
   const started = clock()
   let costMinor = 0
+  // Each call carries the whole conversation so far, so the next is taken to cost at least as
+  // much as the costliest before it.
+  let costliest = 0
   let text = STOPPED
 
   for (let step = 0; step < (input.maxSteps ?? 6); step++) {
-    // Each call to the AI is checked first: a turn that has spent its share, or taken too long,
-    // stops rather than starting another.
-    if (step > 0 && costMinor >= meter.worstCaseMinor) break
+    // Each call to the AI is checked first: a turn that would pass its share with another call
+    // like the costliest so far, or has taken too long, stops rather than starting another.
+    if (step > 0 && costMinor + costliest > meter.worstCaseMinor) break
     if (step > 0 && input.timeLimitMs !== undefined && clock() - started >= input.timeLimitMs) break
     let reply
     try {
@@ -162,6 +166,7 @@ export async function runTurn<Ctx>(input: TurnInput<Ctx>): Promise<TurnResult> {
       }
     }
     costMinor += reply.costMinor
+    costliest = Math.max(costliest, reply.costMinor)
     messages.push({
       role: 'assistant',
       text: reply.text,

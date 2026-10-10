@@ -7,7 +7,7 @@ import { testModeBrain } from './testBrain'
 
 /**
  * What one typed request may cost with a real AI, in pence or cents: no further call to the AI
- * starts once a question has spent this much. Most cost 1 to 3; see docs/evidence/NEXT-12.
+ * starts that would take a question past this, judged by its costliest call so far. Most cost 1 to 3; see docs/evidence/NEXT-12.
  */
 export const TYPED_WORST_CASE_MINOR = 6
 /** What one typed question uses of the allowance, held before the AI is asked. */
