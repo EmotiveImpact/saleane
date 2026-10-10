@@ -12,6 +12,7 @@ import {
   X,
   Info,
   Mail,
+  Megaphone,
   Hourglass,
   Sparkles,
   CircleHelp,
@@ -100,6 +101,15 @@ const ServerBooking = lazy(() =>
 const Manage = lazy(() => import('./pages/Manage').then((module) => ({ default: module.Manage })))
 const Inbox = lazy(() => import('./pages/Inbox').then((module) => ({ default: module.Inbox })))
 const News = lazy(() => import('./pages/News').then((module) => ({ default: module.News })))
+const MarketingAutomatic = lazy(() =>
+  import('./pages/Marketing').then((module) => ({ default: module.MarketingAutomatic })),
+)
+const MarketingAudience = lazy(() =>
+  import('./pages/Marketing').then((module) => ({ default: module.MarketingAudience })),
+)
+const MarketingResults = lazy(() =>
+  import('./pages/Marketing').then((module) => ({ default: module.MarketingResults })),
+)
 const NewsStop = lazy(() =>
   import('./pages/NewsStop').then((module) => ({ default: module.NewsStop })),
 )
@@ -134,6 +144,8 @@ const navigation = [
   { to: '/clients', label: 'Clients', icon: Users },
   { to: '/waitlist', label: 'Waitlist', icon: Hourglass },
   { to: '/inbox', label: 'Inbox', icon: Mail },
+  // NEXT-14: its own section, for the people who write to clients.
+  { to: '/marketing', label: 'Marketing', icon: Megaphone },
   { to: '/business', label: 'Business', icon: ChartNoAxesCombined },
   { to: '/settings', label: 'Settings', icon: Settings2 },
 ]
@@ -182,22 +194,22 @@ function WorkspaceApp() {
     () => nudges(state, role, today, clock).length,
     [state, role, today, clock],
   )
-  const drafts =
-    operations(state).messages.filter(
-      (m) => m.status === 'draft' && !draftStale(state, m.id, clock),
-    ).length +
-    // Stage 4: a message to clients waits for the owner's approval.
-    (role === 'owner'
-      ? (operations(state).news ?? []).filter((m) => m.status === 'draft').length
-      : 0)
+  const drafts = operations(state).messages.filter(
+    (m) => m.status === 'draft' && !draftStale(state, m.id, clock),
+  ).length
+  // Stage 4: a message to clients waits for the owner's approval, in Marketing.
+  const campaignDrafts =
+    role === 'owner' ? (operations(state).news ?? []).filter((m) => m.status === 'draft').length : 0
   // The front desk opens Money, Stock, Rota and Gift cards in Business, not the studio's figures,
   // pay, accounts or private feedback, so their Business link lands on Money.
   const desk = role === 'reception'
-  const links = navigation.map((item) => ({
-    ...item,
-    href: desk && item.to === '/business' ? '/business/money' : item.to,
-    active: within(location.pathname, item.to),
-  }))
+  const links = navigation
+    .filter((item) => item.to !== '/marketing' || leads(role))
+    .map((item) => ({
+      ...item,
+      href: desk && item.to === '/business' ? '/business/money' : item.to,
+      active: within(location.pathname, item.to),
+    }))
   const owns = role === 'owner' || role === 'manager'
   // Branch visits and Requests are about running several branches, so they wait until there are
   // more locations or any regions. A general manager runs one of several, so always has them.
@@ -218,6 +230,14 @@ function WorkspaceApp() {
     { to: '/business/visits', label: 'Branch visits', show: leads(role) && branches },
     { to: '/business/requests', label: 'Requests', show: leads(role) && signOffs },
     { to: '/business/areas', label: 'Client areas', show: leads(role) },
+  ].filter((tab) => tab.show)
+  // NEXT-14: the emails that go by themselves are the studio's own settings, for owners and
+  // managers; a general manager writes and follows their location's campaigns.
+  const marketingTabs = [
+    { to: '/marketing', label: 'Campaigns', show: true },
+    { to: '/marketing/automatic', label: 'Automatic', show: owns },
+    { to: '/marketing/audience', label: 'Audience', show: true },
+    { to: '/marketing/results', label: 'Results', show: true },
   ].filter((tab) => tab.show)
   useEffect(() => {
     document.title = `${state.organisation.name} · SALEANE`
@@ -338,6 +358,15 @@ function WorkspaceApp() {
                 <span className="nav-count">
                   {drafts}
                   <span className="sr-only"> {drafts === 1 ? 'draft' : 'drafts'} to approve</span>
+                </span>
+              )}
+              {to === '/marketing' && campaignDrafts > 0 && (
+                <span className="nav-count">
+                  {campaignDrafts}
+                  <span className="sr-only">
+                    {' '}
+                    {campaignDrafts === 1 ? 'message' : 'messages'} to clients to approve
+                  </span>
                 </span>
               )}
             </Link>
@@ -467,6 +496,19 @@ function WorkspaceApp() {
           id="main-content"
           className="workspace-main"
         >
+          {within(location.pathname, '/marketing') && leads(role) && (
+            <ScrollNav
+              label="Marketing sections"
+              className="business-subnav"
+              current={location.pathname}
+            >
+              {marketingTabs.map((tab) => (
+                <NavLink key={tab.to} end={tab.to === '/marketing'} to={tab.to}>
+                  {tab.label}
+                </NavLink>
+              ))}
+            </ScrollNav>
+          )}
           {within(location.pathname, '/business') && (
             <ScrollNav
               label="Business sections"
@@ -494,9 +536,23 @@ function WorkspaceApp() {
               <Route path="/clients" element={<Clients />} />
               <Route path="/clients/:clientId" element={<ClientRelationship />} />
               <Route path="/inbox" element={<Inbox />} />
+              {/* NEXT-14: messages to clients moved to Marketing, Campaigns. */}
+              <Route path="/inbox/news" element={<Navigate to="/marketing" replace />} />
               <Route
-                path="/inbox/news"
+                path="/marketing"
                 element={leads(role) ? <News /> : <Navigate to="/inbox" replace />}
+              />
+              <Route
+                path="/marketing/automatic"
+                element={owns ? <MarketingAutomatic /> : <Navigate to="/marketing" replace />}
+              />
+              <Route
+                path="/marketing/audience"
+                element={leads(role) ? <MarketingAudience /> : <Navigate to="/inbox" replace />}
+              />
+              <Route
+                path="/marketing/results"
+                element={leads(role) ? <MarketingResults /> : <Navigate to="/inbox" replace />}
               />
               <Route path="/waitlist" element={<Waitlist />} />
               <Route

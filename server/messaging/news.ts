@@ -4,6 +4,8 @@ import { fail } from '../http'
 import type { Context } from '../context'
 import { newsAudience, newsEmail, newsMessage, newsSendFrom, newsText } from '../../src/domain/news'
 import { operations } from '../../src/domain/operations'
+import { dispatch } from '../../src/domain/commands'
+import { marketingEmailUse } from './marketingEmails'
 
 /**
  * Stage 4: the server's side of a message to clients. When the owner's approval is saved, one copy
@@ -53,6 +55,18 @@ export function watchNews(ctx: Context) {
       })
       if (audience.email !== message.toEmail || audience.text !== message.toText)
         fail(409, 'The numbers changed while approving. Check them and approve again.')
+      // NEXT-14: a campaign sets aside its emails when approved, and never goes over the month's.
+      const emails = audience.recipients.filter((r) => r.channel === 'email').length
+      if (emails > 0) {
+        const use = marketingEmailUse(ctx, org)
+        if (emails > use.left)
+          fail(
+            409,
+            use.left === 0
+              ? `This month’s ${use.limit.toLocaleString('en-GB')} marketing emails are all used, so this campaign cannot be approved until next month.`
+              : `This campaign would send ${emails.toLocaleString('en-GB')} emails, and ${use.left.toLocaleString('en-GB')} of this month’s ${use.limit.toLocaleString('en-GB')} marketing emails are left. Choose fewer locations, send it by text, or approve it next month.`,
+          )
+      }
       const time = now()
       const from = newsSendFrom(after, Date.parse(message.approvedAt!))
       const text = newsText(after, message)
@@ -100,7 +114,11 @@ export function watchNews(ctx: Context) {
   })
 }
 
-/** A fresh stop link for one client's copy. Only its hash is kept. */
+/**
+ * A fresh stop link for one client's copy. Only its hash is kept. `page` goes in the words and
+ * opens a page that asks nothing more; `oneClick` goes in the email's headers, where a mail app's
+ * own Unsubscribe button posts to it (RFC 8058), so its token travels in the address itself.
+ */
 export function issueNewsLink(
   ctx: Context,
   organisationId: string,
@@ -120,8 +138,38 @@ export function issueNewsLink(
     time,
     time + NEWS_LINK_DAYS * DAY,
   )
-  // The token sits in the fragment so it never reaches server logs or a Referer header.
-  return `${ctx.allowedOrigin}/news/stop#${raw}`
+  return {
+    // The token sits in the fragment so it never reaches server logs or a Referer header.
+    page: `${ctx.allowedOrigin}/news/stop#${raw}`,
+    // A mail app posts with no page and no fragment, so this one carries it in the path.
+    oneClick: `${ctx.allowedOrigin}/api/news/one-click/${raw}`,
+  }
+}
+
+/**
+ * Stops news for the client a link was sent to, once, in one transaction: their agreement is
+ * turned off as their own choice, the change is kept in the studio's record and the link is
+ * marked used. Every failure reads the same.
+ */
+export function stopNewsByLink(ctx: Context, raw: string) {
+  return ctx.db.transaction(() => {
+    const { org, client, messageId, tokenHash } = openNewsLink(ctx, raw)
+    const result = dispatch(
+      org.state,
+      { type: 'news-unsubscribe', clientId: client.id, messageId },
+      'Client (stop link in a message)',
+      new Date(ctx.now()).toISOString(),
+    )
+    if (!result.ok) fail(409, result.error)
+    if (result.state !== org.state)
+      ctx.persist(org, result.state, null, 'guest.news-stop', client.id)
+    ctx.db.run(
+      'UPDATE news_links SET used_at=COALESCE(used_at,?) WHERE token_hash=?',
+      ctx.now(),
+      tokenHash,
+    )
+    return org
+  })
 }
 
 /** Opens a stop link. Every failure reads the same, so a link reveals nothing about a client. */

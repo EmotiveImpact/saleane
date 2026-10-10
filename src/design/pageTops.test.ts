@@ -31,6 +31,7 @@ const shared = [
   'GiftCards',
   'Inbox',
   'Manage',
+  'Marketing',
   'Money',
   'News',
   'Pay',

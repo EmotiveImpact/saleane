@@ -616,6 +616,41 @@ describe('appointment messages (PILOT-01)', () => {
     expect(sent.map((m) => m.subject)).not.toContain('Happy birthday from Linden Studio')
   })
 
+  it('sends no automatic marketing email once the month’s marketing emails are used', async () => {
+    const { serviceId, staffId, slug, owner } = await localStudio()
+    const keen = { ...contact, marketingConsent: true }
+    await book(slug, serviceId, staffId, '2026-10-08', keen)
+    await api.outbox.tick()
+    const { state } = await workspace(owner)
+    const guest = state.clients.find((c) => c.email === keen.email)!
+    await run(owner, { type: 'client-birthday', clientId: guest.id, birthday: '10-07' })
+    // NEXT-14: the location's 2,000 for October have gone already.
+    api.database.run(
+      `WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM n WHERE i<2000)
+       INSERT INTO outbox(id,organisation_id,dedupe_key,appointment_id,client_id,kind,channel,slot,recipient,subject,body,status,next_attempt_at,created_at,updated_at)
+       SELECT 'earlier-'||i,?,'earlier-'||i,'','earlier','news','email','news:earlier','earlier@example.invalid','Earlier','Earlier words','accepted',?,?,? FROM n`,
+      owner.orgId,
+      clock,
+      clock,
+      clock,
+    )
+    sent = []
+    clock = Date.parse('2026-10-07T08:30:00.000Z')
+    await signIn(owner)
+    await api.outbox.tick()
+    expect(sent.map((m) => m.subject)).not.toContain('Happy birthday from Linden Studio')
+    expect(rows().find((r) => r.kind === 'birthday')).toMatchObject({
+      status: 'skipped',
+      detail: 'Not sent: this month’s marketing emails were all used.',
+    })
+    // Messages about a visit never count and still go.
+    expect(
+      rows()
+        .filter((r) => r.kind === 'confirmation')
+        .map((r) => r.status),
+    ).not.toContain('skipped')
+  })
+
   it('skips a we miss you note when the guest books before it goes', async () => {
     const { serviceId, staffId, slug, owner } = await localStudio()
     const keen = { ...contact, marketingConsent: true }

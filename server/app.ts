@@ -24,9 +24,10 @@ import { privacyRoutes } from './routes/privacy'
 import { messagingRoutes } from './routes/messaging'
 import { testTextRoutes } from './routes/testText'
 import { createOutbox } from './messaging/outbox'
-import { watchNews } from './messaging/news'
+import { stopNewsByLink, watchNews } from './messaging/news'
 import { watchTwoStepRule } from './twoStepRule'
 import { newsRoutes } from './routes/news'
+import { marketingRoutes } from './routes/marketing'
 import { recordPhoneCall, recordReply, recordSocialMessage } from './messaging/calls'
 import { metaChallenge, metaGenuine, metaMessages, socialFromEnv } from './messaging/meta'
 import { socialRoutes } from './routes/social'
@@ -124,6 +125,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   ctx.plans.begin = (org) => void billing.planFor(org)
   ctx.plans.summary = billing.summary
   ctx.plans.allowance = billing.allowance
+  ctx.plans.marketingEmails = billing.marketingEmails
   ctx.plans.locked = billing.locked
   ctx.plans.readOnly = billing.readOnly
   const memberships = createMembershipCharges(ctx, payments, () => {
@@ -152,6 +154,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     connections.routes,
     messagingRoutes(outbox),
     newsRoutes(outbox),
+    marketingRoutes(outbox),
     testTextRoutes(outbox),
     paymentRoutes(payments),
     billing.routes,
@@ -243,6 +246,25 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
         if (!receipts) fail(403, 'This receipt could not be verified.')
         for (const receipt of receipts!) outbox.record(receipt)
         reply(200, { ok: true })
+        return
+      }
+      // NEXT-14: a mail app's own Unsubscribe button (RFC 8058) posts here with no page, no
+      // session and no origin; the link's token is the proof. Opened in a browser instead, it
+      // goes to the page that stops news.
+      const oneClick = /^\/api\/news\/one-click\/([A-Za-z0-9_-]{32,100})$/.exec(url.pathname)
+      if (oneClick) {
+        if (method === 'GET') {
+          response.statusCode = 303
+          response.setHeader('Location', `${allowedOrigin}/news/stop#${oneClick[1]}`)
+          response.end()
+          return
+        }
+        if (method !== 'POST') fail(405, 'Use POST.')
+        const body = String(await readBody(request, true))
+        if (new URLSearchParams(body).get('List-Unsubscribe') !== 'One-Click')
+          fail(400, 'Send List-Unsubscribe=One-Click.')
+        stopNewsByLink(ctx, oneClick[1])
+        reply(200, { stopped: true })
         return
       }
       // V1.5: the studio's phone line says how a call ended. A missed one is written down for the

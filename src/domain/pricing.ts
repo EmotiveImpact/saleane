@@ -126,6 +126,22 @@ export function allowanceFor(plan: {
   }
 }
 
+/**
+ * NEXT-14: marketing emails each location's price includes every month (campaigns, and the
+ * automatic due-back, birthday and miss-you emails), and what Plus gives instead. The owner's
+ * decision, 10 October 2026. Sending costs SALEANE roughly £1 to £1.50 for every 1,000, so even
+ * Plus stays well inside what a location pays. Emails about a visit (confirmations, reminders,
+ * aftercare) never count.
+ */
+export const MARKETING_EMAILS = { included: 2000, plus: 10000 } as const
+
+/** A studio's marketing emails this month: each location's amount, and none once it has stopped. */
+export function marketingEmailsFor(plan: { locations: number; plus: boolean; paused?: boolean }) {
+  if (plan.paused) return 0
+  const each = plan.plus ? MARKETING_EMAILS.plus : MARKETING_EMAILS.included
+  return each * Math.max(1, Math.floor(plan.locations))
+}
+
 /** Whole currency units, as the page shows them: "£59", "£9" for a person or "£39" for Plus. */
 export function priceLabel(
   region: PriceRegion,
@@ -168,6 +184,9 @@ export const INCLUDED: readonly { text: string; connect?: 'card' | 'text' | 'voi
   {
     text: `An AI receptionist on your booking page: ${included.guestChats} guest chats a month`,
   },
+  {
+    text: `Marketing: campaigns, automatic emails and results, with ${MARKETING_EMAILS.included.toLocaleString('en-GB')} marketing emails a month`,
+  },
 ]
 export const CONNECT_NOTES = {
   card: 'Arrives when you connect your card account',
@@ -182,7 +201,7 @@ export const ADD_ONS = [
     id: 'plus',
     title: 'Plus',
     amount: 'plusMinor',
-    body: `For busy studios: ${plus.typed} typed questions, ${plus.talkSeconds / 60} minutes of talking and ${plus.guestChats} guest chats a month, instead of ${included.typed}, ${included.talkSeconds / 60} and ${included.guestChats}.`,
+    body: `For busy studios: ${plus.typed} typed questions, ${plus.talkSeconds / 60} minutes of talking, ${plus.guestChats} guest chats and ${MARKETING_EMAILS.plus.toLocaleString('en-GB')} marketing emails a month, instead of ${included.typed}, ${included.talkSeconds / 60}, ${included.guestChats} and ${MARKETING_EMAILS.included.toLocaleString('en-GB')}.`,
   },
   {
     id: 'phone',
