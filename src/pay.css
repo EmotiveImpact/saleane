@@ -128,14 +128,22 @@
 
 .pay-choice > label {
   display: flex;
+  flex-direction: row;
   gap: 0.6rem;
   align-items: flex-start;
   line-height: 1.4;
+  font-weight: var(--weight-body);
 }
 
-.pay-choice > label input {
-  margin-top: 0.2rem;
+/* A small radio beside its words, not the full-width field the form gives every input. */
+.pay-choice > label input[type='radio'] {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  margin: 0.15rem 0 0;
+  padding: 0;
   flex: none;
+  accent-color: var(--ink);
 }
 
 .pay-choice .pay-pool {

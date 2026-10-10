@@ -106,8 +106,8 @@ export function RentPanel({ from, to }: { from: string; to: string }) {
                       {rentTerms(state, rental)} from {dateLabel(rental.from, org.locale)}
                       {rental.to ? `, ended ${dateLabel(rental.to, org.locale)}` : ''}
                       {rental.products
-                        ? '. The products they sell are their own'
-                        : '. Products they sell stay the studio’s sales'}
+                        ? '. The products they sell are their own.'
+                        : '. Products they sell stay the studio’s sales.'}
                     </small>
                   </div>
                   <span className={`ops-record-money ${owed ? 'rota-over' : ''}`}>

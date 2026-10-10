@@ -294,7 +294,7 @@ export function Pay() {
                         ? 'Rents a chair or room, keeps own takings'
                         : commissionBasis(state, row.staff.id, to)}
                     </small>
-                    {row.target && <TargetLine target={row.target} />}
+                    {row.target && <TargetLine target={row.target} ended={period !== 'this'} />}
                   </div>
                   <dl className="pay-figures">
                     <div>
@@ -441,7 +441,7 @@ export function Pay() {
 }
 
 /** A target's progress in one line, with the thin bar Business uses. */
-function TargetLine({ target }: { target: TargetProgress }) {
+function TargetLine({ target, ended }: { target: TargetProgress; ended: boolean }) {
   const { state } = useStore()
   const org = state.organisation
   const cash = (minor: number) => wholeMoney(minor, org)
@@ -457,8 +457,8 @@ function TargetLine({ target }: { target: TargetProgress }) {
   return (
     <span className="pay-target">
       <small>
-        Target {cash(target.targetMinor)} · {cash(target.takenMinor)} so far, {share}%
-        {parts.length ? ` · ${parts.join(', ')}` : ''}
+        Target {cash(target.targetMinor)} · {cash(target.takenMinor)}
+        {ended ? '' : ' so far'}, {share}%{parts.length ? ` · ${parts.join(', ')}` : ''}
       </small>
       <span className="performance-track" aria-hidden="true">
         <span style={{ width: `${Math.min(100, share)}%` }} />
