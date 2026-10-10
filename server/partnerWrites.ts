@@ -307,7 +307,8 @@ function handle(c: Context, auth: KeyAuth, method: string, path: string[], body:
   // and Book with Google do: `chooseStaff(withHolds)`, then the desk's `book` command. It does not
   // go through the guest's `holdTime` and `bookHeld`, which need a held time, keep the guest's
   // online rules, send a guest link and open their own transaction, while the kept answer for an
-  // Idempotency-Key must be saved in the same transaction as the visit.
+  // Idempotency-Key must be saved in the same transaction as the visit. It never passes a
+  // quiet-time `offer`, so it always books at the usual price, as Google and AI assistants do.
   if (resource === 'appointments' && method === 'POST') {
     need('appointments:write')
     const input = bookInput.parse(body)

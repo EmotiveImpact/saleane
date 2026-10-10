@@ -239,7 +239,7 @@ Refusals:
 
 It answers `201` with the visit as `GET /api/v1/appointments` reads it, plus `locationId` and `priceMinor` (the booked price), and `source: "software"`.
 
-It goes through the desk's own booking: the studio's and the professional's hours, who does the treatment, a free room or chair, guests holding a time online, and the treatment's price at that location kept as the booked price. Guests get the studio's usual booking messages, exactly as for a desk booking; nothing else is sent. The visit's history says it was booked by that software.
+It goes through the desk's own booking: the studio's and the professional's hours, who does the treatment, a free room or chair, guests holding a time online, and the treatment's usual price at that location kept as the booked price. A key always books at the usual price: a lower price for a quiet time is booked only from the guest's own invitation link, and a body that names an offer or a price is refused. Guests get the studio's usual booking messages, exactly as for a desk booking; nothing else is sent. The visit's history says it was booked by that software.
 
 Patch tests: if the treatment needs one and the studio has turned on its rule for bookings made without the desk, the client needs a clear test that covers the visit's time; a new client never has one. A client whose last test was a reaction is never booked for that treatment through a key, whatever the rule. Both are refused with `patch_test_needed`.
 

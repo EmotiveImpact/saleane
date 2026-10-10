@@ -273,6 +273,57 @@ describe('access keys that may change things', () => {
     expect((await state(login)).appointments).toHaveLength(1)
   })
 
+  it('books at the usual price, even for a time the client was offered at a lower price', async () => {
+    const login = await owner()
+    await run(login, { type: 'consent', clientId: ids.clientId, consent: true })
+    // Quiet-time prices are offered only by a studio that takes bookings online.
+    await run(login, {
+      type: 'organisation',
+      name: 'Linden Studio',
+      locationName: 'London',
+      address: '1 Linden Street',
+      timeZone: 'Europe/London',
+      bookingEnabled: true,
+    })
+    await run(login, {
+      type: 'quiet-offers',
+      settings: {
+        discount: 'percent',
+        offPercent: 20,
+        offMinor: 1000,
+        floorMinor: 0,
+        openHours: 24,
+        leftOutIds: [],
+      },
+    })
+    const messageId = await run(login, {
+      type: 'offer-invite',
+      clientId: ids.clientId,
+      serviceId: ids.serviceId,
+      staffId: ids.staffId,
+      date: '2026-10-07',
+      startMinutes: 600,
+    })
+    expect(
+      (await state(login)).operations!.messages.find((m) => m.id === messageId)!.offer,
+    ).toMatchObject({ priceMinor: 7600, usualPriceMinor: 9500 })
+    const { key } = await makeKey(login, ['appointments:write'])
+    // A key cannot ask for a lower price: the body takes no offer or price.
+    for (const extra of [{ offer: messageId }, { priceMinor: 7600 }]) {
+      const asked = await send(key, 'POST', 'appointments', visit(extra))
+      expect(asked.statusCode).toBe(400)
+      expect(asked.json()).toMatchObject({ code: 'invalid_request' })
+    }
+    const booked = await send(key, 'POST', 'appointments', visit())
+    expect(booked.statusCode, booked.body).toBe(201)
+    expect(booked.json()).toMatchObject({ priceMinor: 9500 })
+    const a = (await state(login)).appointments.find(
+      (x) => x.id === booked.json<{ id: string }>().id,
+    )!
+    expect(a.bookedPriceMinor).toBe(9500)
+    expect(a.bookedOffer).toBeUndefined()
+  })
+
   it('replays the same request, refuses a reused key with another request, keeps no refusal', async () => {
     const login = await owner()
     const { key } = await makeKey(login, ['appointments:write'])

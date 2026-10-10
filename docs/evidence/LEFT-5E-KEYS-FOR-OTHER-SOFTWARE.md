@@ -1,6 +1,6 @@
 # LEFT-5E · Keys for other software: visits, clients and a chain's till sales sent in
 
-Built 10 October 2026 in a worktree on branch `left-s5keys`, from left-stage5 at `957c445`, then merged with left-stage5 at `d402850` (PR #92 and Stage 5A) and `25f2b0b` (Stage 5C and 5D). Everything below was checked with unit, component and server tests. **It has not been seen in a browser yet**; the steps for that are at the end.
+Built 10 October 2026 in a worktree on branch `left-s5keys`, from left-stage5 at `957c445`, then merged with left-stage5 at `d402850` (PR #92 and Stage 5A), `25f2b0b` (Stage 5C and 5D) and `fe12f2a` (Stage 5B). Everything below was checked with unit, component and server tests. **It has not been seen in a browser yet**; the steps for that are at the end.
 
 ## What it does
 
@@ -19,7 +19,7 @@ Built 10 October 2026 in a worktree on branch `left-s5keys`, from left-stage5 at
 - **Idempotency.** Every write needs an `Idempotency-Key` header (400 `idempotency_key_missing` otherwise). The first successful answer is kept for that key, with a hash of the method, the address and the body, in the same transaction as the change. The same key and body gets that answer again with `Idempotent-Replayed: true` and changes nothing; the same key with a different body is refused with 422 `idempotency_key_reused`. A refusal keeps nothing, so it can be put right and sent again. Kept answers are cleared after 30 days.
 - **The same limits and checks as reads**: the bearer key, its scopes, its last day and location, and 120 requests a minute for reads and writes together. Writes are refused with 402 while the studio is read only or locked for an unpaid SALEANE bill, and a sample studio never takes anything in. Writes are answered before `app.ts`'s 405 line and its Origin and JSON gate, which still refuse everything else.
 - **Visits go through the desk's commands.**
-  - Booking: `chooseStaff(withHolds)` (the studio's and the professional's hours, who does the treatment, a free room or chair, and guests holding a time online), then the desk's `book` with the treatment's price at that location kept as the booked price. The visit's `source` is `software`, it names the key, and its history says "Booked by {key} through its access key."
+  - Booking: `chooseStaff(withHolds)` (the studio's and the professional's hours, who does the treatment, a free room or chair, and guests holding a time online), then the desk's `book` with the treatment's usual price at that location kept as the booked price. A key never books a quiet-time price (Stage 5B): it never passes an offer, and a body naming an offer or a price is refused, as for Google and AI-assistant bookings. The visit's `source` is `software`, it names the key, and its history says "Booked by {key} through its access key."
   - Moving: `rescheduleResource` over `withHolds`, then `reschedule`; the guest's own visit links follow it, as at the desk.
   - Cancelling: the desk's `cancel` and its rules (the deposit's history kept for review, the freed time offered to the waitlist).
   - Messages: guests get exactly the messages a desk booking, move or cancellation would give them, through the outbox as usual. Nothing else is sent.
@@ -53,9 +53,9 @@ The two new commands (`other-till-sale`, `other-till-refund`) can never be dispa
 
 ## Server
 
-- **Migration 35**: the `api_key_writes` table (key, idempotency key, organisation, request hash, method, path, status, the kept answer as valid JSON, record id, when; primary key on key and idempotency key; `STRICT`) and an index by age. **34 is left unused**, as it belongs to another Stage 5 part.
-  - The runner applies `steps.slice(applied.length)` and checks the applied versions against the known ones in order, so a gap works on a new database. Three places assumed consecutive numbers and were made gap tolerant: `server/backup.ts` (compares with the list of versions), `server/database.test.ts` (the next version is `SCHEMA_VERSION + 1`, and versions are checked sorted and unique) and `server/app.test.ts` (counts the migrations).
-  - **A database made on this branch** (33, then 35) will refuse to open once 34 merges before 35, because the runner checks the order. Make a new local database after the merge.
+- **Migration 35**: the `api_key_writes` table (key, idempotency key, organisation, request hash, method, path, status, the kept answer as valid JSON, record id, when; primary key on key and idempotency key; `STRICT`) and an index by age. It sits directly after Stage 5B's 34 (`offer_links`), which merged into this branch after 35 was written.
+  - The runner applies `steps.slice(applied.length)` and checks the applied versions against the known ones in order, so a gap worked on a new database while 34 was not yet here. Three places assumed consecutive numbers and were made gap tolerant, and stay correct now the numbers run 33, 34, 35: `server/backup.ts` (compares with the list of versions), `server/database.test.ts` (the next version is `SCHEMA_VERSION + 1`, and versions are checked sorted and unique) and `server/app.test.ts` (counts the migrations).
+  - **A database made on this branch before the 5B merge** (33, then 35) refuses to open now, because the runner checks the order. This happened to the worktree's own empty test database, which was moved aside before the last front-end run. Make a new local database.
 - `server/partnerWrites.ts`: the write gate (content type, key and rate limit, Idempotency-Key, body, hash, then one transaction that authenticates, looks up the kept answer, makes the change and keeps the answer). Each change runs `dispatch` as the key, the location checks, the gift card hold check, and `persist` as `key:{id}`. The 405 is kept to the addresses that exist; anything else is 404.
 - `server/partnerShared.ts`: the key row, refusals with codes, and the visit as answered (now with `locationId` and `priceMinor`).
 - `server/partnerApi.ts`: scopes from `src/domain/accessKeys.ts`; a write is also refused while read only; `GET /api/v1/studio` adds the key and the email news wording.
@@ -67,22 +67,23 @@ The two new commands (`other-till-sale`, `other-till-refund`) can never be dispa
 
 ## Tests
 
-- `server/partnerWrites.test.ts` (10): the new scopes offered, old keys unchanged and location keys narrow; **a booking through the desk's checks**, with the usual messages and the booked price, a taken time refused; **idempotency**: a replay with the header and no second visit, a reused key with another body refused, a refusal keeping nothing; **moving and cancelling** under the desk's rules; **patch tests**, a client who reacted never booked; **clients**: added and changed, duplicates refused with their id, email news only with who, when and how and from that software, erasure respected; **a one-location key** kept to its location; **read only, locked, sample and old keys** refused; **till sales and refunds**: takings, Money, stock, commission, no payment, a receipt only once; **Who changed what** under the key's name, and its events marked with `changedBy` and the header.
+- `server/partnerWrites.test.ts` (11): the new scopes offered, old keys unchanged and location keys narrow; **a booking through the desk's checks**, with the usual messages and the booked price, a taken time refused; **always the usual price**, even for a time the client was invited to at a quiet-time price, with a body naming an offer or a price refused; **idempotency**: a replay with the header and no second visit, a reused key with another body refused, a refusal keeping nothing; **moving and cancelling** under the desk's rules; **patch tests**, a client who reacted never booked; **clients**: added and changed, duplicates refused with their id, email news only with who, when and how and from that software, erasure respected; **a one-location key** kept to its location; **read only, locked, sample and old keys** refused; **till sales and refunds**: takings, Money, stock, commission, no payment, a receipt only once; **Who changed what** under the key's name, and its events marked with `changedBy` and the header.
 - `src/domain/otherTill.test.ts` (11): only through a key and never into a sample; linking by id, barcode or SKU, the rest by name; every amount, the time, the team member and one receipt checked; never refused for stock, with the shelf short noted; refunds from the same location and never more than taken; checked whenever the studio record is read; takings, Money and the business figures for its location and day; a renter's takings kept apart and commission to the team member named; words in the change record, the export and the branch rules; scope words and location scopes; email news only with who, when and how.
 - `src/components/AccessKeys.test.tsx` (3): each scope explained, the changing ones tucked away and what was ticked sent; a one-location key offered only its own; an old key reading only, and saying so.
 - `src/components/OtherTillSales.test.tsx` (1): a sale names its till, never claims SALEANE took the money, and shows the shelf note and the refund.
 - `src/domain/help.test.ts`: searches for "api key", "let my booking tool add visits", "email news consent from other software", "sync clients without duplicates", "epos sales from our shop till" find the right guides; managers and reception do not get the owner's; the two key guides come first on Settings, Connections.
+- `server/quietOffers.test.ts` (Stage 5B's): its check that the schema is at version 34 now reads "at least 34", since 35 follows it.
 - `server/partnerApi.test.ts`: the old "POST is refused" check now expects 405 for DELETE and 403 `forbidden_scope` for a POST from a key without the scope.
 
 ## Checks
 
-All from the worktree root, after the last merge (`25f2b0b`):
+All from the worktree root, after the last merge (`fe12f2a`):
 
 - `npx tsc -b`: pass.
 - `npx eslint . --ignore-pattern '.claude/**' --max-warnings 0`: pass.
 - `git ls-files -z | xargs -0 npx prettier --check --ignore-unknown`: pass.
-- Front-end suite: 184 files, 1,610 tests passed.
-- Server suite, with a new database: 66 files passed and 1 skipped, 524 tests passed and 2 skipped.
+- Front-end suite: 188 files, 1,639 tests passed.
+- Server suite, with a new database: 67 files passed and 1 skipped, 535 tests passed and 2 skipped.
 - `npm run build`: pass.
 
 ## Decisions
@@ -93,7 +94,8 @@ All from the worktree root, after the last merge (`25f2b0b`):
 - **Refunds and voids**: a refund names the original receipt (`refundOf`) at the same location, never gives back more than was taken and puts back no more stock than came off. A void is a refund of the whole receipt; there is no separate void.
 - **Not refused for stock**: the sale already happened on the other till, so SALEANE records it and says what to count.
 - **Echo marking** goes in the payload and a header rather than suppressing the event, so other connected software still hears every change.
-- **Migration 35**, as assigned, with 34 left for its own part.
+- **Migration 35**, as assigned, directly after Stage 5B's 34.
+- **Always the usual price.** Visits booked through a key take the treatment's usual price at that location, as Google and AI-assistant bookings do; a quiet-time price stays with the guest's own invitation link.
 
 ## Quality bar
 
@@ -109,7 +111,7 @@ All from the worktree root, after the last merge (`25f2b0b`):
 ## Limits and notes
 
 - **Not seen in a browser.** Every journey is covered by tests only.
-- **Migration gap**: see Server. A local database made on this branch must be made again once 34 merges.
+- **Migration order**: see Server. A local database made on this branch before the 5B merge must be made again.
 - **Till sales live in the studio record**, up to 100,000 a studio. A chain sending many thousands a day would want a table of their own.
 - **No outgoing event type for till sales** yet; they show in Who changed what and Money.
 - **Tips, gift cards and plans** cannot be sent in from another till; they are sold in SALEANE.
