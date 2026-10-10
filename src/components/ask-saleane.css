@@ -45,6 +45,10 @@
 .ask-bubble p {
   margin: 0;
 }
+/* An answer's own line breaks, such as a short list, stay as written. */
+.ask-reply > p {
+  white-space: pre-line;
+}
 .ask-you {
   align-self: flex-end;
   color: var(--ink);
