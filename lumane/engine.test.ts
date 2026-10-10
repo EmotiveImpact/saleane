@@ -345,6 +345,19 @@ describe('Lumane allowances', () => {
     const talked = record(emptyUsage(at), { ...request, meter: 'talkSeconds', amount: 450 }, 0)
     expect(talkWindowSeconds(allowance, talked, at)).toBe(150)
   })
+
+  it('holds a talk for its whole window, then keeps only the time it ran', () => {
+    const talk = { ...request, meter: 'talkSeconds' as const, amount: 300, worstCaseMinor: 26.25 }
+    const held = reserve(allowance, undefined, talk)
+    if (!held.ok) throw new Error('expected the talk to be held')
+    expect(held.usage.used.talkSeconds).toBe(300)
+    expect(talkWindowSeconds(allowance, held.usage, at)).toBe(300)
+    // It ran 95 seconds, costing 7.92: the rest of the window and its worst case come back.
+    expect(settle(held.usage, talk, { counted: true, amount: 95, costMinor: 7.92 })).toMatchObject({
+      used: { talkSeconds: 95 },
+      spendByDay: { '2026-10-07': 7.92 },
+    })
+  })
 })
 
 describe('Lumane boundary', () => {

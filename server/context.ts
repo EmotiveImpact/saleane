@@ -13,6 +13,8 @@ import type { PaymentProvider } from './payments/providers'
 import { paymentProviderFromEnv } from './payments/providers'
 import { aiFromEnv } from './ai'
 import type { AiSupplier } from './ai'
+import { voiceFromEnv } from './voice'
+import type { VoiceLayer } from '../lumane'
 import { parseState } from '../src/domain/model'
 import type { BusinessState } from '../src/domain/model'
 import type { ConnectionTransport } from './connections'
@@ -155,6 +157,8 @@ export type ApiOptions = {
   social?: import('./messaging/meta').SocialOptions
   /** NEXT-12: the AI that answers. Omitted reads SALEANE_AI_PROVIDER; unset is test mode. */
   ai?: AiSupplier
+  /** NEXT-12: the voice for talking to Ask SALEANE. Omitted reads SALEANE_VOICE_PROVIDER; unset is none. */
+  voice?: VoiceLayer
 }
 
 /** Shared request authority: database, clock, sessions, tenant lookup, holds and audit. */
@@ -178,6 +182,10 @@ export function createContext(options: ApiOptions) {
   const paymentProvider =
     options.paymentProvider ?? paymentProviderFromEnv(process.env, allowedOrigin)
   const ai = options.ai ?? aiFromEnv(process.env)
+  const voice = options.voice ?? voiceFromEnv(process.env)
+  // The voice only listens and speaks; Claude answers. A voice without Claude would have nothing to say.
+  if (voice.live && !ai.live)
+    throw new Error('Talking needs Claude to answer: set SALEANE_AI_PROVIDER=claude.')
   const rates = new Map<string, { count: number; expires: number }>()
   const address = (request: IncomingMessage) => request.socket?.remoteAddress ?? 'local'
   // Holds last minutes, so a per-process salt keeps stored visitor keys from revealing addresses.
@@ -555,6 +563,7 @@ export function createContext(options: ApiOptions) {
     messaging,
     paymentProvider,
     ai,
+    voice,
     actorFor,
     signIn,
     memberships,

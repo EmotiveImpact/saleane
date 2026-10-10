@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Check, Sparkles } from 'lucide-react'
+import { Check, Mic, Sparkles, Square } from 'lucide-react'
 import { current, decide } from '../../lumane'
 import type { PendingProposal, Usage } from '../../lumane'
 import { ASK_WAIT_MS, HISTORY_TURNS, askSaleane } from '../assistant/ask'
 import { ALLOWANCES } from '../assistant/saleane'
+import { connectTalk } from '../assistant/talkLine'
+import type { TalkConnection } from '../assistant/talkLine'
 import type { Command } from '../domain/commands'
 import { nudges } from '../domain/nudges'
 import { api } from '../state/api'
@@ -12,11 +14,30 @@ import { useStore } from '../state/context'
 import { Button, Modal } from '../design'
 import './ask-saleane.css'
 
-type Meter = { used: number; allowance: number }
+type Meter = { used: number; allowance: number; talk?: { used: number; allowance: number } }
 type Suggestion = { id: string; summary: string; state: 'waiting' | 'saving' | 'done' | 'declined' }
 type Entry =
-  | { id: string; from: 'you'; text: string }
+  | { id: string; from: 'you'; text: string; spoken?: boolean }
   | { id: string; from: 'saleane'; text: string; suggestions: Suggestion[] }
+type ServerUsage = {
+  used: { typed: number; talkSeconds?: number }
+  allowance: { typed: number; talkSeconds?: number }
+}
+type TalkTurn = {
+  id: string
+  heard: string
+  answer?: string
+  proposals: { id: string; summary: string }[]
+}
+type TalkView = {
+  id: string
+  status: 'talking' | 'ended'
+  secondsLeft: number
+  turns: TalkTurn[]
+  usage: ServerUsage
+}
+/** The talk on screen: its time left, whether a question is being answered, and if it is ending. */
+type Talking = { id: string; secondsLeft: number; thinking: boolean; ending: boolean }
 
 const STARTERS = [
   'Give me my morning brief',
@@ -46,22 +67,68 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
   )
   // Whether a real AI answers. Until the server says, the panel describes test mode.
   const [live, setLive] = useState(false)
+  // NEXT-12 part 2: whether this studio can talk to Ask SALEANE, and the talk under way.
+  const [canTalk, setCanTalk] = useState(false)
+  const [talk, setTalk] = useState<Talking | null>(null)
+  const [starting, setStarting] = useState(false)
+  const [notice, setNotice] = useState('')
+  const line = useRef<TalkConnection | null>(null)
+  const talkId = useRef<string | null>(null)
   const held = useRef(new Map<string, PendingProposal<Command>>())
   const end = useRef<HTMLDivElement | null>(null)
   const base = orgId ? `/api/workspaces/${encodeURIComponent(orgId)}/assistant` : ''
 
   useEffect(() => {
     if (mode !== 'server' || !base) return
-    api<{
-      mode: 'live' | 'test'
-      usage: { used: { typed: number }; allowance: { typed: number } }
-    }>(base)
+    api<{ mode: 'live' | 'test'; talk?: boolean; usage: ServerUsage }>(base)
       .then((r) => {
-        setMeter({ used: r.usage.used.typed, allowance: r.usage.allowance.typed })
+        setMeter(meterFrom(r.usage))
         setLive(r.mode === 'live')
+        setCanTalk(!!r.talk)
       })
       .catch(() => {})
   }, [mode, base])
+
+  // While talking, the panel reads the talk each second: the time left, what was heard and the
+  // answers, with any suggestions to approve. It stops once the talk has ended.
+  const talking = talk?.id
+  useEffect(() => {
+    if (!talking) return
+    let reading = false
+    let tries = 0
+    const timer = setInterval(() => {
+      if (reading) return
+      reading = true
+      api<TalkView>(`${base}/talk/${encodeURIComponent(talking)}`)
+        .then((view) => {
+          tries = 0
+          show(view)
+        })
+        .catch(() => {
+          // A talk SALEANE no longer knows has ended; a few failed reads in a row end it here.
+          if (++tries >= 5) finish()
+        })
+        .finally(() => {
+          reading = false
+        })
+    }, 1000)
+    return () => clearInterval(timer)
+    // `show` and `finish` only set state, so the reading starts once per talk.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [talking, base])
+
+  // Closing the panel hangs up.
+  useEffect(
+    () => () => {
+      line.current?.stop()
+      if (talkId.current)
+        void api(`${base}/talk/${encodeURIComponent(talkId.current)}/end`, {
+          method: 'POST',
+          body: {},
+        }).catch(() => {})
+    },
+    [base],
+  )
 
   useEffect(() => {
     end.current?.scrollIntoView?.({ block: 'end' })
@@ -82,9 +149,9 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
         const r = await api<{
           text: string
           proposals: { id: string; summary: string }[]
-          usage: { used: { typed: number }; allowance: { typed: number } }
+          usage: ServerUsage
         }>(base, { method: 'POST', body: { text: trimmed, history }, timeoutMs: ASK_WAIT_MS })
-        setMeter({ used: r.usage.used.typed, allowance: r.usage.allowance.typed })
+        setMeter(meterFrom(r.usage))
         answer = r
       } else {
         const at = new Date().toISOString()
@@ -129,6 +196,110 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
       )
     } finally {
       setBusy(false)
+    }
+  }
+
+  /** Adds each question heard and its answer to the conversation, once each. */
+  function addTurns(turns: TalkTurn[]) {
+    setEntries((list) => {
+      const next = [...list]
+      for (const turn of turns) {
+        const you = `talk-${turn.id}`
+        if (!next.some((e) => e.id === you))
+          next.push({ id: you, from: 'you', text: turn.heard, spoken: true })
+        if (turn.answer !== undefined && !next.some((e) => e.id === `${you}-reply`))
+          next.push({
+            id: `${you}-reply`,
+            from: 'saleane',
+            text: turn.answer,
+            suggestions: turn.proposals.map((p) => ({
+              id: p.id,
+              summary: p.summary,
+              state: 'waiting' as const,
+            })),
+          })
+      }
+      return next.length === list.length ? list : next
+    })
+  }
+
+  function show(view: TalkView) {
+    addTurns(view.turns)
+    setMeter(meterFrom(view.usage))
+    if (view.status === 'ended') return finish()
+    setTalk((now) =>
+      now && now.id === view.id
+        ? {
+            ...now,
+            secondsLeft: view.secondsLeft,
+            thinking: view.turns.some((t) => t.answer === undefined),
+          }
+        : now,
+    )
+  }
+
+  function finish() {
+    line.current?.stop()
+    line.current = null
+    talkId.current = null
+    setTalk(null)
+    setNotice('The talk has ended.')
+  }
+
+  async function startTalk() {
+    if (talk || starting) return
+    setError('')
+    setNotice('')
+    setStarting(true)
+    const started: { id?: string; seconds?: number } = {}
+    try {
+      const connection = await connectTalk(
+        async (sdp) => {
+          const r = await api<
+            | { status: 'talking'; id: string; sdp: string; seconds: number; usage: ServerUsage }
+            | { status: 'refused' | 'unavailable'; text: string; usage: ServerUsage }
+          >(`${base}/talk`, { method: 'POST', body: { sdp } })
+          setMeter(meterFrom(r.usage))
+          if (r.status !== 'talking') {
+            setNotice(r.text)
+            return null
+          }
+          started.id = r.id
+          started.seconds = r.seconds
+          talkId.current = r.id
+          return { sdp: r.sdp }
+        },
+        // The voice hung up or the line dropped: the next reading shows how the talk ended.
+        () => setTalk((now) => (now ? { ...now, ending: true } : now)),
+      )
+      if (!connection || !started.id) return
+      line.current = connection
+      setTalk({ id: started.id, secondsLeft: started.seconds ?? 0, thinking: false, ending: false })
+      setNotice('Talking. Ask whenever you are ready.')
+    } catch (caught) {
+      if (talkId.current) void stopTalk()
+      setError(caught instanceof Error ? caught.message : 'Talking could not start. Try again.')
+    } finally {
+      setStarting(false)
+    }
+  }
+
+  /** Hangs up here at once; the panel keeps reading until SALEANE has counted the talk. */
+  async function stopTalk() {
+    line.current?.stop()
+    line.current = null
+    const id = talkId.current
+    if (!id) return
+    setTalk((now) => (now ? { ...now, ending: true } : now))
+    try {
+      show(
+        await api<TalkView>(`${base}/talk/${encodeURIComponent(id)}/end`, {
+          method: 'POST',
+          body: {},
+        }),
+      )
+    } catch {
+      finish()
     }
   }
 
@@ -192,6 +363,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
           {live
             ? 'Answers come from your studio records, read by Claude, an AI from Anthropic. Your question and the records needed to answer it are sent to Anthropic. Changes wait for your approval.'
             : 'Test mode: answers come from your studio records. No AI service is connected, and nothing is sent.'}
+          {canTalk && " When you talk, OpenAI's voice listens and speaks, and Claude answers."}
         </p>
         <div className="ask-thread" aria-live="polite">
           {!entries.length && opening.length > 0 && (
@@ -223,7 +395,8 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
           {entries.map((entry) =>
             entry.from === 'you' ? (
               <p key={entry.id} className="ask-bubble ask-you">
-                <span className="sr-only">You asked: </span>
+                {entry.spoken && <Mic size={13} aria-hidden="true" className="ask-spoken" />}
+                <span className="sr-only">{entry.spoken ? 'You said: ' : 'You asked: '}</span>
                 {entry.text}
               </p>
             ) : (
@@ -267,7 +440,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
               </div>
             ),
           )}
-          {busy && (
+          {(busy || talk?.thinking) && (
             <p className="ask-bubble ask-reply ask-thinking" role="status">
               Looking at your records…
             </p>
@@ -279,7 +452,27 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
             {error}
           </p>
         )}
+        <p role="status" className={notice ? 'ask-notice' : 'sr-only'}>
+          {notice}
+        </p>
         <div className="ask-footer">
+          {talk && (
+            <div className="ask-talk">
+              <span className="ask-talk-dot" aria-hidden="true" />
+              <p>
+                {talk.ending ? 'Ending the talk…' : 'Talking with Ask SALEANE'}
+                {!talk.ending && (
+                  <span className="ask-talk-left" role="timer" aria-live="off">
+                    {' '}
+                    · {clockLabel(talk.secondsLeft)} left
+                  </span>
+                )}
+              </p>
+              <Button variant="secondary" disabled={talk.ending} onClick={() => void stopTalk()}>
+                <Square size={14} aria-hidden="true" /> Stop
+              </Button>
+            </div>
+          )}
           <form className="ask-form" onSubmit={submit}>
             <label className="sr-only" htmlFor="ask-saleane-text">
               Your question
@@ -295,16 +488,42 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
             <Button type="submit" disabled={busy || !text.trim()}>
               Ask
             </Button>
+            {canTalk && !talk && (
+              <Button variant="secondary" disabled={starting} onClick={() => void startTalk()}>
+                <Mic size={16} aria-hidden="true" /> {starting ? 'Starting…' : 'Talk'}
+              </Button>
+            )}
           </form>
           {meter && (
             <p className="ask-meter">
               {meter.used} of {meter.allowance} questions used this month.
+              {/* While talking, its whole time is held, so the countdown shows what is left instead. */}
+              {canTalk &&
+                !talk &&
+                meter.talk &&
+                ` ${Math.ceil(meter.talk.used / 60)} of ${Math.floor(meter.talk.allowance / 60)} talking minutes used.`}
             </p>
           )}
         </div>
       </div>
     </Modal>
   )
+}
+
+function meterFrom(usage: ServerUsage): Meter {
+  return {
+    used: usage.used.typed,
+    allowance: usage.allowance.typed,
+    ...(usage.allowance.talkSeconds === undefined
+      ? {}
+      : { talk: { used: usage.used.talkSeconds ?? 0, allowance: usage.allowance.talkSeconds } }),
+  }
+}
+
+/** Minutes and seconds, as a talk's countdown shows them: "4:05". */
+function clockLabel(seconds: number) {
+  const whole = Math.max(0, Math.round(seconds))
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`
 }
 
 function demoMeter(orgId: string): Meter {
