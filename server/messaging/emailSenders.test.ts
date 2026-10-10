@@ -68,14 +68,13 @@ describe('Resend', () => {
     expect(await sender.send(message)).toEqual({ outcome: 'accepted', providerRef: 're-1' })
     expect(calls[0].url).toBe('https://api.resend.com/emails')
     expect(header(calls[0], 'authorization')).toBe('Bearer re_key')
-    // The same email sent again carries the same key, so Resend sends it once.
-    const key = header(calls[0], 'idempotency-key')!
-    expect(key).toMatch(/^out-1\.[0-9a-f]{32}$/)
-    await sender.send(message)
-    expect(header(calls[1], 'idempotency-key')).toBe(key)
-    // Changed words make a new email.
-    await sender.send({ ...message, body: 'See you on Wednesday.' })
-    expect(header(calls[2], 'idempotency-key')).not.toBe(key)
+    // Every try of one outbox row carries its id, so Resend sends it once, even when the words
+    // differ (a manage link is issued afresh each try).
+    expect(header(calls[0], 'idempotency-key')).toBe('out-1')
+    await sender.send({ ...message, body: 'See you on Tuesday. Manage it at a new link.' })
+    expect(header(calls[1], 'idempotency-key')).toBe('out-1')
+    await sender.send({ ...message, id: 'out-9' })
+    expect(header(calls[2], 'idempotency-key')).toBe('out-9')
     expect(bodyOf(calls[0])).toEqual({
       from: '"Linden Studio" <hello@example.invalid>',
       to: ['guest@example.invalid'],
@@ -114,6 +113,19 @@ describe('Resend', () => {
     })
     expect((await sender.send(message)).outcome).toBe('unknown')
     expect(await sender.send(message)).toMatchObject({ outcome: 'failed', retry: true })
+  })
+  it('waits while Resend takes a first try, and leaves a changed one it already has to a person', async () => {
+    const { fetcher } = provider(
+      json({ name: 'concurrent_idempotent_requests', message: 'In progress.' }, 409),
+      json({ name: 'invalid_idempotent_request', message: 'Body modified.' }, 409),
+    )
+    const sender = resendProvider({ apiKey: 'k', from: 'f@example.invalid', fetcher })
+    expect(await sender.send(message)).toMatchObject({ outcome: 'failed', retry: true })
+    expect(await sender.send(message)).toEqual({
+      outcome: 'unknown',
+      detail:
+        'Resend already took an earlier try of this email, which may have gone. Check its dashboard first.',
+    })
   })
   it('leaves a yes that was cut off, or that names nothing, for a person to check', async () => {
     const cutOff = new Response(

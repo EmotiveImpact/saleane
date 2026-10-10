@@ -1,4 +1,4 @@
-import { createHash, createHmac, createPrivateKey, createSign, verify } from 'node:crypto'
+import { createHmac, createPrivateKey, createSign, verify } from 'node:crypto'
 import nodemailer from 'nodemailer'
 import MailComposer from 'nodemailer/lib/mail-composer'
 import { signAws } from './aws'
@@ -89,16 +89,25 @@ export function resendProvider(config: {
         headers: {
           Authorization: `Bearer ${config.apiKey}`,
           'Content-Type': 'application/json',
-          // Sending the same email again within a day returns the first answer rather than a
-          // second copy. A message whose words changed before it went again is a new email.
+          // The same outbox row sent again within a day returns the first answer rather than a
+          // second copy. The row id, not the words: a manage link is issued afresh each try.
           // https://resend.com/docs/dashboard/emails/idempotency-keys
-          'Idempotency-Key': `${message.id}.${createHash('sha256').update(body).digest('hex').slice(0, 32)}`,
+          'Idempotency-Key': message.id,
         },
         body,
       })
       if (isResult(result)) return result
       if (result.status === 200 && typeof result.json.id === 'string' && result.json.id)
         return { outcome: 'accepted', providerRef: result.json.id }
+      // https://resend.com/docs/api-reference/errors
+      if (result.json.name === 'concurrent_idempotent_requests')
+        return { outcome: 'failed', detail: 'Resend is still taking the first try.', retry: true }
+      if (result.json.name === 'invalid_idempotent_request')
+        return {
+          outcome: 'unknown',
+          detail:
+            'Resend already took an earlier try of this email, which may have gone. Check its dashboard first.',
+        }
       return refused(
         result.status,
         String(result.json.message ?? `Resend refused it (${result.status}).`),
