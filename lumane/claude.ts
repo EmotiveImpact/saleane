@@ -226,13 +226,17 @@ export function claudeBrain(options: ClaudeOptions): Brain {
         .map((block) => block.text!.trim())
         .filter(Boolean)
         .join('\n\n')
-      // A request cut off by a length limit may be missing part of its input, so it is not used.
-      const cut = json.stop_reason === 'max_tokens' || json.stop_reason?.includes('exceeded')
-      const calls = cut
-        ? []
-        : content
-            .filter((block) => block.type === 'tool_use' && block.id && block.name)
-            .map((block) => ({ id: block.id!, name: block.name!, input: block.input ?? {} }))
+      // A reply cut off by a length limit may end mid-sentence or mid-request, so none of it is
+      // used: the request ends as unavailable, with what it cost recorded.
+      if (json.stop_reason === 'max_tokens' || json.stop_reason?.includes('exceeded'))
+        throw new BrainError(
+          'failed',
+          `Claude's reply was cut off by its length limit (${json.stop_reason}).`,
+          costMinor,
+        )
+      const calls = content
+        .filter((block) => block.type === 'tool_use' && block.id && block.name)
+        .map((block) => ({ id: block.id!, name: block.name!, input: block.input ?? {} }))
       return {
         ...(text ? { text } : {}),
         calls,

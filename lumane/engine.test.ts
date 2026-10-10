@@ -9,6 +9,7 @@ import {
   decide,
   emptyUsage,
   readSkill,
+  reclaim,
   record,
   remaining,
   reserve,
@@ -315,6 +316,28 @@ describe('Lumane allowances', () => {
     // Held in October and settled after November has begun: November is left alone.
     const november = emptyUsage('2026-11-01T00:00:00.000Z')
     expect(settle(november, asked, { counted: false, costMinor: 0 })).toBe(november)
+  })
+
+  it('gives back a hold never settled once its time has passed, keeping its worst case spent', () => {
+    const asked = { ...request, worstCaseMinor: 6 }
+    const held = reserve(allowance, undefined, asked)
+    if (!held.ok) throw new Error('expected the share to be held')
+    expect(held.usage.holds).toEqual([{ request: asked, until: '2026-10-07T09:05:00.000Z' }])
+    // Settled normally, the hold goes.
+    expect(settle(held.usage, asked, { counted: true, costMinor: 1 }).holds).toEqual([])
+    // Within its five minutes nothing changes; after them, the question comes back.
+    expect(reclaim(held.usage, '2026-10-07T09:04:59.000Z')).toBe(held.usage)
+    const back = reclaim(held.usage, '2026-10-07T09:05:01.000Z')!
+    expect(back).toMatchObject({ used: { typed: 0 }, spendByDay: { '2026-10-07': 6 }, holds: [] })
+    // A request that finishes after all is counted once, at what it cost.
+    expect(settle(back, asked, { counted: true, costMinor: 1 })).toMatchObject({
+      used: { typed: 1 },
+      spendByDay: { '2026-10-07': 1 },
+    })
+    expect(settle(back, asked, { counted: false, costMinor: 1 })).toMatchObject({
+      used: { typed: 0 },
+      spendByDay: { '2026-10-07': 1 },
+    })
   })
 
   it('caps a talking session at the session limit or what is left', () => {

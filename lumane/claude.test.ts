@@ -112,7 +112,7 @@ describe('Claude through the Messages API', () => {
     expect(reply.text).toBeUndefined()
   })
 
-  it('never uses a skill request cut off by the length limit, and says so when Claude declines', async () => {
+  it('uses nothing from a reply cut off by the length limit, and says so when Claude declines', async () => {
     const { fetcher } = anthropic(
       {
         content: [
@@ -125,7 +125,10 @@ describe('Claude through the Messages API', () => {
       { content: [], stop_reason: 'refusal', usage },
     )
     const brain = brainWith(fetcher)
-    expect(await brain.respond(request)).toMatchObject({ text: 'Let me look.', calls: [] })
+    // A part-written reply is never shown or used, and what it cost is still counted.
+    const cut = await brain.respond(request).catch((e: unknown) => e)
+    expect(cut).toBeInstanceOf(BrainError)
+    expect(cut).toMatchObject({ kind: 'failed', costMinor: claudeCost(usage, prices) })
     expect(await brain.respond(request)).toMatchObject({ text: DECLINED, calls: [] })
   })
 

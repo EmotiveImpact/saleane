@@ -1,14 +1,19 @@
-import { reserve, settle } from '../lumane'
+import { reclaim, reserve, settle } from '../lumane'
 import type { Allowance, Usage, UseRequest } from '../lumane'
 import type { Context } from './context'
 
-/** The studio's stored assistant usage, or undefined before its first use. */
+/**
+ * The studio's stored assistant usage, or undefined before its first use. A hold whose time has
+ * passed is given back here, as SALEANE stopped before settling it; the next write keeps that.
+ */
 export function storedUsage(ctx: Context, organisationId: string) {
   const raw = ctx.db.get<{ usage: string }>(
     'SELECT usage FROM assistant_usage WHERE organisation_id=?',
     organisationId,
   )
-  return raw ? (JSON.parse(raw.usage) as Usage) : undefined
+  return raw
+    ? reclaim(JSON.parse(raw.usage) as Usage, new Date(ctx.now()).toISOString())
+    : undefined
 }
 
 function store(ctx: Context, organisationId: string, usage: Usage) {

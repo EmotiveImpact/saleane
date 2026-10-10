@@ -245,6 +245,42 @@ describe('Ask SALEANE with Claude', () => {
     expect(stored(login).spendByDay['2026-10-06']).toBe(140.34)
   })
 
+  it('gives back a question held by a request that never finished, once its time has passed', async () => {
+    const { requests, fetcher } = anthropic([words('Nothing is booked today yet.')])
+    start(claude(fetcher))
+    const login = await register(false)
+    // The month's 300 questions are used, one of them held at 07:50 by a request SALEANE never
+    // settled (it stopped mid-answer). Its five minutes are up, so its question comes back.
+    const held = {
+      meter: 'typed',
+      amount: 1,
+      personId: 'someone',
+      at: '2026-10-06T07:50:00.000Z',
+      worstCaseMinor: 6,
+    }
+    api.database.run(
+      'INSERT INTO assistant_usage(organisation_id,usage,updated_at) VALUES(?,?,?)',
+      login.orgId,
+      JSON.stringify({
+        period: '2026-10',
+        used: { typed: 300, talkSeconds: 0, guestChats: 0 },
+        spendByDay: { '2026-10-06': 20 },
+        recent: {},
+        holds: [{ request: held, until: '2026-10-06T07:55:00.000Z' }],
+      }),
+      clock,
+    )
+    const answer = await ask(login, 'What is on today?')
+    expect(answer.json()).toMatchObject({ status: 'answered', usage: { used: { typed: 300 } } })
+    expect(requests).toHaveLength(1)
+    // The day's 20 already counts its worst case of 6, which stays, as what it cost is unknown.
+    expect(stored(login)).toMatchObject({
+      used: { typed: 300 },
+      spendByDay: { '2026-10-06': 20.34 },
+      holds: [],
+    })
+  })
+
   it('keeps a sample studio in test mode, so its fictional records never leave', async () => {
     const { requests, fetcher } = anthropic([])
     start(claude(fetcher))
