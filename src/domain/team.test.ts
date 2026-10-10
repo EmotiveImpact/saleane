@@ -116,6 +116,17 @@ describe('moves to another location in their view', () => {
     expect(() =>
       parseState(structuredClone(branchView(moved, islington, today)), 'UK'),
     ).not.toThrow()
+    // Maya joins Islington's team from the week of her move, with her usual week there, and
+    // before it her days are still at the main location.
+    const view = branchView(moved, islington, today)
+    const maya = view.staff.find((p) => p.id === 'staff-maya')!
+    expect(maya.archived).toBeFalsy()
+    expect(weekTeam(view, islington, '2026-10-12').map((p) => p.id)).not.toContain('staff-maya')
+    expect(weekTeam(view, islington, '2026-10-19').map((p) => p.id)).toContain('staff-maya')
+    expect(mayPlanDay(view, islington, 'staff-maya', '2026-10-20')).toBe(true)
+    expect(mayPlanDay(view, islington, 'staff-maya', '2026-10-13')).toBe(false)
+    // Sophia, moving to Shoreditch, is still not Islington's to see.
+    expect(view.staff.find((p) => p.id === 'staff-sophia')!.archived).toBe(true)
   })
 })
 

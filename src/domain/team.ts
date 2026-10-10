@@ -287,6 +287,10 @@ export function teamView(s: BusinessState, locationId: string, today: string): B
   const home = new Set(
     s.staff.filter((p) => usuallyAt(s, p.id, locationId, today)).map((p) => p.id),
   )
+  // Someone moving here from a date still to come joins the team from that week, so their record
+  // comes too; their days before the move stay where they were (`usualHoursFor`).
+  for (const move of o.staffMoves ?? [])
+    if (!move.cancelled && move.date > today && move.to === locationId) home.add(move.staffId)
   // The days the rota sends someone from elsewhere to this location.
   const visiting = new Map<string, Set<string>>()
   for (const c of o.rotaChanges ?? [])

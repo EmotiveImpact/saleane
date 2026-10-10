@@ -144,6 +144,12 @@ describe('moving someone from the rota', () => {
     expect(panel()).toHaveTextContent(
       'Monday to Friday · Leading Shoreditch · by Ava Owner · 1 booked visit kept at Marylebone, London',
     )
+    // The rota says where the kept visit is, not that it is outside her hours.
+    await user.click(screen.getByRole('button', { name: 'Next week' }))
+    const tuesday = screen.getByRole('button', {
+      name: "Change Maya Lewis's day, Tuesday 13 October. 09:00 to 18:00. 1 booked visit still at Marylebone, London.",
+    })
+    expect(within(tuesday).getByText('1 booked visit still at Marylebone, London')).toBeVisible()
   })
 
   it('marks the first day at the new location on the rota, and cancels a move still to come', async () => {

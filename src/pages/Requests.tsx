@@ -36,9 +36,10 @@ type Words = (r: ApprovalRequest) => RequestContext
 const HISTORY_PAGE = 30
 
 const PASSED_UP: Record<NonNullable<ApprovalRequest['passedUp']>, string> = {
-  'over-limit': 'it is more than a regional manager may approve',
-  'no-region': 'its location is in no region',
-  'no-manager': 'its region has no regional manager',
+  // Where it went was decided when it was asked; regions and limits can change afterwards.
+  'over-limit': 'it was more than a regional manager could approve when it was asked',
+  'no-region': 'its location was in no region when it was asked',
+  'no-manager': 'its region had no regional manager when it was asked',
   'own-request': 'its region’s own regional manager raised it',
 }
 

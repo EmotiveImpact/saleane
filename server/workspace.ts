@@ -45,6 +45,7 @@ export function createWorkspace(input: WorkspaceInput): BusinessState {
   if (!input.sample) return createLocalWorkspace({ ...input, timeZone: zone })
   // A sample never reuses the browser demo's organisation or location authority.
   const state = seed(input.region)
+  const sampleName = state.organisation.name
   const organisationId = randomUUID()
   const locationId = randomUUID()
   state.organisation = {
@@ -59,6 +60,9 @@ export function createWorkspace(input: WorkspaceInput): BusinessState {
   // V1.5: the sample's unedited standard wording speaks in the new studio's name.
   const standard = state.consentWording?.[0]
   if (standard && !standard.publishedAt) standard.text = standardWording(input.name)
+  // Stage 4: so does the sample's message to clients.
+  for (const message of state.operations?.news ?? [])
+    message.subject = message.subject.replaceAll(sampleName, input.name)
   // The sample keeps its demo shelf of products (V2) and otherwise starts from the defaults.
   state.operations ??= defaultOperations('sandbox')
   for (const collection of [

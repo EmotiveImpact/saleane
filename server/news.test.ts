@@ -610,6 +610,8 @@ describe('sample studios', () => {
     })
     const s = await state(owner)
     const sample = s.operations!.news!.find((m) => m.status === 'draft')!
+    // The sample's draft speaks in the new studio's name, as its consent wording does.
+    expect(sample.subject).toBe('Thursday evenings at Sample Rooms')
     const counted = await numbers(owner, 'either')
     expect(counted.total).toBeGreaterThan(5)
     expect((await approve(owner, sample.id, counted.email, counted.text)).statusCode).toBe(200)

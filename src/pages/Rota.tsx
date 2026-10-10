@@ -291,7 +291,7 @@ export function Rota() {
                           <button
                             type="button"
                             className="rota-cell"
-                            aria-label={`Change ${person.name}'s day, ${dateLabel(day.date, org.locale)}. ${cellWords(day, org.locale, moved)}`}
+                            aria-label={`Change ${person.name}'s day, ${dateLabel(day.date, org.locale)}. ${cellWords(day, org.locale, moved, (id) => placeOf(state, id)?.name ?? 'another location')}`}
                             onClick={() => {
                               setChanging({ staffId: person.id, date: day.date })
                               setNotice('')
@@ -483,6 +483,26 @@ export function Rota() {
   )
 }
 
+/**
+ * Stage 4: the one other location where every booked visit outside a working day sits, such as
+ * visits kept where someone worked before a move; null when they are outside the hours here.
+ */
+function keptAt(day: RotaDay) {
+  if (day.state !== 'working' || !day.outside.length) return null
+  const at = new Set(day.outside.map((a) => a.locationId))
+  const [only] = at
+  return at.size === 1 && only !== day.locationId ? only : null
+}
+
+/** Booked visits that do not fit a day, in words: outside its hours, or still at another location. */
+function outsideWords(day: RotaDay, nameOf: (locationId: string) => string) {
+  if (!('outside' in day) || !day.outside.length) return ''
+  const count = `${day.outside.length} booked ${day.outside.length === 1 ? 'visit' : 'visits'}`
+  const elsewhere = keptAt(day)
+  if (elsewhere) return `${count} still at ${nameOf(elsewhere)}`
+  return `${count} outside ${day.state === 'off' ? 'their hours' : 'these hours'}`
+}
+
 /** What one day of the rota shows: hours and where, off or away, and anything changed. */
 function RotaCell({
   day,
@@ -500,13 +520,9 @@ function RotaCell({
     'kind' in day && day.kind ? (
       <span className="rota-tag">{day.kind === 'extra' ? 'Extra day' : 'Changed'}</span>
     ) : null
-  const outside =
-    'outside' in day && day.outside.length > 0 ? (
-      <small className="rota-warn">
-        {day.outside.length} booked {day.outside.length === 1 ? 'visit' : 'visits'} outside{' '}
-        {day.state === 'off' ? 'their hours' : 'these hours'}
-      </small>
-    ) : null
+  const { state } = useStore()
+  const words = outsideWords(day, (id) => placeOf(state, id)?.name ?? 'another location')
+  const outside = words ? <small className="rota-warn">{words}</small> : null
   if (day.state === 'working')
     return (
       <>
@@ -541,13 +557,16 @@ function RotaCell({
 }
 
 /** A day in words, for the button that opens it. */
-function cellWords(day: RotaDay, locale: string, moved = false) {
+function cellWords(
+  day: RotaDay,
+  locale: string,
+  moved: boolean,
+  nameOf: (locationId: string) => string,
+) {
   const changed =
     'kind' in day && day.kind ? (day.kind === 'extra' ? ' Extra day.' : ' Changed.') : ''
-  const outside =
-    'outside' in day && day.outside.length
-      ? ` ${day.outside.length} booked ${day.outside.length === 1 ? 'visit' : 'visits'} outside the hours.`
-      : ''
+  const words = outsideWords(day, nameOf)
+  const outside = words ? ` ${words}.` : ''
   const first = moved ? ' First day at a new location.' : ''
   if (day.state === 'working')
     return `${span(day.open, day.close, locale)}.${changed}${first}${outside}`
