@@ -31,7 +31,7 @@ import { PRACTITIONER_AVERAGE_MIN } from '../domain/feedback'
 import { venueDate } from '../domain/tillCount'
 import { hoursLabel } from '../domain/hours'
 import { span } from '../domain/rota'
-import { Avatar, Button, Empty, ErrorMessage, Modal, PageHeader, Status } from '../design'
+import { Avatar, Button, Empty, ErrorMessage, Modal, PageHeader, Status, photos } from '../design'
 import { SignOut } from '../components/SignOut'
 import { HelpButton } from '../components/HelpButton'
 import { ClockOutForm } from '../components/Clock'
@@ -283,6 +283,7 @@ export function PractitionerDay() {
         <div className="practitioner-day-heading">
           <PageHeader
             variant="editorial"
+            photo={{ src: photos.towels, position: 'center 62%' }}
             eyebrow={
               <>
                 <Sun size={16} />

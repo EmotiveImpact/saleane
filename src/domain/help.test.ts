@@ -233,6 +233,12 @@ describe('help inside the app', () => {
     expect(first('claude booking')).toBe('ai-booking')
     expect(first('openai connector')).toBe('ai-booking')
     expect(ids(searchHelp('chatgpt', 'manager'))).not.toContain('ai-booking')
+    // Stage 6: the wording guide, for anyone at the desk who writes to guests.
+    expect(first('how should I word a message')).toBe('speaks')
+    expect(first('tone of voice')).toBe('speaks')
+    expect(first('writing style guide', 'reception')).toBe('speaks')
+    expect(ids(searchHelp('tone of voice', 'practitioner'))).not.toContain('speaks')
+    expect(ids(helpForScreen('/design-language', '', 'owner'))).toContain('speaks')
     expect(searchHelp('the', 'owner')).toEqual([])
     expect(searchHelp('rocket launch', 'owner')).toEqual([])
     expect(helpWords("Customer's bookings")).toEqual(['client', 'visit'])

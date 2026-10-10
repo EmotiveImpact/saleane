@@ -193,7 +193,7 @@ export function News() {
       ) : (
         <PageHeader
           eyebrow="Inbox"
-          title="Messages to clients"
+          title="Messages to clients."
           description="One message for many clients. Only clients who agreed to news and offers receive it, once each, between 09:00 and 19:00 on the studio’s clock."
           actions={
             mayWrite && (

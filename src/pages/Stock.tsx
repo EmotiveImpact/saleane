@@ -15,7 +15,6 @@ import { CounterSales } from '../components/CounterSales'
 import { SupplierOrders } from '../components/SupplierOrders'
 import { suppliers } from '../domain/purchasing'
 import { Button, Empty, ErrorMessage, Modal, PageHeader, SegmentedControl } from '../design'
-import { PhotoStrip, photos } from '../design'
 import { ProductTile } from '../components/ProductTile'
 import { ProductPhotoField } from '../components/ProductPhotoField'
 import { ScanField } from '../components/ScanField'
@@ -407,7 +406,6 @@ export function Stock() {
           ) : undefined
         }
       />
-      <PhotoStrip src={photos.towels} position="center 62%" />
       <dl className="stock-totals">
         <div>
           <dt>Products for sale</dt>

@@ -4282,15 +4282,7 @@ fieldset {
   padding: 8px 16px;
 }
 
-/* House photographs (src/design/photos.ts): quiet, wide and never the point of the page. */
-.photo-strip {
-  height: 120px;
-  margin-bottom: var(--space-5);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background-size: cover;
-  background-repeat: no-repeat;
-}
+/* House photographs (src/design/photos.ts). The page-top band lives in src/design/design.css. */
 .intelligence-photo {
   height: 140px;
   margin-bottom: var(--space-4);
@@ -4395,13 +4387,6 @@ fieldset {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-@media (max-width: 650px) {
-  .photo-strip {
-    height: 84px;
-    margin-bottom: var(--space-4);
-  }
-}
-
 /* V2: figures for one location. */
 .business-where select {
   min-width: min(13rem, 100%);
