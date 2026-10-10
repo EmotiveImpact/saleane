@@ -1,0 +1,318 @@
+/* Pieces both setup wizards share: hours by the day, cards of fields, chips and ticks. */
+/* What still needs doing before Continue. */
+.setup-problem {
+  margin-top: 22px;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+/* Opening hours, a day to a line. */
+.setup-hours {
+  display: grid;
+  gap: 8px;
+}
+.setup-day {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  min-height: 56px;
+  padding: 8px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--panel);
+}
+.setup-day-name {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+.setup-day-closed {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.setup-day-times {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.setup-day-times select {
+  width: auto;
+  min-width: 120px;
+}
+.setup-quiet-action {
+  margin-top: 16px;
+}
+
+/* Common treatments to add with one tap. */
+.setup-starters {
+  margin-bottom: 18px;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--sage-soft);
+}
+.setup-starters-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.setup-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.setup-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 6px 14px 6px 11px;
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-pill);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-meta);
+  cursor: pointer;
+  transition:
+    background var(--motion-quick),
+    border-color var(--motion-quick);
+}
+.setup-chip:hover {
+  border-color: var(--brand-mid);
+  background: var(--sage);
+}
+.setup-chip svg {
+  color: var(--brand);
+}
+.setup-chip small {
+  color: var(--muted);
+}
+
+/* Each treatment, person, room or chair as a light card of its own fields. */
+.setup-rows {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.setup-row {
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--panel);
+}
+.setup-row-grid {
+  display: grid;
+  align-items: end;
+  gap: 12px 14px;
+}
+.setup-row-grid > label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+.setup-treatment {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+}
+.setup-treatment .setup-span-name {
+  grid-column: 1 / 5;
+}
+.setup-treatment .setup-remove {
+  grid-row: 1;
+  grid-column: 5;
+}
+.setup-person,
+.setup-room {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+}
+.setup-remove {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 2px;
+  border: 0;
+  border-radius: var(--radius-round);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.setup-remove:hover {
+  background: var(--stone);
+  color: var(--ink);
+}
+.setup-remove:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.setup-row-note {
+  display: block;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+.setup-gives {
+  min-width: 0;
+  margin: 14px 0 0;
+  padding: 0;
+  border: 0;
+}
+.setup-gives legend {
+  padding: 0;
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+.setup-gives .setup-chips {
+  margin-top: 8px;
+}
+.setup-tick {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 5px 13px 5px 10px;
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-meta);
+  cursor: pointer;
+}
+.setup-tick:has(input:checked) {
+  border-color: var(--brand-mid);
+  background: var(--sage);
+  color: var(--brand-ink);
+}
+.setup-tick:has(input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.setup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0 6px;
+}
+.setup-actions-tight {
+  margin: 0 0 14px;
+}
+
+/* A summary, a line for each screen. */
+.setup-summary {
+  margin: 0 0 22px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--panel);
+  list-style: none;
+}
+.setup-summary li {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--line);
+}
+.setup-summary li:first-child {
+  border-top: 0;
+}
+.setup-summary strong,
+.setup-summary small {
+  display: block;
+}
+.setup-summary small {
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+.setup-summary-mark {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-round);
+}
+.setup-summary li.is-done .setup-summary-mark {
+  border-color: var(--brand-mid);
+  background: var(--brand-soft);
+  color: var(--brand-ink);
+}
+@media (max-width: 640px) {
+  .setup-day {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 12px 14px;
+  }
+  .setup-day-times select {
+    flex: 1;
+    min-width: 0;
+  }
+  /* Each card's fields stack in two columns, with Remove in its top corner. */
+  .setup-row {
+    position: relative;
+    padding: 14px;
+  }
+  .setup-treatment,
+  .setup-person,
+  .setup-room {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .setup-treatment .setup-span-name,
+  .setup-person > label,
+  .setup-room > label {
+    grid-column: 1 / -1;
+  }
+  .setup-row-grid > label:first-child {
+    padding-right: 40px;
+  }
+  .setup-row .setup-remove {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+  }
+}
+
+/* On a phone every target in the wizards is at least 44px, so a thumb finds it first time. */
+@media (max-width: 650px) {
+  :is(.setup-layout, .opening)
+    :is(
+      .setup-chip,
+      .setup-tick,
+      .colour-swatch,
+      .segmented-item,
+      .back-link,
+      .text-link,
+      .opening-offered,
+      .ops-check,
+      .setup-day-name
+    ) {
+    min-height: 44px;
+  }
+  :is(.setup-layout, .opening) .setup-remove {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .setup-story .wordmark {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}

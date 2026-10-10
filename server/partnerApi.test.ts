@@ -173,6 +173,10 @@ describe('read-only access for other software', () => {
     const forged = key.slice(0, -4) + (key.endsWith('AAAA') ? 'BBBB' : 'AAAA')
     expect((await read(forged, 'studio')).statusCode).toBe(401)
     expect((await api.inject({ url: '/api/v1/studio' })).statusCode).toBe(401)
+    // NEXT-02: a studio locked for an unpaid SALEANE bill answers no key until it is paid.
+    api.database.run("UPDATE studio_plans SET status='stopped',stop_reason='unpaid',locked_at=1")
+    expect((await read(key, 'studio')).statusCode).toBe(402)
+    api.database.run("UPDATE studio_plans SET status='trial',stop_reason=NULL,locked_at=NULL")
     expect((await keys(login, `/${created}/revoke`, {})).statusCode).toBe(200)
     expect((await read(key, 'studio')).statusCode).toBe(401)
     expect((await keys(login, `/${created}/revoke`, {})).statusCode).toBe(404)

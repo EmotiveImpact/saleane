@@ -36,6 +36,7 @@ export function workspaceView(
   reader: Reader,
   state: BusinessState,
   today: string,
+  now = Date.now(),
 ): WorkspaceRecord {
   // Guests' individual ratings and comments (V1.5), the team's commission rates (V2) and branch
   // visit notes and requests for sign-off (V5) are for owners and managers only.
@@ -62,7 +63,10 @@ export function workspaceView(
   if (reader.role !== 'practitioner') return fail(403, 'Your role cannot read this studio.')
   if (!reader.staffId) fail(403, 'Your access is not linked to a professional.')
   try {
-    return { view: 'practitioner', practitioner: practitionerView(state, reader.staffId!, today) }
+    return {
+      view: 'practitioner',
+      practitioner: practitionerView(state, reader.staffId!, today, now),
+    }
   } catch {
     return fail(403, 'Your professional profile is no longer active. Ask the owner to update it.')
   }

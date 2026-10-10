@@ -1,0 +1,184 @@
+/*
+ * NEXT-10: Google & Apple diaries. The form and the links are rows with hairlines, never boxes
+ * inside the panel; the link shown once sits on a soft tint so it is not missed.
+ */
+.diary-form {
+  display: grid;
+  gap: 16px;
+}
+.diary-field {
+  display: grid;
+  gap: 6px;
+  max-width: 420px;
+  font-weight: var(--weight-strong);
+}
+.diary-field select {
+  font-weight: var(--weight-body);
+}
+.diary-whose {
+  margin: 0;
+}
+.diary-detail {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.diary-detail legend {
+  margin-bottom: 4px;
+  padding: 0;
+  font-weight: var(--weight-strong);
+}
+.diary-detail > label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  font-weight: var(--weight-body);
+  gap: 10px;
+  min-height: var(--target);
+  line-height: 1.4;
+  cursor: pointer;
+}
+.diary-detail > label input[type='radio'] {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--ink);
+}
+.diary-note {
+  max-width: 62ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: 1.55;
+}
+.diary-form .ops-actions {
+  margin-top: 4px;
+}
+
+/* The link, shown once. */
+.diary-made {
+  display: grid;
+  gap: 14px;
+  margin: 0 0 22px;
+  padding: 18px 20px;
+  border-radius: var(--radius-panel);
+  background: var(--sand);
+}
+.diary-made p {
+  margin: 0;
+  line-height: 1.5;
+}
+.diary-made code {
+  display: block;
+  max-width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  background: rgb(255 255 255 / 0.72);
+  font-size: var(--text-small);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.diary-made-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.diary-made-actions .button {
+  gap: 8px;
+}
+.diary-how {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.diary-how dt {
+  font-weight: var(--weight-strong);
+}
+.diary-how dd {
+  margin: 2px 0 0;
+  max-width: 62ch;
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: 1.55;
+}
+.diary-made .diary-local {
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
+/* Links in use: one row each. */
+.diary-links {
+  margin-top: 28px;
+}
+.diary-links h3 {
+  margin: 0 0 6px;
+  font-size: var(--text-body);
+}
+.diary-links ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.diary-links li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.diary-links li:last-child {
+  border-bottom: 1px solid var(--line);
+}
+.diary-links p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: 1.5;
+}
+.diary-links .diary-stopped {
+  color: var(--danger);
+}
+.diary-actions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+@media (max-width: 620px) {
+  .diary-links li {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .diary-actions {
+    justify-content: flex-start;
+  }
+}
+
+/* On the practitioner's own page: a quiet way in, under the day. */
+.practitioner-diary-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--target);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.practitioner-footnote + .practitioner-footnote {
+  margin-top: 6px;
+}

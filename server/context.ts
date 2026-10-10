@@ -21,6 +21,10 @@ import { areaPlaces } from '../src/domain/area'
 import { changeDetail, type ChangeDetail } from '../src/domain/changeRecord'
 import { branchOpen } from '../src/domain/branch'
 import type { Role, Tax } from '../src/domain/operations'
+import { places } from '../src/domain/locations'
+import { allowanceFor } from '../src/domain/pricing'
+import type { BillingSummary } from '../src/domain/billing'
+import type { Allowance } from '../lumane'
 
 export const emailSchema = z.email().trim().toLowerCase().max(254)
 export const accountDetails = z.object({
@@ -131,6 +135,10 @@ export type ApiOptions = {
   outboxIntervalMs?: number
   /** Card payments. Omitted reads SALEANE_PAYMENTS_PROVIDER; unset is test mode, charging nothing. */
   paymentProvider?: PaymentProvider
+  /** NEXT-02: SALEANE's own card account for studios' plans. Omitted reads SALEANE_BILLING_PROVIDER. */
+  billingProvider?: PaymentProvider
+  /** NEXT-06: where help requests are emailed; unset reads SALEANE_SUPPORT_EMAIL, null keeps them. */
+  supportEmail?: string | null
   /** V5: how connected software is reached. Omitted uses fetch with private addresses refused. */
   connectionTransport?: ConnectionTransport
   /** V4: Book with Google's partner credentials; read from the environment when left out. */
@@ -217,18 +225,24 @@ export function createContext(options: ApiOptions) {
     return csrf
   }
   const memberships = (actor: Actor) =>
-    db.all<{
-      id: string
-      slug: string
-      role: Role
-      staffId: string | null
-      name: string
-      region: string
-      mode: string
-    }>(
-      `SELECT o.id,o.slug,m.role,m.staff_id AS staffId,json_extract(o.state,'$.organisation.name') AS name,json_extract(o.state,'$.organisation.region') AS region,json_extract(o.state,'$.operations.mode') AS mode FROM memberships m JOIN organisations o ON o.id=m.organisation_id WHERE m.account_id=? ORDER BY o.created_at,o.id`,
-      actor.id,
-    )
+    db
+      .all<{
+        id: string
+        slug: string
+        role: Role
+        staffId: string | null
+        name: string
+        region: string
+        mode: string
+        locked: number
+      }>(
+        `SELECT o.id,o.slug,m.role,m.staff_id AS staffId,json_extract(o.state,'$.organisation.name') AS name,json_extract(o.state,'$.organisation.region') AS region,json_extract(o.state,'$.operations.mode') AS mode,
+           EXISTS(SELECT 1 FROM studio_plans p WHERE p.organisation_id=o.id AND p.locked_at IS NOT NULL) AS locked
+         FROM memberships m JOIN organisations o ON o.id=m.organisation_id WHERE m.account_id=? ORDER BY o.created_at,o.id`,
+        actor.id,
+      )
+      // NEXT-02: a studio locked for an unpaid bill says so before anyone tries to open it.
+      .map(({ locked, ...row }) => (locked ? { ...row, locked: true } : row))
   /**
    * A signed-in member's studio. A regional manager is refused everywhere except the routes that
    * pass `area: true` and then serve only their area's view (fail closed: new routes stay shut).
@@ -286,7 +300,7 @@ export function createContext(options: ApiOptions) {
     if (!row) fail(404, 'Online booking is not available for this studio.')
     const raw = JSON.parse(row!.state) as BusinessState
     const state = parseState(raw, raw.organisation.region)
-    if (!operations(state).bookingEnabled)
+    if (!operations(state).bookingEnabled || plans.locked(row!.id))
       fail(404, 'Online booking is not available for this studio.')
     return {
       id: row!.id,
@@ -349,6 +363,7 @@ export function createContext(options: ApiOptions) {
       locationId: null,
     }
     audit(org, accountId, 'workspace.created', org.id)
+    plans.begin(org)
     return org
   }
   /** Told about every saved change, inside the same transaction, with the record before and after. */
@@ -381,6 +396,24 @@ export function createContext(options: ApiOptions) {
       changeDetail(org.state, parsed, action, recordId),
     )
     for (const listener of persistListeners) listener(org, org.state, parsed)
+  }
+  /**
+   * NEXT-02: each studio's plan, as the billing module answers once it is set up: what the studio
+   * record carries about it, and the studio's AI allowance. Until then, no plan and the included
+   * allowance for each open location.
+   */
+  const plans: {
+    /** A new studio's plan begins as it is made, so its free trial starts that day. */
+    begin: (org: Org) => void
+    summary: (org: Org) => BillingSummary | null
+    allowance: (org: Org) => Allowance
+    /** A locked studio takes no online bookings and answers no access key. */
+    locked: (orgId: string) => boolean
+  } = {
+    begin: () => {},
+    summary: () => null,
+    locked: () => false,
+    allowance: (org) => allowanceFor({ locations: places(org.state).length, plus: false }),
   }
   const withHolds = (org: Org, excludeHash = '') => {
     const state = structuredClone(org.state)
@@ -520,6 +553,7 @@ export function createContext(options: ApiOptions) {
     insertWorkspace,
     persist,
     onPersist,
+    plans,
     withHolds,
     chooseStaff,
     linkableProfessional,

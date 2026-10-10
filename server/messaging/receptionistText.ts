@@ -184,6 +184,7 @@ async function answer(
     continuing,
     ...(guest ? { guestId: guest.id } : {}),
     usage: storedUsage(ctx, org.id),
+    allowance: ctx.plans.allowance(org),
   })
   if (result.status !== 'answered') return false
   const offered = result.proposals.find((p) => p.effect.kind === 'time')

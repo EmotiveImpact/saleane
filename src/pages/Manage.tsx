@@ -5,6 +5,7 @@ import {
   BellRing,
   Building2,
   CalendarDays,
+  CalendarSync,
   Palette,
   Plus,
   Scissors,
@@ -20,6 +21,7 @@ import {
   MessageCircle,
   Plug,
   History,
+  Receipt,
 } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { useStore } from '../state/context'
@@ -36,6 +38,7 @@ import { Avatar, Button, ErrorMessage, Modal, PageHeader, Tabs, treatmentPhoto }
 import { AffectedVisits, ScheduleHistory } from '../components/ScheduleImpact'
 import { StudioPrivacy } from '../components/Privacy'
 import { ChangeRecord } from '../components/ChangeRecord'
+import { PlanBilling } from '../components/PlanBilling'
 import { BrandSection, PreferencesSection, WorkspaceSection } from '../components/SettingsSections'
 import { MessageSettings } from '../components/AppointmentMessages'
 import { GuestNotesSettings } from '../components/GuestNotesSettings'
@@ -51,6 +54,7 @@ import { EmailNewsWording } from '../components/EmailConsent'
 import { SavedReplies } from '../components/SavedReplies'
 import { Connections } from '../components/Connections'
 import { AccessKeys } from '../components/AccessKeys'
+import { DiaryLinks } from '../components/DiaryLinks'
 import { ReceptionistSettings } from '../components/ReceptionistSettings'
 import { GoogleBooking } from '../components/GoogleBooking'
 import { HouseRules } from '../components/HouseRules'
@@ -77,6 +81,7 @@ const groups = [
     sections: [
       { id: 'staff', label: 'Team', icon: Users },
       { id: 'resource', label: 'Spaces & equipment', icon: Armchair },
+      { id: 'diaries', label: 'Google & Apple diaries', icon: CalendarSync },
     ],
   },
   {
@@ -99,6 +104,7 @@ const groups = [
     label: 'Your account and data',
     sections: [
       { id: 'preferences', label: 'Your preferences', icon: SlidersHorizontal },
+      { id: 'billing', label: 'Plan and billing', icon: Receipt },
       { id: 'connections', label: 'Connected software', icon: Plug },
       { id: 'privacy', label: 'Data & privacy', icon: ShieldCheck },
       { id: 'changes', label: 'Who changed what', icon: History },
@@ -163,13 +169,13 @@ function TreatmentPhoto({ category, nth }: { category: string; nth: number }) {
 }
 
 export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
-  const { state, commit, blocked, role } = useStore()
+  const { state, commit, blocked, role, mode } = useStore()
   const config = operations(state)
   // The open section lives in the address, so links elsewhere can open Settings at the right place.
   const [params, setParams] = useSearchParams()
   const requested = params.get('section')
-  // NEXT-05: only the owner sees who changed what.
-  const shownSection = (id: SectionId) => id !== 'changes' || role === 'owner'
+  // NEXT-05 and NEXT-02: only the owner sees who changed what, and the SALEANE plan.
+  const shownSection = (id: SectionId) => (id !== 'changes' && id !== 'billing') || role === 'owner'
   const section: SectionId =
     isSection(requested) && shownSection(requested) ? requested : 'business'
   const setSection = (id: SectionId) => setParams({ section: id }, { replace: true })
@@ -300,6 +306,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
           ...(numeric(data, 'restMinutes') > 0
             ? { restMinutes: numeric(data, 'restMinutes') }
             : {}),
+          ...(data.get('forTwo') ? { forTwo: true as const } : {}),
           archived,
           ...(text(data, 'locationId') && text(data, 'locationId') !== state.organisation.locationId
             ? { locationId: text(data, 'locationId') }
@@ -400,6 +407,10 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
             {section === 'workspace' && <WorkspaceSection onReset={() => setReplaced(true)} />}
             {section === 'privacy' && <StudioPrivacy />}
             {section === 'changes' && <ChangeRecord />}
+            {section === 'billing' && <PlanBilling />}
+            {section === 'diaries' && (
+              <DiaryLinks workspaceId={state.organisation.id} demo={mode !== 'server'} />
+            )}
             {section === 'connections' && (
               <>
                 <Connections />
@@ -771,6 +782,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                           {item.restMinutes
                             ? ` · rests ${item.restMinutes} minutes after each visit`
                             : ''}
+                          {item.forTwo ? ' · room for two' : ''}
                         </small>
                       </div>
                       <div className="ops-record-controls">
@@ -1244,6 +1256,18 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                     they are.
                   </small>
                 </label>
+              )}
+              {editor.kind === 'resource' && (
+                <>
+                  <label className="ops-check">
+                    <input type="checkbox" name="forTwo" defaultChecked={!!resource?.forTwo} />A
+                    room for two
+                  </label>
+                  <p className="ops-help">
+                    Two people booked together, such as a couple, can have it at the same time.
+                    Anyone else has it to themselves.
+                  </p>
+                </>
               )}
               {editor.kind === 'closure' && (
                 <>

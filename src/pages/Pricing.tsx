@@ -1,7 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Check, Plug } from 'lucide-react'
-import { CONNECT_NOTES, INCLUDED, PRICE, PROMISES, priceLabel } from '../domain/pricing'
+import {
+  ADD_ONS,
+  CONNECT_NOTES,
+  INCLUDED,
+  PRICE,
+  PROMISES,
+  TRIAL_DAYS,
+  priceLabel,
+} from '../domain/pricing'
 import type { PriceRegion } from '../domain/pricing'
 import { SegmentedControl } from '../design'
 import '../pricing.css'
@@ -31,10 +39,10 @@ export function Pricing() {
       <main className="pricing-main">
         <section className="pricing-hero" aria-labelledby="pricing-heading">
           <span className="eyebrow">Pricing</span>
-          <h1 id="pricing-heading">One price. Everything included.</h1>
+          <h1 id="pricing-heading">One price for each location.</h1>
           <p>
-            One monthly price for your studio, however many people work there and however many
-            clients you look after.
+            Every feature is included, however many people work there and however many clients you
+            look after. Busy studios can add more AI time or a receptionist on the phone.
           </p>
         </section>
         <section className="pricing-offer" aria-label="The price">
@@ -53,7 +61,7 @@ export function Pricing() {
               <strong>{priceLabel(region)}</strong>
               <span>
                 a month, {price.tax}
-                <small>per studio, month to month</small>
+                <small>per location, month to month</small>
               </span>
             </p>
             <ul className="pricing-included">
@@ -75,7 +83,8 @@ export function Pricing() {
               Set up your studio
             </Link>
             <p className="pricing-note">
-              SALEANE is in a private pilot. Nothing is charged until your studio goes live.
+              Start with {TRIAL_DAYS} days free, no card needed. SALEANE is in a private pilot, so
+              nothing is charged yet.
             </p>
           </div>
           <img
@@ -83,6 +92,27 @@ export function Pricing() {
             src="/images/saleane-studio-warm.jpg"
             alt="A calm studio treatment room in natural light"
           />
+        </section>
+        <section className="pricing-addons" aria-labelledby="addons-heading">
+          <h2 id="addons-heading">Add-ons</h2>
+          <ul>
+            {ADD_ONS.map((addOn) => (
+              <li key={addOn.id}>
+                <h3>{addOn.title}</h3>
+                <p className="pricing-addon-price">
+                  <strong>{priceLabel(region, addOn.amount)}</strong> a month for each location,{' '}
+                  {price.tax}
+                </p>
+                <p>{addOn.body}</p>
+                {'note' in addOn && (
+                  <p className="pricing-addon-note">
+                    <Plug size={15} aria-hidden="true" />
+                    {addOn.note}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
         </section>
         <section className="pricing-promises" aria-labelledby="promises-heading">
           <h2 id="promises-heading">What the price never hides</h2>

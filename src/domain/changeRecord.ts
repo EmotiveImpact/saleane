@@ -36,6 +36,8 @@ type Words = readonly [ChangeGroup, string, string?]
 /** Every change the team makes through the app. A new command fails to compile until it has words. */
 const commandWords: Record<Command['type'], Words> = {
   book: ['visits', 'Booked a visit'],
+  'book-repeat': ['visits', 'Booked repeat visits'],
+  'book-together': ['visits', 'Booked visits for several people'],
   reschedule: ['visits', 'Moved a visit'],
   cancel: ['visits', 'Cancelled a visit'],
   'no-show': ['visits', 'Marked a visit as a no-show'],
@@ -60,6 +62,7 @@ const commandWords: Record<Command['type'], Words> = {
   'waitlist-add': ['visits', 'Added someone to the waitlist'],
   'waitlist-remove': ['visits', 'Took someone off the waitlist'],
   'waitlist-offer': ['visits', 'Offered a waitlist time'],
+  'opening-invite': ['messages', 'Wrote invitations to a cancelled time'],
   'waitlist-join': ['visits', 'Joined the waitlist'],
   'waitlist-leave': ['visits', 'Left the waitlist'],
   'form-save': ['settings', 'Changed a guest form', 'Added a guest form'],
@@ -100,6 +103,8 @@ const commandWords: Record<Command['type'], Words> = {
   organisation: ['settings', 'Changed the studio details'],
   hours: ['settings', 'Changed the opening hours'],
   location: ['settings', 'Changed a location', 'Added a location'],
+  'location-open': ['settings', 'Added a location', 'Added a location with its rooms and team'],
+  'setup-step': ['settings', 'Saved a screen of setting up the studio'],
   'guest-notes': ['settings', 'Changed the notes for guests'],
   closure: ['visits', 'Closed time in the diary'],
   'remove-closure': ['visits', 'Opened closed time again'],
@@ -129,6 +134,10 @@ const commandWords: Record<Command['type'], Words> = {
   'end-rental': ['team', 'Ended a chair rental'],
   'rent-payment': ['money', 'Recorded rent paid'],
   'cancel-time-off': ['team', 'Cancelled time off'],
+  'clock-in': ['team', 'Clocked in'],
+  'clock-out': ['team', 'Clocked out'],
+  'shift-save': ['team', 'Changed hours worked', 'Added hours worked'],
+  'shift-remove': ['team', 'Removed hours worked'],
   'leave-allowance': ['team', 'Changed a holiday allowance'],
   'pay-rules': ['team', 'Changed the pay rules'],
   'pay-rate': ['team', 'Changed a pay rate'],
@@ -155,6 +164,8 @@ const serverWords: Record<string, Words> = {
   'guest_link.revoked': ['visits', 'Turned off a guest’s visit link'],
   'api-key.created': ['access', 'Made a partner access key'],
   'api-key.revoked': ['access', 'Turned off a partner access key'],
+  'diary-link.made': ['access', 'Made a diary link for Google or Apple Calendar'],
+  'diary-link.stopped': ['access', 'Stopped a diary link'],
   'connection.created': ['settings', 'Connected software'],
   'connection.paused-all': ['settings', 'Paused all connected software'],
   'connection.changed': ['settings', 'Changed connected software'],
@@ -194,6 +205,20 @@ const serverWords: Record<string, Words> = {
   'phone.missed-call': ['messages', 'Wrote down a missed call'],
   'inbox.reply': ['messages', 'A message came in'],
   'receptionist.message': ['messages', 'Passed on a message from the AI receptionist'],
+  // NEXT-02: the studio's own SALEANE plan.
+  'billing.card': ['settings', 'Saved a card for the SALEANE plan'],
+  'billing.plus': ['settings', 'Changed Plus on the SALEANE plan'],
+  'billing.stop': ['settings', 'Asked to stop the SALEANE plan at the end of the month'],
+  'billing.keep': ['settings', 'Kept the SALEANE plan going'],
+  'billing.paid': ['settings', 'Paid a SALEANE bill'],
+  'billing.test-paid': ['settings', 'Settled a test SALEANE bill. No money moved'],
+  'billing.failed': ['settings', 'A SALEANE bill could not be taken'],
+  'billing.read-only': ['settings', 'The studio became read only until it is paid'],
+  'billing.locked': ['settings', 'The studio locked until its SALEANE bill is paid'],
+  'billing.checked': [
+    'settings',
+    'Checked the SALEANE payments with the card service after a restore',
+  ],
 }
 
 export const changeWords: Readonly<Record<string, Words>> = { ...commandWords, ...serverWords }

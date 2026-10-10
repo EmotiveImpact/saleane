@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Plus, LayoutGrid, List } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, LayoutGrid, List, Repeat2, Users } from 'lucide-react'
 import { useStore } from '../state/context'
 import { useLiveRefresh } from '../state/useLive'
 import { businessMinutes, can } from '../domain/operations'
@@ -26,6 +26,8 @@ import { CalendarMonth } from '../components/CalendarMonth'
 import { CalendarWeek } from '../components/CalendarWeek'
 import { addMonths, shownHours, weekStart } from '../components/calendarDays'
 import type { BookingDefaults } from '../components/BookingDialog'
+import { everyLabel } from '../domain/repeat'
+import { othersTogether } from '../domain/together'
 
 export function Calendar() {
   const { state, today, role, blocked, branch } = useStore()
@@ -439,6 +441,26 @@ export function Calendar() {
                           <span>
                             {timeLabel(a.startMinutes, state.organisation.locale)}{' '}
                             <Status status={shownStatus(a)} />
+                            {a.repeat && (
+                              <Repeat2
+                                className="block-repeat"
+                                size={13}
+                                role="img"
+                                aria-label={`Repeats ${everyLabel(a.repeat.everyWeeks)}`}
+                              />
+                            )}
+                            {a.together &&
+                              (() => {
+                                const others = othersTogether(state, a).length
+                                return others > 0 ? (
+                                  <Users
+                                    className="block-together"
+                                    size={13}
+                                    role="img"
+                                    aria-label={`Booked with ${others} ${others === 1 ? 'other' : 'others'}`}
+                                  />
+                                ) : null
+                              })()}
                           </span>{' '}
                           <strong>{client.name}</strong> <small>{service.name}</small>
                         </button>
@@ -538,6 +560,10 @@ export function Calendar() {
           onMoved={(nextDate, nextStaffId) => {
             setDate(nextDate)
             if (staffFilter !== 'all') setStaffFilter(nextStaffId)
+          }}
+          onOpenVisit={(id) => {
+            setProposal(null)
+            setAppointmentId(id)
           }}
         />
       )}

@@ -5,6 +5,7 @@ import { addDays, dateLabel, timeLabel } from './format'
 import { DEMO_MINUTES, defaultOperations, hoursFor, instantFor } from './operations'
 import { standardWording } from './consent'
 import { STARTER_CHECKLIST } from './branchVisits'
+import { sampleShifts } from './hours'
 import { Diary, planRegulars, sampleRegulars, seeded } from './sampleDiary'
 import type { PlannedVisit, Random } from './sampleDiary'
 
@@ -435,7 +436,8 @@ function build(region: Region, regularCount: number): BusinessState {
     ],
     resources: [
       { ...scope, id: 'room-one', name: 'Treatment room 1', type: 'treatment' },
-      { ...scope, id: 'room-two', name: 'Treatment room 2', type: 'treatment' },
+      // NEXT-08: a room for two, so a couple can be booked side by side.
+      { ...scope, id: 'room-two', name: 'Treatment room 2', type: 'treatment', forTwo: true },
       { ...scope, id: 'chair-one', name: 'Styling chair', type: 'chair' },
     ],
     appointments: [],
@@ -755,6 +757,8 @@ function build(region: Region, regularCount: number): BusinessState {
   seedStock(state, uk, random, at)
   seedSuppliers(state)
   seedPay(state)
+  // NEXT-07: a fortnight of clocked hours, so Pay shows hours worked.
+  ;(state.operations ??= defaultOperations('sandbox')).shifts = sampleShifts(state, DEMO_DATE)
   seedBranchVisits(state)
   seedRent(state, uk)
   seedAccounting(state, uk)

@@ -276,3 +276,51 @@ test('keeps the day open and says so when sign out cannot be confirmed', async (
   expect(screen.getByRole('list', { name: 'Assigned to you' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Sign out' })).toBeEnabled()
 })
+
+test('clocks in and out from their own day, asking for the break (NEXT-07)', async () => {
+  const user = userEvent.setup()
+  const now = Date.now()
+  const clocked = execute(
+    studio,
+    { type: 'clock-in', staffId: 'staff-maya' },
+    new Date(now - 4 * 3_600_000).toISOString(),
+  )
+  if (!clocked.ok) throw new Error(clocked.error)
+  const out = execute(
+    clocked.state,
+    { type: 'clock-out', staffId: 'staff-maya', breakMinutes: 30 },
+    new Date(now).toISOString(),
+  )
+  if (!out.ok) throw new Error(out.error)
+  let current = studio
+  vi.mocked(api).mockImplementation(async (path, options) => {
+    if (path === base) return record(current) as never
+    if (path === `${base}/commands`) {
+      const { command } = options!.body as { command: { type: string } }
+      current = command.type === 'clock-in' ? clocked.state : out.state
+      return record(current) as never
+    }
+    throw new Error(`Unexpected route ${path}`)
+  })
+  view()
+  const clock = await screen.findByRole('region', { name: 'Your hours' })
+  expect(clock).toHaveTextContent('Not clocked in today.')
+  await user.click(within(clock).getByRole('button', { name: 'Clock in' }))
+  expect(await screen.findByRole('status')).toHaveTextContent(/^You clocked in at \d\d:\d\d\.$/)
+  expect(clock).toHaveTextContent(/In since \d\d:\d\d/)
+  expect(vi.mocked(api)).toHaveBeenLastCalledWith(
+    `${base}/commands`,
+    expect.objectContaining({
+      body: { revision: studio.revision, command: { type: 'clock-in', staffId: 'staff-maya' } },
+    }),
+  )
+
+  await user.click(within(clock).getByRole('button', { name: 'Clock out' }))
+  const dialog = screen.getByRole('dialog', { name: 'Clock out' })
+  expect(dialog).toHaveTextContent(/You clocked in at \d\d:\d\d\. Choose any unpaid break/)
+  await user.selectOptions(within(dialog).getByRole('combobox', { name: 'Unpaid break' }), '30')
+  await user.click(within(dialog).getByRole('button', { name: 'Clock out' }))
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  expect(clock).toHaveTextContent('3 h 30 min worked today.')
+  expect(screen.getByRole('status')).toHaveTextContent(/^You clocked out at \d\d:\d\d\.$/)
+})

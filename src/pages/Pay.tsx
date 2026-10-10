@@ -10,6 +10,8 @@ import type { Staff } from '../domain/model'
 import type { PayRules } from '../domain/operations'
 import { rentalOn } from '../domain/rent'
 import { RentPanel } from '../components/RentPanel'
+import { HoursPanel } from '../components/HoursPanel'
+import { hoursPeriod } from '../domain/hours'
 import {
   Avatar,
   Button,
@@ -71,7 +73,7 @@ export function Pay() {
   })
 
   function download() {
-    const csv = payCsv(rows, from, to, org.currency)
+    const csv = payCsv(rows, from, to, org.currency, hoursPeriod(state, from, to))
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
     const link = document.createElement('a')
     link.href = url
@@ -282,6 +284,7 @@ export function Pay() {
           })}
         </div>
       </section>
+      <HoursPanel from={from} to={to} />
       <RentPanel from={from} to={to} />
       {settingRules && (
         <RulesDialog

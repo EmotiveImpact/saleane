@@ -2,6 +2,7 @@ import type { BusinessState } from '../domain/model'
 import type { PractitionerView } from '../domain/practitioner'
 import type { AreaView } from '../domain/area'
 import type { Role } from '../domain/operations'
+import type { BillingSummary } from '../domain/billing'
 export type WorkspaceAccess = {
   id: string
   slug: string
@@ -10,6 +11,8 @@ export type WorkspaceAccess = {
   mode: 'sandbox' | 'local'
   role: Role
   staffId?: string
+  /** NEXT-02: locked until its SALEANE bill is paid; only the owner can open it. */
+  locked?: boolean
 }
 export type Session = {
   user: {
@@ -34,6 +37,8 @@ type WorkspaceRecord = {
   locationId?: string | null
   today: string
   mode: WorkspaceAccess['mode']
+  /** NEXT-02: whether the studio is read only, and its plan's dates for the owner. Null for samples. */
+  billing?: BillingSummary | null
 }
 /** What desk and management roles receive: the whole studio record. */
 export type RemoteWorkspace = WorkspaceRecord & { view: 'studio'; state: BusinessState }

@@ -58,6 +58,17 @@ describe('Ask Saleane in test mode', () => {
   it('offers help for a question it does not know', async () => {
     expect((await ask('What is the weather like?')).text).toMatch(/In test mode/)
   })
+
+  it('answers how to do something from the help guides, for the person asking', async () => {
+    const owner = await ask('How do I refund a payment?')
+    expect(owner.text).toMatch(/^Refund a payment: 1\. Open Business, then Money/)
+    expect(owner.text).toContain('The guide is also in Help')
+    // Reception cannot refund, so it is given the nearest guide it can use instead.
+    const desk = await ask('How do I refund a payment?', 'reception')
+    expect(desk.text).not.toMatch(/^Refund a payment/)
+    const unknown = await ask('How do I launch a rocket?')
+    expect(unknown.text).toMatch(/^I could not find a guide for that\. Open Help/)
+  })
 })
 
 describe('Smart insights through Ask Saleane', () => {

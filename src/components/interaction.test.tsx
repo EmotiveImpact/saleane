@@ -32,7 +32,12 @@ async function show(route = '/today') {
  * the front desk reads the studio record without guests' feedback, pay rates, branch visits or
  * requests (server/projections.ts).
  */
-async function signedIn(role: Role, route: string, studio?: (state: BusinessState) => void) {
+async function signedIn(
+  role: Role,
+  route: string,
+  studio?: (state: BusinessState) => void,
+  record: Partial<RemoteWorkspace> = {},
+) {
   const sample = seed('UK')
   studio?.(sample)
   const state =
@@ -47,6 +52,7 @@ async function signedIn(role: Role, route: string, studio?: (state: BusinessStat
     role,
     today: '2026-10-06',
     mode: 'sandbox',
+    ...record,
   }
   const session: Session = {
     user: { id: 'account-desk', name: 'Rosa Desk', email: 'desk@example.invalid' },
@@ -186,6 +192,27 @@ describe('connected operator journeys', () => {
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(trigger).toHaveFocus()
+  })
+  it('opens Help on the guides for this screen, and hands over to Ask SALEANE', async () => {
+    const user = userEvent.setup()
+    await show('/calendar')
+    const trigger = screen.getByRole('button', { name: 'Help' })
+    await user.click(trigger)
+    const help = await screen.findByRole('dialog', { name: 'Help' })
+    expect(within(help).getByRole('list', { name: 'On this screen' })).toHaveTextContent(
+      'Book a visit',
+    )
+    expect(help).toHaveTextContent('The browser demo cannot send anything.')
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog', { name: 'Help' })).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+    await user.click(trigger)
+    await user.click(
+      within(await screen.findByRole('dialog', { name: 'Help' })).getByRole('button', {
+        name: 'Ask SALEANE',
+      }),
+    )
+    expect(await screen.findByRole('dialog', { name: 'Ask SALEANE' })).toBeInTheDocument()
   })
   it('checks out an arrived visit and presents the linked receipt and rebooking action', async () => {
     const user = userEvent.setup()
@@ -788,6 +815,52 @@ describe('the Settings page', () => {
       'true',
     )
     expect(screen.getByRole('heading', { name: 'Who changed what' })).toBeInTheDocument()
+  })
+
+  it('shows the SALEANE plan to the owner only, and a line above every screen when it needs them (NEXT-02)', async () => {
+    const user = userEvent.setup()
+    await signedIn('manager', '/settings?section=billing', undefined, {
+      billing: { readOnly: true },
+    })
+    expect(await screen.findByRole('tab', { name: 'Studio details' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(screen.queryByRole('tab', { name: 'Plan and billing' })).not.toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'This studio is read only until the owner pays its SALEANE bill. You can still see everything.',
+    )
+    // Nobody but the owner is offered a way to pay.
+    expect(screen.queryByRole('button', { name: 'Pay now' })).not.toBeInTheDocument()
+    cleanup()
+    await signedIn('owner', '/today', undefined, {
+      billing: {
+        readOnly: false,
+        status: 'trial',
+        trialEndsAt: Date.now() + 3 * 86400000,
+        hasCard: false,
+      },
+    })
+    const notice = await screen.findByText(/Your free trial ends on/)
+    expect(notice.parentElement).toHaveTextContent('Add a card to carry on without a break.')
+    await user.click(screen.getByRole('button', { name: 'Add a card' }))
+    expect(await screen.findByRole('tab', { name: 'Plan and billing' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(screen.getByRole('heading', { name: 'Plan and billing' })).toBeInTheDocument()
+    expect(screen.getByText(/Sample studios are never charged/)).toBeInTheDocument()
+    cleanup()
+    // Locked: whatever address the owner opens, only paying and downloading are offered.
+    await signedIn('owner', '/calendar', undefined, {
+      billing: { readOnly: true, locked: true, stopReason: 'unpaid', hasCard: true },
+    })
+    const name = seed('UK').organisation.name
+    expect(await screen.findByRole('heading', { name: `${name} is locked` })).toBeInTheDocument()
+    expect(screen.getByText(/Your team cannot open it, and online booking is closed/)).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Download the studio’s records' })).toBeEnabled()
+    expect(screen.getByRole('heading', { name: 'Plan and billing' })).toBeInTheDocument()
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
   })
 
   it('keeps the old section addresses and shows a photograph beside each treatment', async () => {

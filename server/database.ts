@@ -524,6 +524,122 @@ export const migrations: Migration[] = [
         CREATE INDEX audit_actor ON audit_events(organisation_id,actor_id,occurred_at);
       `),
   },
+  {
+    version: 26,
+    // NEXT-02, studios paying for SALEANE: each real studio's plan (trial, paid month, overdue or
+    // read only, with its saved card as the payment service's references, and held from charging
+    // by itself after a restore), its bills, each card being saved, and billing emails to the
+    // owner. One live month's bill per studio and start, so two runs cannot bill a month twice.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE studio_plans (
+          organisation_id TEXT PRIMARY KEY REFERENCES organisations(id),
+          status TEXT NOT NULL CHECK(status IN ('trial','active','overdue','stopped')),
+          stop_reason TEXT CHECK(stop_reason IN ('trial_ended','unpaid','cancelled')),
+          trial_ends_at INTEGER NOT NULL, trial_warned_at INTEGER,
+          anchor_day INTEGER CHECK(anchor_day BETWEEN 1 AND 31),
+          period_start INTEGER, period_end INTEGER,
+          plus INTEGER NOT NULL DEFAULT 0 CHECK(plus IN (0,1)),
+          plus_next INTEGER NOT NULL DEFAULT 0 CHECK(plus_next IN (0,1)),
+          cancel_at_period_end INTEGER NOT NULL DEFAULT 0 CHECK(cancel_at_period_end IN (0,1)),
+          overdue_since INTEGER, next_attempt_at INTEGER,
+          card_customer_ref TEXT, card_method_ref TEXT, card_brand TEXT, card_last4 TEXT,
+          card_exp_month INTEGER, card_exp_year INTEGER,
+          held_at INTEGER,
+          created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+          CHECK((status='stopped')=(stop_reason IS NOT NULL)),
+          CHECK((status='overdue')=(overdue_since IS NOT NULL))
+        ) STRICT;
+        CREATE TABLE studio_invoices (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          number TEXT NOT NULL UNIQUE, kind TEXT NOT NULL CHECK(kind IN ('month','plus')),
+          period_start INTEGER NOT NULL, period_end INTEGER NOT NULL CHECK(period_end>period_start),
+          plus INTEGER NOT NULL CHECK(plus IN (0,1)),
+          currency TEXT NOT NULL CHECK(currency IN ('GBP','USD')),
+          lines TEXT NOT NULL CHECK(json_valid(lines)),
+          subtotal_minor INTEGER NOT NULL CHECK(subtotal_minor>=0),
+          tax_minor INTEGER NOT NULL CHECK(tax_minor>=0), tax_label TEXT,
+          total_minor INTEGER NOT NULL CHECK(total_minor=subtotal_minor+tax_minor),
+          status TEXT NOT NULL CHECK(status IN ('open','charging','paid','void','unknown')),
+          test INTEGER NOT NULL CHECK(test IN (0,1)),
+          attempt_key TEXT, attempts INTEGER NOT NULL DEFAULT 0, charged_at INTEGER,
+          provider_ref TEXT, detail TEXT,
+          created_at INTEGER NOT NULL, paid_at INTEGER, closed_at INTEGER
+        ) STRICT;
+        CREATE INDEX studio_invoices_recent ON studio_invoices(organisation_id,created_at);
+        CREATE UNIQUE INDEX studio_invoices_month ON studio_invoices(organisation_id,period_start) WHERE kind='month' AND status<>'void';
+        CREATE UNIQUE INDEX studio_invoices_attempt ON studio_invoices(attempt_key) WHERE attempt_key IS NOT NULL;
+        CREATE TABLE billing_setups (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          account_id TEXT NOT NULL REFERENCES accounts(id),
+          status TEXT NOT NULL CHECK(status IN ('started','saved','left','failed')),
+          then_pay INTEGER NOT NULL CHECK(then_pay IN (0,1)),
+          provider_ref TEXT, detail TEXT, created_at INTEGER NOT NULL, finished_at INTEGER
+        ) STRICT;
+        CREATE TABLE account_mail_next (
+          id TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id),
+          kind TEXT NOT NULL CHECK(kind IN ('reset','confirm','security','billing')), recipient TEXT NOT NULL,
+          subject TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('test','accepted','failed','unknown')),
+          provider TEXT, provider_ref TEXT, detail TEXT, created_at INTEGER NOT NULL
+        ) STRICT;
+        INSERT INTO account_mail_next SELECT id,account_id,kind,recipient,subject,status,provider,provider_ref,detail,created_at FROM account_mail;
+        DROP TABLE account_mail;
+        ALTER TABLE account_mail_next RENAME TO account_mail;
+        CREATE INDEX account_mail_recent ON account_mail(account_id,created_at);
+      `),
+  },
+  {
+    version: 27,
+    // NEXT-02, the owner's decision of 9 October 2026: a read-only studio locks 30 days after the
+    // last day paid for (the missed payment, or the end of its trial or plan), until it is paid.
+    up: (connection) =>
+      connection.exec(`
+        ALTER TABLE studio_plans ADD COLUMN lock_at INTEGER;
+        ALTER TABLE studio_plans ADD COLUMN locked_at INTEGER;
+        -- A studio already read only locks 30 days after the end of its last paid month, or of its
+        -- trial when it never paid; the billing loop locks those whose day has already passed.
+        UPDATE studio_plans SET lock_at=COALESCE(period_end,trial_ends_at)+${30 * 86_400_000}
+          WHERE status='stopped';
+      `),
+  },
+  {
+    version: 28,
+    // NEXT-06, help inside the app: each request to the SALEANE team, with what happened to the
+    // email that carries it. It is kept whether or not it could be sent, and never deleted here.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE support_requests (
+          id TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id),
+          organisation_id TEXT REFERENCES organisations(id), role TEXT,
+          topic TEXT NOT NULL CHECK(topic IN ('using','billing','problem','idea','other')),
+          message TEXT NOT NULL, page TEXT,
+          status TEXT NOT NULL CHECK(status IN ('kept','test','accepted','failed','unknown')),
+          provider TEXT, provider_ref TEXT, detail TEXT, created_at INTEGER NOT NULL
+        ) STRICT;
+        CREATE INDEX support_requests_recent ON support_requests(account_id,created_at);
+      `),
+  },
+  {
+    version: 29,
+    // NEXT-10, team diaries in Google or Apple: a private link to a read-only calendar of one
+    // person's visits, one location's or the whole studio's. Stored only as a hash, with who made
+    // it, since it works only while they still may see what it shows. Stopped, never deleted.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE diary_links (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          account_id TEXT NOT NULL REFERENCES accounts(id),
+          kind TEXT NOT NULL CHECK(kind IN ('person','location','studio')),
+          staff_id TEXT, location_id TEXT,
+          detail TEXT NOT NULL CHECK(detail IN ('names','treatment')),
+          prefix TEXT NOT NULL UNIQUE, token_hash TEXT NOT NULL,
+          created_at INTEGER NOT NULL, last_read_at INTEGER, stopped_at INTEGER, stopped_by TEXT,
+          CHECK((kind='person')=(staff_id IS NOT NULL)),
+          CHECK((kind='location')=(location_id IS NOT NULL))
+        ) STRICT;
+        CREATE INDEX diary_links_org ON diary_links(organisation_id);
+      `),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the

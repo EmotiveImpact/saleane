@@ -7,6 +7,7 @@ import { LocalDatabase, migrations } from './database'
 import { createApiHandler } from './app'
 import type { ApiHandler } from './app'
 import { backupDatabase, restoreDatabase, validateDatabase } from './backup'
+import { testBillingProvider } from './billing'
 import { metaSignature } from './messaging/meta'
 
 let directory: string
@@ -117,6 +118,12 @@ describe('consistent local backups and fresh-path recovery', () => {
     const reads = (handler: ApiHandler) =>
       handler.inject({ url: '/api/v1/studio', headers: { authorization: `Bearer ${key}` } })
     expect((await reads(api)).statusCode).toBe(200)
+    // NEXT-10: a diary link a calendar app reads.
+    const diary = await write('/diary-links', { scope: { kind: 'studio' }, detail: 'names' })
+    expect(diary.statusCode, diary.body).toBe(201)
+    const diaryPath = new URL(diary.json<{ link: string }>().link).pathname
+    const diaryReads = (handler: ApiHandler) => handler.inject({ url: diaryPath })
+    expect((await diaryReads(api)).statusCode).toBe(200)
     const hook = await write('/connections', {
       name: 'Bookkeeping',
       url: 'https://hooks.example.com/saleane',
@@ -162,15 +169,24 @@ describe('consistent local backups and fresh-path recovery', () => {
     api.database.run(
       "INSERT INTO recovery_codes(account_id,code_hash,created_at) SELECT id,'code-hash',0 FROM accounts",
     )
+    // NEXT-02: a bill still owed, which may be paid after the backup is taken.
+    api.database.run(
+      `INSERT INTO studio_invoices(id,organisation_id,number,kind,period_start,period_end,plus,currency,lines,subtotal_minor,tax_minor,total_minor,status,test,created_at)
+       VALUES('bill-owed',?,'TEST-000001','month',1,2,0,'GBP','[]',4900,980,5880,'open',1,0)`,
+      orgId,
+    )
     const backup = join(directory, 'before.sqlite'),
       restored = join(directory, 'after.sqlite')
     backupDatabase(api.database.path, backup)
     expect(restoreDatabase(backup, restored)).toMatchObject({
+      billsToCheck: 1,
+      plansHeld: 1,
       sessionsRevoked: true,
       // The confirmation link sent when the account was made.
       accountLinksRetired: 1,
       recoveryCodesRetired: 1,
       accessKeysRevoked: 1,
+      diaryLinksStopped: 1,
       connectionsTurnedOff: 1,
       socialAccountsToConfirm: 1,
       messagesHeld: 1,
@@ -181,21 +197,53 @@ describe('consistent local backups and fresh-path recovery', () => {
       appSecret: 'a-long-meta-app-secret-2026',
       verifyToken: 'a-long-verify-token-2026',
     }
+    // The card service, which cannot be asked at first.
+    let asked = false
     const recovered = createApiHandler({
       origin: 'http://127.0.0.1:5173',
       databasePath: restored,
       social: meta,
+      billingProvider: {
+        ...testBillingProvider('http://127.0.0.1:5173'),
+        charges: async () => (asked ? [] : null),
+      },
     })
     try {
       // The access key no longer reads anything.
       expect((await reads(recovered)).statusCode).toBe(401)
       expect(recovered.database.all('SELECT * FROM api_keys WHERE revoked_at IS NULL')).toEqual([])
+      // Nor does the diary link; whoever wants it makes a new one.
+      expect((await diaryReads(recovered)).statusCode).toBe(404)
       expect(recovered.database.all('SELECT * FROM account_links WHERE used_at IS NULL')).toEqual(
         [],
       )
       expect(recovered.database.all('SELECT * FROM recovery_codes WHERE used_at IS NULL')).toEqual(
         [],
       )
+      // Nothing is charged by itself, and no trial ends, until the card service has said what
+      // it took since the backup.
+      const owed = () =>
+        recovered.database.get<{ status: string; detail: string }>(
+          "SELECT status,detail FROM studio_invoices WHERE id='bill-owed'",
+        )!
+      expect(owed().status).toBe('unknown')
+      recovered.database.run('UPDATE studio_plans SET trial_ends_at=0')
+      await recovered.billing.run()
+      expect(
+        recovered.database.all(
+          "SELECT * FROM studio_plans WHERE status<>'trial' OR held_at IS NULL",
+        ),
+      ).toEqual([])
+      // It took nothing, so the bill is owed again and the plan carries on by itself.
+      asked = true
+      await recovered.billing.run()
+      expect(
+        recovered.database.all('SELECT * FROM studio_plans WHERE held_at IS NOT NULL'),
+      ).toEqual([])
+      expect(owed()).not.toMatchObject({ status: 'unknown' })
+      expect(
+        recovered.database.all("SELECT * FROM audit_events WHERE action='billing.checked'"),
+      ).toHaveLength(1)
       // The connection is off until the owner turns it on, and what waited for it is not sent.
       expect(recovered.database.all('SELECT * FROM connections WHERE active=1')).toEqual([])
       expect(

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { actionSkill, readSkill, SkillRefusal } from '../../lumane'
-import type { Allowance, Skill } from '../../lumane'
+import type { Skill } from '../../lumane'
 import { availableResource, commandSchema, rescheduleResource, slots } from '../domain/commands'
 import type { Command } from '../domain/commands'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
@@ -19,6 +19,7 @@ import {
 import { GUEST_CANCEL_CUTOFF_HOURS, visitStart } from '../domain/guest'
 import { holdings, planStanding } from '../domain/plans'
 import { dueTasks, openTasks } from '../domain/tasks'
+import { searchHelp } from '../domain/help'
 import { openingFree, openings, serviceLabel, timesLabel, waiting } from '../domain/waitlist'
 import {
   currentSpecials,
@@ -49,28 +50,16 @@ import {
  */
 export type AskContext = { state: BusinessState; role: Role; today: string; now: string }
 
-/** Plan allowances. Every amount here costs the business at most about half what the plan earns. */
-export const ALLOWANCES = {
-  included: {
-    monthly: { typed: 300, talkSeconds: 30 * 60, guestChats: 200 },
-    dailySpendCeilingMinor: 150,
-    perPersonHourly: 30,
-    maxTalkSessionSeconds: 10 * 60,
-  },
-  plus: {
-    monthly: { typed: 800, talkSeconds: 150 * 60, guestChats: 500 },
-    dailySpendCeilingMinor: 400,
-    perPersonHourly: 30,
-    maxTalkSessionSeconds: 10 * 60,
-  },
-} satisfies Record<string, Allowance>
+/** Plan allowances, for each location; they live with the price they belong to. */
+export { ALLOWANCES } from '../domain/pricing'
 
 export const INSTRUCTIONS = `You are Ask SALEANE, the assistant inside SALEANE for a beauty, spa or wellness studio.
 Write in warm, plain British English for a busy owner or receptionist. Lead with the answer. Keep it short.
 Only state facts the skills return. If a skill has no answer, say so; never guess names, times or amounts.
 You can only propose changes. Every proposal waits for a person to approve it. Never say a message was sent,
 a payment was taken or a visit was moved: say what you have prepared for them to approve.
-Only offer marketing messages to clients who agreed to them. Never share one client's details with another.`
+Only offer marketing messages to clients who agreed to them. Never share one client's details with another.
+When someone asks how to do something in SALEANE, answer from the how_to guides, using the labels they give.`
 
 const studio = (ctx: AskContext) => ctx.role !== 'practitioner' && can(ctx.role, 'read')
 const managers = (ctx: AskContext) => leads(ctx.role)
@@ -118,6 +107,23 @@ export function askSaleaneSkills(): Skill<AskContext, Command>[] {
               .map((seg) => `${time(ctx, seg.from)} to ${time(ctx, seg.to)}`),
           }))
         return { date, visits, free }
+      },
+    }),
+    readSkill<AskContext, { question: string }>({
+      name: 'how_to',
+      description:
+        "SALEANE's own help guides: how to do something in the app, such as moving a visit, refunding a payment or inviting someone. Returns the best matching guides with their steps, in the app's own labels.",
+      input: z.object({ question: z.string().trim().min(2).max(300) }).strict(),
+      allowed: studio,
+      run(ctx, { question }) {
+        return searchHelp(question, ctx.role)
+          .slice(0, 2)
+          .map((guide) => ({
+            title: guide.title,
+            summary: guide.summary,
+            steps: guide.steps,
+            note: guide.note ?? null,
+          }))
       },
     }),
     readSkill<AskContext, { name: string }>({

@@ -1,8 +1,14 @@
+import { useState } from 'react'
 import type { CSSProperties } from 'react'
+import { Clock3 } from 'lucide-react'
 import { useStore } from '../state/context'
 import { availableMinutes, dayAppointments } from '../domain/selectors'
 import { hasLocations, placeOf, staffLocationOn } from '../domain/locations'
-import { Avatar } from '../design'
+import { clockedIn, clockTime } from '../domain/hours'
+import { Avatar, Button } from '../design'
+import { can } from '../domain/operations'
+import { useClock } from '../state/clock'
+import { TeamClock } from './Clock'
 import './teamToday.css'
 
 /**
@@ -11,7 +17,9 @@ import './teamToday.css'
  * a picture of it.
  */
 export function TeamToday() {
-  const { state, today } = useStore()
+  const { state, today, role, blocked } = useStore()
+  const [clocking, setClocking] = useState(false)
+  const now = Date.parse(useClock(30_000))
   const team = state.staff.filter((p) => !p.archived)
   if (!team.length) return null
   const day = dayAppointments(state, today)
@@ -33,6 +41,7 @@ export function TeamToday() {
           const place = multiSite
             ? placeOf(state, staffLocationOn(state, staff.id, today))?.name
             : undefined
+          const shift = clockedIn(state, staff.id, now)
           return (
             <li key={staff.id}>
               <span
@@ -50,10 +59,19 @@ export function TeamToday() {
                 </small>
               )}
               {place && <small className="team-today-place">{place}</small>}
+              {shift && (
+                <small className="team-today-in">In since {clockTime(state, shift.start)}</small>
+              )}
             </li>
           )
         })}
       </ul>
+      {!blocked && role !== 'practitioner' && can(role, 'clock') && (
+        <Button variant="secondary" className="team-today-clock" onClick={() => setClocking(true)}>
+          <Clock3 size={16} aria-hidden="true" /> Clock in and out
+        </Button>
+      )}
+      {clocking && <TeamClock onClose={() => setClocking(false)} />}
     </section>
   )
 }

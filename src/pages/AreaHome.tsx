@@ -13,6 +13,7 @@ import { GROUP_WINDOW_DAYS, monthEstimate } from '../domain/group'
 import { firstName, venueMinutes } from '../domain/pocket'
 import { Button, ErrorMessage, PageHeader } from '../design'
 import { SignOut } from '../components/SignOut'
+import { HelpButton } from '../components/HelpButton'
 import { PutRightList, VisitForm, VisitHistory } from './BranchVisits'
 import { DecideForm, DecidedRequests, RequestForm, WaitingRequests } from './Requests'
 import type { ApprovalRequest } from '../domain/approvalsSchema'
@@ -197,7 +198,10 @@ export function AreaHome() {
           <strong>{org.name}</strong>
           <small>Regional manager · {record.area.name}</small>
         </span>
-        <SignOut onError={setError} />
+        <div className="practitioner-header-actions">
+          <HelpButton role="regional" workspaceId={orgId} locale={org.locale} />
+          <SignOut onError={setError} />
+        </div>
       </header>
       <main id="main-content" className="area-main">
         <PageHeader

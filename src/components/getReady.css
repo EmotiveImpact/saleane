@@ -17,9 +17,12 @@
   margin-top: 6px;
   color: var(--muted);
 }
+.get-ready-guide {
+  margin-top: 16px;
+}
 .get-ready-hide {
   flex-shrink: 0;
-  min-height: 40px;
+  min-height: 44px;
   padding: 8px 14px;
   color: var(--muted);
 }
@@ -64,6 +67,12 @@
   font-size: var(--text-micro);
   font-weight: var(--weight-strong);
 }
+/* The one step to do next. */
+.get-ready-step.is-next .get-ready-mark {
+  border-color: var(--action);
+  background: var(--action);
+  color: var(--paper);
+}
 .get-ready-step.is-done .get-ready-mark {
   border-color: var(--brand-mid);
   background: var(--brand-soft);
@@ -95,16 +104,21 @@
   margin-top: 12px;
 }
 .get-ready-actions .button {
-  min-height: 40px;
-  padding: 8px 16px;
+  min-height: 44px;
+  padding: 8px 18px;
 }
 @media (max-width: 560px) {
   .get-ready {
     padding: 20px 16px 8px;
   }
   .get-ready-hide {
-    width: 40px;
+    width: 44px;
     padding: 0;
+  }
+  /* The next step fills the width, where a thumb reaches it. */
+  .get-ready-actions .button-primary {
+    flex: 1 1 100%;
+    justify-content: center;
   }
   .get-ready-hide-label {
     position: absolute;

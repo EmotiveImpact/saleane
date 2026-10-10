@@ -12,6 +12,7 @@ import { publicRoutes } from './routes/public'
 import { guestRoutes } from './routes/guest'
 import { daySheetRoutes } from './routes/daysheet'
 import { changeRoutes } from './routes/changes'
+import { supportAddressFromEnv, supportRoutes } from './routes/support'
 import { privacyRoutes } from './routes/privacy'
 import { messagingRoutes } from './routes/messaging'
 import { createOutbox } from './messaging/outbox'
@@ -29,6 +30,9 @@ import { connectionTransportFromEnv, createConnections } from './connections'
 import type { Connections } from './connections'
 import { partnerApi } from './partnerApi'
 import { googleBooking, googleBookingFromEnv } from './googleBooking'
+import { billingProviderFromEnv, createBilling } from './billing'
+import { diaryRoutes } from './diaries'
+import type { Billing } from './billing'
 
 export type { ApiOptions } from './context'
 export type { InjectOptions, InjectResponse } from './http'
@@ -41,6 +45,7 @@ export type ApiHandler = ((
   outbox: Outbox
   payments: Payments
   connections: Connections
+  billing: Billing
   close: () => void
   inject: (request: InjectOptions) => Promise<InjectResponse>
 }
@@ -62,28 +67,45 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   const { origin, allowedOrigin, db, rateLimit } = ctx
   const outbox = createOutbox(ctx, ctx.messaging)
   const payments = createPayments(ctx, ctx.paymentProvider)
+  const billing = createBilling(
+    ctx,
+    options.billingProvider ?? billingProviderFromEnv(process.env, allowedOrigin),
+  )
+  ctx.plans.begin = (org) => void billing.planFor(org)
+  ctx.plans.summary = billing.summary
+  ctx.plans.allowance = billing.allowance
+  ctx.plans.locked = billing.locked
   const connections = createConnections(
     ctx,
     options.connectionTransport ?? connectionTransportFromEnv(),
   )
   const partners = partnerApi()
+  const diaries = diaryRoutes()
   const google = googleBooking(options.googleBooking ?? googleBookingFromEnv(process.env))
   const social = options.social ?? socialFromEnv(process.env)
   const routes = [
     partners.read,
     partners.manage,
+    diaries.read,
+    diaries.manage,
     google.manage,
     socialRoutes(social),
     connections.routes,
     messagingRoutes(outbox),
     paymentRoutes(payments),
+    billing.routes,
     assistantRoutes(),
     receptionistRoutes(),
+    supportRoutes(
+      options.supportEmail === undefined ? supportAddressFromEnv() : options.supportEmail,
+    ),
     ...baseRoutes,
   ]
   if (options.outboxIntervalMs) {
     outbox.start(options.outboxIntervalMs)
     connections.start(options.outboxIntervalMs)
+    // Trials, renewals and retries are due by the day; once a minute is plenty.
+    billing.start(60000)
   }
 
   const handler = (async (
@@ -224,6 +246,20 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
         reply(200, { ok: true })
         return
       }
+      // NEXT-02: SALEANE's own card account says a studio's card was saved or a bill was paid.
+      if (url.pathname === '/api/hooks/stripe-billing') {
+        if (billing.provider.name !== 'stripe') fail(404, 'This endpoint was not found.')
+        if (method !== 'POST') fail(405, 'Use POST.')
+        const body = (await readBody(request, true)) as string
+        const events = await billing.provider.events({
+          headers: request.headers as Record<string, string | undefined>,
+          body,
+        })
+        if (!events) fail(403, 'This event could not be verified.')
+        for (const event of events!) await billing.apply(event)
+        reply(200, { ok: true })
+        return
+      }
       // V4: Google's Actions Center calls in with partner credentials, not a session or origin.
       if (
         await google.partner(
@@ -266,6 +302,8 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
         body = await readBody(request)
       }
       const route: Route = { request, response, method, url, path, body, reply }
+      // NEXT-02: a studio that has stopped paying is read only for its team.
+      billing.guard(route)
       for (const handle of routes)
         if (await handle(ctx, route)) {
           // A booking, move or cancellation may need a message; send it soon, not next interval.
@@ -293,9 +331,11 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   handler.outbox = outbox
   handler.payments = payments
   handler.connections = connections
+  handler.billing = billing
   handler.close = () => {
     outbox.stop()
     connections.stop()
+    billing.stop()
     db.close()
   }
   handler.inject = (input) => inject(handler, allowedOrigin, input)

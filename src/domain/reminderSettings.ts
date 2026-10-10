@@ -1,5 +1,8 @@
 import { z } from 'zod'
 
+/** Where a link to book again goes. The outbox swaps it for the studio's public booking page. */
+export const BOOK_LINK = '{{book_link}}'
+
 /** PILOT-01 studio settings for confirmations and reminders. Kept apart so `operations` can embed it. */
 export const reminderHourChoices = [2, 24, 48] as const
 export const reminderSettingsSchema = z
@@ -22,6 +25,11 @@ export const reminderSettingsSchema = z
     missYouDays: z.union([z.literal(60), z.literal(90), z.literal(120), z.literal(180)]).optional(),
     /** V1.5: one text with the booking link to a caller the studio missed. Absent means off. */
     missedCall: z.boolean().optional(),
+    /**
+     * NEXT-11: when a visit is cancelled, SALEANE writes invitations to the time for the team to
+     * approve. Drafts only; nothing is sent until approved. Absent means on.
+     */
+    openingInvites: z.boolean().optional(),
   })
   .strict()
 export type ReminderSettings = z.infer<typeof reminderSettingsSchema>
@@ -38,5 +46,6 @@ export const defaultReminderSettings: ReminderSettings = {
   missYou: true,
   missYouDays: 90,
   missedCall: false,
+  openingInvites: true,
 }
 export const missYouDayChoices = [60, 90, 120, 180] as const

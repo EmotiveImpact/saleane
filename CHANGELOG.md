@@ -2,6 +2,111 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-10 · Filling a cancelled time (NEXT-11)
+
+**Status: built locally on 10 October 2026.** [Evidence](docs/evidence/NEXT-11-CANCELLED-TIMES.md).
+
+- The Waitlist page has Cancelled times: each time a cancellation has left free, at least two hours and at most 14 days ahead, with the treatment, who it was with, how long it is and when it was cancelled. A visit carried over from another system off the quarter hour, at 10:05 say, frees the nearest time that can be booked.
+- Anyone on the waitlist the time suits is named first, with Offer it to them, which books it for them or writes them an offer for that exact time. Once an offer is written the card says so.
+- Under Might like it are up to five guests who agreed to hear from the studio and have had this kind of treatment, best fit first, each with why: due back, has seen this professional before, usually comes at that time of day. Guests are left out when they cancelled the time, are already coming that day or have this treatment booked, are on the waitlist, missed a visit in the last three months, were invited to another time in the last week, need a patch test first or had the treatment too recently.
+- Write invitations saves one email each as a draft in the Inbox, with a link to the booking page with that time already chosen. When nobody is waiting and nobody has been invited, the best three are ticked to start with.
+- When a visit is cancelled and nobody on the waitlist could take its time, SALEANE writes invitations to the best three by itself, as drafts. Settings, Messages has "When a visit is cancelled, write invitations to the time for you to approve" to turn this off. A cover plan's cancellations write none.
+- Nothing is sent until it is approved. An invitation cannot be edited, cannot be approved once its time is booked or has passed, and is not sent once the time is taken, even after approval. It is also stopped if any record with the guest's email has not agreed to hear from the studio. The Inbox labels it "invitation by email" and shows the link as "[a link to book this time]".
+- The page counts the last 30 days: times freed by cancellations, those booked again, how many by someone invited or from the waitlist, and what they were worth.
+- Due back emails now say "about a week" rather than "about 1 weeks" for a treatment whose guests come back after one week.
+- Help has a guide, Fill a cancelled time (59 guides).
+
+## 2026-10-09 · Set up your studio, add a location, and the first weeks
+
+**Status: built locally on 9 October 2026; nothing deployed and nothing charged.** [Evidence](docs/evidence/SETUP-WIZARDS.md).
+
+- A new owner who creates a studio of their own now lands on "Set up your studio": eight short screens beside a house photograph (where guests find you, opening hours, treatments, team, rooms and chairs, colours, deposits and tax, and opening for bookings). Each screen saves when they press Continue, so they can stop with "Finish later" and pick up where they left off from Today, on any device. A sample studio still opens on Today.
+- Treatments can be added from a short list of common ones by kind, with the length filled in and the price always left to the owner. Rooms and chairs are suggested from the menu. Colours show across the page as they are chosen. VAT or sales tax is never assumed: the owner says whether they charge it.
+- "Add location" in Settings, Locations is now six short steps (where, hours, treatments, rooms, team, check), saved together at the end: its own hours or the main location's, which treatments it offers and at what price, its rooms and chairs, who works there on which days, and new people starting there. Days with visits already booked are marked, and choosing one lists the visits it would strand before anything is saved. Core treatments and the price band from the house rules apply. The last step says each location is £49 a month (or $59), and that nothing is charged in this version.
+- Both are made of the changes Settings already makes, so every check still applies, and only the owner can use them. "Who changed what" lists them as "Saved a screen of setting up the studio" and "Added a location with its rooms and team".
+- Once the studio is ready, Today shows "Your first weeks" to the owner and managers: share the booking page, bring clients across, invite the team, check out a first visit, check the visit reminders and turn on two-step sign-in. Each ticks itself (the link once a guest books online, inviting once someone else is asked or there is no one to ask), "I am starting fresh", "I work on my own" and "The usual ones are right" are answers too, and the list goes when everything is done, when hidden, or eight weeks after the first visit booked. It never says a message or card payment went out while they are not connected.
+- Someone joining from an invitation now reads three short screens before their studio opens: what their role does, the three places they will use most, and keeping their sign-in safe, where they can turn on two-step sign-in (the only place a practitioner can). "Skip the welcome" is always there, and nothing on these screens changes the studio.
+- No migration: where setup reached is kept with the studio's settings, and the first weeks list reads the record, the sign-in and the team list.
+- Adding a location now says what the owner's own monthly bill becomes, from Settings, Plan and billing: "Your monthly bill goes from £58.80 to £117.60, including VAT at 20%", when the new amount starts, that nothing is taken today, and that card payments are in test mode while they are. A sample studio shows only the price.
+- Checked against the new quality bar at 1440px and 390px: the first weeks list has one main button on the next step, the welcome's sign-in screen has one, every target in these screens is at least 44px on a phone, the main button fills the foot of each wizard step on a phone, the location window lists rows instead of cards inside it, and each step is ready for the shared calm motion.
+- `docs/photo-prompts.md` has 21 photograph prompts, one for each setup and welcome screen and for each app or guest screen that still borrows a library photograph, with a mix of people and one message to paste into ChatGPT for the whole set. Nothing on screen changes until the photographs arrive.
+
+## 2026-10-09 · Team diaries in Google or Apple Calendar (NEXT-10)
+
+**Status: built locally on 9 October 2026.** [Evidence](docs/evidence/NEXT-10-DIARIES.md).
+
+- Settings has Google & Apple diaries, under Team. Anyone with visits of their own makes a private link to them; owners and managers can also make one for another professional, a location or the whole studio, and a general manager for their own location. A practitioner makes theirs from "Your visits in Google or Apple Calendar" under their day.
+- The link goes into Google Calendar (Other calendars, From URL) or Apple Calendar (Open in Apple Calendar), which then checks it by itself, so visits appear, move and go as they do in SALEANE. It only shows: nothing made in the calendar app comes back.
+- Each visit shows its time, room and treatment, with the client's first name unless the studio chooses the treatment only. Never a surname, phone, email, note, form, price or payment. Time off shows as Time off, never why. A diary for a location or the studio says who does each visit.
+- A practitioner's diary reaches four weeks ahead, as their own page does; others reach six months. Both go two weeks back.
+- The link is shown once, kept only as a hash, and can be stopped at any time. It also stops working when the person who made it loses access, when the studio is locked or when the studio is restored from a backup. Who changed what records each link made and stopped.
+- Sample studios make no links. While SALEANE runs only on this computer, only calendar apps on this computer can read a link; the screen says so.
+- Help has two guides: See your visits in Google or Apple Calendar for practitioners, and See visits in Google or Apple Calendar for everyone else (58 guides).
+
+## 2026-10-09 · Booking several people together (NEXT-08)
+
+**Status: built locally on 9 October 2026.** [Evidence](docs/evidence/NEXT-08-TOGETHER.md).
+
+- Booking a visit at the desk has Others coming: Add someone, up to 8 people in all, each chosen from the clients or added as someone new with their own email and phone. Each has their own treatment and professional (or Anyone free) and is offered the first person's time, or the nearest free time when that is taken; any time can be changed. Each person's line says who they will be with and where, such as "With Sophia in Treatment room 2, beside Grace.", and the button says how many visits it books.
+- Everyone is booked together or no one is; a clash names the person. Each is a client with a visit of their own that can move or be cancelled alone. Moving one to another day takes it out of the group. Guests cannot book several people online.
+- A room can be marked "A room for two" in Settings, Spaces & equipment. Two people booked together, such as a couple, can have it at the same time; anyone else has it to themselves. The sample studio's Treatment room 2 is one.
+- The visit card lists who a visit is booked with, each a row that opens their visit, and the Calendar marks those visits. Cancelling one offers Just this visit or this visit and the ones booked with it.
+- Messages: each person is confirmed at their own email and phone. The person it was booked for is told who else is coming ("Also booked with you: …"); the others are told who booked them ("Booked together with Grace Chen."). When the visits are cancelled together, everyone is told and the first person hears the others are off too. Messages stay in test mode until a message service is connected.
+- On the server, everyone in the booking is checked against guests holding a time online, as a single booking is. A general manager books several people only at their own location.
+- Help has a guide, Book several people together.
+
+## 2026-10-09 · Repeat visits (NEXT-09)
+
+**Status: built locally on 9 October 2026.** [Evidence](docs/evidence/NEXT-09-REPEAT.md).
+
+- Booking a visit at the desk has Repeat: How often (every week up to every 12 weeks) and Visits in all (2 to 12). The later visits are listed with their dates: each says it is free at the same time, has the nearest free time within an hour and a half, or is left out because nothing is free or it is more than a year ahead. The desk can choose another time for any one or leave it out, and the button says how many visits it books.
+- All the visits are booked together or none are; a clash names the date and time. Each is a visit of its own, with the same professional, that can move or be cancelled alone. Guests cannot book repeats online.
+- The visit card says where a visit sits, such as "Visit 2 of 6, repeating every 4 weeks. Next: Thursday 12 November at 10:00.", and the Calendar marks repeat visits. Cancelling one offers Just this visit or this visit and the ones after it.
+- Messages: the first visit's confirmation lists the others ("Also booked, every 4 weeks: …"), later visits are not confirmed again, and visits cancelled together are one message naming them. Each visit keeps its own reminder. Messages stay in test mode until a message service is connected.
+- On the server, each later visit is checked against guests holding a time online, as a single booking is. A general manager books repeats only at their own location.
+- Help has a guide, Book visits that repeat.
+
+## 2026-10-09 · Hours worked for payroll (NEXT-07)
+
+**Status: built locally on 9 October 2026.** [Evidence](docs/evidence/NEXT-07-HOURS.md).
+
+- Clock in and out: each person does it on their own page, or the desk does it for them from Your team today on Today. Clocking out asks for any unpaid break. Your team today shows who is in and since when.
+- Pay has Hours worked: each person's hours for the month, less breaks, with their shifts newest first. Owners and managers add hours nobody clocked and change or remove wrong ones, always saying why. Nothing is deleted: a changed shift keeps the times it had before (shown under Before when it is opened), removed hours keep who removed them and why, and who changed what records each change.
+- Someone still clocked in after 16 hours is shown as a forgotten clock-out. Their hours count once an owner or manager sets when they finished.
+- Download for payroll now has Hours worked, Shifts and Shifts with no finish time for each person, and includes anyone who has left but worked in the period.
+- A practitioner can clock only themselves in and out; a general manager only the people working at their location that day, and clocks out only a shift clocked in there. Reception can clock people in and out but not change hours.
+- Changing only the break keeps the clocked start and finish to the second, and hours moved to another day count where the person worked that day.
+- Sample studios have a fortnight of clocked hours. Help has guides for clocking in and out and for putting hours right.
+- SALEANE adds up the hours; it pays nobody and does not work out hourly pay, overtime or holiday pay.
+
+## 2026-10-09 · Help inside the app (NEXT-06)
+
+**Status: built locally on 9 October 2026; help requests are kept on the server until a help address and email are connected.** [Evidence](docs/evidence/NEXT-06-HELP.md).
+
+- Help sits at the top of every screen, beside Find a client, on the practitioner's and regional manager's own pages and on the list of studios. It opens a side panel of 51 short guides, each a few steps long and written with the labels on screen, word for word: booking, moving and cancelling visits, checkout, refunds, the waitlist, clients, patch tests, packages, gift cards, the till, the team, pay, messages, the AI, privacy, locations and SALEANE's own plan.
+- The guides for the screen come first (a Settings section's own before the rest), and each person sees only those for what their role can do. Search understands everyday words: "reschedule" finds Move a visit, "no show" finds Mark it missed, "voucher" finds gift cards.
+- Each guide says plainly what is not live yet, such as messages and card payments in test mode, and "Go there" opens the screen it is about. Practitioners, regional managers and someone with no studio open are not offered "Go there", as they do not open the studio's screens.
+- Ask SALEANE answers "how do I…" and "where can I…" from the same guides, for the person asking.
+- Write to the SALEANE team: anyone signed in can say what they need, with the screen they were on and the studio they were in. The request is kept first, then emailed to the team's address. The panel says honestly whether it was sent, kept because no help address is set, not sent because email is in test mode, or could not be sent, and lists what the person has written. Five an hour each.
+- Error messages that said "Please contact support" now say to write to the SALEANE team from Help.
+- Migration 28 adds the help requests.
+
+## 2026-10-09 · Studios paying for SALEANE (NEXT-02)
+
+**Status: built locally on 9 October 2026; test mode only, so no card is charged and no money moves.** [Evidence](docs/evidence/NEXT-02-STUDIOS-PAYING.md).
+
+- A new studio of its own starts with 14 days free and no card. The owner gets a reminder email three days before the end, and a line above every screen in the last week if no card is saved.
+- Settings, Your account and data, "Plan and billing", for the owner only: the plan in a sentence, the next bill line by line (£49 for each open location, Plus if chosen, VAT at 20% in the UK), the saved card, the two add-ons, this month's AI use against its allowance, every bill, and stopping at the end of a month. Nothing is ever deleted when a plan stops.
+- The card is typed on the card service's own page. In test mode that is SALEANE's labelled test card page: card 4242 goes through and 0002 saves, then is declined when a bill is taken.
+- Each month is billed in advance on the day the trial ended (or the last day of a shorter month). Plus added part way through a paid month is charged only for the days left, after the owner sees the amount; turning it off keeps it until the month ends.
+- A declined payment is emailed to the owner and tried again after 1, 3 and 7 days while everything keeps working for 14 days. After that, or when a trial ends with no card, or at the end of a month after the owner chose to stop, the studio becomes read only: everyone can still see and download everything, guests can still book, people can still be removed and keys revoked, and Ask Saleane and the AI receptionist rest. Paying starts a fresh month from that day.
+- A bill is never charged twice: it is claimed before the card is asked, an unclear answer is asked about again with the same key, and pressing Pay twice takes one payment. A restore from a backup marks open bills to check and pauses payments until the card service has said what it took since the backup: those bills are marked paid (or put back, when they were made after the backup), the rest are owed again, and the plan then carries on by itself.
+- A payment that was declined, or that the card service has not answered yet, never shows as paid; the screen says nothing was taken, or that nothing more is taken until it answers.
+- Every bill is kept: the newest 24 show first, with "Show older bills" for the rest.
+- A read-only studio locks 30 days after the last day paid for, as the owner decided on 9 October 2026: only the owner can open it, to pay or download its records, online booking closes and bookings already made stand. Everyone is told the day beforehand, the owner gets one email when it locks, and paying opens it again for everyone.
+- The AI allowance is now each location's 300 typed questions, 30 talking minutes and 200 guest chats, times the open locations, or Plus's 800, 150 and 500. The price page says "for each location", lists Plus (£39) and the phone receptionist (£79, which waits on phone calls), and starts with 14 days free.
+- Sample studios and the browser demo are never charged. Migration 26 adds the plans, bills and card set-ups, and lets account emails carry billing notices.
+
 ## 2026-10-09 · Who changed what (NEXT-05)
 
 **Status: built locally on 9 October 2026; nothing deployed.** [Evidence](docs/evidence/NEXT-05-WHO-CHANGED-WHAT.md).
