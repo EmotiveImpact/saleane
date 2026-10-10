@@ -8,7 +8,7 @@ Every email SALEANE sends for a studio now goes as a designed email alongside th
 
 The button colour is the studio's first colour, deepened only as far as it takes for white words on it to reach WCAG AA (4.5:1). Clay, `#a35f4b`, goes out as `#955948`; SALEANE's own sage goes out as `#59796a`. Account emails (choose a new password, confirm your email) go in SALEANE's own look, never a studio's, with the link on a button. Texts are unchanged.
 
-Birthday, "we miss you", "due back" and news a studio marks as marketing go on Postmark's broadcast stream, kept apart from visit messages, as Postmark asks. `POSTMARK_BROADCAST_STREAM` names the studio's own stream when it is not called `broadcast`.
+Birthday, "we miss you", "due back" and news a studio marks as marketing go on Postmark's broadcast stream, kept apart from visit messages, as Postmark asks. `POSTMARK_BROADCAST_STREAM` must name that stream by its Stream ID, copied from Postmark; with Postmark chosen and it unset, the server will not start and names the missing setting, rather than guess a stream Postmark may not have.
 
 Settings, Messages has a new section, How your emails look, for owners and managers. It shows a booking confirmation, a reminder, an after-the-visit email and a birthday email, written by the same code as the real ones, for a made-up guest, Alex, on the studio's own first treatment with its first professional, tomorrow at 10:00. Nothing is saved or sent for a look, and no private link is made, so the button to manage the visit shows but goes nowhere. In the Sent list each email has See the email, which opens it as the guest saw it, in the studio's colours today. Practitioners see neither, as they have no Sent list.
 

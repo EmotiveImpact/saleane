@@ -121,8 +121,11 @@ const isResult = (value: unknown): value is SendResult =>
 export function postmarkProvider(config: {
   token: string
   from: string
-  /** The Postmark message stream for news and keeping in touch. */
-  broadcastStream?: string
+  /**
+   * The Stream ID of the Postmark broadcast stream for news and keeping in touch, exactly as the
+   * Postmark server names it. There is no safe guess: a stream that does not exist refuses them.
+   */
+  broadcastStream: string
   fetcher?: Fetch
 }): MessageProvider {
   const fetcher = config.fetcher ?? fetch
@@ -144,8 +147,7 @@ export function postmarkProvider(config: {
           Subject: message.subject,
           TextBody: message.body,
           ...(message.html ? { HtmlBody: message.html } : {}),
-          MessageStream:
-            message.stream === 'broadcast' ? (config.broadcastStream ?? 'broadcast') : 'outbound',
+          MessageStream: message.stream === 'broadcast' ? config.broadcastStream : 'outbound',
           Metadata: { outbox: message.id },
         }),
       })
@@ -241,9 +243,12 @@ export function providersFromEnv(
     sms = testProvider('sms')
   let postmarkSecret: string | undefined, twilioToken: string | undefined
   if (emailName === 'postmark') {
-    const [token, from] = need('POSTMARK_SERVER_TOKEN', 'SALEANE_EMAIL_FROM')
+    const [token, from, broadcastStream] = need(
+      'POSTMARK_SERVER_TOKEN',
+      'SALEANE_EMAIL_FROM',
+      'POSTMARK_BROADCAST_STREAM',
+    )
     postmarkSecret = env.POSTMARK_WEBHOOK_SECRET?.trim() || undefined
-    const broadcastStream = env.POSTMARK_BROADCAST_STREAM?.trim() || undefined
     email = postmarkProvider({ token, from, broadcastStream, fetcher })
   } else if (emailName !== 'test') throw new Error(`Unknown email provider "${emailName}".`)
   const twilioCallback = `${origin.replace(/\/$/, '')}/api/hooks/twilio`

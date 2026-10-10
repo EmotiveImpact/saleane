@@ -843,8 +843,16 @@ describe('message providers', () => {
   it('stays in test mode unless every key for a live provider is set', () => {
     expect(providersFromEnv({}).email.live).toBe(false)
     expect(() => providersFromEnv({ SALEANE_EMAIL_PROVIDER: 'postmark' })).toThrow(
-      'Set POSTMARK_SERVER_TOKEN and SALEANE_EMAIL_FROM',
+      'Set POSTMARK_SERVER_TOKEN and SALEANE_EMAIL_FROM and POSTMARK_BROADCAST_STREAM',
     )
+    // Postmark's broadcast stream is named by each server, so it is never guessed.
+    expect(() =>
+      providersFromEnv({
+        SALEANE_EMAIL_PROVIDER: 'postmark',
+        POSTMARK_SERVER_TOKEN: 'token',
+        SALEANE_EMAIL_FROM: 'hello@example.invalid',
+      }),
+    ).toThrow('Set POSTMARK_BROADCAST_STREAM to send real messages.')
     expect(() => providersFromEnv({ SALEANE_SMS_PROVIDER: 'pigeon' })).toThrow('Unknown')
   })
   it('sends email through Postmark and reads its answer', async () => {
@@ -852,6 +860,7 @@ describe('message providers', () => {
     const provider = postmarkProvider({
       token: 'server-token',
       from: 'hello@example.invalid',
+      broadcastStream: 'broadcasts',
       fetcher: async (url, init) => {
         calls.push([String(url), init!])
         return new Response(JSON.stringify({ ErrorCode: 0, MessageID: 'pm-1' }), { status: 200 })
@@ -871,7 +880,7 @@ describe('message providers', () => {
     expect(JSON.parse(String(calls[1][1].body))).toMatchObject({
       TextBody: 'Body',
       HtmlBody: '<p>Body</p>',
-      MessageStream: 'broadcast',
+      MessageStream: 'broadcasts',
     })
     const own = postmarkProvider({
       token: 't',
@@ -887,6 +896,7 @@ describe('message providers', () => {
     const refused = postmarkProvider({
       token: 't',
       from: 'f@example.invalid',
+      broadcastStream: 'broadcasts',
       fetcher: async () =>
         new Response(JSON.stringify({ ErrorCode: 406, Message: 'Inactive recipient' }), {
           status: 422,
@@ -900,6 +910,7 @@ describe('message providers', () => {
     const dropped = postmarkProvider({
       token: 't',
       from: 'f@example.invalid',
+      broadcastStream: 'broadcasts',
       fetcher: async () => {
         throw new TypeError('fetch failed')
       },
