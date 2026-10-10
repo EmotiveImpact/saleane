@@ -140,6 +140,13 @@ describe('help inside the app', () => {
     expect(first('monthly sales target')).toBe('staff-targets')
     expect(first('booth rental percentage')).toBe('chair-rent')
     expect(first('my target', 'practitioner')).toBe('practitioner-target')
+    // Stage 4: sign-offs for refunds, prices and the rota.
+    expect(first('refund over my limit', 'general')).toBe('refund-sign-off')
+    expect(first('goodwill refund approval', 'manager')).toBe('refund-sign-off')
+    expect(first('put up the price of a treatment', 'general')).toBe('price-sign-off')
+    expect(first('refund limit')).toBe('signoff-rules')
+    expect(first('extra days need a sign-off')).toBe('signoff-rules')
+    expect(searchHelp('refund limit', 'reception').map((a) => a.id)).not.toContain('signoff-rules')
     expect(searchHelp('commission steps', 'manager').map((a) => a.id)).not.toContain(
       'commission-steps',
     )

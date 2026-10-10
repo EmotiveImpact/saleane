@@ -11,6 +11,7 @@ import type { AttemptRow, CardRow, Payments } from '../payments/service'
 import { retailItemsSchema } from '../../src/domain/retailSchema'
 import { mayRemoveSavedCard } from '../../src/domain/paymentMethods'
 import { holdings, openCardAgreement } from '../../src/domain/plans'
+import { refundRefusal } from '../../src/domain/signoffs'
 import { openGuestLink, tokenSchema } from './guest'
 
 const keySchema = /^[A-Za-z0-9._:-]{8,100}$/
@@ -591,6 +592,16 @@ export function paymentRoutes(payments: Payments) {
           )
         if (data.amountMinor > remaining)
           fail(409, 'This is more than is left to refund on this card payment.')
+        // Stage 4: over a general manager's or manager's limit, only with a sign-off for this
+        // receipt and amount. It is used up when the card company confirms the refund.
+        const signOff = refundRefusal(
+          fresh.state,
+          fresh.role,
+          target,
+          data.amountMinor,
+          new Date(now()).toISOString(),
+        )
+        if (signOff) fail(403, signOff)
         // Products going back are checked now against what the receipt sold, as a refund recorded
         // by hand would be, and go back on the shelf only once the provider confirms the refund.
         rehearse(fresh, {

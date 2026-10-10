@@ -175,6 +175,9 @@ function WorkspaceApp() {
   // Branch visits and Requests are about running several branches, so they wait until there are
   // more locations or any regions. A general manager runs one of several, so always has them.
   const branches = hasLocations(state) || regions(state).length > 0 || role === 'general'
+  // Stage 4: Requests also shows once anything has been asked or the owner has set sign-off rules,
+  // such as a refund limit for managers in a studio of one location.
+  const signOffs = branches || !!operations(state).requests?.length || !!operations(state).approvals
   const businessTabs = [
     { to: '/business', label: 'Overview', show: !desk },
     { to: '/business/money', label: 'Money', show: true },
@@ -186,7 +189,7 @@ function WorkspaceApp() {
     { to: '/business/compare', label: 'How you compare', show: owns },
     { to: '/business/feedback', label: 'Feedback', show: leads(role) },
     { to: '/business/visits', label: 'Branch visits', show: leads(role) && branches },
-    { to: '/business/requests', label: 'Requests', show: leads(role) && branches },
+    { to: '/business/requests', label: 'Requests', show: leads(role) && signOffs },
     { to: '/business/areas', label: 'Client areas', show: leads(role) },
   ].filter((tab) => tab.show)
   useEffect(() => {

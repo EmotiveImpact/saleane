@@ -23,6 +23,9 @@ import { groupAlerts, groupCheckSettings } from './groupChecks'
  * Write: record a branch visit at one of their locations, and mark a line from one put right.
  * Raise a request for sign-off at one of their locations, and decide the ones routed to their
  * region (those over their limit pass up to the owner).
+ * Stage 4: a request carries only what deciding it needs: a refund's receipt number, amount and
+ * treatment (never the client), a treatment's price before and after, or a team member's first
+ * name and their day on the rota.
  */
 const AREA_COMMANDS = [
   'branch-visit',
@@ -251,8 +254,14 @@ export function areaRefusal(
     const visit = branchVisits(s).find((v) => v.id === command.visitId)
     return visit && ids.has(visit.locationId) ? null : 'That visit is not in your area.'
   }
-  if (command.type === 'request-raise')
-    return ids.has(command.input.locationId) ? null : 'That location is not in your area.'
+  if (command.type === 'request-raise') {
+    if (!ids.has(command.input.locationId)) return 'That location is not in your area.'
+    // Stage 4: refunds, prices and rota days are asked for by the location's own team, who see
+    // its receipts, treatments and rota; a regional manager asks for spending or anything else.
+    return command.input.kind === 'spend' || command.input.kind === 'other'
+      ? null
+      : 'Refunds, prices and rota changes are asked for by the location’s team.'
+  }
   if (command.type === 'request-decide') {
     const request = requests(s).find((r) => r.id === command.requestId)
     if (!request || !ids.has(request.locationId)) return 'That request is not in your area.'
