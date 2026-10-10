@@ -1,6 +1,6 @@
 # LEFT-3D · Patch tests and online booking
 
-Built 9 October 2026 in a worktree, on top of `fdee202` (Stage 1 and main merged into Stage 2). Everything below was checked with domain, component and server tests. It was not seen in a browser: this build ran without a dev server or browser by instruction, so the browser pass is left to the lead (see Browser steps for the lead).
+Built 9 October 2026 in a worktree, on top of `fdee202` (Stage 1 and main merged into Stage 2). Everything below was checked with domain, component and server tests, then seen in a browser on 10 October 2026 (see Seen in a browser).
 
 ## What it does
 
@@ -111,11 +111,26 @@ The only online guest SALEANE knows is the holder of a visit's private link, who
 - **390 px.** Below 650 px the panel's buttons stack at full width, one per line, using the design system's 44 px buttons; long studio names and addresses wrap. The desk note wraps inside the dialog (the tag's text wraps rather than overflowing).
 - **Words.** Plain British English, "visit" and "treatment", no dashes and no exclamation marks; every stopped guest is told what to do next. Nothing claims a payment or a message.
 - **Built from the library.** Tokens and existing classes only (`button`, `button-primary`, `button-secondary`, `ops-tag`, `ops-check`, `ops-field`, `ops-help`, `subtle`), `Button` from `src/design`, lucide icons as elsewhere, no new colours, no left-edge stripes.
-- **Before and after pictures**: not taken (no browser in this build). The screens to capture are listed below.
+- **Before and after pictures** were taken at 1440 and 390 px in the browser pass; they go on the Stage 3 before and after page.
+
+## Seen in a browser
+
+Checked on 10 October 2026 in Chromium against the local server, signed up as a new owner with the sample studio, at 1440 px and 390 px.
+
+- Settings, Treatments, Patch tests: the box is off, its help names Gloss & Tone, and Colour patch test is the patch test guests book. Ticked and saved: "Saved.", and Who changed what lists "Changed the patch test rules" with "stop online booking without a patch test", then "yes became no" when turned off.
+- The booking page as a guest: choosing Gloss & Tone shows "A patch test comes first" with both sentences and Book a patch test in place of Choose a time. The sample's new location has no phone, email or address, so the words say "pop in to book". Book a patch test opens step 2 on Colour patch test with times and no deposit.
+- Book a visit at the desk, Luca Evans with Gloss & Tone: "Needs a patch test at least 48 hours before", the line that online booking would have stopped the visit, and Book the patch test first. With a time chosen, Confirm demo booking is enabled. Book the patch test first switches to Colour patch test with Theo Bennett.
+- 390 px: the panel's button fills the width and the booking page does not scroll sideways (page width 390); the desk note wraps in the dialog.
+
+Found and fixed in this pass:
+
+- The new tick box's words sat 3 px to the right of the reminder box above it, with its help starting under the box rather than under the words. Both now line up.
+- Who changed what read "none became yes" the first time the rule was turned on. A rule never turned on was off, so it now reads "no became yes" (checked by the server test).
+
+Not repeated in the browser, and covered by the server tests: the AI receptionist's one line, Book with Google's feeds, and Move my visit from a private link.
 
 ## Limits and notes
 
-- **Not seen in a browser.** Every journey is covered by component and server tests, but the panel's look at 1440 and 390 px, the desk note in the dialog and the move note need the lead's browser pass.
 - A client with a clear test cannot book the treatment online while the rule is on (see Privacy). Studios that want clients with a test to book online would need signed-in guest accounts, which SALEANE does not have.
 - The sample studio has no phone or email, so its panel says "pop in" with the address and Directions until the owner adds them in Settings.
 - Sample studios created before this change keep their menu: the new "Colour patch test" appears only in a newly created sample.

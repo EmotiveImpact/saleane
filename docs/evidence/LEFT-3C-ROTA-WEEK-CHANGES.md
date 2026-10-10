@@ -1,6 +1,6 @@
 # LEFT-3C · The rota: changing a day, an extra day and the whole week
 
-Built 9 October 2026 in a worktree, on top of the Stage 2 branch at `fdee202`. Everything below was checked with domain, component and server tests. It has not yet been seen in a browser: this build ran without a dev server, so the lead's browser pass is still to come (see Browser steps for the lead).
+Built 9 October 2026 in a worktree, on top of the Stage 2 branch at `fdee202`. Everything below was checked with domain, component and server tests, then seen in a browser on 10 October 2026 (see Seen in a browser).
 
 ## What it does
 
@@ -103,13 +103,33 @@ Every place that works out who is free, and how it now follows the changed day:
 - **390 px.** The week keeps its existing sideways scroll (a strip made to scroll, with the fading edge). Each day button fills its cell at least 44 px high; the fold's line, the radio rows and the practitioner's list rows are 44 px targets; the week buttons wrap; the dialogs use the existing form grid, which stacks on a phone. Times in a narrow cell wrap between words, never in the middle of a time.
 - **Words.** Plain British English, no exclamation marks, no dashes. Messages say what happens next ("Move it first, or choose to keep it booked as it is."), and "Nobody is messaged and nothing is cancelled." is said where it matters.
 - **Built from the library.** Button, Modal, SegmentedControl, TimeField and ErrorMessage from `src/design`; colours from tokens only (`--stone`, `--paper`, `--line-strong`, `--rose-ink`, `--brand-ink`); no left-edge stripes (the edges test passes). Nothing claims a message was sent.
-- **Before and after pictures** have not been taken: no browser was opened in this build. They are for the lead's pass.
+- **Before and after pictures** were taken at 1440 and 390 px in the browser pass; they go on the Stage 3 before and after page.
+
+## Seen in a browser
+
+Checked on 10 October 2026 in Chromium against the local server, signed up as a new owner with the sample studio (sample day Tuesday 6 October), at 1440 px and 390 px.
+
+- Business, Rota: Maya's Friday reads "09:00 to 15:00" with "Changed", her Saturday "10:00 to 16:00" with "Extra day". Past days, closed days and days away are not buttons.
+- Friday's dialog says "Usually 09:00 to 18:00", "Changed for this day by Owner. Training from three", with the hours and note filled in.
+- Maya's Tuesday, Not working: the four booked visits are listed by time, first name and treatment, and Save this day stays unavailable until a choice is made. Move them first turns the main button into Open the calendar. Keep them booked as they are, then Save this day: the cell reads "Not working", "Changed" and "4 booked visits outside their hours", and the page says the four visits stay booked, marked on the rota. The calendar is unchanged.
+- Today, Your team today: Maya reads "Not in today" with "Day changed".
+- Change the whole week, on the week of 12 October: Copy last week's changes lists each day it will copy and the six visits that would fall outside the hours, with the same keep-or-move choice.
+- Settings, Who changed what: "Changed a day on the rota".
+- The guest booking page with Maya chosen offers 20 times on her extra Saturday, 10 October, and none on Tuesday.
+- Reception, invited and signed in: the rota is read only, with no day buttons and no week tools, and changed days are marked.
+- Maya, invited as a practitioner and signed in: her page shows "Not working this day" with "Changed for this day" and "3 changed days coming up".
+- 390 px: only the week strip scrolls sideways (page width 390), and each dialog stacks.
+
+Found and fixed in this pass:
+
+- The keep-or-move choice drew each radio as a full-width circle above its words, because the form makes every input full width. Each is now a small radio beside its words, and the list's heading sits under the line rather than breaking it.
+- The week dialog's "Move them first" said to come back to "this day"; it now says "this week".
+- Reception's rota opened with "Change one day here", which they cannot do. They now read that changed days are marked.
 
 ## Limits and notes
 
 - Archiving a location does not check the rota for changes that send someone there later, as it does not check weekly hours today. Booked visits there are still protected by the schedule checks.
 - The rota's warning counts visits outside the person's hours and location; a visit stranded by something else (a partial closure, a room archived) shows in the schedule checks as before, not on the rota.
-- Not seen in a browser, by instruction. Not checked at 1440 or 390 px on a real screen.
 
 ## Browser steps for the lead
 
