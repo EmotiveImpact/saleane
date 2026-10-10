@@ -176,6 +176,9 @@ describe('Ask SALEANE with Claude', () => {
     ])
     start(claude(fetcher))
     const login = await register(false)
+    expect((await api.inject({ url: '/api/health' })).json()).toMatchObject({
+      services: { ai: true },
+    })
     expect((await assistant(login)).json()).toMatchObject({ mode: 'live' })
     const answer = await ask(login, 'What is on today?')
     expect(answer.statusCode, answer.body).toBe(200)
