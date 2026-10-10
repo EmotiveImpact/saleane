@@ -24,4 +24,10 @@ The site deliberately has no fake waitlist or username reservation. The pricing 
 - Screen readers: labelled selectors, meaningful photographic alt text, decorative imagery ignored.
 - Check: npm run check, npm run format:check; then browser check the home route at 1440 px, 768 px, 390 px and 320 px.
 
-**Verification state:** Source code and component tests prepared for repository CI. The original application's dependency checkout is unavailable in this execution container; this report does not claim a local full-suite or browser pass. Check CI and Vercel separately before merge. **No deployment, provider or server changes.**
+**Verification state:** GitHub Actions completed a full lint/format/test/build run on the formatted site code and Chromium rendering reviews on desktop and mobile. Review final-head CI and interactive journeys before merge. **No deployment, provider or server changes.**
+
+## Observed verification, 10 October 2026
+
+- **CI:** the normal GitHub Saleane checks workflow passed lint, format, frontend/server tests and TypeScript/application/server builds on formatted website commit a02bde0, run [38026216415](https://github.com/EmotiveImpact/saleane/actions/runs/38026216415). Final-head CI should still be checked before merge.
+- **Browser rendering:** [38026357808](https://github.com/EmotiveImpact/saleane/actions/runs/38026357808) successfully built the Vite site and captured Chromium at 1440 x 1000 and 390 x 900. Full-page captures at 1440 x 5800 and 390 x 7600 succeeded in [38026458029](https://github.com/EmotiveImpact/saleane/actions/runs/38026458029), with downloadable screenshot artifacts. Screenshots were inspected: photography loads, layout stacks correctly on mobile and major sections retain hierarchy. This is rendering evidence, not full interactive or accessibility validation.
+- **Next:** check final-head CI, test keyboard interactions and the account/sample-studio navigation in a browser, review 320px layout before publishing. No live deployment has occurred.
