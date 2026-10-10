@@ -45,6 +45,7 @@ import { partnerApi } from './partnerApi'
 import { createTill } from './till/service'
 import type { Till } from './till/service'
 import { googleBooking, googleBookingFromEnv } from './googleBooking'
+import { aiBooking, aiBookingFromEnv } from './aiBooking'
 import { billingProviderFromEnv, createBilling } from './billing'
 import { diaryRoutes } from './diaries'
 import type { Billing } from './billing'
@@ -114,6 +115,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   const partners = partnerApi()
   const diaries = diaryRoutes()
   const google = googleBooking(options.googleBooking ?? googleBookingFromEnv(process.env))
+  const assistants = aiBooking(options.aiBooking ?? aiBookingFromEnv(process.env))
   const social = options.social ?? socialFromEnv(process.env)
   const routes = [
     partners.read,
@@ -121,6 +123,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     diaries.read,
     diaries.manage,
     google.manage,
+    assistants.manage,
     socialRoutes(social),
     connections.routes,
     messagingRoutes(outbox),
@@ -322,6 +325,8 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
         )
       )
         return
+      // Stage 5: ChatGPT or Claude calls the studio's booking connection, not a SALEANE page.
+      if (await assistants.endpoint(ctx, request, response, method, url.pathname)) return
       const path = url.pathname
         .split('/')
         .filter(Boolean)

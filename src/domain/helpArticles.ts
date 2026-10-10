@@ -175,6 +175,25 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     words: 'google maps search reserve actions center',
   },
   {
+    id: 'ai-booking',
+    title: 'Let guests book through ChatGPT or Claude',
+    group: 'Getting started',
+    summary:
+      'An AI assistant a guest is talking to can book a visit for them, with the same checks as your booking page.',
+    steps: [
+      'Open Settings, then Studio details, and find Booking through ChatGPT or Claude.',
+      'Tick Let guests book through ChatGPT or Claude, then choose Save. Online booking needs to be on as well.',
+      'Copy your studio’s address for AI assistants. Once SALEANE is online, the address is added to ChatGPT or Claude as a connector.',
+      'The assistant sees your opening hours, the treatments guests can book online and free times, and books only after the guest says yes. The guest gets their private link to move or cancel.',
+      'The relationship timeline on the client’s page and Who changed what say whether a visit was booked through ChatGPT, Claude or another AI assistant.',
+    ],
+    note: 'This is in test mode: only the computer SALEANE runs on can reach the address, so ChatGPT and Claude cannot book yet. Treatments that need a deposit or a patch test stay on your booking page, and guests are never signed up for news or offers this way.',
+    to: '/settings?section=business',
+    screens: ['/settings?section=business'],
+    roles: OWNER,
+    words: 'chatgpt claude openai anthropic gpt mcp connector chat',
+  },
+  {
     id: 'colours',
     title: "Change the studio's colours",
     group: 'Getting started',

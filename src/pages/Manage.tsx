@@ -60,6 +60,7 @@ import { AccessKeys } from '../components/AccessKeys'
 import { DiaryLinks } from '../components/DiaryLinks'
 import { ReceptionistSettings } from '../components/ReceptionistSettings'
 import { GoogleBooking } from '../components/GoogleBooking'
+import { AiBooking } from '../components/AiBooking'
 import { HouseRules } from '../components/HouseRules'
 import { houseRuleNote } from '../domain/brandRules'
 import { SocialAccounts } from '../components/SocialAccounts'
@@ -671,6 +672,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
               <>
                 <ShareBookingPage />
                 <GoogleBooking />
+                <AiBooking />
                 <SocialAccounts />
                 <GuestNotesSettings />
               </>

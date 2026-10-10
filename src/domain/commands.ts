@@ -16,7 +16,7 @@ import { runRotaCommand, stampRotaActors } from './rota'
 import { runStaffMoveCommand, stampStaffMoveActors } from './staffMoves'
 import { newsUnchanged, runNewsCommand, stampNewsActors } from './news'
 import { runCommissionCommand } from './commission'
-import { channelLabel } from './bookingChannel'
+import { channelNote } from './bookingChannel'
 import { checkoutTotals } from './money'
 import { recordTillCount } from './tillCount'
 import { openLocation, withSetupProgress } from './setup'
@@ -439,7 +439,7 @@ export function execute(
         appointmentId: appointment.id,
         type: 'booked',
         title: input.source === 'rebook' ? 'Next visit booked' : 'Visit booked',
-        detail: `${service.name} · ${dateLabel(input.date, org.locale)} at ${timeLabel(input.startMinutes, org.locale)}. ${operations(s).mode === 'sandbox' ? 'Deposit simulated; no payment taken.' : 'No payment collected. Any required deposit remains outstanding.'}${input.channel ? ` Booked through your ${channelLabel(input.channel)} link.` : ''}${input.callId ? ' Booked when the studio called back after a missed call.' : ''}`,
+        detail: `${service.name} · ${dateLabel(input.date, org.locale)} at ${timeLabel(input.startMinutes, org.locale)}. ${operations(s).mode === 'sandbox' ? 'Deposit simulated; no payment taken.' : 'No payment collected. Any required deposit remains outstanding.'}${input.channel ? ` ${channelNote(input.channel)}` : ''}${input.callId ? ' Booked when the studio called back after a missed call.' : ''}`,
       })
       if (input.waitlistId) fillFromWaitlist(next, input.waitlistId, appointment, now, 'book')
       if (input.callId) linkCallToVisit(next, input.callId, appointment.id, client.id, now)

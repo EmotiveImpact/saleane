@@ -143,6 +143,8 @@ export type ApiOptions = {
   connectionTransport?: ConnectionTransport
   /** V4: Book with Google's partner credentials; read from the environment when left out. */
   googleBooking?: import('./googleBooking').GoogleBookingOptions
+  /** Stage 5: booking through ChatGPT or Claude; read from SALEANE_AI_BOOKING when left out. */
+  aiBooking?: import('./aiBooking').AiBookingOptions
   /** V4: messages to the studio's Instagram, Facebook and WhatsApp accounts. */
   social?: import('./messaging/meta').SocialOptions
   /** Stage 2: how receipts reach a printer. Omitted uses the real network printer and test printer. */

@@ -97,6 +97,46 @@ export function genuine(secret, header, rawBody, now = Date.now()) {
 
 `SALEANE_CONNECTIONS` is unset (`test`) by default. Addresses are checked and every event is signed and logged exactly as it would be sent, marked "Test mode, not sent". Nothing leaves the computer. `SALEANE_CONNECTIONS=live` posts for real; it has not yet been run against a real Zapier hook.
 
+# Booking through ChatGPT or Claude
+
+A guest who asks ChatGPT, Claude or another AI assistant to book a treatment can have it booked at the studio, with the same checks as the studio's own booking page. Each studio has its own remote MCP server (Model Context Protocol) for this:
+
+```
+POST /api/mcp/{booking page name}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+```
+
+The owner turns it on in Settings › Studio details › Booking through ChatGPT or Claude, and copies the address from there. It is off until they do, and it stays closed while online booking is off or the studio is locked for an unpaid bill.
+
+## The protocol
+
+JSON-RPC 2.0 over the streamable HTTP transport, one message per `POST`, always answered with `application/json` (never a stream). Protocol versions 2025-11-25, 2025-06-18 and 2025-03-26; an unknown version in `initialize` is answered with the newest.
+
+- `initialize` returns `Mcp-Session-Id`. Send it, with `MCP-Protocol-Version`, on every later message. Without it the answer is 400; after the connection ends or the server restarts it is 404, and the assistant connects again. `DELETE` with the header ends the connection.
+- `notifications/initialized` and any other notification or answer get 202 with no body.
+- `ping`, `tools/list` and `tools/call` are answered. Anything else is `-32601`. A batch, a parse error or a message that is not JSON-RPC 2.0 is 400 with `-32600` or `-32700`. An unknown tool or wrong arguments is `-32602`, naming the problem. A refusal from SALEANE itself (not turned on, too many requests, a connection that has ended) is `-32000` with the HTTP status.
+- A request carrying a browser `Origin` from anywhere but SALEANE is refused with 403.
+
+The assistant is named from `clientInfo` in `initialize` (or the `User-Agent`): ChatGPT, Claude, or "an AI assistant" when it does not say. That name is what the visit's history, the client's timeline and Who changed what show.
+
+## The tools
+
+| Tool              | Takes                                                                                                                                           | Gives                                                                                                                                                                                            |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `studio_details`  | nothing                                                                                                                                         | The studio's name, today on its clock, each open location's address, phone, email and opening hours (Monday first), days it is closed in the next month, how cancelling works, the booking page. |
+| `list_treatments` | nothing                                                                                                                                         | Treatments to book here with length, full price at each location, and the professionals who do them. Treatments that need a deposit or a patch test by name only, with the booking page.         |
+| `find_free_times` | `treatment_id`, and optionally `professional_id`, `location_id`, `from_date`, `to_date`                                                         | Free start times (HH:MM on the studio's clock) day by day, as the booking page offers them, never before today and at most 14 days at once.                                                      |
+| `book_time`       | `treatment_id`, `date`, `start`, `guest_name`, `guest_email`, `guest_phone`, `guest_confirmed`, and optionally `professional_id`, `location_id` | The booked treatment, day, time, length, price, place and cancelling terms, the guest's private link to see, move or cancel it, and honest words about any confirmation email.                   |
+
+Each answer has a short text for the assistant to read (`content`) and the same as data (`structuredContent`). A refusal the guest can act on, such as a time that is no longer free or a treatment that needs a deposit, comes back as a tool result with `isError: true` and plain words.
+
+`book_time` books nothing unless `guest_confirmed` is true: the assistant first tells the guest the treatment, day, time, price and cancelling terms. It holds and books through the booking page's own code, so the price, deposit, tax, patch test rule, opening hours and free time are all checked again, and the visit arrives in the diary as an online booking. The guest is never signed up for news or offers. The same `book_time` on the same connection within 15 minutes returns the same visit with a fresh private link (the earlier link stops working), so a reply that never arrived never books twice. Nothing about other guests, the team's details, money or the studio's own records is ever returned.
+
+## Test mode
+
+`SALEANE_AI_BOOKING` is `test` by default: the address answers only when SALEANE runs on this computer (`APP_ORIGIN` on 127.0.0.1, localhost or [::1]) and gives 503 anywhere else, so no assistant on the internet can book into a real studio's diary before SALEANE is online and this has been checked against ChatGPT and Claude. `SALEANE_AI_BOOKING=off` answers 404. Calls are limited per address: 120 messages and 40 tool calls every 10 minutes, plus the booking page's own limits on holding and booking.
+
 # Reading from SALEANE
 
 Other software can also read from a studio, with an access key the owner makes in Settings › Connected software › Access keys. A key belongs to one studio, reads only what the owner ticked, cannot change anything, and stops working the moment it is revoked. The key (`sal_…`) is shown once; SALEANE keeps only a hash of it. Sample studios cannot make keys.
