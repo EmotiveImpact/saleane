@@ -9,6 +9,7 @@ import { ownRating } from './feedback'
 import { clearFrom, patchTests, visitPatchTest } from './patchTests'
 import { answerText, versionOf, visitForms } from './forms'
 import { visitConsultation } from './consultations'
+import { targetProgress } from './pay'
 
 /**
  * LOCAL-01: what an assigned practitioner may read and change.
@@ -19,6 +20,8 @@ import { visitConsultation } from './consultations'
  * prices, deposits, receipts, payments, other professionals' diaries, catalogue or settings.
  * Write: welcome their own client on the day (`arrive`) and add a note for a client they serve.
  * V1.5: see and record patch tests for the clients in their visits, as the one who did them.
+ * Stage 3: their own monthly target and how far they are towards it, when they have one; never
+ * anyone else's, and never their rates or what they have earned.
  * Everything else stays with reception, managers and owners.
  */
 export const PRACTITIONER_DAYS_BEFORE = 14
@@ -63,6 +66,20 @@ export const practitionerViewSchema = z
     /** V1.5: how guests rate this practitioner, as an average only and never single answers. */
     rating: z
       .object({ count: z.number().int().nonnegative(), average: z.number().nullable() })
+      .strict()
+      .optional(),
+    /** Stage 3: their own target for this month and their takings towards it so far. */
+    target: z
+      .object({
+        month: z.string(),
+        currency: z.enum(['GBP', 'USD']),
+        targetMinor: z.number().int().nonnegative(),
+        takenMinor: z.number().int(),
+        treatmentsTargetMinor: z.number().int().nonnegative().optional(),
+        productsTargetMinor: z.number().int().nonnegative().optional(),
+        treatmentsMinor: z.number().int(),
+        productsMinor: z.number().int(),
+      })
       .strict()
       .optional(),
     appointments: z.array(
@@ -242,6 +259,10 @@ export function practitionerView(
       todayMinutes: hoursPeriod(s, today, today).get(staffId)?.minutes ?? 0,
     },
     rating: ownRating(s, staffId),
+    ...(() => {
+      const target = targetProgress(s, staffId, today.slice(0, 7), today)
+      return target ? { target: { ...target, currency: s.organisation.currency } } : {}
+    })(),
     appointments: visits.map((a) => ({
       id: a.id,
       clientId: a.clientId,

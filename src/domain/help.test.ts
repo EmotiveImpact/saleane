@@ -88,6 +88,7 @@ describe('help inside the app', () => {
       'practitioner-day',
       'practitioner-patch',
       'practitioner-clock',
+      'practitioner-target',
       'day-sheet',
     ])
     expect(helpForScreen('/today', '', 'owner')[0].id).toBe('get-ready')
@@ -123,6 +124,15 @@ describe('help inside the app', () => {
     expect(first('clock in')).toBe('clock')
     expect(first('timesheet forgot to clock out')).toBe('hours-worked')
     expect(first('clock in', 'practitioner')).toBe('practitioner-clock')
+    // Stage 3: commission by treatment or product, steps, targets and chair rent.
+    expect(first('tiered commission')).toBe('commission-steps')
+    expect(first('commission rate for one treatment')).toBe('commission-rates')
+    expect(first('monthly sales target')).toBe('staff-targets')
+    expect(first('booth rental percentage')).toBe('chair-rent')
+    expect(first('my target', 'practitioner')).toBe('practitioner-target')
+    expect(searchHelp('commission steps', 'manager').map((a) => a.id)).not.toContain(
+      'commission-steps',
+    )
     expect(searchHelp('the', 'owner')).toEqual([])
     expect(searchHelp('rocket launch', 'owner')).toEqual([])
     expect(helpWords("Customer's bookings")).toEqual(['client', 'visit'])

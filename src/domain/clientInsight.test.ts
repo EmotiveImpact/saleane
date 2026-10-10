@@ -177,7 +177,10 @@ describe('At a glance on the client page', () => {
     const unnamed = (s.counterSales ?? [])
       .filter((sale) => !sale.clientId && recordDay(s, sale.paidAt) >= year.from)
       .reduce((sum, sale) => sum + retailRevenue(sale), 0)
-    expect(treatments).toBe(year.revenue)
+    // Stage 3: what a client spent counts every visit, Theo's while he rents his chair too; the
+    // Business page keeps his takings apart as his own. His products stay the studio's sales.
+    expect(treatments).toBe(year.revenue + year.renters)
+    expect(year.renters).toBeGreaterThan(0)
     expect(products + unnamed).toBe(year.retail)
   })
 

@@ -22,6 +22,7 @@ import { taskSchema, tasksProblem } from './tasksSchema'
 import { counterSaleSchema, saleRetailSchema } from './retailSchema'
 import { retailCharge, retailProblem } from './retail'
 import { rentProblem } from './rent'
+import { commissionProblem } from './commission'
 import { purchasingProblem } from './purchasing'
 import { waitlistEntrySchema } from './waitlistSchema'
 import { waitlistProblem } from './waitlist'
@@ -692,6 +693,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
   if (retail) throw new Error(retail)
   const rent = rentProblem(s)
   if (rent) throw new Error(rent)
+  const commission = commissionProblem(s)
+  if (commission) throw new Error(commission)
   const purchasing = purchasingProblem(s)
   if (purchasing) throw new Error(purchasing)
   const waitlist = waitlistProblem(s)

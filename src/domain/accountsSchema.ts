@@ -15,6 +15,11 @@ export const accountCodesSchema = z.object({
   fees: code,
   refunds: code,
   clearing: code,
+  /**
+   * Stage 3: where a renter's own takings go while the studio holds them. Needed only once someone
+   * rents a chair or room and their clients pay at the studio's till.
+   */
+  renters: code.optional(),
 })
 export type AccountCodes = z.infer<typeof accountCodesSchema>
 export const accountingSettingsSchema = z.object({

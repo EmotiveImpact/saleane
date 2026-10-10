@@ -87,9 +87,11 @@ describe('Smart insights through Ask Saleane', () => {
     )
   })
 
-  it('mentions only what is unusual: in the sample studio, one product running low', async () => {
+  it('mentions only what is unusual: in the sample studio, a quieter week and one product running low', async () => {
+    // Stage 3: Theo rents his chair, so his takings are his own and are left out of the
+    // comparison; the named clients alone took less this week than in the month before.
     expect((await ask('Anything unusual?')).text).toBe(
-      'Enzyme Peel, professional size is running low: At or below the level where you reorder.',
+      'Takings are down this week: The last 7 days took 31% less than an average week over the month before. Enzyme Peel, professional size is running low: At or below the level where you reorder.',
     )
   })
 })
@@ -169,12 +171,11 @@ describe("A manager's day through Ask Saleane", () => {
   })
 
   it('closes the day and reviews the week with reasons', async () => {
+    // Stage 3: Theo rents his chair, so today's visit with him is his own takings, not the studio's.
     expect((await ask('How did we do today?')).text).toMatch(
-      /^£195 in treatments from 2 visits, against about £151 on a usual Tuesday\./,
+      /^£120 in treatments from 1 visit, against about £151 on a usual Tuesday\./,
     )
-    expect((await ask('How was the week?')).text).toMatch(
-      /^The last seven days: £195 from 2 visits/,
-    )
+    expect((await ask('How was the week?')).text).toMatch(/^The last seven days: £120 from 1 visit/)
     expect((await ask('How did we do today?', 'reception')).text).toBe(
       'That is for owners and managers.',
     )

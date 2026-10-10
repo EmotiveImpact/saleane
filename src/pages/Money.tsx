@@ -26,6 +26,7 @@ import { CarriedBalances } from '../components/Switching'
 import { PlansLedger } from '../components/Plans'
 import { giftCards, refundableOnReceipt } from '../domain/giftCards'
 import { otherReceipts } from '../domain/receipt'
+import { renterCounterSale, renterVisit } from '../domain/takings'
 import { ReceiptActions, ReceiptDialog } from '../components/ReceiptActions'
 
 const methodLabel = (method: string) =>
@@ -133,6 +134,22 @@ export function Money() {
           counterByDay[day] ?? [],
         ] as const,
     )
+  // Stage 3: a receipt for someone renting a chair or room is their own takings, not the studio's.
+  // Every receipt is still listed and the till still counts its cash.
+  const renterWords = (staffId: string | undefined, space: 'chair' | 'room', what = 'takings') =>
+    ` · ${state.staff.find((p) => p.id === staffId)?.name.split(' ')[0] ?? 'A renter'}’s own ${what}, renting a ${space}`
+  const renterNote = (sale: (typeof state.sales)[number]) => {
+    const visit = state.appointments.find((a) => a.id === sale.appointmentId)
+    const rental = visit && renterVisit(state, visit)
+    if (!rental) return ''
+    // Products from the studio's shelf stay the studio's sales, so only the treatment is theirs.
+    const what = sale.retail && !rental.products ? 'takings for the treatment' : 'takings'
+    return renterWords(rental.staffId, rental.space, what)
+  }
+  const counterNote = (sale: Parameters<typeof renterCounterSale>[1]) => {
+    const rental = renterCounterSale(state, sale)
+    return rental ? renterWords(rental.staffId, rental.space) : ''
+  }
   const counterRefunded = (counterSaleId: string) =>
     operations(state)
       .refunds.filter((r) => r.counterSaleId === counterSaleId)
@@ -357,6 +374,7 @@ export function Money() {
                         <small>
                           {sale.retail.lines.map((line) => line.name).join(', ')} ·{' '}
                           {methodLabel(sale.method)} · {sale.receiptNumber}
+                          {counterNote(sale)}
                           {counterRefunded(sale.id) > 0
                             ? ` · ${format(counterRefunded(sale.id))} refunded`
                             : ''}
@@ -383,6 +401,7 @@ export function Money() {
                         <small>
                           {serviceName(sale.appointmentId)} · {methodLabel(sale.method)}
                           {sale.receiptNumber ? ` · ${sale.receiptNumber}` : ''}
+                          {renterNote(sale)}
                           {refundFor(sale.id) > 0
                             ? ` · ${format(refundFor(sale.id))} refunded`
                             : ''}

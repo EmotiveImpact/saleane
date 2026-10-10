@@ -11,6 +11,7 @@ import { runBrandCommand } from './brandRules'
 import { runTillCommand } from './till'
 import { branchVisitUnchanged, runBranchVisitCommand, stampBranchVisitActors } from './branchVisits'
 import { runHoursCommand, stampShiftActors } from './hours'
+import { runCommissionCommand } from './commission'
 import { channelLabel } from './bookingChannel'
 import { checkoutTotals } from './money'
 import { recordTillCount } from './tillCount'
@@ -848,6 +849,12 @@ export function execute(
       recordId = runBrandCommand(next, command, businessDate(s, now))
     } else if (command.type === 'till-settings') {
       recordId = runTillCommand(next, command)
+    } else if (
+      command.type === 'commission-rate' ||
+      command.type === 'commission-steps' ||
+      command.type === 'staff-target'
+    ) {
+      recordId = runCommissionCommand(next, command, now, makeId)
     } else {
       recordId = runOperatingCommand(next, command, now, makeId, addEvent)
     }
@@ -1002,6 +1009,9 @@ export function dispatch(
     'rentPayments',
     'purchaseOrders',
     'accountingExports',
+    'commissionRates',
+    'commissionSteps',
+    'staffTargets',
   ] as const) {
     const ids = new Set((operations(s)[key] ?? []).map((r) => r.id))
     const records = operations(result.state)[key] ?? []

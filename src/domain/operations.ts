@@ -24,6 +24,14 @@ import { MISSED_CALL_LIMIT, missedCallSchema } from './missedCallsSchema'
 import { paymentMethodSchema, processorSchema } from './paymentMethods'
 import { RENT_LIMIT, RENT_PAYMENT_LIMIT, rentPaymentSchema, rentalSchema } from './rentSchema'
 import {
+  COMMISSION_RATE_LIMIT,
+  COMMISSION_STEPS_LIMIT,
+  STAFF_TARGET_LIMIT,
+  commissionRateSchema,
+  commissionStepsSchema,
+  staffTargetSchema,
+} from './commissionSchema'
+import {
   ACCOUNTING_EXPORT_LIMIT,
   accountingExportSchema,
   accountingSettingsSchema,
@@ -377,6 +385,13 @@ export const operationsSchema = z.object({
   till: tillSettingsSchema.optional(),
   /** NEXT-07: hours worked, clocked in and out or added by hand, for payroll. */
   shifts: z.array(shiftSchema).max(SHIFT_LIMIT).optional(),
+  /**
+   * Stage 3: rates of their own for a treatment, a kind of treatment, products or a product, steps
+   * by takings, and each person's monthly target, each kept as a history like the usual rates.
+   */
+  commissionRates: z.array(commissionRateSchema).max(COMMISSION_RATE_LIMIT).optional(),
+  commissionSteps: z.array(commissionStepsSchema).max(COMMISSION_STEPS_LIMIT).optional(),
+  staffTargets: z.array(staffTargetSchema).max(STAFF_TARGET_LIMIT).optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 /**
@@ -542,6 +557,9 @@ export function permissionFor(command: { type: string; approve?: boolean }) {
   // NEXT-07: clocking in and out is for everyone in the studio; changing hours is for managers.
   if (command.type === 'clock-in' || command.type === 'clock-out') return 'clock'
   if (command.type === 'shift-save' || command.type === 'shift-remove') return 'shift-fix'
+  // Stage 3: rates for a treatment or product and steps by takings are commission, which only the
+  // owner sets; targets are for owners and managers.
+  if (command.type === 'commission-rate' || command.type === 'commission-steps') return 'pay-rate'
   if (command.type === 'message-queue' || command.type === 'social-answer') return 'message.queue'
   if (command.type === 'special-plan' || command.type === 'special-stop') return 'special'
   if (command.type === 'task-add' || command.type === 'task-done') return 'task'
@@ -694,6 +712,7 @@ export function can(role: Role, action: string) {
       'studio-look',
       'till-settings',
       'shift-fix',
+      'staff-target',
     ].includes(action)
   )
     return false

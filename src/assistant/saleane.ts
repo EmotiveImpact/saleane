@@ -287,7 +287,7 @@ export function askSaleaneSkills(): Skill<AskContext, Command>[] {
     readSkill<AskContext, { days: number }>({
       name: 'takings',
       description:
-        'Service takings, tips, completed visits and rebooking rate over the last few days (1 for today).',
+        'Service takings, tips, completed visits and rebooking rate over the last few days (1 for today). Takings of anyone renting a chair or room are their own and left out.',
       input: z.object({ days: z.number().int().min(1).max(90) }).strict(),
       allowed: managers,
       run(ctx, { days }) {
@@ -301,6 +301,17 @@ export function askSaleaneSkills(): Skill<AskContext, Command>[] {
           completedVisits: r.completed,
           rebookRate: r.rebookRate === null ? null : `${Math.round(r.rebookRate * 100)}%`,
           topService: top?.revenue ? top.service.name : null,
+          // Stage 3: renters keep their own takings, so they are left out above; rent is income.
+          ...(r.renters || r.rent
+            ? {
+                studioCompletedVisits: r.ownCompleted,
+                rentersOwnTakingsLeftOut: cash(ctx, r.renters),
+                // Rent is for those who see pay; a general manager's record has none.
+                ...(ctx.role === 'owner' || ctx.role === 'manager'
+                  ? { rentRecorded: cash(ctx, r.rent) }
+                  : {}),
+              }
+            : {}),
         }
       },
     }),

@@ -77,8 +77,24 @@ test('shows only the practitioner’s own visits, without prices or contact deta
     if (!today.some((a) => a.clientId === other.clientId))
       expect(screen.queryByText(name)).not.toBeInTheDocument()
   }
-  expect(document.body.textContent).not.toMatch(/£/)
+  // Stage 3: the only money shown is their own target for the month and their takings towards it.
+  const target = screen.getByText(/^Your target for October: /)
+  expect(target.textContent).toMatch(/^Your target for October: £[\d,]+ of £6,000 so far, \d+%\.$/)
+  expect(document.body.textContent!.replace(target.textContent!, '')).not.toMatch(/£/)
   expect(document.body.textContent).not.toContain(client.email)
+})
+
+test('shows no target to someone without one, and never anyone else’s', async () => {
+  vi.mocked(api).mockResolvedValue({
+    id: orgId,
+    role: 'practitioner',
+    view: 'practitioner',
+    practitioner: practitionerView(studio, 'staff-theo', DEMO_DATE),
+  } as never)
+  view()
+  await screen.findByRole('list', { name: 'Assigned to you' })
+  expect(screen.queryByText(/Your target for/)).not.toBeInTheDocument()
+  expect(document.body.textContent).not.toMatch(/£/)
 })
 
 test('welcomes their client with a saved retry key and shows the updated status', async () => {
