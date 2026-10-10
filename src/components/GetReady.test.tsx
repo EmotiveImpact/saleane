@@ -85,7 +85,7 @@ function readyStudio() {
     },
   )
   // A studio record that can hold a phone number and email needs one of them too.
-  Object.assign(ready.organisation, { phone: '01225 900456' })
+  Object.assign(ready.organisation, { phone: '01632 960456' })
   return ready
 }
 function show(state: BusinessState, patch: Partial<Shown> = {}) {

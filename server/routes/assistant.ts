@@ -39,8 +39,10 @@ export function assistantRoutes() {
       allowance: allowance.monthly,
     })
 
+    // NEXT-12: a real AI answers once SALEANE has its key, except in a sample studio.
+    const brain = ctx.ai.brainFor(org.state, 'ask')
     if (path.length === 4 && method === 'GET') {
-      reply(200, { mode: 'test', usage: meter(stored()) })
+      reply(200, { mode: brain ? 'live' : 'test', usage: meter(stored()) })
       return true
     }
     if (path.length === 4 && method === 'POST') {
@@ -66,18 +68,25 @@ export function assistantRoutes() {
         usage: stored(),
         at,
         allowance,
+        ...(brain ? { brain } : {}),
       })
       if (result.status === 'refused') {
         reply(200, { status: 'refused', text: result.text, proposals: [], usage: meter(stored()) })
         return true
       }
-      // Re-read inside the write, so two questions at once both count.
+      const answered = result.status === 'answered'
+      if (!answered)
+        console.error(
+          `[SALEANE] Ask SALEANE's AI could not answer (${result.reason}): ${result.detail}`,
+        )
+      // Re-read inside the write, so two questions at once both count. A question the AI could
+      // not answer is not counted against the month, but whatever it cost is.
       const usage = ctx.db.transaction(() => {
         const next = record(
           stored(),
           {
             meter: 'typed',
-            amount: 1,
+            amount: answered ? 1 : 0,
             personId: actor.id,
             at,
             worstCaseMinor: TYPED_WORST_CASE_MINOR,
@@ -90,10 +99,15 @@ export function assistantRoutes() {
           JSON.stringify(next),
           ctx.now(),
         )
-        for (const proposal of result.proposals)
-          ctx.audit(org, actor.id, 'assistant.proposed', proposal.id)
+        if (answered)
+          for (const proposal of result.proposals)
+            ctx.audit(org, actor.id, 'assistant.proposed', proposal.id)
         return next
       })
+      if (!answered) {
+        reply(200, { status: 'unavailable', text: result.text, proposals: [], usage: meter(usage) })
+        return true
+      }
       for (const proposal of result.proposals)
         held.set(proposal.id, {
           ...(proposal as PendingProposal<Command>),

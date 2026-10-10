@@ -11,6 +11,8 @@ import type { Providers } from './messaging/providers'
 import { providersFromEnv } from './messaging/providers'
 import type { PaymentProvider } from './payments/providers'
 import { paymentProviderFromEnv } from './payments/providers'
+import { aiFromEnv } from './ai'
+import type { AiSupplier } from './ai'
 import { parseState } from '../src/domain/model'
 import type { BusinessState } from '../src/domain/model'
 import type { ConnectionTransport } from './connections'
@@ -145,6 +147,8 @@ export type ApiOptions = {
   googleBooking?: import('./googleBooking').GoogleBookingOptions
   /** V4: messages to the studio's Instagram, Facebook and WhatsApp accounts. */
   social?: import('./messaging/meta').SocialOptions
+  /** NEXT-12: the AI that answers. Omitted reads SALEANE_AI_PROVIDER; unset is test mode. */
+  ai?: AiSupplier
 }
 
 /** Shared request authority: database, clock, sessions, tenant lookup, holds and audit. */
@@ -167,6 +171,7 @@ export function createContext(options: ApiOptions) {
   const messaging = options.providers ?? providersFromEnv(process.env, allowedOrigin)
   const paymentProvider =
     options.paymentProvider ?? paymentProviderFromEnv(process.env, allowedOrigin)
+  const ai = options.ai ?? aiFromEnv(process.env)
   const rates = new Map<string, { count: number; expires: number }>()
   const address = (request: IncomingMessage) => request.socket?.remoteAddress ?? 'local'
   // Holds last minutes, so a per-process salt keeps stored visitor keys from revealing addresses.
@@ -543,6 +548,7 @@ export function createContext(options: ApiOptions) {
     turnstile,
     messaging,
     paymentProvider,
+    ai,
     actorFor,
     signIn,
     memberships,

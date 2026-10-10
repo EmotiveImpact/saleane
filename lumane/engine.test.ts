@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { z } from 'zod'
 import {
+  BrainError,
   actionSkill,
   check,
   decide,
@@ -199,10 +200,65 @@ describe('Lumane engine', () => {
       calls: [{ id: 'c', name: 'count', input: {} }],
       costMinor: 1,
     }))
-    const result = await turn(brain)
+    const result = await turn(brain, { worstCaseMinor: 50 })
     if (result.status !== 'answered') throw new Error('expected an answer')
     expect(result.text).toMatch(/more steps/)
     expect(result.costMinor).toBe(6)
+  })
+
+  it('starts no further call once a request has spent its share', async () => {
+    const brain = scriptedBrain(() => ({
+      calls: [{ id: 'c', name: 'count', input: {} }],
+      costMinor: 2,
+    }))
+    const result = await turn(brain, { worstCaseMinor: 5 })
+    if (result.status !== 'answered') throw new Error('expected an answer')
+    expect(result.text).toMatch(/more steps/)
+    // 2, 4, then 6: the third call starts with 4 spent, and no fourth with 6.
+    expect(result.costMinor).toBe(6)
+  })
+
+  it('starts no further call once a request has taken too long, and passes the facts on', async () => {
+    let clock = 0
+    const seen: (string | undefined)[] = []
+    const brain = scriptedBrain((request) => {
+      seen.push(request.context)
+      clock += 15_000
+      return { calls: [{ id: 'c', name: 'count', input: {} }] }
+    })
+    const result = await runTurn({
+      brain,
+      skills,
+      ctx: { role: 'owner', count: 4 },
+      instructions: 'Be brief.',
+      context: 'Today is Wednesday 7 October.',
+      history: [],
+      text: 'How many?',
+      meter: { allowance, usage: undefined, personId: 'p1', at, kind: 'typed', worstCaseMinor: 5 },
+      timeLimitMs: 30_000,
+      clock: () => clock,
+    })
+    expect(result).toMatchObject({ status: 'answered', text: expect.stringMatching(/more steps/) })
+    expect(seen).toEqual(['Today is Wednesday 7 October.', 'Today is Wednesday 7 October.'])
+  })
+
+  it('ends as unavailable when the brain fails, without counting the request', async () => {
+    const brain: Brain = {
+      name: 'broken',
+      respond: async () => {
+        throw new BrainError('unreachable', 'Could not connect.', 3)
+      },
+    }
+    const result = await turn(brain)
+    expect(result).toMatchObject({
+      status: 'unavailable',
+      reason: 'unreachable',
+      detail: 'Could not connect.',
+      costMinor: 3,
+    })
+    if (result.status !== 'unavailable') throw new Error('expected unavailable')
+    expect(result.usage.used.typed).toBe(0)
+    expect(result.usage.spendByDay['2026-10-07']).toBe(3)
   })
 })
 

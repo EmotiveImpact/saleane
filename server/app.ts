@@ -66,6 +66,20 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   const ctx = createContext(options)
   const { origin, allowedOrigin, db, rateLimit } = ctx
   const outbox = createOutbox(ctx, ctx.messaging)
+  /**
+   * NEXT-12: the receptionist's answer to a text or social message. A real AI can take several
+   * seconds, longer than a provider waits, so the provider is thanked first and the answer follows
+   * through the outbox. The test-mode receptionist answers at once, before the provider is thanked.
+   */
+  const answerSoon = async (answering: Promise<boolean>, what: string) => {
+    const queued = answering.then((sent) => {
+      if (sent && options.outboxIntervalMs) outbox.soon()
+    })
+    if (!ctx.ai.live) return queued
+    queued.catch((error) =>
+      console.error(`[SALEANE] The receptionist could not answer ${what}.`, error),
+    )
+  }
   const payments = createPayments(ctx, ctx.paymentProvider)
   const billing = createBilling(
     ctx,
@@ -189,12 +203,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
           recordReply(ctx, inbound[3], provider === 'twilio' ? 'sms' : 'email', reply)
           // V4: the AI receptionist answers a kept text when the studio chose it, once, even if
           // the provider sends it again after a failure; the outbox sends the answer.
-          if (
-            provider === 'twilio' &&
-            (await answerText(ctx, inbound[3], reply)) &&
-            options.outboxIntervalMs
-          )
-            outbox.soon()
+          if (provider === 'twilio') await answerSoon(answerText(ctx, inbound[3], reply), 'a text')
         }
         if (provider === 'twilio') {
           // Nothing answered inline: the team, or the AI receptionist through the outbox, replies.
@@ -229,7 +238,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
         for (const message of metaMessages(payload)) {
           recordSocialMessage(ctx, message)
           // The AI receptionist answers a kept message when the studio chose that, once.
-          if ((await answerSocial(ctx, message)) && options.outboxIntervalMs) outbox.soon()
+          await answerSoon(answerSocial(ctx, message), 'a message')
         }
         reply(200, { ok: true })
         return

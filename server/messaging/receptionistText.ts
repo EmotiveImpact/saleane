@@ -17,6 +17,10 @@ import { hasLocations, staffLocationOn } from '../../src/domain/locations'
 /** A text conversation stays one chat while its messages are less than an hour apart. */
 const CHAT_WINDOW_MS = 60 * 60000
 const HISTORY_TURNS = 8
+/** Messages being answered now, so a provider sending one again meanwhile is not answered twice. */
+const answering = new Set<string>()
+/** The outbox's own fill-ins, such as a visit's link, which an AI's words must never carry. */
+const FILL_INS = /\{\{[^{}]*\}\}/g
 
 /** The booking page with an offered time already chosen. The guest still holds and confirms it. */
 export function bookingLink(
@@ -81,18 +85,36 @@ async function answer(
   channel: 'sms' | SocialChannel,
   reply: InboundReply,
 ) {
-  const { db, now } = ctx
+  const { db } = ctx
   const org = ctx.systemOrg(orgId)
   const chosen = channel === 'sms' ? answersTexts : answersSocial
   if (!org || operations(org.state).mode !== 'local' || !chosen(org.state)) return false
-  const number = reply.from
-  const words = reply.body.trim()
-  if (!number || !words) return false
+  if (!reply.from || !reply.body.trim()) return false
   // Answered already: a provider sending the same text again gets no second answer. A text kept
   // before a crash, and not yet answered, is answered when the provider tries again.
   const dedupe = `reception:${reply.providerRef}`
   if (db.get('SELECT 1 FROM outbox WHERE organisation_id=? AND dedupe_key=?', org.id, dedupe))
     return false
+  const key = `${org.id}:${dedupe}`
+  if (answering.has(key)) return false
+  answering.add(key)
+  try {
+    return await answerKept(ctx, org, channel, reply, dedupe)
+  } finally {
+    answering.delete(key)
+  }
+}
+
+async function answerKept(
+  ctx: Context,
+  org: NonNullable<ReturnType<Context['systemOrg']>>,
+  channel: 'sms' | SocialChannel,
+  reply: InboundReply,
+  dedupe: string,
+) {
+  const { db, now } = ctx
+  const number = reply.from
+  const words = reply.body.trim()
   const kept = repliesList(org.state).find(
     (r) => r.channel === channel && r.providerRef === reply.providerRef.slice(0, 200),
   )
@@ -173,6 +195,7 @@ async function answer(
     channel === 'sms' || channel === 'whatsapp'
       ? senderClient(org.state, channel, number)
       : undefined
+  const brain = ctx.ai.brainFor(org.state, 'reception')
   const result = await askReceptionist({
     state: ctx.withHolds(org),
     today: businessDate(org.state, at),
@@ -185,7 +208,24 @@ async function answer(
     ...(guest ? { guestId: guest.id } : {}),
     usage: storedUsage(ctx, org.id),
     allowance: ctx.plans.allowance(org),
+    ...(brain ? { brain } : {}),
   })
+  if (result.status === 'unavailable') {
+    // The guest's message waits in the inbox for the team; what the attempt cost still counts.
+    console.error(
+      `[SALEANE] The receptionist's AI could not answer (${result.reason}): ${result.detail}`,
+    )
+    db.transaction(() =>
+      countReception(ctx, org.id, {
+        at,
+        visitor,
+        continuing: true,
+        costMinor: result.costMinor,
+        usage: result.usage,
+      }),
+    )
+    return false
+  }
   if (result.status !== 'answered') return false
   const offered = result.proposals.find((p) => p.effect.kind === 'time')
   const manage = result.proposals
@@ -193,7 +233,7 @@ async function answer(
     .find((e): e is Extract<ReceptionEffect, { kind: 'manage' }> => e.kind === 'manage')
   // Every answer says who it is from, since a message has no page around it to say so. A visit's
   // private link is never stored: the outbox makes a fresh one as it sends.
-  const body = `${signed}${result.text}`
+  const body = `${signed}${result.text.replace(FILL_INS, '')}`
     .replaceAll(
       BOOKING_LINK,
       offered
