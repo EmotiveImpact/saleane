@@ -188,6 +188,7 @@ const serverWords: Record<string, Words> = {
   'assistant.proposed': ['settings', 'Asked Ask Saleane to suggest a change'],
   'assistant.approved': ['settings', 'Approved a change Ask Saleane suggested'],
   'assistant.declined': ['settings', 'Turned down a change Ask Saleane suggested'],
+  'assistant.talked': ['settings', 'Talked to Ask Saleane'],
   'outbox.retry': ['messages', 'Tried sending a message again'],
   'client.exported': ['clients', 'Downloaded a copy of a client’s data'],
   'client.erasure_requested': ['clients', 'Recorded a request to erase a client'],
