@@ -83,7 +83,9 @@ describe('talking to Ask SALEANE', () => {
     render(<AskSaleane onClose={() => {}} />)
     const panel = await screen.findByRole('dialog', { name: 'Ask SALEANE' })
     expect(
-      await within(panel).findByText(/When you talk, OpenAI's voice listens and speaks/),
+      await within(panel).findByText(
+        /When you talk, your voice goes to OpenAI, which listens and speaks/,
+      ),
     ).toBeInTheDocument()
     expect(
       within(panel).getByText('3 of 300 questions used this month. 2 of 30 talking minutes used.'),
