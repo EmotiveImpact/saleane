@@ -16,183 +16,237 @@
       href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300&display=swap"
     />
     <link rel="stylesheet" href="styles.css" />
+    <script src="site.js" defer></script>
   </head>
   <body>
-    <div class="page">
-      <header class="nav">
+    <svg class="sprite" aria-hidden="true">
+      <symbol id="i-tick" viewBox="0 0 14 14">
+        <path d="M2.5 7.2l2.8 2.8 6.2-6.4" />
+      </symbol>
+      <symbol id="i-arrow" viewBox="0 0 16 16">
+        <path d="M3 8h10M9 4l4 4-4 4" />
+      </symbol>
+      <symbol id="i-diary" viewBox="0 0 28 28">
+        <rect x="4" y="6" width="20" height="17" rx="4" />
+        <path d="M4 11h20M10 4v4M18 4v4" />
+      </symbol>
+      <symbol id="i-person" viewBox="0 0 28 28">
+        <circle cx="14" cy="10" r="4.5" />
+        <path d="M5.5 23c1.4-4.2 4.6-6.3 8.5-6.3s7.1 2.1 8.5 6.3" />
+      </symbol>
+      <symbol id="i-shield" viewBox="0 0 28 28">
+        <path d="M14 4l8 3v6.5c0 5-3.4 8.6-8 10.5-4.6-1.9-8-5.5-8-10.5V7z" />
+        <path d="M10.5 14l2.5 2.5 4.5-5" />
+      </symbol>
+    </svg>
+
+    <a class="skip" href="#top">Skip to content</a>
+
+    <header class="nav">
+      <div class="wrap">
+        <a class="mark" href="#top" aria-label="SALEANE home">
+          <img src="mark.svg" width="26" height="26" alt="" />
+          SALEANE
+        </a>
+        <nav class="nav-links" aria-label="Main">
+          <a href="#made-for">Who it is for</a>
+          <a href="#studio">Inside SALEANE</a>
+          <a href="#ask">Ask Saleane</a>
+          <a href="#pricing">Pricing</a>
+        </nav>
+        <a class="btn btn-main btn-small" href="#pricing">Get started</a>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-photo">
+          <img
+            src="images/reception.webp"
+            alt="A guest arriving at a sunlit studio reception, greeted at the desk"
+            fetchpriority="high"
+          />
+        </div>
         <div class="wrap">
-          <a class="mark" href="#top" aria-label="SALEANE home">
-            <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
-              <circle cx="13" cy="13" r="12" fill="none" stroke="#5f8471" stroke-width="1.2" />
-              <path
-                d="M8 16.5c1.4 1.3 3 1.9 5 1.9 2.3 0 3.9-1 3.9-2.7 0-3.6-8.4-2.2-8.4-6 0-1.6 1.6-2.7 3.9-2.7 1.7 0 3.1.5 4.3 1.6"
-                fill="none"
-                stroke="#5f8471"
-                stroke-width="1.2"
-                stroke-linecap="round"
-              />
-            </svg>
-            SALEANE
-          </a>
-          <nav class="nav-links" aria-label="Main">
-            <a href="#guests">For guests</a>
-            <a href="#studio">For your team</a>
-            <a href="#ask">Ask Saleane</a>
-            <a href="#pricing">Pricing</a>
-          </nav>
-          <a class="btn btn-main" href="#pricing">Get started</a>
+          <p class="eyebrow">For hair, beauty and wellbeing studios</p>
+          <h1 id="hero-title">Every visit,<br /><em>beautifully</em> looked after.</h1>
+          <p class="lede">
+            SALEANE brings bookings, the calendar, the till, your clients and your team into one
+            calm place, so the day runs itself and every guest feels remembered.
+          </p>
+          <div class="actions">
+            <a class="btn btn-main" href="#pricing"
+              >Get started <svg class="icon"><use href="#i-arrow" /></svg
+            ></a>
+            <a class="btn btn-quiet" href="#studio">See a day in SALEANE</a>
+          </div>
+          <p class="small">We move you in from your old system for free.</p>
         </div>
-      </header>
+        <div class="visit-card" aria-label="Example visit">
+          <div class="row">
+            <span class="time">10:30</span><span class="muted">Signature facial, 60 min</span>
+          </div>
+          <div class="row">
+            <span class="face f1"></span>
+            <div>
+              <div class="who">Amara Okafor</div>
+              <div class="muted">with Jade, Room 2</div>
+            </div>
+          </div>
+          <div class="note">Fourth visit. Prefers unscented oils.</div>
+        </div>
+      </section>
 
-      <main id="top">
-        <div class="hero">
-          <div class="hero-photo">
-            <img
-              src="images/reception.webp"
-              alt="A guest arriving at a sunlit studio reception, greeted at the desk"
-            />
+      <div class="wrap">
+        <ul class="strip">
+          <li>Online booking</li>
+          <li>Calendar</li>
+          <li>Till and gift cards</li>
+          <li>Clients</li>
+          <li>Pay and rota</li>
+          <li>Marketing</li>
+          <li>Ask Saleane</li>
+        </ul>
+      </div>
+
+      <section class="promises" id="why" aria-labelledby="why-title">
+        <div class="wrap">
+          <div class="head">
+            <p class="eyebrow">A little less admin. A lot more care.</p>
+            <h2 id="why-title">Because great care should not be <em>complicated</em>.</h2>
           </div>
-          <div class="wrap">
-            <p class="eyebrow">For hair, beauty and wellbeing studios</p>
-            <h1 style="margin-top: 20px">Every visit,<br /><em>beautifully</em> looked after.</h1>
-            <p class="lede">
-              SALEANE brings bookings, the calendar, the till, your clients and your team into one
-              calm place, so the day runs itself and every guest feels remembered.
-            </p>
-            <div class="actions">
-              <a class="btn btn-main" href="#pricing"
-                >Get started
-                <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-                  <path
-                    d="M3 8h10M9 4l4 4-4 4"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  /></svg
-              ></a>
-              <a class="btn btn-quiet" href="#studio">See a day in SALEANE</a>
-            </div>
-            <p class="small">We move you in from your old system for free.</p>
-          </div>
-          <div class="visit-card" aria-label="Example visit">
-            <div class="row">
-              <span class="time">10:30</span><span class="what">Signature facial, 60 min</span>
-            </div>
-            <div class="row">
-              <span class="face f1"></span>
-              <div>
-                <div class="who">Amara Okafor</div>
-                <div class="what">with Jade, Room 2</div>
-              </div>
-            </div>
-            <div class="note">Fourth visit. Prefers unscented oils.</div>
+          <div class="promise-row">
+            <article>
+              <svg class="icon icon-lg"><use href="#i-diary" /></svg>
+              <h3>One beautifully organised place</h3>
+              <p>
+                Your diary, people, payments and conversations belong together. No more piecing the
+                day together across tabs.
+              </p>
+            </article>
+            <article>
+              <svg class="icon icon-lg"><use href="#i-person" /></svg>
+              <h3>Every client, thoughtfully remembered</h3>
+              <p>
+                See visits, preferences and what comes next, so the relationship feels personal long
+                after they leave.
+              </p>
+            </article>
+            <article>
+              <svg class="icon icon-lg"><use href="#i-shield" /></svg>
+              <h3>Confidence behind the scenes</h3>
+              <p>
+                Clear records, sensible permissions and an honest picture of the business, without
+                the noise.
+              </p>
+            </article>
           </div>
         </div>
+      </section>
 
-        <div class="strip wrap">
-          <ul>
-            <li>Online booking</li>
-            <li>Calendar</li>
-            <li>Till and gift cards</li>
-            <li>Clients</li>
-            <li>Pay and rota</li>
-            <li>Marketing</li>
-            <li>Ask Saleane</li>
+      <section class="care" id="made-for" aria-labelledby="care-title">
+        <div class="wrap">
+          <div class="head">
+            <p class="eyebrow">Made for your world</p>
+            <h2 id="care-title">For every kind of <em>care</em>.</h2>
+            <p>Different crafts, one beautifully considered way of working.</p>
+          </div>
+          <ul class="care-row">
+            <li><img src="images/care-skin.webp" alt="" loading="lazy" />Skin studios</li>
+            <li><img src="images/care-nails.webp" alt="" loading="lazy" />Nail artists</li>
+            <li><img src="images/care-spa.webp" alt="" loading="lazy" />Spa teams</li>
+            <li><img src="images/care-hair.webp" alt="" loading="lazy" />Hair stylists</li>
+            <li><img src="images/care-massage.webp" alt="" loading="lazy" />Massage therapists</li>
+            <li><img src="images/care-wellness.webp" alt="" loading="lazy" />Wellness spaces</li>
           </ul>
         </div>
+      </section>
 
-        <section id="guests">
-          <div class="wrap">
+      <section class="guests" id="guests" aria-labelledby="guests-title">
+        <div class="wrap">
+          <div class="head">
+            <p class="eyebrow">Your booking page</p>
+            <h2 id="guests-title">Guests book in less than a minute, on any phone.</h2>
+            <p>
+              Your treatments, your photographs and your colours. Guests choose a time, pay a
+              deposit if you ask for one, and can move or cancel from a private link without
+              calling.
+            </p>
+          </div>
+          <div class="trio">
+            <figure>
+              <img
+                src="images/blow-dry.webp"
+                alt="A stylist giving a client a blow dry in a bright salon"
+                loading="lazy"
+              />
+              <figcaption><span>Cut and blow dry</span><small>60 min · £65</small></figcaption>
+            </figure>
+            <figure>
+              <img
+                src="images/facial.webp"
+                alt="A guest relaxing during a facial treatment"
+                loading="lazy"
+              />
+              <figcaption><span>Signature facial</span><small>60 min · £85</small></figcaption>
+            </figure>
+            <figure>
+              <img
+                src="images/manicure.webp"
+                alt="A guest having a manicure by a sunny window"
+                loading="lazy"
+              />
+              <figcaption><span>Gel manicure</span><small>45 min · £38</small></figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section class="studio" id="studio" aria-labelledby="studio-title">
+        <div class="wrap">
+          <div>
             <div class="head">
-              <p class="eyebrow">Your booking page</p>
-              <h2>Guests book in less than a minute, on any phone.</h2>
+              <p class="eyebrow">Inside SALEANE</p>
+              <h2 id="studio-title">The whole day, on one quiet screen.</h2>
               <p>
-                Your treatments, your photographs and your colours. Guests choose a time, pay a
-                deposit if you ask for one, and can move or cancel from a private link without
-                calling.
+                Open SALEANE in the morning and everything is ready: who is coming, what they love,
+                what still needs paying, and where the gaps are.
               </p>
             </div>
-            <div class="trio">
-              <figure>
-                <div class="ph">
-                  <img
-                    src="images/blow-dry.webp"
-                    alt="A stylist giving a client a blow dry in a bright salon"
-                    loading="lazy"
-                  />
-                </div>
-                <figcaption>
-                  <span class="t">Cut and blow dry</span><span class="m">60 min · £65</span>
-                </figcaption>
-              </figure>
-              <figure>
-                <div class="ph">
-                  <img
-                    src="images/facial.webp"
-                    alt="A guest relaxing during a facial treatment"
-                    loading="lazy"
-                  />
-                </div>
-                <figcaption>
-                  <span class="t">Signature facial</span><span class="m">60 min · £85</span>
-                </figcaption>
-              </figure>
-              <figure>
-                <div class="ph">
-                  <img
-                    src="images/manicure.webp"
-                    alt="A guest having a manicure by a sunny window"
-                    loading="lazy"
-                  />
-                </div>
-                <figcaption>
-                  <span class="t">Gel manicure</span><span class="m">45 min · £38</span>
-                </figcaption>
-              </figure>
+            <div class="features">
+              <div>
+                <h3>A calendar that fills gaps</h3>
+                <p>A cancelled time is offered to your waitlist straight away.</p>
+              </div>
+              <div>
+                <h3>A till that adds up</h3>
+                <p>Treatments, products, gift cards, tips and receipts in one checkout.</p>
+              </div>
+              <div>
+                <h3>Clients remembered</h3>
+                <p>Notes, patch tests, forms and every past visit, kept together.</p>
+              </div>
+              <div>
+                <h3>Pay and rota</h3>
+                <p>Commission and tips worked out fairly, and a rota everyone can see.</p>
+              </div>
             </div>
           </div>
-        </section>
 
-        <section class="studio" id="studio">
-          <div class="wrap">
-            <div>
-              <div class="head">
-                <p class="eyebrow">For your team</p>
-                <h2>The whole day, on one quiet screen.</h2>
-                <p>
-                  Open SALEANE in the morning and everything is ready: who is coming, what they
-                  love, what still needs paying, and where the gaps are.
-                </p>
-              </div>
-              <div class="features">
-                <div>
-                  <h3>A calendar that fills gaps</h3>
-                  <p>A cancelled time is offered to your waitlist straight away.</p>
-                </div>
-                <div>
-                  <h3>A till that adds up</h3>
-                  <p>Treatments, products, gift cards, tips and receipts in one checkout.</p>
-                </div>
-                <div>
-                  <h3>Clients remembered</h3>
-                  <p>Notes, patch tests, forms and every past visit, kept together.</p>
-                </div>
-                <div>
-                  <h3>Pay and rota</h3>
-                  <p>Commission and tips worked out fairly, and a rota everyone can see.</p>
-                </div>
-              </div>
+          <div class="preview">
+            <div class="seg" role="group" aria-label="Choose which screen to show">
+              <button type="button" aria-pressed="true" data-view="studio">Your studio</button>
+              <button type="button" aria-pressed="false" data-view="guest">Your guests</button>
             </div>
-            <div class="app" role="img" aria-label="Example of the SALEANE Today screen">
-              <aside>
-                <b>SALEANE</b><span class="on">Today</span><span>Calendar</span><span>Clients</span
+            <div class="app" data-view="studio" aria-label="Example screens with made-up details">
+              <aside class="for-studio">
+                <b>SALEANE</b>
+                <span class="on">Today</span><span>Calendar</span><span>Clients</span
                 ><span>Inbox</span><span>Money</span><span>Marketing</span><span>Settings</span>
               </aside>
-              <main>
+              <div class="screen for-studio">
                 <div class="banner">
-                  <img src="images/treatment-room.webp" alt="" />
+                  <img src="images/treatment-room.webp" alt="" loading="lazy" />
                   <h3>Good morning, Jade</h3>
                 </div>
                 <div class="stats">
@@ -200,233 +254,293 @@
                   <div><small>Booked</small><strong>86%</strong></div>
                   <div><small>Takings so far</small><strong>£412</strong></div>
                 </div>
-                <ol>
+                <ol class="day">
                   <li>
-                    <time>09:00</time><span class="face f2"></span
-                    ><span class="n">Helen Marsh<small>Colour and gloss</small></span
-                    ><span class="chip ok">Arrived</span>
+                    <time>09:00</time><span class="face f2"></span>
+                    <span class="name">Helen Marsh<small>Colour and gloss</small></span>
+                    <span class="chip ok">Arrived</span>
                   </li>
                   <li>
-                    <time>10:30</time><span class="face f1"></span
-                    ><span class="n">Amara Okafor<small>Signature facial</small></span
-                    ><span class="chip new">Birthday week</span>
+                    <time>10:30</time><span class="face f1"></span>
+                    <span class="name">Amara Okafor<small>Signature facial</small></span>
+                    <span class="chip rose">Birthday week</span>
                   </li>
                   <li>
-                    <time>11:45</time><span class="face f3"></span
-                    ><span class="n">Priya Shah<small>Gel manicure</small></span
-                    ><span class="chip wait">Deposit paid</span>
+                    <time>11:45</time><span class="face f3"></span>
+                    <span class="name">Priya Shah<small>Gel manicure</small></span>
+                    <span class="chip">Deposit paid</span>
                   </li>
                   <li>
-                    <time>13:15</time><span class="face f4"></span
-                    ><span class="n">Mei Lin Chen<small>Cut and blow dry</small></span
-                    ><span class="chip ok">Confirmed</span>
+                    <time>13:15</time><span class="face f4"></span>
+                    <span class="name">Mei Lin Chen<small>Cut and blow dry</small></span>
+                    <span class="chip ok">Confirmed</span>
                   </li>
                 </ol>
-              </main>
-            </div>
-          </div>
-        </section>
-
-        <section class="ask" id="ask">
-          <div class="wrap">
-            <div class="ask-photo">
-              <img
-                src="images/tea.webp"
-                alt="A cup of herbal tea on a linen cloth in morning light"
-                loading="lazy"
-              />
-              <div class="chat" aria-label="Example conversation with Ask Saleane">
-                <div class="bub me">Who hasn't been back in three months?</div>
-                <div class="bub ai">
-                  <small>Ask Saleane</small>Eleven regulars. Shall I write them a gentle note with
-                  two times this Friday?
+              </div>
+              <div class="screen booking for-guest">
+                <small class="kicker">A little time for you</small>
+                <h3>Choose your treatment</h3>
+                <ol class="menu">
+                  <li>
+                    <img src="images/facial.webp" alt="" loading="lazy" />
+                    <span class="name">Signature facial<small>60 min · £85</small></span>
+                    <span class="chip ok">Thu 10:30</span>
+                  </li>
+                  <li>
+                    <img src="images/blow-dry.webp" alt="" loading="lazy" />
+                    <span class="name">Cut and blow dry<small>60 min · £65</small></span>
+                    <span class="chip ok">Thu 13:15</span>
+                  </li>
+                  <li>
+                    <img src="images/manicure.webp" alt="" loading="lazy" />
+                    <span class="name">Gel manicure<small>45 min · £38</small></span>
+                    <span class="chip ok">Fri 09:00</span>
+                  </li>
+                </ol>
+                <div class="booking-foot">
+                  <span>Deposit £20, the rest on the day</span><b>Continue</b>
                 </div>
               </div>
             </div>
-            <div>
-              <div class="head">
-                <p class="eyebrow">Ask Saleane</p>
-                <h2>A helper that knows your studio.</h2>
-                <p>
-                  Ask in plain words and get a straight answer. Ask Saleane can also chat with
-                  guests on your booking page and, if you like, answer the phone.
+          </div>
+        </div>
+      </section>
+
+      <section class="panels" aria-label="Clients and money">
+        <div class="wrap">
+          <div class="panel-row">
+            <article class="panel">
+              <p class="eyebrow">Relationships first</p>
+              <h3>Remember the person.</h3>
+              <p class="muted">
+                A story that goes beyond one appointment, from the first hello to the next visit.
+              </p>
+              <div class="sheet">
+                <div class="row">
+                  <span class="face f3"></span>
+                  <div>
+                    <b>Maya Reid</b>
+                    <small class="muted">Client since 2024 · 9 visits</small>
+                  </div>
+                </div>
+                <p class="note">Prefers mornings. Sensitive skin, patch test done 2 March.</p>
+                <ul class="visits">
+                  <li><span>Next</span><b>Brow shape, Thu 11:00</b></li>
+                  <li><span>4 March</span>Brow treatment with Jade</li>
+                  <li><span>2 Feb</span>Signature facial with Jade</li>
+                </ul>
+              </div>
+            </article>
+            <article class="panel">
+              <p class="eyebrow">A clearer picture</p>
+              <h3>Know where you stand.</h3>
+              <p class="muted">
+                Payments, performance and the everyday numbers, all tied to real visits.
+              </p>
+              <div class="sheet">
+                <div class="money"><small class="muted">This week</small><b>£2,840</b></div>
+                <div class="bars" aria-hidden="true">
+                  <i style="--h: 36%"></i><i style="--h: 58%"></i><i style="--h: 72%"></i
+                  ><i style="--h: 48%"></i><i class="peak" style="--h: 91%"></i
+                  ><i style="--h: 66%"></i><i style="--h: 82%"></i>
+                </div>
+                <div class="days" aria-hidden="true">
+                  <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span
+                  ><span>S</span><span>S</span>
+                </div>
+                <p class="note">28 visits completed · 6 gift cards sold</p>
+              </div>
+            </article>
+          </div>
+          <p class="fine">Example screens with made-up details.</p>
+        </div>
+      </section>
+
+      <section class="ask" id="ask" aria-labelledby="ask-title">
+        <div class="wrap">
+          <div class="ask-photo">
+            <img
+              src="images/tea.webp"
+              alt="A cup of herbal tea on a linen cloth in morning light"
+              loading="lazy"
+            />
+            <div class="chat" aria-label="Example conversation with Ask Saleane">
+              <p class="bubble me">Who hasn't been back in three months?</p>
+              <p class="bubble ai">
+                <small>Ask Saleane</small>Eleven regulars. Shall I write them a gentle note with two
+                times this Friday?
+              </p>
+            </div>
+          </div>
+          <div>
+            <div class="head">
+              <p class="eyebrow">Ask Saleane</p>
+              <h2 id="ask-title">A helper that knows your studio.</h2>
+              <p>
+                Ask in plain words and get a straight answer. Ask Saleane can also chat with guests
+                on your booking page and, if you like, answer the phone.
+              </p>
+            </div>
+            <ul class="ticks">
+              <li>
+                <svg class="icon"><use href="#i-tick" /></svg>Always says it is an AI, and speaks as
+                your studio.
+              </li>
+              <li>
+                <svg class="icon"><use href="#i-tick" /></svg>Never books or charges without the
+                rules you set.
+              </li>
+              <li>
+                <svg class="icon"><use href="#i-tick" /></svg>Included in every plan, with a clear
+                monthly limit.
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="pricing" id="pricing" aria-labelledby="pricing-title">
+        <div class="wrap">
+          <div class="head">
+            <p class="eyebrow">Pricing</p>
+            <h2 id="pricing-title">One clear price for each location.</h2>
+            <p>Everything a studio needs. Start with 14 days free, no card needed.</p>
+          </div>
+          <div class="seg region" role="group" aria-label="Choose your country">
+            <button type="button" aria-pressed="true" data-region="uk">United Kingdom</button>
+            <button type="button" aria-pressed="false" data-region="us">United States</button>
+          </div>
+          <div class="price-grid">
+            <div class="plan">
+              <div>
+                <p class="eyebrow">SALEANE</p>
+                <p class="amount">
+                  <strong data-uk="£49" data-us="$59">£49</strong><span>a month, per location</span>
                 </p>
               </div>
-              <ul>
+              <ul class="ticks">
                 <li>
-                  <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-                    <circle cx="9" cy="9" r="8.2" fill="#eef3ef" />
-                    <path
-                      d="M5.5 9.2l2.3 2.3 4.7-4.9"
-                      fill="none"
-                      stroke="#5f8471"
-                      stroke-width="1.6"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    /></svg
-                  >Always says it is an AI, and speaks as your studio.
+                  <svg class="icon"><use href="#i-tick" /></svg>
+                  <span
+                    >Five people who take bookings, then
+                    <span data-uk="£9" data-us="$12">£9</span> a month each</span
+                  >
                 </li>
                 <li>
-                  <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-                    <circle cx="9" cy="9" r="8.2" fill="#eef3ef" />
-                    <path
-                      d="M5.5 9.2l2.3 2.3 4.7-4.9"
-                      fill="none"
-                      stroke="#5f8471"
-                      stroke-width="1.6"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    /></svg
-                  >Never books or charges without the rules you set.
+                  <svg class="icon"><use href="#i-tick" /></svg>Reception and managers always free
                 </li>
                 <li>
-                  <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-                    <circle cx="9" cy="9" r="8.2" fill="#eef3ef" />
-                    <path
-                      d="M5.5 9.2l2.3 2.3 4.7-4.9"
-                      fill="none"
-                      stroke="#5f8471"
-                      stroke-width="1.6"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    /></svg
-                  >Included in every plan, with a clear monthly limit.
+                  <svg class="icon"><use href="#i-tick" /></svg>Booking page, calendar, till,
+                  clients, pay and rota
+                </li>
+                <li>
+                  <svg class="icon"><use href="#i-tick" /></svg>Ask Saleane: 300 questions, 30 talk
+                  minutes and 200 guest chats
+                </li>
+                <li>
+                  <svg class="icon"><use href="#i-tick" /></svg>Free help moving in from your old
+                  system
                 </li>
               </ul>
+              <a class="btn btn-main" href="#top">Get started</a>
             </div>
-          </div>
-        </section>
-
-        <section class="pricing" id="pricing">
-          <div class="wrap">
-            <div class="head">
-              <p class="eyebrow">Pricing</p>
-              <h2>One clear price for each location.</h2>
-              <p>Everything a studio needs. Start with 14 days free, no card needed.</p>
-            </div>
-            <div class="price-grid">
-              <div class="plan">
-                <div>
-                  <p class="eyebrow">SALEANE</p>
-                  <div class="amount" style="margin-top: 12px">
-                    <strong>£49</strong><span>a month, per location</span>
-                  </div>
+            <div>
+              <div class="extras">
+                <div class="extra">
+                  <h3>Plus</h3>
+                  <span class="price">+ <span data-uk="£39" data-us="$49">£39</span> a month</span>
+                  <p>More room for Ask Saleane, for busy studios that lean on it every day.</p>
                 </div>
-                <ul>
-                  <li>
-                    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-                      <path
-                        d="M2.5 7.2l2.8 2.8 6.2-6.4"
-                        fill="none"
-                        stroke="#5f8471"
-                        stroke-width="1.7"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      /></svg
-                    >Five people who take bookings, then £9 a month each
-                  </li>
-                  <li>
-                    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-                      <path
-                        d="M2.5 7.2l2.8 2.8 6.2-6.4"
-                        fill="none"
-                        stroke="#5f8471"
-                        stroke-width="1.7"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      /></svg
-                    >Reception and managers always free
-                  </li>
-                  <li>
-                    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-                      <path
-                        d="M2.5 7.2l2.8 2.8 6.2-6.4"
-                        fill="none"
-                        stroke="#5f8471"
-                        stroke-width="1.7"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      /></svg
-                    >Booking page, calendar, till, clients, pay and rota
-                  </li>
-                  <li>
-                    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-                      <path
-                        d="M2.5 7.2l2.8 2.8 6.2-6.4"
-                        fill="none"
-                        stroke="#5f8471"
-                        stroke-width="1.7"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      /></svg
-                    >Ask Saleane: 300 questions, 30 talk minutes and 200 guest chats
-                  </li>
-                  <li>
-                    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-                      <path
-                        d="M2.5 7.2l2.8 2.8 6.2-6.4"
-                        fill="none"
-                        stroke="#5f8471"
-                        stroke-width="1.7"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      /></svg
-                    >Free help moving in from your old system
-                  </li>
-                </ul>
-                <div><a class="btn btn-main" href="#top">Get started</a></div>
-              </div>
-              <div>
-                <div class="extras">
-                  <div class="extra">
-                    <h3>Plus</h3>
-                    <span class="p">+ £39 a month</span>
-                    <p>More room for Ask Saleane, for busy studios that lean on it every day.</p>
-                  </div>
-                  <div class="extra">
-                    <h3>Phone receptionist</h3>
-                    <span class="p">+ £79 a month</span>
-                    <p>
-                      Ask Saleane answers your phone, books and moves visits. 300 minutes a month.
-                    </p>
-                  </div>
-                  <div class="extra">
-                    <h3>Another location</h3>
-                    <span class="p">£49 a month</span>
-                    <p>
-                      Each studio gets its own team, rooms and hours, with one view across them all.
-                    </p>
-                  </div>
+                <div class="extra">
+                  <h3>Phone receptionist</h3>
+                  <span class="price">+ <span data-uk="£79" data-us="$99">£79</span> a month</span>
+                  <p>
+                    Ask Saleane answers your phone, books and moves visits. 300 minutes a month.
+                  </p>
                 </div>
-                <p class="fine">Prices are plus VAT.</p>
+                <div class="extra">
+                  <h3>Another location</h3>
+                  <span class="price"><span data-uk="£49" data-us="$59">£49</span> a month</span>
+                  <p>
+                    Each studio gets its own team, rooms and hours, with one view across them all.
+                  </p>
+                </div>
               </div>
+              <p
+                class="fine"
+                data-uk="Prices are plus VAT."
+                data-us="Prices are plus any sales tax."
+              >
+                Prices are plus VAT.
+              </p>
             </div>
           </div>
-        </section>
 
-        <section class="close">
-          <img
-            src="images/lounge.webp"
-            alt="A calm, plant-filled studio lounge in soft daylight"
-            loading="lazy"
-          />
-          <div class="card">
-            <h2>Make your studio feel like this every day.</h2>
-            <p>Set up in an afternoon. We'll bring your clients and future visits with you.</p>
-            <a class="btn btn-main" href="#pricing">Get started</a>
+          <div class="faq">
+            <h3>Questions studios ask</h3>
+            <details>
+              <summary>Who is SALEANE made for?</summary>
+              <p>
+                Independent hair, beauty, spa and wellness studios, from one person working alone to
+                teams across several locations.
+              </p>
+            </details>
+            <details>
+              <summary>Can my clients book online?</summary>
+              <p>
+                Yes. Guests book from your own booking page, pay a deposit if you ask for one, and
+                can move or cancel their visit from a private link.
+              </p>
+            </details>
+            <details>
+              <summary>Can I bring my existing clients?</summary>
+              <p>
+                Yes. We move you in from your old system for free, including visits already booked.
+                If your old file has no marketing permission for someone, we never assume it.
+              </p>
+            </details>
+            <details>
+              <summary>Can I try it without a card?</summary>
+              <p>Yes. You get 14 days free, and we don't ask for a card to start.</p>
+            </details>
+            <details>
+              <summary>How does pricing work for my team?</summary>
+              <p>
+                Each location covers five people who take bookings. Each extra person is
+                <span data-uk="£9" data-us="$12">£9</span> a month, and reception and managers are
+                always free.
+              </p>
+            </details>
+            <details>
+              <summary>Does it work in the UK and the US?</summary>
+              <p>Yes. Each studio has its own currency, time zone and spelling.</p>
+            </details>
           </div>
-        </section>
-      </main>
-
-      <footer>
-        <div class="wrap">
-          <span>© 2026 SALEANE. Made in Britain.</span>
-          <nav aria-label="Footer">
-            <a href="#guests">For guests</a><a href="#studio">For your team</a
-            ><a href="#ask">Ask Saleane</a><a href="#pricing">Pricing</a>
-          </nav>
         </div>
-      </footer>
-    </div>
+      </section>
+
+      <section class="close" aria-labelledby="close-title">
+        <img
+          src="images/lounge.webp"
+          alt="A calm, plant-filled studio lounge in soft daylight"
+          loading="lazy"
+        />
+        <div class="close-card">
+          <h2 id="close-title">Make room for the work <em>you love</em>.</h2>
+          <p>Set up in an afternoon. We'll bring your clients and future visits with you.</p>
+          <a class="btn btn-main" href="#pricing">Get started</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="wrap">
+        <span>© 2026 SALEANE. Made in Britain.</span>
+        <nav aria-label="Footer">
+          <a href="#made-for">Who it is for</a><a href="#studio">Inside SALEANE</a
+          ><a href="#ask">Ask Saleane</a><a href="#pricing">Pricing</a>
+        </nav>
+      </div>
+    </footer>
   </body>
 </html>

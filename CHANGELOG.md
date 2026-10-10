@@ -8,6 +8,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 - A new `web/` folder holds SALEANE's own public homepage, the page a salon or studio owner lands on: plain HTML and CSS with no build step, separate from the app. It uses the house photographs, Newsreader headings and Figtree text, and the warm ivory, sage and soft rose colours.
 - It shows the booking page, a day on the Today screen, Ask Saleane and the prices from `src/domain/pricing.ts` (£49 a month per location for five people who take bookings, then £9 each; Plus £39; phone receptionist £79; 14 days free; plus VAT). People and visits on it are made up.
+- Also brings in the best of the earlier website draft: three promises, "For every kind of care" with six crafts, a switch between the studio's Today screen and the guest booking screen, client and money panels, a UK or US price switch and six common questions. Its "every feature included, however many people" line was left out because it contradicts the £9 per extra person.
 - Checked in a browser at 1440px and 390px with no sideways scrolling. A preview is at https://claude.ai/artifact/PwAP5qTojHNnBaRdACLZ4C.
 
 ## 2026-10-10 · Claude behind Ask SALEANE and the receptionist (NEXT-12, part 1)
