@@ -22,6 +22,13 @@ import { SentEmail } from './EmailPreview'
 const providerLabel: Record<string, string> = {
   test: 'test mode',
   postmark: 'Postmark',
+  resend: 'Resend',
+  sendgrid: 'SendGrid',
+  mailgun: 'Mailgun',
+  ses: 'Amazon SES',
+  smtp: 'a mail server',
+  google: 'Google Workspace',
+  microsoft: 'Microsoft 365',
   twilio: 'Twilio',
 }
 
