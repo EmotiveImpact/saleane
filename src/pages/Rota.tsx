@@ -16,11 +16,15 @@ import '../components/management.css'
 import '../rota.css'
 import { StudioDateField } from '../components/StudioDateField'
 import { RotaDayDialog, RotaWeekDialog } from '../components/RotaChanges'
+import { StaffMovesPanel } from '../components/StaffMove'
+import { staffMoves } from '../domain/staffMoves'
 
 /**
  * V2: the week's rota from everyone's usual hours, who is away, and each person's holiday
  * allowance. Time off stops people being booked; it never moves or cancels a visit already booked.
  * Stage 3: owners and managers change one day for one person, or add a day, straight from the week.
+ * Stage 4: with more than one location, they move someone to another location from a date, and the
+ * week marks the first day there.
  */
 export function Rota() {
   const { state, role, blocked, commit } = useStore()
@@ -49,6 +53,24 @@ export function Rota() {
   // On a narrow screen the week scrolls sideways; the far edge fades while there is more to see.
   const scroller = useRef<HTMLDivElement>(null)
   const edges = useScrollEdges(scroller)
+  // Stage 4: each person's first working day at a new location, when it falls in this week: a
+  // weekday the move took, worked at the location it moved to.
+  const firstDays = new Set<string>()
+  for (const move of staffMoves(state)) {
+    if (move.cancelled) continue
+    const moved = new Set(move.days.map((d) => d.day))
+    const first = week
+      .find((row) => row.person.id === move.staffId)
+      ?.days.find(
+        (day) =>
+          day.state === 'working' &&
+          day.locationId === move.to &&
+          day.date >= move.date &&
+          day.date < addDays(move.date, 7) &&
+          moved.has(new Date(`${day.date}T12:00:00Z`).getUTCDay()),
+      )
+    if (first) firstDays.add(`${move.staffId} ${first.date}`)
+  }
   const away = [...(operations(state).timeOff ?? [])]
     .filter((t) => t.to >= addDays(today, -31))
     .sort((a, b) => a.from.localeCompare(b.from))
@@ -186,9 +208,11 @@ export function Rota() {
                   </th>
                   {days.map((day) => {
                     const changed = 'change' in day && !!day.change
+                    const moved = firstDays.has(`${person.id} ${day.date}`)
                     const cell = (
                       <RotaCell
                         day={day}
+                        moved={moved}
                         locale={org.locale}
                         place={
                           multiSite && day.state === 'working'
@@ -206,7 +230,7 @@ export function Rota() {
                           <button
                             type="button"
                             className="rota-cell"
-                            aria-label={`Change ${person.name}'s day, ${dateLabel(day.date, org.locale)}. ${cellWords(day, org.locale)}`}
+                            aria-label={`Change ${person.name}'s day, ${dateLabel(day.date, org.locale)}. ${cellWords(day, org.locale, moved)}`}
                             onClick={() => {
                               setChanging({ staffId: person.id, date: day.date })
                               setNotice('')
@@ -278,6 +302,7 @@ export function Rota() {
             <p className="subtle">Nobody has time off recorded.</p>
           )}
         </section>
+        {(multiSite || staffMoves(state).length > 0) && <StaffMovesPanel onNotice={setNotice} />}
         <section className="surface ops-panel" aria-labelledby="holiday-heading">
           <header>
             <div>
@@ -372,7 +397,18 @@ export function Rota() {
 }
 
 /** What one day of the rota shows: hours and where, off or away, and anything changed. */
-function RotaCell({ day, locale, place }: { day: RotaDay; locale: string; place?: string }) {
+function RotaCell({
+  day,
+  locale,
+  place,
+  moved = false,
+}: {
+  day: RotaDay
+  locale: string
+  place?: string
+  /** Stage 4: their first working day at a new location. */
+  moved?: boolean
+}) {
   const tag =
     'kind' in day && day.kind ? (
       <span className="rota-tag">{day.kind === 'extra' ? 'Extra day' : 'Changed'}</span>
@@ -395,6 +431,7 @@ function RotaCell({ day, locale, place }: { day: RotaDay; locale: string; place?
           </small>
         )}
         {tag}
+        {moved && <span className="rota-tag">New location</span>}
         {outside}
       </>
     )
@@ -417,14 +454,16 @@ function RotaCell({ day, locale, place }: { day: RotaDay; locale: string; place?
 }
 
 /** A day in words, for the button that opens it. */
-function cellWords(day: RotaDay, locale: string) {
+function cellWords(day: RotaDay, locale: string, moved = false) {
   const changed =
     'kind' in day && day.kind ? (day.kind === 'extra' ? ' Extra day.' : ' Changed.') : ''
   const outside =
     'outside' in day && day.outside.length
       ? ` ${day.outside.length} booked ${day.outside.length === 1 ? 'visit' : 'visits'} outside the hours.`
       : ''
-  if (day.state === 'working') return `${span(day.open, day.close, locale)}.${changed}${outside}`
+  const first = moved ? ' First day at a new location.' : ''
+  if (day.state === 'working')
+    return `${span(day.open, day.close, locale)}.${changed}${first}${outside}`
   return `Not working.${changed}${outside}`
 }
 

@@ -66,6 +66,9 @@ export function moveSampleDay(s: BusinessState, to: string): BusinessState {
     for (const hours of week) hours.day = (hours.day + turn) % 7
     week.sort((a, b) => a.day - b.day)
   }
+  // Stage 4: the weekdays a move took with it turn with them.
+  for (const move of moved.operations?.staffMoves ?? [])
+    for (const day of move.days) day.day = (day.day + turn) % 7
   return moved
 }
 

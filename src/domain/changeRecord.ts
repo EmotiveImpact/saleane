@@ -6,6 +6,8 @@ import { METHOD_WORDS } from './accounts'
 import { csvRows } from './csv'
 import { dateLabel, fullDateLabel, money, timeLabel } from './format'
 import { rotaChangeDetail } from './rota'
+import { giftMoveDetail } from './giftCards'
+import { staffMoveDetail } from './staffMoves'
 
 /**
  * NEXT-05: who changed what. Every saved change is already written to the studio's audit log
@@ -89,6 +91,7 @@ const commandWords: Record<Command['type'], Words> = {
   'gift-card-sell': ['money', 'Sold a gift card'],
   'gift-card-extend': ['money', 'Extended a gift card'],
   'gift-card-cancel': ['money', 'Cancelled a gift card'],
+  'gift-card-move': ['money', 'Moved a gift card to another location'],
   'patch-test': ['clients', 'Recorded a patch test'],
   'patch-test-result': ['clients', 'Recorded a patch test result'],
   'patch-test-settings': ['settings', 'Changed the patch test rules'],
@@ -148,6 +151,8 @@ const commandWords: Record<Command['type'], Words> = {
   'rota-day-usual': ['team', 'Put a day on the rota back to usual hours'],
   'rota-week-copy': ['team', 'Copied last week’s rota changes'],
   'rota-week-clear': ['team', 'Cleared a week’s rota changes'],
+  'staff-move': ['team', 'Moved someone to another location'],
+  'staff-move-cancel': ['team', 'Cancelled a move to another location'],
   'pay-rules': ['team', 'Changed the pay rules'],
   'pay-rate': ['team', 'Changed a pay rate'],
   'commission-rate': ['team', 'Changed a commission rate for a treatment or product'],
@@ -404,6 +409,9 @@ export function changeDetail(
   // Stage 3: a day on the rota keeps which day it was and its hours before and after.
   const rota = rotaChangeDetail(before, after, action, recordId)
   if (rota) return rota
+  // Stage 4: a gift card or someone moving keeps where from and where to.
+  const moved = giftMoveDetail(after, action, recordId) ?? staffMoveDetail(after, action, recordId)
+  if (moved) return moved
   let fields: ChangedField[] = []
   let made: ChangeDetail['made']
   const settings = settingsOf[action]
@@ -520,6 +528,9 @@ const fieldWords: Record<string, string> = {
   weekOf: 'week of',
   daysChanged: 'days changed',
   visitsKept: 'booked visits kept outside the hours',
+  // Stage 4: booked visits kept at a location someone moved away from.
+  visitsKeptAway: 'booked visits kept where they no longer work',
+  daysMoved: 'days of the week moved',
 }
 /** A detail's name in words: "cutoffHours" reads "cutoff hours". */
 export function fieldName(field: string) {
@@ -562,6 +573,8 @@ export function recordNames(s: BusinessState): RecordNames {
     return `${who}${what ? `, ${what}` : ''}, ${dateLabel(a.date, locale, true)} at ${timeLabel(a.startMinutes, locale)}`
   }
   const name = (id: string, depth = 0): string | undefined => {
+    // The main location is the studio's own, kept on the organisation rather than as a record.
+    if (id === s.organisation.locationId) return s.organisation.locationName
     const hit = byId.get(id)
     // Links only ever lead a few steps (a refund, its receipt, the visit), never round in a circle.
     if (!hit || depth > 3) return undefined

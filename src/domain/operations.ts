@@ -22,6 +22,8 @@ import { tillSettingsSchema } from './tillSchema'
 import { SHIFT_LIMIT, shiftSchema } from './hoursSchema'
 import { ROTA_CHANGE_LIMIT, ROTA_COMMANDS, rotaChangeSchema } from './rotaSchema'
 import type { RotaChange } from './rotaSchema'
+import { STAFF_MOVE_LIMIT, staffMoveSchema } from './staffMovesSchema'
+import type { StaffMove } from './staffMovesSchema'
 import { MISSED_CALL_LIMIT, missedCallSchema } from './missedCallsSchema'
 import { paymentMethodSchema, processorSchema } from './paymentMethods'
 import { RENT_LIMIT, RENT_PAYMENT_LIMIT, rentPaymentSchema, rentalSchema } from './rentSchema'
@@ -389,6 +391,8 @@ export const operationsSchema = z.object({
   shifts: z.array(shiftSchema).max(SHIFT_LIMIT).optional(),
   /** Stage 3: single days on the rota changed from someone's usual hours, or added. */
   rotaChanges: z.array(rotaChangeSchema).max(ROTA_CHANGE_LIMIT).optional(),
+  /** Stage 4: people moving to another location from a date (staffMovesSchema.ts). */
+  staffMoves: z.array(staffMoveSchema).max(STAFF_MOVE_LIMIT).optional(),
   /**
    * Stage 3: rates of their own for a treatment, a kind of treatment, products or a product, steps
    * by takings, and each person's monthly target, each kept as a history like the usual rates.
@@ -515,13 +519,51 @@ export function hoursFor(s: BusinessState, date: string, locationId?: string) {
       : undefined
   return (own ?? operations(s).hours).find((h) => h.day === day)!
 }
-/** A person's usual hours for a day from their weekly pattern, ignoring time off. */
-export function usualHoursFor(s: BusinessState, staffId: string, date: string) {
+/**
+ * A person's usual hours for a day from their weekly pattern, ignoring time off. Stage 4: the
+ * weekly pattern says where they work from their latest move on; a day before a move is where
+ * that move found it (`movedFrom`).
+ */
+export function usualHoursFor(
+  s: BusinessState,
+  staffId: string,
+  date: string,
+): z.infer<typeof hoursSchema> {
   const person = s.staff.find((p) => p.id === staffId)
-  return (
-    person?.hours?.find((h) => h.day === new Date(`${date}T12:00:00Z`).getUTCDay()) ??
-    hoursFor(s, date)
-  )
+  const weekday = new Date(`${date}T12:00:00Z`).getUTCDay()
+  const own = person?.hours?.find((h) => h.day === weekday)
+  if (!own) return hoursFor(s, date)
+  const before = movedFrom(s, staffId, date, weekday)
+  if (before === undefined) return own
+  const { locationId: _now, ...rest } = own
+  void _now
+  // The main location stays unnamed on hours, as everywhere else.
+  return before === s.organisation.locationId ? rest : { ...rest, locationId: before }
+}
+// Read thousands of times a request, like the rota: the moves still standing, by person, oldest
+// first. A list is never changed in place once read; the move commands always save a new one.
+const moveIndex = new WeakMap<StaffMove[], Map<string, StaffMove[]>>()
+/**
+ * Stage 4: where a weekday was before the first move after `date`, when one moved it. Undefined
+ * when no later move touched that weekday, so their weekly hours already say where it is.
+ */
+export function movedFrom(s: BusinessState, staffId: string, date: string, weekday: number) {
+  const list = operations(s).staffMoves
+  if (!list?.length) return undefined
+  let index = moveIndex.get(list)
+  if (!index) {
+    index = new Map()
+    for (const move of list)
+      if (!move.cancelled) index.set(move.staffId, [...(index.get(move.staffId) ?? []), move])
+    for (const moves of index.values()) moves.sort((a, b) => a.date.localeCompare(b.date))
+    moveIndex.set(list, index)
+  }
+  for (const move of index.get(staffId) ?? []) {
+    if (move.date <= date) continue
+    const day = move.days.find((d) => d.day === weekday)
+    if (day) return day.from
+  }
+  return undefined
 }
 /** Time off that covers a day for one person, if any (V2). */
 export function timeOffOn(s: BusinessState, staffId: string, date: string) {
@@ -591,6 +633,8 @@ export function permissionFor(command: { type: string; approve?: boolean }) {
   // Stage 3: changing a day on the rota is changing hours, for owners and managers.
   if ((ROTA_COMMANDS as readonly string[]).includes(command.type)) return 'hours'
   if (command.type === 'stock-move') return 'stock'
+  // Stage 4: cancelling a move still to come is part of moving someone.
+  if (command.type === 'staff-move-cancel') return 'staff-move'
   // NEXT-09 and NEXT-08: booking repeat visits, or visits for several people, is booking.
   if (command.type === 'book-repeat' || command.type === 'book-together') return 'book'
   // NEXT-07: clocking in and out is for everyone in the studio; changing hours is for managers.
@@ -641,6 +685,8 @@ export const GENERAL_ACTIONS = [
   'message',
   'message.queue',
   'gift-card-sell',
+  // Stage 4: only a card that belongs to their own location, to another (the server checks).
+  'gift-card-move',
   'plan-sell',
   'plan-renew',
   // Stage 1: card payments for memberships sold at their location (the server checks where).
@@ -739,6 +785,9 @@ export function can(role: Role, action: string) {
       'accounting-export',
       'gift-card-extend',
       'gift-card-cancel',
+      // Stage 4: moving a gift card or a team member to another location.
+      'gift-card-move',
+      'staff-move',
       'patch-test-settings',
       'forms',
       'consent-wording',

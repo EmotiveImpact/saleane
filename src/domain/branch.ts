@@ -1,7 +1,7 @@
 import type { BusinessState } from './model'
 import type { Command } from './commands'
 import { businessDate, operations } from './operations'
-import { places, staffLocationOn } from './locations'
+import { giftHome, places, staffLocationOn } from './locations'
 import { branchVisits } from './branchVisits'
 import { withoutPayRates } from './pay'
 import { shifts, shiftsAt } from './hours'
@@ -10,9 +10,11 @@ import { shifts, shiftsAt } from './hours'
  * V5: a general manager runs one location ('general', with the location in their access). They
  * read the studio record as a manager does, less the team's pay rates and other locations' branch
  * visits and requests, and change only what belongs to their location: its visits and takings,
- * its stock and orders, its branch visits and requests, and the clients they look after. Anything
- * that changes the whole business (treatments, prices, the team, hours, settings) stays with the
- * owner and managers. Permissions are in `GENERAL_ACTIONS` (operations.ts).
+ * its stock and orders, its branch visits and requests, the gift cards that belong to it (Stage 4:
+ * they can pass one on to another location) and the clients they look after. Anything that
+ * changes the whole business (treatments, prices, the team, hours, settings, moving someone to
+ * another location) stays with the owner and managers. Permissions are in `GENERAL_ACTIONS`
+ * (operations.ts).
  */
 /** Changes that concern a client rather than a location; any general manager may make them. */
 const CLIENT_COMMANDS = new Set([
@@ -123,6 +125,13 @@ export function branchRefusal(
       return mine(command.locationId) ? null : 'That is at another location.'
     case 'stock-move':
       return mine(command.from) ? null : 'You can only send stock from your own location.'
+    case 'gift-card-move': {
+      // Stage 4: only a card that belongs to their location, passed on to another.
+      const card = (s.giftCards ?? []).find((c) => c.id === command.giftCardId)
+      return card && giftHome(s, card) === locationId
+        ? null
+        : 'That gift card belongs to another location. Ask its general manager, the owner or a manager.'
+    }
     case 'receive-order':
     case 'cancel-order': {
       const order = (operations(s).purchaseOrders ?? []).find((o) => o.id === command.orderId)

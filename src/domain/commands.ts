@@ -12,6 +12,7 @@ import { runTillCommand } from './till'
 import { branchVisitUnchanged, runBranchVisitCommand, stampBranchVisitActors } from './branchVisits'
 import { runHoursCommand, stampShiftActors } from './hours'
 import { runRotaCommand, stampRotaActors } from './rota'
+import { runStaffMoveCommand, stampStaffMoveActors } from './staffMoves'
 import { runCommissionCommand } from './commission'
 import { channelLabel } from './bookingChannel'
 import { checkoutTotals } from './money'
@@ -826,7 +827,8 @@ export function execute(
     } else if (
       command.type === 'gift-card-sell' ||
       command.type === 'gift-card-extend' ||
-      command.type === 'gift-card-cancel'
+      command.type === 'gift-card-cancel' ||
+      command.type === 'gift-card-move'
     ) {
       recordId = runGiftCardCommand(next, command, now, makeId, addEvent)
     } else if (
@@ -901,6 +903,8 @@ export function execute(
       command.type === 'rota-week-clear'
     ) {
       recordId = runRotaCommand(next, command, now, makeId)
+    } else if (command.type === 'staff-move' || command.type === 'staff-move-cancel') {
+      recordId = runStaffMoveCommand(next, command, now, makeId)
     } else if (
       command.type === 'studio-look' ||
       command.type === 'house-rules' ||
@@ -1224,6 +1228,7 @@ export function dispatch(
   stampRequestActors(s, result.state, actorName)
   stampShiftActors(s, result.state, actorName)
   stampRotaActors(s, result.state, actorName)
+  stampStaffMoveActors(s, result.state, actorName)
   const known = new Map((operations(s).missedCalls ?? []).map((c) => [c.id, c]))
   for (const call of operations(result.state).missedCalls ?? []) {
     const before = known.get(call.id)

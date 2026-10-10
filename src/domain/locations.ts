@@ -1,4 +1,6 @@
 import type { Appointment, BusinessState, Service } from './model'
+import type { GiftCard } from './giftCardsSchema'
+import { addDays } from './format'
 import { businessDate, operations, plannedHoursFor, usualHoursFor } from './operations'
 
 /**
@@ -69,18 +71,25 @@ export function staffLocationOn(s: BusinessState, staffId: string, date: string)
 }
 
 /**
- * Every location someone works at across a usual week (from 2026-10-05, a Monday), and anywhere
- * the rota sends them on a day still to come (Stage 3).
+ * Every location someone works at across their usual week from today, and from each move still to
+ * come (Stage 4), and anywhere the rota sends them on a day still to come (Stage 3).
  */
 export function staffPlaces(s: BusinessState, staffId: string, now = new Date().toISOString()) {
   const main = s.organisation.locationId
   const today = businessDate(s, now)
+  const weeks = [
+    today,
+    ...(operations(s).staffMoves ?? [])
+      .filter((m) => !m.cancelled && m.staffId === staffId && m.date > today)
+      .map((m) => m.date),
+  ]
   return [
     ...new Set([
-      ...Array.from(
-        { length: 7 },
-        (_, i) =>
-          usualHoursFor(s, staffId, `2026-10-${String(5 + i).padStart(2, '0')}`).locationId ?? main,
+      ...weeks.flatMap((from) =>
+        Array.from(
+          { length: 7 },
+          (_, i) => usualHoursFor(s, staffId, addDays(from, i)).locationId ?? main,
+        ),
       ),
       ...(operations(s).rotaChanges ?? [])
         .filter((c) => !c.ended && c.working && c.staffId === staffId && c.date >= today)
@@ -97,6 +106,15 @@ export function visitPlace(s: BusinessState, a: Pick<Appointment, 'locationId'>)
 /** Names a location on a record only when it is not the main one, which stays unnamed as before. */
 export function placeField(s: BusinessState, locationId: string | undefined) {
   return locationId && locationId !== s.organisation.locationId ? { locationId } : {}
+}
+
+/**
+ * Stage 4: the location a gift card belongs to now: where it was last moved to, or where it was
+ * sold. Where it was sold (`locationId`) never changes, so its sale stays in that location's
+ * figures; the card can still be spent at any location.
+ */
+export function giftHome(s: BusinessState, card: Pick<GiftCard, 'locationId' | 'moves'>) {
+  return card.moves?.at(-1)?.to ?? card.locationId ?? s.organisation.locationId
 }
 
 /**
@@ -155,7 +173,8 @@ export function bookablePlaces(s: BusinessState, service: Pick<Service, 'id' | '
 /**
  * The studio as seen from one location, for figures: its visits and their receipts, and walk-in
  * sales, gift cards, packages and memberships sold there (anything sold before locations were
- * recorded counts at the main one). Everything else is unchanged.
+ * recorded counts at the main one). A gift card moved since (Stage 4) still counts where it was
+ * sold. Everything else is unchanged.
  */
 export function atPlace(s: BusinessState, locationId: string): BusinessState {
   const main = s.organisation.locationId
@@ -197,7 +216,12 @@ export function locationsProblem(s: BusinessState) {
   if (
     o.movements.some((m) => m.locationId && !known.has(m.locationId)) ||
     (s.counterSales ?? []).some((c) => c.locationId && !known.has(c.locationId)) ||
-    (s.giftCards ?? []).some((c) => c.locationId && !known.has(c.locationId)) ||
+    (s.giftCards ?? []).some(
+      (c) =>
+        (c.locationId && !known.has(c.locationId)) ||
+        c.moves?.some((m) => !known.has(m.from) || !known.has(m.to)),
+    ) ||
+    (o.staffMoves ?? []).some((m) => !known.has(m.to) || m.days.some((d) => !known.has(d.from))) ||
     (s.holdings ?? []).some((h) => h.locationId && !known.has(h.locationId)) ||
     (o.purchaseOrders ?? []).some((order) => order.locationId && !known.has(order.locationId)) ||
     (s.waitlist ?? []).some((entry) => entry.locationId && !known.has(entry.locationId))

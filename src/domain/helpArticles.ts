@@ -1222,6 +1222,42 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     roles: ['owner', 'manager', 'general', 'regional'],
     words: 'approval request sign off spend',
   },
+  // Stage 4: moving a gift card or a team member to another location.
+  {
+    id: 'gift-card-move',
+    title: 'Move a gift card to another location',
+    group: 'Locations',
+    summary: 'Give a card a new home location, keeping its code, balance, last day and history.',
+    steps: [
+      'Open Business, then Gift cards, and choose the card.',
+      'Choose Move to another location, pick where it moves to and say why, then choose Move card.',
+      'The card shows where it belongs and where it was sold. Its history shows who moved it, when and why.',
+    ],
+    note: 'Money already taken for the card, and spent with it, stays where it happened. What is left on it counts at its new location from then on, and it can still be spent at any location. A card that is used up, expired or cancelled cannot move. A general manager can move a card that belongs to their own location.',
+    to: '/business/gift-cards',
+    screens: ['/business/gift-cards'],
+    roles: LEADS,
+    words: 'transfer branch site belongs home another location',
+  },
+  {
+    id: 'staff-move',
+    title: 'Move someone to another location',
+    group: 'Locations',
+    summary: 'Their usual days and hours carry on at another location from a date you choose.',
+    steps: [
+      'Open Business, then Rota, and under Moving between locations choose Move someone. Or open Settings, then Team, choose Edit beside them and then Move to another location.',
+      'Choose who, where they are moving to and their first day there. Someone who works at two locations chooses which days move.',
+      'Check their week at the new location, any treatment it does not offer, and days already changed on the rota, which stay as they are.',
+      'If booked visits would be left at the old location, they are listed. Move them first, or keep them booked as they are and the rota shows a warning on those days.',
+      'Choose Move and their first name, such as Move Maya. To undo a move still to come, choose Cancel beside it under Moving between locations.',
+    ],
+    note: 'Days before the move stay where they were, with their pay, hours worked and figures. Nothing is ever moved, cancelled or messaged for you. Owners and managers move people, as a move changes two locations. Every move shows in Who changed what.',
+    to: '/business/rota',
+    screens: ['/business/rota', '/settings?section=staff'],
+    roles: RUNS,
+    words:
+      'transfer relocate branch site new location team member professional move staff from a date',
+  },
   {
     id: 'write-to-us',
     title: 'Write to the SALEANE team',
