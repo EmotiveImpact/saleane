@@ -1,0 +1,220 @@
+/* Add a location (LocationOpening.tsx): the moving-in wizard's shape, with setup's cards. */
+.opening {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+}
+.opening section {
+  min-width: 0;
+}
+.opening .wizard-heading + .ops-help {
+  margin: -6px 0 18px;
+}
+.opening .choice-tiles {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.opening-hours {
+  margin-top: 18px;
+}
+
+/* The menu here: each treatment ticked on or off, with its price here. */
+.opening-menu {
+  margin: 0;
+  padding: 0;
+  border-block: 1px solid var(--line);
+  list-style: none;
+}
+.opening-menu li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 64px;
+  padding: 10px 8px;
+  border-top: 1px solid var(--line);
+}
+.opening-menu li:first-child {
+  border-top: 0;
+}
+.opening-menu li.is-off {
+  background: var(--stone);
+}
+.opening-menu li.is-off strong {
+  color: var(--muted);
+}
+.opening-offered {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  cursor: pointer;
+}
+.opening-offered input:disabled {
+  cursor: not-allowed;
+}
+.opening-offered strong,
+.opening-offered small {
+  display: block;
+}
+.opening-offered small,
+.opening-price small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-body);
+}
+.opening-price {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.opening-price input {
+  width: 120px;
+  text-align: right;
+}
+
+/* Each person on the team, with the days they work here. */
+.opening-person {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px 18px;
+}
+.opening-person strong,
+.opening-person small {
+  display: block;
+}
+.opening-person small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+.opening-days {
+  min-width: 0;
+  margin: 12px 0 0;
+  padding: 0;
+  border: 0;
+}
+.opening-person .opening-days {
+  margin: 0;
+}
+.opening-days legend {
+  padding: 0;
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+.opening-person .opening-days legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.opening-days .setup-chips {
+  gap: 6px;
+  margin-top: 8px;
+}
+.opening-person .opening-days .setup-chips {
+  margin-top: 0;
+}
+.opening-days .setup-tick {
+  position: relative;
+  justify-content: center;
+  min-width: 52px;
+  padding: 5px 10px;
+}
+/* The tick itself hides; the whole day lights up when chosen. */
+.opening-days .setup-tick input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.opening-days .setup-tick:has(input:disabled) {
+  border-style: dashed;
+  color: var(--faint);
+  cursor: not-allowed;
+}
+/* A day with visits already booked carries a small dot in the second colour. */
+.opening-days .setup-tick.is-booked::after,
+.opening-dot {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-round);
+  background: var(--rose);
+}
+.opening-days .setup-tick.is-booked::after {
+  position: absolute;
+  top: 5px;
+  right: 7px;
+}
+.opening-booked-note {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.opening-price-note {
+  margin: 18px 0 0;
+}
+
+/* Inside the window, lists are rows with a hairline between them, never cards inside a card,
+   and the bill sits in the open below them. */
+.opening .setup-rows {
+  gap: 0;
+}
+.opening .setup-row {
+  padding: 16px 0;
+  border-width: 0 0 1px;
+  border-radius: 0;
+  background: none;
+}
+.opening .setup-rows > .setup-row:first-child {
+  border-top-width: 1px;
+}
+.opening .setup-summary {
+  border-width: 1px 0;
+  border-radius: 0;
+  background: none;
+}
+.opening .setup-summary li {
+  padding-inline: 0;
+}
+.opening .opening-price-note {
+  padding: 4px 0 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
+@media (max-width: 760px) {
+  .opening-person {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 640px) {
+  .opening .choice-tiles {
+    grid-template-columns: 1fr;
+  }
+  .opening-menu li {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .opening-price {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding-left: 30px;
+  }
+}
+
+/* On a phone the way forward fills the width at the foot of the step, where a thumb reaches it. */
+@media (max-width: 650px) {
+  .opening .wizard-footer > .button:last-child {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}

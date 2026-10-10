@@ -2,6 +2,21 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-09 · Set up your studio, add a location, and the first weeks
+
+**Status: built locally on 9 October 2026; nothing deployed and nothing charged.** [Evidence](docs/evidence/SETUP-WIZARDS.md).
+
+- A new owner who creates a studio of their own now lands on "Set up your studio": eight short screens beside a house photograph (where guests find you, opening hours, treatments, team, rooms and chairs, colours, deposits and tax, and opening for bookings). Each screen saves when they press Continue, so they can stop with "Finish later" and pick up where they left off from Today, on any device. A sample studio still opens on Today.
+- Treatments can be added from a short list of common ones by kind, with the length filled in and the price always left to the owner. Rooms and chairs are suggested from the menu. Colours show across the page as they are chosen. VAT or sales tax is never assumed: the owner says whether they charge it.
+- "Add location" in Settings, Locations is now six short steps (where, hours, treatments, rooms, team, check), saved together at the end: its own hours or the main location's, which treatments it offers and at what price, its rooms and chairs, who works there on which days, and new people starting there. Days with visits already booked are marked, and choosing one lists the visits it would strand before anything is saved. Core treatments and the price band from the house rules apply. The last step says each location is £49 a month (or $59), and that nothing is charged in this version.
+- Both are made of the changes Settings already makes, so every check still applies, and only the owner can use them. "Who changed what" lists them as "Saved a screen of setting up the studio" and "Added a location with its rooms and team".
+- Once the studio is ready, Today shows "Your first weeks" to the owner and managers: share the booking page, bring clients across, invite the team, check out a first visit, check the visit reminders and turn on two-step sign-in. Each ticks itself (the link once a guest books online, inviting once someone else is asked or there is no one to ask), "I am starting fresh", "I work on my own" and "The usual ones are right" are answers too, and the list goes when everything is done, when hidden, or eight weeks after the first visit booked. It never says a message or card payment went out while they are not connected.
+- Someone joining from an invitation now reads three short screens before their studio opens: what their role does, the three places they will use most, and keeping their sign-in safe, where they can turn on two-step sign-in (the only place a practitioner can). "Skip the welcome" is always there, and nothing on these screens changes the studio.
+- No migration: where setup reached is kept with the studio's settings, and the first weeks list reads the record, the sign-in and the team list.
+- Adding a location now says what the owner's own monthly bill becomes, from Settings, Plan and billing: "Your monthly bill goes from £58.80 to £117.60, including VAT at 20%", when the new amount starts, that nothing is taken today, and that card payments are in test mode while they are. A sample studio shows only the price.
+- Checked against the new quality bar at 1440px and 390px: the first weeks list has one main button on the next step, the welcome's sign-in screen has one, every target in these screens is at least 44px on a phone, the main button fills the foot of each wizard step on a phone, the location window lists rows instead of cards inside it, and each step is ready for the shared calm motion.
+- `docs/photo-prompts.md` has 21 photograph prompts, one for each setup and welcome screen and for each app or guest screen that still borrows a library photograph, with a mix of people and one message to paste into ChatGPT for the whole set. Nothing on screen changes until the photographs arrive.
+
 ## 2026-10-09 · Team diaries in Google or Apple Calendar (NEXT-10)
 
 **Status: built locally on 9 October 2026.** [Evidence](docs/evidence/NEXT-10-DIARIES.md).
