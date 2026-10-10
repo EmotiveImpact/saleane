@@ -42,7 +42,13 @@ const claude = (fetcher: typeof fetch): AiSupplier =>
 
 function fakeVoice() {
   const starts: LiveStart[] = []
-  const lines: { id: string; said: Said[]; closed: boolean; fire: (e: LiveEvent) => void }[] = []
+  const lines: {
+    id: string
+    said: Said[]
+    closed: boolean
+    detached: boolean
+    fire: (e: LiveEvent) => void
+  }[] = []
   const state: { failStart?: Error; failAttach?: boolean } = {}
   const layer: VoiceLayer = {
     name: 'openai',
@@ -56,7 +62,7 @@ function fakeVoice() {
     },
     async attach(id, onEvent) {
       if (state.failAttach) throw new VoiceError('unreachable', 'No line.')
-      const entry = { id, said: [] as Said[], closed: false, fire: onEvent }
+      const entry = { id, said: [] as Said[], closed: false, detached: false, fire: onEvent }
       lines.push(entry)
       return {
         answer: (d, text) => entry.said.push({ kind: 'answer', id: d, text }),
@@ -64,7 +70,9 @@ function fakeVoice() {
         close: () => {
           entry.closed = true
         },
-        detach: () => {},
+        detach: () => {
+          entry.detached = true
+        },
       }
     },
   }
@@ -399,6 +407,38 @@ describe('a talk', () => {
     expect(voice.lines[0].closed).toBe(true)
     // The first talk's minute, and the second's ten minutes held while it runs.
     expect(stored(login).used.talkSeconds).toBe(1080 + 60 + 600)
+  })
+
+  it('follows a replaced talk until OpenAI confirms its end, or the grace time passes', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    await talk(login)
+    clock += 2000
+    await talk(login)
+    const [replaced] = voice.lines
+    // Asked to end and counted at once, so the new talk has its minutes, but still followed.
+    expect(replaced).toMatchObject({ closed: true, detached: false })
+    expect(stored(login).used.talkSeconds).toBe(2 + 600)
+    // A question that arrives meanwhile is not answered, and costs nothing.
+    replaced.fire({ type: 'heard', text: 'What is on today?' })
+    replaced.fire({ type: 'delegated', id: 'item_1' })
+    await Promise.resolve()
+    expect(replaced.said).toEqual([])
+    replaced.fire({ type: 'closed', reason: 'close_requested', seconds: 3 })
+    expect(replaced.detached).toBe(true)
+    expect(stored(login).used.talkSeconds).toBe(2 + 600)
+
+    // Replaced again, and OpenAI never confirms: SALEANE lets go after the grace time.
+    clock += 1000
+    await talk(login)
+    expect(voice.lines[1]).toMatchObject({ closed: true, detached: false })
+    vi.advanceTimersByTime(14_000)
+    expect(voice.lines[1].detached).toBe(false)
+    vi.advanceTimersByTime(1_000)
+    expect(voice.lines[1].detached).toBe(true)
+    expect(stored(login).used.talkSeconds).toBe(2 + 1 + 600)
   })
 
   it('ends the talk when the person may no longer ask', async () => {

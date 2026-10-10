@@ -43,6 +43,8 @@ type Talk = {
   /** Set once SALEANE has asked the supplier to end the talk. */
   closing: boolean
   reattached: boolean
+  /** Set once SALEANE has stopped following the talk. */
+  released: boolean
 }
 
 /** A finished talk is kept this long, so the panel can read how it ended. */
@@ -74,12 +76,10 @@ export function talks(held: Map<string, Held>) {
   }
 
   /** Counts a talk once: the seconds the supplier reported, or SALEANE's own clock without them. */
-  function finish(ctx: Context, talk: Talk, reason: string) {
+  function count(ctx: Context, talk: Talk, reason: string) {
     if (talk.endedAt !== undefined) return
     talk.endedAt = ctx.now()
     talk.reason = reason
-    for (const timer of talk.timers) clearTimeout(timer)
-    talk.line?.detach()
     const price = ctx.voice.minorPerMinute
     const clock = Math.max(0, (talk.endedAt - talk.startedAt) / 1000)
     const seconds = Math.min(
@@ -97,6 +97,15 @@ export function talks(held: Map<string, Held>) {
     })
   }
 
+  /** Counts the talk if it has not been counted, then stops following it. */
+  function finish(ctx: Context, talk: Talk, reason: string) {
+    count(ctx, talk, reason)
+    if (talk.released) return
+    talk.released = true
+    for (const timer of talk.timers) clearTimeout(timer)
+    talk.line?.detach()
+  }
+
   function later(talk: Talk, seconds: number, run: () => void) {
     const timer = setTimeout(run, seconds * 1000)
     timer.unref?.()
@@ -108,7 +117,7 @@ export function talks(held: Map<string, Held>) {
    * following it and counts it on its own clock, so a talk stopped early is never counted as long.
    */
   function close(ctx: Context, talk: Talk) {
-    if (talk.endedAt !== undefined || talk.closing) return
+    if (talk.released || talk.closing) return
     talk.closing = true
     later(talk, TALK_GRACE_SECONDS, () => finish(ctx, talk, 'unconfirmed'))
     try {
@@ -119,7 +128,9 @@ export function talks(held: Map<string, Held>) {
   }
 
   function onEvent(ctx: Context, talk: Talk, event: LiveEvent) {
-    talk.talk.handle(event)
+    // A talk already counted, while SALEANE waits for its end, hears and answers nothing more.
+    if (talk.endedAt === undefined || event.type === 'closed' || event.type === 'lost')
+      talk.talk.handle(event)
     if (event.type === 'usage' && event.seconds >= talk.window) close(ctx, talk)
     if (event.type === 'error') console.error(`[SALEANE] The voice reported: ${event.message}`)
     if (event.type === 'closed') {
@@ -127,7 +138,7 @@ export function talks(held: Map<string, Held>) {
       finish(ctx, talk, event.reason)
     }
     // The server's line dropped while the talk may still run: follow it again once, to end it.
-    if (event.type === 'lost' && talk.endedAt === undefined) {
+    if (event.type === 'lost' && !talk.released) {
       if (talk.reattached) return finish(ctx, talk, 'lost')
       talk.reattached = true
       ctx.voice
@@ -150,8 +161,9 @@ export function talks(held: Map<string, Held>) {
     sdp: string,
   ): Promise<Started> {
     sweep(ctx)
-    // A new talk from the same person replaces one still open, which they have left. It is ended
-    // and counted now, on SALEANE's own clock, so its held minutes are free for the new one.
+    // A new talk from the same person replaces one still open, which they have left. It is asked
+    // to end and counted now, on SALEANE's own clock, so its held minutes are free for the new one.
+    // SALEANE keeps following it until the supplier confirms the end, or the grace time passes.
     for (const talk of open.values())
       if (
         talk.accountId === actor.id &&
@@ -159,7 +171,7 @@ export function talks(held: Map<string, Held>) {
         talk.endedAt === undefined
       ) {
         close(ctx, talk)
-        finish(ctx, talk, 'replaced')
+        count(ctx, talk, 'replaced')
       }
     const at = new Date(ctx.now()).toISOString()
     const price = ctx.voice.minorPerMinute
@@ -208,6 +220,7 @@ export function talks(held: Map<string, Held>) {
       timers: [],
       closing: false,
       reattached: false,
+      released: false,
       talk: conversation({
         progress: TALK_PROGRESS,
         unheard: TALK_UNHEARD,
