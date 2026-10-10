@@ -729,6 +729,65 @@ function build(region: Region, regularCount: number): BusinessState {
       .sort()[0]
     if (first) state.clients.push({ ...client, createdAt: first })
   }
+  // Stage 6: two regulars from long ago, past their keeping period, so Settings, Data & privacy has
+  // records waiting for a decision. Only with the regulars, as the demo shows the studio.
+  if (regularCount) {
+    const former: [
+      string,
+      string,
+      string,
+      string,
+      string,
+      number,
+      [string, number, 'online' | 'desk'],
+      phone: string,
+    ][] = [
+      [
+        'client-former-1',
+        'Winifred Ashby',
+        'service-facial',
+        'staff-maya',
+        '2024-03-12',
+        600,
+        ['2024-03-01', 1200, 'online'],
+        uk ? '+44 7700 900900' : '+1 212 555 0190',
+      ],
+      [
+        'client-former-2',
+        'Gideon Marlowe',
+        'service-cut',
+        'staff-theo',
+        '2024-05-16',
+        840,
+        ['2024-05-09', 660, 'desk'],
+        uk ? '+44 7700 900901' : '+1 212 555 0191',
+      ],
+    ]
+    for (const [id, name, serviceId, staffId, date, start, booked, phone] of former) {
+      const bookedAt = at(booked[0], booked[1])
+      state.clients.push({
+        ...scope,
+        id,
+        name,
+        email: `${name.toLowerCase().replace(' ', '.')}@example.com`,
+        phone,
+        preferences: '',
+        marketingConsent: false,
+        createdAt: bookedAt,
+      })
+      visit({
+        id: `history-${id}`,
+        clientId: id,
+        serviceId,
+        staffId,
+        date,
+        start,
+        status: 'completed',
+        source: booked[2],
+        bookedAt,
+      })
+    }
+  }
   state.appointments.sort((a, b) => a.date.localeCompare(b.date) || a.startMinutes - b.startMinutes)
 
   // Amelia introduced Olivia at her July visit; Maya noted how Amelia likes to be looked after.
@@ -832,6 +891,48 @@ function build(region: Region, regularCount: number): BusinessState {
       createdAt: at(addDays(DEMO_DATE, -1), 600),
     }),
   )
+  // Stage 6: the long-ago regulars' private feedback, given that evening, a waitlist request
+  // whose dates passed long ago and a draft "we miss you" nobody approved in June.
+  if (regularCount) {
+    // Private feedback given that evening, and a waitlist request whose dates passed long ago.
+    const facial = state.appointments.find((a) => a.id === 'history-client-former-1')!
+    state.feedback!.push({
+      ...scope,
+      id: 'feedback-history-client-former-1',
+      appointmentId: facial.id,
+      clientId: facial.clientId,
+      staffId: facial.staffId,
+      visitRating: 5,
+      practitionerRating: 5,
+      comment: 'Calm and unhurried. Thank you, Maya.',
+      createdAt: at(facial.date, facial.startMinutes + facial.bookedDurationMinutes + 180),
+    })
+    ;(state.waitlist ??= []).push({
+      ...scope,
+      id: 'waitlist-former-1',
+      clientId: 'client-former-1',
+      serviceId: 'service-facial',
+      staffId: 'staff-maya',
+      fromDate: '2024-04-02',
+      toDate: '2024-04-19',
+      times: ['morning'],
+      note: '',
+      source: 'desk',
+      status: 'waiting',
+      createdAt: at('2024-03-28', 700),
+    })
+    // A draft "we miss you" that nobody approved, written in June.
+    o.messages.push({
+      id: 'message-former-2',
+      clientId: 'client-former-2',
+      purpose: 'marketing',
+      subject: `We miss you at ${state.organisation.name}`,
+      body: 'It has been a while since your last cut with Theo. We would love to see you again. Reply to this email or book online whenever suits you.',
+      status: 'draft',
+      createdAt: at('2026-06-04', 610),
+      actor: 'Front desk',
+    })
+  }
   // V1.5: two gift cards on sale already, so the desk can try spending one at checkout. Olivia
   // bought one for her sister as she paid for her massage on 15 September; Luca bought a facial
   // for his partner after his cut on 1 September.

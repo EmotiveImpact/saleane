@@ -2,6 +2,7 @@ import { businessDate, hoursFor, operations, staffHoursFor } from './operations'
 import type { Appointment, BusinessState, Client } from './model'
 import { addDays } from './format'
 import { dueBackOn, lastCompletedVisit } from './dueBack'
+import { pastKeepingPeriod } from './retentionDue'
 import { retailByProduct, retailRevenue } from './retail'
 import { recordDay } from './tillCount'
 import { atPlace, staffLocationOn } from './locations'
@@ -40,7 +41,9 @@ export function dueClients(s: BusinessState): Client[] {
       last &&
       dueBackOn(s, last) <= businessDate(s) &&
       !stats.next &&
-      !s.appointments.some((a) => a.clientId === c.id && a.status === 'arrived')
+      !s.appointments.some((a) => a.clientId === c.id && a.status === 'arrived') &&
+      // Stage 6: nobody past their keeping period, or whose details are gone, is asked back.
+      !pastKeepingPeriod(s, c.id, businessDate(s))
     )
   })
 }

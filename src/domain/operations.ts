@@ -24,6 +24,8 @@ import { SHIFT_LIMIT, shiftSchema } from './hoursSchema'
 import { ROTA_CHANGE_LIMIT, ROTA_COMMANDS, rotaChangeSchema } from './rotaSchema'
 import { NEWS_LIMIT, newsMessageSchema } from './newsSchema'
 import { messageOfferSchema, quietOfferSettingsSchema } from './quietOffersSchema'
+import { retentionRecordSchema } from './retentionSchema'
+import { canApproveDeletion } from './dataRetention'
 import type { RotaChange } from './rotaSchema'
 import { STAFF_MOVE_LIMIT, staffMoveSchema } from './staffMovesSchema'
 import type { StaffMove } from './staffMovesSchema'
@@ -448,6 +450,8 @@ export const operationsSchema = z.object({
   news: z.array(newsMessageSchema).max(NEWS_LIMIT).optional(),
   /** Stage 5: whether invitations to a quiet or freed time carry a lower price. Absent means none. */
   quietOffers: quietOfferSettingsSchema.optional(),
+  /** Stage 6: records kept past their keeping period, and each decision made about them. */
+  retention: retentionRecordSchema.optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 /**
@@ -703,6 +707,8 @@ export function permissionFor(command: { type: string; approve?: boolean }) {
   // Stage 5: an invitation to a quiet time at a lower price is written by whoever writes messages;
   // the lower price itself is the owner's setting.
   if (command.type === 'offer-invite') return 'message'
+  // Stage 6: deleting or keeping records at the end of their period is one decision.
+  if (command.type === 'retention-delete' || command.type === 'retention-keep') return 'retention'
   if (command.type === 'task-add' || command.type === 'task-done') return 'task'
   if (command.type === 'missed-call-done') return 'missed-call'
   if (command.type === 'form-save' || command.type === 'form-archive') return 'forms'
@@ -800,6 +806,8 @@ export function can(role: Role, action: string) {
     ].includes(action)
   )
     return false
+  // Stage 6: deciding about records at the end of their keeping period follows the register.
+  if (action === 'retention') return canApproveDeletion(role)
   // V5: a regional manager records branch visits and raises and signs off requests, only at their
   // area's locations (the server checks which).
   if (role === 'regional')

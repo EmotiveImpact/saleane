@@ -75,6 +75,7 @@ import {
   runInviteCommand,
 } from './cancelledTimes'
 import { offerInviteUnchanged, offerToBook, runOfferInvite } from './quietInvites'
+import { runRetentionCommand, stampRetentionActors } from './retentionDue'
 import { offerPrices } from './quietOffers'
 
 export type CommandResult =
@@ -880,6 +881,9 @@ export function execute(
         throw new Error('Choose treatments from this studio to leave out.')
       next.operations = { ...operations(next), quietOffers: { ...command.settings } }
       recordId = org.id
+    } else if (command.type === 'retention-delete' || command.type === 'retention-keep') {
+      // Stage 6: only records due on the studio's own day, each decided once.
+      recordId = runRetentionCommand(s, next, command, businessDate(s, now), now, makeId)
     } else if (command.type === 'guest-here') {
       const appointment = next.appointments.find((a) => a.id === command.appointmentId)
       if (!appointment) throw new Error('Visit does not belong to this studio.')
@@ -1356,6 +1360,7 @@ export function dispatch(
   stampRotaActors(s, result.state, actorName)
   stampStaffMoveActors(s, result.state, actorName)
   stampNewsActors(s, result.state, actorName)
+  stampRetentionActors(s, result.state, actorName)
   const known = new Map((operations(s).missedCalls ?? []).map((c) => [c.id, c]))
   for (const call of operations(result.state).missedCalls ?? []) {
     const before = known.get(call.id)

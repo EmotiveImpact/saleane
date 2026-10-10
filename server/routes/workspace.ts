@@ -315,6 +315,21 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
           // Stage 4: erasure requests are kept in the audit log, which only the server reads, so
           // the approval counts them from there and never from what a browser sends.
           command = { ...command, erased: erasureRequested(ctx, org.id) }
+        } else if (command.type === 'retention-delete' && command.kind === 'client') {
+          // Stage 6: a client's details go only once no card is saved for them, since the card
+          // is kept with the payment provider and must be taken off there first.
+          const marks = command.ids.map(() => '?').join(',')
+          if (
+            db.get(
+              `SELECT id FROM saved_cards WHERE organisation_id=? AND removed_at IS NULL AND client_id IN (${marks})`,
+              org.id,
+              ...command.ids,
+            )
+          )
+            fail(
+              409,
+              'A card is still saved for one of these clients. Remove it from their page first.',
+            )
         } else if (command.type === 'message-queue') {
           // Approving a waitlist offer checks its time again, including guests holding it.
           const stale = staleOffer(withHolds(org), command.messageId, new Date(now()).toISOString())
@@ -359,6 +374,20 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         }
         if (result.state.revision !== org.state.revision)
           persist(org, result.state, actor.id, command.type, result.recordId)
+        // Stage 6: a former client's visit links stop working, so nobody opens them by name.
+        if (command.type === 'retention-delete' && command.kind === 'client') {
+          const ids = new Set(command.ids)
+          const visits = org.state.appointments.filter((a) => ids.has(a.clientId)).map((a) => a.id)
+          for (let i = 0; i < visits.length; i += 500) {
+            const part = visits.slice(i, i + 500)
+            db.run(
+              `UPDATE guest_links SET revoked_at=? WHERE organisation_id=? AND revoked_at IS NULL AND appointment_id IN (${part.map(() => '?').join(',')})`,
+              now(),
+              org.id,
+              ...part,
+            )
+          }
+        }
         // Open guest links follow a visit the desk moves, as they do when the guest moves it.
         const moves = command.type === 'batch' ? command.commands : [command]
         for (const move of moves)

@@ -127,6 +127,12 @@ export const clientSchema = z.object({
     .string()
     .regex(/^[A-Z0-9]{1,4}$/)
     .optional(),
+  /**
+   * Stage 6: when an owner or manager approved deleting their details at the end of the keeping
+   * period. The record stays as "Former client" so its receipts and booked visit terms keep their
+   * links (retentionDue.ts).
+   */
+  erasedAt: z.iso.datetime().optional(),
 })
 /** Whether a "MM-DD" birthday exists in some year (29 February does). */
 export function birthdayIsReal(value: string) {

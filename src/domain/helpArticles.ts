@@ -608,7 +608,7 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
       'If they ask to be forgotten, choose Review erasure, then Record erasure request.',
       'Choose Withdraw email marketing if they no longer want it.',
     ],
-    note: 'SALEANE does not delete client records yet. An erasure request is recorded for you to act on.',
+    note: 'Recording an erasure request deletes nothing. Client details are deleted only when an owner or manager approves it in Settings, Data & privacy, once their keeping period ends.',
     to: '/clients',
     screens: ['/clients'],
     roles: RUNS,
@@ -1313,6 +1313,25 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     screens: ['/settings?section=privacy'],
     roles: OWNER,
     words: 'export download backup copy data leave',
+  },
+  {
+    id: 'retention-decisions',
+    title: 'Decide about records at the end of their keeping period',
+    group: 'Settings and data',
+    summary:
+      'Delete records the studio no longer needs to keep, or keep them longer with a reason.',
+    steps: [
+      'Open Settings, then Data & privacy, and find Waiting for your decision.',
+      'Each kind of record shows how many are due and why. Choose Decide beside one record, or Decide for all to decide for the whole group.',
+      'To keep them, choose Keep longer, say for how many years or months and why, then choose Keep until. They come back here on that date.',
+      'To delete them, choose Approve deletion, read what is deleted and what stays, tick the box and choose Delete for good.',
+    ],
+    note: 'Nothing is ever deleted on its own, and only the owner or a manager can decide. When a client’s details are deleted, their receipts, payments, deposits, refunds and booked visits stay under the name Former client, as the law requires: 6 years in the UK and 7 years in the US. Who changed what notes who decided, when, which kind and how many, never what was deleted.',
+    to: '/settings?section=privacy',
+    screens: ['/settings?section=privacy'],
+    roles: RUNS,
+    words:
+      'delete deletion retention keeping period gdpr erase old records clean up keep longer former client data protection',
   },
   {
     id: 'changes',

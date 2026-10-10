@@ -2,6 +2,7 @@ import type { Appointment, BusinessState, Client } from './model'
 import { addDays } from './format'
 import { serviceRevenue, usualWeeks } from './selectors'
 import { driftDays } from './insights'
+import { pastKeepingPeriod } from './retentionDue'
 import { dueBackOn } from './dueBack'
 import { retailRevenue } from './retail'
 import { recordDay } from './tillCount'
@@ -221,9 +222,11 @@ export function clientInsight(
 
   // Due back and drifting away, exactly as Today works them out.
   const dueOn = last ? dueBackOn(s, last) : undefined
-  const due = !!dueOn && dueOn <= today && !booked
+  // Stage 6: nobody past their keeping period, or whose details are gone, is asked back.
+  const past = pastKeepingPeriod(s, client.id, today)
+  const due = !!dueOn && dueOn <= today && !booked && !past
   let drifting: ClientInsight['drifting']
-  if (last && !booked) {
+  if (last && !booked && !past) {
     const days = daysBetween(last.date, today)
     if (days >= driftDays(usual)) drifting = { weeksSince: Math.floor(days / 7), usualWeeks: usual }
   }

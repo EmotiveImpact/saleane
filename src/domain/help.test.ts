@@ -224,6 +224,15 @@ describe('help inside the app', () => {
     expect(first('cheaper off peak price')).toBe('quiet-offers')
     expect(first('lower price for a gap', 'reception')).toBe('quiet-offers')
     expect(ids(searchHelp('discount quiet time', 'practitioner'))).not.toContain('quiet-offers')
+    // Stage 6: records at the end of their keeping period.
+    expect(first('delete old client records')).toBe('retention-decisions')
+    expect(first('keeping period')).toBe('retention-decisions')
+    expect(first('keep records longer', 'manager')).toBe('retention-decisions')
+    expect(ids(searchHelp('delete old records', 'reception'))).not.toContain('retention-decisions')
+    expect(ids(searchHelp('keeping period', 'practitioner'))).not.toContain('retention-decisions')
+    expect(ids(helpForScreen('/settings', '?section=privacy', 'owner'))).toContain(
+      'retention-decisions',
+    )
     // Stage 5: booking on Google, with its new way to change the time.
     expect(first('book on google maps')).toBe('google-booking')
     expect(first('reserve with google')).toBe('google-booking')

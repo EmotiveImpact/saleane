@@ -312,11 +312,13 @@ export function Clients() {
                 Introduced by
                 <select value={referrer} onChange={(e) => setReferrer(e.target.value)}>
                   <option value="">No referral recorded</option>
-                  {state.clients.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
+                  {state.clients
+                    .filter((c) => !c.erasedAt)
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
                 </select>
               </label>
             </div>

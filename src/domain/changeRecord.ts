@@ -13,6 +13,8 @@ import { signOffChangeDetail } from './signoffs'
 import { tillLabel } from './otherTill'
 import type { OtherTillSale } from './otherTillSchema'
 import { defaultQuietOffers } from './quietOffersSchema'
+import { retentionDecision, retentionKinds } from './retentionDue'
+import type { RetentionKind } from './retentionSchema'
 
 /**
  * NEXT-05: who changed what. Every saved change is already written to the studio's audit log
@@ -192,6 +194,9 @@ const commandWords: Record<Command['type'], Words> = {
   // Stage 5: a lower price for a quiet time.
   'quiet-offers': ['settings', 'Changed the lower price for quiet times'],
   'offer-invite': ['messages', 'Wrote an invitation to a quiet time at a lower price'],
+  // Stage 6: records at the end of their keeping period.
+  'retention-delete': ['clients', 'Approved deleting records at the end of their keeping period'],
+  'retention-keep': ['clients', 'Kept records past the end of their keeping period'],
 }
 
 /** Changes the server makes or records itself. */
@@ -458,6 +463,19 @@ export function changeDetail(
   action: string,
   recordId: string,
 ): ChangeDetail | undefined {
+  // Stage 6: a decision about records at the end of their period keeps which kind, how many and
+  // until when. Never what was deleted: no names, no record ids and no content.
+  if (action === 'retention-delete' || action === 'retention-keep') {
+    const decision = retentionDecision(after, recordId)
+    if (!decision) return undefined
+    return {
+      fields: [
+        { f: 'records', to: decision.kind },
+        { f: 'count', to: decision.count },
+        ...(decision.until ? [{ f: 'keptUntil', to: decision.until }] : []),
+      ],
+    }
+  }
   // Stage 3: a day on the rota keeps which day it was and its hours before and after.
   const rota = rotaChangeDetail(before, after, action, recordId)
   if (rota) return rota
@@ -613,6 +631,9 @@ const fieldWords: Record<string, string> = {
   floorMinor: 'never below',
   openHours: 'how long an offer stays open',
   leftOutIds: 'treatments left out',
+  records: 'records',
+  count: 'how many',
+  keptUntil: 'kept until',
 }
 /** A detail's name in words: "cutoffHours" reads "cutoff hours". */
 export function fieldName(field: string) {
@@ -712,6 +733,8 @@ function valueText(s: BusinessState, names: RecordNames, f: string, v: Value) {
   if (f === 'status') return statusWords[v] ?? v
   if (f === 'discount')
     return v === 'none' ? 'no lower price' : v === 'percent' ? 'a percentage off' : 'an amount off'
+  if (f === 'records' && v in retentionKinds)
+    return retentionKinds[v as RetentionKind].label.toLowerCase()
   if (f === 'rotaSignOff') return v === 'extra' ? 'extra days' : v === 'all' ? 'every change' : v
   if (f === 'method') return METHOD_WORDS[v] ?? v.replace(/_/g, ' ')
   if (/Id$/.test(f)) return names(v) ?? 'one no longer listed'
