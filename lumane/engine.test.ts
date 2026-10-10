@@ -11,9 +11,11 @@ import {
   readSkill,
   record,
   remaining,
+  reserve,
   runTurn,
   scriptedBrain,
   SkillRefusal,
+  settle,
   talkWindowSeconds,
   voiceFor,
 } from '.'
@@ -277,6 +279,35 @@ describe('Lumane allowances', () => {
     expect(check(allowance, busy, { ...request, at: '2026-10-07T10:00:01.000Z' })).toEqual({
       ok: true,
     })
+  })
+
+  it('holds a request’s share before the AI is asked, then settles it with what it cost', () => {
+    const asked = { ...request, worstCaseMinor: 6 }
+    const held = reserve(allowance, undefined, asked)
+    if (!held.ok) throw new Error('expected the share to be held')
+    expect(held.usage.used.typed).toBe(1)
+    expect(held.usage.spendByDay['2026-10-07']).toBe(6)
+    expect(held.usage.recent.p1).toEqual([at])
+    // A second request at the same moment is checked against the share already held.
+    expect(reserve(allowance, held.usage, { ...asked, personId: 'p2' })).toMatchObject({ ok: true })
+    expect(reserve({ ...allowance, dailySpendCeilingMinor: 10 }, held.usage, asked)).toMatchObject({
+      ok: false,
+      reason: 'spend',
+    })
+    // Answered for 0.34: counted, and the 6 held becomes 0.34.
+    expect(settle(held.usage, asked, { counted: true, costMinor: 0.34 })).toMatchObject({
+      used: { typed: 1 },
+      spendByDay: { '2026-10-07': 0.34 },
+      recent: { p1: [at] },
+    })
+    // Not answered: the question is given back, what it cost is kept.
+    expect(settle(held.usage, asked, { counted: false, costMinor: 1 })).toMatchObject({
+      used: { typed: 0 },
+      spendByDay: { '2026-10-07': 1 },
+    })
+    // Held in October and settled after November has begun: November is left alone.
+    const november = emptyUsage('2026-11-01T00:00:00.000Z')
+    expect(settle(november, asked, { counted: false, costMinor: 0 })).toBe(november)
   })
 
   it('caps a talking session at the session limit or what is left', () => {

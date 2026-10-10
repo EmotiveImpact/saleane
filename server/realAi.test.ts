@@ -130,7 +130,7 @@ const stored = (login: Login) =>
     api.database.get<{ usage: string }>(
       'SELECT usage FROM assistant_usage WHERE organisation_id=?',
       login.orgId,
-    )!.usage,
+    )?.usage ?? '{"used":{},"spendByDay":{}}',
   ) as Usage
 
 describe('choosing the AI from the environment', () => {
@@ -207,6 +207,42 @@ describe('Ask SALEANE with Claude', () => {
       proposals: [],
       usage: { used: { typed: 0 } },
     })
+  })
+
+  it('holds each question’s share first, so two at once cannot pass the day’s ceiling together', async () => {
+    let release!: (answer: Record<string, unknown>) => void
+    const later = new Promise<Record<string, unknown>>((done) => (release = done))
+    const { requests, fetcher } = anthropic([later])
+    start(claude(fetcher))
+    const login = await register(false)
+    // 140 of the day's 150 spent: room for one more question's 6, not two.
+    api.database.run(
+      'INSERT INTO assistant_usage(organisation_id,usage,updated_at) VALUES(?,?,?)',
+      login.orgId,
+      JSON.stringify({
+        period: '2026-10',
+        used: { typed: 4, talkSeconds: 0, guestChats: 0 },
+        spendByDay: { '2026-10-06': 140 },
+        recent: {},
+      }),
+      clock,
+    )
+    const first = ask(login, 'What is on today?')
+    await expect.poll(() => requests.length).toBe(1)
+    expect(stored(login)).toMatchObject({ used: { typed: 5 }, spendByDay: { '2026-10-06': 146 } })
+    const second = await ask(login, 'And tomorrow?')
+    expect(second.json()).toMatchObject({
+      status: 'refused',
+      text: "The assistant has reached today's limit. It will be back tomorrow.",
+    })
+    expect(requests).toHaveLength(1)
+    release(words('Nothing is booked today yet.'))
+    expect((await first).json()).toMatchObject({
+      status: 'answered',
+      usage: { used: { typed: 5 } },
+    })
+    // What the question really cost replaces the 6 held for it.
+    expect(stored(login).spendByDay['2026-10-06']).toBe(140.34)
   })
 
   it('keeps a sample studio in test mode, so its fictional records never leave', async () => {
@@ -307,12 +343,62 @@ describe('the receptionist with Claude', () => {
     start(claude(fetcher))
     const { login, slug } = await studio()
     expect((await text(slug, 'When are you open?')).statusCode).toBe(200)
-    // Anthropic is tried twice, a second apart, before the receptionist gives up.
-    await expect
-      .poll(() => api.database.get('SELECT 1 FROM assistant_usage'), { timeout: 5000 })
-      .toBeTruthy()
+    // The chat's share is held while Anthropic is tried twice, a second apart, then given back.
+    await expect.poll(() => stored(login).used.guestChats).toBe(1)
+    await expect.poll(() => stored(login).used.guestChats, { timeout: 5000 }).toBe(0)
+    expect(stored(login).spendByDay['2026-10-06']).toBe(0)
     expect(answers()).toEqual([])
+  })
+
+  it('answers a second text after the first, as the same chat and in order', async () => {
+    let release!: (answer: Record<string, unknown>) => void
+    const later = new Promise<Record<string, unknown>>((done) => (release = done))
+    const { requests, fetcher } = anthropic([later, words('On Sunday we are closed.')])
+    start(claude(fetcher))
+    const { login, slug } = await studio()
+    await text(slug, 'When are you open?', 'r1')
+    await text(slug, 'And on Sunday?', 'r2')
+    // The second waits for the first to be answered.
+    expect(requests).toHaveLength(1)
+    release(words('We are open 9 to 6, Monday to Saturday.'))
+    await expect.poll(() => answers().length).toBe(2)
+    expect(answers().map((a) => a.body)).toEqual([
+      'Linden Studio AI receptionist: We are open 9 to 6, Monday to Saturday.',
+      'Linden Studio AI receptionist: On Sunday we are closed.',
+    ])
+    expect(requests[1].messages).toEqual([
+      { role: 'user', content: [{ type: 'text', text: 'When are you open?' }] },
+      {
+        role: 'assistant',
+        content: [{ type: 'text', text: 'We are open 9 to 6, Monday to Saturday.' }],
+      },
+      { role: 'user', content: [{ type: 'text', text: 'And on Sunday?' }] },
+    ])
+    expect(stored(login).used.guestChats).toBe(1)
+  })
+
+  it('does not send its answer when someone from the studio replied meanwhile', async () => {
+    let release!: (answer: Record<string, unknown>) => void
+    const later = new Promise<Record<string, unknown>>((done) => (release = done))
+    const { requests, fetcher } = anthropic([later])
+    start(claude(fetcher))
+    const { login, slug } = await studio()
+    await text(slug, 'Can I bring my daughter?', 'r1')
+    expect(requests).toHaveLength(1)
+    // Maya answers Rosa herself while Claude is still writing.
+    api.database.run(
+      `INSERT INTO outbox(id,organisation_id,dedupe_key,appointment_id,client_id,kind,channel,slot,recipient,subject,body,status,next_attempt_at,created_at,updated_at)
+       VALUES('team-1',?,'team-1','','','message','sms','team-1','+447700900456','','Of course, see you then.','accepted',?,?,?)`,
+      login.orgId,
+      clock,
+      clock,
+      clock,
+    )
+    release(words('Yes, children are welcome.'))
+    // Its cost is kept; the chat is not counted and nothing is sent.
+    await expect.poll(() => stored(login).spendByDay['2026-10-06']).toBe(0.34)
     expect(stored(login).used.guestChats).toBe(0)
+    expect(answers()).toEqual([])
   })
 
   it('answers on the booking page and keeps the page free of fill-ins', async () => {

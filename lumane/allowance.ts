@@ -130,6 +130,53 @@ export function record(usage: Usage | undefined, request: UseRequest, costMinor:
   }
 }
 
+/**
+ * Holds a request's share before the AI is called: its amount, its worst-case spend and its place
+ * in the hourly count. Requests made at the same moment then cannot all pass the checks against
+ * the same usage. Returns the usage to store, or the refusal. Never mutates.
+ */
+export function reserve(
+  allowance: Allowance,
+  usage: Usage | undefined,
+  request: UseRequest,
+): { ok: true; usage: Usage } | Refusal {
+  const allowed = check(allowance, usage, request)
+  return allowed.ok ? { ok: true, usage: record(usage, request, request.worstCaseMinor) } : allowed
+}
+
+/**
+ * Settles a held request once the AI has answered or failed: what it really cost replaces its
+ * worst case, and a request that does not count gives its amount back. Its place in the hourly
+ * count stays. A request held in a month that has since ended changes nothing. Never mutates.
+ */
+export function settle(
+  usage: Usage | undefined,
+  request: UseRequest,
+  outcome: { counted: boolean; costMinor: number },
+): Usage {
+  const month = request.at.slice(0, 7)
+  if (usage && usage.period > month) return usage
+  const now = current(usage, request.at)
+  const day = request.at.slice(0, 10)
+  return {
+    ...now,
+    used: {
+      ...now.used,
+      [request.meter]: Math.max(
+        0,
+        now.used[request.meter] - (outcome.counted ? 0 : request.amount),
+      ),
+    },
+    spendByDay: {
+      ...now.spendByDay,
+      [day]: Math.max(
+        0,
+        (now.spendByDay[day] ?? 0) - request.worstCaseMinor + Math.max(0, outcome.costMinor),
+      ),
+    },
+  }
+}
+
 /** How long the next talking session may run: the session cap or what is left, whichever is less. */
 export function talkWindowSeconds(allowance: Allowance, usage: Usage | undefined, at: string) {
   return Math.min(allowance.maxTalkSessionSeconds, remaining(allowance, usage, 'talkSeconds', at))

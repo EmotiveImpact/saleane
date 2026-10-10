@@ -2,8 +2,13 @@ import { randomUUID } from 'node:crypto'
 import { digest } from '../auth'
 import type { Context } from '../context'
 import type { InboundReply } from './providers'
-import { countReception, storedUsage } from '../receptionistUsage'
-import { answersSocial, answersTexts, askReceptionist } from '../../src/assistant/receptionist'
+import { holding, settleUse } from '../aiUsage'
+import {
+  answersSocial,
+  answersTexts,
+  askReceptionist,
+  receptionUse,
+} from '../../src/assistant/receptionist'
 import type { ReceptionEffect, ReceptionTurn } from '../../src/assistant/receptionist'
 import { BOOKING_LINK, MANAGE_LINK_SPOT } from '../../src/assistant/receptionistBrain'
 import { businessDate, operations } from '../../src/domain/operations'
@@ -19,6 +24,8 @@ const CHAT_WINDOW_MS = 60 * 60000
 const HISTORY_TURNS = 8
 /** Messages being answered now, so a provider sending one again meanwhile is not answered twice. */
 const answering = new Set<string>()
+/** The last answer under way for each guest's conversation, so the next waits its turn. */
+const conversations = new Map<string, Promise<unknown>>()
 /** The outbox's own fill-ins, such as a visit's link, which an AI's words must never carry. */
 const FILL_INS = /\{\{[^{}]*\}\}/g
 
@@ -79,6 +86,28 @@ export async function answerSocial(ctx: Context, message: SocialMessage) {
   })
 }
 
+type Org = NonNullable<ReturnType<Context['systemOrg']>>
+
+/**
+ * NEXT-12: each guest's messages are answered one at a time, in the order they came. A second text
+ * sent while a real AI is still answering the first then sees that answer, so it continues the
+ * same chat rather than counting as a new one, and the answers go out in order.
+ */
+function inTurn<T>(key: string, work: () => Promise<T>) {
+  const run = (conversations.get(key) ?? Promise.resolve()).then(work)
+  const settled = run.catch(() => undefined)
+  conversations.set(key, settled)
+  void settled.then(() => {
+    if (conversations.get(key) === settled) conversations.delete(key)
+  })
+  return run
+}
+
+/** Whether the studio has the receptionist answering on this channel. */
+const answers = (org: Org, channel: 'sms' | SocialChannel) =>
+  operations(org.state).mode === 'local' &&
+  (channel === 'sms' ? answersTexts : answersSocial)(org.state)
+
 async function answer(
   ctx: Context,
   orgId: string,
@@ -87,19 +116,24 @@ async function answer(
 ) {
   const { db } = ctx
   const org = ctx.systemOrg(orgId)
-  const chosen = channel === 'sms' ? answersTexts : answersSocial
-  if (!org || operations(org.state).mode !== 'local' || !chosen(org.state)) return false
+  if (!org || !answers(org, channel)) return false
   if (!reply.from || !reply.body.trim()) return false
   // Answered already: a provider sending the same text again gets no second answer. A text kept
   // before a crash, and not yet answered, is answered when the provider tries again.
   const dedupe = `reception:${reply.providerRef}`
-  if (db.get('SELECT 1 FROM outbox WHERE organisation_id=? AND dedupe_key=?', org.id, dedupe))
-    return false
+  const done = () =>
+    !!db.get('SELECT 1 FROM outbox WHERE organisation_id=? AND dedupe_key=?', org.id, dedupe)
+  if (done()) return false
   const key = `${org.id}:${dedupe}`
   if (answering.has(key)) return false
   answering.add(key)
   try {
-    return await answerKept(ctx, org, channel, reply, dedupe)
+    return await inTurn(`${org.id}:${channel}:${reply.from}`, async () => {
+      // The studio as it is now, after any answer before this one in the conversation.
+      const latest = ctx.systemOrg(orgId)
+      if (done() || !latest || !answers(latest, channel)) return false
+      return answerKept(ctx, latest, channel, reply, dedupe)
+    })
   } finally {
     answering.delete(key)
   }
@@ -107,7 +141,7 @@ async function answer(
 
 async function answerKept(
   ctx: Context,
-  org: NonNullable<ReturnType<Context['systemOrg']>>,
+  org: Org,
   channel: 'sms' | SocialChannel,
   reply: InboundReply,
   dedupe: string,
@@ -124,47 +158,51 @@ async function answerKept(
   const time = now()
   const at = new Date(time).toISOString()
   const since = time - CHAT_WINDOW_MS
-  // On the social apps a sender's id belongs to one account, so only this account's answers count.
-  const ownAccount = (row: { kind: string; slot: string }) => {
-    if (channel === 'sms') return true
-    if (row.kind === 'receptionist')
-      return repliesList(org.state).some(
-        (r) =>
-          r.channel === channel &&
-          r.account === kept.account &&
-          `reception:${r.providerRef}` === row.slot,
+  /** The last hour's answers to this guest, and whether someone at the studio is among them. */
+  const conversation = (current: Org) => {
+    // On the social apps a sender's id belongs to one account, so only this account's answers count.
+    const ownAccount = (row: { kind: string; slot: string }) => {
+      if (channel === 'sms') return true
+      if (row.kind === 'receptionist')
+        return repliesList(current.state).some(
+          (r) =>
+            r.channel === channel &&
+            r.account === kept.account &&
+            `reception:${r.providerRef}` === row.slot,
+        )
+      return (current.state.socialAnswers ?? []).some(
+        (a) => `social:${a.id}` === row.slot && a.account === kept.account,
       )
-    return (org.state.socialAnswers ?? []).some(
-      (a) => `social:${a.id}` === row.slot && a.account === kept.account,
-    )
+    }
+    const sent = db
+      .all<{ kind: string; slot: string; body: string; created_at: number }>(
+        'SELECT kind,slot,body,created_at FROM outbox WHERE organisation_id=? AND recipient=? AND channel=? AND kind IN (?,?) AND created_at>? ORDER BY created_at',
+        current.id,
+        number,
+        channel,
+        'receptionist',
+        person,
+        since,
+      )
+      .filter(ownAccount)
+    const team =
+      sent.some((m) => m.kind === person) ||
+      // Also an answer written in the last hour and not yet in the outbox.
+      (channel !== 'sms' &&
+        (current.state.socialAnswers ?? []).some(
+          (a) =>
+            a.channel === channel &&
+            a.to === number &&
+            a.account === kept.account &&
+            Date.parse(a.answeredAt) > since,
+        ))
+    return { sent, team }
   }
-  const sent = db
-    .all<{ kind: string; slot: string; body: string; created_at: number }>(
-      'SELECT kind,slot,body,created_at FROM outbox WHERE organisation_id=? AND recipient=? AND channel=? AND kind IN (?,?) AND created_at>? ORDER BY created_at',
-      org.id,
-      number,
-      channel,
-      'receptionist',
-      person,
-      since,
-    )
-    .filter(ownAccount)
+  const { sent, team } = conversation(org)
   // A person at the studio is already talking with this guest.
-  if (sent.some((m) => m.kind === person)) return false
-  // Also an answer written in the last hour and not yet in the outbox.
-  if (
-    channel !== 'sms' &&
-    (org.state.socialAnswers ?? []).some(
-      (a) =>
-        a.channel === channel &&
-        a.to === number &&
-        a.account === kept.account &&
-        Date.parse(a.answeredAt) > since,
-    )
-  )
-    return false
+  if (team) return false
   const signed = `${org.state.organisation.name} AI receptionist: `
-  const answers = sent.map((m) => ({
+  const answered = sent.map((m) => ({
     from: 'receptionist' as const,
     text: m.body.startsWith(signed) ? m.body.slice(signed.length) : m.body,
     at: m.created_at,
@@ -179,11 +217,11 @@ async function answerKept(
         Date.parse(r.receivedAt) > since,
     )
     .map((r) => ({ from: 'guest' as const, text: r.body, at: Date.parse(r.receivedAt) }))
-  const history: ReceptionTurn[] = [...asked, ...answers]
+  const history: ReceptionTurn[] = [...asked, ...answered]
     .sort((a, b) => a.at - b.at)
     .slice(-HISTORY_TURNS)
     .map(({ from, text }) => ({ from, text }))
-  const continuing = answers.length > 0
+  const continuing = answered.length > 0
   const visitor = digest(
     channel === 'sms'
       ? `text:${org.id}:${number}`
@@ -196,37 +234,39 @@ async function answerKept(
       ? senderClient(org.state, channel, number)
       : undefined
   const brain = ctx.ai.brainFor(org.state, 'reception')
-  const result = await askReceptionist({
-    state: ctx.withHolds(org),
-    today: businessDate(org.state, at),
-    now: at,
-    visitorId: visitor,
-    text: words.slice(0, 500),
-    history,
-    channel: 'text',
-    continuing,
-    ...(guest ? { guestId: guest.id } : {}),
-    usage: storedUsage(ctx, org.id),
-    allowance: ctx.plans.allowance(org),
-    ...(brain ? { brain } : {}),
-  })
+  const allowance = ctx.plans.allowance(org)
+  // NEXT-12: the message's share is held before the AI is asked, then settled with its real cost.
+  const use = receptionUse(visitor, at, continuing)
+  const { held, result } = await holding(ctx, org.id, allowance, use, (before) =>
+    askReceptionist({
+      state: ctx.withHolds(org),
+      today: businessDate(org.state, at),
+      now: at,
+      visitorId: visitor,
+      text: words.slice(0, 500),
+      history,
+      channel: 'text',
+      continuing,
+      ...(guest ? { guestId: guest.id } : {}),
+      usage: before,
+      allowance,
+      ...(brain ? { brain } : {}),
+    }),
+  )
+  if (result.status === 'refused') {
+    if (held) db.transaction(() => settleUse(ctx, org.id, use, { counted: false, costMinor: 0 }))
+    return false
+  }
   if (result.status === 'unavailable') {
     // The guest's message waits in the inbox for the team; what the attempt cost still counts.
     console.error(
       `[SALEANE] The receptionist's AI could not answer (${result.reason}): ${result.detail}`,
     )
     db.transaction(() =>
-      countReception(ctx, org.id, {
-        at,
-        visitor,
-        continuing: true,
-        costMinor: result.costMinor,
-        usage: result.usage,
-      }),
+      settleUse(ctx, org.id, use, { counted: false, costMinor: result.costMinor }),
     )
     return false
   }
-  if (result.status !== 'answered') return false
   const offered = result.proposals.find((p) => p.effect.kind === 'time')
   const manage = result.proposals
     .map((p) => p.effect)
@@ -244,13 +284,14 @@ async function answerKept(
   // The guest's own conversation, including a number the team matched to a client by hand.
   const clientId = manage && guest ? guest.id : (kept.clientId ?? guest?.id ?? '')
   return db.transaction(() => {
-    countReception(ctx, org.id, {
-      at,
-      visitor,
-      continuing,
-      costMinor: result.costMinor,
-      usage: result.usage,
-    })
+    // A real AI can take several seconds. Meanwhile the studio may have turned the receptionist
+    // off, or someone from the team may have answered the guest: then the AI's answer is not
+    // sent and does not count, though what it cost does.
+    const latest = ctx.systemOrg(org.id)
+    if (!latest || !answers(latest, channel) || conversation(latest).team) {
+      settleUse(ctx, org.id, use, { counted: false, costMinor: result.costMinor })
+      return false
+    }
     const inserted = db.run(
       `INSERT OR IGNORE INTO outbox(id,organisation_id,dedupe_key,appointment_id,client_id,kind,channel,slot,recipient,subject,body,status,next_attempt_at,created_at,updated_at)
        VALUES(?,?,?,?,?,'receptionist',?,?,?,'',?,'pending',?,?,?)`,
@@ -267,6 +308,8 @@ async function answerKept(
       time,
       time,
     )
-    return Number(inserted.changes) === 1
+    const queued = Number(inserted.changes) === 1
+    settleUse(ctx, org.id, use, { counted: queued, costMinor: result.costMinor })
+    return queued
   })
 }

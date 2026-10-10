@@ -1,5 +1,5 @@
 import { runTurn } from '../../lumane'
-import type { Allowance, Brain, BrainMessage, TurnResult, Usage } from '../../lumane'
+import type { Allowance, Brain, BrainMessage, TurnResult, Usage, UseRequest } from '../../lumane'
 import type { BusinessState } from '../domain/model'
 import type { Role } from '../domain/operations'
 import { ALLOWANCES, INSTRUCTIONS, askContext, askFacts, askSaleaneSkills } from './saleane'
@@ -10,6 +10,15 @@ import { testModeBrain } from './testBrain'
  * starts once a question has spent this much. Most cost 1 to 3; see docs/evidence/NEXT-12.
  */
 export const TYPED_WORST_CASE_MINOR = 6
+/** What one typed question uses of the allowance, held before the AI is asked. */
+export const askUse = (personId: string, at: string) =>
+  ({
+    meter: 'typed',
+    amount: 1,
+    personId,
+    at,
+    worstCaseMinor: TYPED_WORST_CASE_MINOR,
+  }) satisfies UseRequest
 /** No further call to a real AI starts after this long, well inside the browser's wait. */
 export const TURN_TIME_LIMIT_MS = 30_000
 /**
@@ -60,13 +69,11 @@ export function askSaleane(input: AskInput): Promise<TurnResult> {
           : { role: 'assistant', text: turn.text.slice(0, 2000), calls: [] },
       ),
     text: input.text,
-    meter: {
+    meter: (({ meter, ...use }) => ({
       allowance: input.allowance ?? ALLOWANCES.included,
       usage: input.usage,
-      personId: input.personId,
-      at: input.at,
-      kind: 'typed',
-      worstCaseMinor: TYPED_WORST_CASE_MINOR,
-    },
+      kind: meter,
+      ...use,
+    }))(askUse(input.personId, input.at)),
   })
 }

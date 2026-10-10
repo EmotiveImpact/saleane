@@ -8,6 +8,7 @@ import type {
   ToolCall,
   TurnResult,
   Usage,
+  UseRequest,
 } from '../../lumane'
 import type { BusinessState, Service } from '../domain/model'
 import { availableProfessionals, slots } from '../domain/commands'
@@ -79,6 +80,18 @@ export const LOOK_AHEAD_DAYS = 90
  * starts once a message has spent this much. Most cost under 1; see docs/evidence/NEXT-12.
  */
 export const CHAT_WORST_CASE_MINOR = 4
+/**
+ * What one guest message uses of the allowance, held before the AI is asked: a chat counts once,
+ * at its first message.
+ */
+export const receptionUse = (visitorId: string, at: string, continuing: boolean) =>
+  ({
+    meter: 'guestChats',
+    amount: continuing ? 0 : 1,
+    personId: visitorId,
+    at,
+    worstCaseMinor: CHAT_WORST_CASE_MINOR,
+  }) satisfies UseRequest
 /** No further call to a real AI starts after this long, so a guest or a text is not kept waiting. */
 export const CHAT_TIME_LIMIT_MS = 20_000
 export const CHAT_HISTORY_TURNS = 8
@@ -670,14 +683,11 @@ export function askReceptionist(input: ReceptionInput): Promise<TurnResult<Recep
           : { role: 'assistant', text: turn.text.slice(0, 2000), calls: [] },
       ),
     text: input.text,
-    meter: {
+    meter: (({ meter, ...use }) => ({
       allowance: input.allowance ?? ALLOWANCES.included,
       usage: input.usage,
-      personId: input.visitorId,
-      at: input.now,
-      kind: 'guestChats',
-      amount: input.continuing ? 0 : 1,
-      worstCaseMinor: CHAT_WORST_CASE_MINOR,
-    },
+      kind: meter,
+      ...use,
+    }))(receptionUse(input.visitorId, input.now, !!input.continuing)),
   }) as Promise<TurnResult<ReceptionEffect>>
 }
