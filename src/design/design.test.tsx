@@ -55,9 +55,31 @@ describe('design language in the workspace', () => {
   it('renders the living library inside the workspace', async () => {
     await show('/design-language')
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'Design language' }),
+      await screen.findByRole('heading', { level: 1, name: 'Design language.' }),
     ).toBeInTheDocument()
     expect(screen.getByRole('tablist', { name: 'Example sections' })).toBeInTheDocument()
+    // Stage 6: its sections, the page tops and the wording guide, each reachable from the top.
+    const contents = screen.getByRole('navigation', { name: 'On this page' })
+    for (const name of [
+      'Principles',
+      'Colour',
+      'Type',
+      'Space and edges',
+      'Page tops',
+      'Components',
+      'How SALEANE speaks',
+    ]) {
+      const heading = screen.getByRole('heading', { level: 2, name })
+      expect(within(contents).getByRole('link', { name })).toHaveAttribute('href', `#${heading.id}`)
+    }
+    expect(screen.getByText(/stands in for it/)).toBeInTheDocument()
+    expect(screen.queryByText(/Bodoni|Source Sans|licen[cs]e is bought/)).toBeNull()
+    expect(
+      screen.getByRole('table', { name: 'When each truth word may be used' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('table', { name: 'Which page top each kind of page uses' }),
+    ).toBeInTheDocument()
   })
 })
 

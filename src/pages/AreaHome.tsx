@@ -11,7 +11,7 @@ import type { Command } from '../domain/commands'
 import { dateLabel, money } from '../domain/format'
 import { GROUP_WINDOW_DAYS, monthEstimate } from '../domain/group'
 import { firstName, venueMinutes } from '../domain/pocket'
-import { Button, ErrorMessage, PageHeader } from '../design'
+import { Button, ErrorMessage, PageHeader, photos } from '../design'
 import { SignOut } from '../components/SignOut'
 import { HelpButton } from '../components/HelpButton'
 import { PutRightList, VisitForm, VisitHistory } from './BranchVisits'
@@ -213,6 +213,7 @@ export function AreaHome() {
       <main id="main-content" className="area-main">
         <PageHeader
           variant="editorial"
+          photo={{ src: photos.entrance, position: 'center 45%' }}
           eyebrow={
             <>
               <Sun size={16} />
@@ -222,6 +223,7 @@ export function AreaHome() {
           title={`${greeting(venueMinutes(org.timeZone, openedAt))}${
             store.session ? `, ${firstName(store.session.user.name)}` : ''
           }.`}
+          description="How each of your locations is doing, and what needs a look."
           actions={
             <>
               {record.checklists.length > 0 && (

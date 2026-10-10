@@ -13,7 +13,6 @@ import {
   ErrorMessage,
   Modal,
   PageHeader,
-  PhotoStrip,
   SegmentedControl,
   photos,
 } from '../design'
@@ -88,11 +87,12 @@ export function Clients() {
   }
   return (
     <>
-      <PhotoStrip src={photos.windowLight} />
       <PageHeader
         variant="compact"
+        photo={{ src: photos.windowLight }}
         eyebrow="Clients"
         title="Relationships, remembered."
+        description="Everyone who comes to the studio, what they love and when they are due back."
         actions={
           <>
             {can(role, 'import-clients') && (

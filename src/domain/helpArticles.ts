@@ -1140,6 +1140,27 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     words: 'reminder confirmation email text sms aftercare birthday',
   },
   {
+    id: 'speaks',
+    title: 'Write the way SALEANE speaks',
+    group: 'Messages and AI',
+    summary:
+      'A short guide for words guests and the team will read: messages, treatment descriptions and notes on the booking page.',
+    steps: [
+      'Use plain British English in short, calm sentences, with no exclamation marks.',
+      'Say visit and treatment, and write SALEANE in capitals. To a guest, say you and your visit.',
+      'Only say a message was sent, or a payment was charged, when it really was. In test mode, say that nothing was sent or that no money moved.',
+      'When you say no, give the reason in a few words and say who can help.',
+      'Write times as 09:00 to 17:00, not with a dash.',
+      'Open Design language, at the foot of every page, and read How SALEANE speaks for the words we use, the words we avoid and examples from the app.',
+    ],
+    note: 'Ask SALEANE and the AI receptionist follow the same words.',
+    to: '/design-language',
+    screens: ['/design-language'],
+    roles: DESK,
+    words:
+      'wording tone voice style guide writing words copy language spelling british dash how to write message brand',
+  },
+  {
     id: 'inbox',
     title: 'Write to a client',
     group: 'Messages and AI',

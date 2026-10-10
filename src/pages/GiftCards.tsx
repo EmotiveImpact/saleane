@@ -236,6 +236,7 @@ export function GiftCards() {
     <div className="gift-page">
       <PageHeader
         variant="compact"
+        eyebrow="Business"
         title="Gift cards and vouchers."
         description={`Sold at the desk and spent at checkout. Each lasts ${giftCardMonths(state) / 12} years and can pay for any visit until it runs out.`}
         actions={

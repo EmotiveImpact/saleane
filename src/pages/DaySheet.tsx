@@ -156,6 +156,7 @@ export function DaySheetScreen({ offline = false }: { offline?: boolean }) {
       <main id="main-content" className="day-sheet-main">
         {(paused || preview) && <OfflineNotice saved={saved} preview={preview} />}
         <PageHeader
+          eyebrow="Printable copy"
           title={
             sheet ? `Day sheet · ${dateLabel(sheet.date, sheet.organisation.locale)}` : 'Day sheet'
           }
