@@ -18,6 +18,13 @@ Lumane owns the parts that are the same for every app:
   and never falls back to a cheaper model. A turn starts no call that, costing as much as its
   costliest call so far, would pass its share, nor one after its time is up, and a supplier that cannot answer ends the turn as `unavailable`, with
   whatever it cost still recorded.
+- **The voice.** `VoiceLayer` is the same kind of swappable interface for a supplier that listens
+  and speaks in real time while the app's brain thinks. `openaiLive` starts OpenAI GPT-Live
+  sessions from the app's server, so the key never reaches the browser, follows each on its own
+  connection and answers the questions it hands over ("client delegation"). `conversation`
+  gathers what was heard and answers each question in turn; the app holds a talk's whole window
+  of the allowance first and settles it with the seconds the supplier reports (`settle` with an
+  `amount`).
 - **Audit.** Every skill use is recorded with who asked and what happened.
 
 Rules: nothing in this folder imports from the app that uses it, and nothing here knows about
