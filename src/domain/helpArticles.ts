@@ -481,6 +481,25 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     words:
       'settled fully booked beautifully done pause all in hand closing ledger end of day guest label moment celebration',
   },
+  {
+    id: 'before-they-arrive',
+    title: 'Before they arrive, and quiet milestones',
+    group: 'The day',
+    summary: 'A note about the next guest, so every welcome is personal.',
+    steps: [
+      'On Today, Before they arrive shows the next guest still to come: their treatment and who they see, what is good to remember, their last visit, a patch test that is not in order, and whether their next visit is booked yet.',
+      'The button under the card opens their visit, to welcome them, check them out or offer the next visit.',
+      'A milestone appears in quiet words when this visit brings one: a first visit, the fifth, tenth, twenty-fifth or fiftieth, a year since their first visit, a birthday within three days, or coming back after six months or more. The day’s list shows it as a small tag, and the visit itself says it in full.',
+      'When today’s visits carry the studio past its hundredth, five hundredth or thousandth visit, Today says which visit it will be, and that it happened once that guest has been checked out.',
+      'A professional sees the milestone on their own day, under Next up and in Before you begin.',
+    ],
+    note: 'Visits are counted across every client record with the same email, and only visits the guest came to count. Nothing here sends a message or tells the guest; what you say is up to you.',
+    to: '/today',
+    screens: ['/today'],
+    roles: DESK,
+    words:
+      'before they arrive next guest milestone birthday anniversary tenth visit first visit welcome back remembered celebration',
+  },
   // Clients
   {
     id: 'add-client',

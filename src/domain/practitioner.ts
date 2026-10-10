@@ -11,6 +11,7 @@ import { answerText, versionOf, visitForms } from './forms'
 import { visitConsultation } from './consultations'
 import { ownPlan } from './rota'
 import { targetProgress } from './pay'
+import { milestoneLine, visitMilestones } from './beforeVisit'
 
 /**
  * LOCAL-01: what an assigned practitioner may read and change.
@@ -117,6 +118,11 @@ export const practitionerViewSchema = z
           status: appointmentSchema.shape.status,
           /** V1.5: the guest tapped "I've arrived" and has not been welcomed yet. */
           guestHere: z.literal(true).optional(),
+          /**
+           * Stage 6: one quiet milestone for an upcoming visit ("Amelia’s tenth visit."), counted
+           * from the visits the guest came to. A sentence only, never the visits behind it.
+           */
+          moment: z.string().max(200).optional(),
           /** V1.5: for a treatment that needs one, where the guest's patch test stands. */
           patchTest: z
             .object({
@@ -227,6 +233,16 @@ function formsForVisit(s: BusinessState, a: Appointment) {
   return forms.length ? { forms } : {}
 }
 
+/** Stage 6: the first milestone of a visit still to come, as one sentence, or nothing. */
+function momentFor(s: BusinessState, a: Appointment) {
+  if (a.status !== 'confirmed' && a.status !== 'arrived') return {}
+  const first = visitMilestones(s, a)[0]
+  const name = s.clients.find((c) => c.id === a.clientId)?.name.split(' ')[0]
+  return first && name
+    ? { moment: milestoneLine(first, name, { visitDate: a.date, locale: s.organisation.locale }) }
+    : {}
+}
+
 /** Builds the practitioner's read model from the studio record. The server is the only caller. */
 export function practitionerView(
   s: BusinessState,
@@ -296,6 +312,7 @@ export function practitionerView(
       bufferMinutes: a.bookedBufferMinutes,
       status: a.status,
       ...(a.status === 'confirmed' && a.guestHereAt ? { guestHere: true as const } : {}),
+      ...momentFor(s, a),
       patchTest: patchFor(a),
       ...formsForVisit(s, a),
       ...(() => {

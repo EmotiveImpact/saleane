@@ -254,6 +254,8 @@ describe('help inside the app', () => {
     expect(first('fully booked beautifully done')).toBe('small-moments')
     expect(first('what does all in hand mean')).toBe('small-moments')
     expect(first('closing ledger end of day', 'general')).toBe('small-moments')
+    expect(first('guest milestone tenth visit')).toBe('before-they-arrive')
+    expect(first('before they arrive')).toBe('before-they-arrive')
     expect(ids(searchHelp('settled pause', 'practitioner'))).not.toContain('small-moments')
     // Stage 5: booking on Google, with its new way to change the time.
     expect(first('book on google maps')).toBe('google-booking')

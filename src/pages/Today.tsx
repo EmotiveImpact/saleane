@@ -6,7 +6,7 @@ import { useStore } from '../state/context'
 import { useLiveRefresh } from '../state/useLive'
 import { bookedTimeShare, dayAppointments, dueClients } from '../domain/selectors'
 import { bookedTimeDefinition } from '../components/definitions'
-import { dateLabel, money } from '../domain/format'
+import { dateLabel, money, timeLabel } from '../domain/format'
 import { Button, Metric, photos } from '../design'
 import { businessMinutes } from '../domain/operations'
 import type { Appointment, Client } from '../domain/model'
@@ -19,6 +19,9 @@ import { NeedsYou } from '../components/NeedsYou'
 import { TeamToday } from '../components/TeamToday'
 import type { BookingDefaults } from '../components/BookingDialog'
 import { FULLY_BOOKED_LINE, fullyBooked } from '../domain/moments'
+import { studioMilestone, studioMilestoneLine } from '../domain/beforeVisit'
+import { BeforeVisitCard } from '../components/BeforeVisitCard'
+import { placeOf } from '../domain/locations'
 import '../components/moments.css'
 
 function greeting(minutes: number) {
@@ -74,6 +77,16 @@ export function Today() {
     today,
     locationId: role === 'general' ? (branch ?? undefined) : undefined,
   })
+  const nowMinutes = businessMinutes(state)
+  // Stage 6: a quiet line when today carries the studio (or a general manager's location) past
+  // its hundredth, five hundredth or thousandth visit.
+  const milestone = studioMilestone(
+    state,
+    today,
+    role === 'general' ? (branch ?? undefined) : undefined,
+  )
+  const milestoneGuest =
+    milestone && state.clients.find((c) => c.id === milestone.appointment.clientId)
   return (
     <>
       <section className="greeting" aria-labelledby="greeting-title">
@@ -84,6 +97,18 @@ export function Today() {
             {session ? `, ${session.user.name.split(' ')[0]}.` : '.'}
           </h1>
           <p className="greeting-summary">{daySummary(day, state.clients, state.appointments)}</p>
+          {milestone && milestoneGuest && (
+            <p className="studio-milestone settle-in">
+              {studioMilestoneLine(
+                milestone,
+                role === 'general' && branch
+                  ? (placeOf(state, branch)?.name ?? state.organisation.name)
+                  : state.organisation.name,
+                milestoneGuest.name.split(' ')[0],
+                timeLabel(milestone.appointment.startMinutes, state.organisation.locale),
+              )}
+            </p>
+          )}
           <div className="page-actions">
             <Button onClick={() => setBooking({ date: today })}>
               <Plus size={17} />
@@ -160,7 +185,7 @@ export function Today() {
             appointments={hideCompleted ? day.filter((a) => a.status !== 'completed') : day}
             selectedId={appointmentId}
             onOpen={setAppointmentId}
-            nowMinutes={businessMinutes(state)}
+            nowMinutes={nowMinutes}
           />
           {changed.length > 0 && (
             <Link className="day-changes-link" to="/calendar">
@@ -171,6 +196,7 @@ export function Today() {
           )}
         </section>
         <aside className="today-aside">
+          <BeforeVisitCard nowMinutes={nowMinutes} onOpen={setAppointmentId} />
           <NeedsYou />
           <TeamToday />
           <Link className="booking-prompt" to="/booking">

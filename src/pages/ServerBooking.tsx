@@ -48,6 +48,7 @@ import { PatchTestFirst } from '../components/PatchTestFirst'
 import { phoneLink } from '../domain/studioContact'
 import '../guest.css'
 import './bookingOffer.css'
+import '../components/moments.css'
 
 const pendingBookingSchema = z.object({
   payload: z.object({

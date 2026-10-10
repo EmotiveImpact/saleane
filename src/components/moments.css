@@ -406,13 +406,226 @@
   overflow-wrap: anywhere;
 }
 
+/* Before they arrive: the next guest, set like a note the team reads before the welcome. */
+.before-visit {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--paper);
+}
+.before-visit .eyebrow {
+  margin: 0;
+}
+.before-visit h2 {
+  margin: 0;
+  font-family: var(--font-editorial);
+  font-weight: var(--weight-editorial);
+  font-size: var(--text-title-m);
+  line-height: 1.1;
+}
+.before-visit-what {
+  margin: -4px 0 0;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.before-visit-moments {
+  display: grid;
+  gap: 4px;
+}
+.before-visit-moments p,
+.visit-moment,
+.studio-milestone {
+  margin: 0;
+  font-family: var(--font-editorial);
+  font-style: italic;
+  font-weight: var(--weight-editorial);
+  color: var(--brand-ink);
+  line-height: 1.4;
+}
+.before-visit-moments p {
+  font-size: var(--text-lead);
+}
+/* A hairline that draws itself above the milestone, as under "Settled.". */
+.before-visit-rule {
+  display: block;
+  width: 56px;
+  height: 1px;
+  margin-bottom: 6px;
+  background: var(--line-strong);
+  transform-origin: left center;
+  animation: settled-draw 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) 0.25s both;
+}
+.before-visit-moments p {
+  animation: moment-settle 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) 0.45s both;
+}
+.before-visit-lines {
+  display: grid;
+  margin: 0;
+  border-top: 1px solid var(--line);
+}
+.before-visit-lines > div {
+  display: grid;
+  gap: 2px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.before-visit-lines dt {
+  color: var(--muted);
+  font-size: var(--text-eyebrow);
+  font-weight: var(--weight-strong);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.before-visit-lines dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-small);
+  line-height: 1.5;
+}
+.before-visit .button {
+  justify-self: start;
+}
+@media (max-width: 1080px) {
+  .today-aside > .before-visit {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 900px) {
+  .today-aside > .before-visit {
+    margin-bottom: var(--space-5);
+  }
+}
+
+/* A milestone beside a visit: in the visit window, and on a practitioner's next visit. */
+.visit-remember .visit-moment {
+  margin-top: var(--space-2);
+  font-size: var(--text-body);
+}
+.practitioner-next-who .visit-moment {
+  display: block;
+  margin-top: 4px;
+  font-size: var(--text-small);
+}
+.practitioner-client .section-heading .visit-moment {
+  margin-top: var(--space-2);
+  font-size: var(--text-lead);
+}
+/* In the day's list, a small quiet tag: never a colour of its own, only the brand's ink. */
+.agenda-moment {
+  display: inline-block;
+  margin-top: 3px;
+  padding: 1px 8px;
+  border-radius: var(--radius-round);
+  background: color-mix(in srgb, var(--brand) 10%, var(--paper));
+  color: var(--brand-ink);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-strong);
+  white-space: nowrap;
+}
+/* The studio's own milestone, one line under the day's summary. */
+.studio-milestone {
+  margin: -12px 0 24px;
+  font-size: var(--text-lead);
+}
+
+/*
+ * Gentle motion on key moments. Each is a single soft movement that answers something real: the
+ * day opening, a guest welcomed, the day closing. Nothing loops, nothing bounces, and with reduced
+ * motion everything is simply there.
+ */
+/* The day opens: the greeting rises gently from the ivory, once each time Today is opened. */
+.greeting .greeting-copy > * {
+  animation: moment-settle 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.greeting .greeting-copy > :nth-child(2) {
+  animation-delay: 0.08s;
+}
+.greeting .greeting-copy > :nth-child(3) {
+  animation-delay: 0.16s;
+}
+.greeting .greeting-copy > :nth-child(n + 4) {
+  animation-delay: 0.24s;
+}
+.greeting .greeting-photo {
+  animation: moment-photo 1.1s ease-out both;
+}
+@keyframes moment-photo {
+  from {
+    opacity: 0;
+    transform: scale(1.015);
+  }
+}
+/* A guest is welcomed or checked out: their row takes on its new state softly, not in a blink. */
+.agenda-row .status,
+.agenda-completed > :not(.status) {
+  transition:
+    background-color 0.6s ease,
+    border-color 0.6s ease,
+    color 0.6s ease;
+}
+/* The day closes: the ledger's lines arrive one after another, like a page being written. */
+.closing-ledger dl > div {
+  animation: moment-settle 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.closing-ledger dl > div:nth-child(2) {
+  animation-delay: 0.06s;
+}
+.closing-ledger dl > div:nth-child(3) {
+  animation-delay: 0.12s;
+}
+.closing-ledger dl > div:nth-child(4) {
+  animation-delay: 0.18s;
+}
+.closing-ledger dl > div:nth-child(5) {
+  animation-delay: 0.24s;
+}
+.closing-ledger dl > div:nth-child(n + 6) {
+  animation-delay: 0.3s;
+}
+.closing-up .closing-ledger-end {
+  animation: moment-settle 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) 0.5s both;
+}
+/* The guest's own visit: their label settles in when the page opens. */
+.visit-label {
+  animation: moment-settle 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) 0.1s both;
+}
+
+/* A guest books: the mark arrives softly, then the words, as the visit is saved. */
+.booking-confirmation .confirmation-mark {
+  animation: moment-mark 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.booking-confirmation > :not(.confirmation-mark) {
+  animation: moment-settle 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) 0.25s both;
+}
+@keyframes moment-mark {
+  from {
+    opacity: 0;
+    transform: scale(0.86);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .settle-in,
   .settled-moment.is-new .settled-amount,
   .settled-moment.is-new .settled-rule,
   .settled-moment.is-new .settled-word,
-  .settled-moment.is-new .settled-line {
+  .settled-moment.is-new .settled-line,
+  .before-visit-rule,
+  .before-visit-moments p,
+  .greeting .greeting-copy > *,
+  .greeting .greeting-photo,
+  .closing-ledger dl > div,
+  .closing-up .closing-ledger-end,
+  .visit-label,
+  .booking-confirmation .confirmation-mark,
+  .booking-confirmation > :not(.confirmation-mark) {
     animation: none;
+  }
+  .agenda-row .status,
+  .agenda-completed > :not(.status) {
+    transition: none;
   }
   .calendar-grid .hour-line::after {
     transition: none;

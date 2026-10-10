@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import { milestoneLine, visitMilestones } from '../domain/beforeVisit'
 import { Link } from 'react-router-dom'
 import {
   ArrowUpRight,
@@ -40,6 +41,7 @@ import { shownStatus } from '../domain/selectors'
 import { everyLabel, laterInRepeat, repeatLabel } from '../domain/repeat'
 import { servicePhoto } from './servicePhoto'
 import './visitPanel.css'
+import './moments.css'
 import './repeat.css'
 import { othersTogether, togetherLine, upcomingTogether } from '../domain/together'
 import './together.css'
@@ -142,6 +144,12 @@ export function AppointmentDialog({
   // Earlier visits the client came to, for a line of context beside what is good to remember.
   // Stage 5: from every record with the client's email, as each online booking opens a new one.
   const background = guestBackground(state, appointment)
+  // Stage 6: the milestones this visit brings, while it is still to come or under way.
+  const moments = ['confirmed', 'arrived'].includes(appointment.status)
+    ? visitMilestones(state, appointment).map((m) =>
+        milestoneLine(m, firstName, { visitDate: appointment.date, locale }),
+      )
+    : []
   const earlier = background.earlier
   const previous = earlier[0]
   const previousName =
@@ -1218,6 +1226,11 @@ export function AppointmentDialog({
                   ? `Last came ${dateLabel(previous.date, locale)}${previousName ? ` for ${previousName}` : ''}. ${earlier.length} ${earlier.length === 1 ? 'visit' : 'visits'} before this one${background.records > 1 ? `, across ${background.records} client records with the same email` : ''}.`
                   : 'No earlier visits.'}
               </p>
+              {moments.map((line) => (
+                <p key={line} className="visit-moment">
+                  {line}
+                </p>
+              ))}
             </div>
           </div>
           <div className="visit-notes">

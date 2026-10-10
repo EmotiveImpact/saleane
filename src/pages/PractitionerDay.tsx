@@ -456,6 +456,7 @@ export function PractitionerDay() {
                   <small>
                     {[next.resourceName, `${next.durationMinutes} min`].filter(Boolean).join(' · ')}
                   </small>
+                  {next.moment && <em className="visit-moment">{next.moment}</em>}
                 </span>
                 <span className="practitioner-next-open">
                   Before you begin
@@ -547,6 +548,7 @@ export function PractitionerDay() {
                     {timeLabel(visit.startMinutes, locale)} · {visit.serviceName}
                     {visit.resourceName ? ` · ${visit.resourceName}` : ''}
                   </p>
+                  {visit.moment && <p className="visit-moment settle-in">{visit.moment}</p>}
                 </div>
                 <Status status={visit.guestHere ? 'here' : visit.status} />
               </div>
