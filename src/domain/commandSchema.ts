@@ -5,6 +5,7 @@ import { groupCommandSchemas } from './groupSchema'
 import { branchVisitCommandSchemas } from './branchVisitSchema'
 import { hoursCommandSchemas } from './hoursSchema'
 import { rotaCommandSchemas } from './rotaSchema'
+import { newsCommandSchemas } from './newsSchema'
 import { commissionCommandSchemas } from './commissionSchema'
 import { approvalCommandSchemas } from './approvalsSchema'
 import { brandCommandSchemas } from './brandRulesSchema'
@@ -709,6 +710,8 @@ export const commandSchema = z.discriminatedUnion('type', [
   ...rotaCommandSchemas,
   // Stage 3: rates for a treatment or product, steps by takings and monthly targets.
   ...commissionCommandSchemas,
+  // Stage 4: one message from the studio to its clients, drafted, approved, stopped.
+  ...newsCommandSchemas,
   ...operatingCommandSchema.options,
 ])
 export type BookingInput = z.infer<typeof bookingSchema>

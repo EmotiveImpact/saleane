@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { fail } from '../http'
 import { can } from '../../src/domain/operations'
 import { MANAGE_LINK } from '../../src/domain/reminders'
+import { NEWS_STOP_LINK } from '../../src/domain/news'
 import { repliesList } from '../../src/domain/inbox'
 import type { BusinessState } from '../../src/domain/model'
 import type { Context, Route } from '../context'
@@ -36,7 +37,9 @@ function view(row: OutboxRow, linked: Map<string, string>) {
     channel: row.channel,
     recipient: row.recipient,
     subject: row.subject,
-    body: row.body.replaceAll(MANAGE_LINK, '[private link to manage the visit]'),
+    body: row.body
+      .replaceAll(MANAGE_LINK, '[private link to manage the visit]')
+      .replaceAll(NEWS_STOP_LINK, '[private link to stop news]'),
     status: row.status,
     provider: row.provider,
     detail: row.detail,
@@ -70,8 +73,10 @@ export function messagingRoutes(outbox: Outbox) {
             JSON.stringify([...linked].filter(([, id]) => id === input.clientId).map(([k]) => k)),
             input.limit,
           )
-        : ctx.db.all<OutboxRow>(
-            'SELECT * FROM outbox WHERE organisation_id=? ORDER BY created_at DESC LIMIT ?',
+        : // Stage 4: a message to clients is followed on its own page and on each client's,
+          // so its many copies do not crowd out the studio's other messages here.
+          ctx.db.all<OutboxRow>(
+            "SELECT * FROM outbox WHERE organisation_id=? AND kind<>'news' ORDER BY created_at DESC LIMIT ?",
             org.id,
             input.limit,
           )
@@ -86,6 +91,14 @@ export function messagingRoutes(outbox: Outbox) {
     }
     if (path.length === 6 && path[5] === 'retry' && method === 'POST') {
       if (!can(org.role, 'message.queue')) fail(403, 'Your role cannot send messages again.')
+      // Stage 4: a copy of a message to clients goes again only on the owner's word.
+      const kind = ctx.db.get<{ kind: string }>(
+        'SELECT kind FROM outbox WHERE id=? AND organisation_id=?',
+        path[4],
+        org.id,
+      )?.kind
+      if (kind === 'news' && !can(org.role, 'news-send'))
+        fail(403, 'Only the owner can send a message to clients again.')
       if (!outbox.retry(org.id, path[4]))
         fail(409, 'Only a message that failed or is unclear can be sent again.')
       ctx.audit(org, actor.id, 'outbox.retry', path[4])

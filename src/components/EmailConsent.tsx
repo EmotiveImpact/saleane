@@ -100,7 +100,9 @@ const where = (r: ConsentRecord) =>
     ? 'on the booking page'
     : r.source === 'guest link'
       ? 'from their visit link'
-      : `at the desk by ${r.actor}`
+      : r.source === 'email link'
+        ? 'from the stop link in a message to clients'
+        : `at the desk by ${r.actor}`
 
 /** Every change to a client's email permission, newest first. */
 export function ConsentHistory({ clientId }: { clientId: string }) {

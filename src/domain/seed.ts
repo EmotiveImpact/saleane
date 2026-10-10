@@ -781,6 +781,7 @@ function build(region: Region, regularCount: number): BusinessState {
   ;(state.operations ??= defaultOperations('sandbox')).shifts = sampleShifts(state, DEMO_DATE)
   seedBranchVisits(state)
   seedRota(state, at)
+  seedNews(state, at)
   seedRent(state, uk)
   seedAccounting(state, uk)
   seedArrivals(state, uk, at)
@@ -1406,6 +1407,26 @@ function seedRota(state: BusinessState, at: (date: string, minutes: number) => s
       note: 'Covering Saturday',
       createdAt: at(addDays(DEMO_DATE, -4), 612),
       actor: 'Owner',
+    },
+  ]
+}
+
+/**
+ * Stage 4: a message to every client, drafted by a manager and waiting for the owner, so the
+ * sample shows the numbers it would reach and the approval. A sample studio never queues it.
+ */
+function seedNews(state: BusinessState, at: (date: string, minutes: number) => string) {
+  const o = (state.operations ??= defaultOperations('sandbox'))
+  o.news = [
+    {
+      id: 'news-thursday-evenings',
+      subject: `Thursday evenings at ${state.organisation.name}`,
+      body: 'From November we stay open until eight on Thursdays. Come in after work for an unhurried facial or a cut and finish, with a pot of tea to end the day. Evening times are open to book now.',
+      by: 'either',
+      bookLink: true,
+      status: 'draft',
+      createdAt: at(addDays(DEMO_DATE, -1), 1010),
+      actor: 'Sophia Reed',
     },
   ]
 }

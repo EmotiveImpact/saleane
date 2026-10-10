@@ -46,6 +46,7 @@ export const kindLabel: Record<MessageKind, string> = {
   plan_reminder: 'Membership payment reminder',
   plan_declined: 'Membership payment not taken',
   receipt: 'Receipt',
+  news: 'Message to clients',
 }
 /** The outbox for one studio, or one client. Reads only; staff can ask a failed message to go again. */
 export function useSentMessages(

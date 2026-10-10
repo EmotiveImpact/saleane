@@ -12,6 +12,7 @@ import { runTillCommand } from './till'
 import { branchVisitUnchanged, runBranchVisitCommand, stampBranchVisitActors } from './branchVisits'
 import { runHoursCommand, stampShiftActors } from './hours'
 import { runRotaCommand, stampRotaActors } from './rota'
+import { newsUnchanged, runNewsCommand, stampNewsActors } from './news'
 import { runCommissionCommand } from './commission'
 import { channelLabel } from './bookingChannel'
 import { checkoutTotals } from './money'
@@ -902,6 +903,16 @@ export function execute(
     ) {
       recordId = runRotaCommand(next, command, now, makeId)
     } else if (
+      command.type === 'news-save' ||
+      command.type === 'news-approve' ||
+      command.type === 'news-stop' ||
+      command.type === 'news-discard' ||
+      command.type === 'news-unsubscribe'
+    ) {
+      const unchanged = newsUnchanged(s, command)
+      if (unchanged) return { ok: true, state: s, recordId: unchanged }
+      recordId = runNewsCommand(next, command, now, makeId, addEvent)
+    } else if (
       command.type === 'studio-look' ||
       command.type === 'house-rules' ||
       command.type === 'benchmark-sharing'
@@ -1224,6 +1235,7 @@ export function dispatch(
   stampRequestActors(s, result.state, actorName)
   stampShiftActors(s, result.state, actorName)
   stampRotaActors(s, result.state, actorName)
+  stampNewsActors(s, result.state, actorName)
   const known = new Map((operations(s).missedCalls ?? []).map((c) => [c.id, c]))
   for (const call of operations(result.state).missedCalls ?? []) {
     const before = known.get(call.id)

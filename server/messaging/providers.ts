@@ -18,6 +18,11 @@ export type OutgoingMessage = {
   fromName: string
   /** V4: the studio's Instagram account, Page or WhatsApp number an answer goes from. */
   account?: string
+  /**
+   * Stage 4: one copy of a message to many clients, with the link that stops them. Email goes on
+   * the provider's stream for messages to many people, and names the link in its headers.
+   */
+  bulk?: { unsubscribe: string }
 }
 export type SendResult =
   | { outcome: 'test' }
@@ -131,7 +136,10 @@ export function postmarkProvider(config: {
           To: message.to,
           Subject: message.subject,
           TextBody: message.body,
-          MessageStream: 'outbound',
+          MessageStream: message.bulk ? 'broadcast' : 'outbound',
+          ...(message.bulk
+            ? { Headers: [{ Name: 'List-Unsubscribe', Value: `<${message.bulk.unsubscribe}>` }] }
+            : {}),
           Metadata: { outbox: message.id },
         }),
       })

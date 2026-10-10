@@ -28,6 +28,7 @@ describe('the workspace read projection', () => {
       staffTargets,
       checklists: _lists,
       branchVisits,
+      news,
       ...operations
     } = state.operations!
     void [_paid, _lists]
@@ -37,6 +38,8 @@ describe('the workspace read projection', () => {
     expect(commissionSteps?.length).toBeGreaterThan(0)
     expect(staffTargets?.length).toBeGreaterThan(0)
     expect(branchVisits?.length).toBeGreaterThan(0)
+    // Stage 4: messages to clients are written by leads, not the desk.
+    expect(news?.length).toBeGreaterThan(0)
     const terms = rentals!.map((rental) => {
       const { percentBps: _share, ...kept } = rental
       void _share

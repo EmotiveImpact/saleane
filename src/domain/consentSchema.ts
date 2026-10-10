@@ -22,7 +22,8 @@ export const consentWordingSchema = z
   .strict()
 export type ConsentWording = z.infer<typeof consentWordingSchema>
 
-export const consentSources = ['booking page', 'desk', 'guest link'] as const
+/** Stage 4: 'email link' is the stop link in a message to clients. */
+export const consentSources = ['booking page', 'desk', 'guest link', 'email link'] as const
 export const consentRecordSchema = z
   .object({
     id,

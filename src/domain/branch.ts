@@ -5,6 +5,7 @@ import { places, staffLocationOn } from './locations'
 import { branchVisits } from './branchVisits'
 import { withoutPayRates } from './pay'
 import { shifts, shiftsAt } from './hours'
+import { newsAt, newsMessage, newsOnlyAt } from './news'
 
 /**
  * V5: a general manager runs one location ('general', with the location in their access). They
@@ -136,6 +137,24 @@ export function branchRefusal(
     }
     case 'request-raise':
       return mine(command.input.locationId) ? null : 'That is at another location.'
+    case 'news-save': {
+      // Stage 4: a message to their own location's clients only, never to the whole group.
+      const ids = command.input.locationIds
+      if (ids?.length !== 1 || ids[0] !== locationId)
+        return 'Write only to the clients of your own location.'
+      if (!command.id) return null
+      const message = newsMessage(s, command.id)
+      return message && newsOnlyAt(message, locationId)
+        ? null
+        : 'That message is for other locations.'
+    }
+    case 'news-stop':
+    case 'news-discard': {
+      const message = newsMessage(s, command.messageId)
+      return message && newsOnlyAt(message, locationId)
+        ? null
+        : 'That message is for other locations.'
+    }
     case 'plan-card': {
       // Stage 1: card payments only for a membership sold at their own location.
       const holding = (s.holdings ?? []).find((h) => h.id === command.holdingId)
@@ -182,7 +201,7 @@ export const branchOpen = (s: BusinessState, locationId: string) =>
 
 /**
  * What a general manager reads: the studio record less the team's pay rates, and only their own
- * location's branch visits and requests for a sign-off.
+ * location's branch visits, requests for a sign-off and messages to clients.
  */
 export function branchView(s: BusinessState, locationId: string): BusinessState {
   const lean = withoutPayRates(s)
@@ -197,6 +216,8 @@ export function branchView(s: BusinessState, locationId: string): BusinessState 
         : {}),
       ...(o.requests ? { requests: o.requests.filter((r) => r.locationId === locationId) } : {}),
       ...(o.shifts ? { shifts: shiftsAt(o.shifts, locationId, s.organisation.locationId) } : {}),
+      // Stage 4: only the messages to their own location's clients.
+      ...(o.news ? { news: newsAt(lean, locationId) } : {}),
     },
   }
 }
