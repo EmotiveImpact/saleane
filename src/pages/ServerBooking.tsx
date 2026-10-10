@@ -211,7 +211,11 @@ export function ServerBooking() {
     />
   )
 }
-/** The time in a booking link, when it names a treatment, person, date and start this page offers. */
+/**
+ * The time in a booking link, when it names a treatment, person, date and start this page offers.
+ * A link with no start, such as "Book your usual" on a guest's visit page (Stage 5), opens the
+ * times for that day with nothing chosen.
+ */
 function linkedTime(
   search: string,
   services: Catalog['services'],
@@ -222,14 +226,14 @@ function linkedTime(
   const service = services.find((s) => s.id === q.get('service'))
   const staffId = q.get('staff') ?? 'any'
   const date = q.get('date') ?? ''
-  const start = Number(q.get('start'))
+  const start = q.has('start') ? Number(q.get('start')) : null
   if (!service || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date < today) return null
   if (
     staffId !== 'any' &&
     !staff.some((p) => p.id === staffId && p.serviceIds.includes(service.id))
   )
     return null
-  if (!Number.isInteger(start) || start < 0 || start >= 24 * 60) return null
+  if (start !== null && (!Number.isInteger(start) || start < 0 || start >= 24 * 60)) return null
   return { serviceId: service.id, staffId, date, start }
 }
 /** Stage 3: the treatment a link names on its own, such as the studio's patch test. */

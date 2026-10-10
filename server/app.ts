@@ -33,7 +33,8 @@ import type { Outbox } from './messaging/outbox'
 import { paymentRoutes } from './routes/payments'
 import { assistantRoutes } from './routes/assistant'
 import { receptionistRoutes } from './routes/receptionist'
-import { answerSocial, answerText } from './messaging/receptionistText'
+import { answerMissed, answerSocial, answerText } from './messaging/receptionistText'
+import { HOLD_SECONDS } from '../lumane'
 import { createPayments } from './payments/service'
 import type { Payments } from './payments/service'
 import { createMembershipCharges } from './payments/memberships'
@@ -92,6 +93,20 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   const outbox = createOutbox(ctx, ctx.messaging)
   // Stage 4: an approved message to clients is queued as it is saved, and a stopped one stops.
   watchNews(ctx)
+  /**
+   * NEXT-12: the receptionist's answer to a text or social message. A real AI can take several
+   * seconds, longer than a provider waits, so the provider is thanked first and the answer follows
+   * through the outbox. The test-mode receptionist answers at once, before the provider is thanked.
+   */
+  const answerSoon = async (answering: Promise<boolean>, what: string) => {
+    const queued = answering.then((sent) => {
+      if (sent && options.outboxIntervalMs) outbox.soon()
+    })
+    if (!ctx.ai.live) return queued
+    queued.catch((error) =>
+      console.error(`[SALEANE] The receptionist could not answer ${what}.`, error),
+    )
+  }
   const payments = createPayments(ctx, ctx.paymentProvider)
   const billing = createBilling(
     ctx,
@@ -137,6 +152,27 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     ),
     ...baseRoutes,
   ]
+  // NEXT-12: a guest's message thanked but left unanswered when SALEANE last stopped. One the
+  // allowance refused may have been kept from its answer by the share its own stopped request
+  // still holds, so those are tried once more when that hold has run out.
+  let missedAgain: ReturnType<typeof setTimeout> | undefined
+  if (ctx.ai.live) {
+    const what = 'messages kept before a restart'
+    const missed = answerMissed(ctx)
+    void answerSoon(
+      missed.then(({ queued }) => queued),
+      what,
+    )
+    const again = () =>
+      missed.then(
+        async ({ refused }) => refused.length > 0 && (await answerMissed(ctx, refused)).queued,
+      )
+    missedAgain = setTimeout(
+      () => void answerSoon(again(), what),
+      options.missedAgainMs ?? (HOLD_SECONDS + 15) * 1000,
+    )
+    missedAgain.unref?.()
+  }
   if (options.outboxIntervalMs) {
     outbox.start(options.outboxIntervalMs)
     connections.start(options.outboxIntervalMs)
@@ -232,12 +268,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
           recordReply(ctx, inbound[3], provider === 'twilio' ? 'sms' : 'email', reply)
           // V4: the AI receptionist answers a kept text when the studio chose it, once, even if
           // the provider sends it again after a failure; the outbox sends the answer.
-          if (
-            provider === 'twilio' &&
-            (await answerText(ctx, inbound[3], reply)) &&
-            options.outboxIntervalMs
-          )
-            outbox.soon()
+          if (provider === 'twilio') await answerSoon(answerText(ctx, inbound[3], reply), 'a text')
         }
         if (provider === 'twilio') {
           // Nothing answered inline: the team, or the AI receptionist through the outbox, replies.
@@ -272,7 +303,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
         for (const message of metaMessages(payload)) {
           recordSocialMessage(ctx, message)
           // The AI receptionist answers a kept message when the studio chose that, once.
-          if ((await answerSocial(ctx, message)) && options.outboxIntervalMs) outbox.soon()
+          await answerSoon(answerSocial(ctx, message), 'a message')
         }
         reply(200, { ok: true })
         return
@@ -402,6 +433,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   handler.signOffs = signOffs
   handler.close = () => {
     signOffs.stop()
+    clearTimeout(missedAgain)
     outbox.stop()
     connections.stop()
     billing.stop()

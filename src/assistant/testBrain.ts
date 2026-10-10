@@ -21,7 +21,7 @@ export function testModeBrain(today: string, locale = 'en-GB'): Brain {
 }
 
 const HELP =
-  'In test mode I can answer a few things from your records: your morning brief, anything unusual, who is drifting away, what is on today or tomorrow, who is at a time ("who\'s my 10 o\'clock?"), who is on the waitlist, who is due back, takings, money owed, plans running low, low stock, and a brief on a client ("tell me about Maya"). I can prepare changes for you to approve: "book Jamie with Maya for a facial on Thursday at 3pm", "cancel Nina Patel", "Theo is off sick today", "offer Thursday at 2pm to Priya", a reminder ("remind me on Friday to call the supplier"), or an invitation ("invite Maya back"). Owners and managers can also ask "how did we do today?", "how was the week?", and for specials to run. And anyone can ask how to do something, such as "how do I refund a payment?".'
+  'In test mode I can answer a few things from your records: your morning brief, anything unusual, who is drifting away, what is on today or tomorrow, who is at a time ("who\'s my 10 o\'clock?"), who is on the waitlist, who is due back, takings, money owed, plans running low, low stock, and a brief on a client ("tell me about Maya"). I can prepare changes for you to approve: "book Jamie with Maya for a facial on Thursday at 3pm", "book Amelia her usual on Friday", "cancel Nina Patel", "Theo is off sick today", "offer Thursday at 2pm to Priya", a reminder ("remind me on Friday to call the supplier"), or an invitation ("invite Maya back"). Owners and managers can also ask "how did we do today?", "how was the week?", and for specials to run. And anyone can ask how to do something, such as "how do I refund a payment?".'
 
 const MANAGERS_ONLY = 'That is for owners and managers.'
 /** "How do I…", "where can I…": a question about using SALEANE rather than about the studio. */
@@ -127,6 +127,24 @@ function dayIn(q: string, today: string) {
   return addDays(today, (named - current + 7) % 7 || 7)
 }
 
+/**
+ * Stage 5: the client whose usual is meant: "book Amelia her usual on Friday", "book Amelia in for
+ * the usual", "book Amelia Carter's usual", "what is Amelia's usual?".
+ */
+function usualName(question: string) {
+  const found =
+    /^\s*book\s+([a-z][a-z' -]{1,60}?)(?:['’]s\s+usual\b|\s+(?:in\s+)?(?:for\s+)?(?:her|his|their|the)\s+(?:usual|regular)\b|\s+(?:in\s+)?for\s+(?:usual|regular)\b)/i.exec(
+      question,
+    )?.[1] ??
+    /\b(?:is|what'?s|whats|about|for)\s+([a-z][a-z' -]{1,60}?)['’]s\s+(?:usual|regular)\b/i.exec(
+      question,
+    )?.[1]
+  const name = found?.trim()
+  return name && !NOT_NAMES.test(name) ? name : undefined
+}
+/** Whether a day is named, rather than left to the client's next usual day. */
+const namesDay = (q: string) => /\btomorrow\b/.test(q) || WEEKDAYS.some((d) => q.includes(d))
+
 /** "Book Jamie in with Maya…": the client named after "book". */
 function bookingName(question: string) {
   return /^\s*book\s+([a-z][a-z' -]{1,60}?)\s+(?:in\b|for\b|with\b)/i.exec(question)?.[1].trim()
@@ -148,6 +166,14 @@ function firstStep(question: string, today: string, offered: Set<string>): Step 
   const need = (skill: string, step: Step) => (offered.has(skill) ? step : say(MANAGERS_ONLY))
   const at = clockTime(q)
   if (HOW_TO.test(q) && offered.has('how_to')) return call('how_to', { question })
+  // Stage 5: a client's usual, to know it or to book it.
+  if (usualName(question)) {
+    if (/^\s*book\b/.test(q) && !offered.has('book_visit'))
+      return say('Your role cannot book visits.')
+    return offered.has('client_usual')
+      ? call('find_client', { name: usualName(question)! })
+      : say('Your role cannot see clients.')
+  }
   if (/^\s*book\b/.test(q) && bookingName(question))
     return offered.has('book_visit')
       ? {
@@ -669,6 +695,8 @@ function managerFlow(
   const q = question.toLowerCase()
   const last = results[results.length - 1]
 
+  if (usualName(question)) return usualFlow(question, results, day, today)
+
   if (ABSENT.test(q) && !/^\s*(book|cancel)\b/.test(q)) {
     if (last.name === 'catalogue') {
       const person = (last.data as Catalogue).professionals.find((p) =>
@@ -818,6 +846,106 @@ function managerFlow(
     return say(parts.join(' '))
   }
   return null
+}
+
+type ClientUsual = {
+  clientId: string
+  name: string
+  usual: boolean
+  summary: string
+  notes: string[]
+  serviceId?: string
+  staffId?: string
+  partOfDay?: 'morning' | 'afternoon' | 'evening'
+  startMinutes?: number
+  nextDate?: string
+}
+const PARTS = {
+  morning: (m: number) => m < 720,
+  afternoon: (m: number) => m >= 720 && m < 1020,
+  evening: (m: number) => m >= 1020,
+}
+
+/**
+ * Stage 5: "what is Amelia's usual?" says it; "book Amelia her usual on Friday" books it. The
+ * booking is proposed only at a time that is free: the time named, or else their usual start time.
+ * Otherwise it lists the free times in their usual part of the day and asks which.
+ */
+function usualFlow(
+  question: string,
+  results: Result[],
+  day: (date: string) => string,
+  today: string,
+): Step {
+  const q = question.toLowerCase()
+  const last = results[results.length - 1]
+  const booking = /^\s*book\b/.test(q)
+  if (last.name === 'find_client') {
+    const found = last.data as { clientId: string; name: string }[]
+    if (!found.length) return say(`I could not find a client called ${usualName(question)}.`)
+    if (found.length > 1)
+      return say(`I found ${found.map((c) => c.name).join(', ')}. Which one do you mean?`)
+    return call('client_usual', { clientId: found[0].clientId })
+  }
+  const usual = result<ClientUsual>(results, 'client_usual')
+  if (!usual) return say(HELP)
+  const first = firstName(usual.name)
+  const about = [usual.summary, ...usual.notes].join(' ')
+  if (last.name === 'client_usual') {
+    if (!booking || !usual.usual || !usual.serviceId)
+      return say(
+        !usual.usual && booking
+          ? `${about} Say which treatment, such as "book ${first} for a facial on Friday".`
+          : `${about}${usual.usual && usual.nextDate ? ` Their next usual day is ${day(usual.nextDate)}.` : ''}`,
+      )
+    return call('free_times', {
+      serviceId: usual.serviceId,
+      date: namesDay(q) ? dayIn(q, today) : (usual.nextDate ?? dayIn(q, today)),
+      ...(usual.staffId ? { staffId: usual.staffId } : {}),
+    })
+  }
+  if (last.name === 'free_times') {
+    const free = last.data as FreeTimes
+    const input = last.input
+    const named = clockTime(q.replace(/^\s*book\b/, ''))
+    const at = named ?? usual.startMinutes ?? null
+    const exact = at === null ? undefined : free.find((f) => f.times.some((x) => x.minutes === at))
+    if (exact && at !== null)
+      return call('book_visit', {
+        clientId: usual.clientId,
+        serviceId: input.serviceId,
+        staffId: exact.staffId,
+        date: input.date,
+        startMinutes: at,
+      })
+    const fits = /\b(morning|afternoon|evening)\b/.test(q)
+      ? partOfDay(q)
+      : usual.partOfDay
+        ? PARTS[usual.partOfDay]
+        : () => true
+    const options = free
+      .map((f) => ({ ...f, times: spread(f.times.filter((x) => fits(x.minutes))) }))
+      .filter((f) => f.times.length)
+    const when = day(String(input.date))
+    const taken =
+      at === null
+        ? ''
+        : named !== null
+          ? 'That time is taken. '
+          : `${first}'s usual time is taken on ${when}. `
+    if (!options.length) return say(`${about} ${taken}Nothing suits on ${when}. Try another day.`)
+    const list = options
+      .map((f) => `${firstName(f.professional)} at ${f.times.map((x) => x.label).join(', ')}`)
+      .join('; ')
+    return say(
+      `${about} ${taken}Free on ${when}: ${list}. Ask again with a time, such as "book ${first} in for the usual on ${when.split(' ')[0]} at ${options[0].times[0].label}".`,
+    )
+  }
+  if (last.name === 'book_visit')
+    return say(
+      `${usual.summary} I have prepared the booking below. Nothing is booked until you approve it.`,
+    )
+  return say(HELP)
 }
 
 /** What to know before a guest walks in: how well we know them, last visit, preferences, plans. */
