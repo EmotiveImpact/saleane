@@ -4,7 +4,7 @@
 
 ## What it does
 
-The owner decided on 10 October 2026 that each location's £49 (or $59) includes 5 people who take bookings, and each person beyond that is £9 a month ($12 in the US), plus VAT or any sales tax. Reception, managers and anyone with no treatments are free.
+The owner decided on 10 October 2026 that each location's £49 (or $59) includes 5 people who take bookings, and each person beyond that is £9 a month ($12 in the US), plus VAT or any sales tax. Anyone who gives no treatments, such as reception or a manager, is free; a manager who also gives treatments counts.
 
 - `src/domain/pricing.ts`: `personMinor` (900 in the UK, 1200 in the US), `PEOPLE_PER_LOCATION` (5), `bookingPeople` (people not archived who give at least one treatment still offered) and `extraPeople` (pooled across the studio, so two locations include 10).
 - `src/domain/billing.ts`: `monthBill` adds a line such as "1 more person taking bookings, beyond the 5 included". `peopleChange` words what saving a professional does to the bill.

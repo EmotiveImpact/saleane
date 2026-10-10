@@ -6,7 +6,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 **Status: built locally on 10 October 2026; test mode only, no money moves.** [Evidence](docs/evidence/PRICE-PER-PERSON.md).
 
-- Each location's £49 (or $59) now includes 5 people who take bookings. Each person beyond that is £9 a month, or $12 in the US, plus VAT or any sales tax (the owner's decision, 10 October 2026). Reception, managers and anyone with no treatments are free.
+- Each location's £49 (or $59) now includes 5 people who take bookings. Each person beyond that is £9 a month, or $12 in the US, plus VAT or any sales tax (the owner's decision, 10 October 2026). Anyone who gives no treatments, such as reception or a manager, is free; a manager who also gives treatments counts.
 - People are counted across the whole studio, so two locations include 10. Someone counts when they are not archived and give at least one treatment that is still offered.
 - Each bill adds a line such as "2 more people taking bookings, beyond the 5 included", counted when the bill is made, so adding or archiving someone applies from the next bill. Nothing is charged part way through a month for a person.
 - Settings, Plan and billing shows how many people take bookings, how many are included and what the extra people add, and the price page says what is included. The new location's last step counts people too: a new location includes 5 more, so the bill can rise by less than £49.

@@ -43,8 +43,9 @@ export function Pricing() {
           <h1 id="pricing-heading">One price for each location.</h1>
           <p>
             Every feature is included, however many clients you look after. Each location comes with{' '}
-            {PEOPLE_PER_LOCATION} people taking bookings, and reception and managers are always
-            free. Busy studios can add more AI time or a receptionist on the phone.
+            {PEOPLE_PER_LOCATION} people taking bookings, and anyone who gives no treatments, such
+            as reception or a manager, is free. Busy studios can add more AI time or a receptionist
+            on the phone.
           </p>
         </section>
         <section className="pricing-offer" aria-label="The price">

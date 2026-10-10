@@ -266,8 +266,8 @@ export function PlanBilling() {
         <h3>People taking bookings</h3>
         <p className="ops-help">{peopleWords(plan, (minor) => money(minor, org))}</p>
         <p className="ops-help">
-          Reception, managers and anyone with no treatments are free. Someone added or archived
-          counts from the next bill.
+          Anyone who gives no treatments, such as reception or a manager, is free; a manager who
+          also gives treatments counts. Someone added or archived counts from the next bill.
         </p>
       </div>
 

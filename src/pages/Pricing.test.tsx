@@ -32,14 +32,16 @@ test('shows one price for each location and switches country', async () => {
     'a month, plus VAT',
   )
   expect(offer.getByText(/14 days free, no card needed/)).toBeInTheDocument()
-  // Five people taking bookings come with each location; reception and managers are free.
+  // Five people taking bookings come with each location; anyone who gives no treatments is free.
   expect(offer.getByText(/Includes 5 people taking bookings/)).toHaveTextContent(
     'Includes 5 people taking bookings. Each person beyond that is £9 a month, plus VAT.',
   )
   expect(
-    offer.getByText(/5 people taking bookings, and reception and managers free/),
+    offer.getByText(/5 people taking bookings, and free for anyone who gives no treatments/),
   ).toBeInTheDocument()
-  expect(screen.getByText(/reception and managers are always free/)).toBeInTheDocument()
+  expect(
+    screen.getByText(/anyone who gives no treatments, such as reception or a manager, is free/),
+  ).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'No commission on your clients' })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'No locked tiers' })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'No fee to leave' })).toBeInTheDocument()

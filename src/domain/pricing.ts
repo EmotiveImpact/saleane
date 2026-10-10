@@ -6,7 +6,8 @@ import type { BusinessState } from './model'
  * included at this price; there are no tiers to unlock, no commission on its clients and no fee
  * to leave. Plus adds more AI time and the phone receptionist answers calls, each also per
  * location. Each location's price includes five people who take bookings; each person beyond
- * that is `personMinor` a month, and reception and managers are free. The amounts are the
+ * that is `personMinor` a month. Anyone who gives no treatments, such as reception or a manager,
+ * is free; a manager who also gives treatments counts. The amounts are the
  * owner's decisions (9 and 10 October 2026) and live only here, so the page, the bills and their
  * tests change together. The US amounts for the two add-ons are placeholders until the owner sets
  * them.
@@ -156,7 +157,7 @@ export const INCLUDED: readonly { text: string; connect?: 'card' | 'text' | 'voi
   { text: 'Money, receipts, refunds and the end-of-day till count' },
   { text: 'Help moving across from your old system' },
   {
-    text: `Your team, with the right access for each role: ${PEOPLE_PER_LOCATION} people taking bookings, and reception and managers free`,
+    text: `Your team, with the right access for each role: ${PEOPLE_PER_LOCATION} people taking bookings, and free for anyone who gives no treatments`,
   },
   { text: 'Client data exports and privacy tools' },
   { text: `Ask Saleane, your AI assistant: ${included.typed} typed questions a month` },
