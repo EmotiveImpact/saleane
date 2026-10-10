@@ -23,6 +23,7 @@ import {
   RETRY_DAYS,
   TRIAL_DAYS,
   allowanceFor,
+  bookingPeople,
 } from '../src/domain/pricing'
 import type { PriceRegion } from '../src/domain/pricing'
 import {
@@ -203,6 +204,8 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
 
   const regionOf = (org: Org): PriceRegion => org.state.organisation.region
   const locationsOf = (org: Org) => places(org.state).length
+  // People who take bookings, counted afresh for every bill.
+  const peopleOf = (org: Org) => bookingPeople(org.state)
   const real = (org: Org) => operations(org.state).mode === 'local'
   const plan = (orgId: string) =>
     db.get<PlanRow>('SELECT * FROM studio_plans WHERE organisation_id=?', orgId)
@@ -324,7 +327,7 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
       start,
       monthAfter(start, row.anchor_day ?? anchorOf(start)),
       plus,
-      monthBill(regionOf(org), locationsOf(org), plus),
+      monthBill(regionOf(org), locationsOf(org), plus, peopleOf(org)),
     )
   }
 
@@ -587,7 +590,7 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
       row.organisation_id,
     ).changes
     if (Number(claimed) !== 1 || row.cancel_at_period_end) return
-    const bill = monthBill(regionOf(org), locationsOf(org), !!row.plus_next)
+    const bill = monthBill(regionOf(org), locationsOf(org), !!row.plus_next, peopleOf(org))
     tell(
       org,
       `Your SALEANE free trial ends on ${when(org, row.trial_ends_at)}`,
@@ -664,7 +667,8 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
       if (same) return same
     }
     // Its own lines when they still add up to what was taken; otherwise one line for the lot.
-    const fresh = kind === 'month' ? monthBill(regionOf(org), locationsOf(org), plus) : null
+    const fresh =
+      kind === 'month' ? monthBill(regionOf(org), locationsOf(org), plus, peopleOf(org)) : null
     const bill =
       fresh?.totalMinor === charge.amountMinor
         ? fresh
@@ -921,7 +925,7 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
         start,
         monthAfter(start, anchorOf(start)),
         !!row.plus_next,
-        monthBill(regionOf(org), locationsOf(org), !!row.plus_next),
+        monthBill(regionOf(org), locationsOf(org), !!row.plus_next, peopleOf(org)),
       )
     })
     if (plan(org.id)!.status === 'stopped')
@@ -1026,6 +1030,7 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
     const row = planFor(org)!
     const region = regionOf(org)
     const locations = locationsOf(org)
+    const people = peopleOf(org)
     const time = now()
     const bills = page(org.id)
     // The month that is owed, including while a try at it is still being checked.
@@ -1033,7 +1038,7 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
       "SELECT * FROM studio_invoices WHERE organisation_id=? AND kind='month' AND status IN ('open','charging','unknown') ORDER BY created_at DESC",
       org.id,
     )
-    const coming = monthBill(region, locations, !!row.plus_next)
+    const coming = monthBill(region, locations, !!row.plus_next, people)
     const used = current(storedUsage(ctx, org.id), new Date(time).toISOString()).used
     const ai = allowance(org).monthly
     return {
@@ -1056,6 +1061,7 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
           }
         : null,
       locations,
+      people,
       nextBill:
         row.status === 'trial'
           ? row.cancel_at_period_end
@@ -1190,7 +1196,8 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
             currency: PRICE[regionOf(org!)].currency,
             amountMinor: setup!.then_pay
               ? (openMonth(org!.id)?.total_minor ??
-                monthBill(regionOf(org!), locationsOf(org!), !!row.plus_next).totalMinor)
+                monthBill(regionOf(org!), locationsOf(org!), !!row.plus_next, peopleOf(org!))
+                  .totalMinor)
               : 0,
           })
           return true

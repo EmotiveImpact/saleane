@@ -221,7 +221,8 @@ describe('what one more location does to the bill', () => {
     cancelAtPeriodEnd: false,
     card: null,
     locations: 1,
-    nextBill: { at: ends, bill: monthBill('UK', 1, false) },
+    people: 3,
+    nextBill: { at: ends, bill: monthBill('UK', 1, false, 3) },
     overdue: null,
     lockAt: null,
     locked: false,
@@ -281,6 +282,17 @@ describe('what one more location does to the bill', () => {
     ).toBe(`Your plan stops on ${planDate(org, ends)}, so nothing more is taken.`)
     expect(openingBill(plan({ status: 'overdue' }), org).detail).toBe(
       'The new amount starts with the monthly bill after the one that is owed. Nothing more is taken today.',
+    )
+  })
+
+  it('counts the new hires who take bookings, as the next bill will', () => {
+    // Five people already, all included; a second location includes five more, and six new
+    // professionals make eleven, so one is paid for.
+    const bill = openingBill(plan({ people: 5 }), org, 6)
+    expect(bill.before.totalMinor).toBe(5880)
+    expect(bill.after.totalMinor).toBe(11760 + 1080)
+    expect(bill.heading).toBe(
+      'Your monthly bill goes from £58.80 to £128.40, including VAT at 20%.',
     )
   })
 

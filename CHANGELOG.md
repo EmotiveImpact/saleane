@@ -2,6 +2,16 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-10 · Paying for each person beyond five
+
+**Status: built locally on 10 October 2026; test mode only, no money moves.** [Evidence](docs/evidence/PRICE-PER-PERSON.md).
+
+- Each location's £49 (or $59) now includes 5 people who take bookings. Each person beyond that is £9 a month, or $12 in the US, plus VAT or any sales tax (the owner's decision, 10 October 2026). Anyone who gives no treatments, such as reception or a manager, is free; a manager who also gives treatments counts.
+- People are counted across the whole studio, so two locations include 10. Someone counts when they are not archived and give at least one treatment that is still offered.
+- Each bill adds a line such as "2 more people taking bookings, beyond the 5 included", counted when the bill is made, so adding or archiving someone applies from the next bill. Nothing is charged part way through a month for a person.
+- Settings, Plan and billing shows how many people take bookings, how many are included and what the extra people add, and the price page says what is included. The new location's last step counts people too: a new location includes 5 more, so the bill can rise by less than £49.
+- On the team screen, the owner of a studio of their own is told before saving when a change moves the bill, for example "Saving makes 6 people taking bookings, and your location includes 5, so the monthly bill goes up by £9, plus VAT, from the next bill."
+
 ## 2026-10-10 · Emails in each studio's own colours (NEXT-13, part 1)
 
 **Status: built locally on 10 October 2026; email is still in test mode, so nothing is sent.** [Evidence](docs/evidence/NEXT-13-EMAILS.md).
