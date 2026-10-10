@@ -90,7 +90,7 @@ Worked through at 1440 and 390 pixels against the checklist in the design langua
 - [x] **At 390 pixels.** Nothing scrolls sideways on the page or inside the window at any step; the save button fits.
 - [x] **Words.** Plain British English, "visit" and "treatment" throughout, each reason saying what to do next.
 - [x] **Built from the library.** Same `src/design` pieces as stage 1; `npm run check` and `npm run format:check` pass.
-- [x] **Before and after pictures.** Above.
+- [x] **Before and after pictures.** Above, and side by side in [Moving in visits, before and after](https://claude.ai/artifact/A131Ynst9Ej15aqjckWMn2).
 
 ## Not done yet, said plainly
 
