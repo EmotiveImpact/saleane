@@ -558,18 +558,15 @@ export function resendReceipts(
   if (!ref) return []
   if (event!.type === 'email.delivered')
     return [{ provider: 'resend', providerRef: ref, delivered: true }]
-  if (event!.type === 'email.bounced' || event!.type === 'email.failed')
-    return [
-      {
-        provider: 'resend',
-        providerRef: ref,
-        delivered: false,
-        detail:
-          event!.type === 'email.bounced'
-            ? 'The guest’s email provider sent it back (bounced).'
-            : 'Resend could not send it.',
-      },
-    ]
+  // Each way Resend can end without delivering it. https://resend.com/docs/dashboard/webhooks/event-types
+  const failures: Record<string, string> = {
+    'email.bounced': 'The guest’s email provider sent it back (bounced).',
+    'email.failed': 'Resend could not send it.',
+    'email.suppressed':
+      'Resend did not send it, as the address is on its suppression list after an earlier bounce or complaint.',
+  }
+  const failed = typeof event!.type === 'string' ? failures[event!.type] : undefined
+  if (failed) return [{ provider: 'resend', providerRef: ref, delivered: false, detail: failed }]
   return []
 }
 

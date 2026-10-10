@@ -454,6 +454,16 @@ describe('delivery receipts', () => {
         detail: 'The guest’s email provider sent it back (bounced).',
       },
     ])
+    const suppressed = JSON.stringify({ type: 'email.suppressed', data: { email_id: 're-4' } })
+    expect(read(suppressed, signed(suppressed))).toEqual([
+      {
+        provider: 'resend',
+        providerRef: 're-4',
+        delivered: false,
+        detail:
+          'Resend did not send it, as the address is on its suppression list after an earlier bounce or complaint.',
+      },
+    ])
     const opened = JSON.stringify({ type: 'email.opened', data: { email_id: 're-3' } })
     expect(read(opened, signed(opened))).toEqual([])
   })
