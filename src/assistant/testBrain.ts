@@ -21,11 +21,15 @@ export function testModeBrain(today: string, locale = 'en-GB'): Brain {
 }
 
 const HELP =
-  'In test mode I can answer a few things from your records: your morning brief, anything unusual, who is drifting away, what is on today or tomorrow, who is at a time ("who\'s my 10 o\'clock?"), who is on the waitlist, who is due back, takings, money owed, plans running low, low stock, and a brief on a client ("tell me about Maya"). I can prepare changes for you to approve: "book Jamie with Maya for a facial on Thursday at 3pm", "cancel Nina Patel", "Theo is off sick today", "offer Thursday at 2pm to Priya", a reminder ("remind me on Friday to call the supplier"), or an invitation ("invite Maya back"). Owners and managers can also ask "how did we do today?", "how was the week?", and for specials to run.'
+  'In test mode I can answer a few things from your records: your morning brief, anything unusual, who is drifting away, what is on today or tomorrow, who is at a time ("who\'s my 10 o\'clock?"), who is on the waitlist, who is due back, takings, money owed, plans running low, low stock, and a brief on a client ("tell me about Maya"). I can prepare changes for you to approve: "book Jamie with Maya for a facial on Thursday at 3pm", "cancel Nina Patel", "Theo is off sick today", "offer Thursday at 2pm to Priya", a reminder ("remind me on Friday to call the supplier"), or an invitation ("invite Maya back"). Owners and managers can also ask "how did we do today?", "how was the week?", and for specials to run. And anyone can ask how to do something, such as "how do I refund a payment?".'
 
 const MANAGERS_ONLY = 'That is for owners and managers.'
+/** "How do I…", "where can I…": a question about using SALEANE rather than about the studio. */
+const HOW_TO =
+  /^\s*(how (do|can|should|would) (i|we|you)|how to|where (do|can) (i|we)|where (is|are|do i find)|is there a way|help( me)? (with|to))\b/
 
 type Step = { text?: string; calls: ToolCall[] }
+type Guide = { title: string; summary: string; steps: string[]; note: string | null }
 type Result = { name: string; input: Record<string, unknown>; ok: boolean; data: unknown }
 
 /**
@@ -143,6 +147,7 @@ function firstStep(question: string, today: string, offered: Set<string>): Step 
   const q = question.toLowerCase()
   const need = (skill: string, step: Step) => (offered.has(skill) ? step : say(MANAGERS_ONLY))
   const at = clockTime(q)
+  if (HOW_TO.test(q) && offered.has('how_to')) return call('how_to', { question })
   if (/^\s*book\b/.test(q) && bookingName(question))
     return offered.has('book_visit')
       ? {
@@ -240,6 +245,18 @@ function nextStep(
   }
   const q = question.toLowerCase()
   switch (last.name) {
+    case 'how_to': {
+      const guides = last.data as Guide[]
+      if (!guides.length)
+        return say(
+          'I could not find a guide for that. Open Help, at the top of the screen, to search the guides or to write to the SALEANE team.',
+        )
+      const [guide] = guides
+      const steps = guide.steps.map((step, n) => `${n + 1}. ${step}`).join(' ')
+      return say(
+        `${guide.title}: ${steps}${guide.note ? ` ${guide.note}` : ''} The guide is also in Help, at the top of the screen.`,
+      )
+    }
     case 'find_client': {
       const found = last.data as { clientId: string; name: string }[]
       if (!found.length) return say(`I could not find a client called ${String(last.input.name)}.`)

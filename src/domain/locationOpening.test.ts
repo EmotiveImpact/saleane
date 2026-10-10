@@ -223,6 +223,8 @@ describe('what one more location does to the bill', () => {
     locations: 1,
     nextBill: { at: ends, bill: monthBill('UK', 1, false) },
     overdue: null,
+    lockAt: null,
+    locked: false,
     checking: false,
     held: false,
     invoices: [],

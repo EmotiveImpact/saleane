@@ -8,6 +8,8 @@ import {
   CircleX,
   CreditCard,
   MessageSquareText,
+  Repeat2,
+  Users,
   UserX,
 } from 'lucide-react'
 import { useStore } from '../state/context'
@@ -32,18 +34,25 @@ import { VisitPatchTest } from './PatchTests'
 import { VisitForms } from './GuestForms'
 import { VisitConsultation } from './Consultations'
 import { shownStatus } from '../domain/selectors'
+import { everyLabel, laterInRepeat, repeatLabel } from '../domain/repeat'
 import { servicePhoto } from './servicePhoto'
 import './visitPanel.css'
+import './repeat.css'
+import { othersTogether, togetherLine, upcomingTogether } from '../domain/together'
+import './together.css'
 
 export function AppointmentDialog({
   appointmentId,
   onClose,
   onMoved,
   proposal,
+  onOpenVisit,
 }: {
   appointmentId: string
   onClose: () => void
   onMoved?: (date: string, staffId: string) => void
+  /** NEXT-08: opens another visit, such as one booked together with this one. */
+  onOpenVisit?: (appointmentId: string) => void
   /** A new person and time from dragging on the calendar, opened straight into the move step. */
   proposal?: { date: string; staffId: string; startMinutes: number }
 }) {
@@ -86,6 +95,8 @@ export function AppointmentDialog({
     proposal?.startMinutes ?? appointment?.startMinutes ?? null,
   )
   const [reason, setReason] = useState('')
+  const [andLater, setAndLater] = useState(false)
+  const [andTogether, setAndTogether] = useState(false)
   const [notice, setNotice] = useState('')
   const rebookHeading = useId()
   if (!appointment)
@@ -115,6 +126,10 @@ export function AppointmentDialog({
       </Modal>
     )
   const sale = state.sales.find((s) => s.appointmentId === appointmentId)
+  // NEXT-09: the visits of its repeat still to come, which can be cancelled with this one.
+  const later = laterInRepeat(state, appointment)
+  const others = othersTogether(state, appointment)
+  const togetherOn = upcomingTogether(state, appointment)
   const locale = state.organisation.locale
   const firstName = client.name.split(' ')[0]
   const serviceName = appointment.bookedServiceName ?? service.name
@@ -302,6 +317,9 @@ export function AppointmentDialog({
     setMode(next)
     setError('')
     setNotice('')
+    // Cancelling always starts from this visit alone, whatever was chosen last time.
+    setAndLater(false)
+    setAndTogether(false)
     setReason(next === 'cancel' ? 'Client requested cancellation' : 'Client did not attend')
   }
   async function move() {
@@ -327,11 +345,33 @@ export function AppointmentDialog({
   }
   async function endVisit() {
     if (mode !== 'cancel' && mode !== 'no-show') return
-    if (!(await run({ type: mode, appointmentId, reason }))) return
+    const withLater = mode === 'cancel' && andLater && later.length > 0
+    const withOthers = mode === 'cancel' && andTogether && togetherOn.length > 0
+    const count = togetherOn.length
+    if (
+      !(await run(
+        mode === 'cancel'
+          ? {
+              type: 'cancel',
+              appointmentId,
+              reason,
+              ...(withLater ? { andLater: true } : {}),
+              ...(withOthers ? { andTogether: true } : {}),
+            }
+          : { type: mode, appointmentId, reason },
+      ))
+    )
+      return
     setMode('details')
+    setAndLater(false)
+    setAndTogether(false)
     setNotice(
       mode === 'cancel'
-        ? 'Cancellation recorded in the client’s history.'
+        ? withLater
+          ? `This visit and the ${later.length} after it are cancelled. Each is recorded in the client’s history.`
+          : withOthers
+            ? `This visit and the ${count === 1 ? 'one' : count} booked with it are cancelled. Each is recorded in that person’s history.`
+            : 'Cancellation recorded in the client’s history.'
         : 'Missed visit recorded in the client’s history.',
     )
   }
@@ -553,6 +593,14 @@ export function AppointmentDialog({
             <p>
               {staff.name} · {appointment.bookedServiceName ?? service.name}
             </p>
+            {appointment.repeat && (
+              <p>Only this visit moves; the others in its repeat stay as they are.</p>
+            )}
+            {others.length > 0 && (
+              <p>
+                Only this visit moves. Moved to another day, it is no longer booked with the others.
+              </p>
+            )}
           </div>
           <div className="form-grid">
             <label>
@@ -669,6 +717,60 @@ export function AppointmentDialog({
               {timeLabel(appointment.startMinutes, state.organisation.locale)} with {staff.name}
             </p>
           </div>
+          {mode === 'cancel' && later.length > 0 && (
+            <fieldset className="repeat-cancel">
+              <legend>This visit repeats {everyLabel(appointment.repeat!.everyWeeks)}</legend>
+              <label>
+                <input
+                  type="radio"
+                  name="repeat-cancel"
+                  checked={!andLater}
+                  onChange={() => setAndLater(false)}
+                />
+                Just this visit
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="repeat-cancel"
+                  checked={andLater}
+                  onChange={() => setAndLater(true)}
+                />
+                This visit and the {later.length} after it, to{' '}
+                {dateLabel(later.at(-1)!.date, state.organisation.locale)}
+              </label>
+            </fieldset>
+          )}
+          {mode === 'cancel' && !later.length && togetherOn.length > 0 && (
+            <fieldset className="repeat-cancel">
+              <legend>
+                Booked together with{' '}
+                {togetherOn.length === 1
+                  ? (state.clients.find((c) => c.id === togetherOn[0].clientId)?.name ??
+                    'someone else')
+                  : `${togetherOn.length} others`}
+              </legend>
+              <label>
+                <input
+                  type="radio"
+                  name="together-cancel"
+                  checked={!andTogether}
+                  onChange={() => setAndTogether(false)}
+                />
+                Just this visit
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="together-cancel"
+                  checked={andTogether}
+                  onChange={() => setAndTogether(true)}
+                />
+                This visit and the {togetherOn.length === 1 ? 'one' : togetherOn.length} booked with
+                it
+              </label>
+            </fieldset>
+          )}
           <label>
             Operational reason
             <input
@@ -1060,6 +1162,42 @@ export function AppointmentDialog({
             {appointment.bookedBufferMinutes} minute turnaround
             {resource.restMinutes ? ` · room rests ${resource.restMinutes} minutes` : ''}
           </p>
+          {appointment.repeat && (
+            <p className="visit-repeat">
+              <Repeat2 size={15} aria-hidden="true" />
+              {repeatLabel(state, appointment)}
+              {later[0]
+                ? `. Next: ${dateLabel(later[0].date, state.organisation.locale)} at ${timeLabel(later[0].startMinutes, state.organisation.locale)}.`
+                : '.'}
+            </p>
+          )}
+          {others.length > 0 && (
+            <div className="visit-together">
+              <p>
+                <Users size={15} aria-hidden="true" />
+                Booked together with{' '}
+                {others.length === 1 ? 'one other person' : `${others.length} others`}:
+              </p>
+              <ul aria-label="Booked together">
+                {others.map((visit) => (
+                  <li key={visit.id}>
+                    {onOpenVisit ? (
+                      <button
+                        type="button"
+                        className="together-open"
+                        onClick={() => onOpenVisit(visit.id)}
+                      >
+                        <span>{togetherLine(state, visit)}</span>
+                        <ChevronRight size={16} aria-hidden="true" />
+                      </button>
+                    ) : (
+                      <span>{togetherLine(state, visit)}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {strips}
           <div className="visit-client">
             {identity}

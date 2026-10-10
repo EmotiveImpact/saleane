@@ -8,6 +8,8 @@ import { serviceRevenue } from './selectors'
 import { recordDay } from './tillCount'
 import { rentalOn } from './rent'
 import { csvCell } from './csv'
+import { decimalHours, shifts } from './hours'
+import type { HoursSummary } from './hours'
 
 /**
  * V2: commission and tips per person for a pay period. SALEANE works out what each person has
@@ -248,8 +250,14 @@ export function payPeriod(s: BusinessState, from: string, to: string): PaySummar
     })
   }
 
+  // NEXT-07: someone who has left still appears for the hours they worked in the period.
+  const worked = new Set(
+    shifts(s)
+      .filter((x) => inPeriod(x.date))
+      .map((x) => x.staffId),
+  )
   return s.staff
-    .filter((person) => !person.archived || lines.has(person.id))
+    .filter((person) => !person.archived || lines.has(person.id) || worked.has(person.id))
     .map((staff) => {
       const rows = (lines.get(staff.id) ?? []).sort(
         (a, b) => a.date.localeCompare(b.date) || a.receipt.localeCompare(b.receipt),
@@ -275,7 +283,14 @@ export function payPeriod(s: BusinessState, from: string, to: string): PaySummar
 }
 
 /** A plain spreadsheet for payroll or the accountant. */
-export function payCsv(rows: PaySummary[], from: string, to: string, currency: string) {
+export function payCsv(
+  rows: PaySummary[],
+  from: string,
+  to: string,
+  currency: string,
+  /** NEXT-07: hours worked in the period, for anyone paid by the hour. */
+  hours?: Map<string, HoursSummary>,
+) {
   const amount = (minor: number) => (minor / 100).toFixed(2)
   const cell = csvCell
   const header = [
@@ -289,6 +304,7 @@ export function payCsv(rows: PaySummary[], from: string, to: string, currency: s
     `Commission (${currency})`,
     `Tips (${currency})`,
     `Owed (${currency})`,
+    ...(hours ? ['Hours worked', 'Shifts', 'Shifts with no finish time'] : []),
   ]
   const body = rows.map((row) =>
     [
@@ -302,10 +318,16 @@ export function payCsv(rows: PaySummary[], from: string, to: string, currency: s
       amount(row.commissionMinor),
       amount(row.tipsMinor),
       amount(row.owedMinor),
+      ...(hours ? hoursCells(hours.get(row.staff.id)) : []),
     ].join(','),
   )
   return [header.join(','), ...body].join('\n') + '\n'
 }
+const hoursCells = (row?: HoursSummary) => [
+  decimalHours(row?.minutes ?? 0),
+  String(row?.shifts.length ?? 0),
+  String(row?.open ?? 0),
+]
 
 /** Commission rates and chair rent are for owners and managers; reception reads the studio without them. */
 export function withoutPayRates(s: BusinessState): BusinessState {

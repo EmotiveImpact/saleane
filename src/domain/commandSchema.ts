@@ -1,6 +1,9 @@
 import { z } from 'zod'
+import { REPEAT_EVERY, REPEAT_MOST } from './repeat'
+import { TOGETHER_MOST } from './together'
 import { groupCommandSchemas } from './groupSchema'
 import { branchVisitCommandSchemas } from './branchVisitSchema'
+import { hoursCommandSchemas } from './hoursSchema'
 import { approvalCommandSchemas } from './approvalsSchema'
 import { brandCommandSchemas } from './brandRulesSchema'
 import { googleBookingSchema, receptionistSettingsSchema } from './receptionistSchema'
@@ -417,6 +420,59 @@ export const commandSchema = z.discriminatedUnion('type', [
     reason: z.string().trim().min(2).max(300),
     // Set only when the guest cancels through their private link (LOCAL-02).
     deposit: z.enum(['refund_due', 'retained']).optional(),
+    /** NEXT-09: also cancel the later visits of its repeat. Only the studio sets it. */
+    andLater: z.literal(true).optional(),
+    /** NEXT-08: also cancel the visits booked together with it. Only the studio sets it. */
+    andTogether: z.literal(true).optional(),
+  }),
+  // NEXT-08: visits for several people on one day, side by side or one after another, booked
+  // together or not at all. Each person is a client of their own, at the first visit's location.
+  z.object({
+    type: z.literal('book-together'),
+    booking: bookingSchema,
+    guests: z
+      .array(
+        z
+          .object({
+            clientId: id.optional(),
+            contact: contactSchema.optional(),
+            serviceId: id,
+            /** A professional, or "any" for whoever is free. */
+            staffId: id,
+            startMinutes: z.number().int().min(0).max(1439),
+            /** Set by the server, which checks the time against guests holding it online. */
+            resourceId: id.optional(),
+          })
+          .strict()
+          .refine((guest) => !guest.clientId !== !guest.contact, {
+            message: 'Choose a client or enter their details for each person.',
+          }),
+      )
+      .min(1)
+      .max(TOGETHER_MOST - 1),
+  }),
+  // NEXT-09: a visit and the ones that repeat it every few weeks, booked together or not at all.
+  z.object({
+    type: z.literal('book-repeat'),
+    booking: bookingSchema,
+    everyWeeks: z
+      .number()
+      .int()
+      .refine((weeks) => (REPEAT_EVERY as readonly number[]).includes(weeks)),
+    /** The later visits, soonest first; each on the rhythm, at a time the desk chose. */
+    visits: z
+      .array(
+        z
+          .object({
+            date: z.iso.date(),
+            startMinutes: z.number().int().min(0).max(1439),
+            /** Set by the server, which checks the time against guests holding it online. */
+            resourceId: id.optional(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(REPEAT_MOST - 1),
   }),
   z.object({
     type: z.literal('no-show'),
@@ -671,6 +727,8 @@ export const commandSchema = z.discriminatedUnion('type', [
   ...approvalCommandSchemas,
   // V5: the studio's look and the house rules every location follows.
   ...brandCommandSchemas,
+  // NEXT-07: hours worked, for payroll.
+  ...hoursCommandSchemas,
   ...operatingCommandSchema.options,
 ])
 export type BookingInput = z.infer<typeof bookingSchema>

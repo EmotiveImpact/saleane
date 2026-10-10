@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 import {
   DAY_MS,
   billingNotice,
+  lockedMessage,
   monthAfter,
   monthBill,
   nextRetry,
@@ -125,6 +126,26 @@ describe('the line above every screen', () => {
     expect(
       billingNotice({ readOnly: true, stopReason: 'cancelled', hasCard: true }, 'owner', org, now),
     ).toMatchObject({ action: 'Start again' })
+  })
+  test('tells everyone the day a read only studio locks', () => {
+    const lockAt = at('2026-11-08T10:00:00Z')
+    expect(billingNotice({ readOnly: true, lockAt }, 'reception', org, now)?.text).toBe(
+      'This studio is read only until the owner pays its SALEANE bill. You can still see everything. Nothing has been lost, and guests can still book. On 8 November 2026 it locks, and only the owner will be able to open it.',
+    )
+    expect(
+      billingNotice(
+        { readOnly: true, lockAt, stopReason: 'unpaid', hasCard: true },
+        'owner',
+        org,
+        now,
+      )?.text,
+    ).toBe(
+      'The SALEANE bill is unpaid, so the studio is read only. Nothing has been lost, and guests can still book. On 8 November 2026 it locks: only you will be able to open it, and online booking closes.',
+    )
+    expect(lockedMessage('owner')).toMatch(/^This studio is locked until its SALEANE bill is paid/)
+    expect(lockedMessage('manager')).toBe(
+      'This studio is locked until the owner pays its SALEANE bill. Nothing has been deleted.',
+    )
   })
   test('warns only the owner about a missed payment, with the last day', () => {
     const due = {

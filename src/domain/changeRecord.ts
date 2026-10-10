@@ -36,6 +36,8 @@ type Words = readonly [ChangeGroup, string, string?]
 /** Every change the team makes through the app. A new command fails to compile until it has words. */
 const commandWords: Record<Command['type'], Words> = {
   book: ['visits', 'Booked a visit'],
+  'book-repeat': ['visits', 'Booked repeat visits'],
+  'book-together': ['visits', 'Booked visits for several people'],
   reschedule: ['visits', 'Moved a visit'],
   cancel: ['visits', 'Cancelled a visit'],
   'no-show': ['visits', 'Marked a visit as a no-show'],
@@ -131,6 +133,10 @@ const commandWords: Record<Command['type'], Words> = {
   'end-rental': ['team', 'Ended a chair rental'],
   'rent-payment': ['money', 'Recorded rent paid'],
   'cancel-time-off': ['team', 'Cancelled time off'],
+  'clock-in': ['team', 'Clocked in'],
+  'clock-out': ['team', 'Clocked out'],
+  'shift-save': ['team', 'Changed hours worked', 'Added hours worked'],
+  'shift-remove': ['team', 'Removed hours worked'],
   'leave-allowance': ['team', 'Changed a holiday allowance'],
   'pay-rules': ['team', 'Changed the pay rules'],
   'pay-rate': ['team', 'Changed a pay rate'],
@@ -157,6 +163,8 @@ const serverWords: Record<string, Words> = {
   'guest_link.revoked': ['visits', 'Turned off a guest’s visit link'],
   'api-key.created': ['access', 'Made a partner access key'],
   'api-key.revoked': ['access', 'Turned off a partner access key'],
+  'diary-link.made': ['access', 'Made a diary link for Google or Apple Calendar'],
+  'diary-link.stopped': ['access', 'Stopped a diary link'],
   'connection.created': ['settings', 'Connected software'],
   'connection.paused-all': ['settings', 'Paused all connected software'],
   'connection.changed': ['settings', 'Changed connected software'],
@@ -205,6 +213,7 @@ const serverWords: Record<string, Words> = {
   'billing.test-paid': ['settings', 'Settled a test SALEANE bill. No money moved'],
   'billing.failed': ['settings', 'A SALEANE bill could not be taken'],
   'billing.read-only': ['settings', 'The studio became read only until it is paid'],
+  'billing.locked': ['settings', 'The studio locked until its SALEANE bill is paid'],
   'billing.checked': [
     'settings',
     'Checked the SALEANE payments with the card service after a restore',

@@ -1,0 +1,123 @@
+/*
+ * NEXT-08: others coming with the first person in the booking dialog. Each person is a row with a
+ * hairline above it, never a box inside the dialog.
+ */
+.booking-together {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0 0;
+  padding: 0;
+  border: 0;
+}
+.booking-together > legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-weight: var(--weight-strong);
+}
+.booking-together > .subtle,
+.booking-repeat-off {
+  margin: 0;
+  font-size: var(--text-meta);
+}
+.booking-repeat-off {
+  margin-top: 14px;
+}
+.booking-together > button {
+  justify-self: start;
+}
+.together-people {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.together-people > li {
+  display: grid;
+  gap: 10px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.together-people > li:last-child {
+  border-bottom: 1px solid var(--line);
+}
+.together-person-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+/* The li's own gap spaces someone new from the treatment below. */
+.together-people .booking-new-client {
+  margin: 0;
+}
+.together-note {
+  color: var(--muted);
+  font-size: var(--text-meta);
+  line-height: 1.5;
+}
+/* The visit card names the people booked with it, in the same quiet voice as its facts. */
+.visit-together {
+  display: grid;
+  gap: 4px;
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: 1.5;
+}
+.visit-together > p {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+}
+.visit-together svg {
+  flex: none;
+  margin-top: 3px;
+  color: var(--brand-ink);
+}
+.visit-together ul {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+}
+.visit-together li {
+  display: flex;
+  align-items: center;
+  min-height: var(--target);
+  padding-left: 23px;
+}
+.visit-together li + li {
+  border-top: 1px solid var(--line);
+}
+/* Each of the others opens their own visit; the whole row is the target. */
+.together-open {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--target);
+  padding: 6px 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.together-open:hover > span {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.visit-together .together-open svg {
+  margin-top: 0;
+  color: var(--muted);
+}
+/* A small mark on the calendar for a visit booked with others. */
+.block-together {
+  flex: none;
+  margin-left: 4px;
+  vertical-align: -2px;
+  color: var(--brand-ink);
+}

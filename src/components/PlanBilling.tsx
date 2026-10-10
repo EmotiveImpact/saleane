@@ -161,7 +161,7 @@ export function PlanBilling() {
       </div>
       {plan && (
         <span className={`ops-tag ${plan.status === 'stopped' ? 'is-blocked' : 'is-active'}`}>
-          {STATUS_WORDS[plan.status]}
+          {plan.locked ? 'Locked' : STATUS_WORDS[plan.status]}
         </span>
       )}
     </header>
@@ -519,7 +519,12 @@ function summary(
       : plan.stopReason === 'cancelled'
         ? 'Your plan has stopped'
         : 'The bill was not paid'
-  return `${why}, so the studio is read only. Nothing has been lost, and guests can still book. To carry on, pay ${cash(next ?? 0)} for a month from today.`
+  if (plan.locked)
+    return `${why}, so the studio is locked. Your team cannot open it and online booking is closed. Nothing has been lost. To open it again, pay ${cash(next ?? 0)} for a month from today.`
+  const lock = plan.lockAt
+    ? ` On ${day(plan.lockAt)} it locks: only you will be able to open it, and online booking closes.`
+    : ''
+  return `${why}, so the studio is read only. Nothing has been lost, and guests can still book.${lock} To carry on, pay ${cash(next ?? 0)} for a month from today.`
 }
 
 function plusWords(plan: BillingView, day: (at: number) => string) {

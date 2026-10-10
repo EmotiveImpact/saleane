@@ -201,3 +201,41 @@ test('someone joining from an invitation reads a short welcome, then opens their
   await userEvent.click(screen.getByRole('button', { name: /Open your day/ }))
   expect(await screen.findByText('Your day')).toBeInTheDocument()
 })
+
+test('the list of studios has Help, with the guides for everyone and no way into a studio screen', async () => {
+  const user = userEvent.setup()
+  store.session = {
+    user: { id: 'account-1', name: 'Imogen Hart', email: 'imogen@example.invalid' },
+    csrf: 'csrf',
+    workspaces: [],
+    services: { email: false, payments: false },
+    localOnly: true,
+  }
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path === '/api/support')
+      return { requests: [], email: 'imogen@example.invalid', delivery: 'kept' } as never
+    throw new Error(`Unexpected route ${path}`)
+  })
+  render(
+    <MemoryRouter initialEntries={['/account']}>
+      <Routes>
+        <Route path="/account" element={<Account />} />
+      </Routes>
+    </MemoryRouter>,
+  )
+  await user.click(await screen.findByRole('button', { name: 'Help' }))
+  const help = await screen.findByRole('dialog', { name: 'Help' })
+  const here = within(help).getByRole('list', { name: 'On this screen' })
+  await user.click(
+    within(here).getByRole('button', { name: /If you have forgotten your password/ }),
+  )
+  const guide = screen.getByRole('dialog', { name: 'If you have forgotten your password' })
+  expect(within(guide).queryByRole('button', { name: 'Go there' })).toBeNull()
+  // Writing to the team works here too, with no studio named.
+  await user.click(within(guide).getByRole('button', { name: 'All help' }))
+  expect(
+    await within(screen.getByRole('dialog', { name: 'Help' })).findByText(
+      /No help address is set on this server yet/,
+    ),
+  ).toBeInTheDocument()
+})

@@ -12,6 +12,22 @@ import type { ReminderSettings } from './reminderSettings'
 import { countsForVisit, patchTestSettings, patchTests, visitPatchTest } from './patchTests'
 import { addDays } from './format'
 import {
+  alsoBookedLine,
+  cancelledTogether,
+  cancelledTooLine,
+  everyLabel,
+  laterInRepeat,
+  repeatVisits,
+  visitOrder,
+} from './repeat'
+import {
+  bookedByLine,
+  bookedWithYouLine,
+  cancelledWith,
+  cancelledWithLine,
+  othersTogether,
+} from './together'
+import {
   DEFAULT_RETURN_DAYS,
   dueBackOn,
   agreedEverywhere,
@@ -459,13 +475,26 @@ export function planMessages(
         ...text,
       })
     }
+    // NEXT-09: a confirmation of a visit that reached the guest on this channel.
+    const confirmedOn = (id: string, channel: MessageChannel) =>
+      (byVisit.get(id) ?? []).some(
+        (row) =>
+          row.channel === channel &&
+          row.kind === 'confirmation' &&
+          !['skipped', 'failed'].includes(row.status),
+      )
     for (const channel of channelsFor(s, client)) {
       const mine = rows.filter((row) => row.channel === channel)
       const told = mine.filter((row) => row.kind === 'confirmation' || row.kind === 'changed')
       const reached = mine.filter((row) => !['skipped', 'failed'].includes(row.status))
       if (a.status === 'cancelled') {
-        // Only a guest who was told about the visit is told it is off.
-        if (reached.length && !mine.some((row) => row.kind === 'cancelled' && row.slot === slot))
+        // NEXT-09: repeat visits cancelled together are one message, from the earliest of them.
+        if (cancelledTogether(s, a).some((x) => visitOrder(x) < visitOrder(a))) continue
+        // Only a guest who was told about the visit is told it is off. A later repeat visit was
+        // told of in the first one's confirmation.
+        const heard =
+          reached.length > 0 || repeatVisits(s, a).some((x) => confirmedOn(x.id, channel))
+        if (heard && !mine.some((row) => row.kind === 'cancelled' && row.slot === slot))
           add('cancelled', channel)
         continue
       }
@@ -473,7 +502,17 @@ export function planMessages(
       if (settings.confirmations && !told.some((row) => row.slot === slot)) {
         if (told.length || (moved && now - moved < RECENT_MS)) add('changed', channel)
         // A visit carried over from another system was confirmed there already (PILOT-03).
-        else if (a.source !== 'import' && now - Date.parse(a.createdAt) < RECENT_MS)
+        // NEXT-09: repeat visits are confirmed together, in the first one's message, so a later
+        // one is not confirmed again when the first is cancelled or has already been.
+        else if (
+          a.source !== 'import' &&
+          now - Date.parse(a.createdAt) < RECENT_MS &&
+          !repeatVisits(s, a).some(
+            (x) =>
+              visitOrder(x) < visitOrder(a) &&
+              (x.status === 'confirmed' || confirmedOn(x.id, channel)),
+          )
+        )
           add('confirmation', channel)
       }
       // One reminder per visit and channel, even if the visit moves afterwards. One that was
@@ -679,16 +718,38 @@ export function composeMessage(
     ? `Book when it suits you: ${BOOK_LINK}`
     : 'Call us or reply to book when it suits you.'
   const policy = `If your plans change, please let us know at least ${GUEST_CANCEL_CUTOFF_HOURS} hours before.`
+  // NEXT-09: the first of several repeat visits names the rest.
+  const also = kind === 'confirmation' ? alsoBookedLine(s, a) : ''
+  const later = kind === 'confirmation' ? laterInRepeat(s, a).length : 0
+  const tooLine = kind === 'cancelled' ? cancelledTooLine(s, a) : ''
+  const cancelledCount = tooLine
+    ? cancelledTogether(s, a).filter((x) => visitOrder(x) > visitOrder(a)).length
+    : 0
+  const repeatText = later
+    ? ` Also booked: ${later} more ${later === 1 ? 'visit' : 'visits'}, ${everyLabel(a.repeat!.everyWeeks)}.`
+    : ''
+  // NEXT-08: the person a booking for several people was made for hears who else is booked, and
+  // each of the others who booked them.
+  const withLine = kind === 'confirmation' ? bookedWithYouLine(s, a) || bookedByLine(s, a) : ''
+  const withCount = kind === 'confirmation' && a.together?.lead ? othersTogether(s, a).length : 0
+  const leadName = withLine && !a.together?.lead ? withLine : ''
+  const withText = withCount
+    ? ` Also booked with you: ${withCount} more ${withCount === 1 ? 'person' : 'people'}.`
+    : leadName
+      ? ` ${leadName}`
+      : ''
+  const offWithLine = kind === 'cancelled' ? cancelledWithLine(s, a) : ''
+  const offWithCount = offWithLine ? cancelledWith(s, a).length : 0
   if (channel === 'sms') {
     // V2: with several locations, a text says which one, since it has no address block.
     const at = hasLocations(s)
       ? `, at ${[place.name, place.address].filter(Boolean).join(', ')}`
       : ''
     const lead = {
-      confirmation: `${org.name}: you're booked for ${service}${withWhom}, ${when}${at}.`,
+      confirmation: `${org.name}: you're booked for ${service}${withWhom}, ${when}${at}.${repeatText}${withText}`,
       changed: `${org.name}: your visit has moved to ${when}${at}, ${service}${withWhom}.`,
       reminder: `${org.name}: a reminder of ${service}${withWhom}, ${when}${at}.`,
-      cancelled: `${org.name}: your ${service} on ${when} is cancelled.`,
+      cancelled: `${org.name}: your ${service} on ${when} is cancelled.${cancelledCount ? ` ${cancelledCount} later ${cancelledCount === 1 ? 'visit is' : 'visits are'} cancelled too.` : ''}${offWithCount ? ` The ${offWithCount === 1 ? 'visit' : `${offWithCount} visits`} booked with yours ${offWithCount === 1 ? 'is' : 'are'} cancelled too.` : ''}`,
       feedback: `${org.name}: thank you for visiting. How was it? Tell us privately:`,
       patch_test: `${org.name}: your ${service} on ${when} needs a quick patch test at least ${patchTestSettings(s).hoursBefore} hours before. Please call or pop in to arrange one.`,
       aftercare: `${org.name}: looking after your ${service}. ${aftercareNote(s, a)}`,
@@ -737,12 +798,17 @@ export function composeMessage(
     )
   } else if (kind === 'due_back') {
     lines.push(bookLine, '', STOP_LINE)
-  } else
+  } else {
     lines.push(
       `${service}${withWhom}`,
       when,
       [place.name, place.address].filter(Boolean).join(', '),
     )
+    if (also) lines.push('', also)
+    if (tooLine) lines.push('', tooLine)
+    if (withLine) lines.push('', withLine)
+    if (offWithLine) lines.push('', offWithLine)
+  }
   // Aftercare and due back are about a visit that is over: no visit details or manage link.
   if (kind === 'feedback') {
     lines.push(

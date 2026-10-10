@@ -89,6 +89,85 @@ describe('general manager', () => {
     )
   })
 
+  it('clocks out only a shift clocked in at their location', () => {
+    const { s, main, islington } = twoSites()
+    const clocked = apply(s, { type: 'clock-in', staffId: 'staff-maya' })
+    // Maya clocked in at the main location; the rota now has her at Islington.
+    const moved = structuredClone(clocked)
+    moved.staff.find((p) => p.id === 'staff-maya')!.hours = Array.from({ length: 7 }, (_, day) => ({
+      day,
+      open: 540,
+      close: 1080,
+      closed: false,
+      locationId: islington,
+    }))
+    const out: Command = { type: 'clock-out', staffId: 'staff-maya', breakMinutes: 0 }
+    expect(branchRefusal(moved, islington, out)).toBe('That person clocked in at another location.')
+    expect(branchRefusal(moved, main, out)).toBeNull()
+    // Whatever is asked, a change to hours at another location is caught once it is made.
+    const after = apply(moved, out)
+    expect(branchChangeRefusal(moved, after, islington)).toBe(
+      'That would change hours worked at another location.',
+    )
+    expect(branchChangeRefusal(moved, after, main)).toBeNull()
+  })
+
+  it('books repeat visits only at their own location', () => {
+    const { s, main, islington } = twoSites()
+    const repeat = (locationId: string): Command => ({
+      type: 'book-repeat',
+      booking: {
+        clientId: 'client-1',
+        serviceId: 'service-facial',
+        staffId: 'staff-maya',
+        date: '2026-10-07',
+        startMinutes: 540,
+        source: 'desk',
+        locationId,
+      },
+      everyWeeks: 4,
+      visits: [{ date: '2026-11-04', startMinutes: 540 }],
+    })
+    expect(branchRefusal(s, islington, repeat(main))).toBe('That visit is at another location.')
+    expect(branchRefusal(s, main, repeat(main))).toBeNull()
+    // A later visit that falls at another location is caught once the visits are booked.
+    const booked = apply(s, repeat(main))
+    const later = booked.appointments.find((a) => a.date === '2026-11-04' && a.repeat)!
+    const elsewhere: BusinessState = {
+      ...booked,
+      appointments: booked.appointments.map((a) =>
+        a.id === later.id ? { ...a, locationId: islington } : a,
+      ),
+    }
+    expect(branchChangeRefusal(s, elsewhere, main)).not.toBeNull()
+  })
+
+  it('books several people together only at their own location', () => {
+    const { s, main, islington } = twoSites()
+    const together = (locationId: string): Command => ({
+      type: 'book-together',
+      booking: {
+        clientId: 'client-6',
+        serviceId: 'service-facial',
+        staffId: 'staff-maya',
+        date: '2026-10-07',
+        startMinutes: 540,
+        source: 'desk',
+        locationId,
+      },
+      guests: [
+        {
+          clientId: 'client-2',
+          serviceId: 'service-facial',
+          staffId: 'staff-sophia',
+          startMinutes: 540,
+        },
+      ],
+    })
+    expect(branchRefusal(s, islington, together(main))).toBe('That visit is at another location.')
+    expect(branchRefusal(s, main, together(main))).toBeNull()
+  })
+
   it('catches a change that lands a visit at another location', () => {
     const { s, main, islington } = twoSites()
     const visit = s.appointments.find((a) => a.locationId === main)!

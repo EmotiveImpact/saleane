@@ -36,6 +36,12 @@ export type PriceRegion = keyof typeof PRICE
 export const TRIAL_DAYS = 14
 /** Days after a failed payment before the studio becomes read only. */
 export const GRACE_DAYS = 14
+/**
+ * Days after the last day paid for (a missed payment, or the end of a trial or plan) before a
+ * read-only studio locks: only the owner can open it, to pay or download its records, and online
+ * booking closes. The owner's decision, 9 October 2026.
+ */
+export const LOCK_DAYS = 30
 /** Days after the first failed payment on which the card is tried again. */
 export const RETRY_DAYS = [1, 3, 7] as const
 /** Minutes of calls the phone receptionist includes each month, for each location. */
