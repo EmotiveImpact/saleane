@@ -120,6 +120,8 @@ export function talks(held: Map<string, Held>) {
   function close(ctx: Context, talk: Talk) {
     if (talk.released || talk.closing) return
     talk.closing = true
+    // Whoever ended it has left: nothing more is asked of Claude while OpenAI finishes.
+    talk.talk.stop()
     later(talk, TALK_GRACE_SECONDS, () => finish(ctx, talk, 'unconfirmed'))
     try {
       talk.line?.close()
@@ -235,7 +237,7 @@ export function talks(held: Map<string, Held>) {
           // Someone whose access was removed mid-talk is not answered, and the talk ends.
           if (!thought) {
             close(ctx, talk)
-            return { text: TALK_FAILED }
+            return { text: '' }
           }
           return thought
         },

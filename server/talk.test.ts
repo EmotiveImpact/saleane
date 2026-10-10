@@ -365,6 +365,33 @@ describe('a talk', () => {
     expect(stored(login).spendByDay[day]).toBeCloseTo(45 / 12)
   })
 
+  it('asks Claude nothing more once the talk is asked to end, even before OpenAI confirms', async () => {
+    const claudeSide = anthropic([words('Nothing is booked today yet.')])
+    const voice = fakeVoice()
+    start(claude(claudeSide.fetcher), voice.layer)
+    const login = await register()
+    const { id } = (await talk(login)).json<{ id: string }>()
+    const [line] = voice.lines
+    // A question is still gathering its last words when Stop is pressed.
+    line.fire({ type: 'heard', text: 'What is on today?' })
+    line.fire({ type: 'delegated', id: 'item_1' })
+    await api.inject({
+      method: 'POST',
+      url: path(login, `/talk/${id}/end`),
+      headers: headers(login),
+      payload: {},
+    })
+    expect(line.closed).toBe(true)
+    // A question handed over while OpenAI finishes is not asked either.
+    line.fire({ type: 'heard', text: 'And tomorrow?' })
+    line.fire({ type: 'delegated', id: 'item_2' })
+    await new Promise((done) => setTimeout(done, 600))
+    expect(claudeSide.requests).toHaveLength(0)
+    expect(line.said.filter((s) => s.kind === 'answer')).toEqual([])
+    line.fire({ type: 'closed', reason: 'close_requested', seconds: 4 })
+    expect((await read(login, id)).json()).toMatchObject({ status: 'ended' })
+  })
+
   it('refuses plainly when the month’s talking time is used up, and gives the hold back when OpenAI cannot start', async () => {
     const voice = fakeVoice()
     start(claude(anthropic([]).fetcher), voice.layer)
@@ -486,9 +513,8 @@ describe('a talk', () => {
     line.fire({ type: 'heard', text: 'What is on today?' })
     line.fire({ type: 'delegated', id: 'item_1' })
     await expect.poll(() => line.closed).toBe(true)
-    expect(line.said.filter((s) => s.kind === 'answer')).toEqual([
-      { kind: 'answer', id: 'item_1', text: expect.any(String) },
-    ])
+    // Nothing is said to someone who may no longer ask: the talk is simply ended.
+    expect(line.said.filter((s) => s.kind === 'answer')).toEqual([])
     line.fire({ type: 'closed', reason: 'close_requested', seconds: 4 })
     expect(
       api.database.get('SELECT 1 AS found FROM memberships WHERE role=?', 'practitioner'),

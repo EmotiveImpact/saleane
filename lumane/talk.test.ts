@@ -212,6 +212,39 @@ describe('a spoken conversation', () => {
     expect(said.filter((s) => s.kind === 'answer')).toEqual([])
   })
 
+  it('asks and answers nothing once SALEANE has asked to end the talk', async () => {
+    let now = 0
+    const asked: string[] = []
+    let release: (() => void) | undefined
+    const talk = conversation({
+      ...options(async (heard) => {
+        asked.push(heard)
+        if (heard.startsWith('First')) await new Promise<void>((done) => (release = done))
+        return { text: `Answered: ${heard}` }
+      }),
+      quietMs: 300,
+      clock: () => now,
+    })
+    const { fake, said } = line()
+    talk.use(fake)
+    // One question is with Claude and another is still gathering its words when Stop is pressed.
+    talk.handle({ type: 'heard', text: 'First question?' })
+    talk.handle({ type: 'delegated', id: 'd1' })
+    now = 400
+    await new Promise((done) => setTimeout(done, 80))
+    talk.handle({ type: 'heard', text: 'Second question?' })
+    talk.handle({ type: 'delegated', id: 'd2' })
+    talk.stop()
+    release!()
+    now = 2000
+    await talk.settled()
+    expect(asked).toEqual(['First question?'])
+    expect(said.filter((s) => s.kind === 'answer')).toEqual([])
+    // OpenAI's confirmation still ends it as usual.
+    talk.handle({ type: 'closed', reason: 'close_requested', seconds: 9 })
+    expect(talk.ended).toEqual({ reason: 'close_requested' })
+  })
+
   it('asks again when nothing was heard, and says plainly when no answer came', async () => {
     const talk = conversation(
       options(async () => {

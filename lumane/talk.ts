@@ -92,6 +92,8 @@ export function conversation(options: ConversationOptions) {
   let earlier: number | undefined
   let seconds = 0
   let ended: { reason: string } | undefined
+  /** SALEANE asked the supplier to end the talk: nothing more is asked or answered meanwhile. */
+  let stopping = false
   let queue: Promise<void> = Promise.resolve()
 
   const longest = options.waitForWordsMs ?? 1500
@@ -120,12 +122,13 @@ export function conversation(options: ConversationOptions) {
   }
 
   async function answer(q: Asked) {
-    if (ended) return
+    if (ended || stopping) return
     const delegationId = q.id
     line?.note(delegationId, options.progress)
     await words(q)
-    // The talk may have ended while the last words were awaited: nothing more is asked.
-    if (ended) return
+    // The talk may have ended, or been asked to end, while the last words were awaited: nothing
+    // more is asked.
+    if (ended || stopping) return
     const asked = spoken(q.words).trim()
     if (!asked) {
       line?.answer(delegationId, options.unheard)
@@ -148,7 +151,7 @@ export function conversation(options: ConversationOptions) {
     }
     turn.answer = thought.text
     turn.proposals = thought.proposals ?? []
-    if (!ended) line?.answer(delegationId, thought.text)
+    if (!ended && !stopping) line?.answer(delegationId, thought.text)
   }
 
   return {
@@ -224,6 +227,13 @@ export function conversation(options: ConversationOptions) {
           ended ??= { reason: 'lost' }
           break
       }
+    },
+    /**
+     * The talk is being ended: from now on nothing more is asked or answered, even before the
+     * supplier confirms the end.
+     */
+    stop() {
+      stopping = true
     },
     /** Resolves once every question handed over so far has been answered. */
     settled: () => queue,
