@@ -191,7 +191,7 @@ export function consentProblem(s: BusinessState) {
   const clients = new Map(s.clients.map((c) => [c.id, c]))
   const newest = new Map<string, ConsentRecord>()
   for (const r of rows) {
-    if (r.organisationId !== s.organisation.id) return 'Foreign workspace record.'
+    if (r.organisationId !== s.organisation.id) return 'A record from another studio.'
     if (!clients.has(r.clientId)) return 'A consent record does not match its client.'
     if (r.given !== !!r.wordingVersion || (r.wordingVersion ?? 0) > latestVersion)
       return 'A consent record does not match its wording.'

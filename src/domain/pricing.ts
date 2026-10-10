@@ -122,9 +122,9 @@ export const INCLUDED: readonly { text: string; connect?: 'card' | 'text' | 'voi
   { text: 'Help moving across from your old system' },
   { text: 'Your whole team, with the right access for each role' },
   { text: 'Client data exports and privacy tools' },
-  { text: `Ask Saleane, your AI assistant: ${included.typed} typed questions a month` },
+  { text: `Ask SALEANE, your AI assistant: ${included.typed} typed questions a month` },
   {
-    text: `Talking to Ask Saleane: ${included.talkSeconds / 60} minutes a month`,
+    text: `Talking to Ask SALEANE: ${included.talkSeconds / 60} minutes a month`,
     connect: 'voice',
   },
   {
@@ -134,7 +134,7 @@ export const INCLUDED: readonly { text: string; connect?: 'card' | 'text' | 'voi
 export const CONNECT_NOTES = {
   card: 'Arrives when you connect your card account',
   text: 'Arrives when you connect your text account',
-  voice: 'Arrives when talking to Ask Saleane is switched on',
+  voice: 'Arrives when talking to Ask SALEANE is switched on',
 } as const
 
 /** NEXT-02: what a location can add to its price. Neither unlocks a feature; each adds capacity. */

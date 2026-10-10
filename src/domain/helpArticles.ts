@@ -1177,6 +1177,23 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     words: 'message email text write reply draft approve',
   },
   {
+    id: 'inbox-one-guest',
+    title: 'One conversation for each guest',
+    group: 'Messages and AI',
+    summary: 'A guest booked under more than one record still has one conversation in the Inbox.',
+    steps: [
+      'Booking online always opens a new client record, so a regular can have several with the same email.',
+      'The Inbox puts every message from those records into one conversation, in the order they came.',
+      'An answer goes to the details shown under their name: the ones they last wrote from, so a text goes back to the number they used.',
+    ],
+    note: 'Records with different emails are never put together, even with the same name or number. Neither record is changed or removed.',
+    to: '/inbox',
+    screens: ['/inbox'],
+    roles: DESK,
+    words:
+      'duplicate client two records same email booked online twice conversation one guest together',
+  },
+  {
     id: 'text-stop',
     title: 'When a client texts STOP',
     group: 'Messages and AI',

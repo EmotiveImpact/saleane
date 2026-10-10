@@ -99,7 +99,7 @@ export async function imageRoutes(ctx: Context, route: Route): Promise<boolean> 
       orgId,
       actor.id,
     )
-    if (!member) fail(404, 'Workspace was not found.')
+    if (!member) fail(404, 'That studio was not found.')
     if (!studioRole(member!.role)) fail(403, 'Product photos are for the studio team.')
     // A general manager whose location has closed is refused, as on every other route.
     if (member!.role === 'general') orgFor(orgId, actor)

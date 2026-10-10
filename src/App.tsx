@@ -262,7 +262,7 @@ function WorkspaceApp() {
       <a className="skip-link" href="#main-content">
         Skip to content
       </a>
-      <aside className="sidebar" aria-label="Workspace navigation">
+      <aside className="sidebar" aria-label="Studio navigation">
         <div className="sidebar-masthead">
           <div className="sidebar-brand">
             <Link to="/today" className="wordmark" onClick={() => setMobileNav(false)}>

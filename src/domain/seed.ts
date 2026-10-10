@@ -1,6 +1,6 @@
 import type { WaitlistTime } from './waitlistSchema'
 import { DEMO_DATE, parseState } from './model'
-import type { Appointment, BusinessState, Region } from './model'
+import type { Appointment, BusinessState, Client, Region } from './model'
 import { addDays, dateLabel, timeLabel } from './format'
 import { DEMO_MINUTES, defaultOperations, hoursFor, instantFor } from './operations'
 import { standardWording } from './consent'
@@ -274,11 +274,11 @@ function build(region: Region, regularCount: number): BusinessState {
     },
     clients: [
       ['Amelia Carter', 'Prefers the quiet treatment room. Usually visits on Tuesdays.'],
-      ['Olivia James', 'Likes an early appointment. Introduced by Amelia.'],
+      ['Olivia James', 'Likes an early visit. Introduced by Amelia.'],
       ['Ellie Brooks', 'A regular cut and finish with Theo.'],
-      ['Noor Ahmed', 'Prefers appointment updates by email.'],
+      ['Noor Ahmed', 'Prefers visit updates by email.'],
       ['Ava Williams', 'Usually books a longer body treatment.'],
-      ['Grace Chen', 'Prefers a late morning appointment.'],
+      ['Grace Chen', 'Prefers a late morning visit.'],
       ['Zoe Miller', 'Enjoys a calm, unhurried visit.'],
       ['Nina Patel', 'Interested in a monthly visit.'],
       ['Luca Evans', 'Prefers afternoons with Theo.'],
@@ -286,8 +286,8 @@ function build(region: Region, regularCount: number): BusinessState {
       ['Isabel Wilson', 'Would like to return for a facial.'],
       ['Sophie Martin', 'Prefers the same professional each visit.'],
       ['Charlotte Hayes', 'Usually chooses a facial with Maya.'],
-      ['Emily Clarke', 'Prefers midweek appointments.'],
-      ['Jamie Morgan', 'Likes an afternoon appointment.'],
+      ['Emily Clarke', 'Prefers midweek visits.'],
+      ['Jamie Morgan', 'Likes an afternoon visit.'],
     ].map(([name, preferences], i) => ({
       ...scope,
       id: `client-${i + 1}`,
@@ -1091,7 +1091,7 @@ function build(region: Region, regularCount: number): BusinessState {
               {
                 id: 'q-quiet',
                 kind: 'yes_no',
-                label: 'Would you like a quiet appointment, with little conversation?',
+                label: 'Would you like a quiet visit, with little conversation?',
                 required: false,
               },
             ],
@@ -1231,6 +1231,63 @@ function build(region: Region, regularCount: number): BusinessState {
       actor: 'Text line',
     },
   ]
+  // Stage 6: a regular booked her next visit online, which opened a second record with the same
+  // email, as online booking always does. She wrote from each, and the Inbox shows one
+  // conversation. Only the full sample has regulars, so the quieter test sample is unchanged.
+  const lastEvening = at(addDays(DEMO_DATE, -1), 1265)
+  const twice = state.clients
+    .filter((c) => c.id.startsWith('client-r'))
+    .map((client) => {
+      const own = state.appointments.filter((a) => a.clientId === client.id)
+      const seen = own.filter((a) => a.status === 'completed').map((a) => a.date)
+      const last = seen.sort().at(-1)
+      const online = own.find(
+        (a) =>
+          a.status === 'confirmed' &&
+          a.source === 'online' &&
+          // A patch test belongs to a record, so a colour visit stays with the one that has it.
+          !state.services.find((x) => x.id === a.serviceId)?.patchTest &&
+          !!last &&
+          a.createdAt > at(last, 1170) &&
+          a.createdAt < lastEvening,
+      )
+      return last && online ? { client, last, online } : undefined
+    })
+    .find((x) => !!x)
+  if (twice) {
+    const { client: regular, last, online } = twice
+    const again: Client = { ...regular, id: `${regular.id}-online`, createdAt: online.createdAt }
+    state.clients.push(again)
+    // The visit she booked online, and its history, belong to the record it opened.
+    online.clientId = again.id
+    for (const e of state.events) if (e.appointmentId === online.id) e.clientId = again.id
+    state.replies.push(
+      {
+        ...scope,
+        id: 'reply-regular-thanks',
+        clientId: regular.id,
+        channel: 'email',
+        from: regular.email,
+        body: 'Thank you for today, it was lovely. I will book my next one online.',
+        receivedAt: at(last, 1170),
+        providerRef: 'sample-email-2',
+        actor: 'Email line',
+        readAt: at(addDays(last, 1), 560),
+        readBy: 'Maya Lewis',
+      },
+      {
+        ...scope,
+        id: 'reply-regular-online',
+        clientId: again.id,
+        channel: 'email',
+        from: again.email,
+        body: 'I have booked online for my next visit. Could I have the same room as last time?',
+        receivedAt: lastEvening,
+        providerRef: 'sample-email-3',
+        actor: 'Email line',
+      },
+    )
+  }
   state.savedReplies = [
     {
       id: 'saved-thanks',

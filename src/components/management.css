@@ -1444,3 +1444,7 @@ a.receipt-row {
 .house-rules-breaches li span {
   color: var(--muted);
 }
+/* Stage 6: a guest booked under several records, said once under their details. */
+.inbox-pane-header .inbox-records {
+  font-size: var(--text-micro);
+}

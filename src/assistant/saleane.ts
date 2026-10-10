@@ -317,7 +317,7 @@ export function askSaleaneSkills(): Skill<AskContext, Command>[] {
     readSkill<AskContext, { days: number }>({
       name: 'takings',
       description:
-        'Service takings, tips, completed visits and rebooking rate over the last few days (1 for today). Takings of anyone renting a chair or room are their own and left out.',
+        'Treatment takings, tips, completed visits and rebooking rate over the last few days (1 for today). Takings of anyone renting a chair or room are their own and left out.',
       input: z.object({ days: z.number().int().min(1).max(90) }).strict(),
       allowed: managers,
       run(ctx, { days }) {
@@ -735,7 +735,7 @@ export function askSaleaneSkills(): Skill<AskContext, Command>[] {
     readSkill<AskContext, { serviceId?: string }>({
       name: 'waitlist_matches',
       description:
-        'Clients on the waitlist, what they want and when it suits them, with the earliest times free for each (up to three). Optionally only those waiting for one service.',
+        'Clients on the waitlist, what they want and when it suits them, with the earliest times free for each (up to three). Optionally only those waiting for one treatment.',
       input: z.object({ serviceId: z.string().min(1).optional() }).strict(),
       allowed: studio,
       run(ctx, { serviceId }) {
