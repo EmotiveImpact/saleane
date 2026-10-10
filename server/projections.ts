@@ -9,6 +9,7 @@ import { withoutBranchVisits } from '../src/domain/branchVisits'
 import { areaView } from '../src/domain/area'
 import { withoutRequests } from '../src/domain/approvals'
 import { branchOpen, branchView } from '../src/domain/branch'
+import { withoutNews } from '../src/domain/news'
 import type { AreaView } from '../src/domain/area'
 
 /** Who is reading: the role and linked professional come from the server membership, never the client. */
@@ -39,12 +40,15 @@ export function workspaceView(
   today: string,
   now = Date.now(),
 ): WorkspaceRecord {
-  // Guests' individual ratings and comments (V1.5), the team's commission rates (V2) and branch
-  // visit notes and requests for sign-off (V5) are for owners and managers only.
+  // Guests' individual ratings and comments (V1.5), the team's commission rates (V2), branch
+  // visit notes and requests for sign-off (V5) and messages to clients (Stage 4) are for owners
+  // and managers only.
   if (reader.role === 'reception')
     return {
       view: 'studio',
-      state: withoutRequests(withoutBranchVisits(withoutPayRates(withoutFeedback(state)))),
+      state: withoutNews(
+        withoutRequests(withoutBranchVisits(withoutPayRates(withoutFeedback(state)))),
+      ),
     }
   if (reader.role === 'owner' || reader.role === 'manager') return { view: 'studio', state }
   // V5: a general manager runs one location (src/domain/branch.ts).

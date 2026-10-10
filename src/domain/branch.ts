@@ -6,6 +6,7 @@ import { branchVisits } from './branchVisits'
 import { withoutPayRates } from './pay'
 import { shifts, shiftsAt } from './hours'
 import { roomRefusal, rotaDayRefusal, teamChangeRefusal, teamView, timeOffRefusal } from './team'
+import { newsAt, newsMessage, newsOnlyAt } from './news'
 
 /**
  * V5: a general manager runs one location ('general', with the location in their access). They
@@ -173,6 +174,24 @@ export function branchRefusal(
     }
     case 'resource':
       return roomRefusal(s, locationId, command)
+    case 'news-save': {
+      // Stage 4: a message to their own location's clients only, never to the whole group.
+      const ids = command.input.locationIds
+      if (ids?.length !== 1 || ids[0] !== locationId)
+        return 'Write only to the clients of your own location.'
+      if (!command.id) return null
+      const message = newsMessage(s, command.id)
+      return message && newsOnlyAt(message, locationId)
+        ? null
+        : 'That message is for other locations.'
+    }
+    case 'news-stop':
+    case 'news-discard': {
+      const message = newsMessage(s, command.messageId)
+      return message && newsOnlyAt(message, locationId)
+        ? null
+        : 'That message is for other locations.'
+    }
     case 'plan-card': {
       // Stage 1: card payments only for a membership sold at their own location.
       const holding = (s.holdings ?? []).find((h) => h.id === command.holdingId)
@@ -220,8 +239,8 @@ export const branchOpen = (s: BusinessState, locationId: string) =>
 
 /**
  * What a general manager reads: the studio record less the team's pay rates, only their own
- * location's branch visits, requests for a sign-off and hours worked, and (Stage 4) only their own
- * team, hours, time off and rooms as `teamView` (team.ts) keeps them.
+ * location's branch visits, requests for a sign-off, hours worked and messages to clients, and
+ * (Stage 4) only their own team, hours, time off and rooms as `teamView` (team.ts) keeps them.
  */
 export function branchView(
   s: BusinessState,
@@ -240,6 +259,8 @@ export function branchView(
         : {}),
       ...(o.requests ? { requests: o.requests.filter((r) => r.locationId === locationId) } : {}),
       ...(o.shifts ? { shifts: shiftsAt(o.shifts, locationId, s.organisation.locationId) } : {}),
+      // Stage 4: only the messages to their own location's clients.
+      ...(o.news ? { news: newsAt(lean, locationId) } : {}),
     },
   }
 }

@@ -770,6 +770,51 @@ export const migrations: Migration[] = [
       `,
       ),
   },
+  {
+    version: 33,
+    // Stage 4, one message to clients across the group: each client's copy goes through the
+    // outbox as its own kind, found again by the message it belongs to; the link at the foot of
+    // each email that stops news is kept only as a hash, can be revoked, and runs out; and the
+    // erasure requests the approval and the outbox check before each copy leaves are found by
+    // action, not by reading the whole log.
+    up: (connection) =>
+      connection.exec(
+        outboxWithKinds(
+          [
+            'confirmation',
+            'changed',
+            'reminder',
+            'cancelled',
+            'feedback',
+            'patch_test',
+            'aftercare',
+            'due_back',
+            'birthday',
+            'miss_you',
+            'missed_call',
+            'message',
+            'receptionist',
+            'social',
+            'plan_reminder',
+            'plan_declined',
+            'receipt',
+            'news',
+          ],
+          ['email', 'sms', 'instagram', 'facebook', 'whatsapp'],
+        ) +
+          `
+        CREATE INDEX outbox_slot ON outbox(organisation_id,kind,slot);
+        CREATE TABLE news_links (
+          token_hash TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          client_id TEXT NOT NULL, message_id TEXT NOT NULL, outbox_id TEXT NOT NULL,
+          created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL CHECK(expires_at>created_at),
+          used_at INTEGER, revoked_at INTEGER
+        ) STRICT;
+        CREATE INDEX news_links_client ON news_links(organisation_id,client_id);
+        CREATE INDEX audit_record ON audit_events(organisation_id,action,record_id);
+      `,
+      ),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the

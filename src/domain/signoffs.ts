@@ -250,7 +250,8 @@ export function rotaSignOffNeeded(s: BusinessState, command: Command, now: strin
         'extra'
     )
   if (command.type === 'rota-week-copy')
-    return weekCopy(s, command.monday, businessDate(s, now)).copies.some(
+    // Only the days this copy would make: a general manager's copy takes in their location alone.
+    return weekCopy(s, command.monday, businessDate(s, now), command.locationId).copies.some(
       (copy) =>
         copy.plan.working &&
         changeKind(s, { staffId: copy.from.staffId, date: copy.date, working: true }) === 'extra',

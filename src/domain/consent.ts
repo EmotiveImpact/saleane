@@ -104,7 +104,13 @@ export function recordConsentChanges(
   const was = new Map(before.clients.map((c) => [c.id, c.marketingConsent]))
   const online = command.type === 'book' && command.input.source === 'online'
   const source: ConsentRecord['source'] =
-    command.type === 'guest-consent-stop' ? 'guest link' : online ? 'booking page' : 'desk'
+    command.type === 'guest-consent-stop'
+      ? 'guest link'
+      : command.type === 'news-unsubscribe'
+        ? 'email link'
+        : online
+          ? 'booking page'
+          : 'desk'
   const current = currentWording(next)
   for (const client of next.clients) {
     const previous = was.get(client.id)

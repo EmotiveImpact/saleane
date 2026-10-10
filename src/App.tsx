@@ -99,6 +99,10 @@ const ServerBooking = lazy(() =>
 )
 const Manage = lazy(() => import('./pages/Manage').then((module) => ({ default: module.Manage })))
 const Inbox = lazy(() => import('./pages/Inbox').then((module) => ({ default: module.Inbox })))
+const News = lazy(() => import('./pages/News').then((module) => ({ default: module.News })))
+const NewsStop = lazy(() =>
+  import('./pages/NewsStop').then((module) => ({ default: module.NewsStop })),
+)
 const Money = lazy(() => import('./pages/Money').then((module) => ({ default: module.Money })))
 const Waitlist = lazy(() =>
   import('./pages/Waitlist').then((module) => ({ default: module.Waitlist })),
@@ -160,9 +164,14 @@ function WorkspaceApp() {
     () => nudges(state, role, today, clock).length,
     [state, role, today, clock],
   )
-  const drafts = operations(state).messages.filter(
-    (m) => m.status === 'draft' && !staleOffer(state, m.id, clock),
-  ).length
+  const drafts =
+    operations(state).messages.filter(
+      (m) => m.status === 'draft' && !staleOffer(state, m.id, clock),
+    ).length +
+    // Stage 4: a message to clients waits for the owner's approval.
+    (role === 'owner'
+      ? (operations(state).news ?? []).filter((m) => m.status === 'draft').length
+      : 0)
   // The front desk opens Money, Stock, Rota and Gift cards in Business, not the studio's figures,
   // pay, accounts or private feedback, so their Business link lands on Money.
   const desk = role === 'reception'
@@ -206,6 +215,7 @@ function WorkspaceApp() {
   if (location.pathname === '/reset-password' || location.pathname === '/confirm-email')
     return <AccountLink />
   if (location.pathname === '/manage') return <ManageVisit />
+  if (location.pathname === '/news/stop') return <NewsStop />
   if (location.pathname === '/pay/test') return <TestPayment />
   if (location.pathname === '/billing/test-card') return <TestBillingCard />
   if (location.pathname === '/pricing') return <Pricing />
@@ -450,6 +460,10 @@ function WorkspaceApp() {
               <Route path="/clients" element={<Clients />} />
               <Route path="/clients/:clientId" element={<ClientRelationship />} />
               <Route path="/inbox" element={<Inbox />} />
+              <Route
+                path="/inbox/news"
+                element={leads(role) ? <News /> : <Navigate to="/inbox" replace />}
+              />
               <Route path="/waitlist" element={<Waitlist />} />
               <Route
                 path="/business"

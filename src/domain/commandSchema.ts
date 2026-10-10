@@ -5,6 +5,7 @@ import { groupCommandSchemas } from './groupSchema'
 import { branchVisitCommandSchemas } from './branchVisitSchema'
 import { hoursCommandSchemas } from './hoursSchema'
 import { rotaCommandSchemas } from './rotaSchema'
+import { newsCommandSchemas } from './newsSchema'
 import { commissionCommandSchemas } from './commissionSchema'
 import { approvalCommandSchemas } from './approvalsSchema'
 import { brandCommandSchemas } from './brandRulesSchema'
@@ -720,6 +721,8 @@ export const commandSchema = z.discriminatedUnion('type', [
   // Stage 4: a gift card or a team member moving to another location.
   giftCardMoveCommandSchema,
   ...staffMoveCommandSchemas,
+  // Stage 4: one message from the studio to its clients, drafted, approved, stopped.
+  ...newsCommandSchemas,
   ...operatingCommandSchema.options,
 ])
 export type BookingInput = z.infer<typeof bookingSchema>

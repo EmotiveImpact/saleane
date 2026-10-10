@@ -1,9 +1,17 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { ArrowLeft, FilePenLine, MailWarning, MessageSquarePlus, Plus, Search } from 'lucide-react'
+import {
+  ArrowLeft,
+  FilePenLine,
+  MailWarning,
+  Megaphone,
+  MessageSquarePlus,
+  Plus,
+  Search,
+} from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useStore } from '../state/context'
-import { operations, can } from '../domain/operations'
+import { operations, can, leads } from '../domain/operations'
 import { dateLabel } from '../domain/format'
 import { Avatar, Button, ErrorMessage, Modal, PageHeader, SegmentedControl } from '../design'
 import type { BusinessState } from '../domain/model'
@@ -619,10 +627,18 @@ export function Inbox() {
         title="A considered word."
         description="Each guest’s messages in one place: what you wrote, what went out on its own and what they wrote back."
         actions={
-          <Button disabled={!allowedDraft || !state.clients.length} onClick={() => startDraft()}>
-            <Plus size={17} />
-            Write a draft
-          </Button>
+          <>
+            {leads(role) && (
+              <Link className="button button-secondary" to="/inbox/news">
+                <Megaphone size={17} />
+                Messages to clients
+              </Link>
+            )}
+            <Button disabled={!allowedDraft || !state.clients.length} onClick={() => startDraft()}>
+              <Plus size={17} />
+              Write a draft
+            </Button>
+          </>
         }
       />
       <div className="ops-banner">

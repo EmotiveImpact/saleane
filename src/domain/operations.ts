@@ -21,6 +21,7 @@ import { patchTestSettingsSchema } from './patchTestsSchema'
 import { tillSettingsSchema } from './tillSchema'
 import { SHIFT_LIMIT, shiftSchema } from './hoursSchema'
 import { ROTA_CHANGE_LIMIT, ROTA_COMMANDS, rotaChangeSchema } from './rotaSchema'
+import { NEWS_LIMIT, newsMessageSchema } from './newsSchema'
 import type { RotaChange } from './rotaSchema'
 import { STAFF_MOVE_LIMIT, staffMoveSchema } from './staffMovesSchema'
 import type { StaffMove } from './staffMovesSchema'
@@ -415,6 +416,8 @@ export const operationsSchema = z.object({
   commissionRates: z.array(commissionRateSchema).max(COMMISSION_RATE_LIMIT).optional(),
   commissionSteps: z.array(commissionStepsSchema).max(COMMISSION_STEPS_LIMIT).optional(),
   staffTargets: z.array(staffTargetSchema).max(STAFF_TARGET_LIMIT).optional(),
+  /** Stage 4: messages from the studio to its clients, for the whole group or chosen locations. */
+  news: z.array(newsMessageSchema).max(NEWS_LIMIT).optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 /**
@@ -662,6 +665,9 @@ export function permissionFor(command: { type: string; approve?: boolean }) {
   if (command.type === 'commission-rate' || command.type === 'commission-steps') return 'pay-rate'
   if (command.type === 'message-queue' || command.type === 'social-answer') return 'message.queue'
   if (command.type === 'special-plan' || command.type === 'special-stop') return 'special'
+  // Stage 4: a message to clients is drafted by leads, approved and sent only by the owner.
+  if (command.type === 'news-save' || command.type === 'news-discard') return 'news'
+  if (command.type === 'news-approve') return 'news-send'
   if (command.type === 'task-add' || command.type === 'task-done') return 'task'
   if (command.type === 'missed-call-done') return 'missed-call'
   if (command.type === 'form-save' || command.type === 'form-archive') return 'forms'
@@ -728,6 +734,9 @@ export const GENERAL_ACTIONS = [
   // location. src/domain/team.ts decides whose days and which rooms are theirs.
   'rota',
   'rooms',
+  // Stage 4: a message to their own location's clients, drafted or stopped, never approved.
+  'news',
+  'news-stop',
 ] as const
 
 export function can(role: Role, action: string) {
@@ -747,6 +756,8 @@ export function can(role: Role, action: string) {
       'plan-card-try',
       // Stage 4: an approved new price starts on its day by itself, only from the server.
       'request-start',
+      // Stage 4: a client stops news only from the link in their own email.
+      'news-unsubscribe',
     ].includes(action)
   )
     return false
@@ -776,6 +787,8 @@ export function can(role: Role, action: string) {
       'region-remove',
       'targets',
       'group-checks',
+      // Stage 4: only the owner approves a message to clients, which sends it.
+      'news-send',
     ].includes(action)
   )
     return false
@@ -828,6 +841,9 @@ export function can(role: Role, action: string) {
       'till-settings',
       'shift-fix',
       'staff-target',
+      // Stage 4: messages to many clients are for the owner and the people who lead a team.
+      'news',
+      'news-stop',
     ].includes(action)
   )
     return false

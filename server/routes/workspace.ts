@@ -18,6 +18,7 @@ import { practitionerRefusal } from '../../src/domain/practitioner'
 import { branchChangeRefusal, branchRefusal } from '../../src/domain/branch'
 import { areaRefusal } from '../../src/domain/area'
 import { refundOverLimit, refundTarget, signOffRefusal } from '../../src/domain/signoffs'
+import { erasureRequested } from '../messaging/news'
 import { openingFree, staleOffer } from '../../src/domain/waitlist'
 import { giftCardHoldProblem } from '../payments/service'
 import { membershipCardHold } from '../payments/memberships'
@@ -303,6 +304,10 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
             )
           )
             fail(409, 'This time is reserved or unavailable. Choose another time.')
+        } else if (command.type === 'news-approve') {
+          // Stage 4: erasure requests are kept in the audit log, which only the server reads, so
+          // the approval counts them from there and never from what a browser sends.
+          command = { ...command, erased: erasureRequested(ctx, org.id) }
         } else if (command.type === 'message-queue') {
           // Approving a waitlist offer checks its time again, including guests holding it.
           const stale = staleOffer(withHolds(org), command.messageId, new Date(now()).toISOString())

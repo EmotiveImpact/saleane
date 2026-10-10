@@ -518,6 +518,25 @@ describe('rota sign-offs', () => {
     ).toMatch(/^Copying or clearing a week/)
   })
 
+  it('weigh only the days a copied week would make at that location', () => {
+    let s = apply(local(), {
+      type: 'location',
+      input: { name: 'Islington', address: '1 Upper St' },
+    })
+    const main = s.organisation.locationId
+    const islington = s.operations!.locations![0].id
+    s = apply(s, rules(null, null, 'extra'))
+    // The owner gives Theo an extra Monday at the main location; copying that week brings it on.
+    s = apply(s, extraMonday)
+    const copy = (locationId: string): Command => ({
+      type: 'rota-week-copy',
+      monday: '2026-10-19',
+      locationId,
+    })
+    expect(rotaSignOffNeeded(s, copy(main), now)).toBe(true)
+    expect(rotaSignOffNeeded(s, copy(islington), now)).toBe(false)
+  })
+
   it('apply exactly the change asked for once approved, and only at their own location', () => {
     let s = apply(local(), {
       type: 'location',

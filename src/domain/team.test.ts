@@ -676,7 +676,6 @@ describe('what a general manager reads (branchView)', () => {
 
 describe('permissions', () => {
   it('widens a general manager by the rota and rooms only', () => {
-    expect(GENERAL_ACTIONS.slice(-2)).toEqual(['rota', 'rooms'])
     for (const type of ['rota-day', 'rota-day-usual', 'rota-week-copy', 'rota-week-clear']) {
       expect(permissionFor({ type })).toBe('rota')
     }
@@ -700,7 +699,7 @@ describe('permissions', () => {
     for (const role of ['reception', 'practitioner', 'regional'] as Role[])
       for (const action of ['rota', 'rooms']) expect(can(role, action), role).toBe(false)
     // Everything a general manager could do before is unchanged (V5, as on the Stage 3 base),
-    // with passing on a gift card from Stage 4.
+    // with passing on a gift card and writing to their own location's clients from Stage 4.
     expect(GENERAL_ACTIONS).toEqual([
       ...['read', 'clock', 'book', 'reschedule', 'cancel', 'no-show', 'arrive', 'checkout'],
       ...['deposit', 'fee', 'refund', 'note', 'client', 'client-edit', 'client-birthday'],
@@ -714,6 +713,7 @@ describe('permissions', () => {
       ...['receive-order', 'cancel-order', 'branch-visit', 'branch-visit-fix', 'request-raise'],
       'rota',
       'rooms',
+      ...['news', 'news-stop'],
     ])
   })
 })

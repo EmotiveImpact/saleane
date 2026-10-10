@@ -31,6 +31,7 @@ describe('the workspace read projection', () => {
       // Stage 4: requests for a sign-off and the owner's rules are not the desk's either.
       requests,
       approvals: _rules,
+      news,
       ...operations
     } = state.operations!
     void [_paid, _lists, _rules]
@@ -41,6 +42,8 @@ describe('the workspace read projection', () => {
     expect(commissionSteps?.length).toBeGreaterThan(0)
     expect(staffTargets?.length).toBeGreaterThan(0)
     expect(branchVisits?.length).toBeGreaterThan(0)
+    // Stage 4: messages to clients are written by leads, not the desk.
+    expect(news?.length).toBeGreaterThan(0)
     const terms = rentals!.map((rental) => {
       const { percentBps: _share, ...kept } = rental
       void _share

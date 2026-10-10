@@ -173,6 +173,12 @@ const commandWords: Record<Command['type'], Words> = {
   'import-balances': ['money', 'Brought in balances from another system'],
   'balance-settle': ['money', 'Settled a brought-in balance'],
   'import-clients': ['clients', 'Brought in clients from another system'],
+  // Stage 4: one message from the studio to its clients.
+  'news-save': ['messages', 'Changed a message to clients', 'Wrote a message to clients'],
+  'news-approve': ['messages', 'Approved a message to clients'],
+  'news-stop': ['messages', 'Stopped a message to clients'],
+  'news-discard': ['messages', 'Put aside a message to clients'],
+  'news-unsubscribe': ['clients', 'Stopped news from the link in a message'],
 }
 
 /** Changes the server makes or records itself. */
@@ -223,6 +229,7 @@ const serverWords: Record<string, Words> = {
   'guest.feedback': ['clients', 'Left feedback after their visit'],
   'guest.form': ['clients', 'Filled in a guest form'],
   'guest.email-news': ['clients', 'Changed whether they get email news'],
+  'guest.news-stop': ['clients', 'Stopped news from the link in a message'],
   'guest.here': ['visits', 'Said they had arrived'],
   'guest.waitlist': ['visits', 'Changed their waitlist request'],
   'guest.cancel': ['visits', 'Cancelled their visit'],
@@ -267,6 +274,7 @@ export function actionsIn(group: ChangeGroup) {
 export function automaticSource(action: string) {
   if (action === 'workspace.restored') return 'A backup on this computer'
   if (action === 'public.book') return 'A guest booking online'
+  if (action === 'guest.news-stop') return 'A client, from the link in a message to clients'
   if (action.startsWith('guest.')) return 'A guest, from their visit link'
   if (action.startsWith('google.')) return 'A guest, through Google'
   if (action.startsWith('payment.')) return 'A guest paying by card'
@@ -563,6 +571,14 @@ const fieldWords: Record<string, string> = {
   generalRefundLimitMinor: 'what a general manager may give back',
   managerRefundLimitMinor: 'what a manager may give back',
   rotaSignOff: 'rota changes needing a sign-off',
+  subject: 'subject',
+  body: 'words',
+  by: 'how it goes',
+  locationIds: 'locations',
+  bookLink: 'booking link',
+  toEmail: 'clients by email',
+  toText: 'clients by text',
+  leftOut: 'clients left out',
 }
 /** A detail's name in words: "cutoffHours" reads "cutoff hours". */
 export function fieldName(field: string) {
@@ -615,6 +631,8 @@ export function recordNames(s: BusinessState): RecordNames {
     if (hit.collection === 'organisation') return text(r, 'name')
     if (hit.collection === 'giftCards' && typeof r.valueMinor === 'number')
       return `${money(r.valueMinor, s.organisation)} gift card`
+    // Stage 4: a message to clients is named by its subject, which the owner wrote for them all.
+    if (hit.collection === 'news') return text(r, 'subject')
     const own = text(r, 'name') ?? text(r, 'title') ?? text(r, 'label')
     if (own && !['consentRecords', 'formResponses'].includes(hit.collection)) return own
     // Otherwise named after what it belongs to: a refund after its receipt, a payment its visit.

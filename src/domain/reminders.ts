@@ -78,6 +78,8 @@ export const messageKinds = [
   'plan_declined',
   // Stage 2: a receipt the desk chose to email. Never planned; only queued when asked for.
   'receipt',
+  // Stage 4: one copy of a message to clients, queued only when the owner approves it.
+  'news',
 ] as const
 export type MessageKind = (typeof messageKinds)[number]
 /** Messages about the guest rather than one visit. Their rows carry no appointment. */
@@ -94,6 +96,7 @@ export type VisitKind = Exclude<
   | 'plan_reminder'
   | 'plan_declined'
   | 'receipt'
+  | 'news'
 >
 export const isClientKind = (kind: string): kind is ClientKind =>
   (clientKinds as readonly string[]).includes(kind)

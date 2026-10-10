@@ -177,6 +177,20 @@ describe('help inside the app', () => {
       'gift-card-move',
     )
     expect(first('reschedule an appointment')).toBe('move-visit')
+    // Stage 4: one message to many clients.
+    expect(first('send a newsletter to all clients')).toBe('news')
+    expect(first('group message')).toBe('news')
+    expect(first('bulk email')).toBe('news')
+    expect(first('which clients are left out')).toBe('news-who')
+    expect(first('approve a message to clients')).toBe('news-approve')
+    expect(first('newsletter', 'general')).toBe('news')
+    expect(ids(searchHelp('newsletter', 'reception'))).not.toContain('news')
+    expect(ids(searchHelp('newsletter', 'practitioner'))).not.toContain('news')
+    expect(ids(helpForScreen('/inbox/news', '', 'owner')).slice(0, 3)).toEqual([
+      'news',
+      'news-who',
+      'news-approve',
+    ])
     expect(searchHelp('the', 'owner')).toEqual([])
     expect(searchHelp('rocket launch', 'owner')).toEqual([])
     expect(helpWords("Customer's bookings")).toEqual(['client', 'visit'])

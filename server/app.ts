@@ -24,6 +24,8 @@ import { privacyRoutes } from './routes/privacy'
 import { messagingRoutes } from './routes/messaging'
 import { testTextRoutes } from './routes/testText'
 import { createOutbox } from './messaging/outbox'
+import { watchNews } from './messaging/news'
+import { newsRoutes } from './routes/news'
 import { recordPhoneCall, recordReply, recordSocialMessage } from './messaging/calls'
 import { metaChallenge, metaGenuine, metaMessages, socialFromEnv } from './messaging/meta'
 import { socialRoutes } from './routes/social'
@@ -88,6 +90,8 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   const ctx = createContext(options)
   const { origin, allowedOrigin, db, rateLimit } = ctx
   const outbox = createOutbox(ctx, ctx.messaging)
+  // Stage 4: an approved message to clients is queued as it is saved, and a stopped one stops.
+  watchNews(ctx)
   const payments = createPayments(ctx, ctx.paymentProvider)
   const billing = createBilling(
     ctx,
@@ -120,6 +124,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     socialRoutes(social),
     connections.routes,
     messagingRoutes(outbox),
+    newsRoutes(outbox),
     testTextRoutes(outbox),
     paymentRoutes(payments),
     billing.routes,

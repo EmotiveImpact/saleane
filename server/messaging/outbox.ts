@@ -32,9 +32,18 @@ import { answersSocial, answersTexts, visitSummary } from '../../src/assistant/r
 import { visitStart } from '../../src/domain/guest'
 import { textsStopped } from '../../src/domain/textStop'
 import { isPlanCardKind, planCardMessage, readPlanCardSlot } from '../../src/domain/planCards'
+import {
+  NEWS_STALE_DAYS,
+  NEWS_STOP_LINK,
+  newsDaytime,
+  newsMessage,
+  newsSendFrom,
+  newsStillFor,
+} from '../../src/domain/news'
 import type { Context } from '../context'
 import { issueGuestLink } from '../routes/guest'
 import { providerFor } from './providers'
+import { erasureRequested, issueNewsLink, newsSlotMessage } from './news'
 import type { Providers, Receipt } from './providers'
 
 export type OutboxRow = {
@@ -64,6 +73,7 @@ const RETRY_MS = [60000, 5 * 60000]
 const BATCH = 50
 /** An AI receptionist's answer that could not go out within this long is not sent at all. */
 const RECEPTION_STALE_MS = 15 * 60000
+const DAY_MS = 86400000
 
 /**
  * The outbox: plans confirmations and reminders from studio records, then hands each one to the
@@ -250,6 +260,39 @@ export function createOutbox(ctx: Context, providers: Providers) {
       }
       if (fresh.channel !== 'email' && fresh.channel !== 'sms')
         return skip('This message cannot go on a social app.')
+      if (fresh.kind === 'news') {
+        // Stage 4: one client's copy of a message to clients. Checked again now: still approved,
+        // still agreed, not STOP, not erased, still reachable this way, and in the daytime.
+        if (!org || !client) return skip('The client is no longer in the studio record.')
+        if (operations(org.state).mode !== 'local') return skip('Sample studios never send.')
+        const messageId = newsSlotMessage(fresh.slot)
+        const approvedAt = newsMessage(org.state, messageId)?.approvedAt
+        if (approvedAt && now() - Date.parse(approvedAt) > NEWS_STALE_DAYS * DAY_MS)
+          return skip('Too late: it could not go within three days of being approved.')
+        if (!newsDaytime(org.state, now())) {
+          finish(fresh, 'pending', {
+            detail: 'Waiting for the daytime on the studio’s clock.',
+            next_attempt_at: newsSendFrom(org.state, now()),
+          })
+          return null
+        }
+        const still = newsStillFor(
+          org.state,
+          messageId,
+          client.id,
+          fresh.channel,
+          erasureRequested(ctx, org.id),
+        )
+        if ('skip' in still) return skip(still.skip)
+        let sending = fresh.body.replaceAll(BOOK_LINK, `${ctx.allowedOrigin}/book/${org.slug}`)
+        if (fresh.channel !== 'email')
+          return send(fresh, org, still.to, '', fresh.body, sending, undefined)
+        const unsubscribe = issueNewsLink(ctx, org.id, client.id, messageId, fresh.id)
+        sending = sending.replaceAll(NEWS_STOP_LINK, unsubscribe)
+        return send(fresh, org, still.to, fresh.subject, fresh.body, sending, undefined, {
+          unsubscribe,
+        })
+      }
       if (!org || !client) return skip('The visit is no longer in the studio record.')
       if (operations(org.state).mode !== 'local') return skip('Sample studios never send.')
       if (isPlanCardKind(fresh.kind)) {
@@ -375,6 +418,8 @@ export function createOutbox(ctx: Context, providers: Providers) {
     sending: string,
     /** V4: the studio's own account a social answer goes from. */
     account?: string,
+    /** Stage 4: a message to many clients, and its link to stop them. */
+    bulk?: { unsubscribe: string },
   ) => {
     // Stage 1: whatever planned it, nothing is texted to a number that replied STOP and has not
     // texted START since, client or not (src/domain/textStop.ts).
@@ -405,13 +450,16 @@ export function createOutbox(ctx: Context, providers: Providers) {
         body: sending,
         fromName: org.state.organisation.name,
         ...(account ? { account } : {}),
+        ...(bulk ? { bulk } : {}),
       },
     }
   }
 
   const deliver = async () => {
     const due = db.all<OutboxRow>(
-      "SELECT * FROM outbox WHERE status='pending' AND next_attempt_at<=? ORDER BY next_attempt_at,created_at LIMIT ?",
+      // Stage 4: a message to many clients waits behind messages about visits, so it never
+      // holds up a confirmation or a reminder.
+      "SELECT * FROM outbox WHERE status='pending' AND next_attempt_at<=? ORDER BY kind='news',next_attempt_at,created_at LIMIT ?",
       now(),
       BATCH,
     )
