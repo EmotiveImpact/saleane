@@ -102,6 +102,32 @@ describe('Resend', () => {
     expect((await sender.send(message)).outcome).toBe('unknown')
     expect(await sender.send(message)).toMatchObject({ outcome: 'failed', retry: true })
   })
+  it('leaves a yes that was cut off, or that names nothing, for a person to check', async () => {
+    const cutOff = new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.error(new Error('socket hang up'))
+        },
+      }),
+      { status: 200 },
+    )
+    const { fetcher } = provider(cutOff, json({}))
+    const sender = resendProvider({ apiKey: 'k', from: 'f@example.invalid', fetcher })
+    expect(await sender.send(message)).toEqual({
+      outcome: 'unknown',
+      detail: 'The provider’s answer was cut off. Check its dashboard first.',
+    })
+    expect(await sender.send(message)).toEqual({
+      outcome: 'unknown',
+      detail: 'The provider took it without a reference. Check its dashboard first.',
+    })
+  })
+  it('keeps a studio name from breaking the sender line', async () => {
+    const { calls, fetcher } = provider(json({ id: 're-1' }))
+    const sender = resendProvider({ apiKey: 'k', from: 'f@example.invalid', fetcher })
+    await sender.send({ ...message, fromName: 'Willow \\Studio\\\u0007' })
+    expect(bodyOf(calls[0]).from).toBe('"Willow Studio" <f@example.invalid>')
+  })
 })
 
 describe('SendGrid', () => {

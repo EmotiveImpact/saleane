@@ -20,9 +20,20 @@ export async function post(
 ): Promise<Answer | SendResult> {
   try {
     const response = await fetcher(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) })
+    let text = ''
+    try {
+      text = await response.text()
+    } catch {
+      // The answer was cut off part way: if it began with yes, the message may have gone.
+      if (response.ok)
+        return {
+          outcome: 'unknown',
+          detail: 'The provider’s answer was cut off. Check its dashboard first.',
+        }
+    }
     let json: Record<string, unknown> = {}
     try {
-      const read = (await response.json()) as unknown
+      const read = JSON.parse(text) as unknown
       if (read && typeof read === 'object' && !Array.isArray(read))
         json = read as Record<string, unknown>
     } catch {
@@ -43,12 +54,17 @@ export async function post(
 export const isResult = (value: unknown): value is SendResult =>
   !!value && typeof value === 'object' && 'outcome' in value
 
-/** A refusal: worth trying again only when the provider was busy or had a fault of its own. */
-export const refused = (status: number, detail: string): SendResult => ({
-  outcome: 'failed',
-  detail,
-  retry: status === 429 || status >= 500,
-})
+/**
+ * A refusal: worth trying again only when the provider was busy or had a fault of its own. A yes
+ * with no reference is not a refusal: the message may have gone, so a person checks first.
+ */
+export const refused = (status: number, detail: string): SendResult =>
+  status >= 200 && status < 300
+    ? {
+        outcome: 'unknown',
+        detail: 'The provider took it without a reference. Check its dashboard first.',
+      }
+    : { outcome: 'failed', detail, retry: status === 429 || status >= 500 }
 
 /** Compares two secrets in constant time. */
 export function sameText(a: string | undefined, b: string) {

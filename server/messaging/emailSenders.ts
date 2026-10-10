@@ -27,7 +27,7 @@ export type EmailSenderName =
   'postmark' | 'resend' | 'sendgrid' | 'mailgun' | 'ses' | 'smtp' | 'google' | 'microsoft'
 
 /** The sender's name as a mail header shows it, with nothing that could break the header. */
-const displayName = (name: string) => name.replace(/["<>\r\n]/g, '').trim() || 'SALEANE'
+const displayName = (name: string) => name.replace(/[\p{Cc}"<>\\]/gu, '').trim() || 'SALEANE'
 const fromLine = (message: OutgoingMessage, address: string) =>
   `"${displayName(message.fromName)}" <${address}>`
 /** RFC 8058: the address a mail app calls to unsubscribe in one click, for news only. */
