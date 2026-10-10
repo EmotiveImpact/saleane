@@ -223,7 +223,10 @@ describe('connected operator journeys', () => {
     await user.click(screen.getByRole('button', { name: 'Record demo payment' }))
     const dialog = screen.getByRole('dialog')
     expect(within(dialog).getByText('£84.25')).toBeInTheDocument()
-    expect(within(dialog).getByRole('button', { name: 'Rebook this client' })).toBeInTheDocument()
+    const rebook = within(dialog).getByRole('button', { name: 'Rebook this client' })
+    // The next visit comes before the receipt's own buttons, so a printed receipt never hides it.
+    const print = within(dialog).getByRole('button', { name: 'Print receipt' })
+    expect(rebook.compareDocumentPosition(print) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     const saved = JSON.parse(localStorage.getItem('saleane.demo.v1.UK')!)
     expect(
       saved.sales.filter((s: { appointmentId: string }) => s.appointmentId === 'visit-amelia'),

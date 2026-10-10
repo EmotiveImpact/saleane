@@ -548,7 +548,6 @@ export function AppointmentDialog({
                   : 'Paid with a test card. Test mode: no money moved.'
                 : 'This receipt records money handled outside SALEANE. No card company was contacted.'}
           </p>
-          <ReceiptActions receiptKey={`visit:${sale.id}`} />
           <section className="rebook-moment" aria-labelledby={rebookHeading}>
             <div
               className="rebook-moment-photo"
@@ -583,6 +582,8 @@ export function AppointmentDialog({
               </div>
             </div>
           </section>
+          {/* The next visit comes first; a printed receipt, which can run long, sits under it. */}
+          <ReceiptActions receiptKey={`visit:${sale.id}`} />
         </>
       ) : mode === 'move' ? (
         <>
