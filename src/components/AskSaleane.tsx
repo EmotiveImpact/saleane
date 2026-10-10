@@ -71,7 +71,8 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
   const [canTalk, setCanTalk] = useState(false)
   const [talk, setTalk] = useState<Talking | null>(null)
   const [starting, setStarting] = useState(false)
-  const [notice, setNotice] = useState('')
+  // A line about talking: shown, or only read out when the talk bar already shows it.
+  const [notice, setNotice] = useState<{ text: string; quiet?: boolean }>({ text: '' })
   const line = useRef<TalkConnection | null>(null)
   const talkId = useRef<string | null>(null)
   const held = useRef(new Map<string, PendingProposal<Command>>())
@@ -243,13 +244,13 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
     line.current = null
     talkId.current = null
     setTalk(null)
-    setNotice('The talk has ended.')
+    setNotice({ text: 'The talk has ended.' })
   }
 
   async function startTalk() {
     if (talk || starting) return
     setError('')
-    setNotice('')
+    setNotice({ text: '' })
     setStarting(true)
     const started: { id?: string; seconds?: number } = {}
     try {
@@ -261,7 +262,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
           >(`${base}/talk`, { method: 'POST', body: { sdp } })
           setMeter(meterFrom(r.usage))
           if (r.status !== 'talking') {
-            setNotice(r.text)
+            setNotice({ text: r.text })
             return null
           }
           started.id = r.id
@@ -275,7 +276,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
       if (!connection || !started.id) return
       line.current = connection
       setTalk({ id: started.id, secondsLeft: started.seconds ?? 0, thinking: false, ending: false })
-      setNotice('Talking. Ask whenever you are ready.')
+      setNotice({ text: 'Talking. Ask whenever you are ready.', quiet: true })
     } catch (caught) {
       if (talkId.current) void stopTalk()
       setError(caught instanceof Error ? caught.message : 'Talking could not start. Try again.')
@@ -452,15 +453,15 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
             {error}
           </p>
         )}
-        <p role="status" className={notice ? 'ask-notice' : 'sr-only'}>
-          {notice}
+        <p role="status" className={notice.text && !notice.quiet ? 'ask-notice' : 'sr-only'}>
+          {notice.text}
         </p>
         <div className="ask-footer">
           {talk && (
             <div className="ask-talk">
               <span className="ask-talk-dot" aria-hidden="true" />
               <p>
-                {talk.ending ? 'Ending the talk…' : 'Talking with Ask SALEANE'}
+                {talk.ending ? 'Ending the talk…' : 'Talking'}
                 {!talk.ending && (
                   <span className="ask-talk-left" role="timer" aria-live="off">
                     {' '}
@@ -490,7 +491,9 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
             </Button>
             {canTalk && !talk && (
               <Button variant="secondary" disabled={starting} onClick={() => void startTalk()}>
-                <Mic size={16} aria-hidden="true" /> {starting ? 'Starting…' : 'Talk'}
+                <Mic size={16} aria-hidden="true" />
+                {/* On a phone the microphone alone shows it, so the question box keeps its room. */}
+                <span className="ask-talk-label">{starting ? 'Starting…' : 'Talk'}</span>
               </Button>
             )}
           </form>

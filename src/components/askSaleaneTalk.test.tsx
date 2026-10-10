@@ -93,7 +93,11 @@ describe('talking to Ask SALEANE', () => {
       method: 'POST',
       body: { sdp: 'v=0 offer' },
     })
-    expect(await within(panel).findByText('Talking with Ask SALEANE')).toBeInTheDocument()
+    expect(await within(panel).findByRole('timer')).toBeInTheDocument()
+    expect(within(panel).getByRole('timer').parentElement).toHaveTextContent('Talking · 10:00 left')
+    expect(within(panel).getByRole('status')).toHaveTextContent(
+      'Talking. Ask whenever you are ready.',
+    )
     expect(within(panel).getByRole('timer')).toHaveTextContent('10:00 left')
     expect(within(panel).queryByRole('button', { name: 'Talk' })).not.toBeInTheDocument()
 
@@ -142,7 +146,7 @@ describe('talking to Ask SALEANE', () => {
     expect(
       await within(panel).findByText(/This month's talking time is used up\./),
     ).toBeInTheDocument()
-    expect(within(panel).queryByText('Talking with Ask SALEANE')).not.toBeInTheDocument()
+    expect(within(panel).queryByRole('timer')).not.toBeInTheDocument()
     expect(stop).not.toHaveBeenCalled()
   })
 
@@ -161,7 +165,7 @@ describe('talking to Ask SALEANE', () => {
     const { unmount } = render(<AskSaleane onClose={() => {}} />)
     const panel = await screen.findByRole('dialog', { name: 'Ask SALEANE' })
     await user.click(await within(panel).findByRole('button', { name: 'Talk' }))
-    await within(panel).findByText('Talking with Ask SALEANE')
+    await within(panel).findByRole('timer')
     unmount()
     expect(stop).toHaveBeenCalled()
     expect(mocked).toHaveBeenCalledWith(`${base}/talk/talk-1/end`, { method: 'POST', body: {} })

@@ -150,13 +150,26 @@
 }
 .ask-talk p {
   flex: 1;
-  min-width: 12rem;
   margin: 0;
   color: var(--ink);
 }
 .ask-talk-left {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+@media (max-width: 480px) {
+  .ask-form .button:has(.ask-talk-label) {
+    padding-inline: 14px;
+  }
+  .ask-talk-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 .ask-talk-dot {
   flex: none;
