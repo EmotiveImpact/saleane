@@ -2,6 +2,16 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-10 · Talking to Ask SALEANE (NEXT-12, part 2)
+
+**Status: built locally on 10 October 2026; not run against a real OpenAI or Anthropic account.** [Evidence](docs/evidence/NEXT-12-TALKING.md).
+
+- With Claude switched on and an OpenAI key added (`SALEANE_VOICE_PROVIDER=openai`), Ask SALEANE has a Talk button. OpenAI's voice listens and speaks; Claude answers with the same studio records, permissions and approvals as a typed question. The voice says it is an AI and never says a change was made.
+- While talking the panel shows "Talking · 9:55 left" with Stop, what was said with a small microphone, and each answer. A change prepared while talking waits on screen for Approve or Not now, as a typed one does.
+- Each talk can run up to ten minutes, or what is left of the month's talking time. SALEANE holds that time and its most it could cost before the talk starts, ends the talk when its time is up, and counts only the seconds it ran. With less than 30 seconds left it says "This month's talking time is used up. It resets on the 1st, or the owner can add Plus. You can still type." Spoken questions count as talking time, not typed questions.
+- The meter adds "1 of 30 talking minutes used." A refused microphone says "SALEANE needs your microphone to talk. Allow it in your browser, or type instead." Closing the panel hangs up.
+- OpenAI's key never reaches the browser. The help guide and the privacy notes say what is sent to OpenAI while talking. Unset, there is no Talk button, and a sample studio never talks.
+
 ## 2026-10-10 · Claude behind Ask SALEANE and the receptionist (NEXT-12, part 1)
 
 **Status: built locally on 10 October 2026; not run against a real Anthropic account.** [Evidence](docs/evidence/NEXT-12-REAL-AI.md).
