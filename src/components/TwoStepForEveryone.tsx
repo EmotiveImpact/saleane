@@ -48,7 +48,9 @@ export function TwoStepForEveryone({
         <p className="access-everyone-count">
           {notYet.length === 0
             ? `Everyone in ${studio} has two-step sign-in on.`
-            : `${members.length - notYet.length} of ${members.length} ${members.length === 1 ? 'person has' : 'people have'} it on. Not yet: ${listNames(notYet)}.`}
+            : notYet.length === members.length
+              ? `Nobody has it on yet: ${listNames(notYet)}.`
+              : `${members.length - notYet.length} of ${members.length} people have it on. Not yet: ${listNames(notYet)}.`}
         </p>
       )}
       {!on && !mine && (
