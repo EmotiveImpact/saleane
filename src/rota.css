@@ -93,6 +93,16 @@
   color: var(--muted);
   background: transparent;
 }
+/* Stage 4: for a general manager, a day another location plans shows where only, read only. */
+.rota-table td.rota-elsewhere {
+  color: var(--muted);
+  background: transparent;
+  border-style: dashed;
+}
+.rota-table td.rota-elsewhere > span {
+  display: block;
+  overflow-wrap: anywhere;
+}
 /*
  * Stage 3: a day changed from someone's usual hours is warm stone with a small label, so it
  * stands out from usual days without a stripe. Booked visits kept outside the hours are named

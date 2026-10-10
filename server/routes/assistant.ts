@@ -5,6 +5,8 @@ import { fail } from '../http'
 import type { Context, Route } from '../context'
 import { HISTORY_TURNS, TYPED_WORST_CASE_MINOR, askSaleane } from '../../src/assistant/ask'
 import type { Command } from '../../src/domain/commands'
+import { branchView } from '../../src/domain/branch'
+import { businessDate } from '../../src/domain/operations'
 
 type Held = PendingProposal<Command> & { organisationId: string; accountId: string }
 
@@ -57,8 +59,13 @@ export function assistantRoutes() {
         })
         .strict()
         .parse(body)
+      // Stage 4: a general manager's questions are answered from their own location's view only.
+      const state =
+        org.role === 'general' && org.locationId
+          ? branchView(org.state, org.locationId, businessDate(org.state, at))
+          : org.state
       const result = await askSaleane({
-        state: org.state,
+        state,
         role: org.role,
         personId: actor.id,
         text,

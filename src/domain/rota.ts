@@ -19,6 +19,7 @@ import { TIME_OFF_LABEL, mondayOf } from './timeOff'
 import { dayAppointments } from './selectors'
 import { ROTA_AHEAD_DAYS, ROTA_CHANGE_LIMIT, ROTA_KEPT_LIMIT } from './rotaSchema'
 import type { RotaChange, RotaDayInput } from './rotaSchema'
+import { changePlace, rotaDayRefusal, teamChangeRefusal } from './team'
 
 /**
  * Stage 3: the rota week by week. Each person's week starts from their usual weekly hours; an owner
@@ -265,32 +266,41 @@ export type WeekCopy = {
  * What copying last week's changes into the week starting `monday` would do: each change still in
  * force last week lands on the same weekday, checked as if it were made by hand. Days that have
  * passed, days someone is away and days already the same are left out, with the reason.
+ *
+ * Stage 4: with `locationId`, as a general manager copies, only last week's days at that location
+ * are copied, and each one only onto a day that is theirs to change (see team.ts).
  */
-export function weekCopy(s: BusinessState, monday: string, today: string): WeekCopy {
+export function weekCopy(
+  s: BusinessState,
+  monday: string,
+  today: string,
+  locationId?: string,
+): WeekCopy {
   const result: WeekCopy = { copies: [], skipped: [] }
   const from = addDays(monday, -7)
   const sources = rotaChanges(s)
-    .filter((c) => c.date >= from && c.date < monday)
+    .filter(
+      (c) => c.date >= from && c.date < monday && (!locationId || changePlace(s, c) === locationId),
+    )
     .sort((a, b) => a.date.localeCompare(b.date) || a.staffId.localeCompare(b.staffId))
   for (const source of sources) {
     const date = addDays(source.date, 7)
     try {
-      const { plan } = planDay(
-        s,
-        {
-          staffId: source.staffId,
-          date,
-          working: source.working,
-          ...(source.working
-            ? {
-                open: source.open,
-                close: source.close,
-                locationId: source.locationId ?? s.organisation.locationId,
-              }
-            : {}),
-        },
-        today,
-      )
+      const input: RotaDayInput = {
+        staffId: source.staffId,
+        date,
+        working: source.working,
+        ...(source.working
+          ? {
+              open: source.open,
+              close: source.close,
+              locationId: source.locationId ?? s.organisation.locationId,
+            }
+          : {}),
+      }
+      const refusal = locationId && rotaDayRefusal(s, locationId, { type: 'rota-day', input })
+      if (refusal) throw new Error(refusal)
+      const { plan } = planDay(s, input, today)
       const there = rotaChangeOn(s, source.staffId, date)
       if (there && samePlan(there, plan)) throw new Error('That day already has these hours.')
       result.copies.push({ from: source, date, plan })
@@ -305,11 +315,29 @@ export function weekCopy(s: BusinessState, monday: string, today: string): WeekC
   return result
 }
 
-/** Changes still to come in the week starting `monday`, from today on. */
-export function weekStillToCome(s: BusinessState, monday: string, today: string) {
+/**
+ * Changes still to come in the week starting `monday`, from today on. Stage 4: with `locationId`,
+ * only those a general manager there may put back to usual (see team.ts).
+ */
+export function weekStillToCome(
+  s: BusinessState,
+  monday: string,
+  today: string,
+  locationId?: string,
+) {
   const from = monday > today ? monday : today
   const to = addDays(monday, 6)
-  return rotaChanges(s).filter((c) => c.date >= from && c.date <= to)
+  return rotaChanges(s).filter(
+    (c) =>
+      c.date >= from &&
+      c.date <= to &&
+      (!locationId ||
+        !rotaDayRefusal(s, locationId, {
+          type: 'rota-day-usual',
+          staffId: c.staffId,
+          date: c.date,
+        })),
+  )
 }
 
 /** One visit as the rota names it: day and time, the client's first name and the treatment. */
@@ -384,7 +412,7 @@ export function runRotaCommand(
     recordId = existing.id
   } else if (command.type === 'rota-week-copy') {
     checkMonday(command.monday)
-    const { copies, skipped } = weekCopy(next, command.monday, today)
+    const { copies, skipped } = weekCopy(next, command.monday, today, command.locationId)
     if (!copies.length)
       throw new Error(
         skipped.length
@@ -395,7 +423,7 @@ export function runRotaCommand(
     recordId = command.monday
   } else {
     checkMonday(command.monday)
-    const clearing = weekStillToCome(next, command.monday, today).map((c) =>
+    const clearing = weekStillToCome(next, command.monday, today, command.locationId).map((c) =>
       list.find((x) => x.id === c.id)!,
     )
     if (!clearing.length) throw new Error('This week has no changed days still to come.')
@@ -439,16 +467,29 @@ export function runRotaCommand(
 
 /**
  * What a rota command would do before it is saved: the reason it cannot be saved, if any, and the
- * booked visits it would leave outside the new hours. The server checks the same again.
+ * booked visits it would leave outside the new hours. The server checks the same again. Stage 4:
+ * with `locationId`, as a general manager there would make it, with their limits (team.ts).
  */
 export function rotaPreview(
   s: BusinessState,
   command: RotaCommand,
   now = new Date().toISOString(),
+  locationId?: string,
 ): { error: string | null; affected: AffectedVisit[] } {
   const next = scheduleSnapshot(s)
   try {
+    if (locationId) {
+      if (command.type === 'rota-day' || command.type === 'rota-day-usual') {
+        const refusal = rotaDayRefusal(s, locationId, command)
+        if (refusal) throw new Error(refusal)
+      } else if (command.locationId !== locationId)
+        throw new Error('Copy and clear weeks at your own location only.')
+    }
     runRotaCommand(next, { ...command, keepBooked: true }, now, () => 'preview')
+    if (locationId) {
+      const refusal = teamChangeRefusal(s, next, locationId)
+      if (refusal) throw new Error(refusal)
+    }
     return { error: null, affected: affectedVisits(s, next, now) }
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'This cannot be saved.', affected: [] }

@@ -32,7 +32,7 @@ import type { OperatingCommand } from '../domain/commandSchema'
 import { TimeField } from '../design'
 import { StudioDateField } from '../components/StudioDateField'
 import { scheduleImpact } from '../domain/schedule'
-import { operations, can, permissionFor } from '../domain/operations'
+import { businessDate, operations, can, permissionFor } from '../domain/operations'
 import { money, dateLabel, timeLabel } from '../domain/format'
 import { parseMinor } from '../domain/money'
 import { Avatar, Button, ErrorMessage, Modal, PageHeader, Tabs, treatmentPhoto } from '../design'
@@ -51,6 +51,7 @@ import { SwitchingSettings } from '../components/Switching'
 import { PlanSettings } from '../components/Plans'
 import { LocationsSettings } from '../components/LocationsSettings'
 import { hasLocations, placeOf, places, resourceLocation } from '../domain/locations'
+import { usuallyAt } from '../domain/team'
 import { FormSettings } from '../components/GuestForms'
 import { EmailNewsWording } from '../components/EmailConsent'
 import { SavedReplies } from '../components/SavedReplies'
@@ -136,6 +137,9 @@ const numeric = (data: FormData, name: string) => Number(data.get(name))
 type Editor = { kind: 'service' | 'staff' | 'resource' | 'closure'; id?: string }
 type WeekHours = ReturnType<typeof operations>['hours']
 const weekOrder = [1, 2, 3, 4, 5, 6, 0]
+/** The permission each editor saves with: rooms and chairs have their own (Stage 4). */
+const editorPermission = (kind: Editor['kind']) =>
+  kind === 'closure' ? 'hours' : kind === 'resource' ? 'rooms' : 'catalogue'
 /** LOCAL-04: the booked visits a proposed change would strand, checked as the form changes. */
 function previewImpact(state: BusinessState, command: Command | null) {
   if (!command || !['hours', 'closure', 'staff', 'resource', 'location'].includes(command.type))
@@ -172,7 +176,9 @@ function TreatmentPhoto({ category, nth }: { category: string; nth: number }) {
 }
 
 export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
-  const { state, commit, blocked, role, mode } = useStore()
+  const { state, commit, blocked, role, mode, branch } = useStore()
+  // Stage 4: a general manager looks after the rooms and chairs at their own location only.
+  const own = role === 'general' && branch ? branch : undefined
   const config = operations(state)
   // The open section lives in the address, so links elsewhere can open Settings at the right place.
   const [params, setParams] = useSearchParams()
@@ -351,7 +357,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
     <Button
       variant="secondary"
       aria-label={`Edit ${name}`}
-      disabled={!allowed(kind === 'closure' ? 'hours' : 'catalogue') || pending}
+      disabled={!allowed(editorPermission(kind)) || pending}
       onClick={() => open(kind, id)}
     >
       Edit<span className="sr-only"> {name}</span>
@@ -727,22 +733,24 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                   </header>
                   {status}
                   <div className="ops-ledger">
-                    {state.staff.map((item) => (
-                      <div className="ops-record" key={item.id}>
-                        <Avatar identity={item.id} name={item.name} tone={item.tone} />
-                        <div className="ops-record-copy">
-                          <strong>{item.name}</strong>
-                          <small>
-                            {item.role} · {item.serviceIds.length} qualified{' '}
-                            {item.serviceIds.length === 1 ? 'treatment' : 'treatments'}
-                          </small>
+                    {state.staff
+                      .filter((item) => !own || usuallyAt(state, item.id, own, businessDate(state)))
+                      .map((item) => (
+                        <div className="ops-record" key={item.id}>
+                          <Avatar identity={item.id} name={item.name} tone={item.tone} />
+                          <div className="ops-record-copy">
+                            <strong>{item.name}</strong>
+                            <small>
+                              {item.role} · {item.serviceIds.length} qualified{' '}
+                              {item.serviceIds.length === 1 ? 'treatment' : 'treatments'}
+                            </small>
+                          </div>
+                          <div className="ops-record-controls">
+                            {archivedTag(item.archived)}
+                            {editButton('staff', item.id, item.name)}
+                          </div>
                         </div>
-                        <div className="ops-record-controls">
-                          {archivedTag(item.archived)}
-                          {editButton('staff', item.id, item.name)}
-                        </div>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 </section>
                 {accessPanel ?? (
@@ -766,35 +774,44 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                     <h2>A place for every treatment</h2>
                     <p>Spaces shared across the team, with one visit at a time.</p>
                   </div>
-                  <Button disabled={!allowed('catalogue')} onClick={() => open('resource')}>
+                  <Button disabled={!allowed('rooms')} onClick={() => open('resource')}>
                     <Plus size={16} />
                     Add resource
                   </Button>
                 </header>
+                {own && (
+                  <p className="ops-help">
+                    The rooms and chairs at {placeOf(state, own)?.name ?? 'your location'}. You can
+                    add, rename, change and archive them here. Moving one to another location is for
+                    the owner or a manager.
+                  </p>
+                )}
                 {status}
                 <div className="ops-ledger">
-                  {state.resources.map((item) => (
-                    <div className="ops-record" key={item.id}>
-                      <Armchair size={24} />
-                      <div className="ops-record-copy">
-                        <strong>{item.name}</strong>
-                        <small>
-                          {item.type === 'treatment' ? 'Treatment space' : 'Styling chair'}
-                          {multiSite
-                            ? ` · ${places(state, true).find((p) => p.id === resourceLocation(state, item))?.name ?? ''}`
-                            : ''}
-                          {item.restMinutes
-                            ? ` · rests ${item.restMinutes} minutes after each visit`
-                            : ''}
-                          {item.forTwo ? ' · room for two' : ''}
-                        </small>
+                  {state.resources
+                    .filter((item) => !own || resourceLocation(state, item) === own)
+                    .map((item) => (
+                      <div className="ops-record" key={item.id}>
+                        <Armchair size={24} />
+                        <div className="ops-record-copy">
+                          <strong>{item.name}</strong>
+                          <small>
+                            {item.type === 'treatment' ? 'Treatment space' : 'Styling chair'}
+                            {multiSite
+                              ? ` · ${places(state, true).find((p) => p.id === resourceLocation(state, item))?.name ?? ''}`
+                              : ''}
+                            {item.restMinutes
+                              ? ` · rests ${item.restMinutes} minutes after each visit`
+                              : ''}
+                            {item.forTwo ? ' · room for two' : ''}
+                          </small>
+                        </div>
+                        <div className="ops-record-controls">
+                          {archivedTag(item.archived)}
+                          {editButton('resource', item.id, item.name)}
+                        </div>
                       </div>
-                      <div className="ops-record-controls">
-                        {archivedTag(item.archived)}
-                        {editButton('resource', item.id, item.name)}
-                      </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               </section>
             )}
@@ -1229,7 +1246,13 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                   </select>
                 </label>
               )}
-              {editor.kind === 'resource' && (multiSite || resource?.locationId) && (
+              {editor.kind === 'resource' && own && (
+                <p className="ops-help">
+                  At {placeOf(state, own)?.name ?? 'your location'}.
+                  <input type="hidden" name="locationId" value={own} />
+                </p>
+              )}
+              {editor.kind === 'resource' && !own && (multiSite || resource?.locationId) && (
                 <label>
                   Location
                   <select
@@ -1335,9 +1358,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
               <Button
                 type="submit"
                 disabled={
-                  pending ||
-                  !allowed(editor.kind === 'closure' ? 'hours' : 'catalogue') ||
-                  editorImpact.length > 0
+                  pending || !allowed(editorPermission(editor.kind)) || editorImpact.length > 0
                 }
               >
                 {pending ? 'Saving…' : 'Save changes'}

@@ -83,10 +83,27 @@ const keepBooked = z.literal(true).optional()
 export const rotaCommandSchemas = [
   z.object({ type: z.literal('rota-day'), input: rotaDayInputSchema, keepBooked }).strict(),
   z.object({ type: z.literal('rota-day-usual'), staffId: id, date, keepBooked }).strict(),
-  /** Last week's changes, onto the same weekdays of the week starting `monday`. */
-  z.object({ type: z.literal('rota-week-copy'), monday: date, keepBooked }).strict(),
+  /**
+   * Last week's changes, onto the same weekdays of the week starting `monday`. Stage 4: with
+   * `locationId`, only the days at that location, as a general manager copies them.
+   */
+  z
+    .object({
+      type: z.literal('rota-week-copy'),
+      monday: date,
+      locationId: id.optional(),
+      keepBooked,
+    })
+    .strict(),
   /** Every change still to come in the week starting `monday`, back to usual hours. */
-  z.object({ type: z.literal('rota-week-clear'), monday: date, keepBooked }).strict(),
+  z
+    .object({
+      type: z.literal('rota-week-clear'),
+      monday: date,
+      locationId: id.optional(),
+      keepBooked,
+    })
+    .strict(),
 ] as const
 export const ROTA_COMMANDS = [
   'rota-day',

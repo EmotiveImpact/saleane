@@ -285,12 +285,15 @@ describe('server-side checks for a changed day', () => {
     expect(() => parseState(backwards, 'UK')).toThrow()
   })
 
-  it('lets only owners and managers change the rota', () => {
+  it('lets owners, managers and (at their own location, Stage 4) general managers change the rota', () => {
     for (const type of ['rota-day', 'rota-day-usual', 'rota-week-copy', 'rota-week-clear']) {
       const permission = permissionFor({ type })
-      expect(permission).toBe('hours')
-      const allowed = (['owner', 'manager'] as Role[]).every((role) => can(role, permission))
-      const refused = (['reception', 'practitioner', 'regional', 'general'] as Role[]).every(
+      expect(permission).toBe('rota')
+      // A general manager's days are limited to their own team and location in team.ts.
+      const allowed = (['owner', 'manager', 'general'] as Role[]).every((role) =>
+        can(role, permission),
+      )
+      const refused = (['reception', 'practitioner', 'regional'] as Role[]).every(
         (role) => !can(role, permission),
       )
       expect(allowed && refused).toBe(true)
@@ -301,9 +304,10 @@ describe('server-side checks for a changed day', () => {
       'Your role cannot make this change.',
     )
     expect(areaRefusal(s, 'region-1', command)).toBe('Your role cannot make this change.')
-    expect(branchRefusal(s, s.organisation.locationId, command)).toBe(
-      'That changes the whole business. Ask the owner or a manager.',
-    )
+    // Stage 4: a general manager at Maya's own location may change her day there (team.ts);
+    // one somewhere else may not (src/domain/team.test.ts covers both).
+    expect(branchRefusal(s, s.organisation.locationId, command)).toBeNull()
+    expect(branchRefusal(s, 'elsewhere', command)).toMatch(/^Maya is not on the team at/)
   })
 })
 

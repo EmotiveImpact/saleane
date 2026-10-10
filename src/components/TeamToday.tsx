@@ -18,10 +18,14 @@ import './teamToday.css'
  * a picture of it.
  */
 export function TeamToday() {
-  const { state, today, role, blocked } = useStore()
+  const { state, today, role, blocked, branch } = useStore()
   const [clocking, setClocking] = useState(false)
   const now = Date.parse(useClock(30_000))
-  const team = state.staff.filter((p) => !p.archived)
+  // Stage 4: a general manager sees the people whose day today is at their location.
+  const own = role === 'general' && branch ? branch : undefined
+  const team = state.staff.filter(
+    (p) => !p.archived && (!own || staffLocationOn(state, p.id, today) === own),
+  )
   if (!team.length) return null
   const day = dayAppointments(state, today)
   const multiSite = hasLocations(state)

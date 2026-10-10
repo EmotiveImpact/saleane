@@ -15,7 +15,7 @@ export const stepPermission: Record<ReadyStep, string> = {
   hours: 'hours',
   treatments: 'catalogue',
   team: 'catalogue',
-  rooms: 'catalogue',
+  rooms: 'rooms',
   tax: 'tax',
   deposits: 'protection',
   contact: 'organisation',

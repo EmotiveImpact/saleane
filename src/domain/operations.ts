@@ -223,6 +223,15 @@ export const timeOffInputSchema = z
     note: z.string().trim().max(150).optional(),
   })
   .refine((t) => t.to >= t.from, 'Time off must end on or after the day it starts.')
+/** Stage 4: new days, kind or note for time off already recorded. The person stays the same. */
+export const timeOffChangeInputSchema = z
+  .object({
+    from: z.iso.date(),
+    to: z.iso.date(),
+    kind: z.enum(timeOffKinds),
+    note: z.string().trim().max(150).optional(),
+  })
+  .refine((t) => t.to >= t.from, 'Time off must end on or after the day it starts.')
 export const timeOffSchema = z.object({
   id,
   staffId: id,
@@ -234,6 +243,12 @@ export const timeOffSchema = z.object({
   actor: z.string(),
   cancelledAt: z.iso.datetime().optional(),
   cancelledBy: z.string().optional(),
+  /**
+   * Stage 4: changing time off keeps the earlier record, cancelled, naming the one that replaced
+   * it (`changedTo`); the new record names the one it came from (`changedFrom`).
+   */
+  changedTo: id.optional(),
+  changedFrom: id.optional(),
 })
 export type TimeOff = z.infer<typeof timeOffSchema>
 
@@ -580,16 +595,18 @@ export function stock(s: BusinessState, productId: string, locationId?: string) 
 export function permissionFor(command: { type: string; approve?: boolean }) {
   // Writing and approving in one step needs the right to approve.
   if (command.type === 'message' && command.approve) return 'message.queue'
-  if (['service', 'staff', 'resource', 'guest-notes', 'offer'].includes(command.type))
-    return 'catalogue'
+  if (['service', 'staff', 'guest-notes', 'offer'].includes(command.type)) return 'catalogue'
+  // Stage 4: rooms and chairs, which a general manager also looks after at their own location.
+  if (command.type === 'resource') return 'rooms'
+  // Opening hours, closures and holiday allowances are the whole studio's.
+  if (['closure', 'remove-closure', 'leave-allowance'].includes(command.type)) return 'hours'
+  // Stage 3 and 4: the team's days, on the rota and away, for owners and managers, and for a
+  // general manager at their own location (src/domain/team.ts decides which days are theirs).
   if (
-    ['closure', 'remove-closure', 'time-off', 'cancel-time-off', 'leave-allowance'].includes(
-      command.type,
-    )
+    (ROTA_COMMANDS as readonly string[]).includes(command.type) ||
+    ['time-off', 'cancel-time-off', 'time-off-change'].includes(command.type)
   )
-    return 'hours'
-  // Stage 3: changing a day on the rota is changing hours, for owners and managers.
-  if ((ROTA_COMMANDS as readonly string[]).includes(command.type)) return 'hours'
+    return 'rota'
   if (command.type === 'stock-move') return 'stock'
   // NEXT-09 and NEXT-08: booking repeat visits, or visits for several people, is booking.
   if (command.type === 'book-repeat' || command.type === 'book-together') return 'book'
@@ -659,6 +676,10 @@ export const GENERAL_ACTIONS = [
   'branch-visit',
   'branch-visit-fix',
   'request-raise',
+  // Stage 4: their own team's days on the rota and time off, and the rooms and chairs at their
+  // location. src/domain/team.ts decides whose days and which rooms are theirs.
+  'rota',
+  'rooms',
 ] as const
 
 export function can(role: Role, action: string) {
@@ -713,6 +734,8 @@ export function can(role: Role, action: string) {
     [
       'catalogue',
       'hours',
+      'rota',
+      'rooms',
       'refund',
       'stock',
       'product',

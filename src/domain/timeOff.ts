@@ -62,3 +62,45 @@ export function mondayOf(date: string) {
   const day = new Date(`${date}T12:00:00Z`).getUTCDay()
   return addDays(date, -((day + 6) % 7))
 }
+
+/**
+ * Ledger checks for changed time off (Stage 4): a record changed to another names one for the same
+ * person and is cancelled; a record changed from another names one for the same person.
+ */
+export function timeOffProblem(s: BusinessState) {
+  const list = operations(s).timeOff ?? []
+  const byId = new Map(list.map((t) => [t.id, t]))
+  for (const away of list) {
+    const to = away.changedTo ? byId.get(away.changedTo) : undefined
+    const from = away.changedFrom ? byId.get(away.changedFrom) : undefined
+    if (
+      (away.changedTo && (!to || to.staffId !== away.staffId || !away.cancelledAt)) ||
+      (away.changedFrom && (!from || from.staffId !== away.staffId))
+    )
+      return 'Invalid changed time off.'
+  }
+  return null
+}
+
+/** For who changed what: the days and kind of time off before and after a change. */
+export function timeOffChangeDetail(
+  before: BusinessState,
+  after: BusinessState,
+  action: string,
+  recordId: string,
+) {
+  if (action !== 'time-off-change') return null
+  const now = (operations(after).timeOff ?? []).find((t) => t.id === recordId)
+  const was = now?.changedFrom
+    ? (operations(before).timeOff ?? []).find((t) => t.id === now.changedFrom)
+    : undefined
+  if (!now || !was) return null
+  return {
+    fields: [
+      { f: 'firstDay', from: was.from, to: now.from },
+      { f: 'lastDay', from: was.to, to: now.to },
+      { f: 'timeOffKind', from: TIME_OFF_LABEL[was.kind], to: TIME_OFF_LABEL[now.kind] },
+      ...((was.note ?? '') !== (now.note ?? '') ? [{ f: 'note' }] : []),
+    ].filter((field) => !('from' in field) || field.from !== field.to),
+  }
+}

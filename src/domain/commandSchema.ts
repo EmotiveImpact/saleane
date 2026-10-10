@@ -40,6 +40,7 @@ import {
   payRulesInputSchema,
   protectionSchema,
   productInputSchema,
+  timeOffChangeInputSchema,
   timeOffInputSchema,
   weeklyHoursSchema,
 } from './operations'
@@ -257,6 +258,12 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     reference: z.string().trim().max(150).optional(),
   }),
   z.object({ type: z.literal('cancel-time-off'), timeOffId: id }),
+  // Stage 4: new days for time off already recorded; the earlier record is kept, cancelled.
+  z.object({
+    type: z.literal('time-off-change'),
+    timeOffId: id,
+    input: timeOffChangeInputSchema,
+  }),
   z.object({
     type: z.literal('leave-allowance'),
     staffId: id,

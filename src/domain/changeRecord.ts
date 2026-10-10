@@ -6,6 +6,7 @@ import { METHOD_WORDS } from './accounts'
 import { csvRows } from './csv'
 import { dateLabel, fullDateLabel, money, timeLabel } from './format'
 import { rotaChangeDetail } from './rota'
+import { timeOffChangeDetail } from './timeOff'
 
 /**
  * NEXT-05: who changed what. Every saved change is already written to the studio's audit log
@@ -139,6 +140,7 @@ const commandWords: Record<Command['type'], Words> = {
   'end-rental': ['team', 'Ended a chair rental'],
   'rent-payment': ['money', 'Recorded rent paid'],
   'cancel-time-off': ['team', 'Cancelled time off'],
+  'time-off-change': ['team', 'Changed time off'],
   'clock-in': ['team', 'Clocked in'],
   'clock-out': ['team', 'Clocked out'],
   'shift-save': ['team', 'Changed hours worked', 'Added hours worked'],
@@ -404,6 +406,9 @@ export function changeDetail(
   // Stage 3: a day on the rota keeps which day it was and its hours before and after.
   const rota = rotaChangeDetail(before, after, action, recordId)
   if (rota) return rota
+  // Stage 4: changed time off keeps its days and kind before and after.
+  const away = timeOffChangeDetail(before, after, action, recordId)
+  if (away) return away
   let fields: ChangedField[] = []
   let made: ChangeDetail['made']
   const settings = settingsOf[action]
@@ -520,6 +525,7 @@ const fieldWords: Record<string, string> = {
   weekOf: 'week of',
   daysChanged: 'days changed',
   visitsKept: 'booked visits kept outside the hours',
+  timeOffKind: 'kind of time off',
 }
 /** A detail's name in words: "cutoffHours" reads "cutoff hours". */
 export function fieldName(field: string) {
