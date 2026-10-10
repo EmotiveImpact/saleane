@@ -58,11 +58,24 @@ const unreachable = () =>
 
 describe('Resend', () => {
   it('sends the plain and designed email, with one-click unsubscribe for news', async () => {
-    const { calls, fetcher } = provider(json({ id: 're-1' }), json({ id: 're-2' }))
+    const { calls, fetcher } = provider(
+      json({ id: 're-1' }),
+      json({ id: 're-1' }),
+      json({ id: 're-2' }),
+      json({ id: 're-3' }),
+    )
     const sender = resendProvider({ apiKey: 're_key', from: 'hello@example.invalid', fetcher })
     expect(await sender.send(message)).toEqual({ outcome: 'accepted', providerRef: 're-1' })
     expect(calls[0].url).toBe('https://api.resend.com/emails')
     expect(header(calls[0], 'authorization')).toBe('Bearer re_key')
+    // The same email sent again carries the same key, so Resend sends it once.
+    const key = header(calls[0], 'idempotency-key')!
+    expect(key).toMatch(/^out-1\.[0-9a-f]{32}$/)
+    await sender.send(message)
+    expect(header(calls[1], 'idempotency-key')).toBe(key)
+    // Changed words make a new email.
+    await sender.send({ ...message, body: 'See you on Wednesday.' })
+    expect(header(calls[2], 'idempotency-key')).not.toBe(key)
     expect(bodyOf(calls[0])).toEqual({
       from: '"Linden Studio" <hello@example.invalid>',
       to: ['guest@example.invalid'],
@@ -76,7 +89,7 @@ describe('Resend', () => {
       ],
     })
     await sender.send(news)
-    expect(bodyOf(calls[1]).headers).toEqual({
+    expect(bodyOf(calls[3]).headers).toEqual({
       'List-Unsubscribe': '<https://studio.example.invalid/stop/abc>',
       'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
     })
@@ -595,8 +608,12 @@ describe('delivery receipts', () => {
       { provider: 'mailgun', providerRef: '20261010.1@mg.example.invalid', delivered: true },
     ])
     expect(read(event({ event: 'delivered', message }, 'wrong-key'))).toBeNull()
+    // Mailgun posts the same signed receipt again for hours when it does not get through.
     expect(
-      read(event({ event: 'delivered', message }, undefined, String(now / 1000 - 3600))),
+      read(event({ event: 'delivered', message }, undefined, String(now / 1000 - 3 * 3600))),
+    ).toHaveLength(1)
+    expect(
+      read(event({ event: 'delivered', message }, undefined, String(now / 1000 - 10 * 3600))),
     ).toBeNull()
     expect(read(event({ event: 'failed', severity: 'temporary', message }))).toEqual([])
     expect(

@@ -1,4 +1,4 @@
-import { createHmac, createPrivateKey, createSign, verify } from 'node:crypto'
+import { createHash, createHmac, createPrivateKey, createSign, verify } from 'node:crypto'
 import nodemailer from 'nodemailer'
 import MailComposer from 'nodemailer/lib/mail-composer'
 import { signAws } from './aws'
@@ -72,21 +72,29 @@ export function resendProvider(config: {
     live: true,
     channel: 'email',
     async send(message) {
+      const body = JSON.stringify({
+        from: fromLine(message, config.from),
+        to: [message.to],
+        subject: message.subject,
+        text: message.body,
+        ...(message.html ? { html: message.html } : {}),
+        headers: unsubscribeHeaders(message),
+        tags: [
+          { name: 'outbox', value: message.id },
+          { name: 'stream', value: message.stream ?? 'transactional' },
+        ],
+      })
       const result = await post(fetcher, 'https://api.resend.com/emails', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${config.apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          from: fromLine(message, config.from),
-          to: [message.to],
-          subject: message.subject,
-          text: message.body,
-          ...(message.html ? { html: message.html } : {}),
-          headers: unsubscribeHeaders(message),
-          tags: [
-            { name: 'outbox', value: message.id },
-            { name: 'stream', value: message.stream ?? 'transactional' },
-          ],
-        }),
+        headers: {
+          Authorization: `Bearer ${config.apiKey}`,
+          'Content-Type': 'application/json',
+          // Sending the same email again within a day returns the first answer rather than a
+          // second copy. A message whose words changed before it went again is a new email.
+          // https://resend.com/docs/dashboard/emails/idempotency-keys
+          'Idempotency-Key': `${message.id}.${createHash('sha256').update(body).digest('hex').slice(0, 32)}`,
+        },
+        body,
       })
       if (isResult(result)) return result
       if (result.status === 200 && typeof result.json.id === 'string' && result.json.id)
@@ -527,8 +535,15 @@ export function microsoftProvider(config: {
 
 /** Receipts older than this are refused, so a captured one cannot be played back later. */
 const RECEIPT_WINDOW_S = 5 * 60
-const fresh = (seconds: number, now: number) =>
-  Number.isFinite(seconds) && Math.abs(now / 1000 - seconds) <= RECEIPT_WINDOW_S
+/**
+ * Mailgun signs a receipt once and posts the same one again for up to eight hours when it does
+ * not get through, so its window covers its retries. A receipt played back only says again what
+ * happened to that one message, and a delivered one cannot undo a failure.
+ * https://documentation.mailgun.com/docs/mailgun/user-manual/webhooks/webhook-retries
+ */
+const MAILGUN_WINDOW_S = 9 * 60 * 60
+const fresh = (seconds: number, now: number, window = RECEIPT_WINDOW_S) =>
+  Number.isFinite(seconds) && Math.abs(now / 1000 - seconds) <= window
 const parse = (body: string): unknown => {
   try {
     return JSON.parse(body)
@@ -660,7 +675,7 @@ export function mailgunReceipts(
   const { timestamp, token, signature } = event?.signature ?? {}
   if (typeof timestamp !== 'string' || typeof token !== 'string' || typeof signature !== 'string')
     return null
-  if (!fresh(Number(timestamp), now)) return null
+  if (!fresh(Number(timestamp), now, MAILGUN_WINDOW_S)) return null
   const expected = createHmac('sha256', signingKey)
     .update(timestamp + token)
     .digest('hex')
