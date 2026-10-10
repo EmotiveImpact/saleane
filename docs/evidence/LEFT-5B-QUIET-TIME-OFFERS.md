@@ -1,6 +1,6 @@
 # LEFT-5B · A lower price for a quiet time
 
-Branch `left-s5offers`, from `left-stage5` at 957c445, then merged with `left-stage5` at d402850 (the real AI behind Ask SALEANE and the receptionist, #92, and Stage 5A, a guest's usual) without conflicts, and every check run again. Built and tested locally. **It has not been seen in a browser yet**: the lead runs the browser pass once the Stage 5 parts are put together (steps at the end).
+Branch `left-s5offers`, from `left-stage5` at 957c445, then merged with `left-stage5` at d402850 (the real AI behind Ask SALEANE and the receptionist, #92, and Stage 5A, a guest's usual) and at 25f2b0b (Stage 5C and 5D, moving a Google booking and booking through ChatGPT or Claude), keeping both sides, and every check run again. Built and tested locally. **It has not been seen in a browser yet**: the lead runs the browser pass once the Stage 5 parts are put together (steps at the end).
 
 ## What it does
 
@@ -34,12 +34,12 @@ The server enforces each: `quiet-offers` is owner-only in `can` (and the whole b
 
 - **Migration 34**: `offer_links` (token hash, organisation, message, outbox row, created, expires with `expires_at > created_at`, used, the visit it booked, revoked; used and visit set together), an index by (organisation, message), and a unique index allowing one used link per invitation, so a lower price is booked once however many copies went out.
 - `server/offers.ts`: `issueOfferLink` (43-character token, hash only), `readOffer` (the same words for a malformed, unknown, revoked or other studio's link; used; then the record's own checks) and `spendOffer` (marks the link used by the visit inside the booking's transaction; a link already used or revoked fails the booking with 409).
-- `server/routes/public.ts`: `POST /api/public/:slug/offer` (rate limited) answers what a link offers or a plain problem. `POST .../holds` takes `offer`: a link that stands, for exactly the held time and professional, holds at the lower price and the reply says so; otherwise the time is held at the usual price and the reply says why (`offerProblem`). `POST .../book` checks the usual price has not changed and the link is still unused and not revoked, books through the record's own check, marks the link used, and answers 409 with the guest's words when the lower price no longer stands. A replayed booking returns the first visit and touches nothing.
+- `server/routes/public.ts`: `POST /api/public/:slug/offer` (rate limited) answers what a link offers or a plain problem. `POST .../holds` takes `offer`: a link that stands, for exactly the held time and professional, holds at the lower price and the reply says so; otherwise the time is held at the usual price and the reply says why (`offerProblem`). `POST .../book` checks the usual price has not changed and the link is still unused and not revoked, books through the record's own check, marks the link used, and answers 409 with the guest's words when the lower price no longer stands. A replayed booking returns the first visit and touches nothing. All of this sits in the shared `holdTime` and `bookHeld` that Stage 5D made, so booking through ChatGPT or Claude follows the same price rules; neither they nor Book with Google ever carry a guest's private link, so they always book at the usual price and never use one up.
 - `src/domain/commands.ts`: `book` takes an `offer` option (server only, online only), checks the invitation is approved, not withdrawn, not used, not ended, at the same usual price, its time still free and the booking for exactly its time, then books at the lower price with `bookedOffer` and the deposit capped at the price. New commands `quiet-offers` and `offer-invite`.
 - `server/messaging/outbox.ts`: an approved invitation with a lower price is checked again as it goes (not sent once ended or the price changed); its private link is made then and goes only in the copy sent, never in what is stored. With email in test mode nothing is sent; running locally (never in tests) the server prints the link that was not sent, so the lead can try it, as it does for account emails.
 - `server/routes/messaging.ts`: the message list shows "[a private link to book this time at its lower price]", never the placeholder or a token.
 - `server/backup.ts`: restoring a backup revokes every unused link (`offerLinksStopped`), so no link from before a restore books a lower price.
-- `server/routes/guest.ts`, `src/domain/guest.ts`: the guest's visit page says why a visit booked at a quiet-time price cannot be moved online (`move.reason: 'offer'`).
+- `server/routes/guest.ts`, `src/domain/guest.ts`: the guest's visit page says why a visit booked at a quiet-time price cannot be moved online (`move.reason: 'offer'`). The shared `moveOnline` from Stage 5C refuses it the same way, and `server/googleBooking.ts` answers Google with `BOOKING_NOT_CANCELLABLE` should it ever be asked.
 - `server/README.md`: a paragraph on quiet-time prices, the new offer route and `offer` on holds.
 
 ## Tests
@@ -53,7 +53,7 @@ The server enforces each: `quiet-offers` is owner-only in `can` (and the whole b
 
 ## Checks
 
-From the worktree root, after merging `left-stage5` at d402850:
+From the worktree root, after merging `left-stage5` at 25f2b0b:
 
 - `npx tsc -b`: passes.
 - `npx eslint . --ignore-pattern '.claude/**' --max-warnings 0`: passes.

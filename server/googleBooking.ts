@@ -1,11 +1,18 @@
 import { z } from 'zod'
 import type { IncomingMessage } from 'node:http'
-import { equalToken } from './auth'
+import { digest, equalToken } from './auth'
 import { HttpError, fail, header } from './http'
-import type { Context, Route } from './context'
+import type { Context, Org, Route } from './context'
+import { moveOnline } from './routes/guest'
+import type { MoveRefusal } from './routes/guest'
 import { dispatch, slots } from '../src/domain/commands'
 import { businessDate, businessMinutes, instantFor, operations } from '../src/domain/operations'
-import { guestCancellation, visitStart } from '../src/domain/guest'
+import {
+  GUEST_CANCEL_CUTOFF_HOURS,
+  guestCancellation,
+  guestMoveBlock,
+  visitStart,
+} from '../src/domain/guest'
 import { onlinePatchTestStop } from '../src/domain/patchTests'
 import {
   availabilityFeed,
@@ -15,7 +22,7 @@ import {
   serviceFeed,
 } from '../src/domain/googleFeeds'
 import type { FeedStudio } from '../src/domain/googleFeeds'
-import type { BusinessState } from '../src/domain/model'
+import type { Appointment, BusinessState } from '../src/domain/model'
 
 /**
  * V4: Book with Google. SALEANE's side of Google's Actions Center booking server (API v3), so a
@@ -23,6 +30,8 @@ import type { BusinessState } from '../src/domain/model'
  * started with SALEANE_GOOGLE_BOOKING=test and partner credentials. Nothing here contacts Google:
  * Google calls in, and only after SALEANE is accepted as a partner. Bookings take the same path as
  * the studio's own booking page, so they appear in the diary and get the usual confirmation.
+ * Stage 5: the guest can also move a Google booking to another free time, under the same rules
+ * and through the same change as a move from their own visit link.
  */
 
 export type GoogleBookingOptions = { mode: 'off' | 'test'; username: string; password: string }
@@ -55,6 +64,11 @@ const slotSchema = z
   })
   .passthrough()
 type Slot = z.infer<typeof slotSchema>
+/**
+ * A new time for a booking. Google sends only what changes, the start and the length (as in its
+ * UpdateBooking sample); the studio and treatment are the booking's own unless it says otherwise.
+ */
+const newSlotSchema = slotSchema.partial({ merchant_id: true, service_id: true })
 const userSchema = z
   .object({
     user_id: z.string().min(1).max(200),
@@ -82,8 +96,61 @@ class BookingFailure extends Error {
   }
 }
 
-const statusOf = (status: BusinessState['appointments'][number]['status']) =>
+const statusOf = (status: Appointment['status']) =>
   status === 'cancelled' ? 'CANCELED' : status === 'no_show' ? 'NO_SHOW' : 'CONFIRMED'
+
+/**
+ * Stage 5: a repeated UpdateBooking for the time Google last moved a visit to finds that move and
+ * changes nothing, even if the studio has moved the visit since. After this long the same request
+ * is a new move, so a guest can go back to a time once the desk has moved them off it.
+ */
+const GOOGLE_RETRY_MS = 15 * 60000
+/**
+ * The event a move through Google is recorded as. Google sends no key with UpdateBooking, so it
+ * is derived from the booking, the move before it and the time asked for: the same request again
+ * finds it, and a later move to the same time does not.
+ */
+const googleMoveId = (bookingId: string, previous: string, slot: Slot) =>
+  `google-move-${digest(
+    `${bookingId}:${previous}:${slot.start_sec}:${slot.duration_sec}:${slot.resources?.staff_id ?? ''}`,
+  ).slice(0, 32)}`
+/** How a move that was not made reads to Google. */
+const moveFailure = (refusal: MoveRefusal) => {
+  switch (refusal.reason) {
+    case 'closed':
+      return new BookingFailure(
+        'OUTSIDE_CANCELLATION_WINDOW',
+        'This visit has started, so it can no longer be moved online.',
+      )
+    case 'cutoff':
+      return new BookingFailure(
+        'OUTSIDE_CANCELLATION_WINDOW',
+        `It is less than ${GUEST_CANCEL_CUTOFF_HOURS} hours until this visit, so it can no longer be moved online.`,
+      )
+    // Stage 5: a visit booked at a quiet-time price was for that time only.
+    case 'offer':
+      return new BookingFailure(
+        'BOOKING_NOT_CANCELLABLE',
+        'This visit was booked at a lower price for that time only, so it can no longer be moved online.',
+      )
+    case 'off':
+      return new BookingFailure(
+        'BOOKING_NOT_CANCELLABLE',
+        'The studio is not taking changes online at the moment.',
+      )
+    case 'day':
+      return new BookingFailure(
+        'SLOT_UNAVAILABLE',
+        'The studio is closed that day, or it is too far ahead.',
+      )
+    case 'passed':
+      return new BookingFailure('SLOT_UNAVAILABLE', 'That time has passed.')
+    case 'taken':
+      return new BookingFailure('SLOT_UNAVAILABLE', 'That time is no longer free.')
+    default:
+      return new BookingFailure('SLOT_UNAVAILABLE', refusal.message)
+  }
+}
 
 type Row = {
   booking_id: string
@@ -95,18 +162,36 @@ type Row = {
 }
 
 export function googleBooking(options: GoogleBookingOptions) {
-  /** The studio a slot names, when it is offered on Google; otherwise the time is not available. */
+  /**
+   * The studio a slot names, when it is offered on Google; otherwise the time is not available.
+   * A studio locked for an unpaid bill takes no new bookings, as its booking page takes none.
+   */
   const studio = (ctx: Context, merchantId: string) => {
     const org = ctx.systemOrg(merchantId)
-    if (!org || !offeredOnGoogle(org.state))
+    if (!org || !offeredOnGoogle(org.state) || ctx.plans.locked(org.id))
       throw new BookingFailure('SLOT_UNAVAILABLE', 'This studio does not take bookings on Google.')
     return org
   }
-  /** The studio's treatment, professional, date and start for a slot Google sends. */
-  const visitFor = (state: BusinessState, slot: Slot) => {
-    const service = bookableOnGoogle(state).find((x) => x.id === slot.service_id)
-    if (!service || service.durationMinutes * 60 !== slot.duration_sec)
-      throw new BookingFailure('SLOT_UNAVAILABLE', 'This treatment or its length has changed.')
+  /**
+   * The studio's treatment, professional, date and start for a slot Google sends. For a new time
+   * on a visit already booked, `booked` is the visit's own treatment and length, which stay.
+   */
+  const visitFor = (
+    state: BusinessState,
+    slot: Slot,
+    booked?: { serviceId: string; durationMinutes: number },
+  ) => {
+    const service = booked
+      ? state.services.find((x) => x.id === booked.serviceId && x.id === slot.service_id)
+      : bookableOnGoogle(state).find((x) => x.id === slot.service_id)
+    const minutes = booked ? booked.durationMinutes : service?.durationMinutes
+    if (!service || minutes! * 60 !== slot.duration_sec)
+      throw new BookingFailure(
+        'SLOT_UNAVAILABLE',
+        booked
+          ? 'A new time keeps the treatment and its length.'
+          : 'This treatment or its length has changed.',
+      )
     const iso = new Date(slot.start_sec * 1000).toISOString()
     const date = businessDate(state, iso)
     const startMinutes = businessMinutes(state, iso)
@@ -126,12 +211,52 @@ export function googleBooking(options: GoogleBookingOptions) {
       throw new BookingFailure('SLOT_UNAVAILABLE', 'This professional does not offer it.')
     return { serviceId: service.id, staffId, date, startMinutes }
   }
-  const bookingView = (row: Row, status: string) => ({
+  /**
+   * The booking as Google reads it: always the visit's time now, with whoever it is with now, so
+   * a move at the desk or from the guest's own link shows on Google too. Anything else Google
+   * sent with the slot is handed back as it came.
+   */
+  const slotNow = (row: Row, state: BusinessState, visit: Appointment) => {
+    const stored = JSON.parse(row.slot) as Record<string, unknown>
+    const resources =
+      stored.resources && typeof stored.resources === 'object'
+        ? (stored.resources as Record<string, unknown>)
+        : undefined
+    // A guest who chose a professional sees who the visit is with now; one who chose anyone
+    // still sees no name.
+    const named = resources?.staff_id
+      ? {
+          ...resources,
+          staff_id: visit.staffId,
+          ...('staff_name' in resources
+            ? { staff_name: state.staff.find((p) => p.id === visit.staffId)?.name ?? '' }
+            : {}),
+        }
+      : resources
+    return {
+      ...stored,
+      merchant_id: row.organisation_id,
+      service_id: visit.serviceId,
+      start_sec: Math.floor(visitStart(state, visit.id) / 1000),
+      duration_sec: visit.bookedDurationMinutes * 60,
+      ...(named ? { resources: named } : {}),
+    }
+  }
+  const bookingView = (row: Row, state: BusinessState, visit: Appointment) => ({
     booking_id: row.booking_id,
-    slot: JSON.parse(row.slot) as unknown,
+    slot: slotNow(row, state, visit),
     user_information: JSON.parse(row.user_information) as unknown,
-    status,
+    status: statusOf(visit.status),
   })
+  /** A Google booking's row, studio and visit, or a refusal Google understands. */
+  const bookingFor = (ctx: Context, bookingId: string) => {
+    const row = ctx.db.get<Row>('SELECT * FROM google_bookings WHERE booking_id=?', bookingId)
+    if (!row) fail(404, 'This booking was not made through Google.')
+    const org = ctx.systemOrg(row!.organisation_id)
+    const visit = org?.state.appointments.find((a) => a.id === row!.booking_id)
+    if (!org || !visit) throw new BookingFailure('BOOKING_NOT_CANCELLABLE', 'Not found.')
+    return { row: row!, org, visit }
+  }
 
   /** Whether a start time Google asks about is free for this studio now, holds included. */
   const isFree = (ctx: Context, slot: Slot) => {
@@ -146,6 +271,80 @@ export function googleBooking(options: GoogleBookingOptions) {
       if (error instanceof BookingFailure) return false
       throw error
     }
+  }
+
+  /**
+   * Stage 5: the guest moves their Google booking to a new time. The same treatment and length,
+   * the guest's own move rules, the studio's patch test rule and a time free for desk bookings and
+   * online holds, then the desk's own `reschedule`, recorded as "Book with Google". Must run inside
+   * the caller's transaction.
+   */
+  const move = (ctx: Context, row: Row, org: Org, visit: Appointment, asked: Slot) => {
+    if (visit.status === 'cancelled')
+      throw new BookingFailure('BOOKING_ALREADY_CANCELLED', 'This visit was cancelled.')
+    if (visit.status !== 'confirmed')
+      throw new BookingFailure(
+        'BOOKING_NOT_CANCELLABLE',
+        'This visit can no longer be changed online.',
+      )
+    // A repeated request finds the move it already made and changes nothing.
+    const moves = org.state.events.filter(
+      (e) => e.appointmentId === visit.id && e.id.startsWith('google-move-'),
+    )
+    const last = moves.at(-1)
+    if (
+      last &&
+      last.id === googleMoveId(row.booking_id, moves.at(-2)?.id ?? 'first', asked) &&
+      ctx.now() - Date.parse(last.occurredAt) < GOOGLE_RETRY_MS
+    )
+      return { booking: bookingView(row, org.state, visit) }
+    const blocked = guestMoveBlock(org.state, visit.id, ctx.now())
+    if (blocked) throw moveFailure({ reason: blocked })
+    if (asked.merchant_id !== row.organisation_id)
+      throw new BookingFailure('SLOT_UNAVAILABLE', 'A new time keeps the same studio.')
+    const target = visitFor(org.state, asked, {
+      serviceId: visit.serviceId,
+      durationMinutes: visit.bookedDurationMinutes,
+    })
+    // A professional Google names; otherwise the visit's own, or anyone who does the treatment
+    // when the guest booked with anyone.
+    const stored = JSON.parse(row.slot) as Slot
+    const staffIds =
+      target.staffId !== 'any'
+        ? [target.staffId]
+        : stored.resources?.staff_id
+          ? [visit.staffId]
+          : [
+              visit.staffId,
+              ...org.state.staff
+                .filter(
+                  (p) =>
+                    p.id !== visit.staffId && !p.archived && p.serviceIds.includes(visit.serviceId),
+                )
+                .map((p) => p.id),
+            ]
+    const result = moveOnline(ctx, org, visit.id, {
+      date: target.date,
+      startMinutes: target.startMinutes,
+      staffIds,
+      actor: 'Book with Google',
+      action: 'google.move',
+      eventId: googleMoveId(row.booking_id, last?.id ?? 'first', asked),
+    })
+    if (!result.ok) throw moveFailure(result.refusal)
+    const moved = result.state.appointments.find((a) => a.id === visit.id)!
+    // The stored slot follows the visit, with the professional Google named, if any.
+    const kept = {
+      ...stored,
+      ...(asked.resources ? { resources: { ...stored.resources, ...asked.resources } } : {}),
+    }
+    const slot = slotNow({ ...row, slot: JSON.stringify(kept) }, result.state, moved)
+    ctx.db.run(
+      'UPDATE google_bookings SET slot=? WHERE booking_id=?',
+      JSON.stringify(slot),
+      row.booking_id,
+    )
+    return { booking: bookingView({ ...row, slot: JSON.stringify(slot) }, result.state, moved) }
   }
 
   const methods: Record<string, (ctx: Context, body: unknown) => unknown> = {
@@ -205,7 +404,8 @@ export function googleBooking(options: GoogleBookingOptions) {
         )
         if (earlier) {
           const visit = org.state.appointments.find((a) => a.id === earlier.booking_id)
-          return { booking: bookingView(earlier, visit ? statusOf(visit.status) : 'CONFIRMED') }
+          if (!visit) throw new BookingFailure('CAUSE_UNSPECIFIED', 'This booking was not found.')
+          return { booking: bookingView(earlier, org.state, visit) }
         }
         // Stage 3: the same rule as the studio's booking page, with its own words in the answer.
         const patchStop = onlinePatchTestStop(org.state, input.slot.service_id)
@@ -268,33 +468,39 @@ export function googleBooking(options: GoogleBookingOptions) {
           row.user_information,
           ctx.now(),
         )
-        return { booking: bookingView(row, 'CONFIRMED') }
+        const booked = result.state.appointments.find((a) => a.id === result.recordId)!
+        return { booking: bookingView(row, result.state, booked) }
       })
     },
     UpdateBooking(ctx, body) {
       const { booking } = z
         .object({
           booking: z
-            .object({ booking_id: z.string().min(1).max(150), status: z.string().max(40) })
+            .object({
+              booking_id: z.string().min(1).max(150),
+              status: z.string().max(40).optional(),
+              slot: newSlotSchema.optional(),
+            })
             .passthrough(),
         })
         .passthrough()
         .parse(body)
       return ctx.db.transaction(() => {
-        const row = ctx.db.get<Row>(
-          'SELECT * FROM google_bookings WHERE booking_id=?',
-          booking.booking_id,
-        )
-        if (!row) fail(404, 'This booking was not made through Google.')
-        // Google can only cancel here; a new time is a new booking.
-        if (booking.status !== 'CANCELED')
-          throw new BookingFailure(
-            'BOOKING_NOT_CANCELLABLE',
-            'Only cancelling is supported. Book a new time instead.',
-          )
-        const org = ctx.systemOrg(row!.organisation_id)
-        const visit = org?.state.appointments.find((a) => a.id === row!.booking_id)
-        if (!org || !visit) throw new BookingFailure('BOOKING_NOT_CANCELLABLE', 'Not found.')
+        const { row, org, visit } = bookingFor(ctx, booking.booking_id)
+        // Stage 5: a new time moves the visit; Google sends it without a status, or as confirmed.
+        if (booking.status !== 'CANCELED') {
+          if (!booking.slot || (booking.status && booking.status !== 'CONFIRMED'))
+            throw new BookingFailure(
+              'BOOKING_NOT_CANCELLABLE',
+              'Only cancelling or moving to a new time is supported.',
+            )
+          const stored = JSON.parse(row.slot) as Slot
+          return move(ctx, row, org, visit, {
+            ...booking.slot,
+            merchant_id: booking.slot.merchant_id ?? row.organisation_id,
+            service_id: booking.slot.service_id ?? stored.service_id,
+          })
+        }
         if (visit.status === 'cancelled')
           throw new BookingFailure('BOOKING_ALREADY_CANCELLED', 'Already cancelled.')
         const terms = guestCancellation(org.state, visit.id, ctx.now())
@@ -316,7 +522,8 @@ export function googleBooking(options: GoogleBookingOptions) {
         )
         if (!result.ok) throw new BookingFailure('BOOKING_NOT_CANCELLABLE', result.error)
         ctx.persist(org, result.state, null, 'google.cancel', visit.id)
-        return { booking: bookingView(row!, 'CANCELED') }
+        const cancelled = result.state.appointments.find((a) => a.id === visit.id)!
+        return { booking: bookingView(row, result.state, cancelled) }
       })
     },
     GetBookingStatus(ctx, body) {
@@ -348,11 +555,12 @@ export function googleBooking(options: GoogleBookingOptions) {
         bookings: rows.flatMap((row) => {
           const org = ctx.systemOrg(row.organisation_id)
           const visit = org?.state.appointments.find((a) => a.id === row.booking_id)
-          // Only visits still to come: Google shows the guest their upcoming bookings.
+          // Only visits still to come, at the time they have now: Google shows the guest their
+          // upcoming bookings.
           return visit &&
             visit.status === 'confirmed' &&
             visitStart(org!.state, visit.id) > ctx.now()
-            ? [bookingView(row, statusOf(visit.status))]
+            ? [bookingView(row, org!.state, visit)]
             : []
         }),
       }

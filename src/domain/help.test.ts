@@ -211,6 +211,15 @@ describe('help inside the app', () => {
     expect(first('cheaper off peak price')).toBe('quiet-offers')
     expect(first('lower price for a gap', 'reception')).toBe('quiet-offers')
     expect(ids(searchHelp('discount quiet time', 'practitioner'))).not.toContain('quiet-offers')
+    // Stage 5: booking on Google, with its new way to change the time.
+    expect(first('book on google maps')).toBe('google-booking')
+    expect(first('reserve with google')).toBe('google-booking')
+    expect(ids(searchHelp('google maps', 'manager'))).not.toContain('google-booking')
+    // Stage 5: booking through ChatGPT or Claude, for the owner only.
+    expect(first('book through chatgpt')).toBe('ai-booking')
+    expect(first('claude booking')).toBe('ai-booking')
+    expect(first('openai connector')).toBe('ai-booking')
+    expect(ids(searchHelp('chatgpt', 'manager'))).not.toContain('ai-booking')
     expect(searchHelp('the', 'owner')).toEqual([])
     expect(searchHelp('rocket launch', 'owner')).toEqual([])
     expect(helpWords("Customer's bookings")).toEqual(['client', 'visit'])

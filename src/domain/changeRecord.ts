@@ -131,6 +131,7 @@ const commandWords: Record<Command['type'], Words> = {
   'message-queue': ['messages', 'Approved a message for sending'],
   receptionist: ['settings', 'Changed the AI receptionist'],
   'google-booking': ['settings', 'Changed Book with Google'],
+  'ai-booking': ['settings', 'Changed booking through ChatGPT or Claude'],
   reminders: ['settings', 'Changed confirmations and reminders'],
   'contact-preferences': ['clients', 'Changed how a client is contacted'],
   refund: ['money', 'Recorded a refund'],
@@ -243,6 +244,12 @@ const serverWords: Record<string, Words> = {
   'guest.move': ['visits', 'Moved their visit'],
   'google.book': ['visits', 'Booked through Book with Google'],
   'google.cancel': ['visits', 'Cancelled through Book with Google'],
+  // Stage 5: a guest moving their Google booking to a new time.
+  'google.move': ['visits', 'Moved through Book with Google'],
+  // Stage 5: a guest booking through an AI assistant, named when it said which.
+  'ai-booking.chatgpt': ['visits', 'Booked through ChatGPT'],
+  'ai-booking.claude': ['visits', 'Booked through Claude'],
+  'ai-booking.assistant': ['visits', 'Booked through an AI assistant'],
   'phone.missed-call': ['messages', 'Wrote down a missed call'],
   'inbox.reply': ['messages', 'A message came in'],
   'inbox.test-text': ['messages', 'Delivered a test text to the studio’s line'],
@@ -284,6 +291,9 @@ export function automaticSource(action: string) {
   if (action === 'guest.news-stop') return 'A client, from the link in a message to clients'
   if (action.startsWith('guest.')) return 'A guest, from their visit link'
   if (action.startsWith('google.')) return 'A guest, through Google'
+  if (action === 'ai-booking.chatgpt') return 'A guest, through ChatGPT'
+  if (action === 'ai-booking.claude') return 'A guest, through Claude'
+  if (action === 'ai-booking.assistant') return 'A guest, through an AI assistant'
   if (action.startsWith('payment.')) return 'A guest paying by card'
   if (action === 'phone.missed-call') return 'The studio phone line'
   if (action === 'inbox.reply') return 'A guest’s message'
@@ -382,6 +392,7 @@ const settingsOf: Partial<Record<string, (s: BusinessState) => unknown>> = {
   protection: (s) => s.operations?.protection,
   receptionist: (s) => s.operations?.receptionist,
   'google-booking': (s) => s.operations?.googleBooking,
+  'ai-booking': (s) => s.operations?.aiBooking,
   'patch-test-settings': (s) => s.operations?.patchTests,
   'accounting-settings': (s) => s.operations?.accounting,
   'approval-limit': (s) => s.operations?.approvals,
