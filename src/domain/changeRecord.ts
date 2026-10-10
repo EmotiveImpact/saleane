@@ -62,6 +62,7 @@ const commandWords: Record<Command['type'], Words> = {
   'waitlist-add': ['visits', 'Added someone to the waitlist'],
   'waitlist-remove': ['visits', 'Took someone off the waitlist'],
   'waitlist-offer': ['visits', 'Offered a waitlist time'],
+  'opening-invite': ['messages', 'Wrote invitations to a cancelled time'],
   'waitlist-join': ['visits', 'Joined the waitlist'],
   'waitlist-leave': ['visits', 'Left the waitlist'],
   'form-save': ['settings', 'Changed a guest form', 'Added a guest form'],

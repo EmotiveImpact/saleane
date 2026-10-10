@@ -8,7 +8,7 @@ import { dateLabel } from '../domain/format'
 import { Avatar, Button, ErrorMessage, Modal, PageHeader, SegmentedControl } from '../design'
 import type { BusinessState } from '../domain/model'
 import { useInboxView } from '../state/inboxView'
-import { isWaitlistOffer, staleOffer } from '../domain/waitlist'
+import { draftStale, namesATime, shownBody } from '../domain/cancelledTimes'
 import { conversations, savedReplies, snippet, socialWindowEnds } from '../domain/inbox'
 import type { Conversation, Delivery, ThreadItem } from '../domain/inbox'
 import { SOCIAL_ANSWER_LIMIT, isSocialChannel, noteWays, socialLabel } from '../domain/inboxSchema'
@@ -420,7 +420,7 @@ export function Inbox() {
                 </li>
               )
             const message = item.message
-            const stale = message.status === 'draft' ? staleOffer(state, message.id, clock) : null
+            const stale = message.status === 'draft' ? draftStale(state, message.id, clock) : null
             const missingConsent = message.purpose === 'marketing' && !recipient?.marketingConsent
             const visit = state.appointments.find((a) => a.id === message.appointmentId)
             return (
@@ -430,16 +430,18 @@ export function Inbox() {
               >
                 <small>
                   {messageStatus(message, item.delivery)} ·{' '}
-                  {message.purpose === 'marketing'
-                    ? 'email news'
-                    : message.channel === 'sms'
-                      ? 'text'
-                      : 'email'}
+                  {message.opening
+                    ? 'invitation by email'
+                    : message.purpose === 'marketing'
+                      ? 'email news'
+                      : message.channel === 'sms'
+                        ? 'text'
+                        : 'email'}
                   {visit && ` about ${dateLabel(visit.date, state.organisation.locale)}`} · saved{' '}
                   {when(message.createdAt)} by {message.actor}
                 </small>
                 {message.channel !== 'sms' && <strong>{message.subject}</strong>}
-                <p>{message.body}</p>
+                <p>{shownBody(message.body)}</p>
                 {item.delivery?.detail && <p className="subtle">{item.delivery.detail}</p>}
                 {message.status === 'draft' && (
                   <div className="inbox-bubble-actions">
@@ -448,7 +450,7 @@ export function Inbox() {
                         Email news permission is not recorded. Review consent before approving.
                       </p>
                     )}
-                    {stale && <p className="ops-help">{stale} This offer will not be sent.</p>}
+                    {stale && <p className="ops-help">{stale} It will not be sent.</p>}
                     {!stale && (
                       <Button
                         disabled={!allowedQueue || !!pending || missingConsent}
@@ -459,7 +461,7 @@ export function Inbox() {
                         {pending === message.id ? 'Approving…' : approveLabel}
                       </Button>
                     )}
-                    {!isWaitlistOffer(state, message.id) && (
+                    {!namesATime(state, message.id) && (
                       <Button
                         variant="secondary"
                         aria-label={`Edit draft ${message.subject}`}
