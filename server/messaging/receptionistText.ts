@@ -88,18 +88,31 @@ export async function answerSocial(ctx: Context, message: SocialMessage) {
 }
 
 /** How far back SALEANE looks, on starting, for a guest's message it never answered. */
-export const MISSED_MS = 10 * 60000
+const MISSED_MS = 10 * 60000
+
+/** A guest's message kept in the inbox, as SALEANE answers it. */
+export type Missed = { orgId: string; channel: 'sms' | SocialChannel; reply: InboundReply }
 
 /**
  * NEXT-12: with a real AI, the provider is thanked before the answer is written, so it will not
  * send the message again. Should SALEANE stop in between, the guest's message is kept in the
  * inbox but never answered; on starting, each one kept in the last ten minutes with no answer is
  * answered now, oldest first. Older ones are left for the team, as an answer would come too late.
- * The stopped request may still hold the month's last guest chat, so the app looks again, from the
- * same `since`, once that hold has run out. Returns whether any answer was queued.
+ * Returns whether any answer was queued, and the messages the allowance refused: the stopped
+ * request may still hold the month's last guest chat, so the app tries those again (`again`)
+ * once that hold has run out. One Claude could not answer is left for the team, as always.
  */
-export async function answerMissed(ctx: Context, since = ctx.now() - MISSED_MS) {
-  const work: Promise<boolean>[] = []
+export async function answerMissed(ctx: Context, again?: Missed[]) {
+  const refused: Missed[] = []
+  const work = (again ?? keptUnanswered(ctx)).map((missed) =>
+    answer(ctx, missed.orgId, missed.channel, missed.reply, () => refused.push(missed)),
+  )
+  return { queued: (await Promise.all(work)).some(Boolean), refused }
+}
+
+function keptUnanswered(ctx: Context) {
+  const since = ctx.now() - MISSED_MS
+  const kept: Missed[] = []
   for (const { id } of ctx.db.all<{ id: string }>('SELECT id FROM organisations')) {
     const org = ctx.systemOrg(id)
     if (!org) continue
@@ -111,10 +124,10 @@ export async function answerMissed(ctx: Context, since = ctx.now() - MISSED_MS) 
       if (channel !== 'sms' && !isSocialChannel(channel)) continue
       const from = channel === 'sms' ? textNumber(r.from) : r.from
       if (!r.providerRef || !from || !answers(org, channel)) continue
-      work.push(answer(ctx, id, channel, { from, body: r.body, providerRef: r.providerRef }))
+      kept.push({ orgId: id, channel, reply: { from, body: r.body, providerRef: r.providerRef } })
     }
   }
-  return (await Promise.all(work)).some(Boolean)
+  return kept
 }
 
 type Org = NonNullable<ReturnType<Context['systemOrg']>>
@@ -144,6 +157,8 @@ async function answer(
   orgId: string,
   channel: 'sms' | SocialChannel,
   reply: InboundReply,
+  /** Told when the allowance refused the message. */
+  refused?: () => void,
 ) {
   const { db } = ctx
   const org = ctx.systemOrg(orgId)
@@ -163,7 +178,7 @@ async function answer(
       // The studio as it is now, after any answer before this one in the conversation.
       const latest = ctx.systemOrg(orgId)
       if (done() || !latest || !answers(latest, channel)) return false
-      return answerKept(ctx, latest, channel, reply, dedupe)
+      return answerKept(ctx, latest, channel, reply, dedupe, refused)
     })
   } finally {
     answering.delete(key)
@@ -176,6 +191,7 @@ async function answerKept(
   channel: 'sms' | SocialChannel,
   reply: InboundReply,
   dedupe: string,
+  refused?: () => void,
 ) {
   const { db, now } = ctx
   const number = reply.from
@@ -286,6 +302,7 @@ async function answerKept(
   )
   if (result.status === 'refused') {
     if (held) db.transaction(() => settleUse(ctx, org.id, use, { counted: false, costMinor: 0 }))
+    refused?.()
     return false
   }
   if (result.status === 'unavailable') {

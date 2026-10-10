@@ -136,8 +136,9 @@ export type ApiOptions = {
   /** Runs the message outbox on this interval. Omitted leaves it to be run by hand (tests). */
   outboxIntervalMs?: number
   /**
-   * NEXT-12: how long after starting SALEANE looks again for guests' messages a restart left
-   * unanswered. Omitted is once the shares the stopped requests held have run out.
+   * NEXT-12: how long after starting SALEANE tries again the guests' messages a restart left
+   * unanswered and the allowance then refused. Omitted is once the stopped requests' holds have
+   * run out.
    */
   missedAgainMs?: number
   /** Card payments. Omitted reads SALEANE_PAYMENTS_PROVIDER; unset is test mode, charging nothing. */

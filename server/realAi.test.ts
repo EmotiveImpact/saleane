@@ -434,6 +434,28 @@ describe('the receptionist with Claude', () => {
     expect(stored(login)).toMatchObject({ used: { guestChats: 200 }, holds: [] })
   })
 
+  it('tries again later only a text the allowance refused, not one Claude could not answer', async () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'saleane-busy-')), 'studio.sqlite')
+    let stop!: (error: Error) => void
+    const first = anthropic([new Promise((_, fail) => (stop = fail))])
+    start(claude(first.fetcher), file)
+    const { slug } = await studio()
+    expect((await text(slug, 'When are you open?', 'm1')).statusCode).toBe(200)
+    await expect.poll(() => first.requests.length).toBe(1)
+    api.close()
+    stop(new Error('SALEANE stopped'))
+    await new Promise((done) => setTimeout(done, 20))
+    // Started again, Anthropic is busy for the text, tried twice a second apart: it is left for
+    // the team, and the later look does not ask Claude again.
+    const busy = anthropic([{ status: 529 }, { status: 529 }])
+    start(claude(busy.fetcher), file, '2026-10-06T08:02:00.000Z', { missedAgainMs: 1500 })
+    await expect.poll(() => busy.requests.length, { timeout: 3000 }).toBe(2)
+    clock = Date.parse('2026-10-06T08:08:00.000Z')
+    await new Promise((done) => setTimeout(done, 2000))
+    expect(busy.requests).toHaveLength(2)
+    expect(answers()).toEqual([])
+  })
+
   it('thanks the text line first, answers once, and never lets the AI write a fill-in', async () => {
     let release!: (answer: Record<string, unknown>) => void
     const later = new Promise<Record<string, unknown>>((done) => (release = done))

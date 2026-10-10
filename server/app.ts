@@ -23,7 +23,7 @@ import type { Outbox } from './messaging/outbox'
 import { paymentRoutes } from './routes/payments'
 import { assistantRoutes } from './routes/assistant'
 import { receptionistRoutes } from './routes/receptionist'
-import { MISSED_MS, answerMissed, answerSocial, answerText } from './messaging/receptionistText'
+import { answerMissed, answerSocial, answerText } from './messaging/receptionistText'
 import { HOLD_SECONDS } from '../lumane'
 import { createPayments } from './payments/service'
 import type { Payments } from './payments/service'
@@ -116,15 +116,25 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     ),
     ...baseRoutes,
   ]
-  // NEXT-12: a guest's message thanked but left unanswered when SALEANE last stopped. A request
-  // that stopped holding the month's last guest chat keeps it until its hold runs out, so SALEANE
-  // looks once more after that.
+  // NEXT-12: a guest's message thanked but left unanswered when SALEANE last stopped. One the
+  // allowance refused may have been kept from its answer by the share its own stopped request
+  // still holds, so those are tried once more when that hold has run out.
   let missedAgain: ReturnType<typeof setTimeout> | undefined
   if (ctx.ai.live) {
-    const since = ctx.now() - MISSED_MS
-    const missed = () => void answerSoon(answerMissed(ctx, since), 'messages kept before a restart')
-    missed()
-    missedAgain = setTimeout(missed, options.missedAgainMs ?? (HOLD_SECONDS + 15) * 1000)
+    const what = 'messages kept before a restart'
+    const missed = answerMissed(ctx)
+    void answerSoon(
+      missed.then(({ queued }) => queued),
+      what,
+    )
+    const again = () =>
+      missed.then(
+        async ({ refused }) => refused.length > 0 && (await answerMissed(ctx, refused)).queued,
+      )
+    missedAgain = setTimeout(
+      () => void answerSoon(again(), what),
+      options.missedAgainMs ?? (HOLD_SECONDS + 15) * 1000,
+    )
     missedAgain.unref?.()
   }
   if (options.outboxIntervalMs) {
