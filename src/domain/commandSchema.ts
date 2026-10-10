@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { REPEAT_EVERY, REPEAT_MOST } from './repeat'
+import { TOGETHER_MOST } from './together'
 import { groupCommandSchemas } from './groupSchema'
 import { branchVisitCommandSchemas } from './branchVisitSchema'
 import { hoursCommandSchemas } from './hoursSchema'
@@ -413,6 +414,34 @@ export const commandSchema = z.discriminatedUnion('type', [
     deposit: z.enum(['refund_due', 'retained']).optional(),
     /** NEXT-09: also cancel the later visits of its repeat. Only the studio sets it. */
     andLater: z.literal(true).optional(),
+    /** NEXT-08: also cancel the visits booked together with it. Only the studio sets it. */
+    andTogether: z.literal(true).optional(),
+  }),
+  // NEXT-08: visits for several people on one day, side by side or one after another, booked
+  // together or not at all. Each person is a client of their own, at the first visit's location.
+  z.object({
+    type: z.literal('book-together'),
+    booking: bookingSchema,
+    guests: z
+      .array(
+        z
+          .object({
+            clientId: id.optional(),
+            contact: contactSchema.optional(),
+            serviceId: id,
+            /** A professional, or "any" for whoever is free. */
+            staffId: id,
+            startMinutes: z.number().int().min(0).max(1439),
+            /** Set by the server, which checks the time against guests holding it online. */
+            resourceId: id.optional(),
+          })
+          .strict()
+          .refine((guest) => !guest.clientId !== !guest.contact, {
+            message: 'Choose a client or enter their details for each person.',
+          }),
+      )
+      .min(1)
+      .max(TOGETHER_MOST - 1),
   }),
   // NEXT-09: a visit and the ones that repeat it every few weeks, booked together or not at all.
   z.object({

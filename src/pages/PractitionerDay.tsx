@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   ArrowRight,
   CalendarClock,
+  CalendarSync,
   ChevronRight,
   Clock3,
   NotebookPen,
@@ -34,6 +35,7 @@ import { Avatar, Button, Empty, ErrorMessage, Modal, PageHeader, Status } from '
 import { SignOut } from '../components/SignOut'
 import { HelpButton } from '../components/HelpButton'
 import { ClockOutForm } from '../components/Clock'
+import { DiaryLinks } from '../components/DiaryLinks'
 import '../practitioner.css'
 
 /** Matches the single-column breakpoint in practitioner.css. */
@@ -59,6 +61,8 @@ export function PractitionerDay() {
   const [saving, setSaving] = useState(false)
   // NEXT-07: clocking out asks for the break taken first.
   const [leaving, setLeaving] = useState(false)
+  // NEXT-10: a private link to their visits for Google or Apple Calendar.
+  const [diary, setDiary] = useState(false)
   const [journal] = useState(() => readPendingKeys(PENDING_PRACTITIONER_KEY))
   const pending = useRef(journal.keys)
   const path = `/api/workspaces/${encodeURIComponent(orgId)}`
@@ -750,6 +754,20 @@ export function PractitionerDay() {
             Your day sheet for offline use and printing
           </Link>
         </p>
+        <p className="practitioner-footnote">
+          <button className="practitioner-diary-open" onClick={() => setDiary(true)}>
+            <CalendarSync size={17} aria-hidden="true" />
+            Your visits in Google or Apple Calendar
+          </button>
+        </p>
+        <Modal
+          open={diary}
+          onClose={() => setDiary(false)}
+          title="Your visits in Google or Apple Calendar"
+          description="A private link keeps your phone’s calendar up to date as visits are booked, moved or cancelled. It only shows: changes are still made in SALEANE."
+        >
+          <DiaryLinks workspaceId={orgId} inDialog />
+        </Modal>
       </main>
     </div>
   )

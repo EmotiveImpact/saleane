@@ -21,6 +21,13 @@ import {
   visitOrder,
 } from './repeat'
 import {
+  bookedByLine,
+  bookedWithYouLine,
+  cancelledWith,
+  cancelledWithLine,
+  othersTogether,
+} from './together'
+import {
   DEFAULT_RETURN_DAYS,
   dueBackOn,
   agreedEverywhere,
@@ -745,16 +752,28 @@ export function composeMessage(
   const repeatText = later
     ? ` Also booked: ${later} more ${later === 1 ? 'visit' : 'visits'}, ${everyLabel(a.repeat!.everyWeeks)}.`
     : ''
+  // NEXT-08: the person a booking for several people was made for hears who else is booked, and
+  // each of the others who booked them.
+  const withLine = kind === 'confirmation' ? bookedWithYouLine(s, a) || bookedByLine(s, a) : ''
+  const withCount = kind === 'confirmation' && a.together?.lead ? othersTogether(s, a).length : 0
+  const leadName = withLine && !a.together?.lead ? withLine : ''
+  const withText = withCount
+    ? ` Also booked with you: ${withCount} more ${withCount === 1 ? 'person' : 'people'}.`
+    : leadName
+      ? ` ${leadName}`
+      : ''
+  const offWithLine = kind === 'cancelled' ? cancelledWithLine(s, a) : ''
+  const offWithCount = offWithLine ? cancelledWith(s, a).length : 0
   if (channel === 'sms') {
     // V2: with several locations, a text says which one, since it has no address block.
     const at = hasLocations(s)
       ? `, at ${[place.name, place.address].filter(Boolean).join(', ')}`
       : ''
     const lead = {
-      confirmation: `${org.name}: you're booked for ${service}${withWhom}, ${when}${at}.${repeatText}`,
+      confirmation: `${org.name}: you're booked for ${service}${withWhom}, ${when}${at}.${repeatText}${withText}`,
       changed: `${org.name}: your visit has moved to ${when}${at}, ${service}${withWhom}.`,
       reminder: `${org.name}: a reminder of ${service}${withWhom}, ${when}${at}.`,
-      cancelled: `${org.name}: your ${service} on ${when} is cancelled.${cancelledCount ? ` ${cancelledCount} later ${cancelledCount === 1 ? 'visit is' : 'visits are'} cancelled too.` : ''}`,
+      cancelled: `${org.name}: your ${service} on ${when} is cancelled.${cancelledCount ? ` ${cancelledCount} later ${cancelledCount === 1 ? 'visit is' : 'visits are'} cancelled too.` : ''}${offWithCount ? ` The ${offWithCount === 1 ? 'visit' : `${offWithCount} visits`} booked with yours ${offWithCount === 1 ? 'is' : 'are'} cancelled too.` : ''}`,
       feedback: `${org.name}: thank you for visiting. How was it? Tell us privately:`,
       patch_test: `${org.name}: your ${service} on ${when} needs a quick patch test at least ${patchTestSettings(s).hoursBefore} hours before. Please call or pop in to arrange one.`,
       aftercare: `${org.name}: looking after your ${service}. ${aftercareNote(s, a)}`,
@@ -811,6 +830,8 @@ export function composeMessage(
     )
     if (also) lines.push('', also)
     if (tooLine) lines.push('', tooLine)
+    if (withLine) lines.push('', withLine)
+    if (offWithLine) lines.push('', offWithLine)
   }
   // Aftercare and due back are about a visit that is over: no visit details or manage link.
   if (kind === 'feedback') {

@@ -79,12 +79,13 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
       'Open Settings, then Spaces & equipment.',
       'Choose Add resource.',
       'Give it a name and a type, pick its location and any resting time it needs after each visit.',
+      'For a couples room, tick A room for two, so two people booked together can have it at once.',
       'Save.',
     ],
     to: '/settings?section=resource',
     screens: ['/settings?section=resource'],
     roles: RUNS,
-    words: 'room chair bed equipment space resource',
+    words: 'room chair bed equipment space resource couples double room for two',
   },
   {
     id: 'hours',
@@ -231,6 +232,22 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     roles: ['practitioner'],
     words: 'target goal monthly takings progress',
   },
+  {
+    id: 'practitioner-diary',
+    title: 'See your visits in Google or Apple Calendar',
+    group: 'The day',
+    summary: 'A private link keeps the calendar on your phone up to date with your visits.',
+    steps: [
+      'Under your day, choose Your visits in Google or Apple Calendar.',
+      'Choose what each visit shows: the treatment and the client’s first name, or the treatment only. Then choose Make the link.',
+      'Choose Copy link, or Open in Apple Calendar. In Google Calendar on a computer, choose the plus beside Other calendars, then From URL, and paste the link.',
+      'The link is shown only once. To stop it, open the same place, choose Stop link, then Stop it now.',
+    ],
+    note: 'The calendar only shows your visits, from two weeks back to four weeks ahead; changes are still made in SALEANE. Google checks for changes every few hours. The link stops working if your access to the studio ends.',
+    screens: ['/practice'],
+    roles: ['practitioner'],
+    words: 'google calendar apple calendar ical ics outlook phone sync subscribe diary my calendar',
+  },
 
   {
     id: 'book-visit',
@@ -300,6 +317,25 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     screens: ['/calendar', '/today'],
     roles: DESK,
     words: 'recurring regular every week fortnightly monthly standing series block booking rebook',
+  },
+  {
+    id: 'book-together',
+    title: 'Book several people together',
+    group: 'The day',
+    summary: 'A couple side by side or a party on one day, each with a visit of their own.',
+    steps: [
+      'Book the first person as usual: the client, treatment, professional, date and time.',
+      'Under Others coming, choose Add someone. Choose who they are from your clients, or They are new: add their details.',
+      'Choose their treatment and professional, or Anyone free. They are given the same time when it is free, so they are side by side; otherwise the nearest free time. Choose another Time if you like.',
+      'Add anyone else the same way, then choose Confirm with the number of visits, such as Confirm 3 visits.',
+      'To call it all off, open any of the visits and choose Cancel visit. Choose This visit and the ones booked with it, then Confirm cancellation.',
+    ],
+    note: 'Everyone comes on the same day at the same location, up to 8 people. A room marked as a room for two in Settings, Spaces & equipment, takes two people booked together at once. Each person is confirmed and reminded on their own; the person it was booked for is told who else is coming.',
+    to: '/calendar',
+    screens: ['/calendar', '/today'],
+    roles: DESK,
+    words:
+      'group couple couples massage side by side party bridal wedding hen friends family two people together room for two double room',
   },
   {
     id: 'checkout',
@@ -831,6 +867,26 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     roles: RUNS,
     words:
       'rota shift one day change hours different hours extra day cover swap not working day off copy week clear week usual',
+  },
+  {
+    id: 'diaries',
+    title: 'See visits in Google or Apple Calendar',
+    group: 'Team',
+    summary:
+      'A private link keeps a calendar app up to date with your own visits, one professional’s, a location’s or the whole studio’s.',
+    steps: [
+      'Open Settings, then Google & Apple diaries.',
+      'Under Whose visits, choose your own, one professional, a location or Everyone at the studio.',
+      'Choose what each visit shows: the treatment and the client’s first name, or the treatment only. Then choose Make the link.',
+      'Choose Copy link and send it to whoever will use it, or choose Open in Apple Calendar. In Google Calendar on a computer, choose the plus beside Other calendars, then From URL, and paste the link.',
+      'To stop a link, choose Stop link beside it, then Stop it now.',
+    ],
+    note: 'Owners and managers can make a link for anyone, a general manager for their own location, and everyone else for their own visits. The calendar only shows: changes are still made in SALEANE. A link stops working if the person who made it loses access. While SALEANE runs only on this computer, Google Calendar cannot reach a link.',
+    to: '/settings?section=diaries',
+    screens: ['/settings?section=diaries'],
+    roles: DESK,
+    words:
+      'google calendar apple calendar ical ics outlook phone sync subscribe diary team calendar feed',
   },
   {
     id: 'clock',

@@ -5,6 +5,7 @@ import {
   availableResource,
   commandSchema,
   dispatch,
+  execute,
   rescheduleResource,
 } from '../../src/domain/commands'
 import type { Command } from '../../src/domain/commands'
@@ -192,6 +193,47 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
                 )
               return { ...visit, resourceId }
             }),
+          }
+        } else if (command.type === 'book-together') {
+          // NEXT-08: everyone booked together respects guests holding a time online, as a single
+          // booking does. The whole booking is tried with the held times in place, and each
+          // person keeps the professional and room found there.
+          let booking = command.booking
+          if (org.role === 'general' && !booking.locationId)
+            booking = { ...booking, locationId: org.locationId! }
+          const at = new Date(now()).toISOString()
+          const asked = { ...command, booking }
+          // Held times stand in as visits; a stand-in guest lets the booking be tried among them.
+          const held = withHolds(org)
+          held.clients.push({
+            id: 'ephemeral-hold',
+            organisationId: org.id,
+            name: 'Held online',
+            email: 'held-online@example.invalid',
+            phone: '',
+            preferences: '',
+            marketingConsent: false,
+            createdAt: at,
+          })
+          const trial = execute(held, asked, at)
+          if (!trial.ok) {
+            // Refused without anyone's hold too: the booking itself is wrong, so say why below.
+            if (execute(org.state, asked, at).ok) fail(409, trial.error)
+            command = asked
+          } else {
+            const lead = trial.state.appointments.find((a) => a.id === trial.recordId)!
+            const party = trial.state.appointments.filter(
+              (a) => a.together?.id === lead.together!.id,
+            )
+            const pinned = (i: number) => ({
+              staffId: party[i].staffId,
+              resourceId: party[i].resourceId,
+            })
+            command = {
+              ...asked,
+              booking: { ...booking, ...pinned(0) },
+              guests: command.guests.map((guest, i) => ({ ...guest, ...pinned(i + 1) })),
+            }
           }
         } else if (
           (command.type === 'gift-card-sell' || command.type === 'plan-sell') &&
