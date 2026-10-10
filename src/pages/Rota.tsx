@@ -68,7 +68,11 @@ export function Rota() {
         variant="compact"
         eyebrow="Business"
         title="Who is in, and who is away."
-        description="Each week starts from everyone's usual hours. Change one day here and their usual hours stay as they are. Nobody is booked while they are away."
+        description={
+          canEdit
+            ? "Each week starts from everyone's usual hours. Change one day here and their usual hours stay as they are. Nobody is booked while they are away."
+            : "Each week starts from everyone's usual hours, with any day changed for that date marked. Nobody is booked while they are away."
+        }
         actions={
           canEdit ? (
             <Button
