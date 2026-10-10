@@ -136,11 +136,12 @@ describe('a spoken conversation', () => {
     // its question, which has not yet gone to be answered, in the place it was said.
     talk.handle({ type: 'heard', text: ' please', startMs: 1900 })
     talk.handle({ type: 'delegated', id: 'd2', offsetMs: 3000 })
-    // Once the next question is handed over, words said before the first one belong to neither.
+    // Even once the next question is handed over, words said before the first hand-over are the
+    // first question's while it has not gone to be answered.
     talk.handle({ type: 'heard', text: ' now', startMs: 1950 })
     now = 2000
     await talk.settled()
-    expect(asked).toEqual(['Who is in at ten? please', 'Thanks.'])
+    expect(asked).toEqual(['Who is in at ten? please now', 'Thanks.'])
   })
 
   it('waits for late words OpenAI places before the hand-over, beyond a moment’s quiet', async () => {
@@ -295,6 +296,36 @@ describe('a spoken conversation', () => {
     expect(said.filter((s) => s.kind === 'answer')).toEqual([])
     expect(talk.seconds).toBe(25)
     expect(talk.ended).toEqual({ reason: 'close_requested' })
+  })
+
+  it('gives a late word to its own question waiting its turn, after later ones are handed over', async () => {
+    let release!: () => void
+    const slow = new Promise<void>((done) => (release = done))
+    const asked: string[] = []
+    const talk = conversation({
+      ...options(async (heard) => {
+        asked.push(heard)
+        if (heard === 'First?') await slow
+        return { text: 'Answered.' }
+      }),
+      quietMs: 10,
+      waitForWordsMs: 200,
+    })
+    const { fake } = line()
+    talk.use(fake)
+    talk.handle({ type: 'heard', text: 'First?', startMs: 0, endMs: 900 })
+    talk.handle({ type: 'delegated', id: 'd1', offsetMs: 1000 })
+    await new Promise((done) => setTimeout(done, 40))
+    // While Claude answers the first, two more are handed over, and a word said before the
+    // second hand-over arrives only after the third.
+    talk.handle({ type: 'heard', text: 'Who is in', startMs: 1200, endMs: 1600 })
+    talk.handle({ type: 'delegated', id: 'd2', offsetMs: 2000 })
+    talk.handle({ type: 'heard', text: 'Thanks.', startMs: 2200, endMs: 2900 })
+    talk.handle({ type: 'delegated', id: 'd3', offsetMs: 3000 })
+    talk.handle({ type: 'heard', text: ' at ten?', startMs: 1650, endMs: 1950 })
+    release()
+    await talk.settled()
+    expect(asked).toEqual(['First?', 'Who is in at ten?', 'Thanks.'])
   })
 
   it('keeps each question’s own words while an earlier one is still being answered', async () => {

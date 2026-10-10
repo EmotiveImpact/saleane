@@ -68,6 +68,8 @@ type Asked = {
   closed: boolean
   /** Where it was handed over on the session's timeline, when the supplier says. */
   offsetMs?: number
+  /** Where the question before it was handed over: its words were said after that. */
+  fromMs?: number
   /** Where its words heard so far end on the timeline. */
   reachedMs?: number
   /** Words said after the hand-over have arrived, so its own are in. */
@@ -88,8 +90,12 @@ export function conversation(options: ConversationOptions) {
   let heardAt = 0
   let heardTo: number | undefined
   let latest: Asked | undefined
-  /** Where the question before the latest was handed over: words said before it are its. */
-  let earlier: number | undefined
+  /**
+   * Timed questions still gathering their words. Each owns what was said between the hand-over
+   * before it and its own, so a late word finds its question even after the next one is handed
+   * over, until its question goes to be answered.
+   */
+  let gathering: Asked[] = []
   let seconds = 0
   let ended: { reason: string } | undefined
   /** SALEANE asked the supplier to end the talk: nothing more is asked or answered meanwhile. */
@@ -175,12 +181,20 @@ export function conversation(options: ConversationOptions) {
             latest?.offsetMs !== undefined && event.startMs !== undefined
               ? event.startMs < latest.offsetMs
               : undefined
+          if (latest && timed !== undefined) {
+            const at = event.startMs!
+            gathering = gathering.filter((q) => !q.closed)
+            // Words said after a hand-over show that question's own words are in.
+            for (const q of gathering) if (at >= q.offsetMs!) q.followed = true
+          }
           if (latest && timed) {
-            const older = earlier !== undefined && event.startMs! < earlier
-            if (!latest.closed && !older) {
-              latest.words.push(word)
-              latest.at = clock()
-              if (end !== undefined) latest.reachedMs = Math.max(latest.reachedMs ?? end, end)
+            const owner = gathering.find(
+              (q) => event.startMs! < q.offsetMs! && event.startMs! >= (q.fromMs ?? -Infinity),
+            )
+            if (owner) {
+              owner.words.push(word)
+              owner.at = clock()
+              if (end !== undefined) owner.reachedMs = Math.max(owner.reachedMs ?? end, end)
             }
             // Words of a question already being answered cannot change it now.
             break
@@ -190,8 +204,7 @@ export function conversation(options: ConversationOptions) {
             latest.at = clock()
             break
           }
-          if (latest && timed === false) latest.followed = true
-          else if (latest) latest.closed = true
+          if (latest && timed === undefined) latest.closed = true
           heard.push(word)
           heardAt = clock()
           if (end !== undefined) heardTo = Math.max(heardTo ?? end, end)
@@ -199,8 +212,10 @@ export function conversation(options: ConversationOptions) {
         }
         case 'delegated': {
           // Each question keeps its own words, so one waiting its turn is never given another's.
-          if (latest) latest.closed = true
-          earlier = latest?.offsetMs
+          // Placed on the timeline, the last one stays open to its own late words, which cannot
+          // be mistaken for the new one's; otherwise it takes nothing more.
+          const placed = latest?.offsetMs !== undefined && event.offsetMs !== undefined
+          if (latest && !placed) latest.closed = true
           const q: Asked = {
             id: event.id,
             words: heard,
@@ -208,11 +223,13 @@ export function conversation(options: ConversationOptions) {
             since: clock(),
             closed: false,
             ...(event.offsetMs === undefined ? {} : { offsetMs: event.offsetMs }),
+            ...(placed ? { fromMs: latest!.offsetMs } : {}),
             ...(heardTo === undefined ? {} : { reachedMs: heardTo }),
           }
           heard = []
           heardTo = undefined
           latest = q
+          if (q.offsetMs !== undefined) gathering = [...gathering.filter((g) => !g.closed), q]
           queue = queue.then(() => answer(q)).catch(() => undefined)
           break
         }

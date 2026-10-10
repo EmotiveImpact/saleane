@@ -568,6 +568,78 @@ describe('a talk', () => {
     expect(id).toEqual(expect.any(String))
   })
 
+  it('says, keeps and offers nothing Claude prepared once the person lost access while it answered', async () => {
+    const claudeSide = anthropic([
+      {
+        content: [
+          {
+            type: 'tool_use',
+            id: 'toolu_1',
+            name: 'add_reminder',
+            input: { text: 'Call Amelia about her patch test', dueDate: '2026-10-07' },
+          },
+        ],
+        stop_reason: 'tool_use',
+        usage,
+      },
+      words('I have prepared a reminder for tomorrow. It is waiting on your screen to approve.'),
+    ])
+    let orgId = ''
+    // The owner makes them a practitioner while Claude is still answering.
+    const slow = (async (url: string, init: RequestInit) => {
+      api.database.run(
+        "UPDATE memberships SET role='practitioner', staff_id='staff-linked' WHERE organisation_id=?",
+        orgId,
+      )
+      return claudeSide.fetcher(url, init)
+    }) as unknown as typeof fetch
+    const voice = fakeVoice()
+    start(claude(slow), voice.layer)
+    const login = await register()
+    orgId = login.orgId
+    await talk(login)
+    const held = stored(login).spendByDay[day]
+    const [line] = voice.lines
+    line.fire({ type: 'heard', text: 'Remind me to call Amelia tomorrow.' })
+    line.fire({ type: 'delegated', id: 'item_1' })
+    await expect.poll(() => line.closed).toBe(true)
+    await Promise.resolve()
+    expect(claudeSide.requests).toHaveLength(2)
+    // Nothing is said, nothing waits for approval, and what Claude cost still counts.
+    expect(line.said.filter((s) => s.kind === 'answer')).toEqual([])
+    expect(
+      api.database.get<{ n: number }>(
+        "SELECT count(*) AS n FROM audit_events WHERE action='assistant.proposed' AND organisation_id=?",
+        login.orgId,
+      )?.n,
+    ).toBe(0)
+    expect(stored(login).spendByDay[day]).toBeGreaterThan(held)
+    expect(stored(login).used.typed).toBe(0)
+  })
+
+  it('adds what a replaced talk cost by the end OpenAI reports to what was counted', async () => {
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    await talk(login)
+    clock += 60_000
+    await talk(login)
+    // Counted at its minute when replaced, so the new talk has its ten.
+    expect(stored(login).used.talkSeconds).toBe(60 + 600)
+    const counted = stored(login).spendByDay[day]
+    // OpenAI's end, twelve seconds later, reports what the whole talk ran.
+    voice.lines[0].fire({ type: 'closed', reason: 'close_requested', seconds: 72 })
+    expect(voice.lines[0].detached).toBe(true)
+    expect(stored(login).spendByDay[day] - counted).toBeCloseTo(1)
+    expect(stored(login).used.talkSeconds).toBe(60 + 600)
+    // A report that comes to less than was counted gives nothing back.
+    clock += 30_000
+    await talk(login)
+    const again = stored(login).spendByDay[day]
+    voice.lines[1].fire({ type: 'closed', reason: 'close_requested', seconds: 5 })
+    expect(stored(login).spendByDay[day]).toBe(again)
+  })
+
   it('replaces a talk left open, follows a dropped one to end it, and keeps each to its person', async () => {
     const voice = fakeVoice()
     start(claude(anthropic([]).fetcher), voice.layer)

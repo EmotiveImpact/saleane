@@ -39,6 +39,8 @@ type Talk = {
   reported?: number
   /** Set once the talk has been counted. */
   endedAt?: number
+  /** What the talk's supplier cost was counted as, in minor units. */
+  costMinor?: number
   reason?: string
   timers: ReturnType<typeof setTimeout>[]
   /** Set once SALEANE has asked the supplier to end the talk. */
@@ -76,9 +78,13 @@ export function talks(held: Map<string, Held>) {
       if (talk.endedAt !== undefined && ctx.now() - talk.endedAt > KEEP_ENDED_MS) open.delete(id)
   }
 
-  /** Counts a talk once: the seconds the supplier reported, or SALEANE's own clock without them. */
+  /**
+   * Counts a talk once: the seconds the supplier reported, or SALEANE's own clock without them. A
+   * talk counted before the supplier confirmed its end (replaced, or slow to start) has its minutes
+   * settled then; the seconds the supplier reports at the end still add whatever more it cost.
+   */
   function count(ctx: Context, talk: Talk, reason: string) {
-    if (talk.endedAt !== undefined) return
+    if (talk.endedAt !== undefined) return reconcile(ctx, talk)
     talk.endedAt = ctx.now()
     talk.reason = reason
     const price = ctx.voice.minorPerMinute
@@ -87,15 +93,36 @@ export function talks(held: Map<string, Held>) {
       talk.window + TALK_GRACE_SECONDS,
       talk.reported ?? Math.max(talk.talk.seconds, clock),
     )
+    talk.costMinor = talkCost(seconds, price)
     const org = ctx.systemOrg(talk.organisationId)
     ctx.db.transaction(() => {
       settleUse(ctx, talk.organisationId, talk.use, {
         counted: true,
         amount: Math.ceil(seconds),
-        costMinor: talkCost(seconds, price),
+        costMinor: talk.costMinor!,
       })
       if (org) ctx.audit(org, talk.accountId, 'assistant.talked', talk.id)
     })
+  }
+
+  /** Adds to the day's spend what the supplier's final report shows beyond what was counted. */
+  function reconcile(ctx: Context, talk: Talk) {
+    if (talk.costMinor === undefined) return
+    const seconds = Math.min(talk.window + TALK_GRACE_SECONDS, talk.reported ?? talk.talk.seconds)
+    const extra = talkCost(seconds, ctx.voice.minorPerMinute) - talk.costMinor
+    if (extra <= 0) return
+    talk.costMinor += extra
+    // Nothing is held for it, so only the spend moves: the person's minutes stay as counted.
+    const cost = {
+      meter: talk.use.meter,
+      amount: 0,
+      personId: talk.use.personId,
+      at: new Date(ctx.now()).toISOString(),
+      worstCaseMinor: 0,
+    }
+    ctx.db.transaction(() =>
+      settleUse(ctx, talk.organisationId, cost, { counted: false, costMinor: extra }),
+    )
   }
 
   /** Counts the talk if it has not been counted, then stops following it. */
@@ -373,6 +400,21 @@ export function talks(held: Map<string, Held>) {
         spoken: true,
       }),
     )
+    // Access may have changed while Claude answered. An answer prepared with access the person no
+    // longer has is not said, kept or offered for approval; what it cost still counts, and the
+    // talk ends.
+    let now: Org | undefined
+    try {
+      now = ctx.orgFor(orgId, actor)
+    } catch {
+      now = undefined
+    }
+    if (!now || now.role !== org.role) {
+      const costMinor = result.status === 'refused' ? 0 : result.costMinor
+      if (reserved || result.status !== 'refused')
+        ctx.db.transaction(() => settleUse(ctx, org.id, use, { counted: false, costMinor }))
+      return undefined
+    }
     if (result.status === 'refused') {
       if (reserved)
         ctx.db.transaction(() => settleUse(ctx, org.id, use, { counted: false, costMinor: 0 }))
