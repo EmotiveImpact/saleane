@@ -766,12 +766,14 @@ describe('appointment messages (PILOT-01)', () => {
 
   it('marks a SendGrid email failed from a later bounce that names only its outbox row (NEXT-13)', async () => {
     const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' })
-    let n = 0
-    const fetcher = (async () =>
-      new Response(null, {
-        status: 202,
-        headers: { 'x-message-id': `sg-${++n}` },
-      })) as unknown as typeof fetch
+    let n = 0,
+      drop = false
+    const fetcher = (async () => {
+      // The line drops after SendGrid took it: the row is left unclear, with no reference.
+      if (drop)
+        throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNRESET' } })
+      return new Response(null, { status: 202, headers: { 'x-message-id': `sg-${++n}` } })
+    }) as unknown as typeof fetch
     const chosen = providersFromEnv(
       {
         SALEANE_EMAIL_PROVIDER: 'sendgrid',
@@ -830,6 +832,14 @@ describe('appointment messages (PILOT-01)', () => {
       'failed',
       'The guest’s email provider sent it back (bounced).',
     ])
+    // A send left unclear is settled by SendGrid's own word on it.
+    drop = true
+    await book(slug, serviceId, staffId, '2026-10-09')
+    await api.outbox.tick()
+    const unclear = rows().find((r) => r.channel === 'email' && r.status === 'unknown')!
+    expect([unclear.provider, unclear.provider_ref]).toEqual(['sendgrid', null])
+    expect((await bounce(unclear.id)).statusCode).toBe(200)
+    expect(rows().find((r) => r.id === unclear.id)!.status).toBe('failed')
   })
 
   it('keeps the outbox from practitioners and reports test mode by default', async () => {

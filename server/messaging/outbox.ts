@@ -469,9 +469,10 @@ export function createOutbox(ctx: Context, providers: Providers) {
           receipt.providerRef,
         )
       : receipt.outboxId
-        ? // Only a row that this sender accepted can be named by the id SALEANE gave it.
+        ? // Only a row handed to this sender (accepted, or unclear when the line dropped) can be
+          // named by the id SALEANE gave it.
           db.get<OutboxRow>(
-            'SELECT * FROM outbox WHERE provider=? AND id=? AND provider_ref IS NOT NULL',
+            "SELECT * FROM outbox WHERE provider=? AND id=? AND (provider_ref IS NOT NULL OR status='unknown')",
             receipt.provider,
             receipt.outboxId,
           )
