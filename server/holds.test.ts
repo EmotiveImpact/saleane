@@ -420,3 +420,37 @@ describe('repeat visits booked at the desk', () => {
     ])
   })
 })
+
+describe('visits for several people booked at the desk', () => {
+  const together = (startMinutes: number): Command => ({
+    type: 'book-together',
+    booking: {
+      clientId: 'client-6',
+      serviceId: 'service-facial',
+      staffId: 'staff-maya',
+      date: '2026-10-07',
+      startMinutes: 540,
+      source: 'desk',
+    },
+    guests: [
+      { clientId: 'client-2', serviceId: 'service-facial', staffId: 'staff-sophia', startMinutes },
+    ],
+  })
+  it('keeps a time a guest is holding online for anyone in the booking', async () => {
+    const owner = await register()
+    // A guest is choosing Sophia at 09:00, beside the first person's time.
+    expect((await hold(owner.slug, { staffId: 'staff-sophia' })).statusCode).toBe(201)
+    const refused = await command(owner, owner.state.revision, together(540))
+    expect(refused.statusCode).toBe(409)
+    expect(refused.json<{ error: string }>().error).toBe(
+      'Olivia James: That time is no longer available. Choose another time or professional.',
+    )
+    const booked = await command(owner, owner.state.revision, together(630))
+    expect(booked.statusCode, booked.body).toBe(200)
+    const visits = booked
+      .json<{ state: BusinessState }>()
+      .state.appointments.filter((a) => a.together)
+      .map((a) => `${a.clientId} ${a.startMinutes} ${a.staffId}`)
+    expect(visits).toEqual(['client-6 540 staff-maya', 'client-2 630 staff-sophia'])
+  })
+})

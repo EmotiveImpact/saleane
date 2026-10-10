@@ -35,6 +35,7 @@ import type { Connections } from './connections'
 import { partnerApi } from './partnerApi'
 import { googleBooking, googleBookingFromEnv } from './googleBooking'
 import { billingProviderFromEnv, createBilling } from './billing'
+import { diaryRoutes } from './diaries'
 import type { Billing } from './billing'
 
 export type { ApiOptions } from './context'
@@ -89,11 +90,14 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     options.connectionTransport ?? connectionTransportFromEnv(),
   )
   const partners = partnerApi()
+  const diaries = diaryRoutes()
   const google = googleBooking(options.googleBooking ?? googleBookingFromEnv(process.env))
   const social = options.social ?? socialFromEnv(process.env)
   const routes = [
     partners.read,
     partners.manage,
+    diaries.read,
+    diaries.manage,
     google.manage,
     socialRoutes(social),
     connections.routes,

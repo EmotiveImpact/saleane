@@ -172,6 +172,11 @@ export const resourceSchema = z.object({
    * room waits; the professional is free. Absent means none.
    */
   restMinutes: z.number().int().min(5).max(120).multipleOf(5).optional(),
+  /**
+   * NEXT-08: a room for two, such as a couples' room. Two visits booked together can share it at
+   * the same time; anyone else still has it to themselves. Absent means one at a time.
+   */
+  forTwo: z.literal(true).optional(),
 })
 export const appointmentSchema = z.object({
   ...scoped,
@@ -204,6 +209,14 @@ export const appointmentSchema = z.object({
   /** NEXT-09: one of several visits booked together to repeat every few weeks. */
   repeat: z
     .object({ id, everyWeeks: z.number().int().min(1).max(12) })
+    .strict()
+    .optional(),
+  /**
+   * NEXT-08: one of several visits booked together for different people on one day, such as a
+   * couple side by side or a bridal party. `lead` marks the person the booking was made for.
+   */
+  together: z
+    .object({ id, lead: z.literal(true).optional() })
     .strict()
     .optional(),
 })
@@ -426,6 +439,17 @@ export function parseState(value: unknown, region: Region): BusinessState {
     else if (first.clientId !== a.clientId || first.everyWeeks !== a.repeat.everyWeeks)
       throw new Error('Broken repeat booking.')
   }
+  // NEXT-08: visits booked together are for different people, on one day at one location.
+  const parties = new Map<string, Appointment[]>()
+  for (const a of s.appointments)
+    if (a.together) parties.set(a.together.id, [...(parties.get(a.together.id) ?? []), a])
+  for (const party of parties.values())
+    if (
+      party.some((a) => a.date !== party[0].date || a.locationId !== party[0].locationId) ||
+      new Set(party.map((a) => a.clientId)).size !== party.length ||
+      party.filter((a) => a.together!.lead).length > 1
+    )
+      throw new Error('Broken booking for several people.')
   if (new Set(s.sales.map((sale) => sale.appointmentId)).size !== s.sales.length)
     throw new Error('Duplicate appointment settlement.')
   for (const sale of s.sales) {

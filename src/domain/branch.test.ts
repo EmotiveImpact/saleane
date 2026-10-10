@@ -142,6 +142,32 @@ describe('general manager', () => {
     expect(branchChangeRefusal(s, elsewhere, main)).not.toBeNull()
   })
 
+  it('books several people together only at their own location', () => {
+    const { s, main, islington } = twoSites()
+    const together = (locationId: string): Command => ({
+      type: 'book-together',
+      booking: {
+        clientId: 'client-6',
+        serviceId: 'service-facial',
+        staffId: 'staff-maya',
+        date: '2026-10-07',
+        startMinutes: 540,
+        source: 'desk',
+        locationId,
+      },
+      guests: [
+        {
+          clientId: 'client-2',
+          serviceId: 'service-facial',
+          staffId: 'staff-sophia',
+          startMinutes: 540,
+        },
+      ],
+    })
+    expect(branchRefusal(s, islington, together(main))).toBe('That visit is at another location.')
+    expect(branchRefusal(s, main, together(main))).toBeNull()
+  })
+
   it('catches a change that lands a visit at another location', () => {
     const { s, main, islington } = twoSites()
     const visit = s.appointments.find((a) => a.locationId === main)!
