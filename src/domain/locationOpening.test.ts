@@ -285,6 +285,17 @@ describe('what one more location does to the bill', () => {
     )
   })
 
+  it('counts the new hires who take bookings, as the next bill will', () => {
+    // Five people already, all included; a second location includes five more, and six new
+    // professionals make eleven, so one is paid for.
+    const bill = openingBill(plan({ people: 5 }), org, 6)
+    expect(bill.before.totalMinor).toBe(5880)
+    expect(bill.after.totalMinor).toBe(11760 + 1080)
+    expect(bill.heading).toBe(
+      'Your monthly bill goes from £58.80 to £128.40, including VAT at 20%.',
+    )
+  })
+
   it('leaves US sales tax to the provider', () => {
     const us = createWorkspace({ name: 'Linden Studio', region: 'US', locationName: 'Austin' })
     expect(openingBill(plan({ region: 'US' }), us.organisation).heading).toBe(
