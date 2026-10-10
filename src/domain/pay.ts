@@ -7,6 +7,8 @@ import { retailRevenue } from './retail'
 import { rentalOn, serviceRevenue } from './takings'
 import { recordDay } from './tillCount'
 import type { SaleRetail } from './retailSchema'
+import { lineNet, otherTillSales, tillDay } from './otherTill'
+import type { OtherTillLine } from './otherTillSchema'
 import {
   atRate,
   percent,
@@ -169,6 +171,36 @@ function portionsOf(
   return list
 }
 
+/**
+ * Stage 5: each line of a sale from another till, with the rate it earns for one person. A line
+ * linked to a SALEANE treatment or product earns its own rate when it has one; a line SALEANE does
+ * not know earns the usual rate (or steps) for its kind.
+ */
+function tillPortions(
+  s: BusinessState,
+  staffId: string,
+  date: string,
+  lines: OtherTillLine[],
+): Portion[] {
+  return lines
+    .filter((line) => lineNet(line) > 0)
+    .map((line) =>
+      line.kind === 'treatment'
+        ? {
+            kind: 'treatments' as const,
+            amountMinor: lineNet(line),
+            resolved: treatmentRate(s, staffId, date, line.serviceId ?? ''),
+          }
+        : {
+            kind: 'products' as const,
+            amountMinor: lineNet(line),
+            resolved: productRate(s, staffId, date, line.productId ?? ''),
+          },
+    )
+}
+const tillSum = (lines: OtherTillLine[], kind: OtherTillLine['kind']) =>
+  lines.filter((line) => line.kind === kind).reduce((n, line) => n + lineNet(line), 0)
+
 /** Commission on one receipt at fixed rates: one rounding for each rate on it. */
 type Fixed = { label: string; amountMinor: number; commissionMinor: number }
 function fixedParts(groups: Map<string, { bps: number; amountMinor: number }>, sign = 1): Fixed[] {
@@ -290,6 +322,27 @@ function entries(s: BusinessState, from: string, to: string): Entry[] {
     })
   }
 
+  // Stage 5: a sale from another till earns commission for the team member it names, line by
+  // line, on the studio's own day it happened, exactly as a sale at SALEANE's till would.
+  const tillSales = otherTillSales(s)
+  for (const sale of tillSales) {
+    const date = tillDay(s, sale)
+    if (sale.kind !== 'sale' || !sale.staffId || !inRange(date)) continue
+    if (rentalOn(s, sale.staffId, date)) continue
+    list.push({
+      staffId: sale.staffId,
+      date,
+      kind: 'counter',
+      receipt: sale.receipt,
+      label: `Sold on ${sale.till.name}`,
+      servicesMinor: tillSum(sale.lines, 'treatment'),
+      productsMinor: tillSum(sale.lines, 'product'),
+      tipMinor: 0,
+      ...priced(tillPortions(s, sale.staffId, date, sale.lines), 1),
+      earlier: [],
+    })
+  }
+
   // Unless the studio absorbs it, money given back comes off in the period it is given back, in
   // proportion to what the receipt was for and at the rate the receipt earned. Tips are left with
   // the person. Given back on takings that earned steps, it comes off this month's takings for
@@ -352,6 +405,44 @@ function entries(s: BusinessState, from: string, to: string): Entry[] {
       label: 'Money given back',
       servicesMinor: -backServices,
       productsMinor: -backProducts,
+      tipMinor: 0,
+      ...priced(rest, -1),
+      earlier,
+    })
+  }
+
+  // Stage 5: money given back on another till comes off the commission of whoever made the sale,
+  // under the same pay rule, line by line at the rates the sale earned on its own day.
+  for (const refund of tillSales) {
+    if (refund.kind !== 'refund') continue
+    const date = tillDay(s, refund)
+    if (!inRange(date) || rulesFor(s, date).refunds === 'studio') continue
+    const sale = tillSales.find((x) => x.id === refund.refundOf)
+    const staffId = sale?.staffId
+    if (!sale || !staffId) continue
+    const earnedOn = tillDay(s, sale)
+    if (rentalOn(s, staffId, earnedOn)) continue
+    const portions = tillPortions(s, staffId, earnedOn, refund.lines)
+    const now = stepsOn(s, staffId, date)
+    const earlier: Entry['earlier'] = []
+    const rest: Portion[] = []
+    for (const p of portions)
+      if (p.resolved.by === 'steps' && !(!!now && (p.kind === 'treatments' || now.on === 'all')))
+        earlier.push({
+          kind: p.kind,
+          amountMinor: p.amountMinor,
+          month: earnedOn.slice(0, 7),
+          steps: p.resolved.steps,
+        })
+      else rest.push(p)
+    list.push({
+      staffId,
+      date,
+      kind: 'refund',
+      receipt: refund.receipt,
+      label: `Given back on ${refund.till.name}`,
+      servicesMinor: -tillSum(refund.lines, 'treatment'),
+      productsMinor: -tillSum(refund.lines, 'product'),
       tipMinor: 0,
       ...priced(rest, -1),
       earlier,

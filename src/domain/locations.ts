@@ -188,6 +188,10 @@ export function atPlace(s: BusinessState, locationId: string): BusinessState {
     ...(s.counterSales ? { counterSales: s.counterSales.filter(here) } : {}),
     ...(s.giftCards ? { giftCards: s.giftCards.filter(here) } : {}),
     ...(s.holdings ? { holdings: s.holdings.filter(here) } : {}),
+    // Stage 5: sales and refunds a chain's own till sent in for this location.
+    ...(s.otherTillSales
+      ? { otherTillSales: s.otherTillSales.filter((x) => x.locationId === locationId) }
+      : {}),
   }
 }
 

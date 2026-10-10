@@ -100,11 +100,14 @@ export function recordConsentChanges(
   command: Command,
   now: string,
   makeId: () => string,
+  /** Stage 5: other software, with what it said about who agreed, when and how. */
+  software?: { consent?: { at: string; how: string; wordingVersion?: number } },
 ) {
   const was = new Map(before.clients.map((c) => [c.id, c.marketingConsent]))
   const online = command.type === 'book' && command.input.source === 'online'
-  const source: ConsentRecord['source'] =
-    command.type === 'guest-consent-stop'
+  const source: ConsentRecord['source'] = software
+    ? 'other software'
+    : command.type === 'guest-consent-stop'
       ? 'guest link'
       : command.type === 'news-unsubscribe'
         ? 'email link'
@@ -120,8 +123,21 @@ export function recordConsentChanges(
     )
       continue
     let wordingVersion: number | undefined
+    // Stage 5: other software never turns news on or off without saying when and how.
+    if (software && !software.consent)
+      throw new Error(
+        'Email news is recorded only when the software says who agreed, when and how.',
+      )
     if (client.marketingConsent) {
-      const shown = command.type === 'book' ? command.input.consentVersion : undefined
+      const shown = software
+        ? software.consent?.wordingVersion
+        : command.type === 'book'
+          ? command.input.consentVersion
+          : undefined
+      if (software && shown === undefined)
+        throw new Error(
+          'Say which version of the studio’s email news wording the client agreed to.',
+        )
       // A guest's own tick must say which words they read; the desk records what the guest told them.
       if ((online && shown === undefined) || (shown !== undefined && shown !== current.version))
         throw new Error(
@@ -148,6 +164,9 @@ export function recordConsentChanges(
       source,
       recordedAt: now,
       actor: 'Local operator',
+      ...(software?.consent
+        ? { saidAt: software.consent.at, how: software.consent.how.slice(0, 200) }
+        : {}),
     })
   }
 }

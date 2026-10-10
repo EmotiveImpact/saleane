@@ -625,6 +625,24 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     words: 'receipt print email paper slip',
   },
   {
+    id: 'other-tills',
+    title: 'Sales from your other tills',
+    group: 'Money',
+    summary:
+      'If a location also runs its own till, its sales and refunds can be sent into SALEANE so takings and stock stay whole.',
+    steps: [
+      'Open Business, then Money, then Receipts. Each one shows as Sold on and the name of the till, with its receipt number.',
+      'Choose one to see what was sold, the tax, how it was paid and who made the sale.',
+      'Money given back on that till is under Refund records.',
+      'If the sale says the shelf was short, count that product in Stock.',
+    ],
+    note: 'These are payments that till took. SALEANE records them for takings, stock and commission, and never took or gave back the money itself. They are not part of the cash drawer or the till count.',
+    to: '/business/money',
+    screens: ['/business/money', '/business'],
+    roles: LEADS,
+    words: 'epos pos other till chain shop sales receipts refunds sent in imported',
+  },
+  {
     id: 'cash-drawer',
     title: 'Open the cash drawer without a sale',
     group: 'Money',
@@ -1213,6 +1231,48 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     screens: ['/settings?section=changes'],
     roles: OWNER,
     words: 'audit log history changes who',
+  },
+  // Stage 5: other software reading from the studio, or sending things in, with an access key.
+  {
+    id: 'access-keys',
+    title: 'Let other software read or send things in',
+    group: 'Settings and data',
+    summary:
+      'An access key lets other software, such as a booking tool, your accountant’s tool or a chain’s own tills, do only what you tick.',
+    steps: [
+      'Open Settings, then Connected software, and find Access keys.',
+      'Choose Make an access key and say what it is for.',
+      'Under It may read, tick what the software may read. To let it send things in, open It may also change things and tick what it may change.',
+      'If the key is for one location, choose it under Which locations. A key for one location only reads and books its own visits and sends in its own till’s sales.',
+      'Choose Make the key, then copy the key into the other software. It is shown only once.',
+      'To stop a key at once, choose Revoke beside it.',
+    ],
+    note: 'Every change a key makes shows in Who changed what under the key’s name, and goes through the same checks as the desk. Software you connected is still told about it, marked as coming from that key.',
+    to: '/settings?section=connections',
+    screens: ['/settings?section=connections'],
+    roles: OWNER,
+    words:
+      'api key access key partner integration developer token booking tool send in import sync',
+  },
+  {
+    id: 'send-in',
+    title: 'What other software can send in',
+    group: 'Settings and data',
+    summary:
+      'With the right key, other software can book, move and cancel visits, add and change clients, and send in a chain’s till sales.',
+    steps: [
+      'Visits it books are checked as the desk checks them: opening hours, who is free, rooms, your patch test rule and the booked price. Your guests get the studio’s usual messages.',
+      'Clients it adds are matched by name and email, as when you bring clients in from another system, so nobody is added twice.',
+      'Email news is only recorded when the software says who agreed, when and how, and the client’s record says it came from that software.',
+      'Each sale from another till is recorded at its location as money that till took, never as a payment SALEANE took. It counts in takings and Money, and products sold come off the shelf.',
+      'To see what a key has done, open Settings, then Who changed what, and choose the key under Who.',
+    ],
+    note: 'The software must send each change with its own request key, so a change sent twice is only made once. Details for the software’s developers are in the connections guide that comes with SALEANE.',
+    to: '/settings?section=connections',
+    screens: ['/settings?section=connections', '/settings?section=changes'],
+    roles: OWNER,
+    words:
+      'api write booking tool chain epos pos other till integration sync duplicate consent marketing',
   },
   {
     id: 'locations',

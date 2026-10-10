@@ -322,6 +322,15 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
         )
       )
         return
+      // Stage 5: other software sends visits, clients and till sales in with an access key, not
+      // a session or origin, so its writes are answered here, before the gate for SALEANE's pages.
+      if (await partners.write(ctx, request, response, method, url.pathname, reply)) {
+        if (options.outboxIntervalMs) {
+          outbox.soon()
+          connections.soon()
+        }
+        return
+      }
       const path = url.pathname
         .split('/')
         .filter(Boolean)
@@ -332,8 +341,10 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
             return fail(400, 'This address is not valid.')
           }
         })
-      // V5: the partner API reads only, and proves itself with a key rather than a session.
-      if (path[1] === 'v1' && method !== 'GET') fail(405, 'This API only reads. Use GET.')
+      // V5: the partner API proves itself with a key rather than a session. Stage 5: its writes
+      // were answered above, so anything else that is not a read is refused here.
+      if (path[1] === 'v1' && method !== 'GET')
+        fail(405, 'Use GET to read, POST to add or PATCH to change. See docs/CONNECTIONS.md.')
       let body: unknown
       if (!['GET', 'HEAD'].includes(method)) {
         if (
@@ -376,6 +387,8 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
             : status < 500 && error instanceof Error
               ? error.message
               : 'The local service could not complete this request. Try again.',
+        // Stage 5: the access key API gives other software a short code too.
+        ...(error instanceof HttpError && error.code && status < 500 ? { code: error.code } : {}),
       })
     }
   }) as ApiHandler

@@ -20,6 +20,8 @@ import { feedbackProblem, feedbackSchema } from './feedback'
 import { specialSchema, specialsProblem } from './specialsSchema'
 import { taskSchema, tasksProblem } from './tasksSchema'
 import { counterSaleSchema, saleRetailSchema } from './retailSchema'
+import { otherTillSaleSchema } from './otherTillSchema'
+import { otherTillProblem } from './otherTill'
 import { retailCharge, retailProblem } from './retail'
 import { rentProblem } from './rent'
 import { commissionProblem } from './commission'
@@ -194,8 +196,16 @@ export const appointmentSchema = z.object({
   date: civilDate,
   startMinutes: z.number().int().min(0).max(1439),
   status: z.enum(['confirmed', 'arrived', 'completed', 'cancelled', 'no_show']),
-  /** `import` marks a visit booked in the studio's previous system and carried over (PILOT-03). */
-  source: z.enum(['desk', 'online', 'rebook', 'import']),
+  /**
+   * `import` marks a visit booked in the studio's previous system and carried over (PILOT-03).
+   * Stage 5: `software` marks a visit booked by other software through an access key.
+   */
+  source: z.enum(['desk', 'online', 'rebook', 'import', 'software']),
+  /** Stage 5: the access key that booked it, and the key's name at the time. */
+  software: z
+    .object({ keyId: id, name: z.string().min(1).max(60) })
+    .strict()
+    .optional(),
   /** Where an online guest came from, when they followed a shared booking link. */
   channel: z.enum(bookingChannels).optional(),
   createdAt: z.iso.datetime(),
@@ -362,6 +372,8 @@ export const stateSchema = z.object({
   textStops: z.array(textStopSchema).optional(),
   /** V4: the team's answers on Instagram, Facebook and WhatsApp. */
   socialAnswers: z.array(socialAnswerSchema).optional(),
+  /** Stage 5: sales and refunds a chain's own tills sent in through an access key. */
+  otherTillSales: z.array(otherTillSaleSchema).optional(),
 })
 export type BusinessState = z.infer<typeof stateSchema>
 export type Client = z.infer<typeof clientSchema>
@@ -388,6 +400,7 @@ export function parseState(value: unknown, region: Region): BusinessState {
     s.relationships,
     s.tillCounts ?? [],
     s.counterSales ?? [],
+    s.otherTillSales ?? [],
   ]
   for (const collection of collections) {
     if (new Set(collection.map((item) => item.id)).size !== collection.length)
@@ -435,6 +448,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
     if (a.rebookedFromId && !exists(s.appointments, a.rebookedFromId))
       throw new Error('Broken rebooking link.')
     if (a.bookedDepositMinor > a.bookedPriceMinor) throw new Error('Invalid booked deposit.')
+    // Stage 5: a visit other software booked names the access key that booked it.
+    if ((a.source === 'software') !== !!a.software) throw new Error('Broken appointment source.')
   }
   // NEXT-09: repeat visits are one client's, at one rhythm.
   const repeats = new Map<string, { clientId: string; everyWeeks: number }>()
@@ -746,6 +761,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
   if (away) throw new Error(away)
   const news = newsProblem(s)
   if (news) throw new Error(news)
+  const otherTill = otherTillProblem(s)
+  if (otherTill) throw new Error(otherTill)
   try {
     new Intl.DateTimeFormat('en', { timeZone: org.timeZone }).format(new Date())
   } catch {

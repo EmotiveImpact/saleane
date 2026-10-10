@@ -239,6 +239,17 @@ export function Business() {
               </small>
             </>
           )}
+          {data.otherTill !== 0 && (
+            <>
+              <div className="insight-rule" />
+              <span>Sold on your other tills</span>
+              <strong>{money(data.otherTill, state.organisation)}</strong>
+              <small>
+                Before tax, sent in by {data.tills.join(' and ')}. Taken on those tills, not by
+                SALEANE, and kept apart from treatment takings here.
+              </small>
+            </>
+          )}
           {data.renters > 0 && (
             <>
               <div className="insight-rule" />

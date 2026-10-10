@@ -134,6 +134,12 @@ export function retailProblem(s: BusinessState): string | null {
   }
   for (const movement of config.movements) {
     if (movement.saleId && movement.counterSaleId) return 'A stock movement names two receipts.'
+    // Stage 5: stock a sale from another till moved is checked with that sale (otherTill.ts).
+    if (movement.otherTillSaleId) {
+      if (movement.saleId || movement.counterSaleId || movement.refundId)
+        return 'A stock movement names two receipts.'
+      continue
+    }
     const receiptId = movement.saleId ?? movement.counterSaleId
     if (!receiptId) {
       if (movement.reason === 'returned' || movement.refundId)

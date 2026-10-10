@@ -6,6 +6,7 @@ import { renterCounterSale, renterPartOfReceipt, renterVisit, serviceRevenue } f
 import { recordDay } from './tillCount'
 import { csvAmount, csvRows } from './csv'
 import { ACCOUNTING_EXPORT_LIMIT } from './accountsSchema'
+import { otherTillSales, renterTillPart, tillDay, tillParts } from './otherTill'
 import type { AccountCodes, AccountingProvider } from './accountsSchema'
 
 /**
@@ -16,6 +17,11 @@ import type { AccountCodes, AccountingProvider } from './accountsSchema'
  * Money in and out and the sales list keep every receipt (the sales list says how much of each is
  * a renter's); the day summary, the journal and the tax summary keep a renter's takings apart, as
  * money held for renters, and count their rent as the studio's income.
+ *
+ * Stage 5: a sale from a chain's own till is money the studio took on that till. It is in money in
+ * and out under its own kind and payment words (so it never reads as a payment SALEANE took), in
+ * the sales list as a receipt from that till, and in the tax summary and day summary like any
+ * other receipt. A refund from that till is money given back on it.
  */
 
 export const METHOD_WORDS: Record<string, string> = {
@@ -26,7 +32,16 @@ export const METHOD_WORDS: Record<string, string> = {
   card: 'Card through SALEANE',
   previous_system: 'Paid before switching',
   bank_transfer: 'Bank transfer',
+  // Stage 5: taken or given back on a chain's own till, never by SALEANE.
+  other_till_cash: 'Cash on another till',
+  other_till_card: 'Card on another till',
+  other_till_other: 'Other, on another till',
+  other_till_split: 'Split, on another till',
 }
+
+/** Stage 5: the payment words for a sale from another till. */
+export const tillMethod = (payments: { method: string }[]) =>
+  payments.length === 1 ? `other_till_${payments[0].method}` : 'other_till_split'
 
 export type MoneyRow = {
   date: string
@@ -125,6 +140,18 @@ export function moneyInAndOut(s: BusinessState, from: string, to: string): Money
       test: method.startsWith('demo_') || r.processor?.live === false,
     })
   }
+  // Stage 5: each payment on another till, and each amount given back on it, as its own row.
+  for (const sale of otherTillSales(s))
+    for (const p of sale.payments)
+      push({
+        at: sale.occurredAt,
+        kind: sale.kind === 'sale' ? 'Sale on another till' : 'Given back on another till',
+        reference: `${sale.receipt} (${sale.till.name})`,
+        client: '',
+        method: `other_till_${p.method}`,
+        amountMinor: sale.kind === 'sale' ? p.amountMinor : -p.amountMinor,
+        test: false,
+      })
   const renter = (rentalId: string) =>
     s.staff.find((p) => p.id === o.rentals?.find((r) => r.id === rentalId)?.staffId)?.name ?? ''
   for (const p of o.rentPayments ?? [])
@@ -155,6 +182,8 @@ export type SaleRow = {
   method: string
   /** Stage 3: the part of the receipt that is a renter's own takings, with its tax. */
   renter?: { name: string; servicesMinor: number; productsMinor: number; taxMinor: number }
+  /** Stage 5: the software whose till took it, for a sale sent in from another till. */
+  source?: string
 }
 
 const renterName = (s: BusinessState, staffId: string) =>
@@ -210,6 +239,38 @@ export function salesByReceipt(s: BusinessState, from: string, to: string): Sale
               servicesMinor: 0,
               productsMinor: retailRevenue(sale),
               taxMinor: sale.retail.taxMinor,
+            },
+          }
+        : {}),
+    })
+  }
+  for (const sale of otherTillSales(s)) {
+    if (sale.kind !== 'sale') continue
+    const date = tillDay(s, sale)
+    if (!inPeriod(date)) continue
+    const parts = tillParts(sale)
+    const theirs = renterTillPart(s, sale)
+    rows.push({
+      date,
+      receipt: sale.receipt,
+      client: '',
+      servicesMinor: parts.treatmentsMinor,
+      discountMinor: 0,
+      productsMinor: parts.productsMinor,
+      taxMinor: parts.taxMinor,
+      tipMinor: 0,
+      totalMinor: sale.totalMinor,
+      depositAppliedMinor: 0,
+      planCoveredMinor: 0,
+      method: tillMethod(sale.payments),
+      source: sale.till.name,
+      ...(theirs
+        ? {
+            renter: {
+              name: renterName(s, sale.staffId!),
+              servicesMinor: theirs.servicesMinor,
+              productsMinor: theirs.productsMinor,
+              taxMinor: theirs.taxMinor,
             },
           }
         : {}),
@@ -276,6 +337,23 @@ export function taxSummary(s: BusinessState, from: string, to: string): TaxRow[]
         retailRevenue(sale),
         sale.retail.taxMinor,
       )
+  // Stage 5: each line from another till at the rate that till charged, tax included in its
+  // prices. A renter's own lines are theirs, as at SALEANE's till.
+  const label = operations(s).tax?.label || 'Tax'
+  for (const sale of otherTillSales(s)) {
+    if (sale.kind !== 'sale' || !inPeriod(tillDay(s, sale))) continue
+    const rental = renterTillPart(s, sale)?.rental
+    for (const line of sale.lines) {
+      if (rental && (line.kind === 'treatment' || rental.products)) continue
+      add(
+        line.taxRateBps ? `${label}, from another till` : '',
+        line.taxRateBps,
+        true,
+        line.totalMinor - line.taxMinor,
+        line.taxMinor,
+      )
+    }
+  }
   return [...rows.values()].sort((a, b) => b.rateBps - a.rateBps)
 }
 
@@ -362,6 +440,25 @@ export function dailySummary(s: BusinessState, from: string, to: string): DaySum
     row.refundsMinor -= share
     row.rentersBackMinor += share
   }
+  // Stage 5: the same for money given back on another till, on a renter's sale from that till.
+  const tillSales = otherTillSales(s)
+  for (const refund of tillSales) {
+    if (refund.kind !== 'refund') continue
+    const date = tillDay(s, refund)
+    if (date < from || date > to) continue
+    const sale = tillSales.find((x) => x.id === refund.refundOf)
+    const part = sale && renterTillPart(s, sale)
+    if (!sale || !part || sale.totalMinor <= 0) continue
+    const theirs = part.servicesMinor + part.productsMinor + part.taxMinor
+    const share = Math.min(
+      refund.totalMinor,
+      Math.round((refund.totalMinor * theirs) / sale.totalMinor),
+    )
+    if (!share) continue
+    const row = day(date)
+    row.refundsMinor -= share
+    row.rentersBackMinor += share
+  }
   return [...days.values()].sort((a, b) => a.date.localeCompare(b.date))
 }
 
@@ -405,6 +502,7 @@ export function salesCsv(rows: SaleRow[], currency: string) {
       'Paid by',
       'Renter',
       `Renter’s own, with tax (${currency})`,
+      'Sent in from another till',
     ],
     ...rows.map((r) => [
       r.date,
@@ -423,6 +521,7 @@ export function salesCsv(rows: SaleRow[], currency: string) {
       r.renter
         ? csvAmount(r.renter.servicesMinor + r.renter.productsMinor + r.renter.taxMinor)
         : '',
+      r.source ?? '',
     ]),
   ])
 }

@@ -130,6 +130,11 @@ export function branchRefusal(
     case 'stock':
     case 'purchase-order':
       return mine(command.locationId) ? null : 'That is at another location.'
+    // Stage 5: a sale or refund from another till, sent in by a key for one location.
+    case 'other-till-sale':
+      return mine(command.sale.locationId) ? null : 'That is at another location.'
+    case 'other-till-refund':
+      return mine(command.refund.locationId) ? null : 'That is at another location.'
     case 'stock-move':
       return mine(command.from) ? null : 'You can only send stock from your own location.'
     case 'gift-card-move': {

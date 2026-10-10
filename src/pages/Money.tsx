@@ -30,6 +30,8 @@ import { giftCards, refundableOnReceipt } from '../domain/giftCards'
 import { otherReceipts } from '../domain/receipt'
 import { renterCounterSale, renterVisit } from '../domain/takings'
 import { ReceiptActions, ReceiptDialog } from '../components/ReceiptActions'
+import { OtherTillDialog, OtherTillRefunds, OtherTillRow } from '../components/OtherTillSales'
+import { otherTillSales, tillDay } from '../domain/otherTill'
 
 const methodLabel = (method: string) =>
   ({
@@ -63,6 +65,9 @@ export function Money() {
   // Stage 2: a walk-in, gift card or plan receipt open on its own, by its receipt key.
   const [slipKey, setSlipKey] = useState('')
   const [allOthers, setAllOthers] = useState(false)
+  // Stage 5: a sale or refund from a chain's own till, open on its own.
+  const [tillId, setTillId] = useState('')
+  const fromTills = otherTillSales(state)
   const others = otherReceipts(state).sort((a, b) => b.at.localeCompare(a.at))
   const receipt = state.sales.find((sale) => sale.id === receiptId)
   const refundedPayment = state.payments.find((payment) => payment.id === cardRefundId)
@@ -128,7 +133,20 @@ export function Money() {
     ;(days[recordDay(state, sale.paidAt)] ??= []).push(sale)
     return days
   }, {})
-  const receiptDays = [...new Set([...Object.keys(visitDays), ...Object.keys(counterByDay)])]
+  // Stage 5: sales from a chain's own tills, on the studio's own day each happened.
+  const tillByDay = fromTills
+    .filter((sale) => sale.kind === 'sale')
+    .reduce<Record<string, typeof fromTills>>((days, sale) => {
+      ;(days[tillDay(state, sale)] ??= []).push(sale)
+      return days
+    }, {})
+  const receiptDays = [
+    ...new Set([
+      ...Object.keys(visitDays),
+      ...Object.keys(counterByDay),
+      ...Object.keys(tillByDay),
+    ]),
+  ]
     .sort((a, b) => b.localeCompare(a))
     .map(
       (day) =>
@@ -136,6 +154,7 @@ export function Money() {
           day,
           (visitDays[day] ?? []).sort((a, b) => b.paidAt.localeCompare(a.paidAt)),
           counterByDay[day] ?? [],
+          (tillByDay[day] ?? []).sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)),
         ] as const,
     )
   // Stage 3: a receipt for someone renting a chair or room is their own takings, not the studio's.
@@ -369,16 +388,22 @@ export function Money() {
           </header>
           {tab === 'receipts' && (
             <>
-              {receiptDays.slice(0, shownDays).map(([day, sales, counter]) => (
+              {receiptDays.slice(0, shownDays).map(([day, sales, counter, tills]) => (
                 <section className="receipt-day" key={day} aria-label={dateLabel(day, locale)}>
                   <h3 className="receipt-day-heading">
                     <span>{dateLabel(day, locale)}</span>
                     <span>
                       {format(
-                        [...sales, ...counter].reduce((total, sale) => total + sale.totalMinor, 0),
+                        [...sales, ...counter, ...tills].reduce(
+                          (total, sale) => total + sale.totalMinor,
+                          0,
+                        ),
                       )}
                     </span>
                   </h3>
+                  {tills.map((sale) => (
+                    <OtherTillRow key={sale.id} sale={sale} onOpen={() => setTillId(sale.id)} />
+                  ))}
                   {counter.map((sale) => (
                     <button
                       type="button"
@@ -616,7 +641,8 @@ export function Money() {
                     </div>
                   )
                 })}
-              {!config.refunds.length && (
+              <OtherTillRefunds onOpen={setTillId} />
+              {!config.refunds.length && !fromTills.some((x) => x.kind === 'refund') && (
                 <EmptyMoney
                   title="No refunds recorded."
                   detail="Open a paid receipt to record a refund you have already given back."
@@ -632,6 +658,12 @@ export function Money() {
             Treatment takings, tips, refunds and deposits not yet used mean different things, so
             each is shown on its own.
           </p>
+          {fromTills.length > 0 && (
+            <p>
+              Sales from your other tills are money those tills took. SALEANE records them for
+              takings and stock, and took no payment for them.
+            </p>
+          )}
           <p>
             {session?.services.payments
               ? 'Card payments taken through SALEANE appear here only once the payment provider confirms them.'
@@ -640,6 +672,7 @@ export function Money() {
         </aside>
       </div>
       <TillCount />
+      {tillId && <OtherTillDialog saleId={tillId} onClose={() => setTillId('')} />}
       {receipt && (
         <Modal
           open

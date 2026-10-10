@@ -313,6 +313,8 @@ export const operationsSchema = z.object({
       saleId: id.optional(),
       /** V2: the walk-in sale that sold it, when it was sold without a visit. */
       counterSaleId: id.optional(),
+      /** Stage 5: the sale or refund from another till that took it off or put it back. */
+      otherTillSaleId: id.optional(),
       /** V2: the refund a `returned` movement came back with. */
       refundId: id.optional(),
       /** V2: the supplier order a delivery arrived on. */
@@ -778,6 +780,9 @@ export function can(role: Role, action: string) {
       'request-start',
       // Stage 4: a client stops news only from the link in their own email.
       'news-unsubscribe',
+      // Stage 5: a sale or refund from a chain's own till comes only through its access key.
+      'other-till-sale',
+      'other-till-refund',
     ].includes(action)
   )
     return false

@@ -1327,6 +1327,38 @@ a.receipt-row {
 .connections-url {
   overflow-wrap: anywhere;
 }
+/* Stage 5: what an access key may do, each choice with a plain sentence under it. */
+.access-key-scope {
+  align-items: flex-start;
+}
+.access-key-scope input {
+  margin-top: 3px;
+}
+.access-key-scope > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.access-key-scope small {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.access-key-changes {
+  display: grid;
+  gap: var(--space-2);
+  border-top: 1px solid var(--line);
+}
+.access-key-changes > summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+.access-key-changes .ops-help {
+  margin: var(--space-1) 0 0;
+}
 .connections-list .saved-reply-actions {
   flex-wrap: wrap;
   justify-content: flex-end;
