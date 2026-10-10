@@ -1,6 +1,6 @@
 import type { BusinessState } from './model'
 import { operations } from './operations'
-import { placeOf } from './locations'
+import { giftHome, placeOf } from './locations'
 import { PRINTER_PORT, printerHost, printerHostProblem, printerPortProblem } from './lanAddress'
 import { TAX_NUMBER } from './tillSchema'
 import type { TillPrinter, TillPrinterInput } from './tillSchema'
@@ -179,6 +179,7 @@ export function cashTaken(before: BusinessState, after: BusinessState): CashMove
         locationId: card.locationId ?? main,
         amountMinor: card.payment.amountMinor,
       })
+    // Stage 4: money returned leaves the drawer where the card belongs now.
     const refunded = new Set((old?.refunds ?? []).map((r) => r.id))
     for (const refund of card.refunds)
       if (!refunded.has(refund.id) && CASH.has(refund.method))
@@ -187,7 +188,7 @@ export function cashTaken(before: BusinessState, after: BusinessState): CashMove
           receipt: `gift-card:${card.id}`,
           kind: 'gift-card',
           number: `GC-${index + 1}`,
-          locationId: card.locationId ?? main,
+          locationId: giftHome(after, card),
           amountMinor: refund.amountMinor,
         })
   }

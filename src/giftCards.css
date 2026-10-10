@@ -216,6 +216,14 @@
   margin-top: var(--space-2);
 }
 
+/* Stage 4: where a card was sold and where it belongs, under the card. */
+.gift-where {
+  max-width: 420px;
+  margin: 0 auto 18px;
+  color: var(--muted);
+  font-size: var(--text-small);
+  text-align: center;
+}
 .gift-history h3 {
   display: flex;
   align-items: center;

@@ -15,7 +15,8 @@ import { offerInputSchema } from './plansSchema'
 import { specialInputSchema } from './specialsSchema'
 import { taskInputSchema } from './tasksSchema'
 import { waitlistInputSchema, waitlistTimesSchema } from './waitlistSchema'
-import { giftCardInputSchema } from './giftCardsSchema'
+import { giftCardInputSchema, giftCardMoveCommandSchema } from './giftCardsSchema'
+import { staffMoveCommandSchemas } from './staffMovesSchema'
 import {
   patchTestInputSchema,
   patchTestResultSchema,
@@ -709,6 +710,9 @@ export const commandSchema = z.discriminatedUnion('type', [
   ...rotaCommandSchemas,
   // Stage 3: rates for a treatment or product, steps by takings and monthly targets.
   ...commissionCommandSchemas,
+  // Stage 4: a gift card or a team member moving to another location.
+  giftCardMoveCommandSchema,
+  ...staffMoveCommandSchemas,
   ...operatingCommandSchema.options,
 ])
 export type BookingInput = z.infer<typeof bookingSchema>

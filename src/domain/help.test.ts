@@ -143,6 +143,20 @@ describe('help inside the app', () => {
     expect(searchHelp('commission steps', 'manager').map((a) => a.id)).not.toContain(
       'commission-steps',
     )
+    // Stage 4: moving a gift card or someone to another location.
+    expect(first('transfer a gift card to another branch')).toBe('gift-card-move')
+    expect(first('move a gift card', 'general')).toBe('gift-card-move')
+    expect(first('gift voucher')).toBe('gift-cards')
+    expect(first('move a staff member to another location')).toBe('staff-move')
+    expect(first('transfer an employee to a new branch')).toBe('staff-move')
+    expect(first('relocate a therapist', 'manager')).toBe('staff-move')
+    expect(
+      searchHelp('move someone to another location', 'general').map((a) => a.id),
+    ).not.toContain('staff-move')
+    expect(searchHelp('move a gift card', 'reception').map((a) => a.id)).not.toContain(
+      'gift-card-move',
+    )
+    expect(first('reschedule an appointment')).toBe('move-visit')
     expect(searchHelp('the', 'owner')).toEqual([])
     expect(searchHelp('rocket launch', 'owner')).toEqual([])
     expect(helpWords("Customer's bookings")).toEqual(['client', 'visit'])

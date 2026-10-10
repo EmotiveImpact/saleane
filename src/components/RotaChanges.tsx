@@ -26,7 +26,7 @@ const weekdays = (date: string, locale: string) =>
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
 type Choice = 'usual' | 'hours' | 'off'
-type Keep = 'move' | 'keep' | null
+export type Keep = 'move' | 'keep' | null
 
 /**
  * Stage 3: one person's day on the rota, for that date only. As usual, different hours (or an
@@ -316,19 +316,26 @@ export function RotaDayDialog({
 /**
  * The booked visits a change would leave outside the hours, by time, first name and treatment,
  * and the choice that has to be made before saving: move them first, or keep them as they are.
+ * Stage 4: a move to another location uses it too, with its own heading and words.
  */
-function KeepChoice({
+export function KeepChoice({
   affected,
   value,
   onChange,
   locale,
   withDate = false,
+  where = 'outside the new hours',
+  back,
 }: {
   affected: AffectedVisit[]
   value: Keep
   onChange: (value: Keep) => void
   locale: string
   withDate?: boolean
+  /** Where the visits would be, after "would be". */
+  where?: string
+  /** What to come back to once they are moved. */
+  back?: string
 }) {
   const one = affected.length === 1
   const shown = affected.slice(0, 8)
@@ -336,8 +343,8 @@ function KeepChoice({
     <fieldset className="rota-keep">
       <legend>
         {one
-          ? 'A booked visit would be outside the new hours'
-          : `${affected.length} booked visits would be outside the new hours`}
+          ? `A booked visit would be ${where}`
+          : `${affected.length} booked visits would be ${where}`}
       </legend>
       <ul>
         {shown.map((v) => (
@@ -365,8 +372,8 @@ function KeepChoice({
         <span>
           <strong>Move {one ? 'it' : 'them'} first</strong>
           <small>
-            Nothing is saved yet. Move {one ? 'it' : 'them'} in the calendar, then come back to this{' '}
-            {withDate ? 'week' : 'day'}.
+            Nothing is saved yet. Move {one ? 'it' : 'them'} in the calendar, then come back to{' '}
+            {back ?? `this ${withDate ? 'week' : 'day'}`}.
           </small>
         </span>
       </label>

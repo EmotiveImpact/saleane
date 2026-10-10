@@ -1,0 +1,96 @@
+# LEFT-4B · Moving gift cards and team members between locations
+
+Built 10 October 2026 in a worktree, on top of the Stage 3 branch at `7684b33`. Everything below was checked with domain, component and server tests. It has not been seen in a browser yet: this part was built without a dev server or browser, so the lead's browser pass is still to come (see Browser steps for the lead).
+
+## What a gift card's location meant before this
+
+- `locationId` on a card is the location that sold it (V2), named only when it is not the main one. It decides where the sale counts: `atPlace` and `report().giftCardsSold` count the money taken at that location, the card's receipt (GC-n) and its cash drawer opening are there, and the till count is for the whole studio.
+- A card can be spent at any location. When it pays for a visit, the takings count where the visit was, as for any visit.
+- Accounts has no gift cards of its own (only receipts), and the Gift cards page totals are for the whole studio.
+- Nothing about a card ever named where its unspent money "belonged", and there was no way to change `locationId`.
+
+## What it does
+
+- **Moving a gift card.** On Gift cards, an owner or manager opens a card and chooses **Move to another location** (a quiet button, shown only with more than one location and only for a card that can still be spent). They pick where it moves to and say why (2 to 300 characters), then **Move card**. Its code, balance, last day, sale and every redemption, extension and refund stay exactly as they were; `locationId` (where it was sold) never changes. The move is added to the card's `moves` list with who, when, from, to and why.
+  - The card shows "Belongs to Shoreditch. Sold at Marylebone, London. It can be spent at any location." (or "Sold at Marylebone, London, and belongs there." before any move), and its history reads "Moved from Marylebone, London to Shoreditch by Ava Owner: Hannah lives nearer", dated by the studio's own day.
+  - With several locations, the page adds one line under the totals: "Waiting to be spent, by where each card belongs: Marylebone, London £95, Shoreditch £75." Each tile names where its card belongs.
+  - The client's timeline gets "Gift card moved" (or "Voucher moved"): "LAKE-7K4M-2QHN moved from Marylebone, London to Shoreditch. Its balance, last day and history are unchanged, and it can still be spent at any location." The reason is staff wording and stays on the card only.
+  - Refused, in plain words: used up ("has been used up, so there is nothing to move"), expired ("expired on 5 October 2026. Give it more time first if it is still to be spent"), cancelled with or without money returned, the location it already belongs to, a closed or unknown location, a card from another studio, and more than 50 moves on one card.
+- **Money already reported stays where it happened.** A move takes no money in and gives none back: every figure in `report()` for each location and the whole studio, the cash count for each day, payments, sales and receipts are identical before and after (tested). From the move on, only the card's home changes: its unspent money counts towards the new location (the line above), and if it is later cancelled with cash returned, the drawer that opens is the new location's.
+- **Moving someone to another location from a date.** On the Rota, a new panel **Moving between locations** (shown with more than one location) lists moves still to come and those in the last month, cancelled ones included, with **Move someone**. In Settings, Team, each person's row says "Works at Marylebone, London · moves to Shoreditch on Monday 12 October", and their details have **Move to another location**.
+  - The dialog asks who (from the Rota), where to, the first day there (from today to a year ahead, after any move of theirs already planned) and, for someone who works at two locations, **Which days move** ("Their Tuesday and Wednesday at Islington", or every day not already there). A note for the team is optional.
+  - Before anything is saved it shows the same check the server makes: their week from that day, day by day ("Monday 09:00 to 18:00 at Shoreditch", "Shoreditch is closed, so not working" where the new location is shut on one of their days), any of their treatments the new location does not offer ("Shoreditch does not offer Deep Restore Massage, so Maya cannot be booked for it there."), and days already changed on the rota from that date that still send them to the old location, which stay as they are, with a link to the rota.
+  - Booked visits it would leave at the old location are listed by date, time, first name and treatment, with the rota's own choice: **Move them first** (nothing is saved; **Open the calendar** on the first one's day) or **Keep them booked as they are** (the rota warns on those days until they are moved; nobody is messaged and nothing is cancelled). The server refuses without that choice, naming the visits, and marks the kept ones on the move.
+  - Their usual days and hours stay the same and happen at the new location from the date. Days before it stay where they were. The rota marks their first working day there with **New location**.
+  - A move still to come, and the latest for that person, can be cancelled from the panel (**Cancel**, then **Cancel the move**), with the same booked-visits check for visits already made at the new location. It stays on record as cancelled, with who cancelled it. Once the day has come, moving back is a new move.
+  - Every move and cancellation is in Who changed what ("Moved someone to another location", date, location from and to, days of the week moved, booked visits kept) and in the schedule history ("Maya Lewis moves from Marylebone to Shoreditch on 12 October 2026: Monday to Friday.").
+
+## How a move is kept, and why every place gives the right answer
+
+The person's weekly hours always say where they work from their latest move on. Each move keeps the date and, for each weekday it moved, where that day was before (`operations.staffMoves`, no migration). `usualHoursFor` (operations.ts) reads both: for a date before a move it gives the earlier location, from the date the new one. Everything that asks where someone works goes through it (`plannedHoursFor`, `staffHoursFor`, `staffLocationOn`), so booking at the desk, the guest booking page and its list of who works where, the AI receptionist, Book with Google, moving a visit, waitlist offers, cover plans, Today, the rota, a general manager's team, a practitioner's own days and Settings, Locations all follow the date. Tested directly: desk booking places, room choice, free times on the guest page before and after, available minutes, cover plans and the practitioner's plan.
+
+- Past days, pay, hours worked and reports stay where they were: shifts keep their own location, visits keep theirs, and nothing before the date changes.
+- Times edited later in the weekly hours apply on both sides of the date, as any weekly change does; the editor says where a move still to come starts.
+- One standing move at a time per person: a new move must start after any move already planned, and only the latest move still to come can be cancelled. This keeps the record simple to read and to undo.
+- Someone who followed the venue opening hours is given those hours as their own, at the new location; cancelling the move gives them back the venue hours when nothing else has changed.
+- A sample studio moved onto another day turns each move's weekdays with it.
+
+## Who can do what
+
+| Role             | Move a gift card                                                                                                    | Move someone                                      | See moves                                                                |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------ |
+| Owner, manager   | Yes                                                                                                                 | Yes, and cancel a move still to come              | Gift cards, Rota, Settings, Who changed what (owner)                     |
+| General manager  | Only a card that belongs to their location, to another location; once passed on it is no longer theirs to move back | No (refused: a move changes two locations' teams) | Gift cards and the Rota panel, as they already see the team              |
+| Reception        | No                                                                                                                  | No                                                | Where a card belongs and its history; the Rota panel                     |
+| Practitioner     | No                                                                                                                  | No                                                | Their own days, each at its location, on their own page; no moves record |
+| Regional manager | No                                                                                                                  | No                                                | Nothing of the moves (their area view carries none)                      |
+| Guest            | No                                                                                                                  | No                                                | Times offered where the person works on each date                        |
+
+Server rules: both commands have schemas (strict, so extra fields are refused), permissions (`gift-card-move`; `staff-move`, which also covers `staff-move-cancel`), reception left out in `can`, `gift-card-move` in `GENERAL_ACTIONS` with `branchRefusal` checking the card's current home against the general manager's location, staff moves falling to the general manager's "changes the whole business" refusal and not in their actions, and neither command in the practitioner or regional lists. Words for both are in `commandWords`.
+
+## Tests
+
+- `src/domain/staffMoves.test.ts` (16): the dated answer before and after (several dates each side) and where the weekly hours now say; booking, the room chosen, free times, available minutes and cover plans on each side of the date, and reported figures unchanged; booked visits named and refused, kept only when asked, marked, with visits and messages untouched and the rota warning; treatments not offered named, and a refusal when none is; rota days kept and recorded; the week shown, with a closed day at the new location; every refusal (someone not on the team, a past day, more than a year ahead, a closed or unknown location, the same place, a second move before one already planned); a split week, with and without choosing which days move; someone on the venue hours, a second move after the first, cancelling in order; cancel rules (already happened, a later move first, visits at the new location, moving back); schedule history and actors; who changed what in words; a moved sample day; record checks; roles and refusals for every role; the practitioner's plan; weekdays in words.
+- `src/domain/giftCardMoves.test.ts` (8): everything kept and the move recorded, moving back; every report figure for both locations and the whole studio, the cash count, receipts, payments and sales unchanged, and money waiting to be spent moving home; spending at a location it does not belong to; cash returned from the home drawer on a later cancellation; every refusal, including the move limit; actors, the change record without the reason; record checks for the move chain; roles and the general manager's rule.
+- `src/components/StaffMove.test.tsx` (6, Rota and Settings): the full journey from the Rota with a kept visit, the command sent, the notice and the panel row; the first day marked on the week and a move cancelled; treatments not offered and a refused move explained before saving; reception sees moves with no buttons; no panel with one location; Settings shows where each person works and moves them from their details.
+- `src/pages/GiftCards.test.tsx` (4): moving a card with a reason, its history and where it belongs, the waiting-to-be-spent line; a general manager only for their own location's cards; nothing offered to reception or with one location; nothing for an expired card.
+- `server/moves.test.ts` (12, through the command route): owner and manager move a card, with names and Who changed what (no reason copied); reception, practitioner and regional refused with nothing saved; general managers only for their own location's card, and not back once passed on; server-side refusals and strict schemas; every money total unchanged; a repeated request applied once; staff moves refused for reception, practitioner, general and regional managers; the booked-visits refusal (422) and keeping them, with visits, messages and the outbox unchanged, then a cancellation; the guest page's free times and who works where before and after the date, and the practitioner's own view; nothing for a regional manager; Who changed what; a repeated request applied once and a second request refused.
+- `src/domain/help.test.ts`: search checks for both new guides, and that they are kept from people who cannot use them.
+
+## Checks
+
+- `npm run lint`, `npx tsc -b`, `npm run format:check` and `npm run build`: pass.
+- Full `npm test` with a fresh database under `.claude-tmp/`: front end 155 files, 1,372 tests passed (base 151 and 1,338; the 4 new files and 34 tests are this part's); server 58 files (57 passed, 1 skipped as before), 445 passed and 2 skipped (base 433 and 2; the 12 new tests are this part's). Nothing else failed.
+
+## Decisions
+
+- **A gift card's home, not its sale, moves.** `locationId` stays as the place of sale so figures already reported never change. `moves` adds where it belongs now (`giftHome`). Spending stays open at every location.
+- **Cash returned on a later cancellation** leaves the drawer where the card belongs then, since that location now looks after it. The card's own receipt stays at the location that sold it.
+- **General managers and gift cards.** They already see every card, so the rule is the stock-move one: they may pass on a card that belongs to their location, to any other open location, and nothing else. Cancelling or extending stays with owners and managers, as before.
+- **General managers and team moves.** Refused: a move takes people from one location's team to another's, so it is for owners and managers.
+- **Rota days and opening hours.** Days already changed on the rota stay as they are and are named; a new location that is closed on one of their days is shown, not refused, so the move can still be made and the hours set afterwards.
+- **No migration.** Moves live in the studio record, like rota changes and pay rates.
+- **Sample studio.** The sample has one location, so it gets no move data of its own: adding a second location to the shared sample would change many sample behaviours and other parts' tests, and another Stage 4 part may add one. A move is shown by adding a location in Settings, Locations (one dialog), after which the Rota panel, the Settings lines and the gift card move all appear. Maya's sample rota changes (Friday 9 and Saturday 10 October) are before the default move date, so moving her from Monday 12 October shows a clean preview; book her a visit on Tuesday 13 October first to see the booked-visits choice.
+
+## Quality bar
+
+- **One main job and one primary button.** The move dialogs each have one primary (Move card; Move Maya, or Open the calendar when moving visits first; Cancel the move) with Back or Keep the move as the secondary partner. On the card, Move to another location is quiet beside Give more time and Cancel card. The Rota header keeps Add time off as its only primary; Move someone is secondary in its own panel. In Settings it is a quiet button in the person's details.
+- **Rarely used options tucked away.** Moves are rare, so they sit in their own panel at the foot of the Rota and behind a quiet button on a card and in a person's details. Which days move appears only for someone who works at two locations. `MoreOptions` is not in `src/design` on this base, and nothing here needed a fold, so no native `<details>` was added.
+- **No card inside a card.** Each part of the move check (their week, rota days, booked visits) sits under a hairline as the rota's booked-visits choice does; the panel's moves are rows with lines between them.
+- **Photographs and empty pages.** No new page; the panel's empty line is one sentence ("Nobody is moving.") like its neighbours.
+- **Loading and motion.** Nothing loads; dialogs use the existing Modal. `LoadingShapes` and `--motion-calm` are not on this base and were not needed.
+- **390 px.** The dialog fields stack, list rows wrap, buttons are the library's 44 px targets and primaries stay at the foot of each form. Not yet seen in a browser.
+- **Words.** Plain British English, "visit" and "treatment", no exclamation marks and no dashes, saying what happens next ("Nothing is saved yet. Move it in the calendar, then come back to moving Maya.").
+- **Built from the library.** Button, Modal and the existing rota, gift card and settings styles; new CSS uses tokens only, with no left-edge stripes and no new colours. Nothing claims a payment or a message.
+- **Before and after pictures**: still to take in the browser pass.
+
+## Browser steps for the lead
+
+1. Sign up with the sample studio as owner. Settings, Locations, Add location: "Shoreditch". Optionally Settings, Spaces: add a treatment room at Shoreditch so guests can book there.
+2. Business, Gift cards: the totals now have "Waiting to be spent, by where each card belongs". Open LAKE-7K4M-2QHN: "Sold at Marylebone, London, and belongs there." Choose Move to another location, try Move card with no reason (the form asks), then give one and save. See the history line and "Belongs to Shoreditch", and that Business figures for each location have not changed.
+3. Calendar: book Maya on Tuesday 13 October. Business, Rota, Moving between locations, Move someone: Maya, Shoreditch, from Monday 12 October. See her week, the visit with the two choices, Open the calendar, then Keep it booked and Move Maya. Next week shows New location on Monday and a warning on Tuesday. Cancel the move from the panel.
+4. Settings, Team: Maya's row says where she works and where she moves; Edit, then Move to another location.
+5. Invite a general manager for Marylebone: they can move a Marylebone card on, not Shoreditch's, and have no Move someone. Reception sees both without buttons. A practitioner's own page shows each day at its location.
+6. At 390 px: the move dialog, the card dialog and the Rota panel, with nothing scrolling sideways.
+
+Screens to capture before and after, at 1440 and 390 px: Gift cards with the new line; a card before and after a move; the move card dialog; the Rota panel; the move dialog with a kept visit; the Rota week with New location; Settings, Team.

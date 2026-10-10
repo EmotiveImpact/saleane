@@ -277,6 +277,43 @@
 .rota-skipped .rota-list li:first-child {
   border-top: 1px solid var(--line);
 }
+/* Stage 4: moving someone to another location. Each part of the check sits under a hairline,
+   as the booked visits do, never in a box of its own. */
+.move-part {
+  margin: 20px 0 0;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--line-strong);
+}
+.move-part > strong {
+  display: block;
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+}
+.move-part .rota-list {
+  margin-top: 8px;
+}
+.move-part a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+/* In someone's details in Settings: a move still to come, and the way to move them. */
+.staff-move-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 16px;
+}
+.staff-move-entry .ops-help {
+  flex: 1 1 260px;
+  margin: 0;
+}
+.move-note {
+  margin-top: 14px;
+  color: var(--rose-ink);
+  font-size: var(--text-small);
+}
 /* Today's column carries a firmer outline, under the Today label in its heading. */
 .rota-table td.rota-today {
   border-color: var(--brand);

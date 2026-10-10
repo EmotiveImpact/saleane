@@ -1,13 +1,13 @@
 import type { Command } from './commandSchema'
 import type { Appointment, BusinessState, RelationshipEvent, Sale } from './model'
 import type { GiftCard } from './giftCardsSchema'
-import { GIFT_CODE_ALPHABET } from './giftCardsSchema'
+import { GIFT_CODE_ALPHABET, GIFT_MOVE_LIMIT } from './giftCardsSchema'
 import { assertMethod } from './operatingCommands'
 import { businessDate, operations } from './operations'
 import { addMonths } from './plans'
 import { referenceTaken, refundReferenceTaken } from './references'
 import { fullDateLabel, money } from './format'
-import { salePlace } from './locations'
+import { giftHome, placeOf, salePlace } from './locations'
 
 /**
  * V1.5: gift cards and vouchers. The money paid for one is held until it pays for a visit, so the
@@ -16,7 +16,7 @@ import { salePlace } from './locations'
  */
 type GiftCommand = Extract<
   Command,
-  { type: 'gift-card-sell' | 'gift-card-extend' | 'gift-card-cancel' }
+  { type: 'gift-card-sell' | 'gift-card-extend' | 'gift-card-cancel' | 'gift-card-move' }
 >
 type AddEvent = (
   event: Omit<RelationshipEvent, 'id' | 'organisationId' | 'occurredAt' | 'actor'>,
@@ -204,6 +204,8 @@ export function runGiftCardCommand(
   }
   const card = giftCards(next).find((c) => c.id === command.giftCardId)
   if (!card) throw new Error('This gift card was not sold here.')
+  if (command.type === 'gift-card-move')
+    return moveGiftCard(next, card, command, now, makeId, addEvent)
   if (card.status === 'cancelled') throw new Error('This gift card has already been cancelled.')
   if (command.type === 'gift-card-extend') {
     if (command.expiresOn <= card.expiresOn || command.expiresOn < today)
@@ -252,6 +254,73 @@ export function runGiftCardCommand(
   return card.id
 }
 
+/**
+ * Stage 4: a card moves to another location, with a reason. Its code, balance, last day and
+ * history stay as they are, and so does where it was sold, so money already taken and spent stays
+ * where it happened. From now on it belongs to the new location: its money waiting to be spent
+ * counts there, any money returned when it is cancelled leaves that location's drawer, and only
+ * that location's general manager can move it again. It can still be spent at any location.
+ */
+function moveGiftCard(
+  next: BusinessState,
+  card: GiftCard,
+  command: Extract<GiftCommand, { type: 'gift-card-move' }>,
+  now: string,
+  makeId: () => string,
+  addEvent: AddEvent,
+) {
+  const org = next.organisation
+  const standing = giftStanding(card, businessDate(next, now))
+  if (standing.state === 'cancelled')
+    throw new Error(
+      card.refunds.length
+        ? `Gift card ${card.code} was cancelled and its money returned, so it cannot move.`
+        : `Gift card ${card.code} was cancelled, so it cannot move.`,
+    )
+  if (standing.state === 'used')
+    throw new Error(`Gift card ${card.code} has been used up, so there is nothing to move.`)
+  if (standing.state === 'expired')
+    throw new Error(
+      `Gift card ${card.code} expired on ${fullDateLabel(card.expiresOn, org.locale)}. Give it more time first if it is still to be spent.`,
+    )
+  const site = placeOf(next, command.locationId)
+  if (!site || site.archived) throw new Error('Choose an open location.')
+  const from = giftHome(next, card)
+  if (site.id === from) throw new Error(`Gift card ${card.code} already belongs to ${site.name}.`)
+  const fromName = placeOf(next, from)?.name ?? 'its location'
+  if ((card.moves?.length ?? 0) >= GIFT_MOVE_LIMIT)
+    throw new Error(
+      `Gift card ${card.code} has moved as often as one card can. Ask SALEANE support to look at it.`,
+    )
+  card.moves = [
+    ...(card.moves ?? []),
+    { id: makeId(), from, to: site.id, reason: command.reason, at: now, actor: '' },
+  ]
+  if (card.clientId)
+    addEvent({
+      clientId: card.clientId,
+      type: 'gift_card',
+      title: card.kind === 'service' ? 'Voucher moved' : 'Gift card moved',
+      detail: `${card.code} moved from ${fromName} to ${site.name}. Its balance, last day and history are unchanged, and it can still be spent at any location.`,
+    })
+  return card.id
+}
+
+/**
+ * Stage 4: money waiting to be spent on cards that can still be spent, by the location each card
+ * belongs to now. Only cards with a balance are named.
+ */
+export function heldByHome(s: BusinessState, today: string) {
+  const held = new Map<string, number>()
+  for (const card of giftCards(s)) {
+    const standing = giftStanding(card, today)
+    if (standing.state !== 'active') continue
+    const home = giftHome(s, card)
+    held.set(home, (held.get(home) ?? 0) + standing.balanceMinor)
+  }
+  return held
+}
+
 /** Puts the person's name on cards, extensions, refunds and cancellations this command made. */
 export function stampGiftCardActors(before: BusinessState, after: BusinessState, actor: string) {
   const old = new Map(giftCards(before).map((c) => [c.id, c]))
@@ -262,7 +331,21 @@ export function stampGiftCardActors(before: BusinessState, after: BusinessState,
     card.extensions.slice(previous?.extensions.length ?? 0).forEach((e) => (e.actor = actor))
     const refunds = new Set(previous?.refunds.map((r) => r.id))
     for (const refund of card.refunds) if (!refunds.has(refund.id)) refund.actor = actor
+    // Stage 4: moves, likewise.
+    card.moves?.slice(previous?.moves?.length ?? 0).forEach((m) => (m.actor = actor))
   }
+}
+
+/**
+ * Stage 4, for who changed what: which card moved, from where to where. The reason is typed
+ * wording, so it stays on the card and is never copied into the record.
+ */
+export function giftMoveDetail(after: BusinessState, action: string, recordId: string) {
+  if (action !== 'gift-card-move') return null
+  const move = giftCards(after)
+    .find((c) => c.id === recordId)
+    ?.moves?.at(-1)
+  return move ? { fields: [{ f: 'locationId', from: move.from, to: move.to }] } : null
 }
 
 /** Ledger checks for parseState: every card, what it paid for and the receipts must agree. */
@@ -293,6 +376,15 @@ export function giftCardsProblem(s: BusinessState) {
         return 'A gift card payment record is not valid for this studio.'
     if (sum(card.redemptions) + sum(card.refunds) > card.valueMinor)
       return 'A gift card cannot pay or return more than it holds.'
+    // Stage 4: each move starts where the card belonged and goes somewhere else.
+    let home = card.locationId ?? org.locationId
+    for (const move of card.moves ?? []) {
+      if (move.from !== home || move.to === move.from || move.at < card.soldAt)
+        return 'A gift card move does not follow on from where the card belonged.'
+      home = move.to
+    }
+    if (new Set((card.moves ?? []).map((m) => m.id)).size !== (card.moves ?? []).length)
+      return 'Duplicate gift card move IDs.'
     for (const use of card.redemptions) {
       const sale = salesById.get(use.saleId)
       if (

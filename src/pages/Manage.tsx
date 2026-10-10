@@ -32,7 +32,7 @@ import type { OperatingCommand } from '../domain/commandSchema'
 import { TimeField } from '../design'
 import { StudioDateField } from '../components/StudioDateField'
 import { scheduleImpact } from '../domain/schedule'
-import { operations, can, permissionFor } from '../domain/operations'
+import { businessDate, operations, can, permissionFor } from '../domain/operations'
 import { money, dateLabel, timeLabel } from '../domain/format'
 import { parseMinor } from '../domain/money'
 import { Avatar, Button, ErrorMessage, Modal, PageHeader, Tabs, treatmentPhoto } from '../design'
@@ -62,6 +62,8 @@ import { GoogleBooking } from '../components/GoogleBooking'
 import { HouseRules } from '../components/HouseRules'
 import { houseRuleNote } from '../domain/brandRules'
 import { SocialAccounts } from '../components/SocialAccounts'
+import { StaffMoveDialog, StaffMoveEntry } from '../components/StaffMove'
+import { whereTheyWork } from '../domain/staffMoves'
 import '../components/management.css'
 
 /**
@@ -183,6 +185,8 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
     isSection(requested) && shownSection(requested) ? requested : 'business'
   const setSection = (id: SectionId) => setParams({ section: id }, { replace: true })
   const [editor, setEditor] = useState<Editor | null>(null)
+  // Stage 4: someone being moved to another location from a date.
+  const [moving, setMoving] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState('')
@@ -736,6 +740,9 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                             {item.role} · {item.serviceIds.length} qualified{' '}
                             {item.serviceIds.length === 1 ? 'treatment' : 'treatments'}
                           </small>
+                          {multiSite && !item.archived && (
+                            <small>{whereTheyWork(state, item.id, businessDate(state))}</small>
+                          )}
                         </div>
                         <div className="ops-record-controls">
                           {archivedTag(item.archived)}
@@ -935,6 +942,16 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
           </div>
         </div>
       </Tabs>
+      {moving && (
+        <StaffMoveDialog
+          staffId={moving}
+          onClose={() => setMoving(null)}
+          onDone={(message) => {
+            setMoving(null)
+            setSaved(message)
+          }}
+        />
+      )}
       {editor && (
         <Modal
           open
@@ -1218,6 +1235,18 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                       </div>
                     )}
                   </fieldset>
+                  {multiSite && person && !person.archived && (
+                    <StaffMoveEntry
+                      staffId={person.id}
+                      allowed={allowed('staff-move') && !pending}
+                      onMove={() => {
+                        setEditor(null)
+                        setError('')
+                        setSaved('')
+                        setMoving(person.id)
+                      }}
+                    />
+                  )}
                 </>
               )}
               {editor.kind === 'resource' && (
