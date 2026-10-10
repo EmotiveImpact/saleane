@@ -105,9 +105,25 @@ All from the worktree root, after the merge with `left-stage5`:
 - **The usual link on the visit page** appears only while the link opens, seven days after the visit; the next usual day may be weeks later, which the words make clear ("from Saturday 31 October").
 - **Live texts** stay in test mode behind the existing provider; nothing here sends anything itself.
 
+## Seen in a browser
+
+On 10 October 2026, at 1440 and 390 px. Sample studios never answer texts, so the texting steps were followed in a studio of its own (Linden Studio, made up for the purpose) on a clock moved forward, where Rosa Field has four completed facials with Maya on Saturday mornings, two of them under a second record her online booking opened. The booking page chat, Ask SALEANE and Olivia's page were also followed in the UK sample.
+
+- Inbox, "Deliver a test text" from Rosa's number, "Can I book my usual?": "Your usual is Restorative facial with Maya Lind, on Saturday mornings. Free on Saturday 31 October with Maya Lind: …". "10:00 please" answers with the booking link, and the link opens the booking page on that day with Maya and 10:00 chosen.
+- A text from a made-up number answers that it cannot tell who is writing. The booking page chat answers that it cannot see who you are.
+- Rosa's completed visit page shows "Come back for your usual?" with "Restorative facial with Maya, from Saturday 31 October" and "Book your usual", which opens the booking page on that day.
+- Ask SALEANE: "What is Rosa's usual?" and "Book Rosa her usual on Saturday" give the usual and a booking to approve. Olivia's At a glance reads as before.
+- Help: "When a guest asks for their usual" opens from search.
+- Found and fixed:
+  - Rosa's texts landed in a conversation of their own, unmatched, because her number was on two records. A number on several records of one guest (all with the same email) now goes to the record of their latest visit (`src/domain/inbox.ts`, tested in `src/domain/inbox.test.ts` and `server/usual.test.ts`).
+  - Ask SALEANE asked "which Rosa?" between her two records. It now treats records with the same email as one guest, and books under the record she last visited under; someone with the same name and another email is still asked about (`src/assistant/saleane.ts`, tested in `src/assistant/saleaneUsual.test.ts`).
+  - The booking page opened from the usual link, weeks ahead, did not show the chosen day in the day strip. A day chosen before the strip appears is now shown at once (`src/components/DayStrip.tsx`, tested in `src/components/DayStrip.test.tsx`).
+  - Asked to "book Amelia her usual on Saturday 31 October", Ask SALEANE offered the nearest Saturday instead, because only weekday names were read. Ask SALEANE and the receptionist now read a written date ("31 October", "October 24th" or 2026-10-31), taking its next occurrence and refusing an impossible one (`src/assistant/receptionistBrain.ts` and `src/assistant/testBrain.ts`, tested in `src/assistant/saleaneUsual.test.ts`).
+- Not seen in a browser, covered by tests: the receptionist on WhatsApp and the social inboxes, a live text provider and a real AI.
+
 ## Browser steps for the lead
 
-Not followed yet. At 1440 px and 390 px, signed up as a new owner with the UK sample studio. In the tests' sample (Tuesday 6 October) Olivia James's usual is a Lymphatic Massage with Sophia on Tuesday mornings, Noor Ahmed's and Amelia Carter's a Skin Renewal Facial with Maya on Tuesday mornings; a sample built on another day moves its dates with it.
+Followed on 10 October 2026; what was seen is under Seen in a browser. Sample studios never answer texts, so steps 1, 3 and 4 need a studio of its own in test mode, with a guest who has at least three completed visits; the rest work at 1440 px and 390 px, signed up as a new owner with the UK sample studio. In the tests' sample (Tuesday 6 October) Olivia James's usual is a Lymphatic Massage with Sophia on Tuesday mornings, Noor Ahmed's and Amelia Carter's a Skin Renewal Facial with Maya on Tuesday mornings; a sample built on another day moves its dates with it.
 
 1. Settings: turn on the AI receptionist and its answers to texts. Online booking is already on.
 2. Clients, Olivia James: At a glance reads exactly as before this change.

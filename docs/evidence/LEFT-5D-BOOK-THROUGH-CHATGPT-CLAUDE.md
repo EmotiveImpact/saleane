@@ -109,9 +109,22 @@ Run from the worktree root on 10 October 2026, after a merge of `left-stage5` at
 - **No streaming or server-sent events**: every answer is one JSON message. Assistants that only use SSE are not supported.
 - **Moving or cancelling** is through the guest's private link, not through the assistant.
 
+## Seen in a browser
+
+On 10 October 2026, at 1440 and 390 px, in Linden Studio, with an MCP client calling the studio's address as Claude would:
+
+- Before the owner turns it on, the address answers 404, "Booking through ChatGPT or Claude is not turned on for this studio."
+- Settings, Studio details: the panel, its test-mode line and "Let guests book through ChatGPT or Claude". Ticked and saved, it shows the address and "No visits booked through an AI assistant yet."
+- The assistant: `initialize` names "Linden Studio booking"; `tools/list` gives studio_details, list_treatments, find_free_times and book_time; studio_details gives today on the studio's clock and the opening hours; find_free_times lists Tuesday 13 October.
+- `book_time` without the guest's yes: "Nothing was booked. Tell the guest the treatment, day, time, price and the cancelling terms…". With it: "Booked: Restorative facial with Maya on Tuesday 13 October at 09:30, 60 minutes, £95.00…" with the guest's private link and the cancelling terms.
+- A request with an Origin from another website is refused with 403.
+- The panel then says "1 visit has been booked through an AI assistant." Hana Mori's client page shows the visit, "Booked by the guest through Claude", and marketing off. Who changed what: "Booked through Claude", "A guest, through Claude".
+- Found and fixed: Who changed what read the first switch-on as "Enabled none became yes". A switch never set before now reads as off, and the field is named: "switched on: no became yes" (`src/domain/changeRecord.ts`, tested in `src/domain/changeRecord.test.ts`).
+- Not seen in a browser, covered by tests: ChatGPT's own client name, a treatment that needs a deposit or a patch test, and a held time running out mid-booking.
+
 ## Browser steps for the lead
 
-Not seen in a browser yet.
+Followed on 10 October 2026; what was seen is under Seen in a browser.
 
 At 1440 px and 390 px, signed in as the owner of a new studio of your own (not a sample) with online booking on, on `http://127.0.0.1:5173`:
 

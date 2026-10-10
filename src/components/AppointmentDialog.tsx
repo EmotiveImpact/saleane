@@ -20,6 +20,7 @@ import { hasLocations, places, staffLocationOn } from '../domain/locations'
 import { depositPaid, rescheduleSlots } from '../domain/commands'
 import { addDays, dateLabel, fullDateLabel, money, timeLabel } from '../domain/format'
 import { bookedOfferLine } from '../domain/quietOffers'
+import { guestBackground } from '../domain/usual'
 import { checkoutTotals, minorInput, parseMinor } from '../domain/money'
 import { coverPreview, holdings, memberDiscountPercent, plansForVisit } from '../domain/plans'
 import { priceRetail, retailCharge } from '../domain/retail'
@@ -138,16 +139,9 @@ export function AppointmentDialog({
   const photo = servicePhoto(state.services, service.id)
   const ends = appointment.startMinutes + appointment.bookedDurationMinutes
   // Earlier visits the client came to, for a line of context beside what is good to remember.
-  const earlier = state.appointments
-    .filter(
-      (a) =>
-        a.clientId === client.id &&
-        a.id !== appointment.id &&
-        (a.status === 'completed' || a.status === 'arrived') &&
-        (a.date < appointment.date ||
-          (a.date === appointment.date && a.startMinutes < appointment.startMinutes)),
-    )
-    .sort((a, b) => b.date.localeCompare(a.date) || b.startMinutes - a.startMinutes)
+  // Stage 5: from every record with the client's email, as each online booking opens a new one.
+  const background = guestBackground(state, appointment)
+  const earlier = background.earlier
   const previous = earlier[0]
   const previousName =
     previous &&
@@ -156,7 +150,7 @@ export function AppointmentDialog({
   const nextVisit = state.appointments
     .filter(
       (a) =>
-        a.clientId === client.id &&
+        background.ids.has(a.clientId) &&
         a.id !== appointment.id &&
         a.status === 'confirmed' &&
         a.date >= today &&
@@ -1212,10 +1206,10 @@ export function AppointmentDialog({
             {identity}
             <div className="visit-remember">
               <span>Good to remember</span>
-              <p>{client.preferences || 'No preferences recorded yet.'}</p>
+              <p>{background.remembered || 'No preferences recorded yet.'}</p>
               <p className="visit-history">
                 {previous
-                  ? `Last came ${dateLabel(previous.date, locale)}${previousName ? ` for ${previousName}` : ''}. ${earlier.length} ${earlier.length === 1 ? 'visit' : 'visits'} before this one.`
+                  ? `Last came ${dateLabel(previous.date, locale)}${previousName ? ` for ${previousName}` : ''}. ${earlier.length} ${earlier.length === 1 ? 'visit' : 'visits'} before this one${background.records > 1 ? `, across ${background.records} client records with the same email` : ''}.`
                   : 'No earlier visits.'}
               </p>
             </div>

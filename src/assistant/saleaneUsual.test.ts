@@ -142,6 +142,11 @@ describe('booking a client’s usual through the test brain', () => {
     // Friday is today, so "on Friday" is next Friday, as for any booking.
     const friday = await ask(s, 'book Amelia her usual on Friday')
     expect(friday.proposals[0].effect).toMatchObject({ input: { date: '2026-10-16' } })
+    // A date written out wins over the weekday beside it.
+    const dated = await ask(s, 'Book Amelia her usual on Saturday 31 October')
+    expect(dated.proposals[0].effect).toMatchObject({ input: { date: '2026-10-31' } })
+    const us = await ask(s, 'book Amelia her usual on October 24th')
+    expect(us.proposals[0].effect).toMatchObject({ input: { date: '2026-10-24' } })
   })
 
   it('lists free times in their usual part of the day when the usual time is taken', async () => {

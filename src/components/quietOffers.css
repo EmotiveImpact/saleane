@@ -12,16 +12,73 @@
 .quiet-offer-services .checkbox-label {
   min-height: 44px;
 }
-.quiet-offer-left-out summary {
-  min-height: 44px;
+/* Each kind of lower price reads as a row: a small radio beside its name and one line about it. */
+.quiet-offer-kinds .checkbox-label {
+  align-items: flex-start;
+  padding: var(--space-1) 0;
+}
+.quiet-offer-kinds input[type='radio'] {
+  width: 17px;
+  height: 17px;
+  min-height: 0;
+  padding: 0;
+  margin: 2px 0 0;
+  flex: none;
+  accent-color: var(--ink);
+}
+.quiet-offer-kinds .checkbox-label > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.quiet-offer-kinds small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.quiet-offer-left-out {
+  border-top: 1px solid var(--line);
+}
+.quiet-offer-left-out > summary {
   display: flex;
   align-items: center;
-  cursor: pointer;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding-top: var(--space-2);
   font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+  list-style: none;
+}
+.quiet-offer-left-out > summary::-webkit-details-marker {
+  display: none;
+}
+.quiet-offer-left-out > summary > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.quiet-offer-left-out > summary small {
+  color: var(--muted);
+  font-weight: var(--weight-body);
+  overflow-wrap: anywhere;
+}
+/* A small chevron that turns when the fold opens, as on the till's settings. */
+.quiet-offer-left-out > summary::after {
+  content: '';
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  margin: -3px 4px 0 auto;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+}
+.quiet-offer-left-out[open] > summary::after {
+  margin-top: 4px;
+  transform: rotate(-135deg);
 }
 .quiet-offer-services {
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--line);
+  padding: var(--space-1) 0 var(--space-2);
 }
 .quiet-offers .quiet-offer-example,
 .quiet-offers .quiet-offer-taken {

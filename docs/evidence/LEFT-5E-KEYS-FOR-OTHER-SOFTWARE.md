@@ -118,9 +118,23 @@ All from the worktree root, after the last merge (`fe12f2a`):
 - **A general manager** sees every location's till sales in the studio record, as they already see every location's counter sales; `branchView` was not changed.
 - Everything runs locally: no card payment, message or outside service is involved in a write.
 
+## Seen in a browser
+
+On 10 October 2026, at 1440 and 390 px, in Linden Studio as the owner, with a program calling the API through the key:
+
+- Settings, Connected software, Access keys: "Make an access key", named "Shop till", reading visits and treatments, and changing visits, clients and till sales. The key is shown once ("It is shown only this once.") and listed with what it may do and "Its changes show in Who changed what under its name."
+- Adding a client who agreed to email news without the wording version is refused ("Say which version of the studio's email news wording the client agreed to."). With it: 201. The same Idempotency-Key with the same request gives the same client; with another request, "This Idempotency-Key was already used for a different request."; with none, 400.
+- Booking that client on Wednesday 14 October at 11:00: 201. Two till sales, receipts SHOP-1042 and SHOP-1043, £39 each with Rose face oil and Gift wrap: 201. SHOP-1042 again: 409, "Receipt SHOP-1042 from this location is already in SALEANE, so it was not added again."
+- Money lists "Sold on Shop till", "Rose face oil, Gift wrap · Card on another till · SHOP-1043". Business: "Sold on your other tills £65, before tax, sent in by Shop till." Who changed what: "Recorded a sale from another till", "Booked a visit" and "Added a client", each "Shop till, through its access key".
+- Found and fixed:
+  - In the key form each tick box sat on its own line above its words. They now sit beside them, and "It may also change things" has a chevron (`management.css`).
+  - On a screen narrower than 1080 px, Business hid every figure beside the chart: tips, products sold with visits, gift cards and plans, rent and the other tills. They now show side by side under the panel's words, two to a row on a phone (`Business.tsx`, `styles.css`).
+- Seen, left for Stage 6: Business's empty chart reads "£0.01" at the top of its scale.
+- Not seen in a browser, covered by tests: a key for one location, a refund from another till, moving and cancelling a visit through a key, and connected software being told.
+
 ## Browser steps for the lead
 
-Not yet followed. With the one server on 127.0.0.1:5173 and a new database, signed in as the owner of a studio that is not a sample (keys cannot be made in a sample), with a second location:
+Followed on 10 October 2026; what was seen is under Seen in a browser. With the one server on 127.0.0.1:5173 and a new database, signed in as the owner of a studio that is not a sample (keys cannot be made in a sample), with a second location:
 
 1. Settings, Connected software, Access keys: the new intro line. "Make an access key", name it "Shop till". See "It may read" and, closed, "It may also change things". Open it: three choices, each with its sentence. Tick "Send in till sales" and "Add and change visits", make the key and copy it. The list says what it may do, reads first ("May read visits, and add and change visits; send in till sales" when "Read visits" is ticked too), and "Its changes show in Who changed what under its name."
 2. Choose "Islington only" for a second key: the location line, no client choices, "Send in till sales" still offered.

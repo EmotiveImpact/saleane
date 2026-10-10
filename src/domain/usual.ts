@@ -212,6 +212,33 @@ function bookableAt(s: BusinessState, service: Service, locationId: string, now:
 }
 
 /**
+ * What the team reads about a guest beside one of their visits, from every record with the same
+ * email as the visit's own, so a regular whose online booking opened a new record never looks new:
+ * the visits they came to before it, newest first, how many records those visits and this one sit
+ * under, and what is good to remember (the visit's own record first, then the newest other record
+ * with something written). `ids` is every record of the guest.
+ */
+export function guestBackground(s: BusinessState, appointment: Appointment) {
+  const ids = guestOf(s, appointment.clientId)?.ids ?? new Set([appointment.clientId])
+  const earlier = s.appointments
+    .filter(
+      (a) =>
+        ids.has(a.clientId) &&
+        a.id !== appointment.id &&
+        (a.status === 'completed' || a.status === 'arrived') &&
+        (a.date < appointment.date ||
+          (a.date === appointment.date && a.startMinutes < appointment.startMinutes)),
+    )
+    .sort((a, b) => b.date.localeCompare(a.date) || b.startMinutes - a.startMinutes)
+  const records = new Set([appointment.clientId, ...earlier.map((a) => a.clientId)]).size
+  const own = s.clients.find((c) => c.id === appointment.clientId)?.preferences.trim()
+  const other = s.clients
+    .filter((c) => c.id !== appointment.clientId && ids.has(c.id) && c.preferences.trim())
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+  return { ids, earlier, records, remembered: own || other?.preferences.trim() || '' }
+}
+
+/**
  * A guest's usual, from the completed visits of every record with the same email as `clientId`.
  * It never reads anyone else's visits. `today` is the studio's date.
  */

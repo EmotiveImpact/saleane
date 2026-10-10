@@ -2122,16 +2122,23 @@ fieldset {
 .business-insight .button {
   font-size: var(--text-meta);
 }
-.business-insight > span,
-.business-insight > strong,
-.business-insight > small {
+/* The figures beside the chart, each under its own rule. */
+.insight-figure {
+  margin-top: 25px;
+  padding-top: 21px;
+  border-top: 1px solid var(--line2);
+  min-width: 0;
+}
+.insight-figure > span,
+.insight-figure > strong,
+.insight-figure > small {
   display: block;
 }
-.business-insight > span {
+.insight-figure > span {
   font-size: var(--text-micro);
   color: var(--muted);
 }
-.business-insight > strong {
+.insight-figure > strong {
   font-family: var(--font-display);
   font-weight: var(--weight-body);
   font-size: 26px;
@@ -2139,14 +2146,10 @@ fieldset {
   font-variant-numeric: tabular-nums;
   margin: 5px 0;
 }
-.business-insight > small {
+.insight-figure > small {
   font-size: var(--text-micro);
   color: var(--muted);
-}
-.insight-rule {
-  height: 1px;
-  background: var(--line2);
-  margin: 25px 0 21px;
+  overflow-wrap: anywhere;
 }
 .business-tables {
   display: grid;
@@ -3212,11 +3215,16 @@ fieldset {
   .business-insight > .button {
     justify-self: start;
   }
-  .business-insight .insight-rule,
-  .business-insight > span,
-  .business-insight > strong,
-  .business-insight > small {
-    display: none;
+  /* Below the words and the button, the figures sit side by side across the panel. */
+  .insight-figures {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 0 28px;
+  }
+  .insight-figure {
+    margin-top: 6px;
+    padding-top: 16px;
   }
   .relationship-layout {
     grid-template-columns: 1fr;
@@ -3655,6 +3663,10 @@ fieldset {
   .business-insight {
     display: block;
     padding: 25px;
+  }
+  .insight-figures {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0 20px;
   }
   .business-insight h2 {
     font-size: 23px;

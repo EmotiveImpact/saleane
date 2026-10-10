@@ -214,6 +214,22 @@ export function dateIn(text: string, today: string): string | null {
   if (iso) return iso[1]
   if (/\btoday\b/.test(q)) return today
   if (/\btomorrow\b/.test(q)) return addDays(today, 1)
+  const exact = calendarDate(q, today)
+  if (exact !== undefined) return exact
+  const named = WEEKDAYS.findIndex((d) => new RegExp(`\\b${d}\\b`).test(q))
+  if (named < 0) return null
+  const current = new Date(`${today}T12:00:00Z`).getUTCDay()
+  return addDays(today, (named - current + 7) % 7)
+}
+
+/**
+ * A date written out, such as "31 October", "October 31st" or "2026-10-31", the next one from
+ * today; null for one that does not exist, such as 31 February; undefined when none is written.
+ */
+export function calendarDate(text: string, today: string): string | null | undefined {
+  const q = text.toLowerCase()
+  const iso = /\b(\d{4}-\d{2}-\d{2})\b/.exec(q)
+  if (iso) return iso[1]
   const month = new RegExp(
     `\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(${MONTHS.join('|')})\\b|\\b(${MONTHS.join('|')})\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b`,
   ).exec(q)
@@ -228,10 +244,7 @@ export function dateIn(text: string, today: string): string | null {
     const real = new Date(`${date}T12:00:00Z`)
     return !Number.isNaN(real.getTime()) && real.toISOString().slice(0, 10) === date ? date : null
   }
-  const named = WEEKDAYS.findIndex((d) => new RegExp(`\\b${d}\\b`).test(q))
-  if (named < 0) return null
-  const current = new Date(`${today}T12:00:00Z`).getUTCDay()
-  return addDays(today, (named - current + 7) % 7)
+  return undefined
 }
 
 /** A clock time the guest names, as HH:MM, or null. "10am", "2.30pm", "14:00", "at 3". */

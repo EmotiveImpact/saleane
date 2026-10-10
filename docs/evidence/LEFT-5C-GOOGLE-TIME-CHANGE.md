@@ -85,9 +85,13 @@ Run from the worktree root on 10 October 2026, after both Stage 5 parts of this 
 - **Google may also send a party size or other fields**; they are ignored, as in `CreateBooking`.
 - **A retry after 15 minutes** of a move the desk has since undone moves the visit again. Google retries within seconds, so this should not happen in practice.
 
+## Seen in a browser
+
+On 10 October 2026, at 1440 and 390 px, in Linden Studio: Settings, Studio details, "Book with Google" says "As with their own booking link, guests can move a visit on Google to another free time until 24 hours before it, and cancel until it starts." Help, "Book with Google" carries the same. Google cannot send a booking or a move from a browser, so the move itself is covered by the server tests.
+
 ## Browser steps for the lead
 
-Not seen in a browser yet. Google cannot be driven from a browser, so the move itself is covered by the server tests; the browser shows its results.
+Followed on 10 October 2026 for what a browser can show; see Seen in a browser. Google cannot be driven from a browser, so the move itself is covered by the server tests; the browser shows its results.
 
 At 1440 px and 390 px, signed in as the owner of a new studio of your own (not a sample) with online booking on, Book with Google ticked, and the server started with `SALEANE_GOOGLE_BOOKING=test` and partner credentials:
 

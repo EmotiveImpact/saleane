@@ -9,6 +9,7 @@ import {
   USUAL_AHEAD_DAYS,
   bookedAhead,
   clearFavourite,
+  guestBackground,
   guestUsual,
   nextUsualDate,
   strongPattern,
@@ -364,5 +365,60 @@ describe('who is writing by text', () => {
     addClient(s, 'Ben Carter', { email: 'ben@example.com', phone: '+447700900456' })
     expect(textingGuest(s, 'sms', '+447700900456')).toBeUndefined()
     expect(textingGuest(s, 'sms', 'not a number')).toBeUndefined()
+  })
+})
+
+describe('a guest beside one of their visits', () => {
+  it('reads earlier visits and what is good to remember from every record with their email', () => {
+    const s = studio()
+    const desk = addClient(s, 'Rosa Field', {
+      email: 'rosa@example.com',
+      preferences: 'Likes a quiet room.',
+      createdAt: '2026-07-01T09:00:00.000Z',
+    })
+    monthlyRegular(s, desk.id, '2026-08-08', 2)
+    const online = addClient(s, 'Rosa Field', {
+      email: 'Rosa@Example.com',
+      createdAt: '2026-08-08T09:00:00.000Z',
+    })
+    monthlyRegular(s, online.id, SATURDAY, 2)
+    // Her quiet-time booking opened a third record.
+    const latest = addClient(s, 'Rosa Field', {
+      email: 'rosa@example.com',
+      createdAt: '2026-10-10T05:00:00.000Z',
+    })
+    const visit = addVisit(s, latest.id, '2026-10-17', { status: 'confirmed', source: 'online' })
+    const background = guestBackground(s, visit)
+    expect(background.earlier.map((a) => a.date)).toEqual([
+      SATURDAY,
+      '2026-09-05',
+      '2026-08-08',
+      '2026-07-11',
+    ])
+    expect(background.records).toBe(3)
+    expect(background.remembered).toBe('Likes a quiet room.')
+    expect([...background.ids].sort()).toEqual([desk.id, online.id, latest.id].sort())
+    // The visit's own record speaks first when it has something written.
+    latest.preferences = 'Allergic to lavender.'
+    expect(guestBackground(s, visit).remembered).toBe('Allergic to lavender.')
+  })
+
+  it('never reads another guest, and counts only visits before this one', () => {
+    const s = studio()
+    const amelia = addClient(s, 'Amelia Carter', { email: 'amelia@example.com' })
+    const other = addClient(s, 'Amelia Carter', {
+      email: 'another.amelia@example.com',
+      preferences: 'Not her.',
+    })
+    addVisit(s, other.id, '2026-09-05')
+    const first = addVisit(s, amelia.id, '2026-09-12')
+    addVisit(s, amelia.id, '2026-10-24', { status: 'confirmed' })
+    expect(guestBackground(s, first)).toMatchObject({ earlier: [], records: 1, remembered: '' })
+    // A guest with no email is only their own record.
+    const walkIn = addClient(s, 'Walk In', { email: '' })
+    const fresh = addClient(s, 'Walk In', { email: '' })
+    addVisit(s, walkIn.id, '2026-09-05')
+    const visit = addVisit(s, fresh.id, '2026-10-24', { status: 'confirmed' })
+    expect(guestBackground(s, visit).earlier).toEqual([])
   })
 })

@@ -154,7 +154,7 @@ export function QuietOffers() {
                 />
                 <span>
                   {discountWords[kind].label}
-                  <small className="subtle"> {discountWords[kind].detail}</small>
+                  <small className="subtle">{discountWords[kind].detail}</small>
                 </span>
               </label>
             ))}
@@ -225,8 +225,13 @@ export function QuietOffers() {
               {services.length > 0 && (
                 <details className="quiet-offer-left-out">
                   <summary>
-                    Treatments left out
-                    {leftOutIds.length ? ` (${leftOutIds.length})` : ''}
+                    <span>
+                      <span>
+                        Treatments left out
+                        {leftOutIds.length ? ` (${leftOutIds.length})` : ''}
+                      </span>
+                      <small>Ticked treatments always keep their usual price.</small>
+                    </span>
                   </summary>
                   <div className="quiet-offer-services">
                     {services.map((service) => (

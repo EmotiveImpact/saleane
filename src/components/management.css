@@ -1327,9 +1327,14 @@ a.receipt-row {
 .connections-url {
   overflow-wrap: anywhere;
 }
-/* Stage 5: what an access key may do, each choice with a plain sentence under it. */
-.access-key-scope {
+/* Stage 5: what an access key may do, each choice with a plain sentence under it. The tick box
+   sits beside its words, as elsewhere, although the form's other labels stack. */
+.saved-reply-form .access-key-scope {
+  display: flex;
+  flex-direction: row;
   align-items: flex-start;
+  gap: 9px;
+  padding: var(--space-1) 0;
 }
 .access-key-scope input {
   margin-top: 3px;
@@ -1355,6 +1360,25 @@ a.receipt-row {
   font-size: var(--text-small);
   font-weight: var(--weight-strong);
   cursor: pointer;
+  list-style: none;
+}
+.access-key-changes > summary::-webkit-details-marker {
+  display: none;
+}
+/* A small chevron that turns when the fold opens, as on the till's settings. */
+.access-key-changes > summary::after {
+  content: '';
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  margin: -3px 4px 0 auto;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+}
+.access-key-changes[open] > summary::after {
+  margin-top: 4px;
+  transform: rotate(-135deg);
 }
 .access-key-changes .ops-help {
   margin: var(--space-1) 0 0;

@@ -526,6 +526,7 @@ const fieldWords: Record<string, string> = {
   noTextReminders: 'no appointment texts',
   birthday: 'birthday',
   description: 'description',
+  enabled: 'switched on',
   category: 'kind of treatment',
   durationMinutes: 'length',
   bufferMinutes: 'time after each visit',
@@ -687,8 +688,6 @@ export function recordNames(s: BusinessState): RecordNames {
 /** A value in words, in the studio's money, language and clock. */
 function valueText(s: BusinessState, names: RecordNames, f: string, v: Value) {
   const locale = s.organisation.locale
-  // A rule never turned on was off: the first change reads "no became yes".
-  if (v === null && f === 'stopOnline') return 'no'
   if (v === null) return 'none'
   if ((/^day\d$/.test(f) || f === 'shift') && typeof v === 'string') {
     if (v === 'closed') return 'closed'
@@ -755,13 +754,17 @@ export function describeChange(s: BusinessState, names: RecordNames, row: Change
     others: string[] = []
   for (const field of detail?.fields ?? []) {
     const what = fieldName(field.f)
-    if ('to' in field && 'from' in field)
+    if ('to' in field && 'from' in field) {
+      // A switch never set before was off, so its first change reads "no became yes".
+      const off = (v: Value | undefined, other: Value | undefined) =>
+        (v ?? null) === null && typeof other === 'boolean' ? false : (v ?? null)
       lines.push({
         what,
-        from: valueText(s, names, field.f, field.from ?? null),
-        to: valueText(s, names, field.f, field.to ?? null),
+        from: valueText(s, names, field.f, off(field.from, field.to)),
+        to: valueText(s, names, field.f, off(field.to, field.from)),
       })
-    else if ('to' in field) lines.push({ what, to: valueText(s, names, field.f, field.to ?? null) })
+    } else if ('to' in field)
+      lines.push({ what, to: valueText(s, names, field.f, field.to ?? null) })
     else if (!others.includes(what)) others.push(what)
   }
   const about =

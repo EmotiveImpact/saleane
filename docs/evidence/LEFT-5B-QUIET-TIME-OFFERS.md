@@ -96,6 +96,22 @@ From the worktree root, after merging `left-stage5` at 25f2b0b:
 - **With email in test mode** the guest receives nothing. Running locally, the server prints each link that was not sent (never stored), so the booking page can be tried; tests do not print it.
 - **No Money page figure.** The 30-day figures are on Cancelled times and in the settings panel; takings already count what was charged.
 
+## Seen in a browser
+
+On 10 October 2026, at 1440 and 390 px, in Linden Studio (a studio of its own in test mode) where Rosa Field agreed to hear from the studio:
+
+- Settings, Messages: "A lower price for quiet times". Set to 20% off, never below £50, open for a day: "For example, Restorative facial at £95 would be offered at £76." Saved.
+- Grace Chen's Saturday 17 October visit cancelled: Cancelled times lists it, with the lower price an invitation would carry, and "Write one invitation" saves a draft for Rosa.
+- Inbox: the invitation reads "For that time only, it is £76 instead of the usual £95. The lower price is open until Sunday 11 October at 06:16." with the price note beneath and "Approve and send". Approved, the test-mode outbox printed the private link.
+- Rosa's link: "Your quiet-time price: £76 instead of the usual £95, for Saturday 17 October at 10:00 with Maya only." Another time shows the usual price. The review shows the usual price and the quiet-time price; confirmed, "Something to look forward to." with £76 "A quiet-time price, instead of the usual £95."
+- The same link again, in a new browser: "This quiet-time price has already been used to book. You can still book at the usual price."
+- The visit at the desk: Treatment £76, Quiet-time price "£19 off £95". Cancelled times: "One visit was booked at a quiet-time price in the last 30 days, £19 below the usual prices." Who changed what: "Booked online", booked price £76.00.
+- Found and fixed:
+  - The panel's choice circles were drawn far too big, and "Treatments left out" was plain text. The choices are now small radios beside their words, and the fold has a chevron and a line saying what it does (`quietOffers.css`, `QuietOffers.tsx`).
+  - Rosa's visit said "No earlier visits" although she had come four times, because her online booking opened a new record. The visit panel now reads earlier visits and what is good to remember from every record with the same email, and says so: "4 visits before this one, across 3 client records with the same email." (`guestBackground` in `src/domain/usual.ts`, tested in `src/domain/usual.test.ts`).
+- Seen, left for Stage 6: the Inbox lists a guest twice when their bookings opened two records, and on a desk screen the reply box leaves little room for the conversation above it.
+- Not seen in a browser, covered by tests: an invitation to one of Today's open times, an amount off, the floor and a link that has expired or been withdrawn.
+
 ## Browser steps for the lead
 
 At 1440 px and 390 px, in a **real (not sample) studio in test mode** with the sample menu, Maya working tomorrow, online booking on, and a client with an email address who agreed to hear from the studio. Run the server locally so its console shows the test-mode link.

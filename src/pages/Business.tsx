@@ -215,49 +215,53 @@ export function Business() {
           <Link className="button button-light" to="/clients">
             Review your clients
           </Link>
-          <div className="insight-rule" />
-          <span>Tips recorded in this period</span>
-          <strong>{wholeMoney(data.tips, state.organisation)}</strong>
-          <small>Reported separately from treatment takings.</small>
-          <div className="insight-rule" />
-          <span>Products sold with visits</span>
-          <strong>{wholeMoney(data.retail, state.organisation)}</strong>
-          <small>
-            Before tax, separate from treatment takings. <Link to="/business/stock">See stock</Link>
-          </small>
-          <div className="insight-rule" />
-          <span>Gift cards, packages and memberships sold</span>
-          <strong>{money(data.giftCardsSold + data.plansSold, state.organisation)}</strong>
-          <small>Money taken where they were sold, separate from treatment takings.</small>
-          {seesRent && (data.rent > 0 || data.renters > 0) && (
-            <>
-              <div className="insight-rule" />
-              <span>Chair and room rent recorded</span>
-              <strong>{money(data.rent, state.organisation)}</strong>
+          {/* Each figure under its own rule; on a smaller screen they sit side by side. */}
+          <div className="insight-figures">
+            <div className="insight-figure">
+              <span>Tips recorded in this period</span>
+              <strong>{wholeMoney(data.tips, state.organisation)}</strong>
+              <small>Reported separately from treatment takings.</small>
+            </div>
+            <div className="insight-figure">
+              <span>Products sold with visits</span>
+              <strong>{wholeMoney(data.retail, state.organisation)}</strong>
               <small>
-                Your income from renters. <Link to="/business/pay">See rent</Link>
+                Before tax, separate from treatment takings.{' '}
+                <Link to="/business/stock">See stock</Link>
               </small>
-            </>
-          )}
-          {data.otherTill !== 0 && (
-            <>
-              <div className="insight-rule" />
-              <span>Sold on your other tills</span>
-              <strong>{money(data.otherTill, state.organisation)}</strong>
-              <small>
-                Before tax, sent in by {data.tills.join(' and ')}. Taken on those tills, not by
-                SALEANE, and kept apart from treatment takings here.
-              </small>
-            </>
-          )}
-          {data.renters > 0 && (
-            <>
-              <div className="insight-rule" />
-              <span>Renters’ own takings, kept apart</span>
-              <strong>{money(data.renters, state.organisation)}</strong>
-              <small>Not counted in any figure here. They came through your till.</small>
-            </>
-          )}
+            </div>
+            <div className="insight-figure">
+              <span>Gift cards, packages and memberships sold</span>
+              <strong>{money(data.giftCardsSold + data.plansSold, state.organisation)}</strong>
+              <small>Money taken where they were sold, separate from treatment takings.</small>
+            </div>
+            {seesRent && (data.rent > 0 || data.renters > 0) && (
+              <div className="insight-figure">
+                <span>Chair and room rent recorded</span>
+                <strong>{money(data.rent, state.organisation)}</strong>
+                <small>
+                  Your income from renters. <Link to="/business/pay">See rent</Link>
+                </small>
+              </div>
+            )}
+            {data.otherTill !== 0 && (
+              <div className="insight-figure">
+                <span>Sold on your other tills</span>
+                <strong>{money(data.otherTill, state.organisation)}</strong>
+                <small>
+                  Before tax, sent in by {data.tills.join(' and ')}. Taken on those tills, not by
+                  SALEANE, and kept apart from treatment takings here.
+                </small>
+              </div>
+            )}
+            {data.renters > 0 && (
+              <div className="insight-figure">
+                <span>Renters’ own takings, kept apart</span>
+                <strong>{money(data.renters, state.organisation)}</strong>
+                <small>Not counted in any figure here. They came through your till.</small>
+              </div>
+            )}
+          </div>
         </section>
       </div>
       <div className="business-tables">

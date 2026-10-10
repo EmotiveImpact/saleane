@@ -1,5 +1,6 @@
 import type { Brain, BrainMessage, BrainRequest, ToolCall } from '../../lumane'
 import { addDays, dateLabel } from '../domain/format'
+import { calendarDate } from './receptionistBrain'
 
 /**
  * The test-mode brain for Ask Saleane. It recognises a few plain questions, uses the same skills
@@ -118,8 +119,10 @@ function clockTime(q: string) {
 
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
 
-/** The day the question means: today, tomorrow, or the next named weekday. */
+/** The day the question means: a date written out, tomorrow, the next named weekday or today. */
 function dayIn(q: string, today: string) {
+  const exact = calendarDate(q, today)
+  if (exact) return exact
   if (/\btomorrow\b/.test(q)) return addDays(today, 1)
   const named = WEEKDAYS.findIndex((d) => q.includes(d))
   if (named < 0) return today
@@ -143,7 +146,8 @@ function usualName(question: string) {
   return name && !NOT_NAMES.test(name) ? name : undefined
 }
 /** Whether a day is named, rather than left to the client's next usual day. */
-const namesDay = (q: string) => /\btomorrow\b/.test(q) || WEEKDAYS.some((d) => q.includes(d))
+const namesDay = (q: string) =>
+  !!calendarDate(q, '2000-01-01') || /\btomorrow\b/.test(q) || WEEKDAYS.some((d) => q.includes(d))
 
 /** "Book Jamie in with Maya…": the client named after "book". */
 function bookingName(question: string) {
@@ -333,8 +337,7 @@ function nextStep(
               : 'Nobody is on the waitlist right now.',
           )
         const at = clockTime(q)
-        const date =
-          /\btomorrow\b/.test(q) || WEEKDAYS.some((d) => q.includes(d)) ? dayIn(q, today) : null
+        const date = namesDay(q) ? dayIn(q, today) : null
         const opening = entry.openings.find(
           (o) => (at === null || o.startMinutes === at) && (!date || o.date === date),
         )

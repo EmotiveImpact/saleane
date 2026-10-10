@@ -215,6 +215,23 @@ describe('what changed', () => {
     expect(changeSummary(shown)).toMatch(/^Monday (09:00 to 18:00|closed) became 10:00 to 17:00$/)
   })
 
+  it('reads a switch never set before as off, so turning it on reads no became yes', () => {
+    const state = seed('UK')
+    const on = entry(state, 'ai-booking', state.organisation.id, {
+      fields: [{ f: 'enabled', from: null, to: true }],
+    })
+    expect(on.lines).toEqual([{ what: 'switched on', from: 'no', to: 'yes' }])
+    const off = entry(state, 'ai-booking', state.organisation.id, {
+      fields: [{ f: 'enabled', from: true, to: null }],
+    })
+    expect(off.lines).toEqual([{ what: 'switched on', from: 'yes', to: 'no' }])
+    // Anything else that was empty still reads none.
+    const floor = entry(state, 'quiet-offers', state.organisation.id, {
+      fields: [{ f: 'floorMinor', from: null, to: 5000 }],
+    })
+    expect(floor.lines[0]).toMatchObject({ from: 'none' })
+  })
+
   it('records nothing extra when nothing useful changed', () => {
     const before = seed('UK')
     expect(changeDetail(before, before, 'service', 'service-facial')).toBeUndefined()
