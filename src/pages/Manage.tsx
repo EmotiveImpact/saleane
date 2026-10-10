@@ -58,6 +58,7 @@ import { Connections } from '../components/Connections'
 import { AccessKeys } from '../components/AccessKeys'
 import { DiaryLinks } from '../components/DiaryLinks'
 import { ReceptionistSettings } from '../components/ReceptionistSettings'
+import { AiVoiceSettings } from '../components/AiVoiceSettings'
 import { GoogleBooking } from '../components/GoogleBooking'
 import { HouseRules } from '../components/HouseRules'
 import { houseRuleNote } from '../domain/brandRules'
@@ -99,7 +100,7 @@ const groups = [
     sections: [
       { id: 'messages', label: 'Messages to guests', icon: BellRing },
       { id: 'forms', label: 'Guest forms', icon: ClipboardList },
-      { id: 'receptionist', label: 'AI receptionist', icon: MessageCircle },
+      { id: 'receptionist', label: 'AI and voice', icon: MessageCircle },
     ],
   },
   {
@@ -409,7 +410,12 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
           <div>
             {section === 'preferences' && <PreferencesSection />}
             {section === 'brand' && <BrandSection />}
-            {section === 'receptionist' && <ReceptionistSettings />}
+            {section === 'receptionist' && (
+              <>
+                <ReceptionistSettings />
+                <AiVoiceSettings />
+              </>
+            )}
             {section === 'messages' && (
               <>
                 <MessageSettings />

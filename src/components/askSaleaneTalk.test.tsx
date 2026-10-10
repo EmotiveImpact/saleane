@@ -78,6 +78,21 @@ beforeEach(() => {
 })
 
 describe('talking to Ask SALEANE', () => {
+  it('lets each person choose the voice they hear, or keep the studio’s', async () => {
+    const user = userEvent.setup()
+    render(<AskSaleane onClose={() => {}} />)
+    const panel = await screen.findByRole('dialog', { name: 'Ask SALEANE' })
+    const voice = await within(panel).findByRole('combobox', { name: 'Voice' })
+    expect(voice).toHaveDisplayValue('The studio’s (Vesper)')
+    await user.selectOptions(voice, 'quartz')
+    expect(commit).toHaveBeenCalledWith({ type: 'own-voice', voice: 'quartz' })
+    expect(await within(panel).findByText('Saved. Your next talk uses it.')).toBeInTheDocument()
+    await user.click(within(panel).getByRole('button', { name: 'Talk' }))
+    // While talking, the voice stays as it started.
+    expect(await within(panel).findByRole('timer')).toBeInTheDocument()
+    expect(within(panel).queryByRole('combobox', { name: 'Voice' })).toBeNull()
+  })
+
   it('talks, shows what was heard and answered, and stops', async () => {
     const user = userEvent.setup()
     render(<AskSaleane onClose={() => {}} />)

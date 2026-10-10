@@ -141,7 +141,10 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
               org.id,
             )
             .map((row) => row.area_id)
-        if (command.type === 'request-raise') {
+        if (command.type === 'own-voice') {
+          // NEXT-16: a person only ever chooses their own voice.
+          command = { ...command, personId: actor.id }
+        } else if (command.type === 'request-raise') {
           command = {
             ...command,
             managedRegions: managedRegions(),

@@ -169,6 +169,14 @@ export function aftercareNote(s: BusinessState, a: Appointment) {
   return s.services.find((x) => x.id === a.serviceId)?.aftercareNote?.trim() ?? ''
 }
 
+/** NEXT-16: the professional's own aftercare for this visit, signed with their first name. */
+export function visitAftercare(s: BusinessState, a: Appointment) {
+  const text = a.aftercare?.text.trim()
+  if (!text) return ''
+  const who = s.staff.find((p) => p.id === a.aftercare!.staffId)?.name.split(' ')[0]
+  return who ? `A note from ${who}: ${text}` : text
+}
+
 /**
  * Whether a completed visit's aftercare email may go now: switched on, the treatment has advice,
  * and between half an hour and two days after checkout. Checked again just before sending.
@@ -178,7 +186,7 @@ export function aftercareDue(s: BusinessState, a: Appointment, now: number) {
   return (
     a.status === 'completed' &&
     reminderSettings(s).aftercare !== false &&
-    !!aftercareNote(s, a) &&
+    (!!aftercareNote(s, a) || !!visitAftercare(s, a)) &&
     now - paidAt >= AFTERCARE_DELAY_MS &&
     now - paidAt < RECENT_MS
   )
@@ -792,8 +800,7 @@ export function composeMessage(
   const lines = [greeting, '', opening, '']
   if (kind === 'aftercare') {
     lines.push(
-      aftercareNote(s, a),
-      '',
+      ...[aftercareNote(s, a), visitAftercare(s, a)].filter(Boolean).flatMap((part) => [part, '']),
       `If anything feels wrong, please call us. For anything urgent, contact a medical professional.`,
     )
   } else if (kind === 'due_back') {

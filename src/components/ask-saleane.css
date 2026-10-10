@@ -190,6 +190,17 @@
     animation: none;
   }
 }
+.ask-voice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-small);
+  color: var(--muted);
+}
+.ask-voice select {
+  width: auto;
+  min-width: 0;
+}
 .ask-meter {
   margin: 0;
   color: var(--muted);

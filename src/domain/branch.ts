@@ -39,7 +39,15 @@ const CLIENT_COMMANDS = new Set([
   'missed-call',
   'missed-call-done',
 ])
-const VISIT_COMMANDS = new Set(['cancel', 'no-show', 'arrive', 'checkout', 'deposit', 'fee'])
+const VISIT_COMMANDS = new Set([
+  'cancel',
+  'no-show',
+  'arrive',
+  'checkout',
+  'deposit',
+  'fee',
+  'visit-write-up',
+])
 const ELSEWHERE = 'That visit is at another location.'
 const WHOLE_BUSINESS = 'That changes the whole business. Ask the owner or a manager.'
 
@@ -54,7 +62,7 @@ export function branchRefusal(
     const visit = s.appointments.find((a) => a.id === appointmentId)
     return !!visit && visit.locationId === locationId
   }
-  if (CLIENT_COMMANDS.has(command.type)) return null
+  if (CLIENT_COMMANDS.has(command.type) || command.type === 'own-voice') return null
   if (VISIT_COMMANDS.has(command.type) || command.type === 'reschedule')
     return visitHere((command as { appointmentId: string }).appointmentId) ? null : ELSEWHERE
   switch (command.type) {

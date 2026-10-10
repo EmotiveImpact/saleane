@@ -32,6 +32,7 @@ import {
 import { ALLOWANCES } from './saleane'
 import { BOOKING_LINK, MANAGE_LINK_SPOT, receptionistBrain } from './receptionistBrain'
 import type { ReceptionChannel } from './receptionistBrain'
+import { aiVoice, toneFacts } from './tone'
 
 /**
  * V4: the AI receptionist, the guest-facing side of Lumane. It answers from the studio's own
@@ -124,6 +125,7 @@ export function receptionFacts(ctx: ReceptionContext, channel: ReceptionChannel 
       : "The guest is chatting on the studio's booking page, which shows a button for each time you list.",
     ...(guest ? [`The guest is a known client, ${guest.name.split(' ')[0]}.`] : []),
     'When a skill asks for a date, give it as YYYY-MM-DD.',
+    toneFacts(ctx.state, 'guest'),
   ].join('\n')
 }
 
@@ -669,7 +671,13 @@ export function askReceptionist(input: ReceptionInput): Promise<TurnResult<Recep
   const ctx = receptionContext(input.state, input.today, input.now, input.guestId)
   return runTurn({
     brain:
-      input.brain ?? receptionistBrain(ctx.today, input.state.organisation.locale, input.channel),
+      input.brain ??
+      receptionistBrain(
+        ctx.today,
+        input.state.organisation.locale,
+        input.channel,
+        aiVoice(input.state).tone,
+      ),
     skills: receptionistSkills(),
     ctx,
     instructions: RECEPTION_INSTRUCTIONS,
