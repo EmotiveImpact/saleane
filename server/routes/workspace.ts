@@ -427,7 +427,7 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
           org.id,
           data.email,
         )
-        if (member) fail(409, 'This person already belongs to the workspace.')
+        if (member) fail(409, 'This person is already in the studio team.')
         const staffId =
           data.role === 'practitioner' ? linkableProfessional(org, data.staffId) : null
         const areaId = data.role === 'regional' ? linkableArea(org, data.areaId) : null

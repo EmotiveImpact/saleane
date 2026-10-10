@@ -8,6 +8,7 @@ import { bookedTimeDefinition } from '../components/definitions'
 import { RetentionPanel } from '../components/RetentionPanel'
 import { WholeBusiness } from '../components/WholeBusiness'
 import { addDays, dateLabel, money, timeLabel, wholeMoney } from '../domain/format'
+import { barHeight, chartScale } from '../domain/chartScale'
 import {
   Avatar,
   Button,
@@ -35,7 +36,8 @@ export function Business() {
   const teamHidden = role === 'general' && !!branch && multiSite && place !== branch
   const data = report(state, days, place)
   const due = dueClients(state)
-  const maxRevenue = Math.max(...data.byDay.map((d) => d.revenue), 1)
+  // Stage 6: round figures on the axis, and only zero when nothing was taken.
+  const scale = chartScale(data.byDay.map((d) => d.revenue))
   // Today's close: visits still open, and who the studio sees first tomorrow.
   const live = (a: (typeof state.appointments)[number]) =>
     a.status !== 'cancelled' && a.status !== 'no_show'
@@ -158,8 +160,8 @@ export function Business() {
             aria-label={`Takings from completed treatments by day over the last ${days} days, ${money(data.revenue, state.organisation)} total. Exact values are available in the table below.`}
           >
             <div className="chart-axis">
-              <span>{money(maxRevenue, state.organisation)}</span>
-              <span>{money(Math.round(maxRevenue / 2), state.organisation)}</span>
+              <span>{scale.top ? money(scale.top, state.organisation) : ''}</span>
+              <span>{scale.top ? money(scale.half, state.organisation) : ''}</span>
               <span>{money(0, state.organisation)}</span>
             </div>
             <div className="chart-bars">
@@ -167,7 +169,7 @@ export function Business() {
                 <div className="chart-column" key={d.date}>
                   <div
                     className={`chart-bar ${d.date === today ? 'current-bar' : ''}`}
-                    style={{ height: `${(d.revenue / maxRevenue) * 100}%` }}
+                    style={{ height: `${barHeight(d.revenue, scale)}%` }}
                     title={`${dateLabel(d.date, state.organisation.locale, true)}: ${money(d.revenue, state.organisation)}`}
                   />
                   <span>

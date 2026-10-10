@@ -256,7 +256,7 @@ export function patchTestsProblem(s: BusinessState) {
   const tests = patchTests(s)
   if (new Set(tests.map((t) => t.id)).size !== tests.length) return 'Duplicate patch test IDs.'
   for (const test of tests) {
-    if (test.organisationId !== s.organisation.id) return 'Foreign workspace record.'
+    if (test.organisationId !== s.organisation.id) return 'A record from another studio.'
     if (!s.clients.some((c) => c.id === test.clientId)) return 'A patch test names no client.'
     if (test.result && Date.parse(test.result.at) < Date.parse(test.testedAt))
       return 'A patch test result comes before the test.'

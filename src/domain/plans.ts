@@ -453,7 +453,7 @@ export function plansProblem(s: BusinessState) {
   const list = [offers(s), holdings(s)]
   for (const rows of list) {
     if (new Set(rows.map((r) => r.id)).size !== rows.length) return 'Duplicate plan IDs.'
-    if (rows.some((r) => r.organisationId !== org.id)) return 'Foreign workspace record.'
+    if (rows.some((r) => r.organisationId !== org.id)) return 'A record from another studio.'
   }
   const sandbox = operations(s).mode === 'sandbox'
   const salesById = new Map(s.sales.map((sale) => [sale.id, sale]))

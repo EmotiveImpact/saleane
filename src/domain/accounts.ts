@@ -491,7 +491,7 @@ export function salesCsv(rows: SaleRow[], currency: string) {
       'Date',
       'Receipt',
       'Client',
-      `Services before tax (${currency})`,
+      `Treatments before tax (${currency})`,
       `Discount (${currency})`,
       `Products before tax (${currency})`,
       `Tax (${currency})`,
@@ -579,9 +579,9 @@ export function dayJournal(day: DaySummary, codes: AccountCodes): JournalLine[] 
   const credit = (account: string, code: string, description: string, minor: number) =>
     minor ? [{ account, code, description, debitMinor: 0, creditMinor: minor }] : []
   const lines: JournalLine[] = [
-    ...credit('Services', codes.services, 'Services before tax', day.servicesMinor),
+    ...credit('Treatments', codes.services, 'Treatments before tax', day.servicesMinor),
     ...credit('Products', codes.products, 'Products before tax', day.productsMinor),
-    ...credit('Tax', codes.tax, 'Tax on services and products', day.taxMinor),
+    ...credit('Tax', codes.tax, 'Tax on treatments and products', day.taxMinor),
     ...credit('Tips owed to staff', codes.tips, 'Tips', day.tipsMinor),
     ...credit(
       'Packages and memberships',

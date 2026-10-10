@@ -201,7 +201,7 @@ export function createContext(options: ApiOptions) {
     const time = now()
     if (rates.size > 5000)
       for (const [key, entry] of rates) if (entry.expires <= time) rates.delete(key)
-    if (rates.size > 10000) fail(503, 'The local service is busy. Try again shortly.')
+    if (rates.size > 10000) fail(503, 'SALEANE is busy. Try again shortly.')
     const key = `${address(request)}:${bucket}`
     const existing = rates.get(key)
     const entry =
@@ -220,7 +220,7 @@ export function createContext(options: ApiOptions) {
     )
     if (!actor) fail(401, 'Your session has ended. Sign in again.')
     if (write && !equalToken(header(request, 'x-csrf-token'), actor!.csrf))
-      fail(403, 'Refresh the workspace before saving.')
+      fail(403, 'Refresh the page before saving.')
     return actor!
   }
   const signIn = (response: ServerResponse, accountId: string) => {
@@ -278,7 +278,7 @@ export function createContext(options: ApiOptions) {
       orgId,
       actor.id,
     )
-    if (!row) fail(404, 'Workspace was not found.')
+    if (!row) fail(404, 'That studio was not found.')
     // A practitioner reads only through their projection, which needs a linked professional.
     if (row!.role === 'practitioner' && !row!.staff_id)
       fail(403, 'Your access is not linked to a professional. Ask the owner to update it.')

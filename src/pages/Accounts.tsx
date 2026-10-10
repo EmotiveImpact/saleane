@@ -34,7 +34,7 @@ import '../accounts.css'
 type Period = 'this' | 'last'
 const PROVIDER: Record<AccountingProvider, string> = { xero: 'Xero', quickbooks: 'QuickBooks' }
 const CODE_LABEL: Record<keyof AccountCodes, string> = {
-  services: 'Services',
+  services: 'Treatments',
   products: 'Products',
   tax: 'Tax (VAT or sales tax)',
   tips: 'Tips owed to staff',
@@ -224,7 +224,7 @@ export function Accounts() {
               <thead>
                 <tr>
                   <th scope="col">Day</th>
-                  <th scope="col">Services</th>
+                  <th scope="col">Treatments</th>
                   <th scope="col">Products</th>
                   <th scope="col">Tax</th>
                   <th scope="col">Tips</th>
@@ -257,8 +257,8 @@ export function Accounts() {
           <p className="subtle">Nothing was taken in this period.</p>
         )}
         <p className="subtle">
-          Services leave out visits a package or membership paid for, as those were counted when the
-          plan was sold. Deposits count when the visit is paid.
+          Treatments leave out visits a package or membership paid for, as those were counted when
+          the plan was sold. Deposits count when the visit is paid.
           {renters &&
             ' Someone renting a chair or room keeps their own takings: they come through your till but are held for them, apart from your income. Their rent is your income.'}
         </p>

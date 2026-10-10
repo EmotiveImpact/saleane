@@ -354,7 +354,7 @@ export function giftCardsProblem(s: BusinessState) {
   const cards = giftCards(s)
   if (new Set(cards.map((c) => c.id)).size !== cards.length) return 'Duplicate gift card IDs.'
   if (new Set(cards.map((c) => c.code)).size !== cards.length) return 'Duplicate gift card codes.'
-  if (cards.some((c) => c.organisationId !== org.id)) return 'Foreign workspace record.'
+  if (cards.some((c) => c.organisationId !== org.id)) return 'A record from another studio.'
   const sandbox = operations(s).mode === 'sandbox'
   const salesById = new Map(s.sales.map((sale) => [sale.id, sale]))
   const spent = new Set<string>()

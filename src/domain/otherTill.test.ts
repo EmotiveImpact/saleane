@@ -264,7 +264,7 @@ describe('sales from another till', () => {
     }, 'two receipts')
     broken((x) => {
       x.otherTillSales![0].organisationId = 'other'
-    }, 'Foreign')
+    }, 'another studio')
   })
 
   it('counts in takings, Money and the business figures for its location and day', () => {

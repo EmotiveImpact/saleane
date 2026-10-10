@@ -4,7 +4,7 @@ import { can } from '../../src/domain/operations'
 import { MANAGE_LINK } from '../../src/domain/reminders'
 import { NEWS_STOP_LINK } from '../../src/domain/news'
 import { OFFER_LINK } from '../../src/domain/quietOffersSchema'
-import { shownBody } from '../../src/domain/cancelledTimes'
+import { guestOf, shownBody } from '../../src/domain/cancelledTimes'
 import { repliesList } from '../../src/domain/inbox'
 import type { BusinessState } from '../../src/domain/model'
 import type { Context, Route } from '../context'
@@ -13,6 +13,8 @@ import type { Outbox, OutboxRow } from '../messaging/outbox'
 const query = z.object({
   clientId: z.string().min(1).max(150).optional(),
   limit: z.coerce.number().int().min(1).max(200).default(100),
+  /** Stage 6: with `clientId`, the messages of every record of that guest, as the Inbox shows. */
+  guest: z.enum(['1']).optional(),
 })
 
 /**
@@ -71,12 +73,18 @@ export function messagingRoutes(outbox: Outbox) {
     if (path.length === 4 && method === 'GET') {
       const input = query.parse(Object.fromEntries(url.searchParams))
       const linked = linkedClients(org.state)
+      // Records with the same email are one guest; only this studio's records are ever read.
+      const ids = input.clientId
+        ? input.guest
+          ? [...(guestOf(org.state, input.clientId)?.ids ?? [input.clientId])]
+          : [input.clientId]
+        : []
       const rows = input.clientId
         ? ctx.db.all<OutboxRow>(
-            `SELECT * FROM outbox WHERE organisation_id=? AND (client_id=? OR (client_id='' AND kind='receptionist' AND channel || '|' || slot IN (SELECT value FROM json_each(?)))) ORDER BY created_at DESC LIMIT ?`,
+            `SELECT * FROM outbox WHERE organisation_id=? AND (client_id IN (SELECT value FROM json_each(?)) OR (client_id='' AND kind='receptionist' AND channel || '|' || slot IN (SELECT value FROM json_each(?)))) ORDER BY created_at DESC LIMIT ?`,
             org.id,
-            input.clientId,
-            JSON.stringify([...linked].filter(([, id]) => id === input.clientId).map(([k]) => k)),
+            JSON.stringify(ids),
+            JSON.stringify([...linked].filter(([, id]) => ids.includes(id)).map(([k]) => k)),
             input.limit,
           )
         : // Stage 4: a message to clients is followed on its own page and on each client's,

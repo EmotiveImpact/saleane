@@ -400,7 +400,7 @@ export function parseState(value: unknown, region: Region): BusinessState {
   const s = stateSchema.parse(value)
   const org = s.organisation
   if (org.region !== region || org.currency !== (region === 'UK' ? 'GBP' : 'USD'))
-    throw new Error('Workspace region mismatch.')
+    throw new Error('This studio record is for another region.')
   const collections = [
     s.clients,
     s.services,
@@ -419,7 +419,7 @@ export function parseState(value: unknown, region: Region): BusinessState {
     if (new Set(collection.map((item) => item.id)).size !== collection.length)
       throw new Error('Duplicate record IDs.')
     if (collection.some((item) => item.organisationId !== org.id))
-      throw new Error('Foreign workspace record.')
+      throw new Error('A record from another studio.')
   }
   // Index each collection once: checking links by scanning arrays made validation quadratic, which
   // took seconds per request at tens of thousands of visits.
@@ -443,10 +443,11 @@ export function parseState(value: unknown, region: Region): BusinessState {
   const depositsFor = (appointmentId: string) =>
     (paymentsByAppointment.get(appointmentId) ?? []).filter((p) => p.kind === 'deposit')
   for (const service of s.services)
-    if (service.depositMinor > service.priceMinor) throw new Error('Invalid service deposit.')
+    if (service.depositMinor > service.priceMinor)
+      throw new Error('A treatment deposit is not valid.')
   for (const staff of s.staff)
     if (staff.serviceIds.some((serviceId) => !exists(s.services, serviceId)))
-      throw new Error('Missing staff service.')
+      throw new Error('A team member offers a treatment the studio does not have.')
   for (const a of s.appointments) {
     if (
       !exists(s.clients, a.clientId) ||
@@ -454,7 +455,7 @@ export function parseState(value: unknown, region: Region): BusinessState {
       !exists(s.services, a.serviceId) ||
       !exists(s.resources, a.resourceId)
     )
-      throw new Error('Broken appointment link.')
+      throw new Error('A visit points to a record the studio does not have.')
     // Upgrade older local records using the linked catalogue without resetting user data.
     a.bookedResourceType ??= s.resources.find((resource) => resource.id === a.resourceId)!.type
     a.bookedServiceName ??= s.services.find((service) => service.id === a.serviceId)!.name
@@ -462,7 +463,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
       throw new Error('Broken rebooking link.')
     if (a.bookedDepositMinor > a.bookedPriceMinor) throw new Error('Invalid booked deposit.')
     // Stage 5: a visit other software booked names the access key that booked it.
-    if ((a.source === 'software') !== !!a.software) throw new Error('Broken appointment source.')
+    if ((a.source === 'software') !== !!a.software)
+      throw new Error('A visit does not say properly where it was booked.')
   }
   // NEXT-09: repeat visits are one client's, at one rhythm.
   const repeats = new Map<string, { clientId: string; everyWeeks: number }>()
@@ -485,7 +487,7 @@ export function parseState(value: unknown, region: Region): BusinessState {
     )
       throw new Error('Broken booking for several people.')
   if (new Set(s.sales.map((sale) => sale.appointmentId)).size !== s.sales.length)
-    throw new Error('Duplicate appointment settlement.')
+    throw new Error('A visit was settled twice.')
   for (const sale of s.sales) {
     const appointment = appointmentById.get(sale.appointmentId)
     if (
@@ -603,7 +605,7 @@ export function parseState(value: unknown, region: Region): BusinessState {
             !exists(s.staff, allocation.staffId) || !exists(s.resources, allocation.resourceId),
         ))
     )
-      throw new Error('Invalid appointment change history.')
+      throw new Error('A visit has a history of changes that is not valid.')
   }
   for (const edge of s.relationships)
     if (

@@ -28,7 +28,7 @@ describe('the visit panel, one place for a visit in every state', { timeout: 200
       'href',
       '/clients/client-4',
     )
-    expect(within(panel).getByText('Prefers appointment updates by email.')).toBeInTheDocument()
+    expect(within(panel).getByText('Prefers visit updates by email.')).toBeInTheDocument()
     expect(within(panel).getByText(/before this one\.$|No earlier visits\./)).toBeInTheDocument()
     const actions = within(panel).getByRole('group', { name: 'Manage this visit' })
     expect(

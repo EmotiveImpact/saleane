@@ -102,7 +102,7 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
     if (options.allowRegistration === false) fail(403, 'New account registration is disabled.')
     const data = registration.parse(body)
     if (!!data.workspace === !!data.invitation)
-      fail(400, 'Choose a new workspace or use an invitation.')
+      fail(400, 'Choose a new studio or use an invitation.')
     const accountId = randomUUID(),
       hash = await passwordHash(data.password)
     const orgId = db.transaction(() => {

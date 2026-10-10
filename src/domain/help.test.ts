@@ -224,6 +224,13 @@ describe('help inside the app', () => {
     expect(first('cheaper off peak price')).toBe('quiet-offers')
     expect(first('lower price for a gap', 'reception')).toBe('quiet-offers')
     expect(ids(searchHelp('discount quiet time', 'practitioner'))).not.toContain('quiet-offers')
+    // Stage 6: a guest booked under several records reads as one conversation.
+    expect(first('same guest two records in the inbox')).toBe('inbox-one-guest')
+    expect(first('client booked online twice duplicate conversation')).toBe('inbox-one-guest')
+    expect(first('two records same email', 'reception')).toBe('inbox-one-guest')
+    expect(ids(searchHelp('two records same email', 'practitioner'))).not.toContain(
+      'inbox-one-guest',
+    )
     // Stage 5: booking on Google, with its new way to change the time.
     expect(first('book on google maps')).toBe('google-booking')
     expect(first('reserve with google')).toBe('google-booking')

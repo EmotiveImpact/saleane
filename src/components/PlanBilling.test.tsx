@@ -288,7 +288,7 @@ test('a read only studio can pay for a month from today, and cannot add Plus or 
   expect(screen.getByRole('button', { name: 'Add Plus' })).toBeDisabled()
   expect(screen.queryByRole('button', { name: /^Stop/ })).not.toBeInTheDocument()
   expect(
-    screen.getByText('Ask Saleane and the AI receptionist rest while the studio is read only.'),
+    screen.getByText('Ask SALEANE and the AI receptionist rest while the studio is read only.'),
   ).toBeInTheDocument()
 })
 

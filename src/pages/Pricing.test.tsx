@@ -74,8 +74,8 @@ test('says which included features wait for a card or text account or voice, and
   expect(line('Saved cards, card readers')).toHaveTextContent(
     'Arrives when you connect your card account',
   )
-  expect(line('Talking to Ask Saleane')).toHaveTextContent(
-    'Arrives when talking to Ask Saleane is switched on',
+  expect(line('Talking to Ask SALEANE')).toHaveTextContent(
+    'Arrives when talking to Ask SALEANE is switched on',
   )
   expect(line('Booking confirmations and reminders by email')).not.toHaveTextContent('Arrives')
   // Only the lines that need a connection carry the note.

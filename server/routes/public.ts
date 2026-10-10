@@ -226,7 +226,7 @@ export function bookHeld(
       (allocation.tax !== undefined &&
         canonical(operations(org.state).tax ?? null) !== canonical(allocation.tax))
     )
-      fail(409, 'This service changed during the reservation. Review it and choose a time again.')
+      fail(409, 'This treatment changed while you were booking. Review it and choose a time again.')
     chooseStaff(withHolds(org, hash), allocation, allocation.resourceId)
     if (
       allocation.offer &&

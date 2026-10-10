@@ -387,7 +387,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
           header(request, 'origin') !== allowedOrigin ||
           header(request, 'sec-fetch-site') === 'cross-site'
         )
-          fail(403, 'This request must come from your SALEANE workspace.')
+          fail(403, 'This request must come from SALEANE in your browser.')
         if (method === 'POST' && UPLOAD_PATH.test(url.pathname)) {
           // Stage 2: a product photo arrives as its own bytes; the route checks what they are.
           if (!/^image\/(?:jpeg|png|webp)$/i.test(header(request, 'content-type') ?? ''))

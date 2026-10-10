@@ -80,7 +80,8 @@ export function resetWorkspace(
     }
   }
   const revision = Math.max(current.revision, persistedRevision) + 1
-  if (!Number.isSafeInteger(revision)) throw new Error('Demo revision limit reached.')
+  if (!Number.isSafeInteger(revision))
+    throw new Error('This demo has saved as many changes as it can. Reset it to carry on.')
   const next = { ...seed(region), revision }
   storage.setItem(storageKey(region), JSON.stringify(next))
   return next

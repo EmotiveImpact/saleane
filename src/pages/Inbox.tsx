@@ -17,7 +17,13 @@ import { Avatar, Button, ErrorMessage, Modal, PageHeader, SegmentedControl } fro
 import type { BusinessState } from '../domain/model'
 import { useInboxView } from '../state/inboxView'
 import { draftStale, namesATime, shownBody } from '../domain/cancelledTimes'
-import { conversations, savedReplies, snippet, socialWindowEnds } from '../domain/inbox'
+import {
+  conversationKey,
+  conversations,
+  savedReplies,
+  snippet,
+  socialWindowEnds,
+} from '../domain/inbox'
 import type { Conversation, Delivery, ThreadItem } from '../domain/inbox'
 import { SOCIAL_ANSWER_LIMIT, isSocialChannel, noteWays, socialLabel } from '../domain/inboxSchema'
 import type { Reply, SocialChannel } from '../domain/inboxSchema'
@@ -117,7 +123,7 @@ export function Inbox() {
   const [query, setQuery] = useState('')
   const view = useInboxView(session?.user.id)
   const [selectedKey, setSelectedKey] = useState<string | undefined>(
-    writeTo ? `client:${writeTo.id}` : undefined,
+    writeTo ? conversationKey(state, writeTo.id) : undefined,
   )
   // On a phone the two-column view shows the list first, then one conversation.
   const [opened, setOpened] = useState(false)
@@ -136,8 +142,13 @@ export function Inbox() {
     .filter((c) => filter === 'all' || (filter === 'unread' ? c.unread > 0 : c.drafts > 0))
     .filter((c) => matches(state, c, query))
   const listed = shown.find((c) => c.key === selectedKey) ?? shown[0]
-  // The list comes from the studio's newest messages; an open conversation reads that guest's own.
-  const own = useSentMessages(listed?.clientId, { limit: 200, skip: !listed?.clientId })
+  // The list comes from the studio's newest messages; an open conversation reads that guest's own,
+  // from every one of their records.
+  const own = useSentMessages(listed?.clientId, {
+    limit: 200,
+    skip: !listed?.clientId,
+    guest: true,
+  })
   const selected =
     listed &&
     (own.reply
@@ -241,7 +252,7 @@ export function Inbox() {
       setBody('')
       setAppointmentId('')
       setFilter('all')
-      setSelectedKey(`client:${clientId}`)
+      setSelectedKey(conversationKey(state, clientId))
     }
   }
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -358,7 +369,7 @@ export function Inbox() {
     return (
       <>
         <header className="inbox-pane-header">
-          <Avatar identity={c.clientId ?? c.from} name={c.clientId ? name : '?'} />
+          <Avatar identity={c.clientIds[0] ?? c.from} name={c.clientId ? name : '?'} />
           <div>
             <h2 className="inbox-name">{name}</h2>
             <p>
@@ -368,6 +379,12 @@ export function Inbox() {
               {stoppedNumber &&
                 ` This number replied STOP on ${dayMonth(state, stoppedNumber.stoppedAt)}, so SALEANE will not text it until they text START.`}
             </p>
+            {recipient && c.clientIds.length > 1 && (
+              <p className="inbox-records">
+                Booked under {c.clientIds.length} client records with this email, so their messages
+                are together here. Answers go to the details above.
+              </p>
+            )}
           </div>
           {recipient && (
             <Link className="button button-secondary" to={`/clients/${recipient.id}`}>
@@ -580,7 +597,7 @@ export function Inbox() {
                       })
                     ).ok,
                   'Matched. The conversation is now with the client.',
-                ).then((ok) => ok && setSelectedKey(`client:${linkTo}`))
+                ).then((ok) => ok && setSelectedKey(conversationKey(state, linkTo)))
               }}
             >
               <label>
@@ -718,7 +735,11 @@ export function Inbox() {
                     aria-current={isCurrent ? 'true' : undefined}
                     onClick={() => open(c)}
                   >
-                    <Avatar small identity={c.clientId ?? c.from} name={c.clientId ? name : '?'} />
+                    <Avatar
+                      small
+                      identity={c.clientIds[0] ?? c.from}
+                      name={c.clientId ? name : '?'}
+                    />
                     <span className="inbox-row-text">
                       <span className="inbox-row-top">
                         <strong>{name}</strong>

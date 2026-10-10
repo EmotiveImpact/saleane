@@ -319,7 +319,7 @@ export function otherTillProblem(s: BusinessState): string | null {
   const staff = new Set(s.staff.map((p) => p.id))
   const services = new Set(s.services.map((x) => x.id))
   for (const x of rows) {
-    if (x.organisationId !== s.organisation.id) return 'Foreign workspace record.'
+    if (x.organisationId !== s.organisation.id) return 'A record from another studio.'
     if (x.currency !== s.organisation.currency) return 'A sale from another till is not valid.'
     if (!known.has(x.locationId)) return 'A sale from another till names a missing location.'
     const key = `${x.locationId}|${x.kind}|${x.receipt}`
