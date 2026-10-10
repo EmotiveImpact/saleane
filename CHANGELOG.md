@@ -2,6 +2,18 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-10 · Marketing, in its own section (NEXT-14)
+
+**Status: built locally on 10 October 2026; email stays in test mode, so nothing is sent.** [Evidence](docs/evidence/NEXT-14-MARKETING.md).
+
+- Marketing has its own item in the sidebar, between Inbox and Business, for owners, managers and general managers. It has four parts: Campaigns, Automatic, Audience and Results.
+- Campaigns are the messages to clients, as before, now with a line under each saying what it did.
+- Automatic gathers the emails SALEANE sends by itself (aftercare, due back, birthday and we miss you), each with an on or off switch, how many went in the last 30 days and a look at the email as a guest would get it. They moved here from Settings, Messages, which keeps the booking messages.
+- Audience counts who may hear from the studio, who has not agreed, and how people stopped (the link in an email, the desk, the booking page), month by month. It shows only numbers, never a list of names. The words guests agree to moved here from Settings.
+- Results show what each campaign and automatic email did each month: how many went, how many could not and why, who stopped hearing from the studio, and who booked within two weeks. Nothing follows whether an email was opened.
+- Each location's price includes 2,000 marketing emails a month, or 10,000 with Plus (the owner's decision, 10 October 2026). A campaign that would go over is not approved, and says so in plain words; an automatic marketing email past the month's limit is not sent. Booking, reminder and aftercare emails never count.
+- A mail app's own Unsubscribe button now stops a guest's news at once (one-click unsubscribe, RFC 8058), with no page and no sign-in.
+
 ## 2026-10-10 · Signing in with Face ID or a fingerprint (NEXT-15)
 
 **Status: built locally on 10 October 2026; checked in Chromium with its stand-in authenticator, not on a real phone.** [Evidence](docs/evidence/NEXT-15-FACE-ID.md).

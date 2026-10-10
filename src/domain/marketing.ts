@@ -255,12 +255,13 @@ export function marketingResults(
 /** "12 sent · 1 not sent · 3 booked within two weeks": only the parts that happened. */
 export function tallyWords(tally: Tally, campaign: boolean) {
   const parts: string[] = []
-  if (tally.sent) parts.push(`${tally.sent} sent`)
-  if (tally.test) parts.push(`${tally.test} in test mode, not sent`)
-  if (tally.waiting) parts.push(`${tally.waiting} still going`)
-  if (tally.notSent) parts.push(`${tally.notSent} not sent`)
-  if (campaign && tally.stopped) parts.push(`${tally.stopped} stopped hearing from you`)
-  if (tally.booked) parts.push(`${tally.booked} booked within two weeks`)
+  const n = (value: number) => value.toLocaleString('en-GB')
+  if (tally.sent) parts.push(`${n(tally.sent)} sent`)
+  if (tally.test) parts.push(`${n(tally.test)} in test mode, not sent`)
+  if (tally.waiting) parts.push(`${n(tally.waiting)} still going`)
+  if (tally.notSent) parts.push(`${n(tally.notSent)} not sent`)
+  if (campaign && tally.stopped) parts.push(`${n(tally.stopped)} stopped hearing from you`)
+  if (tally.booked) parts.push(`${n(tally.booked)} booked within two weeks`)
   return parts.join(' · ')
 }
 

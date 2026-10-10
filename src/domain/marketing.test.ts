@@ -97,6 +97,10 @@ describe('marketing results', () => {
     })
     expect(results.campaigns[0]).toMatchObject({ sent: 0, test: 1, booked: 0 })
     expect(tallyWords(results.campaigns[0], true)).toBe('1 in test mode, not sent')
+    // Large numbers read with a thousands comma, like the month's marketing emails.
+    expect(tallyWords({ ...results.campaigns[0], sent: 1640, test: 0, notSent: 1200 }, false)).toBe(
+      '1,640 sent · 1,200 not sent',
+    )
   })
 
   it('follows each automatic email by month on the studio’s calendar, and the last 30 days', () => {

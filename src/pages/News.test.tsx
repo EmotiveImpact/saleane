@@ -301,6 +301,9 @@ describe('messages to clients', () => {
         return newsSummary(
           newsAudience(store.state, { by: 'email' }, { now: '2026-10-06T09:45:00.000Z' }),
         ) as never
+      // NEXT-14: what each campaign did, from Marketing's results; nothing has gone yet.
+      if (path.endsWith('/marketing'))
+        return { ...follow(live ?? false), campaigns: [], automatic: [], months: [] } as never
       if (live === null) return new Promise((resolve) => (answer = resolve)) as never
       return follow(live) as never
     })
