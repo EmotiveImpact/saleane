@@ -161,9 +161,10 @@ export function openaiLive(options: OpenAiLiveOptions): VoiceLayer {
               audio: { output: { voice } },
               delegation: { type: 'client' },
               client: {
+                // Client events are named by type; server events by a selector object.
                 data_channel: {
                   allowed_client_events: ['session.close'],
-                  allowed_server_events: ['session.closed'],
+                  allowed_server_events: [{ type: 'session.closed' }],
                 },
               },
             },

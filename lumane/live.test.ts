@@ -87,7 +87,7 @@ describe('starting a talk with OpenAI', () => {
         client: {
           data_channel: {
             allowed_client_events: ['session.close'],
-            allowed_server_events: ['session.closed'],
+            allowed_server_events: [{ type: 'session.closed' }],
           },
         },
       },
