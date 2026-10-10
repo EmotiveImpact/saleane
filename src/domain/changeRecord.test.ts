@@ -7,6 +7,7 @@ import type { Command } from './commands'
 import type { BusinessState } from './model'
 import {
   actionsIn,
+  automaticSource,
   changeCsv,
   changeDetail,
   changeSummary,
@@ -71,6 +72,21 @@ describe('the words for each change', () => {
       expect.arrayContaining(['checkout', 'refund', 'card.removed']),
     )
     expect(actionsIn('visits')).toContain('guest.move')
+    // Stage 5: a guest moving their Google booking.
+    expect(changeWords['google.move']).toEqual(['visits', 'Moved through Book with Google'])
+    // Stage 5: a guest booking through ChatGPT, Claude or an assistant that did not say which.
+    expect(changeWords['ai-booking.chatgpt']).toEqual(['visits', 'Booked through ChatGPT'])
+    expect(changeWords['ai-booking.claude']).toEqual(['visits', 'Booked through Claude'])
+    expect(changeWords['ai-booking.assistant']).toEqual([
+      'visits',
+      'Booked through an AI assistant',
+    ])
+    expect(changeWords['ai-booking']).toEqual([
+      'settings',
+      'Changed booking through ChatGPT or Claude',
+    ])
+    expect(automaticSource('ai-booking.claude')).toBe('A guest, through Claude')
+    expect(automaticSource('ai-booking.assistant')).toBe('A guest, through an AI assistant')
     const all = Object.keys(changeWords)
     const grouped = (
       ['visits', 'clients', 'money', 'team', 'stock', 'messages', 'settings', 'access'] as const

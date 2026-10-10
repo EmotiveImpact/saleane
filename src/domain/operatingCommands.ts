@@ -388,6 +388,11 @@ export function runOperatingCommand(
       throw new Error('A sample studio is never offered on Google. Use a studio of your own.')
     o.googleBooking = { ...command.settings }
     recordId = next.organisation.id
+  } else if (command.type === 'ai-booking') {
+    // Stage 5: a sample studio may try it too, in test mode on this computer, as its booking page
+    // takes practice bookings.
+    o.aiBooking = { ...command.settings }
+    recordId = next.organisation.id
   } else if (command.type === 'contact-preferences') {
     const client = next.clients.find((c) => c.id === command.clientId)
     if (!client) throw new Error('Client does not belong to this studio.')
