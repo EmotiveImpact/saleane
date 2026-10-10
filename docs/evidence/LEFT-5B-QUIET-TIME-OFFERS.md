@@ -1,6 +1,6 @@
 # LEFT-5B · A lower price for a quiet time
 
-Branch `left-s5offers`, from `left-stage5` at 957c445. Built and tested locally. **It has not been seen in a browser yet**: the lead runs the browser pass once the Stage 5 parts are put together (steps at the end).
+Branch `left-s5offers`, from `left-stage5` at 957c445, then merged with `left-stage5` at d402850 (the real AI behind Ask SALEANE and the receptionist, #92, and Stage 5A, a guest's usual) without conflicts, and every check run again. Built and tested locally. **It has not been seen in a browser yet**: the lead runs the browser pass once the Stage 5 parts are put together (steps at the end).
 
 ## What it does
 
@@ -53,13 +53,13 @@ The server enforces each: `quiet-offers` is owner-only in `can` (and the whole b
 
 ## Checks
 
-From the worktree root:
+From the worktree root, after merging `left-stage5` at d402850:
 
 - `npx tsc -b`: passes.
 - `npx eslint . --ignore-pattern '.claude/**' --max-warnings 0`: passes.
 - `git ls-files -z | xargs -0 npx prettier --check --ignore-unknown`: passes.
-- Front-end suite: FRONT_COUNTS.
-- Server suite: SERVER_COUNTS.
+- Front-end suite: 183 files, 1,614 tests passed (4 files and 29 tests new; `left-stage5` alone has 179 and 1,585). Before the merge: 176 files, 1,548 tests.
+- Server suite, on a fresh database: 66 files (one skipped, as before), 504 passed and 2 skipped (1 file and 10 tests new; `left-stage5` alone has 494). Before the merge: 64 files, 486 passed and 2 skipped.
 - `npm run build`: passes.
 
 ## Decisions
