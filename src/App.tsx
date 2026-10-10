@@ -112,6 +112,9 @@ const Feedback = lazy(() =>
 const AskSaleane = lazy(() =>
   import('./components/AskSaleane').then((module) => ({ default: module.AskSaleane })),
 )
+const StudioSetup = lazy(() =>
+  import('./pages/StudioSetup').then((module) => ({ default: module.StudioSetup })),
+)
 const DesignLanguage = lazy(() =>
   import('./pages/DesignLanguage').then((module) => ({ default: module.DesignLanguage })),
 )
@@ -234,6 +237,7 @@ function WorkspaceApp() {
     )
   // NEXT-02: a locked studio opens only for its owner, and only to pay or download its records.
   if (mode === 'server' && billing?.locked) return <LockedStudio />
+  if (location.pathname === '/setup') return <StudioSetup key={state.organisation.id} />
   if (location.pathname === '/booking')
     return mode === 'server' ? (
       <Navigate to={`/book/${slug}${location.search}`} replace />

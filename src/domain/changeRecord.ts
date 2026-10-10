@@ -108,6 +108,8 @@ const commandWords: Record<Command['type'], Words> = {
   organisation: ['settings', 'Changed the studio details'],
   hours: ['settings', 'Changed the opening hours'],
   location: ['settings', 'Changed a location', 'Added a location'],
+  'location-open': ['settings', 'Added a location', 'Added a location with its rooms and team'],
+  'setup-step': ['settings', 'Saved a screen of setting up the studio'],
   'guest-notes': ['settings', 'Changed the notes for guests'],
   closure: ['visits', 'Closed time in the diary'],
   'remove-closure': ['visits', 'Opened closed time again'],

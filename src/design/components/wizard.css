@@ -1,0 +1,167 @@
+/* Wizards: named steps, large choices and a footer that stays in reach (Wizard.tsx). */
+/* Where you are: the steps along the top, done ones ticked. */
+.wizard-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 8px;
+}
+.wizard-steps li {
+  position: relative;
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+/* A thin line joins each step to the next. */
+.wizard-steps li:not(:last-child)::after {
+  content: '';
+  flex: 1;
+  min-width: 10px;
+  height: 1px;
+  background: var(--line2);
+}
+.wizard-steps li.is-done:not(:last-child)::after {
+  background: var(--brand-mid);
+}
+.wizard-steps li:last-child {
+  flex: 0 1 auto;
+}
+.wizard-steps-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-round);
+  background: var(--paper);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-strong);
+}
+.wizard-steps-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wizard-steps li[aria-current='step'] {
+  color: var(--ink);
+  font-weight: var(--weight-strong);
+}
+.wizard-steps li[aria-current='step'] .wizard-steps-mark {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+}
+.wizard-steps li.is-done .wizard-steps-mark {
+  border-color: var(--brand-mid);
+  background: var(--brand-soft);
+  color: var(--brand-ink);
+}
+.choice-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.choice-tile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 64px;
+  padding: 0 18px;
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-body);
+  font-weight: var(--weight-nav);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background var(--motion-quick),
+    border-color var(--motion-quick);
+}
+.choice-tile:hover {
+  border-color: var(--brand-mid);
+  background: var(--sage-soft);
+}
+.choice-tile[aria-pressed='true'] {
+  border-color: var(--brand);
+  background: var(--sage);
+  color: var(--brand-ink);
+  font-weight: var(--weight-strong);
+}
+.choice-tile svg {
+  flex: none;
+  color: var(--brand);
+}
+.choice-tile:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+/* Each step's own heading, focused when the step opens. */
+.wizard-heading {
+  margin: 0 0 12px;
+  font-family: var(--font-editorial);
+  font-size: var(--text-title-s);
+  font-weight: var(--weight-editorial);
+  color: var(--ink);
+  outline: none;
+}
+.wizard-heading + .ops-help {
+  margin: -6px 0 16px;
+}
+/* Back and Continue stay in reach while a long check scrolls. */
+.wizard-footer {
+  position: sticky;
+  bottom: -28px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 -28px -28px;
+  padding: 16px 28px 28px;
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+}
+@media (max-width: 640px) {
+  /* On a phone only the step you are on is named. */
+  .wizard-steps li:not([aria-current='step']) .wizard-steps-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .wizard-steps {
+    gap: 6px;
+  }
+  .wizard-steps li {
+    gap: 6px;
+  }
+  .wizard-steps li[aria-current='step'] {
+    flex: 2 1 auto;
+  }
+  .choice-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .choice-tile {
+    min-height: 56px;
+    padding: 0 14px;
+  }
+}
+/* Matches the dialog's own padding on small screens. */
+@media (max-width: 650px) {
+  .wizard-footer {
+    bottom: -22px;
+    margin: 0 -18px -22px;
+    padding: 14px 18px 22px;
+  }
+}
