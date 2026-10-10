@@ -59,8 +59,14 @@ const NOT_NOW = 'Talking is not available just now. You can type your question i
  * if the supplier goes quiet. Every question is answered by the same Ask turn as a typed one, with
  * the person's own permissions, and any change it prepares waits on screen for approval.
  */
+type Started =
+  | { status: 'talking'; id: string; sdp: string; seconds: number }
+  | { status: 'refused' | 'unavailable'; text: string }
+
 export function talks(held: Map<string, Held>) {
   const open = new Map<string, Talk>()
+  /** Starts still under way for each person in each studio, so two tabs start one after another. */
+  const starting = new Map<string, Promise<unknown>>()
 
   function sweep(ctx: Context) {
     for (const [id, talk] of open)
@@ -136,103 +142,123 @@ export function talks(held: Map<string, Held>) {
     }
   }
 
+  async function begin(
+    ctx: Context,
+    org: Org,
+    actor: Actor,
+    allowance: Allowance,
+    sdp: string,
+  ): Promise<Started> {
+    sweep(ctx)
+    // A new talk from the same person replaces one still open, which they have left.
+    for (const talk of open.values())
+      if (
+        talk.accountId === actor.id &&
+        talk.organisationId === org.id &&
+        talk.endedAt === undefined
+      )
+        close(ctx, talk)
+    const at = new Date(ctx.now()).toISOString()
+    const price = ctx.voice.minorPerMinute
+    const hold = reserveFor(
+      ctx,
+      org.id,
+      allowance,
+      (before) => {
+        const seconds = Math.floor(talkWindowSeconds(allowance, before, at))
+        return seconds < SHORTEST_TALK_SECONDS ? USED_UP : talkUse(actor.id, at, seconds, price)
+      },
+      // Held for the whole talk and its ending, with a minute to spare, should SALEANE stop
+      // before counting it.
+      (use) =>
+        new Date(Date.parse(at) + (use.amount + TALK_GRACE_SECONDS + 60) * 1000).toISOString(),
+    )
+    if (!hold.held) return { status: 'refused', text: hold.text }
+    const use = hold.request
+    const giveBack = (costMinor: number) =>
+      ctx.db.transaction(() => settleUse(ctx, org.id, use, { counted: false, costMinor }))
+
+    let session: { id: string; sdp: string }
+    try {
+      session = await ctx.voice.start({
+        sdp,
+        instructions: talkInstructions(org.state),
+        voice: voiceFor(VOICES, DEFAULT_VOICE, {}, { kind: 'person', personId: actor.id })
+          .supplierVoice,
+      })
+    } catch (error) {
+      // A refused start costs nothing; one that may have reached OpenAI counts its start-up time.
+      const reached = (error as { kind?: string }).kind === 'unreachable'
+      giveBack(reached ? talkCost(0, price) : 0)
+      console.error(`[SALEANE] Talking could not start: ${(error as Error).message}`)
+      return { status: 'unavailable', text: NOT_NOW }
+    }
+
+    const talk: Talk = {
+      id: randomUUID(),
+      sessionId: session.id,
+      organisationId: org.id,
+      accountId: actor.id,
+      startedAt: ctx.now(),
+      window: use.amount,
+      use,
+      timers: [],
+      closing: false,
+      reattached: false,
+      talk: conversation({
+        progress: TALK_PROGRESS,
+        unheard: TALK_UNHEARD,
+        failed: TALK_FAILED,
+        historyTurns: HISTORY_TURNS / 2,
+        think: async (heard, history) => {
+          const thought = await answer(ctx, org.id, actor, heard, history)
+          // Someone whose access was removed mid-talk is not answered, and the talk ends.
+          if (!thought) {
+            close(ctx, talk)
+            return { text: TALK_FAILED }
+          }
+          return thought
+        },
+      }),
+    }
+    try {
+      talk.line = await ctx.voice.attach(session.id, (event) => onEvent(ctx, talk, event))
+    } catch (error) {
+      // Without its own line SALEANE could not end the talk, so the browser is not let in.
+      giveBack(talkCost(0, price))
+      console.error(`[SALEANE] Talking could not be followed: ${(error as Error).message}`)
+      return { status: 'unavailable', text: NOT_NOW }
+    }
+    talk.talk.use(talk.line)
+    open.set(talk.id, talk)
+    // SALEANE ends the talk itself when its window is up.
+    later(talk, talk.window, () => close(ctx, talk))
+    return { status: 'talking', id: talk.id, sdp: session.sdp, seconds: talk.window }
+  }
+
   return {
-    /** Starts a talk for the browser's offer, or says plainly why not. */
+    /**
+     * Starts a talk for the browser's offer, or says plainly why not. One person's starts run one
+     * after another, so a second (from another tab, say) replaces the first rather than both
+     * holding time and listening.
+     */
     async start(
       ctx: Context,
       org: Org,
       actor: Actor,
       allowance: Allowance,
       sdp: string,
-    ): Promise<
-      | { status: 'talking'; id: string; sdp: string; seconds: number }
-      | { status: 'refused' | 'unavailable'; text: string }
-    > {
-      sweep(ctx)
-      // A new talk from the same person replaces one still open, which they have left.
-      for (const talk of open.values())
-        if (
-          talk.accountId === actor.id &&
-          talk.organisationId === org.id &&
-          talk.endedAt === undefined
-        )
-          close(ctx, talk)
-      const at = new Date(ctx.now()).toISOString()
-      const price = ctx.voice.minorPerMinute
-      const hold = reserveFor(
-        ctx,
-        org.id,
-        allowance,
-        (before) => {
-          const seconds = Math.floor(talkWindowSeconds(allowance, before, at))
-          return seconds < SHORTEST_TALK_SECONDS ? USED_UP : talkUse(actor.id, at, seconds, price)
-        },
-        // Held for the whole talk and its ending, with a minute to spare, should SALEANE stop
-        // before counting it.
-        (use) =>
-          new Date(Date.parse(at) + (use.amount + TALK_GRACE_SECONDS + 60) * 1000).toISOString(),
-      )
-      if (!hold.held) return { status: 'refused', text: hold.text }
-      const use = hold.request
-      const giveBack = (costMinor: number) =>
-        ctx.db.transaction(() => settleUse(ctx, org.id, use, { counted: false, costMinor }))
-
-      let session: { id: string; sdp: string }
+    ): Promise<Started> {
+      const key = `${org.id}:${actor.id}`
+      const run = (starting.get(key) ?? Promise.resolve())
+        .catch(() => undefined)
+        .then(() => begin(ctx, org, actor, allowance, sdp))
+      starting.set(key, run)
       try {
-        session = await ctx.voice.start({
-          sdp,
-          instructions: talkInstructions(org.state),
-          voice: voiceFor(VOICES, DEFAULT_VOICE, {}, { kind: 'person', personId: actor.id })
-            .supplierVoice,
-        })
-      } catch (error) {
-        // A refused start costs nothing; one that may have reached OpenAI counts its start-up time.
-        const reached = (error as { kind?: string }).kind === 'unreachable'
-        giveBack(reached ? talkCost(0, price) : 0)
-        console.error(`[SALEANE] Talking could not start: ${(error as Error).message}`)
-        return { status: 'unavailable', text: NOT_NOW }
+        return await run
+      } finally {
+        if (starting.get(key) === run) starting.delete(key)
       }
-
-      const talk: Talk = {
-        id: randomUUID(),
-        sessionId: session.id,
-        organisationId: org.id,
-        accountId: actor.id,
-        startedAt: ctx.now(),
-        window: use.amount,
-        use,
-        timers: [],
-        closing: false,
-        reattached: false,
-        talk: conversation({
-          progress: TALK_PROGRESS,
-          unheard: TALK_UNHEARD,
-          failed: TALK_FAILED,
-          historyTurns: HISTORY_TURNS / 2,
-          think: async (heard, history) => {
-            const thought = await answer(ctx, org.id, actor, heard, history)
-            // Someone whose access was removed mid-talk is not answered, and the talk ends.
-            if (!thought) {
-              close(ctx, talk)
-              return { text: TALK_FAILED }
-            }
-            return thought
-          },
-        }),
-      }
-      try {
-        talk.line = await ctx.voice.attach(session.id, (event) => onEvent(ctx, talk, event))
-      } catch (error) {
-        // Without its own line SALEANE could not end the talk, so the browser is not let in.
-        giveBack(talkCost(0, price))
-        console.error(`[SALEANE] Talking could not be followed: ${(error as Error).message}`)
-        return { status: 'unavailable', text: NOT_NOW }
-      }
-      talk.talk.use(talk.line)
-      open.set(talk.id, talk)
-      // SALEANE ends the talk itself when its window is up.
-      later(talk, talk.window, () => close(ctx, talk))
-      return { status: 'talking', id: talk.id, sdp: session.sdp, seconds: talk.window }
     },
 
     /** The person's own talk in this studio, or undefined. */

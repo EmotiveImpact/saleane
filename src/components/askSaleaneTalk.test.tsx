@@ -251,4 +251,32 @@ describe('talking to Ask SALEANE', () => {
     expect(within(panel).getByRole('timer')).toBeInTheDocument()
     expect(stop).toHaveBeenCalledTimes(1)
   })
+
+  it('shows a later talk’s questions even when OpenAI reuses an earlier one’s id', async () => {
+    const general = mocked.getMockImplementation()!
+    mocked.mockImplementation(async (path, options) => {
+      if (path === `${base}/talk/talk-2` && !options)
+        return {
+          id: 'talk-2',
+          status: 'talking',
+          secondsLeft: 590,
+          turns: [{ id: 'item_1', heard: 'And tomorrow?', answer: 'Two visits.', proposals: [] }],
+          usage: usage(600),
+        }
+      return general(path, options)
+    })
+    const user = userEvent.setup()
+    render(<AskSaleane onClose={() => {}} />)
+    const panel = await screen.findByRole('dialog', { name: 'Ask SALEANE' })
+    await user.click(await within(panel).findByRole('button', { name: 'Talk' }))
+    await within(panel).findByText('Remind me to call Amelia tomorrow.', {}, { timeout: 3000 })
+    await user.click(within(panel).getByRole('button', { name: 'Stop' }))
+    await within(panel).findByText('The talk has ended.')
+    started = { ...started, id: 'talk-2' }
+    await user.click(within(panel).getByRole('button', { name: 'Talk' }))
+    expect(
+      await within(panel).findByText('And tomorrow?', {}, { timeout: 3000 }),
+    ).toBeInTheDocument()
+    expect(within(panel).getByText('Two visits.')).toBeInTheDocument()
+  })
 })

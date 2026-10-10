@@ -134,4 +134,37 @@ describe('a spoken conversation', () => {
     expect(talk.seconds).toBe(25)
     expect(talk.ended).toEqual({ reason: 'close_requested' })
   })
+
+  it('keeps each question’s own words while an earlier one is still being answered', async () => {
+    let release!: () => void
+    const slow = new Promise<void>((done) => (release = done))
+    const asked: string[] = []
+    const talk = conversation(
+      options(async (heard) => {
+        asked.push(heard)
+        if (heard === 'First question?') await slow
+        return { text: `Answered: ${heard}` }
+      }),
+    )
+    const { fake, said } = line()
+    talk.use(fake)
+    talk.handle({ type: 'heard', text: 'First question?' })
+    talk.handle({ type: 'delegated', id: 'd1' })
+    await new Promise((done) => setTimeout(done, 40))
+    // Two more questions while Claude is still answering the first.
+    talk.handle({ type: 'heard', text: 'Second ' })
+    talk.handle({ type: 'heard', text: 'question?' })
+    talk.handle({ type: 'delegated', id: 'd2' })
+    await new Promise((done) => setTimeout(done, 40))
+    talk.handle({ type: 'heard', text: 'Third question?' })
+    talk.handle({ type: 'delegated', id: 'd3' })
+    release()
+    await talk.settled()
+    expect(asked).toEqual(['First question?', 'Second question?', 'Third question?'])
+    expect(said.filter((s) => s.kind === 'answer').map((s) => [s.id, s.text])).toEqual([
+      ['d1', 'Answered: First question?'],
+      ['d2', 'Answered: Second question?'],
+      ['d3', 'Answered: Third question?'],
+    ])
+  })
 })

@@ -36,6 +36,13 @@ export type ConversationOptions = {
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 /**
+ * The words of one question handed over. It takes what was said before it was handed over and
+ * what follows just after, until the words stop for a moment or the longest wait passes; anything
+ * said after that belongs to the next question, even while this one is still being answered.
+ */
+type Asked = { id: string; text: string; at: number; since: number; closed: boolean }
+
+/**
  * Follows one spoken conversation: gathers what the person says, and each time the voice hands a
  * question over, answers it with the app's own brain and gives the voice the answer to say.
  * Questions are answered one at a time, in the order they were asked.
@@ -44,29 +51,32 @@ export function conversation(options: ConversationOptions) {
   const clock = options.clock ?? Date.now
   const turns: TalkTurn[] = []
   let line: LiveLine | undefined
+  /** Words not yet part of a question handed over. */
   let heard = ''
   let heardAt = 0
+  let latest: Asked | undefined
   let seconds = 0
   let ended: { reason: string } | undefined
   let queue: Promise<void> = Promise.resolve()
 
-  /** Waits for the question's words: some heard, then a moment's quiet, or the longest wait. */
-  async function words() {
-    const started = clock()
-    const longest = options.waitForWordsMs ?? 1500
-    const quiet = options.quietMs ?? 300
-    while (clock() - started < longest) {
-      if (heard.trim() && clock() - heardAt >= quiet) return
-      await sleep(Math.min(50, Math.max(1, quiet)))
-    }
+  const longest = options.waitForWordsMs ?? 1500
+  const quiet = options.quietMs ?? 300
+  /** Whether a question's words are complete: some heard, then a moment's quiet, or the longest wait. */
+  const complete = (q: Asked) =>
+    q.closed || (q.text.trim() ? clock() - q.at >= quiet : clock() - q.since >= longest)
+
+  /** Waits for the question's words, then keeps them, whatever is said next. */
+  async function words(q: Asked) {
+    while (!complete(q)) await sleep(Math.min(50, Math.max(1, quiet)))
+    q.closed = true
   }
 
-  async function answer(delegationId: string) {
+  async function answer(q: Asked) {
     if (ended) return
+    const delegationId = q.id
     line?.note(delegationId, options.progress)
-    await words()
-    const asked = heard.trim()
-    heard = ''
+    await words(q)
+    const asked = q.text.trim()
     if (!asked) {
       line?.answer(delegationId, options.unheard)
       return
@@ -99,12 +109,24 @@ export function conversation(options: ConversationOptions) {
     handle(event: LiveEvent) {
       switch (event.type) {
         case 'heard':
-          heard += event.text
-          heardAt = clock()
+          if (latest && !complete(latest)) {
+            latest.text += event.text
+            latest.at = clock()
+          } else {
+            if (latest) latest.closed = true
+            heard += event.text
+            heardAt = clock()
+          }
           break
-        case 'delegated':
-          queue = queue.then(() => answer(event.id)).catch(() => undefined)
+        case 'delegated': {
+          // Each question keeps its own words, so one waiting its turn is never given another's.
+          if (latest) latest.closed = true
+          const q: Asked = { id: event.id, text: heard, at: heardAt, since: clock(), closed: false }
+          heard = ''
+          latest = q
+          queue = queue.then(() => answer(q)).catch(() => undefined)
           break
+        }
         case 'usage':
           seconds = Math.max(seconds, event.seconds)
           break

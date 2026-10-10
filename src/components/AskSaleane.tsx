@@ -204,11 +204,12 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
   }
 
   /** Adds each question heard and its answer to the conversation, once each. */
-  function addTurns(turns: TalkTurn[]) {
+  function addTurns(talkId: string, turns: TalkTurn[]) {
     setEntries((list) => {
       const next = [...list]
       for (const turn of turns) {
-        const you = `talk-${turn.id}`
+        // A later talk can reuse a question's id, so each is kept apart by its talk.
+        const you = `talk-${talkId}-${turn.id}`
         if (!next.some((e) => e.id === you))
           next.push({ id: you, from: 'you', text: turn.heard, spoken: true })
         if (turn.answer !== undefined && !next.some((e) => e.id === `${you}-reply`))
@@ -228,7 +229,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
   }
 
   function show(view: TalkView) {
-    addTurns(view.turns)
+    addTurns(view.id, view.turns)
     setMeter(meterFrom(view.usage))
     // A late answer about an earlier talk never ends the one now running.
     if (view.status === 'ended') {

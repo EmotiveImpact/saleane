@@ -404,6 +404,16 @@ describe('a talk', () => {
     expect((await read(login, second.id)).json()).toMatchObject({ status: 'ended' })
     expect(stored(login).used.talkSeconds).toBe(11)
 
+    // Two starts at once, as from two tabs: the later replaces the earlier, never both.
+    const [a, b] = (await Promise.all([talk(login), talk(login)])).map((r) =>
+      r.json<{ status: string; id: string }>(),
+    )
+    expect([a.status, b.status]).toEqual(['talking', 'talking'])
+    expect(voice.lines.slice(3).map((l) => l.closed)).toEqual([true, false])
+    voice.lines[3].fire({ type: 'closed', reason: 'close_requested', seconds: 1 })
+    expect((await read(login, a.id)).json()).toMatchObject({ status: 'ended' })
+    expect((await read(login, b.id)).json()).toMatchObject({ status: 'talking' })
+
     const other = await register(false, 'other@example.invalid')
     expect((await read(other, second.id)).statusCode).toBe(404)
     expect(
