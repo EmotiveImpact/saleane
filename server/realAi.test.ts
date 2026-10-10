@@ -1,4 +1,7 @@
 // @vitest-environment node
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createApiHandler } from './app'
 import type { ApiHandler } from './app'
@@ -56,12 +59,12 @@ function recording(channel: 'email' | 'sms'): MessageProvider {
     },
   }
 }
-function start(ai: AiSupplier) {
-  clock = Date.parse('2026-10-06T08:00:00.000Z')
+function start(ai: AiSupplier, databasePath = ':memory:', at = '2026-10-06T08:00:00.000Z') {
+  clock = Date.parse(at)
   sent = []
   api = createApiHandler({
     origin,
-    databasePath: ':memory:',
+    databasePath,
     now: () => clock,
     turnstile: null,
     ai,
@@ -352,6 +355,41 @@ describe('the receptionist with Claude', () => {
     api.database.all<OutboxRow>(
       "SELECT * FROM outbox WHERE kind='receptionist' ORDER BY created_at",
     )
+
+  it('answers a text thanked but left unanswered when SALEANE stopped, once it starts again', async () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'saleane-missed-')), 'studio.sqlite')
+    let stop!: (error: Error) => void
+    const stuck = () => anthropic([new Promise((_, fail) => (stop = fail))])
+    let first = stuck()
+    start(claude(first.fetcher), file)
+    const { slug } = await studio()
+    expect((await text(slug, 'When are you open?', 'm1')).statusCode).toBe(200)
+    await expect.poll(() => first.requests.length).toBe(1)
+    // SALEANE stops while Claude is answering. Twilio was thanked, so it will not send it again.
+    api.close()
+    stop(new Error('SALEANE stopped'))
+    await new Promise((done) => setTimeout(done, 20))
+    const { requests, fetcher } = anthropic([words('We are open 9 to 6.')])
+    start(claude(fetcher), file, '2026-10-06T08:04:00.000Z')
+    await expect.poll(() => answers().length).toBe(1)
+    expect(answers()[0].body).toBe('Linden Studio AI receptionist: We are open 9 to 6.')
+    expect(requests).toHaveLength(1)
+    // Answered, it is not answered again on the next start.
+    api.close()
+    first = stuck()
+    start(claude(first.fetcher), file, '2026-10-06T08:05:00.000Z')
+    expect((await text(slug, 'Are you open on Sunday?', 'm2')).statusCode).toBe(200)
+    await expect.poll(() => first.requests.length).toBe(1)
+    api.close()
+    stop(new Error('SALEANE stopped'))
+    await new Promise((done) => setTimeout(done, 20))
+    // Started again eleven minutes on, the message is left for the team rather than answered late.
+    const late = anthropic([])
+    start(claude(late.fetcher), file, '2026-10-06T08:16:00.000Z')
+    await new Promise((done) => setTimeout(done, 50))
+    expect(late.requests).toEqual([])
+    expect(answers()).toHaveLength(1)
+  })
 
   it('thanks the text line first, answers once, and never lets the AI write a fill-in', async () => {
     let release!: (answer: Record<string, unknown>) => void

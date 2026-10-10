@@ -23,7 +23,7 @@ import type { Outbox } from './messaging/outbox'
 import { paymentRoutes } from './routes/payments'
 import { assistantRoutes } from './routes/assistant'
 import { receptionistRoutes } from './routes/receptionist'
-import { answerSocial, answerText } from './messaging/receptionistText'
+import { answerMissed, answerSocial, answerText } from './messaging/receptionistText'
 import { createPayments } from './payments/service'
 import type { Payments } from './payments/service'
 import { connectionTransportFromEnv, createConnections } from './connections'
@@ -115,6 +115,8 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     ),
     ...baseRoutes,
   ]
+  // NEXT-12: a guest's message thanked but left unanswered when SALEANE last stopped.
+  if (ctx.ai.live) void answerSoon(answerMissed(ctx), 'messages kept before a restart')
   if (options.outboxIntervalMs) {
     outbox.start(options.outboxIntervalMs)
     connections.start(options.outboxIntervalMs)

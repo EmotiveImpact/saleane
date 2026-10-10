@@ -52,7 +52,7 @@ describe('Ask SALEANE with a real AI', () => {
     const panel = await screen.findByRole('dialog', { name: 'Ask SALEANE' })
     expect(
       await within(panel).findByText(
-        'Answers come from your studio records, read by Claude, an AI from Anthropic. Changes wait for your approval, and nothing is sent.',
+        'Answers come from your studio records, read by Claude, an AI from Anthropic. Your question and the records needed to answer it are sent to Anthropic. Changes wait for your approval.',
       ),
     ).toBeInTheDocument()
     expect(within(panel).getByText('3 of 300 questions used this month.')).toBeInTheDocument()

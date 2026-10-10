@@ -190,7 +190,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
       <div className="ask-saleane">
         <p className="ask-mode">
           {live
-            ? 'Answers come from your studio records, read by Claude, an AI from Anthropic. Changes wait for your approval, and nothing is sent.'
+            ? 'Answers come from your studio records, read by Claude, an AI from Anthropic. Your question and the records needed to answer it are sent to Anthropic. Changes wait for your approval.'
             : 'Test mode: answers come from your studio records. No AI service is connected, and nothing is sent.'}
         </p>
         <div className="ask-thread" aria-live="polite">

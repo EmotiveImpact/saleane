@@ -14,6 +14,7 @@ import { BOOKING_LINK, MANAGE_LINK_SPOT } from '../../src/assistant/receptionist
 import { businessDate, operations } from '../../src/domain/operations'
 import { repliesList, senderClient } from '../../src/domain/inbox'
 import { MANAGE_LINK, textNumber } from '../../src/domain/reminders'
+import { isSocialChannel } from '../../src/domain/inboxSchema'
 import type { SocialChannel } from '../../src/domain/inboxSchema'
 import type { SocialMessage } from './meta'
 import type { BusinessState } from '../../src/domain/model'
@@ -84,6 +85,36 @@ export async function answerSocial(ctx: Context, message: SocialMessage) {
     body: message.text,
     providerRef: message.ref,
   })
+}
+
+/** How far back SALEANE looks, on starting, for a guest's message it never answered. */
+const MISSED_MS = 10 * 60000
+
+/**
+ * NEXT-12: with a real AI, the provider is thanked before the answer is written, so it will not
+ * send the message again. Should SALEANE stop in between, the guest's message is kept in the
+ * inbox but never answered; on starting, each one kept in the last ten minutes with no answer is
+ * answered now, oldest first. Older ones are left for the team, as an answer would come too late.
+ * Returns whether any answer was queued.
+ */
+export async function answerMissed(ctx: Context) {
+  const since = ctx.now() - MISSED_MS
+  const work: Promise<boolean>[] = []
+  for (const { id } of ctx.db.all<{ id: string }>('SELECT id FROM organisations')) {
+    const org = ctx.systemOrg(id)
+    if (!org) continue
+    const missed = repliesList(org.state)
+      .filter((r) => Date.parse(r.receivedAt) > since)
+      .sort((a, b) => Date.parse(a.receivedAt) - Date.parse(b.receivedAt))
+    for (const r of missed) {
+      const channel = r.channel
+      if (channel !== 'sms' && !isSocialChannel(channel)) continue
+      const from = channel === 'sms' ? textNumber(r.from) : r.from
+      if (!r.providerRef || !from || !answers(org, channel)) continue
+      work.push(answer(ctx, id, channel, { from, body: r.body, providerRef: r.providerRef }))
+    }
+  }
+  return (await Promise.all(work)).some(Boolean)
 }
 
 type Org = NonNullable<ReturnType<Context['systemOrg']>>
