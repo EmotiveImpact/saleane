@@ -49,7 +49,7 @@ function fakeVoice() {
     detached: boolean
     fire: (e: LiveEvent) => void
   }[] = []
-  const state: { failStart?: Error; failAttach?: boolean } = {}
+  const state: { failStart?: Error; failAttach?: boolean; startTakesMs?: number } = {}
   const layer: VoiceLayer = {
     name: 'openai',
     live: true,
@@ -57,6 +57,7 @@ function fakeVoice() {
     minorPerMinute: 5,
     async start(input) {
       starts.push(input)
+      clock += state.startTakesMs ?? 0
       if (state.failStart) throw state.failStart
       return { id: `live_${starts.length}`, sdp: 'v=0 answer' }
     },
@@ -439,6 +440,36 @@ describe('a talk', () => {
     vi.advanceTimersByTime(1_000)
     expect(voice.lines[1].detached).toBe(true)
     expect(stored(login).used.talkSeconds).toBe(2 + 1 + 600)
+  })
+
+  it('ends and refuses a start that took longer than the browser waits', async () => {
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    // OpenAI took 26 seconds to start: the browser, which waits 30, may already have given up.
+    voice.state.startTakesMs = 26_000
+    expect((await talk(login)).json()).toMatchObject({
+      status: 'unavailable',
+      text: 'Talking is not available just now. You can type your question instead.',
+    })
+    expect(voice.lines[0]).toMatchObject({ closed: true, detached: false })
+    // None of the month's talking time is used, and only the start-up is paid for.
+    expect(stored(login).used.talkSeconds).toBe(0)
+    expect(stored(login).spendByDay[day]).toBeCloseTo(1.25)
+    voice.lines[0].fire({ type: 'closed', reason: 'close_requested', seconds: 1 })
+    expect(voice.lines[0].detached).toBe(true)
+    voice.state.startTakesMs = 24_000
+    expect((await talk(login)).json()).toMatchObject({ status: 'talking' })
+
+    // Two tabs at once behind a slow start: the second, kept waiting past the limit, is refused
+    // without asking OpenAI at all.
+    voice.state.startTakesMs = 26_000
+    const both = await Promise.all([talk(login), talk(login)])
+    expect(both.map((r) => r.json<{ status: string }>().status)).toEqual([
+      'unavailable',
+      'unavailable',
+    ])
+    expect(voice.starts).toHaveLength(3)
   })
 
   it('ends the talk when the person may no longer ask', async () => {

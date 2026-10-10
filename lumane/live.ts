@@ -9,12 +9,18 @@
 
 /** What the server hears about a session, in the app's own words rather than the supplier's. */
 export type LiveEvent =
-  /** Part of what the person said, as the supplier heard it. */
-  | { type: 'heard'; text: string }
+  /**
+   * Part of what the person said, as the supplier heard it, with where it starts on the session's
+   * timeline in milliseconds when the supplier says.
+   */
+  | { type: 'heard'; text: string; startMs?: number }
   /** Part of what the voice said aloud. */
   | { type: 'said'; text: string }
-  /** The voice wants the app to answer what the person has just asked. */
-  | { type: 'delegated'; id: string }
+  /**
+   * The voice wants the app to answer what the person has just asked, from this point on the
+   * session's timeline in milliseconds when the supplier says.
+   */
+  | { type: 'delegated'; id: string; offsetMs?: number }
   /** The session's length so far, in seconds. */
   | { type: 'usage'; seconds: number }
   /** The session has ended, and how long it ran when the supplier reports it. */
@@ -262,13 +268,22 @@ export function liveEvent(data: unknown): LiveEvent | undefined {
   }
   const at = (key: string) => (event[key] ?? {}) as Record<string, unknown>
   switch (event.type) {
-    case 'session.input_transcript.delta':
-      return text(event.delta) ? { type: 'heard', text: text(event.delta) } : undefined
+    case 'session.input_transcript.delta': {
+      if (!text(event.delta)) return undefined
+      const startMs = seconds(event.start_ms)
+      return {
+        type: 'heard',
+        text: text(event.delta),
+        ...(startMs === undefined ? {} : { startMs }),
+      }
+    }
     case 'session.output_transcript.delta':
       return text(event.delta) ? { type: 'said', text: text(event.delta) } : undefined
     case 'session.delegation.created': {
       const id = text(at('delegation').id)
-      return id ? { type: 'delegated', id } : undefined
+      if (!id) return undefined
+      const offsetMs = seconds(event.offset_ms)
+      return { type: 'delegated', id, ...(offsetMs === undefined ? {} : { offsetMs }) }
     }
     case 'session.usage.updated': {
       const used = seconds(at('usage').seconds)

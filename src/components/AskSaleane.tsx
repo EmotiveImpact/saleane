@@ -5,6 +5,7 @@ import { current, decide } from '../../lumane'
 import type { PendingProposal, Usage } from '../../lumane'
 import { ASK_WAIT_MS, HISTORY_TURNS, askSaleane } from '../assistant/ask'
 import { ALLOWANCES } from '../assistant/saleane'
+import { TALK_START_WAIT_MS } from '../assistant/talk'
 import { connectTalk } from '../assistant/talkLine'
 import type { TalkConnection } from '../assistant/talkLine'
 import type { Command } from '../domain/commands'
@@ -273,9 +274,9 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
           >(`${base}/talk`, {
             method: 'POST',
             body: { sdp },
-            // Longer than SALEANE's own two waits on OpenAI (10 seconds each), so a slow start
-            // is never left running with nobody holding its id.
-            timeoutMs: 30_000,
+            // Longer than SALEANE lets a start take, including a wait behind an earlier one, so
+            // a slow start is never left running with nobody holding its id.
+            timeoutMs: TALK_START_WAIT_MS,
           })
           setMeter(meterFrom(r.usage))
           if (r.status !== 'talking') {

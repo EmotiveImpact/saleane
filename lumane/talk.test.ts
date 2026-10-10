@@ -111,6 +111,59 @@ describe('a spoken conversation', () => {
     expect(asked).toEqual(['Who is in at ten?', 'Thanks.'])
   })
 
+  it('places words by when they were said, where OpenAI gives their place in the talk', async () => {
+    let now = 0
+    const asked: string[] = []
+    const talk = conversation({
+      ...options(async (heard) => {
+        asked.push(heard)
+        return { text: `Answered: ${heard}` }
+      }),
+      quietMs: 300,
+      clock: () => now,
+    })
+    const { fake } = line()
+    talk.use(fake)
+    talk.handle({ type: 'heard', text: 'Who is in', startMs: 1000 })
+    talk.handle({ type: 'delegated', id: 'd1', offsetMs: 2000 })
+    // Late words said before the hand-over stay with the question; words said after it start
+    // the next one, even though they arrive within the moment's quiet.
+    now = 50
+    talk.handle({ type: 'heard', text: ' at ten?', startMs: 1500 })
+    now = 100
+    talk.handle({ type: 'heard', text: 'Thanks.', startMs: 2600 })
+    // A fragment said before the first hand-over that arrives after the next words is left out.
+    talk.handle({ type: 'heard', text: ' please', startMs: 1900 })
+    talk.handle({ type: 'delegated', id: 'd2', offsetMs: 3000 })
+    now = 2000
+    await talk.settled()
+    expect(asked).toEqual(['Who is in at ten?', 'Thanks.'])
+  })
+
+  it('asks nothing when the talk ends while the last words are awaited', async () => {
+    let now = 0
+    const asked: string[] = []
+    const talk = conversation({
+      ...options(async (heard) => {
+        asked.push(heard)
+        return { text: 'Answered.' }
+      }),
+      quietMs: 300,
+      clock: () => now,
+    })
+    const { fake, said } = line()
+    talk.use(fake)
+    talk.handle({ type: 'heard', text: 'What is on today?' })
+    talk.handle({ type: 'delegated', id: 'd1' })
+    // Still waiting for any last words when the person hangs up.
+    await new Promise((done) => setTimeout(done, 30))
+    talk.handle({ type: 'closed', reason: 'close_requested', seconds: 5 })
+    now = 1000
+    await talk.settled()
+    expect(asked).toEqual([])
+    expect(said.filter((s) => s.kind === 'answer')).toEqual([])
+  })
+
   it('asks again when nothing was heard, and says plainly when no answer came', async () => {
     const talk = conversation(
       options(async () => {

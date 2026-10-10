@@ -40,7 +40,15 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
  * what follows just after, until the words stop for a moment or the longest wait passes; anything
  * said after that belongs to the next question, even while this one is still being answered.
  */
-type Asked = { id: string; text: string; at: number; since: number; closed: boolean }
+type Asked = {
+  id: string
+  text: string
+  at: number
+  since: number
+  closed: boolean
+  /** Where it was handed over on the session's timeline, when the supplier says. */
+  offsetMs?: number
+}
 
 /**
  * Follows one spoken conversation: gathers what the person says, and each time the voice hands a
@@ -81,6 +89,8 @@ export function conversation(options: ConversationOptions) {
     const delegationId = q.id
     line?.note(delegationId, options.progress)
     await words(q)
+    // The talk may have ended while the last words were awaited: nothing more is asked.
+    if (ended) return
     const asked = q.text.trim()
     if (!asked) {
       line?.answer(delegationId, options.unheard)
@@ -113,20 +123,37 @@ export function conversation(options: ConversationOptions) {
     },
     handle(event: LiveEvent) {
       switch (event.type) {
-        case 'heard':
-          if (latest && !complete(latest)) {
+        case 'heard': {
+          // Where the supplier gives timeline positions, words are placed by when they were
+          // said, not when they arrived: words said after a hand-over start the next question
+          // (and show the last one is complete), and late words said before it stay with it.
+          const timed =
+            latest?.offsetMs !== undefined && event.startMs !== undefined
+              ? event.startMs < latest.offsetMs
+              : undefined
+          if (latest && timed !== false && !complete(latest)) {
             latest.text += event.text
             latest.at = clock()
-          } else {
-            if (latest) latest.closed = true
-            heard += event.text
-            heardAt = clock()
+            break
           }
+          if (latest) latest.closed = true
+          // Words said before a question that has already been asked belong to no later one.
+          if (timed) break
+          heard += event.text
+          heardAt = clock()
           break
+        }
         case 'delegated': {
           // Each question keeps its own words, so one waiting its turn is never given another's.
           if (latest) latest.closed = true
-          const q: Asked = { id: event.id, text: heard, at: heardAt, since: clock(), closed: false }
+          const q: Asked = {
+            id: event.id,
+            text: heard,
+            at: heardAt,
+            since: clock(),
+            closed: false,
+            ...(event.offsetMs === undefined ? {} : { offsetMs: event.offsetMs }),
+          }
           heard = ''
           latest = q
           queue = queue.then(() => answer(q)).catch(() => undefined)

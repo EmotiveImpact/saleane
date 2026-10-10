@@ -138,9 +138,9 @@ describe('following a talk', () => {
     fake.event({ type: 'session.closed', reason: 'close_requested', usage: { seconds: 41 } })
     fake.drop()
     expect(events).toEqual([
-      { type: 'heard', text: 'Who is ' },
+      { type: 'heard', text: 'Who is ', startMs: 0 },
       { type: 'said', text: 'Let me look.' },
-      { type: 'delegated', id: 'item_1' },
+      { type: 'delegated', id: 'item_1', offsetMs: 1200 },
       { type: 'usage', seconds: 12.5 },
       { type: 'error', message: 'Unknown delegation.' },
       { type: 'closed', reason: 'close_requested', seconds: 41 },

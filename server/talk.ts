@@ -8,6 +8,7 @@ import {
   TALK_FAILED,
   TALK_GRACE_SECONDS,
   TALK_PROGRESS,
+  TALK_START_LIMIT_MS,
   TALK_UNHEARD,
   talkCost,
   talkInstructions,
@@ -159,8 +160,11 @@ export function talks(held: Map<string, Held>) {
     actor: Actor,
     allowance: Allowance,
     sdp: string,
+    askedAt: number,
   ): Promise<Started> {
     sweep(ctx)
+    // One that waited too long behind an earlier start is refused before OpenAI is asked.
+    if (ctx.now() - askedAt > TALK_START_LIMIT_MS) return { status: 'unavailable', text: NOT_NOW }
     // A new talk from the same person replaces one still open, which they have left. It is asked
     // to end and counted now, on SALEANE's own clock, so its held minutes are free for the new one.
     // SALEANE keeps following it until the supplier confirms the end, or the grace time passes.
@@ -247,6 +251,13 @@ export function talks(held: Map<string, Held>) {
     }
     talk.talk.use(talk.line)
     open.set(talk.id, talk)
+    // A start that took longer than the browser waits may have nobody to hear it: it is ended
+    // now, counted at its start-up time, and refused.
+    if (ctx.now() - askedAt > TALK_START_LIMIT_MS) {
+      close(ctx, talk)
+      count(ctx, talk, 'slow-start')
+      return { status: 'unavailable', text: NOT_NOW }
+    }
     // SALEANE ends the talk itself when its window is up.
     later(talk, talk.window, () => close(ctx, talk))
     return { status: 'talking', id: talk.id, sdp: session.sdp, seconds: talk.window }
@@ -266,9 +277,10 @@ export function talks(held: Map<string, Held>) {
       sdp: string,
     ): Promise<Started> {
       const key = `${org.id}:${actor.id}`
+      const askedAt = ctx.now()
       const run = (starting.get(key) ?? Promise.resolve())
         .catch(() => undefined)
-        .then(() => begin(ctx, org, actor, allowance, sdp))
+        .then(() => begin(ctx, org, actor, allowance, sdp, askedAt))
       starting.set(key, run)
       try {
         return await run

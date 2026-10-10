@@ -17,6 +17,13 @@ export const SHORTEST_TALK_SECONDS = 30
  */
 export const TALK_GRACE_SECONDS = 15
 export const TALK_START_SECONDS = 15
+/**
+ * The longest a start may take, from the request to the voice being ready, including a wait
+ * behind the same person's earlier start. One that takes longer is ended and refused, as the
+ * browser may have stopped waiting (it waits TALK_START_WAIT_MS).
+ */
+export const TALK_START_LIMIT_MS = 25_000
+export const TALK_START_WAIT_MS = TALK_START_LIMIT_MS + 5_000
 
 /**
  * What a talk holds of the allowance before it starts: its whole window in minutes, and its
