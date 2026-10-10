@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -36,7 +36,9 @@ import { SignOut } from '../components/SignOut'
 import { HelpButton } from '../components/HelpButton'
 import { ClockOutForm } from '../components/Clock'
 import { DiaryLinks } from '../components/DiaryLinks'
+import { visitPauses } from '../domain/moments'
 import '../practitioner.css'
+import '../components/moments.css'
 
 /** Matches the single-column breakpoint in practitioner.css. */
 const narrow = () => window.matchMedia?.('(max-width: 860px)').matches ?? false
@@ -201,6 +203,7 @@ export function PractitionerDay() {
   const locale = organisation.locale
   const isToday = date === record.today
   const visits = record.appointments.filter((a) => a.date === date)
+  const pauseAfter = new Map(visitPauses(visits).map((p) => [p.afterId, p]))
   const minutes = venueMinutes(organisation.timeZone, now)
   const next = isToday ? nextUp(visits, minutes) : undefined
   const nextClient = next && record.clients.find((c) => c.id === next.clientId)
@@ -479,32 +482,47 @@ export function PractitionerDay() {
             </div>
             {visits.length ? (
               <ul className="practitioner-visits" aria-labelledby="visits-heading">
-                {visits.map((a) => (
-                  <li key={a.id}>
-                    <button
-                      className="practitioner-visit"
-                      data-visit={a.id}
-                      aria-pressed={visit?.id === a.id}
-                      onClick={() => openVisit(a.id)}
-                    >
-                      <span className="agenda-time">
-                        {timeLabel(a.startMinutes, locale)}
-                        <small>{a.durationMinutes} min</small>
-                      </span>
-                      <span className="agenda-client">
-                        <Avatar small identity={a.clientId} name={clientName(a.clientId)} />
-                        <span>
-                          <strong>{clientName(a.clientId)}</strong>
+                {visits.map((a) => {
+                  const pause = pauseAfter.get(a.id)
+                  return (
+                    <Fragment key={a.id}>
+                      <li>
+                        <button
+                          className="practitioner-visit"
+                          data-visit={a.id}
+                          aria-pressed={visit?.id === a.id}
+                          onClick={() => openVisit(a.id)}
+                        >
+                          <span className="agenda-time">
+                            {timeLabel(a.startMinutes, locale)}
+                            <small>{a.durationMinutes} min</small>
+                          </span>
+                          <span className="agenda-client">
+                            <Avatar small identity={a.clientId} name={clientName(a.clientId)} />
+                            <span>
+                              <strong>{clientName(a.clientId)}</strong>
+                              <small>
+                                {a.serviceName}
+                                {a.resourceName ? ` · ${a.resourceName}` : ''}
+                              </small>
+                            </span>
+                          </span>
+                          <Status status={a.guestHere ? 'here' : a.status} />
+                        </button>
+                      </li>
+                      {/* Stage 6: a gap of a quarter hour or more before their next visit. */}
+                      {pause && (
+                        <li className="practitioner-pause" aria-hidden="true">
+                          <span>A pause</span>
                           <small>
-                            {a.serviceName}
-                            {a.resourceName ? ` · ${a.resourceName}` : ''}
+                            {timeLabel(pause.from, locale)} to {timeLabel(pause.to, locale)},{' '}
+                            {pause.to - pause.from} minutes
                           </small>
-                        </span>
-                      </span>
-                      <Status status={a.guestHere ? 'here' : a.status} />
-                    </button>
-                  </li>
-                ))}
+                        </li>
+                      )}
+                    </Fragment>
+                  )
+                })}
               </ul>
             ) : (
               <Empty title="A little breathing room">

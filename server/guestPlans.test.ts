@@ -190,7 +190,8 @@ describe('a guest’s plans on their visit page', () => {
       },
     ])
     // Nothing about money, payments, the plan's record or the client.
-    for (const secret of [holdingId, rosa.clientId, 'Rosa', '48000', '480', 'cash'])
+    // Stage 6: her first name is on her visit's label; her full name and record stay out.
+    for (const secret of [holdingId, rosa.clientId, 'Okafor', '48000', '480', 'cash'])
       expect(body).not.toContain(secret)
     expect(JSON.stringify(view.plans)).not.toMatch(/Minor|pay|price/i)
   })

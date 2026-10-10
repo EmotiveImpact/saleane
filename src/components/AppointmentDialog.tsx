@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import {
   ArrowUpRight,
   CalendarClock,
-  Check,
   ChevronRight,
   CircleX,
   CreditCard,
@@ -20,6 +19,7 @@ import { hasLocations, places, staffLocationOn } from '../domain/locations'
 import { depositPaid, rescheduleSlots } from '../domain/commands'
 import { addDays, dateLabel, fullDateLabel, money, timeLabel } from '../domain/format'
 import { bookedOfferLine } from '../domain/quietOffers'
+import { settledLine } from '../domain/moments'
 import { guestBackground } from '../domain/usual'
 import { checkoutTotals, minorInput, parseMinor } from '../domain/money'
 import { coverPreview, holdings, memberDiscountPercent, plansForVisit } from '../domain/plans'
@@ -102,6 +102,7 @@ export function AppointmentDialog({
   const [andTogether, setAndTogether] = useState(false)
   const [notice, setNotice] = useState('')
   const rebookHeading = useId()
+  const settledHeading = useId()
   if (!appointment)
     return (
       <Modal
@@ -476,22 +477,27 @@ export function AppointmentDialog({
       )}
       {sale ? (
         <>
-          <div className="success-strip">
-            <Check size={18} />
-            Receipt recorded ·{' '}
-            {sale.coveredMinor !== undefined && !sale.balanceMinor && !sale.giftCardMinor
-              ? `Paid by ${holdings(state).find((h) => h.id === sale.holdingId)?.name ?? 'plan'}`
-              : sale.giftCardMinor && !sale.balanceMinor
-                ? 'Paid by gift card'
-                : {
-                    demo_card: 'Demo card',
-                    demo_cash: 'Demo cash',
-                    cash: 'Cash',
-                    external_card: 'External card',
-                    card: sale.processor?.live ? 'Card' : 'Test card, no money moved',
-                    previous_system: 'Previous system',
-                  }[sale.method]}
-          </div>
+          {/* Stage 6: "Settled." The amount collected, a hairline and words true to the record. */}
+          <section
+            className={`settled-moment${checkout ? ' is-new' : ''}`}
+            aria-labelledby={settledHeading}
+          >
+            <p className="settled-amount">
+              <span className="sr-only">Collected at checkout: </span>
+              {money(sale.balanceMinor, state.organisation, true)}
+            </p>
+            <span className="settled-rule" aria-hidden="true" />
+            <h3 id={settledHeading} className="settled-word">
+              Settled.
+            </h3>
+            <p className="settled-line">
+              {settledLine(sale, {
+                sandbox,
+                planName: holdings(state).find((h) => h.id === sale.holdingId)?.name,
+                organisation: state.organisation,
+              })}
+            </p>
+          </section>
           {serviceLine(sale.serviceMinor)}
           {!!sale.coveredMinor && (
             <div className="receipt-line">

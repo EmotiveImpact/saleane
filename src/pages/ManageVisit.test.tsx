@@ -587,7 +587,9 @@ test('reads dates with the weekday and times on a 12-hour clock for a studio in 
     return moveTimes(body.date ?? '2026-10-08', body.anyone) as never
   })
   render(<ManageVisit />)
-  expect(await screen.findByText('Wednesday, October 7 at 09:00 AM')).toBeInTheDocument()
+  // The label sets the date and the time on lines of their own.
+  expect(await screen.findByText('Wednesday, October 7')).toBeInTheDocument()
+  expect(screen.getByText('09:00 AM')).toBeInTheDocument()
   expect(screen.getByText(/online until Tuesday, October 6 at 09:00 AM/)).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Move my visit' }))
   expect(await screen.findByRole('radio', { name: '10:00 AM' })).toBeInTheDocument()
@@ -646,5 +648,39 @@ test('says when only times a clear patch test covers can be chosen (Stage 3)', a
     screen.getByText(
       'No times on Wednesday 7 October can be chosen here. Try another day, or contact the studio.',
     ),
+  ).toBeInTheDocument()
+})
+
+test('sets the visit as a label for the guest, with the studio’s arrival words and a map', async () => {
+  vi.mocked(api).mockResolvedValue({
+    ...view('none'),
+    guest: { firstName: 'Amelia' },
+    arrival: { studioNote: 'Ring the bell at the blue door.', serviceNote: '' },
+  } as never)
+  render(<ManageVisit />)
+  expect(await screen.findByRole('heading', { name: 'Your visit, Amelia.' })).toBeInTheDocument()
+  const label = screen.getByRole('heading', { name: 'Your visit, Amelia.' }).parentElement!
+  expect(within(label).getByText('Skin Renewal Facial')).toBeInTheDocument()
+  expect(within(label).getByText('Maya')).toBeInTheDocument()
+  expect(within(label).getByText('Wednesday 7 October')).toBeInTheDocument()
+  expect(within(label).getByText('09:00')).toBeInTheDocument()
+  // The studio's own words, said once: on the label, not again under "Before you arrive".
+  expect(screen.getAllByText('Ring the bell at the blue door.')).toHaveLength(1)
+  expect(screen.queryByRole('heading', { name: 'Before you arrive' })).not.toBeInTheDocument()
+  // No map service is connected: an honest placeholder with the address, and directions still.
+  const map = screen.getByRole('figure', { name: 'Where Reference Studio is' })
+  expect(within(map).getByText('12 Example Mews, London')).toBeInTheDocument()
+  expect(within(map).getByText('Map shown when a map service is connected.')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: /Directions/ })).toBeInTheDocument()
+  // The house photograph is decoration and never claims to be this studio.
+  expect(document.querySelector('.visit-hero-image')).toHaveAttribute('alt', '')
+})
+
+test('gives general arrival guidance when the studio wrote none', async () => {
+  vi.mocked(api).mockResolvedValue(view('none') as never)
+  render(<ManageVisit />)
+  expect(await screen.findByRole('heading', { name: 'Your visit' })).toBeInTheDocument()
+  expect(
+    screen.getByText('Please arrive a few minutes early, so there is time to settle in.'),
   ).toBeInTheDocument()
 })
