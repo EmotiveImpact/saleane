@@ -49,18 +49,23 @@ export const PHONE_MINUTES = 300
 
 /**
  * The AI each location's price includes, and what Plus gives instead. Every amount here costs the
- * business at most about half what it earns, so heavy use never loses money.
+ * business at most about half what it earns, so heavy use never loses money. The monthly spend
+ * ceiling (about $20, or $60 with Plus) is nearly twice what a busy location's included use costs,
+ * so normal use never meets it, and keeps a location that reached the daily ceiling every day
+ * from costing more than it pays (10 October 2026).
  */
 export const ALLOWANCES = {
   included: {
     monthly: { typed: 300, talkSeconds: 30 * 60, guestChats: 200 },
     dailySpendCeilingMinor: 150,
+    monthlySpendCeilingMinor: 2000,
     perPersonHourly: 30,
     maxTalkSessionSeconds: 10 * 60,
   },
   plus: {
     monthly: { typed: 800, talkSeconds: 150 * 60, guestChats: 500 },
     dailySpendCeilingMinor: 400,
+    monthlySpendCeilingMinor: 6000,
     perPersonHourly: 30,
     maxTalkSessionSeconds: 10 * 60,
   },
@@ -85,6 +90,7 @@ export function allowanceFor(plan: {
       guestChats: base.monthly.guestChats * times,
     },
     dailySpendCeilingMinor: base.dailySpendCeilingMinor * times,
+    monthlySpendCeilingMinor: base.monthlySpendCeilingMinor * times,
     perPersonHourly: base.perPersonHourly,
     maxTalkSessionSeconds: base.maxTalkSessionSeconds,
   }

@@ -26,6 +26,7 @@ type Ctx = { role: 'owner' | 'guest'; count: number }
 const allowance: Allowance = {
   monthly: { typed: 3, talkSeconds: 600, guestChats: 2 },
   dailySpendCeilingMinor: 100,
+  monthlySpendCeilingMinor: 300,
   perPersonHourly: 2,
   maxTalkSessionSeconds: 300,
 }
@@ -196,6 +197,19 @@ describe('Lumane engine', () => {
       reason: 'spend',
     })
     expect(respond).not.toHaveBeenCalled()
+
+    // Each earlier day stayed under the day's 100, but the month's 300 is nearly reached.
+    const month = {
+      ...emptyUsage(at),
+      spendByDay: { '2026-10-01': 98, '2026-10-02': 98, '2026-10-03': 98 },
+    }
+    expect(check(allowance, month, { ...request, worstCaseMinor: 6 })).toEqual({ ok: true })
+    expect(await turn(brain, { usage: month, worstCaseMinor: 7 })).toMatchObject({
+      status: 'refused',
+      reason: 'spend',
+      text: "The assistant has reached this month's limit. It will be back on the 1st.",
+    })
+    expect(respond).not.toHaveBeenCalled()
   })
 
   it('stops a request that needs too many steps', async () => {
@@ -344,6 +358,19 @@ describe('Lumane allowances', () => {
     expect(talkWindowSeconds(allowance, undefined, at)).toBe(300)
     const talked = record(emptyUsage(at), { ...request, meter: 'talkSeconds', amount: 450 }, 0)
     expect(talkWindowSeconds(allowance, talked, at)).toBe(150)
+  })
+
+  it('holds a talk for its whole window, then keeps only the time it ran', () => {
+    const talk = { ...request, meter: 'talkSeconds' as const, amount: 300, worstCaseMinor: 26.25 }
+    const held = reserve(allowance, undefined, talk)
+    if (!held.ok) throw new Error('expected the talk to be held')
+    expect(held.usage.used.talkSeconds).toBe(300)
+    expect(talkWindowSeconds(allowance, held.usage, at)).toBe(300)
+    // It ran 95 seconds, costing 7.92: the rest of the window and its worst case come back.
+    expect(settle(held.usage, talk, { counted: true, amount: 95, costMinor: 7.92 })).toMatchObject({
+      used: { talkSeconds: 95 },
+      spendByDay: { '2026-10-07': 7.92 },
+    })
   })
 })
 

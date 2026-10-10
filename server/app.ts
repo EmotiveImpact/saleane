@@ -98,6 +98,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   const diaries = diaryRoutes()
   const google = googleBooking(options.googleBooking ?? googleBookingFromEnv(process.env))
   const social = options.social ?? socialFromEnv(process.env)
+  const assistant = assistantRoutes()
   const routes = [
     partners.read,
     partners.manage,
@@ -109,7 +110,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     messagingRoutes(outbox),
     paymentRoutes(payments),
     billing.routes,
-    assistantRoutes(),
+    assistant,
     receptionistRoutes(),
     supportRoutes(
       options.supportEmail === undefined ? supportAddressFromEnv() : options.supportEmail,
@@ -368,6 +369,8 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     outbox.stop()
     connections.stop()
     billing.stop()
+    // NEXT-12: talks still running end and are counted while the database is open.
+    assistant.stop(ctx)
     db.close()
   }
   handler.inject = (input) => inject(handler, allowedOrigin, input)

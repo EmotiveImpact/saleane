@@ -46,6 +46,30 @@ export function reserveUse(
 }
 
 /**
+ * Holds a request whose size depends on what is left, such as a talk, which runs for the time the
+ * month still has, up to its longest. `make` sees the usage inside the same write and returns the
+ * request, or a sentence for the person when there is too little left. `until` says how long the
+ * hold lasts if it is never settled, for a request that runs longer than a question.
+ */
+export function reserveFor(
+  ctx: Context,
+  organisationId: string,
+  allowance: Allowance,
+  make: (before: Usage | undefined) => UseRequest | string,
+  until?: (request: UseRequest) => string,
+): { held: true; request: UseRequest } | { held: false; text: string } {
+  return ctx.db.transaction(() => {
+    const before = storedUsage(ctx, organisationId)
+    const request = make(before)
+    if (typeof request === 'string') return { held: false as const, text: request }
+    const held = reserve(allowance, before, request, until?.(request))
+    if (!held.ok) return { held: false as const, text: held.message }
+    store(ctx, organisationId, held.usage)
+    return { held: true as const, request }
+  })
+}
+
+/**
  * Settles a held request: what it really cost replaces its worst case, and a request that does
  * not count (the AI could not answer, or its answer was not sent) gives its share back. Re-read
  * inside the write, so other requests settled meanwhile are kept. Call inside a transaction.
@@ -54,7 +78,7 @@ export function settleUse(
   ctx: Context,
   organisationId: string,
   request: UseRequest,
-  outcome: { counted: boolean; costMinor: number },
+  outcome: { counted: boolean; costMinor: number; amount?: number },
 ) {
   const next = settle(storedUsage(ctx, organisationId), request, outcome)
   store(ctx, organisationId, next)

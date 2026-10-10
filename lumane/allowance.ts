@@ -10,6 +10,11 @@ export type Allowance = {
   monthly: Record<Meter, number>
   /** The most AI spend one account may run up in a day, in minor units (pence or cents). */
   dailySpendCeilingMinor: number
+  /**
+   * The most AI spend one account may run up in a calendar month, in minor units, so that a
+   * studio reaching the daily ceiling every day still cannot cost more than it pays.
+   */
+  monthlySpendCeilingMinor: number
   /** Requests one person may make in any rolling hour. */
   perPersonHourly: number
   /** The longest single talking session, in seconds. */
@@ -113,6 +118,13 @@ export function check(
       reason: 'spend',
       message: "The assistant has reached today's limit. It will be back tomorrow.",
     }
+  const month = Object.values(now.spendByDay).reduce((total, spent) => total + spent, 0)
+  if (month + request.worstCaseMinor > allowance.monthlySpendCeilingMinor)
+    return {
+      ok: false,
+      reason: 'spend',
+      message: "The assistant has reached this month's limit. It will be back on the 1st.",
+    }
   return { ok: true }
 }
 
@@ -166,14 +178,15 @@ const same = (a: UseRequest, b: UseRequest) =>
 
 /**
  * Settles a held request once the AI has answered or failed: what it really cost replaces its
- * worst case, and a request that does not count gives its amount back. Its place in the hourly
- * count stays. A request already given back by `reclaim` counts its amount again only if it
- * counts. A request held in a month that has since ended changes nothing. Never mutates.
+ * worst case, and a request that does not count gives its amount back. A request held for more
+ * than it used, such as a talk held for its longest time, gives `amount` as what it used. Its
+ * place in the hourly count stays. A request already given back by `reclaim` counts again only if
+ * it counts. A request held in a month that has since ended changes nothing. Never mutates.
  */
 export function settle(
   usage: Usage | undefined,
   request: UseRequest,
-  outcome: { counted: boolean; costMinor: number },
+  outcome: { counted: boolean; costMinor: number; amount?: number },
 ): Usage {
   const month = request.at.slice(0, 7)
   if (usage && usage.period > month) return usage
@@ -189,7 +202,9 @@ export function settle(
       ...now.used,
       [request.meter]: Math.max(
         0,
-        now.used[request.meter] - held + (outcome.counted ? request.amount : 0),
+        now.used[request.meter] -
+          held +
+          (outcome.counted ? Math.max(0, outcome.amount ?? request.amount) : 0),
       ),
     },
     spendByDay: {

@@ -222,6 +222,7 @@ describe('A turn with Claude', () => {
   const allowance: Allowance = {
     monthly: { typed: 10, talkSeconds: 600, guestChats: 10 },
     dailySpendCeilingMinor: 100,
+    monthlySpendCeilingMinor: 300,
     perPersonHourly: 10,
     maxTalkSessionSeconds: 300,
   }
