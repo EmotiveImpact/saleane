@@ -148,3 +148,121 @@
 .pay-choice small {
   color: var(--muted, inherit);
 }
+
+/* Stage 3: commission by treatment or product, steps by takings and monthly targets. */
+.pay-owner-actions {
+  border-top: 0;
+  padding-top: 0;
+  margin: 0 0 18px;
+}
+.pay-target {
+  display: grid;
+  gap: 5px;
+  margin-top: 6px;
+  max-width: 340px;
+}
+.pay-how {
+  margin-bottom: 14px;
+}
+.pay-how h3,
+.pay-form-heading {
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+  margin: 0 0 4px;
+}
+.pay-lines li.pay-how-total {
+  border-top: 1px solid var(--line-strong);
+}
+.pay-history + .plan-form {
+  margin-top: 22px;
+}
+.pay-history .pay-rate-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  border-top: 1px solid var(--line);
+}
+.pay-history .pay-rate-row:first-child {
+  border-top: 0;
+}
+.pay-end {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.pay-earlier {
+  margin-top: 18px;
+  font-size: var(--text-small);
+}
+.pay-earlier summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.pay-earlier ul,
+.rent-working ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.pay-earlier li,
+.rent-working li {
+  padding: 6px 0;
+}
+.pay-earlier small,
+.rent-working li > strong,
+.rent-working li > span {
+  display: block;
+}
+.pay-earlier small,
+.rent-working small {
+  color: var(--muted);
+  font-size: var(--text-micro);
+}
+.pay-choice label > span small {
+  display: block;
+  margin-top: 2px;
+}
+.pay-steps {
+  list-style: none;
+  display: grid;
+  gap: 12px;
+  margin: 0 0 8px;
+  padding: 0;
+}
+.pay-steps li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+.pay-steps label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+}
+.rent-working {
+  margin: 0 0 16px;
+  font-size: var(--text-small);
+}
+.rent-working summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.rent-working li > span {
+  color: var(--muted);
+}
+@media (max-width: 640px) {
+  .pay-steps li {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .pay-steps li > button {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}

@@ -36,7 +36,10 @@ describe('the question that follows a notice', () => {
   })
 
   it('follows the sample studio’s low stock with what to reorder', () => {
-    const low = nudges(seed('UK'), 'owner', today, at).find((n) => /running low/.test(n.text))
+    // The full sample: in the named clients' quieter week, takings come before stock.
+    const low = nudges(seed('UK', { regulars: true }), 'owner', today, at).find((n) =>
+      /running low/.test(n.text),
+    )
     expect(low).toMatchObject({
       text: 'Enzyme Peel, professional size is running low. At or below the level where you reorder.',
       ask: 'What should I reorder?',

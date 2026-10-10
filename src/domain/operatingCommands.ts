@@ -17,7 +17,8 @@ import {
   stock,
 } from './operations'
 import { daysBetween } from './timeOff'
-import { isPeriodStart } from './rent'
+import { money } from './format'
+import { isPeriodStart, periodDue, rentPeriods } from './rent'
 import { cancelOrder, placeOrder, receiveOrder, saveSupplier } from './purchasing'
 import { prepareAccountingExport } from './accounts'
 import { RENT_LIMIT, RENT_PAYMENT_LIMIT } from './rentSchema'
@@ -688,9 +689,13 @@ export function runOperatingCommand(
       throw new Error('They already have a rental. End it before starting another.')
     o.rentals ??= []
     if (o.rentals.length >= RENT_LIMIT) throw new Error('Too many rentals to keep.')
+    const { percentBps, products, ...terms } = command.input
     const rental = {
       id: makeId(),
-      ...command.input,
+      ...terms,
+      // Stage 3: a share of their takings, and whether the products they sell are theirs.
+      ...(percentBps ? { percentBps } : {}),
+      ...(products ? { products: true } : {}),
       createdAt: now,
       actor: 'Local operator',
     }
@@ -710,13 +715,20 @@ export function runOperatingCommand(
     if (!rental) throw new Error('Rental not found.')
     if (!isPeriodStart(rental, command.periodStart))
       throw new Error('Choose one of the rent periods.')
-    if (command.periodStart > businessDate(next, now)) throw new Error('That rent is not due yet.')
+    const today = businessDate(next, now)
+    if (command.periodStart > today) throw new Error('That rent is not due yet.')
     const paid = (o.rentPayments ?? [])
       .filter((p) => p.rentalId === rental.id && p.periodStart === command.periodStart)
       .reduce((sum, p) => sum + p.amountMinor, 0)
-    if (paid + command.amountMinor > rental.amountMinor)
+    // Stage 3: with a share of takings, what is due grows as the period goes on.
+    const period = rentPeriods(rental, today).find((p) => p.start === command.periodStart)
+    const due = period ? periodDue(next, rental, period, today) : undefined
+    const dueMinor = due?.dueMinor ?? rental.amountMinor
+    if (paid + command.amountMinor > dueMinor)
       throw new Error(
-        `Only ${rental.amountMinor - paid > 0 ? 'the rest of the rent' : 'nothing more'} is due for that period.`,
+        dueMinor - paid > 0
+          ? `Only ${money(dueMinor - paid, next.organisation, true)} more is due for that period${due?.open ? ' so far' : ''}.`
+          : `Nothing more is due for that period${due?.open ? ' yet' : ''}.`,
       )
     if (command.method !== 'cash' && !command.reference?.trim())
       throw new Error('Enter the transfer or terminal reference.')

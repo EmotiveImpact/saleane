@@ -59,6 +59,17 @@ describe('Ask Saleane skills', () => {
     expect(takings.takings).toMatch(/^£/)
   })
 
+  it('says that a renter’s own takings are left out, and gives rent only to those who see pay', () => {
+    // Theo rents his chair in the sample, with £75.00 of his own takings in the last week.
+    expect(run('takings', owner, { days: 7 })).toMatchObject({
+      rentersOwnTakingsLeftOut: '£75',
+      rentRecorded: '£50',
+    })
+    const general = run('takings', askContext(s, 'general'), { days: 7 })
+    expect(general).toMatchObject({ rentersOwnTakingsLeftOut: '£75' })
+    expect(general).not.toHaveProperty('rentRecorded')
+  })
+
   it('lists low stock from the product levels', () => {
     const state = structuredClone(s)
     state.operations = {

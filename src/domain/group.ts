@@ -3,7 +3,7 @@ import type { BusinessState } from './model'
 import { addDays, money } from './format'
 import { places } from './locations'
 import { businessDate, operations } from './operations'
-import { serviceRevenue } from './selectors'
+import { renterVisit, serviceRevenue } from './takings'
 import { GROUP_CHECK_DEFAULTS, REGION_LIMIT, TARGET_LIMIT } from './groupSchema'
 import type { Region, Target, groupCommandSchemas } from './groupSchema'
 
@@ -85,13 +85,20 @@ export function groupProblem(s: BusinessState) {
 /** The comparison window: the last 28 days against the 28 before. */
 export const GROUP_WINDOW_DAYS = 28
 
-/** Completed service takings at one location between two dates, both included. */
+/**
+ * Completed treatment takings at one location between two dates, both included. Stage 3: a
+ * renter's own takings on the days they rent are theirs, so they are left out.
+ */
 export function takings(s: BusinessState, locationId: string, from: string, to: string) {
   const visits = new Map(
     s.appointments
       .filter(
         (a) =>
-          a.locationId === locationId && a.status === 'completed' && a.date >= from && a.date <= to,
+          a.locationId === locationId &&
+          a.status === 'completed' &&
+          a.date >= from &&
+          a.date <= to &&
+          !renterVisit(s, a),
       )
       .map((a) => [a.id, a]),
   )
@@ -169,7 +176,8 @@ export function wholeBusiness(
           a.locationId === p.id &&
           (a.status === 'confirmed' || a.status === 'arrived') &&
           a.date >= today &&
-          a.date <= monthEnd,
+          a.date <= monthEnd &&
+          !renterVisit(s, a),
       )
       const takenMinor = takings(s, p.id, `${month}-01`, today).minor
       const bookedMinor = ahead.reduce((sum, a) => sum + a.bookedPriceMinor, 0)

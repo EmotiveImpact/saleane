@@ -4,6 +4,7 @@ import { groupCommandSchemas } from './groupSchema'
 import { branchVisitCommandSchemas } from './branchVisitSchema'
 import { hoursCommandSchemas } from './hoursSchema'
 import { rotaCommandSchemas } from './rotaSchema'
+import { commissionCommandSchemas } from './commissionSchema'
 import { approvalCommandSchemas } from './approvalsSchema'
 import { brandCommandSchemas } from './brandRulesSchema'
 import { tillCommandSchemas } from './tillSchema'
@@ -677,6 +678,8 @@ export const commandSchema = z.discriminatedUnion('type', [
   ...hoursCommandSchemas,
   // Stage 3: one day on the rota changed or added, and a week's changes copied or cleared.
   ...rotaCommandSchemas,
+  // Stage 3: rates for a treatment or product, steps by takings and monthly targets.
+  ...commissionCommandSchemas,
   ...operatingCommandSchema.options,
 ])
 export type BookingInput = z.infer<typeof bookingSchema>

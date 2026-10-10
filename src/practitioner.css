@@ -455,3 +455,10 @@
   outline: 2px solid var(--brand);
   outline-offset: 2px;
 }
+/* Stage 3: their own target for the month, a quiet line with the thin bar Business uses. */
+.practitioner-target {
+  margin: 0 0 18px;
+}
+.practitioner-target .practitioner-rating {
+  margin: 4px 0 8px;
+}

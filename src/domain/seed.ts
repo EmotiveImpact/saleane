@@ -7,6 +7,7 @@ import { standardWording } from './consent'
 import { defaultPatchTestSettings } from './patchTestsSchema'
 import { STARTER_CHECKLIST } from './branchVisits'
 import { sampleShifts } from './hours'
+import { periodDue, rentPeriods } from './rent'
 import { Diary, planRegulars, sampleRegulars, seeded } from './sampleDiary'
 import type { PlannedVisit, Random } from './sampleDiary'
 
@@ -774,7 +775,7 @@ function build(region: Region, regularCount: number): BusinessState {
   seedFeedback(state, random, at)
   seedStock(state, uk, random, at)
   seedSuppliers(state)
-  seedPay(state)
+  seedPay(state, uk)
   // NEXT-07: a fortnight of clocked hours, so Pay shows hours worked.
   ;(state.operations ??= defaultOperations('sandbox')).shifts = sampleShifts(state, DEMO_DATE)
   seedBranchVisits(state)
@@ -1298,37 +1299,49 @@ function seedAccounting(state: BusinessState, uk: boolean) {
       fees: '270',
       refunds: '215',
       clearing: '610',
+      // Stage 3: Theo's own takings come through the till and are held for him.
+      renters: '835',
     },
   }
 }
 
-/** V2: Theo rents the styling chair by the week from 21 September; two weeks paid, this week owed. */
+/**
+ * V2: Theo rents the styling chair by the week from 21 September; two weeks paid, this week owed.
+ * Stage 3: his rent is a fixed amount plus 10% of his treatments on the days he rents, so each
+ * week's rent follows his takings. Products he sells come off the studio's shelf and stay its sales.
+ */
 function seedRent(state: BusinessState, uk: boolean) {
   const o = (state.operations ??= defaultOperations('sandbox'))
-  const amountMinor = (uk ? 180 : 220) * 100
-  o.rentals = [
-    {
-      id: 'rental-theo',
-      staffId: 'staff-theo',
-      space: 'chair',
-      resourceId: 'chair-one',
-      amountMinor,
-      every: 'week',
-      from: '2026-09-21',
-      createdAt: instantFor(state, '2026-09-15', 600),
-      actor: 'Owner',
-    },
-  ]
-  // He paid the first week in cash when he was next in, and the second by bank transfer.
+  const rental = {
+    id: 'rental-theo',
+    staffId: 'staff-theo',
+    space: 'chair' as const,
+    resourceId: 'chair-one',
+    amountMinor: (uk ? 50 : 60) * 100,
+    percentBps: 1000,
+    every: 'week' as const,
+    from: '2026-09-21',
+    createdAt: instantFor(state, '2026-09-15', 600),
+    actor: 'Owner',
+  }
+  o.rentals = [rental]
+  // He paid the first week in cash when he was next in, and the second by bank transfer, each
+  // once the week had ended and its share was known.
   const paid: [string, 'cash' | 'bank_transfer', string][] = [
-    ['2026-09-21', 'cash', instantFor(state, '2026-09-22', 590)],
-    ['2026-09-28', 'bank_transfer', instantFor(state, '2026-09-28', 660)],
+    ['2026-09-21', 'cash', instantFor(state, '2026-09-29', 590)],
+    ['2026-09-28', 'bank_transfer', instantFor(state, '2026-10-05', 660)],
   ]
+  const periods = rentPeriods(rental, DEMO_DATE)
   o.rentPayments = paid.map(([periodStart, method, paidAt], i) => ({
     id: `rent-payment-${i + 1}`,
     rentalId: 'rental-theo',
     periodStart,
-    amountMinor,
+    amountMinor: periodDue(
+      state,
+      rental,
+      periods.find((p) => p.start === periodStart)!,
+      DEMO_DATE,
+    ).dueMinor,
     method,
     ...(method === 'bank_transfer' ? { reference: `THEO-RENT-${i + 1}` } : {}),
     paidAt,
@@ -1396,8 +1409,12 @@ function seedRota(state: BusinessState, at: (date: string, minutes: number) => s
   ]
 }
 
-/** V2: commission rates for the team, so Pay has figures to show. Fictional. */
-function seedPay(state: BusinessState) {
+/**
+ * V2: commission rates for the team, so Pay has figures to show. Fictional. Stage 3: Lymphatic
+ * Drainage and the Hydrating Serum earn rates of their own, Sophia is on steps by takings, and
+ * Maya and Sophia have monthly targets.
+ */
+function seedPay(state: BusinessState, uk: boolean) {
   const o = (state.operations ??= defaultOperations('sandbox'))
   const rates: [string, number, number, string][] = [
     // person, services %, products %, from
@@ -1415,6 +1432,59 @@ function seedPay(state: BusinessState) {
     createdAt: instantFor(state, from, 600),
     actor: 'Owner',
   }))
+  const set = instantFor(state, '2026-08-28', 600)
+  o.commissionRates = [
+    {
+      id: 'commission-rate-1',
+      item: { kind: 'treatment', serviceId: 'service-lymphatic' },
+      bps: 4500,
+      from: '2026-09-01',
+      createdAt: set,
+      actor: 'Owner',
+    },
+    {
+      id: 'commission-rate-2',
+      item: { kind: 'product', productId: 'product-hydrating-serum' },
+      bps: 1500,
+      from: '2026-09-01',
+      createdAt: set,
+      actor: 'Owner',
+    },
+  ]
+  o.commissionSteps = [
+    {
+      id: 'commission-steps-1',
+      staffId: 'staff-sophia',
+      on: 'treatments',
+      kind: 'marginal',
+      steps: [
+        { fromMinor: 0, bps: 3500 },
+        { fromMinor: (uk ? 3000 : 4000) * 100, bps: 4000 },
+      ],
+      from: '2026-09-01',
+      createdAt: set,
+      actor: 'Owner',
+    },
+  ]
+  o.staffTargets = [
+    {
+      id: 'staff-target-1',
+      staffId: 'staff-maya',
+      from: '2026-09',
+      takingsMinor: (uk ? 6000 : 7500) * 100,
+      createdAt: set,
+      actor: 'Owner',
+    },
+    {
+      id: 'staff-target-2',
+      staffId: 'staff-sophia',
+      from: '2026-09',
+      takingsMinor: (uk ? 12000 : 15000) * 100,
+      productsMinor: (uk ? 600 : 750) * 100,
+      createdAt: set,
+      actor: 'Owner',
+    },
+  ]
 }
 
 /** V5: the starter branch checklist and one visit, so Branch visits has something to show. */

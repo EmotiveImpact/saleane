@@ -9,6 +9,7 @@ import {
   NotebookPen,
   Star,
   Sun,
+  Target,
 } from 'lucide-react'
 import { useStore } from '../state/context'
 import { api, ApiError } from '../state/api'
@@ -22,7 +23,8 @@ import {
 import { practitionerViewSchema } from '../domain/practitioner'
 import type { PractitionerView } from '../domain/practitioner'
 import type { Command } from '../domain/commands'
-import { addDays, dateLabel, timeLabel } from '../domain/format'
+import { addDays, dateLabel, timeLabel, wholeMoney } from '../domain/format'
+import { progressPercent } from '../domain/commission'
 import { firstName, nextUp, previousWithYou, untilLabel, venueMinutes } from '../domain/pocket'
 import { PRACTITIONER_AVERAGE_MIN } from '../domain/feedback'
 import { venueDate } from '../domain/tillCount'
@@ -421,6 +423,7 @@ export function PractitionerDay() {
               : `Your average from guests' private ratings appears once ${PRACTITIONER_AVERAGE_MIN} guests have rated you.`}
           </p>
         )}
+        {record.target && <OwnTarget view={record} target={record.target} />}
         {notice && (
           <p className="practitioner-notice" role="status">
             {notice}
@@ -748,6 +751,46 @@ export function PractitionerDay() {
           </Link>
         </p>
       </main>
+    </div>
+  )
+}
+
+/**
+ * Stage 3: their own target for the month and how far they are towards it. Their takings count
+ * the same way as their pay; they never see anyone else's, or their rates.
+ */
+function OwnTarget({
+  view,
+  target,
+}: {
+  view: PractitionerView
+  target: NonNullable<PractitionerView['target']>
+}) {
+  const org = { locale: view.organisation.locale, currency: target.currency }
+  const cash = (minor: number) => wholeMoney(minor, org)
+  const month = new Date(`${target.month}-01T12:00:00Z`).toLocaleDateString(org.locale, {
+    month: 'long',
+    timeZone: 'UTC',
+  })
+  const share = progressPercent(target.takenMinor, target.targetMinor)
+  const parts = [
+    target.treatmentsTargetMinor
+      ? `Treatments ${cash(target.treatmentsMinor)} of ${cash(target.treatmentsTargetMinor)}.`
+      : '',
+    target.productsTargetMinor
+      ? `Products ${cash(target.productsMinor)} of ${cash(target.productsTargetMinor)}.`
+      : '',
+  ].filter(Boolean)
+  return (
+    <div className="practitioner-target">
+      <p className="practitioner-rating">
+        <Target size={16} aria-hidden="true" />
+        {`Your target for ${month}: ${cash(target.takenMinor)} of ${cash(target.targetMinor)} so far, ${share}%.`}
+        {parts.length ? ` ${parts.join(' ')}` : ''}
+      </p>
+      <div className="performance-track" aria-hidden="true">
+        <span style={{ width: `${Math.min(100, share)}%` }} />
+      </div>
     </div>
   )
 }

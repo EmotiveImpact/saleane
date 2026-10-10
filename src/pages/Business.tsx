@@ -21,7 +21,9 @@ import {
 const completedVisits = (count: number) => `${count} completed ${count === 1 ? 'visit' : 'visits'}`
 
 export function Business() {
-  const { state, today, branch } = useStore()
+  const { state, today, branch, role } = useStore()
+  // Stage 3: rent is shown to those who see pay; everyone sees that renters' takings are kept out.
+  const seesRent = role === 'owner' || role === 'manager'
   const [days, setDays] = useState(7)
   const [definitions, setDefinitions] = useState(false)
   // V2: figures for one location, or the whole studio.
@@ -110,12 +112,12 @@ export function Business() {
         <Metric
           label="Takings from completed treatments"
           value={wholeMoney(data.revenue, state.organisation)}
-          detail={completedVisits(data.completed)}
+          detail={completedVisits(data.ownCompleted)}
         />
         <Metric
           label="Average treatment sale"
           value={wholeMoney(
-            data.completed ? Math.round(data.revenue / data.completed) : 0,
+            data.ownCompleted ? Math.round(data.revenue / data.ownCompleted) : 0,
             state.organisation,
           )}
           detail="Treatment takings ÷ completed visits"
@@ -220,6 +222,24 @@ export function Business() {
           <span>Gift cards, packages and memberships sold</span>
           <strong>{money(data.giftCardsSold + data.plansSold, state.organisation)}</strong>
           <small>Money taken where they were sold, separate from treatment takings.</small>
+          {seesRent && (data.rent > 0 || data.renters > 0) && (
+            <>
+              <div className="insight-rule" />
+              <span>Chair and room rent recorded</span>
+              <strong>{money(data.rent, state.organisation)}</strong>
+              <small>
+                Your income from renters. <Link to="/business/pay">See rent</Link>
+              </small>
+            </>
+          )}
+          {data.renters > 0 && (
+            <>
+              <div className="insight-rule" />
+              <span>Renters’ own takings, kept apart</span>
+              <strong>{money(data.renters, state.organisation)}</strong>
+              <small>Not counted in any figure here. They came through your till.</small>
+            </>
+          )}
         </section>
       </div>
       <div className="business-tables">
@@ -244,13 +264,14 @@ export function Business() {
         </section>
         <section className="surface detail-panel">
           <h2>The people behind it</h2>
-          {data.byStaff.map(({ staff, revenue, visits, rebooked }) => (
+          {data.byStaff.map(({ staff, revenue, visits, renting, rebooked }) => (
             <div className="staff-performance" key={staff.id}>
               <Avatar small identity={staff.id} name={staff.name} tone={staff.tone} />
               <span>
                 <strong>{staff.name}</strong>
                 <small>
                   {completedVisits(visits)}
+                  {renting > 0 && `, ${renting} while renting`}
                   {visits > 0 && ` · ${Math.round((rebooked / visits) * 100)}% rebooked`}
                 </small>
               </span>
@@ -258,7 +279,7 @@ export function Business() {
             </div>
           ))}
           <p className="subtle">
-            Treatment takings only.
+            Treatment takings only, without renters’ own takings.
             {data.rebookRate !== null &&
               ` Rebooked means the next visit was booked at checkout; the studio as a whole rebooked ${Math.round(data.rebookRate * 100)}%.`}{' '}
             Commission and tips per person are on <Link to="/business/pay">Pay</Link>.
@@ -346,8 +367,11 @@ export function Business() {
             booked uses booked treatment minutes against opening and professional hours, less
             recorded closures. Earlier days use the current schedule; schedule versions are not yet
             retained. Rebooking counts explicit links created through checkout, rather than assuming
-            another visit is a rebook. All figures come from this studio’s records. Money recorded
-            by hand has not been checked against a card company.
+            another visit is a rebook. Someone renting a chair or room keeps their own takings on
+            the days they rent, so takings, averages and products leave them out; their rent is the
+            studio’s income. Time booked and rebooking still count their visits. All figures come
+            from this studio’s records. Money recorded by hand has not been checked against a card
+            company.
           </p>
         )}
       </div>

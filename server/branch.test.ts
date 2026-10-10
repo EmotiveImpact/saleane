@@ -143,7 +143,7 @@ describe('general manager access (V5)', () => {
   })
 
   it('reads the studio without pay rates and other locations’ private records', async () => {
-    const { owner, islington } = await twoSites()
+    const { owner, islington, nia } = await twoSites()
     const gia = await general(owner, 'gia@example.invalid', islington)
     const response = await get(gia)
     expect(response.statusCode, response.body).toBe(200)
@@ -157,6 +157,14 @@ describe('general manager access (V5)', () => {
     expect(body.role).toBe('general')
     expect(body.locationId).toBe(islington)
     expect(body.state.operations!.payRates).toBeUndefined()
+    // Stage 3: nor commission by treatment, steps, targets or the terms of anyone's rent.
+    for (const field of ['commissionRates', 'commissionSteps', 'staffTargets', 'rentPayments'])
+      expect(body.state.operations).not.toHaveProperty(field)
+    expect(body.state.operations!.rentals!.every((r) => !r.amountMinor && !r.percentBps)).toBe(true)
+    const target = { staffId: nia, from: '2026-10', takingsMinor: 500000 }
+    expect(
+      (await run(gia, body.state.revision, { type: 'staff-target', input: target })).statusCode,
+    ).toBe(403)
     // The sample branch visit is at the main location, so it is not theirs to read.
     expect(body.state.operations!.branchVisits ?? []).toEqual([])
     expect((await studio(owner)).operations!.branchVisits!.length).toBeGreaterThan(0)
