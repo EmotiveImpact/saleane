@@ -308,6 +308,29 @@
   text-underline-offset: 3px;
   cursor: pointer;
 }
+/* NEXT-15: Face ID or a fingerprint, offered beside the password with a quiet "or" between. */
+.account-passkey {
+  display: grid;
+  gap: 18px;
+  margin-top: 18px;
+}
+.account-passkey > .button {
+  min-height: 46px;
+}
+.account-or {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+.account-or::before,
+.account-or::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
 /* NEXT-04: the code step after the password. */
 .two-step-code {
   display: grid;

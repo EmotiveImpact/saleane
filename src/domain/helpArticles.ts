@@ -1183,6 +1183,22 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     words: 'require two factor 2fa everyone whole team must mandatory enforce force security',
   },
   {
+    id: 'face-id',
+    title: 'Sign in with Face ID or a fingerprint',
+    group: 'Team',
+    summary:
+      'Sign in with Face ID, Touch ID, Windows Hello or a fingerprint instead of typing your password.',
+    steps: [
+      'On the phone or computer you want to use, open Settings, then Team, and find Face ID and fingerprint. Choose Add this device.',
+      'Check the name, type your password (and a code from your app if two-step sign-in is on), then choose Add this device and let your device check it is you.',
+      'Next time, choose Sign in with Face ID or fingerprint on the sign-in page. A lost device is removed from the same place.',
+    ],
+    to: '/settings?section=staff',
+    screens: ['/settings?section=staff'],
+    roles: DESK,
+    words: 'face id touch id fingerprint passkey windows hello biometric sign in',
+  },
+  {
     id: 'password',
     title: 'Change your password',
     group: 'Team',

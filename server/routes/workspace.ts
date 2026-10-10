@@ -430,11 +430,16 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
       reply(200, {
         // NEXT-04: the owner sees who has two-step sign-in on, never their keys or codes.
         members: db
-          .all<Record<string, unknown> & { twoStep: number }>(
-            'SELECT a.id,a.name,a.email,m.role,m.staff_id AS staffId,m.area_id AS areaId,m.location_id AS locationId,(a.totp_enabled_at IS NOT NULL) AS twoStep FROM memberships m JOIN accounts a ON a.id=m.account_id WHERE m.organisation_id=? ORDER BY a.name',
+          .all<Record<string, unknown> & { twoStep: number; passkey: number }>(
+            'SELECT a.id,a.name,a.email,m.role,m.staff_id AS staffId,m.area_id AS areaId,m.location_id AS locationId,(a.totp_enabled_at IS NOT NULL) AS twoStep,EXISTS(SELECT 1 FROM passkeys p WHERE p.account_id=a.id AND p.removed_at IS NULL) AS passkey FROM memberships m JOIN accounts a ON a.id=m.account_id WHERE m.organisation_id=? ORDER BY a.name',
             org.id,
           )
-          .map((member) => ({ ...member, twoStep: member.twoStep === 1 })),
+          .map((member) => ({
+            ...member,
+            twoStep: member.twoStep === 1,
+            // NEXT-15: whether they sign in with Face ID or a fingerprint, never which devices.
+            passkey: member.passkey === 1,
+          })),
         invitations: db.all(
           'SELECT email,role,staff_id AS staffId,area_id AS areaId,location_id AS locationId,expires_at AS expiresAt FROM invitations WHERE organisation_id=? AND used_at IS NULL AND expires_at>?',
           org.id,

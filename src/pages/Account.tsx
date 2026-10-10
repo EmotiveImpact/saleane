@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
+import { WebAuthnAbortService } from '@simplewebauthn/browser'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowRight, ArrowLeft, ShieldCheck } from 'lucide-react'
+import { ArrowRight, ArrowLeft, ScanFace, ShieldCheck } from 'lucide-react'
 import { useStore } from '../state/context'
 import { api } from '../state/api'
 import type { Session } from '../state/api'
 import { rememberStudio } from '../state/lastStudio'
+import { passkeyProblem, passkeySignIn, passkeysInBrowser } from '../state/passkeys'
 import { roleNames } from '../domain/operations'
 import { Button, ErrorMessage } from '../design'
 import { BrandsTogether } from '../components/BrandsTogether'
@@ -44,6 +46,8 @@ export function Account() {
   const [confirmSent, setConfirmSent] = useState<LinkAnswer | null>(null)
   const [confirmProblem, setConfirmProblem] = useState('')
   const [challenge, setChallenge] = useState('')
+  // NEXT-15: whether this address and browser can sign in with Face ID or a fingerprint.
+  const [passkeys, setPasskeys] = useState(false)
   // Someone joining from an invitation reads a short welcome before their studio opens.
   const [joined, setJoined] = useState<{ id: string; current: Session | null } | null>(null)
   const emailField = useRef<HTMLInputElement>(null),
@@ -89,6 +93,62 @@ export function Account() {
     // Session lookup is intentionally once per account-page visit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+  useEffect(() => {
+    if (!passkeysInBrowser()) return
+    let active = true
+    api<{ passkeysHere?: boolean }>('/api/health')
+      .then((health) => {
+        if (active) setPasskeys(!!health.passkeysHere)
+      })
+      .catch(() => undefined)
+    return () => {
+      active = false
+    }
+  }, [])
+  // Offered once it is known nobody is signed in here.
+  const offerPasskey = passkeys && ready && !store.session && view === 'signin' && !challenge
+  useEffect(() => {
+    // The browser offers a saved passkey under the email field, without opening a prompt.
+    if (!offerPasskey) return
+    let active = true
+    passkeySignIn(true)
+      .then(async (answer) => {
+        if (!answer || !active) return
+        setPending(true)
+        try {
+          await finishSignIn()
+        } finally {
+          if (active) setPending(false)
+        }
+      })
+      .catch((e) => {
+        if (!active) return
+        const problem = passkeyProblem(
+          e,
+          'Face ID sign-in did not work. Use your password instead.',
+        )
+        if (problem) setError(problem)
+      })
+    return () => {
+      active = false
+      WebAuthnAbortService.cancelCeremony()
+    }
+    // finishSignIn reads the latest invitation and session when it runs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offerPasskey])
+  async function faceId() {
+    setPending(true)
+    setError('')
+    try {
+      await passkeySignIn()
+      await finishSignIn()
+    } catch (e) {
+      const problem = passkeyProblem(e, 'Face ID sign-in did not work. Use your password instead.')
+      if (problem) setError(problem)
+    } finally {
+      setPending(false)
+    }
+  }
   /**
    * Practitioners open their own day and regional managers their area; every other role opens
    * the studio workspace.
@@ -432,7 +492,7 @@ export function Account() {
                       <input
                         ref={emailField}
                         type="email"
-                        autoComplete="email"
+                        autoComplete={offerPasskey ? 'email webauthn' : 'email'}
                         required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
@@ -573,6 +633,15 @@ export function Account() {
                   <ArrowRight size={16} />
                 </Button>
               </form>
+            )}
+            {offerPasskey && (
+              <div className="account-passkey">
+                <span className="account-or">or</span>
+                <Button variant="secondary" disabled={pending} onClick={() => void faceId()}>
+                  <ScanFace size={18} aria-hidden="true" />
+                  Sign in with Face ID or fingerprint
+                </Button>
+              </div>
             )}
             <div className="account-actions">
               {view === 'workspace' ? (

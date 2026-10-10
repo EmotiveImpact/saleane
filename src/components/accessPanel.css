@@ -83,6 +83,35 @@
   background: var(--sage-soft);
   color: var(--ink);
 }
+/* NEXT-15: each device that signs in with Face ID or a fingerprint, on its own quiet line. */
+.passkey-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+.passkey-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--line);
+}
+.passkey-list li:last-child {
+  border-bottom: 0;
+}
+.passkey-list li > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.passkey-list small {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
 .access-two-step-body {
   display: grid;
   gap: var(--space-3);
@@ -181,4 +210,8 @@
 }
 .access-everyone-count {
   font-size: var(--text-small);
+}
+.access-passkeys form {
+  display: grid;
+  gap: var(--space-3);
 }

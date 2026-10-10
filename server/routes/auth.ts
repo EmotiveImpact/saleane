@@ -16,6 +16,18 @@ import {
   useCode,
 } from '../twoStep'
 import type { TwoStepAccount } from '../twoStep'
+import {
+  addPasskey,
+  addingOptions,
+  authenticationResponse,
+  passkeyCount,
+  passkeyPlace,
+  passkeySignIn,
+  passkeysOf,
+  registrationResponse,
+  removePasskey,
+  signInOptions,
+} from '../passkeys'
 import { emailSchema, registration } from '../context'
 import { brandFigures, brandGroup } from '../../src/domain/brandGroup'
 import type { Context, Invitation, Route } from '../context'
@@ -47,6 +59,10 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
       accountId,
     )
   const twoStepOn = (accountId: string) => !!twoStepAccount(accountId)
+  // NEXT-15: passkeys work only on an address a browser allows them on.
+  const passkeys = passkeyPlace(origin)
+  const noPasskeys = () =>
+    fail(404, 'Face ID sign-in needs SALEANE on a secure web address, so it is not available here.')
   /** Changing how someone signs in asks for their password again. */
   async function passwordFor(accountId: string, password: string) {
     const account = db.get<{ password_hash: string }>(
@@ -61,6 +77,7 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
       ok: true,
       database: 'sqlite',
       localOnly: true,
+      passkeysHere: !!passkeys,
       services: {
         email: ctx.messaging.email.live || ctx.messaging.sms.live,
         payments: ctx.paymentProvider.live,
@@ -86,8 +103,11 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
         twoStep: account?.twoStep
           ? { since: account.twoStep, recoveryLeft: recoveryLeft(ctx, actor.id) }
           : null,
+        // NEXT-15: how many devices can sign in with Face ID or a fingerprint.
+        passkeys: passkeyCount(ctx, actor.id),
       },
       csrf: actor.csrf,
+      passkeysHere: !!passkeys,
       workspaces: memberships(actor),
       localOnly: true,
       services: {
@@ -380,6 +400,80 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
     })
     mailNotice(ctx, actor, 'recovery-new')
     reply(200, { recoveryCodes: codes })
+    return true
+  }
+  if (method === 'POST' && url.pathname === '/api/auth/passkeys/options') {
+    const actor = actorFor(request, true)
+    rateLimit(request, 'auth', 10, 5 * 60000)
+    if (!passkeys) noPasskeys()
+    const data = z
+      .object({
+        password: z.string().min(1).max(128),
+        code: z.string().trim().min(6).max(20).optional(),
+      })
+      .strict()
+      .parse(body)
+    await passwordFor(actor.id, data.password)
+    // A new way in skips the code, so with two-step sign-in on, adding one asks for the code too.
+    db.transaction(() => {
+      const account = twoStepAccount(actor.id)
+      if (!account) return
+      if (!data.code) fail(400, 'Enter a code from your authenticator app, or a recovery code.')
+      if (!useCode(ctx, account, data.code!))
+        fail(400, 'That code is not right. Use the newest code from your app, or a recovery code.')
+    })
+    reply(200, await addingOptions(ctx, passkeys!, actor))
+    return true
+  }
+  if (method === 'GET' && url.pathname === '/api/auth/passkeys') {
+    const actor = actorFor(request)
+    reply(200, { passkeys: passkeysOf(ctx, actor.id), here: !!passkeys })
+    return true
+  }
+  if (method === 'POST' && url.pathname === '/api/auth/passkeys') {
+    const actor = actorFor(request, true)
+    rateLimit(request, 'auth', 10, 5 * 60000)
+    if (!passkeys) noPasskeys()
+    const data = z
+      .object({ response: registrationResponse, name: z.string().trim().min(1).max(60) })
+      .strict()
+      .parse(body)
+    await addPasskey(ctx, passkeys!, actor.id, data.response, data.name)
+    // Anyone else signed in as this person stays signed in: nothing about the password changed.
+    mailNotice(ctx, actor, 'passkey-added', data.name)
+    reply(201, { passkeys: passkeysOf(ctx, actor.id) })
+    return true
+  }
+  if (method === 'POST' && url.pathname === '/api/auth/passkeys/remove') {
+    const actor = actorFor(request, true)
+    rateLimit(request, 'auth', 10, 5 * 60000)
+    const data = z
+      .object({ id: z.string().min(16).max(1400), password: z.string().min(1).max(128) })
+      .strict()
+      .parse(body)
+    await passwordFor(actor.id, data.password)
+    const name = db.transaction(() => removePasskey(ctx, actor.id, data.id))
+    mailNotice(ctx, actor, 'passkey-removed', name)
+    reply(200, { passkeys: passkeysOf(ctx, actor.id) })
+    return true
+  }
+  // Signing in: the prompt is for any passkey the device holds, so no email is asked for and
+  // the answer never says which addresses have accounts.
+  if (method === 'POST' && url.pathname === '/api/auth/passkey/options') {
+    rateLimit(request, 'passkey-prompt', 30, 5 * 60000)
+    if (!passkeys) noPasskeys()
+    z.object({})
+      .strict()
+      .parse(body ?? {})
+    reply(200, await signInOptions(ctx, passkeys!))
+    return true
+  }
+  if (method === 'POST' && url.pathname === '/api/auth/passkey') {
+    rateLimit(request, 'auth', 10, 5 * 60000)
+    if (!passkeys) noPasskeys()
+    const data = z.object({ response: authenticationResponse }).strict().parse(body)
+    const accountId = await passkeySignIn(ctx, passkeys!, data.response)
+    reply(200, { csrf: signIn(response, accountId) })
     return true
   }
   if (method === 'POST' && url.pathname === '/api/auth/logout') {

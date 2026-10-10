@@ -99,7 +99,7 @@ function snapshot(source: string, destination: string, restore: boolean) {
       })
       try {
         recovered.exec(
-          'BEGIN IMMEDIATE; DELETE FROM sessions; DELETE FROM login_challenges; DELETE FROM totp_setup; DELETE FROM invitations; DELETE FROM booking_holds; DELETE FROM guest_links;',
+          'BEGIN IMMEDIATE; DELETE FROM sessions; DELETE FROM login_challenges; DELETE FROM totp_setup; DELETE FROM invitations; DELETE FROM booking_holds; DELETE FROM guest_links; DELETE FROM passkey_challenges;',
         )
         // Nothing that reaches outside the studio comes back by itself: a key revoked since the
         // backup would read again, a connection removed since would be sent to, and a message
@@ -121,6 +121,15 @@ function snapshot(source: string, destination: string, restore: boolean) {
           accessKeysRevoked: Number(
             recovered.prepare('UPDATE api_keys SET revoked_at=? WHERE revoked_at IS NULL').run(time)
               .changes,
+          ),
+          // NEXT-15: a passkey removed since the backup, for a lost phone, would sign in again, and
+          // one used since would have its count wound back. Each person adds their device again.
+          passkeysStopped: Number(
+            recovered
+              .prepare(
+                "UPDATE passkeys SET removed_at=?,removed_why='restore' WHERE removed_at IS NULL",
+              )
+              .run(time).changes,
           ),
           // NEXT-10: a diary link stopped since the backup would be read again by a calendar app.
           diaryLinksStopped: Number(
