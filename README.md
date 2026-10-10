@@ -15,7 +15,7 @@ npm ci
 npm run dev
 ```
 
-Open **http://127.0.0.1:5173**. Keep **one server** running. The original browser demo is preserved; it uses 6 October 2026 and simulated money. Open **/account** to create a local review account and a new empty studio, or explicitly choose a fictional sample studio. Empty studios use the venue's current date and time.
+Open **http://127.0.0.1:5173** for the public editorial website. Explore the fictional sample studio at **/today**, the local studio account at **/account**, and UK/US plans at **/pricing**. Keep **one server** running. The original browser demo is preserved; it uses 6 October 2026 and simulated money. Open **/account** to create a local review account and a new empty studio, or explicitly choose a fictional sample studio. Empty studios use the venue's current date and time.
 
 ```sh
 npm run check

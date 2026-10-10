@@ -2,6 +2,15 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-10 · Editorial public website (review PR)
+
+**Status: proposed public front door, not merged, hosted or production-qualified.** [Evidence](docs/evidence/PUBLIC-WEBSITE-2026-10-10.md).
+
+- The root route now opens a responsive SALEANE marketing website inspired by the supplied editorial layout while preserving the studio workspace under /today, account under /account and pricing under /pricing.
+- Added photographic hero selector, promise cards, treatment-type chips, switchable illustrative UI preview, editorial story, real UK/US plan price selector, native FAQ and working navigation. Uses committed local editorial images, licensed existing fonts and no new dependencies.
+- No fake waitlist, signup counts, payments or live-service assertions. Marketing examples are fictional and the private local review boundary is stated.
+- Added component tests for the site, price switch and UI selectors. Full local check and browser verification remain to be confirmed in CI; no deployment.
+
 ## 2026-10-10 · Claude behind Ask SALEANE and the receptionist (NEXT-12, part 1)
 
 **Status: built locally on 10 October 2026; not run against a real Anthropic account.** [Evidence](docs/evidence/NEXT-12-REAL-AI.md).
