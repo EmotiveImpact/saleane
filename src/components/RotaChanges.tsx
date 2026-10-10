@@ -14,6 +14,8 @@ import {
   weekStillToCome,
 } from '../domain/rota'
 import type { RotaCommand } from '../domain/rota'
+import { rotaSignOffNeeded, signOffRefusal } from '../domain/signoffs'
+import type { RotaAsk } from '../domain/approvalsSchema'
 import type { AffectedVisit } from '../domain/schedule'
 import { Button, ErrorMessage, Modal, SegmentedControl, TimeField } from '../design'
 
@@ -48,7 +50,7 @@ export function RotaDayDialog({
   onClose: () => void
   onDone: (message: string) => void
 }) {
-  const { state, commit } = useStore()
+  const { state, commit, role } = useStore()
   const org = state.organisation
   const locale = org.locale
   const multiSite = hasLocations(state)
@@ -122,6 +124,13 @@ export function RotaDayDialog({
   )
   const affected = preview?.affected ?? []
   const already = outsideVisits(state, staffId, date)
+  // Stage 4: when the owner asks for a sign-off on a general manager's change (signoffs.ts), the
+  // change is sent up as a request instead, and the rota changes once it is approved.
+  const askFirst =
+    role === 'general' &&
+    !!locationId &&
+    !!command &&
+    rotaSignOffNeeded(state, command, new Date().toISOString())
   // A general manager is told where someone usually is on a day at another location, not when.
   const usualWords = !usual.working
     ? `Does not usually work on ${weekdays(date, locale)}.`
@@ -135,7 +144,20 @@ export function RotaDayDialog({
     setPending(true)
     setError('')
     try {
-      const result = await commit(affected.length ? { ...command, keepBooked: true } : command)
+      const change = affected.length ? { ...command, keepBooked: true as const } : command
+      if (askFirst) {
+        const asked = await commit({
+          type: 'request-raise',
+          input: { locationId: locationId!, kind: 'rota', rota: change as RotaAsk },
+        })
+        if (!asked.ok) setError(asked.error)
+        else
+          onDone(
+            `Asked for a sign-off for ${name} on ${dateLabel(date, locale)}. The rota changes once it is approved; Requests shows where it stands.`,
+          )
+        return
+      }
+      const result = await commit(change)
       if (!result.ok) {
         setError(result.error)
         return
@@ -267,6 +289,14 @@ export function RotaDayDialog({
             {preview.error}
           </p>
         )}
+        {askFirst && !preview?.error && (
+          <p className="rota-why" role="status">
+            {choice === 'hours' && !usual.working
+              ? 'An extra day needs a sign-off first.'
+              : 'Changes to the rota need a sign-off first.'}{' '}
+            Asking sends it up as a request, and the day changes once it is approved.
+          </p>
+        )}
         {affected.length > 0 ? (
           <KeepChoice affected={affected} value={keep} onChange={setKeep} locale={locale} />
         ) : (
@@ -312,7 +342,13 @@ export function RotaDayDialog({
                 pending || !command || !!preview?.error || (affected.length > 0 && keep !== 'keep')
               }
             >
-              {pending ? 'Saving…' : choice === 'usual' ? 'Put back to usual' : 'Save this day'}
+              {pending
+                ? 'Saving…'
+                : askFirst
+                  ? 'Ask for a sign-off'
+                  : choice === 'usual'
+                    ? 'Put back to usual'
+                    : 'Save this day'}
             </Button>
           )}
           <Button variant="secondary" disabled={pending} onClick={onClose}>
@@ -426,7 +462,7 @@ export function RotaWeekDialog({
   onClose: () => void
   onDone: (message: string) => void
 }) {
-  const { state, commit } = useStore()
+  const { state, commit, role } = useStore()
   const locale = state.organisation.locale
   const today = businessDate(state)
   const [keep, setKeep] = useState<Keep>(null)
@@ -459,10 +495,14 @@ export function RotaWeekDialog({
     [state, action, monday, locationId],
   )
   const affected = preview.affected
+  // Stage 4: a week that takes in days needing a sign-off is changed a day at a time instead.
+  const why =
+    preview.error ||
+    (role === 'general' ? signOffRefusal(state, role, command, new Date().toISOString()) : null)
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!rows.length || preview.error || (affected.length && keep !== 'keep')) return
+    if (!rows.length || why || (affected.length && keep !== 'keep')) return
     setPending(true)
     setError('')
     try {
@@ -536,9 +576,9 @@ export function RotaWeekDialog({
             </ul>
           </div>
         )}
-        {rows.length > 0 && preview.error && (
+        {rows.length > 0 && why && (
           <p className="rota-why" role="status">
-            {preview.error}
+            {why}
           </p>
         )}
         {affected.length > 0 && (
@@ -560,10 +600,7 @@ export function RotaWeekDialog({
             <Button
               type="submit"
               disabled={
-                pending ||
-                !rows.length ||
-                !!preview.error ||
-                (affected.length > 0 && keep !== 'keep')
+                pending || !rows.length || !!why || (affected.length > 0 && keep !== 'keep')
               }
             >
               {pending

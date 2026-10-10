@@ -28,9 +28,13 @@ describe('the workspace read projection', () => {
       staffTargets,
       checklists: _lists,
       branchVisits,
+      // Stage 4: requests for a sign-off and the owner's rules are not the desk's either.
+      requests,
+      approvals: _rules,
       ...operations
     } = state.operations!
-    void [_paid, _lists]
+    void [_paid, _lists, _rules]
+    expect(requests?.length).toBeGreaterThan(0)
     expect(feedback?.length).toBeGreaterThan(0)
     expect(payRates?.length).toBeGreaterThan(0)
     expect(commissionRates?.length).toBeGreaterThan(0)

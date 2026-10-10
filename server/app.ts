@@ -46,6 +46,8 @@ import { googleBooking, googleBookingFromEnv } from './googleBooking'
 import { billingProviderFromEnv, createBilling } from './billing'
 import { diaryRoutes } from './diaries'
 import type { Billing } from './billing'
+import { createSignOffs } from './signoffs'
+import type { SignOffs } from './signoffs'
 
 export type { ApiOptions } from './context'
 export type { InjectOptions, InjectResponse } from './http'
@@ -63,6 +65,8 @@ export type ApiHandler = ((
   billing: Billing
   /** Stage 2: receipt printers and the cash drawer. */
   till: Till
+  /** Stage 4: approved new prices starting on their day. */
+  signOffs: SignOffs
   close: () => void
   inject: (request: InjectOptions) => Promise<InjectResponse>
 }
@@ -102,6 +106,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     options.connectionTransport ?? connectionTransportFromEnv(),
   )
   const till = createTill(ctx, outbox, options.printers)
+  const signOffs = createSignOffs(ctx)
   const partners = partnerApi()
   const diaries = diaryRoutes()
   const google = googleBooking(options.googleBooking ?? googleBookingFromEnv(process.env))
@@ -133,6 +138,8 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     // Trials, renewals and retries are due by the day; once a minute is plenty.
     billing.start(60000)
     memberships.start(options.outboxIntervalMs)
+    // Stage 4: a signed-off price starts on the studio's own day; once a minute is plenty.
+    signOffs.start(60000)
   }
 
   const handler = (async (
@@ -374,7 +381,9 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   handler.connections = connections
   handler.billing = billing
   handler.till = till
+  handler.signOffs = signOffs
   handler.close = () => {
+    signOffs.stop()
     outbox.stop()
     connections.stop()
     billing.stop()

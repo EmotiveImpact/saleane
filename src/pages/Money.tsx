@@ -7,7 +7,7 @@ import { useStore } from '../state/context'
 import { depositPaid } from '../domain/commands'
 import { operations, can } from '../domain/operations'
 import { dateLabel, money, wholeMoney } from '../domain/format'
-import { parseMinor } from '../domain/money'
+import { minorInput, parseMinor } from '../domain/money'
 import {
   Button,
   ErrorMessage,
@@ -22,6 +22,8 @@ import '../components/management.css'
 import { TillCount } from '../components/TillCount'
 import { recordDay } from '../domain/tillCount'
 import { CardRefund } from '../components/CardPayments'
+import { RefundSignOff } from '../components/RefundSignOff'
+import { refundRefusal } from '../domain/signoffs'
 import { CarriedBalances } from '../components/Switching'
 import { PlansLedger } from '../components/Plans'
 import { giftCards, refundableOnReceipt } from '../domain/giftCards'
@@ -52,6 +54,8 @@ export function Money() {
   const [refund, setRefund] = useState(false)
   const [depositId, setDepositId] = useState('')
   const [cardRefundId, setCardRefundId] = useState('')
+  // Stage 4: an approved refund opened from its sign-off, for exactly its amount.
+  const [giveBack, setGiveBack] = useState<number | undefined>()
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -166,6 +170,7 @@ export function Money() {
       setRefund(false)
       setDepositId('')
       setCardRefundId('')
+      setGiveBack(undefined)
       setError('')
     }
   }
@@ -175,6 +180,18 @@ export function Money() {
     const data = new FormData(event.currentTarget)
     if (data.get('confirmed') !== 'on') {
       setError('Tick the box to confirm where this refund was made first.')
+      return
+    }
+    // Stage 4: over the limit without a sign-off for exactly this, the server would refuse it too.
+    const refusal = refundRefusal(
+      state,
+      role,
+      { saleId: receipt.id },
+      parseMinor(data.get('amount')),
+      new Date().toISOString(),
+    )
+    if (refusal) {
+      setError(refusal)
       return
     }
     // V2: products the guest brought back, to go back on the shelf.
@@ -201,6 +218,7 @@ export function Money() {
         return
       }
       setRefund(false)
+      setGiveBack(undefined)
       setNotice(
         sandbox
           ? 'Simulated refund recorded. No money moved.'
@@ -733,9 +751,11 @@ export function Money() {
             <CardRefund
               target={{ saleId: receipt.id }}
               maxMinor={cardRefundable(receipt.id)}
+              startMinor={giveBack}
               testMode={!receipt.processor?.live}
               onDone={() => {
                 setRefund(false)
+                setGiveBack(undefined)
                 setNotice('Refunded to the card. The refund is on the receipt.')
               }}
             />
@@ -757,6 +777,7 @@ export function Money() {
                     max={(refundableOnReceipt(receipt) - refundFor(receipt.id)) / 100}
                     step="0.01"
                     required
+                    defaultValue={giveBack !== undefined ? minorInput(giveBack) : undefined}
                   />
                 </label>
                 <label>
@@ -825,7 +846,14 @@ export function Money() {
                 <Button type="submit" disabled={pending || blocked}>
                   {pending ? 'Recording…' : 'Record refund'}
                 </Button>
-                <Button variant="secondary" disabled={pending} onClick={() => setRefund(false)}>
+                <Button
+                  variant="secondary"
+                  disabled={pending}
+                  onClick={() => {
+                    setRefund(false)
+                    setGiveBack(undefined)
+                  }}
+                >
                   Back to receipt
                 </Button>
               </div>
@@ -833,22 +861,32 @@ export function Money() {
           ) : (
             // The front desk reads receipts; refunds are for owners and managers (the server agrees).
             can(role, 'refund') && (
-              <div className="ops-actions">
-                <Button
-                  variant="secondary"
-                  disabled={blocked || refundFor(receipt.id) >= refundableOnReceipt(receipt)}
-                  onClick={() => {
+              <>
+                <RefundSignOff
+                  target={{ saleId: receipt.id }}
+                  onGiveBack={(amountMinor) => {
+                    setGiveBack(amountMinor)
                     setRefund(true)
                     setError('')
                   }}
-                >
-                  {sandbox
-                    ? 'Record simulated refund'
-                    : receipt.method === 'card' && cardRefundable(receipt.id) > 0
-                      ? 'Refund to the card'
-                      : 'Record external refund'}
-                </Button>
-              </div>
+                />
+                <div className="ops-actions">
+                  <Button
+                    variant="secondary"
+                    disabled={blocked || refundFor(receipt.id) >= refundableOnReceipt(receipt)}
+                    onClick={() => {
+                      setRefund(true)
+                      setError('')
+                    }}
+                  >
+                    {sandbox
+                      ? 'Record simulated refund'
+                      : receipt.method === 'card' && cardRefundable(receipt.id) > 0
+                        ? 'Refund to the card'
+                        : 'Record external refund'}
+                  </Button>
+                </div>
+              </>
             )
           )}
         </Modal>
@@ -869,12 +907,19 @@ export function Money() {
           title="Refund to the card"
           description={`${clientName(refundedPayment.appointmentId)} · ${refundedPayment.kind === 'fee' ? 'Missed visit fee' : 'Deposit'}`}
         >
+          <RefundSignOff
+            target={{ paymentId: refundedPayment.id }}
+            onGiveBack={(amountMinor) => setGiveBack(amountMinor)}
+          />
           <CardRefund
+            key={giveBack ?? 'all'}
             target={{ paymentId: refundedPayment.id }}
             maxMinor={refundedPayment.amountMinor - paymentRefunded(refundedPayment.id)}
+            startMinor={giveBack}
             testMode={!refundedPayment.processor?.live}
             onDone={() => {
               setCardRefundId('')
+              setGiveBack(undefined)
               setNotice('Refunded to the card. It is listed under refund records.')
             }}
           />

@@ -9,6 +9,7 @@ import { STARTER_CHECKLIST } from './branchVisits'
 import { sampleShifts } from './hours'
 import { periodDue, rentPeriods } from './rent'
 import { Diary, planRegulars, sampleRegulars, seeded } from './sampleDiary'
+import { runApprovalCommand } from './approvals'
 import type { PlannedVisit, Random } from './sampleDiary'
 
 /** The first day of the sample's everyday records; a few named clients go back further. */
@@ -1151,6 +1152,8 @@ function build(region: Region, regularCount: number): BusinessState {
     .forEach((sale, i) => {
       sale.receiptNumber = `SL-${i + 1}`
     })
+  // Stage 4: once receipts have their numbers, so a refund request names its receipt.
+  seedSignOffs(state, at)
   return parseState(state, region)
 }
 
@@ -1420,6 +1423,95 @@ function seedRota(state: BusinessState, at: (date: string, minutes: number) => s
       actor: 'Owner',
     },
   ]
+}
+
+/**
+ * Stage 4: a refund limit for general managers, extra rota days needing a sign-off, and one
+ * request of each new kind waiting for the owner: a refund over the limit on a recent facial, a
+ * new price for the facial from 1 November, and an extra Monday for Theo. Raised through the
+ * ordinary command, so each is routed and described exactly as a real one would be.
+ */
+function seedSignOffs(state: BusinessState, at: (date: string, minutes: number) => string) {
+  const o = (state.operations ??= defaultOperations('sandbox'))
+  o.approvals = { regionalLimitMinor: 500_00, generalRefundLimitMinor: 50_00, rotaSignOff: 'extra' }
+  const main = state.organisation.locationId
+  const named = new Set(Array.from({ length: 15 }, (_, i) => `client-${i + 1}`))
+  const facial = state.sales
+    .filter((sale) => {
+      const visit = state.appointments.find((a) => a.id === sale.appointmentId)
+      return (
+        visit?.serviceId === 'service-facial' &&
+        named.has(visit.clientId) &&
+        sale.paidAt < at(DEMO_DATE, 0) &&
+        sale.totalMinor >= 60_00
+      )
+    })
+    .sort((a, b) => b.paidAt.localeCompare(a.paidAt))[0]
+  const raise = (
+    id: string,
+    input: Parameters<typeof runApprovalCommand>[1] & { type: 'request-raise' },
+    raisedAt: string,
+  ) => {
+    runApprovalCommand(state, input, raisedAt, () => id)
+    const request = o.requests!.find((r) => r.id === id)!
+    request.raisedBy = 'Nadia Ross'
+  }
+  if (facial)
+    raise(
+      'request-refund-facial',
+      {
+        type: 'request-raise',
+        input: {
+          locationId: main,
+          kind: 'refund',
+          refund: { saleId: facial.id },
+          amountMinor: 60_00,
+          note: 'Skin felt tight after the peel. A goodwill refund on the treatment, agreed at the desk.',
+        },
+      },
+      at(DEMO_DATE, 560),
+    )
+  raise(
+    'request-price-facial',
+    {
+      type: 'request-raise',
+      input: {
+        locationId: main,
+        kind: 'price',
+        price: {
+          serviceId: 'service-facial',
+          priceMinor:
+            (state.services.find((x) => x.id === 'service-facial')?.priceMinor ?? 0) + 10_00,
+          startsOn: addDays(DEMO_DATE, 26),
+        },
+        note: 'The new serum costs more from November. Our nearest studios charge more already.',
+      },
+    },
+    at(addDays(DEMO_DATE, -1), 1010),
+  )
+  raise(
+    'request-rota-theo',
+    {
+      type: 'request-raise',
+      input: {
+        locationId: main,
+        kind: 'rota',
+        rota: {
+          type: 'rota-day',
+          input: {
+            staffId: 'staff-theo',
+            date: addDays(DEMO_DATE, 6),
+            working: true,
+            open: 600,
+            close: 960,
+            note: 'Colour launch week',
+          },
+        },
+        note: 'Monday is full of colour bookings. Theo is happy to come in.',
+      },
+    },
+    at(DEMO_DATE, 575),
+  )
 }
 
 /**

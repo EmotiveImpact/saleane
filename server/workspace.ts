@@ -90,6 +90,8 @@ export function createWorkspace(input: WorkspaceInput): BusinessState {
   for (const appointment of state.appointments) appointment.locationId = locationId
   // V5: the sample branch visit is at the new studio's own location.
   for (const visit of state.operations.branchVisits ?? []) visit.locationId = locationId
+  // Stage 4: so are the sample's requests for a sign-off.
+  for (const request of state.operations.requests ?? []) request.locationId = locationId
   state.revision = 0
   return parseState(state, input.region)
 }

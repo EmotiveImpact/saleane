@@ -9,6 +9,7 @@ import { rotaChangeDetail } from './rota'
 import { giftMoveDetail } from './giftCards'
 import { staffMoveDetail } from './staffMoves'
 import { timeOffChangeDetail } from './timeOff'
+import { signOffChangeDetail } from './signoffs'
 
 /**
  * NEXT-05: who changed what. Every saved change is already written to the studio's audit log
@@ -107,6 +108,8 @@ const commandWords: Record<Command['type'], Words> = {
   'request-raise': ['team', 'Sent a request up for sign-off'],
   'request-decide': ['team', 'Answered a request'],
   'approval-limit': ['settings', 'Changed the sign-off limit'],
+  'signoff-rules': ['settings', 'Changed the sign-off rules'],
+  'request-start': ['settings', 'Started a new price that was signed off'],
   'studio-look': ['settings', 'Changed the studio’s look'],
   'till-settings': ['settings', 'Changed how receipts print'],
   'house-rules': ['settings', 'Changed the house rules'],
@@ -303,7 +306,18 @@ const personal = new Set([
   'tasks',
 ])
 /** Short words from a fixed list, safe to keep. Anything else typed in is never kept. */
-const listed = new Set(['status', 'category', 'resourceType', 'type', 'kind', 'method', 'tone'])
+const listed = new Set([
+  'status',
+  'category',
+  'resourceType',
+  'type',
+  'kind',
+  'method',
+  'tone',
+  // Stage 4: how a request was answered, and which rota changes need a sign-off.
+  'outcome',
+  'rotaSignOff',
+])
 const named = new Set(['name', 'title', 'label'])
 const civilDate = /^\d{4}-\d{2}-\d{2}$/
 
@@ -354,6 +368,7 @@ const settingsOf: Partial<Record<string, (s: BusinessState) => unknown>> = {
   'patch-test-settings': (s) => s.operations?.patchTests,
   'accounting-settings': (s) => s.operations?.accounting,
   'approval-limit': (s) => s.operations?.approvals,
+  'signoff-rules': (s) => s.operations?.approvals,
   'studio-look': (s) => s.operations?.look,
   'till-settings': (s) => s.operations?.till,
   'house-rules': (s) => s.operations?.houseRules,
@@ -417,6 +432,9 @@ export function changeDetail(
   // Stage 4: changed time off keeps its days and kind before and after.
   const away = timeOffChangeDetail(before, after, action, recordId)
   if (away) return away
+  // Stage 4: an approved new price or rota change keeps what it changed, before and after.
+  const signOff = signOffChangeDetail(before, after, action, recordId)
+  if (signOff) return signOff
   let fields: ChangedField[] = []
   let made: ChangeDetail['made']
   const settings = settingsOf[action]
@@ -537,6 +555,14 @@ const fieldWords: Record<string, string> = {
   visitsKeptAway: 'booked visits kept where they no longer work',
   daysMoved: 'days of the week moved',
   timeOffKind: 'kind of time off',
+  outcome: 'answer',
+  newPriceMinor: 'new price',
+  startsOn: 'starts on',
+  notStarted: 'could not start',
+  regionalLimitMinor: 'what a regional manager may approve',
+  generalRefundLimitMinor: 'what a general manager may give back',
+  managerRefundLimitMinor: 'what a manager may give back',
+  rotaSignOff: 'rota changes needing a sign-off',
 }
 /** A detail's name in words: "cutoffHours" reads "cutoff hours". */
 export function fieldName(field: string) {
@@ -632,6 +658,7 @@ function valueText(s: BusinessState, names: RecordNames, f: string, v: Value) {
   }
   if (f === 'access') return v === 'remove' ? 'removed' : (roleNames[v as Role] ?? v)
   if (f === 'status') return statusWords[v] ?? v
+  if (f === 'rotaSignOff') return v === 'extra' ? 'extra days' : v === 'all' ? 'every change' : v
   if (f === 'method') return METHOD_WORDS[v] ?? v.replace(/_/g, ' ')
   if (/Id$/.test(f)) return names(v) ?? 'one no longer listed'
   if (civilDate.test(v)) return fullDateLabel(v, locale)

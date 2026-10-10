@@ -17,6 +17,8 @@ function apply(s: BusinessState, command: Command) {
 }
 function business() {
   let s = seed('UK')
+  // The sample's own requests (Stage 4) are left out, so each test reads only its own.
+  delete s.operations!.requests
   s = apply(s, { type: 'location', input: { name: 'Islington', address: '1 Upper Street' } })
   s = apply(s, { type: 'location', input: { name: 'Leeds', address: '2 Briggate' } })
   const [main, islington, leeds] = [

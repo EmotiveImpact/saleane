@@ -628,8 +628,12 @@ describe('the Business tab bar', () => {
   })
 
   it('leaves out Branch visits and Requests while the studio has one location', async () => {
-    await show('/business')
-    const sections = screen.getByRole('navigation', { name: 'Business sections' })
+    await signedIn('owner', '/business', (state) => {
+      // Stage 4: nothing asked and no sign-off rules, unlike the sample studio.
+      delete state.operations!.requests
+      delete state.operations!.approvals
+    })
+    const sections = await screen.findByRole('navigation', { name: 'Business sections' })
     expect(
       within(sections)
         .getAllByRole('link')
@@ -650,6 +654,16 @@ describe('the Business tab bar', () => {
       'aria-current',
       'page',
     )
+  })
+
+  it('shows Requests in a studio of one location once something is asked', async () => {
+    await show('/business')
+    const sections = screen.getByRole('navigation', { name: 'Business sections' })
+    expect(within(sections).getByRole('link', { name: 'Requests' })).toHaveAttribute(
+      'href',
+      '/business/requests',
+    )
+    expect(within(sections).queryByRole('link', { name: 'Branch visits' })).not.toBeInTheDocument()
   })
 
   it('shows Branch visits and Requests once there is a second location', async () => {
@@ -709,14 +723,21 @@ describe('requests and branch visits before regions', () => {
   }
 
   it('says nothing of regional managers until the studio has a region', async () => {
-    await signedIn('owner', '/business/requests', secondLocation)
+    const user = userEvent.setup()
+    await signedIn('owner', '/business/requests', (state) => {
+      secondLocation(state)
+      delete state.operations!.requests
+      delete state.operations!.approvals
+    })
     expect(await screen.findByRole('heading', { name: 'No requests yet' })).toBeInTheDocument()
     expect(
       screen.getByText(/The owner approves or declines it, and every decision is kept/),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Ask for a sign-off' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Regional limit' })).not.toBeInTheDocument()
     expect(screen.queryByText(/regional/i)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Sign-off rules' }))
+    const rules = await screen.findByRole('dialog', { name: 'Sign-off rules' })
+    expect(within(rules).queryByText(/regional/i)).not.toBeInTheDocument()
   })
 
   it('shows the regional limit once the locations are grouped into a region', async () => {
@@ -730,8 +751,11 @@ describe('requests and branch visits before regions', () => {
         },
       ]
     })
-    expect(await screen.findByRole('button', { name: 'Regional limit' })).toBeInTheDocument()
-    expect(screen.getByText(/Regional managers approve up to £500/)).toBeInTheDocument()
+    const user = userEvent.setup()
+    expect(await screen.findByText(/Regional managers approve up to £500/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Sign-off rules' }))
+    const rules = await screen.findByRole('dialog', { name: 'Sign-off rules' })
+    expect(within(rules).getByLabelText(/Regional managers approve up to/)).toHaveValue('500')
   })
 
   it('explains branch visits and the first step before the first visit', async () => {

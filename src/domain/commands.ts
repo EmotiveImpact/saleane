@@ -7,6 +7,7 @@ import type { Command, ContactInput } from './commandSchema'
 import { assertMethod, paymentDetail, runOperatingCommand } from './operatingCommands'
 import { runGroupCommand } from './group'
 import { runApprovalCommand, stampRequestActors } from './approvals'
+import { spendRefundApproval } from './signoffs'
 import { runBrandCommand } from './brandRules'
 import { runTillCommand } from './till'
 import { branchVisitUnchanged, runBranchVisitCommand, stampBranchVisitActors } from './branchVisits'
@@ -208,6 +209,11 @@ export type ExecuteOptions = {
   giftCardAsOf?: string
   /** NEXT-08: a visit being booked together with others, who may share a room for two. */
   together?: string
+  /**
+   * Stage 4: a card refund started at this instant; a sign-off it used is judged as of then, so
+   * one that lapses while the card company answers is still marked as given back.
+   */
+  refundApprovalAsOf?: string
 }
 
 export function execute(
@@ -886,7 +892,9 @@ export function execute(
     } else if (
       command.type === 'request-raise' ||
       command.type === 'request-decide' ||
-      command.type === 'approval-limit'
+      command.type === 'approval-limit' ||
+      command.type === 'signoff-rules' ||
+      command.type === 'request-start'
     ) {
       recordId = runApprovalCommand(next, command, now, makeId)
     } else if (
@@ -921,6 +929,9 @@ export function execute(
       recordId = runCommissionCommand(next, command, now, makeId)
     } else {
       recordId = runOperatingCommand(next, command, now, makeId, addEvent)
+      // Stage 4: a refund given back with a sign-off uses it up, so it is never used again.
+      if (command.type === 'refund')
+        spendRefundApproval(s, next, command, recordId, now, options.refundApprovalAsOf)
     }
     recordConsentChanges(s, next, command, now, makeId)
     next.revision += 1

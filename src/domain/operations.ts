@@ -670,6 +670,8 @@ export function permissionFor(command: { type: string; approve?: boolean }) {
   if (['reply-note', 'replies-read', 'reply-link'].includes(command.type)) return 'message'
   if (command.type === 'saved-reply-save' || command.type === 'saved-reply-remove')
     return 'saved-replies'
+  // Stage 4: refund limits and the rota rule are the owner's, as the regional limit is.
+  if (command.type === 'signoff-rules') return 'approval-limit'
   return command.type
 }
 export const commandPermission = permissionFor
@@ -743,6 +745,8 @@ export function can(role: Role, action: string) {
       'reply-received',
       // Stage 1: a declined membership card payment is noted only by the server.
       'plan-card-try',
+      // Stage 4: an approved new price starts on its day by itself, only from the server.
+      'request-start',
     ].includes(action)
   )
     return false

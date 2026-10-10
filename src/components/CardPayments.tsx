@@ -9,6 +9,7 @@ import { mayRemoveSavedCard } from '../domain/paymentMethods'
 import { returnable } from '../domain/retail'
 import { money as formatMoney } from '../domain/format'
 import { Button, ErrorMessage } from '../design'
+import { refundRefusal, refundTarget } from '../domain/signoffs'
 
 type Attempt = {
   id: string
@@ -605,17 +606,20 @@ export function PaymentSettings() {
 export function CardRefund({
   target,
   maxMinor,
+  startMinor,
   testMode,
   onDone,
 }: {
   target: { saleId: string } | { paymentId: string }
   maxMinor: number
+  /** Stage 4: the amount to start with, such as a refund that was signed off. */
+  startMinor?: number
   testMode: boolean
   onDone: () => void
 }) {
   const { state, blocked, role } = useStore()
   const { attempt, error, busy, charge, check } = useCharge(onDone)
-  const [amount, setAmount] = useState(minorInput(maxMinor))
+  const [amount, setAmount] = useState(minorInput(Math.min(startMinor ?? maxMinor, maxMinor)))
   const [reason, setReason] = useState('')
   // Stage 2: products the guest brought back, back on the shelf once the provider confirms.
   const [back, setBack] = useState<Record<string, number>>({})
@@ -630,6 +634,11 @@ export function CardRefund({
     amountMinor > 0 &&
     amountMinor <= maxMinor &&
     reason.trim().length >= 3
+  // Stage 4: over a refund limit without a sign-off for exactly this, the server refuses it.
+  const refusal =
+    Number.isFinite(amountMinor) && amountMinor > 0
+      ? refundRefusal(state, role, refundTarget(target), amountMinor, new Date().toISOString())
+      : null
   return (
     <form
       className="card-refund"
@@ -699,9 +708,13 @@ export function CardRefund({
           onCheck={() => void check()}
         />
       )}
+      {refusal && !attempt && <p className="ops-help">{refusal}</p>}
       <ErrorMessage error={error} />
       <div className="ops-actions">
-        <Button type="submit" disabled={!valid || busy || blocked || !can(role, 'refund')}>
+        <Button
+          type="submit"
+          disabled={!valid || !!refusal || busy || blocked || !can(role, 'refund')}
+        >
           {busy ? 'Refunding…' : 'Refund to the card'}
         </Button>
       </div>

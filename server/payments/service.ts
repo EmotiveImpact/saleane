@@ -281,6 +281,10 @@ export function createPayments(ctx: Context, provider: PaymentProvider) {
             ...(row.gift_card_id
               ? { giftCardAsOf: businessDate(org.state, new Date(row.created_at).toISOString()) }
               : {}),
+            // Stage 4: a sign-off for this refund is judged as of when the desk started it.
+            ...(row.purpose === 'refund'
+              ? { refundApprovalAsOf: new Date(row.created_at).toISOString() }
+              : {}),
           })
           if (!result.ok) throw new Error(result.error)
           ledgerId = result.recordId

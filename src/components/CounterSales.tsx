@@ -13,6 +13,8 @@ import type { CounterSale, RetailItems } from '../domain/retailSchema'
 import { Button, ErrorMessage, Modal } from '../design'
 import { CheckoutProducts } from './CheckoutProducts'
 import { ReceiptActions } from './ReceiptActions'
+import { RefundSignOff } from './RefundSignOff'
+import { refundRefusal } from '../domain/signoffs'
 
 /**
  * V2: products sold to someone without a visit, and money back when they return one. Paid in
@@ -356,7 +358,7 @@ function ReturnDialog({
   onClose: () => void
   onDone: () => void
 }) {
-  const { state } = useStore()
+  const { state, role } = useStore()
   const org = state.organisation
   const { run, pending, error, setError } = useRun()
   const lines = returnable(state, sale.id)
@@ -376,6 +378,18 @@ function ReturnDialog({
       setError(
         sandbox ? 'Confirm this is a simulated refund.' : 'Confirm the money has been given back.',
       )
+      return
+    }
+    // Stage 4: over the limit without a sign-off for exactly this, the server would refuse it too.
+    const refusal = refundRefusal(
+      state,
+      role,
+      { counterSaleId: sale.id },
+      amountMinor,
+      new Date().toISOString(),
+    )
+    if (refusal) {
+      setError(refusal)
       return
     }
     const restock = Object.entries(back)
@@ -403,6 +417,10 @@ function ReturnDialog({
       title="Give money back"
       description={`Receipt ${sale.receiptNumber}, paid ${METHOD_LABEL[sale.method].toLowerCase()}. Up to ${money(sale.totalMinor - refundedMinor, org, true)} can be given back.`}
     >
+      <RefundSignOff
+        target={{ counterSaleId: sale.id }}
+        onGiveBack={(amountMinor) => setAmount(minorInput(amountMinor))}
+      />
       <form onSubmit={save} className="plan-form">
         <div className="ops-fields">
           {lines

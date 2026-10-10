@@ -157,6 +157,46 @@ describe('the rota for a general manager', () => {
     expect(operations(store.full).rotaChanges!.at(-1)!.actor).toBe('Gia General')
   })
 
+  it('asks for a sign-off instead of saving when the owner wants one', async () => {
+    const user = userEvent.setup()
+    const o = operations(store.full)
+    store.full = {
+      ...store.full,
+      operations: {
+        ...o,
+        approvals: { regionalLimitMinor: 500_00, ...o.approvals, rotaSignOff: 'all' },
+      },
+    }
+    show()
+    await user.click(
+      screen.getByRole('button', { name: /^Change Nia Fictional's day, Wednesday 7 October/ }),
+    )
+    const dialog = screen.getByRole('dialog', { name: 'Nia Fictional, Wednesday 7 October' })
+    await user.click(within(dialog).getByRole('radio', { name: 'Not working' }))
+    expect(dialog).toHaveTextContent('Changes to the rota need a sign-off first.')
+    expect(within(dialog).queryByRole('button', { name: 'Save this day' })).not.toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Ask for a sign-off' }))
+    expect(store.commands).toEqual([
+      {
+        type: 'request-raise',
+        input: {
+          locationId: islington,
+          kind: 'rota',
+          rota: { type: 'rota-day', input: { staffId: nia, date: '2026-10-07', working: false } },
+        },
+      },
+    ])
+    // Nothing on the rota changes until it is approved; the request waits at Islington.
+    expect(operations(store.full).rotaChanges ?? []).toHaveLength((o.rotaChanges ?? []).length)
+    expect(operations(store.full).requests!.at(-1)).toMatchObject({
+      kind: 'rota',
+      locationId: islington,
+    })
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Asked for a sign-off for Nia Fictional on Wednesday 7 October.',
+    )
+  })
+
   it('copies a week for their own location only', async () => {
     const user = userEvent.setup()
     const made = dispatch(

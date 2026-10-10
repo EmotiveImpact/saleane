@@ -17,6 +17,7 @@ import type { Context, Route } from '../context'
 import { practitionerRefusal } from '../../src/domain/practitioner'
 import { branchChangeRefusal, branchRefusal } from '../../src/domain/branch'
 import { areaRefusal } from '../../src/domain/area'
+import { refundOverLimit, refundTarget, signOffRefusal } from '../../src/domain/signoffs'
 import { openingFree, staleOffer } from '../../src/domain/waitlist'
 import { giftCardHoldProblem } from '../payments/service'
 import { membershipCardHold } from '../payments/memberships'
@@ -130,6 +131,36 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         }
         if (org.state.revision !== data.revision)
           fail(409, 'Someone else saved a change just now. Reload to see it, then try again.')
+        // Stage 4: a refund over a general manager's or manager's limit waits for a sign-off, and
+        // a general manager's rota change may too (src/domain/signoffs.ts). Checked after a
+        // replay is answered, since a refund given back with its sign-off uses it up.
+        if (org.role === 'general' || org.role === 'manager') {
+          const refusal = signOffRefusal(
+            org.state,
+            org.role,
+            data.command,
+            new Date(now()).toISOString(),
+          )
+          if (refusal) fail(403, refusal)
+          // A sign-off is used once: not while a card refund on the same receipt is under way.
+          for (const part of parts) {
+            if (part.type !== 'refund' || part.counterSaleId) continue
+            if (!refundOverLimit(org.state, org.role, refundTarget(part), part.amountMinor))
+              continue
+            const refundOf = part.saleId ? `sale:${part.saleId}` : `payment:${part.paymentId}`
+            if (
+              db.get(
+                "SELECT id FROM payment_attempts WHERE organisation_id=? AND refund_of=? AND status IN ('started','processing','unknown')",
+                org.id,
+                refundOf,
+              )
+            )
+              fail(
+                409,
+                'A card refund on this receipt is under way or unclear. Check that one first.',
+              )
+          }
+        }
         // Stage 2: a product takes on a new photo only when that photo is this studio's own.
         for (const part of parts)
           if (part.type === 'product' && part.input.imageId) {
