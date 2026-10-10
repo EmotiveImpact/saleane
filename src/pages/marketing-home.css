@@ -7,7 +7,7 @@
   --sl-border: #e8e7e1;
   --sl-editorial: var(--font-editorial, 'Newsreader Variable', Georgia, serif);
   --sl-sans: var(--font-display, 'Figtree Variable', sans-serif);
-  overflow: hidden;
+  overflow: clip;
   color: var(--sl-ink);
   background: var(--sl-paper);
   font-family: var(--sl-sans);
@@ -21,6 +21,7 @@
 .sl-site a { text-decoration: none; color: inherit; }
 .sl-site a:focus-visible, .sl-site button:focus-visible, .sl-site summary:focus-visible { outline: 3px solid #608c76; outline-offset: 4px; }
 .sl-container { width: min(1320px, calc(100% - 88px)); margin: 0 auto; }
+.sl-site section[id] { scroll-margin-top: 90px; }
 .sl-skip { position: fixed; top: -100px; left: 16px; z-index: 200; background: #fff; padding: 12px 20px; }
 .sl-skip:focus { top: 12px; }
 .sl-header { position: sticky; top: 0; z-index: 70; background: rgba(252, 251, 248, .94); backdrop-filter: blur(22px); border-bottom: 1px solid var(--sl-border); }

@@ -9,10 +9,8 @@ import {
   ChevronRight,
   Heart,
   Menu,
-  MessageCircle,
   ShieldCheck,
   Sparkles,
-  UsersRound,
   Wallet,
   X,
 } from 'lucide-react'
