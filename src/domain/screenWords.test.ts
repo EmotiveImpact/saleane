@@ -72,6 +72,9 @@ const kept: [file: string, contains: string][] = [
   ['server/backup.ts', 'tenant links'],
   // Ask SALEANE's instructions to the AI name the value the code expects.
   ['src/assistant/saleane.ts', "'appointment' for messages about a booked visit"],
+  // The wording guide names the words to avoid, so a writer knows them.
+  ['src/design/voice.ts', 'not appointment'],
+  ['src/design/voice.ts', 'demo tenant'],
 ]
 
 /** The rules a line breaks, for the words a person could read on it. */
