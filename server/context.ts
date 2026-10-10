@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { LocalDatabase } from './database'
 import { workspaceInput } from './workspace'
 import { digest, equalToken, passwordHash, token } from './auth'
-import { COOKIE, SESSION_MS, fail, header, sessionToken } from './http'
+import { COOKIE, HttpError, SESSION_MS, fail, header, sessionToken } from './http'
 import { turnstileFromEnv } from './turnstile'
 import type { Turnstile } from './turnstile'
 import type { Providers } from './messaging/providers'
@@ -22,6 +22,11 @@ import { operations } from '../src/domain/operations'
 import { areaPlaces } from '../src/domain/area'
 import { changeDetail, type ChangeDetail } from '../src/domain/changeRecord'
 import { branchOpen } from '../src/domain/branch'
+import {
+  TWO_STEP_REQUIRED,
+  twoStepForEveryone,
+  twoStepHeldMessage,
+} from '../src/domain/twoStepRule'
 import type { Role, Tax } from '../src/domain/operations'
 import { places } from '../src/domain/locations'
 import { allowanceFor } from '../src/domain/pricing'
@@ -248,6 +253,9 @@ export function createContext(options: ApiOptions) {
     )
     return csrf
   }
+  /** NEXT-04: whether this account has two-step sign-in on. */
+  const twoStepOn = (accountId: string) =>
+    !!db.get('SELECT id FROM accounts WHERE id=? AND totp_enabled_at IS NOT NULL', accountId)
   const memberships = (actor: Actor) =>
     db
       .all<{
@@ -259,33 +267,50 @@ export function createContext(options: ApiOptions) {
         region: string
         mode: string
         locked: number
+        twoStep: number | null
       }>(
         `SELECT o.id,o.slug,m.role,m.staff_id AS staffId,json_extract(o.state,'$.organisation.name') AS name,json_extract(o.state,'$.organisation.region') AS region,json_extract(o.state,'$.operations.mode') AS mode,
-           EXISTS(SELECT 1 FROM studio_plans p WHERE p.organisation_id=o.id AND p.locked_at IS NOT NULL) AS locked
+           EXISTS(SELECT 1 FROM studio_plans p WHERE p.organisation_id=o.id AND p.locked_at IS NOT NULL) AS locked,
+           json_extract(o.state,'$.operations.twoStep.forEveryone') AS twoStep
          FROM memberships m JOIN organisations o ON o.id=m.organisation_id WHERE m.account_id=? ORDER BY o.created_at,o.id`,
         actor.id,
       )
       // NEXT-02: a studio locked for an unpaid bill says so before anyone tries to open it.
-      .map(({ locked, ...row }) => (locked ? { ...row, locked: true } : row))
+      // Stage 6: so does a studio that asks everyone to use two-step sign-in.
+      .map(({ locked, twoStep, ...row }) => ({
+        ...row,
+        ...(locked ? { locked: true } : {}),
+        ...(twoStep === 1 ? { twoStepRequired: true } : {}),
+      }))
   /**
    * A signed-in member's studio. A regional manager is refused everywhere except the routes that
    * pass `area: true` and then serve only their area's view (fail closed: new routes stay shut).
    * A general manager whose location has closed is refused everywhere, before anything runs.
+   * Stage 6: in a studio that asks everyone to use two-step sign-in, someone who has not set it up
+   * is refused everywhere too, with a code their page uses to take them to set it up. Only joining
+   * from an invitation passes `joining`, so the invitation is used up and they are then held.
    */
-  const orgFor = (orgId: string, actor: Actor, opts: { area?: boolean } = {}): Org => {
+  const orgFor = (
+    orgId: string,
+    actor: Actor,
+    opts: { area?: boolean; joining?: boolean } = {},
+  ): Org => {
     const row = db.get<OrgRow>(
       'SELECT o.id,o.slug,o.state,m.role,m.staff_id,m.area_id,m.location_id FROM organisations o JOIN memberships m ON m.organisation_id=o.id WHERE o.id=? AND m.account_id=?',
       orgId,
       actor.id,
     )
     if (!row) fail(404, 'Workspace was not found.')
+    const raw = JSON.parse(row!.state) as BusinessState
+    const state = parseState(raw, raw.organisation.region)
+    // First, so every refusal a held person meets takes them to set two-step sign-in up.
+    if (!opts.joining && twoStepForEveryone(state) && !twoStepOn(actor.id))
+      throw new HttpError(403, twoStepHeldMessage(state.organisation.name), TWO_STEP_REQUIRED)
     // A practitioner reads only through their projection, which needs a linked professional.
     if (row!.role === 'practitioner' && !row!.staff_id)
       fail(403, 'Your access is not linked to a professional. Ask the owner to update it.')
     if (row!.role === 'regional' && !opts.area)
       fail(403, 'Your access covers your area’s view only.')
-    const raw = JSON.parse(row!.state) as BusinessState
-    const state = parseState(raw, raw.organisation.region)
     if (row!.role === 'general' && (!row!.location_id || !branchOpen(state, row!.location_id)))
       fail(403, 'Your location has closed. Ask the owner to update your access.')
     return {
@@ -555,7 +580,7 @@ export function createContext(options: ApiOptions) {
     )
     db.run('UPDATE invitations SET used_at=? WHERE token_hash=?', now(), invite.token_hash)
     const actor = db.get<Actor>('SELECT id,name,email FROM accounts WHERE id=?', accountId)!
-    const org = orgFor(invite.organisation_id, actor, { area: true })
+    const org = orgFor(invite.organisation_id, actor, { area: true, joining: true })
     // The region may have been removed or emptied since the invitation.
     if (invite.role === 'regional') linkableArea(org, invite.area_id ?? undefined)
     // The location may have closed since the invitation.
@@ -582,6 +607,7 @@ export function createContext(options: ApiOptions) {
     ai,
     actorFor,
     signIn,
+    twoStepOn,
     memberships,
     orgFor,
     systemOrg,

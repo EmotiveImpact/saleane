@@ -192,6 +192,8 @@ const commandWords: Record<Command['type'], Words> = {
   // Stage 5: a lower price for a quiet time.
   'quiet-offers': ['settings', 'Changed the lower price for quiet times'],
   'offer-invite': ['messages', 'Wrote an invitation to a quiet time at a lower price'],
+  // Stage 6: asking everyone in the studio to use two-step sign-in.
+  'two-step-rule': ['access', 'Changed whether everyone must use two-step sign-in'],
 }
 
 /** Changes the server makes or records itself. */
@@ -409,6 +411,8 @@ const settingsOf: Partial<Record<string, (s: BusinessState) => unknown>> = {
   'group-checks': (s) => s.operations?.groupChecks,
   // Stage 5: the first change reads against the setting as it stood, off.
   'quiet-offers': (s) => s.operations?.quietOffers ?? defaultQuietOffers,
+  // Stage 6: the first change reads against the setting as it stood, off.
+  'two-step-rule': (s) => s.operations?.twoStep ?? { forEveryone: false },
 }
 
 function compare(
@@ -613,6 +617,7 @@ const fieldWords: Record<string, string> = {
   floorMinor: 'never below',
   openHours: 'how long an offer stays open',
   leftOutIds: 'treatments left out',
+  forEveryone: 'two-step sign-in for everyone',
 }
 /** A detail's name in words: "cutoffHours" reads "cutoff hours". */
 export function fieldName(field: string) {

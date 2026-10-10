@@ -25,6 +25,7 @@ import { messagingRoutes } from './routes/messaging'
 import { testTextRoutes } from './routes/testText'
 import { createOutbox } from './messaging/outbox'
 import { watchNews } from './messaging/news'
+import { watchTwoStepRule } from './twoStepRule'
 import { newsRoutes } from './routes/news'
 import { recordPhoneCall, recordReply, recordSocialMessage } from './messaging/calls'
 import { metaChallenge, metaGenuine, metaMessages, socialFromEnv } from './messaging/meta'
@@ -94,6 +95,8 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   const outbox = createOutbox(ctx, ctx.messaging)
   // Stage 4: an approved message to clients is queued as it is saved, and a stopped one stops.
   watchNews(ctx)
+  // Stage 6: only someone using two-step sign-in can ask everyone in the studio to use it.
+  watchTwoStepRule(ctx)
   /**
    * NEXT-12: the receptionist's answer to a text or social message. A real AI can take several
    * seconds, longer than a provider waits, so the provider is thanked first and the answer follows

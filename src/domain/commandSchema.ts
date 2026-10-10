@@ -12,6 +12,7 @@ import { commissionCommandSchemas } from './commissionSchema'
 import { approvalCommandSchemas } from './approvalsSchema'
 import { brandCommandSchemas } from './brandRulesSchema'
 import { tillCommandSchemas } from './tillSchema'
+import { twoStepRuleCommandSchemas } from './twoStepRule'
 import { googleBookingSchema, receptionistSettingsSchema } from './receptionistSchema'
 import { aiBookingSchema } from './aiBookingSchema'
 import { missedCallSources } from './missedCallsSchema'
@@ -802,6 +803,8 @@ export const commandSchema = z.discriminatedUnion('type', [
   ...otherTillCommandSchemas,
   // Stage 5: a lower price for quiet times, and an invitation to one of Today's open times with it.
   ...quietOfferCommandSchemas,
+  // Stage 6: the owner asks everyone to use two-step sign-in.
+  ...twoStepRuleCommandSchemas,
   ...operatingCommandSchema.options,
 ])
 export type BookingInput = z.infer<typeof bookingSchema>

@@ -119,6 +119,9 @@ const AskSaleane = lazy(() =>
 const StudioSetup = lazy(() =>
   import('./pages/StudioSetup').then((module) => ({ default: module.StudioSetup })),
 )
+const ProtectAccount = lazy(() =>
+  import('./pages/ProtectAccount').then((module) => ({ default: module.ProtectAccount })),
+)
 const DesignLanguage = lazy(() =>
   import('./pages/DesignLanguage').then((module) => ({ default: module.DesignLanguage })),
 )
@@ -139,8 +142,20 @@ const within = (pathname: string, section: string) =>
   pathname === section || pathname.startsWith(`${section}/`)
 
 function WorkspaceApp() {
-  const { state, warning, mode, slug, loading, session, role, reload, today, branch, billing } =
-    useStore()
+  const {
+    state,
+    warning,
+    mode,
+    slug,
+    loading,
+    session,
+    role,
+    reload,
+    today,
+    branch,
+    billing,
+    hold,
+  } = useStore()
   const operator = session?.user.name ?? 'Demo operator'
   const initials = state.organisation.name
     .split(' ')
@@ -214,6 +229,21 @@ function WorkspaceApp() {
     location.pathname === '/design-language'
       ? 'Design language'
       : (navigation.find((n) => location.pathname.startsWith(n.to))?.label ?? 'Today')
+  // Stage 6: a studio that asks everyone for two-step sign-in shows "Protect your account" in
+  // place of every studio page, the account page and the scoped days, until it is set up. Guest
+  // and public pages are not anyone signing in, so they are never held.
+  const guestPage =
+    [
+      '/reset-password',
+      '/confirm-email',
+      '/manage',
+      '/news/stop',
+      '/pay/test',
+      '/pricing',
+    ].includes(location.pathname) ||
+    location.pathname === '/billing/test-card' ||
+    location.pathname.startsWith('/book/')
+  if (hold && !guestPage) return <ProtectAccount />
   if (location.pathname === '/account' || location.pathname === '/join') return <Account />
   if (location.pathname === '/reset-password' || location.pathname === '/confirm-email')
     return <AccountLink />

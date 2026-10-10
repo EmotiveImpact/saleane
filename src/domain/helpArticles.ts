@@ -1082,14 +1082,34 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     summary:
       'A code from an app on your phone as well as your password, so nobody else can sign in as you.',
     steps: [
-      'Open Settings, then Team, and find Two-step sign-in. Choose Set up two-step sign-in.',
+      'In the studio, open Settings, then Team. On your own day or area page, choose SALEANE at the top to open your account page.',
+      'Find Two-step sign-in and choose Set up two-step sign-in.',
       'Scan the code with an authenticator app, or copy the key into it, and type the six numbers it shows.',
       'Choose Turn on two-step sign-in, then keep your recovery codes somewhere safe.',
+      'The same place shows how many recovery codes are left, makes new ones and turns it off.',
     ],
+    note: 'If your studio asks everyone to use two-step sign-in, you are asked to set it up straight after signing in, and the studio opens once it is on.',
+    to: '/settings?section=staff',
+    screens: ['/settings?section=staff', '/account'],
+    words: 'two factor 2fa authenticator security code recovery codes protect your account',
+  },
+  {
+    id: 'two-step-everyone',
+    title: 'Ask everyone to use two-step sign-in',
+    group: 'Team',
+    summary:
+      'Make two-step sign-in a must for everyone in your studio, so a stolen password alone never opens your clients’ details.',
+    steps: [
+      'Turn on two-step sign-in for yourself first, in Settings, then Team.',
+      'Under Ask everyone to use two-step sign-in, choose Ask everyone to use it.',
+      'The list of people on the same page shows who has it on and who has not yet.',
+      'Choose Stop asking everyone to make it each person’s own choice again.',
+    ],
+    note: 'Anyone without it is asked to set it up straight after signing in, and cannot open the studio until they have. People you invite are asked as they join. Your booking page, guests’ visit links and partner keys work as before. The change record shows who switched it on or off.',
     to: '/settings?section=staff',
     screens: ['/settings?section=staff'],
-    roles: DESK,
-    words: 'two factor 2fa authenticator security code',
+    roles: OWNER,
+    words: 'require two factor 2fa everyone whole team must mandatory enforce force security',
   },
   {
     id: 'password',

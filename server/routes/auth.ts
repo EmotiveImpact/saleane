@@ -417,7 +417,10 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
     // member's studios are never included: only an owner sees a brand's whole figures.
     const actor = actorFor(request)
     const iso = new Date(now()).toISOString()
-    const owned = memberships(actor).filter((w) => w.role === 'owner')
+    // Stage 6: a studio holding them until they set up two-step sign-in is left out until they do.
+    const owned = memberships(actor).filter(
+      (w) => w.role === 'owner' && !('twoStepRequired' in w && !ctx.twoStepOn(actor.id)),
+    )
     reply(200, brandGroup(owned.map((w) => brandFigures(orgFor(w.id, actor), iso))))
     return true
   }

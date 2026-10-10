@@ -76,6 +76,7 @@ import {
 } from './cancelledTimes'
 import { offerInviteUnchanged, offerToBook, runOfferInvite } from './quietInvites'
 import { offerPrices } from './quietOffers'
+import { twoStepForEveryone } from './twoStepRule'
 
 export type CommandResult =
   { ok: true; state: BusinessState; recordId: string } | { ok: false; error: string }
@@ -879,6 +880,12 @@ export function execute(
       if (command.settings.leftOutIds.some((id) => !known.has(id)))
         throw new Error('Choose treatments from this studio to leave out.')
       next.operations = { ...operations(next), quietOffers: { ...command.settings } }
+      recordId = org.id
+    } else if (command.type === 'two-step-rule') {
+      // Stage 6: asking again for what is already set changes nothing.
+      if (twoStepForEveryone(s) === command.forEveryone)
+        return { ok: true, state: s, recordId: org.id }
+      next.operations = { ...operations(next), twoStep: { forEveryone: command.forEveryone } }
       recordId = org.id
     } else if (command.type === 'guest-here') {
       const appointment = next.appointments.find((a) => a.id === command.appointmentId)
