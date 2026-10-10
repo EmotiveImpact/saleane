@@ -41,7 +41,8 @@ const usualOf = (s: BusinessState, clientId: string, role: AskContext['role'] = 
     Command
   >
   if (skill.kind !== 'read') throw new Error('client_usual is a read skill')
-  return skill.run(askContext(s, role, AT), { clientId }) as Record<string, unknown>
+  const run = skill.run as (ctx: AskContext, input: { clientId: string }) => unknown
+  return run(askContext(s, role, AT), { clientId }) as Record<string, unknown>
 }
 
 describe('a client’s usual in Ask SALEANE', () => {
@@ -86,6 +87,8 @@ describe('a client’s usual in Ask SALEANE', () => {
       records: 2,
     })
     expect(usualOf(s, online.id)).not.toHaveProperty('staffId')
+    // The same from either record.
+    expect(usualOf(s, amelia.id)).toMatchObject({ visitsCounted: 7, records: 2 })
   })
 
   it('is for those who see clients, not practitioners or regional managers', () => {
