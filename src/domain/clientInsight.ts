@@ -10,6 +10,8 @@ import type { PatchTestState } from './patchTests'
 import { patchTestStanding, serviceNeedsPatchTest, visitPatchTest } from './patchTests'
 import { GUEST_CANCEL_CUTOFF_HOURS } from './guest'
 import { instantFor, operations } from './operations'
+import { AFTERNOON, USUAL_YEAR_DAYS, usualPattern, weekdayOf } from './usual'
+import type { PartOfDay } from './usual'
 
 /**
  * "At a glance" on the client page: what this client is like and what to do next, worked out
@@ -22,7 +24,9 @@ import { instantFor, operations } from './operations'
  * - money counts as the Business page counts takings (see `spend`);
  * - a missed visit is a no-show, and a late cancellation is one cancelled less than
  *   GUEST_CANCEL_CUTOFF_HOURS before it started, as for the studio's fee (fees.ts);
- * - rebooking is an explicit link made at checkout, as in the Business page's rebooking figure.
+ * - rebooking is an explicit link made at checkout, as in the Business page's rebooking figure;
+ * - favourites, the day and time they like to come and their usual start are usual.ts's, which the
+ *   AI receptionist, the guest's visit page and Ask SALEANE read too.
  *
  * Every fact is left out, rather than guessed, when the history is too thin. Nothing here changes
  * the record or contacts anyone: the suggested next step only opens an existing screen, or a draft
@@ -34,13 +38,9 @@ import { instantFor, operations } from './operations'
 
 const DAY = 86_400_000
 /** "In the last 12 months": the same year as the page's "A year with the studio" track. */
-const YEAR_DAYS = 364
+const YEAR_DAYS = USUAL_YEAR_DAYS
 /** Fewer completed visits than this and the client is new: nothing about habits is said. */
 const SETTLED_VISITS = 2
-/** A favourite needs at least this many visits in the year to choose from. */
-const FAVOURITE_FROM = 3
-/** A day or time of day counts as a habit from this many visits, two thirds of them alike. */
-const PATTERN_FROM = 4
 /** Rebooking is described from this many visits in the year. */
 const REBOOKING_FROM = 3
 /** A clean record is mentioned only once the client has kept this many visits in the year. */
@@ -51,11 +51,8 @@ const MONTHLY_WEEKS = 5
 const MEMBERSHIP_MONTHS = 3
 /** At least this many covered visits in those months. */
 const MEMBERSHIP_VISITS = 3
-/** Morning ends at 12:00 and evening starts at 17:00, as the time pickers group them. */
-const AFTERNOON = 12 * 60
-const EVENING = 17 * 60
 
-export type PartOfDay = 'morning' | 'afternoon' | 'evening'
+export type { PartOfDay }
 
 /** What the booking dialog opens with for a suggested booking. */
 export type BookingSuggestion = {
@@ -180,37 +177,8 @@ export type ClientInsight = {
 
 const daysBetween = (from: string, to: string) =>
   Math.round((Date.parse(to) - Date.parse(from)) / DAY)
-const weekdayOf = (date: string) => new Date(`${date}T12:00:00Z`).getUTCDay()
-const partOf = (minutes: number): PartOfDay =>
-  minutes < AFTERNOON ? 'morning' : minutes < EVENING ? 'afternoon' : 'evening'
 const later = (a: Appointment, b: Appointment) =>
   a.date > b.date || (a.date === b.date && a.startMinutes > b.startMinutes)
-
-/** The most common value and how often, only when it clearly leads: no tie, at least half. */
-function clearFavourite(ids: string[]) {
-  const counts = new Map<string, number>()
-  for (const id of ids) counts.set(id, (counts.get(id) ?? 0) + 1)
-  const ranked = [...counts].sort((a, b) => b[1] - a[1])
-  const [top, second] = ranked
-  if (!top || ids.length < FAVOURITE_FROM || top[1] < 2) return undefined
-  if (second && second[1] === top[1]) return undefined
-  if (top[1] * 2 < ids.length) return undefined
-  return { id: top[0], visits: top[1], of: ids.length }
-}
-
-/** The most common value when at least two thirds of `values` share it. */
-function strongPattern<T>(values: T[]) {
-  if (values.length < PATTERN_FROM) return undefined
-  const counts = new Map<T, number>()
-  for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1)
-  const [top] = [...counts].sort((a, b) => b[1] - a[1])
-  return top && top[1] * 3 >= values.length * 2 ? top[0] : undefined
-}
-
-function median(values: number[]) {
-  const sorted = [...values].sort((a, b) => a - b)
-  return sorted[Math.floor((sorted.length - 1) / 2)]
-}
 
 export function clientInsight(
   s: BusinessState,
@@ -296,9 +264,10 @@ export function clientInsight(
         }
       : undefined
 
-  // Favourites over the year.
-  const treatment = clearFavourite(year.map((a) => a.serviceId))
-  const professional = clearFavourite(year.map((a) => a.staffId))
+  // Favourites over the year, by the rules every "usual" in SALEANE uses (usual.ts).
+  const pattern = usualPattern(year)
+  const treatment = pattern.treatment
+  const professional = pattern.professional
   const service = treatment && s.services.find((x) => x.id === treatment.id)
   const treatmentName =
     service?.name ??
@@ -321,8 +290,7 @@ export function clientInsight(
       : undefined
 
   // When they like to come.
-  const weekday = strongPattern(year.map((a) => weekdayOf(a.date)))
-  const partOfDay = strongPattern(year.map((a) => partOf(a.startMinutes)))
+  const { weekday, partOfDay } = pattern
   const timing =
     weekday !== undefined || partOfDay !== undefined
       ? {
@@ -418,8 +386,8 @@ export function clientInsight(
     last,
     favouriteTreatment,
     favouriteProfessional,
-    year,
     timing,
+    pattern.startMinutes,
   )
   const unpaid = plans.find((p) => p.kind === 'membership' && p.state === 'unpaid')
   let next: NextStep | null = null
@@ -509,8 +477,9 @@ function suggestBooking(
   last: Appointment | undefined,
   treatment: ClientInsight['favouriteTreatment'],
   professional: ClientInsight['favouriteProfessional'],
-  year: Appointment[],
   timing: ClientInsight['timing'],
+  /** Their typical start in their usual part of the day, on their usual day (usual.ts). */
+  typicalStart: number | undefined,
 ): BookingSuggestion {
   const serviceId = treatment?.serviceId ?? last?.serviceId
   const staffId = professional?.staffId ?? last?.staffId
@@ -520,17 +489,8 @@ function suggestBooking(
   let date = addDays(today, 1)
   if (timing?.weekday !== undefined)
     while (weekdayOf(date) !== timing.weekday) date = addDays(date, 1)
-  const usualStart =
-    timing?.weekday !== undefined && timing.partOfDay
-      ? median(
-          year
-            .filter(
-              (a) =>
-                weekdayOf(a.date) === timing.weekday && partOf(a.startMinutes) === timing.partOfDay,
-            )
-            .map((a) => a.startMinutes),
-        )
-      : undefined
+  // A start time is suggested only with both a usual day and a usual part of the day.
+  const usualStart = timing?.weekday !== undefined && timing.partOfDay ? typicalStart : undefined
   return {
     ...(offered ? { serviceId } : {}),
     ...(qualified ? { staffId } : {}),

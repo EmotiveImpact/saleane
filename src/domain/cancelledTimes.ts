@@ -165,7 +165,7 @@ export function waitingFor(s: BusinessState, time: FreedTime, now: string): Wait
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
 }
 
-type Guest = {
+export type Guest = {
   key: string
   /** The record the invitation goes to: the one with the latest visit, or the first. */
   client: Client
@@ -175,7 +175,8 @@ type Guest = {
   lastMissed?: string
 }
 const guestCache = new WeakMap<BusinessState, Map<string, Guest>>()
-const guestKey = (c: Client) => c.email.trim().toLowerCase() || `id:${c.id}`
+/** One guest however many records they have: records with the same email are one guest. */
+export const guestKey = (c: Client) => c.email.trim().toLowerCase() || `id:${c.id}`
 
 /**
  * Each guest once, however many records online booking made for them (records with the same
@@ -209,7 +210,8 @@ function guests(s: BusinessState) {
   guestCache.set(s, byKey)
   return byKey
 }
-const guestOf = (s: BusinessState, clientId: string) => {
+/** A guest's records and visits, from any one of their records (usual.ts reads them too). */
+export const guestOf = (s: BusinessState, clientId: string) => {
   const client = s.clients.find((c) => c.id === clientId)
   return client ? guests(s).get(guestKey(client)) : undefined
 }

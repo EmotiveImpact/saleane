@@ -6,6 +6,7 @@ import { can, operations } from '../domain/operations'
 import { defaultReceptionist } from '../domain/receptionistSchema'
 import { Button, ErrorMessage } from '../design'
 import { useRun } from './usePayment'
+import { useAiLive } from './useAiLive'
 import './management.css'
 
 /** V4: the owner or manager turns the AI receptionist on the booking page on or off. */
@@ -19,6 +20,7 @@ export function ReceptionistSettings() {
   const [saved, setSaved] = useState(false)
   const { run, pending, error } = useRun()
   const allowed = !blocked && can(role, 'receptionist')
+  const live = useAiLive()
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setSaved(false)
@@ -32,8 +34,10 @@ export function ReceptionistSettings() {
           <p>
             A chat on your booking page that answers questions about your treatments, prices, hours
             and free times. It always says it is an AI. It offers times for guests to book
-            themselves and never books, cancels or takes a payment on its own. It works in test
-            mode: no AI supplier is used and it costs nothing.
+            themselves and never books, cancels or takes a payment on its own.{' '}
+            {live
+              ? 'It uses Claude, an AI from Anthropic: what guests write is sent there to be answered, and each chat counts towards your monthly guest chats.'
+              : 'It works in test mode: no AI supplier is used and it costs nothing.'}
           </p>
         </div>
         <MessageCircle size={21} aria-hidden="true" />

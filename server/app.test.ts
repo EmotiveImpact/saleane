@@ -142,7 +142,7 @@ describe('local sessions and request boundary', () => {
     expect(signedIn.body).not.toContain(storedSession.token_hash)
     expect(signedIn.json()).toMatchObject({
       localOnly: true,
-      services: { email: false, payments: false },
+      services: { email: false, payments: false, ai: false },
     })
   })
   it('rejects anonymous reads, bad credentials and expired sessions, and revokes logout', async () => {
