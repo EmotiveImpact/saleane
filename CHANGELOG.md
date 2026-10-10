@@ -2,6 +2,13 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-10 · £59 a location, and what SALEANE earns from card payments
+
+**Status: built locally on 10 October 2026; test mode only, no money moves.**
+
+- Each location is now £59 a month in the UK and $69 in the US, up from £49 and $59 (the owner's decision, 10 October 2026). The price page, Plan and billing, adding a location and every bill follow from the one setting in `src/domain/pricing.ts`. Extra people stay £9 ($12 in the US); Plus and the phone receptionist are unchanged.
+- The price page's card line now says openly how SALEANE earns from card payments: studios pay Stripe's standard rate, the same as going to Stripe themselves, and never anything on top, and once SALEANE joins Stripe's partner programme Stripe will share part of its own fee with SALEANE. It says "once" because joining is a later step on the owner's own Stripe account; card payments are still not connected.
+
 ## 2026-10-10 · Email from any sender (NEXT-13, part 2)
 
 **Status: built locally on 10 October 2026; not run against any real email account.** [Evidence](docs/evidence/NEXT-13-SENDERS.md).

@@ -105,7 +105,7 @@ test('shows a trial with no card, the first bill and the AI so far, and opens th
   const lines = within(next.parentElement!)
   expect(lines.getByText('SALEANE, 1 location')).toBeInTheDocument()
   expect(lines.getByText('VAT at 20%')).toBeInTheDocument()
-  expect(lines.getByText('£58.80')).toBeInTheDocument()
+  expect(lines.getByText('£70.80')).toBeInTheDocument()
   expect(screen.getByText('12 of 300 used')).toBeInTheDocument()
   expect(
     screen.getByText(
@@ -126,7 +126,7 @@ test('says who the studio pays for beyond the people its locations include', asy
   const { unmount } = open()
   expect(
     await screen.findByText(
-      '£49 a month for each location, plus VAT, with 5 people taking bookings, Ask Saleane and the AI receptionist included. Each person beyond that is £9 a month. Month to month: stop whenever you like.',
+      '£59 a month for each location, plus VAT, with 5 people taking bookings, Ask Saleane and the AI receptionist included. Each person beyond that is £9 a month. Month to month: stop whenever you like.',
     ),
   ).toBeInTheDocument()
   expect(
@@ -140,7 +140,7 @@ test('says who the studio pays for beyond the people its locations include', asy
     lines.getByText('3 more people taking bookings, beyond the 5 included'),
   ).toBeInTheDocument()
   expect(lines.getByText('£27.00')).toBeInTheDocument()
-  expect(lines.getByText('£91.20')).toBeInTheDocument()
+  expect(lines.getByText('£103.20')).toBeInTheDocument()
   unmount()
 
   vi.mocked(api).mockResolvedValue(plan({ people: 11, locations: 2 }) as never)
@@ -175,7 +175,7 @@ test('adds Plus part way through a paid month, after saying what it costs now', 
   open()
   expect(
     await screen.findByText(
-      'Paid until 1 November 2026. The next bill, £58.80, is taken that day from the Visa ending 4242.',
+      'Paid until 1 November 2026. The next bill, £70.80, is taken that day from the Visa ending 4242.',
     ),
   ).toBeInTheDocument()
   expect(
@@ -220,10 +220,10 @@ test('a declined payment says nothing was taken', async () => {
   open()
   expect(
     await screen.findByText(
-      'We could not take £58.80. We will try the card again on 11 October 2026. Pay, or use another card, by 22 October 2026 to keep everything working.',
+      'We could not take £70.80. We will try the card again on 11 October 2026. Pay, or use another card, by 22 October 2026 to keep everything working.',
     ),
   ).toBeInTheDocument()
-  await user.click(screen.getByRole('button', { name: 'Pay £58.80 now' }))
+  await user.click(screen.getByRole('button', { name: 'Pay £70.80 now' }))
   expect(await screen.findByRole('status')).toHaveTextContent(
     'The payment did not go through. Nothing was taken. Try again or use another card.',
   )
@@ -244,19 +244,19 @@ test('only a payment that went through is spoken of as paid', async () => {
     throw new Error(`Unexpected route ${path}`)
   })
   open()
-  await user.click(await screen.findByRole('button', { name: 'Pay £58.80 now' }))
+  await user.click(await screen.findByRole('button', { name: 'Pay £70.80 now' }))
   expect(await screen.findByRole('status')).toHaveTextContent(
     'The card was declined, so nothing was taken. Try again or use another card.',
   )
   expect(screen.queryByText(/Everything works again/)).not.toBeInTheDocument()
   // No clear answer yet: nothing is said to be paid, and nothing more is taken.
   outcome = 'charging'
-  await user.click(screen.getByRole('button', { name: 'Pay £58.80 now' }))
+  await user.click(screen.getByRole('button', { name: 'Pay £70.80 now' }))
   expect(await screen.findByRole('status')).toHaveTextContent(
     'The card service has not said yet whether the payment went through. Nothing more is taken until it does',
   )
   outcome = 'paid'
-  await user.click(screen.getByRole('button', { name: 'Pay £58.80 now' }))
+  await user.click(screen.getByRole('button', { name: 'Pay £70.80 now' }))
   expect(await screen.findByRole('status')).toHaveTextContent(
     'Paid. Everything works again, and the bill is below.',
   )
@@ -321,11 +321,11 @@ test('a read only studio can pay for a month from today, and cannot add Plus or 
   open()
   expect(
     await screen.findByText(
-      'The bill was not paid, so the studio is read only. Nothing has been lost, and guests can still book. To carry on, pay £58.80 for a month from today.',
+      'The bill was not paid, so the studio is read only. Nothing has been lost, and guests can still book. To carry on, pay £70.80 for a month from today.',
     ),
   ).toBeInTheDocument()
   expect(screen.getByText('Read only')).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Pay £58.80 now' })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Pay £70.80 now' })).toBeEnabled()
   expect(screen.getByRole('button', { name: 'Add Plus' })).toBeDisabled()
   expect(screen.queryByRole('button', { name: /^Stop/ })).not.toBeInTheDocument()
   expect(

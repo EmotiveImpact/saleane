@@ -135,7 +135,7 @@ describe('Add a location', () => {
     // The owner sees what their own bill becomes, and that nothing is taken now.
     expect(
       await within(dialog()).findByText(
-        'Your monthly bill goes from £58.80 to £117.60, including VAT at 20%.',
+        'Your monthly bill goes from £70.80 to £141.60, including VAT at 20%.',
       ),
     ).toBeInTheDocument()
     expect(within(dialog()).getByText(/Nothing is taken during the trial\./)).toHaveTextContent(
@@ -173,7 +173,7 @@ describe('Add a location', () => {
     await userEvent.click(within(maya).getByRole('checkbox', { name: 'Thursday' }))
     await userEvent.click(next())
     expect(
-      within(dialog()).getByText('Each location is £49 a month, plus VAT.'),
+      within(dialog()).getByText('Each location is £59 a month, plus VAT.'),
     ).toBeInTheDocument()
     expect(
       within(dialog()).getByText(/This is a sample studio, so nothing is ever charged\./),

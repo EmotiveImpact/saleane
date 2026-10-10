@@ -7,8 +7,8 @@ import { ADD_ONS, ALLOWANCES, PRICE, priceLabel } from '../domain/pricing'
 
 // PILOT-04 and NEXT-02: one published price for each location, shown for the UK and the US.
 test('formats the price in each currency without pence', () => {
-  expect(priceLabel('UK')).toBe('£49')
-  expect(priceLabel('US')).toBe('$59')
+  expect(priceLabel('UK')).toBe('£59')
+  expect(priceLabel('US')).toBe('$69')
   expect(priceLabel('UK', 'plusMinor')).toBe('£39')
   expect(priceLabel('UK', 'phoneMinor')).toBe('£79')
   expect(priceLabel('UK', 'personMinor')).toBe('£9')
@@ -27,7 +27,11 @@ test('shows one price for each location and switches country', async () => {
   expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('One price for each location')
   await userEvent.click(screen.getByRole('radio', { name: 'United Kingdom' }))
   const offer = within(screen.getByRole('region', { name: 'The price' }))
-  expect(offer.getByText('£49')).toBeInTheDocument()
+  expect(offer.getByText('£59')).toBeInTheDocument()
+  // The owner's decision (10 October 2026): what SALEANE earns from card payments is said openly.
+  expect(screen.getByRole('region', { name: 'Costs outside SALEANE' })).toHaveTextContent(
+    'Once SALEANE joins Stripe’s partner programme, Stripe will share part of its own fee with SALEANE.',
+  )
   expect(offer.getByText('per location, month to month').parentElement).toHaveTextContent(
     'a month, plus VAT',
   )
@@ -46,7 +50,7 @@ test('shows one price for each location and switches country', async () => {
   expect(screen.getByRole('heading', { name: 'No locked tiers' })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'No fee to leave' })).toBeInTheDocument()
   await userEvent.click(screen.getByRole('radio', { name: 'United States' }))
-  expect(offer.getByText('$59')).toBeInTheDocument()
+  expect(offer.getByText('$69')).toBeInTheDocument()
   expect(offer.getByText(/Includes 5 people taking bookings/)).toHaveTextContent(
     'Each person beyond that is $12 a month, plus any sales tax.',
   )
