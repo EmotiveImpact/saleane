@@ -125,7 +125,12 @@ describe('following a talk', () => {
         headers: { Authorization: 'Bearer test-key' },
       },
     ])
-    fake.event({ type: 'session.input_transcript.delta', delta: 'Who is ', start_ms: 0 })
+    fake.event({
+      type: 'session.input_transcript.delta',
+      delta: 'Who is ',
+      start_ms: 0,
+      end_ms: 640,
+    })
     fake.event({ type: 'session.output_transcript.delta', delta: 'Let me look.' })
     fake.event({
       type: 'session.delegation.created',
@@ -138,7 +143,7 @@ describe('following a talk', () => {
     fake.event({ type: 'session.closed', reason: 'close_requested', usage: { seconds: 41 } })
     fake.drop()
     expect(events).toEqual([
-      { type: 'heard', text: 'Who is ', startMs: 0 },
+      { type: 'heard', text: 'Who is ', startMs: 0, endMs: 640 },
       { type: 'said', text: 'Let me look.' },
       { type: 'delegated', id: 'item_1', offsetMs: 1200 },
       { type: 'usage', seconds: 12.5 },

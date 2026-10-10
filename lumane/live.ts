@@ -13,7 +13,7 @@ export type LiveEvent =
    * Part of what the person said, as the supplier heard it, with where it starts on the session's
    * timeline in milliseconds when the supplier says.
    */
-  | { type: 'heard'; text: string; startMs?: number }
+  | { type: 'heard'; text: string; startMs?: number; endMs?: number }
   /** Part of what the voice said aloud. */
   | { type: 'said'; text: string }
   /**
@@ -271,10 +271,12 @@ export function liveEvent(data: unknown): LiveEvent | undefined {
     case 'session.input_transcript.delta': {
       if (!text(event.delta)) return undefined
       const startMs = seconds(event.start_ms)
+      const endMs = seconds(event.end_ms)
       return {
         type: 'heard',
         text: text(event.delta),
         ...(startMs === undefined ? {} : { startMs }),
+        ...(endMs === undefined ? {} : { endMs }),
       }
     }
     case 'session.output_transcript.delta':

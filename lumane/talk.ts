@@ -30,10 +30,30 @@ export type ConversationOptions = {
   waitForWordsMs?: number
   /** How long the words must have stopped before the question is taken as complete. */
   quietMs?: number
+  /**
+   * Where the supplier places words on the talk's timeline: words that end this close to the
+   * hand-over are taken as the end of the question; ones that end sooner may have more on the way.
+   */
+  reachMs?: number
   clock?: () => number
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+/** Words as they arrived, with where they start on the talk's timeline when the supplier says. */
+type Words = { text: string; startMs?: number }[]
+
+/**
+ * Words in the order they were said: by their place on the timeline when every one has it,
+ * otherwise as they arrived, as OpenAI advises.
+ */
+const spoken = (words: Words) =>
+  (words.every((w) => w.startMs !== undefined)
+    ? [...words].sort((a, b) => a.startMs! - b.startMs!)
+    : words
+  )
+    .map((w) => w.text)
+    .join('')
 
 /**
  * The words of one question handed over. It takes what was said before it was handed over and
@@ -42,12 +62,16 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
  */
 type Asked = {
   id: string
-  text: string
+  words: Words
   at: number
   since: number
   closed: boolean
   /** Where it was handed over on the session's timeline, when the supplier says. */
   offsetMs?: number
+  /** Where its words heard so far end on the timeline. */
+  reachedMs?: number
+  /** Words said after the hand-over have arrived, so its own are in. */
+  followed?: boolean
 }
 
 /**
@@ -60,23 +84,34 @@ export function conversation(options: ConversationOptions) {
   const turns: TalkTurn[] = []
   let line: LiveLine | undefined
   /** Words not yet part of a question handed over. */
-  let heard = ''
+  let heard: Words = []
   let heardAt = 0
+  let heardTo: number | undefined
   let latest: Asked | undefined
+  /** Where the question before the latest was handed over: words said before it are its. */
+  let earlier: number | undefined
   let seconds = 0
   let ended: { reason: string } | undefined
   let queue: Promise<void> = Promise.resolve()
 
   const longest = options.waitForWordsMs ?? 1500
   const quiet = options.quietMs ?? 300
+  const reach = options.reachMs ?? 1000
   /**
    * Whether a question's words are complete: some heard, then a moment's quiet, or the longest
    * wait. The quiet is counted from the hand-over at the earliest, so words that arrive just after
-   * a pause and the hand-over still belong to the question they finish.
+   * a pause and the hand-over still belong to the question they finish. Where the words have
+   * places on the timeline, the quiet is enough only once they reach the hand-over or words said
+   * after it have arrived; otherwise the longest wait gives late words their chance.
    */
-  const complete = (q: Asked) =>
-    q.closed ||
-    (q.text.trim() ? clock() - Math.max(q.at, q.since) >= quiet : clock() - q.since >= longest)
+  const complete = (q: Asked) => {
+    if (q.closed) return true
+    const waited = clock() - q.since >= longest
+    if (!spoken(q.words).trim()) return waited
+    if (clock() - Math.max(q.at, q.since) < quiet) return false
+    if (q.offsetMs === undefined) return true
+    return waited || q.followed || (q.reachedMs ?? -Infinity) >= q.offsetMs - reach
+  }
 
   /** Waits for the question's words, then keeps them, whatever is said next. */
   async function words(q: Asked) {
@@ -91,7 +126,7 @@ export function conversation(options: ConversationOptions) {
     await words(q)
     // The talk may have ended while the last words were awaited: nothing more is asked.
     if (ended) return
-    const asked = q.text.trim()
+    const asked = spoken(q.words).trim()
     if (!asked) {
       line?.answer(delegationId, options.unheard)
       return
@@ -124,37 +159,56 @@ export function conversation(options: ConversationOptions) {
     handle(event: LiveEvent) {
       switch (event.type) {
         case 'heard': {
+          const word = {
+            text: event.text,
+            ...(event.startMs === undefined ? {} : { startMs: event.startMs }),
+          }
+          const end = event.endMs ?? event.startMs
           // Where the supplier gives timeline positions, words are placed by when they were
-          // said, not when they arrived: words said after a hand-over start the next question
-          // (and show the last one is complete), and late words said before it stay with it.
+          // said, not when they arrived: words said before a hand-over belong to its question
+          // however late they arrive, until the question has gone to be answered; words said
+          // after it start the next question and show the last one's words are in.
           const timed =
             latest?.offsetMs !== undefined && event.startMs !== undefined
               ? event.startMs < latest.offsetMs
               : undefined
-          if (latest && timed !== false && !complete(latest)) {
-            latest.text += event.text
+          if (latest && timed) {
+            const older = earlier !== undefined && event.startMs! < earlier
+            if (!latest.closed && !older) {
+              latest.words.push(word)
+              latest.at = clock()
+              if (end !== undefined) latest.reachedMs = Math.max(latest.reachedMs ?? end, end)
+            }
+            // Words of a question already being answered cannot change it now.
+            break
+          }
+          if (latest && timed === undefined && !complete(latest)) {
+            latest.words.push(word)
             latest.at = clock()
             break
           }
-          if (latest) latest.closed = true
-          // Words said before a question that has already been asked belong to no later one.
-          if (timed) break
-          heard += event.text
+          if (latest && timed === false) latest.followed = true
+          else if (latest) latest.closed = true
+          heard.push(word)
           heardAt = clock()
+          if (end !== undefined) heardTo = Math.max(heardTo ?? end, end)
           break
         }
         case 'delegated': {
           // Each question keeps its own words, so one waiting its turn is never given another's.
           if (latest) latest.closed = true
+          earlier = latest?.offsetMs
           const q: Asked = {
             id: event.id,
-            text: heard,
+            words: heard,
             at: heardAt,
             since: clock(),
             closed: false,
             ...(event.offsetMs === undefined ? {} : { offsetMs: event.offsetMs }),
+            ...(heardTo === undefined ? {} : { reachedMs: heardTo }),
           }
-          heard = ''
+          heard = []
+          heardTo = undefined
           latest = q
           queue = queue.then(() => answer(q)).catch(() => undefined)
           break

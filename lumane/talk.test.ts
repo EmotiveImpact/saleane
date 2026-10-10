@@ -132,12 +132,60 @@ describe('a spoken conversation', () => {
     talk.handle({ type: 'heard', text: ' at ten?', startMs: 1500 })
     now = 100
     talk.handle({ type: 'heard', text: 'Thanks.', startMs: 2600 })
-    // A fragment said before the first hand-over that arrives after the next words is left out.
+    // A fragment said before the first hand-over that arrives after the next words still joins
+    // its question, which has not yet gone to be answered, in the place it was said.
     talk.handle({ type: 'heard', text: ' please', startMs: 1900 })
     talk.handle({ type: 'delegated', id: 'd2', offsetMs: 3000 })
+    // Once the next question is handed over, words said before the first one belong to neither.
+    talk.handle({ type: 'heard', text: ' now', startMs: 1950 })
     now = 2000
     await talk.settled()
-    expect(asked).toEqual(['Who is in at ten?', 'Thanks.'])
+    expect(asked).toEqual(['Who is in at ten? please', 'Thanks.'])
+  })
+
+  it('waits for late words OpenAI places before the hand-over, beyond a moment’s quiet', async () => {
+    let now = 0
+    const asked: string[] = []
+    const talk = conversation({
+      ...options(async (heard) => {
+        asked.push(heard)
+        return { text: 'Answered.' }
+      }),
+      quietMs: 300,
+      waitForWordsMs: 1500,
+      clock: () => now,
+    })
+    const tick = () => new Promise((done) => setTimeout(done, 80))
+    const { fake } = line()
+    talk.use(fake)
+    // The words heard so far end well before the hand-over, so more may be on their way.
+    talk.handle({ type: 'heard', text: 'Who is in', startMs: 1000, endMs: 1400 })
+    talk.handle({ type: 'delegated', id: 'd1', offsetMs: 3000 })
+    now = 700
+    await tick()
+    expect(asked).toEqual([])
+    // They arrive 700 ms later, and the question waits for them.
+    talk.handle({ type: 'heard', text: ' at ten?', startMs: 1500, endMs: 1900 })
+    now = 1200
+    await tick()
+    expect(asked).toEqual([])
+    // With nothing more by the longest wait, the question goes as heard.
+    now = 1600
+    await talk.settled()
+    expect(asked).toEqual(['Who is in at ten?'])
+    // Words that reach the hand-over need only the moment's quiet.
+    talk.handle({ type: 'heard', text: 'And at noon?', startMs: 3500, endMs: 4600 })
+    talk.handle({ type: 'delegated', id: 'd2', offsetMs: 5000 })
+    now = 2000
+    await talk.settled()
+    expect(asked).toEqual(['Who is in at ten?', 'And at noon?'])
+    // A late fragment of a question already being answered is not added to the next one.
+    talk.handle({ type: 'heard', text: ' please', startMs: 4700, endMs: 4800 })
+    talk.handle({ type: 'heard', text: 'Thanks.', startMs: 5200, endMs: 5600 })
+    talk.handle({ type: 'delegated', id: 'd3', offsetMs: 6000 })
+    now = 2400
+    await talk.settled()
+    expect(asked).toEqual(['Who is in at ten?', 'And at noon?', 'Thanks.'])
   })
 
   it('asks nothing when the talk ends while the last words are awaited', async () => {
