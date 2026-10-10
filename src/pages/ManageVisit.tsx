@@ -407,6 +407,21 @@ export function ManageVisit() {
             </a>
           </section>
         )}
+        {view.usual && (
+          <section className="visit-again visit-usual" aria-labelledby="usual-heading">
+            <h2 id="usual-heading">Come back for your usual?</h2>
+            <p className="subtle">
+              {view.usual.serviceName}
+              {view.usual.professional ? ` with ${view.usual.professional}` : ''}
+              {view.usual.location ? ` at ${view.usual.location}` : ''}, from{' '}
+              {dateLabel(view.usual.date, org.locale)}. Choose a time on {org.name}’s booking page.
+            </p>
+            <a className="button button-secondary" href={view.usual.path}>
+              <CalendarPlus size={16} aria-hidden="true" />
+              Book your usual
+            </a>
+          </section>
+        )}
         <GuestEmailNews token={token} view={view} onChange={setView} />
         <p className="guest-footnote">This link is private to you; please keep it to yourself.</p>
       </section>

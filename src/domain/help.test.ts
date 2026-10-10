@@ -185,6 +185,13 @@ describe('help inside the app', () => {
       'gift-card-move',
     )
     expect(first('reschedule an appointment')).toBe('move-visit')
+    // Stage 5: a guest asking for their usual, for the people who answer guests.
+    expect(first('guest asks for their usual')).toBe('usual')
+    expect(first('same as last time', 'reception')).toBe('usual')
+    expect(first('book a client their usual', 'general')).toBe('usual')
+    expect(ids(searchHelp('my usual', 'practitioner'))).not.toContain('usual')
+    expect(ids(searchHelp('my usual', 'regional'))).not.toContain('usual')
+    expect(first('client insight')).toBe('at-a-glance')
     // Stage 4: one message to many clients.
     expect(first('send a newsletter to all clients')).toBe('news')
     expect(first('group message')).toBe('news')

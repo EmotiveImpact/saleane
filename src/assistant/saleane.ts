@@ -28,6 +28,7 @@ import { GUEST_CANCEL_CUTOFF_HOURS, visitStart } from '../domain/guest'
 import { holdings, planStanding } from '../domain/plans'
 import { dueTasks, openTasks } from '../domain/tasks'
 import { searchHelp } from '../domain/help'
+import { clientUsualSkill } from './usualSkills'
 import { openingFree, openings, serviceLabel, timesLabel, waiting } from '../domain/waitlist'
 import {
   currentSpecials,
@@ -856,6 +857,8 @@ export function askSaleaneSkills(): Skill<AskContext, Command>[] {
         }
       },
     }),
+    // Stage 5: a client's usual, for "book Amelia her usual on Friday".
+    clientUsualSkill(studio),
   ]
 }
 

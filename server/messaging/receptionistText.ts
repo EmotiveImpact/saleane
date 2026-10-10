@@ -12,7 +12,8 @@ import {
 import type { ReceptionEffect, ReceptionTurn } from '../../src/assistant/receptionist'
 import { BOOKING_LINK, MANAGE_LINK_SPOT } from '../../src/assistant/receptionistBrain'
 import { businessDate, operations } from '../../src/domain/operations'
-import { repliesList, senderClient } from '../../src/domain/inbox'
+import { repliesList } from '../../src/domain/inbox'
+import { textingGuest } from '../../src/domain/textingGuest'
 import { MANAGE_LINK, clientsWithNumber, textNumber } from '../../src/domain/reminders'
 import { textsStopped } from '../../src/domain/textStop'
 import { isSocialChannel } from '../../src/domain/inboxSchema'
@@ -287,11 +288,12 @@ async function answerKept(
       ? `text:${org.id}:${number}`
       : `${channel}:${org.id}:${kept.account}:${number}`,
   )
-  // Known for sure only by a text or WhatsApp message from the one number on a client's record. A
-  // sender the team matched by hand is not proof enough to be sent a visit's private link.
+  // Known for sure only by a text or WhatsApp message from the number on a client's records, all
+  // with one email (Stage 5, textingGuest.ts). A sender the team matched by hand is not proof
+  // enough to be sent a visit's private link.
   const guest =
     channel === 'sms' || channel === 'whatsapp'
-      ? senderClient(org.state, channel, number)
+      ? textingGuest(org.state, channel, number)
       : undefined
   const brain = ctx.ai.brainFor(org.state, 'reception')
   const allowance = ctx.plans.allowance(org)
@@ -342,8 +344,13 @@ async function answerKept(
         : `${ctx.allowedOrigin}/book/${org.slug}`,
     )
     .replaceAll(MANAGE_LINK_SPOT, manage && guest ? MANAGE_LINK : '')
-  // The guest's own conversation, including a number the team matched to a client by hand.
-  const clientId = manage && guest ? guest.id : (kept.clientId ?? guest?.id ?? '')
+  // The guest's own conversation, including a number the team matched to a client by hand. A
+  // visit's link goes with the record the visit is under, which the outbox checks again.
+  const owner =
+    manage && guest
+      ? (org.state.appointments.find((a) => a.id === manage.appointmentId)?.clientId ?? guest.id)
+      : undefined
+  const clientId = owner ?? kept.clientId ?? guest?.id ?? ''
   return db.transaction(() => {
     // A real AI can take several seconds. Meanwhile the studio may have turned the receptionist
     // off, or someone from the team may have answered the guest: then the AI's answer is not

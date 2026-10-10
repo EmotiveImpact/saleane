@@ -381,6 +381,45 @@ test('after a cancellation, offers booking again and never says to contact the s
   expect(screen.queryByRole('button', { name: 'Move my visit' })).not.toBeInTheDocument()
 })
 
+test('after a completed visit, offers to book their usual on the booking page', async () => {
+  vi.mocked(api).mockResolvedValue({
+    ...view('none', 'completed'),
+    cancellation: { available: false, cutoffAt: '2026-10-06T08:00:00.000Z', outcome: 'none' },
+    usual: {
+      path: '/book/reference-studio?service=service-facial&staff=staff-maya&date=2026-11-04',
+      serviceName: 'Skin Renewal Facial',
+      professional: 'Maya',
+      date: '2026-11-04',
+    },
+  } as never)
+  render(<ManageVisit />)
+  expect(
+    await screen.findByRole('heading', { name: 'Come back for your usual?' }),
+  ).toBeInTheDocument()
+  expect(
+    screen.getByText(
+      'Skin Renewal Facial with Maya, from Wednesday 4 November. Choose a time on Reference Studio’s booking page.',
+    ),
+  ).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: /Book your usual/ })).toHaveAttribute(
+    'href',
+    '/book/reference-studio?service=service-facial&staff=staff-maya&date=2026-11-04',
+  )
+  // Nothing to cancel or move on a completed visit, and no history or other visits.
+  expect(screen.queryByRole('button', { name: 'Cancel this visit' })).not.toBeInTheDocument()
+  expect(screen.queryByText(/previous visits|your history/i)).not.toBeInTheDocument()
+})
+
+test('shows no usual without one', async () => {
+  vi.mocked(api).mockResolvedValue({
+    ...view('none', 'completed'),
+    cancellation: { available: false, cutoffAt: '2026-10-06T08:00:00.000Z', outcome: 'none' },
+  } as never)
+  render(<ManageVisit />)
+  await screen.findByText('Skin Renewal Facial')
+  expect(screen.queryByRole('link', { name: /Book your usual/ })).not.toBeInTheDocument()
+})
+
 test('mentions a deposit only when there is one', async () => {
   const user = userEvent.setup()
   vi.mocked(api).mockResolvedValue({

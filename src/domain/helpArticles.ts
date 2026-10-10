@@ -1182,6 +1182,25 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     roles: RUNS,
     words: 'ai receptionist chatbot booking page guests',
   },
+  {
+    id: 'usual',
+    title: 'When a guest asks for their usual',
+    group: 'Messages and AI',
+    summary:
+      'SALEANE works out a guest’s usual from their own visits, so “my usual” can be booked in a few words.',
+    steps: [
+      'A usual needs at least three completed visits in the last 12 months, with one treatment in at least half of them. Records with the same email count as one guest.',
+      'By text, the AI receptionist knows a guest writing from the number on their bookings. It says what their usual is and finds times with the person they usually see, from their next usual day. The guest finishes booking on the booking page.',
+      'In the chat on the booking page it cannot see who is writing, so it asks which treatment.',
+      'After a visit, the guest’s private link offers Book your usual for seven days, with their treatment, professional and next usual day already chosen.',
+      'At the desk, ask SALEANE, such as "book Amelia her usual on Friday", then choose Approve to book it.',
+    ],
+    note: 'When the person they usually see has left or moved, or the treatment needs a patch test first, it says so plainly. Nothing is booked until the guest confirms or someone approves it.',
+    to: '/inbox',
+    screens: ['/inbox'],
+    roles: DESK,
+    words: 'usual my usual same as last time regular favourite text guest receptionist book again',
+  },
 
   // Settings and data
   {
