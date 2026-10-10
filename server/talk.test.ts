@@ -386,11 +386,52 @@ describe('a talk', () => {
     expect(stored(login).spendByDay[day]).toBeCloseTo(2.5)
   })
 
+  it('sizes a replacement after counting the talk it replaces', async () => {
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    // Twelve minutes of the month's thirty are left; the first talk holds ten of them.
+    used(login, 1080)
+    expect((await talk(login)).json()).toMatchObject({ status: 'talking', seconds: 600 })
+    clock += 60_000
+    // Another tab: the first talk is ended and counted at its minute, so the second has ten.
+    expect((await talk(login)).json()).toMatchObject({ status: 'talking', seconds: 600 })
+    expect(voice.lines[0].closed).toBe(true)
+    // The first talk's minute, and the second's ten minutes held while it runs.
+    expect(stored(login).used.talkSeconds).toBe(1080 + 60 + 600)
+  })
+
+  it('ends the talk when the person may no longer ask', async () => {
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    const { id } = (await talk(login)).json<{ id: string }>()
+    // The owner made them a practitioner, who cannot use Ask SALEANE, while they were talking.
+    api.database.run(
+      "UPDATE memberships SET role='practitioner', staff_id='staff-linked' WHERE organisation_id=?",
+      login.orgId,
+    )
+    const [line] = voice.lines
+    line.fire({ type: 'heard', text: 'What is on today?' })
+    line.fire({ type: 'delegated', id: 'item_1' })
+    await expect.poll(() => line.closed).toBe(true)
+    expect(line.said.filter((s) => s.kind === 'answer')).toEqual([
+      { kind: 'answer', id: 'item_1', text: expect.any(String) },
+    ])
+    line.fire({ type: 'closed', reason: 'close_requested', seconds: 4 })
+    expect(
+      api.database.get('SELECT 1 AS found FROM memberships WHERE role=?', 'practitioner'),
+    ).toEqual({ found: 1 })
+    expect(id).toEqual(expect.any(String))
+  })
+
   it('replaces a talk left open, follows a dropped one to end it, and keeps each to its person', async () => {
     const voice = fakeVoice()
     start(claude(anthropic([]).fetcher), voice.layer)
     const login = await register()
     const first = (await talk(login)).json<{ id: string }>()
+    // Left open for three seconds, then replaced: it is counted then, on SALEANE's clock.
+    clock += 3000
     const second = (await talk(login)).json<{ id: string }>()
     expect(voice.lines[0].closed).toBe(true)
     voice.lines[0].fire({ type: 'closed', reason: 'close_requested', seconds: 3 })

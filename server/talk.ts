@@ -150,14 +150,17 @@ export function talks(held: Map<string, Held>) {
     sdp: string,
   ): Promise<Started> {
     sweep(ctx)
-    // A new talk from the same person replaces one still open, which they have left.
+    // A new talk from the same person replaces one still open, which they have left. It is ended
+    // and counted now, on SALEANE's own clock, so its held minutes are free for the new one.
     for (const talk of open.values())
       if (
         talk.accountId === actor.id &&
         talk.organisationId === org.id &&
         talk.endedAt === undefined
-      )
+      ) {
         close(ctx, talk)
+        finish(ctx, talk, 'replaced')
+      }
     const at = new Date(ctx.now()).toISOString()
     const price = ctx.voice.minorPerMinute
     const hold = reserveFor(
@@ -308,8 +311,10 @@ export function talks(held: Map<string, Held>) {
     } catch {
       return undefined
     }
+    // A practitioner may not use Ask SALEANE, so someone made one mid-talk has lost it: the talk ends.
+    if (org.role === 'practitioner') return undefined
     const brain = ctx.ai.brainFor(org.state, 'ask')
-    if (!brain || org.role === 'practitioner') return { text: TALK_FAILED }
+    if (!brain) return { text: TALK_FAILED }
     const allowance = ctx.plans.allowance(org)
     const at = new Date(ctx.now()).toISOString()
     const use = talkQuestionUse(actor.id, at)
