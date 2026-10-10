@@ -30,7 +30,7 @@ test('shows one price for each location and switches country', async () => {
   expect(offer.getByText('£59')).toBeInTheDocument()
   // The owner's decision (10 October 2026): what SALEANE earns from card payments is said openly.
   expect(screen.getByRole('region', { name: 'Costs outside SALEANE' })).toHaveTextContent(
-    'As Stripe’s partner, SALEANE earns a share of Stripe’s fee from Stripe, never anything on top of it.',
+    'Once SALEANE joins Stripe’s partner programme, Stripe will share part of its own fee with SALEANE.',
   )
   expect(offer.getByText('per location, month to month').parentElement).toHaveTextContent(
     'a month, plus VAT',

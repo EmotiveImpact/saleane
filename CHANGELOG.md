@@ -7,7 +7,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 **Status: built locally on 10 October 2026; test mode only, no money moves.**
 
 - Each location is now £59 a month in the UK and $69 in the US, up from £49 and $59 (the owner's decision, 10 October 2026). The price page, Plan and billing, adding a location and every bill follow from the one setting in `src/domain/pricing.ts`. Extra people stay £9 ($12 in the US); Plus and the phone receptionist are unchanged.
-- The price page's card line now says openly how SALEANE earns from card payments: studios pay Stripe's standard rate, the same as going to Stripe themselves, and SALEANE earns a share of Stripe's fee from Stripe as its partner, never anything on top. Card payments are still not connected; joining Stripe's partner programme is a later step on the owner's own Stripe account.
+- The price page's card line now says openly how SALEANE earns from card payments: studios pay Stripe's standard rate, the same as going to Stripe themselves, and never anything on top, and once SALEANE joins Stripe's partner programme Stripe will share part of its own fee with SALEANE. It says "once" because joining is a later step on the owner's own Stripe account; card payments are still not connected.
 
 ## 2026-10-10 · Email from any sender (NEXT-13, part 2)
 

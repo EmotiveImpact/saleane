@@ -139,9 +139,9 @@ export function Pricing() {
               <dt>Card payments</dt>
               <dd>
                 You pay Stripe’s standard rate on each card payment, the same as going to Stripe
-                yourself. As Stripe’s partner, SALEANE earns a share of Stripe’s fee from Stripe,
-                never anything on top of it. Card payments are connected through your own Stripe
-                account.
+                yourself, and never anything on top of it. Once SALEANE joins Stripe’s partner
+                programme, Stripe will share part of its own fee with SALEANE. Card payments are
+                connected through your own Stripe account.
               </dd>
             </div>
             <div>
