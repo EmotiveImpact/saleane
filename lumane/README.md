@@ -10,7 +10,7 @@ Lumane owns the parts that are the same for every app:
 - **Tap to approve.** Proposals carry a plain summary and expire after 30 minutes. `decide`
   returns the effect only when approved and still fresh.
 - **Allowances.** Monthly amounts for typed requests, talking time and guest chats, a per-person
-  hourly limit, a daily spend ceiling and a maximum talking session. The allowance is checked
+  hourly limit, a daily and a monthly spend ceiling and a maximum talking session. The allowance is checked
   before every request, so a refused request never reaches the AI supplier.
 - **The brain.** A small interface so the AI supplier can be swapped. The test-mode
   `scriptedBrain` sends nothing and costs nothing. `claudeBrain` calls Claude through Anthropic's

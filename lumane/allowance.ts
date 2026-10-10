@@ -10,6 +10,11 @@ export type Allowance = {
   monthly: Record<Meter, number>
   /** The most AI spend one account may run up in a day, in minor units (pence or cents). */
   dailySpendCeilingMinor: number
+  /**
+   * The most AI spend one account may run up in a calendar month, in minor units, so that a
+   * studio reaching the daily ceiling every day still cannot cost more than it pays.
+   */
+  monthlySpendCeilingMinor: number
   /** Requests one person may make in any rolling hour. */
   perPersonHourly: number
   /** The longest single talking session, in seconds. */
@@ -112,6 +117,13 @@ export function check(
       ok: false,
       reason: 'spend',
       message: "The assistant has reached today's limit. It will be back tomorrow.",
+    }
+  const month = Object.values(now.spendByDay).reduce((total, spent) => total + spent, 0)
+  if (month + request.worstCaseMinor > allowance.monthlySpendCeilingMinor)
+    return {
+      ok: false,
+      reason: 'spend',
+      message: "The assistant has reached this month's limit. It will be back on the 1st.",
     }
   return { ok: true }
 }

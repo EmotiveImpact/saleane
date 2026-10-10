@@ -11,6 +11,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Each talk can run up to ten minutes, or what is left of the month's talking time. SALEANE holds that time and its most it could cost before the talk starts, ends the talk when its time is up, and counts only the seconds it ran. With less than 30 seconds left it says "This month's talking time is used up. It resets on the 1st, or the owner can add Plus. You can still type." Spoken questions count as talking time, not typed questions.
 - The meter adds "1 of 30 talking minutes used." A refused microphone says "SALEANE needs your microphone to talk. Allow it in your browser, or type instead." Closing the panel hangs up.
 - OpenAI's key never reaches the browser. The help guide and the privacy notes say what is sent to OpenAI while talking. Unset, there is no Talk button, and a sample studio never talks.
+- Each location's AI now also has a monthly spend ceiling (2,000 cents, or 6,000 with Plus), alongside the daily one, so a studio that reached the daily ceiling every day still cannot cost more than it pays. A busy location's included use comes to about half of it. Past it, Ask SALEANE says "The assistant has reached this month's limit. It will be back on the 1st."
 
 ## 2026-10-10 · Claude behind Ask SALEANE and the receptionist (NEXT-12, part 1)
 
