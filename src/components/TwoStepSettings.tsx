@@ -35,7 +35,20 @@ function save(name: string, content: string) {
  * NEXT-04: turning two-step sign-in on and off for the person signed in. The key is shown once,
  * as a QR code and as text; recovery codes are shown once and kept only as hashes.
  */
-export function TwoStepSettings({ onChange }: { onChange?: () => void }) {
+export function TwoStepSettings({
+  onChange,
+  startOpen,
+  onBusy,
+}: {
+  onChange?: () => void
+  /** Shown open, as on the welcome for someone who has just joined. */
+  startOpen?: boolean
+  /**
+   * Inside a flow that has its own main button: setting up steps back to a secondary button, and
+   * this says when setting up is under way so the flow's button can step back in turn.
+   */
+  onBusy?: (busy: boolean) => void
+}) {
   const store = useStore()
   const user = store.session?.user
   const on = user?.twoStep ?? null
@@ -49,6 +62,7 @@ export function TwoStepSettings({ onChange }: { onChange?: () => void }) {
   if (!user) return null
   function go(next: Phase) {
     setPhase(next)
+    onBusy?.(next.kind !== 'idle')
     setCode('')
     setPassword('')
     setError('')
@@ -127,7 +141,7 @@ export function TwoStepSettings({ onChange }: { onChange?: () => void }) {
     </Button>
   )
   return (
-    <details className="access-password access-two-step">
+    <details className="access-password access-two-step" open={startOpen || undefined}>
       <summary>
         Two-step sign-in
         <span className={`access-two-step-state${on ? ' is-on' : ''}`}>{on ? 'On' : 'Off'}</span>
@@ -308,7 +322,11 @@ export function TwoStepSettings({ onChange }: { onChange?: () => void }) {
               password alone cannot open your studio. Recommended for owners and managers.
             </p>
             <div className="ops-actions">
-              <Button disabled={pending} onClick={() => void start()}>
+              <Button
+                variant={onBusy ? 'secondary' : 'primary'}
+                disabled={pending}
+                onClick={() => void start()}
+              >
                 Set up two-step sign-in
               </Button>
             </div>

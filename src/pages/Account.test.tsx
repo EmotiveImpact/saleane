@@ -16,6 +16,8 @@ vi.mock('../state/context', () => ({
     session: store.session,
     refreshSession: async () => store.session,
     openWorkspace: vi.fn(),
+    // Two-step sign-in on the welcome reads the studio's locale.
+    state: { organisation: { locale: 'en-GB' } },
     enterDemo: vi.fn(),
     logout: vi.fn(),
   }),
@@ -103,6 +105,101 @@ test('someone signed in with another address is told which address the invitatio
     await screen.findByText(/This invitation was sent to gm@example.invalid/),
   ).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Join Fernleaf Rooms' })).toBeDisabled()
+})
+
+test('a new studio of their own opens on the setup screens; a sample one opens on Today', async () => {
+  const owner = (orgId: string): Session => ({
+    user: { id: 'account-1', name: 'Amara Okafor', email: 'amara@example.invalid' },
+    csrf: 'csrf',
+    workspaces: [{ id: orgId, name: 'Linden Studio', role: 'owner' }] as Session['workspaces'],
+    services: { email: false, payments: false },
+    localOnly: true,
+  })
+  for (const [sample, landing] of [
+    [false, 'Set up your studio'],
+    [true, 'Today'],
+  ] as const) {
+    store.session = null
+    vi.mocked(api).mockImplementation(async (path) => {
+      if (path === '/api/auth/register') {
+        store.session = owner('org-1')
+        return { orgId: 'org-1' } as never
+      }
+      throw new ApiError('Sign in to continue.', 401)
+    })
+    const shown = render(
+      <MemoryRouter initialEntries={['/account']}>
+        <Routes>
+          <Route path="/account" element={<Account />} />
+          <Route path="/setup" element={<p>Set up your studio</p>} />
+          <Route path="/today" element={<p>Today</p>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Create an account' }))
+    await userEvent.type(screen.getByLabelText(/Email/), 'amara@example.invalid')
+    await userEvent.type(screen.getByLabelText('Your name'), 'Amara Okafor')
+    await userEvent.type(screen.getByLabelText(/Password/), 'Fictional local account 2026!')
+    await userEvent.type(screen.getByLabelText('Business name'), 'Linden Studio')
+    await userEvent.type(screen.getByLabelText('Location name'), 'Bath')
+    if (sample)
+      await userEvent.click(screen.getByLabelText('Start with made-up sample clients and visits'))
+    await userEvent.click(screen.getByRole('button', { name: /Create your studio/ }))
+    expect(await screen.findByText(landing)).toBeInTheDocument()
+    shown.unmount()
+  }
+})
+
+test('someone joining from an invitation reads a short welcome, then opens their own day', async () => {
+  const practitioner = {
+    studio: 'Fernleaf Rooms',
+    role: 'practitioner',
+    email: 'ines@example.invalid',
+  }
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path === '/api/invitations/preview') return practitioner as never
+    if (path === '/api/auth/register') {
+      store.session = {
+        user: { id: 'account-2', name: 'Ines Duarte', email: practitioner.email },
+        csrf: 'csrf',
+        workspaces: [
+          { id: 'org-2', name: 'Fernleaf Rooms', role: 'practitioner' },
+        ] as Session['workspaces'],
+        services: { email: false, payments: false },
+        localOnly: true,
+      }
+      return { orgId: 'org-2' } as never
+    }
+    throw new ApiError('Sign in to continue.', 401)
+  })
+  render(
+    <MemoryRouter initialEntries={[`/join?invitation=${raw}`]}>
+      <Routes>
+        <Route path="/join" element={<Account />} />
+        <Route path="/practice/:orgId" element={<p>Your day</p>} />
+      </Routes>
+    </MemoryRouter>,
+  )
+  await screen.findByRole('heading', { level: 1, name: 'Join Fernleaf Rooms.' })
+  await userEvent.type(screen.getByLabelText('Your name'), 'Ines Duarte')
+  await userEvent.type(screen.getByLabelText(/Password/), 'Fictional local account 2026!')
+  await userEvent.click(screen.getByRole('button', { name: /Join studio/ }))
+
+  const heading = await screen.findByRole('heading', { level: 1 })
+  expect(heading).toHaveTextContent('Welcome to Fernleaf Rooms')
+  expect(screen.getByText(/Hello Ines\. You have joined as a practitioner\./)).toBeInTheDocument()
+  expect(screen.getByRole('list', { name: 'What you can do' })).toHaveTextContent(
+    'See the visits booked with you',
+  )
+  await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
+  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Your day')
+  await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
+  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Keep your sign-in safe')
+  expect(screen.getByText('Two-step sign-in')).toBeInTheDocument()
+  // Nowhere else to turn it on for a practitioner, so no pointer to Settings.
+  expect(screen.queryByText(/later in Settings/)).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: /Open your day/ }))
+  expect(await screen.findByText('Your day')).toBeInTheDocument()
 })
 
 test('the list of studios has Help, with the guides for everyone and no way into a studio screen', async () => {
