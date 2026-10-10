@@ -696,7 +696,7 @@ describe('appointment messages (PILOT-01)', () => {
     ).toEqual(['sms'])
   })
 
-  it('marks an email delivered from another sender’s signed receipt (NEXT-13)', async () => {
+  it('marks an email delivered from another sender’s signed receipt, and failed by a later bounce (NEXT-13)', async () => {
     let n = 0
     const fetcher = (async () =>
       new Response(JSON.stringify({ id: `<mg-${++n}@mg.example.invalid>` }), {
@@ -721,7 +721,7 @@ describe('appointment messages (PILOT-01)', () => {
     expect([email.status, email.provider]).toEqual(['accepted', 'mailgun'])
     // Kept without Mailgun's angle brackets, as its receipts name it.
     expect(email.provider_ref).toMatch(/^mg-\d+@mg\.example\.invalid$/)
-    const receipt = (key: string) => {
+    const receipt = (key: string, event: Record<string, unknown> = { event: 'delivered' }) => {
       const timestamp = String(Math.floor(Date.now() / 1000)),
         token = 'token-1'
       return api.inject({
@@ -737,7 +737,7 @@ describe('appointment messages (PILOT-01)', () => {
               .digest('hex'),
           },
           'event-data': {
-            event: 'delivered',
+            ...event,
             message: { headers: { 'message-id': email.provider_ref } },
           },
         }),
@@ -747,6 +747,21 @@ describe('appointment messages (PILOT-01)', () => {
     expect(rows().find((r) => r.id === email.id)!.status).toBe('accepted')
     expect((await receipt('signing-key')).statusCode).toBe(200)
     expect(rows().find((r) => r.id === email.id)!.status).toBe('delivered')
+    // A delayed bounce: the guest's provider took it, then sent it back.
+    const bounce = {
+      event: 'failed',
+      severity: 'permanent',
+      'delivery-status': { message: 'No such user' },
+    }
+    expect((await receipt('signing-key', bounce)).statusCode).toBe(200)
+    const bounced = rows().find((r) => r.id === email.id)!
+    expect([bounced.status, bounced.detail]).toEqual([
+      'failed',
+      'The guest’s email provider refused it: No such user',
+    ])
+    // A delivered receipt arriving late does not undo it.
+    expect((await receipt('signing-key')).statusCode).toBe(200)
+    expect(rows().find((r) => r.id === email.id)!.status).toBe('failed')
   })
 
   it('marks a SendGrid email failed from a later bounce that names only its outbox row (NEXT-13)', async () => {

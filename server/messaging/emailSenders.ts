@@ -448,11 +448,16 @@ export function googleProvider(config: {
       if (isResult(result)) return result
       if (result.status === 200 && typeof result.json.id === 'string')
         return { outcome: 'accepted', providerRef: result.json.id }
-      const error = result.json.error as { message?: unknown } | undefined
-      return refused(
-        result.status,
-        String(error?.message ?? `Google refused it (${result.status}).`),
+      const error = result.json.error as
+        { message?: unknown; errors?: { reason?: unknown }[] } | undefined
+      const detail = String(error?.message ?? `Google refused it (${result.status}).`)
+      // Gmail says "slow down" with a 403 as well as a 429, and asks for it to be tried again.
+      // https://developers.google.com/workspace/gmail/api/guides/handle-errors
+      const slowDown = (error?.errors ?? []).some(
+        (each) => each?.reason === 'rateLimitExceeded' || each?.reason === 'userRateLimitExceeded',
       )
+      if (result.status === 403 && slowDown) return { outcome: 'failed', detail, retry: true }
+      return refused(result.status, detail)
     },
   }
 }

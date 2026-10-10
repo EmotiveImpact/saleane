@@ -476,7 +476,11 @@ export function createOutbox(ctx: Context, providers: Providers) {
             receipt.outboxId,
           )
         : undefined
-    if (!row || row.status === 'delivered') return false
+    if (!row) return false
+    // Delivered applies to a message on its way. A failure also applies to one already delivered,
+    // as a bounce can come back after the guest's provider first took it, and nothing undoes it.
+    const open = row.status === 'accepted' || row.status === 'unknown'
+    if (receipt.delivered ? !open : !open && row.status !== 'delivered') return false
     finish(row, receipt.delivered ? 'delivered' : 'failed', {
       detail: receipt.delivered ? null : (receipt.detail ?? 'The provider could not deliver it.'),
     })

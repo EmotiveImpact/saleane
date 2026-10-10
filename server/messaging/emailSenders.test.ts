@@ -388,6 +388,29 @@ describe('Google Workspace', () => {
     expect(await sender.send(message)).toEqual({ outcome: 'accepted', providerRef: 'gm-2' })
     expect(calls).toHaveLength(3)
   })
+  it('tries again when Gmail says to slow down, but not when it says no', async () => {
+    const denied = (reason: string) =>
+      json({ error: { message: `Gmail: ${reason}`, errors: [{ reason }] } }, 403)
+    const { fetcher } = provider(
+      json({ access_token: 'ya29.token', expires_in: 3600 }),
+      denied('userRateLimitExceeded'),
+      denied('rateLimitExceeded'),
+      denied('forbidden'),
+    )
+    const sender = googleProvider({
+      clientEmail: 'a@b.invalid',
+      privateKey: pem,
+      from: 'hello@example.invalid',
+      fetcher,
+    })
+    expect(await sender.send(message)).toMatchObject({ outcome: 'failed', retry: true })
+    expect(await sender.send(message)).toMatchObject({ outcome: 'failed', retry: true })
+    expect(await sender.send(message)).toEqual({
+      outcome: 'failed',
+      detail: 'Gmail: forbidden',
+      retry: false,
+    })
+  })
   it('sends nothing when Google refuses the sign-in, and says so', async () => {
     const { calls, fetcher } = provider(json({ error: 'unauthorized_client' }, 401))
     const sender = googleProvider({
