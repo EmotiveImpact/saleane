@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { createHmac } from 'node:crypto'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createApiHandler } from './app'
 import type { ApiHandler } from './app'
@@ -693,6 +694,59 @@ describe('appointment messages (PILOT-01)', () => {
         .filter((r) => r.status === 'delivered')
         .map((r) => r.channel),
     ).toEqual(['sms'])
+  })
+
+  it('marks an email delivered from another sender’s signed receipt (NEXT-13)', async () => {
+    let n = 0
+    const fetcher = (async () =>
+      new Response(JSON.stringify({ id: `<mg-${++n}@mg.example.invalid>` }), {
+        status: 200,
+      })) as unknown as typeof fetch
+    const chosen = providersFromEnv(
+      {
+        SALEANE_EMAIL_PROVIDER: 'mailgun',
+        MAILGUN_API_KEY: 'key',
+        MAILGUN_DOMAIN: 'mg.example.invalid',
+        MAILGUN_WEBHOOK_SIGNING_KEY: 'signing-key',
+        SALEANE_EMAIL_FROM: 'hello@example.invalid',
+      },
+      origin,
+      fetcher,
+    )
+    start({ ...chosen, sms: recording('sms') })
+    const { serviceId, staffId, slug } = await localStudio()
+    await book(slug, serviceId, staffId)
+    await api.outbox.tick()
+    const email = rows().find((r) => r.channel === 'email')!
+    expect([email.status, email.provider]).toEqual(['accepted', 'mailgun'])
+    // Kept without Mailgun's angle brackets, as its receipts name it.
+    expect(email.provider_ref).toMatch(/^mg-\d+@mg\.example\.invalid$/)
+    const receipt = (key: string) => {
+      const timestamp = String(Math.floor(Date.now() / 1000)),
+        token = 'token-1'
+      return api.inject({
+        method: 'POST',
+        url: '/api/hooks/mailgun',
+        headers: { 'content-type': 'application/json' },
+        rawPayload: JSON.stringify({
+          signature: {
+            timestamp,
+            token,
+            signature: createHmac('sha256', key)
+              .update(timestamp + token)
+              .digest('hex'),
+          },
+          'event-data': {
+            event: 'delivered',
+            message: { headers: { 'message-id': email.provider_ref } },
+          },
+        }),
+      })
+    }
+    expect((await receipt('forged-key')).statusCode).toBe(403)
+    expect(rows().find((r) => r.id === email.id)!.status).toBe('accepted')
+    expect((await receipt('signing-key')).statusCode).toBe(200)
+    expect(rows().find((r) => r.id === email.id)!.status).toBe('delivered')
   })
 
   it('keeps the outbox from practitioners and reports test mode by default', async () => {

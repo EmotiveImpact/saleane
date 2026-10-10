@@ -171,7 +171,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
       const url = new URL(request.url!, allowedOrigin)
       // Provider delivery receipts come from the provider, not a SALEANE page, and prove
       // themselves by signature instead of by origin and session.
-      const hook = /^\/api\/hooks\/(postmark|twilio)$/.exec(url.pathname)
+      const hook = /^\/api\/hooks\/(postmark|twilio|resend|sendgrid|mailgun)$/.exec(url.pathname)
       if (hook) {
         if (method !== 'POST') fail(405, 'Use POST.')
         const body = (await readBody(request, true)) as string

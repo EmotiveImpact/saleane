@@ -2,6 +2,17 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-10 · Email from any sender (NEXT-13, part 2)
+
+**Status: built locally on 10 October 2026; not run against any real email account.** [Evidence](docs/evidence/NEXT-13-SENDERS.md).
+
+- SALEANE's guest and account emails can now go through Postmark, Resend, SendGrid, Mailgun, Amazon SES, any mail server that speaks SMTP, a Google Workspace mailbox or a Microsoft 365 mailbox. One setting chooses the service (`SALEANE_EMAIL_PROVIDER`), and the server will not start if a key the chosen service needs is missing. Until then email stays in test mode.
+- Every service sends the same email: the plain words, the designed email in the studio's colours, and the studio's name as the sender. Visit messages and news are labelled apart so each service can keep them apart.
+- Delivery receipts from Resend, SendGrid and Mailgun are checked by each service's own signature, as Postmark's and Twilio's already were, and only a receipt from the service in use is believed. A receipt more than five minutes old is refused. Only a receipt marks an email delivered; the others stay "handed over".
+- A service that was busy is tried again; one that refused says why. If the line drops after the email was handed over, it is marked unclear for a person to check, never sent twice by itself.
+- One-click unsubscribe (RFC 8058) is ready on every service for news, for the Marketing section to switch on with its stop links.
+- Settings, Messages names whichever service handled each message.
+
 ## 2026-10-10 · Paying for each person beyond five
 
 **Status: built locally on 10 October 2026; test mode only, no money moves.** [Evidence](docs/evidence/PRICE-PER-PERSON.md).
