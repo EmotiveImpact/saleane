@@ -203,8 +203,12 @@ export function talks(held: Map<string, Held>) {
     allowance: Allowance,
     sdp: string,
     askedAt: number,
+    gone: () => boolean,
   ): Promise<Started> {
     if (stopped) return { status: 'unavailable', text: NOT_NOW }
+    // The browser left before its turn (the tab closed, or the network dropped): OpenAI is not
+    // asked, and a talk the person still has open is left as it is.
+    if (gone()) return { status: 'unavailable', text: NOT_NOW }
     sweep(ctx)
     // One that waited too long behind an earlier start is refused before OpenAI is asked.
     if (ctx.now() - askedAt > TALK_START_LIMIT_MS) return { status: 'unavailable', text: NOT_NOW }
@@ -311,11 +315,11 @@ export function talks(held: Map<string, Held>) {
     }
     talk.talk.use(talk.line)
     open.set(talk.id, talk)
-    // A start that took longer than the browser waits may have nobody to hear it: it is ended
-    // now, counted at its start-up time, and refused.
-    if (ctx.now() - askedAt > TALK_START_LIMIT_MS) {
+    // A start that took longer than the browser waits, or whose browser left while it started,
+    // has nobody to hear it: it is ended now, counted at its start-up time, and refused.
+    if (ctx.now() - askedAt > TALK_START_LIMIT_MS || gone()) {
       close(ctx, talk)
-      count(ctx, talk, 'slow-start')
+      count(ctx, talk, gone() ? 'left' : 'slow-start')
       return { status: 'unavailable', text: NOT_NOW }
     }
     // SALEANE ends the talk itself when its window is up, counted from when it started, so the
@@ -337,12 +341,14 @@ export function talks(held: Map<string, Held>) {
       actor: Actor,
       allowance: Allowance,
       sdp: string,
+      /** True once the browser that asked has gone, so nobody can receive the talk. */
+      gone: () => boolean = () => false,
     ): Promise<Started> {
       const key = `${org.id}:${actor.id}`
       const askedAt = ctx.now()
       const run = (starting.get(key) ?? Promise.resolve())
         .catch(() => undefined)
-        .then(() => begin(ctx, org, actor, allowance, sdp, askedAt))
+        .then(() => begin(ctx, org, actor, allowance, sdp, askedAt, gone))
       starting.set(key, run)
       try {
         return await run

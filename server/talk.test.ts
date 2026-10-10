@@ -667,6 +667,51 @@ describe('a talk', () => {
     expect(() => vi.advanceTimersByTime(700_000)).not.toThrow()
   })
 
+  it('ends a talk whose browser left while it started, and starts none for one that left waiting', async () => {
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    const leaving = (signal: AbortSignal) =>
+      api.inject({
+        method: 'POST',
+        url: path(login, '/talk'),
+        headers: headers(login),
+        payload: { sdp: 'v=0 offer from the browser' },
+        signal,
+      })
+    // The tab closes while OpenAI attaches SALEANE's line.
+    let attached!: () => void
+    voice.state.holdAttach = new Promise<void>((done) => (attached = done))
+    const tab = new AbortController()
+    const first = leaving(tab.signal)
+    while (!voice.starts.length) await new Promise((next) => setImmediate(next))
+    clock += 2000
+    tab.abort()
+    attached()
+    expect((await first).json()).toMatchObject({ status: 'unavailable' })
+    // Nobody can connect to it or end it, so SALEANE ends it and counts only its start-up.
+    expect(voice.lines[0]).toMatchObject({ closed: true })
+    expect(stored(login)).toMatchObject({ used: { talkSeconds: 2 }, holds: [] })
+
+    // A talk running in another tab is not touched by a start whose browser left while it
+    // waited its turn, and OpenAI is not asked.
+    voice.state.holdAttach = undefined
+    const running = (await talk(login)).json<{ id: string }>()
+    voice.state.holdAttach = new Promise<void>((done) => (attached = done))
+    const ahead = talk(login)
+    while (voice.starts.length < 3) await new Promise((next) => setImmediate(next))
+    const waiting = new AbortController()
+    const behind = leaving(waiting.signal)
+    // Its request reaches its turn in the queue before the browser leaves.
+    for (let i = 0; i < 20; i++) await new Promise((next) => setImmediate(next))
+    waiting.abort()
+    attached()
+    expect((await ahead).json()).toMatchObject({ status: 'talking' })
+    expect((await behind).json()).toMatchObject({ status: 'unavailable' })
+    expect(voice.starts).toHaveLength(3)
+    expect((await read(login, running.id)).json()).toMatchObject({ status: 'ended' })
+  })
+
   it('writes nothing once SALEANE has stopped, for a talk still starting when it stopped', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     const voice = fakeVoice()

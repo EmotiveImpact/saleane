@@ -23,6 +23,8 @@ export type InjectOptions = {
   payload?: unknown
   remoteAddress?: string
   rawPayload?: string
+  /** Aborting stands for the browser leaving before the answer: the connection closes. */
+  signal?: AbortSignal
 }
 export type InjectResponse = {
   statusCode: number
@@ -137,6 +139,7 @@ export async function inject(
     return response
   }) as ServerResponse['setHeader']
   const finished = new Promise<void>((resolve) => response.on('finish', resolve))
+  input.signal?.addEventListener('abort', () => response.emit('close'), { once: true })
   await handler(request, response)
   await finished
   const body = Buffer.concat(chunks).toString('utf8')

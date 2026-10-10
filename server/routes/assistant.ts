@@ -20,7 +20,7 @@ export function assistantRoutes() {
   const held = new Map<string, Held>()
   const talking = talks(held)
   const routes = async function assistant(ctx: Context, route: Route): Promise<boolean> {
-    const { request, method, path, body, reply } = route
+    const { request, response, method, path, body, reply } = route
     if (path[1] !== 'workspaces' || path[3] !== 'assistant') return false
     const actor = ctx.actorFor(request, method !== 'GET')
     const org = ctx.orgFor(path[2], actor)
@@ -50,7 +50,16 @@ export function assistantRoutes() {
         .object({ sdp: z.string().min(10).max(30000) })
         .strict()
         .parse(body)
-      const started = await talking.start(ctx, org, actor, allowance, sdp)
+      // The browser can leave while the talk starts (a closed tab, a dropped network). It could
+      // then never connect or end the talk, so one that starts anyway is ended and counted.
+      let left = false
+      const leave = () => {
+        if (!response.writableFinished) left = true
+      }
+      response.on('close', leave)
+      const started = await talking
+        .start(ctx, org, actor, allowance, sdp, () => left || request.socket?.destroyed === true)
+        .finally(() => response.off('close', leave))
       // SALEANE stopped while the talk started: its records are closed, so none are read.
       if (talking.stopping()) {
         reply(200, started)
