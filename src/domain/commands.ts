@@ -58,6 +58,12 @@ import {
   runWaitlistCommand,
   waitlistUnchanged,
 } from './waitlist'
+import {
+  WRITTEN_BY_SALEANE,
+  inviteForCancelled,
+  invitesUnchanged,
+  runInviteCommand,
+} from './cancelledTimes'
 
 export type CommandResult =
   { ok: true; state: BusinessState; recordId: string } | { ok: false; error: string }
@@ -203,6 +209,11 @@ export type ExecuteOptions = {
   giftCardAsOf?: string
   /** NEXT-08: a visit being booked together with others, who may share a room for two. */
   together?: string
+  /**
+   * NEXT-11: one part of a batch, such as a cover plan. SALEANE writes no invitations of its own
+   * for a time the plan frees, since the rest of the plan may close it.
+   */
+  inBatch?: boolean
 }
 
 export function execute(
@@ -218,7 +229,7 @@ export function execute(
       let current = s
       let recordId = ''
       for (const part of command.commands) {
-        const result = execute(current, part as Command, now, makeId)
+        const result = execute(current, part as Command, now, makeId, { inBatch: true })
         if (!result.ok) return result
         current = result.state
         recordId = result.recordId
@@ -514,7 +525,8 @@ export function execute(
         if (reason.length < 2 || reason.length > 300)
           throw new Error('Enter an operational reason between 2 and 300 characters.')
         const leadName = next.clients.find((c) => c.id === appointment.clientId)?.name
-        for (const visit of appointment.status === status ? withIt : [appointment, ...withIt]) {
+        const changed = appointment.status === status ? withIt : [appointment, ...withIt]
+        for (const visit of changed) {
           visit.status = status
           if (status === 'cancelled') closeForCancelledVisit(s, next, visit.id, now)
           const paid = depositPaid(s, visit.id)
@@ -532,6 +544,15 @@ export function execute(
             detail: `${reason}.${others.includes(visit) ? ` Cancelled together with ${leadName ?? 'the guest'}’s visit, booked with it.` : visit !== appointment ? ' Cancelled with the earlier visit of its repeat.' : ''} ${deposit}`,
           })
         }
+        // NEXT-11: SALEANE writes invitations to each time it freed, for the team to approve.
+        if (status === 'cancelled' && !options.inBatch)
+          inviteForCancelled(
+            next,
+            changed.map((visit) => visit.id),
+            now,
+            makeId,
+            addEvent,
+          )
       }
       recordId = appointment.id
     } else if (command.type === 'arrive' || command.type === 'checkout') {
@@ -783,6 +804,10 @@ export function execute(
       const same = waitlistUnchanged(s, command, now)
       if (same) return { ok: true, state: s, recordId: same }
       recordId = runWaitlistCommand(next, command, now, makeId, addEvent)
+    } else if (command.type === 'opening-invite') {
+      const same = invitesUnchanged(s, command)
+      if (same) return { ok: true, state: s, recordId: same }
+      recordId = runInviteCommand(next, command, now, makeId, addEvent)
     } else if (command.type === 'guest-here') {
       const appointment = next.appointments.find((a) => a.id === command.appointmentId)
       if (!appointment) throw new Error('Visit does not belong to this studio.')
@@ -1262,7 +1287,8 @@ export function dispatch(
     const ids = new Set((operations(s)[key] ?? []).map((r) => r.id))
     const records = operations(result.state)[key] ?? []
     records
-      .filter((r) => !ids.has(r.id))
+      // NEXT-11: invitations SALEANE wrote by itself keep its name.
+      .filter((r) => !ids.has(r.id) && r.actor !== WRITTEN_BY_SALEANE)
       .forEach((r) => {
         r.actor = actorName
       })

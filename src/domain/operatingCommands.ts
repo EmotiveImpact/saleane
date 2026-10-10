@@ -23,7 +23,9 @@ import { prepareAccountingExport } from './accounts'
 import { RENT_LIMIT, RENT_PAYMENT_LIMIT } from './rentSchema'
 import { restockReturn } from './retail'
 import { assertSchedulePreserved, scheduleChanges, scheduleSnapshot } from './schedule'
-import { isWaitlistOffer, staleOffer } from './waitlist'
+import { isWaitlistOffer } from './waitlist'
+import { draftStale, isInvitation } from './cancelledTimes'
+import { agreedEverywhere } from './dueBack'
 import { otherLedgerRefund, otherLedgerReference, referenceTaken } from './references'
 
 export function assertMethod(
@@ -366,6 +368,8 @@ export function runOperatingCommand(
     // An offer is checked against the time it names, so its wording is not changed by hand.
     if (old && isWaitlistOffer(next, old.id))
       throw new Error('A waitlist offer cannot be edited. Write a new one from the waitlist.')
+    if (old && isInvitation(next, old.id))
+      throw new Error('An invitation cannot be edited. Write a new one from the waitlist page.')
     if (old && (old.clientId !== command.input.clientId || old.purpose !== command.input.purpose))
       throw new Error('Keep the client and purpose of an existing draft unchanged.')
     if (command.input.purpose === 'marketing' && command.input.channel === 'sms')
@@ -915,7 +919,7 @@ export function runOperatingCommand(
 type DraftMessage = NonNullable<BusinessState['operations']>['messages'][number]
 /** Approves a draft for the outbox, after checking it may go and has somewhere to go. */
 function approveMessage(next: BusinessState, message: DraftMessage, now: string) {
-  const stale = staleOffer(next, message.id, now)
+  const stale = draftStale(next, message.id, now)
   if (stale) throw new Error(stale)
   if (
     message.purpose === 'marketing' &&
@@ -923,6 +927,11 @@ function approveMessage(next: BusinessState, message: DraftMessage, now: string)
   )
     throw new Error(
       'This client has not agreed to marketing emails. Messages about their visits are separate.',
+    )
+  // NEXT-11: an invitation needs the guest's agreement under every record they have.
+  if (message.opening && !agreedEverywhere(next, message.clientId))
+    throw new Error(
+      'This guest no longer agrees to hear from you under another of their records, so the invitation cannot be sent.',
     )
   if (message.approvedAt) throw new Error('This message is already approved.')
   // V1.5: the outbox sends it, so it needs somewhere to go now.

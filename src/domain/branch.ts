@@ -117,6 +117,9 @@ export function branchRefusal(
       return staffLocationOn(s, command.staffId, command.date) === locationId
         ? null
         : 'That person works at another location that day.'
+    case 'opening-invite':
+      // NEXT-11: a time a visit cancelled at their own location left free.
+      return visitHere(command.appointmentId) ? null : ELSEWHERE
     case 'counter-sale':
     case 'stock':
     case 'purchase-order':

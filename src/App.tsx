@@ -21,7 +21,7 @@ import { useStudioColours } from './state/studioColours'
 import { leads, operations } from './domain/operations'
 import { hasLocations, places } from './domain/locations'
 import { regions } from './domain/group'
-import { staleOffer } from './domain/waitlist'
+import { draftStale } from './domain/cancelledTimes'
 import { nudges } from './domain/nudges'
 import { Avatar, Modal, ScrollNav } from './design'
 import { SearchDialog } from './components/SearchDialog'
@@ -156,7 +156,7 @@ function WorkspaceApp() {
   const navigate = useNavigate()
   const openSettings = (section: string) => navigate(`/settings?section=${section}`)
   const [mobileNav, setMobileNav] = useState(false)
-  // Waitlist offers whose time has gone are not counted as waiting for approval.
+  // Waitlist offers and invitations whose time has gone are not counted as waiting for approval.
   const clock = useClock()
   // Read again each minute too, so a waitlist time that has passed stops counting.
   const noticed = useMemo(
@@ -164,7 +164,7 @@ function WorkspaceApp() {
     [state, role, today, clock],
   )
   const drafts = operations(state).messages.filter(
-    (m) => m.status === 'draft' && !staleOffer(state, m.id, clock),
+    (m) => m.status === 'draft' && !draftStale(state, m.id, clock),
   ).length
   // The front desk opens Money, Stock, Rota and Gift cards in Business, not the studio's figures,
   // pay, accounts or private feedback, so their Business link lands on Money.
