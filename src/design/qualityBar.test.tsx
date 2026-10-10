@@ -8,6 +8,8 @@ import { Waitlist } from '../pages/Waitlist'
 import type { BusinessState } from '../domain/model'
 import type { Role } from '../domain/operations'
 import { createWorkspace } from '../domain/workspace'
+import { seed } from '../domain/seed'
+import { dispatch } from '../domain/commands'
 
 // The quality bar (docs/DESIGN_LANGUAGE.md): lovely empty pages, calm loading and options
 // tucked away until asked for, and a new studio never meeting a table or figures at zero.
@@ -121,6 +123,32 @@ describe('a new studio', () => {
     ).toBeVisible()
     expect(screen.queryByText('Waiting now')).toBeNull()
     expect(screen.getAllByRole('button', { name: 'Add to the waitlist' })).toHaveLength(1)
+  })
+  it('keeps the full waitlist once a cancellation leaves a time to fill', () => {
+    const studio = seed('UK')
+    studio.waitlist = []
+    newStudio({ state: studio })
+    const { unmount } = render(
+      <MemoryRouter>
+        <Waitlist />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('heading', { level: 1, name: 'Nobody is waiting yet.' })).toBeVisible()
+    unmount()
+    const cancelled = dispatch(
+      studio,
+      { type: 'cancel', appointmentId: 'visit-zoe', reason: 'Feeling unwell' },
+      'Rae Desk',
+    )
+    if (!cancelled.ok) throw new Error(cancelled.error)
+    newStudio({ state: cancelled.state })
+    render(
+      <MemoryRouter>
+        <Waitlist />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('heading', { level: 1, name: 'Who would take a time.' })).toBeVisible()
+    expect(screen.getByRole('region', { name: 'Cancelled times' })).toBeVisible()
   })
   it('offers no button while the studio is read only', () => {
     newStudio({ blocked: true })

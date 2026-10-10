@@ -7,13 +7,16 @@ import { wholeMoney } from '../domain/format'
 import { waiting, waitlistSummary } from '../domain/waitlist'
 import { Button, Empty, PageHeader, Stat, Stats, photos } from '../design'
 import { PassOnOffers, WaitlistCard, WaitlistForm } from '../components/Waitlist'
+import { CancelledTimes } from '../components/CancelledTimes'
+import { freedSummary, freedTimes } from '../domain/cancelledTimes'
 import { can } from '../domain/operations'
 import '../components/management.css'
 import '../components/waitlist.css'
 
 /**
  * V1.5: everyone waiting for a time, with the openings that would suit them read live from the
- * diary. A cancellation shows here at once as a time someone could take.
+ * diary. A cancellation shows here at once as a time someone could take. NEXT-11: above them, the
+ * times cancellations left free, with guests who might like each one.
  */
 export function Waitlist() {
   const { state, role, blocked } = useStore()
@@ -30,10 +33,16 @@ export function Waitlist() {
         </Empty>
       </div>
     )
-  const summary = waitlistSummary(state, feedbackSince(state, 30), clock)
+  const since = feedbackSince(state, 30)
+  const summary = waitlistSummary(state, since, clock)
   const rows = waiting(state, clock).sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-  // Before anyone has used the list, one welcoming page replaces three figures at zero.
-  const unused = !rows.length && !summary.filled
+  // Before anyone has used the list or a cancellation has left a time free, one welcoming page
+  // replaces three figures at zero and two empty panels.
+  const unused =
+    !rows.length &&
+    !summary.filled &&
+    !freedTimes(state, clock).length &&
+    !freedSummary(state, since).freed
   const add = allowed && (
     <Button onClick={() => setAdding(true)}>
       <Plus size={16} aria-hidden="true" /> Add to the waitlist
@@ -71,6 +80,7 @@ export function Waitlist() {
               value={wholeMoney(summary.valueMinor, state.organisation)}
             />
           </Stats>
+          <CancelledTimes />
           <PassOnOffers />
           <section className="surface ops-panel" aria-labelledby="waiting-heading">
             <header>

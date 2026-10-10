@@ -6,6 +6,8 @@ export { Avatar, Button, Empty, ErrorMessage, Metric, Status } from './component
 export { Definition } from './components/Definition'
 export { Stat, Stats } from './components/Stats'
 export { Modal } from './components/Modal'
+export { ChoiceTiles, WizardFooter, WizardSteps } from './components/Wizard'
+export { useWizardStep } from './components/useWizardStep'
 export { PageHeader } from './components/PageHeader'
 export { SegmentedControl } from './components/SegmentedControl'
 export { Tabs } from './components/Tabs'

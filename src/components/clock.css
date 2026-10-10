@@ -1,0 +1,180 @@
+/*
+ * NEXT-07: clocking in and out, and hours worked. Lists are rows with a hairline between them,
+ * never boxes inside the panel.
+ */
+.clock-team,
+.hours-list,
+.hours-shifts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.clock-team > li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--line);
+}
+.clock-team > li:first-child {
+  border-top: 0;
+}
+.clock-who {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+.clock-who strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.clock-who small,
+.hours-person small,
+.hours-shifts small {
+  color: var(--muted);
+}
+.clock-out {
+  display: grid;
+  gap: var(--space-5);
+}
+.clock-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.team-today-clock {
+  width: 100%;
+  margin-top: var(--space-4);
+}
+.team-today-list .team-today-in {
+  color: var(--brand-ink);
+}
+
+/* On a practitioner's own day: their clock, in one line under the heading. */
+.practitioner-clock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-5);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.practitioner-clock p {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--muted);
+}
+.practitioner-clock p strong {
+  color: var(--ink);
+}
+
+/* Pay: hours worked for each person, and their shifts when opened. */
+.hours-person {
+  border-top: 1px solid var(--line);
+}
+.hours-person:first-child {
+  border-top: 0;
+}
+.hours-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-areas: 'face who total action';
+  align-items: center;
+  gap: var(--space-1) var(--space-4);
+  padding: var(--space-3) 0;
+}
+.hours-row > .avatar {
+  grid-area: face;
+}
+.hours-row > .clock-who {
+  grid-area: who;
+}
+.hours-row > .hours-total {
+  grid-area: total;
+}
+.hours-row > .button {
+  grid-area: action;
+}
+.hours-total {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-strong);
+  white-space: nowrap;
+}
+.hours-missing {
+  color: var(--rose-ink);
+}
+.hours-shifts {
+  margin: 0 0 var(--space-4) calc(32px + var(--space-4));
+}
+.hours-shifts > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-areas: 'when total action';
+  align-items: center;
+  gap: 0 var(--space-4);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--line);
+}
+.hours-shifts > li > span:first-child {
+  grid-area: when;
+  display: grid;
+  min-width: 0;
+}
+.hours-shifts > li > .hours-total {
+  grid-area: total;
+  justify-self: end;
+}
+.hours-shifts > li > .button {
+  grid-area: action;
+}
+.hours-form {
+  display: grid;
+  gap: var(--space-5);
+}
+.hours-form .hours-times {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.hours-form .hours-remove {
+  margin-left: auto;
+}
+@media (max-width: 640px) {
+  /* The total moves under the name, so the row keeps one line of words and its button. */
+  .hours-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'face who action'
+      'face total action';
+  }
+  .hours-row > .hours-total {
+    justify-self: start;
+  }
+  .hours-shifts {
+    margin-left: 0;
+  }
+  .hours-shifts > li {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'when total'
+      'when action';
+  }
+  .hours-shifts > li > .button {
+    justify-self: end;
+  }
+  .hours-form .hours-times {
+    grid-template-columns: 1fr 1fr;
+  }
+  .hours-form .hours-times > label:last-child {
+    grid-column: 1 / -1;
+  }
+  .clock-actions > .button-primary,
+  .hours-form .clock-actions > .button-primary {
+    flex: 1 1 100%;
+  }
+}

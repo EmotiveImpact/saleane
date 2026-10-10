@@ -395,3 +395,32 @@ describe('general manager access (V5)', () => {
     expect((await get(owner, '/team')).json<{ members: unknown[] }>().members).toHaveLength(2)
   })
 })
+
+describe('clocking in at the location a general manager runs (NEXT-07)', () => {
+  it('clocks in only the people working there today, and shows only their hours', async () => {
+    const { owner, islington, nia } = await twoSites()
+    const gia = await general(owner, 'gia@example.invalid', islington)
+    let state = await studio(owner)
+    // The sample studio's own fortnight of hours is all at the main location.
+    expect(state.operations!.shifts!.length).toBeGreaterThan(0)
+    const elsewhere = await run(gia, state.revision, { type: 'clock-in', staffId: 'staff-maya' })
+    expect(elsewhere.statusCode).toBe(403)
+    expect(elsewhere.json().error).toBe('That person works at another location today.')
+    await ok(gia, state.revision, { type: 'clock-in', staffId: nia })
+    state = await studio(owner)
+    expect(state.operations!.shifts!.at(-1)).toMatchObject({
+      staffId: nia,
+      locationId: islington,
+      actor: 'Gia General',
+    })
+    const theirs = (await get(gia)).json<{ state: BusinessState }>().state
+    expect(theirs.operations!.shifts!.map((x) => x.staffId)).toEqual([nia])
+    // Putting hours right is for owners and managers.
+    const fix = await run(gia, state.revision, {
+      type: 'shift-remove',
+      shiftId: state.operations!.shifts!.at(-1)!.id,
+      reason: 'Not needed',
+    })
+    expect(fix.statusCode).toBe(403)
+  })
+})

@@ -19,6 +19,11 @@
 .practitioner-header small {
   color: var(--muted);
 }
+.practitioner-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .practitioner-main {
   max-width: 1120px;
   margin: 0 auto;
@@ -344,6 +349,20 @@
   }
   .practitioner-header {
     gap: 12px;
+  }
+  /* The word stays as the button's accessible name. */
+  .help-open .help-open-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+  .help-open {
+    min-width: var(--target);
+    padding-left: 10px;
+    padding-right: 10px;
   }
   .practitioner-next-card {
     padding: 16px;

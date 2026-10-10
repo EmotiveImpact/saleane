@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto'
+import { staleInvitation } from '../../src/domain/cancelledTimes'
+import { agreedEverywhere } from '../../src/domain/dueBack'
 import {
   BOOK_LINK,
   MANAGE_LINK,
@@ -251,10 +253,16 @@ export function createOutbox(ctx: Context, providers: Providers) {
         const message = operations(org.state).messages.find((m) => messageSlot(m.id) === fresh.slot)
         if (!message || message.status !== 'queued')
           return skip('Stopped or changed before it went out.')
-        if (message.purpose === 'marketing' && !client.marketingConsent)
+        if (
+          message.purpose === 'marketing' &&
+          (!client.marketingConsent || (message.opening && !agreedEverywhere(org.state, client.id)))
+        )
           return skip('Email news was no longer agreed before it went out.')
         if (message.purpose === 'appointment' && appointmentMessagesOff(client, fresh.channel))
           return skip('Turned off for this client before it went out.')
+        // NEXT-11: an invitation to a freed time goes only while that time is still free.
+        if (staleInvitation(org.state, message.id, new Date(now()).toISOString()))
+          return skip('The time was booked, or had passed, before it went out.')
         const to = fresh.channel === 'email' ? client.email.trim() : textNumber(client.phone)
         if (!to) return skip('The client has no address for this channel now.')
         const body = message.body.replaceAll(BOOK_LINK, `${ctx.allowedOrigin}/book/${org.slug}`)
