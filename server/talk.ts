@@ -342,6 +342,24 @@ export function talks(held: Map<string, Held>) {
       close(ctx, talk)
     },
 
+    /**
+     * SALEANE is stopping: every talk still followed is asked to end, counted on SALEANE's own
+     * clock and let go at once, before the database closes, so nothing keeps listening, holds the
+     * process open or writes afterwards.
+     */
+    stopAll(ctx: Context) {
+      for (const talk of open.values()) {
+        if (talk.released) continue
+        talk.talk.stop()
+        try {
+          talk.line?.close()
+        } catch {
+          // The line has gone already.
+        }
+        finish(ctx, talk, 'shutdown')
+      }
+    },
+
     /** What the panel shows: the time left, and each question with its answer and suggestions. */
     view(ctx: Context, talk: Talk) {
       const ended = talk.endedAt !== undefined

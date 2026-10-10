@@ -640,6 +640,31 @@ describe('a talk', () => {
     expect(stored(login).spendByDay[day]).toBe(again)
   })
 
+  it('ends and counts every talk still running when SALEANE stops, before its records close', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    await talk(login)
+    clock += 40_000
+    const db = api.database
+    const closeRecords = db.close.bind(db)
+    let counted: Usage | undefined
+    db.close = () => {
+      counted = stored(login)
+      closeRecords()
+    }
+    api.close()
+    // Closed here, so not again after the test.
+    api = undefined as unknown as ApiHandler
+    expect(voice.lines[0]).toMatchObject({ closed: true, detached: true })
+    // Counted at its 40 seconds while the records were still open, not left held.
+    expect(counted!.used.talkSeconds).toBe(40)
+    expect(counted!.holds ?? []).toEqual([])
+    // Nothing is left to run against the closed records.
+    expect(() => vi.advanceTimersByTime(700_000)).not.toThrow()
+  })
+
   it('replaces a talk left open, follows a dropped one to end it, and keeps each to its person', async () => {
     const voice = fakeVoice()
     start(claude(anthropic([]).fetcher), voice.layer)

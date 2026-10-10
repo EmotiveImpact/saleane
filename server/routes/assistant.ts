@@ -19,7 +19,7 @@ import type { Command } from '../../src/domain/commands'
 export function assistantRoutes() {
   const held = new Map<string, Held>()
   const talking = talks(held)
-  return async function assistant(ctx: Context, route: Route): Promise<boolean> {
+  const routes = async function assistant(ctx: Context, route: Route): Promise<boolean> {
     const { request, method, path, body, reply } = route
     if (path[1] !== 'workspaces' || path[3] !== 'assistant') return false
     const actor = ctx.actorFor(request, method !== 'GET')
@@ -157,4 +157,6 @@ export function assistantRoutes() {
     }
     return fail(404, 'This endpoint was not found.')
   }
+  /** Ends every talk still running, as SALEANE stops. */
+  return Object.assign(routes, { stop: (ctx: Context) => talking.stopAll(ctx) })
 }
