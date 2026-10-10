@@ -199,6 +199,11 @@ describe('help inside the app', () => {
       'news-who',
       'news-approve',
     ])
+    // Stage 5: a lower price for a quiet time.
+    expect(first('discount a quiet time')).toBe('quiet-offers')
+    expect(first('cheaper off peak price')).toBe('quiet-offers')
+    expect(first('lower price for a gap', 'reception')).toBe('quiet-offers')
+    expect(ids(searchHelp('discount quiet time', 'practitioner'))).not.toContain('quiet-offers')
     expect(searchHelp('the', 'owner')).toEqual([])
     expect(searchHelp('rocket launch', 'owner')).toEqual([])
     expect(helpWords("Customer's bookings")).toEqual(['client', 'visit'])

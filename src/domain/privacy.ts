@@ -144,6 +144,8 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
       bookedAt: a.createdAt,
       bookedPriceMinor: a.bookedPriceMinor,
       bookedDepositMinor: a.bookedDepositMinor,
+      // Stage 5: booked at a quiet-time price, below the usual price then.
+      ...(a.bookedOffer ? { quietTimeUsualPriceMinor: a.bookedOffer.usualPriceMinor } : {}),
       durationMinutes: a.bookedDurationMinutes,
       ...(a.rebookedFromId && ref.has(a.rebookedFromId)
         ? { rebookedFrom: ref.get(a.rebookedFromId) }
@@ -758,7 +760,7 @@ export function clientExportText(file: ClientExport, locale = 'en-GB') {
     `VISITS (${file.visits.length})`,
     ...file.visits.map(
       (v) =>
-        `${v.visit} · ${v.date} ${v.time} · ${v.service} with ${v.professional} · ${v.status} · booked at ${amount(v.bookedPriceMinor, cur, locale)}`,
+        `${v.visit} · ${v.date} ${v.time} · ${v.service} with ${v.professional} · ${v.status} · booked at ${amount(v.bookedPriceMinor, cur, locale)}${v.quietTimeUsualPriceMinor === undefined ? '' : `, a quiet-time price (usually ${amount(v.quietTimeUsualPriceMinor, cur, locale)})`}`,
     ),
     '',
     `RECEIPTS (${file.receipts.length})`,

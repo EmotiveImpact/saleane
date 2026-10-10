@@ -35,6 +35,8 @@ import { rotaProblem } from './rota'
 import { staffMovesProblem } from './staffMoves'
 import { timeOffProblem } from './timeOff'
 import { newsProblem } from './news'
+import { bookedOfferSchema } from './quietOffersSchema'
+import { quietOffersProblem } from './quietOffers'
 export { paymentMethodSchema, paymentMethods, processorSchema } from './paymentMethods'
 
 export const DEMO_DATE = '2026-10-06'
@@ -225,6 +227,11 @@ export const appointmentSchema = z.object({
     .object({ id, lead: z.literal(true).optional() })
     .strict()
     .optional(),
+  /**
+   * Stage 5: booked at a quiet-time price from an invitation's private link: which invitation, and
+   * the usual price then. `bookedPriceMinor` is the lower price, which checkout charges.
+   */
+  bookedOffer: bookedOfferSchema.optional(),
 })
 export const saleSchema = z.object({
   ...scoped,
@@ -746,6 +753,9 @@ export function parseState(value: unknown, region: Region): BusinessState {
   if (away) throw new Error(away)
   const news = newsProblem(s)
   if (news) throw new Error(news)
+  // Stage 5: a quiet-time price is below the usual price and booked once at most.
+  const offers = quietOffersProblem(s)
+  if (offers) throw new Error(offers)
   try {
     new Intl.DateTimeFormat('en', { timeZone: org.timeZone }).format(new Date())
   } catch {

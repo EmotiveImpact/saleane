@@ -98,6 +98,12 @@ export type HoldAllocation = z.infer<typeof holdInput> & {
   resourceType: string
   /** The tax setting shown when the time was held. Absent on holds made before it was kept. */
   tax?: Tax | null
+  /**
+   * Stage 5: held at a quiet-time price from the guest's invitation. `price` is then the lower
+   * price, and the usual price it was below is kept so the booking checks it has not changed.
+   * The link is kept only as its hash.
+   */
+  offer?: { messageId: string; tokenHash: string; usualPriceMinor: number }
 }
 export type HoldRow = {
   id: string

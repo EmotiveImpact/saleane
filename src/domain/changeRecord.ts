@@ -10,6 +10,7 @@ import { giftMoveDetail } from './giftCards'
 import { staffMoveDetail } from './staffMoves'
 import { timeOffChangeDetail } from './timeOff'
 import { signOffChangeDetail } from './signoffs'
+import { defaultQuietOffers } from './quietOffersSchema'
 
 /**
  * NEXT-05: who changed what. Every saved change is already written to the studio's audit log
@@ -182,6 +183,9 @@ const commandWords: Record<Command['type'], Words> = {
   'news-stop': ['messages', 'Stopped a message to clients'],
   'news-discard': ['messages', 'Put aside a message to clients'],
   'news-unsubscribe': ['clients', 'Stopped news from the link in a message'],
+  // Stage 5: a lower price for a quiet time.
+  'quiet-offers': ['settings', 'Changed the lower price for quiet times'],
+  'offer-invite': ['messages', 'Wrote an invitation to a quiet time at a lower price'],
 }
 
 /** Changes the server makes or records itself. */
@@ -328,6 +332,8 @@ const listed = new Set([
   // Stage 4: how a request was answered, and which rota changes need a sign-off.
   'outcome',
   'rotaSignOff',
+  // Stage 5: whether quiet times carry a lower price, and of which kind.
+  'discount',
 ])
 const named = new Set(['name', 'title', 'label'])
 const civilDate = /^\d{4}-\d{2}-\d{2}$/
@@ -385,6 +391,8 @@ const settingsOf: Partial<Record<string, (s: BusinessState) => unknown>> = {
   'house-rules': (s) => s.operations?.houseRules,
   'benchmark-sharing': (s) => s.operations?.benchmark,
   'group-checks': (s) => s.operations?.groupChecks,
+  // Stage 5: the first change reads against the setting as it stood, off.
+  'quiet-offers': (s) => s.operations?.quietOffers ?? defaultQuietOffers,
 }
 
 function compare(
@@ -582,6 +590,12 @@ const fieldWords: Record<string, string> = {
   toEmail: 'clients by email',
   toText: 'clients by text',
   leftOut: 'clients left out',
+  discount: 'lower price for quiet times',
+  offPercent: 'percentage off',
+  offMinor: 'amount off',
+  floorMinor: 'never below',
+  openHours: 'how long an offer stays open',
+  leftOutIds: 'treatments left out',
 }
 /** A detail's name in words: "cutoffHours" reads "cutoff hours". */
 export function fieldName(field: string) {
@@ -679,6 +693,8 @@ function valueText(s: BusinessState, names: RecordNames, f: string, v: Value) {
   }
   if (f === 'access') return v === 'remove' ? 'removed' : (roleNames[v as Role] ?? v)
   if (f === 'status') return statusWords[v] ?? v
+  if (f === 'discount')
+    return v === 'none' ? 'no lower price' : v === 'percent' ? 'a percentage off' : 'an amount off'
   if (f === 'rotaSignOff') return v === 'extra' ? 'extra days' : v === 'all' ? 'every change' : v
   if (f === 'method') return METHOD_WORDS[v] ?? v.replace(/_/g, ' ')
   if (/Id$/.test(f)) return names(v) ?? 'one no longer listed'

@@ -196,7 +196,9 @@ export function GuestMove({
         <p>
           {view.move.reason === 'cutoff'
             ? `It is less than ${GUEST_CANCEL_CUTOFF_HOURS} hours until your visit, so it can no longer be moved online. To change it, contact the studio.`
-            : 'To move your visit, contact the studio.'}
+            : view.move.reason === 'offer'
+              ? 'This visit was booked at a quiet-time price for that time only, so it cannot be moved online. To change it, contact the studio.'
+              : 'To move your visit, contact the studio.'}
         </p>
       </div>
     )

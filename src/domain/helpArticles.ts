@@ -403,6 +403,25 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     roles: DESK,
     words: 'cancellation cancelled gap free time fill invite invitation empty slot',
   },
+  {
+    id: 'quiet-offers',
+    title: 'Offer a discount on a quiet time',
+    group: 'The day',
+    summary:
+      'Invite guests to a quiet or freed time at a lower price, for that time only, booked once.',
+    steps: [
+      'The owner opens Settings, then Messages. Under A lower price for quiet times, choose a percentage off or an amount off, the price no lower price goes under, and how long each one stays open. Treatments left out never carry one.',
+      'From then on, invitations carry the lower price: those to a time a cancellation freed, on Waitlist, and those to an open time on Today, from Prepare an invitation under Drifting away.',
+      'In the Inbox each invitation shows its usual price and its lower price. Nothing is sent until you approve it there.',
+      'The guest books through the private link in their email, for that time only and once. The visit, checkout and receipt say Quiet-time price and how much it was off.',
+    ],
+    note: 'Changing the setting never changes an invitation already written. A lower price ends after the hours chosen or as the time starts, and an invitation is not sent once its lower price has ended or the treatment’s price has changed. The deposit is worked out from the lower price. Only the owner sets it; whoever writes and approves invitations today still does. While email is not connected, approved invitations are queued and nothing is sent.',
+    to: '/settings?section=messages',
+    screens: ['/settings?section=messages', '/waitlist'],
+    roles: DESK,
+    words:
+      'discount quiet time lower price offer cheaper off peak promotion deal special percentage reduced',
+  },
   // Clients
   {
     id: 'add-client',

@@ -29,6 +29,9 @@ import { guestPhone, phoneProblem } from '../../src/domain/phone'
 import { GUEST_CANCEL_CUTOFF_HOURS } from '../../src/domain/guest'
 import { BOOKING_DAYS, NEXT_FREE_DAYS, STRIP_DAYS } from '../../src/domain/bookingTerms'
 import { guestPaymentFor } from '../payments/service'
+import { OFFER_UNKNOWN, readOffer, spendOffer } from '../offers'
+import { offerEnds, offerMatches } from '../../src/domain/quietOffers'
+import { OFFER_GONE, offerTimeWords } from '../../src/domain/quietInvites'
 
 /**
  * The open locations a guest can book at: somewhere a treatment is offered, someone who does it
@@ -214,6 +217,37 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
       }
       return true
     }
+    // Stage 5: the quiet-time price a guest's private link carries, read before they choose. The
+    // same for a link that never existed, was revoked or ended, so a guess reveals nothing.
+    if (path[3] === 'offer' && path.length === 4 && method === 'POST') {
+      rateLimit(request, 'public-offer', 30, 5 * 60000)
+      const data = z
+        .object({ offer: z.string().min(1).max(200) })
+        .strict()
+        .parse(body)
+      const org = publicOrg(slug)
+      const open = readOffer(ctx, org, data.offer)
+      if (!open.ok) {
+        reply(200, { problem: open.problem })
+        return true
+      }
+      const { opening, offer } = open
+      reply(200, {
+        offer: {
+          serviceId: opening.serviceId,
+          staffId: opening.staffId,
+          ...(opening.locationId ? { locationId: opening.locationId } : {}),
+          date: opening.date,
+          startMinutes: opening.startMinutes,
+          priceMinor: offer.priceMinor,
+          usualPriceMinor: offer.usualPriceMinor,
+          endsAt: offer.endsAt,
+          ends: offerEnds(org.state, offer, open.writtenAt),
+          time: offerTimeWords(org.state, opening),
+        },
+      })
+      return true
+    }
     if (path[3] === 'holds' && path[4] === 'release' && path.length === 5 && method === 'POST') {
       rateLimit(request, 'public-write', 20, 5 * 60000)
       const data = z
@@ -238,10 +272,17 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
       rateLimit(request, 'public-write', 20, 5 * 60000)
       rateLimit(request, 'public-hold-minute', limits.HOLDS_PER_MINUTE, 60000)
       rateLimit(request, 'public-hold-hour', limits.HOLDS_PER_HOUR, 60 * 60000)
-      const { replaces, botCheck, ...data } = holdInput
+      const {
+        replaces,
+        botCheck,
+        offer: offerToken,
+        ...data
+      } = holdInput
         .extend({
           replaces: z.string().min(32).max(100).optional(),
           botCheck: z.string().min(1).max(2048).optional(),
+          /** Stage 5: the private link of an invitation with a quiet-time price. */
+          offer: z.string().min(1).max(200).optional(),
         })
         .parse(body)
       // The check runs before any write; a studio that switched it on never takes an unchecked hold.
@@ -253,6 +294,8 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
         visitor = visitorFor(request)
       let expires = 0,
         heldWith = ''
+      let heldOffer: { priceMinor: number; usualPriceMinor: number } | undefined
+      let offerProblem: string | undefined
       db.transaction(() => {
         const time = now()
         const org = publicOrg(slug)
@@ -293,15 +336,45 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
         const service = org.state.services.find((service) => service.id === data.serviceId)!
         // V2: the price where the visit will be, which can differ between locations.
         const place = data.locationId ?? staffLocationOn(org.state, allocation.staffId, data.date)
+        const usual = serviceAt(service, place).priceMinor
+        // Stage 5: a quiet-time price holds only for exactly its time; otherwise the time is held
+        // at the usual price and the guest is told why before they confirm.
+        let offer: HoldAllocation['offer']
+        heldOffer = undefined
+        offerProblem = undefined
+        if (offerToken) {
+          const open = readOffer(ctx, org, offerToken)
+          if (!open.ok) offerProblem = open.problem
+          else if (
+            !offerMatches(org.state, open.opening, {
+              serviceId: data.serviceId,
+              staffId: allocation.staffId,
+              date: data.date,
+              startMinutes: data.startMinutes,
+              locationId: place,
+            })
+          )
+            offerProblem = `This quiet-time price is for ${offerTimeWords(org.state, open.opening)} only.`
+          else if (open.offer.usualPriceMinor !== usual) offerProblem = OFFER_UNKNOWN
+          else {
+            offer = {
+              messageId: open.messageId,
+              tokenHash: open.tokenHash,
+              usualPriceMinor: usual,
+            }
+            heldOffer = { priceMinor: open.offer.priceMinor, usualPriceMinor: usual }
+          }
+        }
         const input: HoldAllocation = {
           ...data,
           ...allocation,
           duration: service.durationMinutes,
           buffer: service.bufferMinutes,
-          price: serviceAt(service, place).priceMinor,
+          price: heldOffer ? heldOffer.priceMinor : usual,
           deposit: service.depositMinor,
           resourceType: service.resourceType,
           tax: operations(org.state).tax ?? null,
+          ...(offer ? { offer } : {}),
         }
         db.run(
           'INSERT INTO booking_holds(token_hash,id,organisation_id,input,expires_at,visitor) VALUES(?,?,?,?,?,?)',
@@ -314,7 +387,13 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
         )
       })
       // Who the time is with, so a guest who chose "no preference" sees who they will meet.
-      reply(201, { hold: raw, expiresAt: new Date(expires).toISOString(), staffId: heldWith })
+      reply(201, {
+        hold: raw,
+        expiresAt: new Date(expires).toISOString(),
+        staffId: heldWith,
+        ...(heldOffer ? { offer: heldOffer } : {}),
+        ...(offerProblem ? { offerProblem } : {}),
+      })
       return true
     }
     if (path[3] === 'book' && path.length === 4 && method === 'POST') {
@@ -378,7 +457,7 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
             service,
             allocation.locationId ??
               staffLocationOn(org.state, allocation.staffId, allocation.date),
-          ).priceMinor !== allocation.price ||
+          ).priceMinor !== (allocation.offer?.usualPriceMinor ?? allocation.price) ||
           service.depositMinor !== allocation.deposit ||
           service.resourceType !== allocation.resourceType ||
           (allocation.tax !== undefined &&
@@ -389,6 +468,17 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
             'This service changed during the reservation. Review it and choose a time again.',
           )
         chooseStaff(withHolds(org, hash), allocation, allocation.resourceId)
+        // Stage 5: a quiet-time price's link must still be unused and not revoked as it is booked.
+        if (
+          allocation.offer &&
+          !db.get(
+            'SELECT 1 FROM offer_links WHERE token_hash=? AND organisation_id=? AND used_at IS NULL AND revoked_at IS NULL AND expires_at>?',
+            allocation.offer.tokenHash,
+            org.id,
+            now(),
+          )
+        )
+          fail(409, `${OFFER_GONE} You can still book this time at the usual price.`)
         const command = commandSchema.parse({
           type: 'book',
           input: {
@@ -406,8 +496,17 @@ export async function publicRoutes(ctx: Context, route: Route): Promise<boolean>
               : {}),
           },
         })
-        const result = dispatch(org.state, command, 'Guest booking', new Date(now()).toISOString())
-        if (!result.ok) fail(422, result.error)
+        const result = dispatch(
+          org.state,
+          command,
+          'Guest booking',
+          new Date(now()).toISOString(),
+          allocation.offer ? { offer: { messageId: allocation.offer.messageId } } : {},
+        )
+        if (!result.ok)
+          fail(allocation.offer && /quiet-time price/.test(result.error) ? 409 : 422, result.error)
+        // The link is used by this visit in the same transaction, so a retry never takes it twice.
+        if (allocation.offer) spendOffer(ctx, org.id, allocation.offer.tokenHash, result.recordId)
         persist(org, result.state, null, 'public.book', result.recordId)
         db.run(
           'UPDATE booking_holds SET appointment_id=?,fingerprint=? WHERE token_hash=?',

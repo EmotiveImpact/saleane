@@ -3,6 +3,8 @@ import { fail } from '../http'
 import { can } from '../../src/domain/operations'
 import { MANAGE_LINK } from '../../src/domain/reminders'
 import { NEWS_STOP_LINK } from '../../src/domain/news'
+import { OFFER_LINK } from '../../src/domain/quietOffersSchema'
+import { shownBody } from '../../src/domain/cancelledTimes'
 import { repliesList } from '../../src/domain/inbox'
 import type { BusinessState } from '../../src/domain/model'
 import type { Context, Route } from '../context'
@@ -37,9 +39,13 @@ function view(row: OutboxRow, linked: Map<string, string>) {
     channel: row.channel,
     recipient: row.recipient,
     subject: row.subject,
-    body: row.body
-      .replaceAll(MANAGE_LINK, '[private link to manage the visit]')
-      .replaceAll(NEWS_STOP_LINK, '[private link to stop news]'),
+    body: (row.kind === 'message' ? shownBody : (body: string) => body)(
+      row.body
+        .replaceAll(MANAGE_LINK, '[private link to manage the visit]')
+        .replaceAll(NEWS_STOP_LINK, '[private link to stop news]'),
+    )
+      // Stage 5: an invitation's private link to its quiet-time price is never stored either.
+      .replaceAll(OFFER_LINK, ''),
     status: row.status,
     provider: row.provider,
     detail: row.detail,

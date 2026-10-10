@@ -127,6 +127,15 @@ function snapshot(source: string, destination: string, restore: boolean) {
               .prepare('UPDATE diary_links SET stopped_at=? WHERE stopped_at IS NULL')
               .run(time).changes,
           ),
+          // Stage 5: a quiet-time price booked since the backup would be unused again in the
+          // restored record, so no link from before the restore books a lower price.
+          offerLinksStopped: Number(
+            recovered
+              .prepare(
+                'UPDATE offer_links SET revoked_at=? WHERE revoked_at IS NULL AND used_at IS NULL',
+              )
+              .run(time).changes,
+          ),
           connectionsTurnedOff: Number(
             recovered
               .prepare('UPDATE connections SET active=0,updated_at=? WHERE active=1')

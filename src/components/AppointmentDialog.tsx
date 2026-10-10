@@ -19,6 +19,7 @@ import type { Command } from '../domain/commands'
 import { hasLocations, places, staffLocationOn } from '../domain/locations'
 import { depositPaid, rescheduleSlots } from '../domain/commands'
 import { addDays, dateLabel, fullDateLabel, money, timeLabel } from '../domain/format'
+import { bookedOfferLine } from '../domain/quietOffers'
 import { checkoutTotals, minorInput, parseMinor } from '../domain/money'
 import { coverPreview, holdings, memberDiscountPercent, plansForVisit } from '../domain/plans'
 import { priceRetail, retailCharge } from '../domain/retail'
@@ -408,6 +409,8 @@ export function AppointmentDialog({
       )}
     </>
   )
+  // Stage 5: "Quiet-time price, £19 off £95" for a visit booked from an invitation with one.
+  const offerLine = bookedOfferLine(state, appointment)
   // The treatment as a line of the bill, with its photograph and who gives it.
   const serviceLine = (price: number) => (
     <div className="receipt-line visit-service-line">
@@ -422,6 +425,7 @@ export function AppointmentDialog({
           <small>
             {appointment.bookedDurationMinutes} minutes with {staff.name}
           </small>
+          {offerLine && <small>{offerLine}</small>}
         </span>
       </span>
       <strong>{money(price, state.organisation, true)}</strong>
@@ -1228,6 +1232,18 @@ export function AppointmentDialog({
               <span>Treatment</span>
               <strong>{money(appointment.bookedPriceMinor, state.organisation)}</strong>
             </div>
+            {appointment.bookedOffer && (
+              <div className="receipt-line subtle">
+                <span>Quiet-time price</span>
+                <span>
+                  {money(
+                    appointment.bookedOffer.usualPriceMinor - appointment.bookedPriceMinor,
+                    state.organisation,
+                  )}{' '}
+                  off {money(appointment.bookedOffer.usualPriceMinor, state.organisation)}
+                </span>
+              </div>
+            )}
             <div className="receipt-line subtle">
               <span>{sandbox ? 'Demo deposit recorded' : 'Deposit recorded'}</span>
               <span>{money(deposit, state.organisation)}</span>
