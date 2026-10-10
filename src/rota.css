@@ -330,9 +330,14 @@
 }
 .rota-columns {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  /* Two panels side by side at most, so neither is squeezed into a narrow column. */
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 22px;
   margin-top: 22px;
+}
+/* Stage 4: moving between locations runs the full width under the other two. */
+.rota-columns > .rota-moves {
+  grid-column: 1 / -1;
 }
 .rota-columns > *,
 .rota-columns > .ops-panel + .ops-panel {

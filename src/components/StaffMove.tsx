@@ -464,7 +464,7 @@ export function StaffMovesPanel({ onNotice }: { onNotice: (message: string) => v
     .sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt))
   const someone = state.staff.some((p) => !p.archived && moveDestinations(state, p.id).length > 0)
   return (
-    <section className="surface ops-panel" aria-labelledby="moves-heading">
+    <section className="surface ops-panel rota-moves" aria-labelledby="moves-heading">
       <header>
         <div>
           <h2 id="moves-heading">Moving between locations</h2>

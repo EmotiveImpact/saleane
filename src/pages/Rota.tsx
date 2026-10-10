@@ -382,7 +382,6 @@ export function Rota() {
             <p className="subtle">Nobody has time off recorded.</p>
           )}
         </section>
-        {(multiSite || staffMoves(state).length > 0) && <StaffMovesPanel onNotice={setNotice} />}
         <section className="surface ops-panel" aria-labelledby="holiday-heading">
           <header>
             <div>
@@ -428,6 +427,8 @@ export function Rota() {
             })}
           </div>
         </section>
+        {/* Moves are rare, so they come last and run the full width under the two panels. */}
+        {(multiSite || staffMoves(state).length > 0) && <StaffMovesPanel onNotice={setNotice} />}
       </div>
       {(adding || editingAway) && (
         <TimeOffDialog
