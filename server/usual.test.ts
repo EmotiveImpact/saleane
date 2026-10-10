@@ -253,7 +253,8 @@ describe('my usual through the server', () => {
     for (const secret of [
       desk,
       online,
-      'Rosa',
+      // Stage 6: only her first name comes back, for the label on her visit.
+      'Rosa Field',
       'Field',
       'rosa@example.invalid',
       '900456',

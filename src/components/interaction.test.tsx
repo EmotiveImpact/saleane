@@ -222,7 +222,11 @@ describe('connected operator journeys', () => {
     await user.click(screen.getByRole('button', { name: '15%' }))
     await user.click(screen.getByRole('button', { name: 'Record demo payment' }))
     const dialog = screen.getByRole('dialog')
-    expect(within(dialog).getByText('£84.25')).toBeInTheDocument()
+    // Stage 6: the amount collected heads the receipt under "Settled.", and closes its total line.
+    expect(within(dialog).getAllByText('£84.25')).toHaveLength(2)
+    expect(
+      within(within(dialog).getByRole('region', { name: 'Settled.' })).getByText('£84.25'),
+    ).toBeInTheDocument()
     const rebook = within(dialog).getByRole('button', { name: 'Rebook this client' })
     // The next visit comes before the receipt's own buttons, so a printed receipt never hides it.
     const print = within(dialog).getByRole('button', { name: 'Print receipt' })

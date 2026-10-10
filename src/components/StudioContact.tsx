@@ -2,6 +2,8 @@ import { useId } from 'react'
 import { ExternalLink, Mail, MapPin, Phone } from 'lucide-react'
 import type { Region } from '../domain/model'
 import { directionsLink, phoneLink } from '../domain/studioContact'
+import { studioMap } from '../domain/maps'
+import { StudioMap } from './StudioMap'
 import './studioContact.css'
 
 export type StudioContactDetails = {
@@ -15,18 +17,24 @@ export type StudioContactDetails = {
 }
 
 /**
- * Where the studio is and how to reach it: its name and address with directions (a maps search,
- * no embedded map), and its phone and email when it gave them. With neither, the guest is told
- * to reply to their confirmation email, so "contact the studio" never leads nowhere.
+ * Where the studio is and how to reach it: its name and address with directions (a maps search),
+ * and its phone and email when it gave them. With neither, the guest is told to reply to their
+ * confirmation email, so "contact the studio" never leads nowhere. Stage 6: with `map`, a map of
+ * the address sits above, through the map adapter (a placeholder until a map service is connected).
  */
 export function StudioContact({
   studio,
   heading = 'Your studio',
+  map = false,
 }: {
   studio: StudioContactDetails
   heading?: string
+  map?: boolean
 }) {
   const id = useId()
+  // The placeholder map already shows the address, so the line below does not repeat it.
+  const drawn = map ? studioMap(studio.address) : null
+  const addressShown = !!studio.address && drawn?.kind !== 'placeholder'
   const name =
     studio.locationName && studio.locationName !== studio.name
       ? `${studio.name} · ${studio.locationName}`
@@ -34,11 +42,12 @@ export function StudioContact({
   return (
     <section className="studio-contact" aria-labelledby={id}>
       <h2 id={id}>{heading}</h2>
+      {drawn && <StudioMap address={studio.address} name={studio.name} />}
       <div className="studio-contact-row">
         <MapPin size={18} aria-hidden="true" />
         <p>
           <strong>{name}</strong>
-          {studio.address && <span>{studio.address}</span>}
+          {addressShown && <span>{studio.address}</span>}
           {studio.address && (
             <a href={directionsLink(studio.address)} target="_blank" rel="noopener noreferrer">
               Directions <ExternalLink size={14} aria-hidden="true" />

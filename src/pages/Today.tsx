@@ -18,6 +18,8 @@ import { BookingDialog } from '../components/BookingDialog'
 import { NeedsYou } from '../components/NeedsYou'
 import { TeamToday } from '../components/TeamToday'
 import type { BookingDefaults } from '../components/BookingDialog'
+import { FULLY_BOOKED_LINE, fullyBooked } from '../domain/moments'
+import '../components/moments.css'
 
 function greeting(minutes: number) {
   if (minutes < 12 * 60) return 'Good morning'
@@ -66,6 +68,12 @@ export function Today() {
   const utilisation = Math.round(
     bookedTimeShare(state, today, role === 'general' ? (branch ?? undefined) : undefined) * 100,
   )
+  // Stage 6: once no time is left today for anyone's shortest treatment (their location only, for
+  // a general manager).
+  const full = fullyBooked(state, today, {
+    today,
+    locationId: role === 'general' ? (branch ?? undefined) : undefined,
+  })
   return (
     <>
       <section className="greeting" aria-labelledby="greeting-title">
@@ -124,6 +132,11 @@ export function Today() {
             <div>
               <h2>The day ahead</h2>
               <p>A welcome, a little care, a reason to come back.</p>
+              {full && (
+                <p className="fully-booked-line settle-in" role="status">
+                  {FULLY_BOOKED_LINE}
+                </p>
+              )}
             </div>
             <Link className="text-link" to="/calendar">
               Open calendar <ArrowUpRight size={15} />

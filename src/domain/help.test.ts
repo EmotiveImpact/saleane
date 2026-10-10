@@ -250,6 +250,11 @@ describe('help inside the app', () => {
       'two-step-everyone',
     )
     expect(ids(helpForScreen('/account', '', 'practitioner'))).toContain('two-step')
+    // Stage 6: the small moments, and when each one appears.
+    expect(first('fully booked beautifully done')).toBe('small-moments')
+    expect(first('what does all in hand mean')).toBe('small-moments')
+    expect(first('closing ledger end of day', 'general')).toBe('small-moments')
+    expect(ids(searchHelp('settled pause', 'practitioner'))).not.toContain('small-moments')
     // Stage 5: booking on Google, with its new way to change the time.
     expect(first('book on google maps')).toBe('google-booking')
     expect(first('reserve with google')).toBe('google-booking')

@@ -7,8 +7,10 @@ import { hasLocations, placeOf, places } from '../domain/locations'
 import { bookedTimeDefinition } from '../components/definitions'
 import { RetentionPanel } from '../components/RetentionPanel'
 import { WholeBusiness } from '../components/WholeBusiness'
-import { addDays, dateLabel, money, timeLabel, wholeMoney } from '../domain/format'
+import { dateLabel, money, wholeMoney } from '../domain/format'
 import { barHeight, chartScale } from '../domain/chartScale'
+import { closingLedger } from '../domain/moments'
+import { ClosingLedger } from '../components/ClosingLedger'
 import {
   Avatar,
   Button,
@@ -38,23 +40,9 @@ export function Business() {
   const due = dueClients(state)
   // Stage 6: round figures on the axis, and only zero when nothing was taken.
   const scale = chartScale(data.byDay.map((d) => d.revenue))
-  // Today's close: visits still open, and who the studio sees first tomorrow.
-  const live = (a: (typeof state.appointments)[number]) =>
-    a.status !== 'cancelled' && a.status !== 'no_show'
-  const here = (a: (typeof state.appointments)[number]) => !place || a.locationId === place
-  const todays = state.appointments.filter((a) => a.date === today && live(a) && here(a))
-  const first = state.appointments
-    .filter((a) => a.date === addDays(today, 1) && live(a) && here(a))
-    .sort((a, b) => a.startMinutes - b.startMinutes)[0]
-  const closing = {
-    total: todays.length,
-    open: todays.filter((a) => a.status !== 'completed').length,
-    settled: todays.length > 0 && todays.every((a) => a.status === 'completed'),
-    tomorrow: first && {
-      name: state.clients.find((c) => c.id === first.clientId)?.name.split(' ')[0] ?? 'a guest',
-      start: first.startMinutes,
-    },
-  }
+  // Today's close: visits still open and who comes first tomorrow, and once every visit is checked
+  // out, the day as a printed ledger (Stage 6).
+  const closing = closingLedger(state, place)
   function exportReport() {
     const rows = [
       ['date', 'completed_service_revenue_minor', 'currency'],
@@ -361,16 +349,16 @@ export function Business() {
           />
           <span className="closing-up-eyebrow">Closing up</span>
           <h2>{closing.settled ? 'The day is settled.' : 'Before you close.'}</h2>
-          <p>
-            {closing.total === 0
-              ? 'No visits were booked today.'
-              : closing.settled
-                ? `All ${closing.total} of today’s visits are checked out.`
+          {closing.ledger ? (
+            <ClosingLedger ledger={closing.ledger} organisation={state.organisation} />
+          ) : (
+            <p>
+              {closing.total === 0
+                ? 'No visits were booked today.'
                 : `${closing.open} of today’s ${closing.total} visits still to check out.`}{' '}
-            {closing.tomorrow
-              ? `Tomorrow starts with ${closing.tomorrow.name} at ${timeLabel(closing.tomorrow.start, state.organisation.locale)}.`
-              : 'Nothing is booked for tomorrow yet.'}
-          </p>
+              {closing.tomorrowLine}
+            </p>
+          )}
         </section>
       </div>
       <RetentionPanel days={days} />

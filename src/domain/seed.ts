@@ -9,6 +9,7 @@ import { STARTER_CHECKLIST } from './branchVisits'
 import { sampleShifts } from './hours'
 import { periodDue, rentPeriods } from './rent'
 import { Diary, planRegulars, sampleRegulars, seeded } from './sampleDiary'
+import { staffDay } from './selectors'
 import { runApprovalCommand } from './approvals'
 import type { PlannedVisit, Random } from './sampleDiary'
 
@@ -1305,6 +1306,9 @@ function build(region: Region, regularCount: number): BusinessState {
       body: 'Thank you for letting us know. We will hold your time for 15 minutes. If you will be later than that, reply and we will find you a new time.',
     },
   ]
+  // Stage 6: with the regulars, Monday 12 October fills up completely, so the calendar and Today
+  // can show "Fully booked. Beautifully done." on a day of the sample.
+  if (regularCount) fillSampleDay(state, FULL_DAY, visit, at)
   // Receipts are numbered in the order they were paid, as checkout numbers them.
   ;[...state.sales]
     .sort((a, b) => a.paidAt.localeCompare(b.paidAt))
@@ -2054,4 +2058,73 @@ function seedArrivals(
     occurredAt: noor.guestHereAt,
     actor: 'Guest (private link)',
   })
+}
+
+/** Stage 6: the sample day that is fully booked once the regulars are in the diary. */
+export const FULL_DAY = addDays(DEMO_DATE, 6)
+
+/**
+ * Books regulars who already have a visit to come into every stretch of the day still long enough
+ * for a treatment, each with their own professional's treatments (never colour, which needs a
+ * patch test), so the day reads as fully booked.
+ */
+function fillSampleDay(
+  state: BusinessState,
+  date: string,
+  book: (v: {
+    id: string
+    clientId: string
+    serviceId: string
+    staffId: string
+    date: string
+    start: number
+    status: Appointment['status']
+    source: Appointment['source']
+    bookedAt: string
+  }) => unknown,
+  at: (date: string, minutes: number) => string,
+) {
+  const bookedAt = at(addDays(DEMO_DATE, -2), 610)
+  const taken = new Set(state.appointments.filter((a) => a.date === date).map((a) => a.clientId))
+  const pool = state.clients.filter(
+    (c) =>
+      c.id.startsWith('client-r') &&
+      !taken.has(c.id) &&
+      c.createdAt < bookedAt &&
+      state.appointments.some(
+        (a) => a.clientId === c.id && a.date > DEMO_DATE && a.status === 'confirmed',
+      ),
+  )
+  let n = 0
+  for (const person of state.staff) {
+    const choices = state.services
+      .filter((x) => person.serviceIds.includes(x.id) && !x.archived && !x.patchTest)
+      .sort((a, b) => b.durationMinutes + b.bufferMinutes - (a.durationMinutes + a.bufferMinutes))
+    for (;;) {
+      const day = staffDay(state, person.id, date)
+      if (!day.working || n >= pool.length) break
+      const opening = day.segments
+        .filter((segment) => segment.kind === 'free')
+        .map((segment) => {
+          const start = Math.ceil(segment.from / 15) * 15
+          const fit = choices.find((x) => start + x.durationMinutes + x.bufferMinutes <= segment.to)
+          return fit && { start, fit }
+        })
+        .find(Boolean)
+      if (!opening) break
+      book({
+        id: `visit-full-${n + 1}`,
+        clientId: pool[n].id,
+        serviceId: opening.fit.id,
+        staffId: person.id,
+        date,
+        start: opening.start,
+        status: 'confirmed',
+        source: n % 2 ? 'online' : 'desk',
+        bookedAt,
+      })
+      n += 1
+    }
+  }
+  state.appointments.sort((a, b) => a.date.localeCompare(b.date) || a.startMinutes - b.startMinutes)
 }

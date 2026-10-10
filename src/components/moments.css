@@ -1,0 +1,420 @@
+/*
+ * Stage 6: the small signature moments. Each appears gently and only when the record earns it.
+ * Motion is brief and calm; with reduced motion everything is simply there. (The shared
+ * --motion-calm token is not on this branch yet, so the durations live here.)
+ */
+.settle-in {
+  animation: moment-settle 0.42s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@keyframes moment-settle {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+/* Settled. at checkout: the amount in the serif, a hairline beneath it, then the word. */
+.settled-moment {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-4) var(--space-5);
+  margin-bottom: var(--space-2);
+  text-align: center;
+  border-bottom: 1px solid var(--line);
+}
+.settled-amount {
+  margin: 0;
+  font-family: var(--font-editorial);
+  font-weight: var(--weight-editorial);
+  font-size: clamp(40px, 5vw, 52px);
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  font-variant-numeric: lining-nums proportional-nums;
+  color: var(--ink);
+}
+.settled-rule {
+  display: block;
+  width: 88px;
+  height: 1px;
+  background: var(--line-strong);
+}
+.settled-word {
+  margin: var(--space-1) 0 0;
+  font-family: var(--font-editorial);
+  font-style: italic;
+  font-weight: var(--weight-editorial);
+  font-size: var(--text-title-s);
+  color: var(--ink);
+}
+.settled-line {
+  max-width: 36ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: 1.5;
+}
+.settled-moment.is-new .settled-amount {
+  animation: settled-resolve 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.settled-moment.is-new .settled-rule {
+  transform-origin: center;
+  animation: settled-draw 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) 0.35s both;
+}
+.settled-moment.is-new .settled-word,
+.settled-moment.is-new .settled-line {
+  animation: moment-settle 0.42s cubic-bezier(0.2, 0.7, 0.2, 1) 0.7s both;
+}
+@keyframes settled-resolve {
+  from {
+    opacity: 0;
+    filter: blur(3px);
+    font-weight: 200;
+  }
+}
+@keyframes settled-draw {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* Fully booked. Beautifully done. One quiet line in the day's header. */
+.fully-booked-line {
+  margin: 0;
+  font-family: var(--font-editorial);
+  font-style: italic;
+  font-weight: var(--weight-editorial);
+  font-size: var(--text-lead);
+  color: var(--brand-ink);
+}
+.calendar-toolbar .fully-booked-line {
+  flex-basis: 100%;
+  order: 1;
+  padding: 0 4px;
+}
+.section-heading .fully-booked-line {
+  margin-top: var(--space-2);
+}
+/* The half-hour guides are the texture of empty time; on a full day they fade away. */
+.calendar-grid .hour-line::after {
+  transition: opacity 0.4s ease;
+}
+.calendar-grid.is-full .hour-line::after {
+  opacity: 0;
+}
+
+/* A pause: a soft tint between two visits, under the free time, which still books as before. */
+.calendar-pause {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  padding: 0 10px;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--stone) 72%, transparent);
+  pointer-events: none;
+}
+.calendar-pause span {
+  font-family: var(--font-editorial);
+  font-style: italic;
+  font-size: var(--text-micro);
+  line-height: 1;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.person-free.person-pause {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  border-style: solid;
+  border-color: transparent;
+  background: color-mix(in srgb, var(--stone) 72%, transparent);
+  color: var(--ink);
+}
+.person-pause-label {
+  font-family: var(--font-editorial);
+  font-style: italic;
+  font-weight: var(--weight-body);
+  font-size: var(--text-meta);
+  color: var(--muted);
+}
+.person-pause:has(> button) .person-pause-label {
+  padding: 8px 12px 0;
+}
+.person-pause > button {
+  padding-top: 2px;
+}
+.practitioner-pause {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 10px 22px;
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--stone) 55%, transparent);
+}
+.practitioner-pause span {
+  font-family: var(--font-editorial);
+  font-style: italic;
+  color: var(--muted);
+}
+.practitioner-pause small {
+  color: var(--muted);
+  font-size: var(--text-micro);
+  font-variant-numeric: tabular-nums;
+}
+
+/* All in hand: the waiting cards give way to a still room and two calm lines. */
+.all-in-hand {
+  overflow: hidden;
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--paper);
+}
+.all-in-hand-photo {
+  height: 210px;
+  background: center 62% / cover no-repeat;
+  -webkit-mask-image: linear-gradient(180deg, #000 62%, transparent);
+  mask-image: linear-gradient(180deg, #000 62%, transparent);
+}
+.all-in-hand-words {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  margin-top: -36px;
+  padding: 0 var(--space-5) var(--space-4);
+  position: relative;
+}
+.all-in-hand-words h2 {
+  font-family: var(--font-editorial);
+  font-weight: var(--weight-editorial);
+  font-size: var(--text-title-m);
+}
+.all-in-hand-words p {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: 1.5;
+}
+.all-in-hand-words .text-link {
+  min-height: var(--target);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand-ink);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-strong);
+}
+
+/* The closing ledger: a printed day, ruled lines and old-style figures. */
+.closing-ledger {
+  display: grid;
+  gap: var(--space-3);
+}
+.closing-ledger dl {
+  display: grid;
+  margin: 0;
+  border-top: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line-strong);
+}
+.closing-ledger dl > div {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+}
+.closing-ledger dl > div:first-child {
+  border-top: 0;
+}
+.closing-ledger dt {
+  color: var(--ink);
+  font-size: var(--text-small);
+  letter-spacing: 0.02em;
+}
+.closing-ledger dd {
+  order: 2;
+  margin: 0 0 0 auto;
+  font-family: var(--font-editorial);
+  font-size: var(--text-lead);
+  font-variant-numeric: oldstyle-nums tabular-nums;
+  color: var(--ink);
+  white-space: nowrap;
+}
+/* A dotted leader carries the eye from each line to its figure, as on a printed ledger. */
+.closing-ledger dl > div::before {
+  content: '';
+  order: 1;
+  flex: 1;
+  min-width: 16px;
+  border-bottom: 1px dotted var(--line-strong);
+  transform: translateY(-4px);
+}
+.closing-up .closing-ledger-aside {
+  margin: 0;
+  font-size: var(--text-micro);
+}
+.closing-up .closing-ledger-note {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-editorial);
+  font-style: italic;
+  font-size: var(--text-lead);
+}
+.closing-up .closing-ledger-end {
+  margin: var(--space-2) 0 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+  color: var(--brand-ink);
+  font-size: var(--text-eyebrow);
+  font-weight: var(--weight-strong);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* The guest's label: their visit set like a card typed for one person, over the photograph. */
+.visit-label {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-5);
+}
+.visit-card .visit-label h1 {
+  margin: 0;
+}
+.visit-label-lines {
+  display: grid;
+  margin: 0;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+}
+.visit-label-lines > div {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.visit-label-lines > div:first-child {
+  border-top: 0;
+}
+.visit-label-lines dt {
+  color: var(--muted);
+  font-size: var(--text-eyebrow);
+  font-weight: var(--weight-strong);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.visit-label-lines dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: 0;
+  font-family: var(--font-editorial);
+  font-size: var(--text-lead);
+  font-variant-numeric: oldstyle-nums;
+  color: var(--ink);
+}
+.visit-label-lines small {
+  font-family: var(--font-display);
+  font-size: var(--text-micro);
+  color: var(--muted);
+}
+.visit-label-arrival {
+  margin: 0;
+  font-family: var(--font-editorial);
+  font-style: italic;
+  color: var(--ink);
+  line-height: 1.5;
+}
+@media (max-width: 480px) {
+  .visit-label-lines > div {
+    grid-template-columns: 82px minmax(0, 1fr);
+    gap: 10px;
+  }
+}
+
+/* The map: a picture from a connected map service, or an honest placeholder until then. */
+.studio-map {
+  position: relative;
+  display: grid;
+  margin: 0;
+  overflow: hidden;
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
+.studio-map img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.studio-map figcaption {
+  padding: 8px 12px;
+  color: var(--muted);
+  font-size: var(--text-micro);
+}
+.studio-map-placeholder {
+  min-height: 168px;
+  place-items: center;
+  background: color-mix(in srgb, var(--stone) 55%, var(--paper));
+}
+.studio-map-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: var(--paper);
+  stroke-width: 9;
+  stroke-linecap: round;
+}
+.studio-map-lines .studio-map-lane {
+  stroke-width: 4;
+  opacity: 0.8;
+}
+.studio-map-pin {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin-top: 18px;
+  border-radius: var(--radius-round);
+  background: var(--paper);
+  color: var(--brand-ink);
+  box-shadow: var(--shadow-float);
+}
+.studio-map-placeholder figcaption {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  max-width: 34ch;
+  padding: 10px 16px 16px;
+  text-align: center;
+}
+.studio-map-placeholder figcaption strong {
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settle-in,
+  .settled-moment.is-new .settled-amount,
+  .settled-moment.is-new .settled-rule,
+  .settled-moment.is-new .settled-word,
+  .settled-moment.is-new .settled-line {
+    animation: none;
+  }
+  .calendar-grid .hour-line::after {
+    transition: none;
+  }
+}

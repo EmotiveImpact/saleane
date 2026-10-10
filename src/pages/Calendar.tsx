@@ -19,6 +19,8 @@ import { addMonths, shownHours, weekStart } from '../components/calendarDays'
 import type { BookingDefaults } from '../components/BookingDialog'
 import { everyLabel } from '../domain/repeat'
 import { othersTogether } from '../domain/together'
+import { FULLY_BOOKED_LINE, fullyBooked, pauses } from '../domain/moments'
+import '../components/moments.css'
 
 export function Calendar() {
   const { state, today, role, blocked, branch } = useStore()
@@ -146,6 +148,14 @@ export function Calendar() {
         atPlace(a),
     )
     .sort((a, b) => a.startMinutes - b.startMinutes)
+  // Stage 6: a day with no time left for anyone's shortest treatment says so, once. A general
+  // manager's day counts only their own location.
+  const full =
+    period === 'day' &&
+    fullyBooked(state, date, {
+      today,
+      locationId: branch ?? (locationFilter === 'all' ? undefined : locationFilter),
+    })
   return (
     <>
       <PageHeader
@@ -249,6 +259,11 @@ export function Calendar() {
               />
             )}
           </div>
+          {full && (
+            <p className="fully-booked-line settle-in" role="status">
+              {FULLY_BOOKED_LINE}
+            </p>
+          )}
         </div>
         <div className="calendar-legend">
           <span className="legend-item">
@@ -275,7 +290,7 @@ export function Calendar() {
             </p>
           )}
           <div
-            className="calendar-grid"
+            className={`calendar-grid${full ? ' is-full' : ''}`}
             ref={grid}
             style={{
               gridTemplateColumns: `66px repeat(${Math.max(1, staff.length)}, minmax(160px, 1fr))`,
@@ -314,6 +329,26 @@ export function Calendar() {
                 {Array.from({ length: hourCount }, (_, i) => (
                   <div className="hour-line" style={{ top: i * 82 }} key={i} />
                 ))}
+                {/* Stage 6: a gap between two of their visits is a pause, drawn under the free time. */}
+                {(() => {
+                  const segments = staffDay(state, s.id, date).segments
+                  const between = pauses(segments)
+                  return segments
+                    .filter((segment) => segment.kind === 'free' && between.has(segment.from))
+                    .map((segment) => (
+                      <div
+                        key={`pause-${segment.from}`}
+                        className="calendar-pause"
+                        aria-hidden="true"
+                        style={{
+                          top: ((segment.from - start) / 60) * 82,
+                          height: ((segment.to - segment.from) / 60) * 82,
+                        }}
+                      >
+                        <span>A pause</span>
+                      </div>
+                    ))
+                })()}
                 {date >= today &&
                   staffDay(state, s.id, date)
                     .segments.filter((segment) => segment.kind === 'free')

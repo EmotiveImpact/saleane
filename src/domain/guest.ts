@@ -114,6 +114,11 @@ export const guestViewSchema = z
         email: true,
       })
       .strict(),
+    /** Stage 6: the guest's own first name, for the label on their visit. Nothing else of theirs. */
+    guest: z
+      .object({ firstName: z.string().max(100) })
+      .strict()
+      .optional(),
     visit: z
       .object({
         serviceName: z.string(),
@@ -374,6 +379,11 @@ export function guestView(
   const professional = s.staff.find((p) => p.id === a.staffId)?.name.split(' ')[0] ?? 'The studio'
   // V2: the guest sees the location their visit is at.
   const place = visitPlace(s, a)
+  const firstName = s.clients
+    .find((c) => c.id === a.clientId)
+    ?.name.trim()
+    .split(/\s+/)[0]
+    ?.slice(0, 100)
   const phone = place.phone ?? s.organisation.phone
   const email = place.email ?? s.organisation.email
   // Only this visit's client's own plans, never another client's.
@@ -392,6 +402,7 @@ export function guestView(
       ...(phone ? { phone } : {}),
       ...(email ? { email } : {}),
     },
+    ...(firstName ? { guest: { firstName } } : {}),
     visit: {
       serviceName: a.bookedServiceName ?? service?.name ?? 'Your visit',
       professional,

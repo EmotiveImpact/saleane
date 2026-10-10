@@ -460,6 +460,27 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     words:
       'discount quiet time lower price offer cheaper off peak promotion deal special percentage reduced',
   },
+  // Stage 6: the small moments, and when each one appears.
+  {
+    id: 'small-moments',
+    title: 'The small moments, and when they appear',
+    group: 'The day',
+    summary: 'A few quiet touches that appear only when the record says they are true.',
+    steps: [
+      'Settled. When you record a payment at checkout, the amount and the word Settled appear. Money taken by cash or on your own card terminal reads Recorded as paid, because SALEANE did not take it. Only a card payment the payment provider confirmed reads Paid by card.',
+      'Fully booked. On the calendar and on Today, a day says Fully booked. Beautifully done. once nobody working has time left for even their shortest treatment. A day that has passed never says it.',
+      'A pause. Fifteen minutes or more between two visits for the same person shows as A pause on the calendar and on a professional’s own day. It can still be booked, just as before.',
+      'All in hand. On Today, once no call, patch test or reminder is waiting and everyone due so far has been welcomed or checked out, Needs you gives way to a still photograph.',
+      'The closing ledger. On Business, once every visit today is checked out, Closing up shows the day as a ledger with guests seen, first visits, rebooked visits, takings and tips recorded, and one note about tomorrow.',
+      'The guest’s label. A guest’s private visit page shows their visit as a card made for them, with your arrival words if you wrote some, and where to find you.',
+    ],
+    note: 'Nothing here sends a message, takes money or changes a visit. A general manager sees Fully booked and the closing ledger for their own location. The map on a guest’s page is a placeholder until a map service is connected; the Directions link always works.',
+    to: '/today',
+    screens: ['/today', '/calendar'],
+    roles: DESK,
+    words:
+      'settled fully booked beautifully done pause all in hand closing ledger end of day guest label moment celebration',
+  },
   // Clients
   {
     id: 'add-client',
