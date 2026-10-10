@@ -23,6 +23,8 @@ import {
 } from '../domain/locations'
 import { ALLOWANCES } from './saleane'
 import { receptionistBrain } from './receptionistBrain'
+import { myUsualSkill } from './usualSkills'
+import { textingRecords } from '../domain/textingGuest'
 import type { ReceptionChannel } from './receptionistBrain'
 
 /**
@@ -78,7 +80,8 @@ You cannot book, move or cancel a visit or take a payment. You can offer a free 
 When the guest is known, you can send them the private link to one of their own visits, where they move or cancel it themselves.
 Never give health or medical advice and never ask about health. Offer to pass a message to the team instead.
 When a treatment needs a patch test first, say so and how to get one. Never say whether the guest has had one.
-Never share anything about other guests.`
+Never share anything about other guests.
+When a known guest asks for their usual, use my_usual, say plainly what it is, then look for times with find_times.`
 
 export const isOn = (s: BusinessState) =>
   (operations(s).receptionist ?? defaultReceptionist).enabled && operations(s).bookingEnabled
@@ -108,11 +111,15 @@ export function receptionContext(
 
 /** How many of a guest's coming visits the receptionist lists. */
 export const VISITS_LISTED = 5
-/** The known guest's own visits still to come, soonest first. */
+/**
+ * The known guest's own visits still to come, soonest first: under any of their records with the
+ * number they wrote from (textingGuest.ts).
+ */
 function comingVisits(ctx: ReceptionContext) {
   const now = Date.parse(ctx.now)
+  const mine = new Set(ctx.guestId ? textingRecords(ctx.state, ctx.guestId) : [])
   return ctx.state.appointments
-    .filter((a) => a.clientId === ctx.guestId && a.status === 'confirmed')
+    .filter((a) => mine.has(a.clientId) && a.status === 'confirmed')
     .map((a) => ({ a, start: visitStart(ctx.state, a.id) }))
     .filter((v) => v.start > now)
     .sort((x, y) => x.start - y.start)
@@ -541,6 +548,8 @@ export function receptionistSkills(): Skill<ReceptionContext, ReceptionEffect>[]
         }
       },
     }),
+    // Stage 5: the known guest's usual, from their own visits.
+    myUsualSkill(),
   ]
 }
 
