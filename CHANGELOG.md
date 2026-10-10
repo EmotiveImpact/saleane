@@ -2,6 +2,14 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-10 · App photograph assets
+
+**Status: 21 photographs saved for review.** [Asset notes](docs/assets/app-photographs-2026-10-10.md).
+
+- Added 13 portrait, six landscape and two square fictional studio photographs with the requested names and shared sunlit style.
+- Preserved generated PNG originals and added WebP copies at quality 80 without resizing or cropping, plus a dimensions and checksum manifest.
+- This asset-only addition does not change screen references. All 42 image files decode and have the requested aspect ratios. Application checks and browser journeys were not run for this addition.
+
 ## 2026-10-10 · Filling a cancelled time (NEXT-11)
 
 **Status: built locally on 10 October 2026.** [Evidence](docs/evidence/NEXT-11-CANCELLED-TIMES.md).

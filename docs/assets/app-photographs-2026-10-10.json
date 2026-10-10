@@ -1,0 +1,239 @@
+{
+  "created": "2026-10-10",
+  "generated": true,
+  "webpQuality": 80,
+  "resized": false,
+  "photographs": [
+    {
+      "number": 1,
+      "name": "setup-studio",
+      "shape": "tall",
+      "width": 1024,
+      "height": 1536,
+      "webp": "/images/library/app/setup-studio.webp",
+      "original": "design-studies/photo-originals/app-2026-10-10/setup-studio.png",
+      "originalSha256": "45ad00f4571e1400f0ee464e52b1e5bc1853f4de2fcd61144a6cbebaefe7997f",
+      "webpSha256": "72f084bd0f4b8fdebfe99eeb64f050af6c59d10d6737075e9846dcba51871028"
+    },
+    {
+      "number": 2,
+      "name": "setup-hours",
+      "shape": "tall",
+      "width": 1024,
+      "height": 1536,
+      "webp": "/images/library/app/setup-hours.webp",
+      "original": "design-studies/photo-originals/app-2026-10-10/setup-hours.png",
+      "originalSha256": "7f9afbea488a82f2662c281784638c21a2e6004fd0e706d1f24d87c987c37b6e",
+      "webpSha256": "5d4767bff569c4abb95f086dae6545e99af8dfd6c79aa6452405db7a81612371"
+    },
+    {
+      "number": 3,
+      "name": "setup-treatments",
+      "shape": "tall",
+      "width": 1024,
+      "height": 1536,
+      "webp": "/images/library/app/setup-treatments.webp",
+      "original": "design-studies/photo-originals/app-2026-10-10/setup-treatments.png",
+      "originalSha256": "d09fae26c54e5a02bab07ff3670d99f20a70ae8ded38821c09fba972af8ad426",
+      "webpSha256": "36ea889d5a9d18c61f8652e653dc12fbf3654522c857e96ed81c96b93142e334"
+    },
+    {
+      "number": 4,
+      "name": "setup-team",
+      "shape": "tall",
+      "width": 1024,
+      "height": 1536,
+      "webp": "/images/library/app/setup-team.webp",
+      "original": "design-studies/photo-originals/app-2026-10-10/setup-team.png",
+      "originalSha256": "e30cf4b67dbf7443daabc7c13aac988a3ad8e21e3b45f87a34017776bf48014a",
+      "webpSha256": "f06d6c2214a66a8f5e83228defbe1520249319b20c974bfba3082234cb78272c"
+    },
+    {
+      "number": 5,
+      "name": "setup-rooms",
+      "shape": "tall",
+      "width": 1024,
+      "height": 1536,
+      "webp": "/images/library/app/setup-rooms.webp",
+      "original": "design-studies/photo-originals/app-2026-10-10/setup-rooms.png",
+      "originalSha256": "6e3ca3bdd3638c5b9272b734773bafe6048e9533c5fbcec33294a0a6d30096c6",
+      "webpSha256": "0b917d7b0091b3f2ae88e9650ce5fab19ee7e851c9d63ee067f463299053003a"
+    },
+    {
+      "number": 6,
+      "name": "setup-look",
+      "shape": "tall",
+      "width": 1024,
+      "height": 1536,
+      "webp": "/images/library/app/setup-look.webp",
+      "original": "design-studies/photo-originals/app-2026-10-10/setup-look.png",
+      "originalSha256": "48fd51010cbc7fe7ba3a82c7be194a9976c422985f2720fd0d6e25ff7aed1f47",
+      "webpSha256": "e96aa322905d57fee68a4bf8dc34a6c2e821979540a99e555b49a32e3fcf92fa"
+    },
+    {
+      "number": 7,
+      "name": "setup-deposits",
+      "shape": "tall",
+      "width": 1024,
+      "height": 1536,
+      "webp": "/images/library/app/setup-deposits.webp",
+      "original": "design-studies/photo-originals/app-2026-10-10/setup-deposits.png",
+      "originalSha256": "3dc9efa42bb3fa3e8461f0d9700519c35ee09d717ee01915e0a1cbe63314003c",
+      "webpSha256": "f309647d78d345a0ccabd1802a09d9d21b2af9910ee7a6c631239e9816a81674"
+    },
+    {
+      "number": 8,
+      "name": "setup-open",
+      "shape": "tall",
+      "width": 1024,
+      "height": 1536,
+      "webp": "/images/library/app/setup-open.webp",
+      "original": "design-studies/photo-originals/app-2026-10-10/setup-open.png",
+      "originalSha256": "d40beecf6d60933c56055420bf30c706951d1ff4c875424dd785b0aaa7fb4023",
+      "webpSha256": "318792a9c36d5f51352319e5838c6e19d85f6b8d407bd4b14f113abf26157593"
+    },
+    {
+      "number": 9,
+      "name": "welcome-hello",
+      "shape": "tall",
+      "width": 1024,
+      "height": 1536,
+      "webp": "/images/library/app/welcome-hello.webp",
+      "original": "design-studies/photo-originals/app-2026-10-10/welcome-hello.png",
+      "originalSha256": "04986b7a3af690b87b52645b946e4eac76372e01e5d921a132954185eb85fa8c",
+      "webpSha256": "59d53cc655179b80434fd8be929c7094db13a543ad693d99a431dd8aa3a1175b"
+    },
+    {
+      "number": 10,
+      "name": "welcome-day",
+      "shape": "tall",
+      "width": 1024,
+      "height": 1536,
+      "webp": "/images/library/app/welcome-day.webp",
+      "original": "design-studies/photo-originals/app-2026-10-10/welcome-day.png",
+      "originalSha256": "04079be3346160bcf41bbbaa2db20e4092aba5c8416999cba6b0e0a9928b1009",
+      "webpSha256": "489810ac19c21c776fd8ef7a081223129ec40ee228c6c0f31aa351738cf266ab"
+    },
+    {
+      "number": 11,
+      "name": "welcome-safe",
+      "shape": "tall",
+      "width": 1024,
+      "height": 1536,
+      "webp": "/images/library/app/welcome-safe.webp",
+      "original": "design-studies/photo-originals/app-2026-10-10/welcome-safe.png",
+      "originalSha256": "e7b6d9366f613de5b30c25bb72fc603101514efa8904ff7cc5702bcf5a1c27c5",
+      "webpSha256": "b79265f34b624eae2bee895a86fcac86427426cf5828928e8a19cff7a68199a6"
+    },
+    {
+      "number": 12,
+      "name": "sign-in",
+      "shape": "tall",
+      "width": 1024,
+      "height": 1536,
+      "webp": "/images/library/app/sign-in.webp",
+      "original": "design-studies/photo-originals/app-2026-10-10/sign-in.png",
+      "originalSha256": "7246503f83747849fe749b4a3c41c1a055b5b13e392b4ebde0833e32cf543bc7",
+      "webpSha256": "51afda1e3158c44bb5120ac0e874d2ddf5c5360c892bde71c9a78f5a15718bce"
+    },
+    {
+      "number": 13,
+      "name": "booking-page",
+      "shape": "tall",
+      "width": 1024,
+      "height": 1536,
+      "webp": "/images/library/app/booking-page.webp",
+      "original": "design-studies/photo-originals/app-2026-10-10/booking-page.png",
+      "originalSha256": "63c083bd8ac43147b14e081e7c0173acb4b57b6fd0832de039aebc0c02d9fc4c",
+      "webpSha256": "a60efc1faa70e266f2262c1fd6739ac2d0687d054d0523ff0a5290a986d534ac"
+    },
+    {
+      "number": 14,
+      "name": "guest-visit",
+      "shape": "wide",
+      "width": 1536,
+      "height": 1024,
+      "webp": "/images/library/app/guest-visit.webp",
+      "original": "design-studies/photo-originals/app-2026-10-10/guest-visit.png",
+      "originalSha256": "8c0b57fceb233d6243fca978d521a1335d9183609d02e988e29179533e205def",
+      "webpSha256": "81f23eddc171345e4343b02e64f547c8b0f342d209871e2fda4093c30a8d01d9"
+    },
+    {
+      "number": 15,
+      "name": "today",
+      "shape": "wide",
+      "width": 1536,
+      "height": 1024,
+      "webp": "/images/library/app/today.webp",
+      "original": "design-studies/photo-originals/app-2026-10-10/today.png",
+      "originalSha256": "d75df939358ea68bd0644299a607bdd95f93b358e298f31e148e0b34a6c2935f",
+      "webpSha256": "eab6840db2366e61cab01afdcb8e9a36609c389a6102b521ec41826401b87d9c"
+    },
+    {
+      "number": 16,
+      "name": "calendar",
+      "shape": "wide",
+      "width": 1536,
+      "height": 1024,
+      "webp": "/images/library/app/calendar.webp",
+      "original": "design-studies/photo-originals/app-2026-10-10/calendar.png",
+      "originalSha256": "92517d85d0dd606f0be471957602b0eda58d04be7d7565e861127b0647476421",
+      "webpSha256": "8f304264de10a0d6b4232354709c78e0158f9b3b58bcc55cf28b251765011d4f"
+    },
+    {
+      "number": 17,
+      "name": "clients",
+      "shape": "wide",
+      "width": 1536,
+      "height": 1024,
+      "webp": "/images/library/app/clients.webp",
+      "original": "design-studies/photo-originals/app-2026-10-10/clients.png",
+      "originalSha256": "815dd794d7ef82f792ec0088c441cbf8e2d0458ac33219a31e59f5d22670faae",
+      "webpSha256": "76ffb54dbc7291501d1604891cae1338ebeae9ccea769355250aa22401495b74"
+    },
+    {
+      "number": 18,
+      "name": "stock",
+      "shape": "wide",
+      "width": 1536,
+      "height": 1024,
+      "webp": "/images/library/app/stock.webp",
+      "original": "design-studies/photo-originals/app-2026-10-10/stock.png",
+      "originalSha256": "af565239194103e6e9ea7fa8423e7b38aaa48f01ae8a0f4b30355111dc17dddf",
+      "webpSha256": "70f91c26ac98fa699f776c43d13905531e981b84a3aa2f03fab2deaaa816a41d"
+    },
+    {
+      "number": 19,
+      "name": "closing-up",
+      "shape": "wide",
+      "width": 1536,
+      "height": 1024,
+      "webp": "/images/library/app/closing-up.webp",
+      "original": "design-studies/photo-originals/app-2026-10-10/closing-up.png",
+      "originalSha256": "fd8dd85288e161dc8a4049a80626548a39965957649112a1e72b99efbc8b4178",
+      "webpSha256": "7211f5f6a6c95b803f7004adb7e3c338c74d7c51272c759d99b4cc94b18c6d00"
+    },
+    {
+      "number": 20,
+      "name": "waitlist",
+      "shape": "square",
+      "width": 1254,
+      "height": 1254,
+      "webp": "/images/library/app/waitlist.webp",
+      "original": "design-studies/photo-originals/app-2026-10-10/waitlist.png",
+      "originalSha256": "bb99176459ba09584302b44cd22843b1c1f1f014304592b7a0a56486d79d3f35",
+      "webpSha256": "f0713fe309b5b2134df7f1716f457c5aa0414ea8ff7d9423fef83693b35d6d49"
+    },
+    {
+      "number": 21,
+      "name": "next-visit",
+      "shape": "square",
+      "width": 1254,
+      "height": 1254,
+      "webp": "/images/library/app/next-visit.webp",
+      "original": "design-studies/photo-originals/app-2026-10-10/next-visit.png",
+      "originalSha256": "ec62b7b1c4cd9d38554e507dc43480bbe2e749c79ab9939be6e7971d13e33b8c",
+      "webpSha256": "5eff5f899e25f5f21b8c64207cb7e2862ba48c1a5cb971fbe171d33d1c4ee148"
+    }
+  ]
+}
