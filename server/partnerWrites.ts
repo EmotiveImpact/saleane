@@ -303,7 +303,11 @@ function handle(c: Context, auth: KeyAuth, method: string, path: string[], body:
   }
 
   const resource = path.join('/')
-  // POST /api/v1/appointments: book a visit.
+  // POST /api/v1/appointments: book a visit. A key acts for the studio, so it books as the desk
+  // and Book with Google do: `chooseStaff(withHolds)`, then the desk's `book` command. It does not
+  // go through the guest's `holdTime` and `bookHeld`, which need a held time, keep the guest's
+  // online rules, send a guest link and open their own transaction, while the kept answer for an
+  // Idempotency-Key must be saved in the same transaction as the visit.
   if (resource === 'appointments' && method === 'POST') {
     need('appointments:write')
     const input = bookInput.parse(body)
@@ -363,7 +367,9 @@ function handle(c: Context, auth: KeyAuth, method: string, path: string[], body:
     const visit = result.state.appointments.find((a) => a.id === result.recordId)!
     return { status: 201, body: appointmentView(result.state, visit), recordId: visit.id }
   }
-  // PATCH /api/v1/appointments/{id}: move a visit.
+  // PATCH /api/v1/appointments/{id}: move a visit, as the desk does: `rescheduleResource` over
+  // `withHolds`, then `reschedule`. Not the guest's `moveOnline`, whose cutoff and online days are
+  // the guest's own rules and which cannot change the location.
   if (path[0] === 'appointments' && path.length === 2 && method === 'PATCH') {
     need('appointments:write')
     const visit = visitAt(path[1])
