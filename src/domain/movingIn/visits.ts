@@ -653,6 +653,7 @@ export function reviewVisits(
   for (const c of arriving)
     people.add({ name: c.name, key: nameKey(c.name), email: c.email, phone: c.phone })
   const noContact = new Set(withoutContact.map(nameKey))
+  const withClientList = arriving.length > 0 || withoutContact.length > 0
   const newClients: MovingClient[] = []
   const ready: PlannedVisit[] = []
   // Earlier visits are held in a working copy, so later ones cannot double-book them.
@@ -714,7 +715,9 @@ export function reviewVisits(
         // Said the same way for every visit, so the check can group them; the row names the client.
         row.detail = noContact.has(who.key)
           ? 'This client is in your client list without an email or phone, so neither they nor this visit can come across.'
-          : 'This client is not in SALEANE or in the client list you added, and the file has no email or phone for them. Add your client list too.'
+          : withClientList
+            ? 'This client is not in SALEANE or in your client list, and this file has no email or phone to add them by. Book the visit by hand once they are a client.'
+            : 'This client is not in SALEANE, and this file has no email or phone to add them by. Add your client list too.'
         return
       }
       if (who.name.length < 2) {
