@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { Check, Sparkles } from 'lucide-react'
 import { current, decide } from '../../lumane'
 import type { PendingProposal, Usage } from '../../lumane'
-import { HISTORY_TURNS, askSaleane } from '../assistant/ask'
+import { ASK_WAIT_MS, HISTORY_TURNS, askSaleane } from '../assistant/ask'
 import { ALLOWANCES } from '../assistant/saleane'
 import type { Command } from '../domain/commands'
 import { nudges } from '../domain/nudges'
@@ -27,9 +27,10 @@ const STARTERS = [
 const usageKey = (orgId: string) => `saleane.ask-usage.v1.${orgId}`
 
 /**
- * Ask Saleane, the studio assistant, in test mode. In the browser demo it runs here against the
- * demo record; signed in, the server answers and keeps the studio's allowance. Anything that
- * changes the record is a suggestion until approved, and is then saved like any desk change.
+ * Ask Saleane, the studio assistant. In the browser demo it runs here in test mode against the
+ * demo record; signed in, the server answers, with Claude once SALEANE has its key (NEXT-12), and
+ * keeps the studio's allowance. Anything that changes the record is a suggestion until approved,
+ * and is then saved like any desk change.
  */
 export function AskSaleane({ onClose }: { onClose: () => void }) {
   const { state, mode, slug, session, role, commit, today } = useStore()
@@ -43,14 +44,22 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
   const [meter, setMeter] = useState<Meter | null>(() =>
     mode === 'server' ? null : demoMeter(state.organisation.id),
   )
+  // Whether a real AI answers. Until the server says, the panel describes test mode.
+  const [live, setLive] = useState(false)
   const held = useRef(new Map<string, PendingProposal<Command>>())
   const end = useRef<HTMLDivElement | null>(null)
   const base = orgId ? `/api/workspaces/${encodeURIComponent(orgId)}/assistant` : ''
 
   useEffect(() => {
     if (mode !== 'server' || !base) return
-    api<{ usage: { used: { typed: number }; allowance: { typed: number } } }>(base)
-      .then((r) => setMeter({ used: r.usage.used.typed, allowance: r.usage.allowance.typed }))
+    api<{
+      mode: 'live' | 'test'
+      usage: { used: { typed: number }; allowance: { typed: number } }
+    }>(base)
+      .then((r) => {
+        setMeter({ used: r.usage.used.typed, allowance: r.usage.allowance.typed })
+        setLive(r.mode === 'live')
+      })
       .catch(() => {})
   }, [mode, base])
 
@@ -74,7 +83,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
           text: string
           proposals: { id: string; summary: string }[]
           usage: { used: { typed: number }; allowance: { typed: number } }
-        }>(base, { method: 'POST', body: { text: trimmed, history } })
+        }>(base, { method: 'POST', body: { text: trimmed, history }, timeoutMs: ASK_WAIT_MS })
         setMeter({ used: r.usage.used.typed, allowance: r.usage.allowance.typed })
         answer = r
       } else {
@@ -180,8 +189,9 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
     >
       <div className="ask-saleane">
         <p className="ask-mode">
-          Test mode: answers come from your studio records. No AI service is connected, and nothing
-          is sent.
+          {live
+            ? 'Answers come from your studio records, read by Claude, an AI from Anthropic. Your question and the records needed to answer it are sent to Anthropic. Changes wait for your approval.'
+            : 'Test mode: answers come from your studio records. No AI service is connected, and nothing is sent.'}
         </p>
         <div className="ask-thread" aria-live="polite">
           {!entries.length && opening.length > 0 && (
