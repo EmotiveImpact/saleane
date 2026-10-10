@@ -2,6 +2,20 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-10 · Pay, rota and patch tests, built properly (left-out Stage 3)
+
+**Status: built locally on 10 October 2026 and checked in a browser; SALEANE works out and shows pay but never pays anyone, rent is only recorded once paid outside SALEANE, no message is sent and nothing is deployed.** No migration. Evidence: [commission and targets](docs/evidence/LEFT-3A-COMMISSION-AND-TARGETS.md), [chair rent as a share](docs/evidence/LEFT-3B-CHAIR-RENT-PERCENT.md), [rota day changes](docs/evidence/LEFT-3C-ROTA-WEEK-CHANGES.md), [patch tests before booking](docs/evidence/LEFT-3D-PATCH-TEST-BOOKING.md).
+
+- **Commission for one treatment or product.** The owner can set a rate for a treatment, a product or a kind of treatment, for one person or everyone. The most specific rate wins, and every rate is kept with who set it and when, so a past month is worked out with the rates in force at the time.
+- **Steps by takings.** A higher rate once someone's takings for the month reach a step, paid either only on the takings above each step or on the whole month once a step is reached. Each month starts afresh.
+- **Monthly targets.** Owners and managers can give each person a monthly target, optionally split into treatments and products. Pay shows the progress, and each person sees their own on their page. Tips never count.
+- **How commission was worked out.** Each person's Details lists every part of their commission and every visit under it, and Download for payroll carries the same working.
+- **Chair rent as a share.** Rent can be a fixed amount a week or month, a share of the renter's treatments (and products, if they are theirs), or both. A renter's takings are kept out of the studio's figures, and Pay shows the fixed rent owed now and the share so far.
+- **The rota, one day at a time.** Any single day can have different hours or be a day off, or a day can be added that someone does not usually work, without touching their usual hours. Booked visits outside new hours are listed, and nothing saves until the owner chooses to move them first or keep them with a warning. Last week's changes can be copied onto the next. Online booking, the calendar, Today and each person's own page follow the rota.
+- **A patch test comes first, online too.** A studio can stop online booking for a treatment that needs a patch test when the guest has no clear test, on the booking page, through the AI receptionist and on Google. Every online guest reads the same words, and Book a patch test goes straight to its times. The desk can still book, with a reminder and Book the patch test first.
+- In the browser pass: choice circles in the rota and pay windows, and in the tips window, drawn far too big are now small and beside their words; a finished month's target no longer says "so far"; reception is no longer told it can change the rota; an empty setting is no longer shown as "yes" in Who changed what.
+- **Help** has new guides for rates, steps and targets, chair rent as a share, changing a day on the rota, and patch tests before online booking.
+
 ## 2026-10-09 · The till, built properly (left-out Stage 2)
 
 **Status: built locally on 9 October 2026 and checked in a browser; test mode only, so no receipt printer, cash drawer or email service is connected, no money moves and nothing is deployed.** Evidence: [barcodes and product photos](docs/evidence/LEFT-2A-BARCODES-AND-PHOTOS.md), [receipts, the receipt printer and the cash drawer](docs/evidence/LEFT-2B-RECEIPTS-PRINTER-DRAWER.md).

@@ -83,10 +83,25 @@ Every change appears in "who changed what" as "Changed a commission rate for a t
 - **Empty pages.** No new page. "No rates of their own yet. Everyone is on their usual rates." is a one-line empty state inside the dialog.
 - **Loading.** `LoadingShapes` is not on this branch; nothing here loads on its own (it all comes with the studio record). Buttons say "Saving…" while a change is sent.
 - **Motion.** `--motion-calm` is not on this branch, so no new motion was added.
-- **390 px.** Step rows fold from three columns to two, with Remove on its own line; rate rows wrap; the owner's buttons wrap. Not yet checked in a browser at 390 px (see below).
+- **390 px.** Step rows fold from three columns to two, with Remove on its own line; rate rows wrap; the owner's buttons wrap. Checked in a browser at 390 px (see below).
 - **Words.** Plain British English, "treatment" and "visit", no dashes or exclamation marks; each error names what to do and keeps what was typed. Nothing says anyone has been paid: "SALEANE works it out; you pay people through your own payroll."
 - **Built from the library.** `Button`, `Modal`, `Stat`, `Avatar`, `ErrorMessage` from `src/design`, existing tokens only, no left-edge stripes.
-- **Before and after pictures**: not taken, as this build could not open a browser.
+- **Before and after pictures** were taken at 1440 and 390 px in the browser pass and are on the Stage 3 before and after page: https://claude.ai/artifact/EX667DQpzruWeeZeTktMrE.
+
+## Seen in a browser
+
+Checked on 10 October 2026 in Chromium against the local server, signed up as a new owner with the sample studio (sample day Tuesday 6 October), at 1440 px and 390 px.
+
+- Business, Pay, This month: Sophia's line reads "Treatments 35% to £3,000, then 40% · Products 10% · Lymphatic Massage 45% · Hydrating Serum 15%" with "Target £12,000 · £1,856 so far, 15% · products £76 of £600"; Maya's reads "Target £6,000 · £1,514 so far, 25%". Theo, renting, has no Target button.
+- "Rates for treatments and products" lists Lymphatic Massage and Hydrating Serum for everyone at 45% and 15%, each "From Tuesday 1 September · set by Owner" with End, above the form to add a rate.
+- "Steps by takings" and each person's "Target" open with their choices and fields; at 390 px each fills the screen and nothing scrolls sideways.
+- Last month, Sophia, Details: "Treatments at 35% up to £3,000" £1,050.00, "Treatments at 40% above £3,000" £322.00 on £805.00, "Lymphatic Massage at 45%, its own rate" £3,402.00 on £7,560.00, "Products at 10%" £37.80 and "Hydrating Serum at 15%, its own rate" £28.80, making £4,840.60, worked out again by hand to the penny, with each visit listed under it.
+- A manager sees each line, Details and Target, and no Rates, Rates for treatments and products or Steps by takings. Reception has no Pay tab and lands on Money. Maya's own page reads "Your target for October: £1,514 of £6,000 so far, 25%."
+
+Found and fixed in this pass:
+
+- The two ways steps can pay, and the tips choices already on main, drew each radio as a full-width circle above its words, because the form makes every input full width. Each is now a small radio beside its words.
+- A finished month's target read "so far"; it now reads, for example, "£11,935, 99%".
 
 ## Limits and notes
 

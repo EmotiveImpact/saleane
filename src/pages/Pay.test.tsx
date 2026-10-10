@@ -4,6 +4,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { Pay } from './Pay'
 import { seed } from '../domain/seed'
+import { money } from '../domain/format'
+import { operations } from '../domain/operations'
+import { rentStatement } from '../domain/rent'
 
 // The sample studio as the demo shows it. Theo rents his chair from 21 September, so his visits
 // since then are his own takings and earn no commission.
@@ -43,6 +46,25 @@ describe('Pay', () => {
     expect(before * after).toBeGreaterThan(0)
     expect(summary('Theo Bennett')).toHaveTextContent(
       `${before} visits on commission, ${after} while renting`,
+    )
+  })
+
+  it('shows the fixed rent owed and the share still running for the week', () => {
+    render(
+      <MemoryRouter>
+        <Pay />
+      </MemoryRouter>,
+    )
+    const rental = operations(state).rentals!.find((r) => r.staffId === 'staff-theo')!
+    const week = rentStatement(state, rental).at(-1)!
+    // The sample's rent is a fixed amount a week plus a share of treatments, with this week running.
+    expect(week.open && week.owedMinor > 0 && week.runningMinor > 0).toBe(true)
+    const panel = within(screen.getByRole('region', { name: 'Chair and room rent' }))
+    const owed = panel.getByText(`${money(week.owedMinor, state.organisation, true)} owed`, {
+      exact: false,
+    })
+    expect(owed).toHaveTextContent(
+      `${money(week.runningMinor, state.organisation, true)} more so far this week`,
     )
   })
 })

@@ -274,3 +274,13 @@
     justify-self: start;
   }
 }
+/* Stage 3: rent owed now, with the share still running for the period on a quieter line. */
+.rent-money {
+  display: grid;
+  justify-items: end;
+}
+.rent-money small {
+  color: var(--muted);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-body);
+}

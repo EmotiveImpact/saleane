@@ -111,7 +111,7 @@ The only online guest SALEANE knows is the holder of a visit's private link, who
 - **390 px.** Below 650 px the panel's buttons stack at full width, one per line, using the design system's 44 px buttons; long studio names and addresses wrap. The desk note wraps inside the dialog (the tag's text wraps rather than overflowing).
 - **Words.** Plain British English, "visit" and "treatment", no dashes and no exclamation marks; every stopped guest is told what to do next. Nothing claims a payment or a message.
 - **Built from the library.** Tokens and existing classes only (`button`, `button-primary`, `button-secondary`, `ops-tag`, `ops-check`, `ops-field`, `ops-help`, `subtle`), `Button` from `src/design`, lucide icons as elsewhere, no new colours, no left-edge stripes.
-- **Before and after pictures** were taken at 1440 and 390 px in the browser pass; they go on the Stage 3 before and after page.
+- **Before and after pictures** were taken at 1440 and 390 px in the browser pass and are on the Stage 3 before and after page: https://claude.ai/artifact/EX667DQpzruWeeZeTktMrE.
 
 ## Seen in a browser
 

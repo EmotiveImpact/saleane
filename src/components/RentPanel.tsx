@@ -110,12 +110,17 @@ export function RentPanel({ from, to }: { from: string; to: string }) {
                         : '. Products they sell stay the studio’s sales.'}
                     </small>
                   </div>
-                  <span className={`ops-record-money ${owed ? 'rota-over' : ''}`}>
+                  <span className={`ops-record-money rent-money ${owed ? 'rota-over' : ''}`}>
                     {owed
                       ? `${money(owed, org, true)} owed`
                       : running
                         ? `${money(running, org, true)} so far`
                         : 'Up to date'}
+                    {owed > 0 && running > 0 && (
+                      <small>
+                        {money(running, org, true)} more so far this {rental.every}
+                      </small>
+                    )}
                   </span>
                   {canEdit && (
                     <div className="stock-actions">

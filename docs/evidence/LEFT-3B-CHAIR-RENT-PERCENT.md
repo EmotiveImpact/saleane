@@ -7,7 +7,7 @@ Built 9 and 10 October 2026 in a worktree, on top of the Stage 2 branch at `fdee
 - **Three kinds of rent.** "Set up a rental" (Pay, Chair and room rent) now asks for "A fixed amount", "A share of their takings" or "A fixed amount plus a share of their takings", each week or month. The share is a percentage (such as 10 or 12.5).
 - **Products.** By default a renter's takings are their treatments only: products they sell come off the studio's shelf and stay the studio's sales. A tick box, "The products they sell are their own, and count towards the share", makes their products theirs instead (and part of the share, when there is one).
 - **What is owed.** The renter's takings are their treatments (and products when theirs) on the days they rent, after discounts and without tax. Tips never count. Money given back on their receipts comes off in the week or month it is given back. The share is worked out on each period's takings, rounded once to the penny (half up), and never goes below nothing. A fixed part is owed from the start of each period, as before; the share once the period has ended. While a period runs, its share is shown as "so far", never as owed: in the sample studio the panel says "£50.00 owed" for this week's fixed part, and Record rent offers "£57.50 so far".
-- **The working is shown.** Each rental's line says its terms ("£50.00 a week plus 10% of treatments from Monday 21 September. Products they sell stay the studio's sales"). "How the rent was worked out" opens a sentence for each recent period, such as "£50.00 fixed plus 10% of £1,805.00 in treatments is £180.50: £230.50. £230.50 paid." and "£50.00 fixed plus 10% of £75.00 in treatments is £7.50: £57.50 so far.", and says what counts as their takings.
+- **The working is shown.** Each rental's line says its terms ("£50.00 a week plus 10% of treatments from Monday 21 September. Products they sell stay the studio's sales."). "How the rent was worked out" opens a sentence for each recent period, such as "£50.00 fixed plus 10% of £1,805.00 in treatments is £180.50: £230.50. £230.50 paid." and "£50.00 fixed plus 10% of £75.00 in treatments is £7.50: £57.50 so far.", and says what counts as their takings.
 - **Recording rent.** "Record rent" lists each period with something unpaid ("Week from Monday 5 October · £57.50 so far"), shows the period's working under it and suggests the amount. A running period can be paid as it goes, up to what is due so far: "Only £57.50 more is due for that period so far." or "Nothing more is due for that period yet." SALEANE records rent; it never collects it.
 - **Renters' takings are kept out of the studio's figures, and rent is the studio's income.** On Business, takings, the average treatment sale, products, tips, tax and refunds leave out a renter's own takings on the days they rent. Two new lines sit with "Gift cards, packages and memberships sold": "Chair and room rent recorded" (owners and managers, with a link to the rent) and "Renters' own takings, kept apart: Not counted in any figure here. They came through your till." "The people behind it" adds ", N while renting" to a renter's completed visits, and their takings there leave those visits out.
 - **Money still lists every receipt.** Money's receipts keep every receipt and label a renter's: "· Theo's own takings, renting a chair", or "Theo's own takings for the treatment, renting a chair" when products on the receipt stay the studio's. The till count still counts every pound of cash in the drawer.
@@ -87,16 +87,31 @@ Reception's and a general manager's records keep each rental's person, space and
 - **No card inside a card.** The working is rows inside the rent panel; Business's two new lines use the same rule and spacing as their neighbours.
 - **Photographs, empty pages, loading.** None added or changed; `LoadingShapes` is not on this branch and nothing here loads on its own.
 - **Motion.** `--motion-calm` is not on this branch; no new motion.
-- **390 px.** The working lines stack, the dialog's choices and fields wrap as the existing form does. Not yet checked in a browser at 390 px.
+- **390 px.** The working lines stack, the dialog's choices and fields wrap as the existing form does. Checked in a browser at 390 px (see below).
 - **Words.** Plain British English, "visit" and "treatment", no dashes. Rent is "recorded", never "paid by SALEANE" or "collected".
 - **Built from the library.** Existing components and tokens only, no left-edge stripes.
-- **Before and after pictures**: not taken, as this build could not open a browser.
+- **Before and after pictures** were taken at 1440 and 390 px in the browser pass and are on the Stage 3 before and after page: https://claude.ai/artifact/EX667DQpzruWeeZeTktMrE.
+
+## Seen in a browser
+
+Checked on 10 October 2026 in Chromium against the local server, signed up as a new owner with the sample studio (sample day Tuesday 6 October), at 1440 px and 390 px.
+
+- Business, Pay, Chair and room rent: Theo's line reads "£50.00 a week plus 10% of treatments from Monday 21 September. Products they sell stay the studio's sales.", with "£50.00 owed" and, under it, "£7.50 more so far this week". The weeks show Mon 5 Oct owed and Mon 28 Sept and Mon 21 Sept paid.
+- "How the rent was worked out" reads, week by week, "£50.00 fixed plus 10% of £75.00 in treatments is £7.50: £57.50 so far.", "... £1,805.00 ... £180.50: £230.50. £230.50 paid." and "... £1,705.00 ... £170.50: £220.50. £220.50 paid.".
+- "Record rent" opens on "Week from Monday 5 October · £57.50 so far" with the working under it, the amount filled in, and a reference and the confirming tick required.
+- A manager can record rent and set up a rental. Reception has no Pay tab; Money labels Theo's receipts "Theo's own takings for the treatment, renting a chair".
+- 390 px: the rent panel, its working and Record rent stack, with nothing scrolling sideways.
+
+Found and fixed in this pass:
+
+- Theo's line said only "£50.00 owed" while the current week's share, £7.50 so far, sat out of sight in the working. The line now shows both: the fixed part owed now, and the share so far on a quieter line underneath (a new Pay test covers it).
+- A missing full stop after "Products they sell stay the studio's sales".
 
 ## Steps for the lead in a browser
 
 Sample studio, signed up as a new owner, at 1440 px and 390 px. The sample's day is 6 October 2026. Theo Bennett rents his chair from 21 September for £50.00 a week plus 10% of his treatments.
 
-1. Business, then Pay, Chair and room rent: Theo's line reads "£50.00 a week plus 10% of treatments from Monday 21 September. Products they sell stay the studio's sales" and "£50.00 owed". Open "How the rent was worked out": the weeks from Mon 21 Sept and Mon 28 Sept read "£50.00 fixed plus 10% of £1,705.00 in treatments is £170.50: £220.50. £220.50 paid." and "... £1,805.00 ... £180.50: £230.50. £230.50 paid."; the week from Mon 5 Oct reads "£50.00 fixed plus 10% of £75.00 in treatments is £7.50: £57.50 so far."
+1. Business, then Pay, Chair and room rent: Theo's line reads "£50.00 a week plus 10% of treatments from Monday 21 September. Products they sell stay the studio's sales" with "£50.00 owed" and "£7.50 more so far this week". Open "How the rent was worked out": the weeks from Mon 21 Sept and Mon 28 Sept read "£50.00 fixed plus 10% of £1,705.00 in treatments is £170.50: £220.50. £220.50 paid." and "... £1,805.00 ... £180.50: £230.50. £230.50 paid."; the week from Mon 5 Oct reads "£50.00 fixed plus 10% of £75.00 in treatments is £7.50: £57.50 so far."
 2. "Record rent": "Week from Monday 5 October · £57.50 so far", with the working under it. Try £57.51: "Only £57.50 more is due for that period so far." Record £57.50 in cash.
 3. End Theo's rental from today, then "Set up a rental" for him again from tomorrow as "A share of their takings" at 12.5% with products ticked; his line reads "12.5% of treatments and products, worked out each week".
 4. Business, Overview, last 7 days: "Takings from completed treatments" £4,230 from 41 completed visits (63 visits were completed in all; 22 were Theo's while renting); "Chair and room rent recorded" £230.50 and "Renters' own takings, kept apart" £1,580. "The people behind it" shows Theo's visits "while renting".

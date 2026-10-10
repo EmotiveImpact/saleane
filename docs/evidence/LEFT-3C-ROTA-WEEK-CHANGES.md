@@ -103,7 +103,7 @@ Every place that works out who is free, and how it now follows the changed day:
 - **390 px.** The week keeps its existing sideways scroll (a strip made to scroll, with the fading edge). Each day button fills its cell at least 44 px high; the fold's line, the radio rows and the practitioner's list rows are 44 px targets; the week buttons wrap; the dialogs use the existing form grid, which stacks on a phone. Times in a narrow cell wrap between words, never in the middle of a time.
 - **Words.** Plain British English, no exclamation marks, no dashes. Messages say what happens next ("Move it first, or choose to keep it booked as it is."), and "Nobody is messaged and nothing is cancelled." is said where it matters.
 - **Built from the library.** Button, Modal, SegmentedControl, TimeField and ErrorMessage from `src/design`; colours from tokens only (`--stone`, `--paper`, `--line-strong`, `--rose-ink`, `--brand-ink`); no left-edge stripes (the edges test passes). Nothing claims a message was sent.
-- **Before and after pictures** were taken at 1440 and 390 px in the browser pass; they go on the Stage 3 before and after page.
+- **Before and after pictures** were taken at 1440 and 390 px in the browser pass and are on the Stage 3 before and after page: https://claude.ai/artifact/EX667DQpzruWeeZeTktMrE.
 
 ## Seen in a browser
 
