@@ -2,19 +2,26 @@ import type { BusinessState, Region } from '../model'
 import { postcodeArea } from '../clientAreas'
 import {
   FIELD_LABEL,
+  clientFields,
+  fieldFromHeading,
+  fieldIn,
   findHeadingRow,
   headingKey,
   isSummaryRow,
   matchColumns,
+  matchColumnsIn,
   yesNo,
 } from './fields'
 import type { ClientField, ColumnMatch } from './fields'
+import { isVisitField, visitVocabulary } from './visitFields'
+import type { VisitField } from './visitFields'
 import { SYSTEM_NAME, guessKind, recogniseLayout } from './systems'
 import type { FileKind, OldSystem } from './systems'
 import type { Sheet } from './sheet'
 
 /**
- * Moving in, stage 1: turning an old system's client list into SALEANE clients. Every row is
+ * Moving in, stage 1: reading any file, and turning an old system's client list into SALEANE
+ * clients. Every row is
  * checked and shown before anything is saved. Nobody is merged with a client already in SALEANE;
  * a likely match is shown as "already here" and left alone. Marketing permission comes across
  * only when the file clearly records that the client agreed, and the evidence is kept.
@@ -29,19 +36,36 @@ export type MovingFile = {
   report: string | null
   kind: FileKind
   headings: string[]
+  /** What each column means for a client list. */
   matches: ColumnMatch[]
+  /** What each column means for a visits file; empty for any other kind. */
+  visitMatches: ColumnMatch<VisitField>[]
   /** Data rows only: heading, title and totals rows removed. */
   rows: string[][]
   /** The row number in the file of each data row, for pointing the owner at it. */
   lineNumbers: number[]
 }
 
+/** The owner's answers about a file's columns: a heading's key to a field, or null to leave it out. */
+export type ColumnAnswers = Record<string, string | null>
+
+const isClientField = (value: string | null): value is ClientField =>
+  clientFields.includes(value as ClientField)
+
+/** Only the answers that name a field of this vocabulary (or leave the column out). */
+function answersFor<F extends string>(answers: ColumnAnswers, is: (v: string | null) => v is F) {
+  const kept: Record<string, F | null> = {}
+  for (const [key, value] of Object.entries(answers))
+    if (value === null || is(value)) kept[key] = value
+  return kept
+}
+
 /** Reads what a file is and what each of its columns means. */
-export function understandFile(
-  sheet: Sheet,
-  answers: Record<string, ClientField | null> = {},
-): MovingFile {
-  const headingRow = findHeadingRow(sheet.rows)
+export function understandFile(sheet: Sheet, answers: ColumnAnswers = {}): MovingFile {
+  const headingRow = findHeadingRow(
+    sheet.rows,
+    (cell) => !!fieldFromHeading(cell) || !!fieldIn(visitVocabulary, cell),
+  )
   const headings = (sheet.rows[headingRow] ?? []).map((h, i) => h.trim() || `Column ${i + 1}`)
   const rows: string[][] = []
   const lineNumbers: number[] = []
@@ -53,22 +77,44 @@ export function understandFile(
     lineNumbers.push(headingRow + i + 2)
   })
   const layout = recogniseLayout(headings)
-  const known = { ...(layout?.fields ?? {}), ...answers }
+  const known = { ...(layout?.fields ?? {}), ...answersFor(answers, isClientField) }
   const matches = matchColumns(headings, rows, known)
   const fields = new Set(matches.map((m) => m.field))
   const hasClientColumns =
     (fields.has('fullName') || fields.has('firstName') || fields.has('lastName')) &&
     (fields.has('email') || fields.has('mobile') || fields.has('phone'))
+  const visitMatches = matchColumnsIn(visitVocabulary, headings, rows, {
+    ...(layout?.visitFields ?? {}),
+    ...answersFor(answers, isVisitField),
+  })
+  const kind =
+    layout?.kind ??
+    (looksLikeVisits(visitMatches, rows) ? 'visits' : guessKind(headings, hasClientColumns))
   return {
     fileName: sheet.fileName,
     system: layout?.system ?? null,
     report: layout?.report ?? null,
-    kind: layout?.kind ?? guessKind(headings, hasClientColumns),
+    kind,
     headings,
     matches,
+    visitMatches: kind === 'visits' ? visitMatches : [],
     rows,
     lineNumbers,
   }
+}
+
+/**
+ * A file with a treatment, a professional and a date with times is visits, even when it also has
+ * every client column (Acuity, Square). A client list's "last visit" has dates without times.
+ */
+function looksLikeVisits(matches: ColumnMatch<VisitField>[], rows: string[][]) {
+  const column = (field: VisitField) => matches.find((m) => m.field === field)?.index
+  const date = column('date')
+  if (date === undefined || column('treatment') === undefined) return false
+  if (column('professional') === undefined) return false
+  if (column('time') !== undefined) return true
+  const filled = rows.map((r) => r[date] ?? '').filter((v) => v.trim())
+  return filled.filter((v) => /\d:\d\d|\d\s*[ap]\.?m\b/i.test(v)).length * 2 > filled.length
 }
 
 /** The answers the owner gave about a file's unsure columns, keyed so they apply to every file like it. */
@@ -206,6 +252,8 @@ export type ClientRow = {
   /** Small things to know: a birthday that could not be read, notes shortened. */
   notes: string[]
   client?: MovingClient
+  /** A client who cannot come across because they have no email or phone. */
+  name?: string
 }
 
 export type ClientReview = {
@@ -302,6 +350,7 @@ export function reviewClients(
           ...base,
           status: 'problem',
           detail: `${name} has no email or phone number SALEANE can use.`,
+          name,
         })
         return
       }

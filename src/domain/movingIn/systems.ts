@@ -1,8 +1,9 @@
 import { headingKey } from './fields'
 import type { ClientField } from './fields'
+import type { VisitField } from './visitFields'
 
 /**
- * Moving in, stage 1: the old systems SALEANE knows, and how to tell which system and which of its
+ * Moving in: the old systems SALEANE knows, and how to tell which system and which of its
  * reports a file came from. Only layouts confirmed from a real export or an official column list
  * are written as layouts; everything else is read by meaning (fields.ts). Sources for each are in
  * /mnt/project-files/moving-in/export-field-map.md.
@@ -36,7 +37,10 @@ export const SYSTEM_NAME: Record<OldSystem, string> = {
 /** The five most UK studios come from, offered first. */
 export const UK_FIRST: OldSystem[] = ['fresha', 'phorest', 'timely', 'treatwell', 'booksy']
 
-/** What a file holds. Stage 1 brings clients across; the others are recognised and named, not saved. */
+/**
+ * What a file holds. Clients (stage 1) and upcoming visits (stage 2) come across; the others are
+ * recognised and named, not saved.
+ */
 export type FileKind = 'clients' | 'visits' | 'giftCards' | 'packages' | 'payments' | 'unknown'
 
 export const KIND_LABEL: Record<FileKind, string> = {
@@ -68,6 +72,31 @@ export const WHERE_TO_EXPORT: Record<OldSystem, string> = {
   other: 'Download your client list as a CSV or Excel file. Any layout is fine.',
 }
 
+/**
+ * Where to find the upcoming visits. Only what research confirmed is stated as a route; where a
+ * system has no download of its own, the owner is told to ask its support team.
+ */
+export const WHERE_TO_EXPORT_VISITS: Record<OldSystem, string> = {
+  fresha:
+    'In Fresha, open Reports and choose Appointments list. Set the dates from today to your furthest booking, then download it as CSV or Excel.',
+  phorest:
+    'Phorest’s upcoming appointments report prints as a PDF, so ask Phorest’s support team for your future appointments as a spreadsheet.',
+  timely:
+    'In Timely, open Reports and choose Appointment schedule. Set the dates from today onwards, then export it as CSV or Excel.',
+  treatwell:
+    'Ask Treatwell’s support team for your upcoming appointments as a spreadsheet, with each client’s name, email or mobile.',
+  booksy:
+    'Booksy sends your appointments when you ask their support team. In the UK, email info.gb@booksy.com and ask for your upcoming appointments as a spreadsheet.',
+  square:
+    'Square can download your appointments, past and upcoming, as a CSV file. Add it as it comes; past visits are counted and left behind for now.',
+  vagaro:
+    'In Vagaro, open Reports, Appointments Summary, and export each booking status you keep, such as Confirmed and Accepted, to Excel. Add every file.',
+  glossgenius:
+    'GlossGenius has no appointments download, so ask their support team for your upcoming appointments as a spreadsheet.',
+  other:
+    'Download your upcoming visits (often called appointments or bookings) as a CSV or Excel file, from today onwards. Any layout is fine.',
+}
+
 type Layout = {
   system: OldSystem
   kind: FileKind
@@ -77,6 +106,8 @@ type Layout = {
   needs: string[]
   /** Headings known in this layout, and what each means for a client. Null means not needed. */
   fields?: Record<string, ClientField | null>
+  /** The same for a visits file. */
+  visitFields?: Record<string, VisitField | null>
 }
 
 const k = headingKey
@@ -89,6 +120,27 @@ const LAYOUTS: Layout[] = [
     kind: 'visits',
     report: 'appointments list',
     needs: ['Appt. ref.', 'Appt. slot', 'Team member'],
+    visitFields: {
+      [k('Appt. ref.')]: 'reference',
+      [k('Client')]: 'client',
+      [k('Team member')]: 'professional',
+      [k('Status')]: 'status',
+      [k('Created date')]: null,
+      [k('Scheduled date')]: 'date',
+      [k('Cancelled date')]: null,
+      [k('Category')]: null,
+      [k('Service')]: 'treatment',
+      [k('Duration (mins)')]: 'duration',
+      [k('Appt. slot')]: 'time',
+      [k('Created by')]: null,
+      [k('Cancelled by')]: null,
+      [k('Location')]: null,
+      [k('Net sales')]: 'price',
+      [k('Cancellation reason')]: null,
+      [k('Fees charged')]: null,
+      [k('Upfront payments')]: 'deposit',
+      [k('Resource')]: null,
+    },
   },
   {
     system: 'fresha',
@@ -220,6 +272,14 @@ const LAYOUTS: Layout[] = [
     kind: 'visits',
     report: 'appointments summary',
     needs: ['Customer Name', 'Appointment Date', 'Service Name', 'Employee'],
+    visitFields: {
+      [k('Customer Name')]: 'client',
+      [k('Appointment Date')]: 'date',
+      [k('Status')]: 'status',
+      [k('Service Name')]: 'treatment',
+      [k('Employee')]: 'professional',
+      [k('Amount')]: 'price',
+    },
   },
   {
     system: 'vagaro',
@@ -248,6 +308,7 @@ export type Recognised = {
   kind: FileKind
   report: string | null
   fields: Record<string, ClientField | null>
+  visitFields: Record<string, VisitField | null>
 }
 
 /** Which system and report a file's headings come from, when SALEANE knows the layout. */
@@ -258,7 +319,13 @@ export function recogniseLayout(headings: string[]): Recognised | null {
     if (layout.needs.every((need) => keys.has(headingKey(need))))
       if (!best || layout.needs.length > best.needs.length) best = layout
   return best
-    ? { system: best.system, kind: best.kind, report: best.report, fields: best.fields ?? {} }
+    ? {
+        system: best.system,
+        kind: best.kind,
+        report: best.report,
+        fields: best.fields ?? {},
+        visitFields: best.visitFields ?? {},
+      }
     : null
 }
 

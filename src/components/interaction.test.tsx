@@ -897,7 +897,7 @@ describe('moving clients in from another system', () => {
     expect(screen.getByRole('button', { name: 'Fresha' })).toHaveAttribute('aria-pressed', 'true')
     await user.click(next())
 
-    expect(screen.getByRole('heading', { name: 'Add your Fresha client list' })).toHaveFocus()
+    expect(screen.getByRole('heading', { name: 'Add your Fresha files' })).toHaveFocus()
     expect(screen.getByText(/In Fresha, go to Clients/)).toBeInTheDocument()
     expect(next()).toBeDisabled()
     await user.upload(
@@ -920,7 +920,7 @@ describe('moving clients in from another system', () => {
     expect(screen.getByText(/1 already in SALEANE stays exactly as they are/)).toBeInTheDocument()
     const submit = screen.getByRole('button', { name: 'Bring 1 client across' })
     expect(submit).toBeDisabled()
-    await user.click(screen.getByRole('checkbox', { name: /I have checked these 1 clients/ }))
+    await user.click(screen.getByRole('checkbox', { name: /I have checked the 1 client against/ }))
     await user.click(submit)
     expect(
       await screen.findByRole('heading', { name: '1 client brought across from Fresha' }),
@@ -943,6 +943,95 @@ describe('moving clients in from another system', () => {
       (client: { email: string }) => client.email === 'amelia.carter@example.com',
     )
     expect(amelia).toHaveLength(1)
+  })
+
+  it('brings upcoming visits across with the client list, each with its quoted price and deposit', async () => {
+    const user = userEvent.setup()
+    await show('/clients')
+    await user.click(screen.getByRole('button', { name: 'Import clients' }))
+    await user.click(screen.getByRole('button', { name: 'Fresha' }))
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(
+      screen.getByText(/In Fresha, open Reports and choose Appointments list/),
+    ).toBeInTheDocument()
+    const headings =
+      'Appt. ref.,Client,Team member,Status,Scheduled date,Service,Duration (mins),Appt. slot,Location,Net sales,Upfront payments'
+    const appointments = [
+      headings,
+      'V1,Alex Import,Maya Lewis,Confirmed,"13 Oct 2026, 10:00am",Skin Renewal Facial,60,10:00:00-11:00:00,Main,95.00,20.00',
+      'V2,Amelia Carter,Theo Bennett,Booked,"14 Oct 2026, 2:00pm",Gloss & Tone,45,14:00:00-14:45:00,Main,65.00,0.00',
+      'V3,Amelia Carter,Maya Lewis,Cancelled,"15 Oct 2026, 9:00am",Skin Renewal Facial,60,09:00:00-10:00:00,Main,95.00,0.00',
+      'V4,Somebody Else,Sophia Reed,Confirmed,"15 Oct 2026, 11:00am",Lymphatic Massage,75,11:00:00-12:15:00,Main,120.00,0.00',
+    ].join('\n')
+    await user.upload(screen.getByLabelText(/Drop files here/), [
+      new File([fresha], 'export_customer_list.csv', { type: 'text/csv' }),
+      new File([appointments], 'report_appointment-list.csv', { type: 'text/csv' }),
+    ])
+    expect(await screen.findByText(/Fresha appointments list · 4 rows/)).toBeInTheDocument()
+    expect(
+      screen.getByRole('list', { name: 'Moving in steps' }).querySelectorAll('li'),
+    ).toHaveLength(5)
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(screen.getByRole('heading', { name: 'Check your clients' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+
+    expect(screen.getByRole('heading', { name: 'Check your visits' })).toHaveFocus()
+    const summary = document.querySelector('.ops-summary') as HTMLElement
+    expect(within(summary).getByText('Ready to come across').nextSibling).toHaveTextContent('2')
+    expect(within(summary).getByText('Need a look').nextSibling).toHaveTextContent('1')
+    expect(
+      screen.getByText(
+        /Check these against Fresha: 2 visits from .*£160\.00 booked and £20\.00 in deposits paid there\./,
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/1 cancelled or missed visit, which stay behind/)).toBeInTheDocument()
+    const attention = screen.getByRole('region', { name: 'Visits to look at' })
+    expect(within(attention).getByText('1 visit not coming across')).toBeInTheDocument()
+    expect(within(attention).getByText(/This client is not in SALEANE/)).toBeInTheDocument()
+    expect(within(attention).getByText(/Somebody Else/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+
+    expect(
+      screen.getByText('1 client and 2 visits are ready to come across from Fresha.'),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/Nobody is sent a confirmation/)).toBeInTheDocument()
+    await user.click(
+      screen.getByRole('checkbox', { name: /I have checked the 1 client and 2 visits against/ }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Bring 1 client and 2 visits across' }))
+    expect(
+      await screen.findByRole('heading', {
+        name: '1 client and 2 visits brought across from Fresha',
+      }),
+    ).toBeInTheDocument()
+    const saved = JSON.parse(localStorage.getItem('saleane.demo.v1.UK')!)
+    const alex = saved.clients.find(
+      (client: { email: string }) => client.email === 'alex.import@example.com',
+    )
+    const moved = saved.appointments.filter((a: { source: string }) => a.source === 'import')
+    expect(
+      moved.map(
+        (a: { clientId: string; date: string; startMinutes: number; bookedPriceMinor: number }) => [
+          a.clientId,
+          a.date,
+          a.startMinutes,
+          a.bookedPriceMinor,
+        ],
+      ),
+    ).toEqual([
+      [alex.id, '2026-10-13', 600, 9500],
+      ['client-1', '2026-10-14', 840, 6500],
+    ])
+    expect(
+      saved.payments.filter((p: { method: string }) => p.method === 'previous_system'),
+    ).toMatchObject([{ appointmentId: moved[0].id, amountMinor: 2000 }])
+  })
+
+  it('opens the same steps from Settings for upcoming visits', async () => {
+    const user = userEvent.setup()
+    await show('/settings?section=switching')
+    await user.click(screen.getByRole('button', { name: 'Review a file: upcoming visits' }))
+    expect(screen.getByRole('heading', { name: 'Where are you moving from?' })).toBeInTheDocument()
   })
 
   it('says so when more files are chosen than can be read at once', async () => {
@@ -981,7 +1070,7 @@ describe('moving clients in from another system', () => {
     await screen.findByText(/Client list · 1 row/)
     await user.click(screen.getByRole('button', { name: 'Continue' }))
     await user.click(screen.getByRole('button', { name: 'Continue' }))
-    const tick = () => screen.getByRole('checkbox', { name: /I have checked these 1 clients/ })
+    const tick = () => screen.getByRole('checkbox', { name: /I have checked the 1 client against/ })
     await user.click(tick())
     const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
       throw new Error('Storage unavailable')

@@ -10,12 +10,7 @@ import type { Command } from '../domain/commands'
 import { Button, ErrorMessage, Modal } from '../design'
 import { MovingIn } from './MovingIn'
 import { CLIENT_IMPORT_MAX_BYTES, CLIENT_IMPORT_MAX_PAYLOAD_BYTES } from './clientImportCsv'
-import {
-  SWITCH_COLUMNS,
-  previewAppointmentsCsv,
-  previewBalancesCsv,
-  previewServicesCsv,
-} from './switchingCsv'
+import { SWITCH_COLUMNS, previewBalancesCsv, previewServicesCsv } from './switchingCsv'
 import type { SwitchKind, SwitchPreview } from './switchingCsv'
 import './management.css'
 import './switching.css'
@@ -27,13 +22,6 @@ const KIND_COPY = {
     body: 'Names, lengths, prices and deposits, and who gives each one.',
     example:
       'name,duration,price,deposit,category,professionals\nSignature facial,60,85.00,20.00,Skin,Amara Okafor',
-  },
-  appointments: {
-    title: 'Upcoming visits',
-    noun: ['visit', 'visits'],
-    body: 'Future bookings keep the price the guest was quoted and any deposit they already paid.',
-    example:
-      'date,time,service,professional,email,name,phone,price,deposit_paid,reference\n14/11/2026,10:30,Signature facial,Amara Okafor,guest@example.com,Guest Name,+44 7700 900123,85.00,20.00,BK-1042',
   },
   balances: {
     title: 'Balances',
@@ -61,18 +49,26 @@ function fileText(file: File) {
 /** PILOT-03: the Settings section for moving a studio across from its previous system. */
 export function SwitchingSettings() {
   const { state, role, blocked } = useStore()
-  const [open, setOpen] = useState<SwitchKind | 'clients' | null>(null)
+  // Clients and upcoming visits come across through moving in, which reads the old system's own
+  // files; treatments and balances still use SALEANE's own CSV layout.
+  const [open, setOpen] = useState<SwitchKind | 'moving' | null>(null)
   const allowed = !blocked && can(role, 'import-services')
   const imports = (operations(state).imports ?? []).slice().reverse()
-  const steps: { kind: SwitchKind | 'clients'; title: string; body: string }[] = [
+  const steps: { key: string; opens: SwitchKind | 'moving'; title: string; body: string }[] = [
     {
-      kind: 'clients',
+      key: 'clients',
+      opens: 'moving',
       title: 'Clients',
       body: 'Straight from Fresha, Phorest, Timely, Treatwell, Booksy or any other system, with notes, birthdays and the marketing choices your old system recorded.',
     },
-    { kind: 'services', ...KIND_COPY.services },
-    { kind: 'appointments', ...KIND_COPY.appointments },
-    { kind: 'balances', ...KIND_COPY.balances },
+    { key: 'services', opens: 'services', ...KIND_COPY.services },
+    {
+      key: 'visits',
+      opens: 'moving',
+      title: 'Upcoming visits',
+      body: 'Straight from your old system’s appointments list. Each visit keeps the price the guest was quoted and any deposit they already paid. Add them with your clients, or on their own.',
+    },
+    { key: 'balances', opens: 'balances', ...KIND_COPY.balances },
   ]
   return (
     <section className="surface ops-panel settings-panel">
@@ -89,16 +85,16 @@ export function SwitchingSettings() {
           <div>
             <strong>Nothing already here is changed or removed.</strong>
             <p>
-              Export each list from your old system. Client lists can be CSV or Excel, exactly as
-              they come; the other lists are CSV files. You see every row before it is saved, with
-              totals to check against your old system’s own report. Add your team and spaces first,
-              so treatments and visits have somewhere to go.
+              Export each list from your old system. Clients and upcoming visits can be CSV or
+              Excel, exactly as they come; treatments and balances are CSV files. You see every row
+              before it is saved, with totals to check against your old system’s own report. Add
+              your team and spaces first, so treatments and visits have somewhere to go.
             </p>
           </div>
         </div>
         <ol className="switch-steps">
           {steps.map((step, index) => (
-            <li key={step.kind}>
+            <li key={step.key}>
               <span className="switch-step-number" aria-hidden="true">
                 {index + 1}
               </span>
@@ -109,7 +105,7 @@ export function SwitchingSettings() {
               <Button
                 variant="secondary"
                 disabled={!allowed}
-                onClick={() => setOpen(step.kind)}
+                onClick={() => setOpen(step.opens)}
                 aria-label={`Review a file: ${step.title.toLowerCase()}`}
               >
                 Review a file
@@ -131,8 +127,8 @@ export function SwitchingSettings() {
           </p>
         )}
       </div>
-      {open === 'clients' && <MovingIn onClose={() => setOpen(null)} />}
-      {open && open !== 'clients' && <ImportReview kind={open} onClose={() => setOpen(null)} />}
+      {open === 'moving' && <MovingIn onClose={() => setOpen(null)} />}
+      {open && open !== 'moving' && <ImportReview kind={open} onClose={() => setOpen(null)} />}
     </section>
   )
 }
@@ -189,17 +185,6 @@ function summary(kind: SwitchKind, columns: string[], cells: string[]) {
         cell('professionals'),
       ),
     ]
-  if (kind === 'appointments')
-    return [
-      join(`${cell('date')} ${cell('time')}`.trim(), cell('service')),
-      join(
-        cell('professional'),
-        cell('name') ? `${cell('name')} (${cell('email')})` : cell('email'),
-        cell('price') && `price ${cell('price')}`,
-        cell('deposit_paid') && `${cell('deposit_paid')} paid`,
-        cell('reference'),
-      ),
-    ]
   return [
     cell('name') ? `${cell('name')} (${cell('email')})` : cell('email'),
     join(cell('amount'), cell('type') || 'credit', cell('note')),
@@ -227,11 +212,7 @@ function ImportReview({ kind, onClose }: { kind: SwitchKind; onClose: () => void
     if (!source) return { preview: null, error: '' }
     try {
       const preview =
-        kind === 'services'
-          ? previewServicesCsv(source, state)
-          : kind === 'appointments'
-            ? previewAppointmentsCsv(source, state)
-            : previewBalancesCsv(source, state)
+        kind === 'services' ? previewServicesCsv(source, state) : previewBalancesCsv(source, state)
       return { preview: preview as AnyPreview, error: '' }
     } catch (cause) {
       return {
@@ -249,9 +230,7 @@ function ImportReview({ kind, onClose }: { kind: SwitchKind; onClose: () => void
   const command = (
     kind === 'services'
       ? { type: 'import-services', source: label, services: values, reviewed: true }
-      : kind === 'appointments'
-        ? { type: 'import-appointments', source: label, appointments: values, reviewed: true }
-        : { type: 'import-balances', source: label, balances: values, reviewed: true }
+      : { type: 'import-balances', source: label, balances: values, reviewed: true }
   ) as Command
   const payloadTooLarge =
     new TextEncoder().encode(JSON.stringify({ revision: state.revision, command })).byteLength >
@@ -336,12 +315,7 @@ function ImportReview({ kind, onClose }: { kind: SwitchKind; onClose: () => void
           <h3>
             {done} {done === 1 ? one : many} brought across
           </h3>
-          <p>
-            Source: {label}.{' '}
-            {kind === 'appointments'
-              ? 'No confirmation was sent; reminders follow your message settings.'
-              : 'Nothing already in SALEANE was changed.'}
-          </p>
+          <p>Source: {label}. Nothing already in SALEANE was changed.</p>
           <Button autoFocus onClick={onClose}>
             Done
           </Button>
@@ -392,37 +366,21 @@ function ImportReview({ kind, onClose }: { kind: SwitchKind; onClose: () => void
                   </small>
                 </div>
                 <div>
-                  <span>
-                    {kind === 'services'
-                      ? 'Price list total'
-                      : kind === 'appointments'
-                        ? 'Booked value'
-                        : 'Credit held'}
-                  </span>
+                  <span>{kind === 'services' ? 'Price list total' : 'Credit held'}</span>
                   <strong>{format(kind === 'balances' ? credit : total)}</strong>
                   <small>
-                    {kind === 'appointments'
-                      ? 'At the prices guests were quoted'
-                      : kind === 'balances'
-                        ? 'For clients to use or have returned'
-                        : 'Across the chosen treatments'}
+                    {kind === 'balances'
+                      ? 'For clients to use or have returned'
+                      : 'Across the chosen treatments'}
                   </small>
                 </div>
                 <div>
-                  <span>
-                    {kind === 'appointments'
-                      ? 'Deposits already paid'
-                      : kind === 'balances'
-                        ? 'Owed to you'
-                        : 'Deposits asked'}
-                  </span>
+                  <span>{kind === 'balances' ? 'Owed to you' : 'Deposits asked'}</span>
                   <strong>{format(kind === 'balances' ? total - credit : deposits)}</strong>
                   <small>
-                    {kind === 'appointments'
-                      ? 'Paid to the old system, not again'
-                      : kind === 'balances'
-                        ? 'Collected at the desk as usual'
-                        : 'Across the chosen treatments'}
+                    {kind === 'balances'
+                      ? 'Collected at the desk as usual'
+                      : 'Across the chosen treatments'}
                   </small>
                 </div>
               </div>

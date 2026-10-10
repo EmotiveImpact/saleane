@@ -1,4 +1,4 @@
-/* Moving in, stage 1: bring a client list across from another system. */
+/* Moving in: bring a client list and upcoming visits across from another system. */
 .moving {
   display: grid;
   gap: 28px;
@@ -192,6 +192,26 @@
 .moving-attention > .ops-help {
   margin: 0;
   padding: 12px 16px;
+}
+/* A few of the visits behind each reason, quiet beneath it. */
+.moving-attention .moving-examples {
+  margin-top: 6px;
+}
+.moving-attention .moving-examples li {
+  padding: 2px 0;
+  border: 0;
+  color: var(--muted);
+  font-size: var(--text-meta);
+  overflow-wrap: anywhere;
+}
+/* The totals to hold up against the old system's own report. */
+.moving-totals {
+  display: grid;
+  gap: 6px;
+  margin: 16px 0 0;
+}
+.moving-totals .ops-help {
+  margin: 0;
 }
 .moving-columns {
   margin: 12px 0;
