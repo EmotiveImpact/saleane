@@ -33,6 +33,7 @@ import { approvalsProblem } from './approvals'
 import { tillProblem } from './till'
 import { rotaProblem } from './rota'
 import { staffMovesProblem } from './staffMoves'
+import { timeOffProblem } from './timeOff'
 export { paymentMethodSchema, paymentMethods, processorSchema } from './paymentMethods'
 
 export const DEMO_DATE = '2026-10-06'
@@ -740,6 +741,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
   // Stage 4: people moving to another location from a date.
   const moves = staffMovesProblem(s)
   if (moves) throw new Error(moves)
+  const away = timeOffProblem(s)
+  if (away) throw new Error(away)
   try {
     new Intl.DateTimeFormat('en', { timeZone: org.timeZone }).format(new Date())
   } catch {

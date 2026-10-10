@@ -8,6 +8,7 @@ import { dateLabel, fullDateLabel, money, timeLabel } from './format'
 import { rotaChangeDetail } from './rota'
 import { giftMoveDetail } from './giftCards'
 import { staffMoveDetail } from './staffMoves'
+import { timeOffChangeDetail } from './timeOff'
 
 /**
  * NEXT-05: who changed what. Every saved change is already written to the studio's audit log
@@ -142,6 +143,7 @@ const commandWords: Record<Command['type'], Words> = {
   'end-rental': ['team', 'Ended a chair rental'],
   'rent-payment': ['money', 'Recorded rent paid'],
   'cancel-time-off': ['team', 'Cancelled time off'],
+  'time-off-change': ['team', 'Changed time off'],
   'clock-in': ['team', 'Clocked in'],
   'clock-out': ['team', 'Clocked out'],
   'shift-save': ['team', 'Changed hours worked', 'Added hours worked'],
@@ -412,6 +414,9 @@ export function changeDetail(
   // Stage 4: a gift card or someone moving keeps where from and where to.
   const moved = giftMoveDetail(after, action, recordId) ?? staffMoveDetail(after, action, recordId)
   if (moved) return moved
+  // Stage 4: changed time off keeps its days and kind before and after.
+  const away = timeOffChangeDetail(before, after, action, recordId)
+  if (away) return away
   let fields: ChangedField[] = []
   let made: ChangeDetail['made']
   const settings = settingsOf[action]
@@ -531,6 +536,7 @@ const fieldWords: Record<string, string> = {
   // Stage 4: booked visits kept at a location someone moved away from.
   visitsKeptAway: 'booked visits kept where they no longer work',
   daysMoved: 'days of the week moved',
+  timeOffKind: 'kind of time off',
 }
 /** A detail's name in words: "cutoffHours" reads "cutoff hours". */
 export function fieldName(field: string) {

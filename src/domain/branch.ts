@@ -5,16 +5,19 @@ import { giftHome, places, staffLocationOn } from './locations'
 import { branchVisits } from './branchVisits'
 import { withoutPayRates } from './pay'
 import { shifts, shiftsAt } from './hours'
+import { roomRefusal, rotaDayRefusal, teamChangeRefusal, teamView, timeOffRefusal } from './team'
 
 /**
  * V5: a general manager runs one location ('general', with the location in their access). They
- * read the studio record as a manager does, less the team's pay rates and other locations' branch
- * visits and requests, and change only what belongs to their location: its visits and takings,
- * its stock and orders, its branch visits and requests, the gift cards that belong to it (Stage 4:
- * they can pass one on to another location) and the clients they look after. Anything that
- * changes the whole business (treatments, prices, the team, hours, settings, moving someone to
- * another location) stays with the owner and managers. Permissions are in `GENERAL_ACTIONS`
- * (operations.ts).
+ * read the studio record as a manager does, less the team's pay rates, other locations' branch
+ * visits and requests, and (Stage 4) other locations' team, hours, time off and rooms, and change
+ * only what belongs to their location: its visits and takings, its stock and orders, its branch
+ * visits and requests, the gift cards that belong to it (Stage 4: they can pass one on to another
+ * location), the clients they look after and (Stage 4) their own team's days on the rota, their
+ * time off, and the rooms and chairs there (team.ts decides whose and which). Anything that
+ * changes the whole business (treatments, prices, the team's records and usual weekly hours,
+ * opening hours, closures, holiday allowances, settings, moving someone to another location) stays
+ * with the owner and managers. Permissions are in `GENERAL_ACTIONS` (operations.ts).
  */
 /** Changes that concern a client rather than a location; any general manager may make them. */
 const CLIENT_COMMANDS = new Set([
@@ -145,6 +148,31 @@ export function branchRefusal(
     }
     case 'request-raise':
       return mine(command.input.locationId) ? null : 'That is at another location.'
+    // Stage 4: their own team's days and time off, and the rooms and chairs at their location.
+    case 'rota-day':
+    case 'rota-day-usual':
+      return rotaDayRefusal(s, locationId, command)
+    case 'rota-week-copy':
+    case 'rota-week-clear':
+      return command.locationId && mine(command.locationId)
+        ? null
+        : 'Copy and clear weeks at your own location only.'
+    case 'time-off':
+      return timeOffRefusal(s, locationId, command.input)
+    case 'cancel-time-off':
+    case 'time-off-change': {
+      // Time off that cannot be found is the change's own refusal.
+      const away = (operations(s).timeOff ?? []).find((t) => t.id === command.timeOffId)
+      if (!away) return null
+      return (
+        timeOffRefusal(s, locationId, away) ??
+        (command.type === 'time-off-change'
+          ? timeOffRefusal(s, locationId, { ...command.input, staffId: away.staffId })
+          : null)
+      )
+    }
+    case 'resource':
+      return roomRefusal(s, locationId, command)
     case 'plan-card': {
       // Stage 1: card payments only for a membership sold at their own location.
       const holding = (s.holdings ?? []).find((h) => h.id === command.holdingId)
@@ -158,7 +186,8 @@ export function branchRefusal(
 
 /**
  * Checked after a general manager's change is made: every visit and shift it added or changed is
- * at their location, before and after. This catches a booking or move that lands somewhere else.
+ * at their location, before and after, and (Stage 4) so is every day on the rota, stretch of time
+ * off and room. This catches a booking or move that lands somewhere else.
  */
 export function branchChangeRefusal(
   before: BusinessState,
@@ -182,7 +211,7 @@ export function branchChangeRefusal(
     if (!at(shift) || (previous && !at(previous)))
       return 'That would change hours worked at another location.'
   }
-  return null
+  return teamChangeRefusal(before, after, locationId)
 }
 
 /** Whether a general manager's location is still open. */
@@ -190,11 +219,16 @@ export const branchOpen = (s: BusinessState, locationId: string) =>
   places(s).some((p) => p.id === locationId)
 
 /**
- * What a general manager reads: the studio record less the team's pay rates, and only their own
- * location's branch visits and requests for a sign-off.
+ * What a general manager reads: the studio record less the team's pay rates, only their own
+ * location's branch visits, requests for a sign-off and hours worked, and (Stage 4) only their own
+ * team, hours, time off and rooms as `teamView` (team.ts) keeps them.
  */
-export function branchView(s: BusinessState, locationId: string): BusinessState {
-  const lean = withoutPayRates(s)
+export function branchView(
+  s: BusinessState,
+  locationId: string,
+  today = businessDate(s),
+): BusinessState {
+  const lean = withoutPayRates(teamView(s, locationId, today))
   const o = lean.operations
   if (!o) return lean
   return {

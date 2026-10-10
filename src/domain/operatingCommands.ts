@@ -84,6 +84,7 @@ export function runOperatingCommand(
     'resource',
     'time-off',
     'cancel-time-off',
+    'time-off-change',
   ].includes(command.type)
   // Guest notes change only text guests read; an empty note removes it.
   if (command.type === 'guest-notes') {
@@ -182,6 +183,53 @@ export function runOperatingCommand(
     if (away.cancelledAt) throw new Error('This time off is already cancelled.')
     away.cancelledAt = now
     away.cancelledBy = 'Local operator'
+    recordId = away.id
+  } else if (command.type === 'time-off-change') {
+    // Stage 4: the earlier record is kept, cancelled and naming the new one, so the history of
+    // who changed what stays whole.
+    const old = o.timeOff?.find((t) => t.id === command.timeOffId)
+    if (!old) throw new Error('Time off not found.')
+    if (old.cancelledAt)
+      throw new Error(
+        old.changedTo
+          ? 'This time off has already been changed. Change the newer one instead.'
+          : 'This time off is cancelled, so it cannot be changed.',
+      )
+    if (!next.staff.some((p) => p.id === old.staffId && !p.archived))
+      throw new Error('Choose someone on the team.')
+    const { from, to, kind } = command.input
+    const note = command.input.note || undefined
+    if (from === old.from && to === old.to && kind === old.kind && note === old.note)
+      throw new Error('Nothing has changed.')
+    if (daysBetween(from, to) + 1 > TIME_OFF_DAYS)
+      throw new Error(`Record up to ${TIME_OFF_DAYS} days at a time.`)
+    if (o.timeOff!.length >= TIME_OFF_LIMIT) throw new Error('Too much time off to keep.')
+    if (
+      o.timeOff!.some(
+        (t) =>
+          t.id !== old.id &&
+          !t.cancelledAt &&
+          t.staffId === old.staffId &&
+          t.from <= to &&
+          t.to >= from,
+      )
+    )
+      throw new Error('This overlaps time off already recorded for them.')
+    const away = {
+      id: makeId(),
+      staffId: old.staffId,
+      from,
+      to,
+      kind,
+      ...(note ? { note } : {}),
+      createdAt: now,
+      actor: 'Local operator',
+      changedFrom: old.id,
+    }
+    old.cancelledAt = now
+    old.cancelledBy = 'Local operator'
+    old.changedTo = away.id
+    o.timeOff!.push(away)
     recordId = away.id
   } else if (command.type === 'leave-allowance') {
     if (!next.staff.some((p) => p.id === command.staffId))
@@ -304,6 +352,7 @@ export function runOperatingCommand(
     command.type === 'resource' ||
     command.type === 'time-off' ||
     command.type === 'cancel-time-off' ||
+    command.type === 'time-off-change' ||
     command.type === 'leave-allowance'
   ) {
     if (scheduling) {

@@ -139,9 +139,8 @@ describe('changing a day on the rota through the server', () => {
       staffId: 'staff-maya',
     })
     const { state } = await studio(owner)
-    const gia = await member(owner, 'gia@example.invalid', 'Gia General', 'general', {
-      locationId: state.organisation.locationId,
-    })
+    // Stage 4: a general manager changes their own team's days at their own location, which
+    // server/branchTeam.test.ts proves; here everyone else is still refused.
     const stranger = await register('other@example.invalid', 'Other Owner')
     const commands: Command[] = [
       shorterThursday,
@@ -150,7 +149,7 @@ describe('changing a day on the rota through the server', () => {
       { type: 'rota-week-clear', monday: '2026-10-05' },
     ]
     for (const command of commands)
-      for (const login of [desk, maya, gia]) {
+      for (const login of [desk, maya]) {
         const refused = await run(login, state.revision, command)
         expect(refused.statusCode, `${command.type}: ${refused.body}`).toBe(403)
         expect(refused.json<{ error: string }>().error).toBe('Your role cannot make this change.')

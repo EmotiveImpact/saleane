@@ -32,15 +32,19 @@ export type Keep = 'move' | 'keep' | null
  * Stage 3: one person's day on the rota, for that date only. As usual, different hours (or an
  * extra day when they do not usually work), or not working. Booked visits the change would leave
  * outside the hours are named, and nothing is saved until the person chooses what happens to them.
+ * Stage 4: a general manager (`locationId`) plans the day at their own location only, and the
+ * dialog says why when a choice is not theirs to make (src/domain/team.ts).
  */
 export function RotaDayDialog({
   staffId,
   date,
+  locationId,
   onClose,
   onDone,
 }: {
   staffId: string
   date: string
+  locationId?: string
   onClose: () => void
   onDone: (message: string) => void
 }) {
@@ -55,7 +59,8 @@ export function RotaDayDialog({
   const placeName = (id: string) => placeOf(state, id)?.name ?? ''
   const initialChoice: Choice = existing ? (existing.working ? 'hours' : 'off') : 'hours'
   const initialPlace =
-    existing?.working && existing.locationId ? existing.locationId : usual.locationId
+    locationId ??
+    (existing?.working && existing.locationId ? existing.locationId : usual.locationId)
   const venue = hoursFor(state, date, initialPlace)
   const initialHours = existing?.working
     ? { open: existing.open!, close: existing.close! }
@@ -110,16 +115,19 @@ export function RotaDayDialog({
   const key = JSON.stringify(command)
   // The same check the server makes, so the screen can say why before anyone saves.
   const preview = useMemo(
-    () => (command ? rotaPreview(state, command) : null),
+    () => (command ? rotaPreview(state, command, undefined, locationId) : null),
     // The command is rebuilt each render; its words decide when to look again.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state, key],
   )
   const affected = preview?.affected ?? []
   const already = outsideVisits(state, staffId, date)
-  const usualWords = usual.working
-    ? `Usually ${span(usual.open, usual.close, locale)}${multiSite ? ` at ${placeName(usual.locationId)}` : ''}.`
-    : `Does not usually work on ${weekdays(date, locale)}.`
+  // A general manager is told where someone usually is on a day at another location, not when.
+  const usualWords = !usual.working
+    ? `Does not usually work on ${weekdays(date, locale)}.`
+    : locationId && usual.locationId !== locationId
+      ? `Usually at ${placeName(usual.locationId)} on ${weekdays(date, locale)}.`
+      : `Usually ${span(usual.open, usual.close, locale)}${multiSite ? ` at ${placeName(usual.locationId)}` : ''}.`
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -220,7 +228,10 @@ export function RotaDayDialog({
                     }}
                   />
                 </label>
-                {multiSite && (
+                {multiSite && locationId && (
+                  <p className="subtle ops-wide">At {placeName(locationId)}.</p>
+                )}
+                {multiSite && !locationId && (
                   <label className="ops-wide">
                     At
                     <select
@@ -400,15 +411,18 @@ export function KeepChoice({
  * Stage 3: a whole week at once. Copy last week's changed days onto the same days this week, or
  * put every change still to come this week back to usual hours. Shows exactly what will happen,
  * what is left out and why, and any booked visits affected, before anything is saved.
+ * Stage 4: for a general manager (`locationId`), only their team's days at their location.
  */
 export function RotaWeekDialog({
   action,
   monday,
+  locationId,
   onClose,
   onDone,
 }: {
   action: 'copy' | 'clear'
   monday: string
+  locationId?: string
   onClose: () => void
   onDone: (message: string) => void
 }) {
@@ -419,8 +433,8 @@ export function RotaWeekDialog({
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
   const name = (id: string) => state.staff.find((p) => p.id === id)?.name ?? 'Someone'
-  const copy = action === 'copy' ? weekCopy(state, monday, today) : null
-  const clearing = action === 'clear' ? weekStillToCome(state, monday, today) : []
+  const copy = action === 'copy' ? weekCopy(state, monday, today, locationId) : null
+  const clearing = action === 'clear' ? weekStillToCome(state, monday, today, locationId) : []
   const rows = copy
     ? copy.copies.map((c) => ({
         key: c.from.id,
@@ -434,12 +448,15 @@ export function RotaWeekDialog({
         date: c.date,
         words: `back to usual from ${c.working ? span(c.open!, c.close!, locale) : 'not working'}`,
       }))
+  const place = locationId ? { locationId } : {}
   const command: RotaCommand =
-    action === 'copy' ? { type: 'rota-week-copy', monday } : { type: 'rota-week-clear', monday }
+    action === 'copy'
+      ? { type: 'rota-week-copy', monday, ...place }
+      : { type: 'rota-week-clear', monday, ...place }
   const preview = useMemo(
-    () => rotaPreview(state, command),
+    () => rotaPreview(state, command, undefined, locationId),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state, action, monday],
+    [state, action, monday, locationId],
   )
   const affected = preview.affected
 

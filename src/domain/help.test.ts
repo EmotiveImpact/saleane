@@ -68,6 +68,12 @@ describe('help inside the app', () => {
     )
     expect(practitioner).not.toContain('checkout')
     expect(ids(helpArticles('regional'))).toContain('area')
+    // Stage 4: a general manager has a guide for their own team and rooms.
+    expect(ids(helpArticles('general'))).toEqual(
+      expect.arrayContaining(['general-team', 'rota', 'rota-day', 'spaces']),
+    )
+    for (const id of ['hours', 'team', 'treatments'])
+      expect(ids(helpArticles('general'))).not.toContain(id)
     // Someone with no studio open sees only the guides meant for everyone.
     expect(ids(helpArticles(null))).toEqual(ids(HELP_ARTICLES.filter((article) => !article.roles)))
   })
@@ -134,6 +140,13 @@ describe('help inside the app', () => {
     expect(first('sick leave')).toBe('rota')
     expect(first('my shift', 'practitioner')).toBe('practitioner-day')
     expect(searchHelp('change a shift for one day', 'reception')[0]?.id).not.toBe('rota-day')
+    // Stage 4: a general manager finds their own team's guide, and the rota and rooms guides.
+    expect(first('my team at my location', 'general')).toBe('general-team')
+    expect(first('change a shift for one day', 'general')).toBe('rota-day')
+    expect(first('change time off', 'general')).toBe('rota')
+    expect(searchHelp('treatment room', 'general').map((a) => a.id)).toContain('spaces')
+    expect(searchHelp('my location team', 'manager').map((a) => a.id)).not.toContain('general-team')
+    expect(searchHelp('add a room', 'reception').map((a) => a.id)).not.toContain('spaces')
     // Stage 3: commission by treatment or product, steps, targets and chair rent.
     expect(first('tiered commission')).toBe('commission-steps')
     expect(first('commission rate for one treatment')).toBe('commission-rates')

@@ -30,6 +30,9 @@ export function Business() {
   const multiSite = hasLocations(state)
   const [where, setWhere] = useState(branch ?? 'all')
   const place = multiSite && where !== 'all' ? where : undefined
+  // Stage 4: a general manager sees only their own location's team and hours, so time booked
+  // elsewhere cannot be worked out on their screen.
+  const teamHidden = role === 'general' && !!branch && multiSite && place !== branch
   const data = report(state, days, place)
   const due = dueClients(state)
   const maxRevenue = Math.max(...data.byDay.map((d) => d.revenue), 1)
@@ -124,8 +127,12 @@ export function Business() {
         />
         <Metric
           label="Time booked"
-          value={`${Math.round(data.utilisation * 100)}%`}
-          detail={`Last ${days} days · today ${Math.round(bookedTimeShare(state, today, place) * 100)}%`}
+          value={teamHidden ? 'Not shown' : `${Math.round(data.utilisation * 100)}%`}
+          detail={
+            teamHidden
+              ? `Shown for ${placeOf(state, branch!)?.name ?? 'your location'} only, whose team you see.`
+              : `Last ${days} days · today ${Math.round(bookedTimeShare(state, today, place) * 100)}%`
+          }
           definition={bookedTimeDefinition.map((line) => (
             <p key={line}>{line}</p>
           ))}

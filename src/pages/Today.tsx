@@ -50,7 +50,7 @@ function daySummary(day: Appointment[], clients: Client[], all: Appointment[]) {
 }
 
 export function Today() {
-  const { state, today, session } = useStore()
+  const { state, today, session, role, branch } = useStore()
   useLiveRefresh()
   const [appointmentId, setAppointmentId] = useState('')
   const [booking, setBooking] = useState<BookingDefaults | null>(null)
@@ -62,7 +62,10 @@ export function Today() {
   const changed = state.appointments.filter(
     (a) => a.date === today && (a.status === 'cancelled' || a.status === 'no_show'),
   )
-  const utilisation = Math.round(bookedTimeShare(state, today) * 100)
+  // Stage 4: a general manager's figure is for their own location, whose team they see.
+  const utilisation = Math.round(
+    bookedTimeShare(state, today, role === 'general' ? (branch ?? undefined) : undefined) * 100,
+  )
   return (
     <>
       <section className="greeting" aria-labelledby="greeting-title">

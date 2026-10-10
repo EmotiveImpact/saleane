@@ -1375,6 +1375,18 @@ function seedTimeOff(state: BusinessState, uk: boolean) {
     createdAt,
     actor: 'Owner',
   }))
+  // Stage 4: Sophia's holiday was first booked to the Thursday and later changed to run to the
+  // Friday. The earlier days stay on record, cancelled and naming the change.
+  const wedding = o.timeOff[2]
+  const changedAt = instantFor(state, '2026-10-02', 615)
+  o.timeOff[2] = {
+    ...wedding,
+    to: '2026-10-22',
+    cancelledAt: changedAt,
+    cancelledBy: 'Owner',
+    changedTo: 'time-off-4',
+  }
+  o.timeOff.push({ ...wedding, id: 'time-off-4', createdAt: changedAt, changedFrom: 'time-off-3' })
   o.leaveAllowances = state.staff.map((person) => ({ staffId: person.id, days: uk ? 28 : 15 }))
 }
 
