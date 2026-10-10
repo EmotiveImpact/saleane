@@ -216,18 +216,26 @@ export function conversation(options: ConversationOptions) {
           // be mistaken for the new one's; otherwise it takes nothing more.
           const placed = latest?.offsetMs !== undefined && event.offsetMs !== undefined
           if (latest && !placed) latest.closed = true
+          // Words that arrived before the hand-over but were said after it belong to the next
+          // question, and show this one's words are in.
+          const offset = event.offsetMs
+          const after =
+            offset === undefined
+              ? []
+              : heard.filter((w) => w.startMs !== undefined && w.startMs >= offset)
           const q: Asked = {
             id: event.id,
-            words: heard,
+            words: after.length ? heard.filter((w) => !after.includes(w)) : heard,
             at: heardAt,
             since: clock(),
             closed: false,
-            ...(event.offsetMs === undefined ? {} : { offsetMs: event.offsetMs }),
+            ...(offset === undefined ? {} : { offsetMs: offset }),
             ...(placed ? { fromMs: latest!.offsetMs } : {}),
             ...(heardTo === undefined ? {} : { reachedMs: heardTo }),
+            ...(after.length ? { followed: true } : {}),
           }
-          heard = []
-          heardTo = undefined
+          heard = after
+          if (!after.length) heardTo = undefined
           latest = q
           if (q.offsetMs !== undefined) gathering = [...gathering.filter((g) => !g.closed), q]
           queue = queue.then(() => answer(q)).catch(() => undefined)

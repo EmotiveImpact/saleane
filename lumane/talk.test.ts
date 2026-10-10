@@ -144,6 +144,29 @@ describe('a spoken conversation', () => {
     expect(asked).toEqual(['Who is in at ten? please now', 'Thanks.'])
   })
 
+  it('keeps words said after a hand-over for the next question, though they arrived first', async () => {
+    let now = 0
+    const asked: string[] = []
+    const talk = conversation({
+      ...options(async (heard) => {
+        asked.push(heard)
+        return { text: `Answered: ${heard}` }
+      }),
+      quietMs: 300,
+      clock: () => now,
+    })
+    const { fake } = line()
+    talk.use(fake)
+    // OpenAI delivers "Thanks." (said after the hand-over at 2000) before it says it handed over.
+    talk.handle({ type: 'heard', text: 'Who is in at ten?', startMs: 1000 })
+    talk.handle({ type: 'heard', text: 'Thanks.', startMs: 2600 })
+    talk.handle({ type: 'delegated', id: 'd1', offsetMs: 2000 })
+    talk.handle({ type: 'delegated', id: 'd2', offsetMs: 3000 })
+    now = 2000
+    await talk.settled()
+    expect(asked).toEqual(['Who is in at ten?', 'Thanks.'])
+  })
+
   it('waits for late words OpenAI places before the hand-over, beyond a moment’s quiet', async () => {
     let now = 0
     const asked: string[] = []
