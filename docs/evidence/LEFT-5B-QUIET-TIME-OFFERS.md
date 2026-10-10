@@ -58,8 +58,8 @@ From the worktree root, after merging `left-stage5` at 25f2b0b:
 - `npx tsc -b`: passes.
 - `npx eslint . --ignore-pattern '.claude/**' --max-warnings 0`: passes.
 - `git ls-files -z | xargs -0 npx prettier --check --ignore-unknown`: passes.
-- Front-end suite: 183 files, 1,614 tests passed (4 files and 29 tests new; `left-stage5` alone has 179 and 1,585). Before the merge: 176 files, 1,548 tests.
-- Server suite, on a fresh database: 66 files (one skipped, as before), 504 passed and 2 skipped (1 file and 10 tests new; `left-stage5` alone has 494). Before the merge: 64 files, 486 passed and 2 skipped.
+- Front-end suite: 185 files, 1,624 tests passed (4 files and 29 tests new; `left-stage5` at 25f2b0b alone has 181 and 1,595). Before the merges: 176 files, 1,548 tests.
+- Server suite, on a fresh database: 67 files (one skipped, as before), 524 passed and 2 skipped (1 file and 10 tests new; `left-stage5` at 25f2b0b alone has 514). Before the merges: 64 files, 486 passed and 2 skipped.
 - `npm run build`: passes.
 
 ## Decisions
