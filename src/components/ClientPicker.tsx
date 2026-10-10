@@ -32,7 +32,8 @@ export function ClientPicker({
   const chosen = state.clients.find((c) => c.id === clientId)
   const words = query.trim().toLowerCase()
   const matches = state.clients
-    .filter((c) => !exclude.includes(c.id))
+    // Stage 6: nobody books a former client, whose details were deleted.
+    .filter((c) => !exclude.includes(c.id) && !c.erasedAt)
     .filter(
       (c) =>
         !words ||

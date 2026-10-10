@@ -4,6 +4,7 @@ import type { Appointment, BusinessState } from './model'
 import { operations, stock } from './operations'
 import { availableMinutes, clientStats, dayAppointments, usualWeeks } from './selectors'
 import { renterVisit, serviceRevenue } from './takings'
+import { pastKeepingPeriod } from './retentionDue'
 
 /**
  * V3 Smart insights. Every insight is worked out from the studio's own records and says what it
@@ -277,6 +278,8 @@ export function drifting(s: BusinessState, today: string): Drifter[] {
       const days = (Date.parse(today) - Date.parse(last)) / DAY
       const threshold = driftDays(weeks)
       if (days < threshold) return null
+      // Stage 6: nobody past their keeping period, or whose details are gone, is asked back.
+      if (pastKeepingPeriod(s, client.id, today)) return null
       const recent = [...visits].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5)
       return {
         clientId: client.id,

@@ -8,6 +8,7 @@ import { rotaCommandSchemas } from './rotaSchema'
 import { newsCommandSchemas } from './newsSchema'
 import { otherTillCommandSchemas } from './otherTillSchema'
 import { quietOfferCommandSchemas } from './quietOffersSchema'
+import { retentionCommandSchemas } from './retentionSchema'
 import { commissionCommandSchemas } from './commissionSchema'
 import { approvalCommandSchemas } from './approvalsSchema'
 import { brandCommandSchemas } from './brandRulesSchema'
@@ -802,6 +803,8 @@ export const commandSchema = z.discriminatedUnion('type', [
   ...otherTillCommandSchemas,
   // Stage 5: a lower price for quiet times, and an invitation to one of Today's open times with it.
   ...quietOfferCommandSchemas,
+  // Stage 6: approving deletion, or keeping longer, records at the end of their keeping period.
+  ...retentionCommandSchemas,
   ...operatingCommandSchema.options,
 ])
 export type BookingInput = z.infer<typeof bookingSchema>

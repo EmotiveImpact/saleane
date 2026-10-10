@@ -43,47 +43,50 @@ export function directoryRows(s: BusinessState): DirectoryRow[] {
     else byClient.set(a.clientId, [a])
   }
   const salesByAppointment = new Map(s.sales.map((sale) => [sale.appointmentId, sale]))
-  return s.clients.map((client) => {
-    const own = byClient.get(client.id) ?? []
-    const kept = own.filter((a) => a.status !== 'cancelled' && a.status !== 'no_show')
-    const completed = own.filter((a) => a.status === 'completed')
-    const spend = completed.reduce((sum, a) => {
-      const sale = salesByAppointment.get(a.id)
-      return sale ? sum + serviceRevenue(sale) : sum
-    }, 0)
-    const seenToday = kept.some(
-      (a) => a.date === today && (a.status === 'arrived' || a.status === 'completed'),
-    )
-    const lastCompleted = completed
-      .filter((a) => a.date <= today)
-      .reduce<string | undefined>((max, a) => (!max || a.date > max ? a.date : max), undefined)
-    const lastDate = seenToday ? today : lastCompleted
-    const nextDate = own
-      .filter((a) => a.status === 'confirmed' && a.date >= today)
-      .reduce<string | undefined>((min, a) => (!min || a.date < min ? a.date : min), undefined)
-    const firstDate = kept.reduce<string | undefined>(
-      (min, a) => (!min || a.date < min ? a.date : min),
-      undefined,
-    )
-    const visitedBefore = completed.some((a) => a.date < today)
-    return {
-      client,
-      visits: completed.length,
-      spend,
-      lastDate,
-      nextDate,
-      firstVisitToday: !visitedBefore && kept.some((a) => a.date === today),
-      isNew: firstDate ? firstDate.slice(0, 7) === month : client.createdAt.slice(0, 7) === month,
-      due:
-        !!lastCompleted &&
-        lastCompleted <= addDays(today, -28) &&
-        !nextDate &&
-        !own.some((a) => a.status === 'arrived'),
-      bookedThisWeek: kept.some(
-        (a) => a.date >= weekStart && a.date <= weekEnd && a.status !== 'completed',
-      ),
-    }
-  })
+  // Stage 6: a former client, whose details were deleted, stays only behind their receipts.
+  return s.clients
+    .filter((client) => !client.erasedAt)
+    .map((client) => {
+      const own = byClient.get(client.id) ?? []
+      const kept = own.filter((a) => a.status !== 'cancelled' && a.status !== 'no_show')
+      const completed = own.filter((a) => a.status === 'completed')
+      const spend = completed.reduce((sum, a) => {
+        const sale = salesByAppointment.get(a.id)
+        return sale ? sum + serviceRevenue(sale) : sum
+      }, 0)
+      const seenToday = kept.some(
+        (a) => a.date === today && (a.status === 'arrived' || a.status === 'completed'),
+      )
+      const lastCompleted = completed
+        .filter((a) => a.date <= today)
+        .reduce<string | undefined>((max, a) => (!max || a.date > max ? a.date : max), undefined)
+      const lastDate = seenToday ? today : lastCompleted
+      const nextDate = own
+        .filter((a) => a.status === 'confirmed' && a.date >= today)
+        .reduce<string | undefined>((min, a) => (!min || a.date < min ? a.date : min), undefined)
+      const firstDate = kept.reduce<string | undefined>(
+        (min, a) => (!min || a.date < min ? a.date : min),
+        undefined,
+      )
+      const visitedBefore = completed.some((a) => a.date < today)
+      return {
+        client,
+        visits: completed.length,
+        spend,
+        lastDate,
+        nextDate,
+        firstVisitToday: !visitedBefore && kept.some((a) => a.date === today),
+        isNew: firstDate ? firstDate.slice(0, 7) === month : client.createdAt.slice(0, 7) === month,
+        due:
+          !!lastCompleted &&
+          lastCompleted <= addDays(today, -28) &&
+          !nextDate &&
+          !own.some((a) => a.status === 'arrived'),
+        bookedThisWeek: kept.some(
+          (a) => a.date >= weekStart && a.date <= weekEnd && a.status !== 'completed',
+        ),
+      }
+    })
 }
 
 const digits = (value: string) => value.replace(/\D/g, '')
