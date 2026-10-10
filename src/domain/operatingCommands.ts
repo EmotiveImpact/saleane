@@ -25,6 +25,7 @@ import { restockReturn } from './retail'
 import { assertSchedulePreserved, scheduleChanges, scheduleSnapshot } from './schedule'
 import { isWaitlistOffer } from './waitlist'
 import { draftStale, isInvitation } from './cancelledTimes'
+import { agreedEverywhere } from './dueBack'
 import { otherLedgerRefund, otherLedgerReference, referenceTaken } from './references'
 
 export function assertMethod(
@@ -926,6 +927,11 @@ function approveMessage(next: BusinessState, message: DraftMessage, now: string)
   )
     throw new Error(
       'This client has not agreed to marketing emails. Messages about their visits are separate.',
+    )
+  // NEXT-11: an invitation needs the guest's agreement under every record they have.
+  if (message.opening && !agreedEverywhere(next, message.clientId))
+    throw new Error(
+      'This guest no longer agrees to hear from you under another of their records, so the invitation cannot be sent.',
     )
   if (message.approvedAt) throw new Error('This message is already approved.')
   // V1.5: the outbox sends it, so it needs somewhere to go now.

@@ -193,6 +193,28 @@ describe('invitations to a cancelled time', () => {
       { status: 'skipped', detail: 'The time was booked, or had passed, before it went out.' },
     ])
   })
+
+  it("are not sent once another of the guest's records has not agreed, even after approval", async () => {
+    const { owner } = await studio()
+    const message = await invitation(owner)
+    await run(owner, { type: 'message-queue', messageId: message.id })
+    // Grace books again under a second record, without agreeing to hear from the studio.
+    await run(owner, {
+      type: 'client',
+      contact: {
+        name: 'Grace Chen',
+        email: 'grace@example.invalid',
+        phone: '+44 7700 900125',
+        marketingConsent: false,
+      },
+    })
+    await api.outbox.tick()
+    await api.outbox.tick()
+    expect(invitations()).toEqual([])
+    expect(rows().find((row) => row.status === 'skipped')).toMatchObject({
+      detail: 'Email news was no longer agreed before it went out.',
+    })
+  })
 })
 
 /** The booking link in an invitation, or the line that stands in for it. */

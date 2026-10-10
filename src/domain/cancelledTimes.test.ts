@@ -130,6 +130,36 @@ describe('filling a cancelled time', () => {
     expect(again.ok && again.state).toBe(next)
   })
 
+  it('offers the nearest bookable time for a visit carried over off the quarter hour', () => {
+    // Zoe's visit came across from another system at 13:35, which nobody can book again.
+    const s = studio()
+    s.appointments.find((a) => a.id === 'visit-zoe')!.startMinutes = 815
+    const next = cancelZoe(s)
+    expect(freedTimes(next, now)).toEqual([
+      expect.objectContaining({ appointmentId: 'visit-zoe', startMinutes: 825 }),
+    ])
+    const [message] = invitations(next)
+    expect(message.opening).toMatchObject({ startMinutes: 825 })
+    expect(message.body).toContain('on Tuesday 6 October at 13:45')
+    expect(message.body).toContain('&start=825')
+  })
+
+  it("will not approve an invitation once another of the guest's records has not agreed", () => {
+    const next = cancelZoe()
+    const [message] = invitations(next)
+    expect(message.clientId).toBe('client-13')
+    // Charlotte books online under a second record, without agreeing to hear from the studio.
+    next.clients.push({
+      ...next.clients.find((c) => c.id === 'client-13')!,
+      id: 'client-13b',
+      marketingConsent: false,
+    })
+    const approve = run(next, { type: 'message-queue', messageId: message.id })
+    expect(approve.ok ? '' : approve.error).toBe(
+      'This guest no longer agrees to hear from you under another of their records, so the invitation cannot be sent.',
+    )
+  })
+
   it('writes none by itself when the studio turns it off, or from a cover plan', () => {
     expect(invitations(cancelZoe(quiet()))).toEqual([])
     const plan = apply(studio(), {
@@ -372,6 +402,26 @@ describe('filling a cancelled time', () => {
       invited: 1,
       waitlist: 0,
       valueMinor: price,
+    })
+    // Isabel, booked long before, asks to come in earlier and is moved into Ruby's 15:00.
+    next = apply(
+      next,
+      {
+        type: 'reschedule',
+        appointmentId: 'visit-isabel',
+        date: '2026-10-06',
+        startMinutes: 900,
+        staffId: 'staff-maya',
+      },
+      at(40),
+    )
+    const isabel = next.appointments.find((a) => a.id === 'visit-isabel')!
+    expect(freedSummary(next, at(-60))).toEqual({
+      freed: 2,
+      filled: 2,
+      invited: 1,
+      waitlist: 0,
+      valueMinor: price + isabel.bookedPriceMinor,
     })
   })
 

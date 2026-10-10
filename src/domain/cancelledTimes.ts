@@ -23,6 +23,8 @@ import { BOOK_LINK, defaultReminderSettings } from './reminderSettings'
 /** How far ahead a cancelled time is worth inviting for, and how soon it must still be. */
 export const FREED_DAYS_AHEAD = 14
 export const FREED_NOTICE_MINUTES = 120
+/** The booking grid: guests and the desk book on the quarter hour. */
+const GRID = 15
 /** A guest is invited to at most one time a week, so nobody is chased. */
 export const INVITE_REST_DAYS = 7
 /** Invitations the team can write for a time at once, and the few SALEANE writes by itself. */
@@ -113,7 +115,7 @@ export function timeStillFree(s: BusinessState, time: InvitationTime, now: strin
     undefined,
     now,
     undefined,
-    15,
+    GRID,
     time.locationId,
   )
 }
@@ -129,20 +131,29 @@ export function freedTimeOf(
   if (!cancelledAt) return null
   const today = businessDate(s, now)
   if (visit.date < today || visit.date > addDays(today, FREED_DAYS_AHEAD)) return null
-  if (minutesUntil(s, visit.date, visit.startMinutes, now) < FREED_NOTICE_MINUTES) return null
   const service = s.services.find((item) => item.id === visit.serviceId)
-  const time = {
-    appointmentId: visit.id,
-    cancelledAt,
-    date: visit.date,
-    startMinutes: visit.startMinutes,
-    staffId: visit.staffId,
-    serviceId: visit.serviceId,
-    locationId: visit.locationId,
-    durationMinutes: service?.durationMinutes ?? visit.bookedDurationMinutes,
-    priceMinor: service?.priceMinor ?? visit.bookedPriceMinor,
+  // A visit carried over from another system may start off the booking grid, at 10:05 say, which
+  // nobody can book again; the nearest bookable time after it, or else before it, stands in.
+  const starts =
+    visit.startMinutes % GRID
+      ? [Math.ceil(visit.startMinutes / GRID) * GRID, Math.floor(visit.startMinutes / GRID) * GRID]
+      : [visit.startMinutes]
+  for (const startMinutes of starts) {
+    if (minutesUntil(s, visit.date, startMinutes, now) < FREED_NOTICE_MINUTES) continue
+    const time = {
+      appointmentId: visit.id,
+      cancelledAt,
+      date: visit.date,
+      startMinutes,
+      staffId: visit.staffId,
+      serviceId: visit.serviceId,
+      locationId: visit.locationId,
+      durationMinutes: service?.durationMinutes ?? visit.bookedDurationMinutes,
+      priceMinor: service?.priceMinor ?? visit.bookedPriceMinor,
+    }
+    if (timeStillFree(s, time, now)) return time
   }
-  return timeStillFree(s, time, now) ? time : null
+  return null
 }
 
 /** Times freed by cancellations that are still free, soonest first. */
@@ -583,6 +594,12 @@ export function freedSummary(s: BusinessState, since: string) {
     const key = timeKey(visit)
     if ((latest.get(key)?.at ?? '') < at) latest.set(key, { visit, at })
   }
+  // When each visit came to its time: booked then, or moved there since.
+  const entered = new Map<string, string>()
+  for (const visit of s.appointments) entered.set(visit.id, visit.createdAt)
+  for (const event of s.events)
+    if (event.type === 'rescheduled' && event.appointmentId)
+      entered.set(event.appointmentId, event.occurredAt)
   const fillers = new Set<string>()
   let invited = 0
   let waitlist = 0
@@ -594,7 +611,7 @@ export function freedSummary(s: BusinessState, since: string) {
         a.staffId === visit.staffId &&
         a.date === visit.date &&
         (a.status === 'confirmed' || a.status === 'arrived' || a.status === 'completed') &&
-        a.createdAt > at &&
+        (entered.get(a.id) ?? a.createdAt) > at &&
         a.startMinutes < end &&
         a.startMinutes + a.bookedDurationMinutes > visit.startMinutes,
     )
@@ -603,7 +620,10 @@ export function freedSummary(s: BusinessState, since: string) {
     const guest = guestOf(s, filler.clientId)
     if (
       invitationsFor(s, visit).some(
-        (m) => m.approvedAt && m.approvedAt <= filler.createdAt && guest?.ids.has(m.clientId),
+        (m) =>
+          m.approvedAt &&
+          m.approvedAt <= (entered.get(filler.id) ?? filler.createdAt) &&
+          guest?.ids.has(m.clientId),
       )
     )
       invited++
