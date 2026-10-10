@@ -150,6 +150,8 @@ describe('moving someone from the rota', () => {
       name: "Change Maya Lewis's day, Tuesday 13 October. 09:00 to 18:00. 1 booked visit still at Marylebone, London.",
     })
     expect(within(tuesday).getByText('1 booked visit still at Marylebone, London')).toBeVisible()
+    // It is counted there, not as a visit at Shoreditch too.
+    expect(within(tuesday).queryByText('1 visit')).toBeNull()
   })
 
   it('marks the first day at the new location on the rota, and cancels a move still to come', async () => {
@@ -164,7 +166,7 @@ describe('moving someone from the rota', () => {
     const monday = screen.getByRole('button', {
       name: "Change Maya Lewis's day, Monday 12 October. 09:00 to 18:00. First day at a new location.",
     })
-    expect(within(monday).getByText('New location')).toBeInTheDocument()
+    expect(within(monday).getByText('Moved here')).toBeInTheDocument()
     expect(within(monday).getByText('Shoreditch')).toBeInTheDocument()
     await user.click(
       within(panel()).getByRole('button', { name: "Cancel Maya Lewis's move to Shoreditch" }),

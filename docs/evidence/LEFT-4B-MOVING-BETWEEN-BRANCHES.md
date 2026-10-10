@@ -1,6 +1,6 @@
 # LEFT-4B · Moving gift cards and team members between locations
 
-Built 10 October 2026 in a worktree, on top of the Stage 3 branch at `7684b33`. Everything below was checked with domain, component and server tests. It has not been seen in a browser yet: this part was built without a dev server or browser, so the lead's browser pass is still to come (see Browser steps for the lead).
+Built 10 October 2026 in a worktree, on top of the Stage 3 branch at `7684b33`. Everything below was checked with domain, component and server tests. Then seen in a browser on 10 October 2026, at 1440 and 390 px, after the four Stage 4 parts were put together; what was seen and fixed is under Seen in a browser.
 
 ## What a gift card's location meant before this
 
@@ -21,7 +21,7 @@ Built 10 October 2026 in a worktree, on top of the Stage 3 branch at `7684b33`. 
   - The dialog asks who (from the Rota), where to, the first day there (from today to a year ahead, after any move of theirs already planned) and, for someone who works at two locations, **Which days move** ("Their Tuesday and Wednesday at Islington", or every day not already there). A note for the team is optional.
   - Before anything is saved it shows the same check the server makes: their week from that day, day by day ("Monday 09:00 to 18:00 at Shoreditch", "Shoreditch is closed, so not working" where the new location is shut on one of their days), any of their treatments the new location does not offer ("Shoreditch does not offer Deep Restore Massage, so Maya cannot be booked for it there."), and days already changed on the rota from that date that still send them to the old location, which stay as they are, with a link to the rota.
   - Booked visits it would leave at the old location are listed by date, time, first name and treatment, with the rota's own choice: **Move them first** (nothing is saved; **Open the calendar** on the first one's day) or **Keep them booked as they are** (the rota warns on those days until they are moved; nobody is messaged and nothing is cancelled). The server refuses without that choice, naming the visits, and marks the kept ones on the move.
-  - Their usual days and hours stay the same and happen at the new location from the date. Days before it stay where they were. The rota marks their first working day there with **New location**.
+  - Their usual days and hours stay the same and happen at the new location from the date. Days before it stay where they were. The rota marks their first working day there with **Moved here**.
   - A move still to come, and the latest for that person, can be cancelled from the panel (**Cancel**, then **Cancel the move**), with the same booked-visits check for visits already made at the new location. It stays on record as cancelled, with who cancelled it. Once the day has come, moving back is a new move.
   - Every move and cancellation is in Who changed what ("Moved someone to another location", date, location from and to, days of the week moved, booked visits kept) and in the schedule history ("Maya Lewis moves from Marylebone to Shoreditch on 12 October 2026: Monday to Friday.").
 
@@ -79,18 +79,32 @@ Server rules: both commands have schemas (strict, so extra fields are refused), 
 - **No card inside a card.** Each part of the move check (their week, rota days, booked visits) sits under a hairline as the rota's booked-visits choice does; the panel's moves are rows with lines between them.
 - **Photographs and empty pages.** No new page; the panel's empty line is one sentence ("Nobody is moving.") like its neighbours.
 - **Loading and motion.** Nothing loads; dialogs use the existing Modal. `LoadingShapes` and `--motion-calm` are not on this base and were not needed.
-- **390 px.** The dialog fields stack, list rows wrap, buttons are the library's 44 px targets and primaries stay at the foot of each form. Not yet seen in a browser.
+- **390 px.** The dialog fields stack, list rows wrap, buttons are the library's 44 px targets and primaries stay at the foot of each form. Seen at 390 px in the browser pass.
 - **Words.** Plain British English, "visit" and "treatment", no exclamation marks and no dashes, saying what happens next ("Nothing is saved yet. Move it in the calendar, then come back to moving Maya.").
 - **Built from the library.** Button, Modal and the existing rota, gift card and settings styles; new CSS uses tokens only, with no left-edge stripes and no new colours. Nothing claims a payment or a message.
-- **Before and after pictures**: still to take in the browser pass.
+- **Before and after pictures** at 1440 and 390 px: [Stage 4, before and after](https://claude.ai/artifact/2aV9ypAGeL5gAN5YBnnphg).
+
+## Seen in a browser
+
+At 1440 and 390 px, in a new studio with the sample clients and a second location, Islington, signed in as the owner and as Gary (general manager at Marylebone):
+
+- Gift cards: "Waiting to be spent, by where each card belongs: Marylebone £170." Hannah's card LAKE-7K4M-2QHN moved to Islington with a reason; the card then says it belongs to Islington and was sold at Marylebone, and its history names the move, who made it and why. Gary cannot move it once it belongs to Islington.
+- Maya moved to Islington from Monday 12 October through the window: her week there, then 53 booked visits left at Marylebone with the two choices, kept. The rota for that week shows Moved here on Monday and how many booked visits are still at Marylebone each day; Moving between locations lists the move, who made it and the visits kept. Settings, Team: "Works at Marylebone · moves to Islington on Monday 12 October", and "Works at Islington and Marylebone" for Nia.
+- Found and fixed:
+  - Someone moving to a location was missing from its general manager's rota until the day itself. The team view now takes in a move still to come, from the week they arrive, with their days before it left where they were (`team.ts`, tested in `team.test.ts`).
+  - Kept visits were called "outside these hours". A day now says "4 booked visits still at Marylebone" when they all sit at one other location (`Rota.tsx`, tested in `StaffMove.test.tsx`), and no longer counts them as visits at the new location too.
+  - Moving between locations was squeezed into a narrow column beside Time away and Holiday. It now runs full width beneath them (`rota.css`).
+  - The first-day tag, "New location", broke over two lines in a narrow day. It is now "Moved here", on one line.
 
 ## Browser steps for the lead
 
+Followed on 10 October 2026, with Islington as the second location; what was seen is under Seen in a browser.
+
 1. Sign up with the sample studio as owner. Settings, Locations, Add location: "Shoreditch". Optionally Settings, Spaces: add a treatment room at Shoreditch so guests can book there.
 2. Business, Gift cards: the totals now have "Waiting to be spent, by where each card belongs". Open LAKE-7K4M-2QHN: "Sold at Marylebone, London, and belongs there." Choose Move to another location, try Move card with no reason (the form asks), then give one and save. See the history line and "Belongs to Shoreditch", and that Business figures for each location have not changed.
-3. Calendar: book Maya on Tuesday 13 October. Business, Rota, Moving between locations, Move someone: Maya, Shoreditch, from Monday 12 October. See her week, the visit with the two choices, Open the calendar, then Keep it booked and Move Maya. Next week shows New location on Monday and a warning on Tuesday. Cancel the move from the panel.
+3. Calendar: book Maya on Tuesday 13 October. Business, Rota, Moving between locations, Move someone: Maya, Shoreditch, from Monday 12 October. See her week, the visit with the two choices, Open the calendar, then Keep it booked and Move Maya. Next week shows Moved here on Monday and a warning on Tuesday. Cancel the move from the panel.
 4. Settings, Team: Maya's row says where she works and where she moves; Edit, then Move to another location.
 5. Invite a general manager for Marylebone: they can move a Marylebone card on, not Shoreditch's, and have no Move someone. Reception sees both without buttons. A practitioner's own page shows each day at its location.
 6. At 390 px: the move dialog, the card dialog and the Rota panel, with nothing scrolling sideways.
 
-Screens to capture before and after, at 1440 and 390 px: Gift cards with the new line; a card before and after a move; the move card dialog; the Rota panel; the move dialog with a kept visit; the Rota week with New location; Settings, Team.
+Screens to capture before and after, at 1440 and 390 px: Gift cards with the new line; a card before and after a move; the move card dialog; the Rota panel; the move dialog with a kept visit; the Rota week with Moved here; Settings, Team.

@@ -315,7 +315,7 @@ export function AccessPanel() {
               name, preferences and notes, and can welcome their client and add notes. They see no
               contact details, prices, payments or other diaries.
               {branches.length > 0 &&
-                ' A general manager runs one location as a manager would: its diary, takings, stock and orders, branch visits and requests. They change nothing at other locations or for the whole business, such as treatments, prices, the team, hours or settings, and do not see pay rates.'}
+                ' A general manager runs one location as a manager would: its diary, takings, stock and orders, its team’s rota and time off, its rooms, messages to its clients for the owner to approve, branch visits and requests. They change nothing at other locations or for the whole business, such as treatments, prices, who works where, usual hours or settings, and do not see pay rates.'}
               {areas.length > 0 &&
                 ' A regional manager sees only their region’s locations: how each is doing, what is booked today, their branch visits, which they can record, and requests for a sign-off, which they can raise and approve up to the owner’s limit. They see no clients, diaries, prices or settings.'}
             </p>

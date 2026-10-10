@@ -1,6 +1,6 @@
 # LEFT-4C · General managers changing their own team's days, time off and rooms
 
-Built 10 October 2026 in a worktree, on the Stage 3 branch at `7684b33`. Everything below was checked with domain, component and server tests. It has not been seen in a browser yet: this part was built without a browser, and the steps for the lead's pass are at the end.
+Built 10 October 2026 in a worktree, on the Stage 3 branch at `7684b33`. Everything below was checked with domain, component and server tests. Then seen in a browser on 10 October 2026, at 1440 and 390 px, after the four Stage 4 parts were put together; what was seen and fixed is under Seen in a browser.
 
 ## What it does
 
@@ -84,12 +84,24 @@ Built 10 October 2026 in a worktree, on the Stage 3 branch at `7684b33`. Everyth
 - **Empty pages.** A general manager with nobody at their location yet sees "Nobody usually works at Islington yet." under the empty week; the page itself is never empty.
 - **Loading.** `LoadingShapes` is not on this base; nothing new loads separately.
 - **Motion.** `--motion-calm` is not on this base; no new motion.
-- **390 px.** The rota keeps its own sideways scroll strip with the fading edge; the new cells wrap long location names. Change and Cancel wrap within the row's controls. Buttons are the library's, at least 44 px. Not yet seen at 390 px in a browser.
+- **390 px.** The rota keeps its own sideways scroll strip with the fading edge; the new cells wrap long location names. Change and Cancel wrap within the row's controls. Buttons are the library's, at least 44 px. Seen at 390 px in the browser pass.
 - **Words.** Plain British English, no dashes, saying what happens and who to ask: "You plan days at Islington only. Ask the owner or a manager to send Nia to another location."
 - **Built from the library.** Tokens and components from `src/design` only; no new colours.
-- **Before and after pictures**: for the lead's browser pass.
+- **Before and after pictures** at 1440 and 390 px: [Stage 4, before and after](https://claude.ai/artifact/2aV9ypAGeL5gAN5YBnnphg).
+
+## Seen in a browser
+
+At 1440 and 390 px, signed in as Gia (general manager at Islington), then as the owner:
+
+- Gia's rota shows her team only: Nia, and Maya from the week of 12 October when she moves to Islington. Days at Marylebone read "Planned there". Nia's Wednesday changed to Not working and saved. An extra Saturday for Maya asks for a sign-off first, as the sample owner's rules say, and was sent. Time off for Nia from 12 to 15 October is refused before saving because Thursday is a Marylebone day; 12 to 14 October saved and shows "added by Gia Hart". Settings, Spaces shows Islington's room with Add resource and Edit, and says moving one is for the owner or a manager.
+- The owner sees Gia's changes on the whole rota and her request in Requests.
+- Found and fixed:
+  - The team view fix under LEFT-4B: someone moving to Islington now shows on Gia's rota from the week they arrive.
+  - Settings, Team described a general manager without their team's rota, time off, rooms or messages to clients. It now does (`AccessPanel.tsx`).
 
 ## Browser steps for the lead
+
+Followed on 10 October 2026, with Islington as the second location; what was seen is under Seen in a browser.
 
 The sample studio's day is Tuesday 6 October 2026.
 

@@ -122,6 +122,8 @@
   color: var(--ink);
   font-size: var(--text-micro);
   font-weight: var(--weight-strong);
+  /* One line, even in a narrow day: a pill broken over two lines reads as two things. */
+  white-space: nowrap;
 }
 .rota-table td small.rota-warn {
   color: var(--rose-ink);

@@ -524,21 +524,24 @@ function RotaCell({
   const { state } = useStore()
   const words = outsideWords(day, (id) => placeOf(state, id)?.name ?? 'another location')
   const outside = words ? <small className="rota-warn">{words}</small> : null
-  if (day.state === 'working')
+  if (day.state === 'working') {
+    // Visits kept at another location are counted there, in the warning, not as visits here.
+    const here = day.visits - (keptAt(day) ? day.outside.length : 0)
     return (
       <>
         <strong>{span(day.open, day.close, locale)}</strong>
         {place && <small>{place}</small>}
-        {day.visits > 0 && (
+        {here > 0 && (
           <small>
-            {day.visits} {day.visits === 1 ? 'visit' : 'visits'}
+            {here} {here === 1 ? 'visit' : 'visits'}
           </small>
         )}
         {tag}
-        {moved && <span className="rota-tag">New location</span>}
+        {moved && <span className="rota-tag">Moved here</span>}
         {outside}
       </>
     )
+  }
   if (day.state === 'away')
     return (
       <>

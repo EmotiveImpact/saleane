@@ -1,6 +1,6 @@
 # LEFT-4D · Sign-offs for refunds, prices and the rota
 
-Built 10 October 2026 in a worktree, on top of main at `7684b33`. Everything below was checked with unit, component and server tests. It was not opened in a browser in this build: the brief for this part said not to start a dev server or a browser, so the lead's browser steps are at the end.
+Built 10 October 2026 in a worktree, on top of main at `7684b33`. Everything below was checked with unit, component and server tests. Then seen in a browser on 10 October 2026, at 1440 and 390 px, after the four Stage 4 parts were put together; what was seen and fixed is under Seen in a browser.
 
 ## What it does
 
@@ -86,10 +86,10 @@ Item 3 gives general managers rota rights in parallel; this part did not build t
 - **Empty pages.** Requests keeps its existing empty state, now mentioning refunds and prices. No new page can be empty.
 - **Loading.** `LoadingShapes` is not in `src/design` on main. Nothing new loads on its own: requests arrive with the studio record. Buttons say "Sending…" while a request is sent.
 - **Motion.** `--motion-calm` is not in `src/design` on main, so this adds no motion.
-- **390 px.** Forms use the existing two-column fields that stack on phones; on phones the sign-off and receipt buttons run full width at the foot of their form; long receipt lines wrap. Not yet seen in a browser (see below).
+- **390 px.** Forms use the existing two-column fields that stack on phones; on phones the sign-off and receipt buttons run full width at the foot of their form; long receipt lines wrap. Seen at 390 px in the browser pass.
 - **Words.** Plain British English, "visit" and "treatment", no exclamation marks and no dashes. Nothing says money moved when a sign-off is approved: "Approving moves no money", "Sent for a sign-off. Nothing has been given back yet."
 - **Built from the library.** `Button`, `Modal`, `Empty`, `ErrorMessage`, `PageHeader` and `DateField` from `src/design`, tokens only, no new colours, no left-edge stripes. One small stylesheet, `src/components/signoffs.css`.
-- **Before and after pictures**: not taken in this build; the lead's browser pass below covers them.
+- **Before and after pictures** at 1440 and 390 px: [Stage 4, before and after](https://claude.ai/artifact/2aV9ypAGeL5gAN5YBnnphg).
 
 ## Limits and notes
 
@@ -97,7 +97,20 @@ Item 3 gives general managers rota rights in parallel; this part did not build t
 - A regional manager's area page works out an approved refund's last day from the date it was approved, without the studio's clock or its other refunds, so it shows the approval's terms; the studio's own pages show exactly where it stands.
 - The sample studio's requests come from Nadia Ross, a fictional general manager who is not on the sample team list.
 
+## Seen in a browser
+
+At 1440 and 390 px, signed in as the owner, as Gia (general manager at Islington) and as Rae (regional manager for London):
+
+- Requests shows the sample refund on SL-162 and Theo's Monday waiting on the owner, Gia's extra Saturday for Maya waiting on London's regional manager, and each one's line, reason, who asked and what approving does. The owner decided the refund and the new price; the price then reads "Starts by itself on Sunday 1 November." Sign-off rules shows the limits and the rota rule, with the managers' limit under More options.
+- Rae decided Gia's extra Saturday from her area page; Gia's rota then shows the day.
+- Found and fixed:
+  - The reason a request went to the owner read like a statement about now ("is in no region"). It now says "because its location was in no region when it was asked", and likewise for a region with no regional manager and a request over the regional limit (`Requests.tsx`).
+  - Putting the parts together showed that copying a week weighed every location's days for a sign-off. A general manager's copy now weighs only the days it would make at their location (`signoffs.ts`, tested in `signoffs.test.ts`).
+- Not seen in a browser, covered by tests: a new price starting by itself on its date, and an approved refund lapsing after 7 days.
+
 ## Browser steps for the lead
+
+Followed on 10 October 2026, with Islington as the second location; what was seen is under Seen in a browser.
 
 At 1440 px and 390 px, against the local server:
 

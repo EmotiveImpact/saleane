@@ -1,6 +1,6 @@
 # LEFT-4A · One message to clients across the whole group
 
-Built 10 October 2026 in a worktree, on top of main at `7684b33`. Everything below was checked with unit, component and server tests. It has not yet been seen in a browser: this build was asked not to start a server or a browser, so the steps for that pass are at the end.
+Built 10 October 2026 in a worktree, on top of main at `7684b33`. Everything below was checked with unit, component and server tests. Then seen in a browser on 10 October 2026, at 1440 and 390 px, after the four Stage 4 parts were put together; what was seen and fixed is under Seen in a browser.
 
 ## What it does
 
@@ -43,7 +43,7 @@ Built 10 October 2026 in a worktree, on top of main at `7684b33`. Everything bel
   - The panel's "The record" lists written by, last changed by, approved by, stopped by and put aside by, with the time on the studio's clock.
   - Each recipient's timeline gets "Message to clients" with the subject and channel, not the full text: "“Thursday evenings at Atelier House”, by email. Queued to go out, not sent yet. Whether it went shows with their messages." Their own message list shows the copy with its status, the stop link replaced by "[private link to stop news]".
   - The studio-wide message list leaves these copies out, so a message to 200 clients does not crowd out everything else.
-- **The sample studio** has a draft ready to approve: "Thursday evenings at Atelier House", by email or text, with a link to book, written by Sophia Reed. It reaches 12 clients, all by email (the sample's consent wording names email only), with 3 left out who have not agreed.
+- **The sample studio** has a draft ready to approve: "Thursday evenings at Atelier House", by email or text, with a link to book, written by Sophia Reed. In the tests' sample it reaches 12 clients, all by email (the sample's consent wording names email only), with 3 left out who have not agreed. A new studio's sample in the browser has more clients and takes the studio's own name: "Thursday evenings at Linden Studio" would go to 209 clients, 209 by email and 0 by text, with 90 left out.
 - **Help**: three guides in Messages and AI ("Write one message to many clients", "Who receives a message to clients", "Approve a message to clients") for owners, managers and general managers, offered first on `/inbox/news`.
 
 ## Who can do what
@@ -110,10 +110,10 @@ Every rule is enforced by the server: the permission (`news` to draft, `news-sen
 - [x] **The empty page opens with a welcome in place of its header**: eyebrow "Inbox", "One message for all your clients.", one line and "Write a message". The base's `Empty` has no photograph, eyebrow or action yet, so this is the same layout built in `news.css`; it can move to the new `Empty` when that merges.
 - [ ] **LoadingShapes for loading.** Not in this base. While the server counts, the panel says "Counting the clients it would reach." and the stop page "Opening your link…", never a spinner or a blank. They can move to `LoadingShapes` when it merges.
 - [x] **Motion and reduced motion.** `--motion-calm` is not in this base. The notices and the approval check use a 220 ms fade and rise (`news-settle`), and reduced motion removes it.
-- [x] **At 390 px** (in CSS, not yet seen): the welcome stacks the photograph above the words, primary buttons are full width with 44 px targets, rows wrap, long subjects wrap rather than scroll. The panel and editor are the library's `Modal`.
+- [x] **At 390 px** (seen in the browser pass): the welcome stacks the photograph above the words, primary buttons are full width with 44 px targets, rows wrap, long subjects wrap rather than scroll. The panel and editor are the library's `Modal`.
 - [x] **Warm, plain words**, British English, no exclamation marks or dashes, and nothing says a message was sent: "Queued in test mode, not sent", "A sample studio, so nothing was queued or sent.", "Copies already with the provider cannot be called back."
 - [x] **Design tokens and library components** (`Button`, `Modal`, `PageHeader`, `SegmentedControl`, `ErrorMessage`, `photos`); no new raw colours (the welcome's fade is a mask, as elsewhere); no left-edge stripes. Lint, types, tests and format pass.
-- [ ] **Before and after pictures**: not taken in this build (no browser was allowed). The lead's browser pass below lists them.
+- [x] **Before and after pictures** at 1440 and 390 px: [Stage 4, before and after](https://claude.ai/artifact/2aV9ypAGeL5gAN5YBnnphg).
 
 ## Limits and notes
 
@@ -123,7 +123,21 @@ Every rule is enforced by the server: the permission (`news` to draft, `news-sen
 - **Live delivery** needs Postmark's broadcast stream set up on the studio's account, and the sending domain's unsubscribe settings, before going live. Nothing here sends anything.
 - A message is kept to 1,000 characters, 120 for the subject, and a studio to 500 messages.
 
+## Seen in a browser
+
+At 1440 and 390 px, in a new studio with the sample clients and a second location, Islington, signed in as the owner, Gia (general manager at Islington), a manager and reception:
+
+- Inbox shows Messages to clients beside Write a draft. The page lists the sample draft with the sample notice.
+- The draft's panel: "Would go to 209 clients: 209 by email, 0 by text.", Marylebone 209 by email, 90 left out who have not agreed, the rule and the texts line. As a text: "283 characters, sent as 2 parts." Check and approve, then approving it: "Approved. A sample studio, so nothing was queued or sent."
+- The owner's editor, and Gia's, fixed to Islington's clients with "Nobody would receive this yet." (Islington is new, so no client there has agreed). Reception has no link, and `/inbox/news` returns to the Inbox. `/news/stop#` with a link that does not open: "We couldn't open this link." and the plain answer.
+- Found and fixed:
+  - The editor's choice circles were drawn far too big. A radio in a list of choices now sits small beside its words, as a tick box does (`management.css`).
+  - A new studio's sample message kept the sample's name in its subject. Naming the studio now renames it too (`server/workspace.ts`, tested in `server/news.test.ts`).
+- Not seen in a browser, covered by tests: a real client using their stop link, queuing in test mode for a studio that is not a sample, and a live provider.
+
 ## Browser steps for the lead
+
+Followed on 10 October 2026, with Islington as the second location; what was seen is under Seen in a browser.
 
 At 1440 px and 390 px, signed up as a new owner with the sample studio:
 
