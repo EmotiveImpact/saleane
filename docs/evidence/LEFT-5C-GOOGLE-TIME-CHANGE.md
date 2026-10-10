@@ -51,13 +51,13 @@ There is no new command: a move through Google is the desk's `reschedule`, recor
 
 ## Checks
 
-Run from the worktree root on 10 October 2026, after both Stage 5 parts of this branch:
+Run from the worktree root on 10 October 2026, after both Stage 5 parts of this branch and a merge of `left-stage5` at `d402850` (PR #92 and Stage 5A):
 
 - `npx tsc -b`: pass.
 - `npx eslint . --ignore-pattern '.claude/**' --max-warnings 0`: pass.
 - `git ls-files -z | xargs -0 npx prettier --check --ignore-unknown`: pass.
-- Front-end suite: 174 files, 1,529 tests passed.
-- Server suite: 63 files passed and 1 skipped, 496 tests passed and 2 skipped.
+- Front-end suite: 181 files, 1,595 tests passed.
+- Server suite: 65 files passed and 1 skipped, 514 tests passed and 2 skipped.
 - `npm run build`: pass.
 
 ## Decisions

@@ -69,13 +69,13 @@ The `ai-booking` command has its schema (`commandSchema.ts`, `aiBookingSchema.ts
 
 ## Checks
 
-Run from the worktree root on 10 October 2026:
+Run from the worktree root on 10 October 2026, after a merge of `left-stage5` at `d402850` (PR #92 and Stage 5A):
 
 - `npx tsc -b`: pass.
 - `npx eslint . --ignore-pattern '.claude/**' --max-warnings 0`: pass.
 - `git ls-files -z | xargs -0 npx prettier --check --ignore-unknown`: pass.
-- Front-end suite: 174 files, 1,529 tests passed (this branch adds 2 files and 10 tests).
-- Server suite: 63 files passed and 1 skipped, 496 tests passed and 2 skipped (this branch adds 1 file and 20 tests, 14 here and 6 for LEFT-5C).
+- Front-end suite: 181 files, 1,595 tests passed (this branch adds 2 files and 10 tests).
+- Server suite: 65 files passed and 1 skipped, 514 tests passed and 2 skipped (this branch adds 1 file and 20 tests, 14 here and 6 for LEFT-5C).
 - `npm run build`: pass.
 
 ## Decisions
