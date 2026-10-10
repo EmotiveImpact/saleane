@@ -558,6 +558,16 @@ export const commandSchema = z.discriminatedUnion('type', [
     startMinutes: z.number().int().min(0).max(1439),
     staffId: id,
   }),
+  // NEXT-11: invitations to a time a cancelled visit left free, written for the team to approve.
+  z.object({
+    type: z.literal('opening-invite'),
+    appointmentId: id,
+    clientIds: z
+      .array(id)
+      .min(1)
+      .max(5)
+      .refine((ids) => new Set(ids).size === ids.length, 'Choose each guest once.'),
+  }),
   // From the guest's own private link only.
   z.object({
     type: z.literal('waitlist-join'),

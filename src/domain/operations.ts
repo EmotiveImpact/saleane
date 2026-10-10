@@ -294,6 +294,20 @@ export const operationsSchema = z.object({
        * them have none, and stay queued and unsent rather than going out unexpectedly.
        */
       approvedAt: z.iso.datetime().optional(),
+      /**
+       * NEXT-11: an invitation to a time a cancelled visit left free: the treatment, professional,
+       * day and start it names, so it is checked against the diary before approval and sending.
+       */
+      opening: z
+        .object({
+          date: z.iso.date(),
+          startMinutes: z.number().int().min(0).max(1439),
+          staffId: id,
+          serviceId: id,
+          locationId: id.optional(),
+        })
+        .strict()
+        .optional(),
     }),
   ),
   refunds: z.array(
@@ -579,6 +593,7 @@ export const GENERAL_ACTIONS = [
   'waitlist-add',
   'waitlist-offer',
   'waitlist-remove',
+  'opening-invite',
   'counter-sale',
   'stock',
   'purchase-order',
