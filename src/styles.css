@@ -1127,7 +1127,23 @@ fieldset {
 }
 .calendar-event.event-movable {
   cursor: grab;
-  touch-action: none;
+  /* A swipe over a visit scrolls the day; a held finger picks the visit up. */
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+.calendar-event.event-held {
+  transform: scale(1.015);
+  box-shadow: var(--shadow-float);
+  transition:
+    transform var(--motion-quick) ease,
+    box-shadow var(--motion-quick) ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .calendar-event.event-held {
+    transform: none;
+    transition: none;
+  }
 }
 .calendar-event.event-dragging {
   opacity: 0.4;

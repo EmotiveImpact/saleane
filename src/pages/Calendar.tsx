@@ -98,7 +98,27 @@ export function Calendar() {
     moving: boolean
     staffId: string
     minute: number
+    // A finger has to rest on a visit before it moves, so a swipe over the day still scrolls.
+    touch?: boolean
+    armed?: boolean
   } | null>(null)
+  const held = useRef<number | undefined>(undefined)
+  const armedNow = useRef(false)
+  useEffect(() => {
+    armedNow.current = !!drag?.armed
+  }, [drag?.armed])
+  useEffect(() => {
+    const box = grid.current
+    if (!box) return
+    // Once a visit is held, the finger moves the visit and not the page.
+    const stop = (e: TouchEvent) => {
+      if (armedNow.current && e.cancelable) e.preventDefault()
+    }
+    box.addEventListener('touchmove', stop, { passive: false })
+    return () => box.removeEventListener('touchmove', stop)
+  }, [])
+  useEffect(() => () => window.clearTimeout(held.current), [])
+  const coarse = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches
   const [proposal, setProposal] = useState<{
     date: string
     staffId: string
@@ -258,7 +278,9 @@ export function Calendar() {
         <div className={view === 'grid' ? 'calendar-grid-desktop' : 'hidden'}>
           {canDrag && day.some((a) => a.status === 'confirmed') && (
             <p className="calendar-hint">
-              Drag an upcoming visit to move it, or click a free space to book.
+              {coarse
+                ? 'Hold an upcoming visit, then slide it to move it, or tap a free space to book.'
+                : 'Drag an upcoming visit to move it, or click a free space to book.'}
             </p>
           )}
           <div
@@ -381,10 +403,11 @@ export function Calendar() {
                         }}
                       >
                         <button
-                          className={`calendar-event tone-${s.tone} ${a.status === 'completed' ? 'event-completed' : ''} ${drag?.moving && drag.id === a.id ? 'event-dragging' : ''} ${canDrag && a.status === 'confirmed' ? 'event-movable' : ''}`}
+                          className={`calendar-event tone-${s.tone} ${a.status === 'completed' ? 'event-completed' : ''} ${drag?.moving && drag.id === a.id ? 'event-dragging' : ''} ${drag?.touch && drag.armed && !drag.moving && drag.id === a.id ? 'event-held' : ''} ${canDrag && a.status === 'confirmed' ? 'event-movable' : ''}`}
                           style={{ height: (a.bookedDurationMinutes / 60) * 82 - 3 }}
                           onPointerDown={(e) => {
                             if (!canDrag || a.status !== 'confirmed' || e.button !== 0) return
+                            const touch = e.pointerType === 'touch'
                             e.currentTarget.setPointerCapture?.(e.pointerId)
                             setDrag({
                               id: a.id,
@@ -394,10 +417,30 @@ export function Calendar() {
                               moving: false,
                               staffId: s.id,
                               minute: a.startMinutes,
+                              touch,
+                              armed: !touch,
                             })
+                            window.clearTimeout(held.current)
+                            if (touch)
+                              held.current = window.setTimeout(() => {
+                                setDrag((d) => (d?.id === a.id ? { ...d, armed: true } : d))
+                                navigator.vibrate?.(8)
+                              }, 320)
+                          }}
+                          onContextMenu={(e) => {
+                            // A long press is how a finger picks a visit up, not a menu.
+                            if (canDrag && a.status === 'confirmed') e.preventDefault()
                           }}
                           onPointerMove={(e) => {
                             if (drag?.id !== a.id) return
+                            if (drag.touch && !drag.armed) {
+                              // Moving before the hold is a swipe: let the page scroll.
+                              if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) >= 8) {
+                                window.clearTimeout(held.current)
+                                setDrag(null)
+                              }
+                              return
+                            }
                             if (
                               !drag.moving &&
                               Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 6
@@ -412,6 +455,7 @@ export function Calendar() {
                             if (point) setDrag({ ...drag, moving: true, ...point })
                           }}
                           onPointerUp={() => {
+                            window.clearTimeout(held.current)
                             if (drag?.id !== a.id) return
                             if (drag.moving) {
                               dragged.current = true
@@ -426,7 +470,10 @@ export function Calendar() {
                             }
                             setDrag(null)
                           }}
-                          onPointerCancel={() => setDrag(null)}
+                          onPointerCancel={() => {
+                            window.clearTimeout(held.current)
+                            setDrag(null)
+                          }}
                           onClick={() => {
                             if (dragged.current) {
                               dragged.current = false
