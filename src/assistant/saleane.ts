@@ -29,6 +29,7 @@ import { holdings, planStanding } from '../domain/plans'
 import { dueTasks, openTasks } from '../domain/tasks'
 import { searchHelp } from '../domain/help'
 import { clientUsualSkill } from './usualSkills'
+import { guestOf } from '../domain/cancelledTimes'
 import { openingFree, openings, serviceLabel, timesLabel, waiting } from '../domain/waitlist'
 import {
   currentSpecials,
@@ -139,13 +140,25 @@ export function askSaleaneSkills(): Skill<AskContext, Command>[] {
     }),
     readSkill<AskContext, { name: string }>({
       name: 'find_client',
-      description: 'Find clients by part of their name. Returns ids for the other skills.',
+      description:
+        'Find clients by part of their name. Returns ids for the other skills, one for each guest: a guest who booked online more than once is still one client here.',
       input: z.object({ name: z.string().trim().min(2).max(100) }).strict(),
       allowed: studio,
       run(ctx, input) {
         const query = input.name.toLowerCase()
+        // Stage 5: every online booking opens a record, and records with the same email are one
+        // guest, so each guest is offered once, by the record they last visited under. Nobody is
+        // asked to choose between two records of the same person.
+        const seen = new Set<string>()
         return ctx.state.clients
           .filter((c) => c.name.toLowerCase().includes(query))
+          .flatMap((c) => {
+            const guest = guestOf(ctx.state, c.id)
+            const key = guest?.key ?? c.id
+            if (seen.has(key)) return []
+            seen.add(key)
+            return [guest?.client ?? c]
+          })
           .slice(0, 8)
           .map((c) => ({ clientId: c.id, name: c.name }))
       },
@@ -160,7 +173,15 @@ export function askSaleaneSkills(): Skill<AskContext, Command>[] {
         const s = ctx.state
         const client = s.clients.find((c) => c.id === clientId)
         if (!client) throw new SkillRefusal('There is no client with that id.')
-        const stats = clientStats(s, clientId)
+        // Stage 5: the guest's visits and plans under every record with their email, as one guest.
+        const ids = guestOf(s, clientId)?.ids ?? new Set([clientId])
+        const stats = [...ids]
+          .map((id) => clientStats(s, id))
+          .reduce((all, one) => ({
+            ...all,
+            visits: all.visits + one.visits,
+            last: !all.last || (one.last && one.last.date > all.last.date) ? one.last : all.last,
+          }))
         const visit = (a: typeof stats.last) =>
           a && {
             appointmentId: a.id,
@@ -176,14 +197,12 @@ export function askSaleaneSkills(): Skill<AskContext, Command>[] {
           lastVisit: visit(stats.last),
           nextVisit: visit(
             s.appointments
-              .filter(
-                (a) => a.clientId === clientId && a.status === 'confirmed' && a.date >= ctx.today,
-              )
+              .filter((a) => ids.has(a.clientId) && a.status === 'confirmed' && a.date >= ctx.today)
               .sort((a, b) => a.date.localeCompare(b.date) || a.startMinutes - b.startMinutes)[0],
           ),
           marketingConsent: client.marketingConsent,
           plans: holdings(s)
-            .filter((h) => h.clientId === clientId)
+            .filter((h) => ids.has(h.clientId))
             .map((h) => ({ name: h.name, ...pick(planStanding(h, ctx.today)) })),
         }
       },

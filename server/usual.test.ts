@@ -191,7 +191,7 @@ async function studio() {
 
 describe('my usual through the server', () => {
   it('answers a text for "my usual" with what it is and times, then links the time chosen', async () => {
-    const { slug, serviceId, maya, online } = await studio()
+    const { owner, slug, serviceId, maya, online } = await studio()
     await text(slug, 'Can I book my usual?')
     const [usual] = answers()
     expect(usual).toMatchObject({
@@ -199,6 +199,9 @@ describe('my usual through the server', () => {
       client_id: online,
       status: 'pending',
     })
+    // Her text is kept with the same record as the answer, so the Inbox shows one conversation.
+    const { state } = await workspace(owner)
+    expect(state.replies?.map((r) => r.clientId)).toEqual([online])
     expect(usual.body).toMatch(
       /^Linden Studio AI receptionist: Your usual is Restorative facial with Maya Lind, on Saturday mornings\. Free on Saturday 31 October with Maya Lind: 09:00, /,
     )

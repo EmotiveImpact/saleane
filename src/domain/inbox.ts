@@ -1,4 +1,4 @@
-import type { BusinessState, RelationshipEvent } from './model'
+import type { BusinessState, Client, RelationshipEvent } from './model'
 import {
   REPLY_LIMIT,
   REPLY_TEXT_LIMIT,
@@ -38,7 +38,15 @@ const textNumber = (phone: string) => {
 
 export const unreadReplies = (s: BusinessState) => repliesList(s).filter((r) => !r.readAt)
 
-/** The one client an address or number belongs to, or undefined when none or several do. */
+/**
+ * The one client an address or number belongs to, or undefined when none or several do.
+ *
+ * Stage 5: a number on several records that all share one email is still one guest. Every online
+ * booking opens a new record, so a guest who books online twice has two with the same number, and
+ * records with the same email are one guest everywhere in SALEANE. Their texts go to the record
+ * they last visited under, as the AI receptionist's answers do, so the conversation stays in one
+ * place. Records with different emails (a family sharing a phone, say) stay unmatched.
+ */
 export function senderClient(s: BusinessState, channel: ArrivalChannel, from: string) {
   // Instagram and Facebook give only an id of their own, so the team matches those by hand. A
   // chat on the booking page leaves whatever email or number the visitor typed, which proves
@@ -50,7 +58,26 @@ export function senderClient(s: BusinessState, channel: ArrivalChannel, from: st
     by === 'sms'
       ? s.clients.filter((c) => textNumber(c.phone) === textNumber(from))
       : s.clients.filter((c) => c.email.trim().toLowerCase() === from.trim().toLowerCase())
-  return matches.length === 1 ? matches[0] : undefined
+  if (matches.length === 1) return matches[0]
+  return by === 'sms' ? oneGuest(s, matches) : undefined
+}
+
+/** Several records with one number: the guest's latest, when they all share one email. */
+function oneGuest(s: BusinessState, records: Client[]) {
+  const emails = new Set(records.map((c) => c.email.trim().toLowerCase()))
+  // An empty email never joins records.
+  if (records.length < 2 || emails.size !== 1 || emails.has('')) return undefined
+  const ids = new Set(records.map((c) => c.id))
+  let latest: { clientId: string; at: string } | undefined
+  for (const a of s.appointments) {
+    if (!ids.has(a.clientId) || a.status === 'cancelled') continue
+    const at = `${a.date}T${String(a.startMinutes).padStart(4, '0')}`
+    if (!latest || at > latest.at) latest = { clientId: a.clientId, at }
+  }
+  return (
+    records.find((c) => c.id === latest?.clientId) ??
+    [...records].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+  )
 }
 
 /** A reply first line for a preview or timeline, shortened at a word. */

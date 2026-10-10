@@ -175,6 +175,27 @@ describe('booking a client’s usual through the test brain', () => {
     )
   })
 
+  it('treats a guest who booked online again as one client, never asking which record', async () => {
+    const { s, amelia } = regular()
+    // Her online booking opened a second record with her email in capitals.
+    const online = addClient(s, 'Amelia Carter', { email: 'Amelia@Example.com' })
+    addVisit(s, online.id, '2026-10-07', { startMinutes: 600 })
+    const what = await ask(s, "What is Amelia's usual?")
+    expect(what.text).toMatch(/^Amelia Carter's usual is Restorative Facial with Maya Lind/)
+    expect(what.text).not.toMatch(/Which one/)
+    const booking = await ask(s, 'Book Amelia her usual on Saturday')
+    expect(booking.proposals).toHaveLength(1)
+    // Booked under the record she last visited under.
+    expect(commandSchema.parse(booking.proposals[0].effect)).toMatchObject({
+      type: 'book',
+      input: { clientId: online.id, serviceId: 'facial', date: '2026-10-10' },
+    })
+    // Someone else with the same name and their own email is still a different client.
+    addClient(s, 'Amelia Carter', { email: 'another.amelia@example.com' })
+    expect((await ask(s, "What is Amelia's usual?")).text).toMatch(/Which one do you mean\?$/)
+    expect(amelia.id).not.toBe(online.id)
+  })
+
   it('does not let a practitioner book or see it', async () => {
     const { s } = regular()
     const answer = await ask(s, 'book Amelia her usual on Friday', 'practitioner')
