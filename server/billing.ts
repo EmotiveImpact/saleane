@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
-import { current } from '../lumane'
+import { usedEach } from '../lumane'
 import { mailBilling } from './accountMail'
 import { fail } from './http'
 import type { Context, Org, Route } from './context'
@@ -1039,8 +1039,8 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
       org.id,
     )
     const coming = monthBill(region, locations, !!row.plus_next, people)
-    const used = current(storedUsage(ctx, org.id), new Date(time).toISOString()).used
     const ai = allowance(org).monthly
+    const used = usedEach(allowance(org), storedUsage(ctx, org.id), new Date(time).toISOString())
     return {
       status: row.status,
       stopReason: row.stop_reason,

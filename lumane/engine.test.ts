@@ -355,9 +355,9 @@ describe('Lumane allowances', () => {
   })
 
   it('caps a talking session at the session limit or what is left', () => {
-    expect(talkWindowSeconds(allowance, undefined, at)).toBe(300)
+    expect(talkWindowSeconds(allowance, undefined, at, 'talkSeconds')).toBe(300)
     const talked = record(emptyUsage(at), { ...request, meter: 'talkSeconds', amount: 450 }, 0)
-    expect(talkWindowSeconds(allowance, talked, at)).toBe(150)
+    expect(talkWindowSeconds(allowance, talked, at, 'talkSeconds')).toBe(150)
   })
 
   it('holds a talk for its whole window, then keeps only the time it ran', () => {
@@ -365,7 +365,7 @@ describe('Lumane allowances', () => {
     const held = reserve(allowance, undefined, talk)
     if (!held.ok) throw new Error('expected the talk to be held')
     expect(held.usage.used.talkSeconds).toBe(300)
-    expect(talkWindowSeconds(allowance, held.usage, at)).toBe(300)
+    expect(talkWindowSeconds(allowance, held.usage, at, 'talkSeconds')).toBe(300)
     // It ran 95 seconds, costing 7.92: the rest of the window and its worst case come back.
     expect(settle(held.usage, talk, { counted: true, amount: 95, costMinor: 7.92 })).toMatchObject({
       used: { talkSeconds: 95 },

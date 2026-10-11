@@ -5,6 +5,7 @@ import { socialLabel } from './inboxSchema'
 import { METHOD_WORDS } from './accounts'
 import { csvRows } from './csv'
 import { dateLabel, fullDateLabel, money, timeLabel } from './format'
+import { ASK_NAME } from '../assistant/name'
 
 /**
  * NEXT-05: who changed what. Every saved change is already written to the studio's audit log
@@ -75,7 +76,7 @@ const commandWords: Record<Command['type'], Words> = {
   'plan-sell': ['money', 'Sold a package or membership'],
   'plan-renew': ['money', 'Renewed a package or membership'],
   'plan-cancel': ['money', 'Cancelled a package or membership'],
-  batch: ['visits', 'Approved several changes from Ask Saleane'],
+  batch: ['visits', `Approved several changes from ${ASK_NAME}`],
   'special-plan': ['settings', 'Planned a special'],
   'task-add': ['team', 'Left a reminder for the team'],
   'task-done': ['team', 'Ticked off a team reminder'],
@@ -115,7 +116,7 @@ const commandWords: Record<Command['type'], Words> = {
   'message-queue': ['messages', 'Approved a message for sending'],
   receptionist: ['settings', 'Changed the AI receptionist'],
   'ai-voice': ['settings', 'Changed how the AI speaks for the studio'],
-  'own-voice': ['settings', 'Chose their own voice for Ask SALEANE'],
+  'own-voice': ['settings', `Chose their own voice for ${ASK_NAME}`],
   'visit-write-up': ['clients', 'Wrote up a visit'],
   'google-booking': ['settings', 'Changed Book with Google'],
   reminders: ['settings', 'Changed confirmations and reminders'],
@@ -188,10 +189,10 @@ const serverWords: Record<string, Words> = {
   'payment.save_card': ['money', 'Recorded a saved card'],
   'payment.refund': ['money', 'Recorded a card refund'],
   'card.removed': ['money', 'Removed a saved card'],
-  'assistant.proposed': ['settings', 'Asked Ask Saleane to suggest a change'],
-  'assistant.approved': ['settings', 'Approved a change Ask Saleane suggested'],
-  'assistant.declined': ['settings', 'Turned down a change Ask Saleane suggested'],
-  'assistant.talked': ['settings', 'Talked to Ask Saleane'],
+  'assistant.proposed': ['settings', `Asked ${ASK_NAME} to suggest a change`],
+  'assistant.approved': ['settings', `Approved a change ${ASK_NAME} suggested`],
+  'assistant.declined': ['settings', `Turned down a change ${ASK_NAME} suggested`],
+  'assistant.talked': ['settings', `Talked to ${ASK_NAME}`],
   'outbox.retry': ['messages', 'Tried sending a message again'],
   'client.exported': ['clients', 'Downloaded a copy of a client’s data'],
   'client.erasure_requested': ['clients', 'Recorded a request to erase a client'],

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { MAX_UPDATE_CHARS, liveEvent, openaiLive, updates } from './live'
 import type { LiveEvent, LiveSocket } from './live'
+import { standingInstructions } from './rules'
 
 // OpenAI's GPT-Live, pretended by a fetch and a socket that record what SALEANE sends and answer
 // as OpenAI's Live API documents (sessions, the server's own connection, client delegation).
@@ -80,7 +81,7 @@ describe('starting a talk with OpenAI', () => {
     expect(JSON.parse(String(init.body))).toEqual({
       session: {
         model: 'gpt-live-1',
-        instructions: 'Be kind.',
+        instructions: standingInstructions('Be kind.'),
         store: false,
         audio: { output: { voice: 'vesper' } },
         delegation: { type: 'client' },

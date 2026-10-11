@@ -3,11 +3,15 @@
  * the allowance is checked before every request, and a refused request never reaches the AI
  * supplier, so overuse cannot cost the business anything.
  */
-export type Meter = 'typed' | 'talkSeconds' | 'guestChats'
+/**
+ * A kind of use an app sells, such as typed questions or talking minutes. Each app names its own
+ * in its pack; LUMANE counts whatever it is given and knows nothing about what they mean.
+ */
+export type Meter = string
 
-export type Allowance = {
-  /** Monthly amounts for each kind of use. */
-  monthly: Record<Meter, number>
+export type Allowance<M extends Meter = Meter> = {
+  /** Monthly amounts for each kind of use. A kind the plan leaves out has none. */
+  monthly: Record<M, number>
   /** The most AI spend one account may run up in a day, in minor units (pence or cents). */
   dailySpendCeilingMinor: number
   /**
@@ -24,7 +28,8 @@ export type Allowance = {
 export type Usage = {
   /** The calendar month these totals belong to, as YYYY-MM. */
   period: string
-  used: Record<Meter, number>
+  /** How much of each kind has been used. A kind not used yet this month may be missing. */
+  used: Partial<Record<Meter, number>>
   /** AI spend by day (YYYY-MM-DD), in minor units. */
   spendByDay: Record<string, number>
   /** Recent request times per person, kept for the hourly limit. */
@@ -36,8 +41,8 @@ export type Usage = {
   holds?: { request: UseRequest; until: string }[]
 }
 
-export type UseRequest = {
-  meter: Meter
+export type UseRequest<M extends Meter = Meter> = {
+  meter: M
   amount: number
   personId: string
   /** When the request is made, as an ISO instant. */
@@ -54,15 +59,9 @@ export type Refusal = {
 }
 
 const HOUR = 3_600_000
-const meters: Meter[] = ['typed', 'talkSeconds', 'guestChats']
 
 export function emptyUsage(at: string): Usage {
-  return {
-    period: at.slice(0, 7),
-    used: { typed: 0, talkSeconds: 0, guestChats: 0 },
-    spendByDay: {},
-    recent: {},
-  }
+  return { period: at.slice(0, 7), used: {}, spendByDay: {}, recent: {} }
 }
 
 /** The usage that applies at `at`: a new month starts from zero. */
@@ -70,33 +69,51 @@ export function current(usage: Usage | undefined, at: string): Usage {
   return usage && usage.period === at.slice(0, 7) ? usage : emptyUsage(at)
 }
 
-export function remaining(
-  allowance: Allowance,
+/** How much of one kind has been used in the month `at` falls in: nothing when none is recorded. */
+export function usedOf(usage: Usage | undefined, meter: Meter, at: string) {
+  return current(usage, at).used[meter] ?? 0
+}
+
+/** How much of each kind the allowance names has been used this month, for the usage meter. */
+export function usedEach<M extends Meter>(
+  allowance: Allowance<M>,
   usage: Usage | undefined,
-  meter: Meter,
   at: string,
 ) {
-  return Math.max(0, allowance.monthly[meter] - current(usage, at).used[meter])
+  const kinds = Object.keys(allowance.monthly) as M[]
+  return Object.fromEntries(kinds.map((m) => [m, usedOf(usage, m, at)])) as Record<M, number>
+}
+
+/** What is left of one kind this month. A kind the allowance does not name has nothing left. */
+export function remaining<M extends Meter>(
+  allowance: Allowance<M>,
+  usage: Usage | undefined,
+  meter: M,
+  at: string,
+) {
+  return Math.max(0, (allowance.monthly[meter] ?? 0) - usedOf(usage, meter, at))
 }
 
 /** How much of each monthly amount is used, from 0 to 1, for the usage meter. */
-export function share(allowance: Allowance, usage: Usage | undefined, at: string) {
-  const now = current(usage, at)
+export function share<M extends Meter>(
+  allowance: Allowance<M>,
+  usage: Usage | undefined,
+  at: string,
+) {
+  const used = usedEach(allowance, usage, at)
+  const kinds = Object.keys(allowance.monthly) as M[]
   return Object.fromEntries(
-    meters.map((m) => [
-      m,
-      allowance.monthly[m] ? Math.min(1, now.used[m] / allowance.monthly[m]) : 1,
-    ]),
-  ) as Record<Meter, number>
+    kinds.map((m) => [m, allowance.monthly[m] ? Math.min(1, used[m] / allowance.monthly[m]) : 1]),
+  ) as Record<M, number>
 }
 
-export function check(
-  allowance: Allowance,
+export function check<M extends Meter>(
+  allowance: Allowance<M>,
   usage: Usage | undefined,
-  request: UseRequest,
+  request: UseRequest<M>,
 ): { ok: true } | Refusal {
   const now = current(usage, request.at)
-  if (now.used[request.meter] + request.amount > allowance.monthly[request.meter])
+  if ((now.used[request.meter] ?? 0) + request.amount > (allowance.monthly[request.meter] ?? 0))
     return {
       ok: false,
       reason: 'allowance',
@@ -135,7 +152,7 @@ export function record(usage: Usage | undefined, request: UseRequest, costMinor:
   const since = Date.parse(request.at) - HOUR
   return {
     ...now,
-    used: { ...now.used, [request.meter]: now.used[request.meter] + request.amount },
+    used: { ...now.used, [request.meter]: (now.used[request.meter] ?? 0) + request.amount },
     spendByDay: { ...now.spendByDay, [day]: (now.spendByDay[day] ?? 0) + Math.max(0, costMinor) },
     recent: {
       ...now.recent,
@@ -157,10 +174,10 @@ export const HOLD_SECONDS = 300
  * gives it back should it never have been settled. Returns the usage to store, or the refusal.
  * Never mutates.
  */
-export function reserve(
-  allowance: Allowance,
+export function reserve<M extends Meter>(
+  allowance: Allowance<M>,
   usage: Usage | undefined,
-  request: UseRequest,
+  request: UseRequest<M>,
   until = new Date(Date.parse(request.at) + HOLD_SECONDS * 1000).toISOString(),
 ): { ok: true; usage: Usage } | Refusal {
   const allowed = check(allowance, usage, request)
@@ -202,7 +219,7 @@ export function settle(
       ...now.used,
       [request.meter]: Math.max(
         0,
-        now.used[request.meter] -
+        (now.used[request.meter] ?? 0) -
           held +
           (outcome.counted ? Math.max(0, outcome.amount ?? request.amount) : 0),
       ),
@@ -233,7 +250,15 @@ export function reclaim(usage: Usage | undefined, at: string): Usage | undefined
   return next
 }
 
-/** How long the next talking session may run: the session cap or what is left, whichever is less. */
-export function talkWindowSeconds(allowance: Allowance, usage: Usage | undefined, at: string) {
-  return Math.min(allowance.maxTalkSessionSeconds, remaining(allowance, usage, 'talkSeconds', at))
+/**
+ * How long the next talking session may run: the session cap or what is left of `meter`, the
+ * kind the app counts talking in, whichever is less.
+ */
+export function talkWindowSeconds<M extends Meter>(
+  allowance: Allowance<M>,
+  usage: Usage | undefined,
+  at: string,
+  meter: M,
+) {
+  return Math.min(allowance.maxTalkSessionSeconds, remaining(allowance, usage, meter, at))
 }

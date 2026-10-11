@@ -1,5 +1,6 @@
 import type { Allowance } from '../../lumane'
 import type { BusinessState } from './model'
+import { ASK_NAME } from '../assistant/name'
 
 /**
  * PILOT-04: SALEANE's one published price, for each location. Everything a studio uses is
@@ -160,9 +161,9 @@ export const INCLUDED: readonly { text: string; connect?: 'card' | 'text' | 'voi
     text: `Your team, with the right access for each role: ${PEOPLE_PER_LOCATION} people taking bookings, and free for anyone who gives no treatments`,
   },
   { text: 'Client data exports and privacy tools' },
-  { text: `Ask Saleane, your AI assistant: ${included.typed} typed questions a month` },
+  { text: `${ASK_NAME}, your AI assistant: ${included.typed} typed questions a month` },
   {
-    text: `Talking to Ask Saleane: ${included.talkSeconds / 60} minutes a month`,
+    text: `Talking to ${ASK_NAME}: ${included.talkSeconds / 60} minutes a month`,
     connect: 'voice',
   },
   {
@@ -172,7 +173,7 @@ export const INCLUDED: readonly { text: string; connect?: 'card' | 'text' | 'voi
 export const CONNECT_NOTES = {
   card: 'Arrives when you connect your card account',
   text: 'Arrives when you connect your text account',
-  voice: 'Arrives when talking to Ask Saleane is switched on',
+  voice: `Arrives when talking to ${ASK_NAME} is switched on`,
 } as const
 
 /** NEXT-02: what a location can add to its price. Neither unlocks a feature; each adds capacity. */

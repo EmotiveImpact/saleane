@@ -1,4 +1,4 @@
-import { BrainError } from '../../lumane'
+import { BrainError, standingInstructions } from '../../lumane'
 import type { Brain, ToolSpec } from '../../lumane'
 import type { BusinessState } from '../domain/model'
 import { VISIT_AFTERCARE_LIMIT } from '../domain/model'
@@ -93,7 +93,7 @@ export async function writeUpWith(
   words: string,
 ): Promise<WriteUp & { costMinor: number }> {
   const reply = await brain.respond({
-    instructions: WRITE_UP_INSTRUCTIONS,
+    instructions: standingInstructions(WRITE_UP_INSTRUCTIONS),
     context: writeUpFacts(state, appointmentId),
     messages: [{ role: 'user', text: words.slice(0, WRITE_UP_WORDS_LIMIT) }],
     tools: [WRITE_UP_TOOL],

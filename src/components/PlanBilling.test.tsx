@@ -126,7 +126,7 @@ test('says who the studio pays for beyond the people its locations include', asy
   const { unmount } = open()
   expect(
     await screen.findByText(
-      '£59 a month for each location, plus VAT, with 5 people taking bookings, Ask Saleane and the AI receptionist included. Each person beyond that is £9 a month. Month to month: stop whenever you like.',
+      '£59 a month for each location, plus VAT, with 5 people taking bookings, Ask SALEANE and the AI receptionist included. Each person beyond that is £9 a month. Month to month: stop whenever you like.',
     ),
   ).toBeInTheDocument()
   expect(
@@ -329,7 +329,7 @@ test('a read only studio can pay for a month from today, and cannot add Plus or 
   expect(screen.getByRole('button', { name: 'Add Plus' })).toBeDisabled()
   expect(screen.queryByRole('button', { name: /^Stop/ })).not.toBeInTheDocument()
   expect(
-    screen.getByText('Ask Saleane and the AI receptionist rest while the studio is read only.'),
+    screen.getByText('Ask SALEANE and the AI receptionist rest while the studio is read only.'),
   ).toBeInTheDocument()
 })
 

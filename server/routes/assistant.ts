@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { current, decide } from '../../lumane'
+import { decide, usedEach } from '../../lumane'
 import type { PendingProposal, Usage } from '../../lumane'
 import { holding, settleUse, storedUsage } from '../aiUsage'
 import { fail } from '../http'
@@ -8,6 +8,7 @@ import { talks } from '../talk'
 import type { Held } from '../talk'
 import { HISTORY_TURNS, askSaleane, askUse } from '../../src/assistant/ask'
 import type { Command } from '../../src/domain/commands'
+import { ASK_NAME } from '../../src/assistant/name'
 
 /**
  * Ask Saleane for owners, managers and reception. Usage is kept per studio so the allowance holds
@@ -24,14 +25,14 @@ export function assistantRoutes() {
     if (path[1] !== 'workspaces' || path[3] !== 'assistant') return false
     const actor = ctx.actorFor(request, method !== 'GET')
     const org = ctx.orgFor(path[2], actor)
-    if (org.role === 'practitioner') fail(403, 'Ask SALEANE is not available for your role yet.')
+    if (org.role === 'practitioner') fail(403, `${ASK_NAME} is not available for your role yet.`)
     const at = new Date(ctx.now()).toISOString()
     for (const [id, proposal] of held) if (proposal.expiresAt < at) held.delete(id)
     // NEXT-02: each open location's allowance, Plus once paid for, and none once read only.
     const allowance = ctx.plans.allowance(org)
     const stored = () => storedUsage(ctx, org.id)
     const meter = (usage: Usage | undefined) => ({
-      used: current(usage, at).used,
+      used: usedEach(allowance, usage, at),
       allowance: allowance.monthly,
     })
 
@@ -120,7 +121,7 @@ export function assistantRoutes() {
       const answered = result.status === 'answered'
       if (!answered)
         console.error(
-          `[SALEANE] Ask SALEANE's AI could not answer (${result.reason}): ${result.detail}`,
+          `[SALEANE] ${ASK_NAME}'s AI could not answer (${result.reason}): ${result.detail}`,
         )
       // What it really cost replaces the share held. A question the AI could not answer is not
       // counted against the month, but whatever it cost is.
