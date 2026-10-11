@@ -52,8 +52,8 @@ export function Waitlist() {
     <div className="waitlist-page">
       {unused ? (
         <Empty
-          photo={photos.tea}
-          photoPosition="center 62%"
+          photo={photos.waitlist}
+          photoPosition="center 40%"
           eyebrow="Waitlist"
           level={1}
           title="Nobody is waiting yet."
@@ -66,7 +66,7 @@ export function Waitlist() {
         <>
           <PageHeader
             variant="compact"
-            photo={{ src: photos.tea, position: 'center 58%' }}
+            photo={{ src: photos.waitlist, position: 'center 26%' }}
             eyebrow="Waitlist"
             title="Who would take a time."
             description="When a time opens that suits someone, it appears beside their name. Nobody is contacted by itself."

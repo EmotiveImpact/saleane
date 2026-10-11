@@ -106,7 +106,7 @@ export function Clients() {
       {!first && (
         <PageHeader
           variant="compact"
-          photo={{ src: photos.windowLight }}
+          photo={{ src: photos.clients, position: '60% 30%' }}
           eyebrow="Clients"
           title="Relationships, remembered."
           description="Everyone who comes to the studio, what they love and when they are due back."
@@ -121,8 +121,8 @@ export function Clients() {
       <section className={first ? undefined : 'surface directory'}>
         {first ? (
           <Empty
-            photo={photos.reception}
-            photoPosition="44% center"
+            photo={photos.clients}
+            photoPosition="56% center"
             eyebrow="Clients"
             level={1}
             title="Your clients will gather here."

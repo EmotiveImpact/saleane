@@ -46,6 +46,7 @@ import {
   Notices,
   ScrollNav,
   Tip,
+  photos,
 } from './design'
 import { SearchDialog } from './components/SearchDialog'
 import { BillingBanner } from './components/BillingBanner'
@@ -495,7 +496,7 @@ function WorkspaceApp() {
             className="sidebar-photo"
             aria-label="Preview your studio’s booking experience"
           >
-            <img src="/images/saleane-studio-warm-small.jpg" alt="" />
+            <img src={photos.bookingPage} alt="" />
           </Link>
           <Tip label="Your booking page" side="right" disabled={!rail}>
             <Link to="/booking" className="public-booking-link">

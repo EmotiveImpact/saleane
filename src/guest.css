@@ -394,7 +394,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 50% 62%;
+  object-position: 55% 50%;
 }
 /* The photograph softens into the page where the studio's name sits, with no hard edge or box. */
 .visit-hero::after {

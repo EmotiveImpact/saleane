@@ -70,7 +70,7 @@ export function SmartInsights({ onBook }: { onBook: (defaults: BookingDefaults) 
       <div
         className="intelligence-photo"
         aria-hidden="true"
-        style={{ backgroundImage: `url(${photos.tea})` }}
+        style={{ backgroundImage: `url(${photos.nextVisit})` }}
       />
       <div className="intelligence-symbol">
         <Leaf size={22} />

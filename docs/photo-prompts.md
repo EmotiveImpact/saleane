@@ -130,7 +130,7 @@ File: `today.webp`. Shown under the greeting at the top of Today. Replaces the s
 
 ### 16. Calendar
 
-File: `calendar.webp`. Shown as a band on the Calendar. Replaces "all in hand".
+File: `calendar.webp`. Shown on the "All in hand" card on Today, once everyone due has been welcomed, and on the Calendar's welcome while nobody is on the team. A Calendar in use is a working tool with no photograph. Replaces the calm studio and the hair studio.
 
 > Create one photograph, landscape 3:2, 2400 × 1600 pixels. A long, sunlit open studio in the middle of a calm, busy day: in the foreground a nail technician of Vietnamese heritage finishes a manicure for a South Asian guest at a pale oak table; further back, a stylist blow-dries a guest's hair by a round mirror. Everything unhurried and in hand. The people sit in the middle band of the frame, spread from left to right, with plain wall above and pale floor below. Editorial photography for a calm, premium beauty and wellness studio. Bright, airy and sunlit, warm off-white, pale oak and travertine, touches of muted sage green and dusty rose. Medium-format camera, 50mm lens, shallow depth of field, natural colour. Real, natural-looking people, never posed stock-photo smiles. No text, no logos, no product labels, no watermarks. Not dark, moody, candlelit, neon or night-time.
 
@@ -142,7 +142,7 @@ File: `clients.webp`. Shown as a band on Clients. Replaces the window light.
 
 ### 18. Stock
 
-File: `stock.webp`. Shown as a band on Stock. Replaces the stacked towels.
+File: `stock.webp`. Shown in the welcome on an empty Stock page, before the first product is added. Stock itself is a working tool with no photo band.
 
 > Create one photograph, landscape 3:2, 2400 × 1600 pixels. Open pale oak shelves in a bright studio stockroom, neatly lined with unlabelled amber and frosted glass bottles, small ceramic jars and rolled cream towels. The hand and forearm of a Latino man in a linen shirt place one more bottle on a shelf. Morning light from the side. The shelves fill the middle band of the frame from left to right. Editorial photography for a calm, premium beauty and wellness studio. Bright, airy and sunlit, warm off-white, pale oak, ceramic and linen, touches of muted sage green and dusty rose. Medium-format camera, 50mm lens, shallow depth of field, natural colour. No labels, no brand names, no text, no logos, no watermarks. Not dark, moody, candlelit, neon or night-time.
 

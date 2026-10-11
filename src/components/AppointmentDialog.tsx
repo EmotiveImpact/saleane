@@ -587,7 +587,7 @@ export function AppointmentDialog({
             <div
               className="rebook-moment-photo"
               aria-hidden="true"
-              style={{ backgroundImage: `url(${photos.tea})` }}
+              style={{ backgroundImage: `url(${photos.nextVisit})` }}
             />
             <div className="rebook-moment-text">
               <p className="eyebrow">Next visit</p>

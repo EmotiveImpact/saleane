@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Download, Palette, RotateCcw, SlidersHorizontal, Store } from 'lucide-react'
 import { useStore } from '../state/context'
 import { storageKey } from '../state/storage'
-import { Button, ErrorMessage, Select } from '../design'
+import { Button, ErrorMessage, Select, photos } from '../design'
 import { coloursFor, firstColours, saveColours, secondColours } from '../state/studioColours'
 import type { StudioColours } from '../state/studioColours'
 import type { StudioLook } from '../domain/brandRulesSchema'
@@ -144,7 +144,7 @@ export function BrandSection() {
       <ErrorMessage error={error} />
       {!canStyle && <p className="ops-help">Only owners and managers can change the colours.</p>}
       <div className="settings-booking-link">
-        <img src="/images/saleane-studio-warm-small.jpg" alt="" />
+        <img src={photos.bookingPage} alt="" />
         <div>
           <strong>Your booking page</strong>
           <p>See how guests meet your studio, in its colours.</p>

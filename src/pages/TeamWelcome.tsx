@@ -13,10 +13,14 @@ import './teamWelcome.css'
 
 const STEPS = ['hello', 'day', 'safe'] as const
 type Step = (typeof STEPS)[number]
-const STORY: Record<Step, { photo: string; line: string }> = {
-  hello: { photo: photos.entrance, line: 'Good to have you with us.' },
-  day: { photo: photos.reception, line: 'Where your day starts.' },
-  safe: { photo: photos.windowLight, line: 'Guests trust you with their details.' },
+const STORY: Record<Step, { photo: string; position: string; line: string }> = {
+  hello: { photo: photos.welcomeHello, position: '45% 62%', line: 'Good to have you with us.' },
+  day: { photo: photos.welcomeDay, position: '45% 62%', line: 'Where your day starts.' },
+  safe: {
+    photo: photos.welcomeSafe,
+    position: '60% 70%',
+    line: 'Guests trust you with their details.',
+  },
 }
 
 /**
@@ -70,7 +74,7 @@ export function TeamWelcome({
           <p className="setup-story-title">{studio}</p>
           <p>{STORY[step].line}</p>
         </div>
-        <img src={STORY[step].photo} alt="" />
+        <img src={STORY[step].photo} alt="" style={{ objectPosition: STORY[step].position }} />
       </aside>
       <main className="setup-main" aria-labelledby={headingId}>
         <div className="setup-top">

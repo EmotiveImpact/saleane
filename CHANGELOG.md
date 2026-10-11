@@ -2,6 +2,16 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-11 · The new photographs, on their screens
+
+**Status: built locally on 11 October 2026 and checked in a browser. The owner approved every placement on 11 October 2026.** [Evidence](docs/evidence/APP-PHOTOGRAPHS-IN-PLACE.md).
+
+- The 21 photographs made for particular screens now show there: one for each of the eight setup steps and the three welcome screens, sign-in, the booking page, a guest's visit page, Today, Clients, Waitlist, closing up and the next visit after checkout. Each keeps its subject in view on a phone.
+- The calendar photograph goes on Today's "All in hand" card and on the Calendar's welcome while nobody is on the team, and the stock photograph welcomes an empty Stock page, since Calendar and Stock have no photo band once they are in use.
+- An empty Stock page opens with one welcome and "Add your first product", as Clients and Waitlist do, instead of four figures at zero and empty panels.
+- The small "Your booking page" pictures in the sidebar, Settings, the setup Look step and Business show the booking page's own photograph.
+- Two photographs that arrived as empty files were saved again from their originals, and the set is sorted into setup, welcome and screens folders.
+
 ## 2026-10-11 · The polish pass: SALEANE's own controls, and calm movement
 
 **Status: built locally on 11 October 2026; checked in Chromium at 1440px and 390px, not yet in Safari or Firefox.** [Evidence](docs/evidence/POLISH-PASS.md).
@@ -256,6 +266,14 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - A visit whose deposit was paid to the old system now says "Deposit paid before switching" instead of "Demo deposit recorded".
 - Fixed: saving stalled after the first part when a second part followed. On a phone the save button reads "Bring them across", so it fits.
 - The help guide "Bring clients and visits across from another system" describes the steps as they are now.
+
+## 2026-10-10 · App photograph assets
+
+**Status: 21 photographs saved for review.** [Asset notes](docs/assets/app-photographs-2026-10-10.md).
+
+- Added 13 portrait, six landscape and two square fictional studio photographs with the requested names and shared sunlit style.
+- Preserved generated PNG originals and added WebP copies at quality 80 without resizing or cropping, plus a dimensions and checksum manifest.
+- This asset-only addition does not change screen references. All 42 image files decode and have the requested aspect ratios. Application checks and browser journeys were not run for this addition.
 
 ## 2026-10-10 · Filling a cancelled time (NEXT-11)
 

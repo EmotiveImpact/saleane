@@ -68,8 +68,8 @@ export function BookingFrame({
         <aside className="booking-story" aria-label={`Welcome to ${studio}`}>
           <img
             className="booking-story-image"
-            src={photos.entrance}
-            alt="A fictional studio entrance in soft morning light"
+            src={photos.bookingPage}
+            alt="A fictional treatment room in soft morning light"
           />
           <div className="booking-brand">
             <span className="atelier-monogram" aria-hidden="true">

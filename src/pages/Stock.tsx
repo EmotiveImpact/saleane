@@ -26,6 +26,7 @@ import {
   Select,
   Checkbox,
   notify,
+  photos,
 } from '../design'
 import { ProductTile } from '../components/ProductTile'
 import { ProductPhotoField } from '../components/ProductPhotoField'
@@ -456,243 +457,272 @@ export function Stock() {
   }
 
   const form = editing?.form
+  // A studio with nothing on the shelf yet sees one welcoming page, not figures at zero.
+  const first = !rows.length && !history.length
   const onHandNow = moving ? stock(state, moving.product.id, at) : 0
   const placeName = (id?: string) => placeOf(state, id)?.name ?? ''
   return (
     <div className="stock-page">
-      <PageHeader
-        variant="compact"
-        eyebrow="Business"
-        title="What is on the shelf."
-        description="Products you sell at the till and the ones you use in treatments. Selling a product at checkout takes it out of stock for you."
-        actions={
-          canEdit ? (
-            <Button onClick={() => openProduct()}>
-              <Plus size={16} aria-hidden="true" /> Add a product
-            </Button>
-          ) : undefined
-        }
-      />
-      <dl className="stock-totals">
-        <div>
-          <dt>Products for sale</dt>
-          <dd>{active.filter((row) => sellable(row.product)).length}</dd>
-        </div>
-        <div>
-          <dt>Running low</dt>
-          <dd>{low.length}</dd>
-        </div>
-        <div>
-          <dt>Sold in the last 30 days</dt>
-          <dd>
-            {money(sold.retail, org)}
-            <small>Before tax, with visits</small>
-          </dd>
-        </div>
-        {seesCost && (
-          <div>
-            <dt>Stock value at cost</dt>
-            <dd>
-              {money(value, org)}
-              <small>Products with a cost price</small>
-            </dd>
-          </div>
-        )}
-      </dl>
-      {low.length > 0 && (
-        <section className="stock-reorder" aria-labelledby="reorder-heading">
-          <h2 id="reorder-heading">Time to reorder</h2>
-          <p>{low.map((row) => `${row.product.name} (${row.onHand} left)`).join(', ')}.</p>
-        </section>
-      )}
-      <CounterSales />
-      <section className="surface ops-panel" aria-labelledby="products-heading">
-        <header>
-          <div>
-            <h2 id="products-heading">Products</h2>
-            <p>
-              {canStock
-                ? 'Record deliveries as they arrive and correct the count after a shelf check. Every change is kept.'
-                : 'What is in stock now. An owner or manager records deliveries and counts.'}
-            </p>
-          </div>
-          <PackageOpen size={21} aria-hidden="true" />
-        </header>
-        <div className="stock-scan">
-          <ScanField
-            action="Find"
-            onProduct={scanned}
-            onNewProduct={canEdit ? (code) => openProduct(undefined, code) : undefined}
-            hint={
-              canEdit
-                ? 'Scan anywhere on this page to open a product. Scanning in a delivery or a count adds one.'
-                : 'Scan anywhere on this page to find a product.'
+      {first ? (
+        <Empty
+          photo={photos.stock}
+          photoPosition="62% center"
+          eyebrow="Business"
+          level={1}
+          title="Your shelf starts here."
+          action={
+            canEdit ? (
+              <Button onClick={() => openProduct()}>
+                <Plus size={16} aria-hidden="true" /> Add your first product
+              </Button>
+            ) : undefined
+          }
+        >
+          Add the products you sell and the ones you use in treatments. Then record the delivery so
+          the count is right.
+        </Empty>
+      ) : (
+        <>
+          <PageHeader
+            variant="compact"
+            eyebrow="Business"
+            title="What is on the shelf."
+            description="Products you sell at the till and the ones you use in treatments. Selling a product at checkout takes it out of stock for you."
+            actions={
+              canEdit ? (
+                <Button onClick={() => openProduct()}>
+                  <Plus size={16} aria-hidden="true" /> Add a product
+                </Button>
+              ) : undefined
             }
           />
-        </div>
-        {multiSite && (
-          <label className="stock-where">
-            Location
-            <Select value={where} onChange={(e) => setWhere(e.target.value)}>
-              <option value="all">All locations</option>
-              {sites.map((site) => (
-                <option key={site.id} value={site.id}>
-                  {site.name}
-                </option>
-              ))}
-            </Select>
-          </label>
-        )}
-        <SegmentedControl
-          label="Show"
-          className="ops-switch"
-          value={filter}
-          onChange={(value) => setFilter(value)}
-          options={[
-            { value: 'all', label: 'All' },
-            { value: 'sale', label: 'For sale' },
-            { value: 'treatments', label: 'In treatments' },
-            { value: 'low', label: `Low (${low.length})` },
-          ]}
-        />
-        {shown.length ? (
-          <div className="ops-ledger">
-            {shown.map(({ product, onHand, low: isLow, valueMinor }) => {
-              const treatment = product.forSale === false
-              // How full the shelf is against three times the reorder point; the count says it.
-              const fullness = Math.min(1, onHand / Math.max(1, product.reorderAt * 3))
-              return (
-                <div
-                  className={`shelf-record ${isLow && !product.archived ? 'is-low' : ''} ${found === product.id ? 'is-found' : ''}`}
-                  key={product.id}
-                  data-shelf-product={product.id}
-                  tabIndex={found === product.id ? -1 : undefined}
-                >
-                  <ProductTile id={product.id} name={product.name} imageId={product.imageId} />
-                  <div className="shelf-record-copy">
-                    <strong>{product.name}</strong>
-                    <span className="shelf-record-meta">
-                      <span className={`shelf-kind ${treatment ? 'is-treatment' : ''}`}>
-                        {treatment ? 'Used in treatments' : 'For sale'}
-                      </span>
+          <dl className="stock-totals">
+            <div>
+              <dt>Products for sale</dt>
+              <dd>{active.filter((row) => sellable(row.product)).length}</dd>
+            </div>
+            <div>
+              <dt>Running low</dt>
+              <dd>{low.length}</dd>
+            </div>
+            <div>
+              <dt>Sold in the last 30 days</dt>
+              <dd>
+                {money(sold.retail, org)}
+                <small>Before tax, with visits</small>
+              </dd>
+            </div>
+            {seesCost && (
+              <div>
+                <dt>Stock value at cost</dt>
+                <dd>
+                  {money(value, org)}
+                  <small>Products with a cost price</small>
+                </dd>
+              </div>
+            )}
+          </dl>
+          {low.length > 0 && (
+            <section className="stock-reorder" aria-labelledby="reorder-heading">
+              <h2 id="reorder-heading">Time to reorder</h2>
+              <p>{low.map((row) => `${row.product.name} (${row.onHand} left)`).join(', ')}.</p>
+            </section>
+          )}
+          <CounterSales />
+          <section className="surface ops-panel" aria-labelledby="products-heading">
+            <header>
+              <div>
+                <h2 id="products-heading">Products</h2>
+                <p>
+                  {canStock
+                    ? 'Record deliveries as they arrive and correct the count after a shelf check. Every change is kept.'
+                    : 'What is in stock now. An owner or manager records deliveries and counts.'}
+                </p>
+              </div>
+              <PackageOpen size={21} aria-hidden="true" />
+            </header>
+            <div className="stock-scan">
+              <ScanField
+                action="Find"
+                onProduct={scanned}
+                onNewProduct={canEdit ? (code) => openProduct(undefined, code) : undefined}
+                hint={
+                  canEdit
+                    ? 'Scan anywhere on this page to open a product. Scanning in a delivery or a count adds one.'
+                    : 'Scan anywhere on this page to find a product.'
+                }
+              />
+            </div>
+            {multiSite && (
+              <label className="stock-where">
+                Location
+                <Select value={where} onChange={(e) => setWhere(e.target.value)}>
+                  <option value="all">All locations</option>
+                  {sites.map((site) => (
+                    <option key={site.id} value={site.id}>
+                      {site.name}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            )}
+            <SegmentedControl
+              label="Show"
+              className="ops-switch"
+              value={filter}
+              onChange={(value) => setFilter(value)}
+              options={[
+                { value: 'all', label: 'All' },
+                { value: 'sale', label: 'For sale' },
+                { value: 'treatments', label: 'In treatments' },
+                { value: 'low', label: `Low (${low.length})` },
+              ]}
+            />
+            {shown.length ? (
+              <div className="ops-ledger">
+                {shown.map(({ product, onHand, low: isLow, valueMinor }) => {
+                  const treatment = product.forSale === false
+                  // How full the shelf is against three times the reorder point; the count says it.
+                  const fullness = Math.min(1, onHand / Math.max(1, product.reorderAt * 3))
+                  return (
+                    <div
+                      className={`shelf-record ${isLow && !product.archived ? 'is-low' : ''} ${found === product.id ? 'is-found' : ''}`}
+                      key={product.id}
+                      data-shelf-product={product.id}
+                      tabIndex={found === product.id ? -1 : undefined}
+                    >
+                      <ProductTile id={product.id} name={product.name} imageId={product.imageId} />
+                      <div className="shelf-record-copy">
+                        <strong>{product.name}</strong>
+                        <span className="shelf-record-meta">
+                          <span className={`shelf-kind ${treatment ? 'is-treatment' : ''}`}>
+                            {treatment ? 'Used in treatments' : 'For sale'}
+                          </span>
+                          <small>
+                            {treatment ? '' : `${money(product.priceMinor, org, true)} · `}
+                            {product.sku ? `${product.sku} · ` : ''}
+                            {product.barcode ? `barcode ${product.barcode} · ` : ''}
+                            {`reorder at ${product.reorderAt}`}
+                            {seesCost && valueMinor !== undefined
+                              ? ` · ${money(valueMinor, org, true)} at cost`
+                              : ''}
+                            {multiSite && !place ? ` · ${split(product.id)}` : ''}
+                          </small>
+                        </span>
+                      </div>
+                      <div className="shelf-level">
+                        <span
+                          className="shelf-count"
+                          aria-label={`${onHand} in stock${place ? ` at ${placeName(place)}` : ''}`}
+                        >
+                          {onHand}
+                          <small>{place ? `at ${placeName(place)}` : 'in stock'}</small>
+                        </span>
+                        <span className="shelf-meter" aria-hidden="true">
+                          <span style={{ width: `${Math.round(fullness * 100)}%` }} />
+                        </span>
+                        {product.archived ? (
+                          <span className="ops-tag">No longer stocked</span>
+                        ) : (
+                          isLow && <span className="ops-tag stock-low">Running low</span>
+                        )}
+                      </div>
+                      {(canStock || canEdit) && (
+                        <ShelfActions
+                          product={product}
+                          actions={[
+                            ...(canStock && !product.archived
+                              ? [
+                                  {
+                                    label: 'Delivery',
+                                    run: () => openMovement(product, 'received'),
+                                  },
+                                  {
+                                    label: 'Used in treatments',
+                                    run: () => openMovement(product, 'consumed'),
+                                  },
+                                  {
+                                    label: 'Correct the count',
+                                    run: () => openMovement(product, 'count'),
+                                  },
+                                  ...(multiSite
+                                    ? [
+                                        {
+                                          label: 'Move to another location',
+                                          run: () => openMovement(product, 'move'),
+                                        },
+                                      ]
+                                    : []),
+                                ]
+                              : []),
+                            ...(canEdit
+                              ? [{ label: 'Edit details', run: () => openProduct(product) }]
+                              : []),
+                          ]}
+                        />
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : rows.length ? (
+              <p className="ops-help">Nothing matches. Choose All to see every product.</p>
+            ) : (
+              <Empty title="Your shelf starts here.">
+                Add the products you sell and the ones you use in treatments. Then record the
+                delivery so the count is right.
+              </Empty>
+            )}
+          </section>
+          <SupplierOrders />
+          {history.length > 0 && (
+            <section className="surface ops-panel" aria-labelledby="history-heading">
+              <header>
+                <div>
+                  <h2 id="history-heading">Recent changes</h2>
+                  <p>
+                    The latest deliveries, uses, sales and counts. Nothing here is ever deleted.
+                  </p>
+                </div>
+              </header>
+              <ul className="stock-history">
+                {history.map((movement) => (
+                  <li key={movement.id}>
+                    <span className="stock-history-copy">
+                      <strong>
+                        {REASON_LABEL[movement.reason]}: {productName(movement.productId)}
+                      </strong>
                       <small>
-                        {treatment ? '' : `${money(product.priceMinor, org, true)} · `}
-                        {product.sku ? `${product.sku} · ` : ''}
-                        {product.barcode ? `barcode ${product.barcode} · ` : ''}
-                        {`reorder at ${product.reorderAt}`}
-                        {seesCost && valueMinor !== undefined
-                          ? ` · ${money(valueMinor, org, true)} at cost`
-                          : ''}
-                        {multiSite && !place ? ` · ${split(product.id)}` : ''}
+                        {dateLabel(movement.createdAt.slice(0, 10), org.locale)} · {movement.actor}
+                        {multiSite ? ` · ${placeName(movement.locationId)}` : ''}
+                        {movement.note ? ` · ${movement.note}` : ''}
+                        {movement.appointmentId &&
+                        state.appointments.some((a) => a.id === movement.appointmentId) ? (
+                          <>
+                            {' · '}
+                            <Link
+                              to={`/clients/${state.appointments.find((a) => a.id === movement.appointmentId)!.clientId}`}
+                            >
+                              {state.clients.find(
+                                (c) =>
+                                  c.id ===
+                                  state.appointments.find((a) => a.id === movement.appointmentId)!
+                                    .clientId,
+                              )?.name ?? 'Client'}
+                            </Link>
+                          </>
+                        ) : null}
                       </small>
                     </span>
-                  </div>
-                  <div className="shelf-level">
-                    <span
-                      className="shelf-count"
-                      aria-label={`${onHand} in stock${place ? ` at ${placeName(place)}` : ''}`}
-                    >
-                      {onHand}
-                      <small>{place ? `at ${placeName(place)}` : 'in stock'}</small>
+                    <span className="stock-change">
+                      {movement.quantity > 0 ? `+${movement.quantity}` : `−${-movement.quantity}`}
                     </span>
-                    <span className="shelf-meter" aria-hidden="true">
-                      <span style={{ width: `${Math.round(fullness * 100)}%` }} />
-                    </span>
-                    {product.archived ? (
-                      <span className="ops-tag">No longer stocked</span>
-                    ) : (
-                      isLow && <span className="ops-tag stock-low">Running low</span>
-                    )}
-                  </div>
-                  {(canStock || canEdit) && (
-                    <ShelfActions
-                      product={product}
-                      actions={[
-                        ...(canStock && !product.archived
-                          ? [
-                              { label: 'Delivery', run: () => openMovement(product, 'received') },
-                              {
-                                label: 'Used in treatments',
-                                run: () => openMovement(product, 'consumed'),
-                              },
-                              {
-                                label: 'Correct the count',
-                                run: () => openMovement(product, 'count'),
-                              },
-                              ...(multiSite
-                                ? [
-                                    {
-                                      label: 'Move to another location',
-                                      run: () => openMovement(product, 'move'),
-                                    },
-                                  ]
-                                : []),
-                            ]
-                          : []),
-                        ...(canEdit
-                          ? [{ label: 'Edit details', run: () => openProduct(product) }]
-                          : []),
-                      ]}
-                    />
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        ) : rows.length ? (
-          <p className="ops-help">Nothing matches. Choose All to see every product.</p>
-        ) : (
-          <Empty title="Your shelf starts here.">
-            Add the products you sell and the ones you use in treatments. Then record the delivery
-            so the count is right.
-          </Empty>
-        )}
-      </section>
-      <SupplierOrders />
-      {history.length > 0 && (
-        <section className="surface ops-panel" aria-labelledby="history-heading">
-          <header>
-            <div>
-              <h2 id="history-heading">Recent changes</h2>
-              <p>The latest deliveries, uses, sales and counts. Nothing here is ever deleted.</p>
-            </div>
-          </header>
-          <ul className="stock-history">
-            {history.map((movement) => (
-              <li key={movement.id}>
-                <span className="stock-history-copy">
-                  <strong>
-                    {REASON_LABEL[movement.reason]}: {productName(movement.productId)}
-                  </strong>
-                  <small>
-                    {dateLabel(movement.createdAt.slice(0, 10), org.locale)} · {movement.actor}
-                    {multiSite ? ` · ${placeName(movement.locationId)}` : ''}
-                    {movement.note ? ` · ${movement.note}` : ''}
-                    {movement.appointmentId &&
-                    state.appointments.some((a) => a.id === movement.appointmentId) ? (
-                      <>
-                        {' · '}
-                        <Link
-                          to={`/clients/${state.appointments.find((a) => a.id === movement.appointmentId)!.clientId}`}
-                        >
-                          {state.clients.find(
-                            (c) =>
-                              c.id ===
-                              state.appointments.find((a) => a.id === movement.appointmentId)!
-                                .clientId,
-                          )?.name ?? 'Client'}
-                        </Link>
-                      </>
-                    ) : null}
-                  </small>
-                </span>
-                <span className="stock-change">
-                  {movement.quantity > 0 ? `+${movement.quantity}` : `−${-movement.quantity}`}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </>
       )}
       {editing && form && (
         <Modal
