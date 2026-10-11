@@ -128,6 +128,7 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
                 wording: wordingFor(state, r.wordingVersion)?.text ?? '',
               }
             : {}),
+          ...(r.evidence ? { evidence: r.evidence } : {}),
           source: r.source,
           recordedBy: r.actor,
         })),
@@ -766,14 +767,14 @@ export function clientExportText(file: ClientExport, locale = 'en-GB') {
     '',
     'PROFILE',
     `Name: ${file.subject.name}`,
-    `Email: ${file.subject.email}`,
+    `Email: ${file.subject.email || 'Not recorded'}`,
     `Telephone: ${file.subject.phone || 'Not recorded'}`,
     `Client since: ${file.subject.clientSince.slice(0, 10)}`,
     `Good to remember: ${file.subject.goodToRemember || 'Nothing recorded'}`,
     `Email marketing: ${file.consent.emailMarketing ? 'agreed' : 'not agreed'}`,
     ...file.consent.records.map(
       (r) =>
-        `  ${r.recordedAt.slice(0, 10)} · ${r.given ? `agreed to version ${r.wordingVersion}: “${r.wording}”` : 'withdrawn'} · ${r.source}`,
+        `  ${r.recordedAt.slice(0, 10)} · ${!r.given ? 'withdrawn' : r.wordingVersion ? `agreed to version ${r.wordingVersion}: “${r.wording}”` : `agreed in their previous system: ${r.evidence ?? 'no detail kept'}`} · ${r.source}`,
     ),
     '',
     `VISITS (${file.visits.length})`,
