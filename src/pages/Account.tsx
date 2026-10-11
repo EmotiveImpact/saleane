@@ -8,7 +8,7 @@ import type { Session } from '../state/api'
 import { rememberStudio } from '../state/lastStudio'
 import { passkeyProblem, passkeySignIn, passkeysInBrowser } from '../state/passkeys'
 import { roleNames } from '../domain/operations'
-import { Button, ErrorMessage, Select } from '../design'
+import { Button, ErrorMessage, Select, Checkbox } from '../design'
 import { BrandsTogether } from '../components/BrandsTogether'
 import { HelpButton } from '../components/HelpButton'
 import { InvitationSummary } from '../components/InvitationSummary'
@@ -605,11 +605,7 @@ export function Account() {
                       </label>
                     </div>
                     <label className="checkbox-label">
-                      <input
-                        type="checkbox"
-                        checked={sample}
-                        onChange={(e) => setSample(e.target.checked)}
-                      />
+                      <Checkbox checked={sample} onChange={(e) => setSample(e.target.checked)} />
                       Start with made-up sample clients and visits
                     </label>
                     <small className="subtle">

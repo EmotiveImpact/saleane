@@ -14,6 +14,7 @@ import {
   treatmentPhoto,
   useStepArrival,
   Select,
+  Checkbox,
 } from '../design'
 import { BotCheck } from '../components/BotCheck'
 import { BookingFrame } from '../components/BookingFrame'
@@ -1553,11 +1554,7 @@ function BookingFlow({
                       </small>
                     </div>
                     <label className="checkbox-label">
-                      <input
-                        type="checkbox"
-                        checked={consent}
-                        onChange={(e) => setConsent(e.target.checked)}
-                      />
+                      <Checkbox checked={consent} onChange={(e) => setConsent(e.target.checked)} />
                       {catalog.emailNews?.text ??
                         `I’d like occasional email news from ${org.name}.`}
                     </label>
@@ -1627,8 +1624,7 @@ function BookingFlow({
                     {terms && <p>{terms.rule}</p>}
                   </section>
                   <label className="checkbox-label">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={policy}
                       disabled={!!attempt}
                       onChange={(e) => setPolicy(e.target.checked)}

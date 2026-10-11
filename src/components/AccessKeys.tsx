@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { KeyRound } from 'lucide-react'
 import { useStore } from '../state/context'
 import { api } from '../state/api'
-import { Button, ErrorMessage, Select } from '../design'
+import { Button, ErrorMessage, Select, Checkbox } from '../design'
 import { places } from '../domain/locations'
 import { fullDateLabel } from '../domain/format'
 import { StudioDateField } from './StudioDateField'
@@ -119,8 +119,7 @@ export function AccessKeys() {
   function choice(scope: Scope) {
     return (
       <label className="checkbox-label access-key-scope" key={scope}>
-        <input
-          type="checkbox"
+        <Checkbox
           checked={chosen.includes(scope)}
           aria-describedby={`scope-${scope.replace(':', '-')}`}
           onChange={(e) =>

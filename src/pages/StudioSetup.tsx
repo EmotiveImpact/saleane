@@ -52,6 +52,7 @@ import {
   photos,
   useWizardStep,
   Select,
+  Checkbox,
 } from '../design'
 import { HoursList, RemoveButton, RoomCards } from '../components/SetupParts'
 import '../components/management.css'
@@ -656,8 +657,7 @@ function TeamScreen({
                       const on = row.serviceIds.includes(service.id)
                       return (
                         <label key={service.id} className="setup-tick">
-                          <input
-                            type="checkbox"
+                          <Checkbox
                             checked={on}
                             onChange={() =>
                               update(row.key, {
@@ -942,8 +942,7 @@ function MoneyScreen({
           </small>
         </label>
         <label className="ops-check">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={value.saveCard}
             onChange={(e) => onChange({ ...value, saveCard: e.target.checked })}
           />
@@ -972,8 +971,7 @@ function MoneyScreen({
             />
           </label>
           <label className="ops-check">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={value.included}
               onChange={(e) => onChange({ ...value, included: e.target.checked })}
             />
@@ -1078,7 +1076,7 @@ function OpenScreen({
       {ready && (
         <>
           <label className="ops-check setup-online">
-            <input type="checkbox" checked={online} onChange={(e) => onChange(e.target.checked)} />
+            <Checkbox checked={online} onChange={(e) => onChange(e.target.checked)} />
             <span>
               <strong>Take bookings online</strong>
               <small>Guests can book from your booking page at the times you are open.</small>

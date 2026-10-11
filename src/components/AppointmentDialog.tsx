@@ -29,7 +29,17 @@ import type { RetailItems } from '../domain/retailSchema'
 import { CheckoutProducts, ReceiptProducts } from './CheckoutProducts'
 import { findGiftCard, giftCards, giftStanding } from '../domain/giftCards'
 import '../components/plans.css'
-import { Avatar, Button, ErrorMessage, Modal, Status, TimeChoices, photos, Select } from '../design'
+import {
+  Avatar,
+  Button,
+  ErrorMessage,
+  Modal,
+  Status,
+  TimeChoices,
+  photos,
+  Select,
+  Checkbox,
+} from '../design'
 import { StudioDateField } from './StudioDateField'
 import { BookingDialog } from './BookingDialog'
 import { CardCheckout, VisitCardPanel } from './CardPayments'
@@ -1112,8 +1122,7 @@ export function AppointmentDialog({
                     />
                   </label>
                   <label className="checkbox-label consent-label">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={collected}
                       onChange={(event) => setCollected(event.target.checked)}
                     />

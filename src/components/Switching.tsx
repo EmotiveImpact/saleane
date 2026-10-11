@@ -7,7 +7,7 @@ import type { ImportBatch, OpeningBalance } from '../domain/operations'
 import { importStanding } from '../domain/switching'
 import { dateLabel, money } from '../domain/format'
 import type { Command } from '../domain/commands'
-import { Button, ErrorMessage, Modal } from '../design'
+import { Button, ErrorMessage, Modal, Checkbox } from '../design'
 import { MovingIn } from './MovingIn'
 import { CLIENT_IMPORT_MAX_BYTES, CLIENT_IMPORT_MAX_PAYLOAD_BYTES } from './clientImportCsv'
 import { SWITCH_COLUMNS, previewBalancesCsv, previewServicesCsv } from './switchingCsv'
@@ -410,8 +410,7 @@ function ImportReview({ kind, onClose }: { kind: SwitchKind; onClose: () => void
                       <tr key={row.record}>
                         <td>
                           {row.status === 'ready' ? (
-                            <input
-                              type="checkbox"
+                            <Checkbox
                               aria-label={`Bring row ${row.record} across`}
                               disabled={busy}
                               checked={!excluded.includes(row.record)}
@@ -472,8 +471,7 @@ function ImportReview({ kind, onClose }: { kind: SwitchKind; onClose: () => void
                 </p>
               )}
               <label className="ops-check">
-                <input
-                  type="checkbox"
+                <Checkbox
                   disabled={busy || !chosen.length || payloadTooLarge}
                   checked={reviewed}
                   onChange={(event) => setReviewed(event.target.checked)}

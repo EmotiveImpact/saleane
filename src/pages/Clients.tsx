@@ -16,6 +16,7 @@ import {
   SegmentedControl,
   photos,
   Select,
+  Checkbox,
 } from '../design'
 import { MovingIn } from '../components/MovingIn'
 import { guestPhone, phoneProblem } from '../domain/phone'
@@ -348,11 +349,7 @@ export function Clients() {
               </label>
             </div>
             <label className="checkbox-label consent-label">
-              <input
-                type="checkbox"
-                checked={consent}
-                onChange={(e) => setConsent(e.target.checked)}
-              />
+              <Checkbox checked={consent} onChange={(e) => setConsent(e.target.checked)} />
               Client has given email marketing consent
             </label>
             <p className="subtle">

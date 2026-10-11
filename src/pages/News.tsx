@@ -3,7 +3,15 @@ import type { FormEvent } from 'react'
 import { Mail, MessageSquareText, Plus } from 'lucide-react'
 import { useStore } from '../state/context'
 import { api } from '../state/api'
-import { Button, ErrorMessage, Modal, PageHeader, SegmentedControl, photos } from '../design'
+import {
+  Button,
+  ErrorMessage,
+  Modal,
+  PageHeader,
+  SegmentedControl,
+  photos,
+  Checkbox,
+} from '../design'
 import { can, operations } from '../domain/operations'
 import { hasLocations, places } from '../domain/locations'
 import { outboxStatusLabel, outboxStatuses } from '../domain/reminders'
@@ -784,8 +792,7 @@ function NewsEditor({
                 <div className="news-places">
                   {open.map((p) => (
                     <label key={p.id}>
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={chosen.includes(p.id)}
                         onChange={(e) =>
                           setChosen(
@@ -857,11 +864,7 @@ function NewsEditor({
             </small>
           </div>
           <label className="ops-check ops-wide">
-            <input
-              type="checkbox"
-              checked={bookLink}
-              onChange={(e) => setBookLink(e.target.checked)}
-            />
+            <Checkbox checked={bookLink} onChange={(e) => setBookLink(e.target.checked)} />
             End with a link to book online
           </label>
         </div>

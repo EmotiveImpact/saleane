@@ -7,7 +7,7 @@ import {
   newRowKey as newKey,
   nextRoomName,
 } from '../domain/setupScreens'
-import { Button, TimeField, Select } from '../design'
+import { Button, TimeField, Select, Checkbox } from '../design'
 import './setupParts.css'
 
 /**
@@ -45,8 +45,7 @@ export function HoursList({
           return (
             <div className="setup-day" key={weekday}>
               <label className="setup-day-name">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={!day.closed}
                   onChange={(e) => update(weekday, { closed: !e.target.checked })}
                 />

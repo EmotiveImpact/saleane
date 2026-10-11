@@ -53,6 +53,7 @@ select,
   outline-offset: 3px;
 }
 input:focus-visible,
+.tick:focus-visible,
 select:focus-visible,
 .select-trigger:focus-visible,
 textarea:focus-visible {
@@ -1554,7 +1555,8 @@ fieldset {
   border-color: var(--brand);
 }
 /* The ring sits on the whole pill, so keyboard users see it clearly. */
-.search-field:has(input:focus-visible) {
+.search-field:has(input:focus-visible),
+so keyboard users see it clearly. */ .search-field:has(.tick:focus-visible) {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
@@ -1566,7 +1568,8 @@ fieldset {
   font-size: var(--text-small);
   background: transparent;
 }
-.search-field input:focus-visible {
+.search-field input:focus-visible,
+.search-field .tick:focus-visible {
   outline: none;
 }
 .directory-controls {
@@ -4467,11 +4470,13 @@ fieldset {
   height: 22px;
   border-radius: 50%;
 }
-.colour-swatch:has(input:checked) {
+.colour-swatch:has(input:checked),
+.colour-swatch:has(.tick[data-state='checked']) {
   border-color: var(--ink);
   box-shadow: inset 0 0 0 1px var(--ink);
 }
-.colour-swatch:has(input:focus-visible) {
+.colour-swatch:has(input:focus-visible),
+.colour-swatch:has(.tick:focus-visible) {
   outline: 2px solid var(--focus);
   outline-offset: 3px;
 }

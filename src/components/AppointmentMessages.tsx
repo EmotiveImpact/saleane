@@ -13,7 +13,7 @@ import {
   textNumber,
 } from '../domain/reminders'
 import type { ReminderSettings } from '../domain/reminders'
-import { Button, ErrorMessage, Select } from '../design'
+import { Button, ErrorMessage, Select, Checkbox } from '../design'
 import type { Client } from '../domain/model'
 import { kindLabel, useSentMessages } from './sentMessages'
 import { isSocialChannel, socialLabel } from '../domain/inboxSchema'
@@ -77,40 +77,35 @@ export function MessageSettings() {
         <fieldset className="message-settings" disabled={!editable || pending}>
           <legend className="sr-only">What to send</legend>
           <label className="checkbox-label">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={draft.confirmations}
               onChange={(e) => set('confirmations', e.target.checked)}
             />
             Confirm each booking, and any change of time or cancellation
           </label>
           <label className="checkbox-label">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={draft.reminders}
               onChange={(e) => set('reminders', e.target.checked)}
             />
             Send a reminder before each visit
           </label>
           <label className="checkbox-label">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={draft.feedback !== false}
               onChange={(e) => set('feedback', e.target.checked)}
             />
             After checkout, email a private &ldquo;how was your visit?&rdquo; request
           </label>
           <label className="checkbox-label">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={draft.missedCall === true}
               onChange={(e) => set('missedCall', e.target.checked)}
             />
             When you miss a call, text the caller once with your booking link
           </label>
           <label className="checkbox-label">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={draft.openingInvites !== false}
               onChange={(e) => set('openingInvites', e.target.checked)}
             />
@@ -140,19 +135,11 @@ export function MessageSettings() {
         <fieldset className="message-settings" disabled={!editable || pending}>
           <legend>How</legend>
           <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={draft.email}
-              onChange={(e) => set('email', e.target.checked)}
-            />
+            <Checkbox checked={draft.email} onChange={(e) => set('email', e.target.checked)} />
             Email
           </label>
           <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={draft.sms}
-              onChange={(e) => set('sms', e.target.checked)}
-            />
+            <Checkbox checked={draft.sms} onChange={(e) => set('sms', e.target.checked)} />
             Text message, when the client has a mobile number
           </label>
         </fieldset>
@@ -358,8 +345,7 @@ export function ClientMessagePreferences({ client }: { client: Client }) {
     <>
       <ErrorMessage error={error} />
       <label className="checkbox-label">
-        <input
-          type="checkbox"
+        <Checkbox
           checked={email}
           disabled={pending || !allowed}
           onChange={(e) => void change({ email: e.target.checked, sms })}
@@ -367,8 +353,7 @@ export function ClientMessagePreferences({ client }: { client: Client }) {
         Visit emails
       </label>
       <label className="checkbox-label">
-        <input
-          type="checkbox"
+        <Checkbox
           checked={sms || confirming}
           disabled={pending || !allowed || confirming}
           onChange={(e) => {

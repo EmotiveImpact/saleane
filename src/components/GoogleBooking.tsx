@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { MapPin } from 'lucide-react'
 import { useStore } from '../state/context'
 import { api } from '../state/api'
-import { Button, ErrorMessage } from '../design'
+import { Button, ErrorMessage, Checkbox } from '../design'
 import { useRun } from './usePayment'
 import { GUEST_CANCEL_CUTOFF_HOURS } from '../domain/guest'
 import './management.css'
@@ -86,8 +86,7 @@ export function GoogleBooking() {
       <form onSubmit={save}>
         <div className="ops-fields">
           <label className="ops-check ops-wide">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={enabled}
               disabled={blocked || pending}
               onChange={(e) => setEnabled(e.target.checked)}

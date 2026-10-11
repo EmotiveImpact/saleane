@@ -35,6 +35,7 @@ import {
   WizardFooter,
   WizardSteps,
   useWizardStep,
+  Checkbox,
 } from '../design'
 import { AffectedVisits } from './ScheduleImpact'
 import { HoursList, RemoveButton, RoomCards } from './SetupParts'
@@ -285,8 +286,7 @@ function Menu({
           return (
             <li key={service.id} className={row.offered ? undefined : 'is-off'}>
               <label className="opening-offered">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={row.offered}
                   disabled={core}
                   onChange={(e) => set(service, { offered: e.target.checked })}
@@ -361,8 +361,7 @@ function DayTicks({
                     : undefined
               }
             >
-              <input
-                type="checkbox"
+              <Checkbox
                 aria-label={
                   !open.has(day)
                     ? `${WEEKDAYS[day]}, closed`
@@ -474,8 +473,7 @@ function Team({
                     const on = person.serviceIds.includes(service.id)
                     return (
                       <label key={service.id} className="setup-tick">
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={on}
                           onChange={() =>
                             updateNew(person.key, {

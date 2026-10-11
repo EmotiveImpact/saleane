@@ -14,7 +14,16 @@ import type { Product } from '../domain/retail'
 import { CounterSales } from '../components/CounterSales'
 import { SupplierOrders } from '../components/SupplierOrders'
 import { suppliers } from '../domain/purchasing'
-import { Button, Empty, ErrorMessage, Modal, PageHeader, SegmentedControl, Select } from '../design'
+import {
+  Button,
+  Empty,
+  ErrorMessage,
+  Modal,
+  PageHeader,
+  SegmentedControl,
+  Select,
+  Checkbox,
+} from '../design'
 import { ProductTile } from '../components/ProductTile'
 import { ProductPhotoField } from '../components/ProductPhotoField'
 import { ScanField } from '../components/ScanField'
@@ -669,8 +678,7 @@ export function Stock() {
                 />
               )}
               <label className="ops-check ops-wide">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={form.forSale}
                   onChange={(e) => change({ forSale: e.target.checked })}
                 />
@@ -787,8 +795,7 @@ export function Stock() {
               </details>
               {editing.id && (
                 <label className="ops-check ops-wide">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={form.archived}
                     onChange={(e) => change({ archived: e.target.checked })}
                   />

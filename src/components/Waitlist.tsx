@@ -20,7 +20,7 @@ import type { WaitlistEntry, WaitlistInput, WaitlistTime } from '../domain/waitl
 import { addDays, dateLabel, timeLabel } from '../domain/format'
 import { feedbackDay } from '../domain/feedback'
 import type { Command } from '../domain/commands'
-import { Button, ErrorMessage, Modal, MovingRow, Select } from '../design'
+import { Button, ErrorMessage, Modal, MovingRow, Select, Checkbox } from '../design'
 import { hasLocations, places } from '../domain/locations'
 import { StudioDateField } from './StudioDateField'
 import './management.css'
@@ -188,8 +188,7 @@ export function WaitlistForm({ clientId, onClose }: { clientId?: string; onClose
             <legend>Times that suit (none ticked means any time)</legend>
             {WAITLIST_TIMES.map((time) => (
               <label key={time}>
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={input.times.includes(time)}
                   onChange={(e) =>
                     change({

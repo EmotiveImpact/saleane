@@ -8,7 +8,7 @@ import { hasLocations, places } from '../domain/locations'
 import { PRINTER_PORT } from '../domain/lanAddress'
 import { BROWSER_DRAWER, printerProblem, taxNumberProblem, tillPrinter } from '../domain/till'
 import type { PaperWidth, PrintMode, TillPrinterInput } from '../domain/tillSchema'
-import { Button, ErrorMessage, Select } from '../design'
+import { Button, ErrorMessage, Select, Checkbox } from '../design'
 import { PaperPreview } from './ReceiptActions'
 import type { TillEvent } from './tillEvents'
 import './receipt.css'
@@ -228,8 +228,7 @@ export function TillSettings() {
             </label>
           )}
           <label className="checkbox-label">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={draft.mode !== 'browser' && draft.drawer}
               disabled={draft.mode === 'browser'}
               onChange={(e) => update({ drawer: e.target.checked })}

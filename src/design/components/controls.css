@@ -396,12 +396,112 @@
   color: var(--brand-ink);
 }
 
+/* Ticks (Radix Checkbox) ------------------------------------------------------------------- */
+.tick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  border: 1.5px solid var(--field-line, var(--line2));
+  border-radius: 5px;
+  background: #fff;
+  color: var(--paper);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-quick) ease-out,
+    border-color var(--motion-quick) ease-out;
+}
+/* A finger gets a full target without the square growing. */
+.tick {
+  position: relative;
+}
+.tick::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+}
+.tick:hover:not(:disabled) {
+  border-color: var(--ink);
+}
+.tick[data-state='checked'] {
+  border-color: var(--ink);
+  background: var(--ink);
+}
+.tick:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+.tick:focus-visible {
+  outline-offset: 2px;
+}
+.tick-mark {
+  display: inline-flex;
+}
+.tick-mark[data-state='checked'] {
+  animation: tick-in var(--motion-quick) var(--ease-calm);
+}
+@keyframes tick-in {
+  from {
+    opacity: 0;
+    scale: 0.6;
+  }
+}
+
+/* On and off (Radix Switch) ---------------------------------------------------------------- */
+.switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 24px;
+  margin: 0;
+  padding: 2px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--line2);
+  cursor: pointer;
+  transition: background-color var(--motion-calm) var(--ease-calm);
+}
+.switch::after {
+  content: '';
+  position: absolute;
+  inset: -10px -4px;
+}
+.switch[data-state='checked'] {
+  background: var(--ink);
+}
+.switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+.switch:focus-visible {
+  outline-offset: 2px;
+}
+.switch-knob {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-round);
+  background: #fff;
+  box-shadow: 0 1px 3px #2e2b3333;
+  transition: translate var(--motion-calm) var(--ease-calm);
+}
+.switch-knob[data-state='checked'] {
+  translate: 16px 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .menu,
   .tip,
   .notice,
   .fold-body,
-  .select-content {
+  .select-content,
+  .tick-mark {
     animation: none !important;
   }
 }

@@ -29,7 +29,7 @@ import { useStore } from '../state/context'
 import type { Command } from '../domain/commands'
 import type { BusinessState } from '../domain/model'
 import type { OperatingCommand } from '../domain/commandSchema'
-import { TimeField, Select } from '../design'
+import { TimeField, Select, Checkbox } from '../design'
 import { StudioDateField } from '../components/StudioDateField'
 import { scheduleImpact } from '../domain/schedule'
 import { businessDate, operations, can, permissionFor } from '../domain/operations'
@@ -592,15 +592,11 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                     </div>
                   </div>
                   <label className="ops-check">
-                    <input
-                      type="checkbox"
-                      name="bookingEnabled"
-                      defaultChecked={config.bookingEnabled}
-                    />
+                    <Checkbox name="bookingEnabled" defaultChecked={config.bookingEnabled} />
                     Take bookings online
                   </label>
                   <label className="ops-check">
-                    <input type="checkbox" name="botCheck" defaultChecked={!!config.botCheck} />
+                    <Checkbox name="botCheck" defaultChecked={!!config.botCheck} />
                     Ask online guests to pass a quick bot check before a time is held
                   </label>
                   <p className="ops-help">
@@ -670,11 +666,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                     </label>
                   </div>
                   <label className="ops-check">
-                    <input
-                      name="taxInclusive"
-                      type="checkbox"
-                      defaultChecked={config.tax?.inclusive ?? false}
-                    />
+                    <Checkbox name="taxInclusive" defaultChecked={config.tax?.inclusive ?? false} />
                     Tax is already included in treatment prices
                   </label>
                   <p className="ops-help">
@@ -878,8 +870,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                         return (
                           <div className="ops-day" key={weekday}>
                             <label>
-                              <input
-                                type="checkbox"
+                              <Checkbox
                                 checked={!day.closed}
                                 onChange={(event) => update({ closed: !event.target.checked })}
                               />
@@ -1105,8 +1096,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                       {places(state).map((place) => (
                         <div className="service-place" key={place.id}>
                           <label className="ops-check">
-                            <input
-                              type="checkbox"
+                            <Checkbox
                               name={`offered-${place.id}`}
                               defaultChecked={!service?.notOfferedAt?.includes(place.id)}
                             />
@@ -1150,7 +1140,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                     </small>
                   </label>
                   <label className="ops-check ops-wide">
-                    <input type="checkbox" name="patchTest" defaultChecked={!!service?.patchTest} />
+                    <Checkbox name="patchTest" defaultChecked={!!service?.patchTest} />
                     Needs a patch test, such as a colour. Guests need a clear test before this
                     treatment.
                   </label>
@@ -1181,8 +1171,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                       .filter((item) => !item.archived || person?.serviceIds.includes(item.id))
                       .map((item) => (
                         <label key={item.id}>
-                          <input
-                            type="checkbox"
+                          <Checkbox
                             name="serviceIds"
                             value={item.id}
                             defaultChecked={person?.serviceIds.includes(item.id)}
@@ -1196,8 +1185,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                   <fieldset className="ops-checks ops-wide">
                     <legend>Working hours</legend>
                     <label>
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={!customHours}
                         onChange={(event) => {
                           // Handled here so the preview uses the new choice, not the old one.
@@ -1226,11 +1214,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                           return (
                             <div className="ops-day" key={weekday}>
                               <label>
-                                <input
-                                  type="checkbox"
-                                  name={`own-${weekday}-on`}
-                                  defaultChecked={!day.closed}
-                                />
+                                <Checkbox name={`own-${weekday}-on`} defaultChecked={!day.closed} />
                                 {days[weekday]}
                               </label>
                               <label className="ops-field">
@@ -1339,8 +1323,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
               {editor.kind === 'resource' && (
                 <>
                   <label className="ops-check">
-                    <input type="checkbox" name="forTwo" defaultChecked={!!resource?.forTwo} />A
-                    room for two
+                    <Checkbox name="forTwo" defaultChecked={!!resource?.forTwo} />A room for two
                   </label>
                   <p className="ops-help">
                     Two people booked together, such as a couple, can have it at the same time.
@@ -1393,8 +1376,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
               )}
               {editor.id && (
                 <label className="ops-check ops-wide">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     name="archived"
                     defaultChecked={
                       service?.archived ?? person?.archived ?? resource?.archived ?? false

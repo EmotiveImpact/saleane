@@ -20,7 +20,7 @@ import {
   offerDiscounts,
 } from '../domain/quietOffersSchema'
 import type { MessageOffer, OfferDiscount, QuietOfferSettings } from '../domain/quietOffersSchema'
-import { Button, ErrorMessage, Select } from '../design'
+import { Button, ErrorMessage, Select, Checkbox } from '../design'
 import { useRun } from './usePayment'
 import './quietOffers.css'
 
@@ -236,8 +236,7 @@ export function QuietOffers() {
                   <div className="quiet-offer-services">
                     {services.map((service) => (
                       <label key={service.id} className="checkbox-label">
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={leftOutIds.includes(service.id)}
                           onChange={(e) => {
                             setLeftOutIds((ids) =>

@@ -14,6 +14,7 @@ import {
   TimeChoices,
   useStepArrival,
   Select,
+  Checkbox,
 } from '../design'
 import { operations } from '../domain/operations'
 import { BookingFrame } from '../components/BookingFrame'
@@ -569,11 +570,7 @@ export function BrandedBooking() {
                     />
                   </label>
                   <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={consent}
-                      onChange={(e) => setConsent(e.target.checked)}
-                    />
+                    <Checkbox checked={consent} onChange={(e) => setConsent(e.target.checked)} />
                     {currentWording(state).text}
                   </label>
                   <p className="subtle">
@@ -633,12 +630,8 @@ export function BrandedBooking() {
                   </span>
                 </div>
                 <label className="checkbox-label">
-                  <input
-                    checked={policy}
-                    onChange={(e) => setPolicy(e.target.checked)}
-                    type="checkbox"
-                  />
-                  I understand this is a demo booking and no real payment is taken.
+                  <Checkbox checked={policy} onChange={(e) => setPolicy(e.target.checked)} />I
+                  understand this is a demo booking and no real payment is taken.
                 </label>
                 <ErrorMessage error={error} />
                 <div className="booking-next">

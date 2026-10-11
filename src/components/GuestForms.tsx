@@ -16,7 +16,7 @@ import type { FormContent, GuestForm, Question } from '../domain/formsSchema'
 import type { Appointment } from '../domain/model'
 import { dateLabel } from '../domain/format'
 import { businessDate } from '../domain/operations'
-import { Button, ErrorMessage, Modal, Select } from '../design'
+import { Button, ErrorMessage, Modal, Select, Checkbox } from '../design'
 import { useRun } from './usePayment'
 import './guestForms.css'
 
@@ -268,8 +268,7 @@ function FormEditor({
                     </Select>
                   </label>
                   <label className="ops-check">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={q.required}
                       onChange={(e) => update(q.id, { required: e.target.checked })}
                     />
@@ -336,8 +335,7 @@ function FormEditor({
           <div>
             {services.map((s) => (
               <label className="ops-check" key={s.id}>
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={serviceIds.includes(s.id)}
                   onChange={(e) =>
                     setServiceIds((ids) =>

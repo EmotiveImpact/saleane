@@ -14,7 +14,7 @@ import {
 import type { Holding, Offer, OfferInput } from '../domain/plansSchema'
 import { dateLabel, money } from '../domain/format'
 import { minorInput, parseMinor } from '../domain/money'
-import { Button, ErrorMessage, Modal, SegmentedControl, Select } from '../design'
+import { Button, ErrorMessage, Modal, SegmentedControl, Select, Checkbox } from '../design'
 import './management.css'
 import './plans.css'
 import { usePayment, useRun } from './usePayment'
@@ -260,8 +260,7 @@ export function PlanSettings() {
                   .filter((s) => !s.archived || input.serviceIds.includes(s.id))
                   .map((service) => (
                     <label key={service.id}>
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={input.serviceIds.includes(service.id)}
                         onChange={(e) =>
                           change({
@@ -277,8 +276,7 @@ export function PlanSettings() {
               </fieldset>
               {editing.id && (
                 <label className="ops-check ops-wide">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={input.archived}
                     onChange={(e) => change({ archived: e.target.checked })}
                   />
@@ -352,12 +350,8 @@ export function PaymentFields({
             />
           </label>
           <label className="ops-check">
-            <input
-              type="checkbox"
-              checked={collected}
-              onChange={(e) => setCollected(e.target.checked)}
-            />
-            I confirm this money has already been {verb} outside SALEANE.
+            <Checkbox checked={collected} onChange={(e) => setCollected(e.target.checked)} />I
+            confirm this money has already been {verb} outside SALEANE.
           </label>
         </>
       )}
@@ -604,11 +598,7 @@ export function ClientPlans({ clientId }: { clientId: string }) {
             {dialog.kind === 'sell' && <SoldAt value={soldAt} onChange={setSoldAt} />}
             {dialog.kind === 'sell' && offerCard && (
               <label className="ops-check plan-card-agree">
-                <input
-                  type="checkbox"
-                  checked={byCard}
-                  onChange={(e) => setByCard(e.target.checked)}
-                />
+                <Checkbox checked={byCard} onChange={(e) => setByCard(e.target.checked)} />
                 Take it from their saved card each month
               </label>
             )}

@@ -16,7 +16,7 @@ import {
 } from '../domain/rent'
 import { rentMethods } from '../domain/rentSchema'
 import type { Rental, RentPayment } from '../domain/rentSchema'
-import { Button, ErrorMessage, Modal, Select } from '../design'
+import { Button, ErrorMessage, Modal, Select, Checkbox } from '../design'
 import { StudioDateField } from './StudioDateField'
 
 /**
@@ -404,11 +404,7 @@ function RentalDialog({
           </label>
         </div>
         <label className="ops-check">
-          <input
-            type="checkbox"
-            checked={products}
-            onChange={(e) => setProducts(e.target.checked)}
-          />
+          <Checkbox checked={products} onChange={(e) => setProducts(e.target.checked)} />
           The products they sell are their own
           {kind !== 'fixed' ? ', and count towards the share' : ''}. Leave this off when products
           come off your shelf: they stay your sales.
@@ -541,12 +537,8 @@ function PaymentDialog({
           </label>
         </div>
         <label className="ops-check">
-          <input
-            type="checkbox"
-            checked={confirmed}
-            onChange={(e) => setConfirmed(e.target.checked)}
-          />
-          I confirm this rent has already been paid to the studio outside SALEANE.
+          <Checkbox checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />I confirm
+          this rent has already been paid to the studio outside SALEANE.
         </label>
         <ErrorMessage error={error} />
         <div className="ops-actions">

@@ -204,7 +204,9 @@
   padding: 7px 0;
 }
 .ops-checks input,
-.ops-check input {
+.ops-check input,
+.ops-checks .tick,
+.ops-check .tick {
   margin-top: 2px;
 }
 /* A radio in a list of choices sits small beside its words, as a tick box does. */

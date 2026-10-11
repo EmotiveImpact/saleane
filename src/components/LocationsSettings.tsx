@@ -8,7 +8,7 @@ import { addDays } from '../domain/format'
 import { places, resourceLocation } from '../domain/locations'
 import type { Place } from '../domain/locations'
 import { scheduleImpact } from '../domain/schedule'
-import { Button, ErrorMessage, Modal, TimeField } from '../design'
+import { Button, ErrorMessage, Modal, TimeField, Checkbox } from '../design'
 import { AffectedVisits } from './ScheduleImpact'
 import { LocationOpening } from './LocationOpening'
 
@@ -270,7 +270,7 @@ function LocationDialog({
           <fieldset className="ops-checks ops-wide">
             <legend>Opening hours</legend>
             <label>
-              <input type="checkbox" checked={!own} onChange={(e) => setOwn(!e.target.checked)} />
+              <Checkbox checked={!own} onChange={(e) => setOwn(!e.target.checked)} />
               Same as the studio&rsquo;s opening hours
             </label>
             {own && (
@@ -285,8 +285,7 @@ function LocationDialog({
                   return (
                     <div className="ops-day" key={weekday}>
                       <label>
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={!day.closed}
                           onChange={(e) => update({ closed: !e.target.checked })}
                         />
@@ -322,11 +321,7 @@ function LocationDialog({
           </fieldset>
           {place && (
             <label className="ops-check ops-wide">
-              <input
-                type="checkbox"
-                checked={closed}
-                onChange={(e) => setClosed(e.target.checked)}
-              />
+              <Checkbox checked={closed} onChange={(e) => setClosed(e.target.checked)} />
               Closed for good: no new bookings here; its history is kept
             </label>
           )}

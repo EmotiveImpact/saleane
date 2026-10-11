@@ -8,7 +8,7 @@ import { minorInput, parseMinor } from '../domain/money'
 import { mayRemoveSavedCard } from '../domain/paymentMethods'
 import { returnable } from '../domain/retail'
 import { money as formatMoney } from '../domain/format'
-import { Button, ErrorMessage, Select } from '../design'
+import { Button, ErrorMessage, Select, Checkbox } from '../design'
 import { refundRefusal, refundTarget } from '../domain/signoffs'
 
 type Attempt = {
@@ -555,8 +555,7 @@ export function PaymentSettings() {
         <fieldset className="message-settings" disabled={!editable || pending}>
           <legend className="sr-only">Saved cards</legend>
           <label className="checkbox-label">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={draft.saveCard}
               onChange={(e) => {
                 setDraft({ ...draft, saveCard: e.target.checked })

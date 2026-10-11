@@ -24,7 +24,7 @@ import {
 import type { FreedTime, InvitationState } from '../domain/cancelledTimes'
 import type { Command } from '../domain/commands'
 import type { WaitlistEntry } from '../domain/waitlistSchema'
-import { Avatar, Button, ErrorMessage } from '../design'
+import { Avatar, Button, ErrorMessage, Checkbox } from '../design'
 import { FillDialog } from './Waitlist'
 import './cancelledTimes.css'
 
@@ -272,8 +272,7 @@ function FreedTimeCard({
             </legend>
             {suggestions.map((guest) => (
               <label key={guest.clientId} className="freed-guest">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={picked.includes(guest.clientId)}
                   onChange={(e) =>
                     setChosen((current) =>

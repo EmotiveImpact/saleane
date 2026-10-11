@@ -20,7 +20,7 @@ import type { PatchTestState } from '../domain/patchTests'
 import type { PatchTest } from '../domain/patchTestsSchema'
 import type { Appointment } from '../domain/model'
 import { dateLabel, timeLabel } from '../domain/format'
-import { Button, ErrorMessage, Modal, TimeField, Select } from '../design'
+import { Button, ErrorMessage, Modal, TimeField, Select, Checkbox } from '../design'
 import { StudioDateField } from './StudioDateField'
 import { useRun } from './usePayment'
 import { useSeeAll } from './seeAll'
@@ -578,8 +578,7 @@ export function PatchTestRules() {
             />
           </label>
           <label className="ops-check ops-wide">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={remind}
               disabled={!allowed}
               onChange={(e) => setRemind(e.target.checked)}
@@ -589,8 +588,7 @@ export function PatchTestRules() {
           </label>
           <div className="ops-wide patch-online">
             <label className="ops-check">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={stopOnline}
                 disabled={!allowed}
                 aria-describedby={`${ids}-online-help`}

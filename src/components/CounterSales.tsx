@@ -10,7 +10,7 @@ import { minorInput, parseMinor } from '../domain/money'
 import { priceRetail, retailCharge, returnable } from '../domain/retail'
 import { hasLocations, placeOf, places } from '../domain/locations'
 import type { CounterSale, RetailItems } from '../domain/retailSchema'
-import { Button, ErrorMessage, Modal, Select } from '../design'
+import { Button, ErrorMessage, Modal, Select, Checkbox } from '../design'
 import { CheckoutProducts } from './CheckoutProducts'
 import { ReceiptActions } from './ReceiptActions'
 import { RefundSignOff } from './RefundSignOff'
@@ -323,12 +323,8 @@ function SellDialog({
         </div>
         {!sandbox && (
           <label className="ops-check">
-            <input
-              type="checkbox"
-              checked={collected}
-              onChange={(e) => setCollected(e.target.checked)}
-            />
-            I confirm the money has already been taken outside SALEANE.
+            <Checkbox checked={collected} onChange={(e) => setCollected(e.target.checked)} />I
+            confirm the money has already been taken outside SALEANE.
           </label>
         )}
         <ErrorMessage error={problem || error} />
@@ -469,11 +465,7 @@ function ReturnDialog({
           </label>
         </div>
         <label className="ops-check">
-          <input
-            type="checkbox"
-            checked={confirmed}
-            onChange={(e) => setConfirmed(e.target.checked)}
-          />
+          <Checkbox checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
           {sandbox
             ? 'I understand this is a simulated refund.'
             : 'I confirm the money has already been given back outside SALEANE.'}

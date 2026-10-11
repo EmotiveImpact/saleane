@@ -193,12 +193,14 @@
   font-size: var(--text-meta);
   cursor: pointer;
 }
-.setup-tick:has(input:checked) {
+.setup-tick:has(input:checked),
+.setup-tick:has(.tick[data-state='checked']) {
   border-color: var(--brand-mid);
   background: var(--sage);
   color: var(--brand-ink);
 }
-.setup-tick:has(input:focus-visible) {
+.setup-tick:has(input:focus-visible),
+.setup-tick:has(.tick:focus-visible) {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }

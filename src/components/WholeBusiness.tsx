@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Map as MapIcon } from 'lucide-react'
 import { useStore } from '../state/context'
-import { Button, ErrorMessage, Modal, Select } from '../design'
+import { Button, ErrorMessage, Modal, Select, Checkbox } from '../design'
 import { money } from '../domain/format'
 import { places } from '../domain/locations'
 import { can } from '../domain/operations'
@@ -377,8 +377,7 @@ function GroupEditor({
               )
               return (
                 <label className="ops-check" key={p.id}>
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={chosen.includes(p.id)}
                     disabled={pending || !!other}
                     onChange={(e) =>

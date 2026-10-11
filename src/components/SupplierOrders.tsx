@@ -13,7 +13,7 @@ import type { Product } from '../domain/retail'
 import { ScanField } from './ScanField'
 import type { ScanOutcome } from './ScanField'
 import { hasLocations, placeOf, places } from '../domain/locations'
-import { Button, ErrorMessage, Modal, Select } from '../design'
+import { Button, ErrorMessage, Modal, Select, Checkbox } from '../design'
 
 /**
  * V2: reordering from suppliers. Suggested orders for low stock, orders the studio has placed and
@@ -439,8 +439,8 @@ function OrderDialog({
           </pre>
         )}
         <label className="ops-check">
-          <input type="checkbox" checked={placed} onChange={(e) => setPlaced(e.target.checked)} />I
-          have placed this order with the supplier.
+          <Checkbox checked={placed} onChange={(e) => setPlaced(e.target.checked)} />I have placed
+          this order with the supplier.
         </label>
         <ErrorMessage error={error} />
         <div className="ops-actions">
@@ -629,11 +629,7 @@ function SupplierDialog({
           </label>
           {supplier && (
             <label className="ops-check ops-wide">
-              <input
-                type="checkbox"
-                checked={archived}
-                onChange={(e) => setArchived(e.target.checked)}
-              />
+              <Checkbox checked={archived} onChange={(e) => setArchived(e.target.checked)} />
               No longer used
             </label>
           )}

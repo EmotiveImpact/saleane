@@ -18,6 +18,7 @@ import {
   Stat,
   Stats,
   Select,
+  Checkbox,
 } from '../design'
 import '../components/management.css'
 import { TillCount } from '../components/TillCount'
@@ -870,7 +871,7 @@ export function Money() {
                   ))}
               </div>
               <label className="ops-check">
-                <input type="checkbox" name="confirmed" required />
+                <Checkbox name="confirmed" required />
                 {sandbox
                   ? 'I understand this is a simulated refund.'
                   : 'I confirm this money has already been given back outside SALEANE.'}
@@ -1015,7 +1016,7 @@ export function Money() {
               </label>
             </div>
             <label className="ops-check">
-              <input type="checkbox" name="confirmed" required />
+              <Checkbox name="confirmed" required />
               {sandbox
                 ? 'I understand this is a simulated deposit.'
                 : 'I confirm this money has already been received outside SALEANE.'}

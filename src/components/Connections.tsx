@@ -5,7 +5,7 @@ import { useStore } from '../state/context'
 import { api } from '../state/api'
 import { connectionEventLabels, connectionEventTypes } from '../domain/connectionEvents'
 import type { ConnectionEventType } from '../domain/connectionEvents'
-import { Button, ErrorMessage } from '../design'
+import { Button, ErrorMessage, Checkbox } from '../design'
 
 type Connection = {
   id: string
@@ -306,8 +306,7 @@ export function Connections() {
             <legend>Tell it when</legend>
             {connectionEventTypes.map((type) => (
               <label className="checkbox-label" key={type}>
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={events.includes(type)}
                   onChange={(e) =>
                     setEvents((now) =>
@@ -320,11 +319,7 @@ export function Connections() {
             ))}
           </fieldset>
           <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={shareContact}
-              onChange={(e) => setShareContact(e.target.checked)}
-            />
+            <Checkbox checked={shareContact} onChange={(e) => setShareContact(e.target.checked)} />
             Include guest names, email and phone. Leave this off unless the other software needs
             them.
           </label>

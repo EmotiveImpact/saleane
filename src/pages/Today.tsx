@@ -7,7 +7,7 @@ import { useLiveRefresh } from '../state/useLive'
 import { bookedTimeShare, dayAppointments, dueClients } from '../domain/selectors'
 import { bookedTimeDefinition } from '../components/definitions'
 import { dateLabel, money, timeLabel } from '../domain/format'
-import { Button, Metric, photos } from '../design'
+import { Button, Metric, photos, Checkbox } from '../design'
 import { businessMinutes } from '../domain/operations'
 import type { Appointment, Client } from '../domain/model'
 import { Agenda } from '../components/Agenda'
@@ -173,8 +173,7 @@ export function Today() {
               {day.filter((a) => a.status === 'arrived').length} in the studio
             </span>
             <label className="checkbox-label">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={hideCompleted}
                 onChange={(e) => setHideCompleted(e.target.checked)}
               />

@@ -16,6 +16,7 @@ export { MovingList, MovingRow } from './components/Moving'
 export { useStepArrival } from './useStepArrival'
 export { ChosenMark } from './components/ChosenMark'
 export { Select } from './components/Select'
+export { Checkbox, Switch } from './components/Checkbox'
 export { CalmMotion } from './components/CalmMotion'
 export {
   arriveGently,

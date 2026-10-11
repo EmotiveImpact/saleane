@@ -23,6 +23,7 @@ import {
   TimeField,
   WizardSteps,
   photos,
+  Checkbox,
 } from '../design'
 import {
   audiences,
@@ -764,8 +765,7 @@ export function DesignLanguage() {
           <p>Settings most people never change sit behind one quiet line that opens in place.</p>
           <MoreOptions label="More booking settings">
             <label className="checkbox-label">
-              <input type="checkbox" /> Ask online guests to pass a quick check before a time is
-              held
+              <Checkbox /> Ask online guests to pass a quick check before a time is held
             </label>
           </MoreOptions>
         </div>

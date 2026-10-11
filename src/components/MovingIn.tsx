@@ -13,6 +13,7 @@ import {
   WizardSteps,
   useWizardStep,
   Select,
+  Checkbox,
 } from '../design'
 import { readSheet } from '../domain/movingIn/sheet'
 import type { Sheet } from '../domain/movingIn/sheet'
@@ -800,8 +801,7 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
               )}
             </ul>
             <label className="ops-check">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={reviewed}
                 disabled={!toBring || running}
                 onChange={(event) => setReviewed(event.target.checked)}

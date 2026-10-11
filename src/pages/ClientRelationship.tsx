@@ -20,7 +20,7 @@ import { groupTimeline } from '../domain/timeline'
 import type { RelationshipEvent } from '../domain/model'
 import { can, instantFor, operations } from '../domain/operations'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
-import { Avatar, Button, Empty, ErrorMessage, SegmentedControl, Status } from '../design'
+import { Avatar, Button, Empty, ErrorMessage, SegmentedControl, Status, Checkbox } from '../design'
 import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
 import { ClientMessagePreferences, SentMessages } from '../components/AppointmentMessages'
@@ -638,8 +638,7 @@ export function ClientRelationship() {
             <h2>Communication preference</h2>
             <ErrorMessage error={consentError} />
             <label className="checkbox-label">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={client.marketingConsent}
                 disabled={busy || blocked || !can(role, 'consent')}
                 onChange={(e) => {

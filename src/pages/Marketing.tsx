@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useStore } from '../state/context'
 import { api } from '../state/api'
-import { Button, Empty, ErrorMessage, PageHeader, Stat, Stats, Select } from '../design'
+import { Button, Empty, ErrorMessage, PageHeader, Stat, Stats, Select, Switch } from '../design'
 import { can, operations } from '../domain/operations'
 import { missYouDayChoices, reminderSettings } from '../domain/reminders'
 import type { ReminderSettings } from '../domain/reminders'
@@ -164,9 +164,7 @@ export function MarketingAutomatic() {
                 <div className="marketing-card-head">
                   <h2 id={`auto-${kind}`}>{automaticLabel[kind]}</h2>
                   <label className="marketing-switch">
-                    <input
-                      type="checkbox"
-                      role="switch"
+                    <Switch
                       checked={on}
                       onChange={(e) => {
                         setDraft((before) => ({ ...before, [key]: e.target.checked }))

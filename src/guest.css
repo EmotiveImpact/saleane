@@ -233,7 +233,8 @@
   margin: 0;
   cursor: pointer;
 }
-.guest-stars label:has(input:focus-visible) {
+.guest-stars label:has(input:focus-visible),
+.guest-stars label:has(.tick:focus-visible) {
   outline: 2px solid var(--brand-ink);
   outline-offset: 2px;
 }
