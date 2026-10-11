@@ -18,7 +18,7 @@ vi.mock('../assistant/talkLine', async (importOriginal) => ({
 }))
 const sample = seed('UK')
 const state = { ...sample, operations: { ...sample.operations!, mode: 'local' as const } }
-const commit = vi.fn(async () => ({ ok: true }))
+const commit = vi.fn(async (): Promise<{ ok: boolean; error?: string }> => ({ ok: true }))
 vi.mock('../state/context', () => ({
   useStore: () => ({
     state,
