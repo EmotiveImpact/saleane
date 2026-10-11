@@ -33,7 +33,12 @@ import type { MessageKind, OutboxChannel, OutboxStatus } from '../../src/domain/
 import { operations } from '../../src/domain/operations'
 import { socialWindowEnds } from '../../src/domain/inbox'
 import { isSocialChannel } from '../../src/domain/inboxSchema'
-import { answersSocial, answersTexts, visitSummary } from '../../src/assistant/receptionist'
+import {
+  answersCalls,
+  answersSocial,
+  answersTexts,
+  visitSummary,
+} from '../../src/assistant/receptionist'
 import { visitStart } from '../../src/domain/guest'
 import { textsStopped } from '../../src/domain/textStop'
 import { isPlanCardKind, planCardMessage, readPlanCardSlot } from '../../src/domain/planCards'
@@ -272,7 +277,11 @@ export function createOutbox(ctx: Context, providers: Providers) {
             account: account.account_id,
           })
         }
-        if (!answersTexts(org.state))
+        // NEXT-17: a booking link the receptionist texted to someone it was speaking to on the phone.
+        if (fresh.slot.startsWith('call:')) {
+          if (!answersCalls(org.state))
+            return skip('Answering calls was turned off before it went out.')
+        } else if (!answersTexts(org.state))
           return skip('Answering texts was turned off before it went out.')
         // Stage 1: a client with this number asked for no texts meanwhile.
         if (clientsWithNumber(org.state, fresh.recipient).some((c) => c.noTextReminders))

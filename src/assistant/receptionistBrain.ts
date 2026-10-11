@@ -32,9 +32,10 @@ export function receptionistBrain(
 
 /**
  * Where the guest is talking: the booking page's chat, or (`text`) a message to the studio's text
- * line, Instagram, Facebook or WhatsApp, where there is no page around the answer.
+ * line, Instagram, Facebook or WhatsApp, where there is no page around the answer, or (`phone`,
+ * NEXT-17) a call to the studio's phone, where the answer is spoken.
  */
-export type ReceptionChannel = 'web' | 'text'
+export type ReceptionChannel = 'web' | 'text' | 'phone'
 /** Stands in a text answer for the link that books an offered time; the server fills it in. */
 export const BOOKING_LINK = '[[booking-link]]'
 /** Stands in a text answer for the visit's private link; the outbox mints it as it sends. */
@@ -587,6 +588,10 @@ function nextStep(
   if (last.name === 'offer_time' && channel === 'text')
     return say(
       `${words.here}: ${(last.data as { summary: string }).summary}. Book it here: ${BOOKING_LINK} Nothing is booked until you confirm on that page.`,
+    )
+  if (last.name === 'offer_time' && channel === 'phone')
+    return say(
+      `${words.here}: ${(last.data as { summary: string }).summary}. I will text you a link to finish booking it. Nothing is booked until you confirm there.`,
     )
   if (last.name === 'offer_time')
     return say(

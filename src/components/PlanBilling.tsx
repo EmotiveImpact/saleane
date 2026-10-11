@@ -6,12 +6,21 @@ import { useClock } from '../state/clock'
 import { api } from '../state/api'
 import { money } from '../domain/format'
 import { operations } from '../domain/operations'
-import { ADD_ONS, PEOPLE_PER_LOCATION, PRICE, extraPeople, priceLabel } from '../domain/pricing'
-import { planDate, plusBill, trialDaysLeft } from '../domain/billing'
-import type { Bill, BillingView, InvoiceView } from '../domain/billing'
+import {
+  LOCATION_ADD_ONS,
+  PEOPLE_PER_LOCATION,
+  PRICE,
+  extraPeople,
+  priceLabel,
+} from '../domain/pricing'
+import { ADD_ON_NAMES, addOnBill, planDate, trialDaysLeft } from '../domain/billing'
+import type { AddOn, Bill, BillingView, InvoiceView } from '../domain/billing'
 import { Button, ErrorMessage, Modal } from '../design'
 import './planBilling.css'
 
+/** Each add-on's name inside a sentence, and at the start of one. */
+const IN_WORDS: Record<AddOn, string> = { plus: 'Plus', phone: 'the phone receptionist' }
+const FIRST_WORDS: Record<AddOn, string> = { plus: 'Plus', phone: 'The phone receptionist' }
 const STATUS_WORDS: Record<BillingView['status'], string> = {
   trial: 'Free trial',
   active: 'Paid',
@@ -59,7 +68,7 @@ export function PlanBilling() {
     const paid = params.get('paid')
     return card ? (RETURNS[paid ? `${card}-${paid}` : card] ?? '') : ''
   })
-  const [asking, setAsking] = useState<'plus' | 'stop' | null>(null)
+  const [asking, setAsking] = useState<AddOn | 'stop' | null>(null)
   // Bills older than the newest page, once the owner asks for them.
   const [older, setOlder] = useState<{ invoices: InvoiceView[]; next: string | null } | null>(null)
   const now = Date.parse(useClock())
@@ -188,14 +197,16 @@ export function PlanBilling() {
     )
 
   const card = plan.card
-  const plusAddOn = ADD_ONS[0]
-  const phone = ADD_ONS[1]
   const owed = plan.status === 'overdue' || plan.status === 'stopped'
   const payable = owed && plan.nextBill && !plan.checking && !plan.held
-  const plusNow =
-    plan.status === 'active' && !plan.plus && plan.periodStart && plan.periodEnd
-      ? plusBill(plan.region, plan.locations, now, plan.periodStart, plan.periodEnd)
+  // What adding each add-on now would take, for the rest of a paid month.
+  const partNow = (addOn: AddOn) =>
+    plan.status === 'active' && !plan[addOn] && plan.periodStart && plan.periodEnd
+      ? addOnBill(addOn, plan.region, plan.locations, now, plan.periodStart, plan.periodEnd)
       : null
+  const askingAddOn = asking === 'plus' || asking === 'phone' ? asking : null
+  const askingPart = askingAddOn && partNow(askingAddOn)
+  const extras = [plan.plus && 'Plus', plan.phone && 'the phone receptionist'].filter(Boolean)
   const where = `${plan.locations} ${plan.locations === 1 ? 'location' : 'locations'}`
 
   return (
@@ -293,61 +304,64 @@ export function PlanBilling() {
 
       <div className="plan-block">
         <h3>Add-ons</h3>
-        <div className="ops-record">
-          <div className="ops-record-copy">
-            <strong>
-              {plusAddOn.title}, {priceLabel(plan.region, plusAddOn.amount)} a month for each
-              location
-            </strong>
-            <small>{plusAddOn.body}</small>
-            <small>{plusWords(plan, day)}</small>
-          </div>
-          {plan.plusNext ? (
-            <Button
-              variant="secondary"
-              disabled={busy || plan.status === 'stopped'}
-              onClick={() =>
-                void act(
-                  'plus',
-                  { on: false },
-                  plan.plus && plan.periodEnd
-                    ? `Plus stays on until ${day(plan.periodEnd)}, then stops.`
-                    : 'Plus is off.',
-                )
-              }
-            >
-              Turn Plus off
-            </Button>
-          ) : (
-            <Button
-              variant="secondary"
-              disabled={busy || !['trial', 'active'].includes(plan.status)}
-              onClick={() =>
-                plusNow
-                  ? setAsking('plus')
-                  : void act(
-                      'plus',
-                      { on: true },
-                      plan.status === 'trial' ? 'Plus starts with your first bill.' : 'Plus is on.',
+        {LOCATION_ADD_ONS.map((addOn) => {
+          const name = IN_WORDS[addOn.id],
+            first = FIRST_WORDS[addOn.id]
+          const on = plan[`${addOn.id}Next`]
+          const waits = addOn.id === 'phone' && !plan.phoneConnected
+          return (
+            <div className="ops-record" key={addOn.id}>
+              <div className="ops-record-copy">
+                <strong>
+                  {addOn.title}, {priceLabel(plan.region, addOn.amount)} a month for each location
+                </strong>
+                <small>{addOn.body}</small>
+                <small>
+                  {waits && !plan.phone && !on ? `${addOn.note}.` : addOnWords(plan, addOn.id, day)}
+                </small>
+              </div>
+              {on ? (
+                <Button
+                  variant="secondary"
+                  disabled={busy || plan.status === 'stopped'}
+                  onClick={() =>
+                    void act(
+                      addOn.id,
+                      { on: false },
+                      plan[addOn.id] && plan.periodEnd
+                        ? `${first} stays on until ${day(plan.periodEnd)}, then stops.`
+                        : `${first} is off.`,
                     )
-              }
-            >
-              Add Plus
-            </Button>
-          )}
-        </div>
-        <div className="ops-record">
-          <div className="ops-record-copy">
-            <strong>
-              {phone.title}, {priceLabel(plan.region, phone.amount)} a month for each location
-            </strong>
-            <small>{phone.body}</small>
-            <small>{phone.note}.</small>
-          </div>
-          <Button variant="secondary" disabled>
-            Not yet
-          </Button>
-        </div>
+                  }
+                >
+                  Turn {name} off
+                </Button>
+              ) : waits ? (
+                <Button variant="secondary" disabled>
+                  Not yet
+                </Button>
+              ) : (
+                <Button
+                  variant="secondary"
+                  disabled={busy || !['trial', 'active'].includes(plan.status)}
+                  onClick={() =>
+                    partNow(addOn.id)
+                      ? setAsking(addOn.id)
+                      : void act(
+                          addOn.id,
+                          { on: true },
+                          plan.status === 'trial'
+                            ? `${first} starts with your first bill.`
+                            : `${first} is on.`,
+                        )
+                  }
+                >
+                  Add {name}
+                </Button>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       <div className="plan-block">
@@ -355,7 +369,7 @@ export function PlanBilling() {
         <p className="ops-help">
           {plan.status === 'stopped'
             ? 'Ask SALEANE and the AI receptionist rest while the studio is read only.'
-            : `For ${where}${plan.plus ? ', with Plus' : ''}. It starts again on the 1st of each month.`}
+            : `For ${where}${extras.length ? `, with ${extras.join(' and ')}` : ''}. It starts again on the 1st of each month.`}
         </p>
         <ul className="plan-meters">
           <Meter label="Questions typed to Ask SALEANE" {...plan.ai.typed} />
@@ -366,6 +380,13 @@ export function PlanBilling() {
               {plan.ai.talkSeconds.of / 60} minutes a month, when talking is switched on
             </small>
           </li>
+          {plan.ai.phoneSeconds.of > 0 && (
+            <Meter
+              label="Minutes of calls answered by the AI receptionist"
+              used={Math.ceil(plan.ai.phoneSeconds.used / 60)}
+              of={Math.floor(plan.ai.phoneSeconds.of / 60)}
+            />
+          )}
         </ul>
       </div>
 
@@ -378,7 +399,7 @@ export function PlanBilling() {
                 <div className="ops-record-copy">
                   <strong>
                     {bill.number}
-                    {bill.kind === 'plus' ? ', Plus' : ''}
+                    {bill.kind === 'month' ? '' : `, ${ADD_ON_NAMES[bill.kind]}`}
                   </strong>
                   <small>
                     {day(bill.periodStart)} to {day(bill.periodEnd)}
@@ -433,26 +454,34 @@ export function PlanBilling() {
       )}
 
       <Modal
-        open={asking === 'plus'}
+        open={!!askingAddOn}
         onClose={() => setAsking(null)}
-        title="Add Plus now?"
-        description="Plus is charged for the rest of this month straight away."
+        title={`Add ${askingAddOn ? IN_WORDS[askingAddOn] : ''} now?`}
+        description="It is charged for the rest of this month straight away."
       >
-        {plusNow && plan.periodEnd && (
+        {askingAddOn && askingPart && plan.periodEnd && (
           <>
             <p>
-              {cash(plusNow.totalMinor)} is taken now from the {card?.brand} ending {card?.last4},
-              for the rest of this month. From {day(plan.periodEnd)} Plus is part of your monthly
-              bill.
+              {cash(askingPart.totalMinor)} is taken now from the {card?.brand} ending {card?.last4}
+              , for the rest of this month. From {day(plan.periodEnd)} {IN_WORDS[askingAddOn]} is
+              part of your monthly bill.
             </p>
             <div className="ops-actions">
               <Button
                 disabled={busy}
                 onClick={() =>
-                  void act('plus', { on: true }, 'Plus is on, with its larger AI allowance.')
+                  void act(
+                    askingAddOn,
+                    { on: true },
+                    askingAddOn === 'plus'
+                      ? 'Plus is on, with its larger AI allowance.'
+                      : 'The phone receptionist is on. Choose it in AI receptionist settings to start answering calls.',
+                  )
                 }
               >
-                {busy ? 'Adding…' : `Add Plus for ${cash(plusNow.totalMinor)}`}
+                {busy
+                  ? 'Adding…'
+                  : `Add ${IN_WORDS[askingAddOn]} for ${cash(askingPart.totalMinor)}`}
               </Button>
               <Button variant="quiet" onClick={() => setAsking(null)}>
                 Not now
@@ -554,12 +583,16 @@ function peopleWords(plan: BillingView, whole: (minor: number) => string) {
   return `${who} ${where} ${included}, so ${extra} more ${extra === 1 ? 'is' : 'are'} ${each}${extra === 1 ? '' : `, ${whole(unit * extra)} in all`}, ${PRICE[plan.region].tax}.`
 }
 
-function plusWords(plan: BillingView, day: (at: number) => string) {
+function addOnWords(plan: BillingView, addOn: AddOn, day: (at: number) => string) {
+  const has = plan[addOn],
+    next = plan[`${addOn}Next`]
   if (plan.status === 'trial')
-    return plan.plusNext ? 'Starts with your first bill.' : 'You can add it at any time.'
-  if (plan.plus && !plan.plusNext && plan.periodEnd)
-    return `On until ${day(plan.periodEnd)}, then off.`
-  if (plan.plus) return 'On, with its larger AI allowance.'
+    return next ? 'Starts with your first bill.' : 'You can add it at any time.'
+  if (has && !next && plan.periodEnd) return `On until ${day(plan.periodEnd)}, then off.`
+  if (has)
+    return addOn === 'plus'
+      ? 'On, with its larger AI allowance.'
+      : 'On. Choose it in AI receptionist settings to answer calls.'
   return plan.status === 'active'
     ? 'Added now, it is charged for the rest of this month.'
     : 'You can add it once the bill is paid.'

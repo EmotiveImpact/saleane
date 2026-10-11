@@ -35,6 +35,7 @@ import type { RotaChange } from './rotaSchema'
 import { STAFF_MOVE_LIMIT, staffMoveSchema } from './staffMovesSchema'
 import type { StaffMove } from './staffMovesSchema'
 import { MISSED_CALL_LIMIT, missedCallSchema } from './missedCallsSchema'
+import { ANSWERED_CALL_LIMIT, answeredCallSchema } from './answeredCallsSchema'
 import { paymentMethodSchema, processorSchema } from './paymentMethods'
 import { setupProgressSchema } from './setupSchema'
 import { RENT_LIMIT, RENT_PAYMENT_LIMIT, rentPaymentSchema, rentalSchema } from './rentSchema'
@@ -413,6 +414,8 @@ export const operationsSchema = z.object({
   patchTests: patchTestSettingsSchema.optional(),
   /** V1.5: calls the studio missed, to call back and, if switched on, to text back. */
   missedCalls: z.array(missedCallSchema).max(MISSED_CALL_LIMIT).optional(),
+  /** NEXT-17: calls the AI receptionist answered when nobody at the desk picked up. */
+  answeredCalls: z.array(answeredCallSchema).max(ANSWERED_CALL_LIMIT).optional(),
   /** V4: the AI receptionist on the booking page. Absent means it is off. */
   receptionist: receptionistSettingsSchema.optional(),
   /** NEXT-16: the tone the AI speaks in for the studio, and the voice Ask SALEANE uses. */
@@ -721,7 +724,9 @@ export function permissionFor(command: { type: string; approve?: boolean }) {
   // Stage 6: deleting or keeping records at the end of their period is one decision.
   if (command.type === 'retention-delete' || command.type === 'retention-keep') return 'retention'
   if (command.type === 'task-add' || command.type === 'task-done') return 'task'
-  if (command.type === 'missed-call-done') return 'missed-call'
+  // NEXT-17: following up a call the AI receptionist answered is the same desk work.
+  if (command.type === 'missed-call-done' || command.type === 'answered-call-done')
+    return 'missed-call'
   if (command.type === 'form-save' || command.type === 'form-archive') return 'forms'
   if (command.type === 'consent-wording') return 'consent-wording'
   if (command.type === 'ai-voice') return 'receptionist'
@@ -820,6 +825,8 @@ export function can(role: Role, action: string) {
       // Stage 5: a sale or refund from a chain's own till comes only through its access key.
       'other-till-sale',
       'other-till-refund',
+      // NEXT-17: an answered call is written down only by the studio's phone line.
+      'call-answered',
     ].includes(action)
   )
     return false

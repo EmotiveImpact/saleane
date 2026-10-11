@@ -58,6 +58,7 @@ import {
 import { inboxUnchanged, runInboxCommand, stampInboxActors } from './inbox'
 import { guestHereWindow } from './guest'
 import { callForBooking, linkCallToVisit, markCalledBack, recordMissedCall } from './missedCalls'
+import { markCallDone, recordAnsweredCall } from './answeredCalls'
 import { planSpecial, stopSpecial } from './specials'
 import { addTask, completeTask } from './tasks'
 import { priceRetail, recordRetailMovements, retailCharge, sellAtCounter } from './retail'
@@ -944,6 +945,14 @@ export function execute(
       const call = (operations(s).missedCalls ?? []).find((c) => c.id === command.callId)
       if (call?.calledBackAt) return { ok: true, state: s, recordId: call.id }
       recordId = markCalledBack(next, command.callId, now)
+    } else if (command.type === 'call-answered') {
+      const { type: _type, ...call } = command
+      void _type
+      recordId = recordAnsweredCall(next, call, makeId)
+    } else if (command.type === 'answered-call-done') {
+      const call = (operations(s).answeredCalls ?? []).find((c) => c.id === command.callId)
+      if (call?.doneAt) return { ok: true, state: s, recordId: call.id }
+      recordId = markCallDone(next, command.callId, now)
     } else if (command.type === 'feedback') {
       const same = repeatedFeedback(s, command)
       if (same) return { ok: true, state: s, recordId: same.id }
@@ -1399,6 +1408,9 @@ export function dispatch(
     if (!before) call.actor = actorName
     if (call.calledBackAt && !before?.calledBackAt) call.calledBackBy = actorName
   }
+  const answered = new Map((operations(s).answeredCalls ?? []).map((c) => [c.id, c]))
+  for (const call of operations(result.state).answeredCalls ?? [])
+    if (call.doneAt && !answered.get(call.id)?.doneAt) call.doneBy = actorName
   stampPatchTestActors(s, result.state, actorName)
   stampFormActors(s, result.state, actorName)
   stampConsentActors(s, result.state, actorName)

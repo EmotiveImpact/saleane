@@ -58,6 +58,11 @@ export type ReceptionContext = {
    * the one number on their record. Nobody else can see or change a visit through the receptionist.
    */
   guestId?: string
+  /**
+   * NEXT-17: false on a call from a withheld number, or once a call has texted all the booking
+   * links it may: no time can be offered, as the link to book it could not be texted.
+   */
+  canText?: boolean
 }
 
 /**
@@ -128,10 +133,27 @@ export function receptionFacts(ctx: ReceptionContext, channel: ReceptionChannel 
       : []),
     channel === 'text'
       ? `The guest is writing by text message, so keep answers short. Where a booking link belongs, write ${BOOKING_LINK} exactly; after send_manage_link, write ${MANAGE_LINK_SPOT} exactly where their visit's link belongs. The studio fills these in.`
-      : "The guest is chatting on the studio's booking page, which shows a button for each time you list.",
+      : channel === 'phone'
+        ? phoneFacts(ctx)
+        : "The guest is chatting on the studio's booking page, which shows a button for each time you list.",
     ...(guest ? [`The guest is a known client, ${guest.name.split(' ')[0]}.`] : []),
     'When a skill asks for a date, give it as YYYY-MM-DD.',
     toneFacts(ctx.state, 'guest'),
+  ].join('\n')
+}
+
+/**
+ * NEXT-17: how a call differs. What the receptionist writes is said aloud, and the caller's
+ * number cannot prove who they are, so nothing about a client's own visits is offered.
+ */
+function phoneFacts(ctx: ReceptionContext) {
+  return [
+    "The guest is calling the studio's phone, and your answer is said aloud to them. Answer in one or two short spoken sentences: no lists, no symbols, and never a web address.",
+    ctx.canText === false
+      ? 'Nothing can be texted to this caller, so offer no time to book: say they can book on the studio’s booking page, or offer to pass a message to the team.'
+      : 'After offer_time, say you will text them a link to finish booking that time; nothing is booked until they confirm there.',
+    'To move or cancel a visit, the caller uses the link in their confirmation text or email, or you pass a message to the team. Nothing about anyone’s visits can be shared on a call.',
+    'A message prepared with pass_to_team reaches the team with a note of this call when it ends, so tell the caller the team will see it.',
   ].join('\n')
 }
 
@@ -140,6 +162,9 @@ export const isOn = (s: BusinessState) =>
 /** Whether it also answers texts to the studio's line. */
 export const answersTexts = (s: BusinessState) =>
   isOn(s) && !!(operations(s).receptionist ?? defaultReceptionist).texts
+/** NEXT-17: whether it also answers calls the desk misses. */
+export const answersCalls = (s: BusinessState) =>
+  isOn(s) && !!(operations(s).receptionist ?? defaultReceptionist).calls
 /** Whether it also answers messages to the studio's Instagram, Facebook and WhatsApp. */
 export const answersSocial = (s: BusinessState) =>
   isOn(s) && !!(operations(s).receptionist ?? defaultReceptionist).social
@@ -499,7 +524,7 @@ export function receptionistSkills(): Skill<ReceptionContext, ReceptionEffect>[]
     >({
       name: 'offer_time',
       description:
-        'Offer the guest one free time to book. They finish booking on the page with their details; nothing is booked until they confirm there.',
+        'Offer the guest one free time to book. They finish booking on the page with their details; nothing is booked until they confirm there. On a call, the link to that page is texted to them.',
       input: z
         .object({
           treatmentId: z.string().min(1).max(150),
@@ -509,7 +534,7 @@ export function receptionistSkills(): Skill<ReceptionContext, ReceptionEffect>[]
           locationId: z.string().min(1).max(150).optional(),
         })
         .strict(),
-      allowed: () => true,
+      allowed: (ctx) => ctx.canText !== false,
       propose: (ctx, input) => {
         const service = treatment(ctx, input.treatmentId)
         bookableHere(ctx, service)
@@ -681,6 +706,8 @@ export type ReceptionInput = {
   continuing?: boolean
   /** The client writing, when the server matched the number they wrote from to their record. */
   guestId?: string
+  /** NEXT-17: false when a time cannot be offered, as its booking link could not be texted. */
+  canText?: boolean
   usage: Usage | undefined
   allowance?: Allowance
   /** A real AI supplier's brain. Left out, the test-mode brain answers: free, and nothing leaves. */
@@ -693,7 +720,10 @@ export type ReceptionInput = {
  * supplier, costing nothing and sending nothing.
  */
 export function askReceptionist(input: ReceptionInput): Promise<TurnResult<ReceptionEffect>> {
-  const ctx = receptionContext(input.state, input.today, input.now, input.guestId)
+  const ctx = {
+    ...receptionContext(input.state, input.today, input.now, input.guestId),
+    ...(input.canText === undefined ? {} : { canText: input.canText }),
+  }
   return runTurn({
     brain:
       input.brain ??
