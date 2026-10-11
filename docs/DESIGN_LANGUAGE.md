@@ -33,6 +33,7 @@ Edem asked on 11 October 2026 for the whole library to run on Radix and Motion. 
 11. **What needs you comes first on a phone's Today.** See [Patterns](#patterns).
 12. **Section rows above the eyebrow.** Business and Marketing put their row of sections above the page top, and Marketing uses the working tool top. See [Page tops](#page-tops).
 13. **The assistant's name is written once.** "Ask" and the app's name, from `ASK_NAME`. See [Voice](#voice).
+14. **A view switch never moves.** The calendar's Today, Week and Month switch keeps one spot at the far right in every view (Edem, 11 October). See [Patterns](#patterns).
 
 Still waiting for a yes, so not yet rules: phone Today in tabs with a count on each, and the six moves from the finishing check (grouping Business's tabs, a "You" section for your own sign-in, and the rest).
 
@@ -181,6 +182,7 @@ What stays around every staff page.
 - **Plain words.** Say what is not connected yet in studio language ("Card payments are not connected yet"), never configuration names or internal codes.
 - **Start where you are.** Free time on the calendar books there, and a dragged visit opens the move step at its new spot. Shortcuts fill in choices; the same checks and confirmation still decide.
 - **Times in groups.** Long runs of times sit under Morning, Afternoon and Evening.
+- **View switches.** A view switch sits at the far right of its toolbar and holds the same spot in every view; controls that only appear in one view keep their space in the others, so nothing jumps when the view changes. On a phone it sits on its own row under the date. The calendar's Today, Week and Month switch is the reference.
 - **Rows with several actions.** The everyday action stays on the row as a quiet button; the rest go under one More menu named for the row ("More for Calming Cleansing Balm"). Stock is the reference.
 - **Hints.** An arrow or icon whose meaning is not written on it gets a `Tip`. It never holds anything a person must read to act, because a phone has no hover; the button keeps its own words or `aria-label`. Browser title text is not used for hints, since it shows late, only to a mouse and never on a phone. The email preview's frame keeps its `title`, which is its name for screen readers.
 - **Notices.** Use `notify` when something was confirmed where the person may not be looking (a pop-up that closed as it saved). Where a saved line already sits beside the button, keep the line and send no notice. Stock is the reference: a delivery, a count, stock used and a move each say what was recorded.
