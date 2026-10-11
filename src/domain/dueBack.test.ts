@@ -6,7 +6,14 @@ import type { BusinessState } from './model'
 import { defaultOperations } from './operations'
 import { dueClients } from './selectors'
 import { dueBackOn } from './dueBack'
-import { BOOK_LINK, aftercareDue, composeMessage, dueBackDue, planMessages } from './reminders'
+import {
+  BOOK_LINK,
+  aftercareDue,
+  aftercareEmailAhead,
+  composeMessage,
+  dueBackDue,
+  planMessages,
+} from './reminders'
 import type { RecordedMessage } from './reminders'
 
 // V1.5: aftercare advice after a visit, and a "due back" note weeks later.
@@ -98,6 +105,118 @@ describe('aftercare advice', () => {
     })
     expect(next.services.find((x) => x.id === 'service-facial')!.prepNote).toBe(prep)
     expect(next.services.find((x) => x.id === 'service-gloss')!.aftercareNote).toBeUndefined()
+  })
+})
+
+describe('aftercare written up after the visit', () => {
+  // NEXT-16: the professional's own aftercare joins the treatment's in the aftercare email.
+  const words = { text: 'Skip hot tools until Friday.', at: '2026-10-06T10:00:00.000Z' }
+
+  it('saves the note to the history and the aftercare on the visit, and can remove it', () => {
+    const s = seed('UK')
+    const visit = s.appointments.find((a) => a.status === 'completed')!
+    const next = apply(s, {
+      type: 'visit-write-up',
+      appointmentId: visit.id,
+      note: 'Shade 9 gold with a warm toner.',
+      aftercare: 'Skip hot tools until Friday.',
+      signedBy: visit.staffId,
+    })
+    expect(next.appointments.find((a) => a.id === visit.id)!.aftercare).toMatchObject({
+      text: 'Skip hot tools until Friday.',
+      staffId: visit.staffId,
+    })
+    expect(next.events.find((e) => e.title === 'Note after the visit')).toMatchObject({
+      clientId: visit.clientId,
+      appointmentId: visit.id,
+      detail: 'Shade 9 gold with a warm toner.',
+    })
+    const cleared = apply(next, {
+      type: 'visit-write-up',
+      appointmentId: visit.id,
+      aftercare: null,
+    })
+    expect(cleared.appointments.find((a) => a.id === visit.id)!.aftercare).toBeUndefined()
+  })
+
+  it('sends their aftercare after the treatment advice, never the studio note', () => {
+    const { state, visit } = studio()
+    const first = state.staff.find((p) => p.id === visit.staffId)!.name.split(' ')[0]
+    visit.aftercare = { ...words, staffId: visit.staffId }
+    const care = planMessages(state, '2026-10-06T09:45:00.000Z', []).find(
+      (m) => m.kind === 'aftercare' && m.appointmentId === visit.id,
+    )!
+    expect(care.body).toContain(`A note from ${first}: Skip hot tools until Friday.`)
+    expect(care.body.indexOf('colour-safe shampoo')).toBeLessThan(
+      care.body.indexOf(`A note from ${first}`),
+    )
+  })
+
+  it('leaves aftercare written at the desk unsigned, so no professional is named for it', () => {
+    const state = seed('UK')
+    const visit = state.appointments.find((a) => a.status === 'completed')!
+    const next = apply(state, {
+      type: 'visit-write-up',
+      appointmentId: visit.id,
+      aftercare: 'Skip hot tools until Friday.',
+    })
+    const written = next.appointments.find((a) => a.id === visit.id)!
+    expect(written.aftercare!.staffId).toBeUndefined()
+    const body = composeMessage(next, written, 'aftercare', 'email').body
+    expect(body).toContain('Skip hot tools until Friday.')
+    expect(body).not.toContain('A note from')
+  })
+
+  it('sends their aftercare even when the treatment has none', () => {
+    const { state, visit } = studio()
+    delete state.services.find((x) => x.id === 'service-gloss')!.aftercareNote
+    const at = Date.parse('2026-10-06T10:00:00.000Z')
+    expect(aftercareDue(state, visit, at)).toBe(false)
+    visit.aftercare = { ...words, staffId: visit.staffId }
+    expect(aftercareDue(state, visit, at)).toBe(true)
+    expect(composeMessage(state, visit, 'aftercare', 'email').body).toContain(
+      'Skip hot tools until Friday.',
+    )
+  })
+
+  it('knows when aftercare saved now can no longer go in the aftercare email', () => {
+    const { state, visit } = studio()
+    const soon = Date.parse('2026-10-06T12:00:00.000Z')
+    expect(aftercareEmailAhead(state, visit, soon, false)).toBe(true)
+    // Its email has gone, or it is more than two days since checkout.
+    expect(aftercareEmailAhead(state, visit, soon, true)).toBe(false)
+    expect(aftercareEmailAhead(state, visit, Date.parse('2026-10-08T09:00:00.000Z'), false)).toBe(
+      false,
+    )
+    // A sample studio sends nothing.
+    expect(aftercareEmailAhead(seed('UK'), visit, soon, false)).toBe(false)
+    const client = state.clients.find((c) => c.id === visit.clientId)!
+    const noEmail = {
+      ...state,
+      clients: state.clients.map((c) => (c === client ? { ...c, email: '' } : c)),
+    }
+    expect(aftercareEmailAhead(noEmail, visit, soon, false)).toBe(false)
+  })
+
+  it('refuses a visit that has not gone ahead, and a write-up with nothing in it', () => {
+    const s = seed('UK')
+    const visit = s.appointments.find((a) => a.status === 'completed')!
+    const at = '2026-10-06T12:00:00.000Z'
+    expect(execute(s, { type: 'visit-write-up', appointmentId: visit.id }, at)).toMatchObject({
+      ok: false,
+      error: 'Write a note for the studio or aftercare for the guest.',
+    })
+    const booked = s.appointments.find((a) => a.status === 'confirmed')!
+    expect(
+      execute(s, { type: 'visit-write-up', appointmentId: booked.id, note: 'Gold.' }, at),
+    ).toMatchObject({ ok: false, error: 'Write up a visit once the guest has arrived.' })
+    const gone = apply(s, { type: 'cancel', appointmentId: booked.id, reason: 'Unwell' } as Command)
+    expect(
+      execute(gone, { type: 'visit-write-up', appointmentId: booked.id, note: 'Gold.' }, at),
+    ).toMatchObject({
+      ok: false,
+      error: 'This visit did not go ahead, so there is nothing to write up.',
+    })
   })
 })
 

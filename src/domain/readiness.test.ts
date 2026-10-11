@@ -122,7 +122,7 @@ describe('getting a new studio ready', () => {
   it('asks for the phone number or email guests see', () => {
     expect(done(fresh())).toMatchObject({ contact: false })
     const reachable = fresh()
-    Object.assign(reachable.organisation, { phone: '01225 900456' })
+    Object.assign(reachable.organisation, { phone: '01632 960456' })
     expect(done(reachable)).toMatchObject({ contact: true })
     const written = fresh()
     Object.assign(written.organisation, { email: 'hello@example.invalid' })

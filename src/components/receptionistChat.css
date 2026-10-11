@@ -79,6 +79,8 @@
 }
 .reception-bubble p {
   margin: 0;
+  /* An answer's own line breaks, such as a list of times, stay as written. */
+  white-space: pre-line;
 }
 .reception-guest {
   align-self: flex-end;

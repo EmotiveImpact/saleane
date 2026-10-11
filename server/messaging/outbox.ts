@@ -33,6 +33,7 @@ import { answersSocial, answersTexts, visitSummary } from '../../src/assistant/r
 import { visitStart } from '../../src/domain/guest'
 import type { Context } from '../context'
 import { issueGuestLink } from '../routes/guest'
+import { renderEmail, studioSender } from '../../src/email/render'
 import { providerFor } from './providers'
 import type { Providers, Receipt } from './providers'
 
@@ -64,6 +65,31 @@ const BATCH = 50
 /** An AI receptionist's answer that could not go out within this long is not sent at all. */
 const RECEPTION_STALE_MS = 15 * 60000
 
+type Org = NonNullable<ReturnType<Context['systemOrg']>>
+/** Where each placeholder in a message's stored words goes as it is sent. */
+type Links = Partial<Record<typeof BOOK_LINK | typeof MANAGE_LINK, string>>
+/** Sent because the guest agreed to keep in touch, not because of a visit they booked. */
+const keepInTouch = new Set<MessageKind>(['birthday', 'miss_you', 'due_back'])
+
+/**
+ * NEXT-13: the email as the guest sees it, in the studio's colours, made from the same words as
+ * the plain-text part. Should the design ever fail, the email still goes, in plain words.
+ */
+function designed(org: Org, subject: string, stored: string, links: Links, typed: boolean) {
+  try {
+    return renderEmail({
+      subject,
+      text: stored,
+      links,
+      details: !typed,
+      from: studioSender(org.state),
+    })
+  } catch (error) {
+    console.error('[SALEANE] An email design could not be made; sending the plain words.', error)
+    return undefined
+  }
+}
+
 /**
  * The outbox: plans confirmations and reminders from studio records, then hands each one to the
  * configured provider exactly once. Messages live in their own table rather than the studio
@@ -72,6 +98,7 @@ const RECEPTION_STALE_MS = 15 * 60000
 export function createOutbox(ctx: Context, providers: Providers) {
   const { db, now } = ctx
   let running: Promise<void> | null = null
+  const bookAt = (org: Org) => `${ctx.allowedOrigin}/book/${org.slug}`
 
   /** Records anything newly due. Safe to repeat: each message has one key per visit time. */
   const plan = () => {
@@ -162,14 +189,7 @@ export function createOutbox(ctx: Context, providers: Providers) {
         if (!call || !missedCallTextDue(org.state, call, new Date(now()).toISOString()))
           return skip('Called back, turned off or too late before it went out.')
         const text = composeMissedCallText(org.state)
-        return send(
-          fresh,
-          org,
-          fresh.recipient,
-          '',
-          text.body,
-          text.body.replaceAll(BOOK_LINK, `${ctx.allowedOrigin}/book/${org.slug}`),
-        )
+        return send(fresh, org, fresh.recipient, '', text.body, { [BOOK_LINK]: bookAt(org) })
       }
       if (org && fresh.kind === 'receptionist') {
         // V4: an answer to a guest's text. Checked again now: still a studio of its own, still
@@ -179,7 +199,7 @@ export function createOutbox(ctx: Context, providers: Providers) {
           return skip('Too late to answer by the time it could go out.')
         // A visit's private link goes only to the number still on that guest's record, and only
         // while the visit is still to come.
-        let sending = fresh.body
+        const links: Links = {}
         if (fresh.body.includes(MANAGE_LINK)) {
           const visit = org.state.appointments.find(
             (a) => a.id === fresh.appointment_id && a.clientId === fresh.client_id,
@@ -195,10 +215,7 @@ export function createOutbox(ctx: Context, providers: Providers) {
             !fresh.body.includes(visitSummary(org.state, visit))
           )
             return skip('The visit or the number on the booking changed before it went out.')
-          sending = fresh.body.replaceAll(
-            MANAGE_LINK,
-            issueGuestLink(ctx, org, visit.id, 'message').url,
-          )
+          links[MANAGE_LINK] = issueGuestLink(ctx, org, visit.id, 'message').url
         }
         if (isSocialChannel(fresh.channel)) {
           // On a social app, only from the account the guest wrote to, and within its day.
@@ -219,11 +236,13 @@ export function createOutbox(ctx: Context, providers: Providers) {
           const ends = socialWindowEnds(org.state, fresh.channel, fresh.recipient, kept.account)
           if (!ends || now() >= ends)
             return skip('The app’s day to answer ended before it went out.')
-          return send(fresh, org, fresh.recipient, '', fresh.body, sending, account.account_id)
+          return send(fresh, org, fresh.recipient, '', fresh.body, links, {
+            account: account.account_id,
+          })
         }
         if (!answersTexts(org.state))
           return skip('Answering texts was turned off before it went out.')
-        return send(fresh, org, fresh.recipient, '', fresh.body, sending)
+        return send(fresh, org, fresh.recipient, '', fresh.body, links)
       }
       if (org && fresh.kind === 'social') {
         // V4: the team's answer on Instagram, Facebook or WhatsApp. Checked again now: still a
@@ -242,7 +261,17 @@ export function createOutbox(ctx: Context, providers: Providers) {
         if (!account) return skip('The account was disconnected or changed before it went out.')
         const ends = socialWindowEnds(org.state, fresh.channel, fresh.recipient, answer.account)
         if (!ends || now() >= ends) return skip('The app’s day to answer ended before it went out.')
-        return send(fresh, org, fresh.recipient, '', answer.body, answer.body, account.account_id)
+        return send(
+          fresh,
+          org,
+          fresh.recipient,
+          '',
+          answer.body,
+          {},
+          {
+            account: account.account_id,
+          },
+        )
       }
       if (fresh.channel !== 'email' && fresh.channel !== 'sms')
         return skip('This message cannot go on a social app.')
@@ -265,8 +294,16 @@ export function createOutbox(ctx: Context, providers: Providers) {
           return skip('The time was booked, or had passed, before it went out.')
         const to = fresh.channel === 'email' ? client.email.trim() : textNumber(client.phone)
         if (!to) return skip('The client has no address for this channel now.')
-        const body = message.body.replaceAll(BOOK_LINK, `${ctx.allowedOrigin}/book/${org.slug}`)
-        return send(fresh, org, to, message.subject, message.body, body)
+        return send(
+          fresh,
+          org,
+          to,
+          message.subject,
+          message.body,
+          { [BOOK_LINK]: bookAt(org) },
+          // Words a person wrote: no visit card, and news goes the way news must.
+          { typed: true, stream: message.purpose === 'marketing' ? 'broadcast' : 'transactional' },
+        )
       }
       // V1.5: a birthday or "we miss you" is about the guest, not a visit. Checked again now.
       const kind = fresh.kind
@@ -310,11 +347,11 @@ export function createOutbox(ctx: Context, providers: Providers) {
           current = composeMessage(org.state, visit, kind, fresh.channel)
         visitId = visit.id
       }
-      let body = current?.body ?? fresh.body
-      body = body.replaceAll(BOOK_LINK, `${ctx.allowedOrigin}/book/${org.slug}`)
-      if (body.includes(MANAGE_LINK)) {
+      const words = current?.body ?? fresh.body
+      const links: Links = { [BOOK_LINK]: bookAt(org) }
+      if (words.includes(MANAGE_LINK)) {
         try {
-          body = body.replaceAll(MANAGE_LINK, issueGuestLink(ctx, org, visitId, 'message').url)
+          links[MANAGE_LINK] = issueGuestLink(ctx, org, visitId, 'message').url
         } catch {
           return skip('The visit is too close or too far past for a manage link.')
         }
@@ -326,32 +363,40 @@ export function createOutbox(ctx: Context, providers: Providers) {
           ? client.email.trim()
           : textNumber(client.phone)
       if (!to) return skip('The client has no address for this channel now.')
-      return send(
-        fresh,
-        org,
-        to,
-        current?.subject ?? fresh.subject,
-        current?.body ?? fresh.body,
-        body,
-      )
+      return send(fresh, org, to, current?.subject ?? fresh.subject, words, links, {
+        stream: keepInTouch.has(kind) ? 'broadcast' : 'transactional',
+      })
     })
 
   /**
    * Marks a claimed message "unknown" with the words and address it is about to go with, and
-   * hands back what the provider needs. Only `stored` is kept: the private link in `sending` is
-   * never written down.
+   * hands back what the provider needs. Only `stored` is kept, with its placeholders: the private
+   * link each one becomes is made for this message and never written down.
    */
   const send = (
     fresh: OutboxRow,
-    org: NonNullable<ReturnType<Context['systemOrg']>>,
+    org: Org,
     to: string,
     subject: string,
     stored: string,
-    sending: string,
-    /** V4: the studio's own account a social answer goes from. */
-    account?: string,
+    links: Links,
+    options: {
+      /** V4: the studio's own account a social answer goes from. */
+      account?: string
+      /** NEXT-13: news and keeping in touch go apart from visit messages, as providers ask. */
+      stream?: 'transactional' | 'broadcast'
+      /** Words a person typed, rather than SALEANE's own messages. */
+      typed?: boolean
+    } = {},
   ) => {
+    const { account, stream = 'transactional', typed = false } = options
     const provider = providerFor(providers, fresh.channel)
+    const sending = Object.entries(links).reduce(
+      (text, [placeholder, url]) => (url ? text.replaceAll(placeholder, url) : text),
+      stored,
+    )
+    const email = fresh.channel === 'email'
+    const html = email ? designed(org, subject, stored, links, typed) : undefined
     db.run(
       "UPDATE outbox SET status='unknown',provider=?,attempts=attempts+1,detail=?,recipient=?,subject=?,body=?,updated_at=? WHERE id=?",
       provider.name,
@@ -372,6 +417,8 @@ export function createOutbox(ctx: Context, providers: Providers) {
         body: sending,
         fromName: org.state.organisation.name,
         ...(account ? { account } : {}),
+        ...(email ? { stream } : {}),
+        ...(html ? { html } : {}),
       },
     }
   }
@@ -415,12 +462,26 @@ export function createOutbox(ctx: Context, providers: Providers) {
 
   /** A verified provider receipt. Only a receipt can turn a message into "delivered". */
   const record = (receipt: Receipt) => {
-    const row = db.get<OutboxRow>(
-      'SELECT * FROM outbox WHERE provider=? AND provider_ref=?',
-      receipt.provider,
-      receipt.providerRef,
-    )
-    if (!row || row.status === 'delivered') return false
+    const row = receipt.providerRef
+      ? db.get<OutboxRow>(
+          'SELECT * FROM outbox WHERE provider=? AND provider_ref=?',
+          receipt.provider,
+          receipt.providerRef,
+        )
+      : receipt.outboxId
+        ? // Only a row handed to this sender (accepted, or unclear when the line dropped) can be
+          // named by the id SALEANE gave it.
+          db.get<OutboxRow>(
+            "SELECT * FROM outbox WHERE provider=? AND id=? AND (provider_ref IS NOT NULL OR status='unknown')",
+            receipt.provider,
+            receipt.outboxId,
+          )
+        : undefined
+    if (!row) return false
+    // Delivered applies to a message on its way. A failure also applies to one already delivered,
+    // as a bounce can come back after the guest's provider first took it, and nothing undoes it.
+    const open = row.status === 'accepted' || row.status === 'unknown'
+    if (receipt.delivered ? !open : !open && row.status !== 'delivered') return false
     finish(row, receipt.delivered ? 'delivered' : 'failed', {
       detail: receipt.delivered ? null : (receipt.detail ?? 'The provider could not deliver it.'),
     })

@@ -28,6 +28,7 @@ export const PRACTITIONER_PATCH_TESTS = 5
 const PRACTITIONER_COMMANDS = [
   'arrive',
   'note',
+  'visit-write-up',
   'patch-test',
   'patch-test-result',
   'clock-in',
@@ -79,6 +80,8 @@ export const practitionerViewSchema = z
           status: appointmentSchema.shape.status,
           /** V1.5: the guest tapped "I've arrived" and has not been welcomed yet. */
           guestHere: z.literal(true).optional(),
+          /** NEXT-16: their own aftercare for this visit, sent with its aftercare email. */
+          aftercare: z.string().optional(),
           /** V1.5: for a treatment that needs one, where the guest's patch test stands. */
           patchTest: z
             .object({
@@ -253,6 +256,7 @@ export function practitionerView(
       bufferMinutes: a.bookedBufferMinutes,
       status: a.status,
       ...(a.status === 'confirmed' && a.guestHereAt ? { guestHere: true as const } : {}),
+      ...(a.aftercare ? { aftercare: a.aftercare.text } : {}),
       patchTest: patchFor(a),
       ...formsForVisit(s, a),
       ...(() => {
@@ -315,6 +319,14 @@ export function practitionerRefusal(
     return visits.some((a) => a.id === command.appointmentId)
       ? null
       : 'This visit is not assigned to you.'
+  // NEXT-16: only for their own visits, and only once the guest has come in.
+  if (command.type === 'visit-write-up') {
+    const visit = visits.find((a) => a.id === command.appointmentId)
+    if (!visit) return 'This visit is not assigned to you.'
+    return visit.status === 'arrived' || visit.status === 'completed'
+      ? null
+      : 'Write up a visit once the guest has arrived.'
+  }
   if (command.type === 'note')
     return visits.some((a) => a.clientId === command.clientId)
       ? null

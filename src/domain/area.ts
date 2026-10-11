@@ -29,6 +29,7 @@ const AREA_COMMANDS = [
   'branch-visit-fix',
   'request-raise',
   'request-decide',
+  'own-voice',
 ] as const
 
 const id = z.string().min(1)
@@ -245,6 +246,7 @@ export function areaRefusal(
   if (!(AREA_COMMANDS as readonly string[]).includes(command.type))
     return 'Your role cannot make this change.'
   const { ids } = areaPlaces(s, regionId)
+  if (command.type === 'own-voice') return null
   if (command.type === 'branch-visit')
     return ids.has(command.input.locationId) ? null : 'That location is not in your area.'
   if (command.type === 'branch-visit-fix') {

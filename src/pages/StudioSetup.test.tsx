@@ -111,7 +111,7 @@ describe('Set up your studio', () => {
 
   it('asks before leaving an unfinished screen, and keeps the finished ones', async () => {
     show(fresh())
-    await userEvent.type(screen.getByLabelText('Phone for guests (optional)'), '01225 466 120')
+    await userEvent.type(screen.getByLabelText('Phone for guests (optional)'), '01632 960 120')
     await userEvent.click(screen.getByRole('button', { name: 'Finish later' }))
     expect(commit).not.toHaveBeenCalled()
     expect(screen.getByRole('alert')).toHaveTextContent('This screen is not finished')

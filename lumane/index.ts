@@ -8,6 +8,9 @@
  */
 export * from './allowance'
 export * from './brain'
+export * from './claude'
 export * from './engine'
+export * from './live'
 export * from './skill'
+export * from './talk'
 export * from './voice'

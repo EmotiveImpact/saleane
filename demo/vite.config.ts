@@ -132,6 +132,8 @@ export default defineConfig({
       { find: /^node:dns(\/promises)?$/, replacement: here('./shims/dns.ts') },
       { find: /^node:https?$/, replacement: here('./shims/http.ts') },
       { find: 'node:net', replacement: here('./shims/net.ts') },
+      // Only the server's sender choice imports this; the demo never sends email.
+      { find: /^\.\/emailSenders$/, replacement: here('./shims/emailSenders.ts') },
     ],
   },
   build: {

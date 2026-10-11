@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { check, record } from './allowance'
 import type { Allowance, Meter, Usage } from './allowance'
 import type { Brain, BrainMessage, ToolSpec } from './brain'
+import { BrainError } from './brain'
 import { SkillRefusal } from './skill'
 import type { Proposal, Skill } from './skill'
 
@@ -27,6 +28,8 @@ export type TurnInput<Ctx> = {
   ctx: Ctx
   /** The app's standing instructions: its voice, its rules, what it must never claim. */
   instructions: string
+  /** Facts for this request only, such as today's date and who is asking. */
+  context?: string
   history: BrainMessage[]
   text: string
   meter: {
@@ -37,11 +40,19 @@ export type TurnInput<Ctx> = {
     kind: Exclude<Meter, 'talkSeconds'>
     /** How much of the meter this turn uses: 1 by default, 0 for a message in a chat already counted. */
     amount?: number
-    /** The most this turn could cost, in minor units, checked against the daily ceiling. */
+    /**
+     * The most this turn should cost, in minor units. It is checked against the daily ceiling
+     * first, and no further call to the AI starts that, costing as much as the costliest call so
+     * far, would take the turn past it.
+     */
     worstCaseMinor: number
   }
   /** The most skill rounds one request may take, so a single request cannot run away. */
   maxSteps?: number
+  /** No further call to the AI starts after this long, so a slow supplier cannot keep someone waiting. */
+  timeLimitMs?: number
+  /** The clock for the time limit, in milliseconds. Replaced in tests. */
+  clock?: () => number
   /** Minutes before a proposal goes stale. */
   proposalMinutes?: number
   newId?: () => string
@@ -63,6 +74,20 @@ export type TurnResult<Effect = unknown> =
       costMinor: number
       audit: AuditEntry[]
     }
+  | {
+      /**
+       * The AI supplier could not answer. Nothing it proposed is kept and the request does not
+       * count against the monthly amount, but whatever it cost is still recorded.
+       */
+      status: 'unavailable'
+      reason: BrainError['kind']
+      /** What went wrong, for the people running the app; never shown to the person asking. */
+      detail: string
+      text: string
+      usage: Usage
+      costMinor: number
+      audit: AuditEntry[]
+    }
 
 export function toolSpecs<Ctx>(skills: Skill<Ctx>[], ctx: Ctx): ToolSpec[] {
   return skills
@@ -78,6 +103,8 @@ export function toolSpecs<Ctx>(skills: Skill<Ctx>[], ctx: Ctx): ToolSpec[] {
 }
 
 const STOPPED = 'I stopped there because that request needed more steps than I can take at once.'
+const UNAVAILABLE =
+  'Sorry, I could not answer just now. Nothing was changed. Please try again shortly.'
 
 /**
  * One request to the assistant. The allowance is checked first, so a refused request never
@@ -105,13 +132,47 @@ export async function runTurn<Ctx>(input: TurnInput<Ctx>): Promise<TurnResult> {
   const messages: BrainMessage[] = [...input.history, { role: 'user', text: input.text }]
   const proposals: PendingProposal[] = []
   const audit: AuditEntry[] = []
+  const clock = input.clock ?? Date.now
+  const started = clock()
   let costMinor = 0
+  // Each call carries the whole conversation so far, so the next is taken to cost at least as
+  // much as the costliest before it.
+  let costliest = 0
   let text = STOPPED
 
   for (let step = 0; step < (input.maxSteps ?? 6); step++) {
-    const reply = await input.brain.respond({ instructions: input.instructions, messages, tools })
+    // Each call to the AI is checked first: a turn that would pass its share with another call
+    // like the costliest so far, or has taken too long, stops rather than starting another.
+    if (step > 0 && costMinor + costliest > meter.worstCaseMinor) break
+    if (step > 0 && input.timeLimitMs !== undefined && clock() - started >= input.timeLimitMs) break
+    let reply
+    try {
+      reply = await input.brain.respond({
+        instructions: input.instructions,
+        ...(input.context ? { context: input.context } : {}),
+        messages,
+        tools,
+      })
+    } catch (error) {
+      costMinor += error instanceof BrainError ? error.costMinor : 0
+      return {
+        status: 'unavailable',
+        reason: error instanceof BrainError ? error.kind : 'failed',
+        detail: error instanceof Error ? error.message : String(error),
+        text: UNAVAILABLE,
+        usage: record(meter.usage, { ...request, amount: 0 }, costMinor),
+        costMinor,
+        audit,
+      }
+    }
     costMinor += reply.costMinor
-    messages.push({ role: 'assistant', text: reply.text, calls: reply.calls })
+    costliest = Math.max(costliest, reply.costMinor)
+    messages.push({
+      role: 'assistant',
+      text: reply.text,
+      calls: reply.calls,
+      ...(reply.raw === undefined ? {} : { raw: reply.raw }),
+    })
     if (!reply.calls.length) {
       text = reply.text?.trim() || 'Sorry, I have no answer for that.'
       break

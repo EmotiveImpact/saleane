@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { renderEmail, saleaneSender } from '../src/email/render'
 import { digest, token } from './auth'
 import type { Context } from './context'
 
@@ -104,19 +105,23 @@ export function mailLink(ctx: Context, account: Account, kind: LinkKind) {
   }
 }
 
-const WORDING: Record<LinkKind, { subject: string; body: (name: string, link: string) => string }> =
-  {
-    reset: {
-      subject: 'Choose a new SALEANE password',
-      body: (name, link) =>
-        `Hello ${name},\n\nSomeone asked to choose a new password for your SALEANE account. If it was you, open this link within the next hour:\n\n${link}\n\nIf it was not you, ignore this email. Your password stays as it is.\n\nSALEANE`,
-    },
-    confirm: {
-      subject: 'Confirm your email for SALEANE',
-      body: (name, link) =>
-        `Hello ${name},\n\nPlease confirm this is your email address by opening this link within the next seven days:\n\n${link}\n\nSALEANE`,
-    },
-  }
+const WORDING: Record<
+  LinkKind,
+  { subject: string; button: string; body: (name: string, link: string) => string }
+> = {
+  reset: {
+    subject: 'Choose a new SALEANE password',
+    button: 'Choose a new password',
+    body: (name, link) =>
+      `Hello ${name},\n\nSomeone asked to choose a new password for your SALEANE account. If it was you, open this link within the next hour:\n\n${link}\n\nIf it was not you, ignore this email. Your password stays as it is.\n\nSALEANE`,
+  },
+  confirm: {
+    subject: 'Confirm your email for SALEANE',
+    button: 'Confirm your email',
+    body: (name, link) =>
+      `Hello ${name},\n\nPlease confirm this is your email address by opening this link within the next seven days:\n\n${link}\n\nSALEANE`,
+  },
+}
 
 type Account = { id: string; name: string; email: string }
 const firstName = (account: Account) => account.name.split(' ')[0]
@@ -133,6 +138,7 @@ export function sendAccountMail(ctx: Context, account: Account, kind: LinkKind, 
     linkInLog(ctx)
       ? `this ${kind} link was not sent to ${account.email}: ${link}`
       : `a ${kind} link for ${account.email} was not sent. It is not written here, as this server is not for this computer alone.`,
+    words.button,
   )
 }
 
@@ -193,6 +199,8 @@ async function deliver(
   subject: string,
   body: string,
   unsent: string,
+  /** NEXT-13: what the button for the email's link says. */
+  button?: string,
 ) {
   const id = randomUUID()
   const provider = ctx.messaging.email
@@ -210,6 +218,18 @@ async function deliver(
     'Handed to the email service; no answer yet.',
     ctx.now(),
   )
+  // NEXT-13: in SALEANE's own look. Should the design ever fail, the plain words still go.
+  let html: string | undefined
+  try {
+    html = renderEmail({
+      subject,
+      text: body,
+      from: saleaneSender,
+      ...(button ? { labels: { alone: button } } : {}),
+    })
+  } catch (error) {
+    console.error('[SALEANE] An email design could not be made; sending the plain words.', error)
+  }
   let status: 'test' | 'accepted' | 'failed' | 'unknown'
   let ref: string | null = null
   let detail: string | null = null
@@ -221,6 +241,7 @@ async function deliver(
       subject,
       body,
       fromName: 'SALEANE',
+      ...(html ? { html } : {}),
     })
     status = result.outcome
     if (result.outcome === 'accepted') ref = result.providerRef

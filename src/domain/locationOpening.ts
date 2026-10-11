@@ -271,16 +271,26 @@ export function openingGaps(s: BusinessState, draft: OpeningDraft): string | nul
   return `Nobody working here gives ${list} yet, so guests cannot book ${them} at ${draft.name.trim()} until someone does.`
 }
 
+/**
+ * The new people a location adds who will take bookings, counted as the bill counts them: those
+ * who give at least one treatment the studio still offers.
+ */
+export function newBookingPeople(s: BusinessState, draft: Pick<OpeningDraft, 'newTeam'>) {
+  const offered = new Set(s.services.filter((x) => !x.archived).map((x) => x.id))
+  return draft.newTeam.filter((person) => person.serviceIds.some((id) => offered.has(id))).length
+}
+
 const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 /**
  * NEXT-02: what one more location does to the studio's SALEANE bill, in words for the last step.
  * Each month is billed in advance for every open location, so nothing is taken when it is added:
- * the new amount starts with the next monthly bill.
+ * the new amount starts with the next monthly bill. `newPeople` are the new hires who will take
+ * bookings, so the bill shown before saving counts them as the next bill will.
  */
-export function openingBill(plan: BillingView, org: BusinessState['organisation']) {
-  const before = monthBill(plan.region, plan.locations, plan.plusNext)
-  const after = monthBill(plan.region, plan.locations + 1, plan.plusNext)
+export function openingBill(plan: BillingView, org: BusinessState['organisation'], newPeople = 0) {
+  const before = monthBill(plan.region, plan.locations, plan.plusNext, plan.people)
+  const after = monthBill(plan.region, plan.locations + 1, plan.plusNext, plan.people + newPeople)
   const cash = (minor: number) => money(minor, org, true)
   const day = (at: number) => planDate(org, at)
   const tax = after.taxLabel ? `, including ${after.taxLabel}` : ', plus any sales tax'

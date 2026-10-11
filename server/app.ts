@@ -22,8 +22,11 @@ import { socialRoutes } from './routes/social'
 import type { Outbox } from './messaging/outbox'
 import { paymentRoutes } from './routes/payments'
 import { assistantRoutes } from './routes/assistant'
+import { VOICE_NOTE_BYTES, writeUpRoutes } from './routes/writeUp'
+import { VOICE_NOTE_TYPES } from './transcribe'
 import { receptionistRoutes } from './routes/receptionist'
-import { answerSocial, answerText } from './messaging/receptionistText'
+import { answerMissed, answerSocial, answerText } from './messaging/receptionistText'
+import { HOLD_SECONDS } from '../lumane'
 import { createPayments } from './payments/service'
 import type { Payments } from './payments/service'
 import { connectionTransportFromEnv, createConnections } from './connections'
@@ -50,6 +53,9 @@ export type ApiHandler = ((
   inject: (request: InjectOptions) => Promise<InjectResponse>
 }
 
+/** SendGrid posts its events in batches of up to 768 KiB; anything else stays at the usual limit. */
+const SENDGRID_BATCH_BYTES = 1024 * 1024
+
 // Route modules are tried in order; each claims its own paths and returns false otherwise.
 const baseRoutes = [
   authRoutes,
@@ -66,6 +72,20 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   const ctx = createContext(options)
   const { origin, allowedOrigin, db, rateLimit } = ctx
   const outbox = createOutbox(ctx, ctx.messaging)
+  /**
+   * NEXT-12: the receptionist's answer to a text or social message. A real AI can take several
+   * seconds, longer than a provider waits, so the provider is thanked first and the answer follows
+   * through the outbox. The test-mode receptionist answers at once, before the provider is thanked.
+   */
+  const answerSoon = async (answering: Promise<boolean>, what: string) => {
+    const queued = answering.then((sent) => {
+      if (sent && options.outboxIntervalMs) outbox.soon()
+    })
+    if (!ctx.ai.live) return queued
+    queued.catch((error) =>
+      console.error(`[SALEANE] The receptionist could not answer ${what}.`, error),
+    )
+  }
   const payments = createPayments(ctx, ctx.paymentProvider)
   const billing = createBilling(
     ctx,
@@ -83,6 +103,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   const diaries = diaryRoutes()
   const google = googleBooking(options.googleBooking ?? googleBookingFromEnv(process.env))
   const social = options.social ?? socialFromEnv(process.env)
+  const assistant = assistantRoutes()
   const routes = [
     partners.read,
     partners.manage,
@@ -94,13 +115,35 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     messagingRoutes(outbox),
     paymentRoutes(payments),
     billing.routes,
-    assistantRoutes(),
+    assistant,
+    writeUpRoutes(),
     receptionistRoutes(),
     supportRoutes(
       options.supportEmail === undefined ? supportAddressFromEnv() : options.supportEmail,
     ),
     ...baseRoutes,
   ]
+  // NEXT-12: a guest's message thanked but left unanswered when SALEANE last stopped. One the
+  // allowance refused may have been kept from its answer by the share its own stopped request
+  // still holds, so those are tried once more when that hold has run out.
+  let missedAgain: ReturnType<typeof setTimeout> | undefined
+  if (ctx.ai.live) {
+    const what = 'messages kept before a restart'
+    const missed = answerMissed(ctx)
+    void answerSoon(
+      missed.then(({ queued }) => queued),
+      what,
+    )
+    const again = () =>
+      missed.then(
+        async ({ refused }) => refused.length > 0 && (await answerMissed(ctx, refused)).queued,
+      )
+    missedAgain = setTimeout(
+      () => void answerSoon(again(), what),
+      options.missedAgainMs ?? (HOLD_SECONDS + 15) * 1000,
+    )
+    missedAgain.unref?.()
+  }
   if (options.outboxIntervalMs) {
     outbox.start(options.outboxIntervalMs)
     connections.start(options.outboxIntervalMs)
@@ -134,10 +177,15 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
       const url = new URL(request.url!, allowedOrigin)
       // Provider delivery receipts come from the provider, not a SALEANE page, and prove
       // themselves by signature instead of by origin and session.
-      const hook = /^\/api\/hooks\/(postmark|twilio)$/.exec(url.pathname)
+      const hook = /^\/api\/hooks\/(postmark|twilio|resend|sendgrid|mailgun)$/.exec(url.pathname)
       if (hook) {
         if (method !== 'POST') fail(405, 'Use POST.')
-        const body = (await readBody(request, true)) as string
+        // SendGrid gathers events and posts them in batches of up to 768 KiB.
+        const body = (await readBody(
+          request,
+          true,
+          hook[1] === 'sendgrid' ? SENDGRID_BATCH_BYTES : undefined,
+        )) as string
         const receipts = outbox.providers.receipt(hook[1], {
           url: url.toString(),
           headers: request.headers as Record<string, string | undefined>,
@@ -189,12 +237,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
           recordReply(ctx, inbound[3], provider === 'twilio' ? 'sms' : 'email', reply)
           // V4: the AI receptionist answers a kept text when the studio chose it, once, even if
           // the provider sends it again after a failure; the outbox sends the answer.
-          if (
-            provider === 'twilio' &&
-            (await answerText(ctx, inbound[3], reply)) &&
-            options.outboxIntervalMs
-          )
-            outbox.soon()
+          if (provider === 'twilio') await answerSoon(answerText(ctx, inbound[3], reply), 'a text')
         }
         if (provider === 'twilio') {
           // Nothing answered inline: the team, or the AI receptionist through the outbox, replies.
@@ -229,7 +272,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
         for (const message of metaMessages(payload)) {
           recordSocialMessage(ctx, message)
           // The AI receptionist answers a kept message when the studio chose that, once.
-          if ((await answerSocial(ctx, message)) && options.outboxIntervalMs) outbox.soon()
+          await answerSoon(answerSocial(ctx, message), 'a message')
         }
         reply(200, { ok: true })
         return
@@ -297,9 +340,16 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
           header(request, 'sec-fetch-site') === 'cross-site'
         )
           fail(403, 'This request must come from your SALEANE workspace.')
-        if (!/^application\/json(?:\s*;|$)/i.test(header(request, 'content-type') ?? ''))
-          fail(415, 'Use a JSON request.')
-        body = await readBody(request)
+        const type = header(request, 'content-type') ?? ''
+        // NEXT-16: a voice note arrives as the recording itself, never kept once written down.
+        if (path[1] === 'workspaces' && path[3] === 'visits' && path[5] === 'voice-note') {
+          if (!VOICE_NOTE_TYPES.includes(type.split(';')[0].trim().toLowerCase()))
+            fail(415, 'Send the voice note as a recording.')
+          body = await readBody(request, 'bytes', VOICE_NOTE_BYTES)
+        } else {
+          if (!/^application\/json(?:\s*;|$)/i.test(type)) fail(415, 'Use a JSON request.')
+          body = await readBody(request)
+        }
       }
       const route: Route = { request, response, method, url, path, body, reply }
       // NEXT-02: a studio that has stopped paying is read only for its team.
@@ -333,9 +383,12 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   handler.connections = connections
   handler.billing = billing
   handler.close = () => {
+    clearTimeout(missedAgain)
     outbox.stop()
     connections.stop()
     billing.stop()
+    // NEXT-12: talks still running end and are counted while the database is open.
+    assistant.stop(ctx)
     db.close()
   }
   handler.inject = (input) => inject(handler, allowedOrigin, input)

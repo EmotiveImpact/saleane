@@ -12,6 +12,7 @@ import {
   OPENING_STEPS,
   coreTreatment,
   menuRow,
+  newBookingPeople,
   openDays,
   openingCommand,
   openingDraft,
@@ -563,7 +564,7 @@ function Summary({ draft, offered }: { draft: OpeningDraft; offered: Service[] }
       active = false
     }
   }, [real, state.organisation.id])
-  const bill = plan && openingBill(plan, state.organisation)
+  const bill = plan && openingBill(plan, state.organisation, newBookingPeople(state, draft))
   const gaps = openingGaps(state, draft)
   const lines = [
     ['Where', [draft.name.trim(), draft.address.trim()].join(', ')],

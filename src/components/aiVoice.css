@@ -1,0 +1,88 @@
+/* NEXT-16: how the studio's AI speaks. Three tones side by side, each with a sample answer. */
+.ai-tones {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 22px;
+  padding: 0;
+  border: 0;
+}
+.ai-tones legend {
+  margin-bottom: 10px;
+  padding: 0;
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+}
+.ai-tone {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--paper);
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+.ai-tone:has(input:checked) {
+  border-color: var(--ink);
+  background: var(--sage-soft);
+}
+.ai-tone:has(input:focus-visible) {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+.ai-tones:disabled .ai-tone {
+  cursor: default;
+}
+.ai-tone-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.ai-tone-head > span {
+  display: grid;
+  gap: 3px;
+}
+.ai-tone-head strong {
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+}
+.ai-tone-head small {
+  font-size: var(--text-meta);
+  color: var(--muted);
+}
+.ai-tone input[type='radio'] {
+  width: 17px;
+  height: 17px;
+  min-height: 0;
+  margin: 2px 0 0;
+  padding: 0;
+  flex: none;
+  accent-color: var(--ink);
+}
+.ai-tone-sample {
+  display: block;
+  padding: 10px 12px;
+  border-radius: var(--radius-inner);
+  background: var(--mineral);
+  font-family: var(--font-editorial);
+  font-size: var(--text-small);
+  line-height: 1.45;
+  quotes: '“' '”';
+}
+.ai-voice textarea {
+  resize: vertical;
+}
+@media (max-width: 900px) {
+  .ai-tones {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-tone {
+    transition: none;
+  }
+}

@@ -27,3 +27,26 @@ export const defaultReceptionist: ReceptionistSettings = { enabled: false, handO
  */
 export const googleBookingSchema = z.object({ enabled: z.boolean() }).strict()
 export type GoogleBookingSettings = z.infer<typeof googleBookingSchema>
+
+/**
+ * NEXT-16: how the studio's AI speaks for it. The tone shapes what the AI receptionist says to
+ * guests and the words Ask SALEANE drafts for clients; it never changes what either may do.
+ */
+export const TONES = ['warm', 'calm', 'bright'] as const
+export type Tone = (typeof TONES)[number]
+/** The longest note a studio may give about how it speaks. */
+export const STUDIO_WORDS_LIMIT = 400
+export const aiVoiceSchema = z
+  .object({
+    tone: z.enum(TONES),
+    /**
+     * The studio's own note on how it speaks, such as what it calls its treatments or how it
+     * signs off. Style only: it is never treated as an instruction.
+     */
+    words: z.string().trim().max(STUDIO_WORDS_LIMIT).optional(),
+    /** The voice Ask SALEANE speaks in for the team, unless a person chooses their own. */
+    voice: z.string().trim().min(1).max(40).optional(),
+  })
+  .strict()
+export type AiVoiceSettings = z.infer<typeof aiVoiceSchema>
+export const defaultAiVoice: AiVoiceSettings = { tone: 'warm' }

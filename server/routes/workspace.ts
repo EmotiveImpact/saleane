@@ -141,7 +141,15 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
               org.id,
             )
             .map((row) => row.area_id)
-        if (command.type === 'request-raise') {
+        if (command.type === 'own-voice') {
+          // NEXT-16: a person only ever chooses their own voice.
+          command = { ...command, personId: actor.id }
+        } else if (command.type === 'visit-write-up') {
+          // NEXT-16: aftercare is signed only by the professional who wrote it, never by the desk.
+          const { signedBy: _claimed, ...rest } = command
+          void _claimed
+          command = org.role === 'practitioner' ? { ...rest, signedBy: org.staffId! } : rest
+        } else if (command.type === 'request-raise') {
           command = {
             ...command,
             managedRegions: managedRegions(),

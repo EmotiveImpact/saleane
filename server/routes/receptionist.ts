@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { decide } from '../../lumane'
 import type { PendingProposal } from '../../lumane'
-import { countReception, storedUsage } from '../receptionistUsage'
+import { holding, settleUse } from '../aiUsage'
 import { fail } from '../http'
 import type { Context, Route } from '../context'
 import { dispatch } from '../../src/domain/commands'
@@ -13,6 +13,7 @@ import {
   askReceptionist,
   isOn,
   listedTimes,
+  receptionUse,
 } from '../../src/assistant/receptionist'
 import type { ReceptionEffect } from '../../src/assistant/receptionist'
 
@@ -25,6 +26,10 @@ const CHAT_LIMIT = 10000
 
 const RESTING =
   'The chat is resting for now. You can still choose a time on this page, or call the studio.'
+/** Fill-ins the outbox or a text answer would replace, which the page must never show. */
+const FILL_INS = /\{\{[^{}]*\}\}|\[\[[^[\]]*\]\]/g
+const UNAVAILABLE =
+  'Sorry, I cannot answer just now. You can still choose a time on this page, or call the studio.'
 
 /**
  * V4: the AI receptionist on the public booking page. A guest's chat counts once against the
@@ -67,34 +72,49 @@ export function receptionistRoutes() {
         })
         .strict()
         .parse(body)
+      const brain = ctx.ai.brainFor(org.state, 'reception')
       const known = input.chat ? chats.get(input.chat) : undefined
       const continuing = !!known && known.organisationId === org.id && known.visitor === visitor
       // Without a chat this server started, earlier messages are not taken on trust.
       const history = continuing ? input.history : undefined
-      const result = await askReceptionist({
-        state: ctx.withHolds(org),
-        today: businessDate(org.state, at),
-        now: at,
-        visitorId: visitor,
-        text: input.text,
-        history,
-        continuing,
-        usage: storedUsage(ctx, org.id),
-        allowance: ctx.plans.allowance(org),
-      })
+      // NEXT-12: the message's share is held before the AI is asked, so guests writing at the same
+      // moment cannot all pass the checks, then settled with what it really cost.
+      const use = receptionUse(visitor, at, continuing)
+      const allowance = ctx.plans.allowance(org)
+      const { held: reserved, result } = await holding(ctx, org.id, allowance, use, (before) =>
+        askReceptionist({
+          state: ctx.withHolds(org),
+          today: businessDate(org.state, at),
+          now: at,
+          visitorId: visitor,
+          text: input.text,
+          history,
+          continuing,
+          usage: before,
+          allowance,
+          ...(brain ? { brain } : {}),
+        }),
+      )
       // The studio's allowance message is for the owner; the guest hears something kinder.
       if (result.status === 'refused') {
+        if (reserved)
+          ctx.db.transaction(() => settleUse(ctx, org.id, use, { counted: false, costMinor: 0 }))
         reply(200, { text: RESTING, proposals: [], chat: null })
         return true
       }
+      // When the AI cannot answer, the chat is not counted but what it cost is.
+      if (result.status === 'unavailable') {
+        console.error(
+          `[SALEANE] The receptionist's AI could not answer (${result.reason}): ${result.detail}`,
+        )
+        ctx.db.transaction(() =>
+          settleUse(ctx, org.id, use, { counted: false, costMinor: result.costMinor }),
+        )
+        reply(200, { text: UNAVAILABLE, proposals: [], chat: continuing ? input.chat : null })
+        return true
+      }
       ctx.db.transaction(() =>
-        countReception(ctx, org.id, {
-          at,
-          visitor,
-          continuing,
-          costMinor: result.costMinor,
-          usage: result.usage,
-        }),
+        settleUse(ctx, org.id, use, { counted: true, costMinor: result.costMinor }),
       )
       for (const proposal of result.proposals)
         held.set(proposal.id, { ...proposal, organisationId: org.id, visitor })
@@ -102,7 +122,8 @@ export function receptionistRoutes() {
       if (!continuing && chats.size >= CHAT_LIMIT) chats.delete(chats.keys().next().value!)
       chats.set(chat, { organisationId: org.id, visitor, expires: ctx.now() + CHAT_IDLE_MS })
       reply(200, {
-        text: result.text,
+        // The page shows words only: any fill-in meant for a text message is taken out.
+        text: result.text.replace(FILL_INS, '').trim(),
         chat,
         proposals: result.proposals.map(({ id, summary, effect, expiresAt }) => ({
           id,
