@@ -2,7 +2,8 @@ import { runTurn } from '../../lumane'
 import type { Allowance, Brain, BrainMessage, TurnResult, Usage, UseRequest } from '../../lumane'
 import type { BusinessState } from '../domain/model'
 import type { Role } from '../domain/operations'
-import { ALLOWANCES, INSTRUCTIONS, askContext, askFacts, askSaleaneSkills } from './saleane'
+import { SALEANE_PACK } from './pack'
+import { ALLOWANCES, askContext, askFacts } from './saleane'
 import { testModeBrain } from './testBrain'
 
 /**
@@ -13,7 +14,7 @@ export const TYPED_WORST_CASE_MINOR = 6
 /** What one typed question uses of the allowance, held before the AI is asked. */
 export const askUse = (personId: string, at: string) =>
   ({
-    meter: 'typed',
+    meter: SALEANE_PACK.audiences.team.meter,
     amount: 1,
     personId,
     at,
@@ -66,11 +67,12 @@ If you prepare a change, say it is waiting on their screen to approve.`
  */
 export function askSaleane(input: AskInput): Promise<TurnResult> {
   const ctx = askContext(input.state, input.role, input.at)
+  const team = SALEANE_PACK.audiences.team
   return runTurn({
     brain: input.brain ?? testModeBrain(ctx.today, input.state.organisation.locale),
-    skills: askSaleaneSkills(),
+    skills: team.skills(),
     ctx,
-    instructions: INSTRUCTIONS,
+    instructions: team.instructions,
     context: input.spoken ? `${askFacts(ctx)}\n${SPOKEN}` : askFacts(ctx),
     timeLimitMs: TURN_TIME_LIMIT_MS,
     history: (input.history ?? [])

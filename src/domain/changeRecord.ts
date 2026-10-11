@@ -15,6 +15,7 @@ import type { OtherTillSale } from './otherTillSchema'
 import { defaultQuietOffers } from './quietOffersSchema'
 import { retentionDecision, retentionKinds } from './retentionDue'
 import type { RetentionKind } from './retentionSchema'
+import { ASK_NAME } from '../assistant/name'
 
 /**
  * NEXT-05: who changed what. Every saved change is already written to the studio's audit log
@@ -93,7 +94,7 @@ const commandWords: Record<Command['type'], Words> = {
     'Set up card payments for a membership',
   ],
   'plan-card-try': ['money', 'Noted a declined card payment for a membership'],
-  batch: ['visits', 'Approved several changes from Ask SALEANE'],
+  batch: ['visits', `Approved several changes from ${ASK_NAME}`],
   'special-plan': ['settings', 'Planned a special'],
   'task-add': ['team', 'Left a reminder for the team'],
   'task-done': ['team', 'Ticked off a team reminder'],
@@ -137,7 +138,7 @@ const commandWords: Record<Command['type'], Words> = {
   'message-queue': ['messages', 'Approved a message for sending'],
   receptionist: ['settings', 'Changed the AI receptionist'],
   'ai-voice': ['settings', 'Changed how the AI speaks for the studio'],
-  'own-voice': ['settings', 'Chose their own voice for Ask SALEANE'],
+  'own-voice': ['settings', `Chose their own voice for ${ASK_NAME}`],
   'visit-write-up': ['clients', 'Wrote up a visit'],
   'google-booking': ['settings', 'Changed Book with Google'],
   'ai-booking': ['settings', 'Changed booking through ChatGPT or Claude'],
@@ -243,10 +244,10 @@ const serverWords: Record<string, Words> = {
   'membership.card-refund.started': ['money', 'Started a refund to the card for a membership'],
   'membership.card-refund': ['money', 'Refunded a membership to the card and ended it'],
   'membership.cards-resumed': ['money', 'Turned membership card payments back on after a restore'],
-  'assistant.proposed': ['settings', 'Asked Ask SALEANE to suggest a change'],
-  'assistant.approved': ['settings', 'Approved a change Ask SALEANE suggested'],
-  'assistant.declined': ['settings', 'Turned down a change Ask SALEANE suggested'],
-  'assistant.talked': ['settings', 'Talked to Ask SALEANE'],
+  'assistant.proposed': ['settings', `Asked ${ASK_NAME} to suggest a change`],
+  'assistant.approved': ['settings', `Approved a change ${ASK_NAME} suggested`],
+  'assistant.declined': ['settings', `Turned down a change ${ASK_NAME} suggested`],
+  'assistant.talked': ['settings', `Talked to ${ASK_NAME}`],
   'outbox.retry': ['messages', 'Tried sending a message again'],
   'client.exported': ['clients', 'Downloaded a copy of a client’s data'],
   'client.erasure_requested': ['clients', 'Recorded a request to erase a client'],

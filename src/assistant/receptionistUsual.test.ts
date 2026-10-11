@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { scriptedBrain } from '../../lumane'
+import { scriptedBrain, standingInstructions } from '../../lumane'
 import type { BrainRequest } from '../../lumane'
 import { operations } from '../domain/operations'
 import { onlinePatchTestStop, patchTestSettings } from '../domain/patchTests'
 import type { BusinessState } from '../domain/model'
 import {
-  askReceptionist,
   listedTimes,
   receptionContext,
   receptionFacts,
@@ -13,6 +12,7 @@ import {
   RECEPTION_INSTRUCTIONS,
 } from './receptionist'
 import type { ReceptionEffect, ReceptionTurn } from './receptionist'
+import { askReceptionist } from './receptionistAsk'
 import { usualAsked } from './receptionistBrain'
 import {
   SATURDAY,
@@ -399,7 +399,7 @@ describe('a real AI uses my_usual', () => {
     const spec = tools.find((t) => t.name === 'my_usual')!
     expect(spec.description).toMatch(/Pass its treatment, professional, location, nextDate/)
     expect(spec.inputSchema).toMatchObject({ type: 'object', properties: {} })
-    expect(requests[0].instructions).toBe(RECEPTION_INSTRUCTIONS)
+    expect(requests[0].instructions).toBe(standingInstructions(RECEPTION_INSTRUCTIONS))
     expect(RECEPTION_INSTRUCTIONS).toMatch(/use my_usual/)
     expect(requests[0].context).toContain('The guest is a known client, Amelia.')
     // find_times accepted my_usual's fields as they came, and found Maya's morning times.

@@ -6,6 +6,7 @@ import { VISIT_AFTERCARE_LIMIT } from '../domain/model'
 import { VOICE_NOTE_SECONDS, WRITE_UP_WORDS_LIMIT } from '../assistant/writeUp'
 import { Button, ErrorMessage } from '../design'
 import './visitWriteUp.css'
+import { ASK_NAME } from '../assistant/name'
 
 type WriteUpStatus = {
   mode: 'test' | 'live'
@@ -292,8 +293,8 @@ export function VisitWriteUp({
           {!live
             ? 'In test mode it is sorted here by its words, and nothing leaves SALEANE.'
             : listens
-              ? 'Your voice goes to OpenAI to be written down and your words to Claude to be written up. The recording is not kept. Each one counts as one Ask SALEANE question.'
-              : 'Your words go to Claude to be written up. Each one counts as one Ask SALEANE question.'}
+              ? `Your voice goes to OpenAI to be written down and your words to Claude to be written up. The recording is not kept. Each one counts as one ${ASK_NAME} question.`
+              : `Your words go to Claude to be written up. Each one counts as one ${ASK_NAME} question.`}
         </p>
       )}
       {lost && (

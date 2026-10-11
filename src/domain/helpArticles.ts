@@ -3,6 +3,7 @@ import type { HelpArticle } from './help'
 import { GRACE_DAYS, LOCK_DAYS, RETRY_DAYS } from './pricing'
 import { RETRY_DAYS as CARD_RETRY_DAYS } from './planCards'
 import { GUEST_CANCEL_CUTOFF_HOURS } from './guest'
+import { ASK_NAME } from '../assistant/name'
 
 const DESK: readonly Role[] = ['owner', 'manager', 'reception', 'general']
 const LEADS: readonly Role[] = ['owner', 'manager', 'general']
@@ -1263,7 +1264,7 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
       'Write times as 09:00 to 17:00, not with a dash.',
       'Open Design language, at the foot of every page, and read How SALEANE speaks for the words we use, the words we avoid and examples from the app.',
     ],
-    note: 'Ask SALEANE and the AI receptionist follow the same words.',
+    note: `${ASK_NAME} and the AI receptionist follow the same words.`,
     to: '/design-language',
     screens: ['/design-language'],
     roles: DESK,
@@ -1429,11 +1430,11 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
   },
   {
     id: 'ask-saleane',
-    title: 'Ask SALEANE',
+    title: ASK_NAME,
     group: 'Messages and AI',
     summary: 'Ask about your day, your clients and your takings, or how to do something here.',
     steps: [
-      'Choose Ask SALEANE at the top of the screen.',
+      `Choose ${ASK_NAME} at the top of the screen.`,
       'Ask in your own words, such as "who is my 10 o\'clock?" or "how do I refund a payment?".',
       'When it prepares a change, such as a booking, choose Approve or Not now. Nothing changes until you approve.',
       'Where talking is switched on, choose Talk to ask out loud, and allow the microphone. Choose Stop when you are done. Voice, below, chooses the voice you hear.',
@@ -1514,14 +1515,14 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     id: 'ai-voice',
     title: 'Choose how your AI speaks',
     group: 'Messages and AI',
-    summary: 'The tone the AI receptionist uses with guests, and the voice Ask SALEANE speaks in.',
+    summary: `The tone the AI receptionist uses with guests, and the voice ${ASK_NAME} speaks in.`,
     steps: [
       'Open Settings, then AI and voice, and find How your AI speaks.',
       'Choose Warm and friendly, Calm and polished or Bright and cheerful. Each shows how it might answer a guest.',
       'If you like, write a short note on how you speak, such as what you call your treatments.',
-      'Choose the voice Ask SALEANE speaks in, then Save how your AI speaks.',
+      `Choose the voice ${ASK_NAME} speaks in, then Save how your AI speaks.`,
     ],
-    note: 'The tone changes how the AI speaks, never what it may do, and it always says it is an AI. Ask SALEANE writes the messages it prepares for your clients in the same tone. Each person can choose their own voice under Voice in Ask SALEANE.',
+    note: `The tone changes how the AI speaks, never what it may do, and it always says it is an AI. ${ASK_NAME} writes the messages it prepares for your clients in the same tone. Each person can choose their own voice under Voice in ${ASK_NAME}.`,
     to: '/settings?section=receptionist',
     screens: ['/settings?section=receptionist'],
     roles: RUNS,
