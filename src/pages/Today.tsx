@@ -126,7 +126,7 @@ export function Today() {
         <div
           className="greeting-photo"
           aria-hidden="true"
-          style={{ backgroundImage: `url(${photos.sunlitRoom})` }}
+          style={{ backgroundImage: `url(${photos.today})` }}
         />
       </section>
       <WaitingStrip />

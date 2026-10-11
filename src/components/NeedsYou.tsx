@@ -103,7 +103,7 @@ export function NeedsYou() {
         <div
           className="all-in-hand-photo"
           aria-hidden="true"
-          style={{ backgroundImage: `url(${photos.calmStudio})` }}
+          style={{ backgroundImage: `url(${photos.calendar})` }}
         />
         <div className="all-in-hand-words">
           <h2 id="needs-you-title">All in hand</h2>

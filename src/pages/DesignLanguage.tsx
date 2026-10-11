@@ -512,7 +512,7 @@ export function DesignLanguage() {
           <div className="library-frame">
             <PageHeader
               headingLevel={2}
-              photo={{ src: photos.tea, position: 'center 58%' }}
+              photo={{ src: photos.waitlist, position: 'center 26%' }}
               eyebrow="Waitlist"
               title="Who would take a time."
               description="When a time opens that suits someone, it appears beside their name."
@@ -888,8 +888,8 @@ export function DesignLanguage() {
           </p>
           <Empty title="A little breathing room">No visits on this day.</Empty>
           <Empty
-            photo={photos.tea}
-            photoPosition="center 62%"
+            photo={photos.waitlist}
+            photoPosition="center 40%"
             eyebrow="Waitlist"
             title="Nobody is waiting yet."
             action={
