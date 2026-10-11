@@ -1,6 +1,6 @@
 # LUMANE hardened: evidence
 
-Recorded 11 October 2026 in Chromium (Playwright) against the built app (`npm run build && npm start`, 127.0.0.1:5173) with a fresh local database and a sample studio, the AI in test mode and no Anthropic or OpenAI key set. All names are fictional. Nothing was deployed.
+Recorded 11 October 2026 on top of `main` after the merge of #106 to #116 (with the polish pass), in Chromium (Playwright) against the built app (`npm run build && npm start`, 127.0.0.1:5173) with a fresh local database and a sample studio, the AI in test mode and no Anthropic or OpenAI key set. All names are fictional. Nothing was deployed.
 
 These are the four fixes Edem approved from the "unbreakable" study, with two smaller ones that came out of it:
 
@@ -24,7 +24,7 @@ The owner signed in on the sign-in page as a person would, and the studio's AI r
 
 ## Automated checks
 
-`npm run check` passed: lint, strict TypeScript, the application, server and backup builds, 1,946 application tests and 650 server tests. `npm run format:check` passed.
+`npm run check` passed: lint, strict TypeScript, the application, server and backup builds, 2,013 application tests and 650 server tests. `npm run format:check` passed.
 
 - `lumane/safety.test.ts`:
   - **The last check:** a reply saying "I've moved her" or "Done!" with nothing approved loses that sentence and gains the app's note; every other sentence is kept exactly. Honest sentences are left alone, among them "Nothing is booked until you confirm on that page" and "No one has been told yet", and so is a sentence about the approval itself. The app adds claims of its own (SALEANE adds taking a payment or a refund).
