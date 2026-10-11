@@ -9,8 +9,10 @@ import {
   Definition,
   Empty,
   ErrorMessage,
+  LoadingShapes,
   Metric,
   Modal,
+  MoreOptions,
   PageHeader,
   SegmentedControl,
   Stat,
@@ -228,6 +230,7 @@ export function DesignLanguage() {
   const [clock, setClock] = useState('10:30')
   const [kind, setKind] = useState<'skin' | 'hair' | null>('skin')
   const [modal, setModal] = useState(false)
+  const [settled, setSettled] = useState(0)
   return (
     <div className="library">
       <PageHeader
@@ -724,8 +727,62 @@ export function DesignLanguage() {
 
         <div className="library-specimen">
           <h3>Empty and error states</h3>
+          <p>
+            A small gap in a list says so in one line. A page with nothing in it yet opens with a
+            welcome in place of its header: the words on warm stone, a house photograph fading into
+            them, one line and one next step.
+          </p>
           <Empty title="A little breathing room">No visits on this day.</Empty>
+          <Empty
+            photo={photos.tea}
+            photoPosition="center 62%"
+            eyebrow="Waitlist"
+            title="Nobody is waiting yet."
+            action={
+              <Button>
+                <Plus size={16} aria-hidden="true" /> Add to the waitlist
+              </Button>
+            }
+          >
+            Add a guest who wants a time that is full. When one opens that suits them, it appears
+            here for you to offer.
+          </Empty>
           <ErrorMessage error="Could not save your note. Your writing is still here; try again." />
+        </div>
+
+        <div className="library-specimen">
+          <h3>Loading shapes</h3>
+          <p>
+            Soft shapes of what is coming, never a spinner or a blank space. They wait a moment, so
+            a quick load never flickers, then breathe until the content arrives.
+          </p>
+          <LoadingShapes rows={3} label="An example of loading shapes" />
+        </div>
+
+        <div className="library-specimen">
+          <h3>More options</h3>
+          <p>Settings most people never change sit behind one quiet line that opens in place.</p>
+          <MoreOptions label="More booking settings">
+            <label className="checkbox-label">
+              <input type="checkbox" /> Ask online guests to pass a quick check before a time is
+              held
+            </label>
+          </MoreOptions>
+        </div>
+
+        <div className="library-specimen">
+          <h3>One way of moving</h3>
+          <p>
+            Dialogs, steps, saved lines and pages filling in all arrive the same way: a fade with a
+            few pixels of settling, over <code>--motion-calm</code>. Add the class{' '}
+            <code>settle</code> to anything that appears in place. Reduced motion removes it.
+          </p>
+          <Button variant="secondary" onClick={() => setSettled((n) => n + 1)}>
+            Show it again
+          </Button>
+          <p key={settled} className="settle library-settle">
+            Saved. Your changes are in place.
+          </p>
         </div>
       </section>
 

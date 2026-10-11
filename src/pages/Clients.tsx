@@ -85,154 +85,178 @@ export function Clients() {
       setPending(false)
     }
   }
+  const importAction = can(role, 'import-clients') && (
+    <Button variant="secondary" disabled={blocked || busy} onClick={() => setImporting(true)}>
+      <FileUp size={17} />
+      Import clients
+    </Button>
+  )
+  const addAction = (label: string) => (
+    <Button disabled={!allowed || busy} onClick={() => setNewClient(true)}>
+      <Plus size={17} />
+      {label}
+    </Button>
+  )
+  // A studio with no clients yet sees one welcoming page, not an empty table with filters at zero.
+  const first = !rows.length
   return (
     <>
-      <PageHeader
-        variant="compact"
-        photo={{ src: photos.windowLight }}
-        eyebrow="Clients"
-        title="Relationships, remembered."
-        description="Everyone who comes to the studio, what they love and when they are due back."
-        actions={
+      {!first && (
+        <PageHeader
+          variant="compact"
+          photo={{ src: photos.windowLight }}
+          eyebrow="Clients"
+          title="Relationships, remembered."
+          description="Everyone who comes to the studio, what they love and when they are due back."
+          actions={
+            <>
+              {importAction}
+              {addAction('Add client')}
+            </>
+          }
+        />
+      )}
+      <section className={first ? undefined : 'surface directory'}>
+        {first ? (
+          <Empty
+            photo={photos.reception}
+            photoPosition="44% center"
+            eyebrow="Clients"
+            level={1}
+            title="Your clients will gather here."
+            action={
+              <>
+                {addAction('Add your first client')}
+                {importAction}
+              </>
+            }
+          >
+            Add someone yourself, or bring everyone across from your old system at once.
+          </Empty>
+        ) : (
           <>
-            {can(role, 'import-clients') && (
-              <Button
-                variant="secondary"
-                disabled={blocked || busy}
-                onClick={() => setImporting(true)}
-              >
-                <FileUp size={17} />
-                Import clients
-              </Button>
-            )}
-            <Button disabled={!allowed || busy} onClick={() => setNewClient(true)}>
-              <Plus size={17} />
-              Add client
-            </Button>
-          </>
-        }
-      />
-      <section className="surface directory">
-        <div className="directory-toolbar">
-          <SegmentedControl
-            label="Client segments"
-            appearance="chips"
-            value={segment}
-            onChange={(next) => refine(() => setSegment(next))}
-            options={(
-              [
-                ['all', 'All clients'],
-                ['due', 'Ready to return'],
-                ['new', 'New this month'],
-                ['week', 'Booked this week'],
-                ['consented', 'Email marketing on'],
-              ] as const
-            ).map(([value, label]) => ({
-              value,
-              label: (
-                <>
-                  {label} <span className="chip-count">{result.counts[value]}</span>
-                </>
-              ),
-            }))}
-          />
-          <div className="directory-controls">
-            <label className="search-field">
-              <Search size={17} />
-              <span className="sr-only">Search by name, phone or email</span>
-              <input
-                placeholder="Search by name, phone or email"
-                type="search"
-                value={query}
-                onChange={(e) => refine(() => setQuery(e.target.value))}
+            <div className="directory-toolbar">
+              <SegmentedControl
+                label="Client segments"
+                appearance="chips"
+                value={segment}
+                onChange={(next) => refine(() => setSegment(next))}
+                options={(
+                  [
+                    ['all', 'All clients'],
+                    ['due', 'Ready to return'],
+                    ['new', 'New this month'],
+                    ['week', 'Booked this week'],
+                    ['consented', 'Email marketing on'],
+                  ] as const
+                ).map(([value, label]) => ({
+                  value,
+                  label: (
+                    <>
+                      {label} <span className="chip-count">{result.counts[value]}</span>
+                    </>
+                  ),
+                }))}
               />
-            </label>
-            <label className="sort-field">
-              <span className="sr-only">Sort clients</span>
-              <select
-                value={sort}
-                onChange={(e) => refine(() => setSort(e.target.value as DirectorySort))}
-              >
-                <option value="recent">Most recent visit</option>
-                <option value="name">Name A to Z</option>
-                <option value="visits">Most visits</option>
-                <option value="spend">Most spent</option>
-              </select>
-            </label>
-          </div>
-        </div>
-        <div className="client-table-wrap">
-          <table className="client-table">
-            <caption className="sr-only">
-              Client directory with last and next visit, completed visits and treatment spend
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">Client</th>
-                <th scope="col" className="directory-wide">
-                  Last visit
-                </th>
-                <th scope="col">Next visit</th>
-                <th scope="col" className="directory-wide numeric">
-                  Visits
-                </th>
-                <th scope="col" className="directory-wide numeric">
-                  Spent
-                </th>
-                <th scope="col" className="directory-wide">
-                  <span className="sr-only">Status</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.rows.map((row) => {
-                const { client } = row
-                return (
-                  <tr key={client.id}>
-                    <td>
-                      <Link className="client-cell" to={`/clients/${client.id}`}>
-                        <Avatar identity={client.id} name={client.name} tone="sand" />
-                        <span>
-                          <strong>{client.name}</strong>
-                          <small>{client.phone}</small>
-                        </span>
-                      </Link>
-                    </td>
-                    <td className="directory-wide">
-                      {row.firstVisitToday ? (
-                        'First visit today'
-                      ) : row.lastDate ? (
-                        visitDay(row.lastDate)
-                      ) : (
-                        <span className="subtle">No visits yet</span>
-                      )}
-                    </td>
-                    <td>
-                      {row.nextDate ? (
-                        visitDay(row.nextDate)
-                      ) : (
-                        <span className="subtle">Not booked</span>
-                      )}
-                    </td>
-                    <td className="directory-wide numeric">{row.visits}</td>
-                    <td className="directory-wide numeric">
-                      {money(row.spend, state.organisation)}
-                    </td>
-                    <td className="directory-wide">
-                      {row.due ? (
-                        <span className="tag tag-rose">Ready to return</span>
-                      ) : row.isNew ? (
-                        <span className="tag tag-brand">New</span>
-                      ) : null}
-                    </td>
+              <div className="directory-controls">
+                <label className="search-field">
+                  <Search size={17} />
+                  <span className="sr-only">Search by name, phone or email</span>
+                  <input
+                    placeholder="Search by name, phone or email"
+                    type="search"
+                    value={query}
+                    onChange={(e) => refine(() => setQuery(e.target.value))}
+                  />
+                </label>
+                <label className="sort-field">
+                  <span className="sr-only">Sort clients</span>
+                  <select
+                    value={sort}
+                    onChange={(e) => refine(() => setSort(e.target.value as DirectorySort))}
+                  >
+                    <option value="recent">Most recent visit</option>
+                    <option value="name">Name A to Z</option>
+                    <option value="visits">Most visits</option>
+                    <option value="spend">Most spent</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            <div className="client-table-wrap">
+              <table className="client-table">
+                <caption className="sr-only">
+                  Client directory with last and next visit, completed visits and treatment spend
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Client</th>
+                    <th scope="col" className="directory-wide">
+                      Last visit
+                    </th>
+                    <th scope="col">Next visit</th>
+                    <th scope="col" className="directory-wide numeric">
+                      Visits
+                    </th>
+                    <th scope="col" className="directory-wide numeric">
+                      Spent
+                    </th>
+                    <th scope="col" className="directory-wide">
+                      <span className="sr-only">Status</span>
+                    </th>
                   </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-        {!result.total && (
-          <Empty photo title="No clients found">
+                </thead>
+                <tbody>
+                  {result.rows.map((row) => {
+                    const { client } = row
+                    return (
+                      <tr key={client.id}>
+                        <td>
+                          <Link className="client-cell" to={`/clients/${client.id}`}>
+                            <Avatar identity={client.id} name={client.name} tone="sand" />
+                            <span>
+                              <strong>{client.name}</strong>
+                              <small>{client.phone}</small>
+                            </span>
+                          </Link>
+                        </td>
+                        <td className="directory-wide">
+                          {row.firstVisitToday ? (
+                            'First visit today'
+                          ) : row.lastDate ? (
+                            visitDay(row.lastDate)
+                          ) : (
+                            <span className="subtle">No visits yet</span>
+                          )}
+                        </td>
+                        <td>
+                          {row.nextDate ? (
+                            visitDay(row.nextDate)
+                          ) : (
+                            <span className="subtle">Not booked</span>
+                          )}
+                        </td>
+                        <td className="directory-wide numeric">{row.visits}</td>
+                        <td className="directory-wide numeric">
+                          {money(row.spend, state.organisation)}
+                        </td>
+                        <td className="directory-wide">
+                          {row.due ? (
+                            <span className="tag tag-rose">Ready to return</span>
+                          ) : row.isNew ? (
+                            <span className="tag tag-brand">New</span>
+                          ) : null}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+        {!first && !result.total && (
+          <Empty title="No clients match">
             Try a name, email or phone number, or choose another segment.
           </Empty>
         )}
