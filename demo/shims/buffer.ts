@@ -22,6 +22,9 @@ export class Buffer extends Uint8Array {
     }
     return new Buffer(encoder.encode(value))
   }
+  static alloc(size: number): Buffer {
+    return new Buffer(size)
+  }
   static isBuffer(value: unknown): value is Buffer {
     return value instanceof Buffer
   }
@@ -33,6 +36,14 @@ export class Buffer extends Uint8Array {
       at += item.length
     }
     return out
+  }
+  // Big-endian reads and writes, used for authenticator codes.
+  writeBigUInt64BE(value: bigint, offset = 0): number {
+    new DataView(this.buffer, this.byteOffset, this.byteLength).setBigUint64(offset, value)
+    return offset + 8
+  }
+  readUInt32BE(offset = 0): number {
+    return new DataView(this.buffer, this.byteOffset, this.byteLength).getUint32(offset)
   }
   toString(encoding = 'utf8'): string {
     if (encoding === 'hex') return Array.from(this, (b) => b.toString(16).padStart(2, '0')).join('')
