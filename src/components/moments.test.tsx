@@ -47,7 +47,7 @@ const at = (route: string, page: ReactNode) =>
   render(<MemoryRouter initialEntries={[route]}>{page}</MemoryRouter>)
 
 /**
- * The sample day at 10:45 with its calls returned, its colour visits moved away and Noor, who
+ * The sample day at 10:45 with its calls returned or followed up, its colour visits moved away and Noor, who
  * tapped "I've arrived", not here yet.
  */
 function quietSample() {
@@ -57,6 +57,10 @@ function quietSample() {
     missedCalls: (operations(s).missedCalls ?? []).map((call) => ({
       ...call,
       calledBackAt: '2026-10-06T09:00:00.000Z',
+    })),
+    answeredCalls: (operations(s).answeredCalls ?? []).map((call) => ({
+      ...call,
+      doneAt: '2026-10-06T09:45:00.000Z',
     })),
   }
   for (const a of s.appointments) if (a.serviceId === 'service-gloss') a.status = 'cancelled'

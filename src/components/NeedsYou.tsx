@@ -3,12 +3,14 @@ import { useStore } from '../state/context'
 import { useClock } from '../state/clock'
 import { businessDate, businessMinutes, can, operations } from '../domain/operations'
 import { openMissedCalls } from '../domain/missedCalls'
+import { openAnsweredCalls } from '../domain/answeredCalls'
 import { patchTestsDue } from '../domain/patchTests'
 import { dueTasks } from '../domain/tasks'
 import { dayAppointments } from '../domain/selectors'
 import { allInHand } from '../domain/moments'
 import { photos } from '../design'
 import { MissedCalls } from './MissedCalls'
+import { AnsweredCalls } from './AnsweredCalls'
 import { PatchTestsDue } from './PatchTests'
 import { Reminders } from './Reminders'
 import './needsYou.css'
@@ -16,18 +18,20 @@ import './moments.css'
 
 /**
  * The top of Today's side column: what is waiting on someone, as small cards with a count each.
- * Calls to return, patch tests to sort before a booked visit, and the team's reminders. Stage 6:
- * once nothing waits and everyone due so far has been welcomed or checked out, the cards give way
- * to a still photograph and "All in hand". Adding a reminder or a call stays one tap away.
+ * Calls to return, calls the AI receptionist answered, patch tests to sort before a booked visit,
+ * and the team's reminders. Stage 6: once nothing waits and everyone due so far has been welcomed
+ * or checked out, the cards give way to a still photograph and "All in hand". Adding a reminder or
+ * a call stays one tap away.
  */
 export function NeedsYou() {
   const { state, today, role, branch } = useStore()
   const clock = useClock()
   const [opened, setOpened] = useState(false)
   const calls = can(role, 'missed-call') ? openMissedCalls(state, clock).length : null
+  const answered = can(role, 'missed-call') ? openAnsweredCalls(state, clock).length : 0
   const tests = patchTestsDue(state, businessDate(state, clock)).length
   const reminders = dueTasks(state, today).length
-  const total = (calls ?? 0) + tests + reminders
+  const total = (calls ?? 0) + answered + tests + reminders
   const cards = calls !== null || tests > 0 || reminders > 0 || can(role, 'task')
   const calm =
     !opened &&
@@ -75,6 +79,7 @@ export function NeedsYou() {
       {cards ? (
         <>
           <MissedCalls />
+          <AnsweredCalls />
           <PatchTestsDue />
           <Reminders />
         </>

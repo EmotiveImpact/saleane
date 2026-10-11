@@ -202,13 +202,18 @@ test('counts part of a trial day as a day, and never below nought', () => {
 test('gives each location its own AI, Plus more, and a stopped studio none', () => {
   expect(allowanceFor({ locations: 1, plus: false }).monthly).toEqual(ALLOWANCES.included.monthly)
   const three = allowanceFor({ locations: 3, plus: true })
-  expect(three.monthly).toEqual({ typed: 2400, talkSeconds: 27000, guestChats: 1500 })
+  expect(three.monthly).toEqual({
+    typed: 2400,
+    talkSeconds: 27000,
+    guestChats: 1500,
+    phoneSeconds: 0,
+  })
   expect(three.dailySpendCeilingMinor).toBe(1200)
   expect(three.monthlySpendCeilingMinor).toBe(18000)
   // One person and one talk keep the same limits however big the studio is.
   expect(three.perPersonHourly).toBe(ALLOWANCES.plus.perPersonHourly)
   const paused = allowanceFor({ locations: 2, plus: false, paused: true })
-  expect(paused.monthly).toEqual({ typed: 0, talkSeconds: 0, guestChats: 0 })
+  expect(paused.monthly).toEqual({ typed: 0, talkSeconds: 0, guestChats: 0, phoneSeconds: 0 })
   expect(paused.dailySpendCeilingMinor).toBe(0)
   expect(paused.monthlySpendCeilingMinor).toBe(0)
 })
