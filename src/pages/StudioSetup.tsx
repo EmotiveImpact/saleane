@@ -85,16 +85,31 @@ const NAMES: Record<SetupStep, string> = {
   deposits: 'Deposits',
   open: 'Open',
 }
-/** A house photograph and a line for each screen, beside the form on a wide screen. */
-const STORY: Record<SetupStep, { photo: string; line: string }> = {
-  studio: { photo: photos.entrance, line: 'Make it easy to find you.' },
-  hours: { photo: photos.windowLight, line: 'Open when you are, closed when you are not.' },
-  treatments: { photo: photos.facial, line: 'Your menu, at your prices.' },
-  team: { photo: photos.calmStudio, line: 'The people behind every visit.' },
-  rooms: { photo: photos.sunlitRoom, line: 'A place for every treatment.' },
-  look: { photo: photos.hairStudio, line: 'Your colours, wherever guests meet you.' },
-  deposits: { photo: photos.tea, line: 'Clear terms, kindly put.' },
-  open: { photo: photos.reception, line: 'Ready for your first guests.' },
+/**
+ * A photograph made for each screen and a line, beside the form on a wide screen. `position`
+ * keeps its subject in view where the photograph narrows to a short band on a phone.
+ */
+const STORY: Record<SetupStep, { photo: string; position: string; line: string }> = {
+  studio: { photo: photos.setupStudio, position: '45% 72%', line: 'Make it easy to find you.' },
+  hours: {
+    photo: photos.setupHours,
+    position: '40% 62%',
+    line: 'Open when you are, closed when you are not.',
+  },
+  treatments: {
+    photo: photos.setupTreatments,
+    position: '60% 74%',
+    line: 'Your menu, at your prices.',
+  },
+  team: { photo: photos.setupTeam, position: '60% 60%', line: 'The people behind every visit.' },
+  rooms: { photo: photos.setupRooms, position: 'center 70%', line: 'A place for every treatment.' },
+  look: {
+    photo: photos.setupLook,
+    position: 'center 80%',
+    line: 'Your colours, wherever guests meet you.',
+  },
+  deposits: { photo: photos.setupDeposits, position: '55% 76%', line: 'Clear terms, kindly put.' },
+  open: { photo: photos.setupOpen, position: '60% 74%', line: 'Ready for your first guests.' },
 }
 const LENGTHS = [15, 30, 45, 60, 75, 90, 105, 120, 150, 180, 210, 240]
 const KINDS = ['Skin', 'Body', 'Hair'] as const
@@ -214,7 +229,7 @@ export function StudioSetup() {
           <p className="setup-story-title">{state.organisation.name}</p>
           <p>{STORY[step].line}</p>
         </div>
-        <img src={STORY[step].photo} alt="" />
+        <img src={STORY[step].photo} alt="" style={{ objectPosition: STORY[step].position }} />
       </aside>
       <main className="setup-main" aria-labelledby={headingId}>
         <div className="setup-top">
@@ -789,7 +804,7 @@ function LookScreen({
         <figure className="setup-preview" aria-label="How guests see it">
           <div
             className="setup-preview-photo"
-            style={{ backgroundImage: `url(${photos.sunlitRoom})` }}
+            style={{ backgroundImage: `url(${photos.bookingPage})` }}
             aria-hidden="true"
           />
           <div className="setup-preview-body">

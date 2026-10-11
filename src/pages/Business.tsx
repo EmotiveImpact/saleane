@@ -333,9 +333,9 @@ export function Business() {
           </div>
           <div
             className="booking-preview-hero"
-            style={{ backgroundImage: `url(${photos.reception})` }}
+            style={{ backgroundImage: `url(${photos.bookingPage})` }}
             role="img"
-            aria-label="A fictional reception in morning light"
+            aria-label="A fictional treatment room in morning light"
           />
           <ul className="booking-preview-tiles">
             {state.services.slice(0, 4).map((service, i, shown) => {
@@ -365,9 +365,9 @@ export function Business() {
         <section className="surface detail-panel closing-up">
           <div
             className="closing-up-photo"
-            style={{ backgroundImage: `url(${photos.endOfDay})` }}
+            style={{ backgroundImage: `url(${photos.closingUp})` }}
             role="img"
-            aria-label="A fictional treatment room in late afternoon light"
+            aria-label="A fictional reception at the end of the day, towels being folded"
           />
           <span className="closing-up-eyebrow">Closing up</span>
           <h2>{closing.settled ? 'The day is settled.' : 'Before you close.'}</h2>

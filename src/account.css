@@ -200,6 +200,10 @@
   .account-story small {
     display: none;
   }
+  /* The short band keeps the photograph's figure out from under the words. */
+  .account-story img {
+    object-position: center 25%;
+  }
 }
 @media (max-width: 480px) {
   .account-story {

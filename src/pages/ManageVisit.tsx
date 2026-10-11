@@ -252,7 +252,7 @@ export function ManageVisit() {
       <header className="visit-hero">
         {/* A house photograph that sets the mood. Studios cannot add their own photograph yet, so
             nothing here says it is this studio's room. */}
-        <img className="visit-hero-image" src={photos.entrance} alt="" />
+        <img className="visit-hero-image" src={photos.guestVisit} alt="" />
         <div className="visit-hero-brand">
           <span className="atelier-monogram" aria-hidden="true">
             {monogram}

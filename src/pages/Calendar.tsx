@@ -205,8 +205,8 @@ export function Calendar() {
   if (!state.staff.some((s) => !s.archived))
     return (
       <Empty
-        photo={photos.hairStudio}
-        photoPosition="58% center"
+        photo={photos.calendar}
+        photoPosition="48% center"
         eyebrow="Calendar"
         level={1}
         title="Your calendar opens with your team."

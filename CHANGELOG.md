@@ -11,6 +11,16 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - The 44px touch rule, hints (never browser title text), notices, welcomes for a new studio, Today on a phone, view switches that keep one place, folds in where things move, the assistant's name written once and the booking page's footer are written out in full.
 - The top bar, folded sidebar, view switch and booking footer rules come from Edem's comments on the demo of 11 October; the fixes themselves arrive with the demo's own change. Phone Today in tabs and the six moves from the finishing check are listed as still waiting for a yes.
 
+## 2026-10-11 · The new photographs, on their screens
+
+**Status: built locally on 11 October 2026 and checked in a browser. The owner approved every placement on 11 October 2026.** [Evidence](docs/evidence/APP-PHOTOGRAPHS-IN-PLACE.md).
+
+- The 21 photographs made for particular screens now show there: one for each of the eight setup steps and the three welcome screens, sign-in, the booking page, a guest's visit page, Today, Clients, Waitlist, closing up and the next visit after checkout. Each keeps its subject in view on a phone.
+- The calendar photograph goes on Today's "All in hand" card and on the Calendar's welcome while nobody is on the team, and the stock photograph welcomes an empty Stock page, since Calendar and Stock have no photo band once they are in use.
+- An empty Stock page opens with one welcome and "Add your first product", as Clients and Waitlist do, instead of four figures at zero and empty panels.
+- The small "Your booking page" pictures in the sidebar, Settings, the setup Look step and Business show the booking page's own photograph.
+- Two photographs that arrived as empty files were saved again from their originals, and the set is sorted into setup, welcome and screens folders.
+
 ## 2026-10-11 · The polish pass: SALEANE's own controls, and calm movement
 
 **Status: built locally on 11 October 2026; checked in Chromium at 1440px and 390px, not yet in Safari or Firefox.** [Evidence](docs/evidence/POLISH-PASS.md).
@@ -59,6 +69,14 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - The phone receptionist is an add-on of £79 a month for each location ($99 in the US, still a placeholder), with 300 minutes of calls a month. Plan and billing offers it only once phone calls are connected on SALEANE's server, and until then shows Not yet; added part way through a paid month it is charged for the days left, like Plus. The owner or a manager then ticks Also answer calls the desk misses in AI receptionist settings, which says how many minutes are left.
 - A call holds up to ten minutes before it is answered, ends itself when its time or the month's minutes run out, and is counted from what OpenAI reports. A call the AI cannot take (switched off, no minutes left, or no answer from OpenAI within 15 seconds) is written down as a missed call for a call back, as before.
 - The price page's phone receptionist line now says what it really does, instead of "books visits".
+
+## 2026-10-10 · A new location needs someone who gives its treatments
+
+**Status: built locally on 10 October 2026.** [Evidence](docs/evidence/SETUP-WIZARDS.md#someone-at-a-new-location-who-gives-its-treatments-10-october-2026).
+
+- Adding a location no longer lets it open with nobody working there who gives a treatment on its menu, which left it unable to take a single booking. The Team step says so and waits, and saving refuses it on the server too.
+- Treatments on its menu that nobody working there gives yet are named on the Team step and on Check, so the owner knows guests cannot book those there until someone does. The location can still open.
+- The Team step shows each person's role beside where they work, so the owner can see who gives what.
 
 ## 2026-10-10 · Marketing, in its own section (NEXT-14)
 
@@ -257,6 +275,14 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - A visit whose deposit was paid to the old system now says "Deposit paid before switching" instead of "Demo deposit recorded".
 - Fixed: saving stalled after the first part when a second part followed. On a phone the save button reads "Bring them across", so it fits.
 - The help guide "Bring clients and visits across from another system" describes the steps as they are now.
+
+## 2026-10-10 · App photograph assets
+
+**Status: 21 photographs saved for review.** [Asset notes](docs/assets/app-photographs-2026-10-10.md).
+
+- Added 13 portrait, six landscape and two square fictional studio photographs with the requested names and shared sunlit style.
+- Preserved generated PNG originals and added WebP copies at quality 80 without resizing or cropping, plus a dimensions and checksum manifest.
+- This asset-only addition does not change screen references. All 42 image files decode and have the requested aspect ratios. Application checks and browser journeys were not run for this addition.
 
 ## 2026-10-10 · Filling a cancelled time (NEXT-11)
 

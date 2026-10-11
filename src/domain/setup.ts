@@ -151,6 +151,26 @@ export function locationParts(s: BusinessState, opening: Opening, locationId: st
   return parts
 }
 
+/**
+ * The treatments on a new location's menu that someone working there gives, and those nobody
+ * there gives yet. Guests can book a treatment only with someone who gives it, so a location
+ * where nobody gives anything on its menu could take no bookings at all.
+ */
+export function openingCover(s: BusinessState, opening: Opening) {
+  const left = new Set(opening.notOffered)
+  const menu = s.services.filter((service) => current(service) && !left.has(service.id))
+  const given = new Set([
+    ...opening.team.flatMap(({ staffId, days }) =>
+      days.length ? (s.staff.find((p) => p.id === staffId && !p.archived)?.serviceIds ?? []) : [],
+    ),
+    ...opening.newTeam.flatMap((person) => (person.days.length ? person.serviceIds : [])),
+  ])
+  return {
+    given: menu.filter((service) => given.has(service.id)),
+    nobody: menu.filter((service) => !given.has(service.id)),
+  }
+}
+
 /** Adds the location, then everything that goes with it, through `run`; returns the new id. */
 export function openLocation(
   s: BusinessState,
@@ -159,6 +179,11 @@ export function openLocation(
 ) {
   const locationId = run({ type: 'location', input: opening.location })
   for (const part of locationParts(s, opening, locationId)) run(part)
+  // Last, so a closed day or an unknown person is named first; nothing is saved either way.
+  if (!openingCover(s, opening).given.length)
+    throw new Error(
+      `Nobody working at ${opening.location.name.trim()} gives a treatment on its menu, so guests could not book there. Choose someone who does.`,
+    )
   return locationId
 }
 

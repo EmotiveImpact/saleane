@@ -1,8 +1,9 @@
 /**
  * The house photographs: AI-generated, fictional rooms and details chosen by
- * the owner on 7 October 2026. They set the mood of the demo and sample
- * studios and are never presented as a real studio's premises or people.
- * A live studio supplies its own photographs.
+ * the owner on 7 October 2026, and a second set made for particular screens
+ * on 10 October 2026 (docs/photo-prompts.md). They set the mood of the demo
+ * and sample studios and are never presented as a real studio's premises or
+ * people. A live studio supplies its own photographs.
  */
 const library = '/images/library'
 
@@ -19,6 +20,28 @@ export const photos = {
   facial: `${library}/treatments/signature-facial.webp`,
   blowDry: `${library}/treatments/hair-blowdry.webp`,
   manicure: `${library}/treatments/manicure.webp`,
+  // Made for one place each: the eight setup screens, the team welcome and the screens they name.
+  setupStudio: `${library}/setup/setup-studio.webp`,
+  setupHours: `${library}/setup/setup-hours.webp`,
+  setupTreatments: `${library}/setup/setup-treatments.webp`,
+  setupTeam: `${library}/setup/setup-team.webp`,
+  setupRooms: `${library}/setup/setup-rooms.webp`,
+  setupLook: `${library}/setup/setup-look.webp`,
+  setupDeposits: `${library}/setup/setup-deposits.webp`,
+  setupOpen: `${library}/setup/setup-open.webp`,
+  welcomeHello: `${library}/welcome/welcome-hello.webp`,
+  welcomeDay: `${library}/welcome/welcome-day.webp`,
+  welcomeSafe: `${library}/welcome/welcome-safe.webp`,
+  signIn: `${library}/screens/sign-in.webp`,
+  bookingPage: `${library}/screens/booking-page.webp`,
+  guestVisit: `${library}/screens/guest-visit.webp`,
+  today: `${library}/screens/today.webp`,
+  calendar: `${library}/screens/calendar.webp`,
+  clients: `${library}/screens/clients.webp`,
+  stock: `${library}/screens/stock.webp`,
+  closingUp: `${library}/screens/closing-up.webp`,
+  waitlist: `${library}/screens/waitlist.webp`,
+  nextVisit: `${library}/screens/next-visit.webp`,
 } as const
 
 const byCategory: Record<string, { src: string; position: string }[]> = {

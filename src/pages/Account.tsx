@@ -8,7 +8,7 @@ import type { Session } from '../state/api'
 import { rememberStudio } from '../state/lastStudio'
 import { passkeyProblem, passkeySignIn, passkeysInBrowser } from '../state/passkeys'
 import { roleNames } from '../domain/operations'
-import { Button, ErrorMessage, Select, Checkbox } from '../design'
+import { Button, ErrorMessage, Select, Checkbox, photos } from '../design'
 import { BrandsTogether } from '../components/BrandsTogether'
 import { HelpButton } from '../components/HelpButton'
 import { InvitationSummary } from '../components/InvitationSummary'
@@ -704,7 +704,7 @@ export function AccountStory() {
         </p>
         <p>Your team, visits and clients, remembered together.</p>
       </div>
-      <img src="/images/saleane-studio-warm.jpg" alt="A calm fictional studio with natural light" />
+      <img src={photos.signIn} alt="A calm fictional studio in morning light" />
       <small>
         A preview on this computer · card payments and email not connected yet ·{' '}
         <Link to="/pricing">Pricing</Link>

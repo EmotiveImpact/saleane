@@ -445,7 +445,7 @@ test('wears the studio colours and photograph, like its booking page', async () 
   )
   expect(container.querySelector('.visit-hero img')).toHaveAttribute(
     'src',
-    '/images/library/rooms/studio-exterior.webp',
+    '/images/library/screens/guest-visit.webp',
   )
   expect(screen.getAllByText('Reference Studio').length).toBeGreaterThan(0)
 })
