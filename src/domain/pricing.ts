@@ -1,5 +1,6 @@
 import type { Allowance } from '../../lumane'
 import type { BusinessState } from './model'
+import { ASK_NAME } from '../assistant/name'
 
 /**
  * PILOT-04: SALEANE's one published price, for each location. Everything a studio uses is
@@ -183,8 +184,8 @@ export const INCLUDED: readonly { text: string; connect?: 'card' | 'text' | 'voi
   { text: 'Booking confirmations, reminders and aftercare by email, as many as you need' },
   { text: 'Reminders by text', connect: 'text' },
   { text: 'Marketing: newsletters, automatic messages and what they brought in' },
-  { text: 'Ask SALEANE, your AI assistant, by typing' },
-  { text: 'Talking to Ask SALEANE out loud', connect: 'voice' },
+  { text: `${ASK_NAME}, your AI assistant, by typing` },
+  { text: `Talking to ${ASK_NAME} out loud`, connect: 'voice' },
   { text: 'An AI receptionist on your booking page' },
   { text: 'Deposits and missed visit fees, kept with every visit' },
   { text: 'Saved cards, card readers and deposits paid online', connect: 'card' },
@@ -196,7 +197,7 @@ export const INCLUDED: readonly { text: string; connect?: 'card' | 'text' | 'voi
 export const CONNECT_NOTES = {
   card: 'Arrives when you connect your card account',
   text: 'Arrives when you connect your text account',
-  voice: 'Arrives when talking to Ask SALEANE is switched on',
+  voice: `Arrives when talking to ${ASK_NAME} is switched on`,
 } as const
 
 /**
@@ -206,8 +207,8 @@ export const CONNECT_NOTES = {
 const thousands = (n: number) => n.toLocaleString('en-GB')
 export const STARTING_AMOUNTS: readonly { amount: string; text: string }[] = [
   { amount: String(PEOPLE_PER_LOCATION), text: 'people taking bookings' },
-  { amount: thousands(included.typed), text: 'Ask SALEANE questions' },
-  { amount: String(included.talkSeconds / 60), text: 'minutes talking to Ask SALEANE' },
+  { amount: thousands(included.typed), text: `${ASK_NAME} questions` },
+  { amount: String(included.talkSeconds / 60), text: `minutes talking to ${ASK_NAME}` },
   { amount: thousands(included.guestChats), text: 'guest chats with the AI receptionist' },
   { amount: thousands(MARKETING_EMAILS.included), text: 'marketing emails' },
 ]

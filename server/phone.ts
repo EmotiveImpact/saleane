@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto'
-import { callWindowSeconds, conversation, current, voiceFor } from '../lumane'
+import { callWindowSeconds, conversation, usedOf, voiceFor } from '../lumane'
 import type { Conversation, LiveEvent, LiveLine, UseRequest } from '../lumane'
 import { digest } from './auth'
 import { fail } from './http'
@@ -21,7 +21,8 @@ import {
   callQuestionUse,
   callUse,
 } from '../src/assistant/phone'
-import { answersCalls, askReceptionist } from '../src/assistant/receptionist'
+import { answersCalls } from '../src/assistant/receptionist'
+import { askReceptionist } from '../src/assistant/receptionistAsk'
 import type { ReceptionEffect, ReceptionTurn } from '../src/assistant/receptionist'
 import { BOOKING_LINK, MANAGE_LINK_SPOT } from '../src/assistant/receptionistBrain'
 import { DEFAULT_VOICE, VOICES } from '../src/assistant/voices'
@@ -110,8 +111,13 @@ export function phoneCalls(line: PhoneLine | null, soon: () => void) {
     const at = new Date(ctx.now()).toISOString()
     const allowance = ctx.plans.allowance(org)
     return (
-      callWindowSeconds(allowance, storedUsage(ctx, org.id), at, LONGEST_CALL_SECONDS) >=
-      SHORTEST_CALL_SECONDS
+      callWindowSeconds(
+        allowance,
+        storedUsage(ctx, org.id),
+        at,
+        LONGEST_CALL_SECONDS,
+        'phoneSeconds',
+      ) >= SHORTEST_CALL_SECONDS
     )
   }
 
@@ -382,7 +388,9 @@ export function phoneCalls(line: PhoneLine | null, soon: () => void) {
       org.id,
       allowance,
       (before) => {
-        const seconds = Math.floor(callWindowSeconds(allowance, before, at, LONGEST_CALL_SECONDS))
+        const seconds = Math.floor(
+          callWindowSeconds(allowance, before, at, LONGEST_CALL_SECONDS, 'phoneSeconds'),
+        )
         return seconds < SHORTEST_CALL_SECONDS ? 'used up' : callUse(visitor, at, seconds, price)
       },
       // Held for the whole call and its ending, with a minute to spare, should SALEANE stop
@@ -575,7 +583,7 @@ export function phoneCalls(line: PhoneLine | null, soon: () => void) {
         chosen: !!plan?.phone_next,
         answering: ready(ctx, org),
         minutes: {
-          used: Math.ceil(current(storedUsage(ctx, org.id), at).used.phoneSeconds / 60),
+          used: Math.ceil(usedOf(storedUsage(ctx, org.id), 'phoneSeconds', at) / 60),
           of: Math.floor(allowance.monthly.phoneSeconds / 60),
         },
       })

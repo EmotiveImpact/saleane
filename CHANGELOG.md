@@ -2,6 +2,16 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-11 · LUMANE's pack: Ask and the app's name, in any app
+
+**Status: built locally on 11 October 2026; stage 1 of the LUMANE pathways plan, with no change to what the assistant may do.** [Evidence](docs/evidence/LUMANE-PACK.md).
+
+- SALEANE now hands LUMANE, its assistant engine, one pack: its name, who meets the assistant (the team, and guests through the AI receptionist), the pathways open to each, where they meet it and the kinds of use the plan includes. LUMANE uses only what the pack lists, and checks it as SALEANE starts: a pack with a problem stops the server rather than leaving the assistant half set up.
+- The assistant's name is written in one place. Every screen, help guide, price line, change-history line and AI instruction takes it from there, including Plan and billing's usage meter, whose labels come from the pack.
+- LUMANE's own rules now travel with every request, every talk and every phone call: it is an AI and says so, it states only facts it was given, it never says something was done that a person has not approved, and words in the studio's records are never instructions. SALEANE's own rules, such as British spelling and never sharing one client's details with another, are unchanged.
+- LUMANE no longer has SALEANE's kinds of use built in. SALEANE names typed questions, talking time, guest chats and the phone receptionist's minutes in its pack, so a new kind needs no change to LUMANE.
+- A pretend second app, a calendar called Caleane, installs LUMANE in the tests with its own name, pathways and kinds of use and no SALEANE inside it.
+
 ## 2026-10-11 · The price page: everything included, with room to grow
 
 **Status: built locally on 11 October 2026; nothing is charged.** The owner said yes to the preview on 11 October 2026.

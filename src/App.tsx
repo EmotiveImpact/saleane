@@ -137,6 +137,7 @@ const DesignLanguage = lazy(() =>
 )
 import { useClock } from './state/clock'
 import './account.css'
+import { ASK_NAME } from './assistant/name'
 
 const navigation = [
   { to: '/today', label: 'Today', icon: Home },
@@ -443,7 +444,7 @@ function WorkspaceApp() {
             <button className="ask-button" onClick={() => setAsking(true)}>
               <Sparkles size={17} />
               <span>
-                Ask SALEANE
+                {ASK_NAME}
                 {noticed > 0 && (
                   <span className="ask-count">
                     , {noticed} {noticed === 1 ? 'thing' : 'things'} to mention

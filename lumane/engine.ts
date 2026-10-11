@@ -3,6 +3,7 @@ import { check, record } from './allowance'
 import type { Allowance, Meter, Usage } from './allowance'
 import type { Brain, BrainMessage, ToolSpec } from './brain'
 import { BrainError } from './brain'
+import { standingInstructions } from './rules'
 import { SkillRefusal } from './skill'
 import type { Proposal, Skill } from './skill'
 
@@ -26,7 +27,10 @@ export type TurnInput<Ctx> = {
   brain: Brain
   skills: Skill<Ctx>[]
   ctx: Ctx
-  /** The app's standing instructions: its voice, its rules, what it must never claim. */
+  /**
+   * The app's standing instructions: who the assistant is there, its voice and its own rules.
+   * LUMANE adds its own rules after them (see `standingInstructions`), which no app can leave out.
+   */
   instructions: string
   /** Facts for this request only, such as today's date and who is asking. */
   context?: string
@@ -37,7 +41,8 @@ export type TurnInput<Ctx> = {
     usage: Usage | undefined
     personId: string
     at: string
-    kind: Exclude<Meter, 'talkSeconds' | 'phoneSeconds'>
+    /** The kind of use this turn counts against, one the app's pack names. */
+    kind: Meter
     /** How much of the meter this turn uses: 1 by default, 0 for a message in a chat already counted. */
     amount?: number
     /**
@@ -129,6 +134,7 @@ export async function runTurn<Ctx>(input: TurnInput<Ctx>): Promise<TurnResult> {
     Date.parse(meter.at) + (input.proposalMinutes ?? 30) * 60_000,
   ).toISOString()
   const tools = toolSpecs(input.skills, input.ctx)
+  const instructions = standingInstructions(input.instructions)
   const messages: BrainMessage[] = [...input.history, { role: 'user', text: input.text }]
   const proposals: PendingProposal[] = []
   const audit: AuditEntry[] = []
@@ -148,7 +154,7 @@ export async function runTurn<Ctx>(input: TurnInput<Ctx>): Promise<TurnResult> {
     let reply
     try {
       reply = await input.brain.respond({
-        instructions: input.instructions,
+        instructions,
         ...(input.context ? { context: input.context } : {}),
         messages,
         tools,

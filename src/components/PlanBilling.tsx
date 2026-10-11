@@ -17,6 +17,8 @@ import { ADD_ON_NAMES, addOnBill, planDate, trialDaysLeft } from '../domain/bill
 import type { AddOn, Bill, BillingView, InvoiceView } from '../domain/billing'
 import { Button, ErrorMessage, Modal } from '../design'
 import './planBilling.css'
+import { ASK_NAME } from '../assistant/name'
+import { SALEANE_PACK } from '../assistant/pack'
 
 /** Each add-on's name inside a sentence, and at the start of one. */
 const IN_WORDS: Record<AddOn, string> = { plus: 'Plus', phone: 'the phone receptionist' }
@@ -165,9 +167,9 @@ export function PlanBilling() {
         <h2 id="plan-billing-title">Plan and billing</h2>
         <p>
           {priceLabel(org.region)} a month for each location, {PRICE[org.region].tax}, with{' '}
-          {PEOPLE_PER_LOCATION} people taking bookings, Ask SALEANE and the AI receptionist
-          included. Each person beyond that is {priceLabel(org.region, 'personMinor')} a month.
-          Month to month: stop whenever you like.
+          {PEOPLE_PER_LOCATION} people taking bookings, {ASK_NAME} and the AI receptionist included.
+          Each person beyond that is {priceLabel(org.region, 'personMinor')} a month. Month to
+          month: stop whenever you like.
         </p>
       </div>
       {plan && (
@@ -368,21 +370,21 @@ export function PlanBilling() {
         <h3>AI this month</h3>
         <p className="ops-help">
           {plan.status === 'stopped'
-            ? 'Ask SALEANE and the AI receptionist rest while the studio is read only.'
+            ? `${ASK_NAME} and the AI receptionist rest while the studio is read only.`
             : `For ${where}${extras.length ? `, with ${extras.join(' and ')}` : ''}. It starts again on the 1st of each month.`}
         </p>
         <ul className="plan-meters">
-          <Meter label="Questions typed to Ask SALEANE" {...plan.ai.typed} />
-          <Meter label="Guest chats with the AI receptionist" {...plan.ai.guestChats} />
+          <Meter label={SALEANE_PACK.meters.typed.label} {...plan.ai.typed} />
+          <Meter label={SALEANE_PACK.meters.guestChats.label} {...plan.ai.guestChats} />
           <li>
-            <span>Talking to Ask SALEANE</span>
+            <span>{SALEANE_PACK.meters.talkSeconds.label}</span>
             <small>
               {plan.ai.talkSeconds.of / 60} minutes a month, when talking is switched on
             </small>
           </li>
           {plan.ai.phoneSeconds.of > 0 && (
             <Meter
-              label="Minutes of calls answered by the AI receptionist"
+              label={SALEANE_PACK.meters.phoneSeconds.label}
               used={Math.ceil(plan.ai.phoneSeconds.used / 60)}
               of={Math.floor(plan.ai.phoneSeconds.of / 60)}
             />

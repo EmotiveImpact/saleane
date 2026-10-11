@@ -20,6 +20,7 @@ import type { Command } from '../src/domain/commands'
 import { operations } from '../src/domain/operations'
 import { holding, reserveFor, settleUse } from './aiUsage'
 import type { Actor, Context, Org } from './context'
+import { ASK_NAME } from '../src/assistant/name'
 
 export type Held = PendingProposal<Command> & { organisationId: string; accountId: string }
 
@@ -232,7 +233,7 @@ export function talks(held: Map<string, Held>) {
       org.id,
       allowance,
       (before) => {
-        const seconds = Math.floor(talkWindowSeconds(allowance, before, at))
+        const seconds = Math.floor(talkWindowSeconds(allowance, before, at, 'talkSeconds'))
         return seconds < SHORTEST_TALK_SECONDS ? USED_UP : talkUse(actor.id, at, seconds, price)
       },
       // Held for the whole talk and its ending, with a minute to spare, should SALEANE stop
@@ -478,7 +479,7 @@ export function talks(held: Map<string, Held>) {
     const answered = result.status === 'answered'
     if (!answered)
       console.error(
-        `[SALEANE] Ask SALEANE's AI could not answer a spoken question (${result.reason}).`,
+        `[SALEANE] ${ASK_NAME}'s AI could not answer a spoken question (${result.reason}).`,
       )
     ctx.db.transaction(() => {
       settleUse(ctx, org.id, use, { counted: answered, costMinor: result.costMinor })
