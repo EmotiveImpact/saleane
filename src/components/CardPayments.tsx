@@ -8,7 +8,7 @@ import { minorInput, parseMinor } from '../domain/money'
 import { mayRemoveSavedCard } from '../domain/paymentMethods'
 import { returnable } from '../domain/retail'
 import { money as formatMoney } from '../domain/format'
-import { Button, ErrorMessage } from '../design'
+import { Button, ErrorMessage, Select, Checkbox } from '../design'
 import { refundRefusal, refundTarget } from '../domain/signoffs'
 
 type Attempt = {
@@ -555,8 +555,7 @@ export function PaymentSettings() {
         <fieldset className="message-settings" disabled={!editable || pending}>
           <legend className="sr-only">Saved cards</legend>
           <label className="checkbox-label">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={draft.saveCard}
               onChange={(e) => {
                 setDraft({ ...draft, saveCard: e.target.checked })
@@ -567,7 +566,7 @@ export function PaymentSettings() {
           </label>
           <label>
             Missed visit and late cancellation fee
-            <select
+            <Select
               value={draft.feePercent}
               onChange={(e) => {
                 setDraft({ ...draft, feePercent: Number(e.target.value) })
@@ -578,7 +577,7 @@ export function PaymentSettings() {
               <option value={25}>Up to 25% of the booked price</option>
               <option value={50}>Up to 50% of the booked price</option>
               <option value={100}>Up to the full booked price</option>
-            </select>
+            </Select>
           </label>
         </fieldset>
         <p className="subtle">

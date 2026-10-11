@@ -50,7 +50,8 @@
   min-width: 0;
   cursor: pointer;
 }
-.opening-offered input:disabled {
+.opening-offered input:disabled,
+.opening-offered .tick:disabled {
   cursor: not-allowed;
 }
 .opening-offered strong,
@@ -126,13 +127,15 @@
   padding: 5px 10px;
 }
 /* The tick itself hides; the whole day lights up when chosen. */
-.opening-days .setup-tick input {
+.opening-days .setup-tick input,
+.opening-days .setup-tick .tick {
   position: absolute;
   width: 1px;
   height: 1px;
   opacity: 0;
 }
-.opening-days .setup-tick:has(input:disabled) {
+.opening-days .setup-tick:has(input:disabled),
+.opening-days .setup-tick:has(.tick:disabled) {
   border-style: dashed;
   color: var(--faint);
   cursor: not-allowed;

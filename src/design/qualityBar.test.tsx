@@ -5,6 +5,11 @@ import { MemoryRouter } from 'react-router-dom'
 import { Button, Empty, LoadingShapes, MoreOptions, photos } from '.'
 import { Clients } from '../pages/Clients'
 import { Waitlist } from '../pages/Waitlist'
+import { Business } from '../pages/Business'
+import { Accounts } from '../pages/Accounts'
+import { ClientAreas } from '../pages/ClientAreas'
+import { Calendar } from '../pages/Calendar'
+import { MarketingAudience } from '../pages/Marketing'
 import type { BusinessState } from '../domain/model'
 import type { Role } from '../domain/operations'
 import { createWorkspace } from '../domain/workspace'
@@ -19,6 +24,8 @@ let store: {
   blocked: boolean
   saving: boolean
   commit: () => Promise<never>
+  mode?: 'demo' | 'server'
+  today?: string
 }
 vi.mock('../state/context', () => ({ useStore: () => store }))
 
@@ -29,6 +36,8 @@ function newStudio(patch: Partial<typeof store> = {}) {
     blocked: false,
     saving: false,
     commit: vi.fn(),
+    mode: 'demo',
+    today: '2026-10-11',
     ...patch,
   }
 }
@@ -158,5 +167,76 @@ describe('a new studio', () => {
       </MemoryRouter>,
     )
     expect(screen.queryByRole('button', { name: 'Add to the waitlist' })).toBeNull()
+  })
+  it.each([
+    [
+      'Business',
+      () => <Business />,
+      'Your figures begin with your first visit.',
+      'Takings from completed treatments',
+    ],
+    ['Accounts', () => <Accounts />, 'Ready for your accountant.', 'Spreadsheets'],
+    ['Client areas', () => <ClientAreas />, 'See where your clients come from.', 'Clients counted'],
+    [
+      'the Calendar',
+      () => <Calendar />,
+      'Your calendar opens with your team.',
+      'Every visit, in its place.',
+    ],
+    [
+      'Marketing’s Audience',
+      () => <MarketingAudience />,
+      'Your audience starts on the booking page.',
+      'Can hear from you',
+    ],
+  ])('meets a welcome on %s instead of figures at nought', (_, page, welcome, figures) => {
+    newStudio()
+    render(<MemoryRouter>{page()}</MemoryRouter>)
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    expect(screen.getByRole('heading', { level: 1, name: welcome })).toBeVisible()
+    expect(screen.queryByText(figures)).toBeNull()
+    expect(document.querySelector('.empty-picture img')).toHaveAttribute('alt', '')
+  })
+  it('sends an owner who has not finished setting up back to the setup screens', () => {
+    newStudio()
+    render(
+      <MemoryRouter>
+        <Business />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('link', { name: 'Set up step by step' })).toHaveAttribute(
+      'href',
+      '/setup',
+    )
+  })
+  it('gives a manager the page’s own next step', () => {
+    newStudio({ role: 'manager' })
+    render(
+      <MemoryRouter>
+        <Calendar />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('link', { name: 'Add your team' })).toHaveAttribute(
+      'href',
+      '/settings?section=staff',
+    )
+  })
+  it('keeps the sample studio’s figures and calendar as they are', () => {
+    newStudio({ state: seed('UK') })
+    const { unmount } = render(
+      <MemoryRouter>
+        <Business />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('heading', { level: 1, name: 'A clearer view.' })).toBeVisible()
+    unmount()
+    render(
+      <MemoryRouter>
+        <Calendar />
+      </MemoryRouter>,
+    )
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Every visit, in its place.' }),
+    ).toBeVisible()
   })
 })

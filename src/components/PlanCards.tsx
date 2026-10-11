@@ -13,7 +13,7 @@ import {
   upcomingCardPayment,
 } from '../domain/planCards'
 import { addDays, dateLabel, money } from '../domain/format'
-import { Button, ErrorMessage, Modal } from '../design'
+import { Button, ErrorMessage, Modal, Checkbox } from '../design'
 import {
   chargeWords,
   planCardsBase as base,
@@ -261,8 +261,7 @@ export function CardSetUp({
               as usual.
             </p>
             <label className="ops-check plan-card-agree">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={agreed}
                 disabled={busy}
                 onChange={(e) => setAgreed(e.target.checked)}

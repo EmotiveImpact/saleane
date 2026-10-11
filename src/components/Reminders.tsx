@@ -5,7 +5,7 @@ import { useStore } from '../state/context'
 import { addDays, dateLabel } from '../domain/format'
 import { can } from '../domain/operations'
 import { dueTasks } from '../domain/tasks'
-import { Button } from '../design'
+import { Button, Select } from '../design'
 import { useSeeAll } from './seeAll'
 import { SeeAllButton } from './SeeAllButton'
 import { weekdayName } from './insightWords'
@@ -127,13 +127,13 @@ export function Reminders() {
           </label>
           <label>
             Day
-            <select value={day || today} onChange={(e) => setDay(e.target.value)}>
+            <Select value={day || today} onChange={(e) => setDay(e.target.value)}>
               {week.map((d) => (
                 <option key={d} value={d}>
                   {dayName(d)}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <Button type="submit" variant="secondary" disabled={busy}>
             Add

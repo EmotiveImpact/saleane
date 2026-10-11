@@ -24,11 +24,13 @@ a {
 button,
 input,
 select,
+.select-trigger,
 textarea {
   font: inherit;
 }
 button,
-select {
+select,
+.select-trigger {
   cursor: pointer;
 }
 button {
@@ -42,7 +44,8 @@ button,
 a,
 input,
 textarea,
-select {
+select,
+.select-trigger {
   -webkit-tap-highlight-color: transparent;
 }
 :focus-visible {
@@ -50,7 +53,9 @@ select {
   outline-offset: 3px;
 }
 input:focus-visible,
+.tick:focus-visible,
 select:focus-visible,
+.select-trigger:focus-visible,
 textarea:focus-visible {
   outline-offset: 1px;
 }
@@ -92,6 +97,7 @@ svg {
 }
 input:not([type='checkbox']),
 select,
+.select-trigger,
 textarea {
   border: 1px solid var(--line2);
   background: #fff;
@@ -125,6 +131,49 @@ input[type='checkbox'] {
   margin: 0;
   flex-shrink: 0;
 }
+/* Round choices stay the browser's own radios, so the arrow keys move within a group, but are
+   drawn to match SALEANE's ticks: a soft ring that fills with ink around a paper dot. */
+input[type='radio'] {
+  appearance: none;
+  display: inline-grid;
+  place-content: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 1.5px solid var(--field-line);
+  border-radius: var(--radius-round);
+  background: #fff;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-quick) ease-out,
+    border-color var(--motion-quick) ease-out;
+}
+input[type='radio']::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-round);
+  background: var(--paper);
+  scale: 0;
+  transition: scale var(--motion-quick) var(--ease-calm);
+}
+input[type='radio']:hover:not(:disabled) {
+  border-color: var(--ink);
+}
+input[type='radio']:checked {
+  border-color: var(--ink);
+  background: var(--ink);
+}
+input[type='radio']:checked::before {
+  scale: 1;
+}
+input[type='radio']:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
 label {
   font-size: var(--text-body);
   font-weight: var(--weight-strong);
@@ -134,6 +183,7 @@ label {
 }
 label input,
 label select,
+label .select-trigger,
 label textarea {
   font-weight: var(--weight-body);
 }
@@ -324,8 +374,11 @@ fieldset {
 .skip-link:focus {
   top: 8px;
 }
+.app-shell {
+  --sidebar-width: 248px;
+}
 .sidebar {
-  width: 248px;
+  width: var(--sidebar-width);
   background: var(--side);
   border-right: 1px solid var(--line);
   color: var(--ink);
@@ -333,10 +386,14 @@ fieldset {
   inset: 0 auto 0 0;
   display: flex;
   flex-direction: column;
-  gap: 22px;
-  padding: 26px 18px;
+  gap: 16px;
+  padding: 22px 18px 18px;
   z-index: 25;
+  overflow-x: hidden;
   overflow-y: auto;
+  transition:
+    width var(--motion-calm) var(--ease-calm),
+    padding var(--motion-calm) var(--ease-calm);
 }
 .wordmark {
   font-family: var(--font-editorial);
@@ -346,10 +403,96 @@ fieldset {
   color: var(--ink);
 }
 .sidebar-brand {
-  margin: 4px 8px 6px;
+  margin: 0 0 2px 8px;
+  min-height: var(--target);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
+}
+.wordmark-initial {
+  display: none;
+}
+/* Folding the sidebar to its icons, on a computer. The phone menu is a drawer of its own. */
+.sidebar-fold {
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity var(--motion-quick);
+}
+.sidebar:hover .sidebar-fold,
+.sidebar-fold:focus-visible,
+.app-shell[data-rail] .sidebar-fold {
+  opacity: 1;
+}
+.sidebar-fold:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+}
+.nav-label {
+  white-space: nowrap;
+  transition: opacity var(--motion-quick);
+}
+@media (min-width: 901px) {
+  .app-shell[data-rail] {
+    --sidebar-width: 76px;
+  }
+  .app-shell[data-rail] .sidebar {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .app-shell[data-rail] .sidebar-brand {
+    flex-direction: column;
+    margin: 0;
+    gap: 6px;
+  }
+  .app-shell[data-rail] .wordmark-full {
+    display: none;
+  }
+  .app-shell[data-rail] .wordmark-initial {
+    display: inline;
+  }
+  .app-shell[data-rail] .wordmark {
+    letter-spacing: 0;
+  }
+  .app-shell[data-rail] .workspace-switch {
+    justify-content: center;
+    padding: 6px;
+  }
+  .app-shell[data-rail] .workspace-words,
+  .app-shell[data-rail] .workspace-switch > svg,
+  .app-shell[data-rail] .sidebar-photo {
+    display: none;
+  }
+  .app-shell[data-rail] .nav-link,
+  .app-shell[data-rail] .public-booking-link {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+    position: relative;
+  }
+  .app-shell[data-rail] .nav-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    opacity: 0;
+  }
+  .app-shell[data-rail] .nav-count {
+    position: absolute;
+    top: 3px;
+    right: 7px;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 4px;
+    font-size: 11px;
+  }
+  .app-shell[data-rail] .sidebar-footer {
+    justify-content: center;
+  }
+  .app-shell[data-rail] .sidebar-footer .live-dot {
+    margin: 0;
+  }
 }
 .workspace-switch {
   background: var(--panel);
@@ -362,9 +505,22 @@ fieldset {
   gap: 10px;
   text-align: left;
 }
-.workspace-switch > span:nth-child(2) {
+.workspace-switch .workspace-words {
   flex: 1;
   min-width: 0;
+}
+.workspace-switch:hover,
+.workspace-switch[data-state='open'] {
+  border-color: var(--line2);
+  box-shadow: 0 1px 2px #2e2b330d;
+}
+.workspace-switch > svg {
+  color: var(--muted);
+  flex-shrink: 0;
+  transition: rotate var(--motion-calm) var(--ease-calm);
+}
+.workspace-switch[data-state='open'] > svg {
+  rotate: 180deg;
 }
 .workspace-switch strong {
   font-size: var(--text-small);
@@ -394,7 +550,7 @@ fieldset {
   align-items: center;
   gap: 14px;
   padding: 10px 12px;
-  margin: 2px 0;
+  margin: 1px 0;
   font-size: var(--text-body);
   font-weight: var(--weight-nav);
   color: color-mix(in srgb, var(--ink) 78%, var(--muted));
@@ -433,11 +589,16 @@ fieldset {
 .public-booking-link {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 10px;
+  min-height: var(--target);
   font-size: var(--text-small);
-  padding: 16px 10px;
+  padding: 10px;
   border-bottom: 1px solid var(--line);
   color: var(--ink);
+}
+.public-booking-icon {
+  color: var(--muted);
+  flex-shrink: 0;
 }
 .sidebar-footer {
   display: flex;
@@ -450,15 +611,10 @@ fieldset {
 .sidebar-footer .live-dot {
   margin-right: 6px;
 }
-.sidebar-tagline {
-  color: var(--muted);
-  font-size: var(--text-micro);
-  margin: 0 8px;
-  line-height: 1.6;
-}
 .app-content {
-  margin-left: 248px;
+  margin-left: var(--sidebar-width);
   min-width: 0;
+  transition: margin-left var(--motion-calm) var(--ease-calm);
 }
 .app-header {
   min-height: 72px;
@@ -539,10 +695,35 @@ fieldset {
   display: flex;
   align-items: center;
   gap: 9px;
+  min-height: var(--target);
   background: transparent;
   border: 0;
-  padding: 0;
+  border-radius: var(--radius-pill);
+  padding: 0 10px 0 0;
   font-size: var(--text-small);
+}
+.operator-button:hover,
+.operator-button[data-state='open'] {
+  background: var(--stone);
+}
+.operator-button > svg {
+  color: var(--muted);
+  transition: rotate var(--motion-calm) var(--ease-calm);
+}
+.operator-button[data-state='open'] > svg {
+  rotate: 180deg;
+}
+.search-key {
+  margin-left: auto;
+  min-width: 20px;
+  padding: 0 6px;
+  border: 1px solid var(--line2);
+  border-radius: 6px;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--text-micro);
+  line-height: 18px;
+  text-align: center;
 }
 /* Narrower screens keep the header on one line: the dot alone says there is something to mention. */
 @media (max-width: 1200px) {
@@ -555,6 +736,9 @@ fieldset {
   }
   .global-search {
     min-width: 0;
+  }
+  .search-key {
+    display: none;
   }
 }
 .demo-notice {
@@ -968,6 +1152,10 @@ fieldset {
   font-size: var(--text-lead);
   margin: 0 12px 0 4px;
 }
+.date-controls .icon-button {
+  width: 40px;
+  height: 40px;
+}
 .date-controls .button {
   min-height: 34px;
   padding: 4px 12px;
@@ -978,7 +1166,8 @@ fieldset {
   align-items: center;
   gap: 12px;
 }
-.calendar-filters select {
+.calendar-filters select,
+.calendar-filters .select-trigger {
   min-height: 36px;
   width: 158px;
   padding: 6px 10px;
@@ -1425,7 +1614,8 @@ fieldset {
   font-size: var(--text-small);
   background: transparent;
 }
-.search-field input:focus-visible {
+.search-field input:focus-visible,
+.search-field .tick:focus-visible {
   outline: none;
 }
 .directory-controls {
@@ -1442,12 +1632,17 @@ fieldset {
   width: auto;
   min-width: 0;
 }
-.sort-field select {
+.sort-field select,
+.sort-field .select-trigger {
   min-height: 38px;
   padding: 6px 34px 6px 16px;
   border-radius: var(--radius-pill);
   font-size: var(--text-meta);
   width: auto;
+}
+/* SALEANE's own list draws its arrow inside the field, so it needs no room kept for the browser's. */
+.sort-field .select-trigger {
+  padding-right: 14px;
 }
 .tag {
   display: inline-flex;
@@ -2710,11 +2905,47 @@ fieldset {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 6px;
+  padding: 12px 10px;
   border-bottom: 1px solid var(--line);
+  border-radius: var(--radius-inner);
+  transition: background var(--motion-quick);
 }
-.search-results a:hover {
-  background: var(--brand-soft);
+.search-results a > svg {
+  color: var(--muted);
+}
+.search-results a[data-active] {
+  background: var(--stone);
+  border-bottom-color: transparent;
+}
+.search-results a[data-active] > svg {
+  color: var(--ink);
+}
+.search-hint {
+  margin-top: var(--space-4);
+  color: var(--muted);
+  font-size: var(--text-micro);
+}
+.search-hint kbd {
+  display: inline-block;
+  min-width: 20px;
+  padding: 0 5px;
+  border: 1px solid var(--line2);
+  border-radius: 5px;
+  font: inherit;
+  text-align: center;
+}
+/* Search opens near the top, where the eye already is, and keeps its place as results change. */
+@media (min-width: 651px) {
+  .dialog-content.search-dialog {
+    top: 12vh;
+    transform: translate(-50%, 0);
+  }
+}
+@media (hover: none) {
+  .search-hint,
+  .search-key {
+    display: none;
+  }
 }
 .search-results a > span:nth-child(2) {
   flex: 1;
@@ -3114,24 +3345,20 @@ fieldset {
   margin: 25px auto 0;
 }
 @media (min-width: 1800px) {
-  .sidebar {
-    width: 260px;
-  }
-  .app-content {
-    margin-left: 260px;
+  .app-shell {
+    --sidebar-width: 260px;
   }
 }
 @media (max-width: 1280px) {
+  .app-shell {
+    --sidebar-width: 222px;
+  }
   .sidebar {
-    width: 222px;
     padding-left: 14px;
     padding-right: 14px;
   }
   .wordmark {
     font-size: 24px;
-  }
-  .app-content {
-    margin-left: 222px;
   }
   .greeting-copy {
     padding: 30px 28px 28px;
@@ -3248,14 +3475,10 @@ fieldset {
   .sidebar {
     visibility: hidden;
     transform: translateX(-110%);
-    transition: transform 0.2s;
     width: 236px;
   }
-  .sidebar-open {
-    transform: translateX(0);
-  }
-  .app-content {
-    margin-left: 0;
+  .app-shell {
+    --sidebar-width: 0px;
   }
   .mobile-nav-toggle,
   .mobile-nav-close {
@@ -3473,14 +3696,12 @@ fieldset {
     font-size: var(--text-meta);
     margin: 0 4px;
   }
-  .date-controls .icon-button {
-    width: 29px;
-  }
   .calendar-filters {
     width: 100%;
     justify-content: space-between;
   }
-  .calendar-filters select {
+  .calendar-filters select,
+  .calendar-filters .select-trigger {
     width: 190px;
   }
   .calendar-legend {
@@ -3518,7 +3739,8 @@ fieldset {
     min-width: 0;
   }
   .sort-field,
-  .sort-field select {
+  .sort-field select,
+  .sort-field .select-trigger {
     width: 100%;
   }
   .directory-toolbar .search-field input {
@@ -3788,19 +4010,50 @@ fieldset {
 .mobile-route-menu {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 2px;
 }
 .mobile-route-menu a {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 12px;
+  min-height: var(--target);
+  padding: 11px 12px;
   border-radius: var(--radius-control);
-  font-size: var(--text-lead);
+  font-size: var(--text-body);
 }
 .mobile-route-menu a.active {
-  background: #f7eff1;
+  background: var(--stone);
   font-weight: var(--weight-strong);
+}
+.mobile-route-menu svg,
+.mobile-route-extra svg {
+  color: var(--muted);
+}
+.mobile-route-menu a.active svg {
+  color: var(--ink);
+}
+.mobile-route-extra {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+.mobile-route-extra a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--target);
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  font-size: var(--text-small);
+}
+.phone-menu .dialog-heading h2 {
+  font-size: var(--text-title-s);
+}
+.dialog-start .dialog-body {
+  padding-top: 12px;
 }
 
 /* Keep appointment context beside the calendar; other dialogs retain their centred layout. */
@@ -3820,6 +4073,12 @@ fieldset {
   box-shadow: -12px 0 48px #2e2b3320;
   overscroll-behavior: contain;
   padding-bottom: max(28px, env(safe-area-inset-bottom));
+}
+.dialog-content.dialog-start {
+  inset: 0 auto 0 0;
+  width: min(330px, 88vw);
+  border-width: 0 1px 0 0;
+  box-shadow: 12px 0 48px #2e2b3320;
 }
 .dialog-side .dialog-heading {
   gap: 16px;
@@ -4254,11 +4513,13 @@ fieldset {
   height: 22px;
   border-radius: 50%;
 }
-.colour-swatch:has(input:checked) {
+.colour-swatch:has(input:checked),
+.colour-swatch:has(.tick[data-state='checked']) {
   border-color: var(--ink);
   box-shadow: inset 0 0 0 1px var(--ink);
 }
-.colour-swatch:has(input:focus-visible) {
+.colour-swatch:has(input:focus-visible),
+.colour-swatch:has(.tick:focus-visible) {
   outline: 2px solid var(--focus);
   outline-offset: 3px;
 }
@@ -4364,30 +4625,34 @@ fieldset {
   }
 }
 /* V2: figures for one location. */
-.business-where select {
+.business-where select,
+.business-where .select-trigger {
   min-width: min(13rem, 100%);
 }
 
-/* Phones: every control is at least 40px to tap. Desktop keeps its compact sizes. */
-@media (max-width: 650px) {
+/* Phones and touch screens: every control is at least 44px to tap (the `--target` of the design
+   language), so a thumb finds it first time. A computer with a mouse keeps its compact sizes. */
+@media (max-width: 650px), (pointer: coarse) {
   .icon-button,
   .date-controls .icon-button {
-    width: 40px;
-    height: 40px;
+    width: var(--target);
+    height: var(--target);
   }
   .ask-button,
   .global-search,
   .operator-button {
-    min-width: 40px;
-    min-height: 40px;
+    min-width: var(--target);
+    min-height: var(--target);
     justify-content: center;
   }
   .text-link,
   .date-controls .button,
   .calendar-filters select,
+  .calendar-filters .select-trigger,
   .calendar-date-picker input,
   .search-field input,
   .sort-field select,
+  .sort-field .select-trigger,
   .directory-paging .button,
   .date-strip-other input,
   .client-table .client-cell,
@@ -4396,20 +4661,20 @@ fieldset {
   .back-link,
   .next-visit-panel .button,
   .connection-row {
-    min-height: 40px;
+    min-height: var(--target);
   }
   .text-link {
-    min-width: 40px;
+    min-width: var(--target);
   }
   summary,
   .chart-data summary {
-    min-height: 40px;
+    min-height: var(--target);
     padding-block: 10px;
   }
   /* Names that open a record keep their place in the text but take a taller touch. */
   .patch-list > li > div > a {
-    padding-block: 9px;
-    margin-block: -9px;
+    padding-block: 11px;
+    margin-block: -11px;
   }
   .waitlist-card-copy strong a {
     display: inline-block;

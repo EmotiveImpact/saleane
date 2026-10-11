@@ -12,6 +12,8 @@ import {
   WizardFooter,
   WizardSteps,
   useWizardStep,
+  Select,
+  Checkbox,
 } from '../design'
 import { readSheet } from '../domain/movingIn/sheet'
 import type { Sheet } from '../domain/movingIn/sheet'
@@ -799,8 +801,7 @@ export function MovingIn({ onClose }: { onClose: () => void }) {
               )}
             </ul>
             <label className="ops-check">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={reviewed}
                 disabled={!toBring || running}
                 onChange={(event) => setReviewed(event.target.checked)}
@@ -945,7 +946,7 @@ function FieldChoice({
         </small>
       </div>
       <div className="moving-field-actions">
-        <select
+        <Select
           id={selectId}
           value={value ?? ''}
           aria-label={`What “${heading}” is`}
@@ -957,7 +958,7 @@ function FieldChoice({
               {option.label}
             </option>
           ))}
-        </select>
+        </Select>
         {confirm && (
           <Button variant="secondary" onClick={() => onChange(value)}>
             Yes, that’s right
@@ -1030,7 +1031,7 @@ function NameChoice({
         </small>
       </div>
       <div className="moving-field-actions">
-        <select
+        <Select
           id={selectId}
           value={value}
           aria-label={`What “${match.name}” is`}
@@ -1046,7 +1047,7 @@ function NameChoice({
             </option>
           ))}
           <option value={LEAVE}>Leave these visits behind</option>
-        </select>
+        </Select>
         {confirm && match.how === 'suggested' && (
           <Button variant="secondary" onClick={() => onChange(match.key, match.id ?? null)}>
             Yes, that’s right

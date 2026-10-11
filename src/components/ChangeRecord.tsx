@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '../state/context'
 import { api } from '../state/api'
-import { Button, DateField, ErrorMessage, LoadingShapes } from '../design'
+import { Button, DateField, ErrorMessage, LoadingShapes, Select } from '../design'
 import { venueDate } from '../domain/tillCount'
 import { fullDateLabel } from '../domain/format'
 import {
@@ -158,7 +158,7 @@ export function ChangeRecord() {
           <div className="change-filters">
             <label className="ops-field">
               Who
-              <select value={who} onChange={(e) => setWho(e.target.value)}>
+              <Select value={who} onChange={(e) => setWho(e.target.value)}>
                 <option value="">Everyone</option>
                 {people.map((person) => (
                   <option key={person.id} value={person.id}>
@@ -166,18 +166,18 @@ export function ChangeRecord() {
                   </option>
                 ))}
                 <option value="automatic">Guests and automatic changes</option>
-              </select>
+              </Select>
             </label>
             <label className="ops-field">
               What
-              <select value={group} onChange={(e) => setGroup(e.target.value as ChangeGroup | '')}>
+              <Select value={group} onChange={(e) => setGroup(e.target.value as ChangeGroup | '')}>
                 <option value="">Everything</option>
                 {Object.entries(changeGroups).map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             <div className="ops-field">
               <span id="change-on-label">Up to</span>

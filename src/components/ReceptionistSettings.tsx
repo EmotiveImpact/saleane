@@ -4,7 +4,7 @@ import { MessageCircle } from 'lucide-react'
 import { useStore } from '../state/context'
 import { can, operations } from '../domain/operations'
 import { defaultReceptionist } from '../domain/receptionistSchema'
-import { Button, ErrorMessage } from '../design'
+import { Button, ErrorMessage, Checkbox } from '../design'
 import { useRun } from './usePayment'
 import { useAiLive } from './useAiLive'
 import { api } from '../state/api'
@@ -94,8 +94,7 @@ export function ReceptionistSettings() {
       <form onSubmit={save}>
         <div className="ops-fields">
           <label className="ops-check ops-wide">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={enabled}
               disabled={!allowed}
               onChange={(e) => setEnabled(e.target.checked)}
@@ -103,8 +102,7 @@ export function ReceptionistSettings() {
             Show the AI receptionist on the booking page
           </label>
           <label className="ops-check ops-wide">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={handOver}
               disabled={!allowed}
               onChange={(e) => setHandOver(e.target.checked)}
@@ -113,8 +111,7 @@ export function ReceptionistSettings() {
             Inbox.
           </label>
           <label className="ops-check ops-wide">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={texts}
               disabled={!allowed}
               onChange={(e) => setTexts(e.target.checked)}
@@ -124,8 +121,7 @@ export function ReceptionistSettings() {
             team.
           </label>
           <label className="ops-check ops-wide">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={social}
               disabled={!allowed}
               onChange={(e) => setSocial(e.target.checked)}
@@ -134,8 +130,7 @@ export function ReceptionistSettings() {
             app, says it is an AI, and steps back for an hour once someone from the team answers.
           </label>
           <label className="ops-check ops-wide">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={calls}
               disabled={!allowed || (!calls && !phoneReady)}
               aria-describedby="receptionist-calls-note"

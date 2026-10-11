@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { PackageOpen, Plus } from 'lucide-react'
+import { ChevronDown, PackageOpen, Plus } from 'lucide-react'
 import { useStore } from '../state/context'
 import { can, operations, stock } from '../domain/operations'
 import { hasLocations, placeOf, places } from '../domain/locations'
@@ -14,7 +14,19 @@ import type { Product } from '../domain/retail'
 import { CounterSales } from '../components/CounterSales'
 import { SupplierOrders } from '../components/SupplierOrders'
 import { suppliers } from '../domain/purchasing'
-import { Button, Empty, ErrorMessage, Modal, PageHeader, SegmentedControl } from '../design'
+import {
+  Button,
+  Empty,
+  ErrorMessage,
+  Menu,
+  MenuItem,
+  Modal,
+  PageHeader,
+  SegmentedControl,
+  Select,
+  Checkbox,
+  notify,
+} from '../design'
 import { ProductTile } from '../components/ProductTile'
 import { ProductPhotoField } from '../components/ProductPhotoField'
 import { ScanField } from '../components/ScanField'
@@ -73,6 +85,53 @@ const REASON_LABEL = {
   returned: 'Brought back',
   moved: 'Moved',
 } as const
+
+/**
+ * A product's actions: the one most often needed (a delivery) stays on the row, and the rest wait
+ * in one calm menu, so a long shelf reads as products rather than as rows of buttons.
+ */
+function ShelfActions({
+  product,
+  actions,
+}: {
+  product: Product
+  actions: { label: string; run: () => void }[]
+}) {
+  const [first, ...rest] = actions
+  if (!first) return null
+  return (
+    <div
+      className="shelf-actions"
+      role="group"
+      aria-label={`Stock and details for ${product.name}`}
+    >
+      <Button
+        variant="quiet"
+        aria-label={first.label === 'Edit details' ? `Edit ${product.name}` : undefined}
+        onClick={first.run}
+      >
+        {first.label}
+      </Button>
+      {rest.length > 0 && (
+        <Menu
+          label={`More for ${product.name}`}
+          trigger={
+            <Button variant="quiet" className="shelf-more" aria-label={`More for ${product.name}`}>
+              More
+              <ChevronDown size={14} aria-hidden="true" />
+            </Button>
+          }
+        >
+          {rest.map((action) => (
+            <MenuItem key={action.label} onSelect={action.run}>
+              {action.label}
+            </MenuItem>
+          ))}
+        </Menu>
+      )}
+    </div>
+  )
+}
 
 function useRun() {
   const { commit } = useStore()
@@ -360,8 +419,10 @@ export function Stock() {
           quantity: count,
           ...(note.trim() ? { note: note.trim() } : {}),
         })
-      )
+      ) {
         setMoving(null)
+        notify(`Moved ${count} ${moving.product.name} to ${placeName(to)}.`)
+      }
       return
     }
     const onHand = stock(state, moving.product.id, at)
@@ -384,8 +445,14 @@ export function Stock() {
         note: note.trim(),
         ...(at !== org.locationId ? { locationId: at } : {}),
       })
-    )
+    ) {
       setMoving(null)
+      // The dialog closes as it saves, so a notice says what was recorded and what is left.
+      const now = onHand + quantity
+      notify(
+        `${moving.kind === 'received' ? `Delivery of ${count}` : moving.kind === 'consumed' ? `${count} used` : 'Count'} recorded for ${moving.product.name}. ${now} in stock${multiSite ? ` at ${placeName(at)}` : ''}.`,
+      )
+    }
   }
 
   const form = editing?.form
@@ -466,14 +533,14 @@ export function Stock() {
         {multiSite && (
           <label className="stock-where">
             Location
-            <select value={where} onChange={(e) => setWhere(e.target.value)}>
+            <Select value={where} onChange={(e) => setWhere(e.target.value)}>
               <option value="all">All locations</option>
               {sites.map((site) => (
                 <option key={site.id} value={site.id}>
                   {site.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         )}
         <SegmentedControl
@@ -538,43 +605,35 @@ export function Stock() {
                     )}
                   </div>
                   {(canStock || canEdit) && (
-                    <div
-                      className="shelf-actions"
-                      role="group"
-                      aria-label={`Stock and details for ${product.name}`}
-                    >
-                      {canStock && !product.archived && (
-                        <>
-                          <Button variant="quiet" onClick={() => openMovement(product, 'received')}>
-                            Delivery
-                          </Button>
-                          <Button variant="quiet" onClick={() => openMovement(product, 'consumed')}>
-                            Used
-                          </Button>
-                          <Button variant="quiet" onClick={() => openMovement(product, 'count')}>
-                            Count
-                          </Button>
-                          {multiSite && (
-                            <Button
-                              variant="quiet"
-                              aria-label={`Move ${product.name} to another location`}
-                              onClick={() => openMovement(product, 'move')}
-                            >
-                              Move
-                            </Button>
-                          )}
-                        </>
-                      )}
-                      {canEdit && (
-                        <Button
-                          variant="quiet"
-                          aria-label={`Edit ${product.name}`}
-                          onClick={() => openProduct(product)}
-                        >
-                          Edit
-                        </Button>
-                      )}
-                    </div>
+                    <ShelfActions
+                      product={product}
+                      actions={[
+                        ...(canStock && !product.archived
+                          ? [
+                              { label: 'Delivery', run: () => openMovement(product, 'received') },
+                              {
+                                label: 'Used in treatments',
+                                run: () => openMovement(product, 'consumed'),
+                              },
+                              {
+                                label: 'Correct the count',
+                                run: () => openMovement(product, 'count'),
+                              },
+                              ...(multiSite
+                                ? [
+                                    {
+                                      label: 'Move to another location',
+                                      run: () => openMovement(product, 'move'),
+                                    },
+                                  ]
+                                : []),
+                            ]
+                          : []),
+                        ...(canEdit
+                          ? [{ label: 'Edit details', run: () => openProduct(product) }]
+                          : []),
+                      ]}
+                    />
                   )}
                 </div>
               )
@@ -669,8 +728,7 @@ export function Stock() {
                 />
               )}
               <label className="ops-check ops-wide">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={form.forSale}
                   onChange={(e) => change({ forSale: e.target.checked })}
                 />
@@ -758,7 +816,7 @@ export function Stock() {
                   </label>
                   <label>
                     Supplier
-                    <select
+                    <Select
                       value={form.supplierId}
                       onChange={(e) => change({ supplierId: e.target.value })}
                     >
@@ -770,7 +828,7 @@ export function Stock() {
                             {x.name}
                           </option>
                         ))}
-                    </select>
+                    </Select>
                   </label>
                   <label>
                     Usually order
@@ -787,8 +845,7 @@ export function Stock() {
               </details>
               {editing.id && (
                 <label className="ops-check ops-wide">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={form.archived}
                     onChange={(e) => change({ archived: e.target.checked })}
                   />
@@ -822,7 +879,7 @@ export function Stock() {
               {multiSite && (
                 <label>
                   {moving.kind === 'move' ? 'From' : 'Location'}
-                  <select
+                  <Select
                     value={at}
                     onChange={(e) => {
                       setAt(e.target.value)
@@ -835,13 +892,13 @@ export function Stock() {
                         {site.name} ({stock(state, moving.product.id, site.id)})
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
               )}
               {moving.kind === 'move' && (
                 <label>
                   To
-                  <select value={to} onChange={(e) => setTo(e.target.value)}>
+                  <Select value={to} onChange={(e) => setTo(e.target.value)}>
                     {sites
                       .filter((site) => site.id !== at)
                       .map((site) => (
@@ -849,7 +906,7 @@ export function Stock() {
                           {site.name}
                         </option>
                       ))}
-                  </select>
+                  </Select>
                 </label>
               )}
               <label>

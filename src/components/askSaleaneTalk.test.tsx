@@ -83,7 +83,7 @@ describe('talking to Ask SALEANE', () => {
     render(<AskSaleane onClose={() => {}} />)
     const panel = await screen.findByRole('dialog', { name: 'Ask SALEANE' })
     const voice = await within(panel).findByRole('combobox', { name: 'Voice' })
-    expect(voice).toHaveDisplayValue('The studio’s (Vesper)')
+    expect(voice).toHaveTextContent('The studio’s (Vesper)')
     await user.selectOptions(voice, 'quartz')
     expect(commit).toHaveBeenCalledWith({ type: 'own-voice', voice: 'quartz' })
     expect(await within(panel).findByText('Saved. Your next talk uses it.')).toBeInTheDocument()

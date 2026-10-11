@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Map as MapIcon } from 'lucide-react'
 import { useStore } from '../state/context'
-import { Button, ErrorMessage, Modal } from '../design'
+import { Button, ErrorMessage, Modal, Select, Checkbox } from '../design'
 import { money } from '../domain/format'
 import { places } from '../domain/locations'
 import { can } from '../domain/operations'
@@ -348,14 +348,14 @@ function GroupEditor({
         <div className="ops-fields">
           <label>
             Region
-            <select value={regionId} disabled={pending} onChange={(e) => pick(e.target.value)}>
+            <Select value={regionId} disabled={pending} onChange={(e) => pick(e.target.value)}>
               {regions(state).map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.name}
                 </option>
               ))}
               <option value="new">Add a region</option>
-            </select>
+            </Select>
           </label>
           <label>
             Name
@@ -377,8 +377,7 @@ function GroupEditor({
               )
               return (
                 <label className="ops-check" key={p.id}>
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={chosen.includes(p.id)}
                     disabled={pending || !!other}
                     onChange={(e) =>

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { KeyRound } from 'lucide-react'
 import { useStore } from '../state/context'
 import { api } from '../state/api'
-import { Button, ErrorMessage } from '../design'
+import { Button, ErrorMessage, Select } from '../design'
 import { regions } from '../domain/group'
 import { areaPlaces } from '../domain/area'
 import { hasLocations, places } from '../domain/locations'
@@ -151,7 +151,7 @@ export function AccessPanel() {
                   <>
                     <label>
                       <span className="sr-only">Role for {m.name}</span>
-                      <select
+                      <Select
                         disabled={pending}
                         value={
                           m.role === 'practitioner'
@@ -197,7 +197,7 @@ export function AccessPanel() {
                             General manager · {p.name}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </label>
                     <Button
                       variant="quiet"
@@ -256,18 +256,18 @@ export function AccessPanel() {
               </label>
               <label>
                 Access
-                <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
+                <Select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
                   <option value="reception">Reception</option>
                   <option value="manager">Manager</option>
                   <option value="practitioner">Practitioner</option>
                   {branches.length > 0 && <option value="general">General manager</option>}
                   {areas.length > 0 && <option value="regional">Regional manager</option>}
-                </select>
+                </Select>
               </label>
               {inviteRole === 'general' && (
                 <label>
                   Runs
-                  <select
+                  <Select
                     required
                     value={inviteBranch}
                     onChange={(e) => setInviteBranch(e.target.value)}
@@ -278,13 +278,13 @@ export function AccessPanel() {
                         {p.name}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
               )}
               {inviteRole === 'regional' && (
                 <label>
                   Looks after
-                  <select
+                  <Select
                     required
                     value={inviteArea}
                     onChange={(e) => setInviteArea(e.target.value)}
@@ -295,13 +295,13 @@ export function AccessPanel() {
                         {r.name}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
               )}
               {inviteRole === 'practitioner' && (
                 <label>
                   Works as
-                  <select
+                  <Select
                     required
                     value={inviteStaff}
                     onChange={(e) => setInviteStaff(e.target.value)}
@@ -312,7 +312,7 @@ export function AccessPanel() {
                         {person.name}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
               )}
             </div>

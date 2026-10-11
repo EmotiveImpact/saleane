@@ -154,7 +154,8 @@
   display: block;
   color: var(--muted);
 }
-.access-row select {
+.access-row select,
+.access-row .select-trigger {
   max-width: 160px;
 }
 .copy-invitation {
@@ -222,7 +223,8 @@
     align-items: flex-start;
     flex-direction: column;
   }
-  .access-row select {
+  .access-row select,
+  .access-row .select-trigger {
     max-width: none;
   }
   .account-story .wordmark {

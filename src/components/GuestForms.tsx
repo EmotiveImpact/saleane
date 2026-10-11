@@ -16,7 +16,7 @@ import type { FormContent, GuestForm, Question } from '../domain/formsSchema'
 import type { Appointment } from '../domain/model'
 import { dateLabel } from '../domain/format'
 import { businessDate } from '../domain/operations'
-import { Button, ErrorMessage, Modal } from '../design'
+import { Button, ErrorMessage, Modal, Select, Checkbox } from '../design'
 import { useRun } from './usePayment'
 import './guestForms.css'
 
@@ -256,7 +256,7 @@ function FormEditor({
                   </label>
                   <label>
                     Answer
-                    <select
+                    <Select
                       value={q.kind}
                       onChange={(e) => update(q.id, { kind: e.target.value as Question['kind'] })}
                     >
@@ -265,11 +265,10 @@ function FormEditor({
                           {kindLabel[kind]}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </label>
                   <label className="ops-check">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={q.required}
                       onChange={(e) => update(q.id, { required: e.target.checked })}
                     />
@@ -324,10 +323,10 @@ function FormEditor({
           </label>
           <label>
             Ask
-            <select value={when} onChange={(e) => setWhen(e.target.value as GuestForm['when'])}>
+            <Select value={when} onChange={(e) => setWhen(e.target.value as GuestForm['when'])}>
               <option value="every_visit">Before every visit</option>
               <option value="once">Once per guest</option>
-            </select>
+            </Select>
           </label>
         </div>
         <fieldset className="form-services">
@@ -336,8 +335,7 @@ function FormEditor({
           <div>
             {services.map((s) => (
               <label className="ops-check" key={s.id}>
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={serviceIds.includes(s.id)}
                   onChange={(e) =>
                     setServiceIds((ids) =>

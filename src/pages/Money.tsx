@@ -17,6 +17,8 @@ import {
   SegmentedControl,
   Stat,
   Stats,
+  Select,
+  Checkbox,
 } from '../design'
 import '../components/management.css'
 import { TillCount } from '../components/TillCount'
@@ -815,7 +817,7 @@ export function Money() {
                 </label>
                 <label>
                   Returned as
-                  <select
+                  <Select
                     name="method"
                     defaultValue={
                       sandbox
@@ -838,7 +840,7 @@ export function Money() {
                         <option value="external_card">Card or bank, outside SALEANE</option>
                       </>
                     )}
-                  </select>
+                  </Select>
                 </label>
                 <label>
                   External reference
@@ -869,7 +871,7 @@ export function Money() {
                   ))}
               </div>
               <label className="ops-check">
-                <input type="checkbox" name="confirmed" required />
+                <Checkbox name="confirmed" required />
                 {sandbox
                   ? 'I understand this is a simulated refund.'
                   : 'I confirm this money has already been given back outside SALEANE.'}
@@ -990,7 +992,7 @@ export function Money() {
               </label>
               <label>
                 Method
-                <select name="method">
+                <Select name="method">
                   {sandbox ? (
                     <>
                       <option value="demo_cash">Simulated cash</option>
@@ -1002,7 +1004,7 @@ export function Money() {
                       <option value="external_card">External card payment</option>
                     </>
                   )}
-                </select>
+                </Select>
               </label>
               <label className="ops-wide">
                 Reference
@@ -1014,7 +1016,7 @@ export function Money() {
               </label>
             </div>
             <label className="ops-check">
-              <input type="checkbox" name="confirmed" required />
+              <Checkbox name="confirmed" required />
               {sandbox
                 ? 'I understand this is a simulated deposit.'
                 : 'I confirm this money has already been received outside SALEANE.'}

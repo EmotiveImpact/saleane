@@ -70,6 +70,10 @@
   height: 16px;
   margin: 0;
 }
+.checkout-plans .tick {
+  width: 16px;
+  height: 16px;
+}
 fieldset.checkout-plans > label {
   flex-direction: row;
   justify-content: flex-start;
@@ -82,7 +86,8 @@ fieldset.checkout-plans > label {
   border-radius: var(--radius-control);
   font-weight: var(--weight-body);
 }
-.checkout-plans label:has(input:checked) {
+.checkout-plans label:has(input:checked),
+.checkout-plans label:has(.tick[data-state='checked']) {
   border-color: var(--brand-ink);
   background: var(--sage);
 }

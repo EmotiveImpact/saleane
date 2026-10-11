@@ -3,7 +3,7 @@ import { ChevronRight } from 'lucide-react'
 import { useStore } from '../state/context'
 import { dayAppointments, shownStatus } from '../domain/selectors'
 import { addDays, dateLabel, timeLabel } from '../domain/format'
-import { Status } from '../design'
+import { Status, Tip } from '../design'
 import { shownHours, sideBySide, weekSpan, weekStart } from './calendarDays'
 import './calendarWeek.css'
 
@@ -135,32 +135,35 @@ export function CalendarWeek({
                           across,
                         })}
                       >
-                        <button
-                          type="button"
-                          className={`calendar-event week-event tone-${person.tone} ${a.status === 'completed' ? 'event-completed' : ''}`}
-                          title={`${time} to ${until}, ${client.name}, ${service.name} with ${person.name}`}
-                          data-selected={selectedId === a.id ? '' : undefined}
-                          aria-haspopup="dialog"
-                          aria-expanded={selectedId === a.id}
-                          onClick={() => onOpen(a.id)}
+                        <Tip
+                          label={`${time} to ${until}, ${client.name}, ${service.name} with ${person.name}`}
                         >
-                          {/* In a narrow chip the person and the surname are left to the
+                          <button
+                            type="button"
+                            className={`calendar-event week-event tone-${person.tone} ${a.status === 'completed' ? 'event-completed' : ''}`}
+                            data-selected={selectedId === a.id ? '' : undefined}
+                            aria-haspopup="dialog"
+                            aria-expanded={selectedId === a.id}
+                            onClick={() => onOpen(a.id)}
+                          >
+                            {/* In a narrow chip the person and the surname are left to the
                               screen reader and the tooltip, so the time and first name show. */}
-                          <span className="week-event-when">
-                            <span>{time}</span>{' '}
-                            <span className="week-event-who">{person.name.split(' ')[0]}</span>
-                          </span>{' '}
-                          <strong>
-                            {firstName}
-                            {surname.length > 0 && (
-                              <>
-                                {' '}
-                                <span className="week-event-surname">{surname.join(' ')}</span>
-                              </>
-                            )}
-                          </strong>{' '}
-                          <small>{service.name}</small> <Status status={shownStatus(a)} />
-                        </button>
+                            <span className="week-event-when">
+                              <span>{time}</span>{' '}
+                              <span className="week-event-who">{person.name.split(' ')[0]}</span>
+                            </span>{' '}
+                            <strong>
+                              {firstName}
+                              {surname.length > 0 && (
+                                <>
+                                  {' '}
+                                  <span className="week-event-surname">{surname.join(' ')}</span>
+                                </>
+                              )}
+                            </strong>{' '}
+                            <small>{service.name}</small> <Status status={shownStatus(a)} />
+                          </button>
+                        </Tip>
                       </li>
                     )
                   })}

@@ -3,7 +3,7 @@ import { CreditCard, ShieldCheck } from 'lucide-react'
 import { api } from '../state/api'
 import type { GuestPayment as Payment, GuestView } from '../domain/guest'
 import { money } from '../domain/format'
-import { Button, ErrorMessage } from '../design'
+import { Button, ErrorMessage, Checkbox } from '../design'
 import { rememberToken } from '../state/guestReturn'
 
 /**
@@ -79,8 +79,7 @@ export function GuestPayment({
               </p>
               {payment.saveCardOffered && (
                 <label className="guest-pay-save">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={saveCard}
                     onChange={(event) => setSaveCard(event.target.checked)}
                   />

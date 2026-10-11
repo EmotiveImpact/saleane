@@ -77,29 +77,39 @@ Display sizes on guest booking and marketing panels may sit outside this scale.
 
 ## Components
 
-All are exported from `src/design/index.ts`. Interactive primitives use Radix, unstyled, and take their look from these tokens. Radix packages in use: Dialog, Tabs, Toggle Group, Popover. Add another Radix primitive when a pattern needs its keyboard and focus behaviour, not for appearance alone.
+All are exported from `src/design/index.ts`. Interactive primitives use Radix (the single `radix-ui` package), unstyled, and take their look from these tokens. Radix parts in use: Dialog, Dropdown Menu, Tooltip, Toast, Select, Checkbox, Switch, Tabs, Toggle Group, Popover. Screens import them only through `src/design`, never from `radix-ui` directly. Add another Radix part when a pattern needs its keyboard and focus behaviour, not for appearance alone. Movement comes from Motion (`motion/react`, formerly Framer Motion), also only through `src/design`; see [Where things move](#where-things-move).
 
-| Component               | Built on           | When to use                                                                                           |
-| ----------------------- | ------------------ | ----------------------------------------------------------------------------------------------------- |
-| `PageHeader`            | native             | Every staff page top. See [Page tops](#page-tops). `photo` for a page people arrive at                |
-| `Button`                | native             | Actions. Primary, secondary, quiet, light. Name the action, not the control                           |
-| `SegmentedControl`      | Radix Toggle Group | One choice between views of the same content: a period, a filter, a layout. Always keeps one selected |
-| `Tabs`                  | Radix Tabs         | Sections that replace each other in place (Manage)                                                    |
-| `Definition`            | Radix Popover      | How a figure is measured. Opens by tap, click or keyboard; never hover-only                           |
-| `Metric`                | native             | Label, value, plain detail; optional `definition`. No decorative trend claims                         |
-| `Stats`, `Stat`         | native             | A row of headline figures as a definition list, one figure style everywhere                           |
-| `Status`                | native             | Visit state as text plus dot                                                                          |
-| `Avatar`                | native             | Fictional seed portrait or initials on a staff tone; decorative beside a visible name                 |
-| `TimeChoices`           | native radios      | Picking an appointment time; arrow keys select                                                        |
-| `DateStrip`             | native radios      | Picking a day from the next fortnight, each showing how many times it has                             |
-| `DateField`             | Radix Popover      | A date in a form, written out in the studio's own way, with a calendar to pick from                   |
-| `TimeField`             | native select      | A time in a form, in steps, on the studio's clock                                                     |
-| `WizardSteps` and kin   | native             | A rare job of a few steps: `WizardSteps`, `ChoiceTiles`, `WizardFooter` and `useWizardStep`           |
-| `ScrollNav`             | native             | A row of links that scrolls sideways on a phone, with a fade where there is more                      |
-| `PhotoStrip`            | native             | The photo band. Use it only through `PageHeader`'s `photo`, never on its own                          |
-| `photos`                | house photographs  | The only photographs a screen may use; `treatmentPhoto` picks one for a kind of treatment             |
-| `Modal`                 | Radix Dialog       | One decision or one record. Focus trapped, Escape closes, focus returns                               |
-| `Empty`, `ErrorMessage` | native             | Empty and failed states with a next step                                                              |
+| Component                         | Built on                     | When to use                                                                                                                     |
+| --------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `PageHeader`                      | native                       | Every staff page top. See [Page tops](#page-tops). `photo` for a page people arrive at                                          |
+| `Button`                          | native                       | Actions. Primary, secondary, quiet, light. Name the action, not the control                                                     |
+| `SegmentedControl`                | Radix Toggle Group, Motion   | One choice between views of the same content: a period, a filter, a layout. Always keeps one selected                           |
+| `Tabs`                            | Radix Tabs, Motion           | Sections that replace each other in place (Manage)                                                                              |
+| `Menu`, `MenuItem`, `MenuChoices` | Radix Dropdown Menu          | A few things to do from one button: the studio and your own name at the top, More on a row with several actions                 |
+| `Tip`                             | Radix Tooltip                | A hint beside an arrow or icon whose meaning is not written on it. Hover and keyboard only, so it never holds anything needed   |
+| `Select`                          | Radix Select                 | One choice from a list. Written like a `<select>`, with `<option>` and `<optgroup>`; forms still read a plain value             |
+| `Checkbox`, `Switch`              | Radix Checkbox, Radix Switch | A tick for one thing in a list or form; a switch for a setting that takes effect as a whole ("Send reminders")                  |
+| `Notices`, `notify`               | Radix Toast                  | A short corner notice for something that happened out of view. Says only what really happened. `Notices` sits once in the frame |
+| `Definition`                      | Radix Popover                | How a figure is measured. Opens by tap, click or keyboard; never hover-only                                                     |
+| `Metric`                          | native                       | Label, value, plain detail; optional `definition`. No decorative trend claims                                                   |
+| `Stats`, `Stat`                   | native                       | A row of headline figures as a definition list, one figure style everywhere                                                     |
+| `Status`                          | native                       | Visit state as text plus dot                                                                                                    |
+| `Avatar`                          | native                       | Fictional seed portrait or initials on a staff tone; decorative beside a visible name                                           |
+| `TimeChoices`                     | native radios                | Picking an appointment time; arrow keys select                                                                                  |
+| `DateStrip`                       | native radios                | Picking a day from the next fortnight, each showing how many times it has                                                       |
+| `DateField`                       | Radix Popover                | A date in a form, written out in the studio's own way, with a calendar to pick from                                             |
+| `TimeField`                       | Radix Select                 | A time in a form, in steps, on the studio's clock                                                                               |
+| `MovingList`, `MovingRow`         | Motion                       | A list that changes while someone looks at it (Today, Inbox, the waitlist). Rows there on arrival simply appear                 |
+| `CalmMotion`, `ChosenMark`        | Motion                       | The one calm timing for everything inside the app, and the mark that slides under a chosen tab, period or view                  |
+| `MoreOptions`                     | native disclosure            | Settings most people never change, behind one quiet line that opens in place                                                    |
+| `WizardSteps` and kin             | native                       | A rare job of a few steps: `WizardSteps`, `ChoiceTiles`, `WizardFooter` and `useWizardStep`                                     |
+| `ScrollNav`                       | native                       | A row of links that scrolls sideways on a phone, with a fade where there is more                                                |
+| `PhotoStrip`                      | native                       | The photo band. Use it only through `PageHeader`'s `photo`, never on its own                                                    |
+| `photos`                          | house photographs            | The only photographs a screen may use; `treatmentPhoto` picks one for a kind of treatment                                       |
+| `Modal`                           | Radix Dialog, Motion         | One decision or one record. Focus trapped, Escape closes, focus returns (to the menu's button when a menu item opened it)       |
+| `Empty`, `ErrorMessage`           | native                       | Empty and failed states with a next step                                                                                        |
+
+Round choices (`TimeChoices`, `DateStrip`, and radios in forms) stay native inputs, drawn to match, because the browser's own arrow keys between them are what people expect. Folds (`details`) also stay native and open to their height in browsers that can.
 
 Route links (main navigation, the Business sub-navigation) stay as links. They are not tabs, because each one changes the URL.
 
@@ -114,12 +124,14 @@ Every staff page opens the same way, through `PageHeader`, in this order:
 
 Which top a page uses:
 
-| Kind of page             | Its top                                                | Pages                                                                                        |
-| ------------------------ | ------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
-| A greeting               | `editorial`, with a photograph                         | Today (its own greeting panel), a professional's day, a regional manager's area              |
-| A place people arrive    | `compact` with `photo`: one band that fades into words | Clients, Waitlist, What guests tell you                                                      |
-| A working tool or a form | `compact`, no photograph                               | Calendar, Inbox, Messages to clients, every Business page, Money, Stock, Settings, Day sheet |
-| A record or a guest page | Its own frame, in the same order                       | A client's page, booking pages, a guest's visit link, account pages                          |
+| Kind of page             | Its top                                                | Pages                                                                                                   |
+| ------------------------ | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| A greeting               | `editorial`, with a photograph                         | Today (its own greeting panel), a professional's day, a regional manager's area                         |
+| A place people arrive    | `compact` with `photo`: one band that fades into words | Clients, Waitlist, What guests tell you                                                                 |
+| A working tool or a form | `compact`, no photograph                               | Calendar, Inbox, Messages to clients, every Business page, Marketing, Money, Stock, Settings, Day sheet |
+| A record or a guest page | Its own frame, in the same order                       | A client's page, booking pages, a guest's visit link, account pages                                     |
+
+Business and Marketing each have a row of sections; on both it sits above the eyebrow, so the page top that follows is the same on every section.
 
 The photo band is one house photograph from `src/design/photos.ts`, above the eyebrow, running the width of the page and fading softly into the words with no frame. One per view: a page whose body already shows photographs (Business, the till's products) does not add a band. The same title shows on the version of the page a person without access sees, with the same eyebrow. `src/design/pageTops.test.ts` checks that every staff page uses `PageHeader` with an eyebrow, and that no page sets `PhotoStrip` down on its own.
 
@@ -136,7 +148,31 @@ The photo band is one house photograph from `src/design/photos.ts`, above the ey
 - **Plain words.** Say what is not connected yet in studio language ("Card payments are not connected yet"), never configuration names or internal codes.
 - **Start where you are.** Free time on the calendar books there, and a dragged visit opens the move step at its new spot. Shortcuts fill in choices; the same checks and confirmation still decide.
 - **Times in groups.** Long runs of times sit under Morning, Afternoon and Evening.
+- **Rows with several actions.** The everyday action stays on the row as a quiet button; the rest go under one More menu named for the row ("More for Calming Cleansing Balm"). Stock is the reference.
+- **Hints.** An arrow or icon whose meaning is not written on it gets a `Tip`. It never holds anything a person must read to act, because a phone has no hover; the button keeps its own words or `aria-label`.
+- **Notices.** Use `notify` when something was confirmed where the person may not be looking (a pop-up that closed as it saved). Where a saved line already sits beside the button, keep the line and send no notice.
+- **A new studio.** Pages that would open on figures at nought or an empty grid (Business, Accounts, Client areas, Marketing's Audience, the Calendar before anyone is on the team) open with the `Empty` welcome. An owner who has not finished setting up is sent back to where they left off.
 - **Wizards.** A job with a few distinct steps runs in a `Modal` with `WizardSteps` along the top: one job per step, Continue held until the step is complete, Back always there, nothing saved until the last step, and that step saying in plain sentences what will happen. Each step opens at the top with its heading focused (`useWizardStep`). Moving in (`MovingIn.tsx`) is the reference.
+
+## Where things move
+
+Movement answers something a person did, so the eye can follow it. Motion (`motion/react`) moves lists, chosen marks and things that leave, wrapped once by `CalmMotion` so every animation takes `calm` timing; simpler arrivals use CSS on `--motion-calm` and `--ease-calm`. Both are the same calm timing.
+
+| What                          | How it moves                                                                         | Where it lives                   |
+| ----------------------------- | ------------------------------------------------------------------------------------ | -------------------------------- |
+| Sidebar folding to its icons  | The sidebar narrows and the page widens together                                     | `styles.css`                     |
+| Phone menu                    | A drawer slides in from the left and back out                                        | `Modal` with `placement="start"` |
+| Side panels and pop-ups       | Slide in a little and leave back the way they came, after focus has already moved on | `Modal`, `leaveGently`           |
+| Menus, hints, drop-downs      | Fade in with a few pixels of settling, and leave a little quicker                    | `controls.css`                   |
+| Notices                       | Arrive from the corner; swipe or close to clear                                      | `Notices`                        |
+| Tabs, periods, calendar views | The chosen mark slides from the old choice to the new one                            | `ChosenMark`                     |
+| A new calendar view or day    | Fades up in place of the last one                                                    | `Calendar.tsx`, `arriveGently`   |
+| A visit dragged to a new time | Glides into its new place                                                            | `settleFrom`                     |
+| Today, Inbox, the waitlist    | A new row settles in, a row that goes fades, the rest slide aside                    | `MovingList`, `MovingRow`        |
+| Guest booking steps           | Slide forward and back                                                               | `useStepArrival`                 |
+| Ticks and switches            | The tick settles in; the knob slides                                                 | `Checkbox`, `Switch`             |
+
+Never: pages loading, scrolling, typing (including checkout), or anything that loops. `useMotionAllowed` is false for reduced motion and in tests, and then every change happens at once.
 
 ## Voice
 
@@ -163,7 +199,7 @@ Every screen meets this bar before anyone is asked to merge it. It comes from th
 4. **One photograph per view, where it adds feeling:** arrivals, empty pages and guest moments. Never on dense working surfaces, never as decoration. Frame it the way the wizards do: large, running to the edges of its panel and fading softly into the words, never a small picture set down beside a paragraph.
 5. **Lovely empty pages.** A page with nothing in it yet opens with a welcome in place of its header: `Empty` with the page's eyebrow, a photograph, one line and one next step. It hides the filters, tables and figures that would only show nothing or zero, and the header's own title, photograph and buttons, so the page has one heading and one way forward. It is a single calm page, not a wizard. A small gap inside a list stays a one-line `Empty` without a photograph.
 6. **Calm loading.** `LoadingShapes` in the shape of what is coming. Never a spinner, a blank space or "Loading…" on its own.
-7. **One way of moving.** Things arrive with `--motion-calm` and `--ease-calm`: dialogs open, side panels slide in a little, steps and saved lines use `settle`. No bounces, no long slides, nothing loops except loading shapes. Reduced motion removes all of it.
+7. **One way of moving.** Things arrive with `--motion-calm` and `--ease-calm`: dialogs open, side panels slide in a little, steps and saved lines use `settle`. Motion uses the same timing for panels, menus and lists; see [Where things move](#where-things-move). No bounces, no long slides, nothing loops except loading shapes. Pages loading, scrolling and typing never move. Reduced motion removes all of it.
 8. **Phone first.** Check at 390px. Nothing scrolls sideways unless it is a strip made to scroll, every target is at least 44px, and the main button sits where a thumb reaches it: full width at the foot of a form, a step or an empty page.
 9. **Warm, plain words.** Say what happens next in the studio's own language. Headings are short and human; errors keep what was typed and name the next step. British English, no exclamation marks, no em dashes.
 10. **Honest and built from the library.** Tokens and components from `src/design`, no new raw colours, no left-edge stripes, every text pairing AA. A recorded payment is never "paid" and a queued message is never "sent".

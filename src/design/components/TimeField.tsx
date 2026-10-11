@@ -1,6 +1,7 @@
-import { memo } from 'react'
-import type { SelectHTMLAttributes } from 'react'
+import { useMemo } from 'react'
 import { clockLabel, clockMinutes, clockTime } from './dates'
+import { Select } from './Select'
+import type { SelectProps } from './Select'
 
 /**
  * A time of day chosen from a list at a sensible step, written the studio's way: 24-hour in the
@@ -19,7 +20,7 @@ export function TimeField({
   placeholder = 'Choose a time',
   className = '',
   ...rest
-}: Omit<SelectHTMLAttributes<HTMLSelectElement>, 'value' | 'defaultValue' | 'onChange'> & {
+}: Omit<SelectProps, 'value' | 'defaultValue' | 'onChange' | 'children'> & {
   /** The chosen time as "HH:MM", or '' for none. Leave out to let the field keep its own. */
   value?: string
   defaultValue?: string
@@ -32,61 +33,29 @@ export function TimeField({
   until?: string
   placeholder?: string
 }) {
+  const chosen = value ?? defaultValue ?? ''
+  // A day at quarter hours is close to a hundred times and a week of opening hours shows fourteen
+  // lists, so the times are only worked out again when what they offer changes.
+  const times = useMemo(() => {
+    const list: string[] = []
+    for (let minute = clockMinutes(from); minute <= clockMinutes(until); minute += step)
+      list.push(clockTime(minute))
+    if (/^\d{2}:\d{2}$/.test(chosen) && !list.includes(chosen)) list.push(chosen)
+    return list.sort()
+  }, [chosen, from, until, step])
   return (
-    <select
+    <Select
       {...rest}
       className={`time-field ${className}`}
-      {...(value !== undefined ? { value } : { defaultValue: defaultValue ?? '' })}
+      {...(value !== undefined ? { value } : { defaultValue: defaultValue || undefined })}
+      placeholder={placeholder}
       onChange={(event) => onChange?.(event.target.value)}
     >
-      <TimeOptions
-        chosen={value ?? defaultValue ?? ''}
-        locale={locale}
-        step={step}
-        from={from}
-        until={until}
-        placeholder={placeholder}
-      />
-    </select>
-  )
-}
-
-/**
- * The times offered. A day at quarter hours is close to a hundred options and a week of opening
- * hours shows fourteen lists, so the options are only redrawn when what they offer changes.
- */
-const TimeOptions = memo(function TimeOptions({
-  chosen,
-  locale,
-  step,
-  from,
-  until,
-  placeholder,
-}: {
-  chosen: string
-  locale: string
-  step: number
-  from: string
-  until: string
-  placeholder: string
-}) {
-  const times: string[] = []
-  for (let minute = clockMinutes(from); minute <= clockMinutes(until); minute += step)
-    times.push(clockTime(minute))
-  if (/^\d{2}:\d{2}$/.test(chosen) && !times.includes(chosen)) times.push(chosen)
-  times.sort()
-  return (
-    <>
-      {!chosen && (
-        <option value="" disabled>
-          {placeholder}
-        </option>
-      )}
       {times.map((time) => (
         <option key={time} value={time}>
           {clockLabel(time, locale)}
         </option>
       ))}
-    </>
+    </Select>
   )
-})
+}

@@ -8,7 +8,7 @@ import { usualWeeks } from '../domain/selectors'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
 import { numberLabel } from '../domain/missedCalls'
 import { consultationsList, latestVersion } from '../domain/consultations'
-import { Button, ErrorMessage, Modal, TimeChoices } from '../design'
+import { Button, ErrorMessage, Modal, TimeChoices, Select } from '../design'
 import { StudioDateField } from './StudioDateField'
 import { ClientPicker } from './ClientPicker'
 import { TogetherSection } from './BookingTogether'
@@ -538,7 +538,7 @@ export function BookingDialog({
           <div className="form-grid">
             <label className="form-grid-wide">
               Treatment
-              <select
+              <Select
                 value={serviceId}
                 disabled={busy}
                 onChange={(e) => {
@@ -555,11 +555,11 @@ export function BookingDialog({
                     {s.name} · {s.durationMinutes} min · {money(s.priceMinor, state.organisation)}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             <label>
               Professional
-              <select
+              <Select
                 value={staffId}
                 disabled={busy || !eligible.length}
                 onChange={(e) => {
@@ -573,7 +573,7 @@ export function BookingDialog({
                     {s.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             {rhythm.length > 0 && (
               <fieldset className="rebook-rhythm">
@@ -672,7 +672,7 @@ export function BookingDialog({
               <div className="form-grid">
                 <label>
                   How often
-                  <select
+                  <Select
                     value={everyWeeks}
                     disabled={busy}
                     onChange={(e) => {
@@ -687,12 +687,12 @@ export function BookingDialog({
                         {weeks === 1 ? 'Every week' : `Every ${weeks} weeks`}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
                 {repeating && (
                   <label>
                     Visits in all
-                    <select
+                    <Select
                       value={count}
                       disabled={busy}
                       onChange={(e) => {
@@ -705,7 +705,7 @@ export function BookingDialog({
                           {n} visits
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </label>
                 )}
               </div>
@@ -735,7 +735,7 @@ export function BookingDialog({
                             </small>
                           </span>
                           {row.times.length > 0 && (
-                            <select
+                            <Select
                               aria-label={`Time on ${dateLabel(row.date, locale)}`}
                               value={row.start ?? 'left'}
                               disabled={busy}
@@ -754,7 +754,7 @@ export function BookingDialog({
                                 </option>
                               ))}
                               <option value="left">Leave this one out</option>
-                            </select>
+                            </Select>
                           )}
                         </li>
                       ))}

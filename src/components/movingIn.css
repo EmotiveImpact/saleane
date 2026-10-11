@@ -149,7 +149,8 @@
   align-items: center;
   gap: 8px;
 }
-.moving-field select {
+.moving-field select,
+.moving-field .select-trigger {
   min-height: var(--target);
   min-width: 180px;
   padding: 0 12px;
@@ -308,7 +309,8 @@
   .moving-field {
     grid-template-columns: minmax(0, 1fr);
   }
-  .moving-field select {
+  .moving-field select,
+  .moving-field .select-trigger {
     width: 100%;
     min-width: 0;
   }

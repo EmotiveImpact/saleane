@@ -10,7 +10,7 @@ import { healthWordIn } from '../domain/forms'
 import type { Appointment } from '../domain/model'
 import { dateLabel, money } from '../domain/format'
 import { minorInput, parseMinor } from '../domain/money'
-import { Button, ErrorMessage, Modal } from '../design'
+import { Button, ErrorMessage, Modal, Select, Checkbox } from '../design'
 import { BookingDialog } from './BookingDialog'
 import { StudioDateField } from './StudioDateField'
 import { useRun } from './usePayment'
@@ -228,7 +228,7 @@ function ConsultationForm({
           </label>
           <label>
             With
-            <select
+            <Select
               value={staffId}
               disabled={!!existing}
               onChange={(e) => setStaffId(e.target.value)}
@@ -241,7 +241,7 @@ function ConsultationForm({
                     {p.name}
                   </option>
                 ))}
-            </select>
+            </Select>
           </label>
         </div>
         <fieldset className="consultation-services">
@@ -249,8 +249,7 @@ function ConsultationForm({
           <div>
             {services.map((x) => (
               <label key={x.id}>
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={serviceIds.includes(x.id)}
                   disabled={!serviceIds.includes(x.id) && serviceIds.length >= 10}
                   onChange={() => toggle(x.id)}

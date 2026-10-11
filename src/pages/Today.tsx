@@ -7,7 +7,7 @@ import { useLiveRefresh } from '../state/useLive'
 import { bookedTimeShare, dayAppointments, dueClients } from '../domain/selectors'
 import { bookedTimeDefinition } from '../components/definitions'
 import { dateLabel, money, timeLabel } from '../domain/format'
-import { Button, Metric, photos } from '../design'
+import { Button, Metric, photos, Checkbox } from '../design'
 import { businessMinutes } from '../domain/operations'
 import type { Appointment, Client } from '../domain/model'
 import { Agenda } from '../components/Agenda'
@@ -15,7 +15,7 @@ import { SmartInsights } from '../components/SmartInsights'
 import { Specials } from '../components/Specials'
 import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
-import { NeedsYou } from '../components/NeedsYou'
+import { NeedsYou, WaitingStrip } from '../components/NeedsYou'
 import { TeamToday } from '../components/TeamToday'
 import type { BookingDefaults } from '../components/BookingDialog'
 import { FULLY_BOOKED_LINE, fullyBooked } from '../domain/moments'
@@ -129,27 +129,31 @@ export function Today() {
           style={{ backgroundImage: `url(${photos.sunlitRoom})` }}
         />
       </section>
-      <div className="metrics-band">
-        <Metric
-          label="Booked for today"
-          value={money(booked, state.organisation)}
-          detail="Before discounts, tax adjustments and tips"
-        />
-        <Metric
-          label="Visits"
-          value={day.length}
-          detail={`${completed} complete · ${day.length - completed} still to come`}
-        />
-        <Metric
-          label="Time booked"
-          value={`${utilisation}%`}
-          detail="Today, of open professional hours"
-          definition={bookedTimeDefinition.map((line) => (
-            <p key={line}>{line}</p>
-          ))}
-        />
-        <Metric label="Ready to return" value={due.length} detail="Clients with no next visit" />
-      </div>
+      <WaitingStrip />
+      {/* A new studio's first figures would all be nought; the list of first steps comes first. */}
+      {state.appointments.length > 0 && (
+        <div className="metrics-band">
+          <Metric
+            label="Booked for today"
+            value={money(booked, state.organisation)}
+            detail="Before discounts, tax adjustments and tips"
+          />
+          <Metric
+            label="Visits"
+            value={day.length}
+            detail={`${completed} complete · ${day.length - completed} still to come`}
+          />
+          <Metric
+            label="Time booked"
+            value={`${utilisation}%`}
+            detail="Today, of open professional hours"
+            definition={bookedTimeDefinition.map((line) => (
+              <p key={line}>{line}</p>
+            ))}
+          />
+          <Metric label="Ready to return" value={due.length} detail="Clients with no next visit" />
+        </div>
+      )}
       <GetReady />
       <div className="today-layout">
         <section className="surface schedule-surface">
@@ -173,8 +177,7 @@ export function Today() {
               {day.filter((a) => a.status === 'arrived').length} in the studio
             </span>
             <label className="checkbox-label">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={hideCompleted}
                 onChange={(e) => setHideCompleted(e.target.checked)}
               />

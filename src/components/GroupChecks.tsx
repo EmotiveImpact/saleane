@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { AlertCircle } from 'lucide-react'
 import { useStore } from '../state/context'
-import { Button, ErrorMessage, Modal } from '../design'
+import { Button, ErrorMessage, Modal, Checkbox } from '../design'
 import { CHECK_WORDS, groupCheckSettings } from '../domain/groupChecks'
 import type { GroupAlert, GroupCheckKey } from '../domain/groupChecks'
 import { GROUP_CHECK_DEFAULTS } from '../domain/groupSchema'
@@ -98,8 +98,7 @@ export function GroupChecksEditor({
               <legend>{CHECK_WORDS[k].label}</legend>
               <p className="ops-help">{CHECK_WORDS[k].help}</p>
               <label className="ops-check">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={on[k]}
                   disabled={pending}
                   onChange={(e) => setOn((o) => ({ ...o, [k]: e.target.checked }))}

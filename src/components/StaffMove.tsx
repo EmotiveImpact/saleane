@@ -22,7 +22,7 @@ import {
 } from '../domain/staffMoves'
 import type { StaffMoveCommand, StaffMovePreview } from '../domain/staffMoves'
 import type { StaffMove } from '../domain/staffMovesSchema'
-import { Button, ErrorMessage, Modal } from '../design'
+import { Button, ErrorMessage, Modal, Select } from '../design'
 import { StudioDateField } from './StudioDateField'
 import { KeepChoice } from './RotaChanges'
 import type { Keep } from './RotaChanges'
@@ -153,7 +153,7 @@ export function StaffMoveDialog({
           {!chosen && (
             <label className="ops-wide">
               Who is moving
-              <select
+              <Select
                 value={staffId}
                 onChange={(e) =>
                   change(() => {
@@ -170,12 +170,12 @@ export function StaffMoveDialog({
                     {p.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           )}
           <label>
             Moving to
-            <select
+            <Select
               value={to}
               onChange={(e) =>
                 change(() => {
@@ -189,7 +189,7 @@ export function StaffMoveDialog({
                   {place.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label>
             From
@@ -204,14 +204,14 @@ export function StaffMoveDialog({
           {sites.length > 1 && (
             <label className="ops-wide">
               Which days move
-              <select value={from} onChange={(e) => change(() => setFrom(e.target.value))}>
+              <Select value={from} onChange={(e) => change(() => setFrom(e.target.value))}>
                 <option value="">Every day not already at {placeName(to)}</option>
                 {fromChoices.map((site) => (
                   <option key={site.locationId} value={site.locationId}>
                     Their {weekdaysWords(site.days)} at {placeName(site.locationId)}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           )}
           <label className="ops-wide">

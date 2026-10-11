@@ -15,7 +15,15 @@ import {
 import type { DueGroup, DueRecord } from '../domain/retentionDue'
 import { KEEP_MAX } from '../domain/retentionSchema'
 import type { RetentionKind } from '../domain/retentionSchema'
-import { Button, ChoiceTiles, Empty, ErrorMessage, Modal, SegmentedControl } from '../design'
+import {
+  Button,
+  ChoiceTiles,
+  Empty,
+  ErrorMessage,
+  Modal,
+  SegmentedControl,
+  Checkbox,
+} from '../design'
 import './retentionDecisions.css'
 
 /** Rows shown in a group before "See all". */
@@ -324,8 +332,8 @@ function Decide({
               </div>
             </dl>
             <label className="checkbox-label retention-sure">
-              <input type="checkbox" checked={sure} onChange={(e) => setSure(e.target.checked)} />I
-              understand this is final. Deleted details cannot be brought back.
+              <Checkbox checked={sure} onChange={(e) => setSure(e.target.checked)} />I understand
+              this is final. Deleted details cannot be brought back.
             </label>
           </div>
         )}

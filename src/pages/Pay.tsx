@@ -44,6 +44,7 @@ import {
   SegmentedControl,
   Stat,
   Stats,
+  Select,
 } from '../design'
 import '../components/management.css'
 import '../stock.css'
@@ -99,13 +100,13 @@ function MonthField({
   return (
     <label>
       {label}
-      <select value={value} onChange={(e) => onChange(e.target.value)}>
+      <Select value={value} onChange={(e) => onChange(e.target.value)}>
         {months.map((month) => (
           <option key={month} value={month}>
             {monthWords(month, state.organisation.locale)}
           </option>
         ))}
-      </select>
+      </Select>
     </label>
   )
 }
@@ -574,11 +575,11 @@ function RulesDialog({
           {tips === 'pool' && (
             <label className="pay-pool">
               Share the pot each
-              <select value={pool} onChange={(e) => setPool(e.target.value as PayRules['pool'])}>
+              <Select value={pool} onChange={(e) => setPool(e.target.value as PayRules['pool'])}>
                 <option value="day">Day</option>
                 <option value="week">Week</option>
                 <option value="month">Month</option>
-              </select>
+              </Select>
             </label>
           )}
           <small>
@@ -891,18 +892,18 @@ function OwnRatesDialog({
         <div className="ops-fields">
           <label>
             For
-            <select value={who} onChange={(e) => setWho(e.target.value)}>
+            <Select value={who} onChange={(e) => setWho(e.target.value)}>
               <option value="">Everyone</option>
               {team.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label>
             On
-            <select value={item} onChange={(e) => setItem(e.target.value)}>
+            <Select value={item} onChange={(e) => setItem(e.target.value)}>
               <optgroup label="One treatment">
                 {treatments.map((x) => (
                   <option key={x.id} value={`treatment:${x.id}`}>
@@ -925,7 +926,7 @@ function OwnRatesDialog({
                   </option>
                 ))}
               </optgroup>
-            </select>
+            </Select>
           </label>
           <label>
             Rate (%)
@@ -1072,7 +1073,7 @@ function StepsDialog({
         <div className="ops-fields">
           <label>
             For
-            <select
+            <Select
               value={who}
               onChange={(e) => {
                 setWho(e.target.value)
@@ -1085,7 +1086,7 @@ function StepsDialog({
                   {p.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <MonthField
             label="Starting"
@@ -1098,10 +1099,10 @@ function StepsDialog({
           />
           <label>
             Counting
-            <select value={on} onChange={(e) => setOn(e.target.value as CommissionSteps['on'])}>
+            <Select value={on} onChange={(e) => setOn(e.target.value as CommissionSteps['on'])}>
               <option value="treatments">Treatments only</option>
               <option value="all">Treatments and products together</option>
-            </select>
+            </Select>
           </label>
         </div>
         <p className="ops-help">

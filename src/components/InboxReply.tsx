@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import type { Client } from '../domain/model'
 import type { SavedReply } from '../domain/inboxSchema'
 import { textNumber } from '../domain/reminders'
-import { Button } from '../design'
+import { Button, Select, Tip } from '../design'
 import { quickReplies } from './quickReplies'
 import './inboxReply.css'
 
@@ -132,7 +132,7 @@ export function InboxReply({
         <label htmlFor={textId}>Reply to {first}</label>
         <label className="inbox-reply-channel">
           <span>Reply by</span>
-          <select
+          <Select
             value={channel}
             disabled={!allowed}
             onChange={(event) => setChannel(event.target.value as Channel)}
@@ -141,7 +141,7 @@ export function InboxReply({
             <option value="sms" disabled={!canText}>
               Text{canText ? '' : textsOff ? ' (texts are off)' : ' (no mobile number)'}
             </option>
-          </select>
+          </Select>
         </label>
       </div>
       {allowed && (
@@ -153,15 +153,11 @@ export function InboxReply({
           onMouseDown={(event) => event.preventDefault()}
         >
           {chips.map((reply) => (
-            <button
-              key={reply.id}
-              type="button"
-              className="inbox-quick-chip"
-              title={reply.body}
-              onClick={() => use(reply.body)}
-            >
-              {reply.name}
-            </button>
+            <Tip key={reply.id} label={reply.body}>
+              <button type="button" className="inbox-quick-chip" onClick={() => use(reply.body)}>
+                {reply.name}
+              </button>
+            </Tip>
           ))}
           {canEditSaved && (
             <Link className="inbox-quick-edit" to="/settings?section=messages">

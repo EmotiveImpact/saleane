@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import * as Popover from '@radix-ui/react-popover'
+import { Popover } from 'radix-ui'
 import { Info } from 'lucide-react'
 
 /**
