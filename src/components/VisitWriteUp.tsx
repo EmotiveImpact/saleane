@@ -89,14 +89,17 @@ export function VisitWriteUp({
       active = false
     }
   }, [statusPath, tries])
-  /** Asks again whether aftercare still goes in the visit's email, which can go at any time. */
-  async function emailAhead() {
+  /**
+   * Asks again whether aftercare still goes in the visit's email, which can go at any time.
+   * Null when it cannot tell, so nothing is said either way about the email.
+   */
+  async function emailAhead(): Promise<boolean | null> {
     try {
       const next = await api<WriteUpStatus>(statusPath)
       if (shown.current) setStatus(next)
       return next.aftercareEmail === true
     } catch {
-      return false
+      return null
     }
   }
   // A recording never outlives the screen it was started on, and the microphone is let go with it.
@@ -245,9 +248,11 @@ export function VisitWriteUp({
     if (!shown.current) return
     setDone(
       care.length >= 2
-        ? ahead
-          ? `Saved. The aftercare is added to ${guest}’s aftercare email.`
-          : 'Saved. The aftercare is kept on the visit, and no email will carry it.'
+        ? ahead === null
+          ? 'Saved. The aftercare is kept on the visit.'
+          : ahead
+            ? `Saved. The aftercare is added to ${guest}’s aftercare email.`
+            : 'Saved. The aftercare is kept on the visit, and no email will carry it.'
         : aftercare
           ? 'Saved to their history, and the earlier aftercare is removed.'
           : 'Saved to their history.',

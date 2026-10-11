@@ -368,6 +368,37 @@ test('asks again before saying where saved aftercare goes, as its email may have
   expect(await screen.findByText(/^Kept on the visit only/)).toBeInTheDocument()
 })
 
+test('when the check after saving fails it says nothing either way about the email', async () => {
+  const user = userEvent.setup()
+  let reachable = true
+  vi.mocked(api).mockImplementation(async (url) => {
+    if (url === `${path}/write-up?visit=visit-1`) {
+      if (!reachable) throw new Error('offline')
+      return { mode: 'test', listens: false, aftercareEmail: true } as never
+    }
+    return { heard: 'Keep it dry.', note: '', aftercare: 'Keep it dry tonight.' } as never
+  })
+  const onSave = vi.fn().mockResolvedValue(true)
+  render(
+    <VisitWriteUp
+      path={path}
+      appointmentId="visit-1"
+      guest="Amara"
+      saving={false}
+      onSave={onSave}
+    />,
+  )
+  expect(await screen.findByText(/nothing leaves SALEANE/)).toBeInTheDocument()
+  await user.type(screen.getByLabelText('What you would say'), 'Keep it dry.')
+  await user.click(screen.getByRole('button', { name: 'Write it up' }))
+  await screen.findByDisplayValue('Keep it dry tonight.')
+  reachable = false
+  await user.click(screen.getByRole('button', { name: 'Save' }))
+  expect(await screen.findByText('Saved. The aftercare is kept on the visit.')).toBeInTheDocument()
+  expect(screen.queryByText(/no email will carry it/)).not.toBeInTheDocument()
+  expect(screen.queryByText(/added to Amara/)).not.toBeInTheDocument()
+})
+
 test('when it cannot tell how write-ups are handled it promises nothing and writes nothing', async () => {
   const user = userEvent.setup()
   let reachable = false
