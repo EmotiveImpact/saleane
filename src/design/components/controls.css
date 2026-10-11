@@ -1,0 +1,395 @@
+/* Radix pieces drawn in SALEANE's own look: menus, hints, notices, folds and choices. Everything
+   that floats uses the same paper, hairline and soft shadow; everything that opens arrives with
+   the calm timing and leaves a little quicker. Reduced motion removes all of it (styles.css). */
+
+@keyframes float-in {
+  from {
+    opacity: 0;
+    translate: 0 -4px;
+    scale: 0.98;
+  }
+}
+@keyframes float-out {
+  to {
+    opacity: 0;
+    translate: 0 -2px;
+    scale: 0.98;
+  }
+}
+
+/* Menus (Radix Dropdown Menu) -------------------------------------------------------------- */
+.menu {
+  z-index: 60;
+  min-width: 230px;
+  max-width: min(320px, calc(100vw - 24px));
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow-float);
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin);
+}
+.menu[data-state='open'] {
+  animation: float-in var(--motion-calm) var(--ease-calm);
+}
+.menu[data-state='closed'] {
+  animation: float-out var(--motion-quick) ease-in;
+}
+.menu-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px 8px;
+  font-family: var(--font-editorial);
+  font-size: var(--text-title-s);
+  font-weight: var(--weight-editorial);
+  line-height: 1.2;
+}
+.menu-label small {
+  font-family: var(--font-display);
+  font-size: var(--text-micro);
+  color: var(--muted);
+}
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--target);
+  padding: 8px 12px;
+  border-radius: var(--radius-inner);
+  font-size: var(--text-small);
+  color: var(--ink);
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+}
+.menu-item[data-highlighted] {
+  background: var(--stone);
+}
+.menu-item[data-disabled] {
+  color: var(--faint);
+  cursor: default;
+}
+.menu-item-danger {
+  color: var(--danger);
+}
+.menu-icon {
+  display: inline-flex;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.menu-item[data-highlighted] .menu-icon {
+  color: var(--ink);
+}
+.menu-words {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.menu-words small {
+  color: var(--muted);
+  font-size: var(--text-micro);
+}
+.menu-choice[data-state='checked'] {
+  font-weight: var(--weight-strong);
+}
+.menu-tick {
+  display: inline-flex;
+  color: var(--brand-ink);
+  margin-left: auto;
+}
+.menu-separator {
+  height: 1px;
+  margin: 6px 8px;
+  background: var(--line);
+}
+
+/* Hints (Radix Tooltip) -------------------------------------------------------------------- */
+.tip {
+  z-index: 70;
+  max-width: 260px;
+  padding: 7px 11px;
+  border-radius: var(--radius-inner);
+  background: var(--ink);
+  color: #fff;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-strong);
+  line-height: 1.4;
+  box-shadow: 0 6px 20px #2e2b3326;
+}
+.tip[data-state='delayed-open'],
+.tip[data-state='instant-open'] {
+  animation: calm-fade var(--motion-quick) ease-out;
+}
+.tip[data-state='closed'] {
+  animation: float-out var(--motion-quick) ease-in;
+}
+
+/* Notices (Radix Toast) -------------------------------------------------------------------- */
+.notices {
+  position: fixed;
+  right: max(20px, env(safe-area-inset-right));
+  bottom: max(20px, env(safe-area-inset-bottom));
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(380px, calc(100vw - 32px));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  outline: none;
+}
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 14px 14px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow-float);
+  font-size: var(--text-small);
+}
+.notice::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-round);
+  background: var(--brand);
+  flex-shrink: 0;
+}
+.notice-problem::before {
+  background: var(--danger);
+}
+.notice-text {
+  flex: 1;
+  margin: 0;
+}
+.notice-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: var(--radius-round);
+  background: transparent;
+  color: var(--muted);
+}
+.notice-close:hover {
+  background: var(--stone);
+  color: var(--ink);
+}
+.notice[data-state='open'] {
+  animation: calm-settle var(--motion-calm) var(--ease-calm);
+}
+.notice[data-state='closed'] {
+  animation: float-out var(--motion-quick) ease-in;
+}
+.notice[data-swipe='move'] {
+  translate: var(--radix-toast-swipe-move-x) 0;
+}
+.notice[data-swipe='cancel'] {
+  translate: 0 0;
+  transition: translate var(--motion-quick) ease-out;
+}
+.notice[data-swipe='end'] {
+  animation: notice-swipe var(--motion-quick) ease-out forwards;
+}
+@keyframes notice-swipe {
+  from {
+    translate: var(--radix-toast-swipe-end-x) 0;
+  }
+  to {
+    translate: 110% 0;
+    opacity: 0;
+  }
+}
+@media (max-width: 650px) {
+  .notices {
+    left: 16px;
+    right: 16px;
+    width: auto;
+    bottom: max(16px, env(safe-area-inset-bottom));
+  }
+}
+
+/* Folds (Radix Collapsible) ---------------------------------------------------------------- */
+.fold-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--target);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+  text-align: left;
+  cursor: pointer;
+}
+.fold-summary:hover .fold-summary-words {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.fold-chevron {
+  color: var(--muted);
+  flex-shrink: 0;
+  transition: rotate var(--motion-calm) var(--ease-calm);
+}
+.fold-summary[data-state='open'] .fold-chevron {
+  rotate: 180deg;
+}
+.fold-body {
+  overflow: hidden;
+}
+.fold-inner {
+  padding: 2px 2px var(--space-2);
+}
+.fold-body[data-state='open'] {
+  animation: fold-open var(--motion-calm) var(--ease-calm);
+}
+.fold-body[data-state='closed'] {
+  animation: fold-close var(--motion-quick) ease-in;
+}
+@keyframes fold-open {
+  from {
+    height: 0;
+    opacity: 0;
+  }
+  to {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+  }
+}
+@keyframes fold-close {
+  from {
+    height: var(--radix-collapsible-content-height);
+  }
+  to {
+    height: 0;
+    opacity: 0;
+  }
+}
+
+/* Choices from a list (Radix Select) ------------------------------------------------------- */
+.select-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--target);
+  padding: 10px 12px 10px 14px;
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-control);
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-weight: var(--weight-body);
+  text-align: left;
+  cursor: pointer;
+}
+.select-trigger > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.select-trigger:hover {
+  border-color: var(--field-line);
+  background: var(--hover);
+}
+.select-trigger[data-state='open'] {
+  border-color: var(--ink);
+}
+.select-trigger[data-placeholder] {
+  color: var(--muted);
+}
+.select-trigger:focus-visible {
+  outline-offset: 1px;
+}
+.select-icon {
+  display: inline-flex;
+  color: var(--muted);
+  flex-shrink: 0;
+  transition: rotate var(--motion-calm) var(--ease-calm);
+}
+.select-trigger[data-state='open'] .select-icon {
+  rotate: 180deg;
+}
+.select-content {
+  z-index: 70;
+  min-width: var(--radix-select-trigger-width);
+  max-width: min(420px, calc(100vw - 24px));
+  max-height: min(380px, var(--radix-select-content-available-height));
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow-float);
+  transform-origin: var(--radix-select-content-transform-origin);
+}
+.select-content[data-state='open'] {
+  animation: float-in var(--motion-calm) var(--ease-calm);
+}
+.select-content[data-state='closed'] {
+  animation: float-out var(--motion-quick) ease-in;
+}
+.select-viewport {
+  padding: 6px;
+}
+.select-label {
+  padding: 10px 12px 4px;
+  color: var(--muted);
+  font-size: var(--text-eyebrow);
+  font-weight: var(--weight-strong);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.select-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 8px 36px 8px 12px;
+  border-radius: var(--radius-inner);
+  font-size: var(--text-small);
+  font-weight: var(--weight-body);
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+}
+.select-item[data-highlighted] {
+  background: var(--stone);
+}
+.select-item[data-state='checked'] {
+  font-weight: var(--weight-strong);
+}
+.select-item[data-disabled] {
+  color: var(--faint);
+  cursor: default;
+}
+.select-tick {
+  position: absolute;
+  right: 10px;
+  display: inline-flex;
+  color: var(--brand-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu,
+  .tip,
+  .notice,
+  .fold-body,
+  .select-content {
+    animation: none !important;
+  }
+}

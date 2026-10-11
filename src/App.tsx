@@ -9,22 +9,44 @@ import {
   Settings2,
   Users,
   Menu,
-  X,
   Info,
   Mail,
   Megaphone,
   Hourglass,
   Sparkles,
   CircleHelp,
+  PanelLeftClose,
+  PanelLeftOpen,
+  SlidersHorizontal,
+  ShieldCheck,
+  Building2,
+  MapPin,
+  Globe,
+  LogOut,
+  UserRound,
 } from 'lucide-react'
 import { useStore } from './state/context'
 import { useStudioColours } from './state/studioColours'
-import { leads, operations } from './domain/operations'
+import { leads, operations, roleNames, studioRole } from './domain/operations'
 import { hasLocations, places } from './domain/locations'
 import { regions } from './domain/group'
 import { draftStale } from './domain/cancelledTimes'
 import { nudges } from './domain/nudges'
-import { Avatar, Empty, LoadingShapes, Modal, ScrollNav } from './design'
+import {
+  Avatar,
+  CalmMotion,
+  Empty,
+  LoadingShapes,
+  Menu as ActionMenu,
+  MenuChoices,
+  MenuItem,
+  MenuLabel,
+  MenuSeparator,
+  Modal,
+  Notices,
+  ScrollNav,
+  Tip,
+} from './design'
 import { SearchDialog } from './components/SearchDialog'
 import { BillingBanner } from './components/BillingBanner'
 import { Today } from './pages/Today'
@@ -167,6 +189,10 @@ function WorkspaceApp() {
     branch,
     billing,
     hold,
+    region,
+    changeRegion,
+    openWorkspace,
+    logout,
   } = useStore()
   const operator = session?.user.name ?? 'Demo operator'
   const initials = state.organisation.name
@@ -187,6 +213,23 @@ function WorkspaceApp() {
   const navigate = useNavigate()
   const openSettings = (section: string) => navigate(`/settings?section=${section}`)
   const [mobileNav, setMobileNav] = useState(false)
+  // On a computer the sidebar can fold to its icons, for more room. Each person's choice is kept
+  // in their own browser.
+  const [rail, setRail] = useState(() => {
+    try {
+      return localStorage.getItem('saleane-sidebar') === 'rail'
+    } catch {
+      return false
+    }
+  })
+  useEffect(() => {
+    try {
+      localStorage.setItem('saleane-sidebar', rail ? 'rail' : 'full')
+    } catch {
+      // The choice lasts until the tab closes.
+    }
+  }, [rail])
+  const [signOutError, setSignOutError] = useState('')
   // Waitlist offers and invitations whose time has gone are not counted as waiting for approval.
   const clock = useClock()
   // Read again each minute too, so a waitlist time that has passed stops counting.
@@ -211,6 +254,8 @@ function WorkspaceApp() {
       active: within(location.pathname, item.to),
     }))
   const owns = role === 'owner' || role === 'manager'
+  // The studios this person can open at the desk, to move between from the studio menu.
+  const studios = (session?.workspaces ?? []).filter((w) => studioRole(w.role))
   // Branch visits and Requests are about running several branches, so they wait until there are
   // more locations or any regions. A general manager runs one of several, so always has them.
   const branches = hasLocations(state) || regions(state).length > 0 || role === 'general'
@@ -242,6 +287,25 @@ function WorkspaceApp() {
   useEffect(() => {
     document.title = `${state.organisation.name} · SALEANE`
   }, [state.organisation.name])
+  // "/" or Ctrl K (⌘K on a Mac) opens Find a client, unless someone is typing.
+  useEffect(() => {
+    const open = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      const typing =
+        !!target?.closest('input, textarea, select, [contenteditable="true"]') ||
+        !!document.querySelector('[role="dialog"]')
+      const command = event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey)
+      if (
+        (event.key === '/' && !typing) ||
+        (command && !document.querySelector('[role="dialog"]'))
+      ) {
+        event.preventDefault()
+        setSearch(true)
+      }
+    }
+    window.addEventListener('keydown', open)
+    return () => window.removeEventListener('keydown', open)
+  }, [])
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0 })
   }, [location.pathname])
@@ -308,69 +372,121 @@ function WorkspaceApp() {
       <BrandedBooking key={state.organisation.id} />
     )
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-rail={rail || undefined}>
       <a className="skip-link" href="#main-content">
         Skip to content
       </a>
       <aside className="sidebar" aria-label="Studio navigation">
-        <div className="sidebar-masthead">
-          <div className="sidebar-brand">
-            <Link to="/today" className="wordmark" onClick={() => setMobileNav(false)}>
+        <div className="sidebar-brand">
+          <Link to="/today" className="wordmark" aria-label="SALEANE, Today">
+            <span className="wordmark-full" aria-hidden="true">
               SALEANE
-            </Link>
+            </span>
+            <span className="wordmark-initial" aria-hidden="true">
+              S
+            </span>
+          </Link>
+          <Tip
+            label={rail ? 'Show the sidebar in full' : 'Fold the sidebar to its icons'}
+            side="right"
+          >
             <button
-              className="mobile-nav-close icon-button"
-              aria-label="Close navigation"
-              onClick={() => setMobileNav(false)}
+              className="icon-button sidebar-fold"
+              aria-label={rail ? 'Show the sidebar in full' : 'Fold the sidebar to its icons'}
+              aria-pressed={rail}
+              onClick={() => setRail(!rail)}
             >
-              <X size={20} />
+              {rail ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
             </button>
-          </div>
-          <p className="sidebar-tagline">
-            A considered way to run
-            <br /> a remarkable business.
-          </p>
+          </Tip>
         </div>
-        <button className="workspace-switch" onClick={() => openSettings('workspace')}>
-          <span className="workspace-monogram">{initials}</span>
-          <span>
-            <strong>{state.organisation.name}</strong>
-            <small>
-              {branch
-                ? `General manager · ${places(state, true).find((p) => p.id === branch)?.name ?? 'your location'}`
-                : state.organisation.locationName}
-            </small>
-          </span>
-          <ChevronDown size={14} />
-        </button>
+        <ActionMenu
+          label={`${state.organisation.name}: studio menu`}
+          align="start"
+          trigger={
+            <button className="workspace-switch">
+              <span className="workspace-monogram">{initials}</span>
+              <span className="workspace-words">
+                <strong>{state.organisation.name}</strong>
+                <small>
+                  {branch
+                    ? `General manager · ${places(state, true).find((p) => p.id === branch)?.name ?? 'your location'}`
+                    : state.organisation.locationName}
+                </small>
+              </span>
+              <span className="sr-only">, studio menu</span>
+              <ChevronDown size={14} />
+            </button>
+          }
+        >
+          <MenuLabel>{state.organisation.name}</MenuLabel>
+          {mode === 'server' && studios.length > 1 && (
+            <MenuChoices
+              value={state.organisation.id}
+              onChange={(id) => void openWorkspace(id).then(() => navigate('/today'))}
+              options={studios.map((w) => ({
+                value: w.id,
+                label: w.name,
+                detail: roleNames[w.role] ?? w.role,
+              }))}
+            />
+          )}
+          {mode === 'demo' && (
+            <MenuChoices
+              value={region}
+              onChange={(next) => changeRegion(next)}
+              options={[
+                { value: 'UK', label: 'The London sample', detail: 'Pounds, London time' },
+                { value: 'US', label: 'The New York sample', detail: 'Dollars, New York time' },
+              ]}
+            />
+          )}
+          <MenuSeparator />
+          {owns && (
+            <MenuItem to="/settings?section=business" icon={<Building2 size={17} />}>
+              Studio details
+            </MenuItem>
+          )}
+          {owns && (
+            <MenuItem to="/settings?section=locations" icon={<MapPin size={17} />}>
+              Locations
+            </MenuItem>
+          )}
+          <MenuItem to="/booking" icon={<Globe size={17} />}>
+            Your booking page
+          </MenuItem>
+          <MenuItem to="/settings?section=workspace" icon={<Info size={17} />}>
+            About this version
+          </MenuItem>
+        </ActionMenu>
         <nav>
-          {links.map(({ to, href, active, label, icon: Icon }) => (
-            <Link
-              onClick={() => setMobileNav(false)}
-              className={`nav-link ${active ? 'active' : ''}`}
-              aria-current={active ? 'page' : undefined}
-              key={to}
-              to={href}
-            >
-              <Icon size={19} strokeWidth={1.6} />
-              {label}
-              {to === '/inbox' && drafts > 0 && (
-                <span className="nav-count">
-                  {drafts}
-                  <span className="sr-only"> {drafts === 1 ? 'draft' : 'drafts'} to approve</span>
-                </span>
-              )}
-              {to === '/marketing' && campaignDrafts > 0 && (
-                <span className="nav-count">
-                  {campaignDrafts}
-                  <span className="sr-only">
-                    {' '}
-                    {campaignDrafts === 1 ? 'message' : 'messages'} to clients to approve
-                  </span>
-                </span>
-              )}
-            </Link>
-          ))}
+          {links.map(({ to, href, active, label, icon: Icon }) => {
+            const count = to === '/inbox' ? drafts : to === '/marketing' ? campaignDrafts : 0
+            return (
+              <Tip key={to} label={label} side="right" disabled={!rail}>
+                <Link
+                  onClick={() => setMobileNav(false)}
+                  className={`nav-link ${active ? 'active' : ''}`}
+                  aria-current={active ? 'page' : undefined}
+                  to={href}
+                >
+                  <Icon size={19} strokeWidth={1.6} />
+                  <span className="nav-label">{label}</span>
+                  {count > 0 && (
+                    <span className="nav-count">
+                      {count}
+                      <span className="sr-only">
+                        {' '}
+                        {to === '/inbox'
+                          ? `${count === 1 ? 'draft' : 'drafts'} to approve`
+                          : `${count === 1 ? 'message' : 'messages'} to clients to approve`}
+                      </span>
+                    </span>
+                  )}
+                </Link>
+              </Tip>
+            )
+          })}
         </nav>
         <div className="sidebar-bottom">
           <Link
@@ -380,19 +496,24 @@ function WorkspaceApp() {
           >
             <img src="/images/saleane-studio-warm-small.jpg" alt="" />
           </Link>
-          <Link to="/booking" className="public-booking-link">
-            Your booking page
-          </Link>
+          <Tip label="Your booking page" side="right" disabled={!rail}>
+            <Link to="/booking" className="public-booking-link">
+              <Globe size={18} strokeWidth={1.6} className="public-booking-icon" />
+              <span className="nav-label">Your booking page</span>
+            </Link>
+          </Tip>
           <div className="sidebar-footer">
             <span>
               <span className="live-dot" />
-              {mode === 'demo'
-                ? 'Fictional demo'
-                : state.operations?.mode === 'sandbox'
-                  ? 'Sample studio'
-                  : session?.services.payments || session?.services.email
-                    ? 'On this computer'
-                    : 'Test mode'}
+              <span className="nav-label">
+                {mode === 'demo'
+                  ? 'Fictional demo'
+                  : state.operations?.mode === 'sandbox'
+                    ? 'Sample studio'
+                    : session?.services.payments || session?.services.email
+                      ? 'On this computer'
+                      : 'Test mode'}
+              </span>
             </span>
           </div>
         </div>
@@ -400,27 +521,45 @@ function WorkspaceApp() {
       {mobileNav && (
         <Modal
           open
+          placement="start"
+          className="phone-menu"
           onClose={() => setMobileNav(false)}
-          title="Menu"
-          description={`Choose where to go in ${state.organisation.name}.`}
+          title={state.organisation.name}
+          description="Choose where to go."
         >
-          <nav className="mobile-route-menu">
-            {links.map(({ to, href, active, label, icon: Icon }) => (
-              <Link
-                key={to}
-                to={href}
-                className={active ? 'active' : undefined}
-                aria-current={active ? 'page' : undefined}
-                onClick={() => setMobileNav(false)}
-              >
-                <Icon size={19} />
-                {label}
-              </Link>
-            ))}
+          <nav className="mobile-route-menu" aria-label="Studio navigation">
+            {links.map(({ to, href, active, label, icon: Icon }) => {
+              const count = to === '/inbox' ? drafts : to === '/marketing' ? campaignDrafts : 0
+              return (
+                <Link
+                  key={to}
+                  to={href}
+                  className={active ? 'active' : undefined}
+                  aria-current={active ? 'page' : undefined}
+                  onClick={() => setMobileNav(false)}
+                >
+                  <Icon size={19} />
+                  {label}
+                  {count > 0 && (
+                    <span className="nav-count">
+                      {count}
+                      <span className="sr-only"> to approve</span>
+                    </span>
+                  )}
+                </Link>
+              )
+            })}
+          </nav>
+          <div className="mobile-route-extra">
             <Link to="/booking" onClick={() => setMobileNav(false)}>
+              <Globe size={18} />
               Your booking page
             </Link>
-          </nav>
+            <Link to="/settings?section=preferences" onClick={() => setMobileNav(false)}>
+              <SlidersHorizontal size={18} />
+              Your preferences
+            </Link>
+          </div>
         </Modal>
       )}
       <div className="app-content">
@@ -455,20 +594,74 @@ function WorkspaceApp() {
             <button className="global-search" onClick={() => setSearch(true)}>
               <Search size={17} />
               <span>Find a client</span>
+              <kbd className="search-key" aria-hidden="true">
+                /
+              </kbd>
             </button>
             <button className="ask-button help-button" onClick={() => setHelping(true)}>
               <CircleHelp size={17} aria-hidden="true" />
               <span>Help</span>
             </button>
             <span className="header-divider" />
-            <button className="operator-button" onClick={() => openSettings('preferences')}>
-              <Avatar small name={operator} tone="sand" />
-              <span>{operator.split(' ')[0]}</span>
-              <span className="sr-only">, your preferences</span>
-              <ChevronDown size={13} />
-            </button>
+            <ActionMenu
+              label="Your menu"
+              trigger={
+                <button className="operator-button">
+                  <Avatar small name={operator} tone="sand" />
+                  <span>{operator.split(' ')[0]}</span>
+                  <span className="sr-only">, your menu</span>
+                  <ChevronDown size={13} />
+                </button>
+              }
+            >
+              <MenuLabel>
+                {operator}
+                <small>{roleNames[role] ?? role}</small>
+              </MenuLabel>
+              <MenuItem to="/settings?section=preferences" icon={<SlidersHorizontal size={17} />}>
+                Your preferences
+              </MenuItem>
+              {mode === 'server' && (
+                <MenuItem to="/settings?section=staff" icon={<ShieldCheck size={17} />}>
+                  Password and signing in
+                </MenuItem>
+              )}
+              {mode === 'server' && (
+                <MenuItem to="/account" icon={<UserRound size={17} />}>
+                  Your accounts and studios
+                </MenuItem>
+              )}
+              <MenuItem icon={<CircleHelp size={17} />} onSelect={() => setHelping(true)}>
+                Help
+              </MenuItem>
+              {mode === 'server' && (
+                <>
+                  <MenuSeparator />
+                  <MenuItem
+                    icon={<LogOut size={17} />}
+                    onSelect={() => {
+                      setSignOutError('')
+                      logout()
+                        .then(() => navigate('/account', { replace: true }))
+                        .catch((e: unknown) =>
+                          setSignOutError(
+                            e instanceof Error ? e.message : 'Sign out could not be confirmed.',
+                          ),
+                        )
+                    }}
+                  >
+                    Sign out
+                  </MenuItem>
+                </>
+              )}
+            </ActionMenu>
           </div>
         </header>
+        {signOutError && (
+          <div role="alert" className="workspace-warning">
+            {signOutError}
+          </div>
+        )}
         <section className="demo-notice" aria-label="About this version">
           <Info size={13} />
           <span>
@@ -658,21 +851,24 @@ function WorkspaceApp() {
           <AskSaleane onClose={() => setAsking(false)} />
         </Suspense>
       )}
+      <Notices />
     </div>
   )
 }
 
 export function App() {
   return (
-    <Suspense
-      fallback={
-        <main className="candidate-loading">
-          <span className="wordmark">SALEANE</span>
-          <p role="status">Loading…</p>
-        </main>
-      }
-    >
-      <WorkspaceApp />
-    </Suspense>
+    <CalmMotion>
+      <Suspense
+        fallback={
+          <main className="candidate-loading">
+            <span className="wordmark">SALEANE</span>
+            <p role="status">Loading…</p>
+          </main>
+        }
+      >
+        <WorkspaceApp />
+      </Suspense>
+    </CalmMotion>
   )
 }

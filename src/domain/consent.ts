@@ -44,8 +44,7 @@ export function suppressQueuedNews(s: BusinessState, clientId: string) {
 }
 
 type ConsentCommand =
-  | { type: 'consent-wording'; text: string }
-  | { type: 'guest-consent-stop'; appointmentId: string }
+  { type: 'consent-wording'; text: string } | { type: 'guest-consent-stop'; appointmentId: string }
 
 /** The record a repeated request points at when it would change nothing: same words, or already off. */
 export function consentUnchanged(s: BusinessState, command: ConsentCommand) {

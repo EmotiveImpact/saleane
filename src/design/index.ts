@@ -1,11 +1,20 @@
 // SALEANE design language: the components every screen builds from.
 // Documented in docs/DESIGN_LANGUAGE.md and shown live at /design-language.
 import './design.css'
+import './components/controls.css'
 
 export { Avatar, Button, Empty, ErrorMessage, Metric, Status } from './components/primitives'
 export { Definition } from './components/Definition'
 export { Stat, Stats } from './components/Stats'
 export { Modal } from './components/Modal'
+export { Menu, MenuChoices, MenuItem, MenuLabel, MenuSeparator } from './components/Menu'
+export { Tip } from './components/Tip'
+export { Notices } from './components/Notices'
+export { notify } from './components/notices'
+export { Fold } from './components/Fold'
+export { Select } from './components/Select'
+export { CalmMotion } from './components/CalmMotion'
+export { calm, quick, leaveGently, motionAllowed, useMotionAllowed } from './motion'
 export { ChoiceTiles, WizardFooter, WizardSteps } from './components/Wizard'
 export { useWizardStep } from './components/useWizardStep'
 export { PageHeader } from './components/PageHeader'

@@ -188,7 +188,7 @@ describe('connected operator journeys', () => {
     await show()
     const trigger = screen.getByRole('button', { name: 'Find a client' })
     await user.click(trigger)
-    expect(screen.getByRole('searchbox', { name: 'Search clients' })).toHaveFocus()
+    expect(screen.getByRole('combobox', { name: 'Search clients' })).toHaveFocus()
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(trigger).toHaveFocus()
@@ -469,7 +469,8 @@ describe('local operating surfaces', () => {
     const user = userEvent.setup()
     await show('/inbox')
     expect(await screen.findByRole('list', { name: /Conversation with/ })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /your preferences/ }))
+    await user.click(screen.getByRole('button', { name: /your menu/ }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Your preferences' }))
     expect(await screen.findByRole('tab', { name: 'Your preferences' })).toHaveAttribute(
       'aria-selected',
       'true',

@@ -1,5 +1,7 @@
+import { useId } from 'react'
 import type { ReactNode } from 'react'
-import * as RadixTabs from '@radix-ui/react-tabs'
+import { Tabs as RadixTabs } from 'radix-ui'
+import { ChosenMark } from './ChosenMark'
 
 type Tab<T extends string> = {
   value: T
@@ -16,7 +18,8 @@ type Tab<T extends string> = {
  *
  * A long vertical list can be split into named `groups`, each its own short
  * tablist under a quiet heading. With `picker`, narrow screens show one select,
- * with the same groups, in place of the list.
+ * with the same groups, in place of the list. The shape behind the chosen tab slides
+ * to the next one, across groups too.
  */
 export function Tabs<T extends string>({
   label,
@@ -41,6 +44,7 @@ export function Tabs<T extends string>({
   orientation?: 'horizontal' | 'vertical'
   children: ReactNode
 }) {
+  const group = useId()
   const trigger = (tab: Tab<T>) => (
     <RadixTabs.Trigger
       key={tab.value}
@@ -49,6 +53,7 @@ export function Tabs<T extends string>({
       className="tabs-trigger"
     >
       {tab.label}
+      {tab.value === value && <ChosenMark group={group} radius={12} />}
     </RadixTabs.Trigger>
   )
   const words = (tab: Tab<T>) =>

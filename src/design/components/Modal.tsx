@@ -1,7 +1,17 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
-import * as Dialog from '@radix-ui/react-dialog'
+import { Dialog } from 'radix-ui'
 import { X } from 'lucide-react'
+import { leaveGently } from '../motion'
+
+type Placement = 'center' | 'side' | 'start'
+
+/** Where each kind of dialog goes as it leaves: back towards the edge it came from. */
+function leaving(placement: Placement, element: HTMLElement) {
+  if (placement === 'side') return { x: 32 }
+  if (placement === 'start') return { x: -element.getBoundingClientRect().right }
+  return { y: 6 }
+}
 
 export function Modal({
   open,
@@ -11,6 +21,7 @@ export function Modal({
   children,
   wide = false,
   placement = 'center',
+  className = '',
 }: {
   open: boolean
   onClose: () => void
@@ -18,20 +29,43 @@ export function Modal({
   description: string
   children: ReactNode
   wide?: boolean
-  placement?: 'center' | 'side'
+  /**
+   * `side` is a panel beside the page (a visit, checkout, Ask SALEANE). `start` is a drawer from
+   * the leading edge, for the phone menu. Everything else opens in the centre.
+   */
+  placement?: Placement
+  className?: string
 }) {
   const previousFocus = useRef<HTMLElement | null>(null)
   const content = useRef<HTMLDivElement | null>(null)
+  const overlay = useRef<HTMLDivElement | null>(null)
   const body = useRef<HTMLDivElement | null>(null)
   const heading = useRef<HTMLHeadingElement | null>(null)
   const previousTitle = useRef(title)
+  const where = useRef(placement)
+  const panel = placement !== 'center'
   useEffect(() => {
-    if (open && placement === 'side' && previousTitle.current !== title) {
+    where.current = placement
+  }, [placement])
+  useEffect(() => {
+    if (open && panel && previousTitle.current !== title) {
       heading.current?.focus()
       body.current?.scrollTo?.({ top: 0 })
     }
     previousTitle.current = title
-  }, [open, placement, title])
+  }, [open, panel, title])
+  // Closing removes the dialog at once, so focus and screen readers move on; a still copy then
+  // leaves gently, back the way it came. Stable callbacks, so this runs only when it really goes.
+  const contentRef = useCallback((node: HTMLDivElement | null) => {
+    const was = content.current
+    content.current = node
+    if (!node && was) leaveGently(was, leaving(where.current, was))
+  }, [])
+  const overlayRef = useCallback((node: HTMLDivElement | null) => {
+    const was = overlay.current
+    overlay.current = node
+    if (!node && was) leaveGently(was, { fade: true })
+  }, [])
   return (
     <Dialog.Root
       open={open}
@@ -41,11 +75,20 @@ export function Modal({
     >
       <Dialog.Portal>
         <Dialog.Overlay
-          className={`dialog-overlay ${placement === 'side' ? 'dialog-overlay-side' : ''}`}
+          ref={overlayRef}
+          className={`dialog-overlay ${panel ? 'dialog-overlay-side' : ''}`}
         />
         <Dialog.Content
-          ref={content}
-          className={`dialog-content ${wide ? 'dialog-wide' : ''} ${placement === 'side' ? 'dialog-side' : ''}`}
+          ref={contentRef}
+          className={[
+            'dialog-content',
+            wide && 'dialog-wide',
+            panel && 'dialog-side',
+            placement === 'start' && 'dialog-start',
+            className,
+          ]
+            .filter(Boolean)
+            .join(' ')}
           onOpenAutoFocus={(event) => {
             previousFocus.current = document.activeElement as HTMLElement
             event.preventDefault()
@@ -54,9 +97,11 @@ export function Modal({
               return
             }
             const target =
-              content.current?.querySelector<HTMLElement>(
-                'input:not([type="checkbox"]):not(:disabled), select:not(:disabled), textarea:not(:disabled)',
-              ) ?? content.current?.querySelector<HTMLElement>('button:not(:disabled)')
+              placement === 'start'
+                ? content.current?.querySelector<HTMLElement>('[aria-current="page"], a, button')
+                : (content.current?.querySelector<HTMLElement>(
+                    'input:not([type="checkbox"]):not(:disabled), select:not(:disabled), textarea:not(:disabled)',
+                  ) ?? content.current?.querySelector<HTMLElement>('button:not(:disabled)'))
             target?.focus()
           }}
           onCloseAutoFocus={(event) => {
@@ -69,7 +114,7 @@ export function Modal({
         >
           <div className="dialog-heading">
             <div>
-              <Dialog.Title ref={heading} tabIndex={placement === 'side' ? -1 : undefined}>
+              <Dialog.Title ref={heading} tabIndex={panel ? -1 : undefined}>
                 {title}
               </Dialog.Title>
               <Dialog.Description>{description}</Dialog.Description>

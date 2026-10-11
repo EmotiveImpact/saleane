@@ -1,12 +1,14 @@
-import { useRef } from 'react'
+import { useId, useRef } from 'react'
 import type { ReactNode } from 'react'
-import * as ToggleGroup from '@radix-ui/react-toggle-group'
+import { ToggleGroup } from 'radix-ui'
 import { useScrollEdges } from './useScrollEdges'
+import { ChosenMark } from './ChosenMark'
 
 /**
  * A single choice between a few views of the same content (a period, a
  * filter, a layout). Built on Radix Toggle Group: arrow keys move between
- * options and exactly one stays selected.
+ * options and exactly one stays selected. The underline or shape that marks the
+ * choice slides across to a new one; chips, which wrap onto several lines, simply change.
  */
 export function SegmentedControl<T extends string>({
   label,
@@ -26,6 +28,8 @@ export function SegmentedControl<T extends string>({
   // Where a row of options scrolls sideways on a phone, the edge with more to see fades.
   const row = useRef<HTMLDivElement>(null)
   const more = useScrollEdges(row)
+  const group = useId()
+  const sliding = appearance !== 'chips'
   return (
     <ToggleGroup.Root
       ref={row}
@@ -48,6 +52,9 @@ export function SegmentedControl<T extends string>({
           className="segmented-item"
         >
           {option.label}
+          {sliding && option.value === value && (
+            <ChosenMark group={group} radius={appearance === 'underline' ? 1 : 8} />
+          )}
         </ToggleGroup.Item>
       ))}
     </ToggleGroup.Root>
