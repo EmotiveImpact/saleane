@@ -399,6 +399,9 @@ function assertNameFree(list: Offer[], input: { name: string; archived: boolean 
 /** A carried-over package with no last day in the old system is kept for ten years. */
 export const CARRIED_NO_END_MONTHS = 120
 
+/** All the visits a package was bought with; one carried over counts those used in the old system. */
+export const planVisits = (holding: Holding) => holding.carried?.visitsBefore ?? holding.visits
+
 /**
  * Moving in, stage 3: packages clients bought in the studio's old system, each with the visits it
  * had left. Each visit covers the treatments the owner chose, and the package's price is what the

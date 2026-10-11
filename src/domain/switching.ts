@@ -319,6 +319,13 @@ export function runSwitchingCommand(
   return batch.id
 }
 
+/** The old system a carried-over gift card or package came from, as its import names it. */
+export function carriedSource(s: BusinessState, importId: string) {
+  return (
+    (operations(s).imports ?? []).find((batch) => batch.id === importId)?.source ?? 'the old system'
+  )
+}
+
 /** What each logged import still stands at, for checking against the old system. */
 export function importStanding(s: BusinessState, batch: ImportBatch) {
   if (batch.kind === 'appointments') {

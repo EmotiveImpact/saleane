@@ -1209,6 +1209,20 @@ describe('moving clients in from another system', () => {
     expect(saved.operations.balances).toMatchObject([
       { clientId: 'client-13', kind: 'credit', amountMinor: 2500 },
     ])
+
+    // The client's page counts the visits used in Timely, and says where it was paid for.
+    cleanup()
+    await show('/clients/client-8')
+    expect(await screen.findByText(/^4 of 6 visits left · use by/)).toBeInTheDocument()
+    expect(screen.getByText('Carried over from Timely, where it was paid for')).toBeInTheDocument()
+    // Gift cards keep their printed code and are never counted as sold here.
+    cleanup()
+    await show('/business/gift-cards')
+    expect(await screen.findByText('GV58214')).toBeInTheDocument()
+    expect(screen.getAllByText('Carried over from Timely')).toHaveLength(2)
+    expect(
+      screen.getByText(/Cards carried over from Timely were paid for there, so they are not in/),
+    ).toBeInTheDocument()
   })
 
   it('opens the same steps from Settings for gift cards, packages and credit', async () => {
