@@ -240,6 +240,8 @@ export function VisitWriteUp({
       ...(care.length >= 2 ? { aftercare: care } : aftercare ? { aftercare: null } : {}),
     }
     setDone('')
+    // Whether its email was still to go as they saved: if it goes in the meantime it may carry this.
+    const aheadBefore = status?.aftercareEmail === true
     if (!(await onSave(command, ''))) return
     setDraft(null)
     setWords('')
@@ -248,7 +250,7 @@ export function VisitWriteUp({
     if (!shown.current) return
     setDone(
       care.length >= 2
-        ? ahead === null
+        ? ahead === null || (!ahead && aheadBefore)
           ? 'Saved. The aftercare is kept on the visit.'
           : ahead
             ? `Saved. The aftercare is added to ${guest}’s aftercare email.`

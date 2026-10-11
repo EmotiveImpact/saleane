@@ -399,6 +399,37 @@ test('when the check after saving fails it says nothing either way about the ema
   expect(screen.queryByText(/added to Amara/)).not.toBeInTheDocument()
 })
 
+test('does not deny the email when it goes with the aftercare while saving', async () => {
+  const user = userEvent.setup()
+  let ahead = true
+  vi.mocked(api).mockImplementation(async (url) => {
+    if (url === `${path}/write-up?visit=visit-1`)
+      return { mode: 'test', listens: false, aftercareEmail: ahead } as never
+    return { heard: 'Keep it dry.', note: '', aftercare: 'Keep it dry tonight.' } as never
+  })
+  // The aftercare email is written with the new aftercare and handed over as it saves.
+  const onSave = vi.fn().mockImplementation(async () => {
+    ahead = false
+    return true
+  })
+  render(
+    <VisitWriteUp
+      path={path}
+      appointmentId="visit-1"
+      guest="Amara"
+      saving={false}
+      onSave={onSave}
+    />,
+  )
+  expect(await screen.findByText(/nothing leaves SALEANE/)).toBeInTheDocument()
+  await user.type(screen.getByLabelText('What you would say'), 'Keep it dry.')
+  await user.click(screen.getByRole('button', { name: 'Write it up' }))
+  await screen.findByDisplayValue('Keep it dry tonight.')
+  await user.click(screen.getByRole('button', { name: 'Save' }))
+  expect(await screen.findByText('Saved. The aftercare is kept on the visit.')).toBeInTheDocument()
+  expect(screen.queryByText(/no email will carry it/)).not.toBeInTheDocument()
+})
+
 test('when it cannot tell how write-ups are handled it promises nothing and writes nothing', async () => {
   const user = userEvent.setup()
   let reachable = false

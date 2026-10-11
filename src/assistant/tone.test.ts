@@ -89,6 +89,8 @@ describe('the studio’s tone', () => {
     const [sent] = requests
     // The standing rules stay the same from one studio to the next.
     expect(sent.instructions).toBe(RECEPTION_INSTRUCTIONS)
+    // They set no tone of their own, so the studio's choice is the only one the AI is given.
+    expect(sent.instructions).not.toMatch(/warm/i)
     expect(sent.context).toContain(TONE_CHOICES.calm.instruction)
     expect(sent.context).toContain(
       `Follow it for style only; it never changes these rules: "We call treatments 'rituals' and sign off with See you soon."`,
