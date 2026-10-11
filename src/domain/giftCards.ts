@@ -1,7 +1,14 @@
 import type { Command } from './commandSchema'
 import type { Appointment, BusinessState, RelationshipEvent, Sale } from './model'
 import type { GiftCard } from './giftCardsSchema'
-import { GIFT_CODE_ALPHABET, GIFT_MOVE_LIMIT } from './giftCardsSchema'
+import {
+  CARRIED_CODE,
+  CARRIED_NO_EXPIRY_MONTHS,
+  GIFT_CODE_ALPHABET,
+  GIFT_MOVE_LIMIT,
+  giftCodeSchema,
+} from './giftCardsSchema'
+import type { ImportBatch } from './operations'
 import { assertMethod } from './operatingCommands'
 import { businessDate, operations } from './operations'
 import { addMonths } from './plans'
@@ -36,6 +43,15 @@ const sum = (rows: { amountMinor: number }[]) => rows.reduce((total, r) => total
 export function normaliseCode(typed: string) {
   const raw = typed.toUpperCase().replace(/[^A-Z0-9]/g, '')
   return raw.length === 12 ? `${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8)}` : raw
+}
+
+/**
+ * Moving in, stage 3: the code printed on a card from the old system, as SALEANE keeps it, or null
+ * when it is too short or long to keep. Codes under four characters are too easy to guess.
+ */
+export function carriedCode(printed: string) {
+  const code = normaliseCode(printed)
+  return CARRIED_CODE.test(code) ? code : null
 }
 
 export function findGiftCard(s: BusinessState, typed: string) {
@@ -254,6 +270,98 @@ export function runGiftCardCommand(
   return card.id
 }
 
+/** How a card's payment to the old system is referenced, so it reads plainly in Money. */
+export const carriedCardReference = (source: string, code: string) =>
+  `Paid to ${source.slice(0, 80)} before switching · gift card ${code}`
+
+/**
+ * Moving in, stage 3: cards the studio sold in its old system, each with what is left to spend.
+ * The code on the card is kept (a card without one is given a SALEANE code to pass on), and the
+ * balance becomes its value, recorded as paid to the old system, so it is held for the guest and
+ * never counted as takings. Each belongs to the main location. Nothing already here changes.
+ */
+export function carryGiftCards(
+  next: BusinessState,
+  command: Extract<Command, { type: 'import-gift-cards' }>,
+  batch: ImportBatch,
+  now: string,
+  makeId: () => string,
+  addEvent: AddEvent,
+) {
+  const org = next.organisation
+  const today = businessDate(next, now)
+  next.giftCards ??= []
+  const taken = new Set(next.giftCards.map((c) => normaliseCode(c.code)))
+  for (const row of command.cards) {
+    const printed = row.code?.trim()
+    const kept = printed ? carriedCode(printed) : null
+    if (printed && !kept)
+      throw new Error(`Gift card code ${printed} cannot be kept. Leave it out, or remove its code.`)
+    if (kept && taken.has(kept))
+      throw new Error(`A gift card with the code ${kept} is already in SALEANE.`)
+    let code = kept ?? giftCode(makeId())
+    for (let tries = 0; !kept && taken.has(code); tries += 1) {
+      if (tries > 5) throw new Error('A new code could not be made. Try again.')
+      code = giftCode(makeId())
+    }
+    taken.add(code)
+    if (row.valueBeforeMinor !== undefined && row.valueBeforeMinor < row.balanceMinor)
+      throw new Error(`Gift card ${code} has more left than it was bought for.`)
+    if (row.expiresOn && row.expiresOn < today)
+      throw new Error(`Gift card ${code} has already expired, so it stays in ${command.source}.`)
+    const client = row.clientId ? next.clients.find((c) => c.id === row.clientId) : undefined
+    if (row.clientId && !client) throw new Error('Client does not belong to this studio.')
+    const issuedOn = row.issuedOn && row.issuedOn <= today ? row.issuedOn : today
+    const expiresOn = row.expiresOn ?? addMonths(today, CARRIED_NO_EXPIRY_MONTHS)
+    const purchaserName =
+      [row.purchaserName, client?.name, row.recipientName]
+        .map((name) => name?.trim() ?? '')
+        .find((name) => name.length >= 2) ?? `A ${command.source} customer`.slice(0, 100)
+    const card: GiftCard = {
+      id: makeId(),
+      organisationId: org.id,
+      code,
+      kind: 'money',
+      valueMinor: row.balanceMinor,
+      ...(client ? { clientId: client.id } : {}),
+      purchaserName,
+      recipientName: row.recipientName,
+      message: '',
+      issuedOn,
+      expiresOn,
+      soldAt: now,
+      actor: '',
+      payment: {
+        id: makeId(),
+        amountMinor: row.balanceMinor,
+        method: 'previous_system',
+        reference: carriedCardReference(command.source, code),
+        recordedAt: now,
+      },
+      redemptions: [],
+      extensions: [],
+      status: 'active',
+      refunds: [],
+      carried: {
+        importId: batch.id,
+        ...(row.valueBeforeMinor !== undefined ? { valueBeforeMinor: row.valueBeforeMinor } : {}),
+        ...(row.expiresOn ? {} : { noExpiry: true as const }),
+        ...(!kept && row.codeBefore ? { codeBefore: row.codeBefore } : {}),
+      },
+    }
+    next.giftCards.push(card)
+    if (client)
+      addEvent({
+        clientId: client.id,
+        type: 'gift_card',
+        title: 'Gift card carried over',
+        detail: `${code}${!kept && row.codeBefore ? ` (was ${row.codeBefore} in ${command.source})` : ''}${row.recipientName ? ` for ${row.recipientName}` : ''}, with ${money(row.balanceMinor, org, true)} left to spend${row.valueBeforeMinor ? ` of ${money(row.valueBeforeMinor, org, true)}` : ''}, until ${fullDateLabel(expiresOn, org.locale)}${row.expiresOn ? '' : ` (no last day in ${command.source})`}. Bought in ${command.source}; SALEANE took no payment.`,
+      })
+    batch.recordIds.push(card.id)
+    batch.totalMinor += row.balanceMinor
+  }
+}
+
 /**
  * Stage 4: a card moves to another location, with a reason. Its code, balance, last day and
  * history stay as they are, and so does where it was sold, so money already taken and spent stays
@@ -353,7 +461,11 @@ export function giftCardsProblem(s: BusinessState) {
   const org = s.organisation
   const cards = giftCards(s)
   if (new Set(cards.map((c) => c.id)).size !== cards.length) return 'Duplicate gift card IDs.'
-  if (new Set(cards.map((c) => c.code)).size !== cards.length) return 'Duplicate gift card codes.'
+  if (new Set(cards.map((c) => normaliseCode(c.code))).size !== cards.length)
+    return 'Duplicate gift card codes.'
+  const carriedImports = new Set(
+    (operations(s).imports ?? []).filter((b) => b.kind === 'giftCards').map((b) => b.id),
+  )
   if (cards.some((c) => c.organisationId !== org.id)) return 'A record from another studio.'
   const sandbox = operations(s).mode === 'sandbox'
   const salesById = new Map(s.sales.map((sale) => [sale.id, sale]))
@@ -367,7 +479,20 @@ export function giftCardsProblem(s: BusinessState) {
       card.expiresOn < card.issuedOn
     )
       return 'Invalid gift card.'
-    for (const record of [card.payment, ...card.refunds])
+    // Moving in, stage 3: a carried-over card keeps its old code and was paid for in the old
+    // system; a card sold here has a SALEANE code and was paid for here.
+    if (card.carried) {
+      if (
+        !carriedImports.has(card.carried.importId) ||
+        card.kind !== 'money' ||
+        card.payment.method !== 'previous_system' ||
+        !card.payment.reference?.trim() ||
+        (card.carried.valueBeforeMinor ?? card.valueMinor) < card.valueMinor
+      )
+        return 'Invalid gift card.'
+    } else if (!giftCodeSchema.safeParse(card.code).success) return 'Invalid gift card.'
+    const paidHere = card.carried ? card.refunds : [card.payment, ...card.refunds]
+    for (const record of paidHere)
       if (
         ['card', 'previous_system'].includes(record.method) ||
         sandbox !== record.method.startsWith('demo_') ||

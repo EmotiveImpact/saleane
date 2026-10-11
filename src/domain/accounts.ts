@@ -409,6 +409,8 @@ export function dailySummary(s: BusinessState, from: string, to: string): DaySum
   }
   for (const money of moneyInAndOut(s, from, to)) {
     const row = day(money.date)
+    // Moving in, stage 3: a package carried over was sold, and counted, in the old system.
+    if (money.method === 'previous_system') continue
     if (money.kind === 'Package' || money.kind === 'Membership') row.plansMinor += money.amountMinor
     else if (money.kind === 'Chair or room rent') row.rentMinor += money.amountMinor
     else if (money.kind === 'No-show or late fee') row.feesMinor += money.amountMinor

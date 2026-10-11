@@ -35,6 +35,8 @@ const KIND_LABEL: Record<ImportBatch['kind'], string> = {
   services: 'Treatments',
   appointments: 'Upcoming visits',
   balances: 'Balances',
+  giftCards: 'Gift cards',
+  packages: 'Packages',
 }
 
 function fileText(file: File) {

@@ -3,9 +3,10 @@ import type { Appointment, BusinessState, RelationshipEvent, Sale } from './mode
 import type { CardAgreement, Holding, Offer } from './plansSchema'
 import { assertMethod } from './operatingCommands'
 import { businessDate, operations } from './operations'
-import { dateLabel, money } from './format'
+import { dateLabel, fullDateLabel, money } from './format'
 import { referenceTaken, refundReferenceTaken } from './references'
 import { salePlace } from './locations'
+import type { ImportBatch } from './operations'
 
 /**
  * V1.5: packages and memberships. A package is a number of visits bought at one price and used
@@ -395,6 +396,95 @@ function assertNameFree(list: Offer[], input: { name: string; archived: boolean 
     throw new Error('A plan with this name is already offered.')
 }
 /** A payment reference names one payment, as at checkout and for deposits. */
+/** A carried-over package with no last day in the old system is kept for ten years. */
+export const CARRIED_NO_END_MONTHS = 120
+
+/**
+ * Moving in, stage 3: packages clients bought in the studio's old system, each with the visits it
+ * had left. Each visit covers the treatments the owner chose, and the package's price is what the
+ * visits left are worth, recorded as paid to the old system: held for the client and counted as
+ * takings only as visits use it, never as a sale here. Each belongs to the main location.
+ */
+export function carryPackages(
+  next: BusinessState,
+  command: Extract<Command, { type: 'import-packages' }>,
+  batch: ImportBatch,
+  now: string,
+  makeId: () => string,
+  addEvent: AddEvent,
+) {
+  const org = next.organisation
+  const today = businessDate(next, now)
+  next.holdings ??= []
+  for (const row of command.packages) {
+    const client = next.clients.find((c) => c.id === row.clientId)
+    if (!client) throw new Error('Client does not belong to this studio.')
+    const services = [...new Set(row.serviceIds)].map((id) =>
+      next.services.find((service) => service.id === id && !service.archived),
+    )
+    if (services.some((service) => !service))
+      throw new Error(`Choose treatments offered here for ${row.name}.`)
+    if (row.visitsBefore !== undefined && row.visitsBefore < row.visitsLeft)
+      throw new Error(`${row.name} has more visits left than it was bought with.`)
+    if (row.endsOn && row.endsOn < today)
+      throw new Error(`${row.name} has already ended, so it stays in ${command.source}.`)
+    if (
+      next.holdings.some(
+        (h) =>
+          h.carried &&
+          h.clientId === client.id &&
+          h.name === row.name &&
+          h.status === 'active' &&
+          planStanding(h, today).visitsLeft > 0,
+      )
+    )
+      throw new Error(`${client.name} already has ${row.name} from ${command.source}.`)
+    const startedOn = row.startedOn && row.startedOn <= today ? row.startedOn : today
+    const endsOn = row.endsOn ?? addDaysBefore(addMonths(today, CARRIED_NO_END_MONTHS))
+    const holding: Holding = {
+      id: makeId(),
+      organisationId: org.id,
+      clientId: client.id,
+      kind: 'package',
+      name: row.name,
+      serviceIds: services.map((service) => service!.id),
+      visits: row.visitsLeft,
+      priceMinor: row.valueMinor,
+      discountPercent: 0,
+      startedOn,
+      endsOn,
+      status: 'active',
+      soldAt: now,
+      actor: '',
+      payments: [
+        {
+          id: makeId(),
+          amountMinor: row.valueMinor,
+          method: 'previous_system',
+          reference: `Paid to ${command.source.slice(0, 80)} before switching · ${row.name}`,
+          recordedAt: now,
+        },
+      ],
+      uses: [],
+      refunds: [],
+      carried: {
+        importId: batch.id,
+        ...(row.visitsBefore !== undefined ? { visitsBefore: row.visitsBefore } : {}),
+        ...(row.endsOn ? {} : { noEnd: true as const }),
+      },
+    }
+    next.holdings.push(holding)
+    addEvent({
+      clientId: client.id,
+      type: 'plan',
+      title: 'Package carried over',
+      detail: `${row.name}: ${row.visitsLeft} ${row.visitsLeft === 1 ? 'visit' : 'visits'} left${row.visitsBefore ? ` of ${row.visitsBefore}` : ''}, until ${fullDateLabel(endsOn, org.locale)}${row.endsOn ? '' : ` (no last day in ${command.source})`}, worth ${money(row.valueMinor, org, true)}. Bought in ${command.source}; SALEANE took no payment.`,
+    })
+    batch.recordIds.push(holding.id)
+    batch.totalMinor += row.valueMinor
+  }
+}
+
 function assertReferenceFree(s: BusinessState, reference?: string) {
   const ref = reference?.trim()
   if (ref && referenceTaken(s, ref))
@@ -458,17 +548,35 @@ export function plansProblem(s: BusinessState) {
   const sandbox = operations(s).mode === 'sandbox'
   const salesById = new Map(s.sales.map((sale) => [sale.id, sale]))
   const covered = new Map<string, string>()
+  const carriedImports = new Set(
+    (operations(s).imports ?? []).filter((b) => b.kind === 'packages').map((b) => b.id),
+  )
   for (const holding of holdings(s)) {
+    // Moving in, stage 3: a package carried over from the old system was paid for there, once.
+    if (
+      holding.carried &&
+      (!carriedImports.has(holding.carried.importId) ||
+        holding.kind !== 'package' ||
+        holding.payments.length !== 1 ||
+        holding.payments[0].method !== 'previous_system' ||
+        !holding.payments[0].reference?.trim() ||
+        holding.payments[0].amountMinor !== holding.priceMinor ||
+        (holding.carried.visitsBefore ?? holding.visits) < holding.visits)
+    )
+      return 'Invalid plan.'
     if (
       !s.clients.some((c) => c.id === holding.clientId) ||
-      !offers(s).some((o) => o.id === holding.offerId) ||
+      (holding.carried
+        ? holding.offerId !== undefined
+        : !offers(s).some((o) => o.id === holding.offerId)) ||
       (holding.status === 'cancelled') !== !!holding.cancelled ||
       (holding.kind === 'package') !== !!holding.endsOn ||
       (holding.kind === 'membership') !== !!holding.paidUntil ||
       holding.payments.length === 0
     )
       return 'Invalid plan.'
-    for (const record of [...holding.payments, ...holding.refunds])
+    const paidHere = holding.carried ? holding.refunds : [...holding.payments, ...holding.refunds]
+    for (const record of paidHere)
       if (
         record.method === 'previous_system' ||
         sandbox !== record.method.startsWith('demo_') ||
