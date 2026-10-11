@@ -206,6 +206,21 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - The booking page conversation can be scrolled from the keyboard once it is long.
 - The health check lists the AI among the services. Two test phone numbers moved into the fictional range and private folder paths left four documents, now the code is public.
 
+## 2026-10-10 · Moving in, stage 2: upcoming visits from the old system's own files
+
+**Status: built locally on 10 October 2026, awaiting the owner's "merge" together with stage 1; nothing deployed.** [Evidence](docs/evidence/MOVING-02.md).
+
+- Moving in now brings upcoming visits across from the file the old system already gives, such as Fresha's appointments list, alongside the client list or on its own. Before, that file was set aside, and Settings refused it unless it was rebuilt in SALEANE's own layout with every guest's email.
+- The steps follow the files: a Visits step appears when a visits file is added. "Your files" says where to download both lists in each system; where a system only gives upcoming visits through its support team, it says so.
+- SALEANE reads dates and times in each system's style (slots such as 10:30:00-11:30:00, "14 Oct 2026, 10:30am", Excel times), recognises Fresha's appointments list and Vagaro's appointments summary, and reads any other file by meaning. A treatment or person it cannot match is asked about with the studio's own list to choose from, or left behind; a likely match ("Theo", most likely Theo Bennett) is confirmed with one press.
+- Each visit is checked against the calendar and the visits before it, the way the server checks it, and any that cannot come across says why in plain words: time away, a day the studio is closed, outside opening hours, a clash, a treatment the person is not set up for, a walk-in, a client with no details, or a request still waiting in the old system. Reasons are grouped with a few of their visits, and totals to check against the old system's report come first.
+- Visits keep the price the guest was quoted and only the deposit they paid, which is recorded as paid before switching; SALEANE takes no payment and sends no confirmation. Past, cancelled and missed visits stay behind. A visit already in SALEANE is left alone, and the same visit in two files comes across once.
+- Visits find their clients by email, then phone, then name, including clients arriving in the same move. A client named only in the visits file, with an email or phone, comes across as a new client with marketing off. A household sharing an email is never merged.
+- Settings, Switching over, Upcoming visits opens the same steps; the older CSV path for visits is gone. Treatments and balances keep their CSV steps.
+- A visit whose deposit was paid to the old system now says "Deposit paid before switching" instead of "Demo deposit recorded".
+- Fixed: saving stalled after the first part when a second part followed. On a phone the save button reads "Bring them across", so it fits.
+- The help guide "Bring clients and visits across from another system" describes the steps as they are now.
+
 ## 2026-10-10 · Filling a cancelled time (NEXT-11)
 
 **Status: built locally on 10 October 2026.** [Evidence](docs/evidence/NEXT-11-CANCELLED-TIMES.md).
@@ -306,6 +321,22 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Pages show loading shapes while they first open, as does "Who changed what" while it reads the record. The page for a missing link has a photograph and a button back to Today.
 - Small empty notes across the app now use the light serif heading.
 - Every dialog's close button is now a full 44px target at every width, with the cross where it was.
+
+## 2026-10-09 · Moving in, stage 1: clients from any system
+
+**Status: built locally on 9 October 2026, awaiting the owner's "merge"; nothing deployed.** [Evidence](docs/evidence/MOVING-01.md).
+
+The owner said yes to the five moving-in answers. Stage 1 brings the client list across from Fresha, Phorest, Timely, Treatwell, Booksy and any other system.
+
+- Clients, Import clients, and Settings, Switching over, Clients, open "Move your clients in", four short steps with one job each: the old system (large tiles, the UK five first), its files (download help for that system, then as many CSV or Excel files as they come), a check (any question first, then who is ready, already here or needing a look), and bringing them across (what will happen in plain sentences, one tick, one button). Back and Continue stay at the bottom of the window, Continue waits until a step is complete, each step starts at the top with its heading read out, and going back asks for the tick again.
+- SALEANE recognises the system and report from the columns, skips title and totals rows, reads Excel dates, and matches columns by meaning, checking each against what is inside. Only an unsure column becomes a question, with examples.
+- Clients come across with notes, birthdays (month and day), postcode area, other phone numbers and international mobiles. The same person in several rows or files is combined; anyone already in SALEANE is left exactly as they are.
+- Email marketing comes across only when the old file records that the client agreed. The consent record keeps the old system's own words as evidence with source "previous system", and the client page and privacy file show it. Anything else starts off.
+- A moved-in client may have a phone number and no email. Guest booking and new clients at the desk still need an email.
+- Long lists are saved in parts the server accepts; a dropped connection keeps the files and says how many came across.
+- Visit, gift card, package and payment files are recognised and named, not saved; the screen says a later step brings them across. The older one-file client import is replaced by this screen.
+- Questions and column choices are rows with a fine line between them, not boxes inside boxes; Continue fills the width at the foot of each step on a phone; each step settles in with the shared calm motion.
+- The step bar, large choice tiles, the footer that stays in reach and the step focus are shared design pieces (`WizardSteps`, `ChoiceTiles`, `WizardFooter`, `useWizardStep` in `src/design`), so later wizards such as studio setup look and behave the same.
 
 ## 2026-10-09 · Studios paying for SALEANE (NEXT-02)
 

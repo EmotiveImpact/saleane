@@ -32,7 +32,7 @@ A new local studio starts without clients, appointments or funds. It uses the ve
 
 Appointments preserve booked service name, duration, buffer, price, deposit terms and original resource category. Manual receipts, deposits and external refund records require explicit provenance; they never imply a processor call. Tax is configured by the operator and snapshotted at checkout, not determined by a tax engine. Message drafts/queues remain unsent and consent is checked at queue time. No delivery worker exists. Reports derive from the same receipt/visit model; historical utilisation uses the current schedule because schedules are not yet versioned.
 
-Client imports are bounded and reviewed, have a source label and do not infer marketing consent or merge identity on email. Backup uses a consistent SQLite snapshot; restore validates into a fresh destination and revokes sessions/invitations/holds. The local file is not encrypted by this application; hosted encryption, key management, account recovery, privacy erasure and monitored operational recovery remain release gates.
+Client imports are bounded and reviewed, have a source label and do not infer marketing consent or merge identity on email; carried consent needs the old system's recorded evidence (MOVING-01). Backup uses a consistent SQLite snapshot; restore validates into a fresh destination and revokes sessions/invitations/holds. The local file is not encrypted by this application; hosted encryption, key management, account recovery, privacy erasure and monitored operational recovery remain release gates.
 
 See [local domain contract](V1_LOCAL_CONTRACT.md) and [candidate evidence](evidence/VERIFICATION_1.0.0-rc.1.md) for accepted rules and measured limits.
 

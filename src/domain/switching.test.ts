@@ -10,14 +10,7 @@ import { planMessages } from './reminders'
 import { clientExport } from './privacy'
 import { guestPayment } from './guest'
 import { cashForDay } from './tillCount'
-import {
-  csvDate,
-  csvMoney,
-  csvTime,
-  previewAppointmentsCsv,
-  previewBalancesCsv,
-  previewServicesCsv,
-} from '../components/switchingCsv'
+import { csvMoney, previewBalancesCsv, previewServicesCsv } from '../components/switchingCsv'
 
 // PILOT-03: a studio moving across from its previous booking system.
 const now = '2026-10-06T08:00:00.000Z'
@@ -46,19 +39,11 @@ const visit = {
 }
 
 describe('reading old system files', () => {
-  it('reads money, dates and times the way old systems export them', () => {
+  it('reads money the way old systems export it', () => {
     expect(csvMoney('£1,250.50')).toBe(125050)
     expect(csvMoney('$40')).toBe(4000)
     expect(csvMoney('-5')).toBeNaN()
     expect(csvMoney('', 0)).toBe(0)
-    expect(csvDate('08/10/2026', 'en-GB')).toBe('2026-10-08')
-    expect(csvDate('10/08/2026', 'en-US')).toBe('2026-10-08')
-    expect(csvDate('2026-10-08', 'en-US')).toBe('2026-10-08')
-    expect(csvDate('31/02/2026', 'en-GB')).toBeNull()
-    expect(csvTime('14:30')).toBe(870)
-    expect(csvTime('2:30 pm')).toBe(870)
-    expect(csvTime('12.05am')).toBe(5)
-    expect(csvTime('25:00')).toBeNull()
   })
 
   it('previews services, flagging names already here and unknown professionals', () => {
@@ -82,39 +67,6 @@ describe('reading old system files', () => {
       staffIds: ['staff-maya'],
     })
     expect(preview.rows[3].detail).toContain('more than the price')
-  })
-
-  it('previews visits, matching clients by email and stopping clashes inside the file', () => {
-    const s = local()
-    const preview = previewAppointmentsCsv(
-      [
-        'date,time,service,professional,email,name,phone,price,deposit_paid,reference',
-        '08/10/2026,10:05,Skin Renewal Facial,Maya Lewis,amelia.carter@example.com,,,85.00,20.00,BK-1',
-        '08/10/2026,10:30,Skin Renewal Facial,Maya Lewis,olivia.james@example.com,,,,,',
-        '08/10/2026,13:00,Skin Renewal Facial,Maya Lewis,new.guest@example.com,New Guest,+44 7700 900999,,,',
-        '08/10/2026,15:00,Skin Renewal Facial,Maya Lewis,nobody@example.com,,,,,',
-        '01/10/2026,10:00,Skin Renewal Facial,Maya Lewis,amelia.carter@example.com,,,,,',
-      ].join('\n'),
-      s,
-      now,
-    )
-    expect(preview.rows.map((r) => r.status)).toEqual([
-      'ready',
-      'problem',
-      'ready',
-      'problem',
-      'problem',
-    ])
-    expect(preview.rows[0].value).toMatchObject({
-      clientId: 'client-1',
-      startMinutes: 605,
-      priceMinor: 8500,
-      depositPaidMinor: 2000,
-      reference: 'BK-1',
-    })
-    expect(preview.rows[2].value).toMatchObject({ contact: { email: 'new.guest@example.com' } })
-    expect(preview.rows[2].value?.priceMinor).toBe(9500)
-    expect(preview.rows[3].detail).toContain('No client has this email')
   })
 
   it('previews balances and refuses a second open one for the same client', () => {
@@ -311,21 +263,6 @@ describe('bringing records across', () => {
     const plan = planMessages(s, '2026-10-06T10:00:00.000Z', [])
     expect(plan.map((m) => m.kind)).toContain('reminder')
     expect(plan.map((m) => m.kind)).not.toContain('confirmation')
-  })
-
-  it('matches a client by email even when the old system spells the name differently', () => {
-    const preview = previewAppointmentsCsv(
-      [
-        'date,time,service,professional,email,name,phone',
-        '08/10/2026,10:05,Skin Renewal Facial,Maya Lewis,amelia.carter@example.com,Amelia Carter-Jones,',
-        '08/10/2026,13:00,Skin Renewal Facial,Maya Lewis,new.guest@example.com,New Guest,+44 7700 900999',
-        '09/10/2026,13:00,Skin Renewal Facial,Maya Lewis,new.guest@example.com,New G.,+44 7700 900999',
-      ].join('\n'),
-      local(),
-      now,
-    )
-    expect(preview.rows[0]).toMatchObject({ status: 'ready', value: { clientId: 'client-1' } })
-    expect(preview.rows[2].value?.contact).toBe(preview.rows[1].value?.contact)
   })
 
   it('never lets the old system be used as a payment method at the desk', () => {

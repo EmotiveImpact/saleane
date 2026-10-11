@@ -136,6 +136,7 @@ The photo band is one house photograph from `src/design/photos.ts`, above the ey
 - **Plain words.** Say what is not connected yet in studio language ("Card payments are not connected yet"), never configuration names or internal codes.
 - **Start where you are.** Free time on the calendar books there, and a dragged visit opens the move step at its new spot. Shortcuts fill in choices; the same checks and confirmation still decide.
 - **Times in groups.** Long runs of times sit under Morning, Afternoon and Evening.
+- **Wizards.** A job with a few distinct steps runs in a `Modal` with `WizardSteps` along the top: one job per step, Continue held until the step is complete, Back always there, nothing saved until the last step, and that step saying in plain sentences what will happen. Each step opens at the top with its heading focused (`useWizardStep`). Moving in (`MovingIn.tsx`) is the reference.
 
 ## Voice
 
