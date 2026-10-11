@@ -229,7 +229,7 @@ function ImportReview({ kind, onClose }: { kind: SwitchKind; onClose: () => void
         error: cause instanceof Error ? cause.message : 'This CSV could not be read.',
       }
     }
-  }, [source, state, kind])
+  }, [source, state])
   const rows = review.preview?.rows ?? []
   const chosen = rows.filter((row) => row.status === 'ready' && !excluded.includes(row.record))
   const values = chosen.map((row) => row.value!)
