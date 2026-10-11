@@ -24,10 +24,10 @@ The owner signed in on the sign-in page as a person would, and the studio's AI r
 
 ## Automated checks
 
-`npm run check` passed: lint, strict TypeScript, the application, server and backup builds, 2,013 application tests and 650 server tests. `npm run format:check` passed.
+`npm run check` passed: lint, strict TypeScript, the application, server and backup builds, 2,015 application tests and 650 server tests. `npm run format:check` passed.
 
 - `lumane/safety.test.ts`:
-  - **The last check:** a reply saying "I've moved her" or "Done!" with nothing approved loses that sentence and gains the app's note; every other sentence is kept exactly. Honest sentences are left alone, among them "Nothing is booked until you confirm on that page" and "No one has been told yet", and so is a sentence about the approval itself. The app adds claims of its own (SALEANE adds taking a payment or a refund).
+  - **The last check:** a reply saying "I've moved her" or "Done!" with nothing approved loses that sentence and gains the app's note; every other sentence is kept exactly. Honest sentences are left alone, among them "Nothing is booked until you confirm on that page" and "No one has been told yet", and so is one saying what approving will do ("Once you approve, it's done"). A claim made before the approval is mentioned ("I've booked you in, so tap Approve") is still taken out. The app adds claims of its own (SALEANE adds taking a payment or a refund).
   - **The turn report:** it counts the calls to the AI and the pathways used, and says why the turn ended, including running out of steps or being refused before reaching the AI.
   - **A person leaving:** no call starts once they have gone, and nothing is counted. If they leave part way, paid calls stop, what it cost so far still counts, and nothing it prepared is kept.
   - **The judge:** an eval passes a turn that does what was expected and names each miss in a plain sentence.
@@ -40,7 +40,7 @@ The owner signed in on the sign-in page as a person would, and the studio's AI r
 - `server/phone.test.ts`, `server/receptionistText.test.ts`: a call and a text each leave a word-free turn record.
 - `server/backup.test.ts`: restoring a backup clears suggestions and conversations, and keeps the word-free turn records.
 - `src/assistant/receptionist.test.ts`: the receptionist never tells a guest something was sent, booked, paid or refunded when it was only prepared. On a call or by text it says only that nothing is booked yet.
-- `src/components/askSaleaneLive.test.tsx`, `askSaleaneTalk.test.tsx`, `ReceptionistChat.test.tsx`: the panel sends only the conversation's id, the same one for typed and spoken questions. A change that failed to save can be approved again, and one already saved shows as done. The guest chat sends its chat id with a follow-up, never its earlier lines.
+- `src/components/askSaleaneLive.test.tsx`, `askSaleaneTalk.test.tsx`, `ReceptionistChat.test.tsx`: the panel sends only the conversation's id, the same one for typed and spoken questions. A change that failed to save, or whose approval got no answer because the connection dropped, can be approved again; one already saved shows as done, and one the server no longer has is let go. The guest chat sends its chat id with a follow-up, never its earlier lines.
 - `evals/cases.test.ts`: every eval case has a plain name and reason and names only real pathways. Each case's safety checks pass against the test-mode brain on every change.
 
 ## Not yet done

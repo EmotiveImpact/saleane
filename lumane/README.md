@@ -48,7 +48,8 @@ Lumane owns the parts that are the same for every app:
   taken out when nothing has been approved, and a plain note says what is waiting, in the app's
   own words (the pack's `reply.notes`). An app adds claims of its own (SALEANE adds taking a
   payment or a refund). Sentences about what has not happened ("nothing is booked") or about
-  the approval itself are left alone.
+  what approving will do ("once you approve, it's done") are left alone; a claim made before the
+  approval is mentioned ("I've booked you in, so tap Approve") is not.
 - **What each turn did.** Every turn returns a `report` without any words: how many calls it
   made to the AI, why it ended, how long it took, how many sentences the last check took out,
   and each skill used with what came of it. The app keeps it as it chooses.

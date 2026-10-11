@@ -77,10 +77,12 @@ describe('LUMANE’s last check on each reply', () => {
     )
   })
 
-  it('leaves an honest reply alone, and so does a sentence about the approval itself', () => {
+  it('leaves an honest reply alone, and so does a sentence about what approving will do', () => {
     for (const honest of [
       'Friday at 14:00 is free. Here is the move, ready for you to approve.',
       'Once you approve, I will have moved it to Friday.',
+      "Once you approve, it's done.",
+      'Tap Approve and you are booked in for Friday.',
       'If I moved it to Friday, everyone could come.',
       'I have not moved anything.',
       "I've added up this week's meetings: there are 12.",
@@ -88,6 +90,15 @@ describe('LUMANE’s last check on each reply', () => {
       'No one has been told yet.',
     ])
       expect(checkReply(honest, true)).toEqual({ text: honest, corrected: 0 })
+  })
+
+  it('still takes out a claim that only mentions the approval after it', () => {
+    for (const claim of [
+      "I've booked you in, so tap Approve to review it.",
+      "You're booked in for Friday, waiting for your approval.",
+      "I've moved her, and once you approve it's done.",
+    ])
+      expect(checkReply(claim, true)).toEqual({ text: REPLY_NOTES.prepared, corrected: 1 })
   })
 
   it('reads the records as facts unless the turn prepared something', () => {

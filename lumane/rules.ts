@@ -67,9 +67,13 @@ const PREPARED = [
   ),
 ]
 
-/** A sentence about the approval itself, such as "tap Approve and I'll have moved her", is left alone. */
-const ABOUT_APPROVAL =
-  /\b(?:approv\w*|waiting|wait\s+for|prepared|ready\s+for\s+you|tap\w*|once\s+you|when\s+you)\b/i
+/**
+ * What approving will do, such as "once you approve, it's done" or "tap Approve and you're booked
+ * in". A claim after these words is left alone; one before them ("I've booked you in, so tap
+ * Approve") is still a claim.
+ */
+const UPON_APPROVAL =
+  /\b(?:(?:once|when|after|if|as\s+soon\s+as)\s+(?:you|they|someone)\s+(?:approve|tap|press|click|confirm)\w*|(?:tap|press|click)\w*\s+approve|approve\s+(?:it|this|that|them|these|those))\b/i
 
 /** Sentences, each with the spaces or line break that follow it, so a reply rejoins exactly. */
 const SENTENCES = /[^.!?\n]+[.!?]*[^\S\n]*\n*|[.!?]+\s*|\n+/g
@@ -88,7 +92,9 @@ export function checkReply(
   const claims = prepared ? [...always, ...PREPARED] : always
   let corrected = 0
   const kept = (text.match(SENTENCES) ?? []).filter((sentence) => {
-    const claimed = claims.some((claim) => claim.test(sentence)) && !ABOUT_APPROVAL.test(sentence)
+    const at = claims.map((claim) => sentence.search(claim)).filter((found) => found >= 0)
+    const upon = UPON_APPROVAL.exec(sentence)
+    const claimed = at.length > 0 && !(upon && upon.index + upon[0].length <= Math.min(...at))
     if (claimed) corrected++
     return !claimed
   })

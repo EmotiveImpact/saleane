@@ -12,7 +12,7 @@ import type { Command } from '../domain/commands'
 import { nudges } from '../domain/nudges'
 import { operations } from '../domain/operations'
 import { DEFAULT_VOICE, VOICES } from '../assistant/voices'
-import { api } from '../state/api'
+import { ApiError, api } from '../state/api'
 import { useStore } from '../state/context'
 import { Button, Modal, Select } from '../design'
 import './ask-saleane.css'
@@ -386,16 +386,21 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
   async function decide(id: string, approve: boolean) {
     setError('')
     mark(id, 'saving')
-    // Set once the change is approved and being saved: should the save fail, it can be tried again.
-    let saving = false
+    // Signed in, the server keeps an approval until its change is saved, so an approval can be
+    // tried again if its own request or the save after it fails, even when the answer never came.
+    let retry = false
     try {
       let command: Command | undefined
       if (mode === 'server') {
+        retry = approve
         const r = await api<{ outcome: string; command?: Command }>(`${base}/proposals/${id}`, {
           method: 'POST',
           body: { approve },
         })
-        if (r.outcome === 'expired') throw new Error('This suggestion has expired. Ask again.')
+        if (r.outcome === 'expired') {
+          retry = false
+          throw new Error('This suggestion has expired. Ask again.')
+        }
         // Saved already, from another tab or before the connection dropped: nothing to save again.
         if (r.outcome === 'applied') {
           mark(id, 'done')
@@ -411,13 +416,13 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
         mark(id, 'declined')
         return
       }
-      saving = mode === 'server'
       const result = await commit(command!)
       if (!result.ok) throw new Error(result.error)
       mark(id, 'done')
     } catch (caught) {
-      // Signed in, an approved change stays approved on the server, so Approve can try it again.
-      mark(id, saving ? 'waiting' : 'declined')
+      // A suggestion the server no longer has (expired, turned down) cannot be tried again.
+      const gone = caught instanceof ApiError && caught.status === 404
+      mark(id, retry && !gone ? 'waiting' : 'declined')
       setError(caught instanceof Error ? caught.message : 'This change could not be saved.')
     }
   }

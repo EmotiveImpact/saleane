@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AskSaleane } from './AskSaleane'
-import { api } from '../state/api'
+import { ApiError, api } from '../state/api'
 import { MicrophoneError, connectTalk } from '../assistant/talkLine'
 import { seed } from '../domain/seed'
 
@@ -206,6 +206,46 @@ describe('talking to Ask SALEANE', () => {
     await user.click(within(panel).getByRole('button', { name: 'Approve' }))
     expect(await within(panel).findAllByText(/Done\. Saved to your records\./)).toHaveLength(2)
     expect(commit).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps an approval whose answer never came, and lets go of one the server no longer has', async () => {
+    const user = userEvent.setup()
+    const reading = mocked.getMockImplementation()!
+    let tries = 0
+    mocked.mockImplementation(async (path: string, options?: { method?: string }) => {
+      if (path === base && options?.method === 'POST')
+        return {
+          status: 'answered',
+          text: 'Here are both, ready for you to approve.',
+          proposals: [
+            { id: 'p1', summary: 'Remind the team on Wednesday 7 October: Call Amelia' },
+            { id: 'p2', summary: 'Remind the team on Thursday 8 October: Order wax' },
+          ],
+          usage: usage(0),
+        }
+      // The first approval may have reached the server before the connection dropped.
+      if (path === `${base}/proposals/p1` && tries++ === 0)
+        throw new ApiError('SALEANE could not be reached. Try again.', 0)
+      if (path === `${base}/proposals/p1`)
+        return { outcome: 'approved', command: { type: 'reminder', reminder: {} } }
+      if (path === `${base}/proposals/p2`) throw new ApiError('This has expired. Ask again.', 404)
+      return reading(path, options)
+    })
+    render(<AskSaleane onClose={() => {}} />)
+    const panel = await screen.findByRole('dialog', { name: 'Ask SALEANE' })
+    await user.type(within(panel).getByLabelText('Your question'), 'Remind us about both')
+    await user.click(within(panel).getByRole('button', { name: 'Ask' }))
+    await within(panel).findByText('Here are both, ready for you to approve.')
+    await user.click(within(panel).getAllByRole('button', { name: 'Approve' })[0])
+    expect(await within(panel).findByText('SALEANE could not be reached. Try again.')).toBeVisible()
+    expect(within(panel).getAllByRole('button', { name: 'Approve' })).toHaveLength(2)
+    expect(commit).not.toHaveBeenCalled()
+    await user.click(within(panel).getAllByRole('button', { name: 'Approve' })[0])
+    expect(await within(panel).findByText(/Done\. Saved to your records\./)).toBeVisible()
+    expect(commit).toHaveBeenCalledTimes(1)
+    await user.click(within(panel).getByRole('button', { name: 'Approve' }))
+    expect(await within(panel).findByText('This has expired. Ask again.')).toBeVisible()
+    expect(within(panel).queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument()
   })
 
   it('says plainly when the microphone is refused or the month’s talking time is used up', async () => {
