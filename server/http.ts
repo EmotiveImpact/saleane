@@ -22,7 +22,10 @@ export type InjectOptions = {
   headers?: Record<string, string>
   payload?: unknown
   remoteAddress?: string
-  rawPayload?: string
+  /** Sent as it is: a provider's signed receipt, or a voice note's bytes. */
+  rawPayload?: string | Buffer
+  /** Aborting stands for the browser leaving before the answer: the connection closes. */
+  signal?: AbortSignal
 }
 export type InjectResponse = {
   statusCode: number
@@ -43,10 +46,17 @@ export function sessionToken(request: IncomingMessage): string | undefined {
     .find((part) => part.startsWith(`${COOKIE}=`))
     ?.slice(COOKIE.length + 1)
 }
-/** Reads a bounded body as JSON, or as text when `raw` is set (provider receipts). */
-export async function readBody(request: IncomingMessage, raw = false): Promise<unknown> {
+/**
+ * Reads a bounded body as JSON, as text when `raw` is set (provider receipts), or as the bytes
+ * themselves (`'bytes'`, a voice note), up to `limit`.
+ */
+export async function readBody(
+  request: IncomingMessage,
+  raw: boolean | 'bytes' = false,
+  limit = BODY_LIMIT,
+): Promise<unknown> {
   const length = Number(header(request, 'content-length'))
-  if (Number.isFinite(length) && length > BODY_LIMIT) {
+  if (Number.isFinite(length) && length > limit) {
     request.resume()
     fail(413, 'This request is too large.')
   }
@@ -74,12 +84,14 @@ export async function readBody(request: IncomingMessage, raw = false): Promise<u
     const onData = (chunk: Buffer | string) => {
       const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
       size += data.length
-      if (size > BODY_LIMIT) finish(new HttpError(413, 'This request is too large.'))
+      if (size > limit) finish(new HttpError(413, 'This request is too large.'))
       else chunks.push(data)
     }
     const onEnd = () => {
       try {
-        const text = Buffer.concat(chunks).toString('utf8')
+        const bytes = Buffer.concat(chunks)
+        if (raw === 'bytes') return finish(undefined, bytes)
+        const text = bytes.toString('utf8')
         finish(undefined, raw ? text : JSON.parse(text))
       } catch {
         finish(new HttpError(400, 'Use a valid JSON request.'))
@@ -137,6 +149,7 @@ export async function inject(
     return response
   }) as ServerResponse['setHeader']
   const finished = new Promise<void>((resolve) => response.on('finish', resolve))
+  input.signal?.addEventListener('abort', () => response.emit('close'), { once: true })
   await handler(request, response)
   await finished
   const body = Buffer.concat(chunks).toString('utf8')

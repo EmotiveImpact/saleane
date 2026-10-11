@@ -11,6 +11,12 @@ import type { Providers } from './messaging/providers'
 import { providersFromEnv } from './messaging/providers'
 import type { PaymentProvider } from './payments/providers'
 import { paymentProviderFromEnv } from './payments/providers'
+import { aiFromEnv } from './ai'
+import type { AiSupplier } from './ai'
+import { voiceFromEnv } from './voice'
+import { transcriberFromEnv } from './transcribe'
+import type { Transcriber } from './transcribe'
+import type { VoiceLayer } from '../lumane'
 import { parseState } from '../src/domain/model'
 import type { BusinessState } from '../src/domain/model'
 import type { ConnectionTransport } from './connections'
@@ -133,6 +139,12 @@ export type ApiOptions = {
   providers?: Providers
   /** Runs the message outbox on this interval. Omitted leaves it to be run by hand (tests). */
   outboxIntervalMs?: number
+  /**
+   * NEXT-12: how long after starting SALEANE tries again the guests' messages a restart left
+   * unanswered and the allowance then refused. Omitted is once the stopped requests' holds have
+   * run out.
+   */
+  missedAgainMs?: number
   /** Card payments. Omitted reads SALEANE_PAYMENTS_PROVIDER; unset is test mode, charging nothing. */
   paymentProvider?: PaymentProvider
   /** NEXT-02: SALEANE's own card account for studios' plans. Omitted reads SALEANE_BILLING_PROVIDER. */
@@ -145,6 +157,12 @@ export type ApiOptions = {
   googleBooking?: import('./googleBooking').GoogleBookingOptions
   /** V4: messages to the studio's Instagram, Facebook and WhatsApp accounts. */
   social?: import('./messaging/meta').SocialOptions
+  /** NEXT-12: the AI that answers. Omitted reads SALEANE_AI_PROVIDER; unset is test mode. */
+  ai?: AiSupplier
+  /** NEXT-12: the voice for talking to Ask SALEANE. Omitted reads SALEANE_VOICE_PROVIDER; unset is none. */
+  voice?: VoiceLayer
+  /** NEXT-16: what writes down voice notes. Omitted follows the voice settings; unset is none. */
+  transcriber?: Transcriber
 }
 
 /** Shared request authority: database, clock, sessions, tenant lookup, holds and audit. */
@@ -167,6 +185,14 @@ export function createContext(options: ApiOptions) {
   const messaging = options.providers ?? providersFromEnv(process.env, allowedOrigin)
   const paymentProvider =
     options.paymentProvider ?? paymentProviderFromEnv(process.env, allowedOrigin)
+  const ai = options.ai ?? aiFromEnv(process.env)
+  const voice = options.voice ?? voiceFromEnv(process.env)
+  // The voice only listens and speaks; Claude answers. A voice without Claude would have nothing to say.
+  if (voice.live && !ai.live)
+    throw new Error('Talking needs Claude to answer: set SALEANE_AI_PROVIDER=claude.')
+  const transcriber = options.transcriber ?? transcriberFromEnv(process.env)
+  if (transcriber.live && !ai.live)
+    throw new Error('Voice notes need Claude to write them up: set SALEANE_AI_PROVIDER=claude.')
   const rates = new Map<string, { count: number; expires: number }>()
   const address = (request: IncomingMessage) => request.socket?.remoteAddress ?? 'local'
   // Holds last minutes, so a per-process salt keeps stored visitor keys from revealing addresses.
@@ -543,6 +569,9 @@ export function createContext(options: ApiOptions) {
     turnstile,
     messaging,
     paymentProvider,
+    ai,
+    voice,
+    transcriber,
     actorFor,
     signIn,
     memberships,

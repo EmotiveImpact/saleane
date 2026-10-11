@@ -17,10 +17,18 @@ import { Button, ErrorMessage } from '../design'
 import type { Client } from '../domain/model'
 import { kindLabel, useSentMessages } from './sentMessages'
 import { isSocialChannel, socialLabel } from '../domain/inboxSchema'
+import { SentEmail } from './EmailPreview'
 
 const providerLabel: Record<string, string> = {
   test: 'test mode',
   postmark: 'Postmark',
+  resend: 'Resend',
+  sendgrid: 'SendGrid',
+  mailgun: 'Mailgun',
+  ses: 'Amazon SES',
+  smtp: 'a mail server',
+  google: 'Google Workspace',
+  microsoft: 'Microsoft 365',
   twilio: 'Twilio',
 }
 
@@ -332,6 +340,9 @@ export function SentMessages({ clientId }: { clientId?: string }) {
                     {message.subject && <strong>{message.subject}</strong>}
                     <p>{message.body}</p>
                     {message.detail && <p className="subtle">{message.detail}</p>}
+                    {message.channel === 'email' && message.status !== 'skipped' && (
+                      <SentEmail id={message.id} />
+                    )}
                     {message.provider &&
                       message.provider !== 'test' &&
                       message.status !== 'skipped' && (

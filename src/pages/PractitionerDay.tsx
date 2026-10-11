@@ -32,6 +32,7 @@ import { SignOut } from '../components/SignOut'
 import { HelpButton } from '../components/HelpButton'
 import { ClockOutForm } from '../components/Clock'
 import { DiaryLinks } from '../components/DiaryLinks'
+import { VisitWriteUp } from '../components/VisitWriteUp'
 import '../practitioner.css'
 
 /** Matches the single-column breakpoint in practitioner.css. */
@@ -637,6 +638,17 @@ export function PractitionerDay() {
                     </Button>
                   </form>
                 </>
+              )}
+              {(visit.status === 'arrived' || visit.status === 'completed') && (
+                <VisitWriteUp
+                  key={visit.id}
+                  path={path}
+                  appointmentId={visit.id}
+                  guest={firstName(client.name)}
+                  aftercare={visit.aftercare}
+                  saving={saving}
+                  onSave={save}
+                />
               )}
               <h3>Notes</h3>
               <form

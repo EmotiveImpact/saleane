@@ -5,6 +5,12 @@ import { api } from '../state/api'
 import { Button, ErrorMessage } from '../design'
 import './receptionistChat.css'
 
+/**
+ * NEXT-12: how long to wait for an answer. A real AI stops starting new steps after 20 seconds,
+ * and its last step and one retry may take 15 seconds each.
+ */
+const ANSWER_WAIT_MS = 60_000
+
 type Proposal = { id: string; summary: string; kind: 'time' | 'message'; expiresAt: string }
 /** A free time the answer lists, shown as a button that starts booking it. */
 type ListedTime = OfferedTime & { label: string; location?: string }
@@ -77,6 +83,7 @@ export function ReceptionistChat({
       }>(`${base}/receptionist`, {
         method: 'POST',
         body: chat && history.length ? { text: said, chat, history } : { text: said },
+        timeoutMs: ANSWER_WAIT_MS,
       })
       setChat(answer.chat)
       setTurns((now) => [
@@ -156,7 +163,15 @@ export function ReceptionistChat({
           <span className="sr-only">Close the chat</span>
         </button>
       </header>
-      <div ref={log} className="reception-log" role="log" aria-live="polite">
+      {/* Focusable, so a long conversation can be scrolled from the keyboard. */}
+      <div
+        ref={log}
+        className="reception-log"
+        role="log"
+        aria-live="polite"
+        aria-label="Conversation"
+        tabIndex={0}
+      >
         {turns.length === 0 && (
           <div className="reception-starters">
             {starters.map((s) => (

@@ -77,20 +77,32 @@ function report(error: ApiError) {
 }
 export async function api<T>(
   path: string,
-  options: { method?: string; body?: unknown; key?: string } = {},
+  options: {
+    method?: string
+    /** JSON, or a recording sent as it is (NEXT-16 voice notes). */
+    body?: unknown
+    key?: string
+    /** How long to wait for the answer. A real AI's answer may take longer than a save. */
+    timeoutMs?: number
+  } = {},
 ): Promise<T> {
   let response: Response
+  const raw = typeof Blob !== 'undefined' && options.body instanceof Blob ? options.body : null
   try {
     response = await fetch(path, {
       method: options.method ?? 'GET',
       credentials: 'same-origin',
       headers: {
-        ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        ...(raw
+          ? { 'Content-Type': raw.type }
+          : options.body !== undefined
+            ? { 'Content-Type': 'application/json' }
+            : {}),
         ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
         ...(options.key ? { 'Idempotency-Key': options.key } : {}),
       },
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
-      signal: AbortSignal.timeout(15000),
+      body: raw ?? (options.body === undefined ? undefined : JSON.stringify(options.body)),
+      signal: AbortSignal.timeout(options.timeoutMs ?? 15000),
     })
   } catch {
     throw report(

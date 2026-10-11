@@ -3,16 +3,20 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { z } from 'zod'
 import {
+  BrainError,
   actionSkill,
   check,
   decide,
   emptyUsage,
   readSkill,
+  reclaim,
   record,
   remaining,
+  reserve,
   runTurn,
   scriptedBrain,
   SkillRefusal,
+  settle,
   talkWindowSeconds,
   voiceFor,
 } from '.'
@@ -22,6 +26,7 @@ type Ctx = { role: 'owner' | 'guest'; count: number }
 const allowance: Allowance = {
   monthly: { typed: 3, talkSeconds: 600, guestChats: 2 },
   dailySpendCeilingMinor: 100,
+  monthlySpendCeilingMinor: 300,
   perPersonHourly: 2,
   maxTalkSessionSeconds: 300,
 }
@@ -192,6 +197,19 @@ describe('Lumane engine', () => {
       reason: 'spend',
     })
     expect(respond).not.toHaveBeenCalled()
+
+    // Each earlier day stayed under the day's 100, but the month's 300 is nearly reached.
+    const month = {
+      ...emptyUsage(at),
+      spendByDay: { '2026-10-01': 98, '2026-10-02': 98, '2026-10-03': 98 },
+    }
+    expect(check(allowance, month, { ...request, worstCaseMinor: 6 })).toEqual({ ok: true })
+    expect(await turn(brain, { usage: month, worstCaseMinor: 7 })).toMatchObject({
+      status: 'refused',
+      reason: 'spend',
+      text: "The assistant has reached this month's limit. It will be back on the 1st.",
+    })
+    expect(respond).not.toHaveBeenCalled()
   })
 
   it('stops a request that needs too many steps', async () => {
@@ -199,10 +217,72 @@ describe('Lumane engine', () => {
       calls: [{ id: 'c', name: 'count', input: {} }],
       costMinor: 1,
     }))
-    const result = await turn(brain)
+    const result = await turn(brain, { worstCaseMinor: 50 })
     if (result.status !== 'answered') throw new Error('expected an answer')
     expect(result.text).toMatch(/more steps/)
     expect(result.costMinor).toBe(6)
+  })
+
+  it('starts no further call that would take a request past its share', async () => {
+    const brain = scriptedBrain(() => ({
+      calls: [{ id: 'c', name: 'count', input: {} }],
+      costMinor: 2,
+    }))
+    const result = await turn(brain, { worstCaseMinor: 5 })
+    if (result.status !== 'answered') throw new Error('expected an answer')
+    expect(result.text).toMatch(/more steps/)
+    // 2, then 4: a third call costing 2 like the others would pass 5, so it does not start.
+    expect(result.costMinor).toBe(4)
+    // Calls grow as the conversation does: the costliest so far is the guide, not the first.
+    let step = 0
+    const growing = scriptedBrain(() => ({
+      calls: [{ id: 'c', name: 'count', input: {} }],
+      costMinor: [1, 3][step++] ?? 3,
+    }))
+    expect(await turn(growing, { worstCaseMinor: 5 })).toMatchObject({ costMinor: 4 })
+  })
+
+  it('starts no further call once a request has taken too long, and passes the facts on', async () => {
+    let clock = 0
+    const seen: (string | undefined)[] = []
+    const brain = scriptedBrain((request) => {
+      seen.push(request.context)
+      clock += 15_000
+      return { calls: [{ id: 'c', name: 'count', input: {} }] }
+    })
+    const result = await runTurn({
+      brain,
+      skills,
+      ctx: { role: 'owner', count: 4 },
+      instructions: 'Be brief.',
+      context: 'Today is Wednesday 7 October.',
+      history: [],
+      text: 'How many?',
+      meter: { allowance, usage: undefined, personId: 'p1', at, kind: 'typed', worstCaseMinor: 5 },
+      timeLimitMs: 30_000,
+      clock: () => clock,
+    })
+    expect(result).toMatchObject({ status: 'answered', text: expect.stringMatching(/more steps/) })
+    expect(seen).toEqual(['Today is Wednesday 7 October.', 'Today is Wednesday 7 October.'])
+  })
+
+  it('ends as unavailable when the brain fails, without counting the request', async () => {
+    const brain: Brain = {
+      name: 'broken',
+      respond: async () => {
+        throw new BrainError('unreachable', 'Could not connect.', 3)
+      },
+    }
+    const result = await turn(brain)
+    expect(result).toMatchObject({
+      status: 'unavailable',
+      reason: 'unreachable',
+      detail: 'Could not connect.',
+      costMinor: 3,
+    })
+    if (result.status !== 'unavailable') throw new Error('expected unavailable')
+    expect(result.usage.used.typed).toBe(0)
+    expect(result.usage.spendByDay['2026-10-07']).toBe(3)
   })
 })
 
@@ -223,10 +303,74 @@ describe('Lumane allowances', () => {
     })
   })
 
+  it('holds a request’s share before the AI is asked, then settles it with what it cost', () => {
+    const asked = { ...request, worstCaseMinor: 6 }
+    const held = reserve(allowance, undefined, asked)
+    if (!held.ok) throw new Error('expected the share to be held')
+    expect(held.usage.used.typed).toBe(1)
+    expect(held.usage.spendByDay['2026-10-07']).toBe(6)
+    expect(held.usage.recent.p1).toEqual([at])
+    // A second request at the same moment is checked against the share already held.
+    expect(reserve(allowance, held.usage, { ...asked, personId: 'p2' })).toMatchObject({ ok: true })
+    expect(reserve({ ...allowance, dailySpendCeilingMinor: 10 }, held.usage, asked)).toMatchObject({
+      ok: false,
+      reason: 'spend',
+    })
+    // Answered for 0.34: counted, and the 6 held becomes 0.34.
+    expect(settle(held.usage, asked, { counted: true, costMinor: 0.34 })).toMatchObject({
+      used: { typed: 1 },
+      spendByDay: { '2026-10-07': 0.34 },
+      recent: { p1: [at] },
+    })
+    // Not answered: the question is given back, what it cost is kept.
+    expect(settle(held.usage, asked, { counted: false, costMinor: 1 })).toMatchObject({
+      used: { typed: 0 },
+      spendByDay: { '2026-10-07': 1 },
+    })
+    // Held in October and settled after November has begun: November is left alone.
+    const november = emptyUsage('2026-11-01T00:00:00.000Z')
+    expect(settle(november, asked, { counted: false, costMinor: 0 })).toBe(november)
+  })
+
+  it('gives back a hold never settled once its time has passed, keeping its worst case spent', () => {
+    const asked = { ...request, worstCaseMinor: 6 }
+    const held = reserve(allowance, undefined, asked)
+    if (!held.ok) throw new Error('expected the share to be held')
+    expect(held.usage.holds).toEqual([{ request: asked, until: '2026-10-07T09:05:00.000Z' }])
+    // Settled normally, the hold goes.
+    expect(settle(held.usage, asked, { counted: true, costMinor: 1 }).holds).toEqual([])
+    // Within its five minutes nothing changes; after them, the question comes back.
+    expect(reclaim(held.usage, '2026-10-07T09:04:59.000Z')).toBe(held.usage)
+    const back = reclaim(held.usage, '2026-10-07T09:05:01.000Z')!
+    expect(back).toMatchObject({ used: { typed: 0 }, spendByDay: { '2026-10-07': 6 }, holds: [] })
+    // A request that finishes after all is counted once, at what it cost.
+    expect(settle(back, asked, { counted: true, costMinor: 1 })).toMatchObject({
+      used: { typed: 1 },
+      spendByDay: { '2026-10-07': 1 },
+    })
+    expect(settle(back, asked, { counted: false, costMinor: 1 })).toMatchObject({
+      used: { typed: 0 },
+      spendByDay: { '2026-10-07': 1 },
+    })
+  })
+
   it('caps a talking session at the session limit or what is left', () => {
     expect(talkWindowSeconds(allowance, undefined, at)).toBe(300)
     const talked = record(emptyUsage(at), { ...request, meter: 'talkSeconds', amount: 450 }, 0)
     expect(talkWindowSeconds(allowance, talked, at)).toBe(150)
+  })
+
+  it('holds a talk for its whole window, then keeps only the time it ran', () => {
+    const talk = { ...request, meter: 'talkSeconds' as const, amount: 300, worstCaseMinor: 26.25 }
+    const held = reserve(allowance, undefined, talk)
+    if (!held.ok) throw new Error('expected the talk to be held')
+    expect(held.usage.used.talkSeconds).toBe(300)
+    expect(talkWindowSeconds(allowance, held.usage, at)).toBe(300)
+    // It ran 95 seconds, costing 7.92: the rest of the window and its worst case come back.
+    expect(settle(held.usage, talk, { counted: true, amount: 95, costMinor: 7.92 })).toMatchObject({
+      used: { talkSeconds: 95 },
+      spendByDay: { '2026-10-07': 7.92 },
+    })
   })
 })
 

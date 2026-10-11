@@ -6,7 +6,7 @@ import { useClock } from '../state/clock'
 import { api } from '../state/api'
 import { money } from '../domain/format'
 import { operations } from '../domain/operations'
-import { ADD_ONS, PRICE, priceLabel } from '../domain/pricing'
+import { ADD_ONS, PEOPLE_PER_LOCATION, PRICE, extraPeople, priceLabel } from '../domain/pricing'
 import { planDate, plusBill, trialDaysLeft } from '../domain/billing'
 import type { Bill, BillingView, InvoiceView } from '../domain/billing'
 import { Button, ErrorMessage, Modal } from '../design'
@@ -155,8 +155,10 @@ export function PlanBilling() {
       <div>
         <h2 id="plan-billing-title">Plan and billing</h2>
         <p>
-          {priceLabel(org.region)} a month for each location, {PRICE[org.region].tax}, with Ask
-          Saleane and the AI receptionist included. Month to month: stop whenever you like.
+          {priceLabel(org.region)} a month for each location, {PRICE[org.region].tax}, with{' '}
+          {PEOPLE_PER_LOCATION} people taking bookings, Ask Saleane and the AI receptionist
+          included. Each person beyond that is {priceLabel(org.region, 'personMinor')} a month.
+          Month to month: stop whenever you like.
         </p>
       </div>
       {plan && (
@@ -259,6 +261,15 @@ export function PlanBilling() {
           <BillLines bill={plan.nextBill.bill} cash={cash} />
         </div>
       )}
+
+      <div className="plan-block">
+        <h3>People taking bookings</h3>
+        <p className="ops-help">{peopleWords(plan, (minor) => money(minor, org))}</p>
+        <p className="ops-help">
+          Anyone who gives no treatments, such as reception or a manager, is free; a manager who
+          also gives treatments counts. Someone added or archived counts from the next bill.
+        </p>
+      </div>
 
       <div className="plan-block">
         <h3>Card</h3>
@@ -525,6 +536,22 @@ function summary(
     ? ` On ${day(plan.lockAt)} it locks: only you will be able to open it, and online booking closes.`
     : ''
   return `${why}, so the studio is read only. Nothing has been lost, and guests can still book.${lock} To carry on, pay ${cash(next ?? 0)} for a month from today.`
+}
+
+/**
+ * Who the studio pays for: the people taking bookings, against what its locations include. `whole`
+ * writes an amount as the price page does: "£9", "£18".
+ */
+function peopleWords(plan: BillingView, whole: (minor: number) => string) {
+  const included = PEOPLE_PER_LOCATION * Math.max(1, plan.locations)
+  const extra = extraPeople(plan.people, plan.locations)
+  const who = `${plan.people} ${plan.people === 1 ? 'person takes' : 'people take'} bookings.`
+  const where =
+    plan.locations === 1 ? 'Your location includes' : `Your ${plan.locations} locations include`
+  if (!extra) return `${who} ${where} ${included}, so there is nothing more to pay.`
+  const unit = PRICE[plan.region].personMinor
+  const each = `${whole(unit)} a month${extra === 1 ? '' : ' each'}`
+  return `${who} ${where} ${included}, so ${extra} more ${extra === 1 ? 'is' : 'are'} ${each}${extra === 1 ? '' : `, ${whole(unit * extra)} in all`}, ${PRICE[plan.region].tax}.`
 }
 
 function plusWords(plan: BillingView, day: (at: number) => string) {

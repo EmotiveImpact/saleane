@@ -170,6 +170,8 @@ export const resourceSchema = z.object({
    */
   forTwo: z.literal(true).optional(),
 })
+/** NEXT-16: the longest aftercare a professional may add to one visit. */
+export const VISIT_AFTERCARE_LIMIT = 600
 export const appointmentSchema = z.object({
   ...scoped,
   locationId: id,
@@ -209,6 +211,19 @@ export const appointmentSchema = z.object({
    */
   together: z
     .object({ id, lead: z.literal(true).optional() })
+    .strict()
+    .optional(),
+  /**
+   * NEXT-16: the professional's own aftercare words for this visit, from a voice note or typed,
+   * checked by them before saving. They go with the visit's aftercare email, after the treatment's.
+   */
+  aftercare: z
+    .object({
+      text: z.string().trim().min(2).max(VISIT_AFTERCARE_LIMIT),
+      /** The professional who wrote it, who signs it; written at the desk it is unsigned. */
+      staffId: id.optional(),
+      at: z.iso.datetime(),
+    })
     .strict()
     .optional(),
 })

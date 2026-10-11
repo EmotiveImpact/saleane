@@ -1,7 +1,7 @@
-import { PRICE, type PriceRegion } from './pricing'
+import { PEOPLE_PER_LOCATION, PRICE, bookingPeople, extraPeople, type PriceRegion } from './pricing'
 import type { Role } from './operations'
-import type { BusinessState } from './model'
-import { fullDateLabel } from './format'
+import type { BusinessState, Staff } from './model'
+import { fullDateLabel, money } from './format'
 import { venueDate } from './tillCount'
 
 /**
@@ -54,6 +54,8 @@ export type BillingView = {
   cancelAtPeriodEnd: boolean
   card: SavedCard | null
   locations: number
+  /** People who take bookings now, across the studio; the next bill counts them again. */
+  people: number
   /** What the next bill will be if nothing changes, and when it is taken. */
   nextBill: { at: number; bill: Bill } | null
   overdue: { since: number; graceEndsAt: number; nextAttemptAt: number | null } | null
@@ -118,11 +120,21 @@ export function taxed(region: PriceRegion, lines: BillLine[]): Bill {
   }
 }
 
-/** One month in advance: every open location, and Plus for each if chosen. */
-export function monthBill(region: PriceRegion, locations: number, plus: boolean): Bill {
+/**
+ * One month in advance: every open location, each person taking bookings beyond the five each
+ * location includes, and Plus for each location if chosen. People are counted when the bill is
+ * made, so someone added part way through a month is first paid for on the next bill.
+ */
+export function monthBill(
+  region: PriceRegion,
+  locations: number,
+  plus: boolean,
+  people: number,
+): Bill {
   const count = Math.max(1, locations)
   const price = PRICE[region]
   const where = plural(count, 'location', 'locations')
+  const extra = extraPeople(people, count)
   return taxed(region, [
     {
       text: `SALEANE, ${where}`,
@@ -130,6 +142,16 @@ export function monthBill(region: PriceRegion, locations: number, plus: boolean)
       unitMinor: price.monthlyMinor,
       amountMinor: price.monthlyMinor * count,
     },
+    ...(extra
+      ? [
+          {
+            text: `${plural(extra, 'more person', 'more people')} taking bookings, beyond the ${PEOPLE_PER_LOCATION * count} included`,
+            quantity: extra,
+            unitMinor: price.personMinor,
+            amountMinor: price.personMinor * extra,
+          },
+        ]
+      : []),
     ...(plus
       ? [
           {
@@ -141,6 +163,59 @@ export function monthBill(region: PriceRegion, locations: number, plus: boolean)
         ]
       : []),
   ])
+}
+
+/**
+ * What saving one professional does to the studio's monthly bill, in words for the team editor,
+ * or '' when it stays the same. `person` is the record as it would be saved (a new one has no id
+ * yet); `locations` is how many the studio has open.
+ */
+export function peopleChange(
+  s: Pick<BusinessState, 'staff' | 'services' | 'organisation'>,
+  locations: number,
+  person: Pick<Staff, 'serviceIds'> & { id?: string; archived?: boolean },
+) {
+  const others = s.staff.filter((item) => item.id !== person.id)
+  return billMoves(s, locations, {
+    services: s.services,
+    staff: [...others, { serviceIds: person.serviceIds, archived: person.archived ?? false }],
+  })
+}
+
+/**
+ * The same for saving a treatment: archiving the only treatment some people give stops them
+ * counting, and bringing it back counts them again. A new treatment has no one giving it yet.
+ */
+export function treatmentChange(
+  s: Pick<BusinessState, 'staff' | 'services' | 'organisation'>,
+  locations: number,
+  service: { id?: string; archived?: boolean },
+) {
+  if (!service.id) return ''
+  return billMoves(s, locations, {
+    staff: s.staff,
+    services: s.services.map((item) =>
+      item.id === service.id ? { ...item, archived: service.archived ?? false } : item,
+    ),
+  })
+}
+
+function billMoves(
+  s: Pick<BusinessState, 'staff' | 'services' | 'organisation'>,
+  locations: number,
+  next: Parameters<typeof bookingPeople>[0],
+) {
+  const before = bookingPeople(s)
+  const after = bookingPeople(next)
+  const change = extraPeople(after, locations) - extraPeople(before, locations)
+  if (!change) return ''
+  const region = s.organisation.region
+  const amount = money(Math.abs(change) * PRICE[region].personMinor, s.organisation)
+  const where = locations === 1 ? 'your location includes' : `your ${locations} locations include`
+  const included = PEOPLE_PER_LOCATION * Math.max(1, locations)
+  return change > 0
+    ? `Saving makes ${plural(after, 'person', 'people')} taking bookings, and ${where} ${included}, so the monthly bill goes up by ${amount}, ${PRICE[region].tax}, from the next bill.`
+    : `Saving brings the people taking bookings to ${after}, so the monthly bill goes down by ${amount}, ${PRICE[region].tax}, from the next bill.`
 }
 
 /** Plus added part way through a paid month: only the part of the month that is left. */
