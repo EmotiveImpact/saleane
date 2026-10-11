@@ -130,6 +130,16 @@ export function writeUpRoutes() {
       }
       const result = await writeUpWith(brain, org.state, appointmentId, heard)
       spent += result.costMinor
+      // Nothing worth keeping: its cost counts, but not as a question.
+      if (result.note.length < 2 && result.aftercare.length < 2) {
+        settle(false)
+        reply(200, {
+          status: 'unheard',
+          heard,
+          text: 'Nothing in it could be written up, so it was not counted. Add a little more and try again.',
+        })
+        return true
+      }
       settle(true)
       reply(200, { heard, note: result.note, aftercare: result.aftercare })
     } catch (error) {

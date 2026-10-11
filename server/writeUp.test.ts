@@ -418,6 +418,27 @@ describe('writing up a visit with a real AI', () => {
     expect(usage(again.owner).used.typed ?? 0).toBe(0)
   })
 
+  it('does not count a write-up with nothing in it worth keeping', async () => {
+    const empty = claude({
+      content: [
+        { type: 'tool_use', id: 'toolu_1', name: 'write_up', input: { note: ' ', aftercare: '' } },
+      ],
+    })
+    start(empty.ai)
+    const { owner, mine } = await linden()
+    await saved(owner, { type: 'arrive', appointmentId: mine })
+    expect((await typed(owner, mine, 'Hmm, nothing much.')).json()).toEqual({
+      status: 'unheard',
+      heard: 'Hmm, nothing much.',
+      text: 'Nothing in it could be written up, so it was not counted. Add a little more and try again.',
+    })
+    const used = usage(owner)
+    expect(used.used.typed ?? 0).toBe(0)
+    // What Claude cost still counts.
+    expect(Object.values(used.spendByDay)[0]).toBeGreaterThan(0)
+    expect(used.holds ?? []).toEqual([])
+  })
+
   it('stays in test mode for a sample studio, with nothing sent to any AI', async () => {
     const { ai, requests } = claude()
     const { transcriber, heard } = listening()
