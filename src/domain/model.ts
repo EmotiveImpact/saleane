@@ -220,7 +220,8 @@ export const appointmentSchema = z.object({
   aftercare: z
     .object({
       text: z.string().trim().min(2).max(VISIT_AFTERCARE_LIMIT),
-      staffId: id,
+      /** The professional who wrote it, who signs it; written at the desk it is unsigned. */
+      staffId: id.optional(),
       at: z.iso.datetime(),
     })
     .strict()

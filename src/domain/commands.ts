@@ -733,7 +733,11 @@ export function execute(
         })
       if (command.aftercare === null) delete visit.aftercare
       else if (command.aftercare)
-        visit.aftercare = { text: command.aftercare, staffId: visit.staffId, at: now }
+        visit.aftercare = {
+          text: command.aftercare,
+          ...(command.signedBy ? { staffId: command.signedBy } : {}),
+          at: now,
+        }
       recordId = visit.id
     } else if (command.type === 'note' || command.type === 'consent') {
       const client = next.clients.find((c) => c.id === command.clientId)

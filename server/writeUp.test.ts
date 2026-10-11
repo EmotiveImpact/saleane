@@ -278,6 +278,16 @@ describe('writing up a visit in test mode', () => {
       note: 'Hello',
     })
     expect(refused.statusCode).toBe(403)
+    // Written at the desk it goes unsigned, whatever the request claims.
+    await saved(owner, {
+      type: 'visit-write-up',
+      appointmentId: mine,
+      aftercare: 'Drink plenty of water tonight.',
+      signedBy: maya,
+    })
+    const desk = (await studio(owner)).appointments.find((a) => a.id === mine)!
+    expect(desk.aftercare?.text).toBe('Drink plenty of water tonight.')
+    expect(desk.aftercare?.staffId).toBeUndefined()
   })
 
   it('refuses a cancelled visit and anything but a recording as a voice note', async () => {

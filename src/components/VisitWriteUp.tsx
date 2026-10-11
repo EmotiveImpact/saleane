@@ -72,6 +72,8 @@ export function VisitWriteUp({
   // The status could not be read: nothing is written up until it is, so no promise is made wrongly.
   const [lost, setLost] = useState(false)
   const [tries, setTries] = useState(0)
+  // What was saved, said once it is saved.
+  const [done, setDone] = useState('')
   const statusPath = `${path}/write-up?visit=${encodeURIComponent(appointmentId)}`
   const canRecord =
     typeof window !== 'undefined' &&
@@ -140,6 +142,7 @@ export function VisitWriteUp({
   async function writeUp(request: () => Promise<WriteUpReply>) {
     setBusy(true)
     setProblem('')
+    setDone('')
     try {
       take(await request())
     } catch (e) {
@@ -233,35 +236,33 @@ export function VisitWriteUp({
       // Clearing the aftercare box takes away the aftercare saved earlier.
       ...(care.length >= 2 ? { aftercare: care } : aftercare ? { aftercare: null } : {}),
     }
-    const ahead = care.length >= 2 && (await emailAhead())
-    if (
-      await onSave(
-        command,
-        care.length >= 2
-          ? ahead
-            ? `Saved. The aftercare is added to ${guest}’s aftercare email.`
-            : 'Saved. The aftercare is kept on the visit, and no email will carry it.'
-          : aftercare
-            ? 'Saved to their history, and the earlier aftercare is removed.'
-            : 'Saved to their history.',
-      )
-    ) {
-      setDraft(null)
-      setWords('')
-      void emailAhead()
-    }
+    setDone('')
+    if (!(await onSave(command, ''))) return
+    setDraft(null)
+    setWords('')
+    // Said only once saved, from whether its aftercare email is still to go now.
+    const ahead = await emailAhead()
+    if (!shown.current) return
+    setDone(
+      care.length >= 2
+        ? ahead
+          ? `Saved. The aftercare is added to ${guest}’s aftercare email.`
+          : 'Saved. The aftercare is kept on the visit, and no email will carry it.'
+        : aftercare
+          ? 'Saved to their history, and the earlier aftercare is removed.'
+          : 'Saved to their history.',
+    )
   }
   async function remove() {
+    setDone('')
+    if (!(await onSave({ type: 'visit-write-up', appointmentId, aftercare: null }, ''))) return
     const ahead = await emailAhead()
-    if (
-      await onSave(
-        { type: 'visit-write-up', appointmentId, aftercare: null },
+    if (shown.current)
+      setDone(
         ahead
           ? 'The aftercare is removed from their aftercare email.'
           : 'The aftercare is removed from the visit.',
       )
-    )
-      void emailAhead()
   }
 
   const listening = seconds !== null
@@ -385,6 +386,11 @@ export function VisitWriteUp({
         </p>
       )}
       {problem && <ErrorMessage error={problem} />}
+      {done && (
+        <p className="success-strip" role="status">
+          {done}
+        </p>
+      )}
       {draft && (
         <form
           className="visit-write-up-draft"

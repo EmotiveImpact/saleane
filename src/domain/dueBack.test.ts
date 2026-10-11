@@ -120,6 +120,7 @@ describe('aftercare written up after the visit', () => {
       appointmentId: visit.id,
       note: 'Shade 9 gold with a warm toner.',
       aftercare: 'Skip hot tools until Friday.',
+      signedBy: visit.staffId,
     })
     expect(next.appointments.find((a) => a.id === visit.id)!.aftercare).toMatchObject({
       text: 'Skip hot tools until Friday.',
@@ -149,6 +150,21 @@ describe('aftercare written up after the visit', () => {
     expect(care.body.indexOf('colour-safe shampoo')).toBeLessThan(
       care.body.indexOf(`A note from ${first}`),
     )
+  })
+
+  it('leaves aftercare written at the desk unsigned, so no professional is named for it', () => {
+    const state = seed('UK')
+    const visit = state.appointments.find((a) => a.status === 'completed')!
+    const next = apply(state, {
+      type: 'visit-write-up',
+      appointmentId: visit.id,
+      aftercare: 'Skip hot tools until Friday.',
+    })
+    const written = next.appointments.find((a) => a.id === visit.id)!
+    expect(written.aftercare!.staffId).toBeUndefined()
+    const body = composeMessage(next, written, 'aftercare', 'email').body
+    expect(body).toContain('Skip hot tools until Friday.')
+    expect(body).not.toContain('A note from')
   })
 
   it('sends their aftercare even when the treatment has none', () => {

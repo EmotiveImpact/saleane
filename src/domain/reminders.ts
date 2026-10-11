@@ -169,11 +169,15 @@ export function aftercareNote(s: BusinessState, a: Appointment) {
   return s.services.find((x) => x.id === a.serviceId)?.aftercareNote?.trim() ?? ''
 }
 
-/** NEXT-16: the professional's own aftercare for this visit, signed with their first name. */
+/**
+ * NEXT-16: the aftercare written up for this visit, signed with the first name of the professional
+ * who wrote it. Written at the desk, it goes unsigned.
+ */
 export function visitAftercare(s: BusinessState, a: Appointment) {
   const text = a.aftercare?.text.trim()
   if (!text) return ''
-  const who = s.staff.find((p) => p.id === a.aftercare!.staffId)?.name.split(' ')[0]
+  const signed = a.aftercare!.staffId
+  const who = signed ? s.staff.find((p) => p.id === signed)?.name.split(' ')[0] : undefined
   return who ? `A note from ${who}: ${text}` : text
 }
 

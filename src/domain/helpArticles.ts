@@ -224,7 +224,7 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
       'Type what was done and any aftercare, or speak it where talking is switched on, then Write it up.',
       'Check and change the note for the studio and the aftercare for the guest, then choose Save.',
     ],
-    note: 'The aftercare is added to their aftercare email, signed by the professional who did the visit.',
+    note: 'The aftercare is added to their aftercare email. Written at the desk, it is not signed with anyone’s name.',
     screens: ['/today', '/calendar'],
     roles: ['owner', 'manager', 'reception'],
     words: 'voice note speak write up aftercare notes after the visit desk reception',

@@ -62,8 +62,11 @@ test('writes up typed words, lets them change both parts, then saves only on Sav
       note: 'Balayage with toner.',
       aftercare: 'Avoid hot water for three days.',
     },
-    'Saved. The aftercare is added to Amara’s aftercare email.',
+    '',
   )
+  expect(
+    await screen.findByText('Saved. The aftercare is added to Amara’s aftercare email.'),
+  ).toBeInTheDocument()
   expect(await screen.findByLabelText('What you would say')).toHaveValue('')
 })
 
@@ -114,8 +117,11 @@ test('shows saved aftercare and removes it on request', async () => {
   await user.click(screen.getByRole('button', { name: 'Remove' }))
   expect(onSave).toHaveBeenCalledWith(
     { type: 'visit-write-up', appointmentId: 'visit-1', aftercare: null },
-    'The aftercare is removed from their aftercare email.',
+    '',
   )
+  expect(
+    await screen.findByText('The aftercare is removed from their aftercare email.'),
+  ).toBeInTheDocument()
 })
 
 test('says plainly when no email will carry the aftercare, as once its email has gone', async () => {
@@ -146,8 +152,13 @@ test('says plainly when no email will carry the aftercare, as once its email has
   await user.click(screen.getByRole('button', { name: 'Save' }))
   expect(onSave).toHaveBeenCalledWith(
     { type: 'visit-write-up', appointmentId: 'visit-1', aftercare: 'Keep it dry tonight.' },
-    'Saved. The aftercare is kept on the visit, and no email will carry it.',
+    '',
   )
+  expect(
+    await screen.findByText(
+      'Saved. The aftercare is kept on the visit, and no email will carry it.',
+    ),
+  ).toBeInTheDocument()
 })
 
 test('records a voice note and sends the recording itself', async () => {
@@ -351,8 +362,9 @@ test('asks again before saying where saved aftercare goes, as its email may have
   await user.click(screen.getByRole('button', { name: 'Remove' }))
   expect(onSave).toHaveBeenLastCalledWith(
     { type: 'visit-write-up', appointmentId: 'visit-1', aftercare: null },
-    'The aftercare is removed from the visit.',
+    '',
   )
+  expect(await screen.findByText('The aftercare is removed from the visit.')).toBeInTheDocument()
   expect(await screen.findByText(/^Kept on the visit only/)).toBeInTheDocument()
 })
 
@@ -444,6 +456,9 @@ test('clearing the aftercare box takes away the aftercare saved earlier', async 
   await user.click(screen.getByRole('button', { name: 'Save' }))
   expect(onSave).toHaveBeenCalledWith(
     { type: 'visit-write-up', appointmentId: 'visit-1', note: 'Shade 9 gold.', aftercare: null },
-    'Saved to their history, and the earlier aftercare is removed.',
+    '',
   )
+  expect(
+    await screen.findByText('Saved to their history, and the earlier aftercare is removed.'),
+  ).toBeInTheDocument()
 })

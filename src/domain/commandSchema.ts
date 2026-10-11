@@ -521,6 +521,8 @@ export const commandSchema = z.discriminatedUnion('type', [
     appointmentId: id,
     note: z.string().trim().min(2).max(1000).optional(),
     aftercare: z.string().trim().min(2).max(VISIT_AFTERCARE_LIMIT).nullable().optional(),
+    /** Set by the server to the professional writing up their own visit; the desk signs nothing. */
+    signedBy: id.optional(),
   }),
   // V2: products sold to someone without a visit.
   z.object({
