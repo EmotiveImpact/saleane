@@ -382,3 +382,19 @@
   color: var(--brand-ink);
   font-weight: var(--weight-strong);
 }
+/* The moving list specimen: plain rows on paper, so the settling is what you notice. */
+.library-moving {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 24rem;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.library-moving li {
+  padding: var(--space-3) var(--space-4);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  font-size: var(--text-small);
+}
