@@ -1,3 +1,4 @@
+import { toneFacts } from './tone'
 import { z } from 'zod'
 import { actionSkill, readSkill, SkillRefusal } from '../../lumane'
 import type { Skill } from '../../lumane'
@@ -912,5 +913,6 @@ export function askFacts(ctx: AskContext) {
       ? ['The studio is in the United States, so use American spelling.']
       : []),
     'When a skill asks for a date, give it as YYYY-MM-DD.',
+    toneFacts(ctx.state, 'drafts'),
   ].join('\n')
 }

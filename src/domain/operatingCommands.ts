@@ -28,6 +28,7 @@ import { assertSchedulePreserved, scheduleChanges, scheduleSnapshot } from './sc
 import { isWaitlistOffer } from './waitlist'
 import { draftStale, isInvitation } from './cancelledTimes'
 import { agreedEverywhere } from './dueBack'
+import { VOICES } from '../assistant/voices'
 import { otherLedgerRefund, otherLedgerReference, referenceTaken } from './references'
 import { dayMonth, needsAskedAfterStop, numberStop, textStopState } from './textStop'
 
@@ -382,6 +383,22 @@ export function runOperatingCommand(
     recordId = next.organisation.id
   } else if (command.type === 'receptionist') {
     o.receptionist = { ...command.settings }
+    recordId = next.organisation.id
+  } else if (command.type === 'ai-voice') {
+    const { tone, words, voice } = command.settings
+    if (voice && !VOICES.some((v) => v.key === voice))
+      throw new Error('Choose one of the voices on the list.')
+    o.aiVoice = { tone, ...(words ? { words } : {}), ...(voice ? { voice } : {}) }
+    recordId = next.organisation.id
+  } else if (command.type === 'own-voice') {
+    if (!command.personId) throw new Error('Sign in to choose your own voice.')
+    if (command.voice && !VOICES.some((v) => v.key === command.voice))
+      throw new Error('Choose one of the voices on the list.')
+    const voices = { ...o.voices }
+    if (command.voice) voices[command.personId] = command.voice
+    else delete voices[command.personId]
+    if (Object.keys(voices).length) o.voices = voices
+    else delete o.voices
     recordId = next.organisation.id
   } else if (command.type === 'google-booking') {
     if (command.settings.enabled && o.mode === 'sandbox')

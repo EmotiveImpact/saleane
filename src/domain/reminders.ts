@@ -186,6 +186,18 @@ export function aftercareNote(s: BusinessState, a: Appointment) {
 }
 
 /**
+ * NEXT-16: the aftercare written up for this visit, signed with the first name of the professional
+ * who wrote it. Written at the desk, it goes unsigned.
+ */
+export function visitAftercare(s: BusinessState, a: Appointment) {
+  const text = a.aftercare?.text.trim()
+  if (!text) return ''
+  const signed = a.aftercare!.staffId
+  const who = signed ? s.staff.find((p) => p.id === signed)?.name.split(' ')[0] : undefined
+  return who ? `A note from ${who}: ${text}` : text
+}
+
+/**
  * Whether a completed visit's aftercare email may go now: switched on, the treatment has advice,
  * and between half an hour and two days after checkout. Checked again just before sending.
  */
@@ -194,10 +206,26 @@ export function aftercareDue(s: BusinessState, a: Appointment, now: number) {
   return (
     a.status === 'completed' &&
     reminderSettings(s).aftercare !== false &&
-    !!aftercareNote(s, a) &&
+    (!!aftercareNote(s, a) || !!visitAftercare(s, a)) &&
     now - paidAt >= AFTERCARE_DELAY_MS &&
     now - paidAt < RECENT_MS
   )
+}
+
+/**
+ * NEXT-16: whether aftercare saved on this visit now will still go in the guest's aftercare email.
+ * Not once that email has gone (`sent`), nor two days after checkout, nor to a guest without email,
+ * nor while aftercare emails are switched off or the studio sends nothing.
+ */
+export function aftercareEmailAhead(s: BusinessState, a: Appointment, now: number, sent: boolean) {
+  if (sent || operations(s).mode !== 'local' || reminderSettings(s).aftercare === false)
+    return false
+  const client = s.clients.find((c) => c.id === a.clientId)
+  if (!client?.email || !channelsFor(s, client).includes('email')) return false
+  if (a.status === 'arrived') return true
+  if (a.status !== 'completed') return false
+  const paidAt = Date.parse(s.sales.find((sale) => sale.appointmentId === a.id)?.paidAt ?? '')
+  return now - paidAt < RECENT_MS
 }
 
 /** "You're due back" may go from a few days before the due date until two weeks after it. */
@@ -708,7 +736,7 @@ export function composeClientMessage(s: BusinessState, client: Client, kind: Cli
 }
 
 /** Every message sent because a guest agreed to hear from the studio says why, and how to stop. */
-const STOP_LINE =
+export const STOP_LINE =
   'You are hearing this because you said we could keep in touch. To stop these, reply to this email or tell us at your next visit.'
 
 function firstName(name: string) {
@@ -819,8 +847,7 @@ export function composeMessage(
   const lines = [greeting, '', opening, '']
   if (kind === 'aftercare') {
     lines.push(
-      aftercareNote(s, a),
-      '',
+      ...[aftercareNote(s, a), visitAftercare(s, a)].filter(Boolean).flatMap((part) => [part, '']),
       `If anything feels wrong, please call us. For anything urgent, contact a medical professional.`,
     )
   } else if (kind === 'due_back') {

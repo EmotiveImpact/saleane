@@ -5,6 +5,7 @@ import {
   ADD_ONS,
   CONNECT_NOTES,
   INCLUDED,
+  PEOPLE_PER_LOCATION,
   PRICE,
   PROMISES,
   TRIAL_DAYS,
@@ -41,8 +42,10 @@ export function Pricing() {
           <span className="eyebrow">Pricing</span>
           <h1 id="pricing-heading">One price for each location.</h1>
           <p>
-            Every feature is included, however many people work there and however many clients you
-            look after. Busy studios can add more AI time or a receptionist on the phone.
+            Every feature is included, however many clients you look after. Each location comes with{' '}
+            {PEOPLE_PER_LOCATION} people taking bookings, and anyone who gives no treatments, such
+            as reception or a manager, is free. Busy studios can add more AI time or a receptionist
+            on the phone.
           </p>
         </section>
         <section className="pricing-offer" aria-label="The price">
@@ -63,6 +66,10 @@ export function Pricing() {
                 a month, {price.tax}
                 <small>per location, month to month</small>
               </span>
+            </p>
+            <p className="pricing-people">
+              Includes {PEOPLE_PER_LOCATION} people taking bookings. Each person beyond that is{' '}
+              <strong>{priceLabel(region, 'personMinor')}</strong> a month, {price.tax}.
             </p>
             <ul className="pricing-included">
               {INCLUDED.map((item) => (
@@ -131,8 +138,10 @@ export function Pricing() {
             <div>
               <dt>Card payments</dt>
               <dd>
-                The payment provider charges its standard fee on each card payment. SALEANE adds
-                nothing on top.
+                You pay Stripe’s standard rate on each card payment, the same as going to Stripe
+                yourself, and never anything on top of it. Once SALEANE joins Stripe’s partner
+                programme, Stripe will share part of its own fee with SALEANE. Card payments are
+                connected through your own Stripe account.
               </dd>
             </div>
             <div>

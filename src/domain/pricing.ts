@@ -1,18 +1,23 @@
 import type { Allowance } from '../../lumane'
+import type { BusinessState } from './model'
 
 /**
  * PILOT-04: SALEANE's one published price, for each location. Everything a studio uses is
  * included at this price; there are no tiers to unlock, no commission on its clients and no fee
  * to leave. Plus adds more AI time and the phone receptionist answers calls, each also per
- * location. The amounts are the owner's decision (9 October 2026) and live only here, so the page,
- * the bills and their tests change together. The US amounts for the two add-ons are placeholders
- * until the owner sets them.
+ * location. Each location's price includes five people who take bookings; each person beyond
+ * that is `personMinor` a month. Anyone who gives no treatments, such as reception or a manager,
+ * is free; a manager who also gives treatments counts. The amounts are the owner's decisions (9
+ * and 10 October 2026; £59 and $69 from 10 October, up from £49 and $59) and live only here, so
+ * the page, the bills and their tests change together. The US amounts for the two add-ons are
+ * placeholders until the owner sets them.
  */
 export const PRICE = {
   UK: {
     currency: 'GBP',
     locale: 'en-GB',
-    monthlyMinor: 4900,
+    monthlyMinor: 5900,
+    personMinor: 900,
     plusMinor: 3900,
     phoneMinor: 7900,
     tax: 'plus VAT',
@@ -22,7 +27,8 @@ export const PRICE = {
   US: {
     currency: 'USD',
     locale: 'en-US',
-    monthlyMinor: 5900,
+    monthlyMinor: 6900,
+    personMinor: 1200,
     plusMinor: 4900,
     phoneMinor: 9900,
     tax: 'plus any sales tax',
@@ -31,6 +37,30 @@ export const PRICE = {
   },
 } as const
 export type PriceRegion = keyof typeof PRICE
+
+/** People who take bookings that each location's price includes. */
+export const PEOPLE_PER_LOCATION = 5
+
+/**
+ * The people a studio pays for: everyone in its calendar who takes bookings, which is every
+ * professional not archived with at least one treatment still offered. Reception, managers and the
+ * owner are free unless they take bookings themselves. Counted across the whole studio, so a
+ * group's included places are shared between its locations.
+ */
+export function bookingPeople(s: {
+  staff: Pick<BusinessState['staff'][number], 'archived' | 'serviceIds'>[]
+  services: Pick<BusinessState['services'][number], 'id' | 'archived'>[]
+}) {
+  const offered = new Set(s.services.filter((item) => !item.archived).map((item) => item.id))
+  return s.staff.filter(
+    (person) => !person.archived && person.serviceIds.some((id) => offered.has(id)),
+  ).length
+}
+
+/** How many people a studio pays for beyond those its locations include. */
+export function extraPeople(people: number, locations: number) {
+  return Math.max(0, people - PEOPLE_PER_LOCATION * Math.max(1, Math.floor(locations)))
+}
 
 /** NEXT-02: a new studio's free days, before any card is asked for. */
 export const TRIAL_DAYS = 14
@@ -49,18 +79,23 @@ export const PHONE_MINUTES = 300
 
 /**
  * The AI each location's price includes, and what Plus gives instead. Every amount here costs the
- * business at most about half what it earns, so heavy use never loses money.
+ * business at most about half what it earns, so heavy use never loses money. The monthly spend
+ * ceiling (about $20, or $60 with Plus) is nearly twice what a busy location's included use costs,
+ * so normal use never meets it, and keeps a location that reached the daily ceiling every day
+ * from costing more than it pays (10 October 2026).
  */
 export const ALLOWANCES = {
   included: {
     monthly: { typed: 300, talkSeconds: 30 * 60, guestChats: 200 },
     dailySpendCeilingMinor: 150,
+    monthlySpendCeilingMinor: 2000,
     perPersonHourly: 30,
     maxTalkSessionSeconds: 10 * 60,
   },
   plus: {
     monthly: { typed: 800, talkSeconds: 150 * 60, guestChats: 500 },
     dailySpendCeilingMinor: 400,
+    monthlySpendCeilingMinor: 6000,
     perPersonHourly: 30,
     maxTalkSessionSeconds: 10 * 60,
   },
@@ -85,15 +120,16 @@ export function allowanceFor(plan: {
       guestChats: base.monthly.guestChats * times,
     },
     dailySpendCeilingMinor: base.dailySpendCeilingMinor * times,
+    monthlySpendCeilingMinor: base.monthlySpendCeilingMinor * times,
     perPersonHourly: base.perPersonHourly,
     maxTalkSessionSeconds: base.maxTalkSessionSeconds,
   }
 }
 
-/** Whole currency units, as the page shows them: "£49", or "£39" for Plus. */
+/** Whole currency units, as the page shows them: "£59", "£9" for a person or "£39" for Plus. */
 export function priceLabel(
   region: PriceRegion,
-  amount: 'monthlyMinor' | 'plusMinor' | 'phoneMinor' = 'monthlyMinor',
+  amount: 'monthlyMinor' | 'personMinor' | 'plusMinor' | 'phoneMinor' = 'monthlyMinor',
 ) {
   const price = PRICE[region]
   return new Intl.NumberFormat(price.locale, {
@@ -120,7 +156,9 @@ export const INCLUDED: readonly { text: string; connect?: 'card' | 'text' | 'voi
   { text: 'Saved cards, card readers and deposits paid online', connect: 'card' },
   { text: 'Money, receipts, refunds and the end-of-day till count' },
   { text: 'Help moving across from your old system' },
-  { text: 'Your whole team, with the right access for each role' },
+  {
+    text: `Your team, with the right access for each role: ${PEOPLE_PER_LOCATION} people taking bookings, and free for anyone who gives no treatments`,
+  },
   { text: 'Client data exports and privacy tools' },
   { text: `Ask SALEANE, your AI assistant: ${included.typed} typed questions a month` },
   {
@@ -163,7 +201,7 @@ export const PROMISES = [
   },
   {
     title: 'No locked tiers',
-    body: 'Every studio has every feature. Growing your team or your client list does not move you to a dearer plan; you pay for each location, and only Plus adds more AI time.',
+    body: 'Every studio has every feature. Growing your client list never moves you to a dearer plan. You pay for each location and for each person taking bookings beyond the five it includes, and only Plus adds more AI time.',
   },
   {
     title: 'No fee to leave',

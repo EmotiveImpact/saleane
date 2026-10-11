@@ -40,9 +40,11 @@ import { AffectedVisits, ScheduleHistory } from '../components/ScheduleImpact'
 import { StudioPrivacy } from '../components/Privacy'
 import { ChangeRecord } from '../components/ChangeRecord'
 import { PlanBilling } from '../components/PlanBilling'
+import { peopleChange, treatmentChange } from '../domain/billing'
 import { BrandSection, PreferencesSection, WorkspaceSection } from '../components/SettingsSections'
 import { MessageSettings } from '../components/AppointmentMessages'
 import { QuietOffers } from '../components/QuietOffers'
+import { EmailLook } from '../components/EmailPreview'
 import { GuestNotesSettings } from '../components/GuestNotesSettings'
 import { PatchTestRules } from '../components/PatchTests'
 import { ShareBookingPage } from '../components/ShareBookingPage'
@@ -60,6 +62,7 @@ import { Connections } from '../components/Connections'
 import { AccessKeys } from '../components/AccessKeys'
 import { DiaryLinks } from '../components/DiaryLinks'
 import { ReceptionistSettings } from '../components/ReceptionistSettings'
+import { AiVoiceSettings } from '../components/AiVoiceSettings'
 import { GoogleBooking } from '../components/GoogleBooking'
 import { AiBooking } from '../components/AiBooking'
 import { HouseRules } from '../components/HouseRules'
@@ -105,7 +108,7 @@ const groups = [
     sections: [
       { id: 'messages', label: 'Messages to guests', icon: BellRing },
       { id: 'forms', label: 'Guest forms', icon: ClipboardList },
-      { id: 'receptionist', label: 'AI receptionist', icon: MessageCircle },
+      { id: 'receptionist', label: 'AI and voice', icon: MessageCircle },
     ],
   },
   {
@@ -211,6 +214,18 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
   }
   const hoursImpact = useMemo(() => previewImpact(state, { type: 'hours', hours }), [state, hours])
   const editorImpact = useMemo(() => previewImpact(state, draft), [state, draft])
+  // The per-person price: only the owner, who sees the bill, is told a change moves it.
+  const billed = role === 'owner' && mode === 'server' && config.mode === 'local'
+  const billNote = !billed
+    ? ''
+    : draft?.type === 'staff'
+      ? peopleChange(state, places(state).length, { ...draft.input, id: draft.id })
+      : draft?.type === 'service'
+        ? treatmentChange(state, places(state).length, {
+            id: draft.id,
+            archived: draft.input.archived,
+          })
+        : ''
   const locale = state.organisation.locale
   const service = state.services.find((item) => item.id === editor?.id)
   const person = state.staff.find((item) => item.id === editor?.id)
@@ -410,11 +425,17 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
           <div>
             {section === 'preferences' && <PreferencesSection />}
             {section === 'brand' && <BrandSection />}
-            {section === 'receptionist' && <ReceptionistSettings />}
+            {section === 'receptionist' && (
+              <>
+                <ReceptionistSettings />
+                <AiVoiceSettings />
+              </>
+            )}
             {section === 'messages' && (
               <>
                 <MessageSettings />
                 <QuietOffers />
+                <EmailLook />
                 <SavedReplies />
                 <EmailNewsWording />
               </>
@@ -1385,6 +1406,11 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                 </label>
               )}
             </div>
+            {billNote && (
+              <p className="ops-help" role="status">
+                {billNote}
+              </p>
+            )}
             <AffectedVisits visits={editorImpact} locale={locale} />
             <ErrorMessage error={error} />
             <div className="ops-actions">

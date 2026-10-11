@@ -1044,6 +1044,18 @@
   white-space: pre-line;
   overflow-wrap: anywhere;
 }
+/* NEXT-13: an email as the guest sees it, framed on the page it sits on in an inbox. */
+.email-look {
+  display: grid;
+  gap: var(--space-4);
+}
+.email-frame {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--palette-warm-bg);
+}
 .message-settings {
   display: grid;
   gap: var(--space-2);

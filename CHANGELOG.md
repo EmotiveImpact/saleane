@@ -2,6 +2,71 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-10 · How the AI speaks, and voice notes after a visit (NEXT-16)
+
+**Status: built locally on 10 October 2026; the AI, talking and voice notes stay in test mode until the studio's Anthropic and OpenAI keys are set.** [Evidence](docs/evidence/NEXT-16-TONE-AND-VOICE-NOTES.md).
+
+- Settings, AI and voice has How your AI speaks. The owner or a manager chooses a tone (Warm and friendly, Calm and polished, or Bright and cheerful), each shown with a sample answer, and may add up to 400 characters on how the studio likes to speak, such as what it calls its treatments. The AI receptionist answers guests in that tone; in test mode its greeting, the times it offers, the time it holds and its thanks change with the tone. Ask SALEANE writes the messages it drafts for clients in the same tone. The studio's words are passed on as a note on style only and never change what the AI may do; it still always says it is an AI.
+- The same panel chooses Ask SALEANE's voice for talking, from the six on the shortlist, with Vesper as SALEANE's own. Anyone who talks to Ask SALEANE can choose their own voice in the panel, and their next talk uses it; nobody can choose for someone else.
+- After a visit, a professional can speak a note of up to two minutes, or type one, on the visit's brief in their own day. SALEANE sorts it into a note for the studio and aftercare for the guest, and nothing is saved until they have checked and changed both and pressed Save. The note joins the guest's history; the aftercare joins the treatment's own advice in the aftercare email, as "A note from Maya: …" when the professional wrote it (written at the desk it goes unsigned), and can be removed. Once that email has gone, or two days after checkout, it says plainly that the aftercare is kept on the visit only, and if SALEANE cannot check just after saving, or the email went as it saved, it says only that the aftercare is kept on the visit. The help for both says the same. It works for their own visits once the guest has arrived, and reception and managers can write up any visit at their studio that went ahead, from the visit's panel on Today or the calendar.
+- In test mode the words are sorted by themselves, free, and nothing leaves SALEANE. With Claude switched on, typed words are written up by Claude; with talking switched on as well, a voice note is written down by OpenAI's gpt-4o-mini-transcribe first. The recording is never kept. Each write-up counts as one Ask SALEANE question, its worst cost is held before anything is sent, and a write-up that fails says so plainly and is not counted, though what it cost still is.
+
+## 2026-10-10 · £59 a location, and what SALEANE earns from card payments
+
+**Status: built locally on 10 October 2026; test mode only, no money moves.**
+
+- Each location is now £59 a month in the UK and $69 in the US, up from £49 and $59 (the owner's decision, 10 October 2026). The price page, Plan and billing, adding a location and every bill follow from the one setting in `src/domain/pricing.ts`. Extra people stay £9 ($12 in the US); Plus and the phone receptionist are unchanged.
+- The price page's card line now says openly how SALEANE earns from card payments: studios pay Stripe's standard rate, the same as going to Stripe themselves, and never anything on top, and once SALEANE joins Stripe's partner programme Stripe will share part of its own fee with SALEANE. It says "once" because joining is a later step on the owner's own Stripe account; card payments are still not connected.
+
+## 2026-10-10 · Email from any sender (NEXT-13, part 2)
+
+**Status: built locally on 10 October 2026; not run against any real email account.** [Evidence](docs/evidence/NEXT-13-SENDERS.md).
+
+- SALEANE's guest and account emails can now go through Postmark, Resend, SendGrid, Mailgun, Amazon SES, any mail server that speaks SMTP, a Google Workspace mailbox or a Microsoft 365 mailbox. One setting chooses the service (`SALEANE_EMAIL_PROVIDER`), and the server will not start if a key the chosen service needs is missing. Until then email stays in test mode.
+- Every service sends the same email: the plain words, the designed email in the studio's colours, and the studio's name as the sender. Visit messages and news are labelled apart so each service can keep them apart.
+- Delivery receipts from Resend, SendGrid and Mailgun are checked by each service's own signature, as Postmark's and Twilio's already were, and only a receipt from the service in use is believed. A receipt more than five minutes old is refused, or nine hours for Mailgun, which posts the same signed receipt again for up to eight hours. A bounce that comes back after delivery marks the email failed. Resend is sent an idempotency key, so the same email sent again within a day goes once. Only a receipt marks an email delivered; the others stay "handed over".
+- A service that was busy is tried again; one that refused says why. If the line drops after the email was handed over, it is marked unclear for a person to check, never sent twice by itself.
+- One-click unsubscribe (RFC 8058) is ready on every service for news, for the Marketing section to switch on with its stop links.
+- Settings, Messages names whichever service handled each message.
+
+## 2026-10-10 · Paying for each person beyond five
+
+**Status: built locally on 10 October 2026; test mode only, no money moves.** [Evidence](docs/evidence/PRICE-PER-PERSON.md).
+
+- Each location's £49 (or $59) now includes 5 people who take bookings. Each person beyond that is £9 a month, or $12 in the US, plus VAT or any sales tax (the owner's decision, 10 October 2026). Anyone who gives no treatments, such as reception or a manager, is free; a manager who also gives treatments counts.
+- People are counted across the whole studio, so two locations include 10. Someone counts when they are not archived and give at least one treatment that is still offered.
+- Each bill adds a line such as "2 more people taking bookings, beyond the 5 included", counted when the bill is made, so adding or archiving someone applies from the next bill. Nothing is charged part way through a month for a person.
+- Settings, Plan and billing shows how many people take bookings, how many are included and what the extra people add, and the price page says what is included. The new location's last step counts people too: a new location includes 5 more, so the bill can rise by less than £49.
+- On the team screen, the owner of a studio of their own is told before saving when a change moves the bill, for example "Saving makes 6 people taking bookings, and your location includes 5, so the monthly bill goes up by £9, plus VAT, from the next bill."
+
+## 2026-10-10 · Emails in each studio's own colours (NEXT-13, part 1)
+
+**Status: built locally on 10 October 2026; email is still in test mode, so nothing is sent.** [Evidence](docs/evidence/NEXT-13-EMAILS.md).
+
+- Every email to a guest now goes as a designed email as well as plain words: the studio's name in the serif on a warm off-white page, one white card with the subject as its heading, the visit's treatment, time and place on the studio's soft tint, and a rounded button in the studio's first colour, deepened just enough for white words to read. The studio's address and phone sit at the foot, and the line about keeping in touch moves there too.
+- The design is made from the plain words when the email goes, and nothing is added or reworded: every word of the plain version appears in the email, in the same order, and email apps that show no design show the plain version. A line ending in a link becomes a button: "View, add to your calendar or cancel" stands on the button itself; a longer sentence stays, followed by a button named for what it does ("Rate your visit and Maya", "Book this time", "Leave a review").
+- Password, email confirmation, sign-in and billing emails go in SALEANE's own sage and soft rose, with the link on a button ("Choose a new password", "Confirm your email").
+- Settings, Messages has How your emails look: the booking confirmation, reminder, after the visit and birthday emails as a guest sees them, written for a made-up guest, Alex, on the studio's own first treatment tomorrow at 10:00. Each email in a Sent list has See the email. Neither makes a private link, so the button to manage a visit goes nowhere there.
+- Birthday, "we miss you", due back emails and news go on Postmark's broadcast stream, apart from visit messages, as Postmark asks (`POSTMARK_BROADCAST_STREAM`, required with Postmark: the stream's Stream ID, copied from Postmark).
+- A Sent list now shows a message's booking page link as the address it went with, where it showed `{{book_link}}`.
+
+## 2026-10-10 · Diaries checked by a calendar app's own reader
+
+**Status: tests only; nothing on screen changes.** [Evidence](docs/evidence/NEXT-10-DIARIES.md#tests).
+
+- The team diaries and a guest's "Add to calendar" file are now read back in the tests by ical.js, Mozilla's open-source iCalendar reader (MPL 2.0, a development dependency that is never shipped), so a file Google or Apple Calendar would misread fails before a studio sees it. It checks times either side of the clocks changing in London and New York, long names with accents and punctuation, whole-day time off and cancelled visits.
+
+## 2026-10-10 · Talking to Ask SALEANE (NEXT-12, part 2)
+
+**Status: built locally on 10 October 2026; not run against a real OpenAI or Anthropic account.** [Evidence](docs/evidence/NEXT-12-TALKING.md).
+
+- With Claude switched on and an OpenAI key added (`SALEANE_VOICE_PROVIDER=openai`), Ask SALEANE has a Talk button. OpenAI's voice listens and speaks; Claude answers with the same studio records, permissions and approvals as a typed question. The voice says it is an AI and never says a change was made.
+- While talking the panel shows "Talking · 9:55 left" with Stop, what was said with a small microphone, and each answer. A change prepared while talking waits on screen for Approve or Not now, as a typed one does.
+- Each talk can run up to ten minutes, or what is left of the month's talking time. SALEANE holds that time and its most it could cost before the talk starts, ends the talk when its time is up, and counts only the seconds it ran. With less than 30 seconds left it says "This month's talking time is used up. It resets on the 1st, or the owner can add Plus. You can still type." Spoken questions count as talking time, not typed questions.
+- The meter adds "1 of 30 talking minutes used." A refused microphone says "SALEANE needs your microphone to talk. Allow it in your browser, or type instead." Closing the panel hangs up, even while a talk is still starting. If the line fails, the microphone stops and SALEANE ends the talk at once, counting only the time used. Starting a talk in a second tab ends the first. Questions asked while an earlier one is still being answered each keep their own words. The browser gathers every way it can be reached before it offers to connect, as OpenAI asks, so talking works on networks that need a relay.
+- OpenAI's key never reaches the browser. The help guide and the privacy notes say what is sent to OpenAI while talking. Unset, there is no Talk button, and a sample studio never talks.
+- Each location's AI now also has a monthly spend ceiling (2,000 cents, or 6,000 with Plus), alongside the daily one, so a studio that reached the daily ceiling every day still cannot cost more than it pays. A busy location's included use comes to about half of it. Past it, Ask SALEANE says "The assistant has reached this month's limit. It will be back on the 1st."
+
 ## 2026-10-10 · Finish and feel (left-out Stage 6)
 
 **Status: built locally on 10 October 2026 and checked in a browser; test mode only, so no message is sent, no map service is connected and nothing is deployed.** No migration. Evidence: [small moments](docs/evidence/LEFT-6A-SIGNATURE-MOMENTS.md), [two-step sign-in for everyone](docs/evidence/LEFT-6B-TWO-STEP-FOR-EVERYONE.md), [privacy approvals](docs/evidence/LEFT-6C-PRIVACY-APPROVALS.md), [the Inbox and leftovers](docs/evidence/LEFT-6D-INBOX-AND-LEFTOVERS.md), [page tops, voice and design](docs/evidence/LEFT-6E-PAGE-TOPS-VOICE-AND-DESIGN.md) and [dragging on a tablet](docs/evidence/LEFT-6F-DRAGGING-ON-A-TABLET.md).

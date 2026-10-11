@@ -93,6 +93,7 @@ describe('help inside the app', () => {
     expect(ids(helpForScreen('/practice/org-1', '', 'practitioner'))).toEqual([
       'practitioner-day',
       'practitioner-patch',
+      'practitioner-write-up',
       'practitioner-clock',
       'practitioner-target',
       'practitioner-diary',

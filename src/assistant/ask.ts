@@ -40,12 +40,24 @@ export type AskInput = {
   history?: AskTurn[]
   /** A real AI supplier's brain. Left out, the test-mode brain answers: free, and nothing leaves. */
   brain?: Brain
+  /**
+   * What this question uses of the allowance: a typed question by default. A question asked while
+   * talking counts only its cost, as the talk itself is counted in minutes.
+   */
+  use?: ReturnType<typeof askUse>
+  /** The question was spoken and the answer will be read aloud. */
+  spoken?: boolean
 }
 
 /** One earlier line of the conversation, as the person saw it. */
 export type AskTurn = { from: 'you' | 'saleane'; text: string }
 /** How much of the conversation is sent with each question: enough for a follow-up, no more. */
 export const HISTORY_TURNS = 6
+
+/** Told to the AI when the question was spoken, so its answer suits being read aloud. */
+export const SPOKEN = `They are talking, not typing: their words come from speech recognition and may have small mistakes, and your answer will be read aloud.
+Answer in one to three short sentences of plain speech, without lists, symbols or links. Say times and amounts as a person would.
+If you prepare a change, say it is waiting on their screen to approve.`
 
 /**
  * One typed request to Ask Saleane. The server passes a real AI's brain once the owner has given
@@ -59,7 +71,7 @@ export function askSaleane(input: AskInput): Promise<TurnResult> {
     skills: askSaleaneSkills(),
     ctx,
     instructions: INSTRUCTIONS,
-    context: askFacts(ctx),
+    context: input.spoken ? `${askFacts(ctx)}\n${SPOKEN}` : askFacts(ctx),
     timeLimitMs: TURN_TIME_LIMIT_MS,
     history: (input.history ?? [])
       .slice(-HISTORY_TURNS)
@@ -74,6 +86,6 @@ export function askSaleane(input: AskInput): Promise<TurnResult> {
       usage: input.usage,
       kind: meter,
       ...use,
-    }))(askUse(input.personId, input.at)),
+    }))(input.use ?? askUse(input.personId, input.at)),
   })
 }

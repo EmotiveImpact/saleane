@@ -35,6 +35,7 @@ import { BOOKING_LINK, MANAGE_LINK_SPOT, receptionistBrain } from './receptionis
 import { myUsualSkill } from './usualSkills'
 import { textingRecords } from '../domain/textingGuest'
 import type { ReceptionChannel } from './receptionistBrain'
+import { aiVoice, toneFacts } from './tone'
 
 /**
  * V4: the AI receptionist, the guest-facing side of Lumane. It answers from the studio's own
@@ -100,7 +101,7 @@ export const CHAT_TIME_LIMIT_MS = 20_000
 export const CHAT_HISTORY_TURNS = 8
 
 export const RECEPTION_INSTRUCTIONS = `You are the AI receptionist for a beauty, spa or wellness studio, chatting with a guest on its booking page.
-Say you are an AI if asked, and never pretend to be a person. Write in warm, plain British English. Keep it short.
+Say you are an AI if asked, and never pretend to be a person. Write in plain British English, in the studio's tone given with each message. Keep it short.
 Only state facts the skills return: treatments, prices, opening hours and free times. Never guess.
 You cannot book, move or cancel a visit or take a payment. You can offer a free time, which the guest finishes booking on the page.
 When the guest is known, you can send them the private link to one of their own visits, where they move or cancel it themselves.
@@ -130,6 +131,7 @@ export function receptionFacts(ctx: ReceptionContext, channel: ReceptionChannel 
       : "The guest is chatting on the studio's booking page, which shows a button for each time you list.",
     ...(guest ? [`The guest is a known client, ${guest.name.split(' ')[0]}.`] : []),
     'When a skill asks for a date, give it as YYYY-MM-DD.',
+    toneFacts(ctx.state, 'guest'),
   ].join('\n')
 }
 
@@ -694,7 +696,13 @@ export function askReceptionist(input: ReceptionInput): Promise<TurnResult<Recep
   const ctx = receptionContext(input.state, input.today, input.now, input.guestId)
   return runTurn({
     brain:
-      input.brain ?? receptionistBrain(ctx.today, input.state.organisation.locale, input.channel),
+      input.brain ??
+      receptionistBrain(
+        ctx.today,
+        input.state.organisation.locale,
+        input.channel,
+        aiVoice(input.state).tone,
+      ),
     skills: receptionistSkills(),
     ctx,
     instructions: RECEPTION_INSTRUCTIONS,

@@ -24,8 +24,10 @@ export type InjectOptions = {
   headers?: Record<string, string>
   payload?: unknown
   remoteAddress?: string
-  /** A body sent as it is: text, or bytes such as a photo. */
+  /** Sent as it is: a provider's signed receipt, or bytes such as a voice note or a photo. */
   rawPayload?: string | Uint8Array
+  /** Aborting stands for the browser leaving before the answer: the connection closes. */
+  signal?: AbortSignal
 }
 export type InjectResponse = {
   statusCode: number
@@ -48,9 +50,18 @@ export function sessionToken(request: IncomingMessage): string | undefined {
     .find((part) => part.startsWith(`${COOKIE}=`))
     ?.slice(COOKIE.length + 1)
 }
-/** Reads a bounded body as JSON, or as text when `raw` is set (provider receipts). */
-export async function readBody(request: IncomingMessage, raw = false): Promise<unknown> {
-  const text = (await readBytes(request, BODY_LIMIT)).toString('utf8')
+/**
+ * Reads a bounded body as JSON, as text when `raw` is set (provider receipts), or as the bytes
+ * themselves (`'bytes'`, a voice note), up to `limit`.
+ */
+export async function readBody(
+  request: IncomingMessage,
+  raw: boolean | 'bytes' = false,
+  limit = BODY_LIMIT,
+): Promise<unknown> {
+  const bytes = await readBytes(request, limit)
+  if (raw === 'bytes') return bytes
+  const text = bytes.toString('utf8')
   if (raw) return text
   try {
     return JSON.parse(text)
@@ -151,6 +162,7 @@ export async function inject(
     return response
   }) as ServerResponse['setHeader']
   const finished = new Promise<void>((resolve) => response.on('finish', resolve))
+  input.signal?.addEventListener('abort', () => response.emit('close'), { once: true })
   await handler(request, response)
   await finished
   const rawBody = Buffer.concat(chunks)

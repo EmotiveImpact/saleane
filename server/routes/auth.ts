@@ -65,6 +65,7 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
         email: ctx.messaging.email.live || ctx.messaging.sms.live,
         payments: ctx.paymentProvider.live,
         ai: ctx.ai.live,
+        voice: ctx.voice.live,
       },
     })
     return true
@@ -93,6 +94,7 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
         email: ctx.messaging.email.live || ctx.messaging.sms.live,
         payments: ctx.paymentProvider.live,
         ai: ctx.ai.live,
+        voice: ctx.voice.live,
       },
     })
     return true

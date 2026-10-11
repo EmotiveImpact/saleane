@@ -364,7 +364,8 @@ describe('approving a message to clients', () => {
     const texted = sent.find((m) => m.channel === 'sms')!
     expect(texted.body).toContain(`Book: ${origin}/book/`)
     expect(texted.body.endsWith('Reply STOP to stop texts.')).toBe(true)
-    expect(texted.bulk).toBeUndefined()
+    expect(texted.unsubscribeUrl).toBeUndefined()
+    expect(texted.stream).toBeUndefined()
     // The provider has it; only its receipt can say it was delivered.
     expect(rows().map((r) => r.status)).toEqual(['accepted', 'accepted', 'accepted', 'accepted'])
     const followed = (await get(owner, '/news')).json<{
@@ -471,7 +472,10 @@ describe('when each copy leaves the outbox', () => {
     await api.outbox.deliver()
     const mail = sent.find((m) => m.to === 'c1@example.invalid')!
     const link = /\/news\/stop#([A-Za-z0-9_-]+)/.exec(mail.body)!
-    expect(mail.bulk).toEqual({ unsubscribe: `${origin}/news/stop#${link[1]}` })
+    expect(mail).toMatchObject({
+      stream: 'broadcast',
+      unsubscribeUrl: `${origin}/news/stop#${link[1]}`,
+    })
     expect(mail.body).toContain(
       'You are hearing from Linden Rooms because you agreed to news and offers. To stop them, use this link:',
     )
@@ -634,6 +638,7 @@ describe('the email provider', () => {
     const provider = postmarkProvider({
       token: 'server-token',
       from: 'hello@example.invalid',
+      broadcastStream: 'broadcast',
       fetcher: async (_url, init) => {
         bodies.push(JSON.parse(String(init!.body)))
         return new Response(JSON.stringify({ ErrorCode: 0, MessageID: 'pm-1' }), { status: 200 })
@@ -648,12 +653,19 @@ describe('the email provider', () => {
       fromName: 'Linden Rooms',
     }
     await provider.send(message)
-    await provider.send({ ...message, bulk: { unsubscribe: `${origin}/news/stop#abc` } })
+    await provider.send({
+      ...message,
+      stream: 'broadcast',
+      unsubscribeUrl: `${origin}/news/stop#abc`,
+    })
     expect(bodies[0]).toMatchObject({ MessageStream: 'outbound' })
     expect(bodies[0]).not.toHaveProperty('Headers')
     expect(bodies[1]).toMatchObject({
       MessageStream: 'broadcast',
-      Headers: [{ Name: 'List-Unsubscribe', Value: `<${origin}/news/stop#abc>` }],
+      Headers: [
+        { Name: 'List-Unsubscribe', Value: `<${origin}/news/stop#abc>` },
+        { Name: 'List-Unsubscribe-Post', Value: 'List-Unsubscribe=One-Click' },
+      ],
     })
   })
 })

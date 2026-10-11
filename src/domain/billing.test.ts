@@ -6,12 +6,14 @@ import {
   monthAfter,
   monthBill,
   nextRetry,
+  peopleChange,
+  treatmentChange,
   plusBill,
   readOnlyMessage,
   taxed,
   trialDaysLeft,
 } from './billing'
-import { ALLOWANCES, RETRY_DAYS, allowanceFor } from './pricing'
+import { ALLOWANCES, RETRY_DAYS, allowanceFor, bookingPeople, extraPeople } from './pricing'
 import { seed } from './seed'
 
 const at = (iso: string) => Date.parse(iso)
@@ -38,28 +40,134 @@ describe('the billing month', () => {
 
 describe('a bill', () => {
   test('adds VAT at 20% in the UK and leaves US sales tax to the card service', () => {
-    const uk = monthBill('UK', 1, false)
+    const uk = monthBill('UK', 1, false, 0)
     expect(uk).toMatchObject({
-      subtotalMinor: 4900,
-      taxMinor: 980,
+      subtotalMinor: 5900,
+      taxMinor: 1180,
       taxLabel: 'VAT at 20%',
-      totalMinor: 5880,
+      totalMinor: 7080,
     })
     expect(uk.lines).toEqual([
-      { text: 'SALEANE, 1 location', quantity: 1, unitMinor: 4900, amountMinor: 4900 },
+      { text: 'SALEANE, 1 location', quantity: 1, unitMinor: 5900, amountMinor: 5900 },
     ])
-    const us = monthBill('US', 1, false)
-    expect(us).toMatchObject({ subtotalMinor: 5900, taxMinor: 0, taxLabel: null, totalMinor: 5900 })
+    const us = monthBill('US', 1, false, 0)
+    expect(us).toMatchObject({ subtotalMinor: 6900, taxMinor: 0, taxLabel: null, totalMinor: 6900 })
   })
   test('charges each location, and Plus for each location', () => {
-    const bill = monthBill('UK', 3, true)
+    const bill = monthBill('UK', 3, true, 0)
     expect(bill.lines.map((line) => [line.text, line.amountMinor])).toEqual([
-      ['SALEANE, 3 locations', 14700],
+      ['SALEANE, 3 locations', 17700],
       ['Plus, 3 locations', 11700],
     ])
-    expect(bill.totalMinor).toBe(Math.round(26400 * 1.2))
+    expect(bill.totalMinor).toBe(Math.round(29400 * 1.2))
     // A studio with no locations listed still has its main one.
-    expect(monthBill('UK', 0, false).lines[0].quantity).toBe(1)
+    expect(monthBill('UK', 0, false, 0).lines[0].quantity).toBe(1)
+  })
+  test('charges each person taking bookings beyond the five each location includes', () => {
+    // One location and seven people: two more, at £9 each.
+    const uk = monthBill('UK', 1, false, 7)
+    expect(
+      uk.lines.map((line) => [line.text, line.quantity, line.unitMinor, line.amountMinor]),
+    ).toEqual([
+      ['SALEANE, 1 location', 1, 5900, 5900],
+      ['2 more people taking bookings, beyond the 5 included', 2, 900, 1800],
+    ])
+    expect(uk.totalMinor).toBe(Math.round(7700 * 1.2))
+    // The included places are shared across a group: two locations include ten people.
+    expect(monthBill('US', 2, false, 11).lines.slice(1)).toEqual([
+      {
+        text: '1 more person taking bookings, beyond the 10 included',
+        quantity: 1,
+        unitMinor: 1200,
+        amountMinor: 1200,
+      },
+    ])
+    expect(monthBill('UK', 3, true, 12).lines.map((line) => line.text)).toEqual([
+      'SALEANE, 3 locations',
+      'Plus, 3 locations',
+    ])
+    expect(monthBill('UK', 1, false, 5).lines).toHaveLength(1)
+    expect(extraPeople(6, 0)).toBe(1)
+  })
+  test('counts only the people who take bookings', () => {
+    const s = seed('UK')
+    const offered = s.services.find((item) => !item.archived)!
+    const person = (id: string, serviceIds: string[], archived?: boolean) => ({
+      ...s.staff[0],
+      id,
+      serviceIds,
+      ...(archived ? { archived } : {}),
+    })
+    const retired = { ...offered, id: 'service-retired', archived: true }
+    const team = {
+      services: [...s.services, retired],
+      staff: [
+        person('takes-bookings', [offered.id]),
+        person('left', [offered.id], true),
+        person('front-desk', []),
+        person('only-retired-treatment', [retired.id]),
+      ],
+    }
+    expect(bookingPeople(team)).toBe(1)
+    // The sample studio's professionals all take bookings.
+    expect(bookingPeople(s)).toBe(s.staff.filter((p) => !p.archived && p.serviceIds.length).length)
+  })
+  test('tells the owner when saving a professional moves the bill', () => {
+    const s = seed('UK')
+    const offered = s.services.find((item) => !item.archived)!
+    const five = {
+      ...s,
+      staff: Array.from({ length: 5 }, (_, i) => ({
+        ...s.staff[0],
+        id: `p${i}`,
+        archived: false,
+        serviceIds: [offered.id],
+      })),
+    }
+    expect(peopleChange(five, 1, { serviceIds: [offered.id] })).toBe(
+      'Saving makes 6 people taking bookings, and your location includes 5, so the monthly bill goes up by £9, plus VAT, from the next bill.',
+    )
+    // Reception, a second location's five, and an unchanged edit leave the bill alone.
+    expect(peopleChange(five, 1, { serviceIds: [] })).toBe('')
+    expect(peopleChange(five, 2, { serviceIds: [offered.id] })).toBe('')
+    expect(peopleChange(five, 1, { id: 'p0', serviceIds: [offered.id] })).toBe('')
+    const six = { ...five, staff: [...five.staff, { ...five.staff[0], id: 'p5' }] }
+    expect(peopleChange(six, 1, { id: 'p5', serviceIds: [offered.id], archived: true })).toBe(
+      'Saving brings the people taking bookings to 5, so the monthly bill goes down by £9, plus VAT, from the next bill.',
+    )
+    const us = { ...six, organisation: seed('US').organisation }
+    expect(peopleChange(us, 1, { id: 'p5', serviceIds: [] })).toContain(
+      'goes down by $12, plus any sales tax,',
+    )
+  })
+  test('tells the owner when archiving or bringing back a treatment moves the bill', () => {
+    const s = seed('UK')
+    const facial = s.services.find((item) => !item.archived)!
+    const six = {
+      ...s,
+      staff: Array.from({ length: 6 }, (_, i) => ({
+        ...s.staff[0],
+        id: `p${i}`,
+        archived: false,
+        serviceIds: [facial.id],
+      })),
+    }
+    // Six people give only this treatment: archiving it leaves none taking bookings.
+    expect(treatmentChange(six, 1, { id: facial.id, archived: true })).toBe(
+      'Saving brings the people taking bookings to 0, so the monthly bill goes down by £9, plus VAT, from the next bill.',
+    )
+    const archived = {
+      ...six,
+      services: six.services.map((item) =>
+        item.id === facial.id ? { ...item, archived: true } : item,
+      ),
+    }
+    expect(treatmentChange(archived, 1, { id: facial.id, archived: false })).toBe(
+      'Saving makes 6 people taking bookings, and your location includes 5, so the monthly bill goes up by £9, plus VAT, from the next bill.',
+    )
+    // An unchanged treatment, or a new one no one gives yet, leaves the bill alone.
+    expect(treatmentChange(six, 1, { id: facial.id, archived: false })).toBe('')
+    expect(treatmentChange(six, 1, { archived: false })).toBe('')
   })
   test('rounds VAT to the penny', () => {
     expect(taxed('UK', [{ text: 'x', quantity: 1, unitMinor: 1, amountMinor: 1 }]).taxMinor).toBe(0)
@@ -96,11 +204,13 @@ test('gives each location its own AI, Plus more, and a stopped studio none', () 
   const three = allowanceFor({ locations: 3, plus: true })
   expect(three.monthly).toEqual({ typed: 2400, talkSeconds: 27000, guestChats: 1500 })
   expect(three.dailySpendCeilingMinor).toBe(1200)
+  expect(three.monthlySpendCeilingMinor).toBe(18000)
   // One person and one talk keep the same limits however big the studio is.
   expect(three.perPersonHourly).toBe(ALLOWANCES.plus.perPersonHourly)
   const paused = allowanceFor({ locations: 2, plus: false, paused: true })
   expect(paused.monthly).toEqual({ typed: 0, talkSeconds: 0, guestChats: 0 })
   expect(paused.dailySpendCeilingMinor).toBe(0)
+  expect(paused.monthlySpendCeilingMinor).toBe(0)
 })
 
 describe('the line above every screen', () => {

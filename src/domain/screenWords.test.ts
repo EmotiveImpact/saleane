@@ -75,6 +75,8 @@ const kept: [file: string, contains: string][] = [
   // The wording guide names the words to avoid, so a writer knows them.
   ['src/design/voice.ts', 'not appointment'],
   ['src/design/voice.ts', 'demo tenant'],
+  // Google's own name for its email and office service, which a studio may send email through.
+  ['src/components/AppointmentMessages.tsx', 'Google Workspace'],
 ]
 
 /** The rules a line breaks, for the words a person could read on it. */

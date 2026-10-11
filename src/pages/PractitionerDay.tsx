@@ -37,6 +37,7 @@ import { HelpButton } from '../components/HelpButton'
 import { ClockOutForm } from '../components/Clock'
 import { DiaryLinks } from '../components/DiaryLinks'
 import { visitPauses } from '../domain/moments'
+import { VisitWriteUp } from '../components/VisitWriteUp'
 import '../practitioner.css'
 import '../components/moments.css'
 
@@ -718,6 +719,17 @@ export function PractitionerDay() {
                     </Button>
                   </form>
                 </>
+              )}
+              {(visit.status === 'arrived' || visit.status === 'completed') && (
+                <VisitWriteUp
+                  key={visit.id}
+                  path={path}
+                  appointmentId={visit.id}
+                  guest={firstName(client.name)}
+                  aftercare={visit.aftercare}
+                  saving={saving}
+                  onSave={save}
+                />
               )}
               <h3>Notes</h3>
               <form

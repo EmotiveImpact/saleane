@@ -207,7 +207,8 @@ describe('the local API workspace context', () => {
     await screen.findByText(
       'Someone else saved a change just now. Reload to see it, then try again.',
     )
-    expect(view.store.state.revision).toBe(1)
+    // The test reads the store a render behind (it is kept by an effect), so wait for it.
+    await waitFor(() => expect(view.store.state.revision).toBe(1))
     expect(view.store.state.events.at(-1)?.detail).toBe('Another desk recorded this')
     expect(screen.getByLabelText('Preference')).toHaveValue('Review this draft')
   })

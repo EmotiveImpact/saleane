@@ -1,5 +1,20 @@
-import { createHmac, timingSafeEqual } from 'node:crypto'
+import { createHmac } from 'node:crypto'
 import type { OutboxChannel } from '../../src/domain/reminders'
+import { isResult, post, sameText } from './wire'
+import type { Fetch } from './wire'
+import {
+  googleProvider,
+  mailgunProvider,
+  mailgunReceipts,
+  microsoftProvider,
+  resendProvider,
+  resendReceipts,
+  sendgridProvider,
+  sendgridReceipts,
+  sesProvider,
+  smtpProvider,
+} from './emailSenders'
+import type { EmailSenderName } from './emailSenders'
 
 /**
  * PILOT-01 provider seam. Each channel has one provider. The default is test mode, which sends
@@ -19,10 +34,20 @@ export type OutgoingMessage = {
   /** V4: the studio's Instagram account, Page or WhatsApp number an answer goes from. */
   account?: string
   /**
-   * Stage 4: one copy of a message to many clients, with the link that stops them. Email goes on
-   * the provider's stream for messages to many people, and names the link in its headers.
+   * NEXT-13: email only. The designed email, made from `body`, which still goes with it as the
+   * plain-text part.
    */
-  bulk?: { unsubscribe: string }
+  html?: string
+  /**
+   * NEXT-13: email only. `broadcast` for news and keeping in touch, which providers want kept
+   * apart from visit messages so one guest's complaint never holds up another's confirmation.
+   */
+  stream?: 'transactional' | 'broadcast'
+  /**
+   * NEXT-13: email news only. The guest's own address to stop the news in one click, sent as
+   * List-Unsubscribe with List-Unsubscribe-Post (RFC 8058) so mail apps can offer it.
+   */
+  unsubscribeUrl?: string
 }
 export type SendResult =
   | { outcome: 'test' }
@@ -33,13 +58,20 @@ export type SendResult =
   | { outcome: 'unknown'; detail: string }
 
 export type MessageProvider = {
-  name: 'test' | 'postmark' | 'twilio'
+  name: 'test' | 'twilio' | EmailSenderName
   live: boolean
   channel: OutboxChannel
   send: (message: OutgoingMessage) => Promise<SendResult>
 }
 /** A delivery receipt the provider posted back, already verified. */
-export type Receipt = { provider: string; providerRef: string; delivered: boolean; detail?: string }
+export type Receipt = {
+  provider: string
+  providerRef: string
+  delivered: boolean
+  detail?: string
+  /** The outbox row the sender was told when it was sent, for a receipt that carries no id. */
+  outboxId?: string
+}
 export type ReceiptRequest = {
   url: string
   headers: Record<string, string | undefined>
@@ -72,7 +104,6 @@ export type InboundReply = { from: string; body: string; providerRef: string }
 export type VoiceCall = { from: string; missed: boolean }
 /** Twilio's <Dial> outcomes that mean the studio did not speak to the caller. */
 const MISSED_DIAL = new Set(['busy', 'no-answer', 'failed', 'canceled'])
-type Fetch = typeof fetch
 
 export function testProvider(channel: OutboxChannel): MessageProvider {
   return { name: 'test', live: false, channel, send: async () => ({ outcome: 'test' }) }
@@ -81,41 +112,15 @@ export function testProvider(channel: OutboxChannel): MessageProvider {
 export const providerFor = (providers: Providers, channel: OutboxChannel) =>
   providers[channel] ?? testProvider(channel)
 
-const TIMEOUT_MS = 15000
-/** Network errors that prove the request never left this computer, so a retry cannot duplicate. */
-const NOT_SENT = new Set(['ENOTFOUND', 'ECONNREFUSED', 'EAI_AGAIN', 'ENETUNREACH'])
-
-async function post(
-  fetcher: Fetch,
-  url: string,
-  init: RequestInit,
-): Promise<{ status: number; json: Record<string, unknown> } | SendResult> {
-  try {
-    const response = await fetcher(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) })
-    let json: Record<string, unknown> = {}
-    try {
-      json = (await response.json()) as Record<string, unknown>
-    } catch {
-      /* Some refusals have no JSON body. */
-    }
-    return { status: response.status, json }
-  } catch (error) {
-    const code = (error as { cause?: { code?: string } })?.cause?.code
-    if (code && NOT_SENT.has(code))
-      return { outcome: 'failed', detail: 'The provider could not be reached.', retry: true }
-    return {
-      outcome: 'unknown',
-      detail: 'The connection dropped before the provider answered. Check its dashboard first.',
-    }
-  }
-}
-const isResult = (value: unknown): value is SendResult =>
-  !!value && typeof value === 'object' && 'outcome' in value
-
 /** Postmark transactional email. https://postmarkapp.com/developer/api/email-api */
 export function postmarkProvider(config: {
   token: string
   from: string
+  /**
+   * The Stream ID of the Postmark broadcast stream for news and keeping in touch, exactly as the
+   * Postmark server names it. There is no safe guess: a stream that does not exist refuses them.
+   */
+  broadcastStream: string
   fetcher?: Fetch
 }): MessageProvider {
   const fetcher = config.fetcher ?? fetch
@@ -136,10 +141,16 @@ export function postmarkProvider(config: {
           To: message.to,
           Subject: message.subject,
           TextBody: message.body,
-          MessageStream: message.bulk ? 'broadcast' : 'outbound',
-          ...(message.bulk
-            ? { Headers: [{ Name: 'List-Unsubscribe', Value: `<${message.bulk.unsubscribe}>` }] }
+          ...(message.html ? { HtmlBody: message.html } : {}),
+          ...(message.unsubscribeUrl
+            ? {
+                Headers: [
+                  { Name: 'List-Unsubscribe', Value: `<${message.unsubscribeUrl}>` },
+                  { Name: 'List-Unsubscribe-Post', Value: 'List-Unsubscribe=One-Click' },
+                ],
+              }
             : {}),
+          MessageStream: message.stream === 'broadcast' ? config.broadcastStream : 'outbound',
           Metadata: { outbox: message.id },
         }),
       })
@@ -208,12 +219,6 @@ export function twilioSignature(authToken: string, url: string, params: URLSearc
   const data = url + pairs.map(([key, value]) => key + value).join('')
   return createHmac('sha1', authToken).update(data, 'utf8').digest('base64')
 }
-function sameText(a: string | undefined, b: string) {
-  if (!a) return false
-  const left = Buffer.from(a),
-    right = Buffer.from(b)
-  return left.length === right.length && timingSafeEqual(left, right)
-}
 
 /**
  * Reads providers from the environment. Unset means test mode. Naming a live provider without
@@ -234,10 +239,80 @@ export function providersFromEnv(
   let email = testProvider('email'),
     sms = testProvider('sms')
   let postmarkSecret: string | undefined, twilioToken: string | undefined
+  /** NEXT-13: the chosen email sender's own receipts, verified its own way. */
+  let emailReceipts: ((request: ReceiptRequest) => Receipt[] | null) | undefined
+  const optional = (name: string) => env[name]?.trim() || undefined
+  const eu = (name: string) => optional(name)?.toLowerCase() === 'eu'
   if (emailName === 'postmark') {
-    const [token, from] = need('POSTMARK_SERVER_TOKEN', 'SALEANE_EMAIL_FROM')
-    postmarkSecret = env.POSTMARK_WEBHOOK_SECRET?.trim() || undefined
-    email = postmarkProvider({ token, from, fetcher })
+    const [token, from, broadcastStream] = need(
+      'POSTMARK_SERVER_TOKEN',
+      'SALEANE_EMAIL_FROM',
+      'POSTMARK_BROADCAST_STREAM',
+    )
+    postmarkSecret = optional('POSTMARK_WEBHOOK_SECRET')
+    email = postmarkProvider({ token, from, broadcastStream, fetcher })
+  } else if (emailName === 'resend') {
+    const [apiKey, from] = need('RESEND_API_KEY', 'SALEANE_EMAIL_FROM')
+    email = resendProvider({ apiKey, from, fetcher })
+    const secret = optional('RESEND_WEBHOOK_SECRET')
+    if (secret) emailReceipts = (request) => resendReceipts(secret, request)
+  } else if (emailName === 'sendgrid') {
+    const [apiKey, from] = need('SENDGRID_API_KEY', 'SALEANE_EMAIL_FROM')
+    email = sendgridProvider({ apiKey, from, eu: eu('SENDGRID_REGION'), fetcher })
+    const key = optional('SENDGRID_WEBHOOK_PUBLIC_KEY')
+    if (key) emailReceipts = (request) => sendgridReceipts(key, request)
+  } else if (emailName === 'mailgun') {
+    const [apiKey, domain, from] = need('MAILGUN_API_KEY', 'MAILGUN_DOMAIN', 'SALEANE_EMAIL_FROM')
+    email = mailgunProvider({ apiKey, domain, from, eu: eu('MAILGUN_REGION'), fetcher })
+    const key = optional('MAILGUN_WEBHOOK_SIGNING_KEY')
+    if (key) emailReceipts = (request) => mailgunReceipts(key, request)
+  } else if (emailName === 'ses') {
+    const [region, accessKeyId, secretAccessKey, from] = need(
+      'AWS_REGION',
+      'AWS_ACCESS_KEY_ID',
+      'AWS_SECRET_ACCESS_KEY',
+      'SALEANE_EMAIL_FROM',
+    )
+    const sessionToken = optional('AWS_SESSION_TOKEN')
+    email = sesProvider({
+      region,
+      keys: { accessKeyId, secretAccessKey, ...(sessionToken ? { sessionToken } : {}) },
+      from,
+      configurationSet: optional('SES_CONFIGURATION_SET'),
+      fetcher,
+    })
+  } else if (emailName === 'smtp') {
+    const [host, from] = need('SMTP_HOST', 'SALEANE_EMAIL_FROM')
+    const port = Number(optional('SMTP_PORT') ?? 587)
+    if (!Number.isInteger(port) || port < 1 || port > 65535)
+      throw new Error('Set SMTP_PORT to the mail server’s port, such as 587 or 465.')
+    const user = optional('SMTP_USER')
+    if (user) need('SMTP_PASSWORD')
+    email = smtpProvider({ host, port, user, password: optional('SMTP_PASSWORD'), from })
+  } else if (emailName === 'google') {
+    const [json, from] = need('GOOGLE_SERVICE_ACCOUNT_JSON', 'SALEANE_EMAIL_FROM')
+    let account: { client_email?: unknown; private_key?: unknown }
+    try {
+      account = JSON.parse(json) as typeof account
+    } catch {
+      throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON must be the service account’s JSON key.')
+    }
+    if (typeof account.client_email !== 'string' || typeof account.private_key !== 'string')
+      throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON must be the service account’s JSON key.')
+    email = googleProvider({
+      clientEmail: account.client_email,
+      privateKey: account.private_key,
+      from,
+      fetcher,
+    })
+  } else if (emailName === 'microsoft') {
+    const [tenantId, clientId, clientSecret, from] = need(
+      'MICROSOFT_TENANT_ID',
+      'MICROSOFT_CLIENT_ID',
+      'MICROSOFT_CLIENT_SECRET',
+      'SALEANE_EMAIL_FROM',
+    )
+    email = microsoftProvider({ tenantId, clientId, clientSecret, from, fetcher })
   } else if (emailName !== 'test') throw new Error(`Unknown email provider "${emailName}".`)
   const twilioCallback = `${origin.replace(/\/$/, '')}/api/hooks/twilio`
   if (smsName === 'twilio') {
@@ -346,6 +421,8 @@ export function providersFromEnv(
           ]
         return []
       }
+      if (provider === email.name && provider !== 'postmark' && emailReceipts)
+        return emailReceipts(request)
       return null
     },
   }

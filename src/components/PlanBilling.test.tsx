@@ -38,7 +38,8 @@ const plan = (extra: Partial<BillingView> = {}): BillingView => ({
   cancelAtPeriodEnd: false,
   card: null,
   locations: 1,
-  nextBill: { at: now + 5 * DAY_MS, bill: monthBill('UK', 1, false) },
+  people: 3,
+  nextBill: { at: now + 5 * DAY_MS, bill: monthBill('UK', 1, false, 3) },
   overdue: null,
   checking: false,
   held: false,
@@ -54,7 +55,7 @@ const plan = (extra: Partial<BillingView> = {}): BillingView => ({
   ...extra,
 })
 const invoice = (extra: Partial<InvoiceView> = {}): InvoiceView => ({
-  ...monthBill('UK', 1, false),
+  ...monthBill('UK', 1, false, 3),
   id: 'bill-1',
   number: 'TEST-000001',
   kind: 'month',
@@ -104,11 +105,51 @@ test('shows a trial with no card, the first bill and the AI so far, and opens th
   const lines = within(next.parentElement!)
   expect(lines.getByText('SALEANE, 1 location')).toBeInTheDocument()
   expect(lines.getByText('VAT at 20%')).toBeInTheDocument()
-  expect(lines.getByText('£58.80')).toBeInTheDocument()
+  expect(lines.getByText('£70.80')).toBeInTheDocument()
   expect(screen.getByText('12 of 300 used')).toBeInTheDocument()
+  expect(
+    screen.getByText(
+      '3 people take bookings. Your location includes 5, so there is nothing more to pay.',
+    ),
+  ).toBeInTheDocument()
   expect(screen.getByText('No card saved yet')).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Add a card' }))
   expect(api).toHaveBeenCalledWith(`${base}/card`, { method: 'POST', body: {} })
+})
+
+test('says who the studio pays for beyond the people its locations include', async () => {
+  const many = plan({
+    people: 8,
+    nextBill: { at: now + 5 * DAY_MS, bill: monthBill('UK', 1, false, 8) },
+  })
+  vi.mocked(api).mockResolvedValue(many as never)
+  const { unmount } = open()
+  expect(
+    await screen.findByText(
+      '£59 a month for each location, plus VAT, with 5 people taking bookings, Ask SALEANE and the AI receptionist included. Each person beyond that is £9 a month. Month to month: stop whenever you like.',
+    ),
+  ).toBeInTheDocument()
+  expect(
+    screen.getByText(
+      '8 people take bookings. Your location includes 5, so 3 more are £9 a month each, £27 in all, plus VAT.',
+    ),
+  ).toBeInTheDocument()
+  const next = screen.getByRole('heading', { name: 'Your next bill, on 14 October 2026' })
+  const lines = within(next.parentElement!)
+  expect(
+    lines.getByText('3 more people taking bookings, beyond the 5 included'),
+  ).toBeInTheDocument()
+  expect(lines.getByText('£27.00')).toBeInTheDocument()
+  expect(lines.getByText('£103.20')).toBeInTheDocument()
+  unmount()
+
+  vi.mocked(api).mockResolvedValue(plan({ people: 11, locations: 2 }) as never)
+  open()
+  expect(
+    await screen.findByText(
+      '11 people take bookings. Your 2 locations include 10, so 1 more is £9 a month, plus VAT.',
+    ),
+  ).toBeInTheDocument()
 })
 
 test('adds Plus part way through a paid month, after saying what it costs now', async () => {
@@ -120,7 +161,7 @@ test('adds Plus part way through a paid month, after saying what it costs now', 
     card,
     periodStart: start,
     periodEnd: end,
-    nextBill: { at: end, bill: monthBill('UK', 1, false) },
+    nextBill: { at: end, bill: monthBill('UK', 1, false, 3) },
     invoices: [invoice()],
   })
   vi.mocked(api).mockImplementation(async (path, init) => {
@@ -134,7 +175,7 @@ test('adds Plus part way through a paid month, after saying what it costs now', 
   open()
   expect(
     await screen.findByText(
-      'Paid until 1 November 2026. The next bill, £58.80, is taken that day from the Visa ending 4242.',
+      'Paid until 1 November 2026. The next bill, £70.80, is taken that day from the Visa ending 4242.',
     ),
   ).toBeInTheDocument()
   expect(
@@ -168,7 +209,7 @@ test('a declined payment says nothing was taken', async () => {
     card,
     periodStart: since,
     periodEnd: since + 30 * DAY_MS,
-    nextBill: { at: now + 2 * DAY_MS, bill: monthBill('UK', 1, false) },
+    nextBill: { at: now + 2 * DAY_MS, bill: monthBill('UK', 1, false, 3) },
     overdue: { since, graceEndsAt: since + 14 * DAY_MS, nextAttemptAt: now + 2 * DAY_MS },
   })
   vi.mocked(api).mockImplementation(async (path) => {
@@ -179,10 +220,10 @@ test('a declined payment says nothing was taken', async () => {
   open()
   expect(
     await screen.findByText(
-      'We could not take £58.80. We will try the card again on 11 October 2026. Pay, or use another card, by 22 October 2026 to keep everything working.',
+      'We could not take £70.80. We will try the card again on 11 October 2026. Pay, or use another card, by 22 October 2026 to keep everything working.',
     ),
   ).toBeInTheDocument()
-  await user.click(screen.getByRole('button', { name: 'Pay £58.80 now' }))
+  await user.click(screen.getByRole('button', { name: 'Pay £70.80 now' }))
   expect(await screen.findByRole('status')).toHaveTextContent(
     'The payment did not go through. Nothing was taken. Try again or use another card.',
   )
@@ -194,7 +235,7 @@ test('only a payment that went through is spoken of as paid', async () => {
     status: 'stopped',
     stopReason: 'unpaid',
     card,
-    nextBill: { at: now, bill: monthBill('UK', 1, false) },
+    nextBill: { at: now, bill: monthBill('UK', 1, false, 3) },
   })
   let outcome = 'void'
   vi.mocked(api).mockImplementation(async (path) => {
@@ -203,19 +244,19 @@ test('only a payment that went through is spoken of as paid', async () => {
     throw new Error(`Unexpected route ${path}`)
   })
   open()
-  await user.click(await screen.findByRole('button', { name: 'Pay £58.80 now' }))
+  await user.click(await screen.findByRole('button', { name: 'Pay £70.80 now' }))
   expect(await screen.findByRole('status')).toHaveTextContent(
     'The card was declined, so nothing was taken. Try again or use another card.',
   )
   expect(screen.queryByText(/Everything works again/)).not.toBeInTheDocument()
   // No clear answer yet: nothing is said to be paid, and nothing more is taken.
   outcome = 'charging'
-  await user.click(screen.getByRole('button', { name: 'Pay £58.80 now' }))
+  await user.click(screen.getByRole('button', { name: 'Pay £70.80 now' }))
   expect(await screen.findByRole('status')).toHaveTextContent(
     'The card service has not said yet whether the payment went through. Nothing more is taken until it does',
   )
   outcome = 'paid'
-  await user.click(screen.getByRole('button', { name: 'Pay £58.80 now' }))
+  await user.click(screen.getByRole('button', { name: 'Pay £70.80 now' }))
   expect(await screen.findByRole('status')).toHaveTextContent(
     'Paid. Everything works again, and the bill is below.',
   )
@@ -274,17 +315,17 @@ test('a read only studio can pay for a month from today, and cannot add Plus or 
       status: 'stopped',
       stopReason: 'unpaid',
       card,
-      nextBill: { at: now, bill: monthBill('UK', 1, false) },
+      nextBill: { at: now, bill: monthBill('UK', 1, false, 3) },
     }) as never,
   )
   open()
   expect(
     await screen.findByText(
-      'The bill was not paid, so the studio is read only. Nothing has been lost, and guests can still book. To carry on, pay £58.80 for a month from today.',
+      'The bill was not paid, so the studio is read only. Nothing has been lost, and guests can still book. To carry on, pay £70.80 for a month from today.',
     ),
   ).toBeInTheDocument()
   expect(screen.getByText('Read only')).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Pay £58.80 now' })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Pay £70.80 now' })).toBeEnabled()
   expect(screen.getByRole('button', { name: 'Add Plus' })).toBeDisabled()
   expect(screen.queryByRole('button', { name: /^Stop/ })).not.toBeInTheDocument()
   expect(

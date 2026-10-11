@@ -1,0 +1,849 @@
+// @vitest-environment node
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createApiHandler } from './app'
+import type { ApiHandler } from './app'
+import { aiFromEnv, testAi } from './ai'
+import type { AiSupplier } from './ai'
+import { noVoice, voiceFromEnv } from './voice'
+import { VoiceError } from '../lumane'
+import type { LiveEvent, LiveStart, Usage, VoiceLayer } from '../lumane'
+
+// NEXT-12 part 2: talking to Ask SALEANE. OpenAI's voice is pretended by a layer that records each
+// talk and lets the test say what OpenAI reports; Claude is pretended by a fetch, as in
+// realAi.test.ts.
+const origin = 'http://127.0.0.1:5173'
+type Login = { cookie: string; csrf: string; orgId: string }
+type Said = { kind: 'answer' | 'note'; id: string; text: string }
+let api: ApiHandler
+let clock = Date.parse('2026-10-06T08:00:00.000Z')
+afterEach(() => {
+  vi.useRealTimers()
+  api?.close()
+})
+
+const usage = { input_tokens: 1000, output_tokens: 100, cache_read_input_tokens: 4000 }
+const words = (text: string) => ({
+  content: [{ type: 'text', text }],
+  stop_reason: 'end_turn',
+  usage,
+})
+function anthropic(answers: Record<string, unknown>[]) {
+  const requests: { system: { text: string }[] }[] = []
+  const fetcher = (async (_url: string, init: RequestInit) => {
+    requests.push(JSON.parse(String(init.body)))
+    const next = answers.shift()
+    if (!next) throw new Error('No answer left')
+    return new Response(JSON.stringify(next), { status: 200 })
+  }) as unknown as typeof fetch
+  return { requests, fetcher }
+}
+const claude = (fetcher: typeof fetch): AiSupplier =>
+  aiFromEnv({ SALEANE_AI_PROVIDER: 'claude', ANTHROPIC_API_KEY: 'test-key' }, fetcher)
+
+function fakeVoice() {
+  const starts: LiveStart[] = []
+  const lines: {
+    id: string
+    said: Said[]
+    closed: boolean
+    detached: boolean
+    fire: (e: LiveEvent) => void
+  }[] = []
+  const state: {
+    failStart?: Error
+    failAttach?: boolean
+    startTakesMs?: number
+    attachTakesMs?: number
+    holdAttach?: Promise<void>
+    holdStart?: Promise<void>
+  } = {}
+  const layer: VoiceLayer = {
+    name: 'openai',
+    live: true,
+    model: 'gpt-live-1',
+    minorPerMinute: 5,
+    async start(input) {
+      starts.push(input)
+      clock += state.startTakesMs ?? 0
+      if (state.holdStart) await state.holdStart
+      if (state.failStart) throw state.failStart
+      return { id: `live_${starts.length}`, sdp: 'v=0 answer' }
+    },
+    async attach(id, onEvent) {
+      clock += state.attachTakesMs ?? 0
+      if (state.holdAttach) await state.holdAttach
+      if (state.failAttach) throw new VoiceError('unreachable', 'No line.')
+      const entry = { id, said: [] as Said[], closed: false, detached: false, fire: onEvent }
+      lines.push(entry)
+      return {
+        answer: (d, text) => entry.said.push({ kind: 'answer', id: d, text }),
+        note: (d, text) => entry.said.push({ kind: 'note', id: d, text }),
+        close: () => {
+          entry.closed = true
+        },
+        detach: () => {
+          entry.detached = true
+        },
+      }
+    },
+  }
+  return { layer, starts, lines, state }
+}
+
+function start(ai: AiSupplier, voice: VoiceLayer) {
+  clock = Date.parse('2026-10-06T08:00:00.000Z')
+  api = createApiHandler({
+    origin,
+    databasePath: ':memory:',
+    now: () => clock,
+    turnstile: null,
+    ai,
+    voice,
+  })
+}
+const headers = (login: Login) => ({ cookie: login.cookie, 'x-csrf-token': login.csrf })
+async function register(sample = false, email = 'owner@example.invalid') {
+  const response = await api.inject({
+    method: 'POST',
+    url: '/api/auth/register',
+    payload: {
+      name: 'Ada Owner',
+      email,
+      password: 'Fictional local account 2026!',
+      workspace: { name: 'Linden Studio', locationName: 'London', region: 'UK', sample },
+    },
+  })
+  expect(response.statusCode, response.body).toBe(201)
+  return {
+    ...response.json<{ csrf: string; orgId: string }>(),
+    cookie: String(response.headers['set-cookie']).split(';')[0],
+  }
+}
+const path = (login: Login, rest = '') => `/api/workspaces/${login.orgId}/assistant${rest}`
+const talk = (login: Login) =>
+  api.inject({
+    method: 'POST',
+    url: path(login, '/talk'),
+    headers: headers(login),
+    payload: { sdp: 'v=0 offer from the browser' },
+  })
+const read = (login: Login, id: string) =>
+  api.inject({ url: path(login, `/talk/${id}`), headers: headers(login) })
+const stored = (login: Login) =>
+  JSON.parse(
+    api.database.get<{ usage: string }>(
+      'SELECT usage FROM assistant_usage WHERE organisation_id=?',
+      login.orgId,
+    )?.usage ?? '{"used":{},"spendByDay":{}}',
+  ) as Usage
+function used(login: Login, talkSeconds: number) {
+  api.database.run(
+    'INSERT INTO assistant_usage(organisation_id,usage,updated_at) VALUES(?,?,?)',
+    login.orgId,
+    JSON.stringify({
+      period: '2026-10',
+      used: { typed: 0, talkSeconds, guestChats: 0 },
+      spendByDay: {},
+      recent: {},
+    }),
+    clock,
+  )
+}
+const day = '2026-10-06'
+
+describe('who can talk', () => {
+  it('offers talking only with both OpenAI’s voice and Claude, and never in a sample studio', async () => {
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    expect((await api.inject({ url: '/api/health' })).json()).toMatchObject({
+      services: { ai: true, voice: true },
+    })
+    expect((await api.inject({ url: path(login), headers: headers(login) })).json()).toMatchObject({
+      mode: 'live',
+      talk: true,
+    })
+    const sample = await register(true, 'sample@example.invalid')
+    expect(
+      (await api.inject({ url: path(sample), headers: headers(sample) })).json(),
+    ).toMatchObject({ mode: 'test', talk: false })
+    expect((await talk(sample)).statusCode).toBe(409)
+    expect(voice.starts).toHaveLength(0)
+    api.close()
+
+    start(claude(anthropic([]).fetcher), noVoice)
+    const quiet = await register()
+    expect((await api.inject({ url: path(quiet), headers: headers(quiet) })).json()).toMatchObject({
+      mode: 'live',
+      talk: false,
+    })
+    expect(() =>
+      createApiHandler({ origin, databasePath: ':memory:', ai: testAi, voice: voice.layer }),
+    ).toThrow('Talking needs Claude')
+  })
+
+  it('reads the voice from the environment, and refuses to start half set up', () => {
+    const claudeOn = { SALEANE_AI_PROVIDER: 'claude', ANTHROPIC_API_KEY: 'k' }
+    expect(voiceFromEnv({})).toBe(noVoice)
+    expect(voiceFromEnv({ SALEANE_VOICE_PROVIDER: 'test' })).toBe(noVoice)
+    expect(() => voiceFromEnv({ SALEANE_VOICE_PROVIDER: 'other' })).toThrow('Unknown voice')
+    expect(() => voiceFromEnv({ ...claudeOn, SALEANE_VOICE_PROVIDER: 'openai' })).toThrow(
+      'Set OPENAI_API_KEY',
+    )
+    expect(() => voiceFromEnv({ SALEANE_VOICE_PROVIDER: 'openai', OPENAI_API_KEY: 'k' })).toThrow(
+      'Talking needs Claude',
+    )
+    const env = { ...claudeOn, SALEANE_VOICE_PROVIDER: 'openai', OPENAI_API_KEY: 'k' }
+    expect(voiceFromEnv(env)).toMatchObject({ live: true, model: 'gpt-live-1', minorPerMinute: 5 })
+    expect(() => voiceFromEnv({ ...env, SALEANE_VOICE_MODEL: 'gpt-live-2' })).toThrow(
+      'SALEANE_VOICE_PRICE',
+    )
+    expect(
+      voiceFromEnv({ ...env, SALEANE_VOICE_MODEL: 'gpt-live-2', SALEANE_VOICE_PRICE: '6' }),
+    ).toMatchObject({ model: 'gpt-live-2', minorPerMinute: 6 })
+  })
+})
+
+describe('a talk', () => {
+  it('holds its minutes first, answers spoken questions with Claude, and keeps only what it ran', async () => {
+    const claudeSide = anthropic([words('Nothing is booked today yet.')])
+    const voice = fakeVoice()
+    start(claude(claudeSide.fetcher), voice.layer)
+    const login = await register()
+    const started = await talk(login)
+    expect(started.statusCode, started.body).toBe(200)
+    const { id, sdp, seconds } = started.json<{ id: string; sdp: string; seconds: number }>()
+    expect({ sdp, seconds }).toEqual({ sdp: 'v=0 answer', seconds: 600 })
+    expect(id).not.toBe('live_1')
+    expect(voice.starts[0]).toMatchObject({ sdp: 'v=0 offer from the browser', voice: 'vesper' })
+    expect(voice.starts[0].instructions).toMatch(/team at Linden Studio\./)
+    expect(voice.starts[0].instructions).toMatch(/in British English/)
+    // Ten minutes and their longest cost, 615 seconds at 5 cents a minute, are held first.
+    expect(stored(login)).toMatchObject({
+      used: { talkSeconds: 600 },
+      spendByDay: { [day]: 51.25 },
+    })
+
+    const [line] = voice.lines
+    line.fire({ type: 'heard', text: 'What is on ' })
+    line.fire({ type: 'heard', text: 'today?' })
+    line.fire({ type: 'delegated', id: 'item_1' })
+    await expect.poll(() => line.said.length).toBe(2)
+    expect(line.said).toEqual([
+      {
+        kind: 'note',
+        id: 'item_1',
+        text: 'SALEANE is looking at the studio records now. Nothing has been changed.',
+      },
+      { kind: 'answer', id: 'item_1', text: 'Nothing is booked today yet.' },
+    ])
+    expect(claudeSide.requests[0].system[1].text).toMatch(/They are talking, not typing/)
+    // A spoken question costs what Claude charged, and is not a typed question.
+    expect(stored(login).used.typed).toBe(0)
+    expect(stored(login).spendByDay[day]).toBeCloseTo(51.59)
+
+    clock += 95_000
+    expect((await read(login, id)).json()).toMatchObject({
+      status: 'talking',
+      secondsLeft: 505,
+      turns: [
+        { heard: 'What is on today?', answer: 'Nothing is booked today yet.', proposals: [] },
+      ],
+    })
+    line.fire({ type: 'usage', seconds: 94 })
+    line.fire({ type: 'closed', reason: 'close_requested', seconds: 95 })
+    expect((await read(login, id)).json()).toMatchObject({ status: 'ended', secondsLeft: 0 })
+    // 95 seconds at 5 cents a minute, plus Claude's 0.34.
+    expect(stored(login).used.talkSeconds).toBe(95)
+    expect(stored(login).spendByDay[day]).toBeCloseTo(95 / 12 + 0.34)
+    expect(
+      api.database.get<{ n: number }>(
+        "SELECT count(*) AS n FROM audit_events WHERE action='assistant.talked' AND organisation_id=?",
+        login.orgId,
+      )?.n,
+    ).toBe(1)
+  })
+
+  it('keeps a talk’s minutes held for as long as it may run, and gives them back if never counted', async () => {
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    const { id } = (await talk(login)).json<{ id: string }>()
+    // Held for its ten minutes, its fifteen seconds to end and a minute to spare.
+    expect(stored(login).holds).toMatchObject([{ until: '2026-10-06T08:11:15.000Z' }])
+    // Seven minutes in, past the five a question is held for, its minutes are still held.
+    clock += 420_000
+    expect((await api.inject({ url: path(login), headers: headers(login) })).json()).toMatchObject({
+      usage: { used: { talkSeconds: 600 } },
+    })
+    voice.lines[0].fire({ type: 'closed', reason: 'close_requested', seconds: 420 })
+    expect((await read(login, id)).json()).toMatchObject({ status: 'ended' })
+    expect(stored(login)).toMatchObject({ used: { talkSeconds: 420 }, holds: [] })
+
+    // A talk SALEANE never counted, as when it stopped mid-talk, comes back once its time is up.
+    const lost = (await talk(login)).json<{ id: string }>()
+    expect(lost.id).toBeTruthy()
+    expect(stored(login).used.talkSeconds).toBe(420 + 600)
+    api.database.run(
+      `UPDATE assistant_usage SET usage=json_set(usage,'$.holds[0].until',?) WHERE organisation_id=?`,
+      new Date(clock - 1).toISOString(),
+      login.orgId,
+    )
+    expect((await api.inject({ url: path(login), headers: headers(login) })).json()).toMatchObject({
+      usage: { used: { talkSeconds: 420 } },
+    })
+  })
+
+  it('shows a change prepared while talking, to approve on screen like a typed one', async () => {
+    const claudeSide = anthropic([
+      {
+        content: [
+          {
+            type: 'tool_use',
+            id: 'toolu_1',
+            name: 'add_reminder',
+            input: { text: 'Call Amelia about her patch test', dueDate: '2026-10-07' },
+          },
+        ],
+        stop_reason: 'tool_use',
+        usage,
+      },
+      words('I have prepared a reminder for tomorrow. It is waiting on your screen to approve.'),
+    ])
+    const voice = fakeVoice()
+    start(claude(claudeSide.fetcher), voice.layer)
+    const login = await register()
+    const { id } = (await talk(login)).json<{ id: string }>()
+    const [line] = voice.lines
+    line.fire({ type: 'heard', text: 'Remind me to call Amelia tomorrow.' })
+    line.fire({ type: 'delegated', id: 'item_1' })
+    await expect.poll(() => line.said.length).toBe(2)
+    const view = (await read(login, id)).json<{
+      turns: { proposals: { id: string; summary: string }[] }[]
+    }>()
+    const [proposal] = view.turns[0].proposals
+    expect(proposal.summary).toMatch(/Call Amelia about her patch test/)
+    const approved = await api.inject({
+      method: 'POST',
+      url: path(login, `/proposals/${proposal.id}`),
+      headers: headers(login),
+      payload: { approve: true },
+    })
+    expect(approved.json()).toMatchObject({ outcome: 'approved', command: { type: 'task-add' } })
+  })
+
+  it('ends when its window is up, and counts on SALEANE’s own clock if OpenAI goes quiet', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    used(login, 1760)
+    const started = (await talk(login)).json<{ id: string; seconds: number }>()
+    expect(started.seconds).toBe(40)
+    const [line] = voice.lines
+    vi.advanceTimersByTime(39_000)
+    expect(line.closed).toBe(false)
+    vi.advanceTimersByTime(1_000)
+    expect(line.closed).toBe(true)
+    // OpenAI never confirms. Fifteen seconds later SALEANE counts what its own clock shows.
+    clock += 55_000
+    vi.advanceTimersByTime(15_000)
+    expect((await read(login, started.id)).json()).toMatchObject({ status: 'ended' })
+    expect(stored(login).used.talkSeconds).toBe(1760 + 55)
+    expect(stored(login).spendByDay[day]).toBeCloseTo(55 / 12)
+  })
+
+  it('counts a talk stopped early by its own clock when OpenAI does not confirm the end', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    const { id } = (await talk(login)).json<{ id: string }>()
+    clock += 30_000
+    const stopped = await api.inject({
+      method: 'POST',
+      url: path(login, `/talk/${id}/end`),
+      headers: headers(login),
+      payload: {},
+    })
+    expect(stopped.json()).toMatchObject({ status: 'talking' })
+    expect(voice.lines[0].closed).toBe(true)
+    clock += 15_000
+    vi.advanceTimersByTime(15_000)
+    expect((await read(login, id)).json()).toMatchObject({ status: 'ended' })
+    expect(stored(login).used.talkSeconds).toBe(45)
+    expect(stored(login).spendByDay[day]).toBeCloseTo(45 / 12)
+  })
+
+  it('takes the time spent attaching its own line out of the talk’s window', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    voice.state.attachTakesMs = 9_000
+    const started = (await talk(login)).json<{ id: string; seconds: number }>()
+    expect(started.seconds).toBe(591)
+    vi.advanceTimersByTime(590_000)
+    expect(voice.lines[0].closed).toBe(false)
+    vi.advanceTimersByTime(1_000)
+    expect(voice.lines[0].closed).toBe(true)
+  })
+
+  it('lets go of a line that reattaches only after SALEANE stopped following the talk', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    const { id } = (await talk(login)).json<{ id: string }>()
+    await api.inject({
+      method: 'POST',
+      url: path(login, `/talk/${id}/end`),
+      headers: headers(login),
+      payload: {},
+    })
+    // The line drops while the end is awaited, and the new one takes longer than the grace time.
+    let attached!: () => void
+    voice.state.holdAttach = new Promise<void>((done) => (attached = done))
+    voice.lines[0].fire({ type: 'lost' })
+    clock += 15_000
+    vi.advanceTimersByTime(15_000)
+    expect((await read(login, id)).json()).toMatchObject({ status: 'ended' })
+    attached()
+    await expect.poll(() => voice.lines[1]?.detached).toBe(true)
+    expect(voice.lines[1].closed).toBe(true)
+  })
+
+  it('asks Claude nothing more once the talk is asked to end, even before OpenAI confirms', async () => {
+    const claudeSide = anthropic([words('Nothing is booked today yet.')])
+    const voice = fakeVoice()
+    start(claude(claudeSide.fetcher), voice.layer)
+    const login = await register()
+    const { id } = (await talk(login)).json<{ id: string }>()
+    const [line] = voice.lines
+    // A question is still gathering its last words when Stop is pressed.
+    line.fire({ type: 'heard', text: 'What is on today?' })
+    line.fire({ type: 'delegated', id: 'item_1' })
+    await api.inject({
+      method: 'POST',
+      url: path(login, `/talk/${id}/end`),
+      headers: headers(login),
+      payload: {},
+    })
+    expect(line.closed).toBe(true)
+    // A question handed over while OpenAI finishes is not asked either.
+    line.fire({ type: 'heard', text: 'And tomorrow?' })
+    line.fire({ type: 'delegated', id: 'item_2' })
+    await new Promise((done) => setTimeout(done, 600))
+    expect(claudeSide.requests).toHaveLength(0)
+    expect(line.said.filter((s) => s.kind === 'answer')).toEqual([])
+    line.fire({ type: 'closed', reason: 'close_requested', seconds: 4 })
+    expect((await read(login, id)).json()).toMatchObject({ status: 'ended' })
+  })
+
+  it('refuses plainly when the month’s talking time is used up, and gives the hold back when OpenAI cannot start', async () => {
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    used(login, 1775)
+    expect((await talk(login)).json()).toMatchObject({
+      status: 'refused',
+      text: "This month's talking time is used up. It resets on the 1st, or the owner can add Plus. You can still type.",
+    })
+    expect(voice.starts).toHaveLength(0)
+    api.database.run('DELETE FROM assistant_usage WHERE organisation_id=?', login.orgId)
+
+    voice.state.failStart = new VoiceError('busy', 'OpenAI answered 429')
+    expect((await talk(login)).json()).toMatchObject({
+      status: 'unavailable',
+      text: 'Talking is not available just now. You can type your question instead.',
+    })
+    expect(stored(login)).toMatchObject({ used: { talkSeconds: 0 }, spendByDay: { [day]: 0 } })
+    // One that may have reached OpenAI counts its 15 seconds of start-up.
+    voice.state.failStart = new VoiceError('unreachable', 'reset')
+    await talk(login)
+    expect(stored(login).spendByDay[day]).toBeCloseTo(1.25)
+    // Without its own line SALEANE could not end the talk, so the browser is not let in.
+    voice.state.failStart = undefined
+    voice.state.failAttach = true
+    expect((await talk(login)).json()).toMatchObject({ status: 'unavailable' })
+    expect(stored(login)).toMatchObject({ used: { talkSeconds: 0 } })
+    expect(stored(login).spendByDay[day]).toBeCloseTo(2.5)
+  })
+
+  it('sizes a replacement after counting the talk it replaces', async () => {
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    // Twelve minutes of the month's thirty are left; the first talk holds ten of them.
+    used(login, 1080)
+    expect((await talk(login)).json()).toMatchObject({ status: 'talking', seconds: 600 })
+    clock += 60_000
+    // Another tab: the first talk is ended and counted at its minute, so the second has ten.
+    expect((await talk(login)).json()).toMatchObject({ status: 'talking', seconds: 600 })
+    expect(voice.lines[0].closed).toBe(true)
+    // The first talk's minute, and the second's ten minutes held while it runs.
+    expect(stored(login).used.talkSeconds).toBe(1080 + 60 + 600)
+  })
+
+  it('follows a replaced talk until OpenAI confirms its end, or the grace time passes', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    await talk(login)
+    clock += 2000
+    await talk(login)
+    const [replaced] = voice.lines
+    // Asked to end and counted at once, so the new talk has its minutes, but still followed.
+    expect(replaced).toMatchObject({ closed: true, detached: false })
+    expect(stored(login).used.talkSeconds).toBe(2 + 600)
+    // A question that arrives meanwhile is not answered, and costs nothing.
+    replaced.fire({ type: 'heard', text: 'What is on today?' })
+    replaced.fire({ type: 'delegated', id: 'item_1' })
+    await Promise.resolve()
+    expect(replaced.said).toEqual([])
+    replaced.fire({ type: 'closed', reason: 'close_requested', seconds: 3 })
+    expect(replaced.detached).toBe(true)
+    expect(stored(login).used.talkSeconds).toBe(2 + 600)
+
+    // Replaced again, and OpenAI never confirms: SALEANE lets go after the grace time.
+    clock += 1000
+    await talk(login)
+    expect(voice.lines[1]).toMatchObject({ closed: true, detached: false })
+    vi.advanceTimersByTime(14_000)
+    expect(voice.lines[1].detached).toBe(false)
+    vi.advanceTimersByTime(1_000)
+    expect(voice.lines[1].detached).toBe(true)
+    expect(stored(login).used.talkSeconds).toBe(2 + 1 + 600)
+  })
+
+  it('ends and refuses a start that took longer than the browser waits', async () => {
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    // OpenAI took 26 seconds to start: the browser, which waits 30, may already have given up.
+    voice.state.startTakesMs = 26_000
+    expect((await talk(login)).json()).toMatchObject({
+      status: 'unavailable',
+      text: 'Talking is not available just now. You can type your question instead.',
+    })
+    expect(voice.lines[0]).toMatchObject({ closed: true, detached: false })
+    // None of the month's talking time is used, and only the start-up is paid for.
+    expect(stored(login).used.talkSeconds).toBe(0)
+    expect(stored(login).spendByDay[day]).toBeCloseTo(1.25)
+    voice.lines[0].fire({ type: 'closed', reason: 'close_requested', seconds: 1 })
+    expect(voice.lines[0].detached).toBe(true)
+    voice.state.startTakesMs = 24_000
+    expect((await talk(login)).json()).toMatchObject({ status: 'talking' })
+
+    // Two tabs at once behind a slow start: the second, kept waiting past the limit, is refused
+    // without asking OpenAI at all.
+    voice.state.startTakesMs = 26_000
+    const both = await Promise.all([talk(login), talk(login)])
+    expect(both.map((r) => r.json<{ status: string }>().status)).toEqual([
+      'unavailable',
+      'unavailable',
+    ])
+    expect(voice.starts).toHaveLength(3)
+  })
+
+  it('ends the talk when the person may no longer ask', async () => {
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    const { id } = (await talk(login)).json<{ id: string }>()
+    // The owner made them a practitioner, who cannot use Ask SALEANE, while they were talking.
+    api.database.run(
+      "UPDATE memberships SET role='practitioner', staff_id='staff-linked' WHERE organisation_id=?",
+      login.orgId,
+    )
+    const [line] = voice.lines
+    line.fire({ type: 'heard', text: 'What is on today?' })
+    line.fire({ type: 'delegated', id: 'item_1' })
+    await expect.poll(() => line.closed).toBe(true)
+    // Nothing is said to someone who may no longer ask: the talk is simply ended.
+    expect(line.said.filter((s) => s.kind === 'answer')).toEqual([])
+    line.fire({ type: 'closed', reason: 'close_requested', seconds: 4 })
+    expect(
+      api.database.get('SELECT 1 AS found FROM memberships WHERE role=?', 'practitioner'),
+    ).toEqual({ found: 1 })
+    expect(id).toEqual(expect.any(String))
+  })
+
+  it('says, keeps and offers nothing Claude prepared once the person lost access while it answered', async () => {
+    const claudeSide = anthropic([
+      {
+        content: [
+          {
+            type: 'tool_use',
+            id: 'toolu_1',
+            name: 'add_reminder',
+            input: { text: 'Call Amelia about her patch test', dueDate: '2026-10-07' },
+          },
+        ],
+        stop_reason: 'tool_use',
+        usage,
+      },
+      words('I have prepared a reminder for tomorrow. It is waiting on your screen to approve.'),
+    ])
+    let orgId = ''
+    // The owner makes them a practitioner while Claude is still answering.
+    const slow = (async (url: string, init: RequestInit) => {
+      api.database.run(
+        "UPDATE memberships SET role='practitioner', staff_id='staff-linked' WHERE organisation_id=?",
+        orgId,
+      )
+      return claudeSide.fetcher(url, init)
+    }) as unknown as typeof fetch
+    const voice = fakeVoice()
+    start(claude(slow), voice.layer)
+    const login = await register()
+    orgId = login.orgId
+    await talk(login)
+    const held = stored(login).spendByDay[day]
+    const [line] = voice.lines
+    line.fire({ type: 'heard', text: 'Remind me to call Amelia tomorrow.' })
+    line.fire({ type: 'delegated', id: 'item_1' })
+    await expect.poll(() => line.closed).toBe(true)
+    await Promise.resolve()
+    expect(claudeSide.requests).toHaveLength(2)
+    // Nothing is said, nothing waits for approval, and what Claude cost still counts.
+    expect(line.said.filter((s) => s.kind === 'answer')).toEqual([])
+    expect(
+      api.database.get<{ n: number }>(
+        "SELECT count(*) AS n FROM audit_events WHERE action='assistant.proposed' AND organisation_id=?",
+        login.orgId,
+      )?.n,
+    ).toBe(0)
+    expect(stored(login).spendByDay[day]).toBeGreaterThan(held)
+    expect(stored(login).used.typed).toBe(0)
+  })
+
+  it('adds what a replaced talk cost by the end OpenAI reports to what was counted', async () => {
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    await talk(login)
+    clock += 60_000
+    await talk(login)
+    // Counted at its minute when replaced, so the new talk has its ten.
+    expect(stored(login).used.talkSeconds).toBe(60 + 600)
+    const counted = stored(login).spendByDay[day]
+    // OpenAI's end, twelve seconds later, reports what the whole talk ran.
+    voice.lines[0].fire({ type: 'closed', reason: 'close_requested', seconds: 72 })
+    expect(voice.lines[0].detached).toBe(true)
+    expect(stored(login).spendByDay[day] - counted).toBeCloseTo(1)
+    expect(stored(login).used.talkSeconds).toBe(60 + 600)
+    // A report that comes to less than was counted gives nothing back.
+    clock += 30_000
+    await talk(login)
+    const again = stored(login).spendByDay[day]
+    voice.lines[1].fire({ type: 'closed', reason: 'close_requested', seconds: 5 })
+    expect(stored(login).spendByDay[day]).toBe(again)
+  })
+
+  it('ends and counts every talk still running when SALEANE stops, before its records close', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    await talk(login)
+    clock += 40_000
+    const db = api.database
+    const closeRecords = db.close.bind(db)
+    let counted: Usage | undefined
+    db.close = () => {
+      counted = stored(login)
+      closeRecords()
+    }
+    api.close()
+    // Closed here, so not again after the test.
+    api = undefined as unknown as ApiHandler
+    expect(voice.lines[0]).toMatchObject({ closed: true, detached: true })
+    // Counted at its 40 seconds while the records were still open, not left held.
+    expect(counted!.used.talkSeconds).toBe(40)
+    expect(counted!.holds ?? []).toEqual([])
+    // Nothing is left to run against the closed records.
+    expect(() => vi.advanceTimersByTime(700_000)).not.toThrow()
+  })
+
+  it('ends a talk whose browser left while it started, and starts none for one that left waiting', async () => {
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    const leaving = (signal: AbortSignal) =>
+      api.inject({
+        method: 'POST',
+        url: path(login, '/talk'),
+        headers: headers(login),
+        payload: { sdp: 'v=0 offer from the browser' },
+        signal,
+      })
+    // The tab closes while OpenAI attaches SALEANE's line.
+    let attached!: () => void
+    voice.state.holdAttach = new Promise<void>((done) => (attached = done))
+    const tab = new AbortController()
+    const first = leaving(tab.signal)
+    while (!voice.starts.length) await new Promise((next) => setImmediate(next))
+    clock += 2000
+    tab.abort()
+    attached()
+    expect((await first).json()).toMatchObject({ status: 'unavailable' })
+    // Nobody can connect to it or end it, so SALEANE ends it and counts only its start-up.
+    expect(voice.lines[0]).toMatchObject({ closed: true })
+    expect(stored(login)).toMatchObject({ used: { talkSeconds: 2 }, holds: [] })
+
+    // A talk running in another tab is not touched by a start whose browser left while it
+    // waited its turn, and OpenAI is not asked.
+    voice.state.holdAttach = undefined
+    const running = (await talk(login)).json<{ id: string }>()
+    voice.state.holdAttach = new Promise<void>((done) => (attached = done))
+    const ahead = talk(login)
+    while (voice.starts.length < 3) await new Promise((next) => setImmediate(next))
+    const waiting = new AbortController()
+    const behind = leaving(waiting.signal)
+    // Its request reaches its turn in the queue before the browser leaves.
+    for (let i = 0; i < 20; i++) await new Promise((next) => setImmediate(next))
+    waiting.abort()
+    attached()
+    expect((await ahead).json()).toMatchObject({ status: 'talking' })
+    expect((await behind).json()).toMatchObject({ status: 'unavailable' })
+    expect(voice.starts).toHaveLength(3)
+    expect((await read(login, running.id)).json()).toMatchObject({ status: 'ended' })
+  })
+
+  it('writes nothing once SALEANE has stopped, for a talk still starting when it stopped', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    // OpenAI is still attaching SALEANE's line when SALEANE stops.
+    let attached!: () => void
+    voice.state.holdAttach = new Promise<void>((done) => (attached = done))
+    const attaching = talk(login)
+    while (!voice.starts.length) await new Promise((next) => setImmediate(next))
+    const db = api.database
+    const closeRecords = db.close.bind(db)
+    let closed = false
+    db.close = () => {
+      closed = true
+      closeRecords()
+    }
+    api.close()
+    expect(closed).toBe(true)
+    attached()
+    const late = await attaching
+    // The line asks OpenAI to end the talk and is let go; the browser is never let in, and the
+    // closed records are not read or written.
+    expect(late.statusCode, late.body).toBe(200)
+    expect(late.json()).toMatchObject({ status: 'unavailable' })
+    expect(voice.lines[0]).toMatchObject({ closed: true, detached: true })
+    expect(() => vi.advanceTimersByTime(700_000)).not.toThrow()
+    api = undefined as unknown as ApiHandler
+
+    // The same while OpenAI is still starting the session, and when its start then fails.
+    for (const fails of [false, true]) {
+      const again = fakeVoice()
+      start(claude(anthropic([]).fetcher), again.layer)
+      const owner = await register()
+      let started!: () => void
+      again.state.holdStart = new Promise<void>((done) => (started = done))
+      if (fails) again.state.failStart = new VoiceError('unreachable', 'No answer.')
+      const starting = talk(owner)
+      while (!again.starts.length) await new Promise((next) => setImmediate(next))
+      api.close()
+      started()
+      const answer = await starting
+      expect(answer.statusCode, answer.body).toBe(200)
+      expect(answer.json()).toMatchObject({ status: 'unavailable' })
+      expect(again.lines).toEqual([])
+      api = undefined as unknown as ApiHandler
+    }
+  })
+
+  it('speaks in the person’s own voice, else the studio’s, and lets no one choose for another', async () => {
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    const command = async (command: Record<string, unknown>) => {
+      const { state } = (
+        await api.inject({ url: `/api/workspaces/${login.orgId}`, headers: headers(login) })
+      ).json<{ state: { revision: number } }>()
+      return api.inject({
+        method: 'POST',
+        url: `/api/workspaces/${login.orgId}/commands`,
+        headers: { ...headers(login), 'idempotency-key': `voice-${Math.random()}` },
+        payload: { revision: state.revision, command },
+      })
+    }
+    const heard = async () => {
+      const started = await talk(login)
+      expect(started.statusCode, started.body).toBe(200)
+      const said = voice.starts.at(-1)!.voice
+      voice.lines.at(-1)!.fire({ type: 'closed', reason: 'close_requested', seconds: 1 })
+      return said
+    }
+    expect(await heard()).toBe('vesper')
+    const studio = await command({ type: 'ai-voice', settings: { tone: 'calm', voice: 'willow' } })
+    expect(studio.statusCode, studio.body).toBe(200)
+    expect(await heard()).toBe('willow')
+    // The server decides whose choice it is, whatever the browser says.
+    const own = await command({ type: 'own-voice', voice: 'quartz', personId: 'someone-else' })
+    expect(own.statusCode, own.body).toBe(200)
+    const { state } = (
+      await api.inject({ url: `/api/workspaces/${login.orgId}`, headers: headers(login) })
+    ).json<{ state: { operations: { voices: Record<string, string> } } }>()
+    expect(Object.keys(state.operations.voices)).not.toContain('someone-else')
+    expect(Object.values(state.operations.voices)).toEqual(['quartz'])
+    expect(await heard()).toBe('quartz')
+    expect((await command({ type: 'own-voice', voice: null })).statusCode).toBe(200)
+    expect(await heard()).toBe('willow')
+    const unknown = await command({ type: 'own-voice', voice: 'nightingale' })
+    expect(unknown.statusCode).toBe(422)
+    expect(unknown.body).toContain('Choose one of the voices on the list.')
+  })
+
+  it('replaces a talk left open, follows a dropped one to end it, and keeps each to its person', async () => {
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    const first = (await talk(login)).json<{ id: string }>()
+    // Left open for three seconds, then replaced: it is counted then, on SALEANE's clock.
+    clock += 3000
+    const second = (await talk(login)).json<{ id: string }>()
+    expect(voice.lines[0].closed).toBe(true)
+    voice.lines[0].fire({ type: 'closed', reason: 'close_requested', seconds: 3 })
+    expect((await read(login, first.id)).json()).toMatchObject({ status: 'ended' })
+
+    // The server's line drops: SALEANE follows the talk again, once, to end it.
+    voice.lines[1].fire({ type: 'lost' })
+    await expect.poll(() => voice.lines.length).toBe(3)
+    expect(voice.lines[2]).toMatchObject({ id: 'live_2', closed: true })
+    voice.lines[2].fire({ type: 'closed', reason: 'close_requested', seconds: 8 })
+    expect((await read(login, second.id)).json()).toMatchObject({ status: 'ended' })
+    expect(stored(login).used.talkSeconds).toBe(11)
+
+    // Two starts at once, as from two tabs: the later replaces the earlier, never both.
+    const [a, b] = (await Promise.all([talk(login), talk(login)])).map((r) =>
+      r.json<{ status: string; id: string }>(),
+    )
+    expect([a.status, b.status]).toEqual(['talking', 'talking'])
+    expect(voice.lines.slice(3).map((l) => l.closed)).toEqual([true, false])
+    voice.lines[3].fire({ type: 'closed', reason: 'close_requested', seconds: 1 })
+    expect((await read(login, a.id)).json()).toMatchObject({ status: 'ended' })
+    expect((await read(login, b.id)).json()).toMatchObject({ status: 'talking' })
+
+    const other = await register(false, 'other@example.invalid')
+    expect((await read(other, second.id)).statusCode).toBe(404)
+    expect(
+      (
+        await api.inject({
+          method: 'POST',
+          url: path(other, `/talk/${second.id}/end`),
+          headers: headers(other),
+          payload: {},
+        })
+      ).statusCode,
+    ).toBe(404)
+  })
+})

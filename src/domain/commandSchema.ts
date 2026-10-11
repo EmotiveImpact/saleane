@@ -14,7 +14,11 @@ import { approvalCommandSchemas } from './approvalsSchema'
 import { brandCommandSchemas } from './brandRulesSchema'
 import { tillCommandSchemas } from './tillSchema'
 import { twoStepRuleCommandSchemas } from './twoStepRule'
-import { googleBookingSchema, receptionistSettingsSchema } from './receptionistSchema'
+import {
+  aiVoiceSchema,
+  googleBookingSchema,
+  receptionistSettingsSchema,
+} from './receptionistSchema'
 import { aiBookingSchema } from './aiBookingSchema'
 import { missedCallSources } from './missedCallsSchema'
 import { offerInputSchema } from './plansSchema'
@@ -39,6 +43,7 @@ import {
 } from './setupSchema'
 import {
   GUEST_NOTE_LIMIT,
+  VISIT_AFTERCARE_LIMIT,
   visitChannels,
   paymentMethodSchema,
   processorSchema,
@@ -183,6 +188,16 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('message-queue'), messageId: id }),
   // V4: the AI receptionist on the booking page.
   z.object({ type: z.literal('receptionist'), settings: receptionistSettingsSchema }),
+  z.object({ type: z.literal('ai-voice'), settings: aiVoiceSchema }),
+  /**
+   * NEXT-16: a person's own voice for talking to Ask SALEANE, or null for the studio's. The server
+   * sets whose it is from the sign-in; a person never chooses for anyone else.
+   */
+  z.object({
+    type: z.literal('own-voice'),
+    voice: z.string().trim().min(1).max(40).nullable(),
+    personId: z.string().min(1).max(100).optional(),
+  }),
   z.object({ type: z.literal('google-booking'), settings: googleBookingSchema }),
   // Stage 5: booking through ChatGPT or Claude.
   z.object({ type: z.literal('ai-booking'), settings: aiBookingSchema }),
@@ -518,6 +533,18 @@ export const commandSchema = z.discriminatedUnion('type', [
     giftCardMinor: money.optional(),
   }),
   z.object({ type: z.literal('note'), clientId: id, text: z.string().trim().min(2).max(1000) }),
+  /**
+   * NEXT-16: what a professional saves after a visit, written up from a voice note or typed: a note
+   * for the studio, and their own aftercare for the guest (null takes it away).
+   */
+  z.object({
+    type: z.literal('visit-write-up'),
+    appointmentId: id,
+    note: z.string().trim().min(2).max(1000).optional(),
+    aftercare: z.string().trim().min(2).max(VISIT_AFTERCARE_LIMIT).nullable().optional(),
+    /** Set by the server to the professional writing up their own visit; the desk signs nothing. */
+    signedBy: id.optional(),
+  }),
   // V2: products sold to someone without a visit.
   z.object({
     type: z.literal('counter-sale'),

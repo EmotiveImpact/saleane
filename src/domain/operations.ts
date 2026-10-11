@@ -1,5 +1,9 @@
 import { z } from 'zod'
-import { googleBookingSchema, receptionistSettingsSchema } from './receptionistSchema'
+import {
+  aiVoiceSchema,
+  googleBookingSchema,
+  receptionistSettingsSchema,
+} from './receptionistSchema'
 import { aiBookingSchema } from './aiBookingSchema'
 import type { BusinessState } from './model'
 import { reminderSettingsSchema } from './reminderSettings'
@@ -411,6 +415,10 @@ export const operationsSchema = z.object({
   missedCalls: z.array(missedCallSchema).max(MISSED_CALL_LIMIT).optional(),
   /** V4: the AI receptionist on the booking page. Absent means it is off. */
   receptionist: receptionistSettingsSchema.optional(),
+  /** NEXT-16: the tone the AI speaks in for the studio, and the voice Ask SALEANE uses. */
+  aiVoice: aiVoiceSchema.optional(),
+  /** NEXT-16: each person's own voice for talking to Ask SALEANE, by their sign-in. */
+  voices: z.record(z.string().min(1).max(100), z.string().min(1).max(40)).optional(),
   googleBooking: googleBookingSchema.optional(),
   /** Stage 5: whether guests can book through ChatGPT or Claude. Absent means it is off. */
   aiBooking: aiBookingSchema.optional(),
@@ -716,6 +724,9 @@ export function permissionFor(command: { type: string; approve?: boolean }) {
   if (command.type === 'missed-call-done') return 'missed-call'
   if (command.type === 'form-save' || command.type === 'form-archive') return 'forms'
   if (command.type === 'consent-wording') return 'consent-wording'
+  if (command.type === 'ai-voice') return 'receptionist'
+  // NEXT-16: writing up a visit is adding a note to it.
+  if (command.type === 'visit-write-up') return 'note'
   if (command.type === 'consultation-save') return 'consultation'
   if (['reply-note', 'replies-read', 'reply-link'].includes(command.type)) return 'message'
   if (command.type === 'saved-reply-save' || command.type === 'saved-reply-remove')
@@ -785,6 +796,9 @@ export const GENERAL_ACTIONS = [
 ] as const
 
 export function can(role: Role, action: string) {
+  // NEXT-16: everyone who talks to Ask SALEANE may choose the voice they hear; it changes nothing
+  // about the studio. Practitioners do not talk to it yet.
+  if (action === 'own-voice') return role !== 'practitioner'
   // Feedback, a guest's own waitlist choices, forms, "I've arrived" and stopping email news come
   // only from their private link.
   if (

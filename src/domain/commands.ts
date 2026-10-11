@@ -778,6 +778,31 @@ export function execute(
         })
         recordId = sale.id
       }
+    } else if (command.type === 'visit-write-up') {
+      const visit = next.appointments.find((a) => a.id === command.appointmentId)
+      if (!visit) throw new Error('Visit does not belong to this studio.')
+      if (visit.status === 'cancelled' || visit.status === 'no_show')
+        throw new Error('This visit did not go ahead, so there is nothing to write up.')
+      if (visit.status !== 'arrived' && visit.status !== 'completed')
+        throw new Error('Write up a visit once the guest has arrived.')
+      if (command.note === undefined && command.aftercare === undefined)
+        throw new Error('Write a note for the studio or aftercare for the guest.')
+      if (command.note)
+        addEvent({
+          clientId: visit.clientId,
+          appointmentId: visit.id,
+          type: 'note',
+          title: 'Note after the visit',
+          detail: command.note,
+        })
+      if (command.aftercare === null) delete visit.aftercare
+      else if (command.aftercare)
+        visit.aftercare = {
+          text: command.aftercare,
+          ...(command.signedBy ? { staffId: command.signedBy } : {}),
+          at: now,
+        }
+      recordId = visit.id
     } else if (command.type === 'note' || command.type === 'consent') {
       const client = next.clients.find((c) => c.id === command.clientId)
       if (!client) throw new Error('Client does not belong to this studio.')

@@ -5,6 +5,10 @@ import { MANAGE_LINK } from '../../src/domain/reminders'
 import { NEWS_STOP_LINK } from '../../src/domain/news'
 import { OFFER_LINK } from '../../src/domain/quietOffersSchema'
 import { guestOf, shownBody } from '../../src/domain/cancelledTimes'
+import { BOOK_LINK } from '../../src/domain/reminderSettings'
+import { venueDate } from '../../src/domain/tillCount'
+import { renderEmail, studioSender } from '../../src/email/render'
+import { sampleKinds, sampleMessage } from '../../src/email/samples'
 import { repliesList } from '../../src/domain/inbox'
 import type { BusinessState } from '../../src/domain/model'
 import type { Context, Route } from '../context'
@@ -16,6 +20,7 @@ const query = z.object({
   /** Stage 6: with `clientId`, the messages of every record of that guest, as the Inbox shows. */
   guest: z.enum(['1']).optional(),
 })
+const sampleQuery = z.object({ kind: z.enum(sampleKinds) })
 
 /**
  * V4: the receptionist answers a sender before anyone knows who they are. Once the team matches
@@ -28,8 +33,15 @@ function linkedClients(state: BusinessState) {
   return linked
 }
 
-/** The private link is never stored; the record shows where it went. */
-function view(row: OutboxRow, linked: Map<string, string>) {
+/** Private links are never stored; the record shows where each one went. */
+const privately = (body: string) =>
+  body
+    .replaceAll(MANAGE_LINK, '[private link to manage the visit]')
+    .replaceAll(NEWS_STOP_LINK, '[private link to stop news]')
+    // Stage 5: an invitation's private link to its quiet-time price is never stored either.
+    .replaceAll(OFFER_LINK, '')
+
+function view(row: OutboxRow, linked: Map<string, string>, bookAt: string) {
   return {
     id: row.id,
     appointmentId: row.appointment_id,
@@ -41,13 +53,10 @@ function view(row: OutboxRow, linked: Map<string, string>) {
     channel: row.channel,
     recipient: row.recipient,
     subject: row.subject,
-    body: (row.kind === 'message' ? shownBody : (body: string) => body)(
-      row.body
-        .replaceAll(MANAGE_LINK, '[private link to manage the visit]')
-        .replaceAll(NEWS_STOP_LINK, '[private link to stop news]'),
-    )
-      // Stage 5: an invitation's private link to its quiet-time price is never stored either.
-      .replaceAll(OFFER_LINK, ''),
+    // A written message names where its booking link goes; the time and price are its own.
+    body: privately(
+      row.kind === 'message' ? shownBody(row.body) : row.body.replaceAll(BOOK_LINK, bookAt),
+    ),
     status: row.status,
     provider: row.provider,
     detail: row.detail,
@@ -70,6 +79,44 @@ export function messagingRoutes(outbox: Outbox) {
     const org = ctx.orgFor(path[2], actor)
     // Practitioners see their own day only; the outbox lists every client's messages.
     if (org.role === 'practitioner') fail(403, 'Your role cannot view sent messages.')
+    const bookAt = `${ctx.allowedOrigin}/book/${org.slug}`
+    // NEXT-13: an email as the guest sees it, in the studio's colours today. The private link is
+    // never made for a look: its button shows but goes nowhere.
+    const designed = (subject: string, text: string, typed: boolean) => ({
+      subject,
+      html: renderEmail({
+        subject,
+        text,
+        links: { [BOOK_LINK]: bookAt },
+        details: !typed,
+        from: studioSender(org.state),
+      }),
+    })
+    if (path.length === 5 && path[4] === 'sample' && method === 'GET') {
+      const { kind } = sampleQuery.parse(Object.fromEntries(url.searchParams))
+      const now = new Date(ctx.now()).toISOString()
+      const today = venueDate(org.state.organisation.timeZone, now)
+      const message = sampleMessage(org.state, kind, today, now)
+      reply(200, designed(message.subject, message.body, false))
+      return true
+    }
+    if (path.length === 6 && path[5] === 'email' && method === 'GET') {
+      const row = ctx.db.get<OutboxRow>(
+        "SELECT * FROM outbox WHERE id=? AND organisation_id=? AND channel='email'",
+        path[4],
+        org.id,
+      )
+      if (!row) fail(404, 'This email was not found.')
+      reply(
+        200,
+        designed(
+          row!.subject,
+          privately(row!.body),
+          row!.kind === 'message' || row!.kind === 'news',
+        ),
+      )
+      return true
+    }
     if (path.length === 4 && method === 'GET') {
       const input = query.parse(Object.fromEntries(url.searchParams))
       const linked = linkedClients(org.state)
@@ -95,7 +142,7 @@ export function messagingRoutes(outbox: Outbox) {
             input.limit,
           )
       reply(200, {
-        messages: rows.map((row) => view(row, linked)),
+        messages: rows.map((row) => view(row, linked, bookAt)),
         providers: {
           email: { name: outbox.providers.email.name, live: outbox.providers.email.live },
           sms: { name: outbox.providers.sms.name, live: outbox.providers.sms.live },

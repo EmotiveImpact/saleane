@@ -37,6 +37,7 @@ import { ReceiptActions } from './ReceiptActions'
 import { VisitPatchTest } from './PatchTests'
 import { VisitForms } from './GuestForms'
 import { VisitConsultation } from './Consultations'
+import { VisitWriteUp } from './VisitWriteUp'
 import { shownStatus } from '../domain/selectors'
 import { everyLabel, laterInRepeat, repeatLabel } from '../domain/repeat'
 import { servicePhoto } from './servicePhoto'
@@ -270,8 +271,8 @@ export function AppointmentDialog({
         }}
       />
     )
-  async function run(command: Command) {
-    if (!allowed(command.type)) return false
+  async function run(command: Command, action: string = command.type) {
+    if (!allowed(action)) return false
     setPending(true)
     setError('')
     try {
@@ -287,6 +288,13 @@ export function AppointmentDialog({
     } finally {
       setPending(false)
     }
+  }
+  // NEXT-16: reception and managers write up a visit that went ahead, as a professional does.
+  async function saveWriteUp(command: Command, done: string) {
+    setNotice('')
+    const saved = await run(command, 'note')
+    if (saved) setNotice(done)
+    return saved
   }
   async function welcome() {
     await run({ type: 'arrive', appointmentId })
@@ -1239,6 +1247,19 @@ export function AppointmentDialog({
             )}
             <VisitConsultation appointment={appointment} />
             <VisitForms appointment={appointment} />
+            {storeMode === 'server' &&
+              can(role, 'note') &&
+              (appointment.status === 'arrived' || appointment.status === 'completed') && (
+                <VisitWriteUp
+                  key={appointment.id}
+                  path={`/api/workspaces/${encodeURIComponent(state.organisation.id)}`}
+                  appointmentId={appointment.id}
+                  guest={firstName}
+                  aftercare={appointment.aftercare?.text}
+                  saving={busy}
+                  onSave={saveWriteUp}
+                />
+              )}
           </div>
           <div className="visit-money">
             <div className="receipt-line">

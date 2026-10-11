@@ -33,6 +33,7 @@ export const PRACTITIONER_PATCH_TESTS = 5
 const PRACTITIONER_COMMANDS = [
   'arrive',
   'note',
+  'visit-write-up',
   'patch-test',
   'patch-test-result',
   'clock-in',
@@ -123,6 +124,8 @@ export const practitionerViewSchema = z
            * from the visits the guest came to. A sentence only, never the visits behind it.
            */
           moment: z.string().max(200).optional(),
+          /** NEXT-16: their own aftercare for this visit, sent with its aftercare email. */
+          aftercare: z.string().optional(),
           /** V1.5: for a treatment that needs one, where the guest's patch test stands. */
           patchTest: z
             .object({
@@ -313,6 +316,7 @@ export function practitionerView(
       status: a.status,
       ...(a.status === 'confirmed' && a.guestHereAt ? { guestHere: true as const } : {}),
       ...momentFor(s, a),
+      ...(a.aftercare ? { aftercare: a.aftercare.text } : {}),
       patchTest: patchFor(a),
       ...formsForVisit(s, a),
       ...(() => {
@@ -375,6 +379,14 @@ export function practitionerRefusal(
     return visits.some((a) => a.id === command.appointmentId)
       ? null
       : 'This visit is not assigned to you.'
+  // NEXT-16: only for their own visits, and only once the guest has come in.
+  if (command.type === 'visit-write-up') {
+    const visit = visits.find((a) => a.id === command.appointmentId)
+    if (!visit) return 'This visit is not assigned to you.'
+    return visit.status === 'arrived' || visit.status === 'completed'
+      ? null
+      : 'Write up a visit once the guest has arrived.'
+  }
   if (command.type === 'note')
     return visits.some((a) => a.clientId === command.clientId)
       ? null
