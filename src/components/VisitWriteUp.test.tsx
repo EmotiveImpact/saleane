@@ -295,3 +295,63 @@ test('a microphone granted after leaving is let go at once and never recorded', 
     Reflect.deleteProperty(navigator, 'mediaDevices')
   }
 })
+
+test('a second tap while the browser asks for the microphone opens nothing more', async () => {
+  const user = userEvent.setup()
+  const getUserMedia = vi.fn(() => new Promise(() => {}))
+  vi.stubGlobal('MediaRecorder', class {})
+  Object.defineProperty(navigator, 'mediaDevices', {
+    configurable: true,
+    value: { getUserMedia },
+  })
+  vi.mocked(api).mockResolvedValue({ mode: 'live', listens: true } as never)
+  try {
+    render(
+      <VisitWriteUp
+        path={path}
+        appointmentId="visit-1"
+        guest="Amara"
+        saving={false}
+        onSave={vi.fn()}
+      />,
+    )
+    const speak = await screen.findByRole('button', { name: 'Speak a note' })
+    await user.click(speak)
+    await user.click(speak)
+    expect(speak).toBeDisabled()
+    expect(getUserMedia).toHaveBeenCalledTimes(1)
+  } finally {
+    vi.unstubAllGlobals()
+    Reflect.deleteProperty(navigator, 'mediaDevices')
+  }
+})
+
+test('asks again before saying where saved aftercare goes, as its email may have gone since', async () => {
+  const user = userEvent.setup()
+  let ahead = true
+  vi.mocked(api).mockImplementation(async (url) => {
+    if (url === `${path}/write-up?visit=visit-1`)
+      return { mode: 'test', listens: false, aftercareEmail: ahead } as never
+    return { heard: 'Keep it dry.', note: '', aftercare: 'Keep it dry tonight.' } as never
+  })
+  const onSave = vi.fn().mockResolvedValue(true)
+  render(
+    <VisitWriteUp
+      path={path}
+      appointmentId="visit-1"
+      guest="Amara"
+      aftercare="Use the purple shampoo."
+      saving={false}
+      onSave={onSave}
+    />,
+  )
+  expect(await screen.findByText(/^Added to their aftercare email/)).toBeInTheDocument()
+  // The aftercare email goes while the visit is open.
+  ahead = false
+  await user.click(screen.getByRole('button', { name: 'Remove' }))
+  expect(onSave).toHaveBeenLastCalledWith(
+    { type: 'visit-write-up', appointmentId: 'visit-1', aftercare: null },
+    'The aftercare is removed from the visit.',
+  )
+  expect(await screen.findByText(/^Kept on the visit only/)).toBeInTheDocument()
+})

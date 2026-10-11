@@ -63,6 +63,10 @@ export function VisitWriteUp({
   const microphone = useRef<MediaStream | null>(null)
   // False once the screen has gone, so a microphone granted after leaving is let go at once.
   const shown = useRef(true)
+  // True while the browser is asking for the microphone, so a second tap cannot open another.
+  const asking = useRef(false)
+  const [waiting, setWaiting] = useState(false)
+  const statusPath = `${path}/write-up?visit=${encodeURIComponent(appointmentId)}`
   const canRecord =
     typeof window !== 'undefined' &&
     typeof window.MediaRecorder !== 'undefined' &&
@@ -70,13 +74,23 @@ export function VisitWriteUp({
 
   useEffect(() => {
     let active = true
-    api<WriteUpStatus>(`${path}/write-up?visit=${encodeURIComponent(appointmentId)}`)
+    api<WriteUpStatus>(statusPath)
       .then((next) => active && setStatus(next))
       .catch(() => active && setStatus({ mode: 'test', listens: false }))
     return () => {
       active = false
     }
-  }, [path, appointmentId])
+  }, [statusPath])
+  /** Asks again whether aftercare still goes in the visit's email, which can go at any time. */
+  async function emailAhead() {
+    try {
+      const next = await api<WriteUpStatus>(statusPath)
+      if (shown.current) setStatus(next)
+      return next.aftercareEmail === true
+    } catch {
+      return false
+    }
+  }
   // A recording never outlives the screen it was started on, and the microphone is let go with it.
   // Each visit has its own copy of this screen (keyed by the visit), so a new visit starts afresh.
   useEffect(() => {
@@ -130,7 +144,10 @@ export function VisitWriteUp({
   }
 
   async function startRecording() {
+    if (asking.current || recorder.current) return
     setProblem('')
+    asking.current = true
+    setWaiting(true)
     let stream: MediaStream
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -140,6 +157,9 @@ export function VisitWriteUp({
           'SALEANE could not use the microphone. Allow it in your browser, or type instead.',
         )
       return
+    } finally {
+      asking.current = false
+      if (shown.current) setWaiting(false)
     }
     // They left while the browser was still asking for the microphone.
     if (!shown.current) {
@@ -190,11 +210,12 @@ export function VisitWriteUp({
       ...(note.length >= 2 ? { note } : {}),
       ...(care.length >= 2 ? { aftercare: care } : {}),
     }
+    const ahead = care.length >= 2 && (await emailAhead())
     if (
       await onSave(
         command,
         care.length >= 2
-          ? emailed
+          ? ahead
             ? `Saved. The aftercare is added to ${guest}’s aftercare email.`
             : 'Saved. The aftercare is kept on the visit, and no email will carry it.'
           : 'Saved to their history.',
@@ -202,7 +223,20 @@ export function VisitWriteUp({
     ) {
       setDraft(null)
       setWords('')
+      void emailAhead()
     }
+  }
+  async function remove() {
+    const ahead = await emailAhead()
+    if (
+      await onSave(
+        { type: 'visit-write-up', appointmentId, aftercare: null },
+        ahead
+          ? 'The aftercare is removed from their aftercare email.'
+          : 'The aftercare is removed from the visit.',
+      )
+    )
+      void emailAhead()
   }
 
   const listening = seconds !== null
@@ -238,18 +272,7 @@ export function VisitWriteUp({
               ? 'Added to their aftercare email, after the treatment’s own aftercare.'
               : KEPT}
           </small>
-          <Button
-            variant="secondary"
-            disabled={saving}
-            onClick={() =>
-              void onSave(
-                { type: 'visit-write-up', appointmentId, aftercare: null },
-                emailed
-                  ? 'The aftercare is removed from their aftercare email.'
-                  : 'The aftercare is removed from the visit.',
-              )
-            }
-          >
+          <Button variant="secondary" disabled={saving} onClick={() => void remove()}>
             Remove
           </Button>
         </div>
@@ -269,7 +292,7 @@ export function VisitWriteUp({
                   </span>
                 </>
               ) : (
-                <Button disabled={busy} onClick={() => void startRecording()}>
+                <Button disabled={busy || waiting} onClick={() => void startRecording()}>
                   <Mic size={16} aria-hidden="true" />
                   Speak a note
                 </Button>
