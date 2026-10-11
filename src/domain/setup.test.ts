@@ -204,6 +204,37 @@ describe('add a location', () => {
     expect(slots(s, 'service-facial', 'staff-maya', thursday, now, islington.id)).toContain(600)
   })
 
+  it('refuses a location where nobody working there gives a treatment on its menu', () => {
+    const result = run(
+      studio(),
+      opening({
+        team: [{ staffId: 'staff-theo', days: [4] }],
+        notOffered: ['service-cut', 'service-gloss', 'service-patch-test'],
+      }),
+    )
+    expect(result).toEqual({
+      ok: false,
+      error:
+        'Nobody working at Islington gives a treatment on its menu, so guests could not book there. Choose someone who does.',
+    })
+    // Someone new who gives a facial there is enough.
+    const opened = run(
+      studio(),
+      opening({
+        team: [],
+        newTeam: [
+          {
+            name: 'Ines Duarte',
+            role: 'Skin',
+            tone: 'blue',
+            serviceIds: ['service-facial'],
+            days: [5],
+          },
+        ],
+      }),
+    )
+    expect(opened.ok).toBe(true)
+  })
   it('gives someone the location’s hours on a day they had off', () => {
     const start = studio()
     // Theo works Tuesday to Saturday, so Monday is a day off.
