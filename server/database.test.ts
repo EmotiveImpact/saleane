@@ -19,7 +19,8 @@ const versions = (db: LocalDatabase) =>
   db
     .all<{ version: number }>('SELECT version FROM schema_migrations ORDER BY version')
     .map((row) => row.version)
-const next = migrations.length + 1
+// One after the last step, whether or not the numbers run without a gap.
+const next = SCHEMA_VERSION + 1
 const known = migrations.map((migration) => migration.version)
 const addNotes: Migration = {
   version: next,
@@ -31,7 +32,9 @@ describe('numbered schema migrations', () => {
   it('records every known step on a fresh database', () => {
     const db = new LocalDatabase(':memory:')
     expect(versions(db)).toEqual(migrations.map((migration) => migration.version))
-    expect(SCHEMA_VERSION).toBe(migrations.length)
+    expect(SCHEMA_VERSION).toBe(migrations.at(-1)!.version)
+    expect([...known].sort((a, b) => a - b)).toEqual(known)
+    expect(new Set(known).size).toBe(known.length)
     db.close()
   })
   it('applies only pending steps when an existing file opens, keeping its records', () => {

@@ -14,6 +14,8 @@ import {
 } from '../domain/privacy'
 import type { ClientExport, ErasureReview, ExportPreview, StudioExport } from '../domain/privacy'
 import { RETENTION_REGISTER } from '../domain/dataRetention'
+import { retentionCount, retentionDecision, retentionRecord } from '../domain/retentionDue'
+import { RetentionDecisions } from './RetentionDecisions'
 import { Button, ErrorMessage, Modal } from '../design'
 import './privacy.css'
 
@@ -314,8 +316,9 @@ export function ClientPrivacy({ clientId }: { clientId: string }) {
           !error && <p>Preparing the review…</p>
         )}
         <p className="privacy-default">
-          SALEANE does not delete client records yet. Recording the request adds it to the audit log
-          and shows it on this client.
+          Recording the request adds it to the audit log and shows it on this client. SALEANE
+          deletes details only when an owner or manager approves it, once their keeping period ends,
+          in Settings, Data &amp; privacy.
         </p>
         <ErrorMessage error={error} />
         <p className="ops-save-note" role="status">
@@ -360,6 +363,9 @@ const PRIVACY_ACTIONS: Record<string, string> = {
   'client.exported': 'Client data copy downloaded',
   'client.erasure_requested': 'Erasure request recorded',
   'studio.exported': 'Whole studio exported',
+  // Stage 6: decisions about records at the end of their keeping period.
+  'retention-delete': 'Deletion approved',
+  'retention-keep': 'Kept longer',
 }
 /** Asked for by kind, so a busy studio's other changes never push these out of the list. */
 const privacyRecord = `audit?actions=${Object.keys(PRIVACY_ACTIONS).join(',')}`
@@ -382,6 +388,8 @@ export function StudioPrivacy() {
     const audit = await api<{ events: AuditEvent[] }>(`${base}/${privacyRecord}`)
     setEvents(audit.events.filter((e) => e.action in PRIVACY_ACTIONS))
   }
+  // Stage 6: a decision made above shows in the record straight away.
+  const decided = retentionRecord(state).decisions.length
   useEffect(() => {
     let active = true
     if (mode === 'server' && ['owner', 'manager'].includes(role))
@@ -395,7 +403,7 @@ export function StudioPrivacy() {
     return () => {
       active = false
     }
-  }, [base, mode, role])
+  }, [base, mode, role, decided])
   async function prepare() {
     setError('')
     setDone('')
@@ -440,6 +448,10 @@ export function StudioPrivacy() {
     }
   }
   const clientName = (id: string) => state.clients.find((c) => c.id === id)?.name ?? 'A client'
+  const decisionWords = (id: string) => {
+    const decision = retentionDecision(state, id)
+    return decision ? retentionCount(decision.kind, decision.count) : 'Records'
+  }
   const when = new Intl.DateTimeFormat(state.organisation.locale, {
     timeZone: state.organisation.timeZone,
     day: 'numeric',
@@ -449,6 +461,7 @@ export function StudioPrivacy() {
   })
   return (
     <>
+      <RetentionDecisions />
       <section className="surface ops-panel">
         <header>
           <div>
@@ -495,8 +508,8 @@ export function StudioPrivacy() {
           <div>
             <h2>Privacy record</h2>
             <p>
-              Exports and erasure requests, from the audit log. Contents are never logged, only who
-              acted and when.
+              Exports, erasure requests and decisions about records at the end of their keeping
+              period, from the audit log. Contents are never logged, only who acted and when.
             </p>
           </div>
         </header>
@@ -513,7 +526,9 @@ export function StudioPrivacy() {
                   <small>
                     {e.action === 'studio.exported'
                       ? state.organisation.name
-                      : clientName(e.recordId)}{' '}
+                      : e.action.startsWith('retention-')
+                        ? decisionWords(e.recordId)
+                        : clientName(e.recordId)}{' '}
                     · {e.actor} · {when.format(new Date(e.occurredAt))}
                   </small>
                 </div>
@@ -521,7 +536,7 @@ export function StudioPrivacy() {
             ))}
           </div>
         ) : (
-          <p className="ops-help">No exports or erasure requests yet.</p>
+          <p className="ops-help">No exports, erasure requests or decisions yet.</p>
         )}
       </section>
       <section className="surface ops-panel" aria-labelledby="retention-heading">

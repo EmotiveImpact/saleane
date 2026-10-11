@@ -4,6 +4,7 @@ import {
   googleBookingSchema,
   receptionistSettingsSchema,
 } from './receptionistSchema'
+import { aiBookingSchema } from './aiBookingSchema'
 import type { BusinessState } from './model'
 import { reminderSettingsSchema } from './reminderSettings'
 import {
@@ -22,11 +23,29 @@ import {
   checklistSchema,
 } from './branchVisitSchema'
 import { patchTestSettingsSchema } from './patchTestsSchema'
+import { tillSettingsSchema } from './tillSchema'
 import { SHIFT_LIMIT, shiftSchema } from './hoursSchema'
+import { ROTA_CHANGE_LIMIT, ROTA_COMMANDS, rotaChangeSchema } from './rotaSchema'
+import { NEWS_LIMIT, newsMessageSchema } from './newsSchema'
+import { messageOfferSchema, quietOfferSettingsSchema } from './quietOffersSchema'
+import { retentionRecordSchema } from './retentionSchema'
+import { canApproveDeletion } from './dataRetention'
+import { twoStepRuleSchema } from './twoStepRule'
+import type { RotaChange } from './rotaSchema'
+import { STAFF_MOVE_LIMIT, staffMoveSchema } from './staffMovesSchema'
+import type { StaffMove } from './staffMovesSchema'
 import { MISSED_CALL_LIMIT, missedCallSchema } from './missedCallsSchema'
 import { paymentMethodSchema, processorSchema } from './paymentMethods'
 import { setupProgressSchema } from './setupSchema'
 import { RENT_LIMIT, RENT_PAYMENT_LIMIT, rentPaymentSchema, rentalSchema } from './rentSchema'
+import {
+  COMMISSION_RATE_LIMIT,
+  COMMISSION_STEPS_LIMIT,
+  STAFF_TARGET_LIMIT,
+  commissionRateSchema,
+  commissionStepsSchema,
+  staffTargetSchema,
+} from './commissionSchema'
 import {
   ACCOUNTING_EXPORT_LIMIT,
   accountingExportSchema,
@@ -138,6 +157,16 @@ export const productInputSchema = z.object({
   /** V2: who the studio orders it from, and how many it usually orders. */
   supplierId: id.optional(),
   reorderQuantity: z.number().int().min(1).max(10000).optional(),
+  /**
+   * Stage 2: the barcode printed on the product. The product command checks it (EAN-13, EAN-8
+   * and UPC-A check digits) and keeps it in its normal form, once per studio.
+   */
+  barcode: z.string().trim().max(60).optional(),
+  /** Stage 2: the product's photo, kept in the server's images table and shown only to the team. */
+  imageId: z
+    .string()
+    .regex(/^[A-Za-z0-9-]{8,64}$/)
+    .optional(),
 })
 export const protectionSchema = z
   .object({
@@ -207,6 +236,15 @@ export const timeOffInputSchema = z
     note: z.string().trim().max(150).optional(),
   })
   .refine((t) => t.to >= t.from, 'Time off must end on or after the day it starts.')
+/** Stage 4: new days, kind or note for time off already recorded. The person stays the same. */
+export const timeOffChangeInputSchema = z
+  .object({
+    from: z.iso.date(),
+    to: z.iso.date(),
+    kind: z.enum(timeOffKinds),
+    note: z.string().trim().max(150).optional(),
+  })
+  .refine((t) => t.to >= t.from, 'Time off must end on or after the day it starts.')
 export const timeOffSchema = z.object({
   id,
   staffId: id,
@@ -218,6 +256,12 @@ export const timeOffSchema = z.object({
   actor: z.string(),
   cancelledAt: z.iso.datetime().optional(),
   cancelledBy: z.string().optional(),
+  /**
+   * Stage 4: changing time off keeps the earlier record, cancelled, naming the one that replaced
+   * it (`changedTo`); the new record names the one it came from (`changedFrom`).
+   */
+  changedTo: id.optional(),
+  changedFrom: id.optional(),
 })
 export type TimeOff = z.infer<typeof timeOffSchema>
 
@@ -278,6 +322,8 @@ export const operationsSchema = z.object({
       saleId: id.optional(),
       /** V2: the walk-in sale that sold it, when it was sold without a visit. */
       counterSaleId: id.optional(),
+      /** Stage 5: the sale or refund from another till that took it off or put it back. */
+      otherTillSaleId: id.optional(),
       /** V2: the refund a `returned` movement came back with. */
       refundId: id.optional(),
       /** V2: the supplier order a delivery arrived on. */
@@ -313,6 +359,11 @@ export const operationsSchema = z.object({
         })
         .strict()
         .optional(),
+      /**
+       * Stage 5: the lower price an invitation carries for that time, fixed when it was written.
+       * A guest books it only through the private link in their email, once.
+       */
+      offer: messageOfferSchema.optional(),
     }),
   ),
   refunds: z.array(
@@ -369,6 +420,8 @@ export const operationsSchema = z.object({
   /** NEXT-16: each person's own voice for talking to Ask SALEANE, by their sign-in. */
   voices: z.record(z.string().min(1).max(100), z.string().min(1).max(40)).optional(),
   googleBooking: googleBookingSchema.optional(),
+  /** Stage 5: whether guests can book through ChatGPT or Claude. Absent means it is off. */
+  aiBooking: aiBookingSchema.optional(),
   /** V5: locations grouped into regions, and each location's monthly takings target. */
   regions: z.array(regionSchema).max(REGION_LIMIT).optional(),
   targets: z.array(targetSchema).max(TARGET_LIMIT).optional(),
@@ -385,10 +438,31 @@ export const operationsSchema = z.object({
   houseRules: houseRulesSchema.optional(),
   /** V5: anonymous comparison with similar studios, only when the owner chooses to share. */
   benchmark: benchmarkSharingSchema.optional(),
+  /** Stage 2: how each location's receipts print and whether its cash drawer opens by itself. */
+  till: tillSettingsSchema.optional(),
   /** Set up your studio: the screen the owner picks up at. Absent until they first use it. */
   setup: setupProgressSchema.optional(),
   /** NEXT-07: hours worked, clocked in and out or added by hand, for payroll. */
   shifts: z.array(shiftSchema).max(SHIFT_LIMIT).optional(),
+  /** Stage 3: single days on the rota changed from someone's usual hours, or added. */
+  rotaChanges: z.array(rotaChangeSchema).max(ROTA_CHANGE_LIMIT).optional(),
+  /** Stage 4: people moving to another location from a date (staffMovesSchema.ts). */
+  staffMoves: z.array(staffMoveSchema).max(STAFF_MOVE_LIMIT).optional(),
+  /**
+   * Stage 3: rates of their own for a treatment, a kind of treatment, products or a product, steps
+   * by takings, and each person's monthly target, each kept as a history like the usual rates.
+   */
+  commissionRates: z.array(commissionRateSchema).max(COMMISSION_RATE_LIMIT).optional(),
+  commissionSteps: z.array(commissionStepsSchema).max(COMMISSION_STEPS_LIMIT).optional(),
+  staffTargets: z.array(staffTargetSchema).max(STAFF_TARGET_LIMIT).optional(),
+  /** Stage 4: messages from the studio to its clients, for the whole group or chosen locations. */
+  news: z.array(newsMessageSchema).max(NEWS_LIMIT).optional(),
+  /** Stage 5: whether invitations to a quiet or freed time carry a lower price. Absent means none. */
+  quietOffers: quietOfferSettingsSchema.optional(),
+  /** Stage 6: records kept past their keeping period, and each decision made about them. */
+  retention: retentionRecordSchema.optional(),
+  /** Stage 6: whether the owner asks everyone to use two-step sign-in. Absent means no. */
+  twoStep: twoStepRuleSchema.optional(),
 })
 export type Operations = z.infer<typeof operationsSchema>
 /**
@@ -508,13 +582,51 @@ export function hoursFor(s: BusinessState, date: string, locationId?: string) {
       : undefined
   return (own ?? operations(s).hours).find((h) => h.day === day)!
 }
-/** A person's usual hours for a day from their weekly pattern, ignoring time off. */
-export function usualHoursFor(s: BusinessState, staffId: string, date: string) {
+/**
+ * A person's usual hours for a day from their weekly pattern, ignoring time off. Stage 4: the
+ * weekly pattern says where they work from their latest move on; a day before a move is where
+ * that move found it (`movedFrom`).
+ */
+export function usualHoursFor(
+  s: BusinessState,
+  staffId: string,
+  date: string,
+): z.infer<typeof hoursSchema> {
   const person = s.staff.find((p) => p.id === staffId)
-  return (
-    person?.hours?.find((h) => h.day === new Date(`${date}T12:00:00Z`).getUTCDay()) ??
-    hoursFor(s, date)
-  )
+  const weekday = new Date(`${date}T12:00:00Z`).getUTCDay()
+  const own = person?.hours?.find((h) => h.day === weekday)
+  if (!own) return hoursFor(s, date)
+  const before = movedFrom(s, staffId, date, weekday)
+  if (before === undefined) return own
+  const { locationId: _now, ...rest } = own
+  void _now
+  // The main location stays unnamed on hours, as everywhere else.
+  return before === s.organisation.locationId ? rest : { ...rest, locationId: before }
+}
+// Read thousands of times a request, like the rota: the moves still standing, by person, oldest
+// first. A list is never changed in place once read; the move commands always save a new one.
+const moveIndex = new WeakMap<StaffMove[], Map<string, StaffMove[]>>()
+/**
+ * Stage 4: where a weekday was before the first move after `date`, when one moved it. Undefined
+ * when no later move touched that weekday, so their weekly hours already say where it is.
+ */
+export function movedFrom(s: BusinessState, staffId: string, date: string, weekday: number) {
+  const list = operations(s).staffMoves
+  if (!list?.length) return undefined
+  let index = moveIndex.get(list)
+  if (!index) {
+    index = new Map()
+    for (const move of list)
+      if (!move.cancelled) index.set(move.staffId, [...(index.get(move.staffId) ?? []), move])
+    for (const moves of index.values()) moves.sort((a, b) => a.date.localeCompare(b.date))
+    moveIndex.set(list, index)
+  }
+  for (const move of index.get(staffId) ?? []) {
+    if (move.date <= date) continue
+    const day = move.days.find((d) => d.day === weekday)
+    if (day) return day.from
+  }
+  return undefined
 }
 /** Time off that covers a day for one person, if any (V2). */
 export function timeOffOn(s: BusinessState, staffId: string, date: string) {
@@ -522,10 +634,43 @@ export function timeOffOn(s: BusinessState, staffId: string, date: string) {
     (t) => !t.cancelledAt && t.staffId === staffId && t.from <= date && t.to >= date,
   )
 }
-/** The hours a person can be booked on a day: their usual hours, closed while they are away. */
-export function staffHoursFor(s: BusinessState, staffId: string, date: string) {
+// Availability asks for a person's day thousands of times a request, so the changes still in
+// force are looked up by person and day. A list is never changed in place once read: the rota
+// commands always save a new one.
+const rotaIndex = new WeakMap<RotaChange[], Map<string, RotaChange>>()
+/** Stage 3: the change on the rota for one person on one day, if one applies. */
+export function rotaChangeOn(s: BusinessState, staffId: string, date: string) {
+  const list = operations(s).rotaChanges
+  if (!list?.length) return undefined
+  let index = rotaIndex.get(list)
+  if (!index) {
+    index = new Map(list.filter((c) => !c.ended).map((c) => [`${c.staffId} ${c.date}`, c]))
+    rotaIndex.set(list, index)
+  }
+  return index.get(`${staffId} ${date}`)
+}
+/**
+ * The shared answer to "when does this person work on this day": their usual weekly hours, or the
+ * day as changed on the rota (Stage 3). Every booking, move, offer, suggestion and screen reads
+ * it through `staffHoursFor` and `staffLocationOn`.
+ */
+export function plannedHoursFor(s: BusinessState, staffId: string, date: string) {
   const usual = usualHoursFor(s, staffId, date)
-  return timeOffOn(s, staffId, date) ? { ...usual, closed: true } : usual
+  const change = rotaChangeOn(s, staffId, date)
+  if (!change) return usual
+  if (!change.working) return { ...usual, closed: true }
+  return {
+    day: usual.day,
+    open: change.open!,
+    close: change.close!,
+    closed: false,
+    ...(change.locationId ? { locationId: change.locationId } : {}),
+  }
+}
+/** The hours a person can be booked on a day: as planned on the rota, closed while they are away. */
+export function staffHoursFor(s: BusinessState, staffId: string, date: string) {
+  const planned = plannedHoursFor(s, staffId, date)
+  return timeOffOn(s, staffId, date) ? { ...planned, closed: true } : planned
 }
 /** What is on the shelf: at one location when given (V2), otherwise across the studio. */
 export function stock(s: BusinessState, productId: string, locationId?: string) {
@@ -540,15 +685,21 @@ export function stock(s: BusinessState, productId: string, locationId?: string) 
 export function permissionFor(command: { type: string; approve?: boolean }) {
   // Writing and approving in one step needs the right to approve.
   if (command.type === 'message' && command.approve) return 'message.queue'
-  if (['service', 'staff', 'resource', 'guest-notes', 'offer'].includes(command.type))
-    return 'catalogue'
+  if (['service', 'staff', 'guest-notes', 'offer'].includes(command.type)) return 'catalogue'
+  // Stage 4: rooms and chairs, which a general manager also looks after at their own location.
+  if (command.type === 'resource') return 'rooms'
+  // Opening hours, closures and holiday allowances are the whole studio's.
+  if (['closure', 'remove-closure', 'leave-allowance'].includes(command.type)) return 'hours'
+  // Stage 3 and 4: the team's days, on the rota and away, for owners and managers, and for a
+  // general manager at their own location (src/domain/team.ts decides which days are theirs).
   if (
-    ['closure', 'remove-closure', 'time-off', 'cancel-time-off', 'leave-allowance'].includes(
-      command.type,
-    )
+    (ROTA_COMMANDS as readonly string[]).includes(command.type) ||
+    ['time-off', 'cancel-time-off', 'time-off-change'].includes(command.type)
   )
-    return 'hours'
+    return 'rota'
   if (command.type === 'stock-move') return 'stock'
+  // Stage 4: cancelling a move still to come is part of moving someone.
+  if (command.type === 'staff-move-cancel') return 'staff-move'
   // Adding a location also places its rooms, team and menu, all of which the owner may change.
   if (command.type === 'location-open') return 'location'
   // NEXT-09 and NEXT-08: booking repeat visits, or visits for several people, is booking.
@@ -556,8 +707,19 @@ export function permissionFor(command: { type: string; approve?: boolean }) {
   // NEXT-07: clocking in and out is for everyone in the studio; changing hours is for managers.
   if (command.type === 'clock-in' || command.type === 'clock-out') return 'clock'
   if (command.type === 'shift-save' || command.type === 'shift-remove') return 'shift-fix'
+  // Stage 3: rates for a treatment or product and steps by takings are commission, which only the
+  // owner sets; targets are for owners and managers.
+  if (command.type === 'commission-rate' || command.type === 'commission-steps') return 'pay-rate'
   if (command.type === 'message-queue' || command.type === 'social-answer') return 'message.queue'
   if (command.type === 'special-plan' || command.type === 'special-stop') return 'special'
+  // Stage 4: a message to clients is drafted by leads, approved and sent only by the owner.
+  if (command.type === 'news-save' || command.type === 'news-discard') return 'news'
+  if (command.type === 'news-approve') return 'news-send'
+  // Stage 5: an invitation to a quiet time at a lower price is written by whoever writes messages;
+  // the lower price itself is the owner's setting.
+  if (command.type === 'offer-invite') return 'message'
+  // Stage 6: deleting or keeping records at the end of their period is one decision.
+  if (command.type === 'retention-delete' || command.type === 'retention-keep') return 'retention'
   if (command.type === 'task-add' || command.type === 'task-done') return 'task'
   if (command.type === 'missed-call-done') return 'missed-call'
   if (command.type === 'form-save' || command.type === 'form-archive') return 'forms'
@@ -569,6 +731,8 @@ export function permissionFor(command: { type: string; approve?: boolean }) {
   if (['reply-note', 'replies-read', 'reply-link'].includes(command.type)) return 'message'
   if (command.type === 'saved-reply-save' || command.type === 'saved-reply-remove')
     return 'saved-replies'
+  // Stage 4: refund limits and the rota rule are the owner's, as the regional limit is.
+  if (command.type === 'signoff-rules') return 'approval-limit'
   return command.type
 }
 export const commandPermission = permissionFor
@@ -601,8 +765,12 @@ export const GENERAL_ACTIONS = [
   'message',
   'message.queue',
   'gift-card-sell',
+  // Stage 4: only a card that belongs to their own location, to another (the server checks).
+  'gift-card-move',
   'plan-sell',
   'plan-renew',
+  // Stage 1: card payments for memberships sold at their location (the server checks where).
+  'plan-card',
   'balance-settle',
   'task',
   'missed-call',
@@ -618,6 +786,13 @@ export const GENERAL_ACTIONS = [
   'branch-visit',
   'branch-visit-fix',
   'request-raise',
+  // Stage 4: their own team's days on the rota and time off, and the rooms and chairs at their
+  // location. src/domain/team.ts decides whose days and which rooms are theirs.
+  'rota',
+  'rooms',
+  // Stage 4: a message to their own location's clients, drafted or stopped, never approved.
+  'news',
+  'news-stop',
 ] as const
 
 export function can(role: Role, action: string) {
@@ -636,9 +811,20 @@ export function can(role: Role, action: string) {
       'guest-consent-stop',
       // V1.5: a guest's reply arrives only from the studio's email or text line.
       'reply-received',
+      // Stage 1: a declined membership card payment is noted only by the server.
+      'plan-card-try',
+      // Stage 4: an approved new price starts on its day by itself, only from the server.
+      'request-start',
+      // Stage 4: a client stops news only from the link in their own email.
+      'news-unsubscribe',
+      // Stage 5: a sale or refund from a chain's own till comes only through its access key.
+      'other-till-sale',
+      'other-till-refund',
     ].includes(action)
   )
     return false
+  // Stage 6: deciding about records at the end of their keeping period follows the register.
+  if (action === 'retention') return canApproveDeletion(role)
   // V5: a regional manager records branch visits and raises and signs off requests, only at their
   // area's locations (the server checks which).
   if (role === 'regional')
@@ -657,6 +843,8 @@ export function can(role: Role, action: string) {
       'organisation',
       'tax',
       'google-booking',
+      // Stage 5: letting ChatGPT or Claude book for guests is the owner's choice, as Google is.
+      'ai-booking',
       'pay-rate',
       'pay-rules',
       'location',
@@ -665,8 +853,14 @@ export function can(role: Role, action: string) {
       'region-remove',
       'targets',
       'group-checks',
+      // Stage 4: only the owner approves a message to clients, which sends it.
+      'news-send',
+      // Stage 5: a lower price for quiet times is money, which only the owner sets.
+      'quiet-offers',
       // The setup screens include the studio's details and tax, which only the owner sets.
       'setup-step',
+      // Stage 6: asking everyone to use two-step sign-in is the owner's choice.
+      'two-step-rule',
     ].includes(action)
   )
     return false
@@ -675,6 +869,8 @@ export function can(role: Role, action: string) {
     [
       'catalogue',
       'hours',
+      'rota',
+      'rooms',
       'refund',
       'stock',
       'product',
@@ -688,6 +884,8 @@ export function can(role: Role, action: string) {
       'fee',
       'protection',
       'plan-cancel',
+      // Stage 1: setting a membership to be paid from a saved card is for managers and owners.
+      'plan-card',
       'special',
       'rental',
       'end-rental',
@@ -699,6 +897,9 @@ export function can(role: Role, action: string) {
       'accounting-export',
       'gift-card-extend',
       'gift-card-cancel',
+      // Stage 4: moving a gift card or a team member to another location.
+      'gift-card-move',
+      'staff-move',
       'patch-test-settings',
       'forms',
       'consent-wording',
@@ -709,7 +910,12 @@ export function can(role: Role, action: string) {
       'branch-visit-fix',
       'request-raise',
       'studio-look',
+      'till-settings',
       'shift-fix',
+      'staff-target',
+      // Stage 4: messages to many clients are for the owner and the people who lead a team.
+      'news',
+      'news-stop',
     ].includes(action)
   )
     return false

@@ -171,7 +171,18 @@ describe('regional manager access (V5)', () => {
       expect(json).not.toContain(client.email)
       expect(json).not.toContain(client.id)
     }
-    for (const field of ['appointments', 'payments', 'sales', 'payRates', 'clients'])
+    for (const field of [
+      'appointments',
+      'payments',
+      'sales',
+      'payRates',
+      'clients',
+      // Stage 3: commission by treatment, steps by takings, targets and rent.
+      'commissionRates',
+      'commissionSteps',
+      'staffTargets',
+      'rentals',
+    ])
       expect(json).not.toContain(`"${field}"`)
     // The sample visit is at the main location, in their region.
     expect(body.area.visits.map((v) => v.locationId)).toEqual([main])

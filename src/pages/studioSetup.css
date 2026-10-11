@@ -303,6 +303,39 @@
     flex: 2 1 auto;
   }
 }
+@media (max-width: 480px) {
+  /* On a phone the eight marks sit closer, so the step you are on keeps its whole name. */
+  .setup-main .wizard-steps,
+  .setup-main .wizard-steps li {
+    gap: 4px;
+  }
+  .setup-main .wizard-steps-mark {
+    width: 24px;
+    height: 24px;
+  }
+  .setup-main .wizard-steps li:not(:last-child)::after {
+    min-width: 2px;
+  }
+  .setup-main .wizard-steps li[aria-current='step'] {
+    flex: 0 0 auto;
+  }
+}
+@media (max-width: 350px) {
+  /* The narrowest phones keep the marks and the name, without the lines between. */
+  .setup-main .wizard-steps li:not(:last-child)::after {
+    display: none;
+  }
+  .setup-main .wizard-steps li {
+    flex: 0 0 auto;
+  }
+  .setup-main .wizard-steps {
+    justify-content: space-between;
+  }
+  .setup-main .wizard-steps-mark {
+    width: 22px;
+    height: 22px;
+  }
+}
 @media (max-width: 900px) {
   .setup-layout {
     grid-template-columns: 1fr;

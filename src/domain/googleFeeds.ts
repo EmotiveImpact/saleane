@@ -4,6 +4,7 @@ import { addDays } from './format'
 import { businessDate, instantFor, operations } from './operations'
 import { fullPriceMinor } from './priceSentence'
 import { bookablePlaces, listPrice } from './locations'
+import { onlinePatchTestStop } from './patchTests'
 
 /**
  * V4: Book with Google. The three feeds Google's Actions Center reads from a booking partner,
@@ -27,10 +28,17 @@ const metadata = (generatedAt: number) => ({
 /**
  * Treatments Google can book. Google takes no payment here, so a treatment that needs a deposit
  * stays on the studio's own booking page, where the deposit is taken. A treatment no open location
- * offers, or that nobody who works there does, is left off (V2).
+ * offers, or that nobody who works there does, is left off (V2). So is one the studio books only
+ * for guests with a patch test (Stage 3): Google's guests are never known to the studio.
  */
 export const bookableOnGoogle = (s: BusinessState) =>
-  s.services.filter((x) => !x.archived && x.depositMinor === 0 && bookablePlaces(s, x).length > 0)
+  s.services.filter(
+    (x) =>
+      !x.archived &&
+      x.depositMinor === 0 &&
+      bookablePlaces(s, x).length > 0 &&
+      !onlinePatchTestStop(s, x.id),
+  )
 
 /** Only studios of their own that chose Google, and still take bookings online. */
 export const offeredOnGoogle = (s: BusinessState) =>

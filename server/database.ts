@@ -3,7 +3,10 @@ import type { SQLInputValue } from 'node:sqlite'
 import { chmodSync, mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
-/** One forward schema step. Versions are contiguous from 1; never edit a released step. */
+/**
+ * One forward schema step. Versions rise from 1 in order (contiguous once work built alongside has
+ * merged); never edit a released step.
+ */
 export type Migration = { version: number; up: (connection: DatabaseSync) => void }
 
 export const migrations: Migration[] = [
@@ -638,6 +641,217 @@ export const migrations: Migration[] = [
           CHECK((kind='location')=(location_id IS NOT NULL))
         ) STRICT;
         CREATE INDEX diary_links_org ON diary_links(organisation_id);
+      `),
+  },
+  {
+    version: 30,
+    // Stage 1, memberships paid from a saved card: each try at the card for a month and each
+    // refund to it, with one live or successful try per membership and month so a month can never
+    // be charged twice; a hold that stops card payments after a restore until the team checks the
+    // provider; and the outbox's reminder before each payment and note after the last decline.
+    up: (connection) =>
+      connection.exec(
+        `
+        CREATE TABLE membership_charges (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          holding_id TEXT NOT NULL, client_id TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK(kind IN ('charge','refund')),
+          period_start TEXT NOT NULL CHECK(period_start GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+          amount_minor INTEGER NOT NULL CHECK(amount_minor>0),
+          currency TEXT NOT NULL CHECK(currency IN ('GBP','USD')),
+          card_id TEXT NOT NULL, card_brand TEXT NOT NULL, card_last4 TEXT NOT NULL,
+          try_number INTEGER NOT NULL CHECK(try_number>=1),
+          status TEXT NOT NULL CHECK(status IN ('started','processing','succeeded','failed','unknown','review')),
+          provider TEXT NOT NULL, provider_ref TEXT, detail TEXT, next_try_at INTEGER,
+          refund_of TEXT, reason TEXT, ledger_id TEXT, request_key TEXT, actor_id TEXT,
+          created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+          CHECK((kind='refund')=(refund_of IS NOT NULL)),
+          CHECK(next_try_at IS NULL OR (kind='charge' AND status='failed')),
+          UNIQUE(organisation_id,holding_id,kind,period_start,try_number)
+        ) STRICT;
+        CREATE UNIQUE INDEX membership_charges_once ON membership_charges(organisation_id,holding_id,kind,period_start)
+          WHERE status IN ('started','processing','succeeded','unknown','review');
+        CREATE INDEX membership_charges_retry ON membership_charges(status,next_try_at);
+        CREATE INDEX membership_charges_recent ON membership_charges(organisation_id,created_at);
+        CREATE INDEX membership_charges_holding ON membership_charges(organisation_id,holding_id);
+        CREATE UNIQUE INDEX membership_charges_key ON membership_charges(organisation_id,actor_id,request_key)
+          WHERE request_key IS NOT NULL;
+        CREATE TABLE membership_card_holds (
+          organisation_id TEXT PRIMARY KEY REFERENCES organisations(id), held_at INTEGER NOT NULL
+        ) STRICT;
+      ` +
+          outboxWithKinds(
+            [
+              'confirmation',
+              'changed',
+              'reminder',
+              'cancelled',
+              'feedback',
+              'patch_test',
+              'aftercare',
+              'due_back',
+              'birthday',
+              'miss_you',
+              'missed_call',
+              'message',
+              'receptionist',
+              'social',
+              'plan_reminder',
+              'plan_declined',
+            ],
+            ['email', 'sms', 'instagram', 'facebook', 'whatsapp'],
+          ),
+      ),
+  },
+  {
+    version: 31,
+    // Stage 2, product photos. Each studio's pictures, checked by their first bytes (JPEG, PNG or
+    // WebP only) and bounded in size, served only to that studio's team. A product keeps the id; a
+    // new photo gets a new id.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE images (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          kind TEXT NOT NULL CHECK(kind IN ('product')),
+          content_type TEXT NOT NULL CHECK(content_type IN ('image/jpeg','image/png','image/webp')),
+          bytes BLOB NOT NULL CHECK(length(bytes) BETWEEN 1 AND 409600),
+          width INTEGER NOT NULL CHECK(width BETWEEN 1 AND 2000),
+          height INTEGER NOT NULL CHECK(height BETWEEN 1 AND 2000),
+          created_at INTEGER NOT NULL, created_by TEXT NOT NULL REFERENCES accounts(id)
+        ) STRICT;
+        CREATE INDEX images_scope ON images(organisation_id,created_at);
+      `),
+  },
+  {
+    version: 32,
+    // Stage 2, the till: a receipt the desk chose to email goes through the outbox like any other
+    // message; and every time SALEANE asked a receipt printer to print or open its cash drawer,
+    // with who, when, why, which sale and what the printer answered. A test printer's job is kept
+    // as bytes so it can be shown; nothing else about a client is stored here.
+    up: (connection) =>
+      connection.exec(
+        outboxWithKinds(
+          [
+            'confirmation',
+            'changed',
+            'reminder',
+            'cancelled',
+            'feedback',
+            'patch_test',
+            'aftercare',
+            'due_back',
+            'birthday',
+            'miss_you',
+            'missed_call',
+            'message',
+            'receptionist',
+            'social',
+            'plan_reminder',
+            'plan_declined',
+            'receipt',
+          ],
+          ['email', 'sms', 'instagram', 'facebook', 'whatsapp'],
+        ) +
+          `
+        CREATE TABLE till_events (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          location_id TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK(kind IN ('drawer','print')),
+          cause TEXT NOT NULL CHECK(cause IN ('cash','refund','no_sale','receipt','test_page')),
+          receipt TEXT, receipt_number TEXT, amount_minor INTEGER, reason TEXT,
+          printer TEXT NOT NULL CHECK(printer IN ('network','test')), host TEXT, port INTEGER,
+          status TEXT NOT NULL CHECK(status IN ('pending','sending','sent','test','failed','skipped')),
+          detail TEXT, bytes TEXT, actor_id TEXT, actor_name TEXT NOT NULL,
+          created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+        ) STRICT;
+        CREATE INDEX till_events_day ON till_events(organisation_id,kind,created_at);
+        CREATE INDEX till_events_receipt ON till_events(organisation_id,receipt);
+        CREATE INDEX till_events_due ON till_events(status,created_at);
+      `,
+      ),
+  },
+  {
+    version: 33,
+    // Stage 4, one message to clients across the group: each client's copy goes through the
+    // outbox as its own kind, found again by the message it belongs to; the link at the foot of
+    // each email that stops news is kept only as a hash, can be revoked, and runs out; and the
+    // erasure requests the approval and the outbox check before each copy leaves are found by
+    // action, not by reading the whole log.
+    up: (connection) =>
+      connection.exec(
+        outboxWithKinds(
+          [
+            'confirmation',
+            'changed',
+            'reminder',
+            'cancelled',
+            'feedback',
+            'patch_test',
+            'aftercare',
+            'due_back',
+            'birthday',
+            'miss_you',
+            'missed_call',
+            'message',
+            'receptionist',
+            'social',
+            'plan_reminder',
+            'plan_declined',
+            'receipt',
+            'news',
+          ],
+          ['email', 'sms', 'instagram', 'facebook', 'whatsapp'],
+        ) +
+          `
+        CREATE INDEX outbox_slot ON outbox(organisation_id,kind,slot);
+        CREATE TABLE news_links (
+          token_hash TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          client_id TEXT NOT NULL, message_id TEXT NOT NULL, outbox_id TEXT NOT NULL,
+          created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL CHECK(expires_at>created_at),
+          used_at INTEGER, revoked_at INTEGER
+        ) STRICT;
+        CREATE INDEX news_links_client ON news_links(organisation_id,client_id);
+        CREATE INDEX audit_record ON audit_events(organisation_id,action,record_id);
+      `,
+      ),
+  },
+  {
+    version: 34,
+    // Stage 5, a lower price for a quiet time: the private link in an invitation that carries
+    // one is kept only as a hash, for one invitation, runs out with its offer, can be revoked,
+    // and is used once. Only one link for each invitation can ever be used, so a lower price is
+    // booked once at most however many copies went out.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE offer_links (
+          token_hash TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          message_id TEXT NOT NULL, outbox_id TEXT NOT NULL,
+          created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL CHECK(expires_at>created_at),
+          used_at INTEGER, appointment_id TEXT, revoked_at INTEGER,
+          CHECK((used_at IS NULL)=(appointment_id IS NULL))
+        ) STRICT;
+        CREATE INDEX offer_links_message ON offer_links(organisation_id,message_id);
+        CREATE UNIQUE INDEX offer_links_used_once ON offer_links(organisation_id,message_id) WHERE used_at IS NOT NULL;
+      `),
+  },
+  {
+    version: 35,
+    // Stage 5, other software sending things in: each write through an access key carries an
+    // Idempotency-Key. The first answer is kept with a hash of what was asked, in the same
+    // transaction as the change, so the same request sent again gets the same answer and changes
+    // nothing, and the same key sent with a different request is refused.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE api_key_writes (
+          key_id TEXT NOT NULL REFERENCES api_keys(id),
+          idempotency_key TEXT NOT NULL CHECK(length(idempotency_key) BETWEEN 1 AND 255),
+          organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          request_hash TEXT NOT NULL, method TEXT NOT NULL, path TEXT NOT NULL,
+          status INTEGER NOT NULL, response TEXT NOT NULL CHECK(json_valid(response)),
+          record_id TEXT, created_at INTEGER NOT NULL,
+          PRIMARY KEY(key_id,idempotency_key)
+        ) STRICT;
+        CREATE INDEX api_key_writes_age ON api_key_writes(created_at);
       `),
   },
 ]

@@ -2,13 +2,9 @@ import { slots } from './commands'
 import { addDays } from './format'
 import type { Appointment, BusinessState } from './model'
 import { operations, stock } from './operations'
-import {
-  availableMinutes,
-  clientStats,
-  dayAppointments,
-  serviceRevenue,
-  usualWeeks,
-} from './selectors'
+import { availableMinutes, clientStats, dayAppointments, usualWeeks } from './selectors'
+import { renterVisit, serviceRevenue } from './takings'
+import { pastKeepingPeriod } from './retentionDue'
 
 /**
  * V3 Smart insights. Every insight is worked out from the studio's own records and says what it
@@ -32,10 +28,40 @@ function usual(values: number[]) {
   return values.reduce((sum, v) => sum + v, 0) / values.length
 }
 
-function takingsBetween(s: BusinessState, from: string, to: string) {
+/**
+ * Stage 3: everyone renting a chair or room at any point in the five weeks to a day. Comparisons
+ * leave them out of every day compared, like for like, so someone starting or stopping renting is
+ * not read as takings or visits falling or rising.
+ */
+function rentingAround(s: BusinessState, date: string) {
+  const from = addDays(date, -34)
+  return new Set(
+    (operations(s).rentals ?? [])
+      .filter((r) => r.from <= date && (!r.to || r.to >= from))
+      .map((r) => r.staffId),
+  )
+}
+
+/**
+ * The studio's treatment takings between two days. Stage 3: a renter's own takings are theirs, not
+ * the studio's, and people in `leftOut` (see `rentingAround`) are left out altogether.
+ */
+function takingsBetween(
+  s: BusinessState,
+  from: string,
+  to: string,
+  leftOut: ReadonlySet<string> = new Set(),
+) {
   const visits = new Map(
     s.appointments
-      .filter((a) => a.status === 'completed' && a.date >= from && a.date <= to)
+      .filter(
+        (a) =>
+          a.status === 'completed' &&
+          a.date >= from &&
+          a.date <= to &&
+          !leftOut.has(a.staffId) &&
+          !renterVisit(s, a),
+      )
       .map((a) => [a.id, a]),
   )
   return s.sales
@@ -68,6 +94,7 @@ export function morningBrief(s: BusinessState, today: string): MorningBrief {
   ).length
   const booked = bookedMinutes(s, today)
   const yesterday = addDays(today, -1)
+  const renting = rentingAround(s, yesterday)
   return {
     date: today,
     visits: day.length,
@@ -78,8 +105,10 @@ export function morningBrief(s: BusinessState, today: string): MorningBrief {
     openMinutes: Math.max(0, availableMinutes(s, today) - booked),
     yesterday: {
       date: yesterday,
-      takingsMinor: takingsBetween(s, yesterday, yesterday),
-      usualTakingsMinor: usual(sameWeekdays(s, yesterday).map((d) => takingsBetween(s, d, d))),
+      takingsMinor: takingsBetween(s, yesterday, yesterday, renting),
+      usualTakingsMinor: usual(
+        sameWeekdays(s, yesterday).map((d) => takingsBetween(s, d, d, renting)),
+      ),
     },
   }
 }
@@ -142,9 +171,10 @@ export function unusual(s: BusinessState, today: string): Notice[] {
       managersOnly: false,
     })
 
-  const takingsWeek = takingsBetween(s, weekFrom, today)
+  const renting = rentingAround(s, today)
+  const takingsWeek = takingsBetween(s, weekFrom, today, renting)
   const earlierTakings = [1, 2, 3, 4].map((w) =>
-    takingsBetween(s, addDays(weekFrom, -7 * w), addDays(today, -7 * w)),
+    takingsBetween(s, addDays(weekFrom, -7 * w), addDays(today, -7 * w), renting),
   )
   const usualTakings = hasHistoryBefore(s, addDays(today, -21))
     ? earlierTakings.reduce((sum, n) => sum + n, 0) / 4
@@ -215,6 +245,15 @@ const mostCommon = (ids: string[]) =>
   )[0]?.[0]
 
 /**
+ * Days without a visit after which a client with nothing booked counts as drifting away: half as
+ * long again as their usual gap (and at least two weeks more), or five weeks when there are too
+ * few visits to tell. The client page's "At a glance" uses the same rule (clientInsight.ts).
+ */
+export function driftDays(usual: number | null) {
+  return usual ? Math.max(usual * 7 * 1.5, usual * 7 + 14) : 35
+}
+
+/**
  * Clients who have gone longer than their own usual gap without booking. A client who comes
  * every three weeks is noticed sooner than one who comes every ten; when there are too few visits
  * to tell, five weeks without a booking counts.
@@ -237,8 +276,10 @@ export function drifting(s: BusinessState, today: string): Drifter[] {
         .sort()
         .at(-1)!
       const days = (Date.parse(today) - Date.parse(last)) / DAY
-      const threshold = weeks ? Math.max(weeks * 7 * 1.5, weeks * 7 + 14) : 35
+      const threshold = driftDays(weeks)
       if (days < threshold) return null
+      // Stage 6: nobody past their keeping period, or whose details are gone, is asked back.
+      if (pastKeepingPeriod(s, client.id, today)) return null
       const recent = [...visits].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5)
       return {
         clientId: client.id,
@@ -359,7 +400,10 @@ export type DayRecap = {
 
 /** Closing the day: what was taken against usual, rebooking, and a first look at tomorrow. */
 export function dayRecap(s: BusinessState, date: string): DayRecap {
-  const done = s.appointments.filter((a) => a.date === date && a.status === 'completed')
+  const renting = rentingAround(s, date)
+  const done = s.appointments.filter(
+    (a) => a.date === date && a.status === 'completed' && !renting.has(a.staffId),
+  )
   const rebookedIds = new Set(
     s.appointments.filter((a) => a.rebookedFromId && live(a)).map((a) => a.rebookedFromId!),
   )
@@ -397,8 +441,8 @@ export function dayRecap(s: BusinessState, date: string): DayRecap {
   return {
     date,
     completed: done.length,
-    takingsMinor: takingsBetween(s, date, date),
-    usualTakingsMinor: usual(sameWeekdays(s, date).map((d) => takingsBetween(s, d, d))),
+    takingsMinor: takingsBetween(s, date, date, renting),
+    usualTakingsMinor: usual(sameWeekdays(s, date).map((d) => takingsBetween(s, d, d, renting))),
     rebooked: done.filter((a) => rebookedIds.has(a.id)).length,
     notRebooked,
     cancelled: s.appointments.filter((a) => a.date === date && a.status === 'cancelled').length,
@@ -439,8 +483,11 @@ export type WeekReview = {
 /** The last seven days against the four weeks before, with the reasons a quiet day shows. */
 export function weekReview(s: BusinessState, today: string): WeekReview {
   const from = addDays(today, -6)
+  const renting = rentingAround(s, today)
   const visitsOn = (d: string) =>
-    s.appointments.filter((a) => a.date === d && a.status === 'completed').length
+    s.appointments.filter(
+      (a) => a.date === d && a.status === 'completed' && !renting.has(a.staffId),
+    ).length
   const count = (d: string, status: Appointment['status']) =>
     s.appointments.filter((a) => a.date === d && a.status === status).length
   const open = (d: string) => availableMinutes(s, d) > 0
@@ -451,7 +498,7 @@ export function weekReview(s: BusinessState, today: string): WeekReview {
       return {
         date,
         visits: visitsOn(date),
-        takingsMinor: takingsBetween(s, date, date),
+        takingsMinor: takingsBetween(s, date, date, renting),
         cancelled: count(date, 'cancelled'),
         missed: count(date, 'no_show'),
         usualVisits: usual(before.map(visitsOn)),
@@ -465,7 +512,7 @@ export function weekReview(s: BusinessState, today: string): WeekReview {
   const weekTotal = (start: string, f: (d: string) => number) =>
     Array.from({ length: 7 }, (_, i) => f(addDays(start, i))).reduce((a, b) => a + b, 0)
   const usualVisits = usual(weeks.map((w) => weekTotal(w, visitsOn)))
-  const usualTakingsMinor = usual(weeks.map((w) => takingsBetween(s, w, addDays(w, 6))))
+  const usualTakingsMinor = usual(weeks.map((w) => takingsBetween(s, w, addDays(w, 6), renting)))
   const below = days
     .filter((d) => d.usualVisits !== null && d.visits < d.usualVisits * 0.75)
     .sort((a, b) => a.visits / a.usualVisits! - b.visits / b.usualVisits!)[0]
@@ -497,7 +544,7 @@ export function weekReview(s: BusinessState, today: string): WeekReview {
     from,
     to: today,
     visits: days.reduce((sum, d) => sum + d.visits, 0),
-    takingsMinor: takingsBetween(s, from, today),
+    takingsMinor: takingsBetween(s, from, today, renting),
     usualVisits,
     usualTakingsMinor,
     days,

@@ -6,7 +6,8 @@ import { availableMinutes, dayAppointments } from '../domain/selectors'
 import { hasLocations, placeOf, staffLocationOn } from '../domain/locations'
 import { clockedIn, clockTime } from '../domain/hours'
 import { Avatar, Button } from '../design'
-import { can } from '../domain/operations'
+import { can, rotaChangeOn, timeOffOn } from '../domain/operations'
+import { changeKind } from '../domain/rota'
 import { useClock } from '../state/clock'
 import { TeamClock } from './Clock'
 import './teamToday.css'
@@ -17,10 +18,14 @@ import './teamToday.css'
  * a picture of it.
  */
 export function TeamToday() {
-  const { state, today, role, blocked } = useStore()
+  const { state, today, role, blocked, branch } = useStore()
   const [clocking, setClocking] = useState(false)
   const now = Date.parse(useClock(30_000))
-  const team = state.staff.filter((p) => !p.archived)
+  // Stage 4: a general manager sees the people whose day today is at their location.
+  const own = role === 'general' && branch ? branch : undefined
+  const team = state.staff.filter(
+    (p) => !p.archived && (!own || staffLocationOn(state, p.id, today) === own),
+  )
   if (!team.length) return null
   const day = dayAppointments(state, today)
   const multiSite = hasLocations(state)
@@ -42,6 +47,11 @@ export function TeamToday() {
             ? placeOf(state, staffLocationOn(state, staff.id, today))?.name
             : undefined
           const shift = clockedIn(state, staff.id, now)
+          // Stage 3: a day changed on the rota says so, as the rota does.
+          const change = timeOffOn(state, staff.id, today)
+            ? undefined
+            : rotaChangeOn(state, staff.id, today)
+          const kind = change && changeKind(state, change)
           return (
             <li key={staff.id}>
               <span
@@ -59,6 +69,15 @@ export function TeamToday() {
                 </small>
               )}
               {place && <small className="team-today-place">{place}</small>}
+              {kind && (
+                <small className="team-today-changed">
+                  {kind === 'extra'
+                    ? 'Extra day'
+                    : kind === 'off'
+                      ? 'Day changed'
+                      : 'Hours changed'}
+                </small>
+              )}
               {shift && (
                 <small className="team-today-in">In since {clockTime(state, shift.start)}</small>
               )}

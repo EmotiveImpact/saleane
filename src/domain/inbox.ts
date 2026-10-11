@@ -1,4 +1,4 @@
-import type { BusinessState, RelationshipEvent } from './model'
+import type { BusinessState, Client, RelationshipEvent } from './model'
 import {
   REPLY_LIMIT,
   REPLY_TEXT_LIMIT,
@@ -13,6 +13,7 @@ import {
 import type { Reply, SavedReply, SocialAnswer, SocialChannel, noteWays } from './inboxSchema'
 import { healthWordIn } from './forms'
 import { operations } from './operations'
+import { applyTextKeyword, settledKeyword, textStopProblem } from './textStop'
 
 /**
  * V1.5: the inbox. Each guest's messages read as one conversation: what the studio wrote, what
@@ -37,7 +38,15 @@ const textNumber = (phone: string) => {
 
 export const unreadReplies = (s: BusinessState) => repliesList(s).filter((r) => !r.readAt)
 
-/** The one client an address or number belongs to, or undefined when none or several do. */
+/**
+ * The one client an address or number belongs to, or undefined when none or several do.
+ *
+ * Stage 5: a number on several records that all share one email is still one guest. Every online
+ * booking opens a new record, so a guest who books online twice has two with the same number, and
+ * records with the same email are one guest everywhere in SALEANE. Their texts go to the record
+ * they last visited under, as the AI receptionist's answers do, so the conversation stays in one
+ * place. Records with different emails (a family sharing a phone, say) stay unmatched.
+ */
 export function senderClient(s: BusinessState, channel: ArrivalChannel, from: string) {
   // Instagram and Facebook give only an id of their own, so the team matches those by hand. A
   // chat on the booking page leaves whatever email or number the visitor typed, which proves
@@ -49,7 +58,47 @@ export function senderClient(s: BusinessState, channel: ArrivalChannel, from: st
     by === 'sms'
       ? s.clients.filter((c) => textNumber(c.phone) === textNumber(from))
       : s.clients.filter((c) => c.email.trim().toLowerCase() === from.trim().toLowerCase())
-  return matches.length === 1 ? matches[0] : undefined
+  if (matches.length === 1) return matches[0]
+  // Stage 6: an email from an address on several records is that one guest too, so it goes to
+  // their latest record rather than waiting unmatched.
+  return oneGuest(s, matches)
+}
+
+/** Several records with one number or address: the guest's latest, when they share one email. */
+function oneGuest(s: BusinessState, records: Client[]) {
+  const emails = new Set(records.map((c) => c.email.trim().toLowerCase()))
+  // An empty email never joins records.
+  if (records.length < 2 || emails.size !== 1 || emails.has('')) return undefined
+  return latestRecord(s, records)
+}
+
+/** Of one guest's records, the one they last visited under, or else the newest. */
+function latestRecord(s: BusinessState, records: Client[]) {
+  const ids = new Set(records.map((c) => c.id))
+  let latest: { clientId: string; at: string } | undefined
+  for (const a of s.appointments) {
+    if (!ids.has(a.clientId) || a.status === 'cancelled') continue
+    const at = `${a.date}T${String(a.startMinutes).padStart(4, '0')}`
+    if (!latest || at > latest.at) latest = { clientId: a.clientId, at }
+  }
+  return (
+    records.find((c) => c.id === latest?.clientId) ??
+    [...records].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+  )
+}
+
+/**
+ * Stage 6: one guest however many records online booking opened for them. Records with the same
+ * email are one guest everywhere in SALEANE (`guestKey` in cancelledTimes.ts, which loads this
+ * file, so the rule is repeated here). A record with no email is a guest of its own.
+ */
+const guestOfRecord = (c: Pick<Client, 'id' | 'email'>) =>
+  c.email.trim().toLowerCase() || `id:${c.id}`
+
+/** The key of the conversation a client record's messages belong to. */
+export function conversationKey(s: BusinessState, clientId: string) {
+  const client = s.clients.find((c) => c.id === clientId)
+  return client ? `guest:${guestOfRecord(client)}` : `client:${clientId}`
 }
 
 /** A reply first line for a preview or timeline, shortened at a word. */
@@ -303,7 +352,15 @@ export function runInboxCommand(
     actor: '',
   }
   list.push(reply)
-  if (client)
+  // Stage 1: a text that is only STOP, START or HELP is an instruction to the phone network, and
+  // SALEANE follows it here, as the reply is kept (textStop.ts). One that needs no answer is
+  // kept as read, so it never waits for one.
+  const keyword = command.channel === 'sms' ? applyTextKeyword(next, reply, now, addEvent) : null
+  if (keyword) {
+    reply.keyword = keyword.keyword
+    if (settledKeyword(reply)) Object.assign(reply, { readAt: now, readBy: '' })
+  }
+  if (client && !keyword?.told.has(client.id))
     addEvent({
       clientId: client.id,
       type: 'message',
@@ -338,7 +395,7 @@ export function inboxProblem(s: BusinessState) {
   if (new Set(refs).size !== refs.length) return 'A reply was recorded twice.'
   const clients = new Set(s.clients.map((c) => c.id))
   for (const r of list) {
-    if (r.organisationId !== s.organisation.id) return 'Foreign workspace record.'
+    if (r.organisationId !== s.organisation.id) return 'A record from another studio.'
     if (r.clientId && !clients.has(r.clientId)) return 'A reply does not match its client.'
     if (r.channel === 'desk' && !r.clientId) return 'A noted reply must be with a client.'
   }
@@ -346,13 +403,14 @@ export function inboxProblem(s: BusinessState) {
   if (answers.length > SOCIAL_ANSWER_COUNT_LIMIT) return 'Too many answers.'
   if (new Set(answers.map((a) => a.id)).size !== answers.length) return 'Duplicate answer IDs.'
   for (const a of answers) {
-    if (a.organisationId !== s.organisation.id) return 'Foreign workspace record.'
+    if (a.organisationId !== s.organisation.id) return 'A record from another studio.'
     if (a.clientId && !clients.has(a.clientId)) return 'An answer does not match its client.'
   }
   const saved = savedReplies(s)
   if (saved.length > SAVED_REPLY_LIMIT) return 'Too many saved replies.'
   if (new Set(saved.map((r) => r.id)).size !== saved.length) return 'Duplicate saved reply IDs.'
-  return null
+  for (const r of list) if (r.keyword && r.channel !== 'sms') return 'Only a text is a keyword.'
+  return textStopProblem(s)
 }
 
 /** What happened to an approved message once the outbox took it, when the server says. */
@@ -390,9 +448,18 @@ export type ThreadItem =
   | { kind: 'answer'; at: string; answer: SocialAnswer; delivery?: Delivery }
 
 export type Conversation = {
-  /** `client:<id>` for a guest, `from:<address>` for a sender who matches no client. */
+  /**
+   * `guest:<email>` for a guest (`guest:id:<id>` for a record with no email), `client:<id>` for a
+   * record no longer in the studio and `from:<address>` for a sender who matches no client.
+   */
   key: string
+  /**
+   * The record an answer goes to: the one the guest last wrote under, or else the one they last
+   * visited under, so a text goes back to the number they used.
+   */
   clientId?: string
+  /** Every record of the guest whose messages are here (one, unless online booking made more). */
+  clientIds: string[]
   from?: string
   items: ThreadItem[]
   lastAt: string
@@ -406,13 +473,24 @@ export type Conversation = {
  */
 export function conversations(s: BusinessState, sent: SentItem[] = []): Conversation[] {
   const threads = new Map<string, Conversation>()
+  // Stage 6: each guest once, with every one of their records. Only records of this studio, and
+  // only records sharing an email, are ever joined.
+  const records = new Map<string, Client[]>()
+  const keyOf = new Map<string, string>()
+  for (const c of s.clients) {
+    const key = `guest:${guestOfRecord(c)}`
+    keyOf.set(c.id, key)
+    records.set(key, [...(records.get(key) ?? []), c])
+  }
   const thread = (clientId: string | undefined, from?: string) => {
-    const key = clientId ? `client:${clientId}` : `from:${from}`
+    const key = clientId ? (keyOf.get(clientId) ?? `client:${clientId}`) : `from:${from}`
     let t = threads.get(key)
     if (!t) {
+      const ids = clientId ? (records.get(key)?.map((c) => c.id) ?? [clientId]) : []
       t = {
         key,
         ...(clientId ? { clientId } : { from }),
+        clientIds: ids,
         items: [],
         lastAt: '',
         unread: 0,
@@ -468,6 +546,20 @@ export function conversations(s: BusinessState, sent: SentItem[] = []): Conversa
   for (const t of all) {
     t.items.sort((a, b) => a.at.localeCompare(b.at))
     t.lastAt = t.items[t.items.length - 1]?.at ?? ''
+    if (t.clientIds.length > 1) t.clientId = answerTo(s, t, records.get(t.key) ?? [])
   }
   return all.sort((a, b) => b.lastAt.localeCompare(a.lastAt))
+}
+
+/**
+ * Stage 6: for a guest with several records, the one an answer goes to. The record they last
+ * wrote under comes first, since its number or address is the one they are using; otherwise the
+ * record they last visited under, as `senderClient` matches a text.
+ */
+function answerTo(s: BusinessState, t: Conversation, records: Client[]) {
+  const wrote = [...t.items]
+    .reverse()
+    .find((i) => i.kind === 'reply' && i.reply.channel !== 'desk' && i.reply.clientId)
+  if (wrote?.kind === 'reply' && wrote.reply.clientId) return wrote.reply.clientId
+  return latestRecord(s, records).id
 }

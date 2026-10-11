@@ -3,11 +3,18 @@ import { z } from 'zod'
 import type { LocalDatabase } from './database'
 import { createContext } from './context'
 import type { ApiOptions, Route } from './context'
-import { HttpError, fail, header, inject, readBody } from './http'
+import { HttpError, fail, header, inject, readBody, readBytes } from './http'
 import type { InjectOptions, InjectResponse } from './http'
 import { authRoutes } from './routes/auth'
 import { benchmarkRoutes } from './routes/benchmark'
 import { workspaceRoutes } from './routes/workspace'
+import {
+  IMAGE_BYTES_LIMIT,
+  IMAGE_PATH,
+  IMAGE_TOO_LARGE,
+  UPLOAD_PATH,
+  imageRoutes,
+} from './routes/images'
 import { publicRoutes } from './routes/public'
 import { guestRoutes } from './routes/guest'
 import { daySheetRoutes } from './routes/daysheet'
@@ -15,7 +22,11 @@ import { changeRoutes } from './routes/changes'
 import { supportAddressFromEnv, supportRoutes } from './routes/support'
 import { privacyRoutes } from './routes/privacy'
 import { messagingRoutes } from './routes/messaging'
+import { testTextRoutes } from './routes/testText'
 import { createOutbox } from './messaging/outbox'
+import { watchNews } from './messaging/news'
+import { watchTwoStepRule } from './twoStepRule'
+import { newsRoutes } from './routes/news'
 import { recordPhoneCall, recordReply, recordSocialMessage } from './messaging/calls'
 import { metaChallenge, metaGenuine, metaMessages, socialFromEnv } from './messaging/meta'
 import { socialRoutes } from './routes/social'
@@ -29,13 +40,21 @@ import { answerMissed, answerSocial, answerText } from './messaging/receptionist
 import { HOLD_SECONDS } from '../lumane'
 import { createPayments } from './payments/service'
 import type { Payments } from './payments/service'
+import { createMembershipCharges } from './payments/memberships'
+import type { MembershipCharges } from './payments/memberships'
+import { planCardRoutes } from './routes/planCards'
 import { connectionTransportFromEnv, createConnections } from './connections'
 import type { Connections } from './connections'
 import { partnerApi } from './partnerApi'
+import { createTill } from './till/service'
+import type { Till } from './till/service'
 import { googleBooking, googleBookingFromEnv } from './googleBooking'
+import { aiBooking, aiBookingFromEnv } from './aiBooking'
 import { billingProviderFromEnv, createBilling } from './billing'
 import { diaryRoutes } from './diaries'
 import type { Billing } from './billing'
+import { createSignOffs } from './signoffs'
+import type { SignOffs } from './signoffs'
 
 export type { ApiOptions } from './context'
 export type { InjectOptions, InjectResponse } from './http'
@@ -47,8 +66,14 @@ export type ApiHandler = ((
   database: LocalDatabase
   outbox: Outbox
   payments: Payments
+  /** Stage 1: memberships paid each month from a saved card. */
+  memberships: MembershipCharges
   connections: Connections
   billing: Billing
+  /** Stage 2: receipt printers and the cash drawer. */
+  till: Till
+  /** Stage 4: approved new prices starting on their day. */
+  signOffs: SignOffs
   close: () => void
   inject: (request: InjectOptions) => Promise<InjectResponse>
 }
@@ -60,6 +85,7 @@ const SENDGRID_BATCH_BYTES = 1024 * 1024
 const baseRoutes = [
   authRoutes,
   privacyRoutes,
+  imageRoutes,
   workspaceRoutes,
   publicRoutes,
   guestRoutes,
@@ -72,6 +98,10 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   const ctx = createContext(options)
   const { origin, allowedOrigin, db, rateLimit } = ctx
   const outbox = createOutbox(ctx, ctx.messaging)
+  // Stage 4: an approved message to clients is queued as it is saved, and a stopped one stops.
+  watchNews(ctx)
+  // Stage 6: only someone using two-step sign-in can ask everyone in the studio to use it.
+  watchTwoStepRule(ctx)
   /**
    * NEXT-12: the receptionist's answer to a text or social message. A real AI can take several
    * seconds, longer than a provider waits, so the provider is thanked first and the answer follows
@@ -95,13 +125,20 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   ctx.plans.summary = billing.summary
   ctx.plans.allowance = billing.allowance
   ctx.plans.locked = billing.locked
+  ctx.plans.readOnly = billing.readOnly
+  const memberships = createMembershipCharges(ctx, payments, () => {
+    if (options.outboxIntervalMs) outbox.soon()
+  })
   const connections = createConnections(
     ctx,
     options.connectionTransport ?? connectionTransportFromEnv(),
   )
+  const till = createTill(ctx, outbox, options.printers)
+  const signOffs = createSignOffs(ctx)
   const partners = partnerApi()
   const diaries = diaryRoutes()
   const google = googleBooking(options.googleBooking ?? googleBookingFromEnv(process.env))
+  const assistants = aiBooking(options.aiBooking ?? aiBookingFromEnv(process.env))
   const social = options.social ?? socialFromEnv(process.env)
   const assistant = assistantRoutes()
   const routes = [
@@ -110,11 +147,16 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     diaries.read,
     diaries.manage,
     google.manage,
+    assistants.manage,
     socialRoutes(social),
     connections.routes,
     messagingRoutes(outbox),
+    newsRoutes(outbox),
+    testTextRoutes(outbox),
     paymentRoutes(payments),
     billing.routes,
+    planCardRoutes(payments, memberships),
+    till.routes,
     assistant,
     writeUpRoutes(),
     receptionistRoutes(),
@@ -149,6 +191,9 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     connections.start(options.outboxIntervalMs)
     // Trials, renewals and retries are due by the day; once a minute is plenty.
     billing.start(60000)
+    memberships.start(options.outboxIntervalMs)
+    // Stage 4: a signed-off price starts on the studio's own day; once a minute is plenty.
+    signOffs.start(60000)
   }
 
   const handler = (async (
@@ -172,9 +217,13 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     try {
       if (header(request, 'host') !== origin.host)
         fail(403, 'This request must use the configured SALEANE address.')
-      rateLimit(request, 'api', 180, 60000)
       const method = request.method ?? 'GET'
       const url = new URL(request.url!, allowedOrigin)
+      // Stage 2: a page of product photos asks for each one once (they are cached), so photos
+      // have their own allowance and never use up the one for saving work.
+      if (method === 'GET' && IMAGE_PATH.test(url.pathname))
+        rateLimit(request, 'images', 600, 60000)
+      else rateLimit(request, 'api', 180, 60000)
       // Provider delivery receipts come from the provider, not a SALEANE page, and prove
       // themselves by signature instead of by origin and session.
       const hook = /^\/api\/hooks\/(postmark|twilio|resend|sendgrid|mailgun)$/.exec(url.pathname)
@@ -285,7 +334,8 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
           body,
         })
         if (!events) fail(403, 'This event could not be verified.')
-        for (const event of events!) payments.apply(event)
+        // A membership's monthly card payment or refund has its own record (Stage 1).
+        for (const event of events!) if (!payments.apply(event)) memberships.apply(event)
         reply(200, { ok: true })
         return
       }
@@ -321,6 +371,17 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
         )
       )
         return
+      // Stage 5: other software sends visits, clients and till sales in with an access key, not
+      // a session or origin, so its writes are answered here, before the gate for SALEANE's pages.
+      if (await partners.write(ctx, request, response, method, url.pathname, reply)) {
+        if (options.outboxIntervalMs) {
+          outbox.soon()
+          connections.soon()
+        }
+        return
+      }
+      // Stage 5: ChatGPT or Claude calls the studio's booking connection, not a SALEANE page.
+      if (await assistants.endpoint(ctx, request, response, method, url.pathname)) return
       const path = url.pathname
         .split('/')
         .filter(Boolean)
@@ -331,21 +392,28 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
             return fail(400, 'This address is not valid.')
           }
         })
-      // V5: the partner API reads only, and proves itself with a key rather than a session.
-      if (path[1] === 'v1' && method !== 'GET') fail(405, 'This API only reads. Use GET.')
+      // V5: the partner API proves itself with a key rather than a session. Stage 5: its writes
+      // were answered above, so anything else that is not a read is refused here.
+      if (path[1] === 'v1' && method !== 'GET')
+        fail(405, 'Use GET to read, POST to add or PATCH to change. See docs/CONNECTIONS.md.')
       let body: unknown
       if (!['GET', 'HEAD'].includes(method)) {
         if (
           header(request, 'origin') !== allowedOrigin ||
           header(request, 'sec-fetch-site') === 'cross-site'
         )
-          fail(403, 'This request must come from your SALEANE workspace.')
+          fail(403, 'This request must come from SALEANE in your browser.')
         const type = header(request, 'content-type') ?? ''
         // NEXT-16: a voice note arrives as the recording itself, never kept once written down.
         if (path[1] === 'workspaces' && path[3] === 'visits' && path[5] === 'voice-note') {
           if (!VOICE_NOTE_TYPES.includes(type.split(';')[0].trim().toLowerCase()))
             fail(415, 'Send the voice note as a recording.')
           body = await readBody(request, 'bytes', VOICE_NOTE_BYTES)
+        } else if (method === 'POST' && UPLOAD_PATH.test(url.pathname)) {
+          // Stage 2: a product photo arrives as its own bytes; the route checks what they are.
+          if (!/^image\/(?:jpeg|png|webp)$/i.test(type))
+            fail(415, 'Choose a JPEG, PNG or WebP photo.')
+          body = await readBytes(request, IMAGE_BYTES_LIMIT, IMAGE_TOO_LARGE)
         } else {
           if (!/^application\/json(?:\s*;|$)/i.test(type)) fail(415, 'Use a JSON request.')
           body = await readBody(request)
@@ -360,6 +428,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
           if (method !== 'GET' && options.outboxIntervalMs) {
             outbox.soon()
             connections.soon()
+            memberships.soon()
           }
           return
         }
@@ -374,19 +443,27 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
             : status < 500 && error instanceof Error
               ? error.message
               : 'The local service could not complete this request. Try again.',
+        // Stage 5: the access key API gives other software a short code too.
+        ...(error instanceof HttpError && error.code && status < 500 ? { code: error.code } : {}),
       })
     }
   }) as ApiHandler
   handler.database = db
   handler.outbox = outbox
   handler.payments = payments
+  handler.memberships = memberships
   handler.connections = connections
   handler.billing = billing
+  handler.till = till
+  handler.signOffs = signOffs
   handler.close = () => {
+    signOffs.stop()
     clearTimeout(missedAgain)
     outbox.stop()
     connections.stop()
     billing.stop()
+    memberships.stop()
+    till.stop()
     // NEXT-12: talks still running end and are counted while the database is open.
     assistant.stop(ctx)
     db.close()

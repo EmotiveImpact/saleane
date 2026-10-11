@@ -4,19 +4,29 @@ import { TOGETHER_MOST } from './together'
 import { groupCommandSchemas } from './groupSchema'
 import { branchVisitCommandSchemas } from './branchVisitSchema'
 import { hoursCommandSchemas } from './hoursSchema'
+import { rotaCommandSchemas } from './rotaSchema'
+import { newsCommandSchemas } from './newsSchema'
+import { otherTillCommandSchemas } from './otherTillSchema'
+import { quietOfferCommandSchemas } from './quietOffersSchema'
+import { retentionCommandSchemas } from './retentionSchema'
+import { commissionCommandSchemas } from './commissionSchema'
 import { approvalCommandSchemas } from './approvalsSchema'
 import { brandCommandSchemas } from './brandRulesSchema'
+import { tillCommandSchemas } from './tillSchema'
+import { twoStepRuleCommandSchemas } from './twoStepRule'
 import {
   aiVoiceSchema,
   googleBookingSchema,
   receptionistSettingsSchema,
 } from './receptionistSchema'
+import { aiBookingSchema } from './aiBookingSchema'
 import { missedCallSources } from './missedCallsSchema'
 import { offerInputSchema } from './plansSchema'
 import { specialInputSchema } from './specialsSchema'
 import { taskInputSchema } from './tasksSchema'
 import { waitlistInputSchema, waitlistTimesSchema } from './waitlistSchema'
-import { giftCardInputSchema } from './giftCardsSchema'
+import { giftCardInputSchema, giftCardMoveCommandSchema } from './giftCardsSchema'
+import { staffMoveCommandSchemas } from './staffMovesSchema'
 import {
   patchTestInputSchema,
   patchTestResultSchema,
@@ -34,7 +44,7 @@ import {
 import {
   GUEST_NOTE_LIMIT,
   VISIT_AFTERCARE_LIMIT,
-  bookingChannels,
+  visitChannels,
   paymentMethodSchema,
   processorSchema,
   clientSchema,
@@ -49,6 +59,7 @@ import {
   payRulesInputSchema,
   protectionSchema,
   productInputSchema,
+  timeOffChangeInputSchema,
   timeOffInputSchema,
   weeklyHoursSchema,
 } from './operations'
@@ -97,7 +108,7 @@ export const bookingSchema = z.object({
   clientId: id.optional(),
   contact: contactSchema.optional(),
   source: z.enum(['desk', 'online', 'rebook']),
-  channel: z.enum(bookingChannels).optional(),
+  channel: z.enum(visitChannels).optional(),
   rebookedFromId: id.optional(),
   /** V1.5: the waitlist request this booking fills. */
   waitlistId: id.optional(),
@@ -188,6 +199,8 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     personId: z.string().min(1).max(100).optional(),
   }),
   z.object({ type: z.literal('google-booking'), settings: googleBookingSchema }),
+  // Stage 5: booking through ChatGPT or Claude.
+  z.object({ type: z.literal('ai-booking'), settings: aiBookingSchema }),
   // PILOT-01: the studio's confirmation and reminder settings.
   z.object({ type: z.literal('reminders'), settings: reminderSettingsSchema }),
   // PILOT-01: a client's own wish about appointment emails and texts.
@@ -196,6 +209,8 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     clientId: id,
     email: z.boolean(),
     sms: z.boolean(),
+    /** Stage 1: the team confirms a client who replied STOP asked for texts again. */
+    askedAfterStop: z.literal(true).optional(),
   }),
   z.object({
     type: z.literal('refund'),
@@ -274,6 +289,12 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
     reference: z.string().trim().max(150).optional(),
   }),
   z.object({ type: z.literal('cancel-time-off'), timeOffId: id }),
+  // Stage 4: new days for time off already recorded; the earlier record is kept, cancelled.
+  z.object({
+    type: z.literal('time-off-change'),
+    timeOffId: id,
+    input: timeOffChangeInputSchema,
+  }),
   z.object({
     type: z.literal('leave-allowance'),
     staffId: id,
@@ -649,6 +670,9 @@ export const commandSchema = z.discriminatedUnion('type', [
     holdingId: id,
     method,
     reference: z.string().trim().max(150).optional(),
+    processor,
+    /** Stage 1: the month a card payment was taken for; only with the card, from the server. */
+    periodStart: z.iso.date().optional(),
   }),
   z.object({
     type: z.literal('plan-cancel'),
@@ -657,6 +681,32 @@ export const commandSchema = z.discriminatedUnion('type', [
     refundMinor: money.optional(),
     method: method.optional(),
     reference: z.string().trim().max(150).optional(),
+    processor,
+  }),
+  // Stage 1: a membership paid each month from a saved card, set up (with the card) or turned
+  // off. Only the server sends it, with a card it checked; a page's own command is refused.
+  z.object({
+    type: z.literal('plan-card'),
+    holdingId: id,
+    card: z
+      .object({ id, brand: z.string().trim().min(1).max(40), last4: z.string().regex(/^\d{4}$/) })
+      .strict()
+      .optional(),
+    wording: z.string().trim().min(20).max(1000).optional(),
+    /** Why card payments stopped, when they do. */
+    reason: z.enum(['turned_off', 'card_removed']).optional(),
+  }),
+  // Stage 1: the server tried a membership's saved card and it was declined; for the timeline.
+  z.object({
+    type: z.literal('plan-card-try'),
+    holdingId: id,
+    periodStart: z.iso.date(),
+    amountMinor: money.refine((n) => n > 0),
+    try: z.number().int().min(1).max(4),
+    /** The next try's day, or none once SALEANE stops trying for the month. */
+    nextTryOn: z.iso.date().optional(),
+    /** The card was not tried, because no reminder went out three days before. */
+    missedReminder: z.literal(true).optional(),
   }),
   // Ask Saleane: several desk changes approved together, applied together or not at all. Only
   // moving, cancelling, closing time and unsent drafts, so no money moves in a batch.
@@ -764,8 +814,27 @@ export const commandSchema = z.discriminatedUnion('type', [
   ...approvalCommandSchemas,
   // V5: the studio's look and the house rules every location follows.
   ...brandCommandSchemas,
+  // Stage 2: how receipts print and whether the cash drawer opens by itself.
+  ...tillCommandSchemas,
   // NEXT-07: hours worked, for payroll.
   ...hoursCommandSchemas,
+  // Stage 3: one day on the rota changed or added, and a week's changes copied or cleared.
+  ...rotaCommandSchemas,
+  // Stage 3: rates for a treatment or product, steps by takings and monthly targets.
+  ...commissionCommandSchemas,
+  // Stage 4: a gift card or a team member moving to another location.
+  giftCardMoveCommandSchema,
+  ...staffMoveCommandSchemas,
+  // Stage 4: one message from the studio to its clients, drafted, approved, stopped.
+  ...newsCommandSchemas,
+  // Stage 5: a sale or refund from a chain's own till, sent in through an access key.
+  ...otherTillCommandSchemas,
+  // Stage 5: a lower price for quiet times, and an invitation to one of Today's open times with it.
+  ...quietOfferCommandSchemas,
+  // Stage 6: approving deletion, or keeping longer, records at the end of their keeping period.
+  ...retentionCommandSchemas,
+  // Stage 6: the owner asks everyone to use two-step sign-in.
+  ...twoStepRuleCommandSchemas,
   ...operatingCommandSchema.options,
 ])
 export type BookingInput = z.infer<typeof bookingSchema>

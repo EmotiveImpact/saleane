@@ -7,16 +7,7 @@ import { businessMinutes, can } from '../domain/operations'
 import { dayAppointments, shownStatus, staffDay } from '../domain/selectors'
 import { hasLocations, places, staffLocationOn } from '../domain/locations'
 import { addDays, dateLabel, timeLabel } from '../domain/format'
-import {
-  Avatar,
-  Button,
-  Empty,
-  Status,
-  PageHeader,
-  PhotoStrip,
-  SegmentedControl,
-  photos,
-} from '../design'
+import { Avatar, Button, Empty, Status, PageHeader, SegmentedControl } from '../design'
 import { Agenda } from '../components/Agenda'
 import { PeopleColumns } from '../components/PeopleColumns'
 import { AppointmentDialog } from '../components/AppointmentDialog'
@@ -28,6 +19,8 @@ import { addMonths, shownHours, weekStart } from '../components/calendarDays'
 import type { BookingDefaults } from '../components/BookingDialog'
 import { everyLabel } from '../domain/repeat'
 import { othersTogether } from '../domain/together'
+import { FULLY_BOOKED_LINE, fullyBooked, pauses } from '../domain/moments'
+import '../components/moments.css'
 
 export function Calendar() {
   const { state, today, role, blocked, branch } = useStore()
@@ -98,7 +91,27 @@ export function Calendar() {
     moving: boolean
     staffId: string
     minute: number
+    // A finger has to rest on a visit before it moves, so a swipe over the day still scrolls.
+    touch?: boolean
+    armed?: boolean
   } | null>(null)
+  const held = useRef<number | undefined>(undefined)
+  const armedNow = useRef(false)
+  useEffect(() => {
+    armedNow.current = !!drag?.armed
+  }, [drag?.armed])
+  useEffect(() => {
+    const box = grid.current
+    if (!box) return
+    // Once a visit is held, the finger moves the visit and not the page.
+    const stop = (e: TouchEvent) => {
+      if (armedNow.current && e.cancelable) e.preventDefault()
+    }
+    box.addEventListener('touchmove', stop, { passive: false })
+    return () => box.removeEventListener('touchmove', stop)
+  }, [])
+  useEffect(() => () => window.clearTimeout(held.current), [])
+  const coarse = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches
   const [proposal, setProposal] = useState<{
     date: string
     staffId: string
@@ -135,12 +148,21 @@ export function Calendar() {
         atPlace(a),
     )
     .sort((a, b) => a.startMinutes - b.startMinutes)
+  // Stage 6: a day with no time left for anyone's shortest treatment says so, once. A general
+  // manager's day counts only their own location.
+  const full =
+    period === 'day' &&
+    fullyBooked(state, date, {
+      today,
+      locationId: branch ?? (locationFilter === 'all' ? undefined : locationFilter),
+    })
   return (
     <>
       <PageHeader
         variant="compact"
-        title="Calendar"
-        description="People, spaces and time, working together."
+        eyebrow="Calendar"
+        title="Every visit, in its place."
+        description="People, rooms and time, working together."
         actions={
           <Button onClick={() => setBooking({})}>
             <Plus size={17} />
@@ -148,7 +170,6 @@ export function Calendar() {
           </Button>
         }
       />
-      <PhotoStrip src={photos.calmStudio} />
       <section className="surface calendar-surface">
         <div className="calendar-toolbar">
           <div className="date-controls">
@@ -238,6 +259,11 @@ export function Calendar() {
               />
             )}
           </div>
+          {full && (
+            <p className="fully-booked-line settle-in" role="status">
+              {FULLY_BOOKED_LINE}
+            </p>
+          )}
         </div>
         <div className="calendar-legend">
           <span className="legend-item">
@@ -258,11 +284,13 @@ export function Calendar() {
         <div className={view === 'grid' ? 'calendar-grid-desktop' : 'hidden'}>
           {canDrag && day.some((a) => a.status === 'confirmed') && (
             <p className="calendar-hint">
-              Drag an upcoming visit to move it, or click a free space to book.
+              {coarse
+                ? 'Hold an upcoming visit, then slide it to move it, or tap a free space to book.'
+                : 'Drag an upcoming visit to move it, or click a free space to book.'}
             </p>
           )}
           <div
-            className="calendar-grid"
+            className={`calendar-grid${full ? ' is-full' : ''}`}
             ref={grid}
             style={{
               gridTemplateColumns: `66px repeat(${Math.max(1, staff.length)}, minmax(160px, 1fr))`,
@@ -301,6 +329,27 @@ export function Calendar() {
                 {Array.from({ length: hourCount }, (_, i) => (
                   <div className="hour-line" style={{ top: i * 82 }} key={i} />
                 ))}
+                {/* Stage 6: a gap between two of their visits is a pause, drawn under the free time. */}
+                {(() => {
+                  const segments = staffDay(state, s.id, date).segments
+                  const between = pauses(segments)
+                  return segments
+                    .filter((segment) => segment.kind === 'free' && between.has(segment.from))
+                    .map((segment) => (
+                      <div
+                        key={`pause-${segment.from}`}
+                        className="calendar-pause"
+                        aria-hidden="true"
+                        style={{
+                          top: ((segment.from - start) / 60) * 82,
+                          height: ((segment.to - segment.from) / 60) * 82,
+                        }}
+                      >
+                        {/* A short pause is tinted only; the words need room to sit in. */}
+                        {segment.to - segment.from >= 30 && <span>A pause</span>}
+                      </div>
+                    ))
+                })()}
                 {date >= today &&
                   staffDay(state, s.id, date)
                     .segments.filter((segment) => segment.kind === 'free')
@@ -381,10 +430,11 @@ export function Calendar() {
                         }}
                       >
                         <button
-                          className={`calendar-event tone-${s.tone} ${a.status === 'completed' ? 'event-completed' : ''} ${drag?.moving && drag.id === a.id ? 'event-dragging' : ''} ${canDrag && a.status === 'confirmed' ? 'event-movable' : ''}`}
+                          className={`calendar-event tone-${s.tone} ${a.status === 'completed' ? 'event-completed' : ''} ${drag?.moving && drag.id === a.id ? 'event-dragging' : ''} ${drag?.touch && drag.armed && !drag.moving && drag.id === a.id ? 'event-held' : ''} ${canDrag && a.status === 'confirmed' ? 'event-movable' : ''}`}
                           style={{ height: (a.bookedDurationMinutes / 60) * 82 - 3 }}
                           onPointerDown={(e) => {
                             if (!canDrag || a.status !== 'confirmed' || e.button !== 0) return
+                            const touch = e.pointerType === 'touch'
                             e.currentTarget.setPointerCapture?.(e.pointerId)
                             setDrag({
                               id: a.id,
@@ -394,10 +444,30 @@ export function Calendar() {
                               moving: false,
                               staffId: s.id,
                               minute: a.startMinutes,
+                              touch,
+                              armed: !touch,
                             })
+                            window.clearTimeout(held.current)
+                            if (touch)
+                              held.current = window.setTimeout(() => {
+                                setDrag((d) => (d?.id === a.id ? { ...d, armed: true } : d))
+                                navigator.vibrate?.(8)
+                              }, 320)
+                          }}
+                          onContextMenu={(e) => {
+                            // A long press is how a finger picks a visit up, not a menu.
+                            if (canDrag && a.status === 'confirmed') e.preventDefault()
                           }}
                           onPointerMove={(e) => {
                             if (drag?.id !== a.id) return
+                            if (drag.touch && !drag.armed) {
+                              // Moving before the hold is a swipe: let the page scroll.
+                              if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) >= 8) {
+                                window.clearTimeout(held.current)
+                                setDrag(null)
+                              }
+                              return
+                            }
                             if (
                               !drag.moving &&
                               Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 6
@@ -412,6 +482,7 @@ export function Calendar() {
                             if (point) setDrag({ ...drag, moving: true, ...point })
                           }}
                           onPointerUp={() => {
+                            window.clearTimeout(held.current)
                             if (drag?.id !== a.id) return
                             if (drag.moving) {
                               dragged.current = true
@@ -426,7 +497,10 @@ export function Calendar() {
                             }
                             setDrag(null)
                           }}
-                          onPointerCancel={() => setDrag(null)}
+                          onPointerCancel={() => {
+                            window.clearTimeout(held.current)
+                            setDrag(null)
+                          }}
                           onClick={() => {
                             if (dragged.current) {
                               dragged.current = false

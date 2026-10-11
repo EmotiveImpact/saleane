@@ -17,11 +17,15 @@ import type { Context, Route } from '../context'
 import { practitionerRefusal } from '../../src/domain/practitioner'
 import { branchChangeRefusal, branchRefusal } from '../../src/domain/branch'
 import { areaRefusal } from '../../src/domain/area'
+import { refundOverLimit, refundTarget, signOffRefusal } from '../../src/domain/signoffs'
+import { erasureRequested } from '../messaging/news'
 import { openingFree, staleOffer } from '../../src/domain/waitlist'
 import { giftCardHoldProblem } from '../payments/service'
+import { membershipCardHold } from '../payments/memberships'
 import { workspaceView } from '../projections'
 import type { Reader } from '../projections'
 import { followGuestLinks, issueGuestLink, revokeGuestLinks } from './guest'
+import { imageBelongs } from './images'
 
 /** Signed-in workspace routes: records, commands, team, invitations and audit. Returns false when the request belongs to another module. */
 export async function workspaceRoutes(ctx: Context, route: Route): Promise<boolean> {
@@ -74,6 +78,10 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         'processor' in data.command
       )
         fail(403, 'Card payments are taken through the payment screen, not recorded by hand.')
+      // Stage 1: a membership's saved card is chosen on the client's page, which the server
+      // checks; a declined try is noted only by the server.
+      if (data.command.type === 'plan-card' || data.command.type === 'plan-card-try')
+        fail(403, 'Card payments for a membership are set up from the client’s page.')
       if (data.command.type === 'organisation' && data.command.botCheck && !ctx.turnstile)
         fail(
           422,
@@ -131,6 +139,46 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         }
         if (org.state.revision !== data.revision)
           fail(409, 'Someone else saved a change just now. Reload to see it, then try again.')
+        // Stage 4: a refund over a general manager's or manager's limit waits for a sign-off, and
+        // a general manager's rota change may too (src/domain/signoffs.ts). Checked after a
+        // replay is answered, since a refund given back with its sign-off uses it up.
+        if (org.role === 'general' || org.role === 'manager') {
+          const refusal = signOffRefusal(
+            org.state,
+            org.role,
+            data.command,
+            new Date(now()).toISOString(),
+          )
+          if (refusal) fail(403, refusal)
+          // A sign-off is used once: not while a card refund on the same receipt is under way.
+          for (const part of parts) {
+            if (part.type !== 'refund' || part.counterSaleId) continue
+            if (!refundOverLimit(org.state, org.role, refundTarget(part), part.amountMinor))
+              continue
+            const refundOf = part.saleId ? `sale:${part.saleId}` : `payment:${part.paymentId}`
+            if (
+              db.get(
+                "SELECT id FROM payment_attempts WHERE organisation_id=? AND refund_of=? AND status IN ('started','processing','unknown')",
+                org.id,
+                refundOf,
+              )
+            )
+              fail(
+                409,
+                'A card refund on this receipt is under way or unclear. Check that one first.',
+              )
+          }
+        }
+        // Stage 2: a product takes on a new photo only when that photo is this studio's own.
+        for (const part of parts)
+          if (part.type === 'product' && part.input.imageId) {
+            const before = operations(org.state).products.find((p) => p.id === part.id)
+            if (
+              before?.imageId !== part.input.imageId &&
+              !imageBelongs(db, org.id, part.input.imageId)
+            )
+              fail(422, 'That photo could not be found. Add it again.')
+          }
         let command: Command = data.command
         // V5: a request goes to its region's manager only when the region has one, and never to
         // the person who raised it; the client's own list and claims are never trusted.
@@ -271,6 +319,25 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
             )
           )
             fail(409, 'This time is reserved or unavailable. Choose another time.')
+        } else if (command.type === 'news-approve') {
+          // Stage 4: erasure requests are kept in the audit log, which only the server reads, so
+          // the approval counts them from there and never from what a browser sends.
+          command = { ...command, erased: erasureRequested(ctx, org.id) }
+        } else if (command.type === 'retention-delete' && command.kind === 'client') {
+          // Stage 6: a client's details go only once no card is saved for them, since the card
+          // is kept with the payment provider and must be taken off there first.
+          const marks = command.ids.map(() => '?').join(',')
+          if (
+            db.get(
+              `SELECT id FROM saved_cards WHERE organisation_id=? AND removed_at IS NULL AND client_id IN (${marks})`,
+              org.id,
+              ...command.ids,
+            )
+          )
+            fail(
+              409,
+              'A card is still saved for one of these clients. Remove it from their page first.',
+            )
         } else if (command.type === 'message-queue') {
           // Approving a waitlist offer checks its time again, including guests holding it.
           const stale = staleOffer(withHolds(org), command.messageId, new Date(now()).toISOString())
@@ -308,8 +375,27 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         }
         const held = giftCardHoldProblem(ctx, org.id, result.state)
         if (held) fail(409, held)
+        // Stage 1: nothing is recorded by hand for a membership while its card is out.
+        if (command.type === 'plan-renew' || command.type === 'plan-cancel') {
+          const busy = membershipCardHold(ctx, org.id, command.holdingId)
+          if (busy) fail(409, busy)
+        }
         if (result.state.revision !== org.state.revision)
           persist(org, result.state, actor.id, command.type, result.recordId)
+        // Stage 6: a former client's visit links stop working, so nobody opens them by name.
+        if (command.type === 'retention-delete' && command.kind === 'client') {
+          const ids = new Set(command.ids)
+          const visits = org.state.appointments.filter((a) => ids.has(a.clientId)).map((a) => a.id)
+          for (let i = 0; i < visits.length; i += 500) {
+            const part = visits.slice(i, i + 500)
+            db.run(
+              `UPDATE guest_links SET revoked_at=? WHERE organisation_id=? AND revoked_at IS NULL AND appointment_id IN (${part.map(() => '?').join(',')})`,
+              now(),
+              org.id,
+              ...part,
+            )
+          }
+        }
         // Open guest links follow a visit the desk moves, as they do when the guest moves it.
         const moves = command.type === 'batch' ? command.commands : [command]
         for (const move of moves)
@@ -378,7 +464,7 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
           org.id,
           data.email,
         )
-        if (member) fail(409, 'This person already belongs to the workspace.')
+        if (member) fail(409, 'This person is already in the studio team.')
         const staffId =
           data.role === 'practitioner' ? linkableProfessional(org, data.staffId) : null
         const areaId = data.role === 'regional' ? linkableArea(org, data.areaId) : null
@@ -501,7 +587,7 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
         .filter(Boolean)
       reply(200, {
         events: db.all(
-          `SELECT e.id,e.action,e.record_id AS recordId,e.revision,e.occurred_at AS occurredAt,COALESCE(a.name,CASE WHEN e.action='workspace.restored' THEN 'Local recovery' ELSE 'Guest booking' END) AS actor FROM audit_events e LEFT JOIN accounts a ON a.id=e.actor_id WHERE e.organisation_id=?${
+          `SELECT e.id,e.action,e.record_id AS recordId,e.revision,e.occurred_at AS occurredAt,COALESCE(a.name,k.name||' (access key)',CASE WHEN e.action='workspace.restored' THEN 'Local recovery' ELSE 'Guest booking' END) AS actor FROM audit_events e LEFT JOIN accounts a ON a.id=e.actor_id LEFT JOIN api_keys k ON e.actor_id='key:'||k.id AND k.organisation_id=e.organisation_id WHERE e.organisation_id=?${
             actions?.length ? ' AND e.action IN (SELECT value FROM json_each(?))' : ''
           } ORDER BY e.occurred_at DESC,e.rowid DESC LIMIT 200`,
           org.id,

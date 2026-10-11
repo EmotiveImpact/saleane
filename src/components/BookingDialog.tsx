@@ -22,6 +22,8 @@ import {
   everyLabel,
   repeatDates,
 } from '../domain/repeat'
+import { patchTestBooking } from '../domain/patchTests'
+import { BookingPatchTest } from './PatchTests'
 import './repeat.css'
 
 /** NEXT-09: a later visit of a repeat, at the time it would be booked, or left out. */
@@ -151,6 +153,10 @@ export function BookingDialog({
           })
       : []
   const repeatVisits = repeatRows.filter((row) => row.start !== null)
+  // Stage 3: the studio's patch test, offered when a treatment needs one first.
+  const studioTest = patchTestBooking(state)
+  const bookableTest =
+    studioTest && services.some((x) => x.id === studioTest.id) ? studioTest : undefined
   const repeating = everyWeeks > 0
   // NEXT-08: others coming with them on the same day, each a client with a visit of their own.
   const [guests, setGuests] = useState<PartyGuest[]>([])
@@ -619,6 +625,24 @@ export function BookingDialog({
               setError('')
             }}
           />
+          {(someoneNew || clientId) && (
+            <BookingPatchTest
+              clientId={someoneNew ? undefined : clientId}
+              serviceId={serviceId}
+              date={date}
+              start={start}
+              test={bookableTest}
+              onBookTest={(id) => {
+                setServiceId(id)
+                setStaffId(
+                  state.staff.find((s) => !s.archived && s.serviceIds.includes(id))?.id ?? '',
+                )
+                setStart(null)
+                setEveryWeeks(0)
+                setError('')
+              }}
+            />
+          )}
           {!repeating && (
             <TogetherSection
               state={state}

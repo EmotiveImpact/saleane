@@ -1,14 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
   ArrowRight,
+  CalendarClock,
   CalendarSync,
   ChevronRight,
   Clock3,
   NotebookPen,
   Star,
   Sun,
+  Target,
 } from 'lucide-react'
 import { useStore } from '../state/context'
 import { api, ApiError } from '../state/api'
@@ -22,18 +24,22 @@ import {
 import { practitionerViewSchema } from '../domain/practitioner'
 import type { PractitionerView } from '../domain/practitioner'
 import type { Command } from '../domain/commands'
-import { addDays, dateLabel, timeLabel } from '../domain/format'
+import { addDays, dateLabel, timeLabel, wholeMoney } from '../domain/format'
+import { progressPercent } from '../domain/commission'
 import { firstName, nextUp, previousWithYou, untilLabel, venueMinutes } from '../domain/pocket'
 import { PRACTITIONER_AVERAGE_MIN } from '../domain/feedback'
 import { venueDate } from '../domain/tillCount'
 import { hoursLabel } from '../domain/hours'
-import { Avatar, Button, Empty, ErrorMessage, Modal, PageHeader, Status } from '../design'
+import { span } from '../domain/rota'
+import { Avatar, Button, Empty, ErrorMessage, Modal, PageHeader, Status, photos } from '../design'
 import { SignOut } from '../components/SignOut'
 import { HelpButton } from '../components/HelpButton'
 import { ClockOutForm } from '../components/Clock'
 import { DiaryLinks } from '../components/DiaryLinks'
+import { visitPauses } from '../domain/moments'
 import { VisitWriteUp } from '../components/VisitWriteUp'
 import '../practitioner.css'
+import '../components/moments.css'
 
 /** Matches the single-column breakpoint in practitioner.css. */
 const narrow = () => window.matchMedia?.('(max-width: 860px)').matches ?? false
@@ -198,6 +204,7 @@ export function PractitionerDay() {
   const locale = organisation.locale
   const isToday = date === record.today
   const visits = record.appointments.filter((a) => a.date === date)
+  const pauseAfter = new Map(visitPauses(visits).map((p) => [p.afterId, p]))
   const minutes = venueMinutes(organisation.timeZone, now)
   const next = isToday ? nextUp(visits, minutes) : undefined
   const nextClient = next && record.clients.find((c) => c.id === next.clientId)
@@ -222,6 +229,20 @@ export function PractitionerDay() {
   const clockAt = (instant: number) =>
     timeLabel(venueMinutes(organisation.timeZone, instant), locale)
   const hours = record.hours
+  // Stage 3: their own day as planned on the rota, and their changed days still to come.
+  const planned = record.plan?.find((d) => d.date === date)
+  const changedDays = (record.plan ?? []).filter((d) => d.change && d.date >= record.today)
+  const planWords = (day: NonNullable<typeof planned>) =>
+    day.away
+      ? 'Away'
+      : day.working && day.open !== undefined && day.close !== undefined
+        ? `${span(day.open, day.close, locale)}${day.place ? ` at ${day.place}` : ''}`
+        : 'Not working'
+  const changeWords = {
+    hours: 'Changed for this day',
+    extra: 'Extra day',
+    off: 'Changed for this day',
+  }
 
   function changeDay(target: string) {
     setDate(target)
@@ -266,6 +287,7 @@ export function PractitionerDay() {
         <div className="practitioner-day-heading">
           <PageHeader
             variant="editorial"
+            photo={{ src: photos.towels, position: 'center 62%' }}
             eyebrow={
               <>
                 <Sun size={16} />
@@ -305,6 +327,47 @@ export function PractitionerDay() {
           />
         </div>
         <ErrorMessage error={error} />
+        {planned && (
+          <section className="practitioner-plan" aria-label="Your hours on the rota">
+            <p>
+              <CalendarClock size={18} aria-hidden="true" />
+              <span>
+                {planned.working ? 'Working ' : ''}
+                <strong>
+                  {planned.working
+                    ? planWords(planned)
+                    : planned.away
+                      ? 'Away this day'
+                      : 'Not working this day'}
+                </strong>
+              </span>
+              {planned.change && (
+                <span className="practitioner-plan-tag">{changeWords[planned.change]}</span>
+              )}
+            </p>
+            {changedDays.length > 0 && (
+              <details className="practitioner-plan-changes">
+                <summary>
+                  {changedDays.length === 1
+                    ? 'One changed day coming up'
+                    : `${changedDays.length} changed days coming up`}
+                </summary>
+                <ul>
+                  {changedDays.map((day) => (
+                    <li key={day.date}>
+                      <button type="button" onClick={() => changeDay(day.date)}>
+                        <strong>{dateLabel(day.date, locale, true)}</strong>
+                        <span>
+                          {planWords(day)} · {changeWords[day.change!]}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </section>
+        )}
         {isToday && hours && (
           <section className="practitioner-clock" aria-label="Your hours">
             <p>
@@ -369,6 +432,7 @@ export function PractitionerDay() {
               : `Your average from guests' private ratings appears once ${PRACTITIONER_AVERAGE_MIN} guests have rated you.`}
           </p>
         )}
+        {record.target && <OwnTarget view={record} target={record.target} />}
         {notice && (
           <p className="practitioner-notice" role="status">
             {notice}
@@ -393,6 +457,7 @@ export function PractitionerDay() {
                   <small>
                     {[next.resourceName, `${next.durationMinutes} min`].filter(Boolean).join(' · ')}
                   </small>
+                  {next.moment && <em className="visit-moment">{next.moment}</em>}
                 </span>
                 <span className="practitioner-next-open">
                   Before you begin
@@ -420,32 +485,47 @@ export function PractitionerDay() {
             </div>
             {visits.length ? (
               <ul className="practitioner-visits" aria-labelledby="visits-heading">
-                {visits.map((a) => (
-                  <li key={a.id}>
-                    <button
-                      className="practitioner-visit"
-                      data-visit={a.id}
-                      aria-pressed={visit?.id === a.id}
-                      onClick={() => openVisit(a.id)}
-                    >
-                      <span className="agenda-time">
-                        {timeLabel(a.startMinutes, locale)}
-                        <small>{a.durationMinutes} min</small>
-                      </span>
-                      <span className="agenda-client">
-                        <Avatar small identity={a.clientId} name={clientName(a.clientId)} />
-                        <span>
-                          <strong>{clientName(a.clientId)}</strong>
+                {visits.map((a) => {
+                  const pause = pauseAfter.get(a.id)
+                  return (
+                    <Fragment key={a.id}>
+                      <li>
+                        <button
+                          className="practitioner-visit"
+                          data-visit={a.id}
+                          aria-pressed={visit?.id === a.id}
+                          onClick={() => openVisit(a.id)}
+                        >
+                          <span className="agenda-time">
+                            {timeLabel(a.startMinutes, locale)}
+                            <small>{a.durationMinutes} min</small>
+                          </span>
+                          <span className="agenda-client">
+                            <Avatar small identity={a.clientId} name={clientName(a.clientId)} />
+                            <span>
+                              <strong>{clientName(a.clientId)}</strong>
+                              <small>
+                                {a.serviceName}
+                                {a.resourceName ? ` · ${a.resourceName}` : ''}
+                              </small>
+                            </span>
+                          </span>
+                          <Status status={a.guestHere ? 'here' : a.status} />
+                        </button>
+                      </li>
+                      {/* Stage 6: a gap of a quarter hour or more before their next visit. */}
+                      {pause && (
+                        <li className="practitioner-pause" aria-hidden="true">
+                          <span>A pause</span>
                           <small>
-                            {a.serviceName}
-                            {a.resourceName ? ` · ${a.resourceName}` : ''}
+                            {timeLabel(pause.from, locale)} to {timeLabel(pause.to, locale)},{' '}
+                            {pause.to - pause.from} minutes
                           </small>
-                        </span>
-                      </span>
-                      <Status status={a.guestHere ? 'here' : a.status} />
-                    </button>
-                  </li>
-                ))}
+                        </li>
+                      )}
+                    </Fragment>
+                  )
+                })}
               </ul>
             ) : (
               <Empty title="A little breathing room">
@@ -469,6 +549,7 @@ export function PractitionerDay() {
                     {timeLabel(visit.startMinutes, locale)} · {visit.serviceName}
                     {visit.resourceName ? ` · ${visit.resourceName}` : ''}
                   </p>
+                  {visit.moment && <p className="visit-moment settle-in">{visit.moment}</p>}
                 </div>
                 <Status status={visit.guestHere ? 'here' : visit.status} />
               </div>
@@ -721,6 +802,46 @@ export function PractitionerDay() {
           <DiaryLinks workspaceId={orgId} inDialog />
         </Modal>
       </main>
+    </div>
+  )
+}
+
+/**
+ * Stage 3: their own target for the month and how far they are towards it. Their takings count
+ * the same way as their pay; they never see anyone else's, or their rates.
+ */
+function OwnTarget({
+  view,
+  target,
+}: {
+  view: PractitionerView
+  target: NonNullable<PractitionerView['target']>
+}) {
+  const org = { locale: view.organisation.locale, currency: target.currency }
+  const cash = (minor: number) => wholeMoney(minor, org)
+  const month = new Date(`${target.month}-01T12:00:00Z`).toLocaleDateString(org.locale, {
+    month: 'long',
+    timeZone: 'UTC',
+  })
+  const share = progressPercent(target.takenMinor, target.targetMinor)
+  const parts = [
+    target.treatmentsTargetMinor
+      ? `Treatments ${cash(target.treatmentsMinor)} of ${cash(target.treatmentsTargetMinor)}.`
+      : '',
+    target.productsTargetMinor
+      ? `Products ${cash(target.productsMinor)} of ${cash(target.productsTargetMinor)}.`
+      : '',
+  ].filter(Boolean)
+  return (
+    <div className="practitioner-target">
+      <p className="practitioner-rating">
+        <Target size={16} aria-hidden="true" />
+        {`Your target for ${month}: ${cash(target.takenMinor)} of ${cash(target.targetMinor)} so far, ${share}%.`}
+        {parts.length ? ` ${parts.join(' ')}` : ''}
+      </p>
+      <div className="performance-track" aria-hidden="true">
+        <span style={{ width: `${Math.min(100, share)}%` }} />
+      </div>
     </div>
   )
 }

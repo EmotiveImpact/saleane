@@ -6,7 +6,14 @@ import { businessDate, can, operations } from '../domain/operations'
 import type { Command } from '../domain/commands'
 import { dateLabel, money } from '../domain/format'
 import { minorInput, parseMinor } from '../domain/money'
-import { RENT_METHOD_LABEL, rentReceived, rentStatement } from '../domain/rent'
+import { parsePercent } from '../domain/commission'
+import {
+  RENT_METHOD_LABEL,
+  periodWorking,
+  rentReceived,
+  rentStatement,
+  rentTerms,
+} from '../domain/rent'
 import { rentMethods } from '../domain/rentSchema'
 import type { Rental, RentPayment } from '../domain/rentSchema'
 import { Button, ErrorMessage, Modal } from '../design'
@@ -14,7 +21,8 @@ import { StudioDateField } from './StudioDateField'
 
 /**
  * V2: chairs and rooms rented to self-employed people. SALEANE works out the rent due and records
- * what was paid; it does not collect it.
+ * what was paid; it does not collect it. Stage 3: rent can be a share of the renter's own takings,
+ * with or without a fixed amount, and each period shows how it was worked out.
  */
 function useRun() {
   const { commit } = useStore()
@@ -68,8 +76,9 @@ export function RentPanel({ from, to }: { from: string; to: string }) {
         <div>
           <h2 id="rent-heading">Chair and room rent</h2>
           <p>
-            For self-employed people who rent a chair or room and keep their own takings. They earn
-            no commission while renting. {money(received, org, true)} rent recorded in this period.
+            For self-employed people who rent a chair or room and keep their own takings, which are
+            kept out of the studio’s figures. They earn no commission while renting.{' '}
+            {money(received, org, true)} rent recorded in this period.
           </p>
         </div>
         <Armchair size={21} aria-hidden="true" />
@@ -84,6 +93,8 @@ export function RentPanel({ from, to }: { from: string; to: string }) {
           {rentals.map((rental) => {
             const periods = rentStatement(state, rental)
             const owed = periods.reduce((sum, p) => sum + p.owedMinor, 0)
+            const running = periods.reduce((sum, p) => sum + p.runningMinor, 0)
+            const recent = periods.slice(-6).reverse()
             return (
               <div className="pay-person" key={rental.id}>
                 <div className="ops-record pay-record">
@@ -92,17 +103,28 @@ export function RentPanel({ from, to }: { from: string; to: string }) {
                       {name(rental.staffId)} · {space(rental)}
                     </strong>
                     <small>
-                      {money(rental.amountMinor, org, true)} a {rental.every} from{' '}
-                      {dateLabel(rental.from, org.locale)}
+                      {rentTerms(state, rental)} from {dateLabel(rental.from, org.locale)}
                       {rental.to ? `, ended ${dateLabel(rental.to, org.locale)}` : ''}
+                      {rental.products
+                        ? '. The products they sell are their own.'
+                        : '. Products they sell stay the studio’s sales.'}
                     </small>
                   </div>
-                  <span className={`ops-record-money ${owed ? 'rota-over' : ''}`}>
-                    {owed ? `${money(owed, org, true)} owed` : 'Up to date'}
+                  <span className={`ops-record-money rent-money ${owed ? 'rota-over' : ''}`}>
+                    {owed
+                      ? `${money(owed, org, true)} owed`
+                      : running
+                        ? `${money(running, org, true)} so far`
+                        : 'Up to date'}
+                    {owed > 0 && running > 0 && (
+                      <small>
+                        {money(running, org, true)} more so far this {rental.every}
+                      </small>
+                    )}
                   </span>
                   {canEdit && (
                     <div className="stock-actions">
-                      {owed > 0 && (
+                      {owed + running > 0 && (
                         <Button
                           variant="secondary"
                           aria-label={`Record rent from ${name(rental.staffId)}`}
@@ -133,22 +155,49 @@ export function RentPanel({ from, to }: { from: string; to: string }) {
                   className="rent-periods"
                   aria-label={`Recent rent from ${name(rental.staffId)}`}
                 >
-                  {periods
-                    .slice(-6)
-                    .reverse()
-                    .map((p) => (
-                      <li key={p.start} className={p.owedMinor ? 'rent-owed' : ''}>
-                        <span>{dateLabel(p.start, org.locale, true)}</span>
-                        <strong>
-                          {p.owedMinor === 0
-                            ? 'Paid'
-                            : p.paidMinor
-                              ? `${money(p.owedMinor, org, true)} owed`
-                              : 'Owed'}
-                        </strong>
-                      </li>
-                    ))}
+                  {recent.map((p) => (
+                    <li key={p.start} className={p.owedMinor ? 'rent-owed' : ''}>
+                      <span>{dateLabel(p.start, org.locale, true)}</span>
+                      <strong>
+                        {p.owedMinor
+                          ? p.paidMinor
+                            ? `${money(p.owedMinor, org, true)} owed`
+                            : 'Owed'
+                          : p.runningMinor
+                            ? `${money(p.runningMinor, org, true)} so far`
+                            : 'Paid'}
+                      </strong>
+                    </li>
+                  ))}
                 </ul>
+                {rental.percentBps && recent.length > 0 && (
+                  <details className="rent-working">
+                    <summary>How the rent was worked out</summary>
+                    <ul>
+                      {recent.map((p) => (
+                        <li key={p.start}>
+                          <strong>
+                            {rental.every === 'week' ? 'Week' : 'Month'} from{' '}
+                            {dateLabel(p.start, org.locale, true)}
+                          </strong>
+                          <span>
+                            {periodWorking(state, rental, p)}
+                            {p.paidMinor ? ` ${money(p.paidMinor, org, true)} paid.` : ''}
+                            {p.overMinor
+                              ? ` ${money(p.overMinor, org, true)} more than is now due, after money given back.`
+                              : ''}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <small>
+                      Their takings are their treatments
+                      {rental.products ? ' and products' : ''} on the days they rent, after
+                      discounts and without tax. Tips never count. Money given back comes off in the{' '}
+                      {rental.every} it is given back.
+                    </small>
+                  </details>
+                )}
               </div>
             )
           })}
@@ -207,7 +256,10 @@ function RentalDialog({
   const [staffId, setStaffId] = useState(team[0]?.id ?? '')
   const [space, setSpace] = useState<Rental['space']>('chair')
   const [resourceId, setResourceId] = useState('')
+  const [kind, setKind] = useState<'fixed' | 'share' | 'both'>('fixed')
   const [amount, setAmount] = useState('')
+  const [share, setShare] = useState('')
+  const [products, setProducts] = useState(false)
   const [every, setEvery] = useState<Rental['every']>('week')
   const [from, setFrom] = useState(today)
   const spaces = state.resources.filter(
@@ -215,27 +267,31 @@ function RentalDialog({
   )
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const amountMinor = parseMinor(amount)
-    if (!Number.isFinite(amountMinor) || amountMinor <= 0) {
+    const amountMinor = kind === 'share' ? 0 : parseMinor(amount)
+    if (kind !== 'share' && (!Number.isFinite(amountMinor) || amountMinor <= 0)) {
       setError('Enter the rent, with up to two decimal places.')
       return
     }
+    const percentBps = kind === 'fixed' ? 0 : parsePercent(share)
+    if (kind !== 'fixed' && (!Number.isFinite(percentBps) || percentBps <= 0)) {
+      setError('Enter their share as a percentage above 0 and up to 100, such as 10 or 12.5.')
+      return
+    }
     const who = team.find((p) => p.id === staffId)?.name ?? 'They'
+    const terms = {
+      amountMinor,
+      ...(percentBps ? { percentBps } : {}),
+      ...(products ? { products: true } : {}),
+      every,
+    }
     if (
       await run({
         type: 'rental',
-        input: {
-          staffId,
-          space,
-          ...(resourceId ? { resourceId } : {}),
-          amountMinor,
-          every,
-          from,
-        },
+        input: { staffId, space, ...(resourceId ? { resourceId } : {}), ...terms, from },
       })
     )
       onDone(
-        `${who} rents ${space === 'chair' ? 'a chair' : 'a room'} for ${money(amountMinor, org, true)} a ${every} from ${dateLabel(from, org.locale)}.`,
+        `${who} rents ${space === 'chair' ? 'a chair' : 'a room'} for ${rentTerms(state, terms)} from ${dateLabel(from, org.locale)}.`,
       )
   }
   return (
@@ -245,9 +301,39 @@ function RentalDialog({
         if (!pending) onClose()
       }}
       title="Set up a rental"
-      description="Rent is due at the start of each week or month from the first day. They earn no commission while renting."
+      description="A fixed rent is due at the start of each week or month from the first day. A share of their takings is worked out on each week or month once it ends. They earn no commission while renting."
     >
       <form onSubmit={save} className="plan-form">
+        <fieldset className="pay-choice">
+          <legend>Rent</legend>
+          <label>
+            <input
+              type="radio"
+              name="rent-kind"
+              checked={kind === 'fixed'}
+              onChange={() => setKind('fixed')}
+            />
+            A fixed amount
+          </label>
+          <label>
+            <input
+              type="radio"
+              name="rent-kind"
+              checked={kind === 'share'}
+              onChange={() => setKind('share')}
+            />
+            A share of their takings
+          </label>
+          <label>
+            <input
+              type="radio"
+              name="rent-kind"
+              checked={kind === 'both'}
+              onChange={() => setKind('both')}
+            />
+            A fixed amount plus a share of their takings
+          </label>
+        </fieldset>
         <div className="ops-fields">
           <label className="ops-wide">
             Who
@@ -283,15 +369,28 @@ function RentalDialog({
               ))}
             </select>
           </label>
-          <label>
-            Rent ({org.currency})
-            <input
-              inputMode="decimal"
-              value={amount}
-              required
-              onChange={(e) => setAmount(e.target.value)}
-            />
-          </label>
+          {kind !== 'share' && (
+            <label>
+              Fixed rent ({org.currency})
+              <input
+                inputMode="decimal"
+                value={amount}
+                required
+                onChange={(e) => setAmount(e.target.value)}
+              />
+            </label>
+          )}
+          {kind !== 'fixed' && (
+            <label>
+              Share of their takings (%)
+              <input
+                inputMode="decimal"
+                value={share}
+                required
+                onChange={(e) => setShare(e.target.value)}
+              />
+            </label>
+          )}
           <label>
             Every
             <select value={every} onChange={(e) => setEvery(e.target.value as Rental['every'])}>
@@ -304,6 +403,16 @@ function RentalDialog({
             <StudioDateField value={from} onChange={setFrom} />
           </label>
         </div>
+        <label className="ops-check">
+          <input
+            type="checkbox"
+            checked={products}
+            onChange={(e) => setProducts(e.target.checked)}
+          />
+          The products they sell are their own
+          {kind !== 'fixed' ? ', and count towards the share' : ''}. Leave this off when products
+          come off your shelf: they stay your sales.
+        </label>
         <ErrorMessage error={error} />
         <div className="ops-actions">
           <Button type="submit" disabled={pending || !staffId}>
@@ -332,10 +441,13 @@ function PaymentDialog({
   const { state } = useStore()
   const org = state.organisation
   const { run, pending, error, setError } = useRun()
-  const owed = rentStatement(state, rental).filter((p) => p.owedMinor > 0)
+  // Stage 3: with a share of takings, a running period can be paid as it goes, up to what is due.
+  const owed = rentStatement(state, rental)
+    .filter((p) => p.owedMinor + p.runningMinor > 0)
+    .map((p) => ({ ...p, unpaidMinor: p.owedMinor + p.runningMinor }))
   const [period, setPeriod] = useState(owed[0]?.start ?? '')
   const chosen = owed.find((p) => p.start === period)
-  const [amount, setAmount] = useState(chosen ? minorInput(chosen.owedMinor) : '')
+  const [amount, setAmount] = useState(chosen ? minorInput(chosen.unpaidMinor) : '')
   const [method, setMethod] = useState<RentPayment['method']>('bank_transfer')
   const [reference, setReference] = useState('')
   const [confirmed, setConfirmed] = useState(false)
@@ -382,17 +494,20 @@ function PaymentDialog({
               onChange={(e) => {
                 setPeriod(e.target.value)
                 const next = owed.find((p) => p.start === e.target.value)
-                if (next) setAmount(minorInput(next.owedMinor))
+                if (next) setAmount(minorInput(next.unpaidMinor))
               }}
             >
               {owed.map((p) => (
                 <option key={p.start} value={p.start}>
                   {rental.every === 'week' ? 'Week' : 'Month'} from {dateLabel(p.start, org.locale)}{' '}
-                  · {money(p.owedMinor, org, true)} owed
+                  · {money(p.unpaidMinor, org, true)} {p.open && p.runningMinor ? 'so far' : 'owed'}
                 </option>
               ))}
             </select>
           </label>
+          {chosen?.takings && (
+            <p className="ops-help ops-wide">{periodWorking(state, rental, chosen)}</p>
+          )}
           <label>
             Amount ({org.currency})
             <input

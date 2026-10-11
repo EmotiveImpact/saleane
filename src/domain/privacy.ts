@@ -144,6 +144,8 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
       bookedAt: a.createdAt,
       bookedPriceMinor: a.bookedPriceMinor,
       bookedDepositMinor: a.bookedDepositMinor,
+      // Stage 5: booked at a quiet-time price, below the usual price then.
+      ...(a.bookedOffer ? { quietTimeUsualPriceMinor: a.bookedOffer.usualPriceMinor } : {}),
       durationMinutes: a.bookedDurationMinutes,
       ...(a.rebookedFromId && ref.has(a.rebookedFromId)
         ? { rebookedFrom: ref.get(a.rebookedFromId) }
@@ -327,6 +329,17 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
           reason: r.reason,
           recordedAt: r.createdAt,
         })),
+        // Stage 1: what the client agreed to about paying from a saved card, and when it stopped.
+        ...(h.cardAgreements?.length
+          ? {
+              cardPayments: h.cardAgreements.map((a) => ({
+                card: `${a.brand} ending ${a.last4}`,
+                agreed: a.wording,
+                agreedAt: a.agreedAt,
+                ...(a.endedAt ? { stoppedAt: a.endedAt } : {}),
+              })),
+            }
+          : {}),
       })),
     // V1.5: gift cards and vouchers this client bought, and what each has paid for since.
     giftCards: (state.giftCards ?? [])
@@ -509,6 +522,8 @@ export function previewStudioExport(file: StudioExport): ExportPreview {
       { label: 'Receipts', count: r.sales.length },
       { label: 'Payments and deposits', count: r.payments.length },
       { label: 'Refunds', count: r.operations.refunds.length },
+      // Stage 5: sales and refunds a chain's own tills sent in. They name no client.
+      { label: 'Sales and refunds from other tills', count: (r.otherTillSales ?? []).length },
       { label: 'Timeline entries', count: r.events.length },
       { label: 'Messages written in the inbox', count: r.operations.messages.length },
       { label: 'Guests’ replies, as written', count: (r.replies ?? []).length },
@@ -747,7 +762,7 @@ export function clientExportText(file: ClientExport, locale = 'en-GB') {
     `VISITS (${file.visits.length})`,
     ...file.visits.map(
       (v) =>
-        `${v.visit} · ${v.date} ${v.time} · ${v.service} with ${v.professional} · ${v.status} · booked at ${amount(v.bookedPriceMinor, cur, locale)}`,
+        `${v.visit} · ${v.date} ${v.time} · ${v.service} with ${v.professional} · ${v.status} · booked at ${amount(v.bookedPriceMinor, cur, locale)}${v.quietTimeUsualPriceMinor === undefined ? '' : `, a quiet-time price (usually ${amount(v.quietTimeUsualPriceMinor, cur, locale)})`}`,
     ),
     '',
     `RECEIPTS (${file.receipts.length})`,

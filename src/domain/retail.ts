@@ -3,6 +3,7 @@ import type { Operations, Tax } from './operations'
 import { hasLocations, placeField, placeOf } from './locations'
 import { operations, stock } from './operations'
 import type { CounterSale, RetailItems, SaleRetail } from './retailSchema'
+import { barcodeProblem } from './barcode'
 
 /**
  * V2: stock and retail at the till. Products live in the studio's operating record with a running
@@ -110,6 +111,9 @@ export function recordRetailMovements(
 /** Checks every receipt's products against its prices, tax, stock movements and returns. */
 export function retailProblem(s: BusinessState): string | null {
   const config = operations(s)
+  // Stage 2: each barcode is valid and names one product, so a scan finds exactly one.
+  const barcodes = barcodeProblem(config.products)
+  if (barcodes) return barcodes
   const counters = s.counterSales ?? []
   const receipts = new Map<string, { appointmentId?: string; retail?: SaleRetail }>([
     ...s.sales.map((sale) => [sale.id, sale] as const),
@@ -130,6 +134,12 @@ export function retailProblem(s: BusinessState): string | null {
   }
   for (const movement of config.movements) {
     if (movement.saleId && movement.counterSaleId) return 'A stock movement names two receipts.'
+    // Stage 5: stock a sale from another till moved is checked with that sale (otherTill.ts).
+    if (movement.otherTillSaleId) {
+      if (movement.saleId || movement.counterSaleId || movement.refundId)
+        return 'A stock movement names two receipts.'
+      continue
+    }
     const receiptId = movement.saleId ?? movement.counterSaleId
     if (!receiptId) {
       if (movement.reason === 'returned' || movement.refundId)

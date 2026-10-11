@@ -382,3 +382,83 @@
   color: var(--muted);
   font-size: var(--text-small);
 }
+
+/* Stage 3: their hours for the day as planned on the rota, and their changed days to come. */
+.practitioner-plan {
+  margin: 0 0 var(--space-5);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.practitioner-plan + .practitioner-clock {
+  margin-top: calc(-1 * var(--space-5));
+  border-top: 0;
+}
+.practitioner-plan > p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--muted);
+}
+.practitioner-plan > p strong {
+  color: var(--ink);
+}
+.practitioner-plan-tag {
+  padding: 1px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-strong);
+}
+.practitioner-plan-changes {
+  margin-top: var(--space-2);
+}
+.practitioner-plan-changes > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target);
+  color: var(--brand-ink);
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+.practitioner-plan-changes ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.practitioner-plan-changes li + li {
+  border-top: 1px solid var(--line);
+}
+.practitioner-plan-changes button {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 14px;
+  width: 100%;
+  min-height: var(--target);
+  padding: 10px 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-small);
+  text-align: left;
+  cursor: pointer;
+}
+.practitioner-plan-changes button span {
+  color: var(--muted);
+}
+.practitioner-plan-changes button:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+/* Stage 3: their own target for the month, a quiet line with the thin bar Business uses. */
+.practitioner-target {
+  margin: 0 0 18px;
+}
+.practitioner-target .practitioner-rating {
+  margin: 4px 0 8px;
+}

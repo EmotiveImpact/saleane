@@ -1,0 +1,142 @@
+/* Stage 6: records at the end of their keeping period. Groups are rows under hairlines, never boxes. */
+.retention-group + .retention-group {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--line);
+}
+.retention-group-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-2);
+}
+.retention-group-head h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--text-body);
+  font-weight: var(--weight-strong);
+}
+.retention-group-head p {
+  margin-top: 4px;
+  font-size: var(--text-small);
+  color: var(--muted);
+}
+.retention-group .ops-record {
+  padding: 14px 0;
+}
+.retention-group .ops-record .button,
+.retention-group-head .button,
+.retention-more {
+  min-height: var(--target);
+}
+.retention-more {
+  margin-top: var(--space-2);
+}
+.retention-done:not(:empty) {
+  margin-bottom: var(--space-4);
+}
+.retention-kept {
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+  font-size: var(--text-small);
+}
+.retention-kept > summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--target);
+  cursor: pointer;
+  font-weight: var(--weight-strong);
+  color: var(--brand-ink);
+}
+.retention-kept .ops-record {
+  padding: 12px 0;
+}
+
+/* The decision. One choice, its few fields, one main button. */
+.retention-decide {
+  display: grid;
+  gap: var(--space-4);
+}
+.retention-names {
+  font-size: var(--text-small);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.retention-choice .choice-tiles {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.retention-keep {
+  display: grid;
+  gap: var(--space-4);
+}
+.retention-for {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.retention-for .ops-field {
+  width: 110px;
+}
+.retention-for input,
+.retention-keep textarea {
+  min-height: var(--target);
+}
+.retention-delete {
+  display: grid;
+  gap: var(--space-4);
+}
+.retention-delete dl {
+  margin: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+.retention-delete dt {
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+}
+.retention-delete dd {
+  margin: 4px 0 0;
+  font-size: var(--text-small);
+  color: var(--muted);
+}
+.retention-delete dl > div + div {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+.retention-sure {
+  min-height: var(--target);
+  align-items: flex-start;
+}
+.retention-sure input {
+  margin-top: 3px;
+  flex: none;
+}
+.retention-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+@media (max-width: 650px) {
+  .retention-group-head {
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .retention-group-head .button {
+    width: 100%;
+  }
+  /* The main button sits full width where a thumb reaches it. */
+  .retention-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+  .retention-actions .button {
+    width: 100%;
+  }
+}

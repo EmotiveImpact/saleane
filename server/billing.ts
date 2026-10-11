@@ -1135,6 +1135,8 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
     },
     /** Whether a studio is locked: only its owner can open it, and online booking is closed. */
     locked: (orgId: string) => !!plan(orgId)?.locked_at,
+    /** Whether a studio is read only (or locked) until its SALEANE bill is paid. */
+    readOnly: (orgId: string) => plan(orgId)?.status === 'stopped',
     /**
      * Refuses a change to a read-only studio, after the usual sign-in and access checks. A locked
      * studio is refused to everyone but the owner, even to read; the owner can still open the

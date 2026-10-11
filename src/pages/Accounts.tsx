@@ -34,7 +34,7 @@ import '../accounts.css'
 type Period = 'this' | 'last'
 const PROVIDER: Record<AccountingProvider, string> = { xero: 'Xero', quickbooks: 'QuickBooks' }
 const CODE_LABEL: Record<keyof AccountCodes, string> = {
-  services: 'Services',
+  services: 'Treatments',
   products: 'Products',
   tax: 'Tax (VAT or sales tax)',
   tips: 'Tips owed to staff',
@@ -43,6 +43,7 @@ const CODE_LABEL: Record<keyof AccountCodes, string> = {
   fees: 'No-show and late fees',
   refunds: 'Refunds',
   clearing: 'Takings clearing',
+  renters: 'Takings held for renters',
 }
 
 function save(name: string, text: string) {
@@ -67,6 +68,8 @@ export function Accounts() {
   const { from, to } = range
   const days = dailySummary(state, from, to)
   const sum = (pick: (d: (typeof days)[number]) => number) => days.reduce((t, d) => t + pick(d), 0)
+  // Stage 3: renters' own takings pass through the till but are held for them, not the studio's.
+  const renters = days.some((d) => d.rentersMinor || d.rentersBackMinor)
   const settings = operations(state).accounting
   const batches = [...(operations(state).accountingExports ?? [])].reverse().slice(0, 6)
   const canSettings = !blocked && can(role, 'accounting-settings')
@@ -138,7 +141,11 @@ export function Accounts() {
         <Stat
           label="Takings"
           value={wholeMoney(sum(dayTakings), org)}
-          detail="Including tax and tips, less refunds"
+          detail={
+            renters
+              ? 'Including tax, tips and renters’ own takings, less refunds'
+              : 'Including tax and tips, less refunds'
+          }
         />
         <Stat
           label="Tax"
@@ -217,11 +224,12 @@ export function Accounts() {
               <thead>
                 <tr>
                   <th scope="col">Day</th>
-                  <th scope="col">Services</th>
+                  <th scope="col">Treatments</th>
                   <th scope="col">Products</th>
                   <th scope="col">Tax</th>
                   <th scope="col">Tips</th>
                   <th scope="col">Plans, rent, fees</th>
+                  {renters && <th scope="col">Held for renters</th>}
                   <th scope="col">Refunds</th>
                   <th scope="col">Takings</th>
                 </tr>
@@ -235,6 +243,7 @@ export function Accounts() {
                     <td>{fmt(d.taxMinor)}</td>
                     <td>{fmt(d.tipsMinor)}</td>
                     <td>{fmt(d.plansMinor + d.rentMinor + d.feesMinor)}</td>
+                    {renters && <td>{fmt(d.rentersMinor - d.rentersBackMinor)}</td>}
                     <td>{d.refundsMinor ? fmt(-d.refundsMinor) : fmt(0)}</td>
                     <td>
                       <strong>{fmt(dayTakings(d))}</strong>
@@ -248,8 +257,10 @@ export function Accounts() {
           <p className="subtle">Nothing was taken in this period.</p>
         )}
         <p className="subtle">
-          Services leave out visits a package or membership paid for, as those were counted when the
-          plan was sold. Deposits count when the visit is paid.
+          Treatments leave out visits a package or membership paid for, as those were counted when
+          the plan was sold. Deposits count when the visit is paid.
+          {renters &&
+            ' Someone renting a chair or room keeps their own takings: they come through your till but are held for them, apart from your income. Their rent is your income.'}
         </p>
       </section>
       <section className="surface ops-panel" aria-labelledby="link-heading">
@@ -387,8 +398,9 @@ function SettingsDialog({
           {(Object.keys(CODE_LABEL) as (keyof AccountCodes)[]).map((key) => (
             <label key={key}>
               {CODE_LABEL[key]}
+              {key === 'renters' && <small>Only if someone rents a chair or room</small>}
               <input
-                value={codes[key]}
+                value={codes[key] ?? ''}
                 maxLength={30}
                 onChange={(e) => setCodes({ ...codes, [key]: e.target.value })}
               />

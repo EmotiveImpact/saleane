@@ -3,6 +3,7 @@ import type { PractitionerView } from '../domain/practitioner'
 import type { AreaView } from '../domain/area'
 import type { Role } from '../domain/operations'
 import type { BillingSummary } from '../domain/billing'
+import { TWO_STEP_REQUIRED } from '../domain/twoStepRule'
 export type WorkspaceAccess = {
   id: string
   slug: string
@@ -13,6 +14,8 @@ export type WorkspaceAccess = {
   staffId?: string
   /** NEXT-02: locked until its SALEANE bill is paid; only the owner can open it. */
   locked?: boolean
+  /** Stage 6: the studio asks everyone to use two-step sign-in. */
+  twoStepRequired?: boolean
 }
 export type Session = {
   user: {
@@ -51,9 +54,12 @@ export type PractitionerWorkspace = WorkspaceRecord & {
 export type AreaWorkspace = WorkspaceRecord & { view: 'area'; area: AreaView }
 export class ApiError extends Error {
   status: number
-  constructor(message: string, status: number) {
+  /** A short code some refusals carry, such as `two_step_required`. */
+  code?: string
+  constructor(message: string, status: number, code?: string) {
     super(message)
     this.status = status
+    this.code = code
   }
 }
 let csrf = ''
@@ -71,8 +77,21 @@ export function onUnreachable(listener: () => void) {
     unreachableListeners.delete(listener)
   }
 }
-function report(error: ApiError) {
+/** Stage 6: a studio holding this person until they set up two-step sign-in, and its words. */
+export type TwoStepHold = { workspaceId: string; message: string }
+const holdListeners = new Set<(hold: TwoStepHold) => void>()
+/** Tells the app when a studio refuses this person until they set up two-step sign-in. */
+export function onTwoStepHold(listener: (hold: TwoStepHold) => void) {
+  holdListeners.add(listener)
+  return () => {
+    holdListeners.delete(listener)
+  }
+}
+function report(error: ApiError, path = '') {
   if (unreachable(error)) for (const listener of unreachableListeners) listener()
+  const studio = /^\/api\/workspaces\/([\w-]+)(?:[/?]|$)/.exec(path)?.[1]
+  if (error.code === TWO_STEP_REQUIRED && studio)
+    for (const listener of holdListeners) listener({ workspaceId: studio, message: error.message })
   return error
 }
 export async function api<T>(
@@ -114,6 +133,7 @@ export async function api<T>(
   }
   const payload = (await response.json().catch(() => null)) as {
     error?: string
+    code?: string
     csrf?: string
   } | null
   if (!response.ok)
@@ -121,8 +141,51 @@ export async function api<T>(
       new ApiError(
         payload?.error ?? `The request could not be completed (${response.status}).`,
         response.status,
+        payload?.code,
       ),
+      path,
     )
   if (payload?.csrf) setCsrf(payload.csrf)
   return payload as T
+}
+
+/** Stage 2: where a studio's product photo is served, to its own team only. */
+export function imageUrl(workspaceId: string, imageId: string) {
+  return `/api/workspaces/${encodeURIComponent(workspaceId)}/images/${encodeURIComponent(imageId)}`
+}
+
+/**
+ * Stage 2: sends a product photo the browser has already shrunk, as its own bytes. The server
+ * checks what it really is and returns the id the product keeps.
+ */
+export async function uploadImage(workspaceId: string, photo: Blob) {
+  let response: Response
+  try {
+    response = await fetch(`/api/workspaces/${encodeURIComponent(workspaceId)}/images`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': photo.type, ...(csrf ? { 'X-CSRF-Token': csrf } : {}) },
+      body: photo,
+      signal: AbortSignal.timeout(30000),
+    })
+  } catch {
+    throw report(
+      new ApiError('The photo could not reach SALEANE. Check the connection and try again.', 0),
+    )
+  }
+  const payload = (await response.json().catch(() => null)) as {
+    error?: string
+    code?: string
+    id?: string
+  } | null
+  if (!response.ok || !payload?.id)
+    throw report(
+      new ApiError(
+        payload?.error ?? `The photo could not be added (${response.status}).`,
+        response.status,
+        payload?.code,
+      ),
+      `/api/workspaces/${encodeURIComponent(workspaceId)}/images`,
+    )
+  return { id: payload.id }
 }

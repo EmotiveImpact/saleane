@@ -14,14 +14,17 @@ import { consentRecordSchema, consentWordingSchema } from './consentSchema'
 import { consentProblem } from './consent'
 import { consultationSchema, visitConsultationSchema } from './consultationsSchema'
 import { consultationsProblem } from './consultations'
-import { replySchema, savedReplySchema, socialAnswerSchema } from './inboxSchema'
+import { replySchema, savedReplySchema, socialAnswerSchema, textStopSchema } from './inboxSchema'
 import { inboxProblem } from './inbox'
 import { feedbackProblem, feedbackSchema } from './feedback'
 import { specialSchema, specialsProblem } from './specialsSchema'
 import { taskSchema, tasksProblem } from './tasksSchema'
 import { counterSaleSchema, saleRetailSchema } from './retailSchema'
+import { otherTillSaleSchema } from './otherTillSchema'
+import { otherTillProblem } from './otherTill'
 import { retailCharge, retailProblem } from './retail'
 import { rentProblem } from './rent'
+import { commissionProblem } from './commission'
 import { purchasingProblem } from './purchasing'
 import { waitlistEntrySchema } from './waitlistSchema'
 import { waitlistProblem } from './waitlist'
@@ -29,6 +32,13 @@ import { locationsProblem } from './locations'
 import { groupProblem } from './group'
 import { branchVisitsProblem } from './branchVisits'
 import { approvalsProblem } from './approvals'
+import { tillProblem } from './till'
+import { rotaProblem } from './rota'
+import { staffMovesProblem } from './staffMoves'
+import { timeOffProblem } from './timeOff'
+import { newsProblem } from './news'
+import { bookedOfferSchema } from './quietOffersSchema'
+import { quietOffersProblem } from './quietOffers'
 export { paymentMethodSchema, paymentMethods, processorSchema } from './paymentMethods'
 
 export const DEMO_DATE = '2026-10-06'
@@ -42,6 +52,12 @@ const scoped = { id, organisationId: id }
 /** Shared booking links the studio can hand out; anything else is ignored. */
 export const bookingChannels = ['google', 'instagram'] as const
 export type BookingChannel = (typeof bookingChannels)[number]
+/** Stage 5: the AI assistants a guest can book through; `assistant` when it did not say which. */
+export const assistantChannels = ['chatgpt', 'claude', 'assistant'] as const
+export type AssistantChannel = (typeof assistantChannels)[number]
+/** Where an online guest came from: a shared booking link, or an AI assistant (Stage 5). */
+export const visitChannels = [...bookingChannels, ...assistantChannels] as const
+export type VisitChannel = (typeof visitChannels)[number]
 export const GUEST_NOTE_LIMIT = 400
 /** A public review address must be a secure web address. */
 export function isReviewUrl(value: string) {
@@ -89,6 +105,14 @@ export const clientSchema = z.object({
   /** The client asked not to receive appointment emails or texts (PILOT-01). Absent means allowed. */
   noEmailReminders: z.boolean().optional(),
   noTextReminders: z.boolean().optional(),
+  /**
+   * Stage 1: when their own STOP reply to the studio's text line turned texts off. Present only
+   * while texts are off because of it, so a START reply turns them back on; absent when the desk
+   * turned texts off (see textStop.ts).
+   */
+  textsStoppedAt: z.iso.datetime().optional(),
+  /** Stage 1: when they texted START while the desk keeps texts off, for the team to decide. */
+  textsAskedAt: z.iso.datetime().optional(),
   /** V1.5: month and day only ("03-14"), never the year, for a birthday email. */
   birthday: z
     .string()
@@ -103,6 +127,12 @@ export const clientSchema = z.object({
     .string()
     .regex(/^[A-Z0-9]{1,4}$/)
     .optional(),
+  /**
+   * Stage 6: when an owner or manager approved deleting their details at the end of the keeping
+   * period. The record stays as "Former client" so its receipts and booked visit terms keep their
+   * links (retentionDue.ts).
+   */
+  erasedAt: z.iso.datetime().optional(),
 })
 /** Whether a "MM-DD" birthday exists in some year (29 February does). */
 export function birthdayIsReal(value: string) {
@@ -182,10 +212,18 @@ export const appointmentSchema = z.object({
   date: civilDate,
   startMinutes: z.number().int().min(0).max(1439),
   status: z.enum(['confirmed', 'arrived', 'completed', 'cancelled', 'no_show']),
-  /** `import` marks a visit booked in the studio's previous system and carried over (PILOT-03). */
-  source: z.enum(['desk', 'online', 'rebook', 'import']),
-  /** Where an online guest came from, when they followed a shared booking link. */
-  channel: z.enum(bookingChannels).optional(),
+  /**
+   * `import` marks a visit booked in the studio's previous system and carried over (PILOT-03).
+   * Stage 5: `software` marks a visit booked by other software through an access key.
+   */
+  source: z.enum(['desk', 'online', 'rebook', 'import', 'software']),
+  /** Stage 5: the access key that booked it, and the key's name at the time. */
+  software: z
+    .object({ keyId: id, name: z.string().min(1).max(60) })
+    .strict()
+    .optional(),
+  /** Where an online guest came from: a shared booking link or, since Stage 5, an AI assistant. */
+  channel: z.enum(visitChannels).optional(),
   createdAt: z.iso.datetime(),
   rebookedFromId: id.optional(),
   bookedPriceMinor: minor,
@@ -213,6 +251,11 @@ export const appointmentSchema = z.object({
     .object({ id, lead: z.literal(true).optional() })
     .strict()
     .optional(),
+  /**
+   * Stage 5: booked at a quiet-time price from an invitation's private link: which invitation, and
+   * the usual price then. `bookedPriceMinor` is the lower price, which checkout charges.
+   */
+  bookedOffer: bookedOfferSchema.optional(),
   /**
    * NEXT-16: the professional's own aftercare words for this visit, from a voice note or typed,
    * checked by them before saving. They go with the visit's aftercare email, after the treatment's.
@@ -359,8 +402,12 @@ export const stateSchema = z.object({
   /** V1.5: what guests wrote back, and the studio's saved replies to start a message from. */
   replies: z.array(replySchema).optional(),
   savedReplies: z.array(savedReplySchema).optional(),
+  /** Stage 1: numbers that texted STOP to the studio's line, and when they texted START again. */
+  textStops: z.array(textStopSchema).optional(),
   /** V4: the team's answers on Instagram, Facebook and WhatsApp. */
   socialAnswers: z.array(socialAnswerSchema).optional(),
+  /** Stage 5: sales and refunds a chain's own tills sent in through an access key. */
+  otherTillSales: z.array(otherTillSaleSchema).optional(),
 })
 export type BusinessState = z.infer<typeof stateSchema>
 export type Client = z.infer<typeof clientSchema>
@@ -374,7 +421,7 @@ export function parseState(value: unknown, region: Region): BusinessState {
   const s = stateSchema.parse(value)
   const org = s.organisation
   if (org.region !== region || org.currency !== (region === 'UK' ? 'GBP' : 'USD'))
-    throw new Error('Workspace region mismatch.')
+    throw new Error('This studio record is for another region.')
   const collections = [
     s.clients,
     s.services,
@@ -387,12 +434,13 @@ export function parseState(value: unknown, region: Region): BusinessState {
     s.relationships,
     s.tillCounts ?? [],
     s.counterSales ?? [],
+    s.otherTillSales ?? [],
   ]
   for (const collection of collections) {
     if (new Set(collection.map((item) => item.id)).size !== collection.length)
       throw new Error('Duplicate record IDs.')
     if (collection.some((item) => item.organisationId !== org.id))
-      throw new Error('Foreign workspace record.')
+      throw new Error('A record from another studio.')
   }
   // Index each collection once: checking links by scanning arrays made validation quadratic, which
   // took seconds per request at tens of thousands of visits.
@@ -416,10 +464,11 @@ export function parseState(value: unknown, region: Region): BusinessState {
   const depositsFor = (appointmentId: string) =>
     (paymentsByAppointment.get(appointmentId) ?? []).filter((p) => p.kind === 'deposit')
   for (const service of s.services)
-    if (service.depositMinor > service.priceMinor) throw new Error('Invalid service deposit.')
+    if (service.depositMinor > service.priceMinor)
+      throw new Error('A treatment deposit is not valid.')
   for (const staff of s.staff)
     if (staff.serviceIds.some((serviceId) => !exists(s.services, serviceId)))
-      throw new Error('Missing staff service.')
+      throw new Error('A team member offers a treatment the studio does not have.')
   for (const a of s.appointments) {
     if (
       !exists(s.clients, a.clientId) ||
@@ -427,13 +476,16 @@ export function parseState(value: unknown, region: Region): BusinessState {
       !exists(s.services, a.serviceId) ||
       !exists(s.resources, a.resourceId)
     )
-      throw new Error('Broken appointment link.')
+      throw new Error('A visit points to a record the studio does not have.')
     // Upgrade older local records using the linked catalogue without resetting user data.
     a.bookedResourceType ??= s.resources.find((resource) => resource.id === a.resourceId)!.type
     a.bookedServiceName ??= s.services.find((service) => service.id === a.serviceId)!.name
     if (a.rebookedFromId && !exists(s.appointments, a.rebookedFromId))
       throw new Error('Broken rebooking link.')
     if (a.bookedDepositMinor > a.bookedPriceMinor) throw new Error('Invalid booked deposit.')
+    // Stage 5: a visit other software booked names the access key that booked it.
+    if ((a.source === 'software') !== !!a.software)
+      throw new Error('A visit does not say properly where it was booked.')
   }
   // NEXT-09: repeat visits are one client's, at one rhythm.
   const repeats = new Map<string, { clientId: string; everyWeeks: number }>()
@@ -456,7 +508,7 @@ export function parseState(value: unknown, region: Region): BusinessState {
     )
       throw new Error('Broken booking for several people.')
   if (new Set(s.sales.map((sale) => sale.appointmentId)).size !== s.sales.length)
-    throw new Error('Duplicate appointment settlement.')
+    throw new Error('A visit was settled twice.')
   for (const sale of s.sales) {
     const appointment = appointmentById.get(sale.appointmentId)
     if (
@@ -574,7 +626,7 @@ export function parseState(value: unknown, region: Region): BusinessState {
             !exists(s.staff, allocation.staffId) || !exists(s.resources, allocation.resourceId),
         ))
     )
-      throw new Error('Invalid appointment change history.')
+      throw new Error('A visit has a history of changes that is not valid.')
   }
   for (const edge of s.relationships)
     if (
@@ -720,6 +772,8 @@ export function parseState(value: unknown, region: Region): BusinessState {
   if (retail) throw new Error(retail)
   const rent = rentProblem(s)
   if (rent) throw new Error(rent)
+  const commission = commissionProblem(s)
+  if (commission) throw new Error(commission)
   const purchasing = purchasingProblem(s)
   if (purchasing) throw new Error(purchasing)
   const waitlist = waitlistProblem(s)
@@ -732,6 +786,22 @@ export function parseState(value: unknown, region: Region): BusinessState {
   if (visits) throw new Error(visits)
   const approvals = approvalsProblem(s)
   if (approvals) throw new Error(approvals)
+  const till = tillProblem(s)
+  if (till) throw new Error(till)
+  const rota = rotaProblem(s)
+  if (rota) throw new Error(rota)
+  // Stage 4: people moving to another location from a date.
+  const moves = staffMovesProblem(s)
+  if (moves) throw new Error(moves)
+  const away = timeOffProblem(s)
+  if (away) throw new Error(away)
+  const news = newsProblem(s)
+  if (news) throw new Error(news)
+  const otherTill = otherTillProblem(s)
+  if (otherTill) throw new Error(otherTill)
+  // Stage 5: a quiet-time price is below the usual price and booked once at most.
+  const offers = quietOffersProblem(s)
+  if (offers) throw new Error(offers)
   try {
     new Intl.DateTimeFormat('en', { timeZone: org.timeZone }).format(new Date())
   } catch {

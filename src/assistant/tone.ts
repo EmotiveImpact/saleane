@@ -45,8 +45,7 @@ export const TONE_CHOICES: Record<
     description: 'Unhurried and gracious, like the front desk of a fine spa.',
     instruction:
       'Speak for the studio calmly and with polish, like the front desk of a fine spa: unhurried, gracious and never gushing. Do not use exclamation marks.',
-    sample:
-      'Certainly. Amara has an appointment free at 11am on Saturday. Shall I keep it for you?',
+    sample: 'Certainly. Amara has a time free at 11am on Saturday. Shall I keep it for you?',
     hello: "Good day, and welcome. I am the studio's AI receptionist.",
     welcome: 'It is a pleasure. Is there anything further I can help with?',
     found: 'Certainly. ',

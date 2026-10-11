@@ -156,7 +156,7 @@ export function PlanBilling() {
         <h2 id="plan-billing-title">Plan and billing</h2>
         <p>
           {priceLabel(org.region)} a month for each location, {PRICE[org.region].tax}, with{' '}
-          {PEOPLE_PER_LOCATION} people taking bookings, Ask Saleane and the AI receptionist
+          {PEOPLE_PER_LOCATION} people taking bookings, Ask SALEANE and the AI receptionist
           included. Each person beyond that is {priceLabel(org.region, 'personMinor')} a month.
           Month to month: stop whenever you like.
         </p>
@@ -354,14 +354,14 @@ export function PlanBilling() {
         <h3>AI this month</h3>
         <p className="ops-help">
           {plan.status === 'stopped'
-            ? 'Ask Saleane and the AI receptionist rest while the studio is read only.'
+            ? 'Ask SALEANE and the AI receptionist rest while the studio is read only.'
             : `For ${where}${plan.plus ? ', with Plus' : ''}. It starts again on the 1st of each month.`}
         </p>
         <ul className="plan-meters">
-          <Meter label="Questions typed to Ask Saleane" {...plan.ai.typed} />
+          <Meter label="Questions typed to Ask SALEANE" {...plan.ai.typed} />
           <Meter label="Guest chats with the AI receptionist" {...plan.ai.guestChats} />
           <li>
-            <span>Talking to Ask Saleane</span>
+            <span>Talking to Ask SALEANE</span>
             <small>
               {plan.ai.talkSeconds.of / 60} minutes a month, when talking is switched on
             </small>

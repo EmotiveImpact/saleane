@@ -43,13 +43,17 @@ export const kindLabel: Record<MessageKind, string> = {
   message: 'Written in the inbox',
   receptionist: 'AI receptionist',
   social: 'Answered by the team',
+  plan_reminder: 'Membership payment reminder',
+  plan_declined: 'Membership payment not taken',
+  receipt: 'Receipt',
+  news: 'Message to clients',
 }
-/** The outbox for one studio, or one client. Reads only; staff can ask a failed message to go again. */
+/** The outbox for one studio, one client or one guest. Reads only; staff can ask a failed message to go again. */
 export function useSentMessages(
   clientId?: string,
-  options: { limit?: number; skip?: boolean } = {},
+  options: { limit?: number; skip?: boolean; guest?: boolean } = {},
 ) {
-  const { limit, skip = false } = options
+  const { limit, skip = false, guest = false } = options
   const { mode, state, session } = useStore()
   const [reply, setReply] = useState<OutboxReply | null>(null)
   const [error, setError] = useState('')
@@ -62,6 +66,8 @@ export function useSentMessages(
     const query = new URLSearchParams({
       ...(clientId ? { clientId } : {}),
       ...(limit ? { limit: String(limit) } : {}),
+      // Stage 6: the messages of every record of the guest, as the Inbox shows them together.
+      ...(clientId && guest ? { guest: '1' } : {}),
     }).toString()
     api<OutboxReply>(
       `/api/workspaces/${encodeURIComponent(orgId)}/outbox${query ? `?${query}` : ''}`,
@@ -77,6 +83,6 @@ export function useSentMessages(
     return () => {
       active = false
     }
-  }, [orgId, clientId, limit, signedIn, state.revision, refresh])
+  }, [orgId, clientId, limit, guest, signedIn, state.revision, refresh])
   return { reply, error, load: () => setRefresh((n) => n + 1), available: signedIn }
 }

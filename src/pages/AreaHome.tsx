@@ -11,12 +11,13 @@ import type { Command } from '../domain/commands'
 import { dateLabel, money } from '../domain/format'
 import { GROUP_WINDOW_DAYS, monthEstimate } from '../domain/group'
 import { firstName, venueMinutes } from '../domain/pocket'
-import { Button, ErrorMessage, PageHeader } from '../design'
+import { Button, ErrorMessage, PageHeader, photos } from '../design'
 import { SignOut } from '../components/SignOut'
 import { HelpButton } from '../components/HelpButton'
 import { PutRightList, VisitForm, VisitHistory } from './BranchVisits'
 import { DecideForm, DecidedRequests, RequestForm, WaitingRequests } from './Requests'
 import type { ApprovalRequest } from '../domain/approvalsSchema'
+import type { RequestContext } from '../domain/signoffs'
 import '../practitioner.css'
 import '../components/management.css'
 import '../components/plans.css'
@@ -180,6 +181,12 @@ export function AreaHome() {
         .map((line) => ({ visit, line, place: names.get(visit.locationId) ?? 'A location' })),
     )
     .sort((a, b) => b.visit.date.localeCompare(a.visit.date))
+  // A request is described from itself alone: the area never holds the studio record.
+  const words = (r: ApprovalRequest): RequestContext => ({
+    org,
+    today: record.today,
+    place: names.get(r.locationId) ?? 'A location',
+  })
   const mine = (r: ApprovalRequest) =>
     r.routedTo.level === 'regional' && r.routedTo.regionId === record.area.id
   const waitingRequests = record.requests
@@ -206,6 +213,7 @@ export function AreaHome() {
       <main id="main-content" className="area-main">
         <PageHeader
           variant="editorial"
+          photo={{ src: photos.entrance, position: 'center 45%' }}
           eyebrow={
             <>
               <Sun size={16} />
@@ -215,6 +223,7 @@ export function AreaHome() {
           title={`${greeting(venueMinutes(org.timeZone, openedAt))}${
             store.session ? `, ${firstName(store.session.user.name)}` : ''
           }.`}
+          description="How each of your locations is doing, and what needs a look."
           actions={
             <>
               {record.checklists.length > 0 && (
@@ -354,15 +363,14 @@ export function AreaHome() {
               <h2 id="area-requests">Requests</h2>
               <p>
                 You can approve up to {money(record.regionalLimitMinor, org)} at your locations.
-                Anything more passes up to the owner.
+                Anything more passes up to the owner. A refund shows its receipt, amount and
+                treatment; a new price or rota change shows it before and after.
               </p>
             </div>
           </header>
           <WaitingRequests
             items={waitingRequests}
-            org={org}
-            names={names}
-            day={day}
+            words={words}
             waiting={(r) => (mine(r) ? 'you' : 'the owner')}
             canDecide={mine}
             onDecide={(r) => {
@@ -371,7 +379,7 @@ export function AreaHome() {
             }}
           />
           <h3 className="group-form-title">Decided</h3>
-          <DecidedRequests items={record.requests} org={org} names={names} day={day} />
+          <DecidedRequests items={record.requests} words={words} />
         </section>
         <section className="surface ops-panel" aria-labelledby="area-history">
           <header>
@@ -404,8 +412,8 @@ export function AreaHome() {
       {deciding && (
         <DecideForm
           request={deciding}
-          org={org}
-          place={names.get(deciding.locationId) ?? 'A location'}
+          ctx={words(deciding)}
+          waiting={mine(deciding) ? 'you' : 'the owner'}
           commit={save}
           onClose={() => setDeciding(null)}
           onSaved={(message) => {
