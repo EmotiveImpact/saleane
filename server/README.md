@@ -122,6 +122,17 @@ Voice notes after a visit (NEXT-16) use the same key: with `SALEANE_VOICE_PROVID
 | `SALEANE_VOICE_MODEL`    | `gpt-live-1` | The voice model. SALEANE knows the price of `gpt-live-1` (5 cents a minute).                                                      |
 | `SALEANE_VOICE_PRICE`    | unset        | What one minute costs in cents, such as `5`. Required for a model SALEANE has no price for, so it never runs one it cannot count. |
 
+### The AI receptionist on the phone (NEXT-17)
+
+When the studio's Twilio number reports that nobody at the desk answered (`POST /api/hooks/twilio/voice/:slug`), and the studio has the phone receptionist and has chosen to answer calls, SALEANE answers with TwiML that dials OpenAI's SIP address for the project, carrying a one-off code in an `x-saleane-call` header, for 15 seconds. OpenAI then posts `live.transport.incoming` to `POST /api/hooks/openai`, signed the Standard Webhooks way with the project's webhook secret; SALEANE checks the signature and the time (within five minutes), thanks OpenAI at once, and only then holds the call's minutes, accepts it with the studio's voice and instructions, and follows it over its own connection, answering each question with Claude. A call without a code the phone line handed over in the last 45 seconds is turned away (SIP 603), as is one the studio cannot take (486). Twilio reports how the handed-over call ended to `POST /api/hooks/twilio/voice/:slug/ai`; one that never reached the AI is written down as a missed call, as before. A time the receptionist offers is texted through the outbox as a booking link. Each call holds up to ten minutes, ends when its window is up, and is counted from what OpenAI reports, or SALEANE's own clock when OpenAI goes quiet; on shutdown, calls still running are hung up and counted. `GET /api/workspaces/:id/phone` says whether calls are connected, whether the plan includes them, whether a call would be answered now and this month's minutes.
+
+| Setting                 | Default | Purpose                                                                                                                       |
+| ----------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `OPENAI_PROJECT_ID`     | unset   | The OpenAI project that receives calls, starting `proj_`. With the secret below, switches phone calls on.                     |
+| `OPENAI_WEBHOOK_SECRET` | unset   | The project's webhook secret (`whsec_…`), which signs each call OpenAI reports. Setting only one of the two stops the server. |
+
+Phone calls need `SALEANE_VOICE_PROVIDER=openai` (and so Claude) and Twilio as the text provider, whose number forwards to SALEANE; the server stops if either of the two settings above is set without talking switched on.
+
 ## Authority and request contract
 
 Passwords use salted scrypt; session cookies carry random tokens whose hashes are stored in SQLite. Cookies are HttpOnly, SameSite Strict and expire after 12 hours; HTTPS uses Secure. A password change revokes all previous sessions. Authenticated writes require `X-CSRF-Token` from registration, login or `GET /api/session`. All writes require the exact Origin and JSON. Host validation, cross-site rejection, request limits, bounded JSON bodies and generic server errors apply. No authentication secret appears in workspace or audit responses.

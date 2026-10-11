@@ -86,14 +86,14 @@ export const PHONE_MINUTES = 300
  */
 export const ALLOWANCES = {
   included: {
-    monthly: { typed: 300, talkSeconds: 30 * 60, guestChats: 200 },
+    monthly: { typed: 300, talkSeconds: 30 * 60, guestChats: 200, phoneSeconds: 0 },
     dailySpendCeilingMinor: 150,
     monthlySpendCeilingMinor: 2000,
     perPersonHourly: 30,
     maxTalkSessionSeconds: 10 * 60,
   },
   plus: {
-    monthly: { typed: 800, talkSeconds: 150 * 60, guestChats: 500 },
+    monthly: { typed: 800, talkSeconds: 150 * 60, guestChats: 500, phoneSeconds: 0 },
     dailySpendCeilingMinor: 400,
     monthlySpendCeilingMinor: 6000,
     perPersonHourly: 30,
@@ -102,25 +102,38 @@ export const ALLOWANCES = {
 } satisfies Record<string, Allowance>
 
 /**
+ * What the phone receptionist adds to each location's spending limits. Its 300 minutes cost about
+ * $15 of voice at 5 cents a minute, and the AI's answers about $8 more at roughly a cent a
+ * question, two or three questions a minute: about $23 of a £79 add-on. The daily limit lets a
+ * busy day of about an hour and a half of calls through.
+ */
+export const PHONE_SPEND = { dailyMinor: 600, monthlyMinor: 2500 } as const
+
+/**
  * A studio's AI allowance: each location's amounts times its open locations, so a group with three
  * locations has three times the questions and chats. A studio that has stopped paying has none.
- * The limits on one person and one talk stay the same however big the studio is.
+ * The limits on one person and one talk stay the same however big the studio is. Minutes of phone
+ * calls come only with the phone receptionist.
  */
 export function allowanceFor(plan: {
   locations: number
   plus: boolean
+  phone?: boolean
   paused?: boolean
 }): Allowance {
   const base = plan.plus ? ALLOWANCES.plus : ALLOWANCES.included
   const times = plan.paused ? 0 : Math.max(1, Math.floor(plan.locations))
+  const phone = plan.phone ? times : 0
   return {
     monthly: {
       typed: base.monthly.typed * times,
       talkSeconds: base.monthly.talkSeconds * times,
       guestChats: base.monthly.guestChats * times,
+      phoneSeconds: PHONE_MINUTES * 60 * phone,
     },
-    dailySpendCeilingMinor: base.dailySpendCeilingMinor * times,
-    monthlySpendCeilingMinor: base.monthlySpendCeilingMinor * times,
+    dailySpendCeilingMinor: base.dailySpendCeilingMinor * times + PHONE_SPEND.dailyMinor * phone,
+    monthlySpendCeilingMinor:
+      base.monthlySpendCeilingMinor * times + PHONE_SPEND.monthlyMinor * phone,
     perPersonHourly: base.perPersonHourly,
     maxTalkSessionSeconds: base.maxTalkSessionSeconds,
   }
@@ -175,7 +188,7 @@ export const CONNECT_NOTES = {
   voice: 'Arrives when talking to Ask Saleane is switched on',
 } as const
 
-/** NEXT-02: what a location can add to its price. Neither unlocks a feature; each adds capacity. */
+/** NEXT-02: what a location can add to its price. Each adds capacity; neither takes a feature away. */
 const plus = ALLOWANCES.plus.monthly
 export const ADD_ONS = [
   {
@@ -188,7 +201,7 @@ export const ADD_ONS = [
     id: 'phone',
     title: 'Phone receptionist',
     amount: 'phoneMinor',
-    body: `Answers calls to your studio and books visits, with ${PHONE_MINUTES} minutes of calls a month.`,
+    body: `Answers the calls your desk misses. It says it is an AI, answers questions about your treatments, prices and free times, texts callers a link to book and takes messages for the team, with ${PHONE_MINUTES} minutes of calls a month.`,
     note: 'Arrives when phone calls are connected',
   },
 ] as const
@@ -201,7 +214,7 @@ export const PROMISES = [
   },
   {
     title: 'No locked tiers',
-    body: 'Every studio has every feature. Growing your client list never moves you to a dearer plan. You pay for each location and for each person taking bookings beyond the five it includes, and only Plus adds more AI time.',
+    body: 'Every studio has every feature. Growing your client list never moves you to a dearer plan. You pay for each location and for each person taking bookings beyond the five it includes, and only the add-ons add more AI time.',
   },
   {
     title: 'No fee to leave',

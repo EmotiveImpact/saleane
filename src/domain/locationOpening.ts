@@ -272,8 +272,16 @@ const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'F
  * bookings, so the bill shown before saving counts them as the next bill will.
  */
 export function openingBill(plan: BillingView, org: BusinessState['organisation'], newPeople = 0) {
-  const before = monthBill(plan.region, plan.locations, plan.plusNext, plan.people)
-  const after = monthBill(plan.region, plan.locations + 1, plan.plusNext, plan.people + newPeople)
+  const phone = !!plan.phoneNext
+  const before = monthBill(plan.region, plan.locations, plan.plusNext, plan.people, phone)
+  const after = monthBill(
+    plan.region,
+    plan.locations + 1,
+    plan.plusNext,
+    plan.people + newPeople,
+    phone,
+  )
+  const extras = [plan.plusNext && 'Plus', phone && 'the phone receptionist'].filter(Boolean)
   const cash = (minor: number) => money(minor, org, true)
   const day = (at: number) => planDate(org, at)
   const tax = after.taxLabel ? `, including ${after.taxLabel}` : ', plus any sales tax'
@@ -292,7 +300,7 @@ export function openingBill(plan: BillingView, org: BusinessState['organisation'
   return {
     before,
     after,
-    heading: `Your monthly bill${plan.plusNext ? ', with Plus,' : ''} goes from ${cash(before.totalMinor)} to ${cash(after.totalMinor)}${tax}.`,
+    heading: `Your monthly bill${extras.length ? `, with ${extras.join(' and ')},` : ''} goes from ${cash(before.totalMinor)} to ${cash(after.totalMinor)}${tax}.`,
     detail: plan.test ? `${when} Card payments are in test mode, so nothing is charged.` : when,
   }
 }

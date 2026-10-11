@@ -14,6 +14,8 @@ import { paymentProviderFromEnv } from './payments/providers'
 import { aiFromEnv } from './ai'
 import type { AiSupplier } from './ai'
 import { voiceFromEnv } from './voice'
+import { phoneFromEnv } from './phoneLine'
+import type { PhoneLine } from './phoneLine'
 import { transcriberFromEnv } from './transcribe'
 import type { Transcriber } from './transcribe'
 import type { VoiceLayer } from '../lumane'
@@ -163,6 +165,11 @@ export type ApiOptions = {
   voice?: VoiceLayer
   /** NEXT-16: what writes down voice notes. Omitted follows the voice settings; unset is none. */
   transcriber?: Transcriber
+  /**
+   * NEXT-17: where the studio's phone line hands a call the desk missed for the AI to answer.
+   * Omitted reads OPENAI_PROJECT_ID and OPENAI_WEBHOOK_SECRET; unset or null answers no calls.
+   */
+  phone?: PhoneLine | null
 }
 
 /** Shared request authority: database, clock, sessions, tenant lookup, holds and audit. */
@@ -190,6 +197,11 @@ export function createContext(options: ApiOptions) {
   // The voice only listens and speaks; Claude answers. A voice without Claude would have nothing to say.
   if (voice.live && !ai.live)
     throw new Error('Talking needs Claude to answer: set SALEANE_AI_PROVIDER=claude.')
+  const phone = options.phone === undefined ? phoneFromEnv(process.env) : options.phone
+  if (phone && !voice.calls)
+    throw new Error(
+      'Answering phone calls needs a voice that can take them: SALEANE_VOICE_PROVIDER=openai.',
+    )
   const transcriber = options.transcriber ?? transcriberFromEnv(process.env)
   if (transcriber.live && !ai.live)
     throw new Error('Voice notes need Claude to write them up: set SALEANE_AI_PROVIDER=claude.')
@@ -571,6 +583,7 @@ export function createContext(options: ApiOptions) {
     paymentProvider,
     ai,
     voice,
+    phone,
     transcriber,
     actorFor,
     signIn,

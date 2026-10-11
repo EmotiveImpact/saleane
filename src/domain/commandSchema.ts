@@ -12,6 +12,7 @@ import {
   receptionistSettingsSchema,
 } from './receptionistSchema'
 import { missedCallSources } from './missedCallsSchema'
+import { answeredCallSchema } from './answeredCallsSchema'
 import { offerInputSchema } from './plansSchema'
 import { specialInputSchema } from './specialsSchema'
 import { taskInputSchema } from './tasksSchema'
@@ -634,6 +635,18 @@ export const commandSchema = z.discriminatedUnion('type', [
     source: z.enum(missedCallSources).optional(),
   }),
   z.object({ type: z.literal('missed-call-done'), callId: id }),
+  // NEXT-17: a call the AI receptionist answered, written down by the phone line as it ends; and
+  // the desk saying it followed the call up.
+  z.object({
+    type: z.literal('call-answered'),
+    number: answeredCallSchema.shape.number,
+    startedAt: z.iso.datetime(),
+    seconds: answeredCallSchema.shape.seconds,
+    turns: answeredCallSchema.shape.turns,
+    texted: answeredCallSchema.shape.texted,
+    message: answeredCallSchema.shape.message,
+  }),
+  z.object({ type: z.literal('answered-call-done'), callId: id }),
   z.object({ type: z.literal('offer'), id: id.optional(), input: offerInputSchema }),
   z.object({
     type: z.literal('plan-sell'),

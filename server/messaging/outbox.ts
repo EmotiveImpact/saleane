@@ -29,7 +29,12 @@ import type { MessageKind, OutboxChannel, OutboxStatus } from '../../src/domain/
 import { operations } from '../../src/domain/operations'
 import { socialWindowEnds } from '../../src/domain/inbox'
 import { isSocialChannel } from '../../src/domain/inboxSchema'
-import { answersSocial, answersTexts, visitSummary } from '../../src/assistant/receptionist'
+import {
+  answersCalls,
+  answersSocial,
+  answersTexts,
+  visitSummary,
+} from '../../src/assistant/receptionist'
 import { visitStart } from '../../src/domain/guest'
 import type { Context } from '../context'
 import { issueGuestLink } from '../routes/guest'
@@ -240,7 +245,11 @@ export function createOutbox(ctx: Context, providers: Providers) {
             account: account.account_id,
           })
         }
-        if (!answersTexts(org.state))
+        // NEXT-17: a booking link the receptionist texted to someone it was speaking to on the phone.
+        if (fresh.slot.startsWith('call:')) {
+          if (!answersCalls(org.state))
+            return skip('Answering calls was turned off before it went out.')
+        } else if (!answersTexts(org.state))
           return skip('Answering texts was turned off before it went out.')
         return send(fresh, org, fresh.recipient, '', fresh.body, links)
       }

@@ -112,6 +112,8 @@ export function catchUpSampleDay(s: BusinessState, now: number) {
     o.missedCalls = o.missedCalls.flatMap((call) =>
       later(call.at) ? [] : later(call.lastAt) ? [{ ...call, lastAt: call.at, calls: 1 }] : [call],
     )
+  // NEXT-17: a call the AI receptionist has not answered yet.
+  if (o?.answeredCalls) o.answeredCalls = o.answeredCalls.filter((call) => !later(call.at))
   if (s.replies) s.replies = s.replies.filter((reply) => !later(reply.receivedAt))
   if (s.feedback) s.feedback = s.feedback.filter((answer) => !later(answer.createdAt))
   if (s.consentRecords) s.consentRecords = s.consentRecords.filter((r) => !later(r.recordedAt))

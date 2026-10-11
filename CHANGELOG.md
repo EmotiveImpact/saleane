@@ -2,6 +2,17 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-11 · The AI receptionist answers calls the desk misses (NEXT-17)
+
+**Status: built locally on 11 October 2026; not run against a real phone line or OpenAI project. Calls stay off until the studio's Twilio number, an OpenAI project and Claude are set up.** [Evidence](docs/evidence/NEXT-17-PHONE-RECEPTIONIST.md).
+
+- When nobody at the desk picks up, the studio's phone line hands the call to the AI receptionist instead of ending it. It answers in the studio's chosen voice and tone, says it is an AI, and answers questions about treatments, prices, opening hours and free times from the studio's own records, with Claude, as the booking page's chat does. OpenAI's GPT-Live listens and speaks.
+- It never books, moves or cancels a visit or takes a payment. When a caller wants a time, it texts them a link to the booking page with that time chosen; nothing is booked until they confirm there. It can also take a message for the team. It gives no health advice.
+- Each call is written down for the desk: on Today, Answered by the AI receptionist shows who called, when and for how long, any message for the team, any link it texted and, folded away, what was said. The desk calls back or books, then marks it followed up. A call from a client's number is matched to them, and it is part of their export.
+- The phone receptionist is an add-on of £79 a month for each location ($99 in the US, still a placeholder), with 300 minutes of calls a month. Plan and billing offers it only once phone calls are connected on SALEANE's server, and until then shows Not yet; added part way through a paid month it is charged for the days left, like Plus. The owner or a manager then ticks Also answer calls the desk misses in AI receptionist settings, which says how many minutes are left.
+- A call holds up to ten minutes before it is answered, ends itself when its time or the month's minutes run out, and is counted from what OpenAI reports. A call the AI cannot take (switched off, no minutes left, or no answer from OpenAI within 15 seconds) is written down as a missed call for a call back, as before.
+- The price page's phone receptionist line now says what it really does, instead of "books visits".
+
 ## 2026-10-10 · How the AI speaks, and voice notes after a visit (NEXT-16)
 
 **Status: built locally on 10 October 2026; the AI, talking and voice notes stay in test mode until the studio's Anthropic and OpenAI keys are set.** [Evidence](docs/evidence/NEXT-16-TONE-AND-VOICE-NOTES.md).

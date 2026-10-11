@@ -71,6 +71,8 @@ const commandWords: Record<Command['type'], Words> = {
   'guest-here': ['visits', 'Said they had arrived'],
   'missed-call': ['messages', 'Wrote down a missed call'],
   'missed-call-done': ['messages', 'Marked a missed call as called back'],
+  'call-answered': ['messages', 'Answered a call'],
+  'answered-call-done': ['messages', 'Marked an answered call as followed up'],
   offer: ['settings', 'Changed a package or membership', 'Added a package or membership'],
   'plan-sell': ['money', 'Sold a package or membership'],
   'plan-renew': ['money', 'Renewed a package or membership'],
@@ -207,6 +209,7 @@ const serverWords: Record<string, Words> = {
   'google.book': ['visits', 'Booked through Book with Google'],
   'google.cancel': ['visits', 'Cancelled through Book with Google'],
   'phone.missed-call': ['messages', 'Wrote down a missed call'],
+  'phone.answered': ['messages', 'Answered a call'],
   'inbox.reply': ['messages', 'A message came in'],
   'receptionist.message': ['messages', 'Passed on a message from the AI receptionist'],
   // NEXT-02: the studio's own SALEANE plan.
@@ -245,6 +248,7 @@ export function automaticSource(action: string) {
   if (action.startsWith('google.')) return 'A guest, through Google'
   if (action.startsWith('payment.')) return 'A guest paying by card'
   if (action === 'phone.missed-call') return 'The studio phone line'
+  if (action === 'phone.answered') return 'The AI receptionist, on the phone'
   if (action === 'inbox.reply') return 'A guest’s message'
   if (action === 'receptionist.message') return 'The AI receptionist'
   return 'SALEANE'
@@ -277,6 +281,7 @@ const personal = new Set([
   'waitlist',
   'messages',
   'missedCalls',
+  'answeredCalls',
   'tasks',
 ])
 /** Short words from a fixed list, safe to keep. Anything else typed in is never kept. */

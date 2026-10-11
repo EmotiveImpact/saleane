@@ -270,6 +270,18 @@ export function clientExport(state: BusinessState, clientId: string, meta: Expor
           ? { bookedVisit: ref.get(c.appointmentId) }
           : {}),
       })),
+    // NEXT-17: calls from this client's number that the AI receptionist answered, as said.
+    answeredCalls: (ops.answeredCalls ?? [])
+      .filter((c) => c.clientId === client.id)
+      .map((c) => ({
+        from: c.number,
+        answeredAt: c.at,
+        seconds: c.seconds,
+        conversation: c.turns,
+        ...(c.texted.length ? { textedLinks: c.texted } : {}),
+        ...(c.message ? { messageForTeam: c.message } : {}),
+        ...(c.doneAt ? { followedUpAt: c.doneAt } : {}),
+      })),
     // V1.5: the private feedback this client gave about their visits.
     feedback: (state.feedback ?? [])
       .filter((f) => f.clientId === client.id)
@@ -617,6 +629,11 @@ export function erasureReview(
         label: 'Missed calls from their number',
         count: (ops.missedCalls ?? []).filter((c) => c.clientId === client.id).length,
         reason: 'Only for calling them back. Not linked to money.',
+      },
+      {
+        label: 'Calls from their number the AI receptionist answered',
+        count: (ops.answeredCalls ?? []).filter((c) => c.clientId === client.id).length,
+        reason: 'What they said on the call, for following it up. Not linked to money.',
       },
       {
         label: 'Waitlist requests',

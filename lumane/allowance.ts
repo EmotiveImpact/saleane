@@ -3,7 +3,11 @@
  * the allowance is checked before every request, and a refused request never reaches the AI
  * supplier, so overuse cannot cost the business anything.
  */
-export type Meter = 'typed' | 'talkSeconds' | 'guestChats'
+/**
+ * `phoneSeconds` are the studio's phone calls answered by the AI receptionist, an add-on, so a
+ * studio without it has none.
+ */
+export type Meter = 'typed' | 'talkSeconds' | 'guestChats' | 'phoneSeconds'
 
 export type Allowance = {
   /** Monthly amounts for each kind of use. */
@@ -54,20 +58,26 @@ export type Refusal = {
 }
 
 const HOUR = 3_600_000
-const meters: Meter[] = ['typed', 'talkSeconds', 'guestChats']
+const meters: Meter[] = ['typed', 'talkSeconds', 'guestChats', 'phoneSeconds']
 
 export function emptyUsage(at: string): Usage {
   return {
     period: at.slice(0, 7),
-    used: { typed: 0, talkSeconds: 0, guestChats: 0 },
+    used: { typed: 0, talkSeconds: 0, guestChats: 0, phoneSeconds: 0 },
     spendByDay: {},
     recent: {},
   }
 }
 
-/** The usage that applies at `at`: a new month starts from zero. */
+/**
+ * The usage that applies at `at`: a new month starts from zero. Usage stored before a meter
+ * existed reads that meter as nothing used.
+ */
 export function current(usage: Usage | undefined, at: string): Usage {
-  return usage && usage.period === at.slice(0, 7) ? usage : emptyUsage(at)
+  if (!usage || usage.period !== at.slice(0, 7)) return emptyUsage(at)
+  return meters.every((m) => typeof usage.used[m] === 'number')
+    ? usage
+    : { ...usage, used: { ...emptyUsage(at).used, ...usage.used } }
 }
 
 export function remaining(
@@ -231,6 +241,16 @@ export function reclaim(usage: Usage | undefined, at: string): Usage | undefined
         costMinor: hold.request.worstCaseMinor,
       })
   return next
+}
+
+/** How long the next phone call may run: the longest call or what is left, whichever is less. */
+export function callWindowSeconds(
+  allowance: Allowance,
+  usage: Usage | undefined,
+  at: string,
+  longest: number,
+) {
+  return Math.min(longest, remaining(allowance, usage, 'phoneSeconds', at))
 }
 
 /** How long the next talking session may run: the session cap or what is left, whichever is less. */

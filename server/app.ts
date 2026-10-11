@@ -36,6 +36,8 @@ import { googleBooking, googleBookingFromEnv } from './googleBooking'
 import { billingProviderFromEnv, createBilling } from './billing'
 import { diaryRoutes } from './diaries'
 import type { Billing } from './billing'
+import { phoneCalls } from './phone'
+import type { PhoneCalls } from './phone'
 
 export type { ApiOptions } from './context'
 export type { InjectOptions, InjectResponse } from './http'
@@ -49,6 +51,8 @@ export type ApiHandler = ((
   payments: Payments
   connections: Connections
   billing: Billing
+  /** NEXT-17: calls the AI receptionist answers on the studio's phone line. */
+  phone: PhoneCalls
   close: () => void
   inject: (request: InjectOptions) => Promise<InjectResponse>
 }
@@ -104,6 +108,9 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   const google = googleBooking(options.googleBooking ?? googleBookingFromEnv(process.env))
   const social = options.social ?? socialFromEnv(process.env)
   const assistant = assistantRoutes()
+  const phone = phoneCalls(ctx.phone, () => {
+    if (options.outboxIntervalMs) outbox.soon()
+  })
   const routes = [
     partners.read,
     partners.manage,
@@ -118,6 +125,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     assistant,
     writeUpRoutes(),
     receptionistRoutes(),
+    phone.routes,
     supportRoutes(
       options.supportEmail === undefined ? supportAddressFromEnv() : options.supportEmail,
     ),
@@ -197,25 +205,53 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
         return
       }
       // V1.5: the studio's phone line says how a call ended. A missed one is written down for the
-      // desk to call back, and may bring one text with the booking link.
-      const voice = /^\/api\/hooks\/twilio\/voice\/([a-z0-9-]{1,80})$/.exec(url.pathname)
+      // desk to call back, and may bring one text with the booking link. NEXT-17: when the studio
+      // has the AI answer the calls the desk misses, the call is handed to it instead, and the
+      // `ai` leg says how that went: a call the AI could not take is a missed call as before.
+      const voice = /^\/api\/hooks\/twilio\/voice\/([a-z0-9-]{1,80})(\/ai)?$/.exec(url.pathname)
       if (voice) {
         if (method !== 'POST') fail(405, 'Use POST.')
         const body = (await readBody(request, true)) as string
-        const call = outbox.providers.voice?.(voice[1], {
-          url: url.toString(),
-          headers: request.headers as Record<string, string | undefined>,
-          body,
-        })
-        if (!call) fail(403, 'This call could not be verified.')
-        if (call!.missed && recordPhoneCall(ctx, voice[1], call!.from)) outbox.soon()
-        response.statusCode = 200
-        response.setHeader('Content-Type', 'text/xml; charset=utf-8')
-        response.end(
-          call!.missed
-            ? '<?xml version="1.0" encoding="UTF-8"?><Response><Say>Sorry we missed your call. We will call you back as soon as we can.</Say></Response>'
-            : '<?xml version="1.0" encoding="UTF-8"?><Response/>',
+        const leg = voice[2] ? ('ai' as const) : undefined
+        const call = outbox.providers.voice?.(
+          voice[1],
+          {
+            url: url.toString(),
+            headers: request.headers as Record<string, string | undefined>,
+            body,
+          },
+          leg,
         )
+        if (!call) fail(403, 'This call could not be verified.')
+        const answer = (twiml: string) => {
+          response.statusCode = 200
+          response.setHeader('Content-Type', 'text/xml; charset=utf-8')
+          response.end(twiml)
+        }
+        if (!call!.missed) return answer('<?xml version="1.0" encoding="UTF-8"?><Response/>')
+        const handed =
+          !leg &&
+          phone.divert(
+            ctx,
+            voice[1],
+            call!.from,
+            `${allowedOrigin}/api/hooks/twilio/voice/${voice[1]}/ai`,
+          )
+        if (handed) return answer(handed)
+        if (recordPhoneCall(ctx, voice[1], call!.from)) outbox.soon()
+        return answer(
+          '<?xml version="1.0" encoding="UTF-8"?><Response><Say>Sorry we missed your call. We will call you back as soon as we can.</Say></Response>',
+        )
+      }
+      // NEXT-17: OpenAI says a call handed to the AI receptionist has arrived. Signed with the
+      // project's webhook secret; answered after OpenAI is thanked.
+      if (url.pathname === '/api/hooks/openai') {
+        if (!ctx.phone) fail(404, 'This endpoint was not found.')
+        if (method !== 'POST') fail(405, 'Use POST.')
+        const body = (await readBody(request, true)) as string
+        const status = phone.webhook(ctx, request.headers, body)
+        if (status !== 200) fail(status, 'This event could not be verified.')
+        reply(200, { ok: true })
         return
       }
       // V1.5: a guest's reply to the studio's text line or email address, kept for the inbox.
@@ -382,6 +418,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
   handler.payments = payments
   handler.connections = connections
   handler.billing = billing
+  handler.phone = phone
   handler.close = () => {
     clearTimeout(missedAgain)
     outbox.stop()
@@ -389,6 +426,8 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     billing.stop()
     // NEXT-12: talks still running end and are counted while the database is open.
     assistant.stop(ctx)
+    // NEXT-17: so are calls the AI receptionist is answering.
+    phone.stopAll(ctx)
     db.close()
   }
   handler.inject = (input) => inject(handler, allowedOrigin, input)
