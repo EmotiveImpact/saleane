@@ -215,11 +215,11 @@ describe('writing up a visit in test mode', () => {
     expect(await ahead(owner, mine)).toBe(true)
     // A professional hears nothing about someone else's visit.
     expect(await ahead(await practitioner(owner, maya), theirs)).toBeUndefined()
-    // Once the aftercare email is in the outbox, saved aftercare cannot join it.
+    // Once the aftercare email has been handed over, saved aftercare cannot join it.
     const at = Date.parse('2026-10-06T08:00:00.000Z')
     api.database.run(
       `INSERT INTO outbox(id,organisation_id,dedupe_key,appointment_id,client_id,kind,channel,slot,recipient,subject,body,status,next_attempt_at,created_at,updated_at)
-       VALUES('sent-care',?,?,?,'client','aftercare','email','slot','amara@example.invalid','Care','Body','accepted',?,?,?)`,
+       VALUES('sent-care',?,?,?,'client','aftercare','email','slot','amara@example.invalid','Care','Body','pending',?,?,?)`,
       owner.orgId,
       `${mine}:aftercare:email:slot`,
       mine,
@@ -227,6 +227,9 @@ describe('writing up a visit in test mode', () => {
       at,
       at,
     )
+    // Still waiting to go, or to be tried again, it is written afresh and carries the aftercare.
+    expect(await ahead(owner, mine)).toBe(true)
+    api.database.run("UPDATE outbox SET status='accepted' WHERE id='sent-care'")
     expect(await ahead(owner, mine)).toBe(false)
   })
 

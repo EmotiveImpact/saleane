@@ -230,7 +230,8 @@ export function VisitWriteUp({
       type: 'visit-write-up',
       appointmentId,
       ...(note.length >= 2 ? { note } : {}),
-      ...(care.length >= 2 ? { aftercare: care } : {}),
+      // Clearing the aftercare box takes away the aftercare saved earlier.
+      ...(care.length >= 2 ? { aftercare: care } : aftercare ? { aftercare: null } : {}),
     }
     const ahead = care.length >= 2 && (await emailAhead())
     if (
@@ -240,7 +241,9 @@ export function VisitWriteUp({
           ? ahead
             ? `Saved. The aftercare is added to ${guest}’s aftercare email.`
             : 'Saved. The aftercare is kept on the visit, and no email will carry it.'
-          : 'Saved to their history.',
+          : aftercare
+            ? 'Saved to their history, and the earlier aftercare is removed.'
+            : 'Saved to their history.',
       )
     ) {
       setDraft(null)

@@ -56,7 +56,8 @@ export function writeUpRoutes() {
       const sent =
         !!shown &&
         !!ctx.db.get(
-          "SELECT 1 AS found FROM outbox WHERE organisation_id=? AND appointment_id=? AND kind='aftercare'",
+          // A pending email (a first try or a retry) is written afresh from the visit as it goes.
+          "SELECT 1 AS found FROM outbox WHERE organisation_id=? AND appointment_id=? AND kind='aftercare' AND status<>'pending'",
           org.id,
           shown.id,
         )

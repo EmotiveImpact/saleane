@@ -419,3 +419,31 @@ test('a recorder that will not start lets go of the microphone and says so', asy
     Reflect.deleteProperty(navigator, 'mediaDevices')
   }
 })
+
+test('clearing the aftercare box takes away the aftercare saved earlier', async () => {
+  const user = userEvent.setup()
+  vi.mocked(api).mockImplementation(async (url) => {
+    if (url === `${path}/write-up?visit=visit-1`)
+      return { mode: 'test', listens: false, aftercareEmail: true } as never
+    return { heard: 'Gold.', note: 'Shade 9 gold.', aftercare: 'Keep it dry tonight.' } as never
+  })
+  const onSave = vi.fn().mockResolvedValue(true)
+  render(
+    <VisitWriteUp
+      path={path}
+      appointmentId="visit-1"
+      guest="Amara"
+      aftercare="Use the purple shampoo."
+      saving={false}
+      onSave={onSave}
+    />,
+  )
+  await user.type(await screen.findByLabelText('What you would say'), 'Shade 9 gold.')
+  await user.click(screen.getByRole('button', { name: 'Write it up' }))
+  await user.clear(await screen.findByLabelText('Aftercare for Amara'))
+  await user.click(screen.getByRole('button', { name: 'Save' }))
+  expect(onSave).toHaveBeenCalledWith(
+    { type: 'visit-write-up', appointmentId: 'visit-1', note: 'Shade 9 gold.', aftercare: null },
+    'Saved to their history, and the earlier aftercare is removed.',
+  )
+})
