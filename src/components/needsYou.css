@@ -124,7 +124,16 @@
   overflow-wrap: anywhere;
 }
 .needs-who a {
+  position: relative;
   color: var(--ink);
+}
+/* A name is a link to the client; on a touch screen it takes a 44px touch without moving the row. */
+@media (max-width: 650px), (pointer: coarse) {
+  .needs-who a::after {
+    content: '';
+    position: absolute;
+    inset: -12px 0;
+  }
 }
 .needs-who small {
   color: var(--muted);

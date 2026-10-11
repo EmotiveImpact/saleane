@@ -385,6 +385,12 @@
   position: absolute;
   inset: -8px;
 }
+/* On a touch screen the square stays small but takes a 44px touch. */
+@media (max-width: 650px), (pointer: coarse) {
+  .tick::after {
+    inset: -13px;
+  }
+}
 .tick:hover:not(:disabled) {
   border-color: var(--ink);
 }

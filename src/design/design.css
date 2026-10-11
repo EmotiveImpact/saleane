@@ -251,7 +251,7 @@
     min-height: 40px;
   }
   .segmented-icon .segmented-item {
-    width: 40px;
+    width: var(--target);
     height: 40px;
   }
   .segmented-pill .segmented-item::after,
@@ -259,6 +259,9 @@
     content: '';
     position: absolute;
     inset: -3px -1px;
+  }
+  .segmented-icon .segmented-item::after {
+    inset: -2px 0;
   }
   .segmented-chips .segmented-item {
     min-height: var(--target);

@@ -1602,8 +1602,7 @@ fieldset {
   border-color: var(--brand);
 }
 /* The ring sits on the whole pill, so keyboard users see it clearly. */
-.search-field:has(input:focus-visible),
-so keyboard users see it clearly. */ .search-field:has(.tick:focus-visible) {
+.search-field:has(input:focus-visible) {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
