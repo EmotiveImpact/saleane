@@ -11,6 +11,7 @@
     "evals": "vitest run --config evals/vitest.config.ts",
     "test:watch": "vitest",
     "preview": "vite preview --host 127.0.0.1",
+    "lumane:page": "vite build --configLoader bundle --config lumane/install/page/vite.config.ts",
     "demo:build": "npm --prefix demo ci --no-audit --no-fund && vite build --configLoader bundle --config demo/vite.config.ts",
     "check": "npm run lint && npm run test && npm run build",
     "format": "prettier --write .",

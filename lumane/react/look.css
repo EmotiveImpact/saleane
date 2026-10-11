@@ -1,0 +1,295 @@
+/*
+ * LUMANE's default look. It dresses the parts only inside `LookScope` (`[data-lumane-look]`),
+ * from the variables `lookStyle` sets, so it never touches an app that dresses them itself.
+ */
+[data-lumane-look] {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  color: var(--lumane-ink);
+  font-family: var(--lumane-font);
+  font-size: 15px;
+  line-height: 1.5;
+  background: var(--lumane-bg);
+  color-scheme: light;
+}
+[data-lumane-look='dark'] {
+  color-scheme: dark;
+}
+[data-lumane-look] *,
+[data-lumane-look] *::before,
+[data-lumane-look] *::after {
+  box-sizing: border-box;
+}
+[data-lumane-look] :is(button, input) {
+  font: inherit;
+}
+[data-lumane-look] :is(button, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--lumane-accent-ink);
+  outline-offset: 2px;
+}
+
+/* The panel: a header, the conversation and the question box. */
+[data-lumane-look] [data-lumane='panel-header'] {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--lumane-line);
+}
+[data-lumane-look] [data-lumane='panel-mark'] {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  color: var(--lumane-on-accent);
+  font-weight: 600;
+  background: var(--lumane-accent);
+  border-radius: var(--lumane-radius-control);
+}
+[data-lumane-look] [data-lumane='panel-header'] h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+[data-lumane-look] [data-lumane='panel-header'] p {
+  margin: 0;
+  color: var(--lumane-muted);
+  font-size: 13px;
+}
+[data-lumane-look] [data-lumane='conversation'] {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  padding: 20px;
+  overflow-y: auto;
+  background: var(--lumane-surface);
+}
+[data-lumane-look] [data-lumane='panel-footer'] {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 20px 18px;
+  border-top: 1px solid var(--lumane-line);
+}
+
+/* Lines of the conversation. */
+[data-lumane-look] [data-lumane='message'] {
+  max-width: 88%;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--lumane-radius);
+  overflow-wrap: anywhere;
+}
+[data-lumane-look] [data-lumane='message'][data-from='person'] {
+  align-self: flex-end;
+  color: var(--lumane-on-accent);
+  background: var(--lumane-accent);
+}
+[data-lumane-look] [data-lumane='message'][data-from='assistant'] {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-self: flex-start;
+  background: var(--lumane-bg);
+  border: 1px solid var(--lumane-line);
+}
+[data-lumane-look] [data-lumane='message'] > p {
+  margin: 0;
+  white-space: pre-line;
+}
+[data-lumane-look] [data-lumane='thinking'] {
+  align-self: flex-start;
+  margin: 0;
+  color: var(--lumane-muted);
+}
+
+/* A change waiting for approval. */
+[data-lumane-look] [data-lumane='approval'] {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: var(--lumane-soft);
+  border: 1px solid var(--lumane-line);
+  border-radius: calc(var(--lumane-radius) - 4px);
+}
+[data-lumane-look] [data-lumane='approval-label'] {
+  margin: 0;
+  color: var(--lumane-accent-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+[data-lumane-look] [data-lumane='approval-summary'] {
+  margin: 0;
+  white-space: pre-line;
+}
+[data-lumane-look] [data-lumane='approval-details'] {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 14px;
+  margin: 0;
+  font-size: 14px;
+}
+[data-lumane-look] [data-lumane='approval-details'] dt {
+  color: var(--lumane-muted);
+}
+[data-lumane-look] [data-lumane='approval-details'] dd {
+  margin: 0;
+}
+[data-lumane-look] [data-lumane='approval-actions'] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+[data-lumane-look] [data-lumane='approval-outcome'] {
+  margin: 0;
+  color: var(--lumane-muted);
+  font-size: 14px;
+}
+[data-lumane-look] [data-lumane='approval-outcome'][data-state='done'] {
+  color: var(--lumane-accent-ink);
+  font-weight: 600;
+}
+
+/* Buttons: the main one in the main colour, the others quiet. */
+[data-lumane-look] :is([data-lumane='approve'], [data-lumane='send']) {
+  min-height: 44px;
+  padding: 0 18px;
+  color: var(--lumane-on-accent);
+  font-weight: 600;
+  background: var(--lumane-accent);
+  border: 1px solid var(--lumane-accent);
+  border-radius: var(--lumane-radius-control);
+  cursor: pointer;
+}
+[data-lumane-look]
+  :is([data-lumane='decline'], [data-lumane='talk-start'], [data-lumane='talk-stop']),
+[data-lumane-look] [data-lumane='starter'] {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 16px;
+  color: var(--lumane-ink);
+  background: var(--lumane-bg);
+  border: 1px solid var(--lumane-line);
+  border-radius: var(--lumane-radius-control);
+  cursor: pointer;
+}
+[data-lumane-look] [data-lumane='starter'] {
+  border-radius: 999px;
+}
+[data-lumane-look] button:hover:not(:disabled) {
+  filter: brightness(0.96);
+}
+[data-lumane-look='dark'] button:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+[data-lumane-look] button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+/* Ready-made questions sit in one row that scrolls sideways, so the conversation keeps its room. */
+[data-lumane-look] [data-lumane='starters'] {
+  display: flex;
+  gap: 8px;
+  margin-inline: -20px;
+  padding: 0 20px 4px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+[data-lumane-look] [data-lumane='starter'] {
+  flex: none;
+  white-space: nowrap;
+}
+
+/* The question box. */
+[data-lumane-look] [data-lumane='composer'] {
+  display: flex;
+  gap: 8px;
+}
+[data-lumane-look] [data-lumane='composer-input'] {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 14px;
+  color: var(--lumane-ink);
+  background: var(--lumane-surface);
+  border: 1px solid var(--lumane-line);
+  border-radius: var(--lumane-radius-control);
+}
+[data-lumane-look] [data-lumane='composer-input']::placeholder {
+  color: var(--lumane-muted);
+}
+
+/* Talking. */
+[data-lumane-look] [data-lumane='talk'] {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 6px 6px 14px;
+  background: var(--lumane-soft);
+  border-radius: var(--lumane-radius-control);
+}
+[data-lumane-look] [data-lumane='talk-status'] {
+  flex: 1;
+  margin: 0;
+}
+[data-lumane-look] [data-lumane='talk-countdown'] {
+  color: var(--lumane-muted);
+  font-variant-numeric: tabular-nums;
+}
+[data-lumane-look] [data-lumane='talk-dot'] {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  background: var(--lumane-accent);
+  border-radius: 50%;
+  animation: lumane-listening 1.6s ease-in-out infinite;
+}
+@keyframes lumane-listening {
+  50% {
+    opacity: 0.45;
+    transform: scale(0.8);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-lumane-look] [data-lumane='talk-dot'] {
+    animation: none;
+  }
+}
+
+/* The usage line, and what it says when the allowance runs low. */
+[data-lumane-look] [data-lumane='usage'] {
+  margin: 0;
+  color: var(--lumane-muted);
+  font-size: 13px;
+}
+[data-lumane-look] [data-lumane='usage']:not([data-state='fine']) {
+  color: var(--lumane-accent-ink);
+  font-weight: 600;
+}
+[data-lumane-look] [data-lumane='error'] {
+  margin: 0 20px;
+  color: #b42318;
+}
+[data-lumane-look='dark'] [data-lumane='error'] {
+  color: #ff9c8f;
+}
+@media (max-width: 480px) {
+  [data-lumane-look] [data-lumane='message'] {
+    max-width: 94%;
+  }
+  [data-lumane-look] :is([data-lumane='conversation'], [data-lumane='panel-footer']) {
+    padding-inline: 16px;
+  }
+  [data-lumane-look] [data-lumane='starters'] {
+    margin-inline: -16px;
+    padding-inline: 16px;
+  }
+}
