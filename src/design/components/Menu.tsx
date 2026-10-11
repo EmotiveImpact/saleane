@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { DropdownMenu } from 'radix-ui'
 import { Link } from 'react-router-dom'
 import { Check } from 'lucide-react'
+import { rememberOpener } from '../opener'
 
 /**
  * A short list of things to do, opened from one button: the studio and your own name at the top,
@@ -36,6 +37,10 @@ export function Menu({
           side={side}
           sideOffset={8}
           collisionPadding={12}
+          onCloseAutoFocus={(event) => {
+            // An item that opened a dialog or panel keeps the focus there.
+            if (document.activeElement?.closest('[role="dialog"]')) event.preventDefault()
+          }}
         >
           {children}
         </DropdownMenu.Content>
@@ -78,7 +83,14 @@ export function MenuItem(props: ItemProps & { to?: string; onSelect?: () => void
       </DropdownMenu.Item>
     )
   return (
-    <DropdownMenu.Item disabled={disabled} className={className} onSelect={() => onSelect?.()}>
+    <DropdownMenu.Item
+      disabled={disabled}
+      className={className}
+      onSelect={(event) => {
+        rememberOpener(event.currentTarget as Element)
+        onSelect?.()
+      }}
+    >
       {itemBody(props)}
     </DropdownMenu.Item>
   )

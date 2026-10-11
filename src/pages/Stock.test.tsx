@@ -32,8 +32,8 @@ describe('the shelf', { timeout: 20000 }, () => {
     expect(
       within(balm)
         .getAllByRole('button')
-        .map((button) => button.textContent),
-    ).toEqual(['Delivery', 'Used', 'Count', 'Edit'])
+        .map((button) => button.getAttribute('aria-label') ?? button.textContent),
+    ).toEqual(['Delivery', 'More for Calming Cleansing Balm'])
     const row = balm.parentElement!
     expect(within(row).getByText('For sale')).toBeInTheDocument()
     expect(within(row).getByLabelText(`${onShelf('cleansing-balm')} in stock`)).toBeInTheDocument()
@@ -44,6 +44,29 @@ describe('the shelf', { timeout: 20000 }, () => {
     expect(within(peel).getByText('Used in treatments')).toBeInTheDocument()
     expect(within(peel).getByText('Running low')).toBeInTheDocument()
     expect(within(peel).getByLabelText(`${onShelf('enzyme-peel')} in stock`)).toBeInTheDocument()
+  })
+
+  it('keeps the rarer actions in one menu on the row', async () => {
+    const user = userEvent.setup()
+    show()
+    const balm = await screen.findByRole(
+      'group',
+      { name: 'Stock and details for Calming Cleansing Balm' },
+      { timeout: 8000 },
+    )
+    await user.click(within(balm).getByRole('button', { name: /^More/ }))
+    const menu = await screen.findByRole('menu', { name: 'More for Calming Cleansing Balm' })
+    expect(
+      within(menu)
+        .getAllByRole('menuitem')
+        .map((item) => item.textContent),
+    ).toEqual(['Used in treatments', 'Correct the count', 'Edit details'])
+    await user.click(within(menu).getByRole('menuitem', { name: 'Correct the count' }))
+    const dialog = screen.getByRole('dialog', { name: 'Correct the count' })
+    expect(within(dialog).getByLabelText('How many are on the shelf now')).toHaveFocus()
+    // Closing the dialog puts the focus back on the menu's button, where the person was.
+    await user.click(within(dialog).getByRole('button', { name: 'Close dialog' }))
+    expect(within(balm).getByRole('button', { name: /^More/ })).toHaveFocus()
   })
 
   it('records a delivery from a product’s actions', async () => {

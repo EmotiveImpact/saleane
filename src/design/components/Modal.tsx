@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { Dialog } from 'radix-ui'
 import { X } from 'lucide-react'
 import { leaveGently } from '../motion'
+import { takeOpener } from '../opener'
 
 type Placement = 'center' | 'side' | 'start'
 
@@ -47,6 +48,11 @@ export function Modal({
   useEffect(() => {
     where.current = placement
   }, [placement])
+  // Noted before the dialog's own fields can take the focus (one with autoFocus does so as it
+  // appears). Opened from a menu, it is the menu's button: the item is gone by the time it closes.
+  useLayoutEffect(() => {
+    if (open) previousFocus.current = takeOpener() ?? (document.activeElement as HTMLElement)
+  }, [open])
   useEffect(() => {
     if (open && panel && previousTitle.current !== title) {
       heading.current?.focus()
@@ -90,7 +96,6 @@ export function Modal({
             .filter(Boolean)
             .join(' ')}
           onOpenAutoFocus={(event) => {
-            previousFocus.current = document.activeElement as HTMLElement
             event.preventDefault()
             if (placement === 'side') {
               heading.current?.focus()

@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import type { Client } from '../domain/model'
 import type { SavedReply } from '../domain/inboxSchema'
 import { textNumber } from '../domain/reminders'
-import { Button, Select } from '../design'
+import { Button, Select, Tip } from '../design'
 import { quickReplies } from './quickReplies'
 import './inboxReply.css'
 
@@ -153,15 +153,11 @@ export function InboxReply({
           onMouseDown={(event) => event.preventDefault()}
         >
           {chips.map((reply) => (
-            <button
-              key={reply.id}
-              type="button"
-              className="inbox-quick-chip"
-              title={reply.body}
-              onClick={() => use(reply.body)}
-            >
-              {reply.name}
-            </button>
+            <Tip key={reply.id} label={reply.body}>
+              <button type="button" className="inbox-quick-chip" onClick={() => use(reply.body)}>
+                {reply.name}
+              </button>
+            </Tip>
           ))}
           {canEditSaved && (
             <Link className="inbox-quick-edit" to="/settings?section=messages">

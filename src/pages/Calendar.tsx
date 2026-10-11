@@ -17,6 +17,7 @@ import {
   arriveGently,
   settleFrom,
   Select,
+  Tip,
 } from '../design'
 import { Agenda } from '../components/Agenda'
 import { PeopleColumns } from '../components/PeopleColumns'
@@ -215,16 +216,20 @@ export function Calendar() {
       <section className="surface calendar-surface" ref={surface}>
         <div className="calendar-toolbar">
           <div className="date-controls">
-            <button
-              className="icon-button"
-              aria-label={`Previous ${unit}`}
-              onClick={() => move(-1)}
-            >
-              <ChevronLeft size={18} />
-            </button>
-            <button className="icon-button" aria-label={`Next ${unit}`} onClick={() => move(1)}>
-              <ChevronRight size={18} />
-            </button>
+            <Tip label={`Previous ${unit}`}>
+              <button
+                className="icon-button"
+                aria-label={`Previous ${unit}`}
+                onClick={() => move(-1)}
+              >
+                <ChevronLeft size={18} />
+              </button>
+            </Tip>
+            <Tip label={`Next ${unit}`}>
+              <button className="icon-button" aria-label={`Next ${unit}`} onClick={() => move(1)}>
+                <ChevronRight size={18} />
+              </button>
+            </Tip>
             <h2>
               {period === 'week'
                 ? `Week of ${dateLabel(weekStart(date), locale)}`

@@ -36,6 +36,7 @@ import {
   WizardSteps,
   useWizardStep,
   Checkbox,
+  Tip,
 } from '../design'
 import { AffectedVisits } from './ScheduleImpact'
 import { HoursList, RemoveButton, RoomCards } from './SetupParts'
@@ -350,31 +351,29 @@ function DayTicks({
         {WEEK_ORDER.map((day) => {
           const on = days.includes(day) && open.has(day)
           return (
-            <label
+            <Tip
               key={day}
-              className={`setup-tick${booked.has(day) && open.has(day) ? ' is-booked' : ''}`}
-              title={
-                !open.has(day)
-                  ? 'Closed'
-                  : booked.has(day)
-                    ? 'Visits already booked on this day'
-                    : undefined
-              }
+              label={!open.has(day) ? 'Closed' : 'Visits already booked on this day'}
+              disabled={open.has(day) && !booked.has(day)}
             >
-              <Checkbox
-                aria-label={
-                  !open.has(day)
-                    ? `${WEEKDAYS[day]}, closed`
-                    : booked.has(day)
-                      ? `${WEEKDAYS[day]}, visits already booked`
-                      : WEEKDAYS[day]
-                }
-                checked={on}
-                disabled={!open.has(day)}
-                onChange={() => onChange(on ? days.filter((d) => d !== day) : [...days, day])}
-              />
-              <span aria-hidden="true">{short(day)}</span>
-            </label>
+              <label
+                className={`setup-tick${booked.has(day) && open.has(day) ? ' is-booked' : ''}`}
+              >
+                <Checkbox
+                  aria-label={
+                    !open.has(day)
+                      ? `${WEEKDAYS[day]}, closed`
+                      : booked.has(day)
+                        ? `${WEEKDAYS[day]}, visits already booked`
+                        : WEEKDAYS[day]
+                  }
+                  checked={on}
+                  disabled={!open.has(day)}
+                  onChange={() => onChange(on ? days.filter((d) => d !== day) : [...days, day])}
+                />
+                <span aria-hidden="true">{short(day)}</span>
+              </label>
+            </Tip>
           )
         })}
       </div>

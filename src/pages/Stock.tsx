@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { PackageOpen, Plus } from 'lucide-react'
+import { ChevronDown, PackageOpen, Plus } from 'lucide-react'
 import { useStore } from '../state/context'
 import { can, operations, stock } from '../domain/operations'
 import { hasLocations, placeOf, places } from '../domain/locations'
@@ -18,6 +18,8 @@ import {
   Button,
   Empty,
   ErrorMessage,
+  Menu,
+  MenuItem,
   Modal,
   PageHeader,
   SegmentedControl,
@@ -82,6 +84,53 @@ const REASON_LABEL = {
   returned: 'Brought back',
   moved: 'Moved',
 } as const
+
+/**
+ * A product's actions: the one most often needed (a delivery) stays on the row, and the rest wait
+ * in one calm menu, so a long shelf reads as products rather than as rows of buttons.
+ */
+function ShelfActions({
+  product,
+  actions,
+}: {
+  product: Product
+  actions: { label: string; run: () => void }[]
+}) {
+  const [first, ...rest] = actions
+  if (!first) return null
+  return (
+    <div
+      className="shelf-actions"
+      role="group"
+      aria-label={`Stock and details for ${product.name}`}
+    >
+      <Button
+        variant="quiet"
+        aria-label={first.label === 'Edit details' ? `Edit ${product.name}` : undefined}
+        onClick={first.run}
+      >
+        {first.label}
+      </Button>
+      {rest.length > 0 && (
+        <Menu
+          label={`More for ${product.name}`}
+          trigger={
+            <Button variant="quiet" className="shelf-more" aria-label={`More for ${product.name}`}>
+              More
+              <ChevronDown size={14} aria-hidden="true" />
+            </Button>
+          }
+        >
+          {rest.map((action) => (
+            <MenuItem key={action.label} onSelect={action.run}>
+              {action.label}
+            </MenuItem>
+          ))}
+        </Menu>
+      )}
+    </div>
+  )
+}
 
 function useRun() {
   const { commit } = useStore()
@@ -547,43 +596,35 @@ export function Stock() {
                     )}
                   </div>
                   {(canStock || canEdit) && (
-                    <div
-                      className="shelf-actions"
-                      role="group"
-                      aria-label={`Stock and details for ${product.name}`}
-                    >
-                      {canStock && !product.archived && (
-                        <>
-                          <Button variant="quiet" onClick={() => openMovement(product, 'received')}>
-                            Delivery
-                          </Button>
-                          <Button variant="quiet" onClick={() => openMovement(product, 'consumed')}>
-                            Used
-                          </Button>
-                          <Button variant="quiet" onClick={() => openMovement(product, 'count')}>
-                            Count
-                          </Button>
-                          {multiSite && (
-                            <Button
-                              variant="quiet"
-                              aria-label={`Move ${product.name} to another location`}
-                              onClick={() => openMovement(product, 'move')}
-                            >
-                              Move
-                            </Button>
-                          )}
-                        </>
-                      )}
-                      {canEdit && (
-                        <Button
-                          variant="quiet"
-                          aria-label={`Edit ${product.name}`}
-                          onClick={() => openProduct(product)}
-                        >
-                          Edit
-                        </Button>
-                      )}
-                    </div>
+                    <ShelfActions
+                      product={product}
+                      actions={[
+                        ...(canStock && !product.archived
+                          ? [
+                              { label: 'Delivery', run: () => openMovement(product, 'received') },
+                              {
+                                label: 'Used in treatments',
+                                run: () => openMovement(product, 'consumed'),
+                              },
+                              {
+                                label: 'Correct the count',
+                                run: () => openMovement(product, 'count'),
+                              },
+                              ...(multiSite
+                                ? [
+                                    {
+                                      label: 'Move to another location',
+                                      run: () => openMovement(product, 'move'),
+                                    },
+                                  ]
+                                : []),
+                            ]
+                          : []),
+                        ...(canEdit
+                          ? [{ label: 'Edit details', run: () => openProduct(product) }]
+                          : []),
+                      ]}
+                    />
                   )}
                 </div>
               )

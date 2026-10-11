@@ -20,7 +20,16 @@ import { groupTimeline } from '../domain/timeline'
 import type { RelationshipEvent } from '../domain/model'
 import { can, instantFor, operations } from '../domain/operations'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
-import { Avatar, Button, Empty, ErrorMessage, SegmentedControl, Status, Checkbox } from '../design'
+import {
+  Avatar,
+  Button,
+  Empty,
+  ErrorMessage,
+  SegmentedControl,
+  Status,
+  Checkbox,
+  Tip,
+} from '../design'
 import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
 import { ClientMessagePreferences, SentMessages } from '../components/AppointmentMessages'
@@ -289,12 +298,15 @@ export function ClientRelationship() {
             aria-label={`${yearVisits.length} ${yearVisits.length === 1 ? 'visit' : 'visits'} in the last twelve months`}
           >
             {yearVisits.map((visit) => (
-              <span
+              <Tip
                 key={visit.id}
-                className={`year-mark ${visit.tone}`}
-                style={{ left: `${visit.position}%` }}
-                title={`${shortDate.format(new Date(`${visit.date}T12:00:00Z`))} · ${visit.name}`}
-              />
+                label={`${shortDate.format(new Date(`${visit.date}T12:00:00Z`))} · ${visit.name}`}
+              >
+                <span
+                  className={`year-mark ${visit.tone}`}
+                  style={{ left: `${visit.position}%` }}
+                />
+              </Tip>
             ))}
           </div>
           <div className="year-legend" aria-hidden="true">

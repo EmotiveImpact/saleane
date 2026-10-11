@@ -1152,6 +1152,10 @@ fieldset {
   font-size: var(--text-lead);
   margin: 0 12px 0 4px;
 }
+.date-controls .icon-button {
+  width: 40px;
+  height: 40px;
+}
 .date-controls .button {
   min-height: 34px;
   padding: 4px 12px;
@@ -3693,9 +3697,6 @@ so keyboard users see it clearly. */ .search-field:has(.tick:focus-visible) {
     font-size: var(--text-meta);
     margin: 0 4px;
   }
-  .date-controls .icon-button {
-    width: 29px;
-  }
   .calendar-filters {
     width: 100%;
     justify-content: space-between;
@@ -4630,18 +4631,19 @@ so keyboard users see it clearly. */ .search-field:has(.tick:focus-visible) {
   min-width: min(13rem, 100%);
 }
 
-/* Phones: every control is at least 40px to tap. Desktop keeps its compact sizes. */
-@media (max-width: 650px) {
+/* Phones and touch screens: every control is at least 44px to tap (the `--target` of the design
+   language), so a thumb finds it first time. A computer with a mouse keeps its compact sizes. */
+@media (max-width: 650px), (pointer: coarse) {
   .icon-button,
   .date-controls .icon-button {
-    width: 40px;
-    height: 40px;
+    width: var(--target);
+    height: var(--target);
   }
   .ask-button,
   .global-search,
   .operator-button {
-    min-width: 40px;
-    min-height: 40px;
+    min-width: var(--target);
+    min-height: var(--target);
     justify-content: center;
   }
   .text-link,
@@ -4660,20 +4662,20 @@ so keyboard users see it clearly. */ .search-field:has(.tick:focus-visible) {
   .back-link,
   .next-visit-panel .button,
   .connection-row {
-    min-height: 40px;
+    min-height: var(--target);
   }
   .text-link {
-    min-width: 40px;
+    min-width: var(--target);
   }
   summary,
   .chart-data summary {
-    min-height: 40px;
+    min-height: var(--target);
     padding-block: 10px;
   }
   /* Names that open a record keep their place in the text but take a taller touch. */
   .patch-list > li > div > a {
-    padding-block: 9px;
-    margin-block: -9px;
+    padding-block: 11px;
+    margin-block: -11px;
   }
   .waitlist-card-copy strong a {
     display: inline-block;

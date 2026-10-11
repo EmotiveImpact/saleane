@@ -20,6 +20,7 @@ import {
   photos,
   treatmentPhoto,
   Select,
+  Tip,
 } from '../design'
 
 const completedVisits = (count: number) => `${count} completed ${count === 1 ? 'visit' : 'visits'}`
@@ -156,11 +157,14 @@ export function Business() {
             <div className="chart-bars">
               {data.byDay.map((d, i) => (
                 <div className="chart-column" key={d.date}>
-                  <div
-                    className={`chart-bar ${d.date === today ? 'current-bar' : ''}`}
-                    style={{ height: `${barHeight(d.revenue, scale)}%` }}
-                    title={`${dateLabel(d.date, state.organisation.locale, true)}: ${money(d.revenue, state.organisation)}`}
-                  />
+                  <Tip
+                    label={`${dateLabel(d.date, state.organisation.locale, true)}: ${money(d.revenue, state.organisation)}`}
+                  >
+                    <div
+                      className={`chart-bar ${d.date === today ? 'current-bar' : ''}`}
+                      style={{ height: `${barHeight(d.revenue, scale)}%` }}
+                    />
+                  </Tip>
                   <span>
                     {days === 7
                       ? new Intl.DateTimeFormat(state.organisation.locale, {
