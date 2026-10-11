@@ -295,6 +295,18 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Error messages that said "Please contact support" now say to write to the SALEANE team from Help.
 - Migration 28 adds the help requests.
 
+## 2026-10-09 · Quality bar for every screen
+
+**Status: built locally on 9 October 2026; nothing deployed.** [Evidence](docs/evidence/QUALITY-01.md).
+
+- The design guide has a [quality bar](docs/DESIGN_LANGUAGE.md#quality-bar): what makes the wizards feel calm, ten rules that also suit everyday screens, and a checklist every screen passes at 1440px and 390px before anyone is asked to merge. CLAUDE.md points every thread at it.
+- New shared pieces: `Empty` can open a page with nothing in it yet as a welcome in place of its header, with the words on warm stone, a house photograph fading softly into them in the wizards' manner, and one next step; `LoadingShapes` shows soft shapes of what is coming instead of a blank space; `MoreOptions` keeps rarely used settings behind one quiet line; `--motion-calm`, `--ease-calm` and `.settle` give one gentle way of arriving, now used by every dialog and side panel. Reduced motion removes it.
+- A new studio's Clients page opens with the reception photograph and "Your clients will gather here.", with one way to add a client and one to import, instead of a header, an empty table and five filters at zero. Searching with no match now says "No clients match" without a photograph.
+- A waitlist nobody has used yet, with no cancelled time to fill, opens with the tea photograph, "Nobody is waiting yet." and one button, instead of three figures at zero. The list itself has one person per row with a line between them, no box inside the panel's box, and "Take off the list" as a quiet button under the times.
+- Pages show loading shapes while they first open, as does "Who changed what" while it reads the record. The page for a missing link has a photograph and a button back to Today.
+- Small empty notes across the app now use the light serif heading.
+- Every dialog's close button is now a full 44px target at every width, with the cross where it was.
+
 ## 2026-10-09 · Studios paying for SALEANE (NEXT-02)
 
 **Status: built locally on 9 October 2026; test mode only, so no card is charged and no money moves.** [Evidence](docs/evidence/NEXT-02-STUDIOS-PAYING.md).

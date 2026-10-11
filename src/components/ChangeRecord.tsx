@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '../state/context'
 import { api } from '../state/api'
-import { Button, DateField, ErrorMessage } from '../design'
+import { Button, DateField, ErrorMessage, LoadingShapes } from '../design'
 import { venueDate } from '../domain/tillCount'
 import { fullDateLabel } from '../domain/format'
 import {
@@ -199,9 +199,7 @@ export function ChangeRecord() {
             )}
           </div>
           {loading ? (
-            <p className="ops-help" role="status">
-              Reading the change record…
-            </p>
+            <LoadingShapes rows={4} label="Reading the change record…" />
           ) : shown?.error ? (
             <ErrorMessage error={shown.error} />
           ) : !days.length ? (

@@ -1,6 +1,6 @@
 # SALEANE design language
 
-Library 0.5 · brought up to date on 10 October 2026 (new look built 7 October 2026, library 0.3 introduced 6 October 2026). This is the working reference for building SALEANE screens. It sits beside [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), which records the visual direction, its history and component contracts. When the two disagree on a value, the code in `src/design/` wins and both documents are corrected.
+Library 0.5 · brought up to date on 10 October 2026, quality bar added 9 October 2026 (new look built 7 October 2026, library 0.3 introduced 6 October 2026). This is the working reference for building SALEANE screens. It sits beside [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), which records the visual direction, its history and component contracts. When the two disagree on a value, the code in `src/design/` wins and both documents are corrected.
 
 - **Tokens:** `src/design/tokens.css`
 - **Components:** `src/design/` (import from `'../design'`)
@@ -141,6 +141,62 @@ The photo band is one house photograph from `src/design/photos.ts`, above the ey
 
 The full guide is [How SALEANE speaks](HOW_SALEANE_SPEAKS.md); the living library shows its short form. In brief: plain British English, calm and specific, no exclamation marks and no em dashes. Say visit, treatment, SALEANE and Ask SALEANE. Editorial lines are short and warm; working copy says exactly what will happen. A refusal names who can help, and an error keeps the person's input and names the next step. Use the truth words (saved, recorded, queued, sent, delivered, charged, test payment, test mode) only for what really happened: never imply that a recorded payment was charged or a queued message was sent.
 
+## Quality bar
+
+Every screen meets this bar before anyone is asked to merge it. It comes from the wizards (moving in, setting up a studio, adding a location), which feel calm and well made, and turns what they do into rules that also suit fast everyday screens. Not everything becomes a wizard: wizards stay for rare jobs of several steps. Everyday screens take the feeling, not the format, and busy screens such as the calendar keep all their information.
+
+### What the wizards get right
+
+- **One job at a time.** Each step has one heading, one plain sentence and only the fields that step needs.
+- **One clear way forward.** One primary button, always in the same place, with Back as a quiet partner.
+- **Room to breathe.** Wide margins, a short line length for reading, and nothing boxed inside another box.
+- **A real photograph, framed with care.** It is large, runs to the edges of its panel and fades softly into the words. Only one at a time.
+- **Plain, warm words** that say what will happen: "Nothing is saved until the last one."
+- **Nothing to fear.** You always know where you are, and leaving part-way loses nothing.
+
+### Rules for every screen
+
+1. **One main job and one main button** per screen or section. Everything else is a secondary or quiet button. When two things compete for attention, one of them is in the wrong place.
+2. **Extra options when asked for.** Everyday choices stay in view. Settings most people never change sit behind `MoreOptions`, and long lists behind "See all".
+3. **Room, not boxes.** Space and hairlines separate things. A card never sits inside a card; a list inside a panel is rows with a line between them.
+4. **One photograph per view, where it adds feeling:** arrivals, empty pages and guest moments. Never on dense working surfaces, never as decoration. Frame it the way the wizards do: large, running to the edges of its panel and fading softly into the words, never a small picture set down beside a paragraph.
+5. **Lovely empty pages.** A page with nothing in it yet opens with a welcome in place of its header: `Empty` with the page's eyebrow, a photograph, one line and one next step. It hides the filters, tables and figures that would only show nothing or zero, and the header's own title, photograph and buttons, so the page has one heading and one way forward. It is a single calm page, not a wizard. A small gap inside a list stays a one-line `Empty` without a photograph.
+6. **Calm loading.** `LoadingShapes` in the shape of what is coming. Never a spinner, a blank space or "Loading…" on its own.
+7. **One way of moving.** Things arrive with `--motion-calm` and `--ease-calm`: dialogs open, side panels slide in a little, steps and saved lines use `settle`. No bounces, no long slides, nothing loops except loading shapes. Reduced motion removes all of it.
+8. **Phone first.** Check at 390px. Nothing scrolls sideways unless it is a strip made to scroll, every target is at least 44px, and the main button sits where a thumb reaches it: full width at the foot of a form, a step or an empty page.
+9. **Warm, plain words.** Say what happens next in the studio's own language. Headings are short and human; errors keep what was typed and name the next step. British English, no exclamation marks, no em dashes.
+10. **Honest and built from the library.** Tokens and components from `src/design`, no new raw colours, no left-edge stripes, every text pairing AA. A recorded payment is never "paid" and a queued message is never "sent".
+
+### Checklist before asking for "merge"
+
+Work through this at 1440px and 390px for every screen a change touches, and copy it into the pull request with each line ticked or explained.
+
+- [ ] Each screen or section has one main job and one primary button.
+- [ ] Rarely used options are tucked away (`MoreOptions`, "See all") rather than shown all at once.
+- [ ] No card sits inside another card; lists use rows and hairlines.
+- [ ] At most one photograph per view, only where it adds feeling, framed large and fading into the words rather than set down small.
+- [ ] A page with nothing in it yet opens with the `Empty` welcome in place of its header: one heading, one line, one next step, and no table or figures at zero.
+- [ ] Anything that loads shows `LoadingShapes`, never a spinner or a blank space.
+- [ ] Motion uses `--motion-calm` (`settle` for things that appear in place), and the screen still works with reduced motion.
+- [ ] At 390px: no sideways scroll, targets at least 44px, the main button within thumb reach.
+- [ ] The words read like a calm person speaking: plain, warm, British English, saying what happens next.
+- [ ] Built from `src/design` tokens and components; `npm run check` and `npm run format:check` pass.
+- [ ] Before and after pictures of each changed screen go with the request to merge.
+
+### Pieces for the bar
+
+All exported from `src/design/index.ts` and shown live on `/design-language`.
+
+| Piece                                        | Use                                                                                                                                                                                                                                        |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Empty` with `photo`, `eyebrow` and `action` | A page with nothing in it yet, in place of its header: the words on warm stone with a house photograph fading into them, beside them on a computer and above them on a phone, and one next step. `photoPosition` keeps the subject in view |
+| `Empty` without a photograph                 | A small gap inside a list or panel, in one line                                                                                                                                                                                            |
+| `LoadingShapes`                              | `kind="page"` while a whole screen loads (used for every page as it first opens), `kind="list"` for a panel or list filling in                                                                                                             |
+| `MoreOptions`                                | Settings most people never change, behind one quiet line that opens in place                                                                                                                                                               |
+| `--motion-calm`, `--ease-calm`, `.settle`    | The one way things arrive. Dialogs and side panels already use it; add `settle` to a step, a saved line or new content in place                                                                                                            |
+
+First applied on 9 October 2026 to Clients and the waitlist for a studio with nobody in them yet, to the waitlist's rows (one person per row, taking someone off as a quiet button), to the loading between pages and the change record, and to the page shown for a missing link.
+
 ## Checking a change
 
-Run `npm run check` and `npm run format:check`, then open `/design-language` and the changed screens at 1440px and 390px. The library's pairing table must show AA for every row. Automated contrast checks support, but do not replace, keyboard and screen-reader review.
+Run `npm run check` and `npm run format:check`, then open `/design-language` and the changed screens at 1440px and 390px and work through the quality bar checklist above. The library's pairing table must show AA for every row. Automated contrast checks support, but do not replace, keyboard and screen-reader review.
