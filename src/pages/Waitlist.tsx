@@ -5,7 +5,7 @@ import { useClock } from '../state/clock'
 import { feedbackSince } from '../domain/feedback'
 import { wholeMoney } from '../domain/format'
 import { waiting, waitlistSummary } from '../domain/waitlist'
-import { Button, Empty, PageHeader, Stat, Stats, photos } from '../design'
+import { Button, Empty, MovingList, PageHeader, Stat, Stats, photos } from '../design'
 import { PassOnOffers, WaitlistCard, WaitlistForm } from '../components/Waitlist'
 import { CancelledTimes } from '../components/CancelledTimes'
 import { freedSummary, freedTimes } from '../domain/cancelledTimes'
@@ -92,9 +92,11 @@ export function Waitlist() {
             </header>
             {rows.length ? (
               <ul className="waitlist-cards">
-                {rows.map((entry) => (
-                  <WaitlistCard key={entry.id} entry={entry} />
-                ))}
+                <MovingList>
+                  {rows.map((entry) => (
+                    <WaitlistCard key={entry.id} entry={entry} />
+                  ))}
+                </MovingList>
               </ul>
             ) : (
               <Empty title="Nobody is waiting">

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, Ref } from 'react'
 import { Link } from 'react-router-dom'
 import { Hourglass, Plus } from 'lucide-react'
 import { useStore } from '../state/context'
@@ -20,7 +20,7 @@ import type { WaitlistEntry, WaitlistInput, WaitlistTime } from '../domain/waitl
 import { addDays, dateLabel, timeLabel } from '../domain/format'
 import { feedbackDay } from '../domain/feedback'
 import type { Command } from '../domain/commands'
-import { Button, ErrorMessage, Modal } from '../design'
+import { Button, ErrorMessage, Modal, MovingRow } from '../design'
 import { hasLocations, places } from '../domain/locations'
 import { StudioDateField } from './StudioDateField'
 import './management.css'
@@ -231,9 +231,12 @@ export function WaitlistForm({ clientId, onClose }: { clientId?: string; onClose
 export function WaitlistCard({
   entry,
   showClient = true,
+  ref,
 }: {
   entry: WaitlistEntry
   showClient?: boolean
+  /** Lets the waiting list slide the cards around it when this one is offered or removed. */
+  ref?: Ref<HTMLLIElement>
 }) {
   const { state } = useStore()
   const allowed = useWaitlistAllowed()
@@ -252,7 +255,7 @@ export function WaitlistCard({
     `${dateLabel(o.date, org.locale)} at ${timeLabel(o.startMinutes, org.locale)}`
   const heading = `${showClient ? `${client?.name ?? 'Client'} · ` : ''}${serviceName}`
   return (
-    <li className="waitlist-card">
+    <MovingRow as="li" ref={ref} className="waitlist-card">
       <div className="waitlist-card-copy">
         <strong>
           {showClient && client ? (
@@ -325,7 +328,7 @@ export function WaitlistCard({
         />
       )}
       {removing && <RemoveDialog entry={entry} onClose={() => setRemoving(false)} />}
-    </li>
+    </MovingRow>
   )
 }
 

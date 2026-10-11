@@ -13,7 +13,16 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useStore } from '../state/context'
 import { operations, can, leads } from '../domain/operations'
 import { dateLabel } from '../domain/format'
-import { Avatar, Button, ErrorMessage, Modal, PageHeader, SegmentedControl } from '../design'
+import {
+  Avatar,
+  Button,
+  ErrorMessage,
+  Modal,
+  MovingList,
+  MovingRow,
+  PageHeader,
+  SegmentedControl,
+} from '../design'
 import type { BusinessState } from '../domain/model'
 import { useInboxView } from '../state/inboxView'
 import { draftStale, namesATime, shownBody } from '../domain/cancelledTimes'
@@ -723,48 +732,50 @@ export function Inbox() {
             {notice}
           </p>
           <ul className="inbox-rows">
-            {shown.map((c) => {
-              const isCurrent = view === 'columns' && current?.key === c.key
-              const last = c.items[c.items.length - 1]
-              const name = who(state, c)
-              return (
-                <li key={c.key}>
-                  <button
-                    type="button"
-                    className={`inbox-row ${isCurrent ? 'is-selected' : ''} ${c.unread ? 'is-unread' : ''}`}
-                    aria-current={isCurrent ? 'true' : undefined}
-                    onClick={() => open(c)}
-                  >
-                    <Avatar
-                      small
-                      identity={c.clientIds[0] ?? c.from}
-                      name={c.clientId ? name : '?'}
-                    />
-                    <span className="inbox-row-text">
-                      <span className="inbox-row-top">
-                        <strong>{name}</strong>
-                        <small>{when(c.lastAt)}</small>
+            <MovingList>
+              {shown.map((c) => {
+                const isCurrent = view === 'columns' && current?.key === c.key
+                const last = c.items[c.items.length - 1]
+                const name = who(state, c)
+                return (
+                  <MovingRow as="li" key={c.key}>
+                    <button
+                      type="button"
+                      className={`inbox-row ${isCurrent ? 'is-selected' : ''} ${c.unread ? 'is-unread' : ''}`}
+                      aria-current={isCurrent ? 'true' : undefined}
+                      onClick={() => open(c)}
+                    >
+                      <Avatar
+                        small
+                        identity={c.clientIds[0] ?? c.from}
+                        name={c.clientId ? name : '?'}
+                      />
+                      <span className="inbox-row-text">
+                        <span className="inbox-row-top">
+                          <strong>{name}</strong>
+                          <small>{when(c.lastAt)}</small>
+                        </span>
+                        <span className="inbox-preview">
+                          {last?.kind === 'reply' ? '' : 'You: '}
+                          {last ? snippet(itemText(last), 120) : ''}
+                        </span>
                       </span>
-                      <span className="inbox-preview">
-                        {last?.kind === 'reply' ? '' : 'You: '}
-                        {last ? snippet(itemText(last), 120) : ''}
-                      </span>
-                    </span>
-                    {(c.unread > 0 || c.drafts > 0) && (
-                      <span className={`ops-tag ${c.unread ? 'is-new' : ''}`}>
-                        {c.unread
-                          ? c.unread === 1
-                            ? 'New reply'
-                            : `${c.unread} new replies`
-                          : c.drafts === 1
-                            ? 'Draft'
-                            : `${c.drafts} drafts`}
-                      </span>
-                    )}
-                  </button>
-                </li>
-              )
-            })}
+                      {(c.unread > 0 || c.drafts > 0) && (
+                        <span className={`ops-tag ${c.unread ? 'is-new' : ''}`}>
+                          {c.unread
+                            ? c.unread === 1
+                              ? 'New reply'
+                              : `${c.unread} new replies`
+                            : c.drafts === 1
+                              ? 'Draft'
+                              : `${c.drafts} drafts`}
+                        </span>
+                      )}
+                    </button>
+                  </MovingRow>
+                )
+              })}
+            </MovingList>
           </ul>
           {!shown.length && (
             <div className="ops-no-records">

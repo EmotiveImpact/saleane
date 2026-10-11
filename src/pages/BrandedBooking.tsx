@@ -5,7 +5,15 @@ import { useStore } from '../state/context'
 import { DEMO_DATE } from '../domain/model'
 import { slots } from '../domain/commands'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
-import { Avatar, Button, DateField, DateStrip, ErrorMessage, TimeChoices } from '../design'
+import {
+  Avatar,
+  Button,
+  DateField,
+  DateStrip,
+  ErrorMessage,
+  TimeChoices,
+  useStepArrival,
+} from '../design'
 import { operations } from '../domain/operations'
 import { BookingFrame } from '../components/BookingFrame'
 import { TreatmentPicker } from '../components/TreatmentPicker'
@@ -108,6 +116,8 @@ export function BrandedBooking() {
     return null
   })()
   const steps = ['Your treatment', 'A time for you', 'Your details', 'A final look']
+  // Each new step drifts in from the side it comes from; the first simply appears.
+  const stepHolder = useStepArrival<HTMLDivElement>(step)
   // Each step starts at the top, so a guest on a phone isn't left at the foot of the last one.
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0 })
@@ -271,7 +281,7 @@ export function BrandedBooking() {
               </button>
             ))}
           </nav>
-          <div className="booking-step-content">
+          <div className="booking-step-content" ref={stepHolder}>
             <h2>
               {step === 1
                 ? 'What brings you in?'

@@ -96,3 +96,31 @@ export function leaveGently(element: HTMLElement | null, how: Leaving = {}) {
     setTimeout(done, 1000)
   })
 }
+
+/**
+ * A view that has just replaced another (the calendar's day, week or month, or the next day) fades
+ * up in place, so the change reads as one view becoming the next rather than a flash. Only the
+ * fade moves: nothing slides, so nothing inside shifts under the pointer.
+ */
+export function arriveGently(elements: Iterable<Element>) {
+  if (!motionAllowed() || typeof Element.prototype.animate !== 'function') return
+  for (const element of elements) {
+    // Hidden at once, before the screen is drawn, so the new view never flashes in full first.
+    ;(element as HTMLElement).style.opacity = '0'
+    animate(element, { opacity: [0, 1] }, quick)
+  }
+}
+
+/**
+ * Something that has just moved (a visit dropped on a new time or person) glides the last part of
+ * the way from where it was, instead of jumping. `from` is how far away it was, in pixels.
+ */
+export function settleFrom(element: Element | null, from: { x: number; y: number }) {
+  if (!element || !motionAllowed() || typeof Element.prototype.animate !== 'function') return
+  if (!from.x && !from.y) return
+  // Put back where it was at once, before the screen is drawn, so the visit never flashes in its
+  // new place; Motion then takes it the rest of the way.
+  const start = `translate(${from.x}px, ${from.y}px)`
+  ;(element as HTMLElement).style.transform = start
+  animate(element, { transform: [start, 'translate(0px, 0px)'] }, calm)
+}

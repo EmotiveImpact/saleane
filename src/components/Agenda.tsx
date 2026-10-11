@@ -1,10 +1,9 @@
-import { Fragment } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import { useStore } from '../state/context'
 import type { Appointment } from '../domain/model'
 import { money, timeLabel } from '../domain/format'
 import { shownStatus } from '../domain/selectors'
-import { Avatar, Empty, Status } from '../design'
+import { Avatar, Empty, MovingList, MovingRow, Status } from '../design'
 import { milestoneTag, visitMilestones } from '../domain/beforeVisit'
 import './moments.css'
 
@@ -34,27 +33,30 @@ export function Agenda({
         <span>Status</span>
         <span>Value</span>
       </div>
-      {appointments.map((a, index) => {
-        const nowHere =
-          nowMinutes !== undefined &&
-          a.startMinutes > nowMinutes &&
-          (index === 0 || appointments[index - 1].startMinutes <= nowMinutes)
-        const client = state.clients.find((c) => c.id === a.clientId)!
-        const staff = state.staff.find((s) => s.id === a.staffId)!
-        const service = state.services.find((s) => s.id === a.serviceId)!
-        // Stage 6: a quiet tag for a visit that brings a milestone, while it is still to come.
-        const moment =
-          a.status === 'confirmed' || a.status === 'arrived'
-            ? visitMilestones(state, a).map(milestoneTag)[0]
-            : undefined
-        return (
-          <Fragment key={a.id}>
-            {nowHere && (
-              <div className="agenda-now" aria-hidden="true">
+      <MovingList>
+        {appointments.flatMap((a, index) => {
+          const nowHere =
+            nowMinutes !== undefined &&
+            a.startMinutes > nowMinutes &&
+            (index === 0 || appointments[index - 1].startMinutes <= nowMinutes)
+          const client = state.clients.find((c) => c.id === a.clientId)!
+          const staff = state.staff.find((s) => s.id === a.staffId)!
+          const service = state.services.find((s) => s.id === a.serviceId)!
+          // Stage 6: a quiet tag for a visit that brings a milestone, while it is still to come.
+          const moment =
+            a.status === 'confirmed' || a.status === 'arrived'
+              ? visitMilestones(state, a).map(milestoneTag)[0]
+              : undefined
+          // The "now" line is a row of its own, so it slides down the list as the day moves on.
+          return [
+            nowHere && (
+              <MovingRow key="now" className="agenda-now" aria-hidden="true">
                 <span>{timeLabel(nowMinutes, state.organisation.locale)}</span>
-              </div>
-            )}
-            <button
+              </MovingRow>
+            ),
+            <MovingRow
+              as="button"
+              key={a.id}
               className={`agenda-row agenda-${a.status}`}
               data-selected={selectedId === a.id ? '' : undefined}
               aria-haspopup="dialog"
@@ -84,10 +86,10 @@ export function Agenda({
                 {money(a.bookedPriceMinor, state.organisation)}
                 <ArrowUpRight size={15} />
               </span>
-            </button>
-          </Fragment>
-        )
-      })}
+            </MovingRow>,
+          ]
+        })}
+      </MovingList>
     </div>
   )
 }

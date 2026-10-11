@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Plus, LayoutGrid, List, Repeat2, Users } from 'lucide-react'
 import { useStore } from '../state/context'
@@ -7,7 +7,16 @@ import { businessMinutes, can } from '../domain/operations'
 import { dayAppointments, shownStatus, staffDay } from '../domain/selectors'
 import { hasLocations, places, staffLocationOn } from '../domain/locations'
 import { addDays, dateLabel, timeLabel } from '../domain/format'
-import { Avatar, Button, Empty, Status, PageHeader, SegmentedControl } from '../design'
+import {
+  Avatar,
+  Button,
+  Empty,
+  Status,
+  PageHeader,
+  SegmentedControl,
+  arriveGently,
+  settleFrom,
+} from '../design'
 import { Agenda } from '../components/Agenda'
 import { PeopleColumns } from '../components/PeopleColumns'
 import { AppointmentDialog } from '../components/AppointmentDialog'
@@ -139,6 +148,38 @@ export function Calendar() {
     setPeriod('day')
   }
   const unit = period === 'day' ? 'day' : period
+  // Motion: a new view or a new day fades up in place of the last one, but never as the page opens.
+  const surface = useRef<HTMLElement | null>(null)
+  const shownView = useRef(`${view} ${date}`)
+  useLayoutEffect(() => {
+    if (shownView.current === `${view} ${date}`) return
+    shownView.current = `${view} ${date}`
+    arriveGently(
+      surface.current?.querySelectorAll(':scope > :not(.calendar-toolbar, .calendar-legend)') ?? [],
+    )
+  }, [view, date])
+  // A visit moved to another time or person glides from its old place into its new one.
+  const placed = useRef(new Map<string, { lane: string; top: number }>())
+  useLayoutEffect(() => {
+    const before = placed.current
+    placed.current = new Map(
+      day.map((a) => [a.id, { lane: a.staffId, top: ((a.startMinutes - start) / 60) * 82 }]),
+    )
+    const box = grid.current
+    if (!box || view !== 'grid') return
+    for (const [id, now] of placed.current) {
+      const was = before.get(id)
+      if (!was || (was.lane === now.lane && was.top === now.top)) continue
+      const lane = (staffId: string) =>
+        box.querySelector(`[data-lane="${staffId}"]`)?.getBoundingClientRect().left
+      const from = lane(was.lane)
+      const to = lane(now.lane)
+      settleFrom(box.querySelector(`[data-visit="${id}"]`), {
+        x: from === undefined || to === undefined ? 0 : from - to,
+        y: was.top - now.top,
+      })
+    }
+  })
   const history = state.appointments
     .filter(
       (a) =>
@@ -170,7 +211,7 @@ export function Calendar() {
           </Button>
         }
       />
-      <section className="surface calendar-surface">
+      <section className="surface calendar-surface" ref={surface}>
         <div className="calendar-toolbar">
           <div className="date-controls">
             <button
@@ -423,6 +464,7 @@ export function Calendar() {
                     return (
                       <div
                         key={a.id}
+                        data-visit={a.id}
                         className="calendar-event-wrap"
                         style={{
                           top: ((a.startMinutes - start) / 60) * 82,

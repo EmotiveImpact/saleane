@@ -7,7 +7,7 @@ import { contactSchema } from '../domain/commandSchema'
 import { useStore } from '../state/context'
 import type { BusinessState } from '../domain/model'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
-import { Button, ErrorMessage, TimeChoices, treatmentPhoto } from '../design'
+import { Button, ErrorMessage, TimeChoices, treatmentPhoto, useStepArrival } from '../design'
 import { BotCheck } from '../components/BotCheck'
 import { BookingFrame } from '../components/BookingFrame'
 import { TreatmentPicker } from '../components/TreatmentPicker'
@@ -346,6 +346,8 @@ function BookingFlow({
   // The studio's today: the server's, moved on by each midnight that passes in the studio while
   // the page stays open. A sample studio keeps its own fixed day.
   const [openedAt] = useState(clock)
+  // Each new step drifts in from the side it comes from; the first simply appears.
+  const stepHolder = useStepArrival<HTMLDivElement>(step)
   const studioToday = sample
     ? today
     : addDays(
@@ -1211,7 +1213,7 @@ function BookingFlow({
               ),
             )}
           </nav>
-          <div className="booking-step-content">
+          <div className="booking-step-content" ref={stepHolder}>
             <h2>
               {
                 [

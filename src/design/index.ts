@@ -12,9 +12,20 @@ export { Tip } from './components/Tip'
 export { Notices } from './components/Notices'
 export { notify } from './components/notices'
 export { Fold } from './components/Fold'
+export { MovingList, MovingRow } from './components/Moving'
+export { useStepArrival } from './useStepArrival'
+export { ChosenMark } from './components/ChosenMark'
 export { Select } from './components/Select'
 export { CalmMotion } from './components/CalmMotion'
-export { calm, quick, leaveGently, motionAllowed, useMotionAllowed } from './motion'
+export {
+  arriveGently,
+  calm,
+  quick,
+  leaveGently,
+  motionAllowed,
+  settleFrom,
+  useMotionAllowed,
+} from './motion'
 export { ChoiceTiles, WizardFooter, WizardSteps } from './components/Wizard'
 export { useWizardStep } from './components/useWizardStep'
 export { PageHeader } from './components/PageHeader'
