@@ -222,3 +222,43 @@ test('leaving while recording lets go of the microphone and sends nothing', asyn
     Reflect.deleteProperty(navigator, 'mediaDevices')
   }
 })
+
+test('a microphone granted after leaving is let go at once and never recorded', async () => {
+  const user = userEvent.setup()
+  const stopTrack = vi.fn()
+  const stream = { getTracks: () => [{ stop: stopTrack }] }
+  let grant: (value: unknown) => void = () => {}
+  const made = vi.fn()
+  class FakeRecorder {
+    static isTypeSupported = () => true
+    constructor() {
+      made()
+    }
+  }
+  vi.stubGlobal('MediaRecorder', FakeRecorder)
+  Object.defineProperty(navigator, 'mediaDevices', {
+    configurable: true,
+    // The browser is still asking for the microphone when they leave.
+    value: { getUserMedia: vi.fn(() => new Promise((resolve) => (grant = resolve))) },
+  })
+  vi.mocked(api).mockResolvedValue({ mode: 'live', listens: true } as never)
+  try {
+    const { unmount } = render(
+      <VisitWriteUp
+        path={path}
+        appointmentId="visit-1"
+        guest="Amara"
+        saving={false}
+        onSave={vi.fn()}
+      />,
+    )
+    await user.click(await screen.findByRole('button', { name: 'Speak a note' }))
+    unmount()
+    grant(stream)
+    await vi.waitFor(() => expect(stopTrack).toHaveBeenCalled())
+    expect(made).not.toHaveBeenCalled()
+  } finally {
+    vi.unstubAllGlobals()
+    Reflect.deleteProperty(navigator, 'mediaDevices')
+  }
+})

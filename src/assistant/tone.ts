@@ -20,6 +20,11 @@ export const TONE_CHOICES: Record<
     /** The test-mode receptionist's own words, so a studio sees its tone before any AI is used. */
     hello: string
     welcome: string
+    /** Before the free times it found, and the question after them. */
+    found: string
+    choose: string
+    /** Before the time it holds for the guest. */
+    here: string
   }
 > = {
   warm: {
@@ -31,6 +36,9 @@ export const TONE_CHOICES: Record<
       'Yes, there is a lovely 11am with Amara on Saturday. Would you like me to hold it for you?',
     hello: "Hello, I am the studio's AI receptionist.",
     welcome: 'You are welcome. Is there anything else I can help with?',
+    found: '',
+    choose: 'Which would you like?',
+    here: 'Here it is',
   },
   calm: {
     label: 'Calm and polished',
@@ -41,6 +49,9 @@ export const TONE_CHOICES: Record<
       'Certainly. Amara has an appointment free at 11am on Saturday. Shall I keep it for you?',
     hello: "Good day, and welcome. I am the studio's AI receptionist.",
     welcome: 'It is a pleasure. Is there anything further I can help with?',
+    found: 'Certainly. ',
+    choose: 'Which would suit you?',
+    here: 'Certainly, here it is',
   },
   bright: {
     label: 'Bright and cheerful',
@@ -50,6 +61,9 @@ export const TONE_CHOICES: Record<
     sample: 'Good news! Amara has 11am free on Saturday. Shall I grab it for you?',
     hello: "Hi there! I am the studio's AI receptionist.",
     welcome: 'You are so welcome! Anything else I can help with?',
+    found: 'Good news! ',
+    choose: 'Which one would you like?',
+    here: 'Lovely, here it is',
   },
 }
 

@@ -52,6 +52,8 @@ export function VisitWriteUp({
   const [seconds, setSeconds] = useState<number | null>(null)
   const recorder = useRef<MediaRecorder | null>(null)
   const microphone = useRef<MediaStream | null>(null)
+  // False once the screen has gone, so a microphone granted after leaving is let go at once.
+  const shown = useRef(true)
   const canRecord =
     typeof window !== 'undefined' &&
     typeof window.MediaRecorder !== 'undefined' &&
@@ -68,8 +70,10 @@ export function VisitWriteUp({
   }, [path])
   // A recording never outlives the screen it was started on, and the microphone is let go with it.
   // Each visit has its own copy of this screen (keyed by the visit), so a new visit starts afresh.
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    shown.current = true
+    return () => {
+      shown.current = false
       const live = recorder.current
       recorder.current = null
       if (live && live.state !== 'inactive') {
@@ -79,9 +83,8 @@ export function VisitWriteUp({
       }
       microphone.current?.getTracks().forEach((track) => track.stop())
       microphone.current = null
-    },
-    [],
-  )
+    }
+  }, [])
   useEffect(() => {
     if (seconds === null) return
     if (seconds >= VOICE_NOTE_SECONDS) {
@@ -123,7 +126,15 @@ export function VisitWriteUp({
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true })
     } catch {
-      setProblem('SALEANE could not use the microphone. Allow it in your browser, or type instead.')
+      if (shown.current)
+        setProblem(
+          'SALEANE could not use the microphone. Allow it in your browser, or type instead.',
+        )
+      return
+    }
+    // They left while the browser was still asking for the microphone.
+    if (!shown.current) {
+      stream.getTracks().forEach((track) => track.stop())
       return
     }
     const mimeType = RECORDING_TYPES.find((t) => MediaRecorder.isTypeSupported?.(t))
@@ -193,8 +204,8 @@ export function VisitWriteUp({
     <div className="visit-write-up">
       <h3 id="write-up-heading">After the visit</h3>
       <p className="subtle">
-        {listens ? 'Speak or type' : 'Type'} what you did and any aftercare. SALEANE sorts it into a
-        note for the studio and aftercare for {guest}, and nothing is saved until you have checked
+        {listens ? 'Speak or type' : 'Type'} what was done and any aftercare. SALEANE sorts it into
+        a note for the studio and aftercare for {guest}, and nothing is saved until you have checked
         it.
       </p>
       {status && (

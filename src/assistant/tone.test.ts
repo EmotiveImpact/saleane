@@ -57,6 +57,25 @@ describe('the studio’s tone', () => {
     )
   })
 
+  it('offers and holds times in the tone chosen, in test mode too', async () => {
+    const times = 'Any facial times on Wednesday?'
+    const hold = 'Can I book a facial on Wednesday at 10:15?'
+    expect((await chat(studio(), times)).text).toMatch(
+      /^Skin Renewal Facial on Wednesday 7 October: .*\. Which would you like\?$/,
+    )
+    expect((await chat(studio(), hold)).text).toMatch(/^Here it is\. Tap/)
+    const calm = studio({ tone: 'calm' })
+    expect((await chat(calm, times)).text).toMatch(
+      /^Certainly\. Skin Renewal Facial on Wednesday 7 October: .*\. Which would suit you\?$/,
+    )
+    expect((await chat(calm, hold)).text).toMatch(/^Certainly, here it is\. Tap/)
+    const bright = studio({ tone: 'bright' })
+    expect((await chat(bright, times)).text).toMatch(
+      /^Good news! Skin Renewal Facial on Wednesday 7 October: .*\. Which one would you like\?$/,
+    )
+    expect((await chat(bright, hold)).text).toMatch(/^Lovely, here it is\. Tap/)
+  })
+
   it('tells a real AI the tone and the studio’s own words with each message, as style only', async () => {
     const { brain, requests } = listening()
     await chat(
