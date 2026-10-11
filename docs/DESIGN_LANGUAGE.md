@@ -1,6 +1,6 @@
 # SALEANE design language
 
-Library 0.5 · brought up to date on 10 October 2026, quality bar added 9 October 2026 (new look built 7 October 2026, library 0.3 introduced 6 October 2026). This is the working reference for building SALEANE screens. It sits beside [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), which records the visual direction, its history and component contracts. When the two disagree on a value, the code in `src/design/` wins and both documents are corrected.
+Library 0.6 · Radix and Motion added on 11 October 2026, brought up to date on 10 October 2026, quality bar added 9 October 2026 (new look built 7 October 2026, library 0.3 introduced 6 October 2026). This is the working reference for building SALEANE screens. It sits beside [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), which records the visual direction, its history and component contracts. When the two disagree on a value, the code in `src/design/` wins and both documents are corrected.
 
 - **Tokens:** `src/design/tokens.css`
 - **Components:** `src/design/` (import from `'../design'`)
@@ -15,6 +15,29 @@ Library 0.5 · brought up to date on 10 October 2026, quality bar added 9 Octobe
 4. **Readable at a glance.** Nothing in the workspace renders below 12px, except 11px capital eyebrows and table headers, which carry wide tracking and never hold essential information alone. Every text and background pairing reaches WCAG 2.2 AA (4.5:1). Colour never carries meaning alone.
 5. **One measure, one meaning.** A figure shown in more than one place has one name, one definition and a stated period.
 6. **Honest states.** A queued message is not sent, a recorded payment is not charged. Loading, empty, unavailable and error states say what happens next and keep the person's input.
+
+## Decided since Radix and Motion
+
+Edem asked on 11 October 2026 for the whole library to run on Radix and Motion. These are the decisions made since then, each written in full in the section linked.
+
+1. **Radix and Motion, through the library only.** Every menu, hint, notice, drop-down, tick and switch is a Radix part, and lists, panels and chosen marks move with Motion. Screens reach both only through `src/design`. See [Components](#components).
+2. **Movement answers a person.** Nothing moves while a page loads, scrolls or someone types, and nothing loops. Reduced motion, and tests, see every change at once. See [Where things move](#where-things-move).
+3. **SALEANE's own controls.** Every drop-down is `Select` and every tick is `Checkbox`; a setting that takes effect as a whole is a `Switch`. Round choices and folds stay native, drawn to match. See [Components](#components).
+4. **Hints are SALEANE's, never the browser's.** `Tip` replaces browser title text and never holds anything a person needs. See [Patterns](#patterns).
+5. **One everyday action per row.** The rest go under one More menu named for the row, with Stock as the reference. See [Patterns](#patterns).
+6. **Notices only where nothing else says it.** A corner notice confirms what saved out of view; where a saved line already sits beside the button, that line is enough. See [Patterns](#patterns).
+7. **A calmer frame.** The line under SALEANE in the sidebar is gone and the items sit higher (Edem, 11 October). The sidebar folds to its icons, the studio's name and your own open menus, and the phone menu is a drawer from the left. See [The frame](#the-frame).
+8. **Find a client from the keyboard.** "/" or Ctrl/Cmd K opens it from anywhere; arrow keys and Enter choose. See [The frame](#the-frame).
+9. **44px on phones and touch screens.** Every target reaches `--target`, small marks through an invisible touch area. See [Space, shape, elevation](#space-shape-elevation).
+10. **A new studio meets welcomes, not noughts.** See [Patterns](#patterns).
+11. **What needs you comes first on a phone's Today.** See [Patterns](#patterns).
+12. **Section rows above the eyebrow.** Business and Marketing put their row of sections above the page top, and Marketing uses the working tool top. See [Page tops](#page-tops).
+13. **The assistant's name is written once.** "Ask" and the app's name, from `ASK_NAME`. See [Voice](#voice).
+14. **A view switch never moves.** The calendar's Today, Week and Month switch keeps one spot at the far right in every view (Edem, 11 October). See [Patterns](#patterns).
+15. **A top bar that never crowds, and a folded sidebar that opens easily.** From Edem's comments on the demo, 11 October. See [The frame](#the-frame).
+16. **The booking page's footer says "Connected by SALEANE"** and nothing more. See [Voice](#voice).
+
+Still waiting for a yes, so not yet rules: phone Today in tabs with a count on each, and the six moves from the finishing check (grouping Business's tabs, a "You" section for your own sign-in, and the rest).
 
 ## Tokens
 
@@ -73,7 +96,8 @@ Display sizes on guest booking and marketing panels may sit outside this scale.
 - Corners: `--radius` 20px for cards and sections, `--radius-large` 24px for the greeting, `--radius-panel` 14px for panels inside a page, `--radius-control` 12px for fields, `--radius-inner` 8px for small marks inside a control, `--radius-pill` for buttons, tags and chips, `--radius-round` for people.
 - Elevation: `--shadow-float` for popovers, `--shadow-dialog` for dialogs. Surfaces in the page use a line, not a shadow.
 - No left-edge stripes. Cards, notes, errors and visits never carry a coloured border or inset shadow on one side; their tone comes from the surface colour and the words. The only left rules are the 1px `--line` dividers between calendar columns, and `src/design/edges.test.ts` enforces this.
-- Touch: `--target` 44px. Motion: `--motion-quick` for hover and focus only; reduced motion removes transitions.
+- Touch: `--target` is 44px. On phones and touch screens (`(max-width: 650px), (pointer: coarse)`) every icon button, choice, filter chip and list item reaches it. A small mark (a tick, a choice inside a pill, a name in a list) keeps its drawn size and reaches 44px through an invisible `::after` area, so a thumb on its edge still lands. Links inside a sentence are the one exception, as WCAG allows. A computer with a mouse keeps its compact sizes, with the calendar's arrows at 40px.
+- Motion: `--motion-quick` for hover and focus only; `--motion-calm` and `--ease-calm` for everything that arrives or leaves (see [Where things move](#where-things-move)). Reduced motion removes all of it.
 
 ## Components
 
@@ -109,7 +133,9 @@ All are exported from `src/design/index.ts`. Interactive primitives use Radix (t
 | `Modal`                           | Radix Dialog, Motion         | One decision or one record. Focus trapped, Escape closes, focus returns (to the menu's button when a menu item opened it)       |
 | `Empty`, `ErrorMessage`           | native                       | Empty and failed states with a next step                                                                                        |
 
-Round choices (`TimeChoices`, `DateStrip`, and radios in forms) stay native inputs, drawn to match, because the browser's own arrow keys between them are what people expect. Folds (`details`) also stay native and open to their height in browsers that can.
+No screen uses a native `<select>` or checkbox: drop-downs are `Select`, ticks are `Checkbox`, and Marketing's automatic emails are the one `Switch`. Round choices (`TimeChoices`, `DateStrip`, and radios in forms) stay native inputs, drawn as SALEANE's ink ring with a paper dot, because the browser's own arrow keys between them are what people expect. Folds (`details`) also stay native, so find in page still opens them, and open to their height in browsers that can.
+
+`/design-language` shows menus and hints, the drop-down, ticks and switches, a notice and a list that moves, live.
 
 Route links (main navigation, the Business sub-navigation) stay as links. They are not tabs, because each one changes the URL.
 
@@ -135,6 +161,17 @@ Business and Marketing each have a row of sections; on both it sits above the ey
 
 The photo band is one house photograph from `src/design/photos.ts`, above the eyebrow, running the width of the page and fading softly into the words with no frame. One per view: a page whose body already shows photographs (Business, the till's products) does not add a band. The same title shows on the version of the page a person without access sees, with the same eyebrow. `src/design/pageTops.test.ts` checks that every staff page uses `PageHeader` with an eyebrow, and that no page sets `PhotoStrip` down on its own.
 
+## The frame
+
+What stays around every staff page.
+
+- **Sidebar.** SALEANE's wordmark with nothing beneath it, then the items, so there is room for one or two more without scrolling. On a computer the fold button beside the wordmark narrows the sidebar to its icons and the page widens with it; folded, each icon shows its name as a hint. Folded, hovering the S swaps it for the open button in the same place, and a click on any empty part of the sidebar opens it in full. Each person's choice is kept in that browser.
+- **Top bar.** The page's name on the left gives way, ending in an ellipsis, before the buttons on the right are ever covered. When the assistant has something to mention it shows a dot; the words are for screen readers only. Below 1200px the assistant button reads "Ask" with its icon, and search, help and your menu become icon buttons, each keeping its full name for screen readers. On a phone your avatar sits inside its touch target, away from the edge.
+- **The two names at the top.** The studio's name opens the studio menu: switching studio (or sample), studio details and locations for an owner, the booking page and about this version. Your own name opens your menu: your preferences, password and signing in, your accounts and studios, help and signing out. Neither goes straight to Settings.
+- **Phone menu.** A drawer from the left with the same items and counts as the sidebar, closing back the way it came.
+- **Notices** sit once in the frame, in the corner.
+- **Find a client.** "/" (when not typing) or Ctrl/Cmd K opens it from anywhere. Arrow keys move through the matches and Enter opens one.
+
 ## Patterns
 
 - **Shared figures.** "Time booked" is booked service minutes over scheduled professional hours, less closures, on both Today (one day) and Business (the chosen period, with today's figure alongside). The wording lives in `src/components/definitions.ts`.
@@ -148,10 +185,12 @@ The photo band is one house photograph from `src/design/photos.ts`, above the ey
 - **Plain words.** Say what is not connected yet in studio language ("Card payments are not connected yet"), never configuration names or internal codes.
 - **Start where you are.** Free time on the calendar books there, and a dragged visit opens the move step at its new spot. Shortcuts fill in choices; the same checks and confirmation still decide.
 - **Times in groups.** Long runs of times sit under Morning, Afternoon and Evening.
+- **View switches.** A view switch sits at the far right of its toolbar and holds the same spot in every view; controls that only appear in one view keep their space in the others, so nothing jumps when the view changes. On a phone it sits on its own row under the date. The calendar's Today, Week and Month switch is the reference.
 - **Rows with several actions.** The everyday action stays on the row as a quiet button; the rest go under one More menu named for the row ("More for Calming Cleansing Balm"). Stock is the reference.
-- **Hints.** An arrow or icon whose meaning is not written on it gets a `Tip`. It never holds anything a person must read to act, because a phone has no hover; the button keeps its own words or `aria-label`.
-- **Notices.** Use `notify` when something was confirmed where the person may not be looking (a pop-up that closed as it saved). Where a saved line already sits beside the button, keep the line and send no notice.
-- **A new studio.** Pages that would open on figures at nought or an empty grid (Business, Accounts, Client areas, Marketing's Audience, the Calendar before anyone is on the team) open with the `Empty` welcome. An owner who has not finished setting up is sent back to where they left off.
+- **Hints.** An arrow or icon whose meaning is not written on it gets a `Tip`. It never holds anything a person must read to act, because a phone has no hover; the button keeps its own words or `aria-label`. Browser title text is not used for hints, since it shows late, only to a mouse and never on a phone. The email preview's frame keeps its `title`, which is its name for screen readers.
+- **Notices.** Use `notify` when something was confirmed where the person may not be looking (a pop-up that closed as it saved). Where a saved line already sits beside the button, keep the line and send no notice. Stock is the reference: a delivery, a count, stock used and a move each say what was recorded.
+- **A new studio.** Pages that would open on figures at nought or an empty grid (Business, Accounts, Client areas, Marketing's Audience, Stock, the Calendar before anyone is on the team) open with the `Empty` welcome, saying what will appear and, where it helps, the next step. Accounts keeps its Xero or QuickBooks set-up below the welcome, and Audience keeps the words guests agree to. Today shows no figures until the first visit is booked. An owner who has not finished setting up is sent back to where they left off.
+- **Today on a phone.** What needs someone comes before the day's list. A strip under the greeting names what is waiting (calls to return, calls the AI answered, patch tests to sort, reminders), and each item jumps to its card. It shows only on phones, and only when something waits.
 - **Wizards.** A job with a few distinct steps runs in a `Modal` with `WizardSteps` along the top: one job per step, Continue held until the step is complete, Back always there, nothing saved until the last step, and that step saying in plain sentences what will happen. Each step opens at the top with its heading focused (`useWizardStep`). Moving in (`MovingIn.tsx`) is the reference.
 
 ## Where things move
@@ -171,12 +210,15 @@ Movement answers something a person did, so the eye can follow it. Motion (`moti
 | Today, Inbox, the waitlist    | A new row settles in, a row that goes fades, the rest slide aside                    | `MovingList`, `MovingRow`        |
 | Guest booking steps           | Slide forward and back                                                               | `useStepArrival`                 |
 | Ticks and switches            | The tick settles in; the knob slides                                                 | `Checkbox`, `Switch`             |
+| Folds                         | Open and close to their height, where the browser can                                | `controls.css`                   |
+
+Everything is placed before the screen is drawn, so nothing flashes, and rows already there when a page opens simply appear.
 
 Never: pages loading, scrolling, typing (including checkout), or anything that loops. `useMotionAllowed` is false for reduced motion and in tests, and then every change happens at once.
 
 ## Voice
 
-The full guide is [How SALEANE speaks](HOW_SALEANE_SPEAKS.md); the living library shows its short form. In brief: plain British English, calm and specific, no exclamation marks and no em dashes. Say visit, treatment, SALEANE and Ask SALEANE. Editorial lines are short and warm; working copy says exactly what will happen. A refusal names who can help, and an error keeps the person's input and names the next step. Use the truth words (saved, recorded, queued, sent, delivered, charged, test payment, test mode) only for what really happened: never imply that a recorded payment was charged or a queued message was sent.
+The full guide is [How SALEANE speaks](HOW_SALEANE_SPEAKS.md); the living library shows its short form. In brief: plain British English, calm and specific, no exclamation marks and no em dashes. Say visit, treatment, SALEANE and Ask SALEANE. The assistant's name is "Ask" and the app's name, written once as `ASK_NAME` in `src/assistant/name.ts`; screens take it from there and never type it. The guest booking page's footer reads "Connected by SALEANE" and nothing more. Editorial lines are short and warm; working copy says exactly what will happen. A refusal names who can help, and an error keeps the person's input and names the next step. Use the truth words (saved, recorded, queued, sent, delivered, charged, test payment, test mode) only for what really happened: never imply that a recorded payment was charged or a queued message was sent.
 
 ## Quality bar
 
