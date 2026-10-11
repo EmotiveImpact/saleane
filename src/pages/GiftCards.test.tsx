@@ -95,7 +95,7 @@ describe('moving a gift card to another location', () => {
     expect(dialog).toHaveTextContent(
       'It belongs to Marylebone, London now. Its code, balance, last day and history stay as they are.',
     )
-    expect(within(dialog).getByLabelText('Move to')).toHaveDisplayValue('Shoreditch')
+    expect(within(dialog).getByLabelText('Move to')).toHaveTextContent('Shoreditch')
     expect(dialog).toHaveTextContent(
       'Money already taken for it and spent with it stays where it happened. What is left on it, £75.00, counts at Shoreditch from now on. It can still be spent at any location.',
     )

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { StoreProvider } from '../state/StoreProvider'
@@ -12,6 +12,7 @@ import { withoutRequests } from '../domain/approvals'
 import type { Role } from '../domain/operations'
 import type { BusinessState } from '../domain/model'
 import type { RemoteWorkspace, Session } from '../state/api'
+import { choicesIn } from '../test/choices'
 
 async function show(route = '/today') {
   render(
@@ -384,7 +385,7 @@ describe('local operating surfaces', () => {
     expect(screen.getByRole('button', { name: 'Save opening hours' })).toBeDisabled()
     await user.click(tuesday)
     expect(screen.queryByText(/upcoming visits would be affected/)).not.toBeInTheDocument()
-    fireEvent.change(screen.getByLabelText('Friday closes'), { target: { value: '17:00' } })
+    await user.selectOptions(screen.getByLabelText('Friday closes'), '17:00')
     await user.click(screen.getByRole('button', { name: 'Save opening hours' }))
     expect(
       await screen.findByText(
@@ -598,11 +599,10 @@ describe('selling at one of several locations', () => {
     await user.click(await screen.findByRole('button', { name: 'Sell a gift card' }))
     const dialog = await screen.findByRole('dialog')
     const soldAt = within(dialog).getByRole('combobox', { name: 'Sold at' })
-    expect(
-      within(soldAt)
-        .getAllByRole('option')
-        .map((o) => o.textContent),
-    ).toEqual(['Marylebone, London', 'Islington'])
+    expect((await choicesIn(user, soldAt)).map((o) => o.text)).toEqual([
+      'Marylebone, London',
+      'Islington',
+    ])
     await user.selectOptions(soldAt, 'loc-islington')
     await user.type(within(dialog).getByRole('textbox', { name: 'Buyer’s name' }), 'Jo Guest')
     await user.click(within(dialog).getByRole('button', { name: /^Record/ }))
@@ -807,6 +807,7 @@ describe('gift cards', () => {
 
 describe('the Settings page', () => {
   it('groups the sections under five headings, with treatments by that name', async () => {
+    const user = userEvent.setup()
     await show('/settings')
     const sections = await screen.findByRole('group', { name: 'Settings sections' })
     const lists = within(sections).getAllByRole('tablist')
@@ -830,7 +831,12 @@ describe('the Settings page', () => {
     )
     const picker = screen.getByRole('combobox', { name: 'Section' })
     expect(picker).toHaveValue('business')
-    expect(within(picker).getByRole('group', { name: 'Guests and messages' })).toBeInTheDocument()
+    await user.click(picker)
+    expect(
+      within(await screen.findByRole('listbox')).getByRole('group', {
+        name: 'Guests and messages',
+      }),
+    ).toBeInTheDocument()
   })
 
   it('shows who changed what to the owner only (NEXT-05)', async () => {

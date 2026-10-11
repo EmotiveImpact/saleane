@@ -166,7 +166,8 @@
   font-size: var(--text-micro);
 }
 .needs-card form input,
-.needs-card form select {
+.needs-card form select,
+.needs-card form .select-trigger {
   min-height: 38px;
   padding: 7px 10px;
   font-size: var(--text-meta);
@@ -211,6 +212,7 @@
   .needs-actions .button,
   .needs-card form input,
   .needs-card form select,
+  .needs-card form .select-trigger,
   .needs-card form .button,
   .needs-card .text-link {
     min-height: 40px;

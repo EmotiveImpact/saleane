@@ -16,7 +16,7 @@ import {
 } from '../domain/rent'
 import { rentMethods } from '../domain/rentSchema'
 import type { Rental, RentPayment } from '../domain/rentSchema'
-import { Button, ErrorMessage, Modal } from '../design'
+import { Button, ErrorMessage, Modal, Select } from '../design'
 import { StudioDateField } from './StudioDateField'
 
 /**
@@ -337,17 +337,17 @@ function RentalDialog({
         <div className="ops-fields">
           <label className="ops-wide">
             Who
-            <select value={staffId} onChange={(e) => setStaffId(e.target.value)}>
+            <Select value={staffId} onChange={(e) => setStaffId(e.target.value)}>
               {team.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label>
             Renting
-            <select
+            <Select
               value={space}
               onChange={(e) => {
                 setSpace(e.target.value as Rental['space'])
@@ -356,18 +356,18 @@ function RentalDialog({
             >
               <option value="chair">A chair</option>
               <option value="room">A room</option>
-            </select>
+            </Select>
           </label>
           <label>
             Which one (optional)
-            <select value={resourceId} onChange={(e) => setResourceId(e.target.value)}>
+            <Select value={resourceId} onChange={(e) => setResourceId(e.target.value)}>
               <option value="">Not fixed</option>
               {spaces.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           {kind !== 'share' && (
             <label>
@@ -393,10 +393,10 @@ function RentalDialog({
           )}
           <label>
             Every
-            <select value={every} onChange={(e) => setEvery(e.target.value as Rental['every'])}>
+            <Select value={every} onChange={(e) => setEvery(e.target.value as Rental['every'])}>
               <option value="week">Week</option>
               <option value="month">Month</option>
-            </select>
+            </Select>
           </label>
           <label>
             First day
@@ -489,7 +489,7 @@ function PaymentDialog({
         <div className="ops-fields">
           <label className="ops-wide">
             For
-            <select
+            <Select
               value={period}
               onChange={(e) => {
                 setPeriod(e.target.value)
@@ -503,7 +503,7 @@ function PaymentDialog({
                   · {money(p.unpaidMinor, org, true)} {p.open && p.runningMinor ? 'so far' : 'owed'}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           {chosen?.takings && (
             <p className="ops-help ops-wide">{periodWorking(state, rental, chosen)}</p>
@@ -519,7 +519,7 @@ function PaymentDialog({
           </label>
           <label>
             Paid by
-            <select
+            <Select
               value={method}
               onChange={(e) => setMethod(e.target.value as RentPayment['method'])}
             >
@@ -528,7 +528,7 @@ function PaymentDialog({
                   {RENT_METHOD_LABEL[m]}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label className="ops-wide">
             Reference {method === 'cash' ? '(optional)' : '(required)'}

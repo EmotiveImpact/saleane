@@ -10,7 +10,7 @@ import { minorInput, parseMinor } from '../domain/money'
 import { priceRetail, retailCharge, returnable } from '../domain/retail'
 import { hasLocations, placeOf, places } from '../domain/locations'
 import type { CounterSale, RetailItems } from '../domain/retailSchema'
-import { Button, ErrorMessage, Modal } from '../design'
+import { Button, ErrorMessage, Modal, Select } from '../design'
 import { CheckoutProducts } from './CheckoutProducts'
 import { ReceiptActions } from './ReceiptActions'
 import { RefundSignOff } from './RefundSignOff'
@@ -247,7 +247,7 @@ function SellDialog({
         <div className="ops-fields">
           <label className="ops-wide">
             Client (optional)
-            <select value={clientId} onChange={(e) => setClientId(e.target.value)}>
+            <Select value={clientId} onChange={(e) => setClientId(e.target.value)}>
               <option value="">No client record</option>
               {[...state.clients]
                 .sort((a, b) => a.name.localeCompare(b.name))
@@ -256,23 +256,23 @@ function SellDialog({
                     {client.name}
                   </option>
                 ))}
-            </select>
+            </Select>
           </label>
           {multiSite && (
             <label>
               Location
-              <select value={placeId} onChange={(e) => setPlaceId(e.target.value)}>
+              <Select value={placeId} onChange={(e) => setPlaceId(e.target.value)}>
                 {places(state).map((place) => (
                   <option key={place.id} value={place.id}>
                     {place.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           )}
           <label>
             Sold by
-            <select value={staffId} onChange={(e) => setStaffId(e.target.value)}>
+            <Select value={staffId} onChange={(e) => setStaffId(e.target.value)}>
               <option value="">Not recorded</option>
               {state.staff
                 .filter((person) => !person.archived)
@@ -281,11 +281,11 @@ function SellDialog({
                     {person.name}
                   </option>
                 ))}
-            </select>
+            </Select>
           </label>
           <label>
             Paid by
-            <select
+            <Select
               value={method}
               onChange={(e) => {
                 setMethod(e.target.value as Method)
@@ -303,7 +303,7 @@ function SellDialog({
                   <option value="external_card">Own card terminal</option>
                 </>
               )}
-            </select>
+            </Select>
           </label>
           {!sandbox && (
             <label>

@@ -940,7 +940,8 @@
   justify-items: start;
 }
 .settings-body label,
-.settings-body select {
+.settings-body select,
+.settings-body .select-trigger {
   width: 100%;
   max-width: 460px;
 }

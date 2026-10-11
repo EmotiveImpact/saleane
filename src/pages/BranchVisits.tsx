@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { ClipboardCheck, ListChecks } from 'lucide-react'
 import { useStore } from '../state/context'
-import { Button, Empty, ErrorMessage, Modal, PageHeader } from '../design'
+import { Button, Empty, ErrorMessage, Modal, PageHeader, Select } from '../design'
 import { dateLabel } from '../domain/format'
 import { places } from '../domain/locations'
 import { businessDate, can } from '../domain/operations'
@@ -406,7 +406,7 @@ export function VisitForm({
         <div className="ops-fields">
           <label>
             Location
-            <select
+            <Select
               value={locationId}
               disabled={pending}
               onChange={(e) => setLocationId(e.target.value)}
@@ -416,11 +416,11 @@ export function VisitForm({
                   {p.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label>
             Checklist
-            <select
+            <Select
               value={checklistId}
               disabled={pending}
               onChange={(e) => {
@@ -434,7 +434,7 @@ export function VisitForm({
                   {c.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label>
             Date of the visit
@@ -583,7 +583,7 @@ function ChecklistEditor({
         <div className="ops-fields">
           <label>
             Checklist
-            <select value={checklistId} disabled={pending} onChange={(e) => pick(e.target.value)}>
+            <Select value={checklistId} disabled={pending} onChange={(e) => pick(e.target.value)}>
               {all.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -591,7 +591,7 @@ function ChecklistEditor({
                 </option>
               ))}
               <option value="new">Add a checklist</option>
-            </select>
+            </Select>
           </label>
           <label>
             Name

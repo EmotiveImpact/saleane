@@ -41,7 +41,8 @@
   color: var(--muted);
   font-size: var(--text-small);
 }
-.setup-day-times select {
+.setup-day-times select,
+.setup-day-times .select-trigger {
   width: auto;
   min-width: 120px;
 }
@@ -261,7 +262,8 @@
     gap: 8px;
     padding: 12px 14px;
   }
-  .setup-day-times select {
+  .setup-day-times select,
+  .setup-day-times .select-trigger {
     flex: 1;
     min-width: 0;
   }

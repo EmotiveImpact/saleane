@@ -14,7 +14,7 @@ import {
 import type { Holding, Offer, OfferInput } from '../domain/plansSchema'
 import { dateLabel, money } from '../domain/format'
 import { minorInput, parseMinor } from '../domain/money'
-import { Button, ErrorMessage, Modal, SegmentedControl } from '../design'
+import { Button, ErrorMessage, Modal, SegmentedControl, Select } from '../design'
 import './management.css'
 import './plans.css'
 import { usePayment, useRun } from './usePayment'
@@ -326,7 +326,7 @@ export function PaymentFields({
     <>
       <label className="ops-field">
         {verb === 'received' ? 'Paid by' : 'Returned by'}
-        <select value={method} onChange={(e) => setMethod(e.target.value as Method)}>
+        <Select value={method} onChange={(e) => setMethod(e.target.value as Method)}>
           {sandbox ? (
             <>
               <option value="demo_card">Demo card</option>
@@ -338,7 +338,7 @@ export function PaymentFields({
               <option value="external_card">Card at your own terminal</option>
             </>
           )}
-        </select>
+        </Select>
       </label>
       {!sandbox && (
         <>
@@ -590,14 +590,14 @@ export function ClientPlans({ clientId }: { clientId: string }) {
             {dialog.kind === 'sell' && (
               <label className="ops-field">
                 Plan
-                <select value={offerId} onChange={(e) => setOfferId(e.target.value)}>
+                <Select value={offerId} onChange={(e) => setOfferId(e.target.value)}>
                   {onSale.map((offer) => (
                     <option key={offer.id} value={offer.id}>
                       {offer.name} · {money(offer.priceMinor, org, true)}
                       {offer.kind === 'membership' ? ' a month' : ''}
                     </option>
                   ))}
-                </select>
+                </Select>
                 {chosen && <small>{planTerms(chosen)}</small>}
               </label>
             )}

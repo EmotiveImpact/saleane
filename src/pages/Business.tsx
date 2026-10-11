@@ -19,6 +19,7 @@ import {
   SegmentedControl,
   photos,
   treatmentPhoto,
+  Select,
 } from '../design'
 
 const completedVisits = (count: number) => `${count} completed ${count === 1 ? 'visit' : 'visits'}`
@@ -85,14 +86,14 @@ export function Business() {
         {multiSite && (
           <label className="business-where">
             <span className="sr-only">Location</span>
-            <select id="business-location" value={where} onChange={(e) => setWhere(e.target.value)}>
+            <Select id="business-location" value={where} onChange={(e) => setWhere(e.target.value)}>
               <option value="all">All locations</option>
               {places(state).map((site) => (
                 <option key={site.id} value={site.id}>
                   {site.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         )}
         <span>

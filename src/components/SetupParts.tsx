@@ -7,7 +7,7 @@ import {
   newRowKey as newKey,
   nextRoomName,
 } from '../domain/setupScreens'
-import { Button, TimeField } from '../design'
+import { Button, TimeField, Select } from '../design'
 import './setupParts.css'
 
 /**
@@ -148,13 +148,13 @@ export function RoomCards({
                 </label>
                 <label>
                   Kind
-                  <select
+                  <Select
                     value={row.type}
                     onChange={(e) => update(row.key, { type: e.target.value as Place })}
                   >
                     <option value="treatment">Treatment room</option>
                     <option value="chair">Styling chair</option>
-                  </select>
+                  </Select>
                 </label>
                 <RemoveButton
                   name={row.name || 'this room'}

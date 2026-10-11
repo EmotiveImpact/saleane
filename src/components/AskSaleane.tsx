@@ -14,7 +14,7 @@ import { operations } from '../domain/operations'
 import { DEFAULT_VOICE, VOICES } from '../assistant/voices'
 import { api } from '../state/api'
 import { useStore } from '../state/context'
-import { Button, Modal } from '../design'
+import { Button, Modal, Select } from '../design'
 import './ask-saleane.css'
 
 type Meter = { used: number; allowance: number; talk?: { used: number; allowance: number } }
@@ -555,7 +555,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
           {canTalk && !talk && (
             <label className="ask-voice">
               Voice
-              <select
+              <Select
                 value={ownVoice}
                 disabled={voicePending}
                 onChange={(e) => void chooseVoice(e.target.value)}
@@ -568,7 +568,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
                     {v.label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           )}
           {meter && (

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Download, Palette, RotateCcw, SlidersHorizontal, Store } from 'lucide-react'
 import { useStore } from '../state/context'
 import { storageKey } from '../state/storage'
-import { Button, ErrorMessage } from '../design'
+import { Button, ErrorMessage, Select } from '../design'
 import { coloursFor, firstColours, saveColours, secondColours } from '../state/studioColours'
 import type { StudioColours } from '../state/studioColours'
 import type { StudioLook } from '../domain/brandRulesSchema'
@@ -201,13 +201,13 @@ export function WorkspaceSection({ onReset }: { onReset?: () => void } = {}) {
           <>
             <label>
               Demo market
-              <select
+              <Select
                 value={region}
                 onChange={(e) => changeRegion(e.target.value as typeof region)}
               >
                 <option value="UK">United Kingdom · GBP · Europe/London</option>
                 <option value="US">United States · USD · America/New_York</option>
-              </select>
+              </Select>
             </label>
             <p>
               Each market is its own made-up studio. Changing market does not convert prices or move

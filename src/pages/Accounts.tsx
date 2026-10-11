@@ -20,7 +20,16 @@ import {
 } from '../domain/accounts'
 import { accountingProviders } from '../domain/accountsSchema'
 import type { AccountCodes, AccountingProvider } from '../domain/accountsSchema'
-import { Button, ErrorMessage, Modal, PageHeader, SegmentedControl, Stat, Stats } from '../design'
+import {
+  Button,
+  ErrorMessage,
+  Modal,
+  PageHeader,
+  SegmentedControl,
+  Stat,
+  Stats,
+  Select,
+} from '../design'
 import '../components/management.css'
 import '../pay.css'
 import '../rota.css'
@@ -384,7 +393,7 @@ function SettingsDialog({
         <div className="ops-fields">
           <label className="ops-wide">
             Software
-            <select
+            <Select
               value={provider}
               onChange={(e) => setProvider(e.target.value as AccountingProvider)}
             >
@@ -393,7 +402,7 @@ function SettingsDialog({
                   {PROVIDER[p]}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           {(Object.keys(CODE_LABEL) as (keyof AccountCodes)[]).map((key) => (
             <label key={key}>

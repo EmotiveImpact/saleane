@@ -13,6 +13,7 @@ import {
   ErrorMessage,
   TimeChoices,
   useStepArrival,
+  Select,
 } from '../design'
 import { operations } from '../domain/operations'
 import { BookingFrame } from '../components/BookingFrame'
@@ -187,14 +188,14 @@ export function BrandedBooking() {
           <label className="sr-only" htmlFor="booking-market">
             Demo market
           </label>
-          <select
+          <Select
             id="booking-market"
             value={region}
             onChange={(e) => changeRegion(e.target.value as typeof region)}
           >
             <option value="UK">London · GBP</option>
             <option value="US">New York · USD</option>
-          </select>
+          </Select>
         </>
       }
     >

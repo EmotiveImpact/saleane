@@ -2,6 +2,7 @@ import { useId } from 'react'
 import type { ReactNode } from 'react'
 import { Tabs as RadixTabs } from 'radix-ui'
 import { ChosenMark } from './ChosenMark'
+import { Select } from './Select'
 
 type Tab<T extends string> = {
   value: T
@@ -92,7 +93,7 @@ export function Tabs<T extends string>({
       {picker && (
         <label className="tabs-picker">
           <span>{picker}</span>
-          <select
+          <Select
             value={value}
             disabled={disabled}
             onChange={(event) => onChange(event.target.value as T)}
@@ -104,7 +105,7 @@ export function Tabs<T extends string>({
                   </optgroup>
                 ))
               : tabs.map(option)}
-          </select>
+          </Select>
         </label>
       )}
       <RadixTabs.Content value={value} className="tabs-panel">

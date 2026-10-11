@@ -51,6 +51,7 @@ import {
   WizardSteps,
   photos,
   useWizardStep,
+  Select,
 } from '../design'
 import { HoursList, RemoveButton, RoomCards } from '../components/SetupParts'
 import '../components/management.css'
@@ -514,7 +515,7 @@ function TreatmentsScreen({
                 </label>
                 <label>
                   Length
-                  <select
+                  <Select
                     value={row.minutes}
                     onChange={(e) => update(row.key, { minutes: Number(e.target.value) })}
                   >
@@ -525,11 +526,11 @@ function TreatmentsScreen({
                           {lengthLabel(m)}
                         </option>
                       ))}
-                  </select>
+                  </Select>
                 </label>
                 <label>
                   Kind
-                  <select
+                  <Select
                     value={row.category}
                     onChange={(e) => {
                       const category = e.target.value as Service['category']
@@ -542,11 +543,11 @@ function TreatmentsScreen({
                     {KINDS.map((k) => (
                       <option key={k}>{k}</option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
                 <label>
                   Needs
-                  <select
+                  <Select
                     value={row.place}
                     onChange={(e) =>
                       update(row.key, { place: e.target.value as 'treatment' | 'chair' })
@@ -554,7 +555,7 @@ function TreatmentsScreen({
                   >
                     <option value="treatment">Treatment room</option>
                     <option value="chair">Styling chair</option>
-                  </select>
+                  </Select>
                 </label>
                 <RemoveButton
                   name={row.name || 'this treatment'}
@@ -926,7 +927,7 @@ function MoneyScreen({
       <div className="ops-fields">
         <label>
           Missed visit and late cancellation fee
-          <select
+          <Select
             value={value.feePercent}
             onChange={(e) => onChange({ ...value, feePercent: Number(e.target.value) })}
           >
@@ -934,7 +935,7 @@ function MoneyScreen({
             <option value={25}>Up to 25% of the booked price</option>
             <option value={50}>Up to 50% of the booked price</option>
             <option value={100}>Up to the full booked price</option>
-          </select>
+          </Select>
           <small>
             Only for a missed visit or one cancelled less than 24 hours ahead. It comes off any
             deposit paid, and a person charges it, never SALEANE by itself.

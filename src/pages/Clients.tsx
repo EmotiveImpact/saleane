@@ -15,6 +15,7 @@ import {
   PageHeader,
   SegmentedControl,
   photos,
+  Select,
 } from '../design'
 import { MovingIn } from '../components/MovingIn'
 import { guestPhone, phoneProblem } from '../domain/phone'
@@ -171,7 +172,7 @@ export function Clients() {
                 </label>
                 <label className="sort-field">
                   <span className="sr-only">Sort clients</span>
-                  <select
+                  <Select
                     value={sort}
                     onChange={(e) => refine(() => setSort(e.target.value as DirectorySort))}
                   >
@@ -179,7 +180,7 @@ export function Clients() {
                     <option value="name">Name A to Z</option>
                     <option value="visits">Most visits</option>
                     <option value="spend">Most spent</option>
-                  </select>
+                  </Select>
                 </label>
               </div>
             </div>
@@ -334,7 +335,7 @@ export function Clients() {
               </label>
               <label>
                 Introduced by
-                <select value={referrer} onChange={(e) => setReferrer(e.target.value)}>
+                <Select value={referrer} onChange={(e) => setReferrer(e.target.value)}>
                   <option value="">No referral recorded</option>
                   {state.clients
                     .filter((c) => !c.erasedAt)
@@ -343,7 +344,7 @@ export function Clients() {
                         {c.name}
                       </option>
                     ))}
-                </select>
+                </Select>
               </label>
             </div>
             <label className="checkbox-label consent-label">

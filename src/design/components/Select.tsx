@@ -1,4 +1,4 @@
-import { Children, isValidElement, useId } from 'react'
+import { Children, Fragment, isValidElement, useEffect, useId, useRef, useState } from 'react'
 import type { CSSProperties, ReactElement, ReactNode } from 'react'
 import { Select as RadixSelect } from 'radix-ui'
 import { Check, ChevronDown } from 'lucide-react'
@@ -23,23 +23,40 @@ function read(children: ReactNode): Group[] {
     label: element.props.children,
     disabled: element.props.disabled,
   })
-  for (const child of Children.toArray(children)) {
-    if (!isValidElement(child)) continue
+  const visit = (nodes: ReactNode) => {
+    for (const child of Children.toArray(nodes)) {
+      if (!isValidElement(child)) continue
+      // Options are often grouped in a fragment, such as a heading choice and then a list.
+      if (child.type === Fragment) visit((child.props as { children?: ReactNode }).children)
+      else take(child)
+    }
+  }
+  const take = (child: ReactElement) => {
     if (child.type === 'optgroup') {
       loose = null
       const props = child.props as GroupProps
       groups.push({
         label: props.label,
-        options: Children.toArray(props.children)
-          .filter(isValidElement)
-          .map((o) => option(o as ReactElement<OptionProps>)),
+        options: flat(props.children).map((o) => option(o as ReactElement<OptionProps>)),
       })
     } else if (child.type === 'option') {
       if (!loose) groups.push((loose = { options: [] }))
       loose.options.push(option(child as ReactElement<OptionProps>))
     }
   }
+  visit(children)
   return groups
+}
+
+/** The elements in a list of children, with fragments opened up. */
+function flat(nodes: ReactNode): ReactElement[] {
+  return Children.toArray(nodes).flatMap((child) =>
+    !isValidElement(child)
+      ? []
+      : child.type === Fragment
+        ? flat((child.props as { children?: ReactNode }).children)
+        : [child],
+  )
 }
 
 function textOf(node: ReactNode): string {
@@ -59,6 +76,28 @@ type Change = { target: { value: string; name?: string }; currentTarget: { value
  * readers hear a combobox with its label. Write it as a `<select>` would be written, with
  * `<option>` and `<optgroup>` children; `onChange` receives `{ target: { value } }`.
  */
+export type SelectProps = {
+  value?: string | number
+  defaultValue?: string | number
+  onChange?: (event: Change) => void
+  onValueChange?: (value: string) => void
+  children: ReactNode
+  id?: string
+  name?: string
+  disabled?: boolean
+  required?: boolean
+  className?: string
+  style?: CSSProperties
+  /** Shown when nothing is chosen and no option is worth "". */
+  placeholder?: string
+  title?: string
+  'aria-label'?: string
+  'aria-labelledby'?: string
+  'aria-describedby'?: string
+  'aria-invalid'?: boolean | 'true' | 'false'
+  'aria-required'?: boolean | 'true' | 'false'
+}
+
 export function Select({
   value,
   defaultValue,
@@ -73,52 +112,37 @@ export function Select({
   style,
   placeholder,
   ...aria
-}: {
-  value?: string | number
-  defaultValue?: string | number
-  onChange?: (event: Change) => void
-  onValueChange?: (value: string) => void
-  children: ReactNode
-  id?: string
-  name?: string
-  disabled?: boolean
-  required?: boolean
-  className?: string
-  style?: CSSProperties
-  /** Shown when nothing is chosen and no option is worth "". */
-  placeholder?: string
-  'aria-label'?: string
-  'aria-labelledby'?: string
-  'aria-describedby'?: string
-  'aria-invalid'?: boolean | 'true' | 'false'
-  autoFocus?: boolean
-}) {
+}: SelectProps) {
   const groups = read(children)
   const fallback = useId()
   const all = groups.flatMap((group) => group.options)
-  const current = value === undefined ? undefined : toRadix(String(value ?? ''))
-  // Like a native select, an unknown value shows the first option rather than nothing.
-  const shown =
-    current !== undefined && all.some((o) => toRadix(o.value) === current)
-      ? current
-      : current !== undefined && all.length
-        ? toRadix(all[0].value)
-        : current
+  // Without `value` the field keeps its own choice, starting from `defaultValue`.
+  const [own, setOwn] = useState(defaultValue === undefined ? undefined : String(defaultValue))
+  const asked = value === undefined ? own : String(value ?? '')
+  // As a native select does: a value on the list is shown; nothing chosen shows the placeholder
+  // when there is one; anything else shows, and stands for, the first option.
+  const chosen =
+    asked !== undefined && all.some((o) => o.value === asked)
+      ? asked
+      : placeholder !== undefined && !asked
+        ? ''
+        : (all[0]?.value ?? '')
+  const listed = all.some((o) => o.value === chosen)
   return (
     <RadixSelect.Root
-      value={shown}
-      defaultValue={defaultValue === undefined ? undefined : toRadix(String(defaultValue))}
+      value={listed ? toRadix(chosen) : ''}
       onValueChange={(next) => {
-        const chosen = fromRadix(next)
-        onValueChange?.(chosen)
-        onChange?.({ target: { value: chosen, name }, currentTarget: { value: chosen } })
+        const picked = fromRadix(next)
+        if (value === undefined) setOwn(picked)
+        onValueChange?.(picked)
+        onChange?.({ target: { value: picked, name }, currentTarget: { value: picked } })
       }}
-      name={name}
       disabled={disabled}
-      required={required}
     >
       <RadixSelect.Trigger
         id={id ?? fallback}
+        // The chosen value rides on the button too, as it would on a native select.
+        value={chosen}
         className={`select-trigger ${className}`}
         style={style}
         {...aria}
@@ -160,6 +184,57 @@ export function Select({
           </RadixSelect.Viewport>
         </RadixSelect.Content>
       </RadixSelect.Portal>
+      {name !== undefined && (
+        <FormValue name={name} value={chosen} required={required} disabled={disabled}>
+          {all}
+        </FormValue>
+      )}
     </RadixSelect.Root>
+  )
+}
+
+/**
+ * What a form reads: a hidden native select holding the plain value, "" included, so FormData and
+ * a form's own change handler see this field exactly as they saw the browser's select.
+ */
+function FormValue({
+  name,
+  value,
+  required,
+  disabled,
+  children,
+}: {
+  name: string
+  value: string
+  required?: boolean
+  disabled?: boolean
+  children: Option[]
+}) {
+  const field = useRef<HTMLSelectElement>(null)
+  const was = useRef(value)
+  useEffect(() => {
+    const select = field.current
+    if (!select || was.current === value) return
+    was.current = value
+    // Tell the form, as the browser does when someone picks an option.
+    select.dispatchEvent(new Event('change', { bubbles: true }))
+  }, [value])
+  return (
+    <select
+      ref={field}
+      name={name}
+      value={value}
+      required={required}
+      disabled={disabled}
+      onChange={() => {}}
+      aria-hidden="true"
+      tabIndex={-1}
+      className="select-form-value"
+    >
+      {!children.some((o) => o.value === value) && <option value={value} />}
+      {children.map((o) => (
+        <option key={o.value} value={o.value} disabled={o.disabled} />
+      ))}
+    </select>
   )
 }

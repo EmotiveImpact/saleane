@@ -29,7 +29,7 @@ import { useStore } from '../state/context'
 import type { Command } from '../domain/commands'
 import type { BusinessState } from '../domain/model'
 import type { OperatingCommand } from '../domain/commandSchema'
-import { TimeField } from '../design'
+import { TimeField, Select } from '../design'
 import { StudioDateField } from '../components/StudioDateField'
 import { scheduleImpact } from '../domain/schedule'
 import { businessDate, operations, can, permissionFor } from '../domain/operations'
@@ -564,7 +564,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                     </label>
                     <label>
                       Venue time zone
-                      <select name="timeZone" defaultValue={state.organisation.timeZone}>
+                      <Select name="timeZone" defaultValue={state.organisation.timeZone}>
                         {Array.from(
                           new Set([
                             state.organisation.timeZone,
@@ -580,7 +580,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                         ).map((zone) => (
                           <option key={zone}>{zone}</option>
                         ))}
-                      </select>
+                      </Select>
                     </label>
                     <div className="ops-field">
                       <span>Market & currency</span>
@@ -1039,18 +1039,18 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                   </label>
                   <label>
                     Category
-                    <select name="category" defaultValue={service?.category ?? 'Skin'}>
+                    <Select name="category" defaultValue={service?.category ?? 'Skin'}>
                       <option>Skin</option>
                       <option>Body</option>
                       <option>Hair</option>
-                    </select>
+                    </Select>
                   </label>
                   <label>
                     Required space
-                    <select name="resourceType" defaultValue={service?.resourceType ?? 'treatment'}>
+                    <Select name="resourceType" defaultValue={service?.resourceType ?? 'treatment'}>
                       <option value="treatment">Treatment space</option>
                       <option value="chair">Styling chair</option>
-                    </select>
+                    </Select>
                   </label>
                   <label>
                     Duration (minutes)
@@ -1169,11 +1169,11 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                   </label>
                   <label>
                     Calendar colour
-                    <select name="tone" defaultValue={person?.tone ?? 'sage'}>
+                    <Select name="tone" defaultValue={person?.tone ?? 'sage'}>
                       <option value="sage">Sage</option>
                       <option value="blue">Stone blue</option>
                       <option value="sand">Warm sand</option>
-                    </select>
+                    </Select>
                   </label>
                   <fieldset className="ops-checks ops-wide">
                     <legend>Treatments they give</legend>
@@ -1256,7 +1256,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                               {(multiSite || day.locationId) && (
                                 <label className="ops-field">
                                   At
-                                  <select
+                                  <Select
                                     name={`own-${weekday}-loc`}
                                     aria-label={`${days[weekday]} location`}
                                     defaultValue={day.locationId ?? state.organisation.locationId}
@@ -1266,7 +1266,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                                         {place.name}
                                       </option>
                                     ))}
-                                  </select>
+                                  </Select>
                                 </label>
                               )}
                             </div>
@@ -1292,10 +1292,10 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
               {editor.kind === 'resource' && (
                 <label>
                   Resource type
-                  <select name="resourceType" defaultValue={resource?.type ?? 'treatment'}>
+                  <Select name="resourceType" defaultValue={resource?.type ?? 'treatment'}>
                     <option value="treatment">Treatment space</option>
                     <option value="chair">Styling chair</option>
-                  </select>
+                  </Select>
                 </label>
               )}
               {editor.kind === 'resource' && own && (
@@ -1307,7 +1307,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
               {editor.kind === 'resource' && !own && (multiSite || resource?.locationId) && (
                 <label>
                   Location
-                  <select
+                  <Select
                     name="locationId"
                     defaultValue={resource ? resourceLocation(state, resource) : undefined}
                   >
@@ -1316,19 +1316,19 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                         {place.name}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
               )}
               {editor.kind === 'resource' && (
                 <label>
                   Resting time after each visit
-                  <select name="restMinutes" defaultValue={String(resource?.restMinutes ?? 0)}>
+                  <Select name="restMinutes" defaultValue={String(resource?.restMinutes ?? 0)}>
                     {[0, 10, 15, 20, 30, 45, 60, 90, 120].map((m) => (
                       <option key={m} value={m}>
                         {m ? `${m} minutes empty` : 'None'}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                   <small>
                     The space stays empty this long after each visit, for airing, cooling or a deep
                     clean. The professional is free to work elsewhere. Visits already booked stay as
@@ -1356,7 +1356,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                   </label>
                   <label>
                     Applies to
-                    <select name="staffId">
+                    <Select name="staffId">
                       <option value="">Whole venue</option>
                       {state.staff
                         .filter((item) => !item.archived)
@@ -1365,7 +1365,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                             {item.name}
                           </option>
                         ))}
-                    </select>
+                    </Select>
                   </label>
                   <label>
                     From

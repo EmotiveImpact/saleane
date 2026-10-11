@@ -17,6 +17,7 @@ import {
   SegmentedControl,
   Stat,
   Stats,
+  Select,
 } from '../design'
 import '../components/management.css'
 import { TillCount } from '../components/TillCount'
@@ -815,7 +816,7 @@ export function Money() {
                 </label>
                 <label>
                   Returned as
-                  <select
+                  <Select
                     name="method"
                     defaultValue={
                       sandbox
@@ -838,7 +839,7 @@ export function Money() {
                         <option value="external_card">Card or bank, outside SALEANE</option>
                       </>
                     )}
-                  </select>
+                  </Select>
                 </label>
                 <label>
                   External reference
@@ -990,7 +991,7 @@ export function Money() {
               </label>
               <label>
                 Method
-                <select name="method">
+                <Select name="method">
                   {sandbox ? (
                     <>
                       <option value="demo_cash">Simulated cash</option>
@@ -1002,7 +1003,7 @@ export function Money() {
                       <option value="external_card">External card payment</option>
                     </>
                   )}
-                </select>
+                </Select>
               </label>
               <label className="ops-wide">
                 Reference

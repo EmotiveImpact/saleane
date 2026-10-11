@@ -6,6 +6,7 @@ import type { Command, CommandResult } from '../domain/commands'
 import type { BusinessState } from '../domain/model'
 import type { Role } from '../domain/operations'
 import { seed } from '../domain/seed'
+import { choicesIn } from '../test/choices'
 
 // Stage 3: the setting in Settings, Treatments, Patch tests.
 type Shown = {
@@ -57,7 +58,7 @@ test('offers only treatments that need no test as the patch test, or none', asyn
   const user = userEvent.setup()
   show('owner')
   const choice = screen.getByLabelText('The patch test guests can book online')
-  const offered = [...(choice as HTMLSelectElement).options].map((o) => o.textContent)
+  const offered = (await choicesIn(user, choice)).map((o) => o.text)
   expect(offered).toContain('None: guests call or email you to arrange one')
   expect(offered).not.toContain('Gloss & Tone')
   await user.selectOptions(choice, '')

@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import type { Client } from '../domain/model'
 import type { SavedReply } from '../domain/inboxSchema'
 import { textNumber } from '../domain/reminders'
-import { Button } from '../design'
+import { Button, Select } from '../design'
 import { quickReplies } from './quickReplies'
 import './inboxReply.css'
 
@@ -132,7 +132,7 @@ export function InboxReply({
         <label htmlFor={textId}>Reply to {first}</label>
         <label className="inbox-reply-channel">
           <span>Reply by</span>
-          <select
+          <Select
             value={channel}
             disabled={!allowed}
             onChange={(event) => setChannel(event.target.value as Channel)}
@@ -141,7 +141,7 @@ export function InboxReply({
             <option value="sms" disabled={!canText}>
               Text{canText ? '' : textsOff ? ' (texts are off)' : ' (no mobile number)'}
             </option>
-          </select>
+          </Select>
         </label>
       </div>
       {allowed && (

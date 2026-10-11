@@ -8,7 +8,7 @@ import { hasLocations, places } from '../domain/locations'
 import { PRINTER_PORT } from '../domain/lanAddress'
 import { BROWSER_DRAWER, printerProblem, taxNumberProblem, tillPrinter } from '../domain/till'
 import type { PaperWidth, PrintMode, TillPrinterInput } from '../domain/tillSchema'
-import { Button, ErrorMessage } from '../design'
+import { Button, ErrorMessage, Select } from '../design'
 import { PaperPreview } from './ReceiptActions'
 import type { TillEvent } from './tillEvents'
 import './receipt.css'
@@ -174,7 +174,7 @@ export function TillSettings() {
           {hasLocations(state) && (
             <label>
               Location
-              <select
+              <Select
                 value={siteId}
                 onChange={(e) => {
                   setSiteId(e.target.value)
@@ -189,7 +189,7 @@ export function TillSettings() {
                     {site.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           )}
           <div role="radiogroup" aria-label="How receipts print" className="till-modes">
@@ -259,13 +259,13 @@ export function TillSettings() {
             </summary>
             <label>
               Paper width
-              <select
+              <Select
                 value={draft.paper}
                 onChange={(e) => update({ paper: e.target.value as PaperWidth })}
               >
                 <option value="80">80 mm, the usual till roll</option>
                 <option value="58">58 mm, a narrow roll</option>
-              </select>
+              </Select>
             </label>
             {draft.mode === 'network' && (
               <label>

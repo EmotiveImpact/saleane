@@ -292,7 +292,7 @@ function WorkspaceApp() {
     const open = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
       const typing =
-        !!target?.closest('input, textarea, select, [contenteditable="true"]') ||
+        !!target?.closest('input, textarea, select, [role="combobox"], [contenteditable="true"]') ||
         !!document.querySelector('[role="dialog"]')
       const command = event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey)
       if (

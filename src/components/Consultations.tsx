@@ -10,7 +10,7 @@ import { healthWordIn } from '../domain/forms'
 import type { Appointment } from '../domain/model'
 import { dateLabel, money } from '../domain/format'
 import { minorInput, parseMinor } from '../domain/money'
-import { Button, ErrorMessage, Modal } from '../design'
+import { Button, ErrorMessage, Modal, Select } from '../design'
 import { BookingDialog } from './BookingDialog'
 import { StudioDateField } from './StudioDateField'
 import { useRun } from './usePayment'
@@ -228,7 +228,7 @@ function ConsultationForm({
           </label>
           <label>
             With
-            <select
+            <Select
               value={staffId}
               disabled={!!existing}
               onChange={(e) => setStaffId(e.target.value)}
@@ -241,7 +241,7 @@ function ConsultationForm({
                     {p.name}
                   </option>
                 ))}
-            </select>
+            </Select>
           </label>
         </div>
         <fieldset className="consultation-services">

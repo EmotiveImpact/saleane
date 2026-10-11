@@ -21,7 +21,7 @@ import {
   usuallyAt,
   weekTeam,
 } from '../domain/team'
-import { Avatar, Button, ErrorMessage, Modal, PageHeader, useScrollEdges } from '../design'
+import { Avatar, Button, ErrorMessage, Modal, PageHeader, useScrollEdges, Select } from '../design'
 import '../components/management.css'
 import '../rota.css'
 import { StudioDateField } from '../components/StudioDateField'
@@ -688,13 +688,13 @@ function TimeOffDialog({
           {!editing && (
             <label className="ops-wide">
               Who
-              <select value={staffId} onChange={(e) => setStaffId(e.target.value)}>
+              <Select value={staffId} onChange={(e) => setStaffId(e.target.value)}>
                 {team.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           )}
           <label>
@@ -714,13 +714,13 @@ function TimeOffDialog({
           </label>
           <label>
             Kind
-            <select value={kind} onChange={(e) => setKind(e.target.value as TimeOff['kind'])}>
+            <Select value={kind} onChange={(e) => setKind(e.target.value as TimeOff['kind'])}>
               {timeOffKinds.map((k) => (
                 <option key={k} value={k}>
                   {TIME_OFF_LABEL[k]}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label>
             Note (optional)

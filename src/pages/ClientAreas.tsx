@@ -9,7 +9,7 @@ import { areaChange, mapAreas, mapFeatures, mapReady, milesBetween } from '../do
 import type { MapArea } from '../domain/areaMap'
 import { AreaMap } from '../components/AreaMap'
 import type { MapMeasure } from '../components/AreaMap'
-import { Empty, Metric, PageHeader, SegmentedControl } from '../design'
+import { Empty, Metric, PageHeader, SegmentedControl, Select } from '../design'
 import '../components/management.css'
 import '../components/clientAreas.css'
 
@@ -51,7 +51,7 @@ export function ClientAreas() {
         {multiSite && (
           <label className="areas-where">
             Location
-            <select
+            <Select
               value={where}
               onChange={(e) => {
                 setWhere(e.target.value)
@@ -64,7 +64,7 @@ export function ClientAreas() {
                   {site.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         )}
         <SegmentedControl

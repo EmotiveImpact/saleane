@@ -6,7 +6,7 @@ import { can } from '../domain/operations'
 import { checkBarcode, normaliseBarcode, productWithBarcode } from '../domain/barcode'
 import { products } from '../domain/retail'
 import type { Product } from '../domain/retail'
-import { Button } from '../design'
+import { Button, Select } from '../design'
 import { useBarcodeScan } from './barcodeScan'
 import { CameraScanButton } from './CameraScan'
 import './scan.css'
@@ -210,7 +210,7 @@ export function ScanField({
           {without.length > 0 ? (
             <label>
               Which product has barcode {unknown.code}?
-              <select
+              <Select
                 value={attachTo}
                 disabled={pending}
                 onChange={(event) => {
@@ -224,7 +224,7 @@ export function ScanField({
                     {product.name}
                   </option>
                 ))}
-              </select>
+              </Select>
               <small>Products that already have a barcode are not listed.</small>
             </label>
           ) : (

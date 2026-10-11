@@ -13,7 +13,7 @@ import {
   textNumber,
 } from '../domain/reminders'
 import type { ReminderSettings } from '../domain/reminders'
-import { Button, ErrorMessage } from '../design'
+import { Button, ErrorMessage, Select } from '../design'
 import type { Client } from '../domain/model'
 import { kindLabel, useSentMessages } from './sentMessages'
 import { isSocialChannel, socialLabel } from '../domain/inboxSchema'
@@ -118,7 +118,7 @@ export function MessageSettings() {
           </label>
           <label>
             When the reminder goes
-            <select
+            <Select
               value={draft.hoursBefore}
               disabled={!draft.reminders}
               onChange={(e) =>
@@ -134,7 +134,7 @@ export function MessageSettings() {
                       : 'Two days before'}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         </fieldset>
         <fieldset className="message-settings" disabled={!editable || pending}>

@@ -8,7 +8,7 @@ import type { Session } from '../state/api'
 import { rememberStudio } from '../state/lastStudio'
 import { passkeyProblem, passkeySignIn, passkeysInBrowser } from '../state/passkeys'
 import { roleNames } from '../domain/operations'
-import { Button, ErrorMessage } from '../design'
+import { Button, ErrorMessage, Select } from '../design'
 import { BrandsTogether } from '../components/BrandsTogether'
 import { HelpButton } from '../components/HelpButton'
 import { InvitationSummary } from '../components/InvitationSummary'
@@ -573,7 +573,7 @@ export function Account() {
                     <div className="form-grid">
                       <label>
                         Market
-                        <select
+                        <Select
                           value={region}
                           onChange={(e) => {
                             const next = e.target.value as 'UK' | 'US'
@@ -583,11 +583,11 @@ export function Account() {
                         >
                           <option value="UK">United Kingdom · GBP</option>
                           <option value="US">United States · USD</option>
-                        </select>
+                        </Select>
                       </label>
                       <label>
                         Venue time zone
-                        <select value={timeZone} onChange={(e) => setTimeZone(e.target.value)}>
+                        <Select value={timeZone} onChange={(e) => setTimeZone(e.target.value)}>
                           {(region === 'UK'
                             ? ['Europe/London']
                             : [
@@ -601,7 +601,7 @@ export function Account() {
                           ).map((zone) => (
                             <option key={zone}>{zone}</option>
                           ))}
-                        </select>
+                        </Select>
                       </label>
                     </div>
                     <label className="checkbox-label">

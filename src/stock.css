@@ -298,7 +298,8 @@
   margin: 0 0 0.9rem;
   font-size: 0.9rem;
 }
-.stock-where select {
+.stock-where select,
+.stock-where .select-trigger {
   min-width: min(14rem, 100%);
 }
 

@@ -7,7 +7,14 @@ import { contactSchema } from '../domain/commandSchema'
 import { useStore } from '../state/context'
 import type { BusinessState } from '../domain/model'
 import { addDays, dateLabel, money, timeLabel } from '../domain/format'
-import { Button, ErrorMessage, TimeChoices, treatmentPhoto, useStepArrival } from '../design'
+import {
+  Button,
+  ErrorMessage,
+  TimeChoices,
+  treatmentPhoto,
+  useStepArrival,
+  Select,
+} from '../design'
 import { BotCheck } from '../components/BotCheck'
 import { BookingFrame } from '../components/BookingFrame'
 import { TreatmentPicker } from '../components/TreatmentPicker'
@@ -1353,7 +1360,7 @@ function BookingFlow({
                   )}
                   <label>
                     Your professional
-                    <select
+                    <Select
                       value={staffId}
                       onChange={(e) => {
                         setStaffId(e.target.value)
@@ -1375,7 +1382,7 @@ function BookingFlow({
                             {p.name}
                           </option>
                         ))}
-                    </select>
+                    </Select>
                   </label>
                   <DayStrip
                     days={stripDays}

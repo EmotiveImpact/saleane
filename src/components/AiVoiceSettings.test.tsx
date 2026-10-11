@@ -91,7 +91,7 @@ describe('how your AI speaks', () => {
   it('keeps SALEANE’s own voice unless the studio chooses another', async () => {
     const user = userEvent.setup()
     render(<AiVoiceSettings />)
-    expect(screen.getByRole('combobox', { name: /Ask SALEANE’s voice/ })).toHaveDisplayValue(
+    expect(screen.getByRole('combobox', { name: /Ask SALEANE’s voice/ })).toHaveTextContent(
       'Vesper (SALEANE’s own)',
     )
     await user.click(screen.getByRole('button', { name: 'Save how your AI speaks' }))

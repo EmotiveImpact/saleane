@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ChevronRight, Info, Search, Sparkles } from 'lucide-react'
 import { api } from '../state/api'
-import { Button, ErrorMessage, Modal } from '../design'
+import { Button, ErrorMessage, Modal, Select } from '../design'
 import type { Role } from '../domain/operations'
 import {
   HELP_GROUPS,
@@ -285,13 +285,13 @@ function WriteToUs({
       <form onSubmit={(event) => void send(event)} className="help-form">
         <label>
           About
-          <select value={topic} onChange={(e) => setTopic(e.target.value as SupportTopic)}>
+          <Select value={topic} onChange={(e) => setTopic(e.target.value as SupportTopic)}>
             {SUPPORT_TOPICS.map((value) => (
               <option key={value} value={value}>
                 {supportTopicWords[value]}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label>
           What do you need?

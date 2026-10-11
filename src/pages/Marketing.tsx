@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useStore } from '../state/context'
 import { api } from '../state/api'
-import { Button, Empty, ErrorMessage, PageHeader, Stat, Stats } from '../design'
+import { Button, Empty, ErrorMessage, PageHeader, Stat, Stats, Select } from '../design'
 import { can, operations } from '../domain/operations'
 import { missYouDayChoices, reminderSettings } from '../domain/reminders'
 import type { ReminderSettings } from '../domain/reminders'
@@ -181,7 +181,7 @@ export function MarketingAutomatic() {
                 {kind === 'miss_you' && (
                   <label className="marketing-gap">
                     A long gap is
-                    <select
+                    <Select
                       value={draft.missYouDays ?? 90}
                       disabled={!on}
                       onChange={(e) => {
@@ -200,7 +200,7 @@ export function MarketingAutomatic() {
                           without a visit
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </label>
                 )}
                 <p className="marketing-count">

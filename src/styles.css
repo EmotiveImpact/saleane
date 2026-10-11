@@ -24,11 +24,13 @@ a {
 button,
 input,
 select,
+.select-trigger,
 textarea {
   font: inherit;
 }
 button,
-select {
+select,
+.select-trigger {
   cursor: pointer;
 }
 button {
@@ -42,7 +44,8 @@ button,
 a,
 input,
 textarea,
-select {
+select,
+.select-trigger {
   -webkit-tap-highlight-color: transparent;
 }
 :focus-visible {
@@ -51,6 +54,7 @@ select {
 }
 input:focus-visible,
 select:focus-visible,
+.select-trigger:focus-visible,
 textarea:focus-visible {
   outline-offset: 1px;
 }
@@ -92,6 +96,7 @@ svg {
 }
 input:not([type='checkbox']),
 select,
+.select-trigger,
 textarea {
   border: 1px solid var(--line2);
   background: #fff;
@@ -134,6 +139,7 @@ label {
 }
 label input,
 label select,
+label .select-trigger,
 label textarea {
   font-weight: var(--weight-body);
 }
@@ -1112,7 +1118,8 @@ fieldset {
   align-items: center;
   gap: 12px;
 }
-.calendar-filters select {
+.calendar-filters select,
+.calendar-filters .select-trigger {
   min-height: 36px;
   width: 158px;
   padding: 6px 10px;
@@ -1576,12 +1583,17 @@ fieldset {
   width: auto;
   min-width: 0;
 }
-.sort-field select {
+.sort-field select,
+.sort-field .select-trigger {
   min-height: 38px;
   padding: 6px 34px 6px 16px;
   border-radius: var(--radius-pill);
   font-size: var(--text-meta);
   width: auto;
+}
+/* SALEANE's own list draws its arrow inside the field, so it needs no room kept for the browser's. */
+.sort-field .select-trigger {
+  padding-right: 14px;
 }
 .tag {
   display: inline-flex;
@@ -3642,7 +3654,8 @@ fieldset {
     width: 100%;
     justify-content: space-between;
   }
-  .calendar-filters select {
+  .calendar-filters select,
+  .calendar-filters .select-trigger {
     width: 190px;
   }
   .calendar-legend {
@@ -3680,7 +3693,8 @@ fieldset {
     min-width: 0;
   }
   .sort-field,
-  .sort-field select {
+  .sort-field select,
+  .sort-field .select-trigger {
     width: 100%;
   }
   .directory-toolbar .search-field input {
@@ -4563,7 +4577,8 @@ fieldset {
   }
 }
 /* V2: figures for one location. */
-.business-where select {
+.business-where select,
+.business-where .select-trigger {
   min-width: min(13rem, 100%);
 }
 
@@ -4584,9 +4599,11 @@ fieldset {
   .text-link,
   .date-controls .button,
   .calendar-filters select,
+  .calendar-filters .select-trigger,
   .calendar-date-picker input,
   .search-field input,
   .sort-field select,
+  .sort-field .select-trigger,
   .directory-paging .button,
   .date-strip-other input,
   .client-table .client-cell,

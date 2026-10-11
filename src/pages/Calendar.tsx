@@ -16,6 +16,7 @@ import {
   SegmentedControl,
   arriveGently,
   settleFrom,
+  Select,
 } from '../design'
 import { Agenda } from '../components/Agenda'
 import { PeopleColumns } from '../components/PeopleColumns'
@@ -256,7 +257,7 @@ export function Calendar() {
             <label className="sr-only" htmlFor="staff-filter">
               Filter professional
             </label>
-            <select
+            <Select
               id="staff-filter"
               value={staffFilter}
               onChange={(e) => setStaffFilter(e.target.value)}
@@ -267,13 +268,13 @@ export function Calendar() {
                   {s.name}
                 </option>
               ))}
-            </select>
+            </Select>
             {multiSite && (
               <>
                 <label className="sr-only" htmlFor="location-filter">
                   Filter location
                 </label>
-                <select
+                <Select
                   id="location-filter"
                   value={locationFilter}
                   onChange={(e) => setLocationFilter(e.target.value)}
@@ -284,7 +285,7 @@ export function Calendar() {
                       {p.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </>
             )}
             {period === 'day' && (

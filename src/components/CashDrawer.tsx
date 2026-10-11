@@ -6,7 +6,7 @@ import { can } from '../domain/operations'
 import { money } from '../domain/format'
 import { places } from '../domain/locations'
 import { drawerConnected, noSaleProblem, tillPrinter } from '../domain/till'
-import { Button, ErrorMessage } from '../design'
+import { Button, ErrorMessage, Select } from '../design'
 import { drawerWords } from './tillEvents'
 import type { TillEvent } from './tillEvents'
 import './receipt.css'
@@ -156,13 +156,13 @@ export function CashDrawer({ date }: { date: string }) {
               {drawers.length > 1 && (
                 <label>
                   Which drawer
-                  <select value={chosen?.id} onChange={(e) => setSiteId(e.target.value)}>
+                  <Select value={chosen?.id} onChange={(e) => setSiteId(e.target.value)}>
                     {drawers.map((site) => (
                       <option key={site.id} value={site.id}>
                         {site.name}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
               )}
             </div>

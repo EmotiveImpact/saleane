@@ -22,6 +22,7 @@ import {
   SegmentedControl,
   Stat,
   Stats,
+  Select,
 } from '../design'
 import { PaymentFields } from '../components/Plans'
 import { SoldAt } from '../components/SoldAt'
@@ -431,13 +432,13 @@ export function GiftCards() {
                   ) : (
                     <label className="ops-field">
                       Treatment
-                      <select value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
+                      <Select value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
                         {services.map((service) => (
                           <option key={service.id} value={service.id}>
                             {service.name} · {money(service.priceMinor, org, true)}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                       <small>
                         Worth today’s price. If the price goes up, the guest pays the difference.
                       </small>
@@ -445,14 +446,14 @@ export function GiftCards() {
                   )}
                   <label className="ops-field">
                     Bought by a client?
-                    <select value={clientId} onChange={(e) => setClientId(e.target.value)}>
+                    <Select value={clientId} onChange={(e) => setClientId(e.target.value)}>
                       <option value="">Someone new</option>
                       {state.clients.map((client) => (
                         <option key={client.id} value={client.id}>
                           {client.name}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </label>
                   {!clientId && (
                     <label className="ops-field">
@@ -522,13 +523,13 @@ export function GiftCards() {
                 <>
                   <label className="ops-field">
                     Move to
-                    <select value={moveTo} required onChange={(e) => setMoveTo(e.target.value)}>
+                    <Select value={moveTo} required onChange={(e) => setMoveTo(e.target.value)}>
                       {destinations(current).map((place) => (
                         <option key={place.id} value={place.id}>
                           {place.name}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </label>
                   <label className="ops-field">
                     Why it is moving

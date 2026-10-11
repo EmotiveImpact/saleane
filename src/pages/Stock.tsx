@@ -14,7 +14,7 @@ import type { Product } from '../domain/retail'
 import { CounterSales } from '../components/CounterSales'
 import { SupplierOrders } from '../components/SupplierOrders'
 import { suppliers } from '../domain/purchasing'
-import { Button, Empty, ErrorMessage, Modal, PageHeader, SegmentedControl } from '../design'
+import { Button, Empty, ErrorMessage, Modal, PageHeader, SegmentedControl, Select } from '../design'
 import { ProductTile } from '../components/ProductTile'
 import { ProductPhotoField } from '../components/ProductPhotoField'
 import { ScanField } from '../components/ScanField'
@@ -466,14 +466,14 @@ export function Stock() {
         {multiSite && (
           <label className="stock-where">
             Location
-            <select value={where} onChange={(e) => setWhere(e.target.value)}>
+            <Select value={where} onChange={(e) => setWhere(e.target.value)}>
               <option value="all">All locations</option>
               {sites.map((site) => (
                 <option key={site.id} value={site.id}>
                   {site.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         )}
         <SegmentedControl
@@ -758,7 +758,7 @@ export function Stock() {
                   </label>
                   <label>
                     Supplier
-                    <select
+                    <Select
                       value={form.supplierId}
                       onChange={(e) => change({ supplierId: e.target.value })}
                     >
@@ -770,7 +770,7 @@ export function Stock() {
                             {x.name}
                           </option>
                         ))}
-                    </select>
+                    </Select>
                   </label>
                   <label>
                     Usually order
@@ -822,7 +822,7 @@ export function Stock() {
               {multiSite && (
                 <label>
                   {moving.kind === 'move' ? 'From' : 'Location'}
-                  <select
+                  <Select
                     value={at}
                     onChange={(e) => {
                       setAt(e.target.value)
@@ -835,13 +835,13 @@ export function Stock() {
                         {site.name} ({stock(state, moving.product.id, site.id)})
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
               )}
               {moving.kind === 'move' && (
                 <label>
                   To
-                  <select value={to} onChange={(e) => setTo(e.target.value)}>
+                  <Select value={to} onChange={(e) => setTo(e.target.value)}>
                     {sites
                       .filter((site) => site.id !== at)
                       .map((site) => (
@@ -849,7 +849,7 @@ export function Stock() {
                           {site.name}
                         </option>
                       ))}
-                  </select>
+                  </Select>
                 </label>
               )}
               <label>

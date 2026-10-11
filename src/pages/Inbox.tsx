@@ -22,6 +22,7 @@ import {
   MovingRow,
   PageHeader,
   SegmentedControl,
+  Select,
 } from '../design'
 import type { BusinessState } from '../domain/model'
 import { useInboxView } from '../state/inboxView'
@@ -611,14 +612,14 @@ export function Inbox() {
             >
               <label>
                 Link to a client
-                <select value={linkTo} onChange={(e) => setLinkTo(e.target.value)} required>
+                <Select value={linkTo} onChange={(e) => setLinkTo(e.target.value)} required>
                   <option value="">Choose a client</option>
                   {state.clients.map((x) => (
                     <option key={x.id} value={x.id}>
                       {x.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
               <Button type="submit" variant="secondary" disabled={!allowedDraft || !!pending}>
                 Match to this client
@@ -861,7 +862,7 @@ export function Inbox() {
             <div className="ops-fields">
               <label>
                 Client
-                <select
+                <Select
                   required
                   disabled={!!editingId}
                   value={clientId}
@@ -878,11 +879,11 @@ export function Inbox() {
                       {item.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
               <label>
                 Purpose
-                <select
+                <Select
                   disabled={!!editingId}
                   value={purpose}
                   onChange={(event) => {
@@ -893,11 +894,11 @@ export function Inbox() {
                 >
                   <option value="appointment">Visit update</option>
                   <option value="marketing">Marketing</option>
-                </select>
+                </Select>
               </label>
               <label>
                 Send by
-                <select
+                <Select
                   value={channel}
                   onChange={(event) => setChannel(event.target.value as typeof channel)}
                 >
@@ -910,12 +911,12 @@ export function Inbox() {
                         ? ' (texts are off)'
                         : ' (no mobile number)'}
                   </option>
-                </select>
+                </Select>
               </label>
               {saved.length > 0 && (
                 <label>
                   Start from a saved reply
-                  <select
+                  <Select
                     value=""
                     onChange={(event) => {
                       const pick = saved.find((r) => r.id === event.target.value)
@@ -928,12 +929,12 @@ export function Inbox() {
                         {r.name}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
               )}
               <label className="ops-wide">
                 Related visit (optional)
-                <select
+                <Select
                   value={appointmentId}
                   onChange={(event) => setAppointmentId(event.target.value)}
                 >
@@ -948,7 +949,7 @@ export function Inbox() {
                         {state.services.find((service) => service.id === item.serviceId)?.name}
                       </option>
                     ))}
-                </select>
+                </Select>
               </label>
               {channel === 'email' && (
                 <label className="ops-wide">
@@ -1047,11 +1048,11 @@ function NoteReply({
         <div className="ops-fields">
           <label>
             They answered
-            <select value={how} onChange={(e) => setHow(e.target.value as typeof how)}>
+            <Select value={how} onChange={(e) => setHow(e.target.value as typeof how)}>
               <option value="phone">By phone</option>
               <option value="in person">In person</option>
               <option value="elsewhere">Another way</option>
-            </select>
+            </Select>
           </label>
           <label className="ops-wide">
             What they said

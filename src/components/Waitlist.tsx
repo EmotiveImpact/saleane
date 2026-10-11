@@ -20,7 +20,7 @@ import type { WaitlistEntry, WaitlistInput, WaitlistTime } from '../domain/waitl
 import { addDays, dateLabel, timeLabel } from '../domain/format'
 import { feedbackDay } from '../domain/feedback'
 import type { Command } from '../domain/commands'
-import { Button, ErrorMessage, Modal, MovingRow } from '../design'
+import { Button, ErrorMessage, Modal, MovingRow, Select } from '../design'
 import { hasLocations, places } from '../domain/locations'
 import { StudioDateField } from './StudioDateField'
 import './management.css'
@@ -104,7 +104,7 @@ export function WaitlistForm({ clientId, onClose }: { clientId?: string; onClose
           {!clientId && (
             <label className="ops-wide">
               Client
-              <select
+              <Select
                 required
                 value={input.clientId}
                 onChange={(e) => change({ clientId: e.target.value })}
@@ -115,12 +115,12 @@ export function WaitlistForm({ clientId, onClose }: { clientId?: string; onClose
                     {c.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           )}
           <label>
             Treatment
-            <select
+            <Select
               value={input.serviceId}
               onChange={(e) => change({ serviceId: e.target.value, staffId: undefined })}
             >
@@ -129,11 +129,11 @@ export function WaitlistForm({ clientId, onClose }: { clientId?: string; onClose
                   {s.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label>
             With
-            <select
+            <Select
               value={input.staffId ?? ''}
               onChange={(e) => change({ staffId: e.target.value || undefined })}
             >
@@ -143,12 +143,12 @@ export function WaitlistForm({ clientId, onClose }: { clientId?: string; onClose
                   {p.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           {hasLocations(state) && (
             <label>
               Where
-              <select
+              <Select
                 value={input.locationId ?? ''}
                 onChange={(e) => change({ locationId: e.target.value || undefined })}
               >
@@ -158,7 +158,7 @@ export function WaitlistForm({ clientId, onClose }: { clientId?: string; onClose
                     {place.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           )}
           <label>

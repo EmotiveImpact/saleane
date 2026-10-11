@@ -99,7 +99,7 @@ describe('moving someone from the rota', () => {
     await user.click(within(panel()).getByRole('button', { name: 'Move someone' }))
     const dialog = screen.getByRole('dialog', { name: 'Move someone to another location' })
     expect(within(dialog).getByLabelText('Who is moving')).toHaveValue('staff-maya')
-    expect(within(dialog).getByLabelText('Moving to')).toHaveDisplayValue('Shoreditch')
+    expect(within(dialog).getByLabelText('Moving to')).toHaveTextContent('Shoreditch')
     // Her week from the Monday after this one, at Shoreditch, before anything is saved.
     expect(dialog).toHaveTextContent("Maya's week from Monday 12 October")
     expect(dialog).toHaveTextContent('Monday09:00 to 18:00 at Shoreditch')

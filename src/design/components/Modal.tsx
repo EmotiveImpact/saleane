@@ -100,7 +100,7 @@ export function Modal({
               placement === 'start'
                 ? content.current?.querySelector<HTMLElement>('[aria-current="page"], a, button')
                 : (content.current?.querySelector<HTMLElement>(
-                    'input:not([type="checkbox"]):not(:disabled), select:not(:disabled), textarea:not(:disabled)',
+                    'input:not([type="checkbox"]):not(:disabled), select:not(:disabled), .select-trigger:not(:disabled), textarea:not(:disabled)',
                   ) ?? content.current?.querySelector<HTMLElement>('button:not(:disabled)'))
             target?.focus()
           }}

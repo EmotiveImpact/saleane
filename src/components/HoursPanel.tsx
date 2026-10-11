@@ -14,7 +14,7 @@ import {
   shiftMinutes,
 } from '../domain/hours'
 import type { Shift } from '../domain/hoursSchema'
-import { Avatar, Button, ErrorMessage, Modal, TimeField } from '../design'
+import { Avatar, Button, ErrorMessage, Modal, TimeField, Select } from '../design'
 import { StudioDateField } from './StudioDateField'
 import { BreakField } from './Clock'
 import { useClock } from '../state/clock'
@@ -272,7 +272,7 @@ function ShiftDialog({
         {!shift && (
           <label>
             Person
-            <select
+            <Select
               value={staffId}
               aria-required="true"
               onChange={(e) => setStaffId(e.target.value)}
@@ -283,7 +283,7 @@ function ShiftDialog({
                   {p.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         )}
         <label>
