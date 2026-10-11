@@ -56,7 +56,6 @@ import { LocationsSettings } from '../components/LocationsSettings'
 import { hasLocations, placeOf, places, resourceLocation } from '../domain/locations'
 import { usuallyAt } from '../domain/team'
 import { FormSettings } from '../components/GuestForms'
-import { EmailNewsWording } from '../components/EmailConsent'
 import { SavedReplies } from '../components/SavedReplies'
 import { Connections } from '../components/Connections'
 import { AccessKeys } from '../components/AccessKeys'
@@ -437,7 +436,6 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                 <QuietOffers />
                 <EmailLook />
                 <SavedReplies />
-                <EmailNewsWording />
               </>
             )}
             {section === 'payments' && <PaymentSettings />}

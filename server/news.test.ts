@@ -472,9 +472,10 @@ describe('when each copy leaves the outbox', () => {
     await api.outbox.deliver()
     const mail = sent.find((m) => m.to === 'c1@example.invalid')!
     const link = /\/news\/stop#([A-Za-z0-9_-]+)/.exec(mail.body)!
+    // The mail app's own Unsubscribe button posts to the same link's one-click address.
     expect(mail).toMatchObject({
       stream: 'broadcast',
-      unsubscribeUrl: `${origin}/news/stop#${link[1]}`,
+      unsubscribeUrl: `${origin}/api/news/one-click/${link[1]}`,
     })
     expect(mail.body).toContain(
       'You are hearing from Linden Rooms because you agreed to news and offers. To stop them, use this link:',
@@ -526,6 +527,47 @@ describe('when each copy leaves the outbox', () => {
       preferences: '',
     } as Command)
     expect((await guest('open', second)).statusCode).toBe(404)
+  })
+
+  it('stops news from a mail app’s own Unsubscribe button, with no page and no sign-in (RFC 8058)', async () => {
+    serve(true)
+    const { owner } = await studio()
+    const id = await draft(owner)
+    expect((await approve(owner, id, 4, 0)).statusCode).toBe(200)
+    await api.outbox.deliver()
+    const mail = sent.find((m) => m.to === 'c1@example.invalid')!
+    const raw = /\/news\/stop#([A-Za-z0-9_-]+)/.exec(mail.body)![1]
+    const oneClick = (body: string, method: 'POST' | 'GET' = 'POST', token = raw) =>
+      api.inject({
+        method,
+        url: `/api/news/one-click/${token}`,
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        ...(method === 'POST' ? { rawPayload: body } : {}),
+      })
+    // Opened in a browser, it goes to the page that asks before stopping.
+    const opened = await oneClick('', 'GET')
+    expect(opened.statusCode).toBe(303)
+    expect(opened.headers.location).toBe(`${origin}/news/stop#${raw}`)
+    // Only the one-click post stops it, from the mail provider's servers with no origin.
+    expect((await oneClick('List-Unsubscribe=Other')).statusCode).toBe(400)
+    expect((await state(owner)).clients.find((c) => c.id === 'c1')!.marketingConsent).toBe(true)
+    const stopped = await oneClick('List-Unsubscribe=One-Click')
+    expect(stopped.statusCode).toBe(200)
+    expect(stopped.json()).toEqual({ stopped: true })
+    const s = await state(owner)
+    expect(
+      s.clients.filter((c) => c.id === 'c1' || c.id === 'c5').map((c) => c.marketingConsent),
+    ).toEqual([false, false])
+    expect(audit('guest.news-stop')).toEqual([
+      expect.objectContaining({ actor_id: null, record_id: 'c1' }),
+    ])
+    // Pressed again it changes nothing; a made-up link reads like any expired one.
+    expect((await oneClick('List-Unsubscribe=One-Click')).statusCode).toBe(200)
+    expect(audit('guest.news-stop')).toHaveLength(1)
+    expect((await oneClick('List-Unsubscribe=One-Click', 'POST', 'x'.repeat(43))).statusCode).toBe(
+      404,
+    )
+    expect(JSON.stringify(api.database.all('SELECT * FROM news_links'))).not.toContain(raw)
   })
 })
 
@@ -667,5 +709,119 @@ describe('the email provider', () => {
         { Name: 'List-Unsubscribe-Post', Value: 'List-Unsubscribe=One-Click' },
       ],
     })
+  })
+})
+
+// NEXT-14: the Marketing section's numbers, and the month's marketing emails as a hard stop.
+describe('marketing', () => {
+  const DAY = 86400000
+  /** Copies already in the outbox, as earlier sending would have left them. */
+  function fill(orgId: string, n: number, status: string, kind: string, at: number) {
+    api.database.run(
+      `WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM n WHERE i<?)
+       INSERT INTO outbox(id,organisation_id,dedupe_key,appointment_id,client_id,kind,channel,slot,recipient,subject,body,status,next_attempt_at,created_at,updated_at)
+       SELECT ?||i,?,?||i,'','earlier-'||i,?,'email','earlier','earlier'||i||'@example.invalid','Earlier','Earlier words',?,?,?,? FROM n`,
+      n,
+      `${kind}-${status}-${at}-`,
+      orgId,
+      `${kind}-${status}-${at}-`,
+      kind,
+      status,
+      at,
+      at,
+      at,
+    )
+  }
+  type Marketing = {
+    emails?: { used: number; limit: number }
+    campaigns: { id: string; sent: number; test: number }[]
+    automatic?: { kind: string }[]
+  }
+
+  it('sets a campaign’s emails aside when approved, and refuses one that would go over the month’s', async () => {
+    serve(true)
+    const { owner } = await studio()
+    // Two locations, so 4,000 this month. Earlier this month 3,997 marketing emails went. Copies in test mode, failed ones, aftercare
+    // (about a visit) and last month's do not count.
+    fill(owner.orgId, 3997, 'accepted', 'birthday', clock - DAY)
+    fill(owner.orgId, 30, 'test', 'news', clock - DAY)
+    fill(owner.orgId, 30, 'failed', 'miss_you', clock - DAY)
+    fill(owner.orgId, 30, 'accepted', 'aftercare', clock - DAY)
+    fill(owner.orgId, 30, 'accepted', 'due_back', Date.parse('2026-09-30T22:00:00.000Z'))
+    expect((await get(owner, '/marketing')).json<Marketing>().emails).toEqual({
+      used: 3997,
+      limit: 4000,
+    })
+    const id = await draft(owner)
+    const refused = await approve(owner, id, 4, 0)
+    expect(refused.statusCode).toBe(409)
+    expect(refused.json<{ error: string }>().error).toBe(
+      'This campaign would send 4 emails, and 3 of this month’s 4,000 marketing emails are left. Choose fewer locations, send it by text, or approve it next month.',
+    )
+    expect(rows().filter((r) => r.slot === `news:${id}`)).toEqual([])
+    expect((await state(owner)).operations!.news![0].status).toBe('draft')
+    // On the 1st the month starts again, on the studio's own clock.
+    clock = Date.parse('2026-11-03T10:00:00.000Z')
+    const again = await api.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { email: 'owner@example.invalid', password },
+    })
+    expect(again.statusCode, again.body).toBe(200)
+    owner.csrf = again.json<{ csrf: string }>().csrf
+    owner.cookie = cookie(again)
+    expect((await approve(owner, id, 4, 0)).statusCode).toBe(200)
+    // Approved copies still waiting are set aside: a second campaign cannot take them.
+    expect((await get(owner, '/marketing')).json<Marketing>().emails).toEqual({
+      used: 4,
+      limit: 4000,
+    })
+    await api.outbox.deliver()
+    expect(sent).toHaveLength(4)
+    expect((await get(owner, '/marketing')).json<Marketing>().emails).toEqual({
+      used: 4,
+      limit: 4000,
+    })
+  })
+
+  it('says only numbers, and shows a general manager only their own location’s campaigns', async () => {
+    serve(true)
+    const { owner } = await studio()
+    const gm = await invite(owner, 'gm@example.invalid', 'general', { locationId: NORTH })
+    const everyone = await draft(owner)
+    const theirs = await draft(gm, { locationIds: [NORTH] })
+    expect((await approve(owner, everyone, 4, 0)).statusCode).toBe(200)
+    expect((await approve(owner, theirs, 3, 0)).statusCode).toBe(200)
+    await api.outbox.deliver()
+    const mine = (await get(owner, '/marketing')).json<Marketing>()
+    expect(mine.campaigns).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: everyone, sent: 4 }),
+        expect.objectContaining({ id: theirs, sent: 3 }),
+      ]),
+    )
+    expect(mine.automatic!.map((a) => a.kind)).toEqual([
+      'aftercare',
+      'due_back',
+      'birthday',
+      'miss_you',
+    ])
+    expect(mine.emails).toEqual({ used: 7, limit: 4000 })
+    expect(JSON.stringify(mine)).not.toMatch(/example\.invalid|"c[0-9]"|Client [0-9]/)
+    const north = (await get(gm, '/marketing')).json<Marketing>()
+    expect(north.campaigns.map((c) => c.id)).toEqual([theirs])
+    expect(north).not.toHaveProperty('automatic')
+    const desk = await invite(owner, 'desk@example.invalid', 'reception')
+    expect((await get(desk, '/marketing')).statusCode).toBe(403)
+  })
+
+  it('counts nothing in a sample studio, which never sends', async () => {
+    serve()
+    const sample = await register('sample@example.invalid', {
+      workspace: { name: 'Sample Rooms', locationName: 'Soho', region: 'UK', sample: true },
+    })
+    const results = (await get(sample, '/marketing')).json<Marketing & { mode: string }>()
+    expect(results.mode).toBe('sandbox')
+    expect(results).not.toHaveProperty('emails')
   })
 })

@@ -220,7 +220,9 @@ describe('designed emails', () => {
     for (const kind of sampleKinds) {
       const { subject, body } = sampleMessage(state, kind, '2026-10-06', '2026-10-06T08:00:00.000Z')
       expect(body.startsWith('Hello Alex,')).toBe(true)
-      if (kind !== 'birthday') expect(body).toContain('Wednesday 7 October at 10:00')
+      // The visit emails name tomorrow's visit; birthday and the automatic ones in Marketing do not.
+      if (['confirmation', 'reminder', 'feedback'].includes(kind))
+        expect(body).toContain('Wednesday 7 October at 10:00')
       sameWords(body, renderEmail({ subject, text: body, links, from: studioSender(state) }))
     }
     // The studio's own records are left as they were.

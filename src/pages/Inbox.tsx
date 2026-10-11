@@ -656,7 +656,7 @@ export function Inbox() {
         actions={
           <>
             {leads(role) && (
-              <Link className="button button-secondary" to="/inbox/news">
+              <Link className="button button-secondary" to="/marketing">
                 <Megaphone size={17} />
                 Messages to clients
               </Link>

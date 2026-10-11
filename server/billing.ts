@@ -23,6 +23,7 @@ import {
   RETRY_DAYS,
   TRIAL_DAYS,
   allowanceFor,
+  marketingEmailsFor,
   bookingPeople,
 } from '../src/domain/pricing'
 import type { PriceRegion } from '../src/domain/pricing'
@@ -242,6 +243,16 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
   function allowance(org: Org) {
     const row = planFor(org)
     return allowanceFor({
+      locations: locationsOf(org),
+      plus: !!row?.plus && row.status !== 'trial',
+      paused: row?.status === 'stopped',
+    })
+  }
+
+  /** NEXT-14: the studio's marketing emails this month, counted the same way as its AI. */
+  function marketingEmails(org: Org) {
+    const row = planFor(org)
+    return marketingEmailsFor({
       locations: locationsOf(org),
       plus: !!row?.plus && row.status !== 'trial',
       paused: row?.status === 'stopped',
@@ -1102,6 +1113,7 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
     provider,
     planFor,
     allowance,
+    marketingEmails,
     run,
     start(intervalMs: number) {
       timer = setInterval(() => void run(), intervalMs)

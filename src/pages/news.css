@@ -2,17 +2,6 @@
 .news-page {
   min-width: 0;
 }
-.news-back {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--target);
-  margin-bottom: var(--space-2);
-  color: var(--muted);
-  font-size: var(--text-small);
-}
-.news-back:hover {
-  color: var(--ink);
-}
 
 /* The welcome for a studio with no message yet: the photograph fades into the words. */
 .news-welcome {
@@ -114,6 +103,10 @@
   margin-top: 4px;
   color: var(--muted);
   font-size: var(--text-small);
+}
+.news-row-words .news-row-results {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 .news-aside {
   margin-top: var(--space-6);
@@ -226,6 +219,13 @@
 }
 .news-check p {
   font-size: var(--text-small);
+}
+.news-check p + p {
+  margin-top: var(--space-2);
+}
+/* NEXT-14: more emails than the month has left. Said in words, in the panel's own ink. */
+.news-check .news-over {
+  font-weight: var(--weight-strong);
 }
 .news-actions {
   display: flex;

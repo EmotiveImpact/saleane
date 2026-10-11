@@ -1,6 +1,5 @@
 import { useEffect, useId, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link } from 'react-router-dom'
 import { Mail, MessageSquareText, Plus } from 'lucide-react'
 import { useStore } from '../state/context'
 import { api } from '../state/api'
@@ -28,6 +27,8 @@ import {
 import type { NewsSummary } from '../domain/news'
 import { NEWS_BODY_LIMIT, NEWS_SUBJECT_LIMIT } from '../domain/newsSchema'
 import type { NewsMessage, NewsWay } from '../domain/newsSchema'
+import { tallyWords } from '../domain/marketing'
+import { useMarketingResults } from './marketingResults'
 import '../components/management.css'
 import './news.css'
 
@@ -154,6 +155,7 @@ function standing(m: NewsMessage, counts?: Record<OutboxStatus, number>) {
 export function News() {
   const { state, role, branch, blocked, mode } = useStore()
   const follow = useFollow()
+  const { results } = useMarketingResults()
   const all = newsMessages(state)
   const shown = all.filter((m) => m.status !== 'discarded').reverse()
   const aside = all.filter((m) => m.status === 'discarded').reverse()
@@ -165,18 +167,20 @@ export function News() {
   const mayWrite = can(role, 'news') && (role !== 'general' || !!branch)
   const open = all.find((m) => m.id === openId) ?? null
   const counts = (id: string) => follow?.messages.find((m) => m.id === id)?.outbox
+  // NEXT-14: what each campaign did, once something has happened.
+  const done = (id: string) => {
+    const tally = results?.campaigns.find((c) => c.id === id)
+    return tally ? tallyWords(tally, true) : ''
+  }
 
   const welcome = !shown.length
   return (
     <div className="manage-page news-page">
-      <Link className="news-back" to="/inbox">
-        Back to the inbox
-      </Link>
       {welcome ? (
         <section className="news-welcome" aria-labelledby="news-welcome-title">
           <img className="news-welcome-photo" src={photos.tea} alt="" />
           <div className="news-welcome-words">
-            <p className="eyebrow">Inbox</p>
+            <p className="eyebrow">Marketing</p>
             <h1 id="news-welcome-title">One message for all your clients.</h1>
             <p>
               Write it once for every client who agreed to hear from you, or for the clients of one
@@ -192,8 +196,8 @@ export function News() {
         </section>
       ) : (
         <PageHeader
-          eyebrow="Inbox"
-          title="Messages to clients."
+          eyebrow="Marketing"
+          title="Campaigns"
           description="One message for many clients. Only clients who agreed to news and offers receive it, once each, between 09:00 and 19:00 on the studio’s clock."
           actions={
             mayWrite && (
@@ -236,6 +240,7 @@ export function News() {
                           ? `Approved ${moment(state, m.approvedAt)} for ${clients((m.toEmail ?? 0) + (m.toText ?? 0))}`
                           : `Written by ${m.actor}`}
                       </small>
+                      {done(m.id) && <small className="news-row-results">{done(m.id)}</small>}
                     </span>
                     <span className={`ops-tag ${where.tone}`}>{where.words}</span>
                   </button>
@@ -272,6 +277,7 @@ export function News() {
           counts={counts(open.id)}
           follow={follow}
           sample={sample}
+          emails={results?.emails}
           onClose={() => setOpenId(null)}
           onChange={() => setWriting({ id: open.id })}
           onDone={(words) => {
@@ -404,6 +410,7 @@ function NewsPanel({
   counts,
   follow,
   sample,
+  emails,
   onClose,
   onChange,
   onDone,
@@ -412,6 +419,8 @@ function NewsPanel({
   counts?: Record<OutboxStatus, number>
   follow: Follow | null
   sample: boolean
+  /** NEXT-14: this month's marketing emails, used and included. */
+  emails?: { used: number; limit: number }
   onClose: () => void
   onChange: () => void
   onDone: (notice: string) => void
@@ -437,6 +446,10 @@ function NewsPanel({
     ((!!numbers?.email && follow.providers.email.live) ||
       (!!numbers?.text && follow.providers.sms.live))
   const when = (iso?: string) => (iso ? moment(state, iso) : '')
+  // NEXT-14: a campaign's emails come out of the month's marketing emails, a hard stop.
+  const emailsLeft = emails ? Math.max(0, emails.limit - emails.used) : null
+  const tooMany = !sample && emailsLeft !== null && (numbers?.email ?? 0) > emailsLeft
+  const count = (value: number) => value.toLocaleString('en-GB')
 
   async function act(command: Parameters<typeof commit>[0], done: string) {
     setPending(true)
@@ -557,6 +570,13 @@ function NewsPanel({
                   ? 'They go out between 09:00 and 19:00 on the studio’s clock.'
                   : 'Test mode: they will be queued in test mode, not sent.'}
             </p>
+            {!sample && emails && numbers.email > 0 && (
+              <p className={tooMany ? 'news-over' : undefined}>
+                {tooMany
+                  ? `It would send ${count(numbers.email)} emails, and ${count(emailsLeft!)} of this month’s ${count(emails.limit)} marketing emails are left. Choose fewer locations, send it by text, or approve it next month.`
+                  : `It uses ${count(numbers.email)} of the ${count(emailsLeft!)} marketing emails left this month.`}
+              </p>
+            )}
           </section>
         )}
         {stopping && (
@@ -573,7 +593,7 @@ function NewsPanel({
           {checking && numbers ? (
             <>
               <Button
-                disabled={pending || blocked}
+                disabled={pending || blocked || tooMany}
                 onClick={() =>
                   void act(
                     {
