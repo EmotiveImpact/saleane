@@ -149,7 +149,7 @@ export function TeamWelcome({
               {!required && (
                 <p className="ops-help">
                   {studioRole(role)
-                    ? 'You can also turn it on later in Settings, under Team, or on your account page.'
+                    ? 'You can also turn it on later from your name at the top, under Password, two-step and Face ID, or on your account page.'
                     : 'You can also turn it on later on your account page.'}
                 </p>
               )}

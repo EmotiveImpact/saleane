@@ -55,7 +55,7 @@ function copyFor(id: ReadyStep, uk: boolean): Copy {
       return {
         title: 'Add your team, and who does what',
         detail: 'Each person and the treatments they do.',
-        link: ['/settings?section=staff', 'Add your team'],
+        link: ['/team', 'Add your team'],
       }
     case 'rooms':
       return {
@@ -67,7 +67,7 @@ function copyFor(id: ReadyStep, uk: boolean): Copy {
       return {
         title: `Set your ${tax}`,
         detail: `Checkout adds no ${tax} until you choose a rate. If you do not charge it, save 0%.`,
-        link: ['/settings?section=business', `Set ${tax}`],
+        link: ['/settings?section=payments', `Set ${tax}`],
       }
     case 'deposits':
       return {

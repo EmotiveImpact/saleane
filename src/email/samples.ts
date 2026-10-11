@@ -26,8 +26,8 @@ export const sampleKindLabel: Record<SampleKind, string> = {
   due_back: 'Due back',
   miss_you: 'We miss you',
 }
-/** The emails Settings shows; the automatic ones are shown in Marketing. */
-export const lookKinds = ['confirmation', 'reminder', 'feedback', 'birthday'] as const
+/** The emails about a visit, which Settings shows; the automatic ones are shown in Marketing. */
+export const lookKinds = ['confirmation', 'reminder', 'feedback'] as const
 
 const GUEST = 'sample-guest'
 const VISIT = 'sample-visit'

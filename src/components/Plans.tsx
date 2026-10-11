@@ -606,7 +606,7 @@ export function ClientPlans({ clientId }: { clientId: string }) {
               <p className="subtle">
                 {cards.reply?.cards.length
                   ? 'Next, read the client the exact words of the agreement and confirm they agree. The first payment, taken now, is recorded here as usual.'
-                  : `${client.name} has no saved card yet. They can save one from the link to their visit, once the studio offers it in Settings, Payments. You can set this up afterwards.`}
+                  : `${client.name} has no saved card yet. They can save one from the link to their visit, once the studio offers it in Settings, Payments & tax. You can set this up afterwards.`}
               </p>
             )}
             {dialog.kind === 'renew' && openCardAgreement(dialog.holding) && (

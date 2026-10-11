@@ -8,6 +8,7 @@ import { waiting, waitlistSummary } from '../domain/waitlist'
 import { Button, Empty, MovingList, PageHeader, Stat, Stats, photos } from '../design'
 import { PassOnOffers, WaitlistCard, WaitlistForm } from '../components/Waitlist'
 import { CancelledTimes } from '../components/CancelledTimes'
+import { QuietOffers } from '../components/QuietOffers'
 import { freedSummary, freedTimes } from '../domain/cancelledTimes'
 import { can } from '../domain/operations'
 import '../components/management.css'
@@ -105,6 +106,8 @@ export function Waitlist() {
               </Empty>
             )}
           </section>
+          {/* A quiet time's lower price is offered from here, so it sits with the times it fills. */}
+          <QuietOffers />
         </>
       )}
       {adding && <WaitlistForm onClose={() => setAdding(false)} />}

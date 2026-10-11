@@ -144,7 +144,7 @@ export function Rota() {
     <div className="rota-page">
       <PageHeader
         variant="compact"
-        eyebrow="Business"
+        eyebrow="Team"
         title="Who is in, and who is away."
         description={
           own && canEdit
@@ -326,10 +326,10 @@ export function Rota() {
         {own && !week.length && <p className="subtle">Nobody usually works at {ownName} yet.</p>}
         <p className="subtle">
           {own && canEdit
-            ? `Choose a day at ${ownName} to change it for that date only, or to add a day for someone on your team. Usual weekly hours are set in Settings by the owner or a manager.`
+            ? `Choose a day at ${ownName} to change it for that date only, or to add a day for someone on your team. Usual weekly hours are set on the Team page by the owner or a manager.`
             : canEdit
-              ? "Choose a day to change it for that date only, or to add a day someone does not usually work. Usual hours come from each person's weekly hours in Settings, with single breaks and venue closures."
-              : "Usual hours come from each person's weekly hours in Settings. Changed days are marked."}
+              ? "Choose a day to change it for that date only, or to add a day someone does not usually work. Usual hours come from each person's weekly hours on the Team page, with breaks and closures from Settings, Hours & closures."
+              : "Usual hours come from each person's weekly hours on the Team page. Changed days are marked."}
         </p>
       </section>
       <div className="rota-columns">

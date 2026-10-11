@@ -259,7 +259,7 @@ export function ScanField({
             ) : (
               <Link
                 className="text-link"
-                to={`/business/stock?new-barcode=${encodeURIComponent(unknown.code)}`}
+                to={`/money/stock?new-barcode=${encodeURIComponent(unknown.code)}`}
               >
                 It is a new product: add it on Stock
               </Link>

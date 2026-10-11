@@ -439,7 +439,7 @@ function HoursScreen({
     <>
       <Intro>
         Guests can book only while you are open. Each person can have their own working days later,
-        in Settings under Team.
+        on the Team page.
       </Intro>
       <HoursList value={value} onChange={onChange} locale={locale} />
     </>
@@ -625,7 +625,7 @@ function TeamScreen({
     <>
       <Intro>
         Add everyone who gives treatments and tick what each person does. Adding someone here does
-        not give them a sign-in; you can invite them from Settings when you are ready.
+        not give them a sign-in; you can invite them from the Team page when you are ready.
       </Intro>
       {!!rows.length && (
         <ul className="setup-rows" aria-label="Your team">

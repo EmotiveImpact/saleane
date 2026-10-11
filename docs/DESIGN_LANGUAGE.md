@@ -31,13 +31,14 @@ Edem asked on 11 October 2026 for the whole library to run on Radix and Motion. 
 9. **44px on phones and touch screens.** Every target reaches `--target`, small marks through an invisible touch area. See [Space, shape, elevation](#space-shape-elevation).
 10. **A new studio meets welcomes, not noughts.** See [Patterns](#patterns).
 11. **What needs you comes first on a phone's Today.** See [Patterns](#patterns).
-12. **Section rows above the eyebrow.** Business and Marketing put their row of sections above the page top, and Marketing uses the working tool top. See [Page tops](#page-tops).
+12. **Section rows above the eyebrow.** Money, Team, Business and Marketing put their row of sections above the page top, and Marketing uses the working tool top. See [Page tops](#page-tops).
 13. **The assistant's name is written once.** "Ask" and the app's name, from `ASK_NAME`. See [Voice](#voice).
 14. **A view switch never moves.** The calendar's Today, Week and Month switch keeps one spot at the far right in every view (Edem, 11 October). See [Patterns](#patterns).
 15. **A top bar that never crowds, and a folded sidebar that opens easily.** From Edem's comments on the demo, 11 October. See [The frame](#the-frame).
 16. **The booking page's footer says "Connected by SALEANE"** and nothing more. See [Voice](#voice).
+17. **Where things live.** Money and Team have their own places in the sidebar, Business keeps how the studio is doing, Settings is four groups with Find a setting, and what is yours alone (your preferences, password, two-step sign-in and Face ID) is on You, from your name (Edem, "Build all", 11 October). The six moves from the finishing check came with it. See [The frame](#the-frame).
 
-Still waiting for a yes, so not yet rules: phone Today in tabs with a count on each, and the six moves from the finishing check (grouping Business's tabs, a "You" section for your own sign-in, and the rest).
+Still waiting for a yes, so not yet a rule: phone Today in tabs with a count on each.
 
 ## Tokens
 
@@ -157,7 +158,7 @@ Which top a page uses:
 | A working tool or a form | `compact`, no photograph                               | Calendar, Inbox, Messages to clients, every Business page, Marketing, Money, Stock, Settings, Day sheet |
 | A record or a guest page | Its own frame, in the same order                       | A client's page, booking pages, a guest's visit link, account pages                                     |
 
-Business and Marketing each have a row of sections; on both it sits above the eyebrow, so the page top that follows is the same on every section.
+Money, Team, Business and Marketing each have a row of sections; on each it sits above the eyebrow, so the page top that follows is the same on every section.
 
 The photo band is one house photograph from `src/design/photos.ts`, above the eyebrow, running the width of the page and fading softly into the words with no frame. One per view: a page whose body already shows photographs (Business, the till's products) does not add a band. The same title shows on the version of the page a person without access sees, with the same eyebrow. `src/design/pageTops.test.ts` checks that every staff page uses `PageHeader` with an eyebrow, and that no page sets `PhotoStrip` down on its own.
 
@@ -165,10 +166,17 @@ The photo band is one house photograph from `src/design/photos.ts`, above the ey
 
 What stays around every staff page.
 
-- **Sidebar.** SALEANE's wordmark with nothing beneath it, then the items, so there is room for one or two more without scrolling. On a computer the fold button beside the wordmark narrows the sidebar to its icons and the page widens with it; folded, each icon shows its name as a hint. Folded, hovering the S swaps it for the open button in the same place, and a click on any empty part of the sidebar opens it in full. Each person's choice is kept in that browser.
+- **Sidebar.** SALEANE's wordmark with nothing beneath it, then the items: Today, Calendar, Clients, Waitlist, Inbox, Marketing, Money, Team, Business and Settings. Each shows only to the people it has something for; reception has no Marketing or Business. On a computer the fold button beside the wordmark narrows the sidebar to its icons and the page widens with it; folded, each icon shows its name as a hint. Folded, hovering the S swaps it for the open button in the same place, and a click on any empty part of the sidebar opens it in full. Each person's choice is kept in that browser.
 - **Top bar.** The page's name on the left gives way, ending in an ellipsis, before the buttons on the right are ever covered. When the assistant has something to mention it shows a dot; the words are for screen readers only. Below 1200px the assistant button reads "Ask" with its icon, and search, help and your menu become icon buttons, each keeping its full name for screen readers. On a phone your avatar sits inside its touch target, away from the edge.
-- **The two names at the top.** The studio's name opens the studio menu: switching studio (or sample), studio details and locations for an owner, the booking page and about this version. Your own name opens your menu: your preferences, password and signing in, your accounts and studios, help and signing out. Neither goes straight to Settings.
-- **Phone menu.** A drawer from the left with the same items and counts as the sidebar, closing back the way it came.
+- **The two names at the top.** The studio's name opens the studio menu: switching studio (or sample), studio details and locations for an owner, the booking page and about this version. Your own name opens your menu: your preferences, and password, two-step and Face ID (both on You), your accounts and studios, help and signing out. Neither goes straight to Settings.
+- **Phone menu.** A drawer from the left with the same items and counts as the sidebar, then the booking page and You, closing back the way it came.
+- **Where things live.** One sidebar item per kind of work, so nobody hunts through tabs:
+  - **Money**: Takings, Gift cards, Stock and Accounts. Everything paid, sold or counted.
+  - **Team**: People (who does what, where they work, and who can sign in), Rota and Pay.
+  - **Business**: how the studio is doing. Overview, Feedback, Client areas and How you compare, with Branch visits and Requests once there are several locations or sign-offs.
+  - **Settings**: how the studio runs, in four groups (Studio; Treatments and payments; Guests; Studio account). On a computer a Find a setting box sits above the groups and narrows them by name or by the words people use ("VAT", "parking", "Google"); on a phone one Section picker holds them all. No section is longer than it needs to be: tax sits with payments, the booking switch and booking links with the booking page, and guest notes have their own section.
+  - **You**: what is one person's own and never changes anyone else: their preferences, password, two-step sign-in and Face ID, and their accounts and studios. The owner's switch asking everyone to use two-step stays on Team.
+  - Older addresses still land: `/business/money`, `/business/rota` and the rest move to their new places, and `?section=staff`, `preferences` and `diaries` open Team, You and Connected software.
 - **Notices** sit once in the frame, in the corner.
 - **Find a client.** "/" (when not typing) or Ctrl/Cmd K opens it from anywhere. Arrow keys move through the matches and Enter opens one.
 

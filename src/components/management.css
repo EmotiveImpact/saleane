@@ -883,7 +883,8 @@
 
 /* Settings: one page for personal preferences, the studio and this workspace. Its header is
    the slimmest of the family, so the sections start sooner. */
-.settings-page .ops-layout {
+.settings-page .ops-layout,
+.team-page .ops-layout {
   grid-template-columns: minmax(0, 1fr);
 }
 .settings-page > .page-heading-compact {
@@ -1464,4 +1465,48 @@ a.receipt-row {
 /* Stage 6: a guest booked under several records, said once under their details. */
 .inbox-pane-header .inbox-records {
   font-size: var(--text-micro);
+}
+
+/* You: one person's own page, a single calm column. */
+.you-layout {
+  display: grid;
+  gap: var(--space-5);
+  max-width: 760px;
+}
+/* Find a setting, above the Settings list. */
+.tabs-groups .settings-find {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  font-weight: var(--weight-body);
+  gap: var(--space-2);
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--muted);
+}
+.settings-find:focus-within {
+  border-color: color-mix(in srgb, var(--ink) 40%, var(--line));
+}
+.tabs-groups .settings-find input {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-small);
+  outline: none;
+}
+.settings-find-none {
+  margin: 0;
+  padding: 0 var(--space-4);
+  color: var(--muted);
+  font-size: var(--text-small);
 }

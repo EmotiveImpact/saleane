@@ -466,16 +466,14 @@ describe('local operating surfaces', () => {
     )
   })
 
-  it('opens the inbox in two columns and lets each person choose the side panel on the Settings page', async () => {
+  it('opens the inbox in two columns and lets each person choose the side panel on the You page', async () => {
     const user = userEvent.setup()
     await show('/inbox')
     expect(await screen.findByRole('list', { name: /Conversation with/ })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /your menu/ }))
     await user.click(await screen.findByRole('menuitem', { name: 'Your preferences' }))
-    expect(await screen.findByRole('tab', { name: 'Your preferences' })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    )
+    expect(await screen.findByRole('heading', { level: 1, name: 'Yours alone.' })).toBeVisible()
+    expect(screen.queryByRole('group', { name: 'Settings sections' })).not.toBeInTheDocument()
     expect(screen.getByRole('radio', { name: 'Two columns, like email' })).toBeChecked()
     await user.click(screen.getByRole('radio', { name: 'List with a side panel' }))
     expect(localStorage.getItem('saleane-inbox-view:demo')).toBe('panel')
@@ -486,7 +484,7 @@ describe('local operating surfaces', () => {
 
   it('requires refund provenance confirmation and retains the settled receipt', async () => {
     const user = userEvent.setup()
-    await show('/business/money')
+    await show('/money')
     await user.click((await screen.findAllByRole('button', { name: /View receipt for/ }))[0])
     await user.click(screen.getByRole('button', { name: 'Record simulated refund' }))
     await user.type(screen.getByLabelText('Amount (GBP)'), '10')
@@ -514,46 +512,69 @@ describe('local operating surfaces', () => {
   })
 })
 
-describe('front desk access to Business', () => {
+describe('front desk access to Money and Team', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
     sessionStorage.clear()
   })
 
-  it('opens Money, Stock, Rota and Gift cards, and lands Business on Money', async () => {
+  it('opens Money and Team from the sidebar, and leaves Business out', async () => {
     const user = userEvent.setup()
     await signedIn('reception', '/business')
     expect(await screen.findByRole('heading', { name: 'Money, clearly.' })).toBeInTheDocument()
-    const sections = screen.getByRole('navigation', { name: 'Business sections' })
+    // Business is the studio's figures and what guests say, none of it the desk's.
+    const sidebar = screen.getByRole('complementary', { name: 'Studio navigation' })
+    expect(within(sidebar).queryByRole('link', { name: 'Business' })).not.toBeInTheDocument()
+    expect(within(sidebar).getByRole('link', { name: 'Money' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+    const money = screen.getByRole('navigation', { name: 'Money sections' })
     expect(
-      within(sections)
+      within(money)
         .getAllByRole('link')
         .map((link) => link.textContent),
-    ).toEqual(['Money', 'Stock', 'Rota', 'Gift cards'])
-    const business = screen.getByRole('link', { name: 'Business' })
-    expect(business).toHaveAttribute('href', '/business/money')
-    expect(business).toHaveAttribute('aria-current', 'page')
-    await user.click(within(sections).getByRole('link', { name: 'Stock' }))
+    ).toEqual(['Takings', 'Gift cards', 'Stock'])
+    await user.click(within(money).getByRole('link', { name: 'Stock' }))
     expect(
       await screen.findByRole('heading', { name: 'What is on the shelf.' }),
     ).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Business' })).toHaveAttribute('aria-current', 'page')
-    await user.click(within(sections).getByRole('link', { name: 'Rota' }))
-    expect(
-      await screen.findByRole('heading', { name: 'Who is in, and who is away.' }),
-    ).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Add time off/ })).not.toBeInTheDocument()
-    await user.click(within(sections).getByRole('link', { name: 'Gift cards' }))
+    expect(within(sidebar).getByRole('link', { name: 'Money' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+    await user.click(within(money).getByRole('link', { name: 'Gift cards' }))
     expect(
       await screen.findByRole('heading', { name: 'Gift cards and vouchers.' }),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Sell a gift card/ })).toBeInTheDocument()
+    await user.click(within(sidebar).getByRole('link', { name: 'Team' }))
+    const team = await screen.findByRole('navigation', { name: 'Team sections' })
+    expect(
+      within(team)
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual(['People', 'Rota'])
+    await user.click(within(team).getByRole('link', { name: 'Rota' }))
+    expect(
+      await screen.findByRole('heading', { name: 'Who is in, and who is away.' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Add time off/ })).not.toBeInTheDocument()
   })
 
-  it('sends the desk back to Money from pages that stay with owners and managers', async () => {
-    for (const page of ['pay', 'accounts', 'feedback', 'visits', 'requests', 'areas']) {
-      await signedIn('reception', `/business/${page}`)
-      expect(await screen.findByRole('heading', { name: 'Money, clearly.' })).toBeInTheDocument()
+  it('sends the desk to Money or Team from pages that stay with owners and managers', async () => {
+    for (const [page, heading] of [
+      ['/business/feedback', 'Money, clearly.'],
+      ['/business/visits', 'Money, clearly.'],
+      ['/business/requests', 'Money, clearly.'],
+      ['/business/areas', 'Money, clearly.'],
+      ['/money/accounts', 'Money, clearly.'],
+      ['/business/accounts', 'Money, clearly.'],
+      ['/team/pay', 'Who does what.'],
+      ['/business/pay', 'Who does what.'],
+    ]) {
+      await signedIn('reception', page)
+      expect(await screen.findByRole('heading', { level: 1, name: heading }), page).toBeVisible()
       cleanup()
       vi.unstubAllGlobals()
       sessionStorage.clear()
@@ -562,24 +583,52 @@ describe('front desk access to Business', () => {
 
   it('shows receipts to the desk without a refund it could not record', async () => {
     const user = userEvent.setup()
-    await signedIn('reception', '/business/money')
+    await signedIn('reception', '/money')
     await user.click((await screen.findAllByRole('button', { name: /View receipt for/ }))[0])
     expect(screen.getByRole('heading', { name: 'Receipt' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /refund/i })).not.toBeInTheDocument()
   })
 
-  it('keeps every Business section for an owner', async () => {
+  it('gives an owner every Money and Team page, and Business its figures', async () => {
+    const user = userEvent.setup()
     await signedIn('owner', '/business')
     expect(await screen.findByRole('heading', { name: 'A clearer view.' })).toBeInTheDocument()
-    const sections = screen.getByRole('navigation', { name: 'Business sections' })
+    const sidebar = screen.getByRole('complementary', { name: 'Studio navigation' })
+    expect(within(sidebar).getByRole('link', { name: 'Business' })).toHaveAttribute(
+      'href',
+      '/business',
+    )
+    await user.click(within(sidebar).getByRole('link', { name: 'Money' }))
     expect(
-      within(sections)
+      within(await screen.findByRole('navigation', { name: 'Money sections' }))
         .getAllByRole('link')
         .map((link) => link.textContent),
-    ).toEqual(
-      expect.arrayContaining(['Overview', 'Money', 'Pay', 'Accounts', 'Feedback', 'Client areas']),
-    )
-    expect(screen.getByRole('link', { name: 'Business' })).toHaveAttribute('href', '/business')
+    ).toEqual(['Takings', 'Gift cards', 'Stock', 'Accounts'])
+    await user.click(within(sidebar).getByRole('link', { name: 'Team' }))
+    expect(
+      within(await screen.findByRole('navigation', { name: 'Team sections' }))
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual(['People', 'Rota', 'Pay'])
+  })
+
+  it('opens older links to Money, Gift cards, Stock and the rota in their new places', async () => {
+    for (const [page, heading] of [
+      ['/business/money', 'Money, clearly.'],
+      ['/business/gift-cards', 'Gift cards and vouchers.'],
+      ['/business/stock', 'What is on the shelf.'],
+      ['/business/rota', 'Who is in, and who is away.'],
+    ]) {
+      await signedIn('owner', page)
+      expect(await screen.findByRole('heading', { level: 1, name: heading }), page).toBeVisible()
+      cleanup()
+      vi.unstubAllGlobals()
+      sessionStorage.clear()
+    }
+    // What came after an older address goes with it: a scanned barcode still opens a new product.
+    await signedIn('owner', '/business/stock?new-barcode=5012345678900')
+    const product = await screen.findByRole('dialog', { name: 'Add a product' })
+    expect(within(product).getByLabelText('Barcode')).toHaveValue('5012345678900')
   })
 })
 
@@ -591,7 +640,7 @@ describe('selling at one of several locations', () => {
 
   it('asks which location sold a gift card and sends it with the sale', async () => {
     const user = userEvent.setup()
-    await signedIn('owner', '/business/gift-cards', (state) => {
+    await signedIn('owner', '/money/gift-cards', (state) => {
       state.operations!.locations = [
         { id: 'loc-islington', name: 'Islington', address: '5 Upper Street, London N1' },
       ]
@@ -622,7 +671,7 @@ describe('selling at one of several locations', () => {
 
   it('leaves the choice out with one location', async () => {
     const user = userEvent.setup()
-    await signedIn('owner', '/business/gift-cards')
+    await signedIn('owner', '/money/gift-cards')
     await user.click(await screen.findByRole('button', { name: 'Sell a gift card' }))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).queryByRole('combobox', { name: 'Sold at' })).not.toBeInTheDocument()
@@ -646,18 +695,7 @@ describe('the Business tab bar', () => {
       within(sections)
         .getAllByRole('link')
         .map((link) => link.textContent),
-    ).toEqual([
-      'Overview',
-      'Money',
-      'Stock',
-      'Rota',
-      'Gift cards',
-      'Pay',
-      'Accounts',
-      'How you compare',
-      'Feedback',
-      'Client areas',
-    ])
+    ).toEqual(['Overview', 'Feedback', 'Client areas', 'How you compare'])
     expect(within(sections).getByRole('link', { name: 'Overview' })).toHaveAttribute(
       'aria-current',
       'page',
@@ -695,8 +733,10 @@ describe('the Business tab bar', () => {
 describe('the rota week', () => {
   it('marks today and keeps This week ready to press', async () => {
     const user = userEvent.setup()
-    await show('/business/rota')
-    expect(screen.getByRole('heading', { name: 'Week of Monday 5 October' })).toBeInTheDocument()
+    await show('/team/rota')
+    expect(
+      await screen.findByRole('heading', { name: 'Week of Monday 5 October' }),
+    ).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /6 Oct Today$/ })).toBeInTheDocument()
     const thisWeek = screen.getByRole('button', { name: 'This week' })
     expect(thisWeek).toBeEnabled()
@@ -785,7 +825,7 @@ describe('gift cards', () => {
 
   it('shows each card as a card, with its balance, code and who it is for', async () => {
     const user = userEvent.setup()
-    await show('/business/gift-cards')
+    await show('/money/gift-cards')
     const card = await screen.findByRole('button', { name: /LAKE-7K4M-2QHN/ })
     expect(card).toHaveTextContent('£75')
     expect(card).toHaveTextContent(/for Hannah/)
@@ -794,7 +834,7 @@ describe('gift cards', () => {
   })
 
   it('shows what a card looks like before the first one is sold', async () => {
-    await signedIn('owner', '/business/gift-cards', (state) => {
+    await signedIn('owner', '/money/gift-cards', (state) => {
       state.giftCards = []
     })
     expect(await screen.findByRole('heading', { name: 'No gift cards yet' })).toBeInTheDocument()
@@ -806,23 +846,25 @@ describe('gift cards', () => {
 })
 
 describe('the Settings page', () => {
-  it('groups the sections under five headings, with treatments by that name', async () => {
+  it('groups the sections under four headings, with treatments by that name', async () => {
     const user = userEvent.setup()
     await show('/settings')
     const sections = await screen.findByRole('group', { name: 'Settings sections' })
     const lists = within(sections).getAllByRole('tablist')
     expect(lists.map((list) => list.getAttribute('aria-label'))).toEqual([
       'Studio',
-      'Team',
-      'Treatments and money',
-      'Guests and messages',
-      'Your account and data',
+      'Treatments and payments',
+      'Guests',
+      'Studio account',
     ])
     expect(
-      within(lists[2])
+      within(lists[1])
         .getAllByRole('tab')
         .map((tab) => tab.textContent),
-    ).toEqual(['Treatments', 'Packages & memberships', 'Payments', 'Till and printer'])
+    ).toEqual(['Treatments', 'Packages & memberships', 'Payments & tax', 'Till and printer'])
+    // The team and each person's own choices have pages of their own now.
+    expect(screen.queryByRole('tab', { name: 'Team' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Your preferences' })).not.toBeInTheDocument()
     expect(screen.queryByRole('tab', { name: 'Services' })).not.toBeInTheDocument()
     // Studio details opens first; a narrow screen picks the same sections from one select.
     expect(screen.getByRole('tab', { name: 'Studio details' })).toHaveAttribute(
@@ -833,10 +875,77 @@ describe('the Settings page', () => {
     expect(picker).toHaveValue('business')
     await user.click(picker)
     expect(
-      within(await screen.findByRole('listbox')).getByRole('group', {
-        name: 'Guests and messages',
-      }),
+      within(await screen.findByRole('listbox')).getByRole('group', { name: 'Guests' }),
     ).toBeInTheDocument()
+  })
+
+  it('finds a setting by the words people use, and says when nothing matches', async () => {
+    const user = userEvent.setup()
+    await show('/settings')
+    const sections = await screen.findByRole('group', { name: 'Settings sections' })
+    const find = within(sections).getByRole('searchbox', { name: 'Find a setting' })
+    const tabs = () =>
+      within(sections)
+        .queryAllByRole('tab')
+        .map((tab) => tab.textContent)
+    await user.type(find, 'VAT')
+    expect(tabs()).toEqual(['Payments & tax'])
+    await user.clear(find)
+    await user.type(find, 'parking')
+    expect(tabs()).toEqual(['Before and after a visit'])
+    await user.clear(find)
+    await user.type(find, 'google')
+    expect(tabs()).toEqual(['Booking page & colours', 'Connected software'])
+    await user.clear(find)
+    await user.type(find, 'zebra')
+    expect(tabs()).toEqual([])
+    expect(within(sections).getByText('Nothing matches “zebra”.')).toBeVisible()
+    await user.clear(find)
+    expect(tabs()).toHaveLength(19)
+  })
+
+  it('opens older links to the team, your preferences and the diaries in their new places', async () => {
+    await show('/settings?section=staff')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Who does what.' })).toBeVisible()
+    expect(screen.getByRole('navigation', { name: 'Team sections' })).toBeInTheDocument()
+    cleanup()
+    await show('/settings?section=preferences')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Yours alone.' })).toBeVisible()
+    cleanup()
+    await show('/settings?section=diaries')
+    expect(await screen.findByRole('tab', { name: 'Connected software' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+  })
+
+  it('keeps the tax with payments and the online booking switch with the booking page', async () => {
+    const user = userEvent.setup()
+    await show('/settings?section=payments')
+    expect(await screen.findByRole('tab', { name: 'Payments & tax' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(screen.getByRole('heading', { name: 'Checkout tax' })).toBeInTheDocument()
+    cleanup()
+    await show('/settings?section=brand')
+    const online = await screen.findByRole('region', { name: 'Taking bookings online' })
+    expect(within(online).getByRole('checkbox', { name: 'Take bookings online' })).toBeChecked()
+    // Closing online booking from here leaves the studio's own details as they were.
+    const before = seed('UK').organisation
+    await user.click(within(online).getByRole('checkbox', { name: 'Take bookings online' }))
+    await user.click(within(online).getByRole('button', { name: 'Save online booking' }))
+    expect(await within(online).findByText('Online booking saved.')).toBeInTheDocument()
+    const after = JSON.parse(localStorage.getItem('saleane.demo.v1.UK')!)
+    expect(after.operations.bookingEnabled).toBe(false)
+    expect(after.organisation).toEqual(before)
+    cleanup()
+    await show('/settings')
+    expect(await screen.findByRole('tab', { name: 'Studio details' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(screen.queryByRole('checkbox', { name: 'Take bookings online' })).not.toBeInTheDocument()
   })
 
   it('shows who changed what to the owner only (NEXT-05)', async () => {
@@ -1132,5 +1241,41 @@ describe('moving clients in from another system', () => {
     expect(
       await screen.findByRole('heading', { name: '1 client brought across from your old system' }),
     ).toBeInTheDocument()
+  })
+})
+
+describe('the You page', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    sessionStorage.clear()
+  })
+
+  it('keeps each person’s own choices together, apart from the studio', async () => {
+    await show('/you')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Yours alone.' })).toBeVisible()
+    expect(screen.getByRole('radio', { name: 'Two columns, like email' })).toBeInTheDocument()
+    // The fictional demo has no accounts, so it says where signing in will be.
+    expect(screen.getByRole('region', { name: 'Signing in' })).toHaveTextContent(
+      'The fictional demo has no accounts.',
+    )
+    expect(screen.queryByRole('link', { name: 'Open your accounts' })).not.toBeInTheDocument()
+  })
+
+  it('opens at signing in from your name, for the front desk too', async () => {
+    const user = userEvent.setup()
+    await signedIn('reception', '/money')
+    await user.click(await screen.findByRole('button', { name: /your menu/ }))
+    await user.click(
+      await screen.findByRole('menuitem', { name: 'Password, two-step and Face ID' }),
+    )
+    expect(await screen.findByRole('heading', { level: 1, name: 'Yours alone.' })).toBeVisible()
+    const signingIn = screen.getByRole('region', { name: 'Signing in' })
+    expect(within(signingIn).getByText('Change your password')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Open your accounts' })).toHaveAttribute(
+      'href',
+      '/account',
+    )
+    // The page says whose it is.
+    expect(screen.getByText(/Rosa Desk, reception/i)).toBeInTheDocument()
   })
 })

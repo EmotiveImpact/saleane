@@ -1,9 +1,12 @@
-import { render, screen } from '@testing-library/react'
+import { render as draw, screen } from '@testing-library/react'
+import type { ReactElement } from 'react'
+import { MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 import { TwoStepForEveryone } from './TwoStepForEveryone'
 
-// Stage 6: the owner's switch on Settings, Team, and who has two-step sign-in on.
+// Stage 6: the owner's switch on the Team page, and who has two-step sign-in on.
+const render = (ui: ReactElement) => draw(<MemoryRouter>{ui}</MemoryRouter>)
 const commit = vi.fn()
 let store: Record<string, unknown>
 vi.mock('../state/context', () => ({ useStore: () => store }))
@@ -43,7 +46,11 @@ test('says who has it on and who has not yet, and asks everyone with one button'
 test('waits for the owner to use it themselves first', () => {
   store = { ...store, session: { user: { twoStep: null } } }
   render(<TwoStepForEveryone members={team} />)
-  expect(screen.getByText('Turn on two-step sign-in for yourself first, just above.')).toBeVisible()
+  expect(screen.getByText(/^Turn on two-step sign-in for yourself first/)).toBeVisible()
+  expect(screen.getByRole('link', { name: 'Password, two-step and Face ID' })).toHaveAttribute(
+    'href',
+    '/you#signing-in',
+  )
   expect(screen.getByRole('button', { name: 'Ask everyone to use it' })).toBeDisabled()
 })
 

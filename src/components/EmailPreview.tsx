@@ -98,7 +98,7 @@ export function EmailLook() {
         <p className="subtle">
           Written for a made-up guest, Alex, booked tomorrow at 10:00. In a real email the button to
           manage the visit opens that guest&rsquo;s own private link; here it goes nowhere. Your
-          colours are in Settings, Brand.
+          colours are in Settings, Booking page &amp; colours.
         </p>
       </div>
     </section>

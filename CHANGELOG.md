@@ -2,6 +2,17 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-11 · A tidier SALEANE: Money, Team, a shorter Settings and You
+
+**Status: built locally on 11 October 2026 and checked in Chromium at 1440px and 390px, not yet in Safari or Firefox. The owner chose "Build all" on the plan of 11 October 2026; waiting for the owner's "merge".** [Evidence](docs/evidence/TIDIER-LAYOUT.md).
+
+- Money and Team have their own places in the sidebar, after Marketing. Money holds Takings, Gift cards, Stock and Accounts; Team holds People (who does what, and who can sign in), Rota and Pay. Business keeps how the studio is doing: Overview, Feedback, Client areas and How you compare, with Branch visits and Requests once there are several locations or sign-offs. Reception has no Business and lands on Money.
+- Settings is four groups (Studio; Treatments and payments; Guests; Studio account) instead of five, with 19 sections instead of 21. On a computer, Find a setting narrows them by name or by everyday words such as "VAT", "parking" or "Google".
+- Studio details is about a quarter of its old length. Tax moved to Payments & tax; the online booking switch, the bot check, booking links, Book with Google, booking through ChatGPT or Claude and social accounts moved to Booking page & colours; notes for before and after a visit have their own section; the Google and Apple diaries joined Connected software. "Switching over" is now "Moving in".
+- You, from your name at the top, holds what is yours alone: your preferences, your password, two-step sign-in and Face ID, and your accounts and studios. The owner's switch asking everyone to use two-step sign-in stays on Team and links there.
+- The six moves from the finishing check: Inbox loses its old "Messages to clients" button (Marketing has it); the look of visit emails stays in Settings and the birthday email is shown only in Marketing; the quiet-time price sits on the Waitlist; Design language shows in the demo only and Refresh records is gone from the footer.
+- Older links still land: `/business/money`, `/business/rota` and the rest open their new pages, and `?section=staff`, `preferences` and `diaries` open Team, You and Connected software. Help's guides and every link in the app point at the new places, and a new guide explains opening or closing online booking.
+
 ## 2026-10-11 · LUMANE hardened: nothing lost, nothing claimed, every turn on record
 
 **Status: built locally on 11 October 2026, in test mode; the eval cases are written but not yet run against the real Claude, which needs SALEANE's Anthropic key.** The owner said yes to the four fixes in the study on 11 October 2026. [Evidence](docs/evidence/LUMANE-HARDENING.md).

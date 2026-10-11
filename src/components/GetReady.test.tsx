@@ -115,9 +115,9 @@ describe('Get your studio ready', () => {
     const links = {
       'Check your opening hours': ['Review hours', '/settings?section=hours'],
       'Add your treatments': ['Add treatments', '/settings?section=service'],
-      'Add your team, and who does what': ['Add your team', '/settings?section=staff'],
+      'Add your team, and who does what': ['Add your team', '/team'],
       'Add your rooms or chairs': ['Add rooms or chairs', '/settings?section=resource'],
-      'Set your VAT': ['Set VAT', '/settings?section=business'],
+      'Set your VAT': ['Set VAT', '/settings?section=payments'],
       'Choose your deposit and cancellation rules': ['Payment rules', '/settings?section=payments'],
     }
     for (const [title, [label, href]] of Object.entries(links))
@@ -272,10 +272,10 @@ describe('Your first weeks', () => {
     )
     const links = {
       'Bring your clients across': '/settings?section=switching',
-      'Invite your team to sign in': '/settings?section=staff',
+      'Invite your team to sign in': '/team',
       'Check out your first visit': '/calendar',
       'Check your visit reminders': '/settings?section=messages',
-      'Turn on two-step sign-in': '/settings?section=staff',
+      'Turn on two-step sign-in': '/you#signing-in',
     }
     for (const [title, href] of Object.entries(links))
       expect(within(step(title)).getByRole('link')).toHaveAttribute('href', href)

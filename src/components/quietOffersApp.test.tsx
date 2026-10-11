@@ -102,8 +102,8 @@ describe('a quiet-time price in the studio', { timeout: 30000 }, () => {
     expect(line.closest('.visit-service-line')).toHaveTextContent('£76.00')
   })
 
-  it('sits in Settings beside the messages to guests', async () => {
-    show(cancelled(), '/settings?section=messages')
+  it('sits on the Waitlist, beside the guests it is offered to', async () => {
+    show(cancelled(), '/waitlist')
     const panel = await screen.findByRole('region', { name: 'A lower price for quiet times' }, WAIT)
     expect(within(panel).getByRole('radio', { name: /A percentage off/ })).toBeChecked()
     expect(within(panel).getByLabelText('Percentage off')).toHaveValue(20)

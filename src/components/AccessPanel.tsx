@@ -6,9 +6,7 @@ import { Button, ErrorMessage, Select } from '../design'
 import { regions } from '../domain/group'
 import { areaPlaces } from '../domain/area'
 import { hasLocations, places } from '../domain/locations'
-import { TwoStepSettings } from './TwoStepSettings'
 import { TwoStepForEveryone } from './TwoStepForEveryone'
-import { PasskeySettings } from './PasskeySettings'
 import './accessPanel.css'
 
 type Team = {
@@ -47,9 +45,6 @@ export function AccessPanel() {
     [inviteBranch, setInviteBranch] = useState(''),
     [link, setLink] = useState(''),
     [copied, setCopied] = useState(false)
-  const [password, setPassword] = useState(''),
-    [nextPassword, setNextPassword] = useState(''),
-    [changed, setChanged] = useState(false)
   useEffect(() => {
     if (mode !== 'server' || role !== 'owner') return
     let active = true
@@ -370,78 +365,6 @@ export function AccessPanel() {
       ) : (
         <p className="ops-help">Only the owner can invite people or change who can sign in.</p>
       )}
-      <details className="access-password">
-        <summary>Change your password</summary>
-        <form
-          aria-label="Change your password"
-          onSubmit={async (e) => {
-            e.preventDefault()
-            setPending(true)
-            setError('')
-            setChanged(false)
-            try {
-              await api('/api/auth/password', {
-                method: 'POST',
-                body: { current: password, password: nextPassword },
-              })
-              setChanged(true)
-              setPassword('')
-              setNextPassword('')
-            } catch (e) {
-              setError(e instanceof Error ? e.message : 'Password could not be changed.')
-            } finally {
-              setPending(false)
-            }
-          }}
-        >
-          <div className="ops-fields">
-            <div className="ops-field">
-              <label htmlFor="access-current-password">Current password</label>
-              <input
-                id="access-current-password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-            <div className="ops-field">
-              <label htmlFor="access-new-password">New password</label>
-              <input
-                id="access-new-password"
-                type="password"
-                autoComplete="new-password"
-                aria-describedby="access-new-password-help"
-                required
-                minLength={12}
-                maxLength={128}
-                value={nextPassword}
-                onChange={(e) => setNextPassword(e.target.value)}
-              />
-              <small id="access-new-password-help">At least 12 characters.</small>
-            </div>
-          </div>
-          <p className="ops-save-note" role="status">
-            {changed ? 'Your password is updated.' : ''}
-          </p>
-          <div className="ops-actions">
-            <Button type="submit" disabled={pending}>
-              Update password
-            </Button>
-          </div>
-        </form>
-      </details>
-      <TwoStepSettings
-        onChange={() => {
-          // The owner's own row says whether two-step sign-in is on.
-          if (role === 'owner')
-            api<Team>(`${base}/team`)
-              .then(setTeam)
-              .catch(() => {})
-        }}
-      />
-      <PasskeySettings />
       {role === 'owner' && <TwoStepForEveryone members={team?.members} />}
       <ErrorMessage error={error} />
     </section>
