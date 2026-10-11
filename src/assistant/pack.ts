@@ -4,6 +4,10 @@ import { RECEPTION_INSTRUCTIONS, receptionistSkills } from './receptionist'
 import { INSTRUCTIONS, askSaleaneSkills } from './saleane'
 import { DEFAULT_VOICE, VOICES } from './voices'
 
+/** A reply saying the assistant itself moved money, which it never does. */
+const MONEY_CLAIM =
+  /\bI(?:['’]ve|\s+have)?\s+(?:(?:just|now|already)\s+)*(?:refunded|charged|paid|taken\s+(?:the\s+|a\s+|your\s+)?(?:payment|deposit)|took\s+(?:the\s+|a\s+|your\s+)?(?:payment|deposit))\b/i
+
 /**
  * SALEANE's pack for LUMANE: everything SALEANE hands the assistant engine. The studio team meets
  * it as Ask SALEANE and guests meet the studio's AI receptionist, each with their own pathways.
@@ -25,6 +29,8 @@ export const SALEANE_PACK = definePack({
       skills: askSaleaneSkills,
       meter: 'typed',
       doorways: [`The ${ASK_NAME} panel`, `Talking to ${ASK_NAME}`],
+      // Money is SALEANE's own: the assistant never refunds, charges or takes a payment.
+      reply: { claims: [MONEY_CLAIM] },
     },
     guests: {
       label: 'Guests',
@@ -37,6 +43,13 @@ export const SALEANE_PACK = definePack({
         'Instagram and Facebook messages',
         'Calls the desk misses, with the phone receptionist',
       ],
+      reply: {
+        claims: [MONEY_CLAIM],
+        notes: {
+          prepared: 'Nothing is booked or sent until you choose it.',
+          unprepared: 'I cannot book or change anything myself, so nothing has changed.',
+        },
+      },
     },
   },
   voices: { list: VOICES, fallback: DEFAULT_VOICE },

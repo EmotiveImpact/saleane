@@ -62,3 +62,26 @@ test('a listed time starts booking it on the page', async () => {
   // The chat closes so the guest carries on with the booking steps.
   expect(screen.queryByRole('group', { name: 'Free times' })).toBeNull()
 })
+
+test('sends the chat’s id with a follow-up, never its earlier lines', async () => {
+  const user = userEvent.setup()
+  vi.mocked(api).mockResolvedValue({
+    text: 'We are open from 9:00 to 18:00.',
+    chat: 'chat-1',
+    proposals: [],
+    times: [],
+  } as never)
+  render(<ReceptionistChat base="/api/public/review" studio="Atelier House" onTime={vi.fn()} />)
+  await user.click(screen.getByRole('button', { name: 'Ask a question' }))
+  await user.type(screen.getByLabelText('Your question'), 'When are you open?')
+  await user.click(screen.getByRole('button', { name: 'Send' }))
+  await screen.findByText('We are open from 9:00 to 18:00.')
+  await user.type(screen.getByLabelText('Your question'), 'And on Sunday?')
+  await user.click(screen.getByRole('button', { name: 'Send' }))
+  // The studio keeps the chat's earlier lines itself, so nobody can write its side.
+  expect(vi.mocked(api)).toHaveBeenLastCalledWith('/api/public/review/receptionist', {
+    method: 'POST',
+    body: { text: 'And on Sunday?', chat: 'chat-1' },
+    timeoutMs: expect.any(Number),
+  })
+})

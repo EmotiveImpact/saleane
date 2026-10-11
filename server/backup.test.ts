@@ -57,6 +57,14 @@ describe('consistent local backups and fresh-path recovery', () => {
       payload: { email: 'pending@example.invalid', role: 'reception' },
     })
     expect(invitation.statusCode).toBe(201)
+    // A change Ask prepared and the conversation it came from: both are for the moment.
+    const asked = await api.inject({
+      method: 'POST',
+      url: `/api/workspaces/${session.orgId}/assistant`,
+      headers,
+      payload: { text: 'Remind me to call Amelia tomorrow' },
+    })
+    expect(asked.json<{ proposals: unknown[] }>().proposals).toHaveLength(1)
     const backup = join(directory, 'consistent.sqlite'),
       restored = join(directory, 'restored.sqlite')
     expect(backupDatabase(api.database.path, backup)).toMatchObject({
@@ -76,6 +84,11 @@ describe('consistent local backups and fresh-path recovery', () => {
       expect(recovered.all('SELECT * FROM sessions')).toEqual([])
       expect(recovered.all('SELECT * FROM invitations')).toEqual([])
       expect(recovered.all('SELECT * FROM booking_holds')).toEqual([])
+      // Nothing Ask prepared before the backup waits for approval in the restored studio, and no
+      // conversation carries on; what each turn did is still on record.
+      expect(recovered.all('SELECT * FROM assistant_proposals')).toEqual([])
+      expect(recovered.all('SELECT * FROM assistant_chats')).toEqual([])
+      expect(recovered.all('SELECT * FROM assistant_turns')).toHaveLength(1)
       expect(recovered.all('SELECT * FROM command_receipts')).toHaveLength(1)
       expect(
         recovered.all("SELECT * FROM audit_events WHERE action='workspace.restored'"),

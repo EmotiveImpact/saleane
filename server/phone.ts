@@ -4,6 +4,7 @@ import type { Conversation, LiveEvent, LiveLine, UseRequest } from '../lumane'
 import { digest } from './auth'
 import { fail } from './http'
 import { holding, reserveFor, settleUse, storedUsage } from './aiUsage'
+import { modelOf, recordTurn } from './assistantRecords'
 import type { Context, Org, Route } from './context'
 import { openaiWebhookGenuine } from './openaiWebhook'
 import type { PhoneLine } from './phoneLine'
@@ -52,6 +53,8 @@ type Call = {
   window: number
   use: UseRequest
   talk: Conversation
+  /** Called off as the call ends, so no further call to Claude is paid for. */
+  ending: AbortController
   line?: LiveLine
   /** What OpenAI reported when the call ended, in seconds. */
   reported?: number
@@ -203,6 +206,7 @@ export function phoneCalls(line: PhoneLine | null, soon: () => void) {
 
   /** Counts the call if it has not been, then stops following it. */
   function finish(ctx: Context, call: Call) {
+    call.ending.abort()
     count(ctx, call)
     if (call.released) return
     call.released = true
@@ -224,6 +228,7 @@ export function phoneCalls(line: PhoneLine | null, soon: () => void) {
     if (call.released || call.closing) return
     call.closing = true
     call.talk.stop()
+    call.ending.abort()
     later(call, CALL_GRACE_SECONDS, () => finish(ctx, call))
     ctx.voice.calls
       ?.hangup(call.sessionId)
@@ -311,18 +316,26 @@ export function phoneCalls(line: PhoneLine | null, soon: () => void) {
         usage: before,
         allowance,
         brain,
+        signal: call.ending.signal,
       }),
     )
+    // SALEANE stopped while Claude answered: its records are closed, so nothing is written.
+    if (stopped) return { text: CALL_FAILED }
+    const model = modelOf(ctx, true)
     if (result.status === 'refused') {
-      if (held)
-        ctx.db.transaction(() => settleUse(ctx, org.id, use, { counted: false, costMinor: 0 }))
+      ctx.db.transaction(() => {
+        if (held) settleUse(ctx, org.id, use, { counted: false, costMinor: 0 })
+        recordTurn(ctx, org.id, 'guests', 'phone', null, model, result)
+      })
       return { text: CALL_FAILED }
     }
-    ctx.db.transaction(() =>
-      settleUse(ctx, org.id, use, { counted: false, costMinor: result.costMinor }),
-    )
+    ctx.db.transaction(() => {
+      settleUse(ctx, org.id, use, { counted: false, costMinor: result.costMinor })
+      recordTurn(ctx, org.id, 'guests', 'phone', null, model, result)
+    })
     if (result.status !== 'answered') {
-      console.error(`[SALEANE] The receptionist could not answer a caller (${result.reason}).`)
+      if (result.reason !== 'left')
+        console.error(`[SALEANE] The receptionist could not answer a caller (${result.reason}).`)
       return { text: CALL_FAILED }
     }
     // The caller hung up while it was answered: nothing is texted for an offer they never heard.
@@ -428,6 +441,7 @@ export function phoneCalls(line: PhoneLine | null, soon: () => void) {
       startedAt: ctx.now(),
       window: use.amount,
       use,
+      ending: new AbortController(),
       timers: [],
       closing: false,
       reattached: false,

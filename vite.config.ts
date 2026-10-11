@@ -42,7 +42,7 @@ export default defineConfig(({ isSsrBuild }) => ({
       },
   test: {
     environment: 'jsdom',
-    include: ['src/**/*.test.{ts,tsx}', 'lumane/**/*.test.ts'],
+    include: ['src/**/*.test.{ts,tsx}', 'lumane/**/*.test.ts', 'evals/**/*.test.ts'],
     setupFiles: './src/test/setup.ts',
     restoreMocks: true,
     // Whole-app journeys open several pages on demand; give them room on a busy machine.

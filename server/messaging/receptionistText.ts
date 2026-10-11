@@ -3,6 +3,7 @@ import { digest } from '../auth'
 import type { Context } from '../context'
 import type { InboundReply } from './providers'
 import { holding, settleUse } from '../aiUsage'
+import { modelOf, recordTurn } from '../assistantRecords'
 import { answersSocial, answersTexts } from '../../src/assistant/receptionist'
 import { askReceptionist, receptionUse } from '../../src/assistant/receptionistAsk'
 import type { ReceptionEffect, ReceptionTurn } from '../../src/assistant/receptionist'
@@ -311,8 +312,14 @@ async function answerKept(
       ...(brain ? { brain } : {}),
     }),
   )
+  // Each turn leaves a record of what it did, without any words.
+  const record = (r: typeof result) =>
+    recordTurn(ctx, org.id, 'guests', channel, null, modelOf(ctx, !!brain), r)
   if (result.status === 'refused') {
-    if (held) db.transaction(() => settleUse(ctx, org.id, use, { counted: false, costMinor: 0 }))
+    db.transaction(() => {
+      if (held) settleUse(ctx, org.id, use, { counted: false, costMinor: 0 })
+      record(result)
+    })
     refused?.()
     return false
   }
@@ -321,9 +328,10 @@ async function answerKept(
     console.error(
       `[SALEANE] The receptionist's AI could not answer (${result.reason}): ${result.detail}`,
     )
-    db.transaction(() =>
-      settleUse(ctx, org.id, use, { counted: false, costMinor: result.costMinor }),
-    )
+    db.transaction(() => {
+      settleUse(ctx, org.id, use, { counted: false, costMinor: result.costMinor })
+      record(result)
+    })
     return false
   }
   const offered = result.proposals.find((p) => p.effect.kind === 'time')
@@ -351,6 +359,7 @@ async function answerKept(
     // A real AI can take several seconds. Meanwhile the studio may have turned the receptionist
     // off, or someone from the team may have answered the guest: then the AI's answer is not
     // sent and does not count, though what it cost does.
+    record(result)
     const latest = ctx.systemOrg(org.id)
     if (!latest || !answers(latest, channel) || conversation(latest).team) {
       settleUse(ctx, org.id, use, { counted: false, costMinor: result.costMinor })
