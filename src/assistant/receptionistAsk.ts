@@ -46,9 +46,17 @@ export type ReceptionInput = {
   canText?: boolean
   usage: Usage | undefined
   allowance?: Allowance
+  /** Set when the guest has gone, so no further call to the AI is paid for. */
+  signal?: AbortSignal
   /** A real AI supplier's brain. Left out, the test-mode brain answers: free, and nothing leaves. */
   brain?: Brain
 }
+
+/**
+ * By text or on a call, a time offered is finished on the page its link opens, and the link itself
+ * is the message: so LUMANE's last check says only that nothing is booked yet.
+ */
+const AWAY_FROM_THE_PAGE = { prepared: 'Nothing is booked until you confirm it.' }
 
 /**
  * One guest message to the receptionist, through the guests' side of SALEANE's pack. The server
@@ -73,6 +81,15 @@ export function askReceptionist(input: ReceptionInput): Promise<TurnResult<Recep
     skills: guests.skills(),
     ctx,
     instructions: guests.instructions,
+    ...(guests.reply
+      ? {
+          reply:
+            input.channel === 'text' || input.channel === 'phone'
+              ? { ...guests.reply, notes: { ...guests.reply.notes, ...AWAY_FROM_THE_PAGE } }
+              : guests.reply,
+        }
+      : {}),
+    ...(input.signal ? { signal: input.signal } : {}),
     context: receptionFacts(ctx, input.channel),
     timeLimitMs: CHAT_TIME_LIMIT_MS,
     history: (input.history ?? [])

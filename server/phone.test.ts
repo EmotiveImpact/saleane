@@ -319,7 +319,7 @@ describe('the AI receptionist answering calls the desk misses', () => {
     claude.answers.push(
       tool('offer_time', { treatmentId: serviceId, date: '2026-10-08', time: '11:00' }),
       words(
-        'I have texted you a link to book Thursday at 11. Nothing is booked until you confirm.',
+        'I will text you a link to book Thursday at 11. Nothing is booked until you confirm.',
       ),
     )
     const handed = await missed(slug)
@@ -350,7 +350,7 @@ describe('the AI receptionist answering calls the desk misses', () => {
     expect(call.said[1]).toEqual({
       kind: 'answer',
       id: 'item_1',
-      text: 'I have texted you a link to book Thursday at 11. Nothing is booked until you confirm.',
+      text: 'I will text you a link to book Thursday at 11. Nothing is booked until you confirm.',
     })
     expect(claude.requests[0].system.map((part) => part.text).join('\n')).toMatch(
       /calling the studio's phone/,
