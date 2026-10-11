@@ -6,7 +6,13 @@ import { useClock } from '../state/clock'
 import { api } from '../state/api'
 import { money } from '../domain/format'
 import { operations } from '../domain/operations'
-import { ADD_ONS, PEOPLE_PER_LOCATION, PRICE, extraPeople, priceLabel } from '../domain/pricing'
+import {
+  LOCATION_ADD_ONS,
+  PEOPLE_PER_LOCATION,
+  PRICE,
+  extraPeople,
+  priceLabel,
+} from '../domain/pricing'
 import { ADD_ON_NAMES, addOnBill, planDate, trialDaysLeft } from '../domain/billing'
 import type { AddOn, Bill, BillingView, InvoiceView } from '../domain/billing'
 import { Button, ErrorMessage, Modal } from '../design'
@@ -298,7 +304,7 @@ export function PlanBilling() {
 
       <div className="plan-block">
         <h3>Add-ons</h3>
-        {ADD_ONS.map((addOn) => {
+        {LOCATION_ADD_ONS.map((addOn) => {
           const name = IN_WORDS[addOn.id],
             first = FIRST_WORDS[addOn.id]
           const on = plan[`${addOn.id}Next`]
