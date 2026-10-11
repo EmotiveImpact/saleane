@@ -17,17 +17,20 @@ import {
   stock,
 } from './operations'
 import { daysBetween } from './timeOff'
-import { isPeriodStart } from './rent'
+import { money } from './format'
+import { isPeriodStart, periodDue, rentPeriods } from './rent'
 import { cancelOrder, placeOrder, receiveOrder, saveSupplier } from './purchasing'
 import { prepareAccountingExport } from './accounts'
 import { RENT_LIMIT, RENT_PAYMENT_LIMIT } from './rentSchema'
 import { restockReturn } from './retail'
+import { checkBarcode, productWithBarcode } from './barcode'
 import { assertSchedulePreserved, scheduleChanges, scheduleSnapshot } from './schedule'
 import { isWaitlistOffer } from './waitlist'
 import { draftStale, isInvitation } from './cancelledTimes'
 import { agreedEverywhere } from './dueBack'
 import { VOICES } from '../assistant/voices'
 import { otherLedgerRefund, otherLedgerReference, referenceTaken } from './references'
+import { dayMonth, needsAskedAfterStop, numberStop, textStopState } from './textStop'
 
 export function assertMethod(
   s: BusinessState,
@@ -84,6 +87,7 @@ export function runOperatingCommand(
     'resource',
     'time-off',
     'cancel-time-off',
+    'time-off-change',
   ].includes(command.type)
   // Guest notes change only text guests read; an empty note removes it.
   if (command.type === 'guest-notes') {
@@ -182,6 +186,53 @@ export function runOperatingCommand(
     if (away.cancelledAt) throw new Error('This time off is already cancelled.')
     away.cancelledAt = now
     away.cancelledBy = 'Local operator'
+    recordId = away.id
+  } else if (command.type === 'time-off-change') {
+    // Stage 4: the earlier record is kept, cancelled and naming the new one, so the history of
+    // who changed what stays whole.
+    const old = o.timeOff?.find((t) => t.id === command.timeOffId)
+    if (!old) throw new Error('Time off not found.')
+    if (old.cancelledAt)
+      throw new Error(
+        old.changedTo
+          ? 'This time off has already been changed. Change the newer one instead.'
+          : 'This time off is cancelled, so it cannot be changed.',
+      )
+    if (!next.staff.some((p) => p.id === old.staffId && !p.archived))
+      throw new Error('Choose someone on the team.')
+    const { from, to, kind } = command.input
+    const note = command.input.note || undefined
+    if (from === old.from && to === old.to && kind === old.kind && note === old.note)
+      throw new Error('Nothing has changed.')
+    if (daysBetween(from, to) + 1 > TIME_OFF_DAYS)
+      throw new Error(`Record up to ${TIME_OFF_DAYS} days at a time.`)
+    if (o.timeOff!.length >= TIME_OFF_LIMIT) throw new Error('Too much time off to keep.')
+    if (
+      o.timeOff!.some(
+        (t) =>
+          t.id !== old.id &&
+          !t.cancelledAt &&
+          t.staffId === old.staffId &&
+          t.from <= to &&
+          t.to >= from,
+      )
+    )
+      throw new Error('This overlaps time off already recorded for them.')
+    const away = {
+      id: makeId(),
+      staffId: old.staffId,
+      from,
+      to,
+      kind,
+      ...(note ? { note } : {}),
+      createdAt: now,
+      actor: 'Local operator',
+      changedFrom: old.id,
+    }
+    old.cancelledAt = now
+    old.cancelledBy = 'Local operator'
+    old.changedTo = away.id
+    o.timeOff!.push(away)
     recordId = away.id
   } else if (command.type === 'leave-allowance') {
     if (!next.staff.some((p) => p.id === command.staffId))
@@ -304,6 +355,7 @@ export function runOperatingCommand(
     command.type === 'resource' ||
     command.type === 'time-off' ||
     command.type === 'cancel-time-off' ||
+    command.type === 'time-off-change' ||
     command.type === 'leave-allowance'
   ) {
     if (scheduling) {
@@ -353,20 +405,43 @@ export function runOperatingCommand(
       throw new Error('A sample studio is never offered on Google. Use a studio of your own.')
     o.googleBooking = { ...command.settings }
     recordId = next.organisation.id
+  } else if (command.type === 'ai-booking') {
+    // Stage 5: a sample studio may try it too, in test mode on this computer, as its booking page
+    // takes practice bookings.
+    o.aiBooking = { ...command.settings }
+    recordId = next.organisation.id
   } else if (command.type === 'contact-preferences') {
     const client = next.clients.find((c) => c.id === command.clientId)
     if (!client) throw new Error('Client does not belong to this studio.')
     const was = { email: !client.noEmailReminders, sms: !client.noTextReminders }
+    // Stage 1: a client who replied STOP gets texts again from the desk only when they asked, and
+    // the team says so; their phone network still blocks texts until they text START.
+    const stopped = !was.sms && command.sms ? textStopState(next, client) : null
+    if (stopped?.kind === 'stopped' && !command.askedAfterStop)
+      throw new Error(
+        `${client.name.split(' ')[0]} replied STOP by text. Turn texts back on only if they asked you to, and confirm that they did.`,
+      )
     if (command.email) delete client.noEmailReminders
     else client.noEmailReminders = true
-    if (command.sms) delete client.noTextReminders
-    else client.noTextReminders = true
+    if (command.sms) {
+      delete client.noTextReminders
+      // The team decided: nothing waits on a STOP or START reply now.
+      delete client.textsStoppedAt
+      delete client.textsAskedAt
+    } else client.noTextReminders = true
+    const still = command.sms && numberStop(next, client.phone)
     if (was.email !== command.email || was.sms !== command.sms)
       addEvent({
         clientId: client.id,
         type: 'consent',
         title: 'Visit messages updated',
-        detail: `Visit emails ${command.email ? 'on' : 'off'}, texts ${command.sms ? 'on' : 'off'}. Marketing preference unchanged.`,
+        detail: `Visit emails ${command.email ? 'on' : 'off'}, texts ${command.sms ? 'on' : 'off'}.${
+          stopped?.kind === 'stopped'
+            ? ` They replied STOP by text on ${dayMonth(next, stopped.at)}; the team confirmed they asked for texts again.`
+            : stopped?.kind === 'asked'
+              ? ` They had texted START on ${dayMonth(next, stopped.at)} to ask for texts again.`
+              : ''
+        }${still ? ' Their number stays blocked for texts until they text START.' : ''} Marketing preference unchanged.`,
       })
     recordId = client.id
   } else if (command.type === 'message') {
@@ -644,7 +719,20 @@ export function runOperatingCommand(
       !(o.suppliers ?? []).some((x) => x.id === command.input.supplierId)
     )
       throw new Error('Choose a supplier from the list.')
-    const product = { ...command.input, id: command.id ?? makeId() }
+    // Stage 2: a barcode is checked, kept in its normal form and belongs to one product only.
+    const { barcode: typed, ...input } = command.input
+    let barcode: string | undefined
+    if (typed?.trim()) {
+      const checked = checkBarcode(typed)
+      if (!checked.ok) throw new Error(checked.error)
+      const holder = productWithBarcode(o.products, checked.code, command.id)
+      if (holder)
+        throw new Error(
+          `${holder.name}${holder.archived ? ' (no longer stocked)' : ''} already has barcode ${holder.barcode}. Each barcode belongs to one product.`,
+        )
+      barcode = checked.code
+    }
+    const product = { ...input, ...(barcode ? { barcode } : {}), id: command.id ?? makeId() }
     // Replaced whole, so a cleared optional field such as the cost price really clears.
     if (old) o.products[o.products.indexOf(old)] = product
     else o.products.push(product)
@@ -677,9 +765,13 @@ export function runOperatingCommand(
       throw new Error('They already have a rental. End it before starting another.')
     o.rentals ??= []
     if (o.rentals.length >= RENT_LIMIT) throw new Error('Too many rentals to keep.')
+    const { percentBps, products, ...terms } = command.input
     const rental = {
       id: makeId(),
-      ...command.input,
+      ...terms,
+      // Stage 3: a share of their takings, and whether the products they sell are theirs.
+      ...(percentBps ? { percentBps } : {}),
+      ...(products ? { products: true } : {}),
       createdAt: now,
       actor: 'Local operator',
     }
@@ -699,13 +791,20 @@ export function runOperatingCommand(
     if (!rental) throw new Error('Rental not found.')
     if (!isPeriodStart(rental, command.periodStart))
       throw new Error('Choose one of the rent periods.')
-    if (command.periodStart > businessDate(next, now)) throw new Error('That rent is not due yet.')
+    const today = businessDate(next, now)
+    if (command.periodStart > today) throw new Error('That rent is not due yet.')
     const paid = (o.rentPayments ?? [])
       .filter((p) => p.rentalId === rental.id && p.periodStart === command.periodStart)
       .reduce((sum, p) => sum + p.amountMinor, 0)
-    if (paid + command.amountMinor > rental.amountMinor)
+    // Stage 3: with a share of takings, what is due grows as the period goes on.
+    const period = rentPeriods(rental, today).find((p) => p.start === command.periodStart)
+    const due = period ? periodDue(next, rental, period, today) : undefined
+    const dueMinor = due?.dueMinor ?? rental.amountMinor
+    if (paid + command.amountMinor > dueMinor)
       throw new Error(
-        `Only ${rental.amountMinor - paid > 0 ? 'the rest of the rent' : 'nothing more'} is due for that period.`,
+        dueMinor - paid > 0
+          ? `Only ${money(dueMinor - paid, next.organisation, true)} more is due for that period${due?.open ? ' so far' : ''}.`
+          : `Nothing more is due for that period${due?.open ? ' yet' : ''}.`,
       )
     if (command.method !== 'cash' && !command.reference?.trim())
       throw new Error('Enter the transfer or terminal reference.')
@@ -969,8 +1068,15 @@ function approveMessage(next: BusinessState, message: DraftMessage, now: string)
   )
     throw new Error(
       message.channel === 'sms'
-        ? 'This client asked for no texts about their visits. Send by email, or change their preferences first.'
+        ? needsAskedAfterStop(next, to)
+          ? 'This client replied STOP by text, so texts to them are off. Send by email.'
+          : 'This client asked for no texts about their visits. Send by email, or change their preferences first.'
         : 'This client asked for no emails about their visits. Send by text, or change their preferences first.',
+    )
+  // Stage 1: nothing is texted to a number that replied STOP until it texts START.
+  if (message.channel === 'sms' && numberStop(next, to.phone))
+    throw new Error(
+      'This client’s number replied STOP by text, so nothing can be texted to it until they text START. Send by email.',
     )
   message.status = 'queued'
   message.approvedAt = now

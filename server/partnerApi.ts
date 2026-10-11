@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import { z } from 'zod'
 import { digest, equalToken } from './auth'
 import { fail, header } from './http'
@@ -7,24 +8,26 @@ import { businessDate, operations } from '../src/domain/operations'
 import { addDays } from '../src/domain/format'
 import { offeredAt, places, serviceAt } from '../src/domain/locations'
 import { dailySummary } from '../src/domain/accounts'
-import type { BusinessState } from '../src/domain/model'
+import { currentWording } from '../src/domain/consent'
+import { LOCATION_SCOPES, apiScopes } from '../src/domain/accessKeys'
+import type { ApiScope } from '../src/domain/accessKeys'
 import { API_VERSION } from './connections'
+import { writeThroughKey } from './partnerWrites'
+import { appointmentView, refuse } from './partnerShared'
+import type { KeyAuth, KeyRow } from './partnerShared'
 
 /**
- * V5: read-only access for other software and partners. The owner makes a key for one studio,
- * chooses what it may read, and can revoke it at any time. A partner's key can also be kept to one
- * location and stop on a chosen day. Keys are stored only as a hash; the key itself is shown once.
- * Nothing can be changed through a key.
+ * V5: access for other software and partners. The owner makes a key for one studio, chooses what
+ * it may do, and can revoke it at any time. A partner's key can also be kept to one location and
+ * stop on a chosen day. Keys are stored only as a hash; the key itself is shown once.
+ *
+ * Stage 5: a key reads only, unless the owner also ticks one of the writing scopes (see
+ * src/domain/accessKeys.ts). Writes are in partnerWrites.ts. A key made before Stage 5 keeps
+ * exactly the reading scopes it had.
  */
 
-export const apiScopes = [
-  'appointments:read',
-  'clients:read',
-  'services:read',
-  'takings:read',
-] as const
-/** What a key for one location may read: its own visits, and the menu and team. */
-const LOCATION_SCOPES: readonly ApiScope[] = ['appointments:read', 'services:read']
+export { apiScopes }
+export type { ApiScope }
 /**
  * The last day a key may run to: the day before the same date next year, so it runs for at most
  * one year (a key made on 29 February may run to 28 February).
@@ -36,27 +39,11 @@ function lastEndDay(today: string) {
   const next = new Date(Date.UTC(year, month - 1, day)).toISOString().slice(0, 10)
   return addDays(next, -1)
 }
-export type ApiScope = (typeof apiScopes)[number]
 const KEY_LIMIT = 10
 const KEY_PER_MINUTE = 120
 /** The longest date range one request may ask for. */
 const MAX_DAYS = 31
 const PAGE = 200
-
-type KeyRow = {
-  id: string
-  organisation_id: string
-  name: string
-  prefix: string
-  key_hash: string
-  scopes: string
-  created_by: string
-  created_at: number
-  last_used_at: number | null
-  revoked_at: number | null
-  location_id: string | null
-  ends_on: string | null
-}
 
 const keyInput = z
   .object({
@@ -90,25 +77,9 @@ const keyView = (row: KeyRow) => ({
   endsOn: row.ends_on,
 })
 
-const hhmm = (minutes: number) =>
-  `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
 const days = (from: string, to: string) => (Date.parse(to) - Date.parse(from)) / 86400000
 
-function appointmentView(s: BusinessState, a: BusinessState['appointments'][number]) {
-  return {
-    id: a.id,
-    clientId: a.clientId,
-    status: a.status,
-    date: a.date,
-    start: hhmm(a.startMinutes),
-    durationMinutes: a.bookedDurationMinutes,
-    service: a.bookedServiceName ?? s.services.find((x) => x.id === a.serviceId)?.name ?? null,
-    serviceId: a.serviceId,
-    professional: s.staff.find((p) => p.id === a.staffId)?.name ?? null,
-    professionalId: a.staffId,
-    source: a.source,
-  }
-}
+const BEARER = /^Bearer\s+(sal_[a-f0-9]{8}_[A-Za-z0-9_-]{32})$/
 
 function dates(query: Record<string, string>) {
   const { from, to } = range.parse(query)
@@ -130,7 +101,48 @@ export function partnerApi() {
     entry.count += 1
     uses.set(prefix, entry)
     if (entry.count > KEY_PER_MINUTE)
-      fail(429, 'Too many requests for this key. Wait before trying again.')
+      refuse(429, 'rate_limited', 'Too many requests for this key. Wait before trying again.')
+  }
+  /** The access key sent with a request, counted against its limit. Checked before anything else. */
+  const presented = (c: Context, request: IncomingMessage) => {
+    const raw = BEARER.exec(header(request, 'authorization') ?? '')?.[1]
+    if (!raw)
+      return refuse(401, 'unauthorised', 'Send an access key as "Authorization: Bearer sal_…".')
+    limit(c, raw.slice(4, 12))
+    return raw
+  }
+  /**
+   * The same checks for reading and for writing: the key by its prefix, compared in constant
+   * time, for a real studio that is not locked, before its end date and for an open location. A
+   * write is also refused while the studio is read only until its SALEANE bill is paid.
+   */
+  const authenticate = (c: Context, raw: string, write: boolean): KeyAuth => {
+    const row = c.db.get<KeyRow>(
+      'SELECT * FROM api_keys WHERE prefix=? AND revoked_at IS NULL',
+      raw.slice(4, 12),
+    )
+    if (!row || !equalToken(digest(raw), row.key_hash))
+      return refuse(401, 'unauthorised', 'This access key is not valid or was revoked.')
+    const org = c.systemOrg(row.organisation_id)
+    if (!org || operations(org.state).mode === 'sandbox')
+      return refuse(401, 'unauthorised', 'This access key is not valid or was revoked.')
+    if (c.plans.locked(org.id))
+      refuse(402, 'locked', 'This studio is locked until its SALEANE bill is paid.')
+    if (write && c.plans.readOnly(org.id))
+      refuse(
+        402,
+        'read_only',
+        'This studio is read only until its SALEANE bill is paid, so nothing can be sent in.',
+      )
+    const s = org.state
+    // A key past its last day, or for a location since closed, does nothing more.
+    if (row.ends_on && businessDate(s, new Date(c.now()).toISOString()) > row.ends_on)
+      refuse(401, 'unauthorised', 'This access key has reached its end date.')
+    const only = row.location_id
+    if (only && !places(s).some((p) => p.id === only))
+      refuse(401, 'unauthorised', 'This access key was for a location that has closed.')
+    c.db.run('UPDATE api_keys SET last_used_at=? WHERE id=?', c.now(), row.id)
+    return { row, org, scopes: JSON.parse(row.scopes) as ApiScope[], only }
   }
   /** Owner-managed keys, under the workspace like every other studio setting. */
   async function manage(c: Context, route: Route): Promise<boolean> {
@@ -170,7 +182,7 @@ export function partnerApi() {
         if (input.scopes.some((scope) => !LOCATION_SCOPES.includes(scope)))
           fail(
             422,
-            'A key for one location can read its visits and the treatments and team only. Clients and takings belong to the whole studio.',
+            'A key for one location can read and change its own visits, read the treatments and team, and send in its own till’s sales. Clients and takings belong to the whole studio.',
           )
       }
       if (input.endsOn && (input.endsOn < today || input.endsOn > lastEndDay(today)))
@@ -220,42 +232,22 @@ export function partnerApi() {
     fail(404, 'This endpoint was not found.')
   }
 
-  /** The read-only API itself: `Authorization: Bearer sal_…`, GET only. */
+  /** The reading API: `Authorization: Bearer sal_…`, GET only. Writes come in through `write`. */
   async function read(c: Context, route: Route): Promise<boolean> {
     const { request, method, path, url, reply } = route
     if (path[1] !== 'v1') return false
-    if (method !== 'GET') fail(405, 'This API only reads. Use GET.')
-    const raw = /^Bearer\s+(sal_[a-f0-9]{8}_[A-Za-z0-9_-]{32})$/.exec(
-      header(request, 'authorization') ?? '',
-    )?.[1]
-    if (!raw) fail(401, 'Send an access key as "Authorization: Bearer sal_…".')
-    const prefix = raw!.slice(4, 12)
-    limit(c, prefix)
-    const row = c.db.get<KeyRow>(
-      'SELECT * FROM api_keys WHERE prefix=? AND revoked_at IS NULL',
-      prefix,
-    )
-    if (!row || !equalToken(digest(raw!), row.key_hash))
-      fail(401, 'This access key is not valid or was revoked.')
-    const org = c.systemOrg(row!.organisation_id)
-    if (!org || operations(org.state).mode === 'sandbox')
-      fail(401, 'This access key is not valid or was revoked.')
-    if (c.plans.locked(org!.id)) fail(402, 'This studio is locked until its SALEANE bill is paid.')
-    const s = org!.state
-    // A key past its last day, or for a location since closed, reads nothing more.
-    if (row!.ends_on && businessDate(s, new Date(c.now()).toISOString()) > row!.ends_on)
-      fail(401, 'This access key has reached its end date.')
-    const only = row!.location_id
-    if (only && !places(s).some((p) => p.id === only))
-      fail(401, 'This access key was for a location that has closed.')
-    const scopes = JSON.parse(row!.scopes) as ApiScope[]
+    if (method !== 'GET')
+      fail(405, 'Use GET to read, POST to add or PATCH to change. See docs/CONNECTIONS.md.')
+    const { row, org, scopes, only } = authenticate(c, presented(c, request), false)
+    const s = org.state
     const need = (scope: ApiScope) => {
-      if (!scopes.includes(scope)) fail(403, `This key cannot read that. It needs ${scope}.`)
+      if (!scopes.includes(scope))
+        refuse(403, 'forbidden_scope', `This key cannot read that. It needs ${scope}.`)
     }
-    c.db.run('UPDATE api_keys SET last_used_at=? WHERE id=?', c.now(), row!.id)
     const query = Object.fromEntries(url.searchParams)
     const resource = path.slice(2).join('/')
     if (resource === 'studio') {
+      const wording = currentWording(s)
       reply(200, {
         apiVersion: API_VERSION,
         studio: {
@@ -264,9 +256,13 @@ export function partnerApi() {
           timeZone: s.organisation.timeZone,
           currency: s.organisation.currency,
         },
+        // Stage 5: which key this is, so the software can tell its own changes when told of them.
+        key: { id: row.id, prefix: row.prefix, name: row.name },
         scopes,
         locationId: only,
-        endsOn: row!.ends_on,
+        endsOn: row.ends_on,
+        // Stage 5: the words clients agree to for email news, which a write must name.
+        emailNewsWording: { version: wording.version, text: wording.text },
       })
       return true
     }
@@ -341,5 +337,25 @@ export function partnerApi() {
     fail(404, 'This endpoint was not found.')
   }
 
-  return { manage, read }
+  /**
+   * Stage 5: writes through an access key, before the app's Origin and JSON gate, which is for
+   * SALEANE's own pages. Returns false for anything that is not a POST or PATCH under /api/v1.
+   */
+  async function write(
+    c: Context,
+    request: IncomingMessage,
+    response: ServerResponse,
+    method: string,
+    pathname: string,
+    reply: (status: number, body: unknown) => void,
+  ): Promise<boolean> {
+    if (!pathname.startsWith('/api/v1/') || (method !== 'POST' && method !== 'PATCH')) return false
+    await writeThroughKey(c, request, response, method, pathname, reply, {
+      presented: (r) => presented(c, r),
+      authenticate: (raw) => authenticate(c, raw, true),
+    })
+    return true
+  }
+
+  return { manage, read, write }
 }

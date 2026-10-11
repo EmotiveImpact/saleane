@@ -47,3 +47,32 @@ export class BlockList {
     })
   }
 }
+
+type Listener = (value?: unknown) => void
+
+/**
+ * Stage 2: a page in the browser cannot open a connection to a receipt printer, so the demo's
+ * network printer always answers that the printer could not be reached. Sample studios use the
+ * test printer anyway.
+ */
+export function createConnection() {
+  const listeners = new Map<string, Listener[]>()
+  const socket = {
+    on(event: string, listener: Listener) {
+      listeners.set(event, [...(listeners.get(event) ?? []), listener])
+      return socket
+    },
+    end() {
+      return socket
+    },
+    destroy() {
+      listeners.clear()
+      return socket
+    },
+  }
+  setTimeout(() => {
+    for (const listener of listeners.get('error') ?? [])
+      listener(Object.assign(new Error('No printer from a browser.'), { code: 'EHOSTUNREACH' }))
+  }, 0)
+  return socket
+}

@@ -3,6 +3,9 @@ import { Plus } from 'lucide-react'
 import {
   Avatar,
   Button,
+  ChoiceTiles,
+  DateField,
+  DateStrip,
   Definition,
   Empty,
   ErrorMessage,
@@ -15,25 +18,36 @@ import {
   Status,
   Tabs,
   TimeChoices,
+  TimeField,
+  WizardSteps,
   photos,
 } from '../design'
+import {
+  audiences,
+  errors,
+  refusals,
+  regionalForms,
+  truthWords,
+  voiceRules,
+  wordChoices,
+} from '../design/voice'
 import '../design/library.css'
 
 const colours = [
-  ['--ink', 'Ink', 'Primary text, primary actions'],
-  ['--ink-deep', 'Deep ink', 'Selected navigation, strongest structure'],
-  ['--muted', 'Muted', 'Secondary text and metadata'],
-  ['--paper', 'Paper', 'Work surfaces and fields'],
-  ['--mineral', 'Mineral', 'Application ground'],
-  ['--line', 'Line', 'Table and section rules'],
-  ['--brand', 'First studio colour', 'Chosen by the studio. Buttons, selection, focus'],
-  ['--rose', 'Second studio colour', 'Chosen by the studio. Now line, counts, ready to return'],
-  ['--sage', 'Brand soft', 'Selection, attention panel, skin and wellbeing'],
-  ['--blue', 'Mist', 'Body and skin context'],
-  ['--sand', 'Sand', 'Hair and styling context'],
+  ['--ink', 'Ink', 'Text and headings'],
+  ['--muted', 'Muted', 'Secondary text and details'],
+  ['--paper', 'Paper', 'Panels, cards and fields'],
+  ['--mineral', 'Ground', 'The warm off-white behind every page'],
+  ['--side', 'Side', 'The menu beside the page'],
+  ['--stone', 'Stone', 'Quiet fills and initials'],
+  ['--line', 'Line', 'Hairlines between rows and sections'],
+  ['--brand', 'First studio colour', 'Chosen by the studio. Selection, focus, figures'],
+  ['--action', 'Action', 'Primary buttons: the first colour deepened for white text'],
+  ['--brand-soft', 'First colour, soft', 'Selected fills, attention, skin and wellbeing'],
+  ['--rose', 'Second studio colour', 'Chosen by the studio. The now line, counts, due back'],
+  ['--blue', 'Mist', 'Body treatments'],
   ['--brass', 'Brass', 'Small warm accents only'],
-  ['--focus', 'Focus', 'Keyboard focus outline'],
-  ['--danger', 'Clay', 'Errors and destructive confirmation'],
+  ['--danger', 'Clay', 'Errors and anything that cannot be undone'],
 ] as const
 
 // Text and background pairs the workspace relies on. Each must reach 4.5:1.
@@ -52,15 +66,16 @@ const pairs = [
 ] as const
 
 const typeScale = [
-  ['--text-display', 'Display', 'Editorial greetings on Today, booking and accounts', 'editorial'],
-  ['--text-title-compact', 'Compact title', 'Working screen titles', 'editorial'],
-  ['--text-title-m', 'Title', 'Panel and side-sheet headings', 'sans'],
+  ['--text-greeting', 'Greeting', 'The welcome on Today and a person’s own day', 'editorial'],
+  ['--text-display', 'Display', 'Page titles on a computer', 'editorial'],
+  ['--text-title-m', 'Title', 'Panel and side-sheet headings, page titles on a phone', 'editorial'],
+  ['--text-stat', 'Figure', 'Headline figures, in light Figtree with even digits', 'figure'],
   ['--text-title-s', 'Section', 'Section headings', 'sans'],
-  ['--text-lead', 'Lead', 'Lead paragraphs and card names', 'sans'],
-  ['--text-body', 'Body', 'Operational text, buttons, fields', 'sans'],
+  ['--text-lead', 'Lead', 'Lead paragraphs and names in cards', 'sans'],
+  ['--text-body', 'Body', 'Working text, buttons and fields', 'sans'],
   ['--text-small', 'Small', 'Supporting text and table cells', 'sans'],
   ['--text-meta', 'Meta', 'Labels and secondary detail', 'sans'],
-  ['--text-micro', 'Micro', 'The floor: statuses, timestamps, captions', 'sans'],
+  ['--text-micro', 'Micro', 'The floor: statuses, times, captions', 'sans'],
 ] as const
 
 const spaces = [
@@ -73,6 +88,43 @@ const spaces = [
   '--space-8',
   '--space-10',
 ]
+
+const corners = [
+  ['--radius', 'Cards and sections'],
+  ['--radius-panel', 'Panels inside a page'],
+  ['--radius-control', 'Fields'],
+  ['--radius-inner', 'Small marks inside a control'],
+  ['--radius-pill', 'Buttons, tags and chips'],
+] as const
+
+const components = [
+  ['PageHeader', 'native', 'The top of every staff page: eyebrow, title, one line, actions'],
+  ['Button', 'native', 'Primary, secondary, quiet and light. Name the action'],
+  ['SegmentedControl', 'Radix Toggle Group', 'One choice between views of the same thing'],
+  ['Tabs', 'Radix Tabs', 'Sections that replace each other in place'],
+  ['Metric, Stats, Stat', 'native', 'Label, figure and a plain line saying what it covers'],
+  ['Definition', 'Radix Popover', 'How a figure is measured, by tap, click or keyboard'],
+  ['Status', 'native', 'A visit’s state as words and a dot'],
+  ['Avatar', 'native', 'A fictional portrait or initials beside a visible name'],
+  ['TimeChoices', 'native radios', 'Picking a time from a short list'],
+  ['DateStrip', 'native radios', 'The next fortnight, each day saying if it has space'],
+  ['DateField, TimeField', 'Radix Popover, select', 'A date or time in a form, written out'],
+  ['Modal', 'Radix Dialog', 'One decision or one record. Escape closes it'],
+  ['WizardSteps, ChoiceTiles, WizardFooter', 'native', 'A rare job of a few steps'],
+  ['ScrollNav', 'native', 'A row of links that scrolls sideways on a phone'],
+  ['Empty, ErrorMessage', 'native', 'Nothing here yet, or something that failed'],
+  ['photos, treatmentPhoto', 'house photographs', 'The only photographs a screen may use'],
+] as const
+
+const sections = [
+  ['principles', 'Principles'],
+  ['colour', 'Colour'],
+  ['type', 'Type'],
+  ['space', 'Space and edges'],
+  ['page-tops', 'Page tops'],
+  ['components', 'Components'],
+  ['voice', 'How SALEANE speaks'],
+] as const
 
 function channel(value: number) {
   const v = value / 255
@@ -122,36 +174,95 @@ function readTokens(names: readonly string[]) {
   return Object.fromEntries(names.map((name) => [name, style.getPropertyValue(name).trim()]))
 }
 
+/** A table that becomes one block per row on a phone, each cell named by its column. */
+function StackTable({
+  caption,
+  columns,
+  rows,
+}: {
+  caption: string
+  columns: readonly string[]
+  rows: readonly (readonly string[])[]
+}) {
+  return (
+    <table className="library-table library-stack">
+      <caption className="sr-only">{caption}</caption>
+      <thead>
+        <tr>
+          {columns.map((name) => (
+            <th key={name} scope="col">
+              {name}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.join('|')}>
+            {row.map((cell, i) => (
+              <td key={columns[i]} data-label={columns[i]}>
+                {i === 0 ? <strong>{cell}</strong> : cell}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
 export function DesignLanguage() {
   const allColours = [...new Set([...colours.map(([n]) => n), ...pairs.flat()])]
-  const [{ hex, sizes, spacing }] = useState(() => ({
+  const [{ hex, sizes, spacing, radii }] = useState(() => ({
     hex: readColours(allColours),
     sizes: readTokens(typeScale.map(([n]) => n)),
     spacing: readTokens(spaces),
+    radii: readTokens(corners.map(([n]) => n)),
   }))
   const [period, setPeriod] = useState('7')
   const [view, setView] = useState('people')
   const [tab, setTab] = useState('services')
   const [time, setTime] = useState<number | null>(600)
+  const [day, setDay] = useState('2026-10-07')
+  const [date, setDate] = useState('2026-10-09')
+  const [clock, setClock] = useState('10:30')
+  const [kind, setKind] = useState<'skin' | 'hair' | null>('skin')
   const [modal, setModal] = useState(false)
   return (
     <div className="library">
       <PageHeader
-        title="Design language"
-        description="The tokens and components every SALEANE screen is built from, shown live from the code."
+        photo={{ src: photos.calmStudio, position: '88% center' }}
+        eyebrow="SALEANE"
+        title="Design language."
+        description="How SALEANE looks and speaks, shown live from the code every screen is built from."
       />
 
-      <section className="surface library-section" aria-labelledby="principles">
+      <nav className="library-contents" aria-label="On this page">
+        <ol>
+          {sections.map(([id, label]) => (
+            <li key={id}>
+              <a href={`#${id}`}>{label}</a>
+            </li>
+          ))}
+        </ol>
+      </nav>
+
+      <section className="library-section" aria-labelledby="principles">
         <h2 id="principles">Principles</h2>
         <ol className="library-principles">
           <li>
-            <strong>Hospitality before software.</strong> Warm off-white, the studio's own colours
-            and a light serif set a calm studio tone. Photography belongs to guests and moments of
-            arrival.
+            <strong>Hospitality before software.</strong> A warm off-white ground, the studio’s own
+            two colours and a light serif set the tone of a calm, independent studio. Photographs
+            belong to arrivals, empty pages and guest moments.
           </li>
           <li>
-            <strong>Space goes to the work.</strong> Editorial headers greet on Today and booking;
-            working screens use the compact header so the calendar, clients and money come first.
+            <strong>Space goes to the work.</strong> The large greeting is kept for the pages people
+            arrive at. Working pages use the compact top, so the calendar, clients and money come
+            first.
+          </li>
+          <li>
+            <strong>Room, not boxes.</strong> Space and hairlines separate things. A card never sits
+            inside a card, and one page has one main button.
           </li>
           <li>
             <strong>Readable at a glance.</strong> Nothing renders below 12px. Every text pairing
@@ -163,16 +274,17 @@ export function DesignLanguage() {
           </li>
           <li>
             <strong>Honest states.</strong> A queued message is not sent and a recorded payment is
-            not processed. Loading, empty, unavailable and error states say what happens next.
+            not charged. Loading, empty, unavailable and error states say what happens next.
           </li>
         </ol>
       </section>
 
-      <section className="surface library-section" aria-labelledby="colour">
+      <section className="library-section" aria-labelledby="colour">
         <h2 id="colour">Colour</h2>
         <p className="library-lead">
-          Semantic tokens in <code>src/design/tokens.css</code>. Components use these names, never
-          raw hex values.
+          Semantic tokens in <code>src/design/tokens.css</code>. Each studio chooses its first and
+          second colour in Settings; everything else is worked out from them. Components use these
+          names, never raw colour values.
         </p>
         <div className="library-swatches">
           {colours.map(([name, label, use]) => (
@@ -189,7 +301,7 @@ export function DesignLanguage() {
           ))}
         </div>
         <h3>Text pairings</h3>
-        <table className="library-table">
+        <table className="library-table library-pairs">
           <caption className="sr-only">Contrast of text and background pairings</caption>
           <thead>
             <tr>
@@ -229,18 +341,45 @@ export function DesignLanguage() {
         </table>
       </section>
 
-      <section className="surface library-section" aria-labelledby="type">
+      <section className="library-section" aria-labelledby="type">
         <h2 id="type">Type</h2>
         <p className="library-lead">
-          Financier Display Light for headings, names and the greeting, with Newsreader as the free
-          stand-in until the licence is bought. Figtree for everything read while working: 360 for
-          body text, 460 for the menu and 560 for emphasis. Times and money use tabular figures.
+          Two faces. Headings, names and greetings are set in Financier Display Light, shown here in
+          Newsreader at weight 300, which stands in for it. Figtree carries everything read while
+          working, and every number: 360 for body text, 460 for the menu and 560 for emphasis. Times
+          and money use even, tabular figures.
         </p>
+        <div className="library-faces">
+          <figure>
+            <span className="library-serif library-face-sample">Every visit, in its place.</span>
+            <figcaption>
+              <strong>Display serif</strong>
+              <small>
+                Financier Display Light, with Newsreader standing in · <code>--font-editorial</code>
+              </small>
+            </figcaption>
+          </figure>
+          <figure>
+            <span className="library-face-sample library-face-figures">£1,100 · 09:30 · 46%</span>
+            <figcaption>
+              <strong>Figtree</strong>
+              <small>
+                Body text, menus, buttons, tables and figures · <code>--font-display</code>
+              </small>
+            </figcaption>
+          </figure>
+        </div>
         <div className="library-type">
           {typeScale.map(([name, label, use, family]) => (
             <div key={name}>
               <span
-                className={family === 'editorial' ? 'library-serif' : ''}
+                className={
+                  family === 'editorial'
+                    ? 'library-serif'
+                    : family === 'figure'
+                      ? 'library-face-figures'
+                      : ''
+                }
                 style={{ fontSize: `var(${name})` }}
               >
                 {label}
@@ -253,11 +392,11 @@ export function DesignLanguage() {
         </div>
       </section>
 
-      <section className="surface library-section" aria-labelledby="space">
-        <h2 id="space">Space and shape</h2>
+      <section className="library-section" aria-labelledby="space">
+        <h2 id="space">Space and edges</h2>
         <p className="library-lead">
-          A 4px base. Surfaces have 7px corners, fields and actions 5px, people are round. Touch
-          targets aim for 44px.
+          A 4px base. Cards have soft 20px corners, fields 12px, and buttons and tags are pills.
+          People are round. Every target on a phone is at least 44px.
         </p>
         <div className="library-spaces">
           {spaces.map((name) => (
@@ -268,22 +407,64 @@ export function DesignLanguage() {
             </div>
           ))}
         </div>
+        <h3>Corners</h3>
+        <div className="library-corners">
+          {corners.map(([name, use]) => (
+            <figure key={name}>
+              <span style={{ borderRadius: `var(${name})` }} />
+              <figcaption>
+                <code>{name}</code>
+                <small>
+                  {radii[name]} · {use}
+                </small>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+        <h3>No stripes on the left edge</h3>
+        <p className="library-lead">
+          Cards, notes, errors and visits never carry a coloured line or shadow down one side. Their
+          tone comes from the surface colour and the words. The only left rules are the 1px
+          hairlines between calendar columns, and a test in <code>src/design/edges.test.ts</code>{' '}
+          keeps it that way.
+        </p>
       </section>
 
-      <section className="surface library-section" aria-labelledby="components">
-        <h2 id="components">Components</h2>
+      <section className="library-section" aria-labelledby="page-tops">
+        <h2 id="page-tops">Page tops</h2>
         <p className="library-lead">
-          Imported from <code>src/design</code>. Interactive primitives are built on Radix (Dialog,
-          Tabs, Toggle Group, Popover) and styled with these tokens.
+          Every staff page opens the same way, in this order: a small label naming the part of
+          SALEANE, the serif title as a short human line, one line saying what the page is for, and
+          the page’s actions, with one primary button. On a phone the actions sit under the words.
         </p>
-
+        <StackTable
+          caption="Which page top each kind of page uses"
+          columns={['Kind of page', 'Its top', 'Pages']}
+          rows={[
+            [
+              'A greeting',
+              'The large serif welcome with a photograph',
+              'Today, a professional’s day, a regional manager’s area',
+            ],
+            [
+              'A place people arrive',
+              'Compact, led by one photograph that fades into the words',
+              'Clients, the waitlist, what guests tell you',
+            ],
+            [
+              'A working tool or a form',
+              'Compact, with no photograph',
+              'Calendar, Inbox, Business pages, Money, Stock, Settings, the day sheet',
+            ],
+            [
+              'A record or a guest page',
+              'Its own frame, in the same order',
+              'A client’s page, booking pages, a guest’s visit link',
+            ],
+          ]}
+        />
         <div className="library-specimen">
-          <h3>Page header</h3>
-          <p>
-            Editorial for arrival; compact for working screens. Every staff page has a small
-            eyebrow, a serif title, one line of description and its actions on the right. A page
-            that opens a part of the studio can lead with a thin band of a house photograph.
-          </p>
+          <h3>A greeting</h3>
           <div className="library-frame">
             <PageHeader
               headingLevel={2}
@@ -294,6 +475,7 @@ export function DesignLanguage() {
               actions={<Button>New visit</Button>}
             />
           </div>
+          <h3>A place people arrive</h3>
           <div className="library-frame">
             <PageHeader
               headingLevel={2}
@@ -309,7 +491,35 @@ export function DesignLanguage() {
               }
             />
           </div>
+          <h3>A working tool</h3>
+          <div className="library-frame">
+            <PageHeader
+              headingLevel={2}
+              eyebrow="Business"
+              title="What is on the shelf."
+              description="Products you sell at the till and the ones you use in treatments."
+              actions={
+                <Button>
+                  <Plus size={17} />
+                  Add a product
+                </Button>
+              }
+            />
+          </div>
         </div>
+      </section>
+
+      <section className="library-section" aria-labelledby="components">
+        <h2 id="components">Components</h2>
+        <p className="library-lead">
+          Imported from <code>src/design</code>. Interactive pieces are built on Radix (Dialog,
+          Tabs, Toggle Group, Popover) and take their look from the tokens above.
+        </p>
+        <StackTable
+          caption="Every component in the library"
+          columns={['Component', 'Built on', 'When to use it']}
+          rows={components}
+        />
 
         <div className="library-specimen">
           <h3>Button</h3>
@@ -323,7 +533,7 @@ export function DesignLanguage() {
 
         <div className="library-specimen">
           <h3>Segmented control</h3>
-          <p>Radix Toggle Group. One option always stays selected; arrow keys move between them.</p>
+          <p>One option always stays selected; arrow keys move between them.</p>
           <div className="library-row">
             <SegmentedControl
               label="Example period"
@@ -350,8 +560,8 @@ export function DesignLanguage() {
         <div className="library-specimen">
           <h3>Tabs</h3>
           <p>
-            Radix Tabs, for sections that replace each other in place. A long list, as in Settings,
-            splits into named groups and becomes one select on a phone.
+            For sections that replace each other in place. A long list, as in Settings, splits into
+            named groups and becomes one select on a phone.
           </p>
           <Tabs
             label="Example sections"
@@ -376,9 +586,9 @@ export function DesignLanguage() {
         <div className="library-specimen">
           <h3>Figures</h3>
           <p>
-            Label, figure and plain detail, in one figure style everywhere. Headline money is in
-            whole pounds; receipts and tables keep the pence. A Radix Popover explains how a figure
-            is measured.
+            Label, figure and a plain line, in one figure style everywhere. Headline money is in
+            whole pounds; receipts and tables keep the pence. A popover explains how a figure is
+            measured.
           </p>
           <div className="metrics-band library-metrics">
             <Metric label="Booked for today" value="£1,100" detail="Before discounts and tips" />
@@ -395,7 +605,7 @@ export function DesignLanguage() {
             <Stat
               label="The visit"
               value="4.4 / 5"
-              definition={<p>The average of every guest's rating for their visit.</p>}
+              definition={<p>The average of every guest’s rating for their visit.</p>}
             />
           </Stats>
           <p>
@@ -407,19 +617,14 @@ export function DesignLanguage() {
         </div>
 
         <div className="library-specimen">
-          <h3>Status</h3>
-          <p>Text and a dot, never colour alone.</p>
+          <h3>Status and people</h3>
+          <p>Words and a dot, never colour alone. Portraits are fictional; others get initials.</p>
           <div className="library-row">
             {['confirmed', 'arrived', 'completed', 'cancelled', 'no_show'].map((status) => (
               <Status key={status} status={status} />
             ))}
           </div>
-        </div>
-
-        <div className="library-specimen">
-          <h3>Avatar</h3>
-          <p>Fictional seed portraits, otherwise initials on a staff tone.</p>
-          <div className="library-row">
+          <div className="library-row library-row-gap">
             <Avatar identity="staff-maya" name="Maya Lewis" />
             <Avatar name="Sophia Reed" tone="blue" />
             <Avatar name="Theo Bennett" tone="sand" />
@@ -428,8 +633,24 @@ export function DesignLanguage() {
         </div>
 
         <div className="library-specimen">
-          <h3>Time choices</h3>
-          <p>Native radios: arrow keys select, one time at a time.</p>
+          <h3>Choosing a day and a time</h3>
+          <p>
+            The strip shows a fortnight, each day saying whether it has space. Times are native
+            radios; dates and times in forms are written out in the studio’s own way.
+          </p>
+          <DateStrip
+            label="Example days"
+            locale="en-GB"
+            value={day}
+            onChange={setDay}
+            days={[
+              { date: '2026-10-06', free: 0 },
+              { date: '2026-10-07', free: 6 },
+              { date: '2026-10-08', free: 2 },
+              { date: '2026-10-09', free: 9 },
+              { date: '2026-10-10', free: 4 },
+            ]}
+          />
           <TimeChoices
             label="Example times"
             value={time}
@@ -440,11 +661,54 @@ export function DesignLanguage() {
               { value: 690, label: '11:30' },
             ]}
           />
+          <div className="library-row library-row-gap">
+            <div className="library-field">
+              <span aria-hidden="true">Date</span>
+              <DateField
+                value={date}
+                onChange={setDate}
+                locale="en-GB"
+                today="2026-10-06"
+                aria-label="Example date"
+              />
+            </div>
+            <div className="library-field">
+              <span aria-hidden="true">Time</span>
+              <TimeField
+                value={clock}
+                onChange={setClock}
+                locale="en-GB"
+                aria-label="Example time"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="library-specimen">
+          <h3>A job of a few steps</h3>
+          <p>
+            For rare jobs only: moving in, setting up a studio, adding a location. One heading, one
+            line and one way forward on each step.
+          </p>
+          <WizardSteps
+            label="Example steps"
+            steps={['Your studio', 'Treatments', 'Hours', 'Check']}
+            current={2}
+          />
+          <ChoiceTiles
+            label="Example kind of studio"
+            value={kind}
+            onChange={setKind}
+            options={[
+              { value: 'skin', label: 'Skin and wellbeing' },
+              { value: 'hair', label: 'Hair' },
+            ]}
+          />
         </div>
 
         <div className="library-specimen">
           <h3>Dialog</h3>
-          <p>Radix Dialog: focus is trapped, Escape closes and focus returns to the trigger.</p>
+          <p>Focus stays inside, Escape closes it and focus returns to the button.</p>
           <Button variant="secondary" onClick={() => setModal(true)}>
             Open an example dialog
           </Button>
@@ -465,14 +729,78 @@ export function DesignLanguage() {
         </div>
       </section>
 
-      <section className="surface library-section" aria-labelledby="voice">
-        <h2 id="voice">Voice</h2>
-        <ul className="library-principles">
-          <li>British English, calm and specific. No exclamation marks in the app.</li>
-          <li>Editorial lines are short and warm; working copy says exactly what will happen.</li>
-          <li>Never claim a payment was processed or a message was sent when it was recorded.</li>
-          <li>Errors keep the person’s input and name the next step.</li>
-        </ul>
+      <section className="library-section" aria-labelledby="voice">
+        <h2 id="voice">How SALEANE speaks</h2>
+        <p className="library-lead">
+          For anyone writing words on SALEANE’s screens, in messages to guests or in Help. The full
+          guide is <code>docs/HOW_SALEANE_SPEAKS.md</code>; every example here is from the app.
+        </p>
+        <ol className="library-principles">
+          {voiceRules.map((rule) => (
+            <li key={rule}>{rule}</li>
+          ))}
+        </ol>
+
+        <h3>The truth words</h3>
+        <p className="library-lead">
+          Each makes a promise about the real world, so each has one meaning. When the honest word
+          is the smaller one, give the reason: “Email is not connected yet, so nothing was sent.”
+        </p>
+        <StackTable
+          caption="When each truth word may be used"
+          columns={['Word', 'Use it when', 'In the app']}
+          rows={truthWords}
+        />
+
+        <h3>Words we use</h3>
+        <StackTable
+          caption="Words we use and words we avoid"
+          columns={['We say', 'We avoid', 'In the app']}
+          rows={wordChoices}
+        />
+
+        <h3>The team and guests</h3>
+        <p className="library-lead">
+          The same calm voice, different words. A guest never sees roles, test mode jargon or
+          internal names.
+        </p>
+        <StackTable
+          caption="The same moment for the team and for a guest"
+          columns={['Moment', 'To the team', 'To a guest']}
+          rows={audiences}
+        />
+
+        <div className="library-voice-pair">
+          <div>
+            <h3>Saying no</h3>
+            <p className="library-lead">The reason in a few words, then who can help.</p>
+            <ul className="library-quotes">
+              {refusals.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h3>When something goes wrong</h3>
+            <p className="library-lead">What did not happen, that nothing is lost, what next.</p>
+            <ul className="library-quotes">
+              {errors.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <h3>UK and US studios</h3>
+        <p className="library-lead">
+          Screens stay in British spelling everywhere. Dates, times and money follow the studio’s
+          own country through <code>src/domain/format.ts</code>.
+        </p>
+        <StackTable
+          caption="Dates, times and money in a UK and a US studio"
+          columns={['Form', 'UK studio', 'US studio']}
+          rows={regionalForms}
+        />
       </section>
     </div>
   )

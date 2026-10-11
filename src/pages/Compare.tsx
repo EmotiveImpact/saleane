@@ -80,6 +80,7 @@ export function Compare() {
   return (
     <div className="compare-page">
       <PageHeader
+        eyebrow="Business"
         title="How you compare."
         description={`Your studio against similar studios ${word}, over the last ${BENCHMARK_DAYS} days. No one sees another studio’s name or figures.`}
       />

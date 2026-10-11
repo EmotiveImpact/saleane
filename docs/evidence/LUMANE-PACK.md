@@ -33,12 +33,12 @@ This is stage 1 of the LUMANE pathways plan: the engine takes the host app's nam
 - `src/assistant/pack.test.ts` checks SALEANE's own pack:
   - it is ready, and names the assistant Ask SALEANE;
   - the team gets Ask SALEANE's pathways and guests get the receptionist's;
-  - it counts typed questions, talking time and guest chats, with the labels the usage meter shows;
+  - it counts typed questions, talking time, guest chats and the phone receptionist's minutes, with the labels the usage meter shows;
   - a typed question answered through the pack counts as a typed question;
   - a guest's message goes through the guests' side of the pack, with its instructions and LUMANE's rules, counts as a guest chat, and a guest the studio does not know is not offered the pathways to their own visits.
 - `lumane/engine.test.ts` and `lumane/live.test.ts` check that LUMANE's rules reach every request and every talk.
 - `PlanBilling.test.tsx` and `Pricing.test.tsx` expect "Ask SALEANE".
-- `npm run check` passes: lint, every test (1,263 app and 433 server), the type check and the builds.
+- `npm run check` passes on this branch with the phone receptionist work beneath it: lint, every test (1,908 app and 646 server), the type check and the builds. `npm run format:check` passes.
 
 ## Limits
 
@@ -46,4 +46,4 @@ This is stage 1 of the LUMANE pathways plan: the engine takes the host app's nam
 - Stage 2 is not built: screen parts with no fixed look, which any design system can dress, and a default look taken from the host app's own colours and fonts.
 - The installer is not built. A preview of its install screen comes first, for the owner's yes.
 - Usage already stored is read as before, with a missing kind counted as 0, so there is no migration.
-- When PR #103 merges, its phone minutes should be named in SALEANE's pack rather than added to LUMANE.
+- This branch now carries the phone receptionist's work (NEXT-17) beneath it, so it merges after PR #103. Its phone minutes are named in SALEANE's pack, LUMANE's rules reach every phone call, and LUMANE's call window, which that work added, takes the meter's name from the pack in the same way as the talking window. The phone journeys themselves were not walked again here; see [NEXT-17](NEXT-17-PHONE-RECEPTIONIST.md).

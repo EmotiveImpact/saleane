@@ -1,0 +1,150 @@
+/* Stage 2: finding products by barcode, with a scanner, the camera or typed by hand. */
+/* A scanner is a keyboard, so a scan makes the browser ring whatever holds focus. The page and a
+   side panel's heading only hold focus to keep a reader's place and are never tabbed to, so they
+   stay unringed rather than outlined after every scan. */
+.workspace-main:focus-visible,
+.dialog-heading h2[tabindex='-1']:focus-visible {
+  outline: none;
+}
+.scan-field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.scan-field > label {
+  font-size: var(--text-small);
+}
+.scan-field-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 8px;
+}
+.scan-field-input {
+  position: relative;
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+.scan-field-input svg {
+  position: absolute;
+  top: 50%;
+  left: 13px;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+.scan-field-input input {
+  padding-left: 40px;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.scan-field-input input::placeholder {
+  color: var(--faint);
+  letter-spacing: 0.04em;
+}
+.scan-field-hint {
+  color: var(--muted);
+  font-size: var(--text-micro);
+}
+.scan-camera-button {
+  white-space: nowrap;
+}
+.scan-note {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--radius-control);
+  font-size: var(--text-small);
+  overflow-wrap: anywhere;
+}
+.scan-note p {
+  margin: 0;
+}
+.scan-note.is-done {
+  background: var(--brand-soft);
+  color: var(--brand-ink);
+}
+.scan-note.is-problem {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.scan-note .text-link {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+/* An unknown code, added to a product there and then: set apart by a hairline, not a box. */
+.scan-attach {
+  display: grid;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.scan-attach > label {
+  font-size: var(--text-small);
+}
+.scan-attach small {
+  color: var(--muted);
+  font-weight: var(--weight-body);
+}
+.scan-attach .form-error {
+  margin: 0;
+}
+.scan-attach-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+/* The camera, calm and framed: what it sees, with a soft frame to hold the barcode in. */
+.scan-camera {
+  display: grid;
+  gap: 14px;
+}
+.scan-camera-view {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-panel);
+  background: var(--ink);
+}
+.scan-camera-view video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+}
+.scan-camera-view.is-watching video {
+  opacity: 1;
+}
+.scan-camera-frame {
+  position: absolute;
+  inset: 26% 12%;
+  border: 2px solid #ffffffe6;
+  border-radius: var(--radius-panel);
+  box-shadow: 0 0 0 999px #2e2b3347;
+}
+.scan-camera-wait {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  font-size: var(--text-small);
+}
+.scan-camera .ops-actions {
+  margin-top: 0;
+}
+@media (max-width: 480px) {
+  .scan-field-row > .button {
+    flex: 1 1 auto;
+  }
+  /* A link in a note is a full-size target on a phone. */
+  .scan-note .text-link,
+  .scan-attach-actions .text-link {
+    min-height: var(--target);
+  }
+}

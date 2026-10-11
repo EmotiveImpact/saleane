@@ -33,7 +33,19 @@ describe('Smart insights', () => {
   })
 
   it('stays quiet on an ordinary day, apart from the sample studio running low on a product', () => {
-    expect(unusual(base, today).map((x) => x.kind)).toEqual(['low-stock'])
+    expect(unusual(seed('UK', { regulars: true }), today).map((x) => x.kind)).toEqual(['low-stock'])
+  })
+
+  it('compares takings like for like when someone rents a chair', () => {
+    // Stage 3: Theo rents his chair from 21 September, so he is left out of every week compared.
+    // The named clients alone took less this week, which is worth saying.
+    const notice = unusual(base, today).find((x) => x.kind === 'takings-down')
+    expect(notice?.detail).toMatch(/^The last 7 days took 31% less/)
+    // Had he not rented, his visit this week would have counted and the week would be ordinary.
+    const noRent = structuredClone(base)
+    noRent.operations!.rentals = []
+    noRent.operations!.rentPayments = []
+    expect(unusual(noRent, today).map((x) => x.kind)).toEqual(['low-stock'])
   })
 
   it('notices a quiet day ahead only against enough history', () => {

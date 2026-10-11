@@ -26,11 +26,12 @@ describe("SALEANE's pack for LUMANE", () => {
     expect([team.meter, guests.meter]).toEqual(['typed', 'guestChats'])
   })
 
-  it('counts the three kinds of use SALEANE sells, with the labels its usage meter shows', () => {
+  it('counts the four kinds of use SALEANE sells, with the labels its usage meter shows', () => {
     expect(SALEANE_PACK.meters).toEqual({
       typed: { label: 'Questions typed to Ask SALEANE', unit: 'uses' },
       talkSeconds: { label: 'Talking to Ask SALEANE', unit: 'seconds' },
       guestChats: { label: 'Guest chats with the AI receptionist', unit: 'uses' },
+      phoneSeconds: { label: 'Minutes of calls answered by the AI receptionist', unit: 'seconds' },
     })
   })
 
@@ -74,7 +75,7 @@ describe("SALEANE's pack for LUMANE", () => {
     if (result.status === 'answered') expect(result.usage.used).toMatchObject({ guestChats: 1 })
     expect(requests[0].instructions).toBe(standingInstructions(guests.instructions))
     // A guest the studio does not know is never offered the pathways to their own visits.
-    const ownVisits = ['my_visits', 'send_manage_link']
+    const ownVisits = ['my_visits', 'send_manage_link', 'my_usual']
     expect(requests[0].tools.map((t) => t.name)).toEqual(
       guests
         .skills()

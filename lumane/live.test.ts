@@ -113,6 +113,40 @@ describe('starting a talk with OpenAI', () => {
   })
 })
 
+describe('phone calls with OpenAI', () => {
+  it("answers a call with LUMANE's rules after the app's, turns one away and hangs up", async () => {
+    const { layer, requests } = voice(() => new Response('', { status: 200 }))
+    await layer.calls!.accept('rtc_1/x', { instructions: 'Answer the phone.', voice: 'vesper' })
+    await layer.calls!.reject('rtc_2', 486)
+    await layer.calls!.hangup('rtc_1/x')
+    expect(requests.map((r) => r.url)).toEqual([
+      'https://api.openai.com/v1/live/sessions/rtc_1%2Fx/accept',
+      'https://api.openai.com/v1/live/sessions/rtc_2/reject',
+      'https://api.openai.com/v1/live/sessions/rtc_1%2Fx/hangup',
+    ])
+    expect(JSON.parse(String(requests[0].init.body))).toEqual({
+      session: {
+        type: 'live',
+        model: 'gpt-live-1',
+        instructions: standingInstructions('Answer the phone.'),
+        store: false,
+        audio: { output: { voice: 'vesper' } },
+        delegation: { type: 'client' },
+      },
+    })
+    expect(JSON.parse(String(requests[1].init.body))).toEqual({ status_code: 486 })
+    expect(requests[2].init.body).toBeUndefined()
+    expect(requests[2].init.headers).toEqual({ Authorization: 'Bearer test-key' })
+  })
+
+  it('names why a call could not be answered', async () => {
+    const failed = await voice(() => new Response('{}', { status: 404 }))
+      .layer.calls!.accept('rtc_1', { instructions: '', voice: 'vesper' })
+      .catch((error: { kind: string }) => error.kind)
+    expect(failed).toBe('failed')
+  })
+})
+
 describe('following a talk', () => {
   it('connects with the key, and hears the session in SALEANE’s own words', async () => {
     const { layer, sockets, fake } = voice(created)

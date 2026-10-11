@@ -16,6 +16,7 @@ export const SALEANE_PACK = definePack({
     typed: { label: `Questions typed to ${ASK_NAME}`, unit: 'uses' },
     talkSeconds: { label: `Talking to ${ASK_NAME}`, unit: 'seconds' },
     guestChats: { label: 'Guest chats with the AI receptionist', unit: 'uses' },
+    phoneSeconds: { label: 'Minutes of calls answered by the AI receptionist', unit: 'seconds' },
   },
   audiences: {
     team: {
@@ -34,6 +35,7 @@ export const SALEANE_PACK = definePack({
         'Chat on the booking page',
         'Texts to the studio',
         'Instagram and Facebook messages',
+        'Calls the desk misses, with the phone receptionist',
       ],
     },
   },

@@ -1,18 +1,25 @@
 import type { BusinessState } from './model'
 import type { Command } from './commands'
 import { businessDate, operations } from './operations'
-import { places, staffLocationOn } from './locations'
+import { giftHome, places, staffLocationOn } from './locations'
 import { branchVisits } from './branchVisits'
 import { withoutPayRates } from './pay'
 import { shifts, shiftsAt } from './hours'
+import { roomRefusal, rotaDayRefusal, teamChangeRefusal, teamView, timeOffRefusal } from './team'
+import { newsAt, newsMessage, newsOnlyAt } from './news'
+import { offerPlace } from './quietOffers'
 
 /**
  * V5: a general manager runs one location ('general', with the location in their access). They
- * read the studio record as a manager does, less the team's pay rates and other locations' branch
- * visits and requests, and change only what belongs to their location: its visits and takings,
- * its stock and orders, its branch visits and requests, and the clients they look after. Anything
- * that changes the whole business (treatments, prices, the team, hours, settings) stays with the
- * owner and managers. Permissions are in `GENERAL_ACTIONS` (operations.ts).
+ * read the studio record as a manager does, less the team's pay rates, other locations' branch
+ * visits and requests, and (Stage 4) other locations' team, hours, time off and rooms, and change
+ * only what belongs to their location: its visits and takings, its stock and orders, its branch
+ * visits and requests, the gift cards that belong to it (Stage 4: they can pass one on to another
+ * location), the clients they look after and (Stage 4) their own team's days on the rota, their
+ * time off, and the rooms and chairs there (team.ts decides whose and which). Anything that
+ * changes the whole business (treatments, prices, the team's records and usual weekly hours,
+ * opening hours, closures, holiday allowances, settings, moving someone to another location) stays
+ * with the owner and managers. Permissions are in `GENERAL_ACTIONS` (operations.ts).
  */
 /** Changes that concern a client rather than a location; any general manager may make them. */
 const CLIENT_COMMANDS = new Set([
@@ -94,8 +101,15 @@ export function branchRefusal(
         : null
     case 'message-queue': {
       const message = operations(s).messages.find((m) => m.id === command.messageId)
-      return message?.appointmentId && !visitHere(message.appointmentId) ? ELSEWHERE : null
+      if (message?.appointmentId && !visitHere(message.appointmentId)) return ELSEWHERE
+      // Stage 5: an invitation to a time, and any lower price with it, at their own location only.
+      return message?.opening && offerPlace(s, message.opening) !== locationId
+        ? 'That invitation is for a time at another location.'
+        : null
     }
+    case 'offer-invite':
+      // Stage 5: an invitation to a quiet time at their own location.
+      return offerPlace(s, command) === locationId ? null : 'That time is at another location.'
     case 'waitlist-add':
       return mine(command.input.locationId ?? locationId)
         ? null
@@ -132,8 +146,20 @@ export function branchRefusal(
     case 'stock':
     case 'purchase-order':
       return mine(command.locationId) ? null : 'That is at another location.'
+    // Stage 5: a sale or refund from another till, sent in by a key for one location.
+    case 'other-till-sale':
+      return mine(command.sale.locationId) ? null : 'That is at another location.'
+    case 'other-till-refund':
+      return mine(command.refund.locationId) ? null : 'That is at another location.'
     case 'stock-move':
       return mine(command.from) ? null : 'You can only send stock from your own location.'
+    case 'gift-card-move': {
+      // Stage 4: only a card that belongs to their location, passed on to another.
+      const card = (s.giftCards ?? []).find((c) => c.id === command.giftCardId)
+      return card && giftHome(s, card) === locationId
+        ? null
+        : 'That gift card belongs to another location. Ask its general manager, the owner or a manager.'
+    }
     case 'receive-order':
     case 'cancel-order': {
       const order = (operations(s).purchaseOrders ?? []).find((o) => o.id === command.orderId)
@@ -147,13 +173,64 @@ export function branchRefusal(
     }
     case 'request-raise':
       return mine(command.input.locationId) ? null : 'That is at another location.'
+    // Stage 4: their own team's days and time off, and the rooms and chairs at their location.
+    case 'rota-day':
+    case 'rota-day-usual':
+      return rotaDayRefusal(s, locationId, command)
+    case 'rota-week-copy':
+    case 'rota-week-clear':
+      return command.locationId && mine(command.locationId)
+        ? null
+        : 'Copy and clear weeks at your own location only.'
+    case 'time-off':
+      return timeOffRefusal(s, locationId, command.input)
+    case 'cancel-time-off':
+    case 'time-off-change': {
+      // Time off that cannot be found is the change's own refusal.
+      const away = (operations(s).timeOff ?? []).find((t) => t.id === command.timeOffId)
+      if (!away) return null
+      return (
+        timeOffRefusal(s, locationId, away) ??
+        (command.type === 'time-off-change'
+          ? timeOffRefusal(s, locationId, { ...command.input, staffId: away.staffId })
+          : null)
+      )
+    }
+    case 'resource':
+      return roomRefusal(s, locationId, command)
+    case 'news-save': {
+      // Stage 4: a message to their own location's clients only, never to the whole group.
+      const ids = command.input.locationIds
+      if (ids?.length !== 1 || ids[0] !== locationId)
+        return 'Write only to the clients of your own location.'
+      if (!command.id) return null
+      const message = newsMessage(s, command.id)
+      return message && newsOnlyAt(message, locationId)
+        ? null
+        : 'That message is for other locations.'
+    }
+    case 'news-stop':
+    case 'news-discard': {
+      const message = newsMessage(s, command.messageId)
+      return message && newsOnlyAt(message, locationId)
+        ? null
+        : 'That message is for other locations.'
+    }
+    case 'plan-card': {
+      // Stage 1: card payments only for a membership sold at their own location.
+      const holding = (s.holdings ?? []).find((h) => h.id === command.holdingId)
+      return holding && mine(holding.locationId)
+        ? null
+        : 'That membership was sold at another location.'
+    }
   }
   return WHOLE_BUSINESS
 }
 
 /**
  * Checked after a general manager's change is made: every visit and shift it added or changed is
- * at their location, before and after. This catches a booking or move that lands somewhere else.
+ * at their location, before and after, and (Stage 4) so is every day on the rota, stretch of time
+ * off and room. This catches a booking or move that lands somewhere else.
  */
 export function branchChangeRefusal(
   before: BusinessState,
@@ -177,7 +254,7 @@ export function branchChangeRefusal(
     if (!at(shift) || (previous && !at(previous)))
       return 'That would change hours worked at another location.'
   }
-  return null
+  return teamChangeRefusal(before, after, locationId)
 }
 
 /** Whether a general manager's location is still open. */
@@ -185,11 +262,16 @@ export const branchOpen = (s: BusinessState, locationId: string) =>
   places(s).some((p) => p.id === locationId)
 
 /**
- * What a general manager reads: the studio record less the team's pay rates, and only their own
- * location's branch visits and requests for a sign-off.
+ * What a general manager reads: the studio record less the team's pay rates, only their own
+ * location's branch visits, requests for a sign-off, hours worked and messages to clients, and
+ * (Stage 4) only their own team, hours, time off and rooms as `teamView` (team.ts) keeps them.
  */
-export function branchView(s: BusinessState, locationId: string): BusinessState {
-  const lean = withoutPayRates(s)
+export function branchView(
+  s: BusinessState,
+  locationId: string,
+  today = businessDate(s),
+): BusinessState {
+  const lean = withoutPayRates(teamView(s, locationId, today))
   const o = lean.operations
   if (!o) return lean
   return {
@@ -201,6 +283,8 @@ export function branchView(s: BusinessState, locationId: string): BusinessState 
         : {}),
       ...(o.requests ? { requests: o.requests.filter((r) => r.locationId === locationId) } : {}),
       ...(o.shifts ? { shifts: shiftsAt(o.shifts, locationId, s.organisation.locationId) } : {}),
+      // Stage 4: only the messages to their own location's clients.
+      ...(o.news ? { news: newsAt(lean, locationId) } : {}),
     },
   }
 }

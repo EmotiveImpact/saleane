@@ -37,6 +37,9 @@ const plan: BillingView = {
   periodEnd: null,
   plus: false,
   plusNext: false,
+  phone: false,
+  phoneNext: false,
+  phoneConnected: false,
   cancelAtPeriodEnd: false,
   card: null,
   locations: 1,
@@ -53,6 +56,7 @@ const plan: BillingView = {
     typed: { used: 0, of: 300 },
     guestChats: { used: 0, of: 200 },
     talkSeconds: { used: 0, of: 1800 },
+    phoneSeconds: { used: 0, of: 0 },
   },
 }
 const commit = vi.fn(async (command: Command): Promise<CommandResult> => {

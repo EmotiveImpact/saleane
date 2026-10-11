@@ -42,6 +42,8 @@ export type ReceptionInput = {
   continuing?: boolean
   /** The client writing, when the server matched the number they wrote from to their record. */
   guestId?: string
+  /** NEXT-17: false when a time cannot be offered, as its booking link could not be texted. */
+  canText?: boolean
   usage: Usage | undefined
   allowance?: Allowance
   /** A real AI supplier's brain. Left out, the test-mode brain answers: free, and nothing leaves. */
@@ -54,7 +56,10 @@ export type ReceptionInput = {
  * answers from the same skills, calling no AI supplier, costing nothing and sending nothing.
  */
 export function askReceptionist(input: ReceptionInput): Promise<TurnResult<ReceptionEffect>> {
-  const ctx = receptionContext(input.state, input.today, input.now, input.guestId)
+  const ctx = {
+    ...receptionContext(input.state, input.today, input.now, input.guestId),
+    ...(input.canText === undefined ? {} : { canText: input.canText }),
+  }
   const guests = SALEANE_PACK.audiences.guests
   return runTurn({
     brain:

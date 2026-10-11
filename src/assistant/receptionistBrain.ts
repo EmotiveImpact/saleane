@@ -32,9 +32,10 @@ export function receptionistBrain(
 
 /**
  * Where the guest is talking: the booking page's chat, or (`text`) a message to the studio's text
- * line, Instagram, Facebook or WhatsApp, where there is no page around the answer.
+ * line, Instagram, Facebook or WhatsApp, where there is no page around the answer, or (`phone`,
+ * NEXT-17) a call to the studio's phone, where the answer is spoken.
  */
-export type ReceptionChannel = 'web' | 'text'
+export type ReceptionChannel = 'web' | 'text' | 'phone'
 /** Stands in a text answer for the link that books an offered time; the server fills it in. */
 export const BOOKING_LINK = '[[booking-link]]'
 /** Stands in a text answer for the visit's private link; the outbox mints it as it sends. */
@@ -58,6 +59,12 @@ const HEALTH =
 
 const ASK_TREATMENT = 'Which treatment would you like?'
 const ASK_WHICH_VISIT = 'Which visit would you like to change?'
+/** Stage 5: "my usual" in the booking page chat, where nobody is known. */
+const USUAL_UNKNOWN_WEB = `I cannot see who you are in this chat, so I do not know your usual. ${ASK_TREATMENT} Tell me and I will find you a time, or use the link from your last visit, or text us from the number on your booking.`
+/** By text from a number the studio cannot match to one guest. */
+const USUAL_UNKNOWN_TEXT = `I cannot tell who is writing from this number, so I do not know your usual. ${ASK_TREATMENT} Tell me and I will find you a time. The team can see your message too.`
+/** How an answer about the guest's usual starts, so a short follow-up is read against it. */
+const USUAL_SAID = /^Your usual is\b/
 /** Only someone writing from the number on a booking can be sent its link. */
 const CHANGE_ELSEWHERE_TEXT =
   'I can only send the link to change a visit to the phone number on the booking. Please use the link in your booking confirmation, or text us from that number. The team can see your message and will reply to you here.'
@@ -137,6 +144,25 @@ const GREETING =
   /^\s*(hi|hello|hey|hiya|good (morning|afternoon|evening))\b[^?]*$|\bis (that|this) (the )?(studio|salon|spa)\b/i
 const THANKS = /^\s*(thanks|thank you|cheers|lovely|perfect|great)\b[^?]*$/i
 /**
+ * Stage 5: asking for their usual: "my usual", "the usual", "same as last time", "same again".
+ * "The usual hours" asks about opening hours instead.
+ */
+const WANTS_USUAL =
+  /\b(my|our) (usual|regular|normal)\b|\bthe usual\b(?!\s+(hours?|times?|opening|days?))|\busual (one|treatment|visit|appointment|booking|please)\b|\bsame (as|thing as) (last time|before|usual|always|last)\b|\bsame again\b|\bsame thing\b|^\s*usual\b/
+/** "With anyone": no particular professional. */
+const ANYONE =
+  /\b(anyone|anybody|whoever|any one|no preference|any (professional|therapist|stylist|person))\b/
+/** Whether the guest is asking for their usual. */
+export const usualAsked = (text: string) => WANTS_USUAL.test(text.toLowerCase())
+/** A short follow-up to an answer about their usual: another day, part of the day, time or person. */
+const usualFollowUp = (q: string) =>
+  !!dateIn(q, '2000-01-01') ||
+  !!timeIn(q) ||
+  !!partOfDay(q) ||
+  ANYONE.test(q) ||
+  /\bwith [a-z]/.test(q) ||
+  /\b(sooner|later|next week|another day)\b/.test(q)
+/**
  * Finding the studio and arriving: what a guest asks, and the words in an arrival note that answer
  * it. Directions are answered by the address and any note.
  */
@@ -192,6 +218,22 @@ export function dateIn(text: string, today: string): string | null {
   if (iso) return iso[1]
   if (/\btoday\b/.test(q)) return today
   if (/\btomorrow\b/.test(q)) return addDays(today, 1)
+  const exact = calendarDate(q, today)
+  if (exact !== undefined) return exact
+  const named = WEEKDAYS.findIndex((d) => new RegExp(`\\b${d}\\b`).test(q))
+  if (named < 0) return null
+  const current = new Date(`${today}T12:00:00Z`).getUTCDay()
+  return addDays(today, (named - current + 7) % 7)
+}
+
+/**
+ * A date written out, such as "31 October", "October 31st" or "2026-10-31", the next one from
+ * today; null for one that does not exist, such as 31 February; undefined when none is written.
+ */
+export function calendarDate(text: string, today: string): string | null | undefined {
+  const q = text.toLowerCase()
+  const iso = /\b(\d{4}-\d{2}-\d{2})\b/.exec(q)
+  if (iso) return iso[1]
   const month = new RegExp(
     `\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(${MONTHS.join('|')})\\b|\\b(${MONTHS.join('|')})\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b`,
   ).exec(q)
@@ -206,10 +248,7 @@ export function dateIn(text: string, today: string): string | null {
     const real = new Date(`${date}T12:00:00Z`)
     return !Number.isNaN(real.getTime()) && real.toISOString().slice(0, 10) === date ? date : null
   }
-  const named = WEEKDAYS.findIndex((d) => new RegExp(`\\b${d}\\b`).test(q))
-  if (named < 0) return null
-  const current = new Date(`${today}T12:00:00Z`).getUTCDay()
-  return addDays(today, (named - current + 7) % 7)
+  return undefined
 }
 
 /** A clock time the guest names, as HH:MM, or null. "10am", "2.30pm", "14:00", "at 3". */
@@ -397,6 +436,8 @@ function intent(talk: Talk) {
   )
     return 'person'
   if (WANTS_CHANGE.test(q) || talk.lastAnswer.startsWith(ASK_WHICH_VISIT)) return 'change'
+  // Stage 5: their usual, or a follow-up to an answer about it, such as "Saturday at 11 then".
+  if (WANTS_USUAL.test(q) || (USUAL_SAID.test(talk.lastAnswer) && usualFollowUp(q))) return 'usual'
   // Before free times: "are you open on Sunday?" names a day but asks for no booking.
   if (WANTS_HOURS.test(q) && !BOOKING_WORDS.test(q)) return 'hours'
   if (arrivalIn(q)) return 'arrival'
@@ -409,7 +450,8 @@ function intent(talk: Talk) {
     (/\b(any|anything|something)\b/.test(q) && dateIn(q, '2000-01-01')) ||
     (dateIn(q, '2000-01-01') && talk.guest.length > 1) ||
     // A bare treatment name answers "Which treatment would you like?", so the search goes on.
-    talk.lastAnswer.startsWith(ASK_TREATMENT)
+    talk.lastAnswer.startsWith(ASK_TREATMENT) ||
+    talk.lastAnswer.includes(` ${ASK_TREATMENT} `)
   )
     return 'time'
   if (WANTS_MENU.test(q)) return 'menu'
@@ -476,6 +518,12 @@ function firstStep(
     case 'time':
     case 'menu':
       return call('treatments')
+    case 'usual':
+      // Stage 5: the guest's usual when the server knows who is writing, with the menu, so a
+      // treatment named instead of the usual is still found. Otherwise only the menu.
+      return offered.has('my_usual')
+        ? { calls: [...call('my_usual').calls, ...call('treatments').calls] }
+        : call('treatments')
     case 'greeting':
       return say(`${TONE_CHOICES[tone].hello} ${RECEPTION_HELP}`)
     case 'thanks':
@@ -496,6 +544,8 @@ function nextStep(
   const last = results.at(-1)!
   const words = TONE_CHOICES[tone]
   if (!last.ok) {
+    // Stage 3: a treatment the studio books only after a patch test. Another day changes nothing.
+    if (/needs a patch test first/.test(String(last.data))) return say(String(last.data))
     if (last.name === 'offer_time' || last.name === 'find_times')
       return say(`${String(last.data)} Tell me another day or time and I will look again.`)
     return say(String(last.data))
@@ -539,26 +589,20 @@ function nextStep(
     return say(
       `${words.here}: ${(last.data as { summary: string }).summary}. Book it here: ${BOOKING_LINK} Nothing is booked until you confirm on that page.`,
     )
+  if (last.name === 'offer_time' && channel === 'phone')
+    return say(
+      `${words.here}: ${(last.data as { summary: string }).summary}. I will text you a link to finish booking it. Nothing is booked until you confirm there.`,
+    )
   if (last.name === 'offer_time')
     return say(
       `${words.here}. Tap “Choose this time” to finish booking with your details. Nothing is booked until you confirm.`,
     )
   if (last.name === 'find_times') {
-    const found = last.data as {
-      treatment: string
-      professional: string
-      date: string
-      day: string
-      times: { time: string; label: string; location?: string }[]
-      more: number
-      after?: string
-      before?: string
-      closed: boolean
-      openThen: boolean
-      closedBy: boolean
-      opens: string | null
-      closes: string | null
-    }
+    const found = last.data as Found
+    // Stage 5: times for the guest's usual.
+    const mine = usualResult(results)
+    if (mine?.treatment && last.input.treatmentId === mine.treatment.id && intent(talk) === 'usual')
+      return usualTimes(talk, found, last, results, mine, offered, today)
     const named = firstDate(talk, today)
     const tries = results.filter((r) => r.name === 'find_times').length
     // With no day named, look on through the next few days for the first free one. Four looks
@@ -588,7 +632,7 @@ function nextStep(
       )
     const wanted = exactTime(talk.latest)
     if (wanted && found.times.some((t) => t.time === wanted) && offered.has('offer_time'))
-      return call('offer_time', { ...last.input, time: wanted })
+      return call('offer_time', offerInput(last.input, wanted))
     const who = found.professional === 'anyone' ? '' : ` with ${found.professional}`
     const more = found.more ? `, and ${found.more} more` : ''
     // V2: with several locations, say where the times are.
@@ -615,8 +659,13 @@ function nextStep(
   if (last.name === 'treatments') {
     const list = last.data as Treatment[]
     if (!list.length) return say('There are no treatments to book online just now.')
+    const asked = intent(talk)
+    if (asked === 'usual') {
+      const step = usualStep(talk, usualResult(results), list, today, channel)
+      if (step) return step
+    }
     const chosen = treatmentIn(talk, list)
-    if (intent(talk) === 'time') {
+    if (asked === 'time' || asked === 'usual') {
       if (!chosen)
         return say(
           `${ASK_TREATMENT} We offer ${list
@@ -684,6 +733,181 @@ function nextStep(
     return say(`${shown.map(line).join('\n')}${chosen ? '' : more}`)
   }
   return say(`${NOT_SURE} ${teamCan(offered, channel)}`)
+}
+
+type Found = {
+  treatment: string
+  professional: string
+  date: string
+  day: string
+  times: { time: string; label: string; location?: string }[]
+  more: number
+  after?: string
+  before?: string
+  closed: boolean
+  openThen: boolean
+  closedBy: boolean
+  opens: string | null
+  closes: string | null
+}
+
+/** offer_time takes a time, not the part of the day a search was kept to. */
+function offerInput(input: Record<string, unknown>, time: string) {
+  const { after, before, ...rest } = input
+  void after
+  void before
+  return { ...rest, time }
+}
+
+/** What my_usual returned (usualSkills.ts). */
+type Usual = {
+  usual: boolean
+  summary: string
+  notes: string[]
+  treatment?: { id: string; name: string }
+  professional?: { id: string; name: string }
+  location?: { id: string; name: string }
+  day?: string
+  partOfDay?: string
+  after?: string
+  before?: string
+  nextDate?: string
+  onlineStop?: string
+  professionals?: { id: string; name: string }[]
+  locations?: { id: string; name: string }[]
+}
+const usualResult = (results: Result[]) =>
+  results.find((r) => r.name === 'my_usual' && r.ok)?.data as Usual | undefined
+
+/** "With anyone", or the professional the guest names, from the newest thing they said. */
+function whoIn(talk: Talk, people: { id: string; name: string }[]) {
+  for (const said of talk.guest) {
+    const q = said.toLowerCase()
+    if (ANYONE.test(q)) return 'anyone' as const
+    const person = people.find((p) => {
+      const first = p.name
+        .toLowerCase()
+        .split(' ')[0]
+        .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      return first.length > 1 && new RegExp(`\\b${first}\\b`).test(q)
+    })
+    if (person) return person
+  }
+  return null
+}
+
+/**
+ * Stage 5: the guest asked for their usual. With a usual, look for times for it with the person
+ * they usually see, where they usually go, from their next usual day and part of the day, unless
+ * they said otherwise. Without one, say why and ask which treatment. Null when they named another
+ * treatment, so the ordinary search runs for that.
+ */
+function usualStep(
+  talk: Talk,
+  mine: Usual | undefined,
+  list: Treatment[],
+  today: string,
+  channel: ReceptionChannel,
+): Step | null {
+  const named = treatmentIn({ ...talk, guest: [talk.latest] }, list)
+  if (!mine) return named ? null : say(channel === 'text' ? USUAL_UNKNOWN_TEXT : USUAL_UNKNOWN_WEB)
+  if (named && named.id !== mine.treatment?.id) return null
+  if (!mine.usual || !mine.treatment)
+    return say(
+      `${mine.summary} ${ASK_TREATMENT} We offer ${list
+        .slice(0, 8)
+        .map((t) => t.name)
+        .join(', ')}.`,
+    )
+  const intro = [mine.summary, ...mine.notes].join(' ')
+  // Stage 3: a patch test first, or not bookable online at all: the same answer for everyone.
+  if (mine.onlineStop) return say(`${intro} ${mine.onlineStop}`)
+  const asked = whoIn(talk, mine.professionals ?? [])
+  const person = asked === 'anyone' ? null : (asked ?? mine.professional ?? null)
+  // A professional the guest names is looked for wherever they work that day.
+  const place =
+    namedPlace(talk, mine.locations ?? []) ??
+    (asked && asked !== 'anyone' ? null : (mine.location ?? null))
+  const part = firstPart(talk) ?? (mine.after || mine.before ? mine : null)
+  const date = firstDate(talk, today) ?? mine.nextDate ?? addDays(today, 1)
+  return call('find_times', {
+    treatmentId: mine.treatment.id,
+    date,
+    ...(person ? { professionalId: person.id } : {}),
+    ...(place ? { locationId: place.id } : {}),
+    ...(part?.after ? { after: part.after } : {}),
+    ...(part?.before ? { before: part.before } : {}),
+  })
+}
+
+/** The part of the day a search was kept to, in words: "morning", "after 17:00". */
+function searchedPart(found: Pick<Found, 'after' | 'before'>, talk: Talk, mine: Usual) {
+  const asked = firstPart(talk)
+  if (asked) return asked.name
+  if (mine.partOfDay && found.after === mine.after && found.before === mine.before)
+    return mine.partOfDay
+  return found.after ? `after ${found.after}` : found.before ? `before ${found.before}` : null
+}
+
+/**
+ * Times for the guest's usual, after a line saying what it is. With no day named it looks on to
+ * the next usual day, a week at a time when they have a usual day, up to four looks.
+ */
+function usualTimes(
+  talk: Talk,
+  found: Found,
+  last: Result,
+  results: Result[],
+  mine: Usual,
+  offered: Set<string>,
+  today: string,
+): Step {
+  const intro = [mine.summary, ...mine.notes].join(' ')
+  const named = firstDate(talk, today)
+  const tries = results.filter((r) => r.name === 'find_times').length
+  const wanted = exactTime(talk.latest)
+  const has = (time: string) => found.times.some((t) => t.time === time)
+  if (!named && tries < 4 && (!found.times.length || (wanted && !has(wanted))))
+    return call('find_times', { ...last.input, date: addDays(found.date, mine.day ? 7 : 1) })
+  if (wanted && has(wanted) && offered.has('offer_time'))
+    return call('offer_time', offerInput(last.input, wanted))
+  const who = found.professional === 'anyone' ? 'with anyone' : `with ${found.professional}`
+  const part = searchedPart(found, talk, mine)
+  const again =
+    found.professional === 'anyone'
+      ? 'Tell me another day or time and I will look again.'
+      : 'Tell me another day or time, or say "with anyone", and I will look again.'
+  if (!found.times.length) {
+    if (!named)
+      return say(
+        `${intro} There is nothing free ${who}${part ? ` ${partPhrase(part)}` : ''} ${
+          mine.day ? `on the next four ${mine.day}s` : 'over the next four days'
+        }. ${again}`,
+      )
+    if (found.closed) return say(`${intro} We are closed on ${found.day}. ${again}`)
+    return say(
+      `${intro} There is nothing free ${who}${part ? ` ${partPhrase(part)}` : ''} on ${found.day}. ${again}`,
+    )
+  }
+  const more = found.more ? `, and ${found.more} more` : ''
+  const sites = [...new Set(found.times.map((t) => t.location ?? ''))]
+  if (sites.length > 1)
+    return say(
+      `${intro} Free on ${found.day} ${who}:\n${sites
+        .map(
+          (site) =>
+            `At ${site}: ${found.times
+              .filter((t) => t.location === site)
+              .map((t) => t.label)
+              .join(', ')}`,
+        )
+        .join('\n')}${found.more ? `\nAnd ${found.more} more.` : ''}\nWhich would you like?`,
+    )
+  return say(
+    `${intro} Free on ${found.day} ${who}${sites[0] ? ` at ${sites[0]}` : ''}: ${found.times
+      .map((t) => t.label)
+      .join(', ')}${more}. Which would you like?`,
+  )
 }
 
 type Site = {

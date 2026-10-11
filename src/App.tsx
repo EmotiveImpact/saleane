@@ -12,6 +12,7 @@ import {
   X,
   Info,
   Mail,
+  Megaphone,
   Hourglass,
   Sparkles,
   CircleHelp,
@@ -99,6 +100,19 @@ const ServerBooking = lazy(() =>
 )
 const Manage = lazy(() => import('./pages/Manage').then((module) => ({ default: module.Manage })))
 const Inbox = lazy(() => import('./pages/Inbox').then((module) => ({ default: module.Inbox })))
+const News = lazy(() => import('./pages/News').then((module) => ({ default: module.News })))
+const MarketingAutomatic = lazy(() =>
+  import('./pages/Marketing').then((module) => ({ default: module.MarketingAutomatic })),
+)
+const MarketingAudience = lazy(() =>
+  import('./pages/Marketing').then((module) => ({ default: module.MarketingAudience })),
+)
+const MarketingResults = lazy(() =>
+  import('./pages/Marketing').then((module) => ({ default: module.MarketingResults })),
+)
+const NewsStop = lazy(() =>
+  import('./pages/NewsStop').then((module) => ({ default: module.NewsStop })),
+)
 const Money = lazy(() => import('./pages/Money').then((module) => ({ default: module.Money })))
 const Waitlist = lazy(() =>
   import('./pages/Waitlist').then((module) => ({ default: module.Waitlist })),
@@ -115,6 +129,9 @@ const AskSaleane = lazy(() =>
 const StudioSetup = lazy(() =>
   import('./pages/StudioSetup').then((module) => ({ default: module.StudioSetup })),
 )
+const ProtectAccount = lazy(() =>
+  import('./pages/ProtectAccount').then((module) => ({ default: module.ProtectAccount })),
+)
 const DesignLanguage = lazy(() =>
   import('./pages/DesignLanguage').then((module) => ({ default: module.DesignLanguage })),
 )
@@ -128,6 +145,8 @@ const navigation = [
   { to: '/clients', label: 'Clients', icon: Users },
   { to: '/waitlist', label: 'Waitlist', icon: Hourglass },
   { to: '/inbox', label: 'Inbox', icon: Mail },
+  // NEXT-14: its own section, for the people who write to clients.
+  { to: '/marketing', label: 'Marketing', icon: Megaphone },
   { to: '/business', label: 'Business', icon: ChartNoAxesCombined },
   { to: '/settings', label: 'Settings', icon: Settings2 },
 ]
@@ -136,8 +155,20 @@ const within = (pathname: string, section: string) =>
   pathname === section || pathname.startsWith(`${section}/`)
 
 function WorkspaceApp() {
-  const { state, warning, mode, slug, loading, session, role, reload, today, branch, billing } =
-    useStore()
+  const {
+    state,
+    warning,
+    mode,
+    slug,
+    loading,
+    session,
+    role,
+    reload,
+    today,
+    branch,
+    billing,
+    hold,
+  } = useStore()
   const operator = session?.user.name ?? 'Demo operator'
   const initials = state.organisation.name
     .split(' ')
@@ -167,18 +198,26 @@ function WorkspaceApp() {
   const drafts = operations(state).messages.filter(
     (m) => m.status === 'draft' && !draftStale(state, m.id, clock),
   ).length
+  // Stage 4: a message to clients waits for the owner's approval, in Marketing.
+  const campaignDrafts =
+    role === 'owner' ? (operations(state).news ?? []).filter((m) => m.status === 'draft').length : 0
   // The front desk opens Money, Stock, Rota and Gift cards in Business, not the studio's figures,
   // pay, accounts or private feedback, so their Business link lands on Money.
   const desk = role === 'reception'
-  const links = navigation.map((item) => ({
-    ...item,
-    href: desk && item.to === '/business' ? '/business/money' : item.to,
-    active: within(location.pathname, item.to),
-  }))
+  const links = navigation
+    .filter((item) => item.to !== '/marketing' || leads(role))
+    .map((item) => ({
+      ...item,
+      href: desk && item.to === '/business' ? '/business/money' : item.to,
+      active: within(location.pathname, item.to),
+    }))
   const owns = role === 'owner' || role === 'manager'
   // Branch visits and Requests are about running several branches, so they wait until there are
   // more locations or any regions. A general manager runs one of several, so always has them.
   const branches = hasLocations(state) || regions(state).length > 0 || role === 'general'
+  // Stage 4: Requests also shows once anything has been asked or the owner has set sign-off rules,
+  // such as a refund limit for managers in a studio of one location.
+  const signOffs = branches || !!operations(state).requests?.length || !!operations(state).approvals
   const businessTabs = [
     { to: '/business', label: 'Overview', show: !desk },
     { to: '/business/money', label: 'Money', show: true },
@@ -190,8 +229,16 @@ function WorkspaceApp() {
     { to: '/business/compare', label: 'How you compare', show: owns },
     { to: '/business/feedback', label: 'Feedback', show: leads(role) },
     { to: '/business/visits', label: 'Branch visits', show: leads(role) && branches },
-    { to: '/business/requests', label: 'Requests', show: leads(role) && branches },
+    { to: '/business/requests', label: 'Requests', show: leads(role) && signOffs },
     { to: '/business/areas', label: 'Client areas', show: leads(role) },
+  ].filter((tab) => tab.show)
+  // NEXT-14: the emails that go by themselves are the studio's own settings, for owners and
+  // managers; a general manager writes and follows their location's campaigns.
+  const marketingTabs = [
+    { to: '/marketing', label: 'Campaigns', show: true },
+    { to: '/marketing/automatic', label: 'Automatic', show: owns },
+    { to: '/marketing/audience', label: 'Audience', show: true },
+    { to: '/marketing/results', label: 'Results', show: true },
   ].filter((tab) => tab.show)
   useEffect(() => {
     document.title = `${state.organisation.name} · SALEANE`
@@ -203,10 +250,26 @@ function WorkspaceApp() {
     location.pathname === '/design-language'
       ? 'Design language'
       : (navigation.find((n) => location.pathname.startsWith(n.to))?.label ?? 'Today')
+  // Stage 6: a studio that asks everyone for two-step sign-in shows "Protect your account" in
+  // place of every studio page, the account page and the scoped days, until it is set up. Guest
+  // and public pages are not anyone signing in, so they are never held.
+  const guestPage =
+    [
+      '/reset-password',
+      '/confirm-email',
+      '/manage',
+      '/news/stop',
+      '/pay/test',
+      '/pricing',
+    ].includes(location.pathname) ||
+    location.pathname === '/billing/test-card' ||
+    location.pathname.startsWith('/book/')
+  if (hold && !guestPage) return <ProtectAccount />
   if (location.pathname === '/account' || location.pathname === '/join') return <Account />
   if (location.pathname === '/reset-password' || location.pathname === '/confirm-email')
     return <AccountLink />
   if (location.pathname === '/manage') return <ManageVisit />
+  if (location.pathname === '/news/stop') return <NewsStop />
   if (location.pathname === '/pay/test') return <TestPayment />
   if (location.pathname === '/billing/test-card') return <TestBillingCard />
   if (location.pathname === '/pricing') return <Pricing />
@@ -250,7 +313,7 @@ function WorkspaceApp() {
       <a className="skip-link" href="#main-content">
         Skip to content
       </a>
-      <aside className="sidebar" aria-label="Workspace navigation">
+      <aside className="sidebar" aria-label="Studio navigation">
         <div className="sidebar-masthead">
           <div className="sidebar-brand">
             <Link to="/today" className="wordmark" onClick={() => setMobileNav(false)}>
@@ -296,6 +359,15 @@ function WorkspaceApp() {
                 <span className="nav-count">
                   {drafts}
                   <span className="sr-only"> {drafts === 1 ? 'draft' : 'drafts'} to approve</span>
+                </span>
+              )}
+              {to === '/marketing' && campaignDrafts > 0 && (
+                <span className="nav-count">
+                  {campaignDrafts}
+                  <span className="sr-only">
+                    {' '}
+                    {campaignDrafts === 1 ? 'message' : 'messages'} to clients to approve
+                  </span>
                 </span>
               )}
             </Link>
@@ -425,6 +497,19 @@ function WorkspaceApp() {
           id="main-content"
           className="workspace-main"
         >
+          {within(location.pathname, '/marketing') && leads(role) && (
+            <ScrollNav
+              label="Marketing sections"
+              className="business-subnav"
+              current={location.pathname}
+            >
+              {marketingTabs.map((tab) => (
+                <NavLink key={tab.to} end={tab.to === '/marketing'} to={tab.to}>
+                  {tab.label}
+                </NavLink>
+              ))}
+            </ScrollNav>
+          )}
           {within(location.pathname, '/business') && (
             <ScrollNav
               label="Business sections"
@@ -452,6 +537,24 @@ function WorkspaceApp() {
               <Route path="/clients" element={<Clients />} />
               <Route path="/clients/:clientId" element={<ClientRelationship />} />
               <Route path="/inbox" element={<Inbox />} />
+              {/* NEXT-14: messages to clients moved to Marketing, Campaigns. */}
+              <Route path="/inbox/news" element={<Navigate to="/marketing" replace />} />
+              <Route
+                path="/marketing"
+                element={leads(role) ? <News /> : <Navigate to="/inbox" replace />}
+              />
+              <Route
+                path="/marketing/automatic"
+                element={owns ? <MarketingAutomatic /> : <Navigate to="/marketing" replace />}
+              />
+              <Route
+                path="/marketing/audience"
+                element={leads(role) ? <MarketingAudience /> : <Navigate to="/inbox" replace />}
+              />
+              <Route
+                path="/marketing/results"
+                element={leads(role) ? <MarketingResults /> : <Navigate to="/inbox" replace />}
+              />
               <Route path="/waitlist" element={<Waitlist />} />
               <Route
                 path="/business"

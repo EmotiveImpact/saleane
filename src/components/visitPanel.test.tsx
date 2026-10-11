@@ -28,7 +28,7 @@ describe('the visit panel, one place for a visit in every state', { timeout: 200
       'href',
       '/clients/client-4',
     )
-    expect(within(panel).getByText('Prefers appointment updates by email.')).toBeInTheDocument()
+    expect(within(panel).getByText('Prefers visit updates by email.')).toBeInTheDocument()
     expect(within(panel).getByText(/before this one\.$|No earlier visits\./)).toBeInTheDocument()
     const actions = within(panel).getByRole('group', { name: 'Manage this visit' })
     expect(
@@ -76,6 +76,12 @@ describe('the visit panel, one place for a visit in every state', { timeout: 200
     await user.click(screen.getByRole('button', { name: 'Continue to checkout' }))
     await user.click(screen.getByRole('button', { name: 'Record demo payment' }))
     const paid = screen.getByRole('dialog', { name: 'A well-finished visit' })
+    // Stage 6: "Settled." under the amount collected, in words true to a sample studio.
+    const settled = within(paid).getByRole('region', { name: 'Settled.' })
+    expect(within(settled).getByText(/^£/)).toBeInTheDocument()
+    expect(
+      within(settled).getByText('A sample studio, so this checkout is a demo. No money moved.'),
+    ).toBeInTheDocument()
     expect(
       within(paid).getByRole('heading', { name: 'Give the next visit a place.' }),
     ).toBeInTheDocument()

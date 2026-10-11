@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { LocalDatabase } from './database'
 import { workspaceInput } from './workspace'
 import { digest, equalToken, passwordHash, token } from './auth'
-import { COOKIE, SESSION_MS, fail, header, sessionToken } from './http'
+import { COOKIE, HttpError, SESSION_MS, fail, header, sessionToken } from './http'
 import { turnstileFromEnv } from './turnstile'
 import type { Turnstile } from './turnstile'
 import type { Providers } from './messaging/providers'
@@ -14,6 +14,8 @@ import { paymentProviderFromEnv } from './payments/providers'
 import { aiFromEnv } from './ai'
 import type { AiSupplier } from './ai'
 import { voiceFromEnv } from './voice'
+import { phoneFromEnv } from './phoneLine'
+import type { PhoneLine } from './phoneLine'
 import { transcriberFromEnv } from './transcribe'
 import type { Transcriber } from './transcribe'
 import type { VoiceLayer } from '../lumane'
@@ -26,9 +28,14 @@ import { operations } from '../src/domain/operations'
 import { areaPlaces } from '../src/domain/area'
 import { changeDetail, type ChangeDetail } from '../src/domain/changeRecord'
 import { branchOpen } from '../src/domain/branch'
+import {
+  TWO_STEP_REQUIRED,
+  twoStepForEveryone,
+  twoStepHeldMessage,
+} from '../src/domain/twoStepRule'
 import type { Role, Tax } from '../src/domain/operations'
 import { places } from '../src/domain/locations'
-import { allowanceFor } from '../src/domain/pricing'
+import { allowanceFor, marketingEmailsFor } from '../src/domain/pricing'
 import type { BillingSummary } from '../src/domain/billing'
 import type { Allowance } from '../lumane'
 
@@ -104,6 +111,12 @@ export type HoldAllocation = z.infer<typeof holdInput> & {
   resourceType: string
   /** The tax setting shown when the time was held. Absent on holds made before it was kept. */
   tax?: Tax | null
+  /**
+   * Stage 5: held at a quiet-time price from the guest's invitation. `price` is then the lower
+   * price, and the usual price it was below is kept so the booking checks it has not changed.
+   * The link is kept only as its hash.
+   */
+  offer?: { messageId: string; tokenHash: string; usualPriceMinor: number }
 }
 export type HoldRow = {
   id: string
@@ -155,14 +168,26 @@ export type ApiOptions = {
   connectionTransport?: ConnectionTransport
   /** V4: Book with Google's partner credentials; read from the environment when left out. */
   googleBooking?: import('./googleBooking').GoogleBookingOptions
+  /** Stage 5: booking through ChatGPT or Claude; read from SALEANE_AI_BOOKING when left out. */
+  aiBooking?: import('./aiBooking').AiBookingOptions
   /** V4: messages to the studio's Instagram, Facebook and WhatsApp accounts. */
   social?: import('./messaging/meta').SocialOptions
+  /** Stage 2: how receipts reach a printer. Omitted uses the real network printer and test printer. */
+  printers?: {
+    network?: import('./till/printers').PrinterTransport
+    test?: import('./till/printers').PrinterTransport
+  }
   /** NEXT-12: the AI that answers. Omitted reads SALEANE_AI_PROVIDER; unset is test mode. */
   ai?: AiSupplier
   /** NEXT-12: the voice for talking to Ask SALEANE. Omitted reads SALEANE_VOICE_PROVIDER; unset is none. */
   voice?: VoiceLayer
   /** NEXT-16: what writes down voice notes. Omitted follows the voice settings; unset is none. */
   transcriber?: Transcriber
+  /**
+   * NEXT-17: where the studio's phone line hands a call the desk missed for the AI to answer.
+   * Omitted reads OPENAI_PROJECT_ID and OPENAI_WEBHOOK_SECRET; unset or null answers no calls.
+   */
+  phone?: PhoneLine | null
 }
 
 /** Shared request authority: database, clock, sessions, tenant lookup, holds and audit. */
@@ -190,6 +215,11 @@ export function createContext(options: ApiOptions) {
   // The voice only listens and speaks; Claude answers. A voice without Claude would have nothing to say.
   if (voice.live && !ai.live)
     throw new Error('Talking needs Claude to answer: set SALEANE_AI_PROVIDER=claude.')
+  const phone = options.phone === undefined ? phoneFromEnv(process.env) : options.phone
+  if (phone && !voice.calls)
+    throw new Error(
+      'Answering phone calls needs a voice that can take them: SALEANE_VOICE_PROVIDER=openai.',
+    )
   const transcriber = options.transcriber ?? transcriberFromEnv(process.env)
   if (transcriber.live && !ai.live)
     throw new Error('Voice notes need Claude to write them up: set SALEANE_AI_PROVIDER=claude.')
@@ -203,7 +233,7 @@ export function createContext(options: ApiOptions) {
     const time = now()
     if (rates.size > 5000)
       for (const [key, entry] of rates) if (entry.expires <= time) rates.delete(key)
-    if (rates.size > 10000) fail(503, 'The local service is busy. Try again shortly.')
+    if (rates.size > 10000) fail(503, 'SALEANE is busy. Try again shortly.')
     const key = `${address(request)}:${bucket}`
     const existing = rates.get(key)
     const entry =
@@ -222,7 +252,7 @@ export function createContext(options: ApiOptions) {
     )
     if (!actor) fail(401, 'Your session has ended. Sign in again.')
     if (write && !equalToken(header(request, 'x-csrf-token'), actor!.csrf))
-      fail(403, 'Refresh the workspace before saving.')
+      fail(403, 'Refresh the page before saving.')
     return actor!
   }
   const signIn = (response: ServerResponse, accountId: string) => {
@@ -250,6 +280,9 @@ export function createContext(options: ApiOptions) {
     )
     return csrf
   }
+  /** NEXT-04: whether this account has two-step sign-in on. */
+  const twoStepOn = (accountId: string) =>
+    !!db.get('SELECT id FROM accounts WHERE id=? AND totp_enabled_at IS NOT NULL', accountId)
   const memberships = (actor: Actor) =>
     db
       .all<{
@@ -261,33 +294,50 @@ export function createContext(options: ApiOptions) {
         region: string
         mode: string
         locked: number
+        twoStep: number | null
       }>(
         `SELECT o.id,o.slug,m.role,m.staff_id AS staffId,json_extract(o.state,'$.organisation.name') AS name,json_extract(o.state,'$.organisation.region') AS region,json_extract(o.state,'$.operations.mode') AS mode,
-           EXISTS(SELECT 1 FROM studio_plans p WHERE p.organisation_id=o.id AND p.locked_at IS NOT NULL) AS locked
+           EXISTS(SELECT 1 FROM studio_plans p WHERE p.organisation_id=o.id AND p.locked_at IS NOT NULL) AS locked,
+           json_extract(o.state,'$.operations.twoStep.forEveryone') AS twoStep
          FROM memberships m JOIN organisations o ON o.id=m.organisation_id WHERE m.account_id=? ORDER BY o.created_at,o.id`,
         actor.id,
       )
       // NEXT-02: a studio locked for an unpaid bill says so before anyone tries to open it.
-      .map(({ locked, ...row }) => (locked ? { ...row, locked: true } : row))
+      // Stage 6: so does a studio that asks everyone to use two-step sign-in.
+      .map(({ locked, twoStep, ...row }) => ({
+        ...row,
+        ...(locked ? { locked: true } : {}),
+        ...(twoStep === 1 ? { twoStepRequired: true } : {}),
+      }))
   /**
    * A signed-in member's studio. A regional manager is refused everywhere except the routes that
    * pass `area: true` and then serve only their area's view (fail closed: new routes stay shut).
    * A general manager whose location has closed is refused everywhere, before anything runs.
+   * Stage 6: in a studio that asks everyone to use two-step sign-in, someone who has not set it up
+   * is refused everywhere too, with a code their page uses to take them to set it up. Only joining
+   * from an invitation passes `joining`, so the invitation is used up and they are then held.
    */
-  const orgFor = (orgId: string, actor: Actor, opts: { area?: boolean } = {}): Org => {
+  const orgFor = (
+    orgId: string,
+    actor: Actor,
+    opts: { area?: boolean; joining?: boolean } = {},
+  ): Org => {
     const row = db.get<OrgRow>(
       'SELECT o.id,o.slug,o.state,m.role,m.staff_id,m.area_id,m.location_id FROM organisations o JOIN memberships m ON m.organisation_id=o.id WHERE o.id=? AND m.account_id=?',
       orgId,
       actor.id,
     )
-    if (!row) fail(404, 'Workspace was not found.')
+    if (!row) fail(404, 'That studio was not found.')
+    const raw = JSON.parse(row!.state) as BusinessState
+    const state = parseState(raw, raw.organisation.region)
+    // First, so every refusal a held person meets takes them to set two-step sign-in up.
+    if (!opts.joining && twoStepForEveryone(state) && !twoStepOn(actor.id))
+      throw new HttpError(403, twoStepHeldMessage(state.organisation.name), TWO_STEP_REQUIRED)
     // A practitioner reads only through their projection, which needs a linked professional.
     if (row!.role === 'practitioner' && !row!.staff_id)
       fail(403, 'Your access is not linked to a professional. Ask the owner to update it.')
     if (row!.role === 'regional' && !opts.area)
       fail(403, 'Your access covers your area’s view only.')
-    const raw = JSON.parse(row!.state) as BusinessState
-    const state = parseState(raw, raw.organisation.region)
     if (row!.role === 'general' && (!row!.location_id || !branchOpen(state, row!.location_id)))
       fail(403, 'Your location has closed. Ask the owner to update your access.')
     return {
@@ -392,8 +442,16 @@ export function createContext(options: ApiOptions) {
     plans.begin(org)
     return org
   }
-  /** Told about every saved change, inside the same transaction, with the record before and after. */
-  const persistListeners: ((org: Org, before: BusinessState, after: BusinessState) => void)[] = []
+  /**
+   * Told about every saved change, inside the same transaction, with the record before and after
+   * and who saved it (null for a guest or the server itself).
+   */
+  const persistListeners: ((
+    org: Org,
+    before: BusinessState,
+    after: BusinessState,
+    change: { actorId: string | null; action: string; recordId: string },
+  ) => void)[] = []
   const onPersist = (listener: (typeof persistListeners)[number]) => persistListeners.push(listener)
   const persist = (
     org: Org,
@@ -421,7 +479,8 @@ export function createContext(options: ApiOptions) {
       parsed.revision,
       changeDetail(org.state, parsed, action, recordId),
     )
-    for (const listener of persistListeners) listener(org, org.state, parsed)
+    for (const listener of persistListeners)
+      listener(org, org.state, parsed, { actorId, action, recordId })
   }
   /**
    * NEXT-02: each studio's plan, as the billing module answers once it is set up: what the studio
@@ -433,13 +492,20 @@ export function createContext(options: ApiOptions) {
     begin: (org: Org) => void
     summary: (org: Org) => BillingSummary | null
     allowance: (org: Org) => Allowance
+    /** NEXT-14: the marketing emails the studio's plan includes this month. */
+    marketingEmails: (org: Org) => number
     /** A locked studio takes no online bookings and answers no access key. */
     locked: (orgId: string) => boolean
+    /** A read-only studio takes no membership payments from its clients' cards. */
+    readOnly: (orgId: string) => boolean
   } = {
     begin: () => {},
     summary: () => null,
     locked: () => false,
+    readOnly: () => false,
     allowance: (org) => allowanceFor({ locations: places(org.state).length, plus: false }),
+    marketingEmails: (org) =>
+      marketingEmailsFor({ locations: places(org.state).length, plus: false }),
   }
   const withHolds = (org: Org, excludeHash = '') => {
     const state = structuredClone(org.state)
@@ -545,7 +611,7 @@ export function createContext(options: ApiOptions) {
     )
     db.run('UPDATE invitations SET used_at=? WHERE token_hash=?', now(), invite.token_hash)
     const actor = db.get<Actor>('SELECT id,name,email FROM accounts WHERE id=?', accountId)!
-    const org = orgFor(invite.organisation_id, actor, { area: true })
+    const org = orgFor(invite.organisation_id, actor, { area: true, joining: true })
     // The region may have been removed or emptied since the invitation.
     if (invite.role === 'regional') linkableArea(org, invite.area_id ?? undefined)
     // The location may have closed since the invitation.
@@ -571,9 +637,11 @@ export function createContext(options: ApiOptions) {
     paymentProvider,
     ai,
     voice,
+    phone,
     transcriber,
     actorFor,
     signIn,
+    twoStepOn,
     memberships,
     orgFor,
     systemOrg,

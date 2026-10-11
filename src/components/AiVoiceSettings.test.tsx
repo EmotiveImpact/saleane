@@ -59,7 +59,7 @@ describe('how your AI speaks', () => {
     expect(screen.getByRole('radio', { name: /Warm and friendly/ })).toBeChecked()
     expect(
       screen.getByText(
-        'Certainly. Amara has an appointment free at 11am on Saturday. Shall I keep it for you?',
+        'Certainly. Amara has a time free at 11am on Saturday. Shall I keep it for you?',
       ),
     ).toBeVisible()
     await user.click(screen.getByRole('radio', { name: /Calm and polished/ }))

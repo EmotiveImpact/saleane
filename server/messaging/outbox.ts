@@ -1,5 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { staleInvitation } from '../../src/domain/cancelledTimes'
+import { offerStale } from '../../src/domain/quietOffers'
+import { OFFER_LINK } from '../../src/domain/quietOffersSchema'
+import { issueOfferLink } from '../offers'
 import { agreedEverywhere } from '../../src/domain/dueBack'
 import {
   BOOK_LINK,
@@ -12,6 +15,7 @@ import {
   composeMissedCallText,
   missedCallSlot,
   missedCallTextDue,
+  clientsWithNumber,
   isClientKind,
   messageSlot,
   socialSlot,
@@ -29,12 +33,29 @@ import type { MessageKind, OutboxChannel, OutboxStatus } from '../../src/domain/
 import { operations } from '../../src/domain/operations'
 import { socialWindowEnds } from '../../src/domain/inbox'
 import { isSocialChannel } from '../../src/domain/inboxSchema'
-import { answersSocial, answersTexts, visitSummary } from '../../src/assistant/receptionist'
+import {
+  answersCalls,
+  answersSocial,
+  answersTexts,
+  visitSummary,
+} from '../../src/assistant/receptionist'
 import { visitStart } from '../../src/domain/guest'
+import { textsStopped } from '../../src/domain/textStop'
+import { isPlanCardKind, planCardMessage, readPlanCardSlot } from '../../src/domain/planCards'
+import {
+  NEWS_STALE_DAYS,
+  NEWS_STOP_LINK,
+  newsDaytime,
+  newsMessage,
+  newsSendFrom,
+  newsStillFor,
+} from '../../src/domain/news'
 import type { Context } from '../context'
 import { issueGuestLink } from '../routes/guest'
 import { renderEmail, studioSender } from '../../src/email/render'
 import { providerFor } from './providers'
+import { erasureRequested, issueNewsLink, newsSlotMessage } from './news'
+import { marketingEmailUse } from './marketingEmails'
 import type { Providers, Receipt } from './providers'
 
 export type OutboxRow = {
@@ -64,10 +85,20 @@ const RETRY_MS = [60000, 5 * 60000]
 const BATCH = 50
 /** An AI receptionist's answer that could not go out within this long is not sent at all. */
 const RECEPTION_STALE_MS = 15 * 60000
+const DAY_MS = 86400000
 
 type Org = NonNullable<ReturnType<Context['systemOrg']>>
 /** Where each placeholder in a message's stored words goes as it is sent. */
-type Links = Partial<Record<typeof BOOK_LINK | typeof MANAGE_LINK, string>>
+/** Where each placeholder in a message goes. An empty address takes the placeholder out. */
+type Links = Partial<
+  Record<typeof BOOK_LINK | typeof MANAGE_LINK | typeof OFFER_LINK | typeof NEWS_STOP_LINK, string>
+>
+const fill = (text: string, links: Links) =>
+  Object.entries(links).reduce(
+    (filled, [placeholder, url]) =>
+      url === undefined ? filled : filled.replaceAll(placeholder, url),
+    text,
+  )
 /** Sent because the guest agreed to keep in touch, not because of a visit they booked. */
 const keepInTouch = new Set<MessageKind>(['birthday', 'miss_you', 'due_back'])
 
@@ -75,7 +106,13 @@ const keepInTouch = new Set<MessageKind>(['birthday', 'miss_you', 'due_back'])
  * NEXT-13: the email as the guest sees it, in the studio's colours, made from the same words as
  * the plain-text part. Should the design ever fail, the email still goes, in plain words.
  */
-function designed(org: Org, subject: string, stored: string, links: Links, typed: boolean) {
+function designed(
+  org: Org,
+  subject: string,
+  stored: string,
+  links: Pick<Links, typeof BOOK_LINK | typeof MANAGE_LINK>,
+  typed: boolean,
+) {
   try {
     return renderEmail({
       subject,
@@ -240,8 +277,15 @@ export function createOutbox(ctx: Context, providers: Providers) {
             account: account.account_id,
           })
         }
-        if (!answersTexts(org.state))
+        // NEXT-17: a booking link the receptionist texted to someone it was speaking to on the phone.
+        if (fresh.slot.startsWith('call:')) {
+          if (!answersCalls(org.state))
+            return skip('Answering calls was turned off before it went out.')
+        } else if (!answersTexts(org.state))
           return skip('Answering texts was turned off before it went out.')
+        // Stage 1: a client with this number asked for no texts meanwhile.
+        if (clientsWithNumber(org.state, fresh.recipient).some((c) => c.noTextReminders))
+          return skip('Texts were turned off for this number before it went out.')
         return send(fresh, org, fresh.recipient, '', fresh.body, links)
       }
       if (org && fresh.kind === 'social') {
@@ -275,8 +319,82 @@ export function createOutbox(ctx: Context, providers: Providers) {
       }
       if (fresh.channel !== 'email' && fresh.channel !== 'sms')
         return skip('This message cannot go on a social app.')
+      if (fresh.kind === 'news') {
+        // Stage 4: one client's copy of a message to clients. Checked again now: still approved,
+        // still agreed, not STOP, not erased, still reachable this way, and in the daytime.
+        if (!org || !client) return skip('The client is no longer in the studio record.')
+        if (operations(org.state).mode !== 'local') return skip('Sample studios never send.')
+        const messageId = newsSlotMessage(fresh.slot)
+        const approvedAt = newsMessage(org.state, messageId)?.approvedAt
+        if (approvedAt && now() - Date.parse(approvedAt) > NEWS_STALE_DAYS * DAY_MS)
+          return skip('Too late: it could not go within three days of being approved.')
+        if (!newsDaytime(org.state, now())) {
+          finish(fresh, 'pending', {
+            detail: 'Waiting for the daytime on the studio’s clock.',
+            next_attempt_at: newsSendFrom(org.state, now()),
+          })
+          return null
+        }
+        const still = newsStillFor(
+          org.state,
+          messageId,
+          client.id,
+          fresh.channel,
+          erasureRequested(ctx, org.id),
+        )
+        if ('skip' in still) return skip(still.skip)
+        if (fresh.channel !== 'email')
+          return send(
+            fresh,
+            org,
+            still.to,
+            '',
+            fresh.body,
+            { [BOOK_LINK]: bookAt(org) },
+            {
+              typed: true,
+            },
+          )
+        const stop = issueNewsLink(ctx, org.id, client.id, messageId, fresh.id)
+        return send(
+          fresh,
+          org,
+          still.to,
+          fresh.subject,
+          fresh.body,
+          { [BOOK_LINK]: bookAt(org), [NEWS_STOP_LINK]: stop.page },
+          { typed: true, stream: 'broadcast', unsubscribeUrl: stop.oneClick },
+        )
+      }
       if (!org || !client) return skip('The visit is no longer in the studio record.')
       if (operations(org.state).mode !== 'local') return skip('Sample studios never send.')
+      if (isPlanCardKind(fresh.kind)) {
+        // Stage 1: about a membership's card payment. Checked again now: still running, still
+        // unpaid, still due to be taken (for a reminder), and the client still reachable this way.
+        if (fresh.kind === 'plan_reminder' && ctx.plans.readOnly(org.id))
+          return skip('The studio is read only, so no membership payment will be taken.')
+        const { holdingId, periodStart } = readPlanCardSlot(fresh.slot)
+        const text = planCardMessage(
+          org.state,
+          fresh.kind,
+          holdingId,
+          periodStart,
+          fresh.channel,
+          new Date(now()).toISOString(),
+        )
+        if (!text) return skip('Paid, ended or changed before it went out.')
+        const to = fresh.channel === 'email' ? client.email.trim() : textNumber(client.phone)
+        if (!to) return skip('The client has no address for this channel now.')
+        return send(fresh, org, to, text.subject, text.body, {})
+      }
+      if (fresh.kind === 'receipt') {
+        // Stage 2: a receipt the desk chose to email, sent as it was written, and only to the
+        // address it was written for.
+        if (fresh.channel !== 'email') return skip('A receipt goes by email only.')
+        if (client.email.trim().toLowerCase() !== fresh.recipient.trim().toLowerCase())
+          return skip('The client’s email address changed before it went out.')
+        return send(fresh, org, fresh.recipient, fresh.subject, fresh.body, {})
+      }
       if (fresh.kind === 'message') {
         // V1.5: written in the inbox. Checked again now: still queued, still agreed, still reachable.
         const message = operations(org.state).messages.find((m) => messageSlot(m.id) === fresh.slot)
@@ -292,18 +410,29 @@ export function createOutbox(ctx: Context, providers: Providers) {
         // NEXT-11: an invitation to a freed time goes only while that time is still free.
         if (staleInvitation(org.state, message.id, new Date(now()).toISOString()))
           return skip('The time was booked, or had passed, before it went out.')
+        // Stage 5: a lower price goes only while it still holds as written.
+        if (offerStale(org.state, message.id, new Date(now()).toISOString()))
+          return skip(
+            'The lower price ended, or the treatment’s price changed, before it went out.',
+          )
         const to = fresh.channel === 'email' ? client.email.trim() : textNumber(client.phone)
         if (!to) return skip('The client has no address for this channel now.')
-        return send(
+        // Its private link is made as it goes and never written down; only its hash is kept.
+        let offer = ''
+        if (message.offer && message.body.includes(OFFER_LINK))
+          offer = `#offer=${issueOfferLink(ctx, org.id, message.id, fresh.id, Date.parse(message.offer.endsAt))}`
+        const sent = send(
           fresh,
           org,
           to,
           message.subject,
           message.body,
-          { [BOOK_LINK]: bookAt(org) },
+          { [BOOK_LINK]: bookAt(org), [OFFER_LINK]: offer },
           // Words a person wrote: no visit card, and news goes the way news must.
           { typed: true, stream: message.purpose === 'marketing' ? 'broadcast' : 'transactional' },
         )
+        const offerLink = offer && sent?.message.body.match(/\S+#offer=\S+/)?.[0]
+        return sent && offerLink ? { ...sent, offerLink } : sent
       }
       // V1.5: a birthday or "we miss you" is about the guest, not a visit. Checked again now.
       const kind = fresh.kind
@@ -363,6 +492,14 @@ export function createOutbox(ctx: Context, providers: Providers) {
           ? client.email.trim()
           : textNumber(client.phone)
       if (!to) return skip('The client has no address for this channel now.')
+      // NEXT-14: keeping in touch by email counts towards the month's marketing emails, a hard
+      // stop. Nothing is held over: a birthday next month would be no use to anyone.
+      if (
+        fresh.channel === 'email' &&
+        keepInTouch.has(kind) &&
+        marketingEmailUse(ctx, org).left <= 0
+      )
+        return skip('Not sent: this month’s marketing emails were all used.')
       return send(fresh, org, to, current?.subject ?? fresh.subject, words, links, {
         stream: keepInTouch.has(kind) ? 'broadcast' : 'transactional',
       })
@@ -387,16 +524,33 @@ export function createOutbox(ctx: Context, providers: Providers) {
       stream?: 'transactional' | 'broadcast'
       /** Words a person typed, rather than SALEANE's own messages. */
       typed?: boolean
+      /** Stage 4: a message to many clients, and the guest's own link to stop them. */
+      unsubscribeUrl?: string
     } = {},
   ) => {
-    const { account, stream = 'transactional', typed = false } = options
+    const { account, stream = 'transactional', typed = false, unsubscribeUrl } = options
+    // Stage 1: whatever planned it, nothing is texted to a number that replied STOP and has not
+    // texted START since, client or not (src/domain/textStop.ts).
+    if (fresh.channel === 'sms' && textsStopped(org.state, to)) {
+      finish(fresh, 'skipped', {
+        detail: 'This number replied STOP, so SALEANE does not text it until they text START.',
+      })
+      return null
+    }
     const provider = providerFor(providers, fresh.channel)
-    const sending = Object.entries(links).reduce(
-      (text, [placeholder, url]) => (url ? text.replaceAll(placeholder, url) : text),
-      stored,
-    )
+    const sending = fill(stored, links)
     const email = fresh.channel === 'email'
-    const html = email ? designed(org, subject, stored, links, typed) : undefined
+    // The design makes buttons of the booking and visit links; the others stay in the words.
+    const { [BOOK_LINK]: book, [MANAGE_LINK]: manage, ...inWords } = links
+    const html = email
+      ? designed(
+          org,
+          subject,
+          fill(stored, inWords),
+          { [BOOK_LINK]: book, [MANAGE_LINK]: manage },
+          typed,
+        )
+      : undefined
     db.run(
       "UPDATE outbox SET status='unknown',provider=?,attempts=attempts+1,detail=?,recipient=?,subject=?,body=?,updated_at=? WHERE id=?",
       provider.name,
@@ -418,6 +572,7 @@ export function createOutbox(ctx: Context, providers: Providers) {
         fromName: org.state.organisation.name,
         ...(account ? { account } : {}),
         ...(email ? { stream } : {}),
+        ...(email && unsubscribeUrl ? { unsubscribeUrl } : {}),
         ...(html ? { html } : {}),
       },
     }
@@ -425,7 +580,9 @@ export function createOutbox(ctx: Context, providers: Providers) {
 
   const deliver = async () => {
     const due = db.all<OutboxRow>(
-      "SELECT * FROM outbox WHERE status='pending' AND next_attempt_at<=? ORDER BY next_attempt_at,created_at LIMIT ?",
+      // Stage 4: a message to many clients waits behind messages about visits, so it never
+      // holds up a confirmation or a reminder.
+      "SELECT * FROM outbox WHERE status='pending' AND next_attempt_at<=? ORDER BY kind='news',next_attempt_at,created_at LIMIT ?",
       now(),
       BATCH,
     )
@@ -434,8 +591,15 @@ export function createOutbox(ctx: Context, providers: Providers) {
       if (!claimed) continue
       const { row, message } = claimed
       const result = await providerFor(providers, row.channel).send(message)
-      if (result.outcome === 'test') finish(row, 'test', { detail: null })
-      else if (result.outcome === 'accepted')
+      if (result.outcome === 'test') {
+        finish(row, 'test', { detail: null })
+        // Stage 5: with email in test mode the private link went nowhere, so it is shown here for
+        // whoever runs SALEANE locally to try. Never in tests, never stored.
+        if ('offerLink' in claimed && !process.env.VITEST)
+          console.log(
+            `[SALEANE] Email is not connected, so this invitation’s link to book at its quiet-time price was not sent: ${claimed.offerLink}`,
+          )
+      } else if (result.outcome === 'accepted')
         finish(row, 'accepted', { provider_ref: result.providerRef, detail: null })
       else if (result.outcome === 'unknown') finish(row, 'unknown', { detail: result.detail })
       else if (result.retry && row.attempts < MAX_ATTEMPTS)

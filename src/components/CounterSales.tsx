@@ -5,12 +5,16 @@ import { useStore } from '../state/context'
 import { can, operations } from '../domain/operations'
 import type { Command } from '../domain/commands'
 import { dateLabel, money } from '../domain/format'
+import { recordDay } from '../domain/tillCount'
 import { minorInput, parseMinor } from '../domain/money'
 import { priceRetail, retailCharge, returnable } from '../domain/retail'
 import { hasLocations, placeOf, places } from '../domain/locations'
 import type { CounterSale, RetailItems } from '../domain/retailSchema'
 import { Button, ErrorMessage, Modal } from '../design'
 import { CheckoutProducts } from './CheckoutProducts'
+import { ReceiptActions } from './ReceiptActions'
+import { RefundSignOff } from './RefundSignOff'
+import { refundRefusal } from '../domain/signoffs'
 
 /**
  * V2: products sold to someone without a visit, and money back when they return one. Paid in
@@ -53,6 +57,9 @@ export function CounterSales() {
   const [selling, setSelling] = useState(false)
   const [returning, setReturning] = useState<CounterSale | null>(null)
   const [notice, setNotice] = useState('')
+  // Stage 2: the sale just recorded, so its receipt can be printed or emailed straight away.
+  const [soldNumber, setSoldNumber] = useState('')
+  const sold = (state.counterSales ?? []).find((sale) => sale.receiptNumber === soldNumber)
   const sales = [...(state.counterSales ?? [])]
     .sort((a, b) => b.paidAt.localeCompare(a.paidAt))
     .slice(0, 8)
@@ -79,6 +86,7 @@ export function CounterSales() {
           {notice}
         </p>
       )}
+      {notice && sold && <ReceiptActions receiptKey={`walk-in:${sold.id}`} />}
       {sales.length > 0 && (
         <div className="ops-ledger">
           {sales.map((sale) => {
@@ -92,7 +100,7 @@ export function CounterSales() {
                       .join(', ')}
                   </strong>
                   <small>
-                    {dateLabel(sale.paidAt.slice(0, 10), org.locale)} · {sale.receiptNumber} ·{' '}
+                    {dateLabel(recordDay(state, sale.paidAt), org.locale)} · {sale.receiptNumber} ·{' '}
                     {METHOD_LABEL[sale.method]}
                     {clientName(sale.clientId) ? ` · ${clientName(sale.clientId)}` : ''}
                     {staffName(sale.staffId) ? ` · sold by ${staffName(sale.staffId)}` : ''}
@@ -109,6 +117,7 @@ export function CounterSales() {
                     onClick={() => {
                       setReturning(sale)
                       setNotice('')
+                      setSoldNumber('')
                     }}
                   >
                     Give money back
@@ -138,6 +147,7 @@ export function CounterSales() {
           onClose={() => setSelling(false)}
           onDone={(sale) => {
             setSelling(false)
+            setSoldNumber(sale)
             setNotice(
               `Receipt ${sale} recorded. ${sandbox ? 'Demo sale: no money moved.' : 'SALEANE did not take the money; it records what you took.'}`,
             )
@@ -227,7 +237,13 @@ function SellDialog({
       description="Products are priced with your current tax and must be in stock."
     >
       <form onSubmit={save} className="plan-form">
-        <CheckoutProducts items={items} retail={retail} disabled={pending} onChange={setItems} />
+        <CheckoutProducts
+          items={items}
+          retail={retail}
+          locationId={placeId}
+          disabled={pending}
+          onChange={setItems}
+        />
         <div className="ops-fields">
           <label className="ops-wide">
             Client (optional)
@@ -342,7 +358,7 @@ function ReturnDialog({
   onClose: () => void
   onDone: () => void
 }) {
-  const { state } = useStore()
+  const { state, role } = useStore()
   const org = state.organisation
   const { run, pending, error, setError } = useRun()
   const lines = returnable(state, sale.id)
@@ -362,6 +378,18 @@ function ReturnDialog({
       setError(
         sandbox ? 'Confirm this is a simulated refund.' : 'Confirm the money has been given back.',
       )
+      return
+    }
+    // Stage 4: over the limit without a sign-off for exactly this, the server would refuse it too.
+    const refusal = refundRefusal(
+      state,
+      role,
+      { counterSaleId: sale.id },
+      amountMinor,
+      new Date().toISOString(),
+    )
+    if (refusal) {
+      setError(refusal)
       return
     }
     const restock = Object.entries(back)
@@ -389,6 +417,10 @@ function ReturnDialog({
       title="Give money back"
       description={`Receipt ${sale.receiptNumber}, paid ${METHOD_LABEL[sale.method].toLowerCase()}. Up to ${money(sale.totalMinor - refundedMinor, org, true)} can be given back.`}
     >
+      <RefundSignOff
+        target={{ counterSaleId: sale.id }}
+        onGiveBack={(amountMinor) => setAmount(minorInput(amountMinor))}
+      />
       <form onSubmit={save} className="plan-form">
         <div className="ops-fields">
           {lines

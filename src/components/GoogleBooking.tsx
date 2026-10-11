@@ -5,6 +5,7 @@ import { useStore } from '../state/context'
 import { api } from '../state/api'
 import { Button, ErrorMessage } from '../design'
 import { useRun } from './usePayment'
+import { GUEST_CANCEL_CUTOFF_HOURS } from '../domain/guest'
 import './management.css'
 
 type Status = { mode: 'off' | 'test'; offered: boolean; sample: boolean; bookings: number }
@@ -12,7 +13,8 @@ type Counts = { treatments: number; times: number }
 
 /**
  * V4: Book with Google. The owner chooses whether guests can book the studio inside Google Search
- * and Maps, and sees what Google would receive. Nothing is sent to Google from here.
+ * and Maps, and sees what Google would receive. Nothing is sent to Google from here. Stage 5:
+ * guests can move a Google booking as well as cancel it.
  */
 export function GoogleBooking() {
   const { mode, session, state, role, blocked } = useStore()
@@ -69,8 +71,9 @@ export function GoogleBooking() {
           <p>
             Let guests book your treatments without leaving Google Search and Maps. Their visits
             arrive in your diary like any online booking, with the usual confirmation. Treatments
-            that need a deposit stay on your own booking page, where the deposit is taken. Guests
-            can cancel there until the visit starts, as with their own booking link.
+            that need a deposit stay on your own booking page, where the deposit is taken. As with
+            their own booking link, guests can move a visit on Google to another free time until{' '}
+            {GUEST_CANCEL_CUTOFF_HOURS} hours before it, and cancel until it starts.
           </p>
         </div>
         <MapPin size={21} aria-hidden="true" />

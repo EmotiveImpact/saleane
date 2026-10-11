@@ -251,6 +251,20 @@ export function reclaim(usage: Usage | undefined, at: string): Usage | undefined
 }
 
 /**
+ * How long the next phone call may run: the longest call or what is left of `meter`, the kind the
+ * app counts calls in, whichever is less.
+ */
+export function callWindowSeconds<M extends Meter>(
+  allowance: Allowance<M>,
+  usage: Usage | undefined,
+  at: string,
+  longest: number,
+  meter: M,
+) {
+  return Math.min(longest, remaining(allowance, usage, meter, at))
+}
+
+/**
  * How long the next talking session may run: the session cap or what is left of `meter`, the
  * kind the app counts talking in, whichever is less.
  */

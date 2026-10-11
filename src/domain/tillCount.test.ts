@@ -204,7 +204,7 @@ describe('end-of-day till count', () => {
       return () => parseState(copy, 'UK')
     }
     expect(corrupt(() => {})).not.toThrow()
-    expect(corrupt((c) => (c.organisationId = 'another-studio'))).toThrow('Foreign')
+    expect(corrupt((c) => (c.organisationId = 'another-studio'))).toThrow('another studio')
     expect(corrupt((c) => (c.countedMinor = -100))).toThrow()
     expect(corrupt((c) => (c.bankingMinor = 1.5))).toThrow()
     expect(corrupt((c) => (c.date = '2026-13-01'))).toThrow()

@@ -207,6 +207,15 @@
 .ops-check input {
   margin-top: 2px;
 }
+/* A radio in a list of choices sits small beside its words, as a tick box does. */
+.ops-checks input[type='radio'] {
+  width: 17px;
+  height: 17px;
+  min-height: 0;
+  padding: 0;
+  flex: none;
+  accent-color: var(--ink);
+}
 /* A tick box among other fields still sits beside its words. */
 .ops-fields > label.ops-check {
   flex-direction: row;
@@ -968,6 +977,8 @@
   gap: var(--space-3);
   margin-top: var(--space-4);
   padding: var(--space-4);
+  /* Narrow beside a client's timeline, wide elsewhere: each row follows its own panel's width. */
+  container-type: inline-size;
 }
 .sent-messages header h2 {
   margin: 0;
@@ -978,22 +989,24 @@
 }
 .sent-list {
   display: grid;
-  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
 }
+/* Rows divided by hairlines inside the panel, never boxes inside it (the quality bar). */
 .sent-item details {
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
-  background: var(--surface, #fff);
+  border-top: 1px solid var(--line);
+}
+.sent-item:first-child details {
+  border-top: 0;
 }
 .sent-item summary {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  min-height: 44px;
+  padding: var(--space-2) 0;
   cursor: pointer;
   list-style: none;
 }
@@ -1024,7 +1037,7 @@
   display: grid;
   gap: var(--space-2);
   justify-items: start;
-  padding: 0 var(--space-3) var(--space-3);
+  padding: 0 0 var(--space-3);
 }
 .sent-body p {
   margin: 0;
@@ -1055,7 +1068,7 @@
   margin-bottom: var(--space-1);
   font-weight: var(--weight-strong);
 }
-@media (max-width: 520px) {
+@container (max-width: 520px) {
   .sent-item summary {
     grid-template-columns: auto minmax(0, 1fr);
   }
@@ -1326,6 +1339,62 @@ a.receipt-row {
 .connections-url {
   overflow-wrap: anywhere;
 }
+/* Stage 5: what an access key may do, each choice with a plain sentence under it. The tick box
+   sits beside its words, as elsewhere, although the form's other labels stack. */
+.saved-reply-form .access-key-scope {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 9px;
+  padding: var(--space-1) 0;
+}
+.access-key-scope input {
+  margin-top: 3px;
+}
+.access-key-scope > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.access-key-scope small {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.access-key-changes {
+  display: grid;
+  gap: var(--space-2);
+  border-top: 1px solid var(--line);
+}
+.access-key-changes > summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+  list-style: none;
+}
+.access-key-changes > summary::-webkit-details-marker {
+  display: none;
+}
+/* A small chevron that turns when the fold opens, as on the till's settings. */
+.access-key-changes > summary::after {
+  content: '';
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  margin: -3px 4px 0 auto;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+}
+.access-key-changes[open] > summary::after {
+  margin-top: 4px;
+  transform: rotate(-135deg);
+}
+.access-key-changes .ops-help {
+  margin: var(--space-1) 0 0;
+}
 .connections-list .saved-reply-actions {
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -1386,4 +1455,8 @@ a.receipt-row {
 }
 .house-rules-breaches li span {
   color: var(--muted);
+}
+/* Stage 6: a guest booked under several records, said once under their details. */
+.inbox-pane-header .inbox-records {
+  font-size: var(--text-micro);
 }

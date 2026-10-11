@@ -174,6 +174,8 @@ describe('team diaries in Google or Apple Calendar', () => {
     s.operations = {
       ...s.operations!,
       locations: [{ id: 'loc-islington', name: 'Islington', address: '1 Upper Street' }],
+      // The sample's own changed days on the rota are cleared, so the week is Maya's usual one.
+      rotaChanges: [],
       timeOff: [
         {
           id: 'away-week',

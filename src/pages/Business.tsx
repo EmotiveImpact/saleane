@@ -7,7 +7,10 @@ import { hasLocations, placeOf, places } from '../domain/locations'
 import { bookedTimeDefinition } from '../components/definitions'
 import { RetentionPanel } from '../components/RetentionPanel'
 import { WholeBusiness } from '../components/WholeBusiness'
-import { addDays, dateLabel, money, timeLabel, wholeMoney } from '../domain/format'
+import { dateLabel, money, wholeMoney } from '../domain/format'
+import { barHeight, chartScale } from '../domain/chartScale'
+import { closingLedger } from '../domain/moments'
+import { ClosingLedger } from '../components/ClosingLedger'
 import {
   Avatar,
   Button,
@@ -21,33 +24,25 @@ import {
 const completedVisits = (count: number) => `${count} completed ${count === 1 ? 'visit' : 'visits'}`
 
 export function Business() {
-  const { state, today, branch } = useStore()
+  const { state, today, branch, role } = useStore()
+  // Stage 3: rent is shown to those who see pay; everyone sees that renters' takings are kept out.
+  const seesRent = role === 'owner' || role === 'manager'
   const [days, setDays] = useState(7)
   const [definitions, setDefinitions] = useState(false)
   // V2: figures for one location, or the whole studio.
   const multiSite = hasLocations(state)
   const [where, setWhere] = useState(branch ?? 'all')
   const place = multiSite && where !== 'all' ? where : undefined
+  // Stage 4: a general manager sees only their own location's team and hours, so time booked
+  // elsewhere cannot be worked out on their screen.
+  const teamHidden = role === 'general' && !!branch && multiSite && place !== branch
   const data = report(state, days, place)
   const due = dueClients(state)
-  const maxRevenue = Math.max(...data.byDay.map((d) => d.revenue), 1)
-  // Today's close: visits still open, and who the studio sees first tomorrow.
-  const live = (a: (typeof state.appointments)[number]) =>
-    a.status !== 'cancelled' && a.status !== 'no_show'
-  const here = (a: (typeof state.appointments)[number]) => !place || a.locationId === place
-  const todays = state.appointments.filter((a) => a.date === today && live(a) && here(a))
-  const first = state.appointments
-    .filter((a) => a.date === addDays(today, 1) && live(a) && here(a))
-    .sort((a, b) => a.startMinutes - b.startMinutes)[0]
-  const closing = {
-    total: todays.length,
-    open: todays.filter((a) => a.status !== 'completed').length,
-    settled: todays.length > 0 && todays.every((a) => a.status === 'completed'),
-    tomorrow: first && {
-      name: state.clients.find((c) => c.id === first.clientId)?.name.split(' ')[0] ?? 'a guest',
-      start: first.startMinutes,
-    },
-  }
+  // Stage 6: round figures on the axis, and only zero when nothing was taken.
+  const scale = chartScale(data.byDay.map((d) => d.revenue))
+  // Today's close: visits still open and who comes first tomorrow, and once every visit is checked
+  // out, the day as a printed ledger (Stage 6).
+  const closing = closingLedger(state, place)
   function exportReport() {
     const rows = [
       ['date', 'completed_service_revenue_minor', 'currency'],
@@ -110,20 +105,24 @@ export function Business() {
         <Metric
           label="Takings from completed treatments"
           value={wholeMoney(data.revenue, state.organisation)}
-          detail={completedVisits(data.completed)}
+          detail={completedVisits(data.ownCompleted)}
         />
         <Metric
           label="Average treatment sale"
           value={wholeMoney(
-            data.completed ? Math.round(data.revenue / data.completed) : 0,
+            data.ownCompleted ? Math.round(data.revenue / data.ownCompleted) : 0,
             state.organisation,
           )}
           detail="Treatment takings ÷ completed visits"
         />
         <Metric
           label="Time booked"
-          value={`${Math.round(data.utilisation * 100)}%`}
-          detail={`Last ${days} days · today ${Math.round(bookedTimeShare(state, today, place) * 100)}%`}
+          value={teamHidden ? 'Not shown' : `${Math.round(data.utilisation * 100)}%`}
+          detail={
+            teamHidden
+              ? `Shown for ${placeOf(state, branch!)?.name ?? 'your location'} only, whose team you see.`
+              : `Last ${days} days · today ${Math.round(bookedTimeShare(state, today, place) * 100)}%`
+          }
           definition={bookedTimeDefinition.map((line) => (
             <p key={line}>{line}</p>
           ))}
@@ -149,8 +148,8 @@ export function Business() {
             aria-label={`Takings from completed treatments by day over the last ${days} days, ${money(data.revenue, state.organisation)} total. Exact values are available in the table below.`}
           >
             <div className="chart-axis">
-              <span>{money(maxRevenue, state.organisation)}</span>
-              <span>{money(Math.round(maxRevenue / 2), state.organisation)}</span>
+              <span>{scale.top ? money(scale.top, state.organisation) : ''}</span>
+              <span>{scale.top ? money(scale.half, state.organisation) : ''}</span>
               <span>{money(0, state.organisation)}</span>
             </div>
             <div className="chart-bars">
@@ -158,7 +157,7 @@ export function Business() {
                 <div className="chart-column" key={d.date}>
                   <div
                     className={`chart-bar ${d.date === today ? 'current-bar' : ''}`}
-                    style={{ height: `${(d.revenue / maxRevenue) * 100}%` }}
+                    style={{ height: `${barHeight(d.revenue, scale)}%` }}
                     title={`${dateLabel(d.date, state.organisation.locale, true)}: ${money(d.revenue, state.organisation)}`}
                   />
                   <span>
@@ -206,20 +205,53 @@ export function Business() {
           <Link className="button button-light" to="/clients">
             Review your clients
           </Link>
-          <div className="insight-rule" />
-          <span>Tips recorded in this period</span>
-          <strong>{wholeMoney(data.tips, state.organisation)}</strong>
-          <small>Reported separately from treatment takings.</small>
-          <div className="insight-rule" />
-          <span>Products sold with visits</span>
-          <strong>{wholeMoney(data.retail, state.organisation)}</strong>
-          <small>
-            Before tax, separate from treatment takings. <Link to="/business/stock">See stock</Link>
-          </small>
-          <div className="insight-rule" />
-          <span>Gift cards, packages and memberships sold</span>
-          <strong>{money(data.giftCardsSold + data.plansSold, state.organisation)}</strong>
-          <small>Money taken where they were sold, separate from treatment takings.</small>
+          {/* Each figure under its own rule; on a smaller screen they sit side by side. */}
+          <div className="insight-figures">
+            <div className="insight-figure">
+              <span>Tips recorded in this period</span>
+              <strong>{wholeMoney(data.tips, state.organisation)}</strong>
+              <small>Reported separately from treatment takings.</small>
+            </div>
+            <div className="insight-figure">
+              <span>Products sold with visits</span>
+              <strong>{wholeMoney(data.retail, state.organisation)}</strong>
+              <small>
+                Before tax, separate from treatment takings.{' '}
+                <Link to="/business/stock">See stock</Link>
+              </small>
+            </div>
+            <div className="insight-figure">
+              <span>Gift cards, packages and memberships sold</span>
+              <strong>{money(data.giftCardsSold + data.plansSold, state.organisation)}</strong>
+              <small>Money taken where they were sold, separate from treatment takings.</small>
+            </div>
+            {seesRent && (data.rent > 0 || data.renters > 0) && (
+              <div className="insight-figure">
+                <span>Chair and room rent recorded</span>
+                <strong>{money(data.rent, state.organisation)}</strong>
+                <small>
+                  Your income from renters. <Link to="/business/pay">See rent</Link>
+                </small>
+              </div>
+            )}
+            {data.otherTill !== 0 && (
+              <div className="insight-figure">
+                <span>Sold on your other tills</span>
+                <strong>{money(data.otherTill, state.organisation)}</strong>
+                <small>
+                  Before tax, sent in by {data.tills.join(' and ')}. Taken on those tills, not by
+                  SALEANE, and kept apart from treatment takings here.
+                </small>
+              </div>
+            )}
+            {data.renters > 0 && (
+              <div className="insight-figure">
+                <span>Renters’ own takings, kept apart</span>
+                <strong>{money(data.renters, state.organisation)}</strong>
+                <small>Not counted in any figure here. They came through your till.</small>
+              </div>
+            )}
+          </div>
         </section>
       </div>
       <div className="business-tables">
@@ -244,13 +276,14 @@ export function Business() {
         </section>
         <section className="surface detail-panel">
           <h2>The people behind it</h2>
-          {data.byStaff.map(({ staff, revenue, visits, rebooked }) => (
+          {data.byStaff.map(({ staff, revenue, visits, renting, rebooked }) => (
             <div className="staff-performance" key={staff.id}>
               <Avatar small identity={staff.id} name={staff.name} tone={staff.tone} />
               <span>
                 <strong>{staff.name}</strong>
                 <small>
                   {completedVisits(visits)}
+                  {renting > 0 && `, ${renting} while renting`}
                   {visits > 0 && ` · ${Math.round((rebooked / visits) * 100)}% rebooked`}
                 </small>
               </span>
@@ -258,7 +291,7 @@ export function Business() {
             </div>
           ))}
           <p className="subtle">
-            Treatment takings only.
+            Treatment takings only, without renters’ own takings.
             {data.rebookRate !== null &&
               ` Rebooked means the next visit was booked at checkout; the studio as a whole rebooked ${Math.round(data.rebookRate * 100)}%.`}{' '}
             Commission and tips per person are on <Link to="/business/pay">Pay</Link>.
@@ -316,16 +349,16 @@ export function Business() {
           />
           <span className="closing-up-eyebrow">Closing up</span>
           <h2>{closing.settled ? 'The day is settled.' : 'Before you close.'}</h2>
-          <p>
-            {closing.total === 0
-              ? 'No visits were booked today.'
-              : closing.settled
-                ? `All ${closing.total} of today’s visits are checked out.`
+          {closing.ledger ? (
+            <ClosingLedger ledger={closing.ledger} organisation={state.organisation} />
+          ) : (
+            <p>
+              {closing.total === 0
+                ? 'No visits were booked today.'
                 : `${closing.open} of today’s ${closing.total} visits still to check out.`}{' '}
-            {closing.tomorrow
-              ? `Tomorrow starts with ${closing.tomorrow.name} at ${timeLabel(closing.tomorrow.start, state.organisation.locale)}.`
-              : 'Nothing is booked for tomorrow yet.'}
-          </p>
+              {closing.tomorrowLine}
+            </p>
+          )}
         </section>
       </div>
       <RetentionPanel days={days} />
@@ -346,8 +379,11 @@ export function Business() {
             booked uses booked treatment minutes against opening and professional hours, less
             recorded closures. Earlier days use the current schedule; schedule versions are not yet
             retained. Rebooking counts explicit links created through checkout, rather than assuming
-            another visit is a rebook. All figures come from this studio’s records. Money recorded
-            by hand has not been checked against a card company.
+            another visit is a rebook. Someone renting a chair or room keeps their own takings on
+            the days they rent, so takings, averages and products leave them out; their rent is the
+            studio’s income. Time booked and rebooking still count their visits. All figures come
+            from this studio’s records. Money recorded by hand has not been checked against a card
+            company.
           </p>
         )}
       </div>

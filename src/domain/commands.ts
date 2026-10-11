@@ -7,10 +7,16 @@ import type { Command, ContactInput } from './commandSchema'
 import { assertMethod, paymentDetail, runOperatingCommand } from './operatingCommands'
 import { runGroupCommand } from './group'
 import { runApprovalCommand, stampRequestActors } from './approvals'
+import { spendRefundApproval } from './signoffs'
 import { runBrandCommand } from './brandRules'
+import { runTillCommand } from './till'
 import { branchVisitUnchanged, runBranchVisitCommand, stampBranchVisitActors } from './branchVisits'
 import { runHoursCommand, stampShiftActors } from './hours'
-import { channelLabel } from './bookingChannel'
+import { runRotaCommand, stampRotaActors } from './rota'
+import { runStaffMoveCommand, stampStaffMoveActors } from './staffMoves'
+import { newsUnchanged, runNewsCommand, stampNewsActors } from './news'
+import { runCommissionCommand } from './commission'
+import { channelNote } from './bookingChannel'
 import { checkoutTotals } from './money'
 import { recordTillCount } from './tillCount'
 import { openLocation, withSetupProgress } from './setup'
@@ -23,14 +29,18 @@ import { upcomingTogether } from './together'
 import { availableAllocation } from './allocation'
 import { runSwitchingCommand } from './switching'
 import { coverVisit, runPlanCommand, stampPlanActors } from './plans'
+import { planCardUnchanged, runPlanCardCommand } from './planCards'
 import { runGiftCardCommand, spendGiftCard, stampGiftCardActors } from './giftCards'
 import {
+  onlinePatchTestStop,
   patchTestBlocksVisit,
   repeatedPatchResult,
   runPatchTestCommand,
   stampPatchTestActors,
 } from './patchTests'
 import { referenceTaken } from './references'
+import { runOtherTillCommand } from './otherTill'
+import type { OtherTillSource } from './otherTill'
 import { recordFeedback, repeatedFeedback } from './feedback'
 import { repeatedFormAnswer, runFormCommand, stampFormActors } from './forms'
 import {
@@ -48,6 +58,7 @@ import {
 import { inboxUnchanged, runInboxCommand, stampInboxActors } from './inbox'
 import { guestHereWindow } from './guest'
 import { callForBooking, linkCallToVisit, markCalledBack, recordMissedCall } from './missedCalls'
+import { markCallDone, recordAnsweredCall } from './answeredCalls'
 import { planSpecial, stopSpecial } from './specials'
 import { addTask, completeTask } from './tasks'
 import { priceRetail, recordRetailMovements, retailCharge, sellAtCounter } from './retail'
@@ -64,6 +75,10 @@ import {
   invitesUnchanged,
   runInviteCommand,
 } from './cancelledTimes'
+import { offerInviteUnchanged, offerToBook, runOfferInvite } from './quietInvites'
+import { runRetentionCommand, stampRetentionActors } from './retentionDue'
+import { offerPrices } from './quietOffers'
+import { twoStepForEveryone } from './twoStepRule'
 
 export type CommandResult =
   { ok: true; state: BusinessState; recordId: string } | { ok: false; error: string }
@@ -210,10 +225,30 @@ export type ExecuteOptions = {
   /** NEXT-08: a visit being booked together with others, who may share a room for two. */
   together?: string
   /**
+   * Stage 4: a card refund started at this instant; a sign-off it used is judged as of then, so
+   * one that lapses while the card company answers is still marked as given back.
+   */
+  refundApprovalAsOf?: string
+  /**
    * NEXT-11: one part of a batch, such as a cover plan. SALEANE writes no invitations of its own
    * for a time the plan frees, since the rest of the plan may close it.
    */
   inBatch?: boolean
+  /**
+   * Stage 5: the invitation whose quiet-time price this online booking takes. Only the public
+   * booking route passes it, after checking the guest's private link; it never comes from a body.
+   */
+  offer?: { messageId: string }
+  /**
+   * Stage 5: other software made this change through an access key. A visit it books records it
+   * as the source, a sale from another till names it, and any email news it records says the
+   * software sent who agreed, when and how. Set only by the server from the key itself.
+   */
+  software?: SoftwareSource
+}
+/** Stage 5: the access key a change came through, and what it said about email news. */
+export type SoftwareSource = OtherTillSource & {
+  consent?: { at: string; how: string; wordingVersion?: number }
 }
 
 export function execute(
@@ -309,6 +344,10 @@ export function execute(
       const input = bookingSchema.parse(command.input)
       if (input.source === 'online' && !operations(s).bookingEnabled)
         throw new Error('Online booking is currently closed.')
+      // Stage 3: an online booking always opens a new client record, so the guest is never known
+      // for sure and the studio's patch test rule stops a treatment that needs one.
+      const patchStop = input.source === 'online' ? onlinePatchTestStop(s, input.serviceId) : null
+      if (patchStop) throw new Error(patchStop)
       // Without a chosen location, the visit is wherever the person works that day.
       const chosenPlace = input.locationId
       const staffId =
@@ -354,6 +393,26 @@ export function execute(
       if (!resourceId)
         throw new Error('That time is no longer available. Choose another time or professional.')
       const service = s.services.find((item) => item.id === input.serviceId)!
+      // Stage 5: a quiet-time price from the guest's invitation, for exactly its time.
+      if (options.offer && input.source !== 'online')
+        throw new Error('A quiet-time price is booked only from the guest’s own link.')
+      const offer = options.offer
+        ? offerToBook(
+            s,
+            options.offer.messageId,
+            {
+              serviceId: service.id,
+              staffId,
+              date: input.date,
+              startMinutes: input.startMinutes,
+              locationId,
+            },
+            now,
+          )
+        : undefined
+      // The deposit follows the treatment's own rule and is never more than the price booked.
+      const priceMinor = offer ? offer.priceMinor : serviceAt(service, locationId).priceMinor
+      const depositMinor = Math.min(service.depositMinor, priceMinor)
       let client = input.clientId
         ? next.clients.find((item) => item.id === input.clientId)
         : undefined
@@ -391,28 +450,34 @@ export function execute(
         date: input.date,
         startMinutes: input.startMinutes,
         status: 'confirmed',
-        source: input.source,
+        source: options.software ? 'software' : input.source,
+        ...(options.software
+          ? { software: { keyId: options.software.keyId, name: options.software.name } }
+          : {}),
         ...(input.channel ? { channel: input.channel } : {}),
         createdAt: now,
         rebookedFromId: input.rebookedFromId,
-        bookedPriceMinor: serviceAt(service, locationId).priceMinor,
-        bookedDepositMinor: service.depositMinor,
+        bookedPriceMinor: priceMinor,
+        bookedDepositMinor: depositMinor,
         bookedDurationMinutes: service.durationMinutes,
         bookedBufferMinutes: service.bufferMinutes,
         bookedResourceType: service.resourceType,
         bookedServiceName: service.name,
         bookedTax: operations(s).tax ?? null,
         ...(consultation ? { consultation } : {}),
+        ...(offer
+          ? { bookedOffer: { messageId: offer.messageId, usualPriceMinor: offer.usualPriceMinor } }
+          : {}),
       }
       next.appointments.push(appointment)
       // Simulated deposit receipt is deliberately separate from the service-price snapshot.
-      if (operations(s).mode === 'sandbox' && service.depositMinor > 0)
+      if (operations(s).mode === 'sandbox' && depositMinor > 0)
         next.payments.push({
           id: makeId(),
           organisationId: org.id,
           appointmentId: appointment.id,
           kind: 'deposit',
-          amountMinor: service.depositMinor,
+          amountMinor: depositMinor,
           currency: org.currency,
           recordedAt: now,
           method: 'demo_card',
@@ -422,7 +487,7 @@ export function execute(
         appointmentId: appointment.id,
         type: 'booked',
         title: input.source === 'rebook' ? 'Next visit booked' : 'Visit booked',
-        detail: `${service.name} · ${dateLabel(input.date, org.locale)} at ${timeLabel(input.startMinutes, org.locale)}. ${operations(s).mode === 'sandbox' ? 'Deposit simulated; no payment taken.' : 'No payment collected. Any required deposit remains outstanding.'}${input.channel ? ` Booked through your ${channelLabel(input.channel)} link.` : ''}${input.callId ? ' Booked when the studio called back after a missed call.' : ''}`,
+        detail: `${service.name} · ${dateLabel(input.date, org.locale)} at ${timeLabel(input.startMinutes, org.locale)}. ${offer ? `Booked at a quiet-time price of ${offerPrices(s, offer)}, from an invitation. ` : ''}${operations(s).mode === 'sandbox' ? 'Deposit simulated; no payment taken.' : 'No payment collected. Any required deposit remains outstanding.'}${input.channel ? ` ${channelNote(input.channel)}` : ''}${input.callId ? ' Booked when the studio called back after a missed call.' : ''}${options.software ? ` Booked by ${options.software.name} through its access key.` : ''}`,
       })
       if (input.waitlistId) fillFromWaitlist(next, input.waitlistId, appointment, now, 'book')
       if (input.callId) linkCallToVisit(next, input.callId, appointment.id, client.id, now)
@@ -487,7 +552,7 @@ export function execute(
           type: 'rescheduled',
           title: 'Visit moved',
           allocationChange: { from, to },
-          detail: `${dateLabel(from.date, org.locale)} at ${timeLabel(from.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === from.staffId)!.name}${moved ? ` at ${placeOf(s, from.locationId)?.name}` : ''} → ${dateLabel(to.date, org.locale)} at ${timeLabel(to.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === to.staffId)!.name}${moved ? ` at ${placeOf(s, place)?.name}` : ''}. Booked treatment, price and deposit kept; no message sent.${leaves ? ' No longer booked together with the others.' : ''}`,
+          detail: `${dateLabel(from.date, org.locale)} at ${timeLabel(from.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === from.staffId)!.name}${moved ? ` at ${placeOf(s, from.locationId)?.name}` : ''} → ${dateLabel(to.date, org.locale)} at ${timeLabel(to.startMinutes, org.locale)} with ${s.staff.find((person) => person.id === to.staffId)!.name}${moved ? ` at ${placeOf(s, place)?.name}` : ''}. Booked treatment, price and deposit kept; no message sent.${appointment.bookedOffer ? ' The quiet-time price stays with the visit.' : ''}${leaves ? ' No longer booked together with the others.' : ''}`,
         })
         if (command.waitlistId)
           fillFromWaitlist(next, command.waitlistId, appointment, now, 'move', from.date)
@@ -833,6 +898,25 @@ export function execute(
       const same = invitesUnchanged(s, command)
       if (same) return { ok: true, state: s, recordId: same }
       recordId = runInviteCommand(next, command, now, makeId, addEvent)
+    } else if (command.type === 'offer-invite') {
+      const same = offerInviteUnchanged(s, command)
+      if (same) return { ok: true, state: s, recordId: same }
+      recordId = runOfferInvite(next, command, now, makeId, addEvent)
+    } else if (command.type === 'quiet-offers') {
+      const known = new Set(s.services.map((service) => service.id))
+      if (command.settings.leftOutIds.some((id) => !known.has(id)))
+        throw new Error('Choose treatments from this studio to leave out.')
+      next.operations = { ...operations(next), quietOffers: { ...command.settings } }
+      recordId = org.id
+    } else if (command.type === 'retention-delete' || command.type === 'retention-keep') {
+      // Stage 6: only records due on the studio's own day, each decided once.
+      recordId = runRetentionCommand(s, next, command, businessDate(s, now), now, makeId)
+    } else if (command.type === 'two-step-rule') {
+      // Stage 6: asking again for what is already set changes nothing.
+      if (twoStepForEveryone(s) === command.forEveryone)
+        return { ok: true, state: s, recordId: org.id }
+      next.operations = { ...operations(next), twoStep: { forEveryone: command.forEveryone } }
+      recordId = org.id
     } else if (command.type === 'guest-here') {
       const appointment = next.appointments.find((a) => a.id === command.appointmentId)
       if (!appointment) throw new Error('Visit does not belong to this studio.')
@@ -861,6 +945,14 @@ export function execute(
       const call = (operations(s).missedCalls ?? []).find((c) => c.id === command.callId)
       if (call?.calledBackAt) return { ok: true, state: s, recordId: call.id }
       recordId = markCalledBack(next, command.callId, now)
+    } else if (command.type === 'call-answered') {
+      const { type: _type, ...call } = command
+      void _type
+      recordId = recordAnsweredCall(next, call, makeId)
+    } else if (command.type === 'answered-call-done') {
+      const call = (operations(s).answeredCalls ?? []).find((c) => c.id === command.callId)
+      if (call?.doneAt) return { ok: true, state: s, recordId: call.id }
+      recordId = markCallDone(next, command.callId, now)
     } else if (command.type === 'feedback') {
       const same = repeatedFeedback(s, command)
       if (same) return { ok: true, state: s, recordId: same.id }
@@ -882,10 +974,15 @@ export function execute(
       command.type === 'plan-cancel'
     ) {
       recordId = runPlanCommand(next, command, now, makeId, addEvent)
+    } else if (command.type === 'plan-card' || command.type === 'plan-card-try') {
+      const unchanged = planCardUnchanged(s, command)
+      if (unchanged) return { ok: true, state: s, recordId: unchanged }
+      recordId = runPlanCardCommand(next, command, now, makeId, addEvent)
     } else if (
       command.type === 'gift-card-sell' ||
       command.type === 'gift-card-extend' ||
-      command.type === 'gift-card-cancel'
+      command.type === 'gift-card-cancel' ||
+      command.type === 'gift-card-move'
     ) {
       recordId = runGiftCardCommand(next, command, now, makeId, addEvent)
     } else if (
@@ -943,7 +1040,9 @@ export function execute(
     } else if (
       command.type === 'request-raise' ||
       command.type === 'request-decide' ||
-      command.type === 'approval-limit'
+      command.type === 'approval-limit' ||
+      command.type === 'signoff-rules' ||
+      command.type === 'request-start'
     ) {
       recordId = runApprovalCommand(next, command, now, makeId)
     } else if (
@@ -954,15 +1053,47 @@ export function execute(
     ) {
       recordId = runHoursCommand(next, command, now, businessDate(s, now), makeId)
     } else if (
+      command.type === 'rota-day' ||
+      command.type === 'rota-day-usual' ||
+      command.type === 'rota-week-copy' ||
+      command.type === 'rota-week-clear'
+    ) {
+      recordId = runRotaCommand(next, command, now, makeId)
+    } else if (command.type === 'staff-move' || command.type === 'staff-move-cancel') {
+      recordId = runStaffMoveCommand(next, command, now, makeId)
+    } else if (
+      command.type === 'news-save' ||
+      command.type === 'news-approve' ||
+      command.type === 'news-stop' ||
+      command.type === 'news-discard' ||
+      command.type === 'news-unsubscribe'
+    ) {
+      const unchanged = newsUnchanged(s, command)
+      if (unchanged) return { ok: true, state: s, recordId: unchanged }
+      recordId = runNewsCommand(next, command, now, makeId, addEvent)
+    } else if (
       command.type === 'studio-look' ||
       command.type === 'house-rules' ||
       command.type === 'benchmark-sharing'
     ) {
       recordId = runBrandCommand(next, command, businessDate(s, now))
+    } else if (command.type === 'till-settings') {
+      recordId = runTillCommand(next, command)
+    } else if (command.type === 'other-till-sale' || command.type === 'other-till-refund') {
+      recordId = runOtherTillCommand(next, command, now, makeId, options.software)
+    } else if (
+      command.type === 'commission-rate' ||
+      command.type === 'commission-steps' ||
+      command.type === 'staff-target'
+    ) {
+      recordId = runCommissionCommand(next, command, now, makeId)
     } else {
       recordId = runOperatingCommand(next, command, now, makeId, addEvent)
+      // Stage 4: a refund given back with a sign-off uses it up, so it is never used again.
+      if (command.type === 'refund')
+        spendRefundApproval(s, next, command, recordId, now, options.refundApprovalAsOf)
     }
-    recordConsentChanges(s, next, command, now, makeId)
+    recordConsentChanges(s, next, command, now, makeId, options.software)
     next.revision += 1
     return { ok: true, state: parseState(next, org.region), recordId }
   } catch (error) {
@@ -1267,12 +1398,19 @@ export function dispatch(
   stampBranchVisitActors(s, result.state, actorName)
   stampRequestActors(s, result.state, actorName)
   stampShiftActors(s, result.state, actorName)
+  stampRotaActors(s, result.state, actorName)
+  stampStaffMoveActors(s, result.state, actorName)
+  stampNewsActors(s, result.state, actorName)
+  stampRetentionActors(s, result.state, actorName)
   const known = new Map((operations(s).missedCalls ?? []).map((c) => [c.id, c]))
   for (const call of operations(result.state).missedCalls ?? []) {
     const before = known.get(call.id)
     if (!before) call.actor = actorName
     if (call.calledBackAt && !before?.calledBackAt) call.calledBackBy = actorName
   }
+  const answered = new Map((operations(s).answeredCalls ?? []).map((c) => [c.id, c]))
+  for (const call of operations(result.state).answeredCalls ?? [])
+    if (call.doneAt && !answered.get(call.id)?.doneAt) call.doneBy = actorName
   stampPatchTestActors(s, result.state, actorName)
   stampFormActors(s, result.state, actorName)
   stampConsentActors(s, result.state, actorName)
@@ -1308,6 +1446,9 @@ export function dispatch(
     'rentPayments',
     'purchaseOrders',
     'accountingExports',
+    'commissionRates',
+    'commissionSteps',
+    'staffTargets',
   ] as const) {
     const ids = new Set((operations(s)[key] ?? []).map((r) => r.id))
     const records = operations(result.state)[key] ?? []

@@ -13,8 +13,9 @@ export function SearchDialog({ onClose }: { onClose: () => void }) {
   const clients = state.clients
     .filter(
       (c) =>
-        `${c.name} ${c.email}`.toLowerCase().includes(words) ||
-        (digits.length > 2 && c.phone.replace(/\s/g, '').includes(digits)),
+        !c.erasedAt &&
+        (`${c.name} ${c.email}`.toLowerCase().includes(words) ||
+          (digits.length > 2 && c.phone.replace(/\s/g, '').includes(digits))),
     )
     .slice(0, 6)
   // Show each person's next visit, so a search answers "when are they in?" without a click.

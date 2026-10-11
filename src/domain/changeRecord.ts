@@ -5,6 +5,16 @@ import { socialLabel } from './inboxSchema'
 import { METHOD_WORDS } from './accounts'
 import { csvRows } from './csv'
 import { dateLabel, fullDateLabel, money, timeLabel } from './format'
+import { rotaChangeDetail } from './rota'
+import { giftMoveDetail } from './giftCards'
+import { staffMoveDetail } from './staffMoves'
+import { timeOffChangeDetail } from './timeOff'
+import { signOffChangeDetail } from './signoffs'
+import { tillLabel } from './otherTill'
+import type { OtherTillSale } from './otherTillSchema'
+import { defaultQuietOffers } from './quietOffersSchema'
+import { retentionDecision, retentionKinds } from './retentionDue'
+import type { RetentionKind } from './retentionSchema'
 import { ASK_NAME } from '../assistant/name'
 
 /**
@@ -72,10 +82,18 @@ const commandWords: Record<Command['type'], Words> = {
   'guest-here': ['visits', 'Said they had arrived'],
   'missed-call': ['messages', 'Wrote down a missed call'],
   'missed-call-done': ['messages', 'Marked a missed call as called back'],
+  'call-answered': ['messages', 'Answered a call'],
+  'answered-call-done': ['messages', 'Marked an answered call as followed up'],
   offer: ['settings', 'Changed a package or membership', 'Added a package or membership'],
   'plan-sell': ['money', 'Sold a package or membership'],
   'plan-renew': ['money', 'Renewed a package or membership'],
   'plan-cancel': ['money', 'Cancelled a package or membership'],
+  'plan-card': [
+    'money',
+    'Changed card payments for a membership',
+    'Set up card payments for a membership',
+  ],
+  'plan-card-try': ['money', 'Noted a declined card payment for a membership'],
   batch: ['visits', `Approved several changes from ${ASK_NAME}`],
   'special-plan': ['settings', 'Planned a special'],
   'task-add': ['team', 'Left a reminder for the team'],
@@ -84,6 +102,7 @@ const commandWords: Record<Command['type'], Words> = {
   'gift-card-sell': ['money', 'Sold a gift card'],
   'gift-card-extend': ['money', 'Extended a gift card'],
   'gift-card-cancel': ['money', 'Cancelled a gift card'],
+  'gift-card-move': ['money', 'Moved a gift card to another location'],
   'patch-test': ['clients', 'Recorded a patch test'],
   'patch-test-result': ['clients', 'Recorded a patch test result'],
   'patch-test-settings': ['settings', 'Changed the patch test rules'],
@@ -98,7 +117,10 @@ const commandWords: Record<Command['type'], Words> = {
   'request-raise': ['team', 'Sent a request up for sign-off'],
   'request-decide': ['team', 'Answered a request'],
   'approval-limit': ['settings', 'Changed the sign-off limit'],
+  'signoff-rules': ['settings', 'Changed the sign-off rules'],
+  'request-start': ['settings', 'Started a new price that was signed off'],
   'studio-look': ['settings', 'Changed the studio’s look'],
+  'till-settings': ['settings', 'Changed how receipts print'],
   'house-rules': ['settings', 'Changed the house rules'],
   'benchmark-sharing': ['settings', 'Changed sharing for How you compare'],
   organisation: ['settings', 'Changed the studio details'],
@@ -119,6 +141,7 @@ const commandWords: Record<Command['type'], Words> = {
   'own-voice': ['settings', `Chose their own voice for ${ASK_NAME}`],
   'visit-write-up': ['clients', 'Wrote up a visit'],
   'google-booking': ['settings', 'Changed Book with Google'],
+  'ai-booking': ['settings', 'Changed booking through ChatGPT or Claude'],
   reminders: ['settings', 'Changed confirmations and reminders'],
   'contact-preferences': ['clients', 'Changed how a client is contacted'],
   refund: ['money', 'Recorded a refund'],
@@ -138,13 +161,23 @@ const commandWords: Record<Command['type'], Words> = {
   'end-rental': ['team', 'Ended a chair rental'],
   'rent-payment': ['money', 'Recorded rent paid'],
   'cancel-time-off': ['team', 'Cancelled time off'],
+  'time-off-change': ['team', 'Changed time off'],
   'clock-in': ['team', 'Clocked in'],
   'clock-out': ['team', 'Clocked out'],
   'shift-save': ['team', 'Changed hours worked', 'Added hours worked'],
   'shift-remove': ['team', 'Removed hours worked'],
   'leave-allowance': ['team', 'Changed a holiday allowance'],
+  'rota-day': ['team', 'Changed a day on the rota'],
+  'rota-day-usual': ['team', 'Put a day on the rota back to usual hours'],
+  'rota-week-copy': ['team', 'Copied last week’s rota changes'],
+  'rota-week-clear': ['team', 'Cleared a week’s rota changes'],
+  'staff-move': ['team', 'Moved someone to another location'],
+  'staff-move-cancel': ['team', 'Cancelled a move to another location'],
   'pay-rules': ['team', 'Changed the pay rules'],
   'pay-rate': ['team', 'Changed a pay rate'],
+  'commission-rate': ['team', 'Changed a commission rate for a treatment or product'],
+  'commission-steps': ['team', 'Changed commission steps by takings'],
+  'staff-target': ['team', 'Changed a monthly target'],
   stock: ['stock', 'Changed a stock count'],
   'stock-move': ['stock', 'Moved stock between locations'],
   'client-birthday': ['clients', 'Changed a client’s birthday'],
@@ -155,6 +188,23 @@ const commandWords: Record<Command['type'], Words> = {
   'import-balances': ['money', 'Brought in balances from another system'],
   'balance-settle': ['money', 'Settled a brought-in balance'],
   'import-clients': ['clients', 'Brought in clients from another system'],
+  // Stage 4: one message from the studio to its clients.
+  'news-save': ['messages', 'Changed a message to clients', 'Wrote a message to clients'],
+  'news-approve': ['messages', 'Approved a message to clients'],
+  'news-stop': ['messages', 'Stopped a message to clients'],
+  'news-discard': ['messages', 'Put aside a message to clients'],
+  'news-unsubscribe': ['clients', 'Stopped news from the link in a message'],
+  // Stage 5: a chain's own till, sending in through its access key.
+  'other-till-sale': ['money', 'Recorded a sale from another till'],
+  'other-till-refund': ['money', 'Recorded money given back on another till'],
+  // Stage 5: a lower price for a quiet time.
+  'quiet-offers': ['settings', 'Changed the lower price for quiet times'],
+  'offer-invite': ['messages', 'Wrote an invitation to a quiet time at a lower price'],
+  // Stage 6: records at the end of their keeping period.
+  'retention-delete': ['clients', 'Approved deleting records at the end of their keeping period'],
+  'retention-keep': ['clients', 'Kept records past the end of their keeping period'],
+  // Stage 6: asking everyone in the studio to use two-step sign-in.
+  'two-step-rule': ['access', 'Changed whether everyone must use two-step sign-in'],
 }
 
 /** Changes the server makes or records itself. */
@@ -189,6 +239,11 @@ const serverWords: Record<string, Words> = {
   'payment.save_card': ['money', 'Recorded a saved card'],
   'payment.refund': ['money', 'Recorded a card refund'],
   'card.removed': ['money', 'Removed a saved card'],
+  'membership.card-payment': ['money', 'Took a membership payment from a saved card'],
+  'membership.card-payment.unclear': ['money', 'Checked an unclear membership card payment'],
+  'membership.card-refund.started': ['money', 'Started a refund to the card for a membership'],
+  'membership.card-refund': ['money', 'Refunded a membership to the card and ended it'],
+  'membership.cards-resumed': ['money', 'Turned membership card payments back on after a restore'],
   'assistant.proposed': ['settings', `Asked ${ASK_NAME} to suggest a change`],
   'assistant.approved': ['settings', `Approved a change ${ASK_NAME} suggested`],
   'assistant.declined': ['settings', `Turned down a change ${ASK_NAME} suggested`],
@@ -201,14 +256,23 @@ const serverWords: Record<string, Words> = {
   'guest.feedback': ['clients', 'Left feedback after their visit'],
   'guest.form': ['clients', 'Filled in a guest form'],
   'guest.email-news': ['clients', 'Changed whether they get email news'],
+  'guest.news-stop': ['clients', 'Stopped news from the link in a message'],
   'guest.here': ['visits', 'Said they had arrived'],
   'guest.waitlist': ['visits', 'Changed their waitlist request'],
   'guest.cancel': ['visits', 'Cancelled their visit'],
   'guest.move': ['visits', 'Moved their visit'],
   'google.book': ['visits', 'Booked through Book with Google'],
   'google.cancel': ['visits', 'Cancelled through Book with Google'],
+  // Stage 5: a guest moving their Google booking to a new time.
+  'google.move': ['visits', 'Moved through Book with Google'],
+  // Stage 5: a guest booking through an AI assistant, named when it said which.
+  'ai-booking.chatgpt': ['visits', 'Booked through ChatGPT'],
+  'ai-booking.claude': ['visits', 'Booked through Claude'],
+  'ai-booking.assistant': ['visits', 'Booked through an AI assistant'],
   'phone.missed-call': ['messages', 'Wrote down a missed call'],
+  'phone.answered': ['messages', 'Answered a call'],
   'inbox.reply': ['messages', 'A message came in'],
+  'inbox.test-text': ['messages', 'Delivered a test text to the studio’s line'],
   'receptionist.message': ['messages', 'Passed on a message from the AI receptionist'],
   // NEXT-02: the studio's own SALEANE plan.
   'billing.card': ['settings', 'Saved a card for the SALEANE plan'],
@@ -224,6 +288,8 @@ const serverWords: Record<string, Words> = {
     'settings',
     'Checked the SALEANE payments with the card service after a restore',
   ],
+  'till.drawer': ['money', 'Opened the cash drawer without a sale'],
+  'receipt.emailed': ['messages', 'Emailed a receipt'],
 }
 
 export const changeWords: Readonly<Record<string, Words>> = { ...commandWords, ...serverWords }
@@ -242,10 +308,15 @@ export function actionsIn(group: ChangeGroup) {
 export function automaticSource(action: string) {
   if (action === 'workspace.restored') return 'A backup on this computer'
   if (action === 'public.book') return 'A guest booking online'
+  if (action === 'guest.news-stop') return 'A client, from the link in a message to clients'
   if (action.startsWith('guest.')) return 'A guest, from their visit link'
   if (action.startsWith('google.')) return 'A guest, through Google'
+  if (action === 'ai-booking.chatgpt') return 'A guest, through ChatGPT'
+  if (action === 'ai-booking.claude') return 'A guest, through Claude'
+  if (action === 'ai-booking.assistant') return 'A guest, through an AI assistant'
   if (action.startsWith('payment.')) return 'A guest paying by card'
   if (action === 'phone.missed-call') return 'The studio phone line'
+  if (action === 'phone.answered') return 'The AI receptionist, on the phone'
   if (action === 'inbox.reply') return 'A guest’s message'
   if (action === 'receptionist.message') return 'The AI receptionist'
   return 'SALEANE'
@@ -278,16 +349,32 @@ const personal = new Set([
   'waitlist',
   'messages',
   'missedCalls',
+  'answeredCalls',
   'tasks',
 ])
 /** Short words from a fixed list, safe to keep. Anything else typed in is never kept. */
-const listed = new Set(['status', 'category', 'resourceType', 'type', 'kind', 'method', 'tone'])
+const listed = new Set([
+  'status',
+  'category',
+  'resourceType',
+  'type',
+  'kind',
+  'method',
+  'tone',
+  // Stage 4: how a request was answered, and which rota changes need a sign-off.
+  'outcome',
+  'rotaSignOff',
+  // Stage 5: whether quiet times carry a lower price, and of which kind.
+  'discount',
+])
 const named = new Set(['name', 'title', 'label'])
 const civilDate = /^\d{4}-\d{2}-\d{2}$/
 
 /** The value of a detail, if it may be kept; otherwise undefined. */
 function keepable(collection: string, field: string, value: unknown): Value | undefined {
   if (personal.has(collection)) return undefined
+  // A photo's id means nothing to the owner; the record says the photo changed.
+  if (field === 'imageId') return undefined
   if (value === null || value === undefined) return null
   if (typeof value === 'number' || typeof value === 'boolean') return value
   if (typeof value !== 'string') return undefined
@@ -328,13 +415,20 @@ const settingsOf: Partial<Record<string, (s: BusinessState) => unknown>> = {
   receptionist: (s) => s.operations?.receptionist,
   'ai-voice': (s) => s.operations?.aiVoice,
   'google-booking': (s) => s.operations?.googleBooking,
+  'ai-booking': (s) => s.operations?.aiBooking,
   'patch-test-settings': (s) => s.operations?.patchTests,
   'accounting-settings': (s) => s.operations?.accounting,
   'approval-limit': (s) => s.operations?.approvals,
+  'signoff-rules': (s) => s.operations?.approvals,
   'studio-look': (s) => s.operations?.look,
+  'till-settings': (s) => s.operations?.till,
   'house-rules': (s) => s.operations?.houseRules,
   'benchmark-sharing': (s) => s.operations?.benchmark,
   'group-checks': (s) => s.operations?.groupChecks,
+  // Stage 5: the first change reads against the setting as it stood, off.
+  'quiet-offers': (s) => s.operations?.quietOffers ?? defaultQuietOffers,
+  // Stage 6: the first change reads against the setting as it stood, off.
+  'two-step-rule': (s) => s.operations?.twoStep ?? { forEveryone: false },
 }
 
 function compare(
@@ -384,6 +478,31 @@ export function changeDetail(
   action: string,
   recordId: string,
 ): ChangeDetail | undefined {
+  // Stage 6: a decision about records at the end of their period keeps which kind, how many and
+  // until when. Never what was deleted: no names, no record ids and no content.
+  if (action === 'retention-delete' || action === 'retention-keep') {
+    const decision = retentionDecision(after, recordId)
+    if (!decision) return undefined
+    return {
+      fields: [
+        { f: 'records', to: decision.kind },
+        { f: 'count', to: decision.count },
+        ...(decision.until ? [{ f: 'keptUntil', to: decision.until }] : []),
+      ],
+    }
+  }
+  // Stage 3: a day on the rota keeps which day it was and its hours before and after.
+  const rota = rotaChangeDetail(before, after, action, recordId)
+  if (rota) return rota
+  // Stage 4: a gift card or someone moving keeps where from and where to.
+  const moved = giftMoveDetail(after, action, recordId) ?? staffMoveDetail(after, action, recordId)
+  if (moved) return moved
+  // Stage 4: changed time off keeps its days and kind before and after.
+  const away = timeOffChangeDetail(before, after, action, recordId)
+  if (away) return away
+  // Stage 4: an approved new price or rota change keeps what it changed, before and after.
+  const signOff = signOffChangeDetail(before, after, action, recordId)
+  if (signOff) return signOff
   let fields: ChangedField[] = []
   let made: ChangeDetail['made']
   const settings = settingsOf[action]
@@ -436,10 +555,11 @@ const fieldWords: Record<string, string> = {
   phone: 'phone',
   preferences: 'preferences',
   marketingConsent: 'email news',
-  noEmailReminders: 'no appointment emails',
-  noTextReminders: 'no appointment texts',
+  noEmailReminders: 'no visit emails',
+  noTextReminders: 'no visit texts',
   birthday: 'birthday',
   description: 'description',
+  enabled: 'switched on',
   category: 'kind of treatment',
   durationMinutes: 'length',
   bufferMinutes: 'time after each visit',
@@ -450,6 +570,8 @@ const fieldWords: Record<string, string> = {
   prepNote: 'preparation note',
   aftercareNote: 'aftercare note',
   patchTest: 'needs a patch test',
+  stopOnline: 'stop online booking without a patch test',
+  testServiceId: 'patch test guests book',
   locationPrices: 'prices at other locations',
   notOfferedAt: 'locations that do not offer it',
   role: 'job title',
@@ -482,7 +604,11 @@ const fieldWords: Record<string, string> = {
   amountMinor: 'amount',
   refundMinor: 'refunded',
   method: 'paid by',
+  printers: 'receipt printer',
+  taxNumber: 'VAT number or tax ID',
   access: 'access',
+  barcode: 'barcode',
+  imageId: 'photo',
   day1: 'Monday',
   day2: 'Tuesday',
   day3: 'Wednesday',
@@ -490,6 +616,40 @@ const fieldWords: Record<string, string> = {
   day5: 'Friday',
   day6: 'Saturday',
   day0: 'Sunday',
+  shift: 'hours that day',
+  weekOf: 'week of',
+  daysChanged: 'days changed',
+  visitsKept: 'booked visits kept outside the hours',
+  // Stage 4: booked visits kept at a location someone moved away from.
+  visitsKeptAway: 'booked visits kept where they no longer work',
+  daysMoved: 'days of the week moved',
+  timeOffKind: 'kind of time off',
+  outcome: 'answer',
+  newPriceMinor: 'new price',
+  startsOn: 'starts on',
+  notStarted: 'could not start',
+  regionalLimitMinor: 'what a regional manager may approve',
+  generalRefundLimitMinor: 'what a general manager may give back',
+  managerRefundLimitMinor: 'what a manager may give back',
+  rotaSignOff: 'rota changes needing a sign-off',
+  subject: 'subject',
+  body: 'words',
+  by: 'how it goes',
+  locationIds: 'locations',
+  bookLink: 'booking link',
+  toEmail: 'clients by email',
+  toText: 'clients by text',
+  leftOut: 'clients left out',
+  discount: 'lower price for quiet times',
+  offPercent: 'percentage off',
+  offMinor: 'amount off',
+  floorMinor: 'never below',
+  openHours: 'how long an offer stays open',
+  leftOutIds: 'treatments left out',
+  records: 'records',
+  count: 'how many',
+  keptUntil: 'kept until',
+  forEveryone: 'two-step sign-in for everyone',
 }
 /** A detail's name in words: "cutoffHours" reads "cutoff hours". */
 export function fieldName(field: string) {
@@ -532,6 +692,8 @@ export function recordNames(s: BusinessState): RecordNames {
     return `${who}${what ? `, ${what}` : ''}, ${dateLabel(a.date, locale, true)} at ${timeLabel(a.startMinutes, locale)}`
   }
   const name = (id: string, depth = 0): string | undefined => {
+    // The main location is the studio's own, kept on the organisation rather than as a record.
+    if (id === s.organisation.locationId) return s.organisation.locationName
     const hit = byId.get(id)
     // Links only ever lead a few steps (a refund, its receipt, the visit), never round in a circle.
     if (!hit || depth > 3) return undefined
@@ -540,6 +702,10 @@ export function recordNames(s: BusinessState): RecordNames {
     if (hit.collection === 'organisation') return text(r, 'name')
     if (hit.collection === 'giftCards' && typeof r.valueMinor === 'number')
       return `${money(r.valueMinor, s.organisation)} gift card`
+    // Stage 4: a message to clients is named by its subject, which the owner wrote for them all.
+    if (hit.collection === 'news') return text(r, 'subject')
+    // Stage 5: a sale from another till is named by its receipt and the till that sent it.
+    if (hit.collection === 'otherTillSales') return tillLabel(r as unknown as OtherTillSale)
     const own = text(r, 'name') ?? text(r, 'title') ?? text(r, 'label')
     if (own && !['consentRecords', 'formResponses'].includes(hit.collection)) return own
     // Otherwise named after what it belongs to: a refund after its receipt, a payment its visit.
@@ -560,8 +726,10 @@ export function recordNames(s: BusinessState): RecordNames {
 function valueText(s: BusinessState, names: RecordNames, f: string, v: Value) {
   const locale = s.organisation.locale
   if (v === null) return 'none'
-  if (/^day\d$/.test(f) && typeof v === 'string') {
+  if ((/^day\d$/.test(f) || f === 'shift') && typeof v === 'string') {
     if (v === 'closed') return 'closed'
+    if (v === 'off') return 'not working'
+    if (v === 'usual') return 'their usual hours'
     const [open, close] = v.split('-').map(Number)
     const clock = (m: number) => (m >= 1440 ? 'midnight' : timeLabel(m, locale))
     return `${clock(open)} to ${clock(close)}`
@@ -579,6 +747,11 @@ function valueText(s: BusinessState, names: RecordNames, f: string, v: Value) {
   }
   if (f === 'access') return v === 'remove' ? 'removed' : (roleNames[v as Role] ?? v)
   if (f === 'status') return statusWords[v] ?? v
+  if (f === 'discount')
+    return v === 'none' ? 'no lower price' : v === 'percent' ? 'a percentage off' : 'an amount off'
+  if (f === 'records' && v in retentionKinds)
+    return retentionKinds[v as RetentionKind].label.toLowerCase()
+  if (f === 'rotaSignOff') return v === 'extra' ? 'extra days' : v === 'all' ? 'every change' : v
   if (f === 'method') return METHOD_WORDS[v] ?? v.replace(/_/g, ' ')
   if (/Id$/.test(f)) return names(v) ?? 'one no longer listed'
   if (civilDate.test(v)) return fullDateLabel(v, locale)
@@ -609,6 +782,8 @@ export type ChangeRow = {
   /** The name of the account a change was about, for changes to someone's access. */
   account: string | null
   detail: string | null
+  /** Stage 5: the access key whose software made the change, when one did. */
+  keyName?: string | null
 }
 
 export function describeChange(s: BusinessState, names: RecordNames, row: ChangeRow): ChangeEntry {
@@ -618,13 +793,17 @@ export function describeChange(s: BusinessState, names: RecordNames, row: Change
     others: string[] = []
   for (const field of detail?.fields ?? []) {
     const what = fieldName(field.f)
-    if ('to' in field && 'from' in field)
+    if ('to' in field && 'from' in field) {
+      // A switch never set before was off, so its first change reads "no became yes".
+      const off = (v: Value | undefined, other: Value | undefined) =>
+        (v ?? null) === null && typeof other === 'boolean' ? false : (v ?? null)
       lines.push({
         what,
-        from: valueText(s, names, field.f, field.from ?? null),
-        to: valueText(s, names, field.f, field.to ?? null),
+        from: valueText(s, names, field.f, off(field.from, field.to)),
+        to: valueText(s, names, field.f, off(field.to, field.from)),
       })
-    else if ('to' in field) lines.push({ what, to: valueText(s, names, field.f, field.to ?? null) })
+    } else if ('to' in field)
+      lines.push({ what, to: valueText(s, names, field.f, field.to ?? null) })
     else if (!others.includes(what)) others.push(what)
   }
   const about =
@@ -635,8 +814,10 @@ export function describeChange(s: BusinessState, names: RecordNames, row: Change
   return {
     id: row.id,
     at: row.occurredAt,
-    who: row.actor ?? automaticSource(row.action),
-    person: row.actor !== null,
+    who: row.keyName
+      ? `${row.keyName}, through its access key`
+      : (row.actor ?? automaticSource(row.action)),
+    person: !row.keyName && row.actor !== null,
     group: words?.[0] ?? 'settings',
     what: (detail?.made === 'added' ? words?.[2] : undefined) ?? words?.[1] ?? 'Made a change',
     ...(about ? { about } : {}),

@@ -7,6 +7,8 @@ import { regions } from '../domain/group'
 import { areaPlaces } from '../domain/area'
 import { hasLocations, places } from '../domain/locations'
 import { TwoStepSettings } from './TwoStepSettings'
+import { TwoStepForEveryone } from './TwoStepForEveryone'
+import { PasskeySettings } from './PasskeySettings'
 import './accessPanel.css'
 
 type Team = {
@@ -20,6 +22,8 @@ type Team = {
     locationId?: string | null
     /** NEXT-04: whether this person has two-step sign-in on. */
     twoStep?: boolean
+    /** NEXT-15: whether this person signs in with Face ID or a fingerprint on any device. */
+    passkey?: boolean
   }[]
   invitations: {
     email: string
@@ -135,7 +139,10 @@ export function AccessPanel() {
                   <strong>{m.name}</strong>
                   <small>
                     {m.email}
+                    {/* Stage 6: who has it on and who has not yet, never their key or codes. */}
+                    {m.twoStep ? ' · Two-step sign-in on' : ' · No two-step sign-in yet'}
                     {m.twoStep ? ' · Two-step sign-in on' : ''}
+                    {m.passkey ? ' · Face ID on' : ''}
                   </small>
                 </span>
                 {m.role === 'owner' ? (
@@ -315,7 +322,7 @@ export function AccessPanel() {
               name, preferences and notes, and can welcome their client and add notes. They see no
               contact details, prices, payments or other diaries.
               {branches.length > 0 &&
-                ' A general manager runs one location as a manager would: its diary, takings, stock and orders, branch visits and requests. They change nothing at other locations or for the whole business, such as treatments, prices, the team, hours or settings, and do not see pay rates.'}
+                ' A general manager runs one location as a manager would: its diary, takings, stock and orders, its team’s rota and time off, its rooms, messages to its clients for the owner to approve, branch visits and requests. They change nothing at other locations or for the whole business, such as treatments, prices, who works where, usual hours or settings, and do not see pay rates.'}
               {areas.length > 0 &&
                 ' A regional manager sees only their region’s locations: how each is doing, what is booked today, their branch visits, which they can record, and requests for a sign-off, which they can raise and approve up to the owner’s limit. They see no clients, diaries, prices or settings.'}
             </p>
@@ -434,6 +441,8 @@ export function AccessPanel() {
               .catch(() => {})
         }}
       />
+      <PasskeySettings />
+      {role === 'owner' && <TwoStepForEveryone members={team?.members} />}
       <ErrorMessage error={error} />
     </section>
   )
