@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build --configLoader bundle && vite build --configLoader bundle --ssr server/index.ts --outDir server-dist && vite build --configLoader bundle --ssr server/backup.ts --outDir server-dist --emptyOutDir false",
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run && vitest run --config server/vitest.config.ts",
+    "evals": "vitest run --config evals/vitest.config.ts",
     "test:watch": "vitest",
     "preview": "vite preview --host 127.0.0.1",
     "demo:build": "npm --prefix demo ci --no-audit --no-fund && vite build --configLoader bundle --config demo/vite.config.ts",

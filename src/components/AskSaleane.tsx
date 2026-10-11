@@ -98,6 +98,9 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
     }
   }
   const held = useRef(new Map<string, PendingProposal<Command>>())
+  // Signed in, the server keeps this conversation's last few lines and reads only those, never
+  // lines sent from here. Its id is named here, so a talk started first joins the same one.
+  const conversation = useRef<string>(crypto.randomUUID())
   const end = useRef<HTMLDivElement | null>(null)
   const base = orgId ? `/api/workspaces/${encodeURIComponent(orgId)}/assistant` : ''
 
@@ -173,9 +176,15 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
         const r = await api<{
           text: string
           proposals: { id: string; summary: string }[]
+          conversation?: string
           usage: ServerUsage
-        }>(base, { method: 'POST', body: { text: trimmed, history }, timeoutMs: ASK_WAIT_MS })
+        }>(base, {
+          method: 'POST',
+          body: { text: trimmed, conversation: conversation.current },
+          timeoutMs: ASK_WAIT_MS,
+        })
         setMeter(meterFrom(r.usage))
+        if (r.conversation) conversation.current = r.conversation
         answer = r
       } else {
         const at = new Date().toISOString()
@@ -288,16 +297,19 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
         async (sdp) => {
           if (call.signal.aborted) return null
           const r = await api<
-            | { status: 'talking'; id: string; sdp: string; seconds: number; usage: ServerUsage }
-            | { status: 'refused' | 'unavailable'; text: string; usage: ServerUsage }
+            (
+              | { status: 'talking'; id: string; sdp: string; seconds: number }
+              | { status: 'refused' | 'unavailable'; text: string }
+            ) & { usage: ServerUsage; conversation?: string }
           >(`${base}/talk`, {
             method: 'POST',
-            body: { sdp },
+            body: { sdp, conversation: conversation.current },
             // Longer than SALEANE lets a start take, including a wait behind an earlier one, so
             // a slow start is never left running with nobody holding its id.
             timeoutMs: TALK_START_WAIT_MS,
           })
           setMeter(meterFrom(r.usage))
+          if (r.conversation) conversation.current = r.conversation
           if (r.status !== 'talking') {
             setNotice({ text: r.text })
             return null
@@ -374,6 +386,8 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
   async function decide(id: string, approve: boolean) {
     setError('')
     mark(id, 'saving')
+    // Set once the change is approved and being saved: should the save fail, it can be tried again.
+    let saving = false
     try {
       let command: Command | undefined
       if (mode === 'server') {
@@ -382,6 +396,11 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
           body: { approve },
         })
         if (r.outcome === 'expired') throw new Error('This suggestion has expired. Ask again.')
+        // Saved already, from another tab or before the connection dropped: nothing to save again.
+        if (r.outcome === 'applied') {
+          mark(id, 'done')
+          return
+        }
         command = r.command
       } else {
         const proposal = held.current.get(id)
@@ -392,11 +411,13 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
         mark(id, 'declined')
         return
       }
+      saving = mode === 'server'
       const result = await commit(command!)
       if (!result.ok) throw new Error(result.error)
       mark(id, 'done')
     } catch (caught) {
-      mark(id, 'declined')
+      // Signed in, an approved change stays approved on the server, so Approve can try it again.
+      mark(id, saving ? 'waiting' : 'declined')
       setError(caught instanceof Error ? caught.message : 'This change could not be saved.')
     }
   }

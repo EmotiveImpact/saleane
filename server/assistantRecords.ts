@@ -145,7 +145,9 @@ export type Chat<Turn> = { id: string; turns: Turn[]; continuing: boolean }
 
 /**
  * The conversation with this id, when it is this person's, in this studio, and still open;
- * otherwise a new one. Earlier lines come only from here, never from the browser.
+ * otherwise a new one. Earlier lines come only from here, never from the browser. With `adopt`,
+ * a new conversation takes the id the browser chose when no conversation has it, so the panel can
+ * name its conversation before the first answer (a talk can start first).
  */
 export function openChat<Turn>(
   ctx: Context,
@@ -153,23 +155,26 @@ export function openChat<Turn>(
   audience: Audience,
   person: string,
   id: string | undefined,
+  options: { adopt?: boolean } = {},
 ): Chat<Turn> {
   const row = id
-    ? ctx.db.get<{ turns: string }>(
-        'SELECT turns FROM assistant_chats WHERE id=? AND organisation_id=? AND audience=? AND person=? AND expires_at>?',
-        id,
+    ? ctx.db.get<{ turns: string; mine: number }>(
+        'SELECT turns, (organisation_id=? AND audience=? AND person=? AND expires_at>?) AS mine FROM assistant_chats WHERE id=?',
         orgId,
         audience,
         person,
         ctx.now(),
+        id,
       )
     : undefined
-  return row
-    ? { id: id!, turns: JSON.parse(row.turns) as Turn[], continuing: true }
-    : { id: randomUUID(), turns: [], continuing: false }
+  if (row?.mine) return { id: id!, turns: JSON.parse(row.turns) as Turn[], continuing: true }
+  return { id: options.adopt && id && !row ? id : randomUUID(), turns: [], continuing: false }
 }
 
-/** Adds the latest lines to a conversation, keeping only the last `keep`, open for another hour. */
+/**
+ * Adds the latest lines to a conversation, keeping only the last `keep`, open for another hour.
+ * A conversation with this id that is someone else's is left as it is.
+ */
 export function keepChat<Turn>(
   ctx: Context,
   orgId: string,
@@ -182,13 +187,14 @@ export function keepChat<Turn>(
   const now = ctx.now()
   ctx.db.run('DELETE FROM assistant_chats WHERE expires_at<=?', now)
   // Read again inside the transaction, so two answers arriving together both keep their lines.
-  const row = ctx.db.get<{ turns: string }>(
-    'SELECT turns FROM assistant_chats WHERE id=? AND organisation_id=? AND audience=? AND person=?',
-    id,
+  const row = ctx.db.get<{ turns: string; mine: number }>(
+    'SELECT turns, (organisation_id=? AND audience=? AND person=?) AS mine FROM assistant_chats WHERE id=?',
     orgId,
     audience,
     person,
+    id,
   )
+  if (row && !row.mine) return
   const turns = JSON.stringify(
     [...(row ? (JSON.parse(row.turns) as Turn[]) : []), ...said].slice(-keep),
   )

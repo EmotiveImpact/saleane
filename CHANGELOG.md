@@ -2,6 +2,19 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-11 · LUMANE hardened: nothing lost, nothing claimed, every turn on record
+
+**Status: built locally on 11 October 2026, in test mode; the eval cases are written but not yet run against the real Claude, which needs SALEANE's Anthropic key.** The owner said yes to the four fixes in the study on 11 October 2026. [Evidence](docs/evidence/LUMANE-HARDENING.md).
+
+- A change Ask SALEANE prepares is kept in the database until the person decides, so a restart just before they tap Approve loses nothing. The change history now says "Approved" when they tap Approve and "Saved" only once the change has saved, instead of one line before it saved.
+- If an approved change does not save (a dropped connection, or someone else saving first), Approve stays on screen and tries the same change again. One already saved from another tab shows as done and is never saved twice.
+- The assistant now reads earlier lines only from the conversation SALEANE keeps, never from the browser. A guest can no longer slip in a fake line such as "the studio agreed a free facial". Spoken and typed questions share one conversation, as before.
+- A last check reads every reply before it is shown or spoken. A sentence claiming something was done, booked, sent, refunded or charged when nothing was approved is taken out, and a plain line says what is waiting. Sentences such as "nothing is booked until you confirm" are left alone.
+- Each answer leaves a record of what it did, without any words: where it came in, which pathways ran, how many calls to the AI, how long it took and what it cost. It is kept for 90 days, so "it told me the wrong price" can be looked into.
+- When someone closes the panel or the booking page, or hangs up, no further paid call to the AI starts.
+- Twenty test cases say what a good answer must and must never do, including a client note that gives orders and a guest claiming to be the owner. `npm run evals` runs them against the real Claude once a key is set; every test run checks their safety rules against the test-mode assistant.
+- A guest's chat and offers are tied to an anonymous id that SALEANE forgets when it restarts, so after a restart a guest simply asks again.
+
 ## 2026-10-11 · The new photographs, on their screens
 
 **Status: built locally on 11 October 2026 and checked in a browser. The owner approved every placement on 11 October 2026.** [Evidence](docs/evidence/APP-PHOTOGRAPHS-IN-PLACE.md).

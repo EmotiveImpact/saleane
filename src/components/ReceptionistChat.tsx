@@ -29,7 +29,6 @@ export type OfferedTime = {
   locationId?: string
 }
 
-const HISTORY = 8
 // No treatment is named here, since not every studio offers the same ones.
 const starters = ['When are you open?', 'What treatments do you offer?', 'Any times tomorrow?']
 
@@ -71,7 +70,6 @@ export function ReceptionistChat({
     if (!said || pending) return
     setPending(true)
     setError('')
-    const history = turns.slice(-HISTORY).map(({ from, text }) => ({ from, text }))
     setTurns((now) => [...now, { from: 'guest', text: said }])
     setText('')
     try {
@@ -82,7 +80,8 @@ export function ReceptionistChat({
         times?: ListedTime[]
       }>(`${base}/receptionist`, {
         method: 'POST',
-        body: chat && history.length ? { text: said, chat, history } : { text: said },
+        // The server keeps the chat's earlier lines itself, so only its id goes back.
+        body: chat ? { text: said, chat } : { text: said },
         timeoutMs: ANSWER_WAIT_MS,
       })
       setChat(answer.chat)

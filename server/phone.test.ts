@@ -318,9 +318,7 @@ describe('the AI receptionist answering calls the desk misses', () => {
     const { login, slug } = await studio()
     claude.answers.push(
       tool('offer_time', { treatmentId: serviceId, date: '2026-10-08', time: '11:00' }),
-      words(
-        'I will text you a link to book Thursday at 11. Nothing is booked until you confirm.',
-      ),
+      words('I will text you a link to book Thursday at 11. Nothing is booked until you confirm.'),
     )
     const handed = await missed(slug)
     expect(handed.statusCode).toBe(200)
@@ -364,6 +362,16 @@ describe('the AI receptionist answering calls the desk misses', () => {
       `${origin}/book/${slug}?service=${serviceId}&staff=any&date=2026-10-08&start=660`,
     )
     expect(texts()[0].body).toMatch(/Nothing is booked until you confirm on that page\.$/)
+    // The question on the call left a record of what it did, without the words or the number.
+    const turns = api.database.all<Record<string, unknown>>('SELECT * FROM assistant_turns')
+    expect(turns).toMatchObject([
+      { audience: 'guests', doorway: 'phone', account_id: null, status: 'answered', prepared: 1 },
+    ])
+    expect(JSON.parse(String(turns[0].skills))).toContainEqual({
+      skill: 'offer_time',
+      outcome: 'proposed',
+    })
+    expect(JSON.stringify(turns)).not.toMatch(/facial|7700/i)
     await api.outbox.tick()
     expect(sent).toHaveLength(1)
     expect(texts()[0].status).toBe('accepted')

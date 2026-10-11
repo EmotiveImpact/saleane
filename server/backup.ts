@@ -98,8 +98,10 @@ function snapshot(source: string, destination: string, restore: boolean) {
         enableForeignKeyConstraints: true,
       })
       try {
+        // What was under way when the backup was taken does not come back: sign-ins, links,
+        // holds, and changes Ask prepared with the conversations they came from.
         recovered.exec(
-          'BEGIN IMMEDIATE; DELETE FROM sessions; DELETE FROM login_challenges; DELETE FROM totp_setup; DELETE FROM invitations; DELETE FROM booking_holds; DELETE FROM guest_links; DELETE FROM passkey_challenges;',
+          'BEGIN IMMEDIATE; DELETE FROM sessions; DELETE FROM login_challenges; DELETE FROM totp_setup; DELETE FROM invitations; DELETE FROM booking_holds; DELETE FROM guest_links; DELETE FROM passkey_challenges; DELETE FROM assistant_proposals; DELETE FROM assistant_chats;',
         )
         // Nothing that reaches outside the studio comes back by itself: a key revoked since the
         // backup would read again, a connection removed since would be sent to, and a message

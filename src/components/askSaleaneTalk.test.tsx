@@ -108,7 +108,8 @@ describe('talking to Ask SALEANE', () => {
     await user.click(within(panel).getByRole('button', { name: 'Talk' }))
     expect(mocked).toHaveBeenCalledWith(`${base}/talk`, {
       method: 'POST',
-      body: { sdp: 'v=0 offer' },
+      // What is said joins the panel's conversation, so a typed follow-up knows what was asked.
+      body: { sdp: 'v=0 offer', conversation: expect.stringMatching(/^[0-9a-f-]{36}$/) },
       timeoutMs: 30_000,
     })
     expect(await within(panel).findByRole('timer')).toBeInTheDocument()
@@ -144,6 +145,67 @@ describe('talking to Ask SALEANE', () => {
     ).toBeInTheDocument()
     // The question heard is shown once, however many times the talk was read.
     expect(within(panel).getAllByText('Remind me to call Amelia tomorrow.')).toHaveLength(1)
+  })
+
+  it('sends only the conversation’s id, the same one for typed and spoken questions', async () => {
+    const user = userEvent.setup()
+    const reading = mocked.getMockImplementation()!
+    mocked.mockImplementation(async (path: string, options?: { method?: string }) =>
+      path === base && options?.method === 'POST'
+        ? { status: 'answered', text: '14:00: Amelia.', proposals: [], usage: usage(0) }
+        : reading(path, options),
+    )
+    render(<AskSaleane onClose={() => {}} />)
+    const panel = await screen.findByRole('dialog', { name: 'Ask SALEANE' })
+    await user.type(within(panel).getByLabelText('Your question'), 'Who is my 2pm?')
+    await user.click(within(panel).getByRole('button', { name: 'Ask' }))
+    await within(panel).findByText('14:00: Amelia.')
+    const asked = mocked.mock.calls.find(([path, o]) => path === base && o)![1] as {
+      body: { conversation: string }
+    }
+    await user.click(within(panel).getByRole('button', { name: 'Talk' }))
+    expect(mocked).toHaveBeenCalledWith(`${base}/talk`, {
+      method: 'POST',
+      body: { sdp: 'v=0 offer', conversation: asked.body.conversation },
+      timeoutMs: 30_000,
+    })
+  })
+
+  it('lets an approved change that did not save be approved again, and shows a saved one as done', async () => {
+    const user = userEvent.setup()
+    const reading = mocked.getMockImplementation()!
+    mocked.mockImplementation(async (path: string, options?: { method?: string }) =>
+      path === base && options?.method === 'POST'
+        ? {
+            status: 'answered',
+            text: 'Here are both, ready for you to approve.',
+            proposals: [
+              { id: 'p1', summary: 'Remind the team on Wednesday 7 October: Call Amelia' },
+              { id: 'p2', summary: 'Remind the team on Thursday 8 October: Order wax' },
+            ],
+            usage: usage(0),
+          }
+        : path === `${base}/proposals/p2`
+          ? { outcome: 'applied' }
+          : reading(path, options),
+    )
+    commit.mockResolvedValueOnce({ ok: false, error: 'Someone else saved a change. Try again.' })
+    render(<AskSaleane onClose={() => {}} />)
+    const panel = await screen.findByRole('dialog', { name: 'Ask SALEANE' })
+    await user.type(within(panel).getByLabelText('Your question'), 'Remind us about both')
+    await user.click(within(panel).getByRole('button', { name: 'Ask' }))
+    await within(panel).findByText('Here are both, ready for you to approve.')
+    const [first] = within(panel).getAllByRole('button', { name: 'Approve' })
+    await user.click(first)
+    expect(await within(panel).findByText('Someone else saved a change. Try again.')).toBeVisible()
+    // Still approved on the server, so Approve tries the same change again.
+    expect(within(panel).getAllByRole('button', { name: 'Approve' })).toHaveLength(2)
+    await user.click(within(panel).getAllByRole('button', { name: 'Approve' })[0])
+    expect(commit).toHaveBeenCalledTimes(2)
+    // Saved already, from another tab: shown as done, and not saved again.
+    await user.click(within(panel).getByRole('button', { name: 'Approve' }))
+    expect(await within(panel).findAllByText(/Done\. Saved to your records\./)).toHaveLength(2)
+    expect(commit).toHaveBeenCalledTimes(2)
   })
 
   it('says plainly when the microphone is refused or the month’s talking time is used up', async () => {
