@@ -12,6 +12,7 @@ import { Button, ErrorMessage, Select } from '../design'
 import { useRun } from './usePayment'
 import './management.css'
 import './aiVoice.css'
+import { APP_NAME, ASK_NAME } from '../assistant/name'
 
 const voiceName = (key: string) => VOICES.find((v) => v.key === key)?.label ?? key
 
@@ -60,9 +61,7 @@ export function AiVoiceSettings() {
         <div>
           <h2 id="ai-voice-settings">How your AI speaks</h2>
           <p>
-            Choose the tone the AI receptionist uses with your guests. Ask SALEANE writes the
-            messages it prepares for your clients in the same tone. It changes how they speak, never
-            what they may do, and they always say they are an AI.
+            {`Choose the tone the AI receptionist uses with your guests. ${ASK_NAME} writes the messages it prepares for your clients in the same tone. It changes how they speak, never what they may do, and they always say they are an AI.`}
           </p>
         </div>
         <AudioLines size={21} aria-hidden="true" />
@@ -110,19 +109,19 @@ export function AiVoiceSettings() {
             </small>
           </label>
           <label>
-            Ask SALEANE’s voice
+            {ASK_NAME}’s voice
             <Select value={voice} disabled={!allowed} onChange={(e) => setVoice(e.target.value)}>
               {VOICES.map((v) => (
                 <option key={v.key} value={v.key}>
                   {v.label}
-                  {v.key === DEFAULT_VOICE ? ' (SALEANE’s own)' : ''}
+                  {v.key === DEFAULT_VOICE ? ` (${APP_NAME}’s own)` : ''}
                 </option>
               ))}
             </Select>
             <small>
               {talking
-                ? `The voice your team hears when they talk to Ask SALEANE. Each person can choose their own in Ask SALEANE. Now: ${voiceName(voice)}.`
-                : 'The voice your team will hear when they talk to Ask SALEANE. Talking is not switched on yet, so you can choose now and hear it once it is.'}
+                ? `The voice your team hears when they talk to ${ASK_NAME}. Each person can choose their own in ${ASK_NAME}. Now: ${voiceName(voice)}.`
+                : `The voice your team will hear when they talk to ${ASK_NAME}. Talking is not switched on yet, so you can choose now and hear it once it is.`}
             </small>
           </label>
         </div>

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { standingInstructions } from '../../lumane'
 import type { Brain, BrainRequest } from '../../lumane'
 import { seed } from '../domain/seed'
 import { dispatch } from '../domain/commands'
@@ -6,7 +7,8 @@ import type { Command } from '../domain/commands'
 import { commandSchema } from '../domain/commandSchema'
 import type { BusinessState } from '../domain/model'
 import { can, operations, permissionFor } from '../domain/operations'
-import { askReceptionist, RECEPTION_INSTRUCTIONS } from './receptionist'
+import { RECEPTION_INSTRUCTIONS } from './receptionist'
+import { askReceptionist } from './receptionistAsk'
 import { askSaleane } from './ask'
 import { TONE_CHOICES, aiVoice } from './tone'
 
@@ -87,8 +89,8 @@ describe('the studio’s tone', () => {
       brain,
     )
     const [sent] = requests
-    // The standing rules stay the same from one studio to the next.
-    expect(sent.instructions).toBe(RECEPTION_INSTRUCTIONS)
+    // The standing rules stay the same from one studio to the next, with LUMANE's own after them.
+    expect(sent.instructions).toBe(standingInstructions(RECEPTION_INSTRUCTIONS))
     // They set no tone of their own, so the studio's choice is the only one the AI is given.
     expect(sent.instructions).not.toMatch(/warm/i)
     expect(sent.context).toContain(TONE_CHOICES.calm.instruction)

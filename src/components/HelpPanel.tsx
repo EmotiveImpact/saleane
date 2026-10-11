@@ -17,6 +17,7 @@ import {
 } from '../domain/help'
 import type { HelpArticle, SupportAnswer, SupportTopic } from '../domain/help'
 import './helpPanel.css'
+import { APP_NAME, ASK_NAME } from '../assistant/name'
 
 const DELIVERY: Record<SupportAnswer['delivery'], string> = {
   email: 'It is emailed to the SALEANE team. Any reply goes to',
@@ -148,8 +149,7 @@ export function HelpPanel({
                 list(found, 'Guides that match')
               ) : (
                 <p className="help-none" role="status">
-                  No guide matches that. Try other words, Ask SALEANE, or write to the SALEANE team
-                  below.
+                  {`No guide matches that. Try other words, ${ASK_NAME}, or write to the ${APP_NAME} team below.`}
                 </p>
               )
             ) : (
@@ -177,7 +177,7 @@ export function HelpPanel({
         )}
         {onAsk && (
           <div className="help-ask">
-            <p>Ask SALEANE can answer questions about your studio, and how to do things here.</p>
+            <p>{ASK_NAME} can answer questions about your studio, and how to do things here.</p>
             <Button
               variant="secondary"
               onClick={() => {
@@ -186,7 +186,7 @@ export function HelpPanel({
               }}
             >
               <Sparkles size={16} aria-hidden="true" />
-              Ask SALEANE
+              {ASK_NAME}
             </Button>
           </div>
         )}

@@ -6,6 +6,7 @@
  *
  * `openaiLive` connects OpenAI's GPT-Live; a test can pass its own `VoiceLayer` instead.
  */
+import { standingInstructions } from './rules'
 
 /** What the server hears about a session, in the app's own words rather than the supplier's. */
 export type LiveEvent =
@@ -45,7 +46,10 @@ export interface LiveLine {
 export type LiveStart = {
   /** The browser's offer to connect, in the WebRTC session format. */
   sdp: string
-  /** The voice's standing instructions for the whole session. */
+  /**
+   * The voice's standing instructions for the whole session. LUMANE's own rules are added after
+   * them before they reach the supplier (see `standingInstructions`).
+   */
   instructions: string
   /** The supplier's id for the voice. */
   voice: string
@@ -53,7 +57,10 @@ export type LiveStart = {
 
 /** How to answer a phone call the supplier has received. */
 export type CallAnswer = {
-  /** The voice's standing instructions for the whole call. */
+  /**
+   * The voice's standing instructions for the whole call. LUMANE's own rules are added after them
+   * before they reach the supplier (see `standingInstructions`).
+   */
   instructions: string
   /** The supplier's id for the voice. */
   voice: string
@@ -214,7 +221,7 @@ export function openaiLive(options: OpenAiLiveOptions): VoiceLayer {
           session: {
             type: 'live',
             model: options.model,
-            instructions,
+            instructions: standingInstructions(instructions),
             store: false,
             audio: { output: { voice } },
             delegation: { type: 'client' },
@@ -233,7 +240,7 @@ export function openaiLive(options: OpenAiLiveOptions): VoiceLayer {
       const response = await post('/live/sessions', {
         session: {
           model: options.model,
-          instructions,
+          instructions: standingInstructions(instructions),
           store: false,
           audio: { output: { voice } },
           delegation: { type: 'client' },

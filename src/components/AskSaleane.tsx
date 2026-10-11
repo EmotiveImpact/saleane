@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Check, Mic, Sparkles, Square } from 'lucide-react'
-import { current, decide } from '../../lumane'
+import { decide, usedOf } from '../../lumane'
 import type { PendingProposal, Usage } from '../../lumane'
 import { ASK_WAIT_MS, HISTORY_TURNS, askSaleane } from '../assistant/ask'
 import { ALLOWANCES } from '../assistant/saleane'
@@ -16,6 +16,7 @@ import { api } from '../state/api'
 import { useStore } from '../state/context'
 import { Button, Modal, Select } from '../design'
 import './ask-saleane.css'
+import { ASK_NAME } from '../assistant/name'
 
 type Meter = { used: number; allowance: number; talk?: { used: number; allowance: number } }
 type Suggestion = { id: string; summary: string; state: 'waiting' | 'saving' | 'done' | 'declined' }
@@ -192,7 +193,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
           for (const p of result.proposals) held.current.set(p.id, p as PendingProposal<Command>)
         }
         setMeter({
-          used: current(result.usage, at).used.typed,
+          used: usedOf(result.usage, 'typed', at),
           allowance: ALLOWANCES.included.monthly.typed,
         })
         answer = {
@@ -215,7 +216,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
       ])
     } catch (caught) {
       setError(
-        caught instanceof Error ? caught.message : 'Ask SALEANE could not answer. Try again.',
+        caught instanceof Error ? caught.message : `${ASK_NAME} could not answer. Try again.`,
       )
     } finally {
       setBusy(false)
@@ -410,7 +411,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
       open
       onClose={onClose}
       placement="side"
-      title="Ask SALEANE"
+      title={ASK_NAME}
       description="Ask about your day, your clients and your takings. Changes wait for your approval."
     >
       <div className="ask-saleane">
@@ -605,7 +606,7 @@ function clockLabel(seconds: number) {
 
 function demoMeter(orgId: string): Meter {
   return {
-    used: current(demoUsage(orgId), new Date().toISOString()).used.typed,
+    used: usedOf(demoUsage(orgId), 'typed', new Date().toISOString()),
     allowance: ALLOWANCES.included.monthly.typed,
   }
 }

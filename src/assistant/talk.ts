@@ -1,6 +1,7 @@
 import type { UseRequest } from '../../lumane'
 import type { BusinessState } from '../domain/model'
 import { askUse } from './ask'
+import { APP_NAME, ASK_NAME } from './name'
 
 /**
  * NEXT-12 part 2: talking to Ask SALEANE. OpenAI's GPT-Live listens and speaks; every question
@@ -54,8 +55,7 @@ export const TALK_PROGRESS =
 /** For the voice to say when a question arrived without any words to answer. */
 export const TALK_UNHEARD = 'Nothing was heard clearly enough to answer. Ask them to say it again.'
 /** For the voice to say when no answer could be prepared. */
-export const TALK_FAILED =
-  'SALEANE could not answer just now. Nothing was changed. Ask them to try again shortly.'
+export const TALK_FAILED = `${APP_NAME} could not answer just now. Nothing was changed. Ask them to try again shortly.`
 
 /**
  * The voice's standing instructions for one talk. It answers nothing about the studio itself:
@@ -64,10 +64,9 @@ export const TALK_FAILED =
 export function talkInstructions(state: BusinessState) {
   const { organisation } = state
   const english = organisation.locale === 'en-US' ? 'American' : 'British'
-  return `You are Ask SALEANE, the AI assistant inside SALEANE, talking with a member of the team at ${organisation.name}.
+  return `You are ${ASK_NAME}, the AI assistant inside ${APP_NAME}, talking with a member of the team at ${organisation.name}.
 Speak warmly and briefly, in ${english} English, like a calm, capable studio manager.
-If anyone asks, say plainly that you are an AI.
-For anything about the studio, such as the diary, visits, clients, the team, takings, stock, messages, or how to do something in SALEANE, hand the question over and say only what comes back, in your own words. Never guess or make up names, times or amounts.
+For anything about the studio, such as the diary, visits, clients, the team, takings, stock, messages, or how to do something in ${APP_NAME}, hand the question over and say only what comes back, in your own words. Never guess or make up names, times or amounts.
 While an answer is being prepared you may say you are looking, but say nothing about the studio until it arrives.
 Changes are never made by talking. Anything prepared waits on the screen for the person to approve, so never say a change has been made, a message sent or a payment taken.
 Keep each answer to a few short sentences. If you did not catch something, ask them to say it again.

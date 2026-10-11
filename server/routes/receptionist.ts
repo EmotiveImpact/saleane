@@ -8,13 +8,8 @@ import type { Context, Route } from '../context'
 import { dispatch } from '../../src/domain/commands'
 import { businessDate } from '../../src/domain/operations'
 import { callerNumber } from '../../src/domain/missedCalls'
-import {
-  CHAT_HISTORY_TURNS,
-  askReceptionist,
-  isOn,
-  listedTimes,
-  receptionUse,
-} from '../../src/assistant/receptionist'
+import { CHAT_HISTORY_TURNS, isOn, listedTimes } from '../../src/assistant/receptionist'
+import { askReceptionist, receptionUse } from '../../src/assistant/receptionistAsk'
 import type { ReceptionEffect } from '../../src/assistant/receptionist'
 
 type Held = PendingProposal<ReceptionEffect> & { organisationId: string; visitor: string }
