@@ -169,37 +169,29 @@ export function priceLabel(
 }
 
 /**
- * Everything a studio gets for that price. Nothing here sits behind a higher tier. A line with
- * `connect` works once the studio connects its own card or text account, or once talking to Ask
- * Saleane is switched on, none of which SALEANE can do yet, so the page says so beside that line
- * rather than claiming it works today. The AI amounts come from `ALLOWANCES`.
+ * Every feature a studio gets for that price, from the first day. Nothing here sits behind a
+ * higher tier: the price limits amounts, never features. A line with `connect` works once the
+ * studio connects its own card or text account, or once talking to Ask SALEANE is switched on,
+ * none of which SALEANE can do yet, so the page says so beside that line rather than claiming it
+ * works today.
  */
 const included = ALLOWANCES.included.monthly
 export const INCLUDED: readonly { text: string; connect?: 'card' | 'text' | 'voice' }[] = [
   { text: 'Your own booking page, with Google and Instagram links' },
   { text: 'Calendar, rooms and chairs, opening hours and time away' },
   { text: 'Every client remembered: notes, visits, family and referrals' },
-  { text: 'Booking confirmations and reminders by email' },
+  { text: 'Booking confirmations, reminders and aftercare by email, as many as you need' },
   { text: 'Reminders by text', connect: 'text' },
+  { text: 'Marketing: newsletters, automatic messages and what they brought in' },
+  { text: 'Ask SALEANE, your AI assistant, by typing' },
+  { text: 'Talking to Ask SALEANE out loud', connect: 'voice' },
+  { text: 'An AI receptionist on your booking page' },
   { text: 'Deposits and missed visit fees, kept with every visit' },
   { text: 'Saved cards, card readers and deposits paid online', connect: 'card' },
   { text: 'Money, receipts, refunds and the end-of-day till count' },
+  { text: 'Your team, with the right access for each role' },
   { text: 'Help moving across from your old system' },
-  {
-    text: `Your team, with the right access for each role: ${PEOPLE_PER_LOCATION} people taking bookings, and free for anyone who gives no treatments`,
-  },
   { text: 'Client data exports and privacy tools' },
-  { text: `Ask SALEANE, your AI assistant: ${included.typed} typed questions a month` },
-  {
-    text: `Talking to Ask SALEANE: ${included.talkSeconds / 60} minutes a month`,
-    connect: 'voice',
-  },
-  {
-    text: `An AI receptionist on your booking page: ${included.guestChats} guest chats a month`,
-  },
-  {
-    text: `Marketing: campaigns, automatic emails and results, with ${MARKETING_EMAILS.included.toLocaleString('en-GB')} marketing emails a month`,
-  },
 ]
 export const CONNECT_NOTES = {
   card: 'Arrives when you connect your card account',
@@ -207,23 +199,52 @@ export const CONNECT_NOTES = {
   voice: 'Arrives when talking to Ask SALEANE is switched on',
 } as const
 
-/** NEXT-02: what a location can add to its price. Each adds capacity; neither takes a feature away. */
+/**
+ * What each location starts with every month: the parts that cost SALEANE to run, and the people
+ * included. The AI amounts come from `ALLOWANCES`, so the page and the meters cannot disagree.
+ */
+const thousands = (n: number) => n.toLocaleString('en-GB')
+export const STARTING_AMOUNTS: readonly { amount: string; text: string }[] = [
+  { amount: String(PEOPLE_PER_LOCATION), text: 'people taking bookings' },
+  { amount: thousands(included.typed), text: 'Ask SALEANE questions' },
+  { amount: String(included.talkSeconds / 60), text: 'minutes talking to Ask SALEANE' },
+  { amount: thousands(included.guestChats), text: 'guest chats with the AI receptionist' },
+  { amount: thousands(MARKETING_EMAILS.included), text: 'marketing emails' },
+]
+
+/**
+ * NEXT-02: how a location grows. None unlocks a feature; each adds more of something the studio
+ * already has. `amount` names the price, and `unit` what it is charged for.
+ */
 const plus = ALLOWANCES.plus.monthly
 export const ADD_ONS = [
   {
     id: 'plus',
     title: 'Plus',
     amount: 'plusMinor',
-    body: `For busy studios: ${plus.typed} typed questions, ${plus.talkSeconds / 60} minutes of talking, ${plus.guestChats} guest chats and ${MARKETING_EMAILS.plus.toLocaleString('en-GB')} marketing emails a month, instead of ${included.typed}, ${included.talkSeconds / 60}, ${included.guestChats} and ${MARKETING_EMAILS.included.toLocaleString('en-GB')}.`,
+    unit: 'a month for each location',
+    body: `More of everything that runs on AI and email: ${thousands(plus.typed)} questions, ${plus.talkSeconds / 60} minutes of talking, ${thousands(plus.guestChats)} guest chats and ${thousands(MARKETING_EMAILS.plus)} marketing emails a month.`,
+  },
+  {
+    id: 'people',
+    title: 'More people',
+    amount: 'personMinor',
+    unit: 'a month for each person',
+    body: `For each person taking bookings beyond the ${PEOPLE_PER_LOCATION} each location includes. Anyone who gives no treatments, such as reception or a manager, is free.`,
   },
   {
     id: 'phone',
     title: 'Phone receptionist',
     amount: 'phoneMinor',
+    unit: 'a month for each location',
     body: `Answers the calls your desk misses. It says it is an AI, answers questions about your treatments, prices and free times, texts callers a link to book and takes messages for the team, with ${PHONE_MINUTES} minutes of calls a month.`,
     note: 'Arrives when phone calls are connected',
   },
 ] as const
+/** The add-ons a studio switches on for its locations in Plan and billing; extra people are counted. */
+export const LOCATION_ADD_ONS = ADD_ONS.filter(
+  (a): a is Extract<(typeof ADD_ONS)[number], { id: 'plus' | 'phone' }> => a.id !== 'people',
+)
 
 /** The promises the price page makes, each one something SALEANE's design already keeps. */
 export const PROMISES = [
@@ -232,8 +253,8 @@ export const PROMISES = [
     body: 'Clients who book through your page, Google or Instagram are yours. We never take a cut of a booking, and there is no marketplace sending them elsewhere.',
   },
   {
-    title: 'No locked tiers',
-    body: 'Every studio has every feature. Growing your client list never moves you to a dearer plan. You pay for each location and for each person taking bookings beyond the five it includes, and only the add-ons add more AI time.',
+    title: 'Amounts, never features',
+    body: 'Every studio has every feature from the first day. Growing your client list never moves you to a dearer plan; you only ever add more of what you already use.',
   },
   {
     title: 'No fee to leave',

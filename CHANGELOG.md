@@ -2,6 +2,16 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-11 · The price page: everything included, with room to grow
+
+**Status: built locally on 11 October 2026; nothing is charged.** The owner said yes to the preview on 11 October 2026.
+
+- The price page now opens with "Everything included, with room to grow." It lists every feature a studio has from the first day, then what each location starts with each month: 5 people taking bookings, 300 Ask Saleane questions, 30 minutes of talking, 200 guest chats with the AI receptionist and 2,000 marketing emails. These amounts come from the same settings the app counts against, so the page and the app cannot disagree.
+- Room to grow has three cards: Plus (£39 a month for each location, more of everything that runs on AI and email), more people (£9 a month for each person beyond five) and the phone receptionist (£79 a month for each location).
+- "No locked tiers" becomes "Amounts, never features": every studio has every feature, and only ever adds more of what it already uses.
+- Visit emails (confirmations, reminders, aftercare) are never counted, and the page says so.
+- Plan and billing shows only Plus and the phone receptionist as switches; extra people are counted from the team, as before.
+
 ## 2026-10-11 · The AI receptionist answers calls the desk misses (NEXT-17)
 
 **Status: built locally on 11 October 2026; not run against a real phone line or OpenAI project. Calls stay off until the studio's Twilio number, an OpenAI project and Claude are set up.** [Evidence](docs/evidence/NEXT-17-PHONE-RECEPTIONIST.md).
