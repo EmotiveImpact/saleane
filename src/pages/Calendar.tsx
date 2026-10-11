@@ -18,8 +18,10 @@ import {
   settleFrom,
   Select,
   Tip,
+  photos,
 } from '../design'
 import { Agenda } from '../components/Agenda'
+import { FirstStep } from '../components/FirstStep'
 import { PeopleColumns } from '../components/PeopleColumns'
 import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
@@ -199,6 +201,25 @@ export function Calendar() {
       today,
       locationId: branch ?? (locationFilter === 'all' ? undefined : locationFilter),
     })
+  // With nobody on the team there are no columns to draw, so the calendar says what opens it.
+  if (!state.staff.some((s) => !s.archived))
+    return (
+      <Empty
+        photo={photos.hairStudio}
+        photoPosition="58% center"
+        eyebrow="Calendar"
+        level={1}
+        title="Your calendar opens with your team."
+        action={
+          role === 'owner' || role === 'manager' ? (
+            <FirstStep to="/settings?section=staff">Add your team</FirstStep>
+          ) : undefined
+        }
+      >
+        Each person who takes bookings has a column here. Add your team and the treatments they do,
+        and the first visit can go straight in.
+      </Empty>
+    )
   return (
     <>
       <PageHeader

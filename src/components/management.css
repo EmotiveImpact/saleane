@@ -37,7 +37,8 @@
   min-width: 0;
   padding: 26px;
 }
-.ops-panel + .ops-panel {
+.ops-panel + .ops-panel,
+.accounts-page > .empty-photo + .ops-panel {
   margin-top: 22px;
 }
 .ops-panel > header {

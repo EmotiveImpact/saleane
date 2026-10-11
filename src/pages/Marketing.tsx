@@ -3,7 +3,17 @@ import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useStore } from '../state/context'
 import { api } from '../state/api'
-import { Button, Empty, ErrorMessage, PageHeader, Stat, Stats, Select, Switch } from '../design'
+import {
+  Button,
+  Empty,
+  ErrorMessage,
+  PageHeader,
+  Stat,
+  Stats,
+  Select,
+  Switch,
+  photos,
+} from '../design'
 import { can, operations } from '../domain/operations'
 import { missYouDayChoices, reminderSettings } from '../domain/reminders'
 import type { ReminderSettings } from '../domain/reminders'
@@ -291,105 +301,128 @@ export function MarketingAudience() {
   const left = (reason: keyof typeof newsReasonLabel) =>
     reach?.leftOut.find((l) => l.reason === reason)?.count ?? 0
   const stopped = changes.stoppedBy
+  // Nobody to count yet, either way: the page says where its numbers will come from.
+  const nobody =
+    !!reach &&
+    reach.total === 0 &&
+    reach.leftOut.every((l) => l.count === 0) &&
+    !changes.months.length
   return (
     <div className="marketing-page">
-      <PageHeader
-        eyebrow="Marketing"
-        title="Audience"
-        description="Who you may send news and offers to, counted the same way as a message to clients is counted before it goes. Only numbers, never a list."
-      />
+      {nobody ? (
+        <Empty
+          photo={photos.manicure}
+          photoPosition="60% center"
+          eyebrow="Marketing"
+          level={1}
+          title="Your audience starts on the booking page."
+        >
+          Guests who agree to news and offers as they book, or at the desk, are counted here. You
+          only ever see numbers, never a list, and booking never depends on agreeing.
+        </Empty>
+      ) : (
+        <PageHeader
+          eyebrow="Marketing"
+          title="Audience"
+          description="Who you may send news and offers to, counted the same way as a message to clients is counted before it goes. Only numbers, never a list."
+        />
+      )}
       <ErrorMessage error={error} />
-      <Stats className="marketing-stats">
-        <Stat
-          label="Can hear from you"
-          value={reach ? reach.total : '…'}
-          detail="Agreed to news and offers, with a visit in the last 12 months or one booked"
-        />
-        <Stat
-          label="By text too"
-          value={reach ? reach.text : '…'}
-          detail="Agreed to texts as well, with a mobile number"
-        />
-        <Stat
-          label="Have not agreed"
-          value={reach ? left('not-agreed') : '…'}
-          detail="Never asked, or said no; booking never depends on it"
-        />
-        <Stat
-          label="Stopped"
-          value={stopped.link + stopped.desk + stopped.booking + stopped.software}
-          detail="Agreed once, then asked to stop"
-        />
-      </Stats>
-      <section className="surface ops-panel" aria-labelledby="audience-stopped">
-        <header>
-          <div>
-            <h2 id="audience-stopped">How people stopped</h2>
-            <p>Each guest counts once, by the last thing they asked for.</p>
-          </div>
-        </header>
-        <ul className="marketing-lines">
-          <li>
-            <span>With the link in an email, or from their visit link</span>
-            <span>{clients(stopped.link)}</span>
-          </li>
-          <li>
-            <span>At the desk</span>
-            <span>{clients(stopped.desk)}</span>
-          </li>
-          <li>
-            <span>On the booking page</span>
-            <span>{clients(stopped.booking)}</span>
-          </li>
-          {stopped.software > 0 && (
-            <li>
-              <span>In software you connected</span>
-              <span>{clients(stopped.software)}</span>
-            </li>
-          )}
-          <li>
-            <span>{newsReasonLabel.stopped}</span>
-            <span>{clients(left('stopped'))}</span>
-          </li>
-          <li>
-            <span>{newsReasonLabel.erased}</span>
-            <span>{clients(left('erased'))}</span>
-          </li>
-        </ul>
-      </section>
-      <section className="surface ops-panel" aria-labelledby="audience-months">
-        <header>
-          <div>
-            <h2 id="audience-months">Month by month</h2>
-            <p>Each time a guest agreed or asked to stop, on your studio’s calendar.</p>
-          </div>
-        </header>
-        {changes.months.length ? (
-          <table className="marketing-table">
-            <thead>
-              <tr>
-                <th scope="col">Month</th>
-                <th scope="col">Agreed</th>
-                <th scope="col">Asked to stop</th>
-              </tr>
-            </thead>
-            <tbody>
-              {changes.months.map((m) => (
-                <tr key={m.month}>
-                  <th scope="row">{monthName(m.month, state.organisation.locale)}</th>
-                  <td>{m.agreed}</td>
-                  <td>{m.stopped}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p className="subtle marketing-empty-line">
-            Nobody has agreed or stopped yet. Guests agree on the booking page, or at the desk on
-            their page.
-          </p>
-        )}
-      </section>
+      {!nobody && (
+        <>
+          <Stats className="marketing-stats">
+            <Stat
+              label="Can hear from you"
+              value={reach ? reach.total : '…'}
+              detail="Agreed to news and offers, with a visit in the last 12 months or one booked"
+            />
+            <Stat
+              label="By text too"
+              value={reach ? reach.text : '…'}
+              detail="Agreed to texts as well, with a mobile number"
+            />
+            <Stat
+              label="Have not agreed"
+              value={reach ? left('not-agreed') : '…'}
+              detail="Never asked, or said no; booking never depends on it"
+            />
+            <Stat
+              label="Stopped"
+              value={stopped.link + stopped.desk + stopped.booking + stopped.software}
+              detail="Agreed once, then asked to stop"
+            />
+          </Stats>
+          <section className="surface ops-panel" aria-labelledby="audience-stopped">
+            <header>
+              <div>
+                <h2 id="audience-stopped">How people stopped</h2>
+                <p>Each guest counts once, by the last thing they asked for.</p>
+              </div>
+            </header>
+            <ul className="marketing-lines">
+              <li>
+                <span>With the link in an email, or from their visit link</span>
+                <span>{clients(stopped.link)}</span>
+              </li>
+              <li>
+                <span>At the desk</span>
+                <span>{clients(stopped.desk)}</span>
+              </li>
+              <li>
+                <span>On the booking page</span>
+                <span>{clients(stopped.booking)}</span>
+              </li>
+              {stopped.software > 0 && (
+                <li>
+                  <span>In software you connected</span>
+                  <span>{clients(stopped.software)}</span>
+                </li>
+              )}
+              <li>
+                <span>{newsReasonLabel.stopped}</span>
+                <span>{clients(left('stopped'))}</span>
+              </li>
+              <li>
+                <span>{newsReasonLabel.erased}</span>
+                <span>{clients(left('erased'))}</span>
+              </li>
+            </ul>
+          </section>
+          <section className="surface ops-panel" aria-labelledby="audience-months">
+            <header>
+              <div>
+                <h2 id="audience-months">Month by month</h2>
+                <p>Each time a guest agreed or asked to stop, on your studio’s calendar.</p>
+              </div>
+            </header>
+            {changes.months.length ? (
+              <table className="marketing-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Month</th>
+                    <th scope="col">Agreed</th>
+                    <th scope="col">Asked to stop</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {changes.months.map((m) => (
+                    <tr key={m.month}>
+                      <th scope="row">{monthName(m.month, state.organisation.locale)}</th>
+                      <td>{m.agreed}</td>
+                      <td>{m.stopped}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="subtle marketing-empty-line">
+                Nobody has agreed or stopped yet. Guests agree on the booking page, or at the desk
+                on their page.
+              </p>
+            )}
+          </section>
+        </>
+      )}
       <EmailNewsWording />
     </div>
   )

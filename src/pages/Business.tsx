@@ -11,9 +11,11 @@ import { dateLabel, money, wholeMoney } from '../domain/format'
 import { barHeight, chartScale } from '../domain/chartScale'
 import { closingLedger } from '../domain/moments'
 import { ClosingLedger } from '../components/ClosingLedger'
+import { FirstStep } from '../components/FirstStep'
 import {
   Avatar,
   Button,
+  Empty,
   Metric,
   PageHeader,
   SegmentedControl,
@@ -63,6 +65,21 @@ export function Business() {
     link.click()
     URL.revokeObjectURL(url)
   }
+  // A new studio has nothing to count yet, so it meets a welcome rather than a page of noughts.
+  if (!state.appointments.length && !state.sales.length)
+    return (
+      <Empty
+        photo={photos.calmStudio}
+        photoPosition="62% center"
+        eyebrow="Business"
+        level={1}
+        title="Your figures begin with your first visit."
+        action={<FirstStep to="/calendar">Open the calendar</FirstStep>}
+      >
+        Takings, time booked and rebooking fill in here as visits are checked out, with the day’s
+        close and who is due back alongside.
+      </Empty>
+    )
   return (
     <>
       <PageHeader

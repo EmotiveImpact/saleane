@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Map as MapIcon } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useStore } from '../state/context'
 import { businessDate } from '../domain/operations'
 import { hasLocations, places } from '../domain/locations'
@@ -9,7 +10,7 @@ import { areaChange, mapAreas, mapFeatures, mapReady, milesBetween } from '../do
 import type { MapArea } from '../domain/areaMap'
 import { AreaMap } from '../components/AreaMap'
 import type { MapMeasure } from '../components/AreaMap'
-import { Empty, Metric, PageHeader, SegmentedControl, Select } from '../design'
+import { Empty, Metric, PageHeader, SegmentedControl, Select, photos } from '../design'
 import '../components/management.css'
 import '../components/clientAreas.css'
 
@@ -39,6 +40,29 @@ export function ClientAreas() {
   const spanWords = period === '365' ? 'the past year' : 'the past 90 days'
   const chosen = map.areas.find((a) => a.area === selected) ?? null
   const ready = mapReady(state)
+
+  // Before any client has a visit there is nothing to group, so the page says what it will show.
+  if (clientAreas(state, today, branch ?? 'all', 365).total === 0)
+    return (
+      <Empty
+        photo={photos.entrance}
+        photoPosition="center 40%"
+        eyebrow="Business"
+        level={1}
+        title="See where your clients come from."
+        action={
+          <Link className="button button-secondary" to="/clients">
+            Open your clients
+          </Link>
+        }
+      >
+        Record a client’s {word} on their page. Once clients have visits, this groups them by area
+        on a map and as a list.{' '}
+        {org.region === 'UK'
+          ? 'Only the first half of a postcode is kept, never an address.'
+          : 'Only the first three digits of a ZIP code are kept, never an address.'}
+      </Empty>
+    )
 
   return (
     <div className="areas-page">
