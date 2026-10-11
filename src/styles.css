@@ -1136,7 +1136,7 @@ fieldset {
   padding: 14px 20px;
   display: flex;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   border-bottom: 1px solid var(--line);
   flex-wrap: wrap;
 }
@@ -1150,7 +1150,9 @@ fieldset {
   font-weight: var(--weight-strong);
   letter-spacing: -0.01em;
   font-size: var(--text-lead);
-  margin: 0 12px 0 4px;
+  margin: 0 8px 0 4px;
+  /* The longest date ("Week of Monday 28 September") sets the room, so every view shares it. */
+  min-width: 14.2em;
 }
 .date-controls .icon-button {
   width: 40px;
@@ -1165,11 +1167,12 @@ fieldset {
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-left: auto;
 }
 .calendar-filters select,
 .calendar-filters .select-trigger {
   min-height: 36px;
-  width: 158px;
+  width: 150px;
   padding: 6px 10px;
   font-size: var(--text-meta);
 }
@@ -1351,9 +1354,15 @@ fieldset {
   color: var(--brand-ink);
   pointer-events: none;
 }
+/* Week and Month keep the day layout's space, so nothing beside it moves. */
+.day-layout-slot[data-shown='false'] {
+  visibility: hidden;
+}
 /* Month: every day at a glance, how full it is and its first few visits. */
 .calendar-period {
   align-self: center;
+  /* Always at the far right, so Today, Week and Month never move as the views change. */
+  margin-left: auto;
 }
 .month-view {
   border: 1px solid var(--line);
@@ -3699,6 +3708,12 @@ fieldset {
   .calendar-filters {
     width: 100%;
     justify-content: space-between;
+    margin-left: 0;
+    order: 1;
+  }
+  /* On a phone the switch keeps its own steady row under the date, above the filters. */
+  .calendar-period {
+    margin-left: 0;
   }
   .calendar-filters select,
   .calendar-filters .select-trigger {
