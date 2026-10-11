@@ -881,6 +881,45 @@ export const migrations: Migration[] = [
         CREATE INDEX passkey_challenges_expiry ON passkey_challenges(expires_at);
       `),
   },
+  {
+    version: 37,
+    // NEXT-17, the phone receptionist: an add-on to each location's price, like Plus, paid for in
+    // the month and chosen for the next bill. Its part-month bills are their own kind, so the bills
+    // table is rebuilt with the same columns, keys and indexes, keeping every bill.
+    up: (connection) =>
+      connection.exec(`
+        ALTER TABLE studio_plans ADD COLUMN phone INTEGER NOT NULL DEFAULT 0 CHECK(phone IN (0,1));
+        ALTER TABLE studio_plans ADD COLUMN phone_next INTEGER NOT NULL DEFAULT 0 CHECK(phone_next IN (0,1));
+        CREATE TABLE studio_invoices_next (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          number TEXT NOT NULL UNIQUE, kind TEXT NOT NULL CHECK(kind IN ('month','plus','phone')),
+          period_start INTEGER NOT NULL, period_end INTEGER NOT NULL CHECK(period_end>period_start),
+          plus INTEGER NOT NULL CHECK(plus IN (0,1)),
+          phone INTEGER NOT NULL DEFAULT 0 CHECK(phone IN (0,1)),
+          currency TEXT NOT NULL CHECK(currency IN ('GBP','USD')),
+          lines TEXT NOT NULL CHECK(json_valid(lines)),
+          subtotal_minor INTEGER NOT NULL CHECK(subtotal_minor>=0),
+          tax_minor INTEGER NOT NULL CHECK(tax_minor>=0), tax_label TEXT,
+          total_minor INTEGER NOT NULL CHECK(total_minor=subtotal_minor+tax_minor),
+          status TEXT NOT NULL CHECK(status IN ('open','charging','paid','void','unknown')),
+          test INTEGER NOT NULL CHECK(test IN (0,1)),
+          attempt_key TEXT, attempts INTEGER NOT NULL DEFAULT 0, charged_at INTEGER,
+          provider_ref TEXT, detail TEXT,
+          created_at INTEGER NOT NULL, paid_at INTEGER, closed_at INTEGER
+        ) STRICT;
+        INSERT INTO studio_invoices_next(id,organisation_id,number,kind,period_start,period_end,plus,phone,currency,lines,
+            subtotal_minor,tax_minor,tax_label,total_minor,status,test,attempt_key,attempts,charged_at,provider_ref,
+            detail,created_at,paid_at,closed_at)
+          SELECT id,organisation_id,number,kind,period_start,period_end,plus,0,currency,lines,
+            subtotal_minor,tax_minor,tax_label,total_minor,status,test,attempt_key,attempts,charged_at,provider_ref,
+            detail,created_at,paid_at,closed_at FROM studio_invoices ORDER BY rowid;
+        DROP TABLE studio_invoices;
+        ALTER TABLE studio_invoices_next RENAME TO studio_invoices;
+        CREATE INDEX studio_invoices_recent ON studio_invoices(organisation_id,created_at);
+        CREATE UNIQUE INDEX studio_invoices_month ON studio_invoices(organisation_id,period_start) WHERE kind='month' AND status<>'void';
+        CREATE UNIQUE INDEX studio_invoices_attempt ON studio_invoices(attempt_key) WHERE attempt_key IS NOT NULL;
+      `),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the

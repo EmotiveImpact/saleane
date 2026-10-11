@@ -77,7 +77,12 @@ test('lists the two add-ons with their prices, and the AI each location includes
   expect(offer.getByText(/300 typed questions a month/)).toBeInTheDocument()
   expect(offer.getByText(/30 minutes a month/)).toBeInTheDocument()
   expect(offer.getByText(/200 guest chats a month/)).toBeInTheDocument()
-  expect(ALLOWANCES.included.monthly).toEqual({ typed: 300, talkSeconds: 1800, guestChats: 200 })
+  expect(ALLOWANCES.included.monthly).toEqual({
+    typed: 300,
+    talkSeconds: 1800,
+    guestChats: 200,
+    phoneSeconds: 0,
+  })
 })
 
 test('says which included features wait for a card or text account or voice, and keeps visitors on the page', () => {

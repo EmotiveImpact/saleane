@@ -94,7 +94,7 @@ describe('the AI receptionist in test mode', () => {
   it('lets a chat already counted carry on when the month is used up, but starts no new one', async () => {
     const full = {
       period: '2026-10',
-      used: { typed: 0, talkSeconds: 0, guestChats: 200 },
+      used: { typed: 0, talkSeconds: 0, guestChats: 200, phoneSeconds: 0 },
       spendByDay: {},
       recent: {},
     }

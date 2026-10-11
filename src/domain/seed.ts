@@ -2014,7 +2014,8 @@ function seedStock(
 
 /**
  * V1.5: two calls nobody could answer this morning, one from Emily, who is due back, and a guest
- * who has told the desk from her private link that she has arrived.
+ * who has told the desk from her private link that she has arrived. NEXT-17: and one call the AI
+ * receptionist answered.
  */
 function seedArrivals(
   state: BusinessState,
@@ -2042,6 +2043,40 @@ function seedArrivals(
       calls: 1,
       source: 'desk',
       actor: 'Front desk',
+    },
+  ]
+  // NEXT-17: a call the AI receptionist answered while the desk was with a guest.
+  o.answeredCalls = [
+    {
+      id: 'answered-call-1',
+      number: uk ? '+447700900321' : '+12125550142',
+      at: time(9, 37),
+      seconds: 160,
+      turns: [
+        { from: 'guest', text: 'Hello, have you got anything for a facial on Saturday morning?' },
+        {
+          from: 'receptionist',
+          text: `Yes, the Skin Renewal Facial with Maya Lewis is free on Saturday at ${uk ? '10:30' : '10:30 AM'}. I can text you a link to book it. Nothing is booked until you confirm there.`,
+        },
+        {
+          from: 'guest',
+          text: 'Yes please. And could someone tell me if I can bring my sister along?',
+        },
+        {
+          from: 'receptionist',
+          text: 'I have texted you the link. I will pass your question about your sister to the team, and they will come back to you.',
+        },
+      ],
+      texted: [
+        uk
+          ? 'Skin Renewal Facial with Maya Lewis, Saturday 10 October at 10:30'
+          : 'Skin Renewal Facial with Maya Lewis, Saturday, October 10 at 10:30 AM',
+      ],
+      message: {
+        name: 'Hannah Cole',
+        contact: uk ? '07700 900321' : '(212) 555-0142',
+        message: 'Can I bring my sister along to my facial on Saturday? She would like one too.',
+      },
     },
   ]
   const noor = state.appointments.find((a) => a.id === 'visit-noor')

@@ -15,6 +15,11 @@ export const receptionistSettingsSchema = z
     texts: z.boolean().optional(),
     /** Whether it also answers messages to the studio's Instagram, Facebook and WhatsApp. */
     social: z.boolean().optional(),
+    /**
+     * NEXT-17: whether it also answers calls to the studio's phone that nobody at the desk picks
+     * up. Needs the phone receptionist add-on and a connected phone line.
+     */
+    calls: z.boolean().optional(),
   })
   .strict()
 export type ReceptionistSettings = z.infer<typeof receptionistSettingsSchema>

@@ -81,6 +81,8 @@ const commandWords: Record<Command['type'], Words> = {
   'guest-here': ['visits', 'Said they had arrived'],
   'missed-call': ['messages', 'Wrote down a missed call'],
   'missed-call-done': ['messages', 'Marked a missed call as called back'],
+  'call-answered': ['messages', 'Answered a call'],
+  'answered-call-done': ['messages', 'Marked an answered call as followed up'],
   offer: ['settings', 'Changed a package or membership', 'Added a package or membership'],
   'plan-sell': ['money', 'Sold a package or membership'],
   'plan-renew': ['money', 'Renewed a package or membership'],
@@ -267,6 +269,7 @@ const serverWords: Record<string, Words> = {
   'ai-booking.claude': ['visits', 'Booked through Claude'],
   'ai-booking.assistant': ['visits', 'Booked through an AI assistant'],
   'phone.missed-call': ['messages', 'Wrote down a missed call'],
+  'phone.answered': ['messages', 'Answered a call'],
   'inbox.reply': ['messages', 'A message came in'],
   'inbox.test-text': ['messages', 'Delivered a test text to the studio’s line'],
   'receptionist.message': ['messages', 'Passed on a message from the AI receptionist'],
@@ -312,6 +315,7 @@ export function automaticSource(action: string) {
   if (action === 'ai-booking.assistant') return 'A guest, through an AI assistant'
   if (action.startsWith('payment.')) return 'A guest paying by card'
   if (action === 'phone.missed-call') return 'The studio phone line'
+  if (action === 'phone.answered') return 'The AI receptionist, on the phone'
   if (action === 'inbox.reply') return 'A guest’s message'
   if (action === 'receptionist.message') return 'The AI receptionist'
   return 'SALEANE'
@@ -344,6 +348,7 @@ const personal = new Set([
   'waitlist',
   'messages',
   'missedCalls',
+  'answeredCalls',
   'tasks',
 ])
 /** Short words from a fixed list, safe to keep. Anything else typed in is never kept. */
