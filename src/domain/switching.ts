@@ -102,6 +102,8 @@ export function heldVisit(
  */
 export function clientsByEmail(clients: Client[], email: string, name = '') {
   const target = email.trim().toLowerCase()
+  // A client moved in without an email is never found by a blank one.
+  if (!target) return []
   const byEmail = clients.filter((c) => c.email.toLowerCase() === target)
   if (byEmail.length <= 1 || !name.trim()) return byEmail
   return byEmail.filter((c) => c.name.trim().toLowerCase() === name.trim().toLowerCase())

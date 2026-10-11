@@ -1,4 +1,4 @@
-import type { BusinessState, Region, RelationshipEvent } from './model'
+import type { BusinessState, Client, Region, RelationshipEvent } from './model'
 import { emailProblem, phoneProblem } from './studioContact'
 import { areaHint, postcodeArea } from './clientAreas'
 import { serviceRuleRefusal } from './brandRules'
@@ -947,8 +947,10 @@ export function runOperatingCommand(
   } else if (command.type === 'client-edit') {
     const client = next.clients.find((c) => c.id === command.clientId)
     if (!client) throw new Error('Client does not belong to this studio.')
-    if (!/^\+[\d() -]{6,29}$/.test(command.contact.phone.trim()))
+    const nextPhone = command.contact.phone.trim()
+    if ((nextPhone || client.phone.trim()) && !/^\+[\d() -]{6,29}$/.test(nextPhone))
       throw new Error('Enter a telephone number starting with + and a country code.')
+    if (client.email && !command.contact.email.trim()) throw new Error('Enter an email address.')
     const consentChanged = client.marketingConsent !== command.contact.marketingConsent
     Object.assign(client, {
       ...command.contact,
@@ -989,39 +991,60 @@ export function runOperatingCommand(
       recordIds: [] as string[],
       totalMinor: 0,
     }
+    const source = command.source ?? 'Reviewed contact file'
     for (const contact of command.contacts) {
-      if (contact.marketingConsent)
+      // Moving in: permission comes across only with what the old system recorded.
+      if (contact.marketingConsent && !contact.consentEvidence)
         throw new Error(
-          'Import contacts with marketing off. Record verified consent individually after import.',
+          'Marketing permission can only come across with what the old system recorded.',
         )
-      if (!/^\+[\d() -]{6,29}$/.test(contact.phone.trim()))
+      const phone = contact.phone.trim()
+      if (phone && !/^\+[\d() -]{6,29}$/.test(phone))
         throw new Error('Every imported telephone number needs a country code.')
       const email = contact.email.trim().toLowerCase(),
         name = contact.name.trim()
+      if (!email && !phone)
+        throw new Error('Each imported client needs an email or a phone number.')
+      // Never merged: a client with the same name and the same email or phone is already here.
+      const digits = (value: string) => value.replace(/[^\d+]/g, '')
       if (
         next.clients.some(
-          (c) => c.email.toLowerCase() === email && c.name.toLowerCase() === name.toLowerCase(),
+          (c) =>
+            c.name.toLowerCase() === name.toLowerCase() &&
+            ((email && c.email.toLowerCase() === email) ||
+              (phone && digits(c.phone) === digits(phone))),
         )
       )
         throw new Error(
           'Import contains an existing or repeated client. Review duplicates before importing.',
         )
-      const client = {
-        ...contact,
+      const client: Client = {
         ...scope,
         id: makeId(),
         name,
         email,
-        phone: contact.phone.trim(),
-        preferences: '',
+        phone,
+        marketingConsent: contact.marketingConsent,
+        preferences: contact.preferences?.trim() ?? '',
         createdAt: now,
+        ...(contact.birthday ? { birthday: contact.birthday } : {}),
+        ...(contact.postcodeArea ? { postcodeArea: contact.postcodeArea } : {}),
       }
       next.clients.push(client)
+      const kept = [
+        email && phone ? 'Contact details' : email ? 'Email' : 'Phone number',
+        contact.birthday && 'birthday',
+        contact.preferences && 'notes',
+      ].filter(Boolean)
       addEvent({
         clientId: client.id,
         type: 'profile',
         title: 'Client imported after review',
-        detail: `Source: ${command.source ?? 'Reviewed contact file'}. Contact details imported. Marketing remains off; no historical visits or payment details imported.`,
+        detail: `Source: ${source}. ${kept.join(', ').replace(/, ([^,]*)$/, ' and $1')} imported. ${
+          contact.marketingConsent
+            ? `Email marketing came across: ${contact.consentEvidence}.`
+            : 'Marketing remains off.'
+        }${contact.textMarketing ? ' The old system recorded that they agreed to marketing texts.' : ''} No historical visits or payment details imported.`,
       })
       batch.recordIds.push(client.id)
       recordId = client.id

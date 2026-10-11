@@ -1,0 +1,322 @@
+/* Moving in: bring a client list and upcoming visits across from another system. */
+.moving {
+  display: grid;
+  gap: 28px;
+}
+.moving section {
+  min-width: 0;
+}
+.moving-guide {
+  margin: 0 0 16px;
+  padding: 16px 18px;
+  border-radius: var(--radius-control);
+  background: var(--sage-soft);
+  color: var(--ink);
+  font-size: var(--text-small);
+}
+.moving-guide strong {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: var(--weight-strong);
+}
+.moving-guide p {
+  margin: 0;
+  color: var(--brand-ink);
+}
+.moving-drop {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 30px 22px;
+  border: 1px dashed var(--line2);
+  border-radius: var(--radius-panel);
+  background: var(--hover);
+  color: var(--brand-ink);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    background var(--motion-quick),
+    border-color var(--motion-quick);
+}
+.moving-drop strong {
+  color: var(--ink);
+  font-weight: var(--weight-strong);
+}
+.moving-drop span {
+  max-width: 46ch;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.moving-drop:hover,
+.moving-drop.is-dragging {
+  border-color: var(--brand);
+  background: var(--sage-soft);
+}
+.moving-drop:has(:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.moving-files {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.moving-files li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  color: var(--brand-ink);
+}
+.moving-files strong {
+  display: block;
+  color: var(--ink);
+  font-weight: var(--weight-strong);
+  overflow-wrap: anywhere;
+}
+.moving-files span {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.moving-remove {
+  display: grid;
+  place-items: center;
+  width: var(--target);
+  height: var(--target);
+  border: 0;
+  border-radius: var(--radius-round);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.moving-remove:hover:not(:disabled) {
+  background: var(--stone);
+  color: var(--ink);
+}
+.moving-questions {
+  margin-bottom: 20px;
+  padding: 20px;
+  border-radius: var(--radius-panel);
+  background: var(--rose-soft);
+}
+.moving-questions > p {
+  margin: 0;
+  color: var(--rose-ink);
+  font-size: var(--text-small);
+}
+.moving-questions > p + .moving-field {
+  margin-top: 12px;
+}
+.moving-questions .moving-field {
+  border-top-color: color-mix(in srgb, var(--rose) 28%, var(--line));
+}
+/* A second set of questions (treatments, then people) starts a little apart from the first. */
+.moving-questions .moving-field + p {
+  margin-top: 18px;
+}
+/* Each column is a row with a hairline above it, never a box inside a box. */
+.moving-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.moving-field label {
+  display: block;
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+  overflow-wrap: anywhere;
+}
+.moving-field small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: var(--text-meta);
+  overflow-wrap: anywhere;
+}
+.moving-field-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.moving-field select {
+  min-height: var(--target);
+  min-width: 180px;
+  padding: 0 12px;
+  border: 1px solid var(--field-line);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-small);
+}
+.moving-attention {
+  max-height: 300px;
+  overflow: auto;
+  margin: 16px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+}
+.moving-attention ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.moving-attention li {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.moving-attention li:last-child {
+  border-bottom: 0;
+}
+.moving-attention strong {
+  display: block;
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+  overflow-wrap: anywhere;
+}
+.moving-attention p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: var(--text-small);
+  overflow-wrap: anywhere;
+}
+.moving-attention > .ops-help {
+  margin: 0;
+  padding: 12px 16px;
+}
+/* A few of the visits behind each reason, quiet beneath it. */
+.moving-attention .moving-examples {
+  margin-top: 6px;
+}
+.moving-attention .moving-examples li {
+  padding: 2px 0;
+  border: 0;
+  color: var(--muted);
+  font-size: var(--text-meta);
+  overflow-wrap: anywhere;
+}
+/* The totals to hold up against the old system's own report. */
+.moving-totals {
+  display: grid;
+  gap: 6px;
+  margin: 16px 0 0;
+}
+.moving-totals .ops-help {
+  margin: 0;
+}
+.moving-columns {
+  margin: 12px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--hover);
+}
+.moving-columns summary {
+  list-style: none;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--target);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  font-size: var(--text-small);
+  font-weight: var(--weight-nav);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.moving-columns summary::-webkit-details-marker {
+  display: none;
+}
+.moving-columns summary::after {
+  content: '+';
+  flex: none;
+  color: var(--brand-ink);
+  font-size: var(--text-title-s);
+  line-height: 1;
+}
+.moving-columns[open] summary::after {
+  content: '−';
+}
+.moving-columns ul {
+  list-style: none;
+  margin: 0;
+  padding: 0 16px 4px;
+}
+.moving-lead {
+  margin: 0 0 14px;
+  color: var(--ink);
+  font-size: var(--text-lead);
+}
+.moving-facts {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+.moving-facts li {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--brand-ink);
+  font-size: var(--text-small);
+}
+.moving-facts li::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-round);
+  background: var(--brand);
+  transform: translateY(-2px);
+}
+.moving-narrow {
+  display: none;
+}
+.moving-progress {
+  margin: 0;
+  padding: 14px 18px;
+  border-radius: var(--radius-control);
+  background: var(--sage);
+  color: var(--brand-ink);
+  font-size: var(--text-small);
+}
+@media (max-width: 650px) {
+  .moving-wide {
+    display: none;
+  }
+  .moving-narrow {
+    display: inline;
+  }
+}
+@media (max-width: 640px) {
+  .moving {
+    gap: 22px;
+  }
+  .moving-field {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .moving-field select {
+    width: 100%;
+    min-width: 0;
+  }
+  .moving-field-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .moving-questions {
+    padding: 14px;
+  }
+}

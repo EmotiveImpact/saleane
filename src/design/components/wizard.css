@@ -166,4 +166,9 @@
     margin: 0 -18px -22px;
     padding: 14px 18px 22px;
   }
+  /* The way forward fills the width, within reach of a thumb; Back stays a quiet partner. */
+  .wizard-footer > .button:last-child {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
 }

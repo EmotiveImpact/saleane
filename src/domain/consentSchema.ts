@@ -25,6 +25,7 @@ export type ConsentWording = z.infer<typeof consentWordingSchema>
 /**
  * Stage 4: 'email link' is the stop link in a message to clients. Stage 5: 'other software' is
  * software the studio connected with an access key, which said who agreed, when and how.
+ * "previous system": the studio's old booking system recorded that the client agreed (moving in).
  */
 export const consentSources = [
   'booking page',
@@ -32,6 +33,7 @@ export const consentSources = [
   'guest link',
   'email link',
   'other software',
+  'previous system',
 ] as const
 export const consentRecordSchema = z
   .object({
@@ -44,6 +46,11 @@ export const consentRecordSchema = z
     /** The wording the guest agreed to. Absent on a withdrawal, which needs no wording. */
     wordingVersion: z.number().int().min(1).optional(),
     source: z.enum(consentSources),
+    /**
+     * Moving in: what the old system recorded, such as Fresha recorded "Accepts marketing: Yes".
+     * Kept instead of a wording version, because the client agreed to the studio's old words.
+     */
+    evidence: z.string().trim().min(2).max(300).optional(),
     recordedAt: z.iso.datetime(),
     actor: z.string().max(200),
     /** Stage 5: when the client said so, as other software reported it. */
