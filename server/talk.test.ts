@@ -761,6 +761,48 @@ describe('a talk', () => {
     }
   })
 
+  it('speaks in the person’s own voice, else the studio’s, and lets no one choose for another', async () => {
+    const voice = fakeVoice()
+    start(claude(anthropic([]).fetcher), voice.layer)
+    const login = await register()
+    const command = async (command: Record<string, unknown>) => {
+      const { state } = (
+        await api.inject({ url: `/api/workspaces/${login.orgId}`, headers: headers(login) })
+      ).json<{ state: { revision: number } }>()
+      return api.inject({
+        method: 'POST',
+        url: `/api/workspaces/${login.orgId}/commands`,
+        headers: { ...headers(login), 'idempotency-key': `voice-${Math.random()}` },
+        payload: { revision: state.revision, command },
+      })
+    }
+    const heard = async () => {
+      const started = await talk(login)
+      expect(started.statusCode, started.body).toBe(200)
+      const said = voice.starts.at(-1)!.voice
+      voice.lines.at(-1)!.fire({ type: 'closed', reason: 'close_requested', seconds: 1 })
+      return said
+    }
+    expect(await heard()).toBe('vesper')
+    const studio = await command({ type: 'ai-voice', settings: { tone: 'calm', voice: 'willow' } })
+    expect(studio.statusCode, studio.body).toBe(200)
+    expect(await heard()).toBe('willow')
+    // The server decides whose choice it is, whatever the browser says.
+    const own = await command({ type: 'own-voice', voice: 'quartz', personId: 'someone-else' })
+    expect(own.statusCode, own.body).toBe(200)
+    const { state } = (
+      await api.inject({ url: `/api/workspaces/${login.orgId}`, headers: headers(login) })
+    ).json<{ state: { operations: { voices: Record<string, string> } } }>()
+    expect(Object.keys(state.operations.voices)).not.toContain('someone-else')
+    expect(Object.values(state.operations.voices)).toEqual(['quartz'])
+    expect(await heard()).toBe('quartz')
+    expect((await command({ type: 'own-voice', voice: null })).statusCode).toBe(200)
+    expect(await heard()).toBe('willow')
+    const unknown = await command({ type: 'own-voice', voice: 'nightingale' })
+    expect(unknown.statusCode).toBe(422)
+    expect(unknown.body).toContain('Choose one of the voices on the list.')
+  })
+
   it('replaces a talk left open, follows a dropped one to end it, and keeps each to its person', async () => {
     const voice = fakeVoice()
     start(claude(anthropic([]).fetcher), voice.layer)

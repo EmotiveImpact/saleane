@@ -17,6 +17,7 @@ import {
 } from '../src/assistant/talk'
 import { DEFAULT_VOICE, VOICES } from '../src/assistant/voices'
 import type { Command } from '../src/domain/commands'
+import { operations } from '../src/domain/operations'
 import { holding, reserveFor, settleUse } from './aiUsage'
 import type { Actor, Context, Org } from './context'
 
@@ -249,8 +250,13 @@ export function talks(held: Map<string, Held>) {
       session = await ctx.voice.start({
         sdp,
         instructions: talkInstructions(org.state),
-        voice: voiceFor(VOICES, DEFAULT_VOICE, {}, { kind: 'person', personId: actor.id })
-          .supplierVoice,
+        // NEXT-16: the person's own voice, else the studio's, else SALEANE's own.
+        voice: voiceFor(
+          VOICES,
+          DEFAULT_VOICE,
+          { studio: operations(org.state).aiVoice?.voice, people: operations(org.state).voices },
+          { kind: 'person', personId: actor.id },
+        ).supplierVoice,
       })
     } catch (error) {
       // SALEANE stopped while OpenAI was asked: the records are closed, so nothing is written.

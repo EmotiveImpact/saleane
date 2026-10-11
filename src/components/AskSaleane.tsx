@@ -10,6 +10,8 @@ import { connectTalk } from '../assistant/talkLine'
 import type { TalkConnection } from '../assistant/talkLine'
 import type { Command } from '../domain/commands'
 import { nudges } from '../domain/nudges'
+import { operations } from '../domain/operations'
+import { DEFAULT_VOICE, VOICES } from '../assistant/voices'
 import { api } from '../state/api'
 import { useStore } from '../state/context'
 import { Button, Modal } from '../design'
@@ -78,6 +80,22 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
   const talkId = useRef<string | null>(null)
   // A talk still starting when the panel closes is called off, and ended if SALEANE started it.
   const startCall = useRef<AbortController | null>(null)
+  // NEXT-16: the voice this person hears, chosen here; empty means the studio's.
+  const me = session?.user?.id
+  const ownVoice = (me && operations(state).voices?.[me]) || ''
+  const studioVoice = operations(state).aiVoice?.voice ?? DEFAULT_VOICE
+  const [voicePending, setVoicePending] = useState(false)
+  async function chooseVoice(voice: string) {
+    setVoicePending(true)
+    try {
+      const result = await commit({ type: 'own-voice', voice: voice || null })
+      setNotice({ text: result.ok ? 'Saved. Your next talk uses it.' : result.error })
+    } catch {
+      setNotice({ text: 'Your voice could not be saved. Try again.' })
+    } finally {
+      setVoicePending(false)
+    }
+  }
   const held = useRef(new Map<string, PendingProposal<Command>>())
   const end = useRef<HTMLDivElement | null>(null)
   const base = orgId ? `/api/workspaces/${encodeURIComponent(orgId)}/assistant` : ''
@@ -534,6 +552,25 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
               </Button>
             )}
           </form>
+          {canTalk && !talk && (
+            <label className="ask-voice">
+              Voice
+              <select
+                value={ownVoice}
+                disabled={voicePending}
+                onChange={(e) => void chooseVoice(e.target.value)}
+              >
+                <option value="">
+                  The studio’s ({VOICES.find((v) => v.key === studioVoice)?.label ?? studioVoice})
+                </option>
+                {VOICES.map((v) => (
+                  <option key={v.key} value={v.key}>
+                    {v.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {meter && (
             <p className="ask-meter">
               {meter.used} of {meter.allowance} questions used this month.

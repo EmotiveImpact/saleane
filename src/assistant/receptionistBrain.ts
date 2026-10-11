@@ -1,6 +1,8 @@
 import type { Brain, BrainMessage, ToolCall } from '../../lumane'
 import { addDays } from '../domain/format'
 import { healthWordIn } from '../domain/forms'
+import type { Tone } from '../domain/receptionistSchema'
+import { TONE_CHOICES } from './tone'
 
 /**
  * The test-mode brain for the AI receptionist. It understands a few plain guest questions, uses
@@ -11,6 +13,7 @@ export function receptionistBrain(
   today: string,
   locale = 'en-GB',
   channel: ReceptionChannel = 'web',
+  tone: Tone = 'warm',
 ): Brain {
   void locale
   return {
@@ -20,8 +23,8 @@ export function receptionistBrain(
       const results = toolResults(request.messages)
       const offered = new Set(request.tools.map((t) => t.name))
       const step = results.length
-        ? nextStep(talk, results, offered, today, channel)
-        : firstStep(talk, offered, today, channel)
+        ? nextStep(talk, results, offered, today, channel, tone)
+        : firstStep(talk, offered, today, channel, tone)
       return { ...step, costMinor: 0 }
     },
   }
@@ -429,6 +432,7 @@ function firstStep(
   offered: Set<string>,
   today: string,
   channel: ReceptionChannel,
+  tone: Tone,
 ): Step {
   switch (intent(talk)) {
     case 'health':
@@ -473,9 +477,9 @@ function firstStep(
     case 'menu':
       return call('treatments')
     case 'greeting':
-      return say(`Hello, I am the studio's AI receptionist. ${RECEPTION_HELP}`)
+      return say(`${TONE_CHOICES[tone].hello} ${RECEPTION_HELP}`)
     case 'thanks':
-      return say('You are welcome. Is there anything else I can help with?')
+      return say(TONE_CHOICES[tone].welcome)
     default:
       return say(`${NOT_SURE} ${teamCan(offered, channel)}`)
   }
@@ -487,8 +491,10 @@ function nextStep(
   offered: Set<string>,
   today: string,
   channel: ReceptionChannel,
+  tone: Tone,
 ): Step {
   const last = results.at(-1)!
+  const words = TONE_CHOICES[tone]
   if (!last.ok) {
     if (last.name === 'offer_time' || last.name === 'find_times')
       return say(`${String(last.data)} Tell me another day or time and I will look again.`)
@@ -531,11 +537,11 @@ function nextStep(
     )
   if (last.name === 'offer_time' && channel === 'text')
     return say(
-      `Here it is: ${(last.data as { summary: string }).summary}. Book it here: ${BOOKING_LINK} Nothing is booked until you confirm on that page.`,
+      `${words.here}: ${(last.data as { summary: string }).summary}. Book it here: ${BOOKING_LINK} Nothing is booked until you confirm on that page.`,
     )
   if (last.name === 'offer_time')
     return say(
-      'Here it is. Tap “Choose this time” to finish booking with your details. Nothing is booked until you confirm.',
+      `${words.here}. Tap “Choose this time” to finish booking with your details. Nothing is booked until you confirm.`,
     )
   if (last.name === 'find_times') {
     const found = last.data as {
@@ -597,13 +603,13 @@ function nextStep(
       )
       if (found.more) lines.push(`And ${found.more} more.`)
       return say(
-        `${found.treatment}${who} on ${found.day}:\n${lines.join('\n')}\nWhich would you like?`,
+        `${words.found}${found.treatment}${who} on ${found.day}:\n${lines.join('\n')}\n${words.choose}`,
       )
     }
     return say(
-      `${found.treatment}${who}${sites[0] ? ` at ${sites[0]}` : ''} on ${found.day}: ${found.times
+      `${words.found}${found.treatment}${who}${sites[0] ? ` at ${sites[0]}` : ''} on ${found.day}: ${found.times
         .map((t) => t.label)
-        .join(', ')}${more}. Which would you like?`,
+        .join(', ')}${more}. ${words.choose}`,
     )
   }
   if (last.name === 'treatments') {

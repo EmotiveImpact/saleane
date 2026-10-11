@@ -22,6 +22,8 @@ import { socialRoutes } from './routes/social'
 import type { Outbox } from './messaging/outbox'
 import { paymentRoutes } from './routes/payments'
 import { assistantRoutes } from './routes/assistant'
+import { VOICE_NOTE_BYTES, writeUpRoutes } from './routes/writeUp'
+import { VOICE_NOTE_TYPES } from './transcribe'
 import { receptionistRoutes } from './routes/receptionist'
 import { answerMissed, answerSocial, answerText } from './messaging/receptionistText'
 import { HOLD_SECONDS } from '../lumane'
@@ -114,6 +116,7 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
     paymentRoutes(payments),
     billing.routes,
     assistant,
+    writeUpRoutes(),
     receptionistRoutes(),
     supportRoutes(
       options.supportEmail === undefined ? supportAddressFromEnv() : options.supportEmail,
@@ -337,9 +340,16 @@ export function createApiHandler(options: ApiOptions): ApiHandler {
           header(request, 'sec-fetch-site') === 'cross-site'
         )
           fail(403, 'This request must come from your SALEANE workspace.')
-        if (!/^application\/json(?:\s*;|$)/i.test(header(request, 'content-type') ?? ''))
-          fail(415, 'Use a JSON request.')
-        body = await readBody(request)
+        const type = header(request, 'content-type') ?? ''
+        // NEXT-16: a voice note arrives as the recording itself, never kept once written down.
+        if (path[1] === 'workspaces' && path[3] === 'visits' && path[5] === 'voice-note') {
+          if (!VOICE_NOTE_TYPES.includes(type.split(';')[0].trim().toLowerCase()))
+            fail(415, 'Send the voice note as a recording.')
+          body = await readBody(request, 'bytes', VOICE_NOTE_BYTES)
+        } else {
+          if (!/^application\/json(?:\s*;|$)/i.test(type)) fail(415, 'Use a JSON request.')
+          body = await readBody(request)
+        }
       }
       const route: Route = { request, response, method, url, path, body, reply }
       // NEXT-02: a studio that has stopped paying is read only for its team.
