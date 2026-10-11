@@ -28,6 +28,7 @@ Older addresses still land in the new places: `/business/money`, `/business/gift
 - `src/components/interaction.test.tsx`: the desk opens Money (Takings, Gift cards, Stock) and Team (People, Rota) from the sidebar with no Business; pages kept for owners and managers send the desk to Money or Team; an owner gets Takings, Gift cards, Stock, Accounts and People, Rota, Pay; the old Business addresses open their new pages; Settings has four groups with Payments & tax; Find a setting narrows the list by "VAT", "parking" and "google" and says when nothing matches; `?section=staff`, `preferences` and `diaries` open Team, You and Connected software; tax is under Payments & tax and the online booking switch under Booking page & colours, not Studio details; You shows preferences and, in the demo, where signing in will be; the desk opens You at signing in from "Password, two-step and Face ID".
 - `src/domain/help.test.ts`: every guide's "Go there" is a real route or Settings section, now read from the multi-line section list; Money's guides show on `/money`; diaries show with Connected software. A new guide, "Open or close online booking", points at Booking page & colours.
 - `src/components/TwoStepForEveryone.test.tsx`: the owner's switch on Team links to Password, two-step and Face ID on You.
+- `src/components/quietOffersApp.test.tsx`: a new studio's empty Waitlist shows its welcome with the quiet-time price below it, so the price can be set before anyone has joined the list.
 - `src/components/quietOffersApp.test.tsx`, `EmailPreview.test.tsx`, `StaffMove.test.tsx`, `GetReady.test.tsx`, `HelpPanel.test.tsx`, `qualityBar.test.tsx`, `PlanCards.test.tsx`, `TeamWelcome.test.tsx`, `ask.test.ts` and `pageTops.test.ts` follow the moves.
 
 ## Browser journey
@@ -35,6 +36,7 @@ Older addresses still land in the new places: `/business/money`, `/business/gift
 1. Demo, 1440px and 390px: Money, Gift cards, Stock, Accounts, Team, Rota, Pay, Business, Settings (Studio details, Booking page & colours, Payments & tax, Messages to guests, Before and after a visit, Connected software, Moving in), You, Waitlist and Inbox. Every page has one heading, nothing scrolls sideways, no card sits inside a card and no panel has two primary buttons.
 2. Find a setting: "tax" leaves Payments & tax; "zebra" says Nothing matches “zebra”.
 3. Fernleaf Rooms, signed in as its owner: your name opens Your preferences (`/you`), Password, two-step and Face ID (`/you#signing-in`), Your accounts and studios, Help and Sign out. You shows Your preferences, Signing in (Change your password, Two-step sign-in, Face ID and fingerprint) and Your accounts and studios. Team shows The people behind every visit and Who can sign in, with Ask everyone to use two-step sign-in linking to You. The phone menu lists the ten items, Your booking page and You.
+4. Fernleaf Rooms has nobody waiting: its Waitlist at 1440px and 390px shows "Nobody is waiting yet." with A lower price for quiet times 22px below the welcome, and nothing scrolls sideways.
 
 ## Not covered
 

@@ -106,10 +106,12 @@ export function Waitlist() {
               </Empty>
             )}
           </section>
-          {/* A quiet time's lower price is offered from here, so it sits with the times it fills. */}
-          <QuietOffers />
         </>
       )}
+      {/* A quiet time's lower price is offered from here, so it sits with the times it fills. It
+          stays below the welcome too, since invitations from Today can carry it before anyone has
+          used the list. */}
+      <QuietOffers />
       {adding && <WaitlistForm onClose={() => setAdding(false)} />}
     </div>
   )
