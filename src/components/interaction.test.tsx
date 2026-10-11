@@ -1213,7 +1213,7 @@ describe('moving clients in from another system', () => {
     // The client's page counts the visits used in Timely, and says where it was paid for.
     cleanup()
     await show('/clients/client-8')
-    expect(await screen.findByText(/^4 of 6 visits left · use by/)).toBeInTheDocument()
+    expect(await screen.findByText('4 of 6 visits left · use by 30 June 2027')).toBeInTheDocument()
     expect(screen.getByText('Carried over from Timely, where it was paid for')).toBeInTheDocument()
     // Gift cards keep their printed code and are never counted as sold here.
     cleanup()

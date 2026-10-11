@@ -1599,10 +1599,12 @@ function MoneyAttention({ rows }: { rows: MoneyRow[] }) {
       row.status === 'expired' ||
       row.status === 'cancelled' ||
       row.status === 'here' ||
+      row.status === 'skipped' ||
       (row.status === 'used' && row.left)
     )
       put(row, row.detail, 1, 'staying behind')
-    for (const note of row.notes) put(row, note, 2, 'coming across')
+    // Notes describe how something comes across, so only what is coming has them.
+    if (row.status === 'ready') for (const note of row.notes) put(row, note, 2, 'coming across')
   }
   if (!groups.size) return null
   const oneFile = new Set(rows.map((row) => row.fileName)).size === 1

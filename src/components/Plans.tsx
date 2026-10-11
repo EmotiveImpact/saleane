@@ -14,7 +14,7 @@ import {
 } from '../domain/plans'
 import { carriedSource } from '../domain/switching'
 import type { Holding, Offer, OfferInput } from '../domain/plansSchema'
-import { dateLabel, money } from '../domain/format'
+import { dateLabel, fullDateLabel, money } from '../domain/format'
 import { minorInput, parseMinor } from '../domain/money'
 import { Button, ErrorMessage, Modal, SegmentedControl, Select, Checkbox } from '../design'
 import './management.css'
@@ -369,7 +369,12 @@ function holdingSummary(holding: Holding, today: string, locale: string) {
   if (holding.kind === 'package')
     return standing.state === 'expired'
       ? `Expired ${dateLabel(holding.endsOn!, locale)} with ${standing.visitsLeft} ${standing.visitsLeft === 1 ? 'visit' : 'visits'} unused`
-      : `${standing.visitsLeft} of ${planVisits(holding)} visits left · use by ${dateLabel(holding.endsOn!, locale)}`
+      : `${standing.visitsLeft} of ${planVisits(holding)} visits left · use by ${
+          // A package carried over may run for years, so a last day in another year says which.
+          holding.endsOn!.slice(0, 4) === today.slice(0, 4)
+            ? dateLabel(holding.endsOn!, locale)
+            : fullDateLabel(holding.endsOn!, locale)
+        }`
   const parts = [
     standing.state === 'unpaid'
       ? `This month is not paid yet (paid until ${dateLabel(holding.paidUntil!, locale)})`
