@@ -2,6 +2,24 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-11 · The polish pass: SALEANE's own controls, and calm movement
+
+**Status: built locally on 11 October 2026; checked in Chromium at 1440px and 390px, not yet in Safari or Firefox.** [Evidence](docs/evidence/POLISH-PASS.md).
+
+- **A calmer sidebar.** The line under the SALEANE wordmark is gone and the items sit higher, leaving room for one or two more without scrolling. On a computer it folds to its icons, each with a hint, and remembers that choice. On a phone the menu slides in from the side as a drawer instead of a box in the middle, and shows the same counts as the sidebar.
+- **Menus.** The studio's name and your own name at the top each open a short menu (switching studio or sample, your preferences, help, signing out) instead of a button that only opened Settings. Each Stock row keeps Delivery on the row and puts Used in treatments, Correct the count, Move and Edit details in one menu. Arrow keys move through a menu, typing a letter jumps, and Escape closes it with the focus back on its button.
+- **Every drop-down is SALEANE's own list.** Every drop-down, about 130 across 57 screens, opens the same soft list with a tick beside the current choice, in the app's own type, instead of each browser's grey list. They still type to jump, work by keyboard and fill in forms as before.
+- **Ticks and switches.** Ticks are soft squares with an ink tick that settles in; a setting that takes effect as a whole ("Send reminders") is an on and off switch whose knob slides across. Round choices keep the browser's own arrow keys and are drawn to match.
+- **Hints.** Arrows and icons whose meaning is not written on them (calendar, rota and date strip arrows, a visit in the week view, a saved reply, a bar on the takings chart, a mark on a client's year) show a short hint on hover and keyboard focus. A phone has no hover, so nothing depends on one.
+- **Notices.** Stock now confirms a delivery, a count, stock used or a move between locations in a small notice at the corner of the screen, which screen readers hear too. Other screens already show a saved line beside the button, so they keep it.
+- **Search.** Find a client opens a list you can move through with the arrow keys and open with Enter, and "/" or Ctrl or Cmd with K opens it from anywhere.
+- **Movement, only where something answers you.** Side panels slide in and back out the way they came; dialogs, menus, lists, hints and the phone menu open and close softly; the underline under a tab and the chosen part of a switch slide to the new choice; a visit arriving on Today or the waitlist settles in and the rows around it move aside instead of jumping; a new calendar view or day fades up in place of the last; a visit dragged to a new time glides into place; and the guest booking steps slide forward and back. Folds open and close to their height in browsers that can. Pages loading, scrolling and typing never move, and a device set to reduce motion sees every change at once. Motion (formerly Framer Motion) does this, on the same timing as the quality bar's calm motion.
+- **A new studio meets welcomes.** Business, Accounts, Client areas, Marketing's Audience and the Calendar (until someone is on the team) open with a photograph, one line on what will appear and the next step, instead of figures at nought or an empty grid. An owner who has not finished setting up is taken back to where they left off. Today drops its four figures until the first visit is booked.
+- **Phone Today.** What needs you (calls to return, calls the AI answered, patch tests to sort, reminders) is named in a strip under the greeting, each a tap away from its card, instead of starting about 2,500px down.
+- **Easier to tap.** On phones and touch screens every icon button, choice, filter and list item is at least 44px. On a computer the calendar arrows grow from 36px to 40px.
+- **The design library page** (`/design-language`) shows menus, hints, the drop-down list, ticks and switches, a notice and a list that moves, live, and [DESIGN_LANGUAGE](docs/DESIGN_LANGUAGE.md#where-things-move) now lists every Radix part and where things move.
+- Radix now provides menus, hints, notices, drop-downs, ticks and switches alongside dialogs, tabs, toggle groups and popovers, all through `src/design`. Nothing about bookings, money or messages changed, and there is no new migration.
+
 ## 2026-10-11 · The price page: everything included, with room to grow
 
 **Status: built locally on 11 October 2026; nothing is charged.** The owner said yes to the preview on 11 October 2026.

@@ -20,7 +20,7 @@ export function Notices() {
           </Toast.Close>
         </Toast.Root>
       ))}
-      <Toast.Viewport className="notices" />
+      <Toast.Viewport className="notices" label="Notices ({hotkey})" />
     </Toast.Provider>
   )
 }
