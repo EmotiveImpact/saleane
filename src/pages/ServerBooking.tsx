@@ -242,7 +242,7 @@ export function ServerBooking() {
           )}
         </div>
         <p className="booking-powered">
-          Considered care. Connected by <span className="mini-saleane">SALEANE</span>
+          Connected by <span className="mini-saleane">SALEANE</span>
         </p>
       </main>
     )
@@ -1678,7 +1678,7 @@ function BookingFlow({
                 {where.email && <a href={`mailto:${where.email}`}>email {where.email}</a>}
               </span>
             )}
-            Considered care. Connected by <span className="mini-saleane">SALEANE</span>
+            Connected by <span className="mini-saleane">SALEANE</span>
           </footer>
         </>
       )}
