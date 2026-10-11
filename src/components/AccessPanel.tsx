@@ -8,6 +8,7 @@ import { areaPlaces } from '../domain/area'
 import { hasLocations, places } from '../domain/locations'
 import { TwoStepSettings } from './TwoStepSettings'
 import { TwoStepForEveryone } from './TwoStepForEveryone'
+import { PasskeySettings } from './PasskeySettings'
 import './accessPanel.css'
 
 type Team = {
@@ -21,6 +22,8 @@ type Team = {
     locationId?: string | null
     /** NEXT-04: whether this person has two-step sign-in on. */
     twoStep?: boolean
+    /** NEXT-15: whether this person signs in with Face ID or a fingerprint on any device. */
+    passkey?: boolean
   }[]
   invitations: {
     email: string
@@ -138,6 +141,8 @@ export function AccessPanel() {
                     {m.email}
                     {/* Stage 6: who has it on and who has not yet, never their key or codes. */}
                     {m.twoStep ? ' · Two-step sign-in on' : ' · No two-step sign-in yet'}
+                    {m.twoStep ? ' · Two-step sign-in on' : ''}
+                    {m.passkey ? ' · Face ID on' : ''}
                   </small>
                 </span>
                 {m.role === 'owner' ? (
@@ -436,6 +441,7 @@ export function AccessPanel() {
               .catch(() => {})
         }}
       />
+      <PasskeySettings />
       {role === 'owner' && <TwoStepForEveryone members={team?.members} />}
       <ErrorMessage error={error} />
     </section>

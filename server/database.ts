@@ -854,6 +854,33 @@ export const migrations: Migration[] = [
         CREATE INDEX api_key_writes_age ON api_key_writes(created_at);
       `),
   },
+  {
+    version: 36,
+    // NEXT-15, signing in with Face ID or a fingerprint: each passkey's public key, never the face
+    // or finger, which stay on the device. A removed passkey is kept with when and why, and never
+    // signs in again. Each prompt's challenge is kept as a hash until it is answered or runs out.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE passkeys (
+          id TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id),
+          public_key BLOB NOT NULL, counter INTEGER NOT NULL, transports TEXT NOT NULL,
+          device_type TEXT NOT NULL CHECK(device_type IN ('singleDevice','multiDevice')),
+          backed_up INTEGER NOT NULL CHECK(backed_up IN (0,1)), name TEXT NOT NULL,
+          created_at INTEGER NOT NULL, last_used_at INTEGER,
+          removed_at INTEGER, removed_why TEXT CHECK(removed_why IN ('person','restore')),
+          CHECK((removed_at IS NULL)=(removed_why IS NULL))
+        ) STRICT;
+        CREATE INDEX passkeys_account ON passkeys(account_id);
+        CREATE TABLE passkey_challenges (
+          challenge_hash TEXT PRIMARY KEY,
+          purpose TEXT NOT NULL CHECK(purpose IN ('add','sign-in')),
+          account_id TEXT REFERENCES accounts(id),
+          created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, used_at INTEGER,
+          CHECK((purpose='add')=(account_id IS NOT NULL))
+        ) STRICT;
+        CREATE INDEX passkey_challenges_expiry ON passkey_challenges(expires_at);
+      `),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the

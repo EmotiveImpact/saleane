@@ -2,6 +2,18 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-10 · Signing in with Face ID or a fingerprint (NEXT-15)
+
+**Status: built locally on 10 October 2026; checked in Chromium with its stand-in authenticator, not on a real phone.** [Evidence](docs/evidence/NEXT-15-FACE-ID.md).
+
+- Settings, Team has Face ID and fingerprint. Anyone can add the phone or computer they are on: they name it, type their password (and a code from their app when two-step sign-in is on), and the device checks their face, fingerprint or screen lock.
+- The sign-in page then offers Sign in with Face ID or fingerprint, with no email, password or code to type. Browsers that can also offer the saved passkey under the email field.
+- The face or finger never leaves the device. SALEANE keeps only the passkey's public key, the device's name and when it was added and last used.
+- Each device is listed with when it was added and last used, and whether it is shared with the person's other devices. Removing one needs the password; the device stops signing in at once, and the next time it offers the passkey it is asked to forget it.
+- Every device added or removed is emailed to the account, and the owner's team list shows who signs in with Face ID.
+- Restoring a backup stops every passkey, since one may have been removed since the backup; each person adds their device again.
+- It needs SALEANE on a secure web address. On this computer it works at localhost, not at 127.0.0.1, and the settings say so.
+
 ## 2026-10-10 · How the AI speaks, and voice notes after a visit (NEXT-16)
 
 **Status: built locally on 10 October 2026; the AI, talking and voice notes stay in test mode until the studio's Anthropic and OpenAI keys are set.** [Evidence](docs/evidence/NEXT-16-TONE-AND-VOICE-NOTES.md).
