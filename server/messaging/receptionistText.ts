@@ -3,12 +3,8 @@ import { digest } from '../auth'
 import type { Context } from '../context'
 import type { InboundReply } from './providers'
 import { holding, settleUse } from '../aiUsage'
-import {
-  answersSocial,
-  answersTexts,
-  askReceptionist,
-  receptionUse,
-} from '../../src/assistant/receptionist'
+import { answersSocial, answersTexts } from '../../src/assistant/receptionist'
+import { askReceptionist, receptionUse } from '../../src/assistant/receptionistAsk'
 import type { ReceptionEffect, ReceptionTurn } from '../../src/assistant/receptionist'
 import { BOOKING_LINK, MANAGE_LINK_SPOT } from '../../src/assistant/receptionistBrain'
 import { businessDate, operations } from '../../src/domain/operations'

@@ -13,7 +13,8 @@ This is stage 1 of the LUMANE pathways plan: the engine takes the host app's nam
   - The price page: the only change is the three lines that said "Ask Saleane", which now say "Ask SALEANE" like every other screen ([side by side](LUMANE-PACK-price-page.png)).
 - **The name everywhere:** on this branch, Plan and billing shows "Ask SALEANE" twice, the change history once, AI and voice four times and the price page three times. "Ask Saleane" appears on none of them.
 - **The Ask panel:** [the answer on this branch](LUMANE-PACK-ask-panel.jpg).
-- **Console:** no errors across the journey.
+- **A guest on the booking page (390px):** the built app (`npm run build && npm start`) with a fresh local database and a sample studio, its AI receptionist switched on. "When are you open?" lists the studio's hours by day, "How much is a facial?" answers "Skin Renewal Facial: £95 for 60 minutes" with the deposit, and "Any times for a facial on Thursday?" looks for times on Thursday 8 October. The chat now reaches LUMANE through the guests' side of the pack. A sample studio's day stays at 6 October, so on 11 October that Thursday has no free times left; this change does not touch how times are found ([the chat](LUMANE-PACK-guest-chat.png)).
+- **Console:** no errors across either journey.
 
 ## Automated checks
 
@@ -33,10 +34,11 @@ This is stage 1 of the LUMANE pathways plan: the engine takes the host app's nam
   - it is ready, and names the assistant Ask SALEANE;
   - the team gets Ask SALEANE's pathways and guests get the receptionist's;
   - it counts typed questions, talking time and guest chats, with the labels the usage meter shows;
-  - a typed question answered through the pack counts as a typed question.
+  - a typed question answered through the pack counts as a typed question;
+  - a guest's message goes through the guests' side of the pack, with its instructions and LUMANE's rules, counts as a guest chat, and a guest the studio does not know is not offered the pathways to their own visits.
 - `lumane/engine.test.ts` and `lumane/live.test.ts` check that LUMANE's rules reach every request and every talk.
 - `PlanBilling.test.tsx` and `Pricing.test.tsx` expect "Ask SALEANE".
-- `npm run check` passes: lint, every test (1,262 app and 433 server), the type check and the builds.
+- `npm run check` passes: lint, every test (1,263 app and 433 server), the type check and the builds.
 
 ## Limits
 

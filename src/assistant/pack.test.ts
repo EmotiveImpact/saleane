@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { CORE_RULES, packProblems } from '../../lumane'
-import type { Pack } from '../../lumane'
+import { CORE_RULES, packProblems, scriptedBrain, standingInstructions } from '../../lumane'
+import type { BrainRequest, Pack } from '../../lumane'
 import { seed } from '../domain/seed'
 import { askSaleane } from './ask'
 import { ASK_NAME } from './name'
 import { SALEANE_PACK } from './pack'
 import { RECEPTION_INSTRUCTIONS, receptionistSkills } from './receptionist'
+import { askReceptionist } from './receptionistAsk'
 import { INSTRUCTIONS, askSaleaneSkills } from './saleane'
 
 describe("SALEANE's pack for LUMANE", () => {
@@ -52,5 +53,33 @@ describe("SALEANE's pack for LUMANE", () => {
     })
     expect(result.status).toBe('answered')
     if (result.status === 'answered') expect(result.usage.used).toMatchObject({ typed: 1 })
+  })
+
+  it('answers a guest through the guests’ side of the pack, counted as a guest chat', async () => {
+    const guests = SALEANE_PACK.audiences.guests
+    const requests: BrainRequest[] = []
+    const result = await askReceptionist({
+      state: seed('UK'),
+      today: '2026-10-06',
+      now: '2026-10-06T08:00:00.000Z',
+      visitorId: 'v1',
+      text: 'Are you open on Saturday?',
+      usage: undefined,
+      brain: scriptedBrain((request) => {
+        requests.push(request)
+        return { text: 'We are open from nine.', calls: [] }
+      }),
+    })
+    expect(result.status).toBe('answered')
+    if (result.status === 'answered') expect(result.usage.used).toMatchObject({ guestChats: 1 })
+    expect(requests[0].instructions).toBe(standingInstructions(guests.instructions))
+    // A guest the studio does not know is never offered the pathways to their own visits.
+    const ownVisits = ['my_visits', 'send_manage_link']
+    expect(requests[0].tools.map((t) => t.name)).toEqual(
+      guests
+        .skills()
+        .map((s) => s.name)
+        .filter((name) => !ownVisits.includes(name)),
+    )
   })
 })
