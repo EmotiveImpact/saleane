@@ -85,5 +85,11 @@ describe('the shelf', { timeout: 20000 }, () => {
     expect(
       within(balm.parentElement!).getByLabelText(`${onShelf('cleansing-balm') + 5} in stock`),
     ).toBeInTheDocument()
+    // The dialog closed as it saved, so a notice in the corner says what was recorded.
+    expect(
+      await screen.findByText(
+        `Delivery of 5 recorded for Calming Cleansing Balm. ${onShelf('cleansing-balm') + 5} in stock.`,
+      ),
+    ).toBeInTheDocument()
   })
 })

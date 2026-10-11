@@ -25,6 +25,7 @@ import {
   SegmentedControl,
   Select,
   Checkbox,
+  notify,
 } from '../design'
 import { ProductTile } from '../components/ProductTile'
 import { ProductPhotoField } from '../components/ProductPhotoField'
@@ -418,8 +419,10 @@ export function Stock() {
           quantity: count,
           ...(note.trim() ? { note: note.trim() } : {}),
         })
-      )
+      ) {
         setMoving(null)
+        notify(`Moved ${count} ${moving.product.name} to ${placeName(to)}.`)
+      }
       return
     }
     const onHand = stock(state, moving.product.id, at)
@@ -442,8 +445,14 @@ export function Stock() {
         note: note.trim(),
         ...(at !== org.locationId ? { locationId: at } : {}),
       })
-    )
+    ) {
       setMoving(null)
+      // The dialog closes as it saves, so a notice says what was recorded and what is left.
+      const now = onHand + quantity
+      notify(
+        `${moving.kind === 'received' ? `Delivery of ${count}` : moving.kind === 'consumed' ? `${count} used` : 'Count'} recorded for ${moving.product.name}. ${now} in stock${multiSite ? ` at ${placeName(at)}` : ''}.`,
+      )
+    }
   }
 
   const form = editing?.form
