@@ -308,7 +308,7 @@ export function WaitlistCard({
           </ul>
         )}
         {allowed && (
-          <Button variant="secondary" onClick={() => setRemoving(true)}>
+          <Button variant="quiet" onClick={() => setRemoving(true)}>
             Take off the list
             <span className="sr-only">
               : {client?.name}, {serviceName}

@@ -376,3 +376,9 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+/* The motion specimen: a saved line that arrives the calm way each time it is asked for. */
+.library-specimen > p.library-settle {
+  margin-top: var(--space-3);
+  color: var(--brand-ink);
+  font-weight: var(--weight-strong);
+}
