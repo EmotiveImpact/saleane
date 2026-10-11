@@ -151,7 +151,8 @@ describe('starting a new tab', () => {
     mount('/calendar')
     await waitFor(() => expect(where()).toBe('/account'))
     expect(seen).not.toContain(DEMO_NAME)
-    expect(latest.landing).toBe('/account')
+    // The test's copy of the store updates in an effect, which a slow runner can run a moment later.
+    await waitFor(() => expect(latest.landing).toBe('/account'))
     expect(fetchMock.mock.calls.map(([path]) => String(path))).toEqual(['/api/session'])
   })
 
