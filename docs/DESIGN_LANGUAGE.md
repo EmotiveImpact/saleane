@@ -34,6 +34,8 @@ Edem asked on 11 October 2026 for the whole library to run on Radix and Motion. 
 12. **Section rows above the eyebrow.** Business and Marketing put their row of sections above the page top, and Marketing uses the working tool top. See [Page tops](#page-tops).
 13. **The assistant's name is written once.** "Ask" and the app's name, from `ASK_NAME`. See [Voice](#voice).
 14. **A view switch never moves.** The calendar's Today, Week and Month switch keeps one spot at the far right in every view (Edem, 11 October). See [Patterns](#patterns).
+15. **A top bar that never crowds, and a folded sidebar that opens easily.** From Edem's comments on the demo, 11 October. See [The frame](#the-frame).
+16. **The booking page's footer says "Connected by SALEANE"** and nothing more. See [Voice](#voice).
 
 Still waiting for a yes, so not yet rules: phone Today in tabs with a count on each, and the six moves from the finishing check (grouping Business's tabs, a "You" section for your own sign-in, and the rest).
 
@@ -163,7 +165,8 @@ The photo band is one house photograph from `src/design/photos.ts`, above the ey
 
 What stays around every staff page.
 
-- **Sidebar.** SALEANE's wordmark with nothing beneath it, then the items, so there is room for one or two more without scrolling. On a computer the fold button beside the wordmark narrows the sidebar to its icons and the page widens with it; folded, each icon shows its name as a hint. Each person's choice is kept in that browser.
+- **Sidebar.** SALEANE's wordmark with nothing beneath it, then the items, so there is room for one or two more without scrolling. On a computer the fold button beside the wordmark narrows the sidebar to its icons and the page widens with it; folded, each icon shows its name as a hint. Folded, hovering the S swaps it for the open button in the same place, and a click on any empty part of the sidebar opens it in full. Each person's choice is kept in that browser.
+- **Top bar.** The page's name on the left gives way, ending in an ellipsis, before the buttons on the right are ever covered. When the assistant has something to mention it shows a dot; the words are for screen readers only. Below 1200px the assistant button reads "Ask" with its icon, and search, help and your menu become icon buttons, each keeping its full name for screen readers. On a phone your avatar sits inside its touch target, away from the edge.
 - **The two names at the top.** The studio's name opens the studio menu: switching studio (or sample), studio details and locations for an owner, the booking page and about this version. Your own name opens your menu: your preferences, password and signing in, your accounts and studios, help and signing out. Neither goes straight to Settings.
 - **Phone menu.** A drawer from the left with the same items and counts as the sidebar, closing back the way it came.
 - **Notices** sit once in the frame, in the corner.
@@ -215,7 +218,7 @@ Never: pages loading, scrolling, typing (including checkout), or anything that l
 
 ## Voice
 
-The full guide is [How SALEANE speaks](HOW_SALEANE_SPEAKS.md); the living library shows its short form. In brief: plain British English, calm and specific, no exclamation marks and no em dashes. Say visit, treatment, SALEANE and Ask SALEANE. The assistant's name is "Ask" and the app's name, written once as `ASK_NAME` in `src/assistant/name.ts`; screens take it from there and never type it. Editorial lines are short and warm; working copy says exactly what will happen. A refusal names who can help, and an error keeps the person's input and names the next step. Use the truth words (saved, recorded, queued, sent, delivered, charged, test payment, test mode) only for what really happened: never imply that a recorded payment was charged or a queued message was sent.
+The full guide is [How SALEANE speaks](HOW_SALEANE_SPEAKS.md); the living library shows its short form. In brief: plain British English, calm and specific, no exclamation marks and no em dashes. Say visit, treatment, SALEANE and Ask SALEANE. The assistant's name is "Ask" and the app's name, written once as `ASK_NAME` in `src/assistant/name.ts`; screens take it from there and never type it. The guest booking page's footer reads "Connected by SALEANE" and nothing more. Editorial lines are short and warm; working copy says exactly what will happen. A refusal names who can help, and an error keeps the person's input and names the next step. Use the truth words (saved, recorded, queued, sent, delivered, charged, test payment, test mode) only for what really happened: never imply that a recorded payment was charged or a queued message was sent.
 
 ## Quality bar
 
