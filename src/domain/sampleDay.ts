@@ -66,6 +66,10 @@ export function moveSampleDay(s: BusinessState, to: string): BusinessState {
     for (const hours of week) hours.day = (hours.day + turn) % 7
     week.sort((a, b) => a.day - b.day)
   }
+  // Commission steps start on the first of a month, so a moved step goes back to its month's first.
+  for (const step of (moved.operations as { commissionSteps?: { from: string }[] } | undefined)
+    ?.commissionSteps ?? [])
+    step.from = `${step.from.slice(0, 7)}-01`
   return moved
 }
 

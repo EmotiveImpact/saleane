@@ -729,6 +729,7 @@ Behind the scenes:
 - The London studio has the AI receptionist switched on, so the booking page shows "Ask a question". Connected software and access keys work in test mode; the demo never looks up an address or sends anything.
 - Each demo build keeps its own saved copy of the sample studios, so a refreshed demo always opens on the newest sample data.
 - Two-step sign-in works in the demo: its stand-ins for Node now make SHA-1 authenticator codes, whole random numbers for recovery codes, and the big-endian Buffer reads and writes the codes use.
+- The demo draws email previews with its own small renderer, which a test keeps identical to React's, because React's server renderer stopped the page publishing. Sample commission steps moved to today stay on the first of their month.
 - Changes stay in that browser. Passwords use a simple stand-in there, so the demo is for showing, never for real data.
 - Checked in Chromium at desktop and phone width: Today, Calendar, Clients, Inbox, Business, Settings, a full guest booking, the guest manage page and a checkout receipt. Not checked in Safari or Firefox.
 
