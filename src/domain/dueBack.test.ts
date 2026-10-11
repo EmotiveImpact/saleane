@@ -182,7 +182,7 @@ describe('aftercare written up after the visit', () => {
     expect(aftercareEmailAhead(noEmail, visit, soon, false)).toBe(false)
   })
 
-  it('refuses a visit that did not go ahead, and a write-up with nothing in it', () => {
+  it('refuses a visit that has not gone ahead, and a write-up with nothing in it', () => {
     const s = seed('UK')
     const visit = s.appointments.find((a) => a.status === 'completed')!
     const at = '2026-10-06T12:00:00.000Z'
@@ -191,6 +191,9 @@ describe('aftercare written up after the visit', () => {
       error: 'Write a note for the studio or aftercare for the guest.',
     })
     const booked = s.appointments.find((a) => a.status === 'confirmed')!
+    expect(
+      execute(s, { type: 'visit-write-up', appointmentId: booked.id, note: 'Gold.' }, at),
+    ).toMatchObject({ ok: false, error: 'Write up a visit once the guest has arrived.' })
     const gone = apply(s, { type: 'cancel', appointmentId: booked.id, reason: 'Unwell' } as Command)
     expect(
       execute(gone, { type: 'visit-write-up', appointmentId: booked.id, note: 'Gold.' }, at),

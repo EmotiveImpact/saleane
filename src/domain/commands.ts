@@ -719,6 +719,8 @@ export function execute(
       if (!visit) throw new Error('Visit does not belong to this studio.')
       if (visit.status === 'cancelled' || visit.status === 'no_show')
         throw new Error('This visit did not go ahead, so there is nothing to write up.')
+      if (visit.status !== 'arrived' && visit.status !== 'completed')
+        throw new Error('Write up a visit once the guest has arrived.')
       if (command.note === undefined && command.aftercare === undefined)
         throw new Error('Write a note for the studio or aftercare for the guest.')
       if (command.note)

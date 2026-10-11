@@ -175,6 +175,11 @@ describe('writing up a visit in test mode', () => {
   it('sorts typed words into a note and aftercare, free, and offers no listening', async () => {
     start()
     const { owner, mine } = await linden()
+    // Not before the guest has arrived, for anyone.
+    const early = await typed(owner, mine, said)
+    expect(early.statusCode).toBe(409)
+    expect(early.json()).toEqual({ error: 'Write up a visit once the guest has arrived.' })
+    await saved(owner, { type: 'arrive', appointmentId: mine })
     expect(
       (
         await api.inject({
@@ -332,6 +337,7 @@ describe('writing up a visit with a real AI', () => {
     const { transcriber, heard } = listening()
     start(ai, transcriber)
     const { owner, mine } = await linden()
+    await saved(owner, { type: 'arrive', appointmentId: mine })
     expect(
       (
         await api.inject({
@@ -375,6 +381,7 @@ describe('writing up a visit with a real AI', () => {
     const { ai } = claude()
     start(ai, listening(said, new TranscribeError('OpenAI could not be reached.', 3)).transcriber)
     const { owner, mine } = await linden()
+    await saved(owner, { type: 'arrive', appointmentId: mine })
     const before = (await studio(owner)).revision
     const failed = await spoken(owner, mine, Buffer.alloc(1000, 1))
     expect(failed.json()).toMatchObject({
@@ -391,6 +398,7 @@ describe('writing up a visit with a real AI', () => {
     const quiet = claude()
     start(quiet.ai, listening('  ').transcriber)
     const { owner, mine } = await linden()
+    await saved(owner, { type: 'arrive', appointmentId: mine })
     expect((await spoken(owner, mine, Buffer.alloc(1000, 1))).json()).toEqual({
       status: 'unheard',
       text: 'Nothing was heard clearly. Try again, or type it.',
@@ -402,6 +410,7 @@ describe('writing up a visit with a real AI', () => {
     })
     start(chatty.ai, listening().transcriber)
     const again = await linden()
+    await saved(again.owner, { type: 'arrive', appointmentId: again.mine })
     expect((await typed(again.owner, again.mine, said)).json()).toMatchObject({
       status: 'unavailable',
       heard: said,

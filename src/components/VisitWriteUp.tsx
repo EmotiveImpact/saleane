@@ -25,6 +25,9 @@ const RECORDING_TYPES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'a
 const KEPT =
   'Kept on the visit only: their aftercare email has gone or will not be sent. Message them if they need it.'
 
+const RECORDER_FAILED =
+  'This browser could not start recording, and the microphone was let go. Type it instead.'
+
 const clock = (seconds: number) =>
   `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`
 
@@ -66,6 +69,9 @@ export function VisitWriteUp({
   // True while the browser is asking for the microphone, so a second tap cannot open another.
   const asking = useRef(false)
   const [waiting, setWaiting] = useState(false)
+  // The status could not be read: nothing is written up until it is, so no promise is made wrongly.
+  const [lost, setLost] = useState(false)
+  const [tries, setTries] = useState(0)
   const statusPath = `${path}/write-up?visit=${encodeURIComponent(appointmentId)}`
   const canRecord =
     typeof window !== 'undefined' &&
@@ -76,11 +82,11 @@ export function VisitWriteUp({
     let active = true
     api<WriteUpStatus>(statusPath)
       .then((next) => active && setStatus(next))
-      .catch(() => active && setStatus({ mode: 'test', listens: false }))
+      .catch(() => active && setLost(true))
     return () => {
       active = false
     }
-  }, [statusPath])
+  }, [statusPath, tries])
   /** Asks again whether aftercare still goes in the visit's email, which can go at any time. */
   async function emailAhead() {
     try {
@@ -167,10 +173,17 @@ export function VisitWriteUp({
       return
     }
     const mimeType = RECORDING_TYPES.find((t) => MediaRecorder.isTypeSupported?.(t))
-    const next = new MediaRecorder(stream, {
-      ...(mimeType ? { mimeType } : {}),
-      audioBitsPerSecond: BITS_PER_SECOND,
-    })
+    let next: MediaRecorder
+    try {
+      next = new MediaRecorder(stream, {
+        ...(mimeType ? { mimeType } : {}),
+        audioBitsPerSecond: BITS_PER_SECOND,
+      })
+    } catch {
+      stream.getTracks().forEach((track) => track.stop())
+      setProblem(RECORDER_FAILED)
+      return
+    }
     const chunks: Blob[] = []
     next.ondataavailable = (event) => {
       if (event.data.size) chunks.push(event.data)
@@ -196,7 +209,16 @@ export function VisitWriteUp({
     }
     recorder.current = next
     microphone.current = stream
-    next.start()
+    try {
+      next.start()
+    } catch {
+      next.onstop = null
+      recorder.current = null
+      microphone.current = null
+      stream.getTracks().forEach((track) => track.stop())
+      setProblem(RECORDER_FAILED)
+      return
+    }
     setSeconds(0)
   }
 
@@ -263,6 +285,23 @@ export function VisitWriteUp({
               : 'Your words go to Claude to be written up. Each one counts as one Ask SALEANE question.'}
         </p>
       )}
+      {lost && (
+        <div className="visit-write-up-voice">
+          <p className="visit-write-up-privacy">
+            SALEANE could not check how write-ups are handled just now, so nothing can be written up
+            yet.
+          </p>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setLost(false)
+              setTries((n) => n + 1)
+            }}
+          >
+            Check again
+          </Button>
+        </div>
+      )}
       {aftercare && !draft && (
         <div className="visit-write-up-saved">
           <p className="visit-write-up-label">Aftercare for {guest}</p>
@@ -304,7 +343,7 @@ export function VisitWriteUp({
             onSubmit={(event) => {
               event.preventDefault()
               const text = words.trim()
-              if (text.length < 2) return
+              if (text.length < 2 || !status) return
               void writeUp(() =>
                 api<WriteUpReply>(`${path}/visits/${encodeURIComponent(appointmentId)}/write-up`, {
                   method: 'POST',
@@ -329,7 +368,7 @@ export function VisitWriteUp({
             <Button
               type="submit"
               variant="secondary"
-              disabled={busy || listening || words.trim().length < 2}
+              disabled={!status || busy || listening || words.trim().length < 2}
             >
               <NotebookPen size={16} aria-hidden="true" />
               Write it up

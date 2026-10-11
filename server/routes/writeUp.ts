@@ -77,6 +77,8 @@ export function writeUpRoutes() {
     if (!found) fail(404, 'This visit is not in your studio.')
     if (found!.status === 'cancelled' || found!.status === 'no_show')
       fail(409, 'This visit did not go ahead, so there is nothing to write up.')
+    if (found!.status !== 'arrived' && found!.status !== 'completed')
+      fail(409, 'Write up a visit once the guest has arrived.')
     ctx.rateLimit(request, 'write-up', 20, 60000)
 
     const spoken = path[5] === 'voice-note'

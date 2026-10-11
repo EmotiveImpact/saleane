@@ -355,3 +355,67 @@ test('asks again before saying where saved aftercare goes, as its email may have
   )
   expect(await screen.findByText(/^Kept on the visit only/)).toBeInTheDocument()
 })
+
+test('when it cannot tell how write-ups are handled it promises nothing and writes nothing', async () => {
+  const user = userEvent.setup()
+  let reachable = false
+  vi.mocked(api).mockImplementation(async () => {
+    if (!reachable) throw new Error('Offline')
+    return { mode: 'live', listens: false } as never
+  })
+  render(
+    <VisitWriteUp
+      path={path}
+      appointmentId="visit-1"
+      guest="Amara"
+      saving={false}
+      onSave={vi.fn()}
+    />,
+  )
+  expect(await screen.findByText(/could not check how write-ups are handled/)).toBeInTheDocument()
+  expect(screen.queryByText(/nothing leaves SALEANE/)).not.toBeInTheDocument()
+  await user.type(screen.getByLabelText('What you would say'), 'Gel polish in Sienna.')
+  expect(screen.getByRole('button', { name: 'Write it up' })).toBeDisabled()
+  reachable = true
+  await user.click(screen.getByRole('button', { name: 'Check again' }))
+  expect(await screen.findByText(/Your words go to Claude/)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Write it up' })).toBeEnabled()
+})
+
+test('a recorder that will not start lets go of the microphone and says so', async () => {
+  const user = userEvent.setup()
+  const stopTrack = vi.fn()
+  const stream = { getTracks: () => [{ stop: stopTrack }] }
+  vi.stubGlobal(
+    'MediaRecorder',
+    class {
+      static isTypeSupported = () => true
+      constructor() {
+        throw new Error('NotSupportedError')
+      }
+    },
+  )
+  Object.defineProperty(navigator, 'mediaDevices', {
+    configurable: true,
+    value: { getUserMedia: vi.fn().mockResolvedValue(stream) },
+  })
+  vi.mocked(api).mockResolvedValue({ mode: 'live', listens: true } as never)
+  try {
+    render(
+      <VisitWriteUp
+        path={path}
+        appointmentId="visit-1"
+        guest="Amara"
+        saving={false}
+        onSave={vi.fn()}
+      />,
+    )
+    await user.click(await screen.findByRole('button', { name: 'Speak a note' }))
+    expect(await screen.findByText(/could not start recording/)).toBeInTheDocument()
+    expect(stopTrack).toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Speak a note' })).toBeEnabled()
+  } finally {
+    vi.unstubAllGlobals()
+    Reflect.deleteProperty(navigator, 'mediaDevices')
+  }
+})
