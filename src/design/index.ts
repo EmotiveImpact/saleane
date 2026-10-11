@@ -11,7 +11,6 @@ export { Menu, MenuChoices, MenuItem, MenuLabel, MenuSeparator } from './compone
 export { Tip } from './components/Tip'
 export { Notices } from './components/Notices'
 export { notify } from './components/notices'
-export { Fold } from './components/Fold'
 export { MovingList, MovingRow } from './components/Moving'
 export { useStepArrival } from './useStepArrival'
 export { ChosenMark } from './components/ChosenMark'

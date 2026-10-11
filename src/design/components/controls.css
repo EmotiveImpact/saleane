@@ -1,4 +1,4 @@
-/* Radix pieces drawn in SALEANE's own look: menus, hints, notices, folds and choices. Everything
+/* Radix pieces drawn in SALEANE's own look: menus, hints, notices, choices, ticks and switches. Everything
    that floats uses the same paper, hairline and soft shadow; everything that opens arrives with
    the calm timing and leaves a little quicker. Reduced motion removes all of it (styles.css). */
 
@@ -218,62 +218,23 @@
   }
 }
 
-/* Folds (Radix Collapsible) ---------------------------------------------------------------- */
-.fold-summary {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: var(--target);
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--ink);
-  font-size: var(--text-small);
-  font-weight: var(--weight-strong);
-  text-align: left;
-  cursor: pointer;
-}
-.fold-summary:hover .fold-summary-words {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.fold-chevron {
-  color: var(--muted);
-  flex-shrink: 0;
-  transition: rotate var(--motion-calm) var(--ease-calm);
-}
-.fold-summary[data-state='open'] .fold-chevron {
-  rotate: 180deg;
-}
-.fold-body {
-  overflow: hidden;
-}
-.fold-inner {
-  padding: 2px 2px var(--space-2);
-}
-.fold-body[data-state='open'] {
-  animation: fold-open var(--motion-calm) var(--ease-calm);
-}
-.fold-body[data-state='closed'] {
-  animation: fold-close var(--motion-quick) ease-in;
-}
-@keyframes fold-open {
-  from {
-    height: 0;
-    opacity: 0;
+/* Folds (the browser's own details) -------------------------------------------------------- */
+/* Something tucked away under one line unfolds to its height and folds away again, where the
+   browser can move to and from a natural height; elsewhere it simply opens. The disclosure stays
+   the browser's own, so find-in-page and screen readers keep working. */
+@supports (interpolate-size: allow-keywords) {
+  details {
+    interpolate-size: allow-keywords;
   }
-  to {
-    height: var(--radix-collapsible-content-height);
-    opacity: 1;
+  details::details-content {
+    block-size: 0;
+    overflow-y: clip;
+    transition:
+      block-size var(--motion-calm) var(--ease-calm),
+      content-visibility var(--motion-calm) allow-discrete;
   }
-}
-@keyframes fold-close {
-  from {
-    height: var(--radix-collapsible-content-height);
-  }
-  to {
-    height: 0;
-    opacity: 0;
+  details[open]::details-content {
+    block-size: auto;
   }
 }
 
@@ -499,7 +460,6 @@
   .menu,
   .tip,
   .notice,
-  .fold-body,
   .select-content,
   .tick-mark {
     animation: none !important;

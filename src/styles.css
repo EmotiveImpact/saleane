@@ -131,6 +131,49 @@ input[type='checkbox'] {
   margin: 0;
   flex-shrink: 0;
 }
+/* Round choices stay the browser's own radios, so the arrow keys move within a group, but are
+   drawn to match SALEANE's ticks: a soft ring that fills with ink around a paper dot. */
+input[type='radio'] {
+  appearance: none;
+  display: inline-grid;
+  place-content: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 1.5px solid var(--field-line);
+  border-radius: var(--radius-round);
+  background: #fff;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-quick) ease-out,
+    border-color var(--motion-quick) ease-out;
+}
+input[type='radio']::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-round);
+  background: var(--paper);
+  scale: 0;
+  transition: scale var(--motion-quick) var(--ease-calm);
+}
+input[type='radio']:hover:not(:disabled) {
+  border-color: var(--ink);
+}
+input[type='radio']:checked {
+  border-color: var(--ink);
+  background: var(--ink);
+}
+input[type='radio']:checked::before {
+  scale: 1;
+}
+input[type='radio']:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
 label {
   font-size: var(--text-body);
   font-weight: var(--weight-strong);
