@@ -3,7 +3,7 @@ import { Mail } from 'lucide-react'
 import { useStore } from '../state/context'
 import { api } from '../state/api'
 import { Button, ErrorMessage, Modal, SegmentedControl } from '../design'
-import { sampleKindLabel, sampleKinds } from '../email/samples'
+import { lookKinds, sampleKindLabel } from '../email/samples'
 import type { SampleKind } from '../email/samples'
 
 /** NEXT-13: an email as the server made it. */
@@ -84,7 +84,7 @@ export function EmailLook() {
           value={kind}
           onChange={setKind}
           appearance="chips"
-          options={sampleKinds.map((value) => ({ value, label: sampleKindLabel[value] }))}
+          options={lookKinds.map((value) => ({ value, label: sampleKindLabel[value] }))}
         />
         <ErrorMessage error={error} />
         {shown ? (

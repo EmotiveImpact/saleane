@@ -33,7 +33,7 @@ import {
 } from '../src/domain/twoStepRule'
 import type { Role, Tax } from '../src/domain/operations'
 import { places } from '../src/domain/locations'
-import { allowanceFor } from '../src/domain/pricing'
+import { allowanceFor, marketingEmailsFor } from '../src/domain/pricing'
 import type { BillingSummary } from '../src/domain/billing'
 import type { Allowance } from '../lumane'
 
@@ -480,6 +480,8 @@ export function createContext(options: ApiOptions) {
     begin: (org: Org) => void
     summary: (org: Org) => BillingSummary | null
     allowance: (org: Org) => Allowance
+    /** NEXT-14: the marketing emails the studio's plan includes this month. */
+    marketingEmails: (org: Org) => number
     /** A locked studio takes no online bookings and answers no access key. */
     locked: (orgId: string) => boolean
     /** A read-only studio takes no membership payments from its clients' cards. */
@@ -490,6 +492,8 @@ export function createContext(options: ApiOptions) {
     locked: () => false,
     readOnly: () => false,
     allowance: (org) => allowanceFor({ locations: places(org.state).length, plus: false }),
+    marketingEmails: (org) =>
+      marketingEmailsFor({ locations: places(org.state).length, plus: false }),
   }
   const withHolds = (org: Org, excludeHash = '') => {
     const state = structuredClone(org.state)

@@ -82,7 +82,7 @@ describe('messages to clients', () => {
   it('shows the sample draft with its numbers, who is left out and both previews', async () => {
     const user = userEvent.setup()
     show()
-    expect(screen.getByRole('heading', { name: 'Messages to clients.' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Campaigns' })).toBeInTheDocument()
     expect(screen.getByText(/This is a sample studio\. Approving a message shows how it works/))
     const row = screen.getByRole('button', { name: new RegExp(SUBJECT) })
     expect(row).toHaveTextContent('Every client of the studio')
@@ -245,7 +245,7 @@ describe('messages to clients', () => {
     expect(
       screen.getByRole('heading', { name: 'One message for all your clients.' }),
     ).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Messages to clients.' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Campaigns' })).toBeNull()
     expect(screen.getAllByRole('button', { name: 'Write a message' })).toHaveLength(1)
     await user.click(screen.getByRole('button', { name: 'Write a message' }))
     expect(screen.getByRole('dialog', { name: 'Write a message' })).toBeInTheDocument()
@@ -301,6 +301,9 @@ describe('messages to clients', () => {
         return newsSummary(
           newsAudience(store.state, { by: 'email' }, { now: '2026-10-06T09:45:00.000Z' }),
         ) as never
+      // NEXT-14: what each campaign did, from Marketing's results; nothing has gone yet.
+      if (path.endsWith('/marketing'))
+        return { ...follow(live ?? false), campaigns: [], automatic: [], months: [] } as never
       if (live === null) return new Promise((resolve) => (answer = resolve)) as never
       return follow(live) as never
     })

@@ -202,11 +202,19 @@ describe('help inside the app', () => {
     expect(first('newsletter', 'general')).toBe('news')
     expect(ids(searchHelp('newsletter', 'reception'))).not.toContain('news')
     expect(ids(searchHelp('newsletter', 'practitioner'))).not.toContain('news')
-    expect(ids(helpForScreen('/inbox/news', '', 'owner')).slice(0, 3)).toEqual([
+    expect(ids(helpForScreen('/marketing', '', 'owner')).slice(0, 3)).toEqual([
       'news',
       'news-who',
       'news-approve',
     ])
+    // NEXT-14: Marketing's own pages.
+    expect(first('automatic birthday email')).toBe('marketing-automatic')
+    expect(first('how many unsubscribed')).toBe('marketing-audience')
+    expect(first('campaign results')).toBe('marketing-results')
+    expect(ids(searchHelp('automatic birthday email', 'general'))).not.toContain(
+      'marketing-automatic',
+    )
+    expect(ids(helpForScreen('/marketing/results', '', 'general'))[0]).toBe('marketing-results')
     // Stage 5: access keys for other software, what it can send in, and other tills' sales.
     expect(first('api key')).toBe('access-keys')
     expect(first('let my booking tool add visits')).toBe('access-keys')

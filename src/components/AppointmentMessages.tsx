@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { FormEvent } from 'react'
 import { BellRing, Mail, MessageSquareText, RotateCcw } from 'lucide-react'
 import { useStore } from '../state/context'
@@ -9,7 +10,6 @@ import {
   outboxStatusLabel,
   reminderHourChoices,
   reminderSettings,
-  missYouDayChoices,
   textNumber,
 } from '../domain/reminders'
 import type { ReminderSettings } from '../domain/reminders'
@@ -103,61 +103,6 @@ export function MessageSettings() {
           <label className="checkbox-label">
             <input
               type="checkbox"
-              checked={draft.aftercare !== false}
-              onChange={(e) => set('aftercare', e.target.checked)}
-            />
-            After checkout, email the treatment&rsquo;s aftercare advice, if it has some
-          </label>
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={draft.dueBack !== false}
-              onChange={(e) => set('dueBack', e.target.checked)}
-            />
-            Email guests who agreed to hear from you when they are due back
-          </label>
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={draft.birthday !== false}
-              onChange={(e) => set('birthday', e.target.checked)}
-            />
-            Wish guests who agreed, and shared the date, a happy birthday
-          </label>
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={draft.missYou !== false}
-              onChange={(e) => set('missYou', e.target.checked)}
-            />
-            Send one &ldquo;we miss you&rdquo; email to guests who agreed, after a long gap
-          </label>
-          <label>
-            A long gap is
-            <select
-              value={draft.missYouDays ?? 90}
-              disabled={draft.missYou === false}
-              onChange={(e) =>
-                set('missYouDays', Number(e.target.value) as ReminderSettings['missYouDays'])
-              }
-            >
-              {missYouDayChoices.map((days) => (
-                <option key={days} value={days}>
-                  {days === 60
-                    ? 'Two months'
-                    : days === 90
-                      ? 'Three months'
-                      : days === 120
-                        ? 'Four months'
-                        : 'Six months'}{' '}
-                  without a visit
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
               checked={draft.missedCall === true}
               onChange={(e) => set('missedCall', e.target.checked)}
             />
@@ -213,11 +158,13 @@ export function MessageSettings() {
         </fieldset>
         <p className="subtle">
           These are messages about a booked visit, not marketing. A client can turn them off on
-          their profile. Due back, birthday and &ldquo;we miss you&rdquo; emails go only to guests
-          who agreed to hear from you, by email only. A missed-call text goes within 15 minutes of
-          the call, at most once a day to each number, and never to a client who asked for no texts.
-          Invitations to a cancelled time go to a few guests who agreed to hear from you, only once
-          you approve them in the Inbox, and never when someone on the waitlist could take it.{' '}
+          their profile. Aftercare, due back, birthday and &ldquo;we miss you&rdquo; emails are in{' '}
+          <Link to="/marketing/automatic">Marketing, Automatic</Link>, and the words guests agree to
+          for news are in <Link to="/marketing/audience">Marketing, Audience</Link>. A missed-call
+          text goes within 15 minutes of the call, at most once a day to each number, and never to a
+          client who asked for no texts. Invitations to a cancelled time go to a few guests who
+          agreed to hear from you, only once you approve them in the Inbox, and never when someone
+          on the waitlist could take it.{' '}
           {mode === 'demo' ? 'The demo studio never sends anything.' : ''}
         </p>
         <ErrorMessage error={error} />

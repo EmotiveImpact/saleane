@@ -50,6 +50,7 @@ import { issueGuestLink } from '../routes/guest'
 import { renderEmail, studioSender } from '../../src/email/render'
 import { providerFor } from './providers'
 import { erasureRequested, issueNewsLink, newsSlotMessage } from './news'
+import { marketingEmailUse } from './marketingEmails'
 import type { Providers, Receipt } from './providers'
 
 export type OutboxRow = {
@@ -345,15 +346,15 @@ export function createOutbox(ctx: Context, providers: Providers) {
               typed: true,
             },
           )
-        const unsubscribe = issueNewsLink(ctx, org.id, client.id, messageId, fresh.id)
+        const stop = issueNewsLink(ctx, org.id, client.id, messageId, fresh.id)
         return send(
           fresh,
           org,
           still.to,
           fresh.subject,
           fresh.body,
-          { [BOOK_LINK]: bookAt(org), [NEWS_STOP_LINK]: unsubscribe },
-          { typed: true, stream: 'broadcast', unsubscribeUrl: unsubscribe },
+          { [BOOK_LINK]: bookAt(org), [NEWS_STOP_LINK]: stop.page },
+          { typed: true, stream: 'broadcast', unsubscribeUrl: stop.oneClick },
         )
       }
       if (!org || !client) return skip('The visit is no longer in the studio record.')
@@ -482,6 +483,14 @@ export function createOutbox(ctx: Context, providers: Providers) {
           ? client.email.trim()
           : textNumber(client.phone)
       if (!to) return skip('The client has no address for this channel now.')
+      // NEXT-14: keeping in touch by email counts towards the month's marketing emails, a hard
+      // stop. Nothing is held over: a birthday next month would be no use to anyone.
+      if (
+        fresh.channel === 'email' &&
+        keepInTouch.has(kind) &&
+        marketingEmailUse(ctx, org).left <= 0
+      )
+        return skip('Not sent: this month’s marketing emails were all used.')
       return send(fresh, org, to, current?.subject ?? fresh.subject, words, links, {
         stream: keepInTouch.has(kind) ? 'broadcast' : 'transactional',
       })

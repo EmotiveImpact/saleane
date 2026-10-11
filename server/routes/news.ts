@@ -2,8 +2,7 @@ import { z } from 'zod'
 import { fail } from '../http'
 import type { Context, Route } from '../context'
 import type { Outbox } from '../messaging/outbox'
-import { erasureRequested, newsSlot, openNewsLink } from '../messaging/news'
-import { dispatch } from '../../src/domain/commands'
+import { erasureRequested, newsSlot, openNewsLink, stopNewsByLink } from '../messaging/news'
 import { can, operations } from '../../src/domain/operations'
 import { newsAt, newsAudience, newsMessages, newsSummary } from '../../src/domain/news'
 import { newsWays } from '../../src/domain/newsSchema'
@@ -47,26 +46,9 @@ export function newsRoutes(outbox: Outbox) {
         return true
       }
       ctx.rateLimit(request, 'news-write', 10, 5 * 60000)
-      const answer = ctx.db.transaction(() => {
-        const { org, client, messageId, tokenHash } = openNewsLink(ctx, raw)
-        const result = dispatch(
-          org.state,
-          { type: 'news-unsubscribe', clientId: client.id, messageId },
-          'Client (stop link in a message)',
-          new Date(ctx.now()).toISOString(),
-        )
-        if (!result.ok) fail(409, result.error)
-        if (result.state !== org.state)
-          ctx.persist(org, result.state, null, 'guest.news-stop', client.id)
-        ctx.db.run(
-          'UPDATE news_links SET used_at=COALESCE(used_at,?) WHERE token_hash=?',
-          ctx.now(),
-          tokenHash,
-        )
-        const look = operations(org.state).look
-        return { studio: org.state.organisation.name, ...(look ? { look } : {}), stopped: true }
-      })
-      reply(200, answer)
+      const org = stopNewsByLink(ctx, raw)
+      const look = operations(org.state).look
+      reply(200, { studio: org.state.organisation.name, ...(look ? { look } : {}), stopped: true })
       return true
     }
     if (path[1] !== 'workspaces' || path[3] !== 'news') return false
