@@ -107,6 +107,8 @@ export type TotalCheck = {
   coming: number
   /** What stays behind, by reason, leaving out reasons with nothing in them. */
   behind: { status: MoneyRowStatus; count: number; amount: number }[]
+  /** Rows whose amount could not be read, so they cannot be added up. */
+  unreadable: number
   agrees: boolean
 }
 
@@ -973,6 +975,7 @@ function totalChecks(
       behind: [...behind.entries()]
         .map(([status, list]) => ({ status, count: list.length, amount: sum(list) }))
         .filter((group) => group.amount !== 0 || group.status === 'problem'),
+      unreadable: read.filter((r) => r.left === null).length,
       agrees: all === theirs && read.every((r) => r.left !== null),
     })
   }

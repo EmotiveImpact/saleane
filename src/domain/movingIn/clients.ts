@@ -106,17 +106,25 @@ export function understandFile(sheet: Sheet, answers: ColumnAnswers = {}): Movin
     ...(layout?.visitFields ?? {}),
     ...answersFor(answers, isVisitField),
   })
-  const kind =
+  let kind =
     layout?.kind ??
     (looksLikeVisits(visitMatches, rows) ? 'visits' : guessKind(headings, hasClientColumns))
   const unread = layout?.unread ?? null
-  const moneyMatches =
-    !unread && (MONEY_KINDS.includes(kind) || kind === 'clients')
-      ? matchColumnsIn(moneyVocabulary, headings, rows, {
-          ...(layout?.moneyFields ?? {}),
-          ...answersFor(answers, isMoneyField),
-        })
-      : []
+  const allMoney = unread
+    ? []
+    : matchColumnsIn(moneyVocabulary, headings, rows, {
+        ...(layout?.moneyFields ?? {}),
+        ...answersFor(answers, isMoneyField),
+      })
+  // A list of people with an amount each, such as "email, amount, type, note", is their credit.
+  const moneyFieldsFound = new Set(allMoney.map((m) => m.field))
+  if (
+    kind === 'unknown' &&
+    ['credit', 'balance', 'value'].some((f) => moneyFieldsFound.has(f as MoneyField)) &&
+    ['client', 'firstName', 'email', 'phone'].some((f) => moneyFieldsFound.has(f as MoneyField))
+  )
+    kind = 'credit'
+  const moneyMatches = MONEY_KINDS.includes(kind) || kind === 'clients' ? allMoney : []
   return {
     fileName: sheet.fileName,
     system: layout?.system ?? null,

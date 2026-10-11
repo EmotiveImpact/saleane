@@ -213,6 +213,7 @@ describe('reviewing money from Timely', () => {
       rows: 28500,
       coming: 22500,
       behind: [{ status: 'expired', count: 1, amount: 6000 }],
+      unreadable: 0,
       agrees: true,
     })
     expect(review.checks.find((c) => c.kind === 'credit')).toMatchObject({
@@ -541,8 +542,33 @@ describe('money from other systems', () => {
         rows: 7500,
         coming: 7500,
         behind: [],
+        unreadable: 0,
         agrees: true,
       },
+    ])
+  })
+
+  it('reads a list of emails and amounts as credit, as the old balances file did', () => {
+    const review = reviewMoney(
+      [
+        file('balances.csv', [
+          'email,amount,type,note',
+          'amelia.carter@example.com,25.00,credit,Gift card',
+          'olivia.james@example.com,10,owed,',
+          'amelia.carter@example.com,5,credit,',
+          'ellie.brooks@example.com,0,credit,',
+        ]),
+      ],
+      studio(),
+      [],
+      none,
+      'other',
+      now,
+    )
+    expect(review.rows.map((r) => r.status)).toEqual(['ready', 'ready', 'combined', 'used'])
+    expect(review.credit).toEqual([
+      { client: { id: 'client-1' }, kind: 'credit', amountMinor: 3000, note: 'Gift card' },
+      { client: { id: 'client-2' }, kind: 'owed', amountMinor: 1000, note: '' },
     ])
   })
 
