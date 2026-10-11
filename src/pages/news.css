@@ -1,0 +1,318 @@
+/* Stage 4: messages to clients. Rows with hairlines, one photograph on the empty page only. */
+.news-page {
+  min-width: 0;
+}
+.news-back {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target);
+  margin-bottom: var(--space-2);
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.news-back:hover {
+  color: var(--ink);
+}
+
+/* The welcome for a studio with no message yet: the photograph fades into the words. */
+.news-welcome {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  align-items: stretch;
+  min-height: 420px;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--stone);
+}
+.news-welcome-photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 260px;
+  object-fit: cover;
+  object-position: 50% 55%;
+  -webkit-mask-image: linear-gradient(90deg, #000 62%, transparent);
+  mask-image: linear-gradient(90deg, #000 62%, transparent);
+}
+.news-welcome-words {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-10) var(--space-10) var(--space-10) var(--space-6);
+  max-width: 34em;
+}
+.news-welcome-words h1 {
+  font-family: var(--font-editorial);
+  font-weight: var(--weight-editorial);
+  font-size: var(--text-display);
+  line-height: 1.08;
+}
+.news-welcome-words p:not(.eyebrow) {
+  color: var(--muted);
+  font-size: var(--text-lead);
+}
+.news-welcome-words .button {
+  align-self: flex-start;
+  margin-top: var(--space-2);
+}
+
+.news-notice {
+  margin-bottom: var(--space-5);
+  padding: 13px 16px;
+  border-radius: var(--radius-control);
+  background: var(--sage);
+  font-size: var(--text-small);
+}
+.news-mode {
+  max-width: 62ch;
+  margin-bottom: var(--space-4);
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
+.news-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.news-list li + li {
+  border-top: 1px solid var(--line);
+}
+.news-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  width: 100%;
+  min-height: var(--target);
+  padding: 18px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.news-row:hover strong {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.news-row-words {
+  min-width: 0;
+}
+.news-row-words strong,
+.news-row-words small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.news-row-words strong {
+  font-size: var(--text-lead);
+  font-weight: var(--weight-strong);
+}
+.news-row-words small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.news-aside {
+  margin-top: var(--space-6);
+  border-top: 1px solid var(--line);
+  padding-top: var(--space-3);
+}
+.news-aside summary,
+.news-more summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--target);
+  color: var(--muted);
+  font-size: var(--text-small);
+  cursor: pointer;
+}
+
+/* One message, in the side panel: sections divided by space and hairlines, never boxes. */
+.news-panel > section {
+  padding: var(--space-5) 0;
+}
+.news-panel > section + section {
+  border-top: 1px solid var(--line);
+}
+.news-panel > section:first-child {
+  padding-top: 0;
+}
+.news-panel h3 {
+  margin-bottom: var(--space-3);
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+  letter-spacing: 0.02em;
+}
+.news-total {
+  font-family: var(--font-editorial);
+  font-size: var(--text-title-s);
+  line-height: 1.3;
+}
+.news-numbers {
+  display: grid;
+  gap: var(--space-3);
+}
+.news-numbers > .subtle,
+.news-panel .subtle {
+  font-size: var(--text-small);
+}
+.news-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: var(--text-small);
+}
+.news-lines li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.news-lines li:first-child {
+  border-top: 0;
+}
+.news-lines li > span:last-child {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.news-preview {
+  display: grid;
+  gap: var(--space-3);
+}
+.news-preview-body {
+  padding: var(--space-4);
+  border-radius: var(--radius-control);
+  background: var(--stone);
+  font-size: var(--text-small);
+  overflow-wrap: anywhere;
+}
+.news-preview-body > p:not(.subtle):not(.news-preview-from) {
+  margin-top: var(--space-2);
+  white-space: pre-wrap;
+}
+.news-preview-body > strong {
+  display: block;
+  margin-top: var(--space-2);
+}
+.news-preview-body > .subtle {
+  margin-top: var(--space-3);
+}
+.news-preview-from {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+
+.news-panel > section.news-check {
+  margin-top: var(--space-2);
+  padding: var(--space-4);
+  border-radius: var(--radius-control);
+  background: var(--sage);
+  border-top: 0;
+}
+.news-check h3 {
+  font-family: var(--font-editorial);
+  font-size: var(--text-title-s);
+  font-weight: var(--weight-editorial);
+  letter-spacing: 0;
+}
+.news-check p {
+  font-size: var(--text-small);
+}
+.news-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+.news-wait {
+  font-size: var(--text-small);
+}
+.news-more {
+  margin-left: auto;
+}
+
+.news-for {
+  font-size: var(--text-small);
+  font-weight: var(--weight-body);
+  color: var(--muted);
+}
+.news-places {
+  display: grid;
+  gap: 0;
+  padding-left: var(--space-6);
+}
+.news-places small {
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+.news-editor-numbers {
+  margin: var(--space-5) 0 0;
+}
+
+/* The client's own page: one full-width way forward. */
+.news-stop-button {
+  width: 100%;
+  margin-top: var(--space-5);
+}
+
+/* New content settles in place; reduced motion keeps it still. */
+.news-settle {
+  animation: news-settle 220ms ease-out;
+}
+@keyframes news-settle {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .news-settle {
+    animation: none;
+  }
+}
+
+@media (max-width: 650px) {
+  .news-welcome {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+  }
+  .news-welcome-photo {
+    height: 240px;
+    min-height: 0;
+    -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent);
+    mask-image: linear-gradient(180deg, #000 55%, transparent);
+  }
+  .news-welcome-words {
+    padding: 0 var(--space-5) var(--space-6);
+  }
+  .news-welcome-words h1 {
+    font-size: 32px;
+  }
+  .news-welcome-words .button,
+  .news-page .page-heading .button,
+  .news-actions .button-primary,
+  .news-editor-actions .button-primary {
+    align-self: stretch;
+    width: 100%;
+    min-height: var(--target);
+  }
+  .news-row {
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+  .news-more {
+    margin-left: 0;
+  }
+}

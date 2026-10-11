@@ -88,10 +88,9 @@ export type Providers = {
   receipt: (provider: string, request: ReceiptRequest) => Receipt[] | null
   /**
    * V1.5: verifies how a call to the studio's phone line ended, for missed-call text-back. Only
-   * Twilio, and only when it sends the studio's texts. Null when it is not genuine. NEXT-17: the
-   * `ai` leg is how the call ended after it was handed to the AI receptionist.
+   * Twilio, and only when it sends the studio's texts. Null when it is not genuine.
    */
-  voice?: (slug: string, request: ReceiptRequest, leg?: 'ai') => VoiceCall | null
+  voice?: (slug: string, request: ReceiptRequest) => VoiceCall | null
   /**
    * V1.5: verifies a guest's reply that came in on the studio's text line (Twilio) or email
    * address (Postmark inbound), for the inbox. Null when it is not genuine or the line is not
@@ -342,14 +341,10 @@ export function providersFromEnv(
     instagram: testProvider('instagram'),
     facebook: testProvider('facebook'),
     whatsapp: testProvider('whatsapp'),
-    voice(slug, request, leg) {
+    voice(slug, request) {
       if (!twilioToken) return null
       const params = new URLSearchParams(request.body)
-      const expected = twilioSignature(
-        twilioToken,
-        voiceBase + slug + (leg ? `/${leg}` : ''),
-        params,
-      )
+      const expected = twilioSignature(twilioToken, voiceBase + slug, params)
       if (!sameText(request.headers['x-twilio-signature'], expected)) return null
       const status = params.get('DialCallStatus') ?? params.get('CallStatus') ?? ''
       return { from: params.get('From') ?? '', missed: MISSED_DIAL.has(status) }

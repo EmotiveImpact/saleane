@@ -562,6 +562,43 @@
 }
 
 /*
+ * Stage 3: a treatment the studio books only after a patch test, in place of "Choose a time": what
+ * comes first and how to get it. A soft panel like the hold above, never a stripe.
+ */
+.booking-patch-first {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-6) 0 0;
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-panel);
+  background: var(--sage-soft);
+}
+.booking-patch-first h3 {
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: var(--weight-strong);
+}
+.booking-patch-first p {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: 1.55;
+  color: var(--ink);
+}
+.booking-patch-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+/* On a phone each way forward is a full-width button, within a thumb's reach. */
+@media (max-width: 650px) {
+  .booking-patch-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/*
  * The guest's visit so far. On a wide screen it sits over the photograph, in the welcome's place,
  * and stays in view as the steps scroll; on a phone it is a bar that stays at the top.
  */

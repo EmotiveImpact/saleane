@@ -13,7 +13,6 @@ import {
   ErrorMessage,
   Modal,
   PageHeader,
-  PhotoStrip,
   SegmentedControl,
   photos,
 } from '../design'
@@ -88,11 +87,12 @@ export function Clients() {
   }
   return (
     <>
-      <PhotoStrip src={photos.windowLight} />
       <PageHeader
         variant="compact"
+        photo={{ src: photos.windowLight }}
         eyebrow="Clients"
         title="Relationships, remembered."
+        description="Everyone who comes to the studio, what they love and when they are due back."
         actions={
           <>
             {can(role, 'import-clients') && (
@@ -312,11 +312,13 @@ export function Clients() {
                 Introduced by
                 <select value={referrer} onChange={(e) => setReferrer(e.target.value)}>
                   <option value="">No referral recorded</option>
-                  {state.clients.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
+                  {state.clients
+                    .filter((c) => !c.erasedAt)
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
                 </select>
               </label>
             </div>

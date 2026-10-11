@@ -2,15 +2,26 @@ import type { BusinessState } from './model'
 import { addDays } from './format'
 import { operations } from './operations'
 import { retailRevenue } from './retail'
-import { serviceRevenue } from './selectors'
+import { renterCounterSale, renterPartOfReceipt, renterVisit, serviceRevenue } from './takings'
 import { recordDay } from './tillCount'
 import { csvAmount, csvRows } from './csv'
 import { ACCOUNTING_EXPORT_LIMIT } from './accountsSchema'
+import { otherTillSales, renterTillPart, tillDay, tillParts } from './otherTill'
 import type { AccountCodes, AccountingProvider } from './accountsSchema'
 
 /**
  * V2: what the accountant needs for a period. Every figure comes from records SALEANE already
  * keeps; nothing here moves money. Days are the studio's own days, by when money was taken.
+ *
+ * Stage 3: a renter's own takings pass through the studio's till but are not the studio's income.
+ * Money in and out and the sales list keep every receipt (the sales list says how much of each is
+ * a renter's); the day summary, the journal and the tax summary keep a renter's takings apart, as
+ * money held for renters, and count their rent as the studio's income.
+ *
+ * Stage 5: a sale from a chain's own till is money the studio took on that till. It is in money in
+ * and out under its own kind and payment words (so it never reads as a payment SALEANE took), in
+ * the sales list as a receipt from that till, and in the tax summary and day summary like any
+ * other receipt. A refund from that till is money given back on it.
  */
 
 export const METHOD_WORDS: Record<string, string> = {
@@ -21,7 +32,16 @@ export const METHOD_WORDS: Record<string, string> = {
   card: 'Card through SALEANE',
   previous_system: 'Paid before switching',
   bank_transfer: 'Bank transfer',
+  // Stage 5: taken or given back on a chain's own till, never by SALEANE.
+  other_till_cash: 'Cash on another till',
+  other_till_card: 'Card on another till',
+  other_till_other: 'Other, on another till',
+  other_till_split: 'Split, on another till',
 }
+
+/** Stage 5: the payment words for a sale from another till. */
+export const tillMethod = (payments: { method: string }[]) =>
+  payments.length === 1 ? `other_till_${payments[0].method}` : 'other_till_split'
 
 export type MoneyRow = {
   date: string
@@ -75,7 +95,8 @@ export function moneyInAndOut(s: BusinessState, from: string, to: string): Money
         client: clientName(h.clientId),
         method: p.method,
         amountMinor: p.amountMinor,
-        test: p.method.startsWith('demo_'),
+        // Stage 1: a membership month the provider took from the card in its test mode.
+        test: p.method.startsWith('demo_') || p.processor?.live === false,
       })
     for (const r of h.refunds)
       push({
@@ -85,7 +106,7 @@ export function moneyInAndOut(s: BusinessState, from: string, to: string): Money
         client: clientName(h.clientId),
         method: r.method,
         amountMinor: -r.amountMinor,
-        test: r.method.startsWith('demo_'),
+        test: r.method.startsWith('demo_') || r.processor?.live === false,
       })
   }
   for (const sale of s.counterSales ?? [])
@@ -119,6 +140,18 @@ export function moneyInAndOut(s: BusinessState, from: string, to: string): Money
       test: method.startsWith('demo_') || r.processor?.live === false,
     })
   }
+  // Stage 5: each payment on another till, and each amount given back on it, as its own row.
+  for (const sale of otherTillSales(s))
+    for (const p of sale.payments)
+      push({
+        at: sale.occurredAt,
+        kind: sale.kind === 'sale' ? 'Sale on another till' : 'Given back on another till',
+        reference: `${sale.receipt} (${sale.till.name})`,
+        client: '',
+        method: `other_till_${p.method}`,
+        amountMinor: sale.kind === 'sale' ? p.amountMinor : -p.amountMinor,
+        test: false,
+      })
   const renter = (rentalId: string) =>
     s.staff.find((p) => p.id === o.rentals?.find((r) => r.id === rentalId)?.staffId)?.name ?? ''
   for (const p of o.rentPayments ?? [])
@@ -147,7 +180,14 @@ export type SaleRow = {
   depositAppliedMinor: number
   planCoveredMinor: number
   method: string
+  /** Stage 3: the part of the receipt that is a renter's own takings, with its tax. */
+  renter?: { name: string; servicesMinor: number; productsMinor: number; taxMinor: number }
+  /** Stage 5: the software whose till took it, for a sale sent in from another till. */
+  source?: string
 }
+
+const renterName = (s: BusinessState, staffId: string) =>
+  s.staff.find((p) => p.id === staffId)?.name ?? 'A renter'
 
 /** Every receipt in the period, with and without a visit, by the day it was paid. */
 export function salesByReceipt(s: BusinessState, from: string, to: string): SaleRow[] {
@@ -157,10 +197,12 @@ export function salesByReceipt(s: BusinessState, from: string, to: string): Sale
   for (const sale of s.sales) {
     const date = recordDay(s, sale.paidAt)
     if (!inPeriod(date)) continue
+    const visit = s.appointments.find((a) => a.id === sale.appointmentId)
+    const part = visit && renterVisit(s, visit) ? renterPartOfReceipt(s, sale, visit) : undefined
     rows.push({
       date,
       receipt: sale.receiptNumber ?? '',
-      client: clientName(s.appointments.find((a) => a.id === sale.appointmentId)?.clientId),
+      client: clientName(visit?.clientId),
       servicesMinor: serviceRevenue(sale),
       discountMinor: sale.discountMinor ?? 0,
       productsMinor: retailRevenue(sale),
@@ -170,11 +212,13 @@ export function salesByReceipt(s: BusinessState, from: string, to: string): Sale
       depositAppliedMinor: sale.depositAppliedMinor,
       planCoveredMinor: sale.coveredMinor ?? 0,
       method: sale.method,
+      ...(part && visit ? { renter: { name: renterName(s, visit.staffId), ...part } } : {}),
     })
   }
   for (const sale of s.counterSales ?? []) {
     const date = recordDay(s, sale.paidAt)
     if (!inPeriod(date)) continue
+    const theirs = renterCounterSale(s, sale)
     rows.push({
       date,
       receipt: sale.receiptNumber,
@@ -188,6 +232,48 @@ export function salesByReceipt(s: BusinessState, from: string, to: string): Sale
       depositAppliedMinor: 0,
       planCoveredMinor: 0,
       method: sale.method,
+      ...(theirs
+        ? {
+            renter: {
+              name: renterName(s, theirs.staffId),
+              servicesMinor: 0,
+              productsMinor: retailRevenue(sale),
+              taxMinor: sale.retail.taxMinor,
+            },
+          }
+        : {}),
+    })
+  }
+  for (const sale of otherTillSales(s)) {
+    if (sale.kind !== 'sale') continue
+    const date = tillDay(s, sale)
+    if (!inPeriod(date)) continue
+    const parts = tillParts(sale)
+    const theirs = renterTillPart(s, sale)
+    rows.push({
+      date,
+      receipt: sale.receipt,
+      client: '',
+      servicesMinor: parts.treatmentsMinor,
+      discountMinor: 0,
+      productsMinor: parts.productsMinor,
+      taxMinor: parts.taxMinor,
+      tipMinor: 0,
+      totalMinor: sale.totalMinor,
+      depositAppliedMinor: 0,
+      planCoveredMinor: 0,
+      method: tillMethod(sale.payments),
+      source: sale.till.name,
+      ...(theirs
+        ? {
+            renter: {
+              name: renterName(s, sale.staffId!),
+              servicesMinor: theirs.servicesMinor,
+              productsMinor: theirs.productsMinor,
+              taxMinor: theirs.taxMinor,
+            },
+          }
+        : {}),
     })
   }
   return rows.sort((a, b) => a.date.localeCompare(b.date) || a.receipt.localeCompare(b.receipt))
@@ -201,7 +287,10 @@ export type TaxRow = {
   taxMinor: number
 }
 
-/** Takings before tax and the tax on them, by tax rate. Receipts without tax show as no tax. */
+/**
+ * The studio's takings before tax and the tax on them, by tax rate. Receipts without tax show as
+ * no tax. Stage 3: a renter's own takings, and the tax on them, are theirs and left out.
+ */
 export function taxSummary(s: BusinessState, from: string, to: string): TaxRow[] {
   const inPeriod = between(from, to)
   const rows = new Map<string, TaxRow>()
@@ -220,14 +309,17 @@ export function taxSummary(s: BusinessState, from: string, to: string): TaxRow[]
   }
   for (const sale of s.sales) {
     if (!inPeriod(recordDay(s, sale.paidAt))) continue
-    add(
-      sale.taxLabel ?? '',
-      sale.taxRateBps ?? 0,
-      !!sale.taxInclusive,
-      serviceRevenue(sale),
-      sale.taxMinor ?? 0,
-    )
-    if (sale.retail)
+    const visit = s.appointments.find((a) => a.id === sale.appointmentId)
+    const rental = visit && renterVisit(s, visit)
+    if (!rental)
+      add(
+        sale.taxLabel ?? '',
+        sale.taxRateBps ?? 0,
+        !!sale.taxInclusive,
+        serviceRevenue(sale),
+        sale.taxMinor ?? 0,
+      )
+    if (sale.retail && !rental?.products)
       add(
         sale.retail.taxLabel,
         sale.retail.taxRateBps,
@@ -237,7 +329,7 @@ export function taxSummary(s: BusinessState, from: string, to: string): TaxRow[]
       )
   }
   for (const sale of s.counterSales ?? [])
-    if (inPeriod(recordDay(s, sale.paidAt)))
+    if (inPeriod(recordDay(s, sale.paidAt)) && !renterCounterSale(s, sale))
       add(
         sale.retail.taxLabel,
         sale.retail.taxRateBps,
@@ -245,6 +337,23 @@ export function taxSummary(s: BusinessState, from: string, to: string): TaxRow[]
         retailRevenue(sale),
         sale.retail.taxMinor,
       )
+  // Stage 5: each line from another till at the rate that till charged, tax included in its
+  // prices. A renter's own lines are theirs, as at SALEANE's till.
+  const label = operations(s).tax?.label || 'Tax'
+  for (const sale of otherTillSales(s)) {
+    if (sale.kind !== 'sale' || !inPeriod(tillDay(s, sale))) continue
+    const rental = renterTillPart(s, sale)?.rental
+    for (const line of sale.lines) {
+      if (rental && (line.kind === 'treatment' || rental.products)) continue
+      add(
+        line.taxRateBps ? `${label}, from another till` : '',
+        line.taxRateBps,
+        true,
+        line.totalMinor - line.taxMinor,
+        line.taxMinor,
+      )
+    }
+  }
   return [...rows.values()].sort((a, b) => b.rateBps - a.rateBps)
 }
 
@@ -258,6 +367,10 @@ export type DaySummary = {
   rentMinor: number
   feesMinor: number
   refundsMinor: number
+  /** Stage 3: renters' own takings that came through the till, with their tax; not the studio's. */
+  rentersMinor: number
+  /** Stage 3: money given back on renters' own takings, out of what is held for them. */
+  rentersBackMinor: number
 }
 
 /** One line per day of what was earned and given back, for the accounts. */
@@ -274,6 +387,8 @@ export function dailySummary(s: BusinessState, from: string, to: string): DaySum
       rentMinor: 0,
       feesMinor: 0,
       refundsMinor: 0,
+      rentersMinor: 0,
+      rentersBackMinor: 0,
     }
     days.set(date, row)
     return row
@@ -281,10 +396,16 @@ export function dailySummary(s: BusinessState, from: string, to: string): DaySum
   for (const sale of salesByReceipt(s, from, to)) {
     const row = day(sale.date)
     // A visit a package or membership paid for was counted when the plan was sold.
-    row.servicesMinor += Math.max(0, sale.servicesMinor - sale.planCoveredMinor)
-    row.productsMinor += sale.productsMinor
-    row.taxMinor += sale.taxMinor
+    const services = Math.max(0, sale.servicesMinor - sale.planCoveredMinor)
+    const renter = sale.renter
+    // Stage 3: a renter's own takings are held for them, apart from the studio's income.
+    row.servicesMinor += renter?.servicesMinor ? 0 : services
+    row.productsMinor += sale.productsMinor - (renter?.productsMinor ?? 0)
+    row.taxMinor += sale.taxMinor - (renter?.taxMinor ?? 0)
     row.tipsMinor += sale.tipMinor
+    if (renter)
+      row.rentersMinor +=
+        (renter.servicesMinor ? services : 0) + renter.productsMinor + renter.taxMinor
   }
   for (const money of moneyInAndOut(s, from, to)) {
     const row = day(money.date)
@@ -292,6 +413,51 @@ export function dailySummary(s: BusinessState, from: string, to: string): DaySum
     else if (money.kind === 'Chair or room rent') row.rentMinor += money.amountMinor
     else if (money.kind === 'No-show or late fee') row.feesMinor += money.amountMinor
     else if (money.amountMinor < 0) row.refundsMinor += -money.amountMinor
+  }
+  // Money given back on a renter's receipt comes out of what is held for them, in proportion to
+  // how much of the receipt was theirs.
+  for (const refund of operations(s).refunds) {
+    const date = recordDay(s, refund.createdAt)
+    if (date < from || date > to) continue
+    const sale = refund.saleId ? s.sales.find((x) => x.id === refund.saleId) : undefined
+    const counter = refund.counterSaleId
+      ? (s.counterSales ?? []).find((x) => x.id === refund.counterSaleId)
+      : undefined
+    let theirs = 0
+    let total = 0
+    if (sale) {
+      const visit = s.appointments.find((a) => a.id === sale.appointmentId)
+      const part = renterPartOfReceipt(s, sale, visit)
+      theirs = part.servicesMinor + part.productsMinor + part.taxMinor
+      total = sale.totalMinor
+    } else if (counter && renterCounterSale(s, counter)) {
+      theirs = counter.totalMinor
+      total = counter.totalMinor
+    }
+    if (!theirs || total <= 0) continue
+    const share = Math.min(refund.amountMinor, Math.round((refund.amountMinor * theirs) / total))
+    const row = day(date)
+    row.refundsMinor -= share
+    row.rentersBackMinor += share
+  }
+  // Stage 5: the same for money given back on another till, on a renter's sale from that till.
+  const tillSales = otherTillSales(s)
+  for (const refund of tillSales) {
+    if (refund.kind !== 'refund') continue
+    const date = tillDay(s, refund)
+    if (date < from || date > to) continue
+    const sale = tillSales.find((x) => x.id === refund.refundOf)
+    const part = sale && renterTillPart(s, sale)
+    if (!sale || !part || sale.totalMinor <= 0) continue
+    const theirs = part.servicesMinor + part.productsMinor + part.taxMinor
+    const share = Math.min(
+      refund.totalMinor,
+      Math.round((refund.totalMinor * theirs) / sale.totalMinor),
+    )
+    if (!share) continue
+    const row = day(date)
+    row.refundsMinor -= share
+    row.rentersBackMinor += share
   }
   return [...days.values()].sort((a, b) => a.date.localeCompare(b.date))
 }
@@ -325,7 +491,7 @@ export function salesCsv(rows: SaleRow[], currency: string) {
       'Date',
       'Receipt',
       'Client',
-      `Services before tax (${currency})`,
+      `Treatments before tax (${currency})`,
       `Discount (${currency})`,
       `Products before tax (${currency})`,
       `Tax (${currency})`,
@@ -334,6 +500,9 @@ export function salesCsv(rows: SaleRow[], currency: string) {
       `Deposit used (${currency})`,
       `Covered by a plan (${currency})`,
       'Paid by',
+      'Renter',
+      `Renter’s own, with tax (${currency})`,
+      'Sent in from another till',
     ],
     ...rows.map((r) => [
       r.date,
@@ -348,6 +517,11 @@ export function salesCsv(rows: SaleRow[], currency: string) {
       csvAmount(r.depositAppliedMinor),
       csvAmount(r.planCoveredMinor),
       METHOD_WORDS[r.method] ?? r.method,
+      r.renter?.name ?? '',
+      r.renter
+        ? csvAmount(r.renter.servicesMinor + r.renter.productsMinor + r.renter.taxMinor)
+        : '',
+      r.source ?? '',
     ]),
   ])
 }
@@ -390,8 +564,10 @@ export function dayTakings(day: DaySummary) {
     day.tipsMinor +
     day.plansMinor +
     day.rentMinor +
-    day.feesMinor -
-    day.refundsMinor
+    day.feesMinor +
+    day.rentersMinor -
+    day.refundsMinor -
+    day.rentersBackMinor
   )
 }
 
@@ -403,9 +579,9 @@ export function dayJournal(day: DaySummary, codes: AccountCodes): JournalLine[] 
   const credit = (account: string, code: string, description: string, minor: number) =>
     minor ? [{ account, code, description, debitMinor: 0, creditMinor: minor }] : []
   const lines: JournalLine[] = [
-    ...credit('Services', codes.services, 'Services before tax', day.servicesMinor),
+    ...credit('Treatments', codes.services, 'Treatments before tax', day.servicesMinor),
     ...credit('Products', codes.products, 'Products before tax', day.productsMinor),
-    ...credit('Tax', codes.tax, 'Tax on services and products', day.taxMinor),
+    ...credit('Tax', codes.tax, 'Tax on treatments and products', day.taxMinor),
     ...credit('Tips owed to staff', codes.tips, 'Tips', day.tipsMinor),
     ...credit(
       'Packages and memberships',
@@ -415,7 +591,21 @@ export function dayJournal(day: DaySummary, codes: AccountCodes): JournalLine[] 
     ),
     ...credit('Chair and room rent', codes.rent, 'Rent from self-employed renters', day.rentMinor),
     ...credit('No-show and late fees', codes.fees, 'Fees', day.feesMinor),
+    ...credit(
+      'Takings held for renters',
+      codes.renters ?? '',
+      'Renters’ own takings, held for them',
+      day.rentersMinor,
+    ),
   ]
+  if (day.rentersBackMinor)
+    lines.push({
+      account: 'Takings held for renters',
+      code: codes.renters ?? '',
+      description: 'Given back on renters’ own takings',
+      debitMinor: day.rentersBackMinor,
+      creditMinor: 0,
+    })
   if (day.refundsMinor)
     lines.push({
       account: 'Refunds',
@@ -503,7 +693,7 @@ export function prepareAccountingExport(
   const settings = o.accounting
   if (!settings || settings.provider !== command.provider)
     throw new Error('Choose the accounting software and its account codes first.')
-  if (Object.values(settings.codes).some((code) => !code))
+  if (Object.entries(settings.codes).some(([key, code]) => key !== 'renters' && !code))
     throw new Error('Fill in every account code first. Your accountant can tell you them.')
   if (command.to < command.from) throw new Error('The period must end on or after it starts.')
   if (Date.parse(command.to) - Date.parse(command.from) > 366 * 86400000)
@@ -511,6 +701,10 @@ export function prepareAccountingExport(
   const days = dailySummary(next, command.from, command.to).filter(
     (day) => dayJournal(day, settings.codes).length,
   )
+  if (!settings.codes.renters && days.some((d) => d.rentersMinor || d.rentersBackMinor))
+    throw new Error(
+      'Fill in the account code for takings held for renters first. Your accountant can tell you it.',
+    )
   o.accountingExports ??= []
   if (o.accountingExports.length >= ACCOUNTING_EXPORT_LIMIT)
     throw new Error('Too many batches to keep.')

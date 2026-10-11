@@ -23,13 +23,10 @@ export type Bill = {
   totalMinor: number
 }
 export type InvoiceStatus = 'open' | 'charging' | 'paid' | 'void' | 'unknown'
-/** NEXT-17: what a location can add to its price, each billed for the part of a month left. */
-export type AddOn = 'plus' | 'phone'
-export const ADD_ON_NAMES: Record<AddOn, string> = { plus: 'Plus', phone: 'Phone receptionist' }
 export type InvoiceView = Bill & {
   id: string
   number: string
-  kind: 'month' | AddOn
+  kind: 'month' | 'plus'
   periodStart: number
   periodEnd: number
   currency: 'GBP' | 'USD'
@@ -54,11 +51,6 @@ export type BillingView = {
   periodEnd: number | null
   plus: boolean
   plusNext: boolean
-  /** NEXT-17: the phone receptionist, paid for now and chosen for the next bill. */
-  phone: boolean
-  phoneNext: boolean
-  /** Calls can reach the AI on this SALEANE: a phone line, a voice and Claude are all set up. */
-  phoneConnected: boolean
   cancelAtPeriodEnd: boolean
   card: SavedCard | null
   locations: number
@@ -77,7 +69,7 @@ export type BillingView = {
   /** The newest bills; `moreBills` is where the older ones start, or null when there are none. */
   invoices: InvoiceView[]
   moreBills: string | null
-  ai: { typed: Meter; guestChats: Meter; talkSeconds: Meter; phoneSeconds: Meter }
+  ai: { typed: Meter; guestChats: Meter; talkSeconds: Meter }
 }
 /** What every role's studio record carries: enough for a banner, and dates only for the owner. */
 export type BillingSummary = {
@@ -130,16 +122,14 @@ export function taxed(region: PriceRegion, lines: BillLine[]): Bill {
 
 /**
  * One month in advance: every open location, each person taking bookings beyond the five each
- * location includes, and Plus and the phone receptionist for each location if chosen. People are
- * counted when the bill is made, so someone added part way through a month is first paid for on
- * the next bill.
+ * location includes, and Plus for each location if chosen. People are counted when the bill is
+ * made, so someone added part way through a month is first paid for on the next bill.
  */
 export function monthBill(
   region: PriceRegion,
   locations: number,
   plus: boolean,
   people: number,
-  phone = false,
 ): Bill {
   const count = Math.max(1, locations)
   const price = PRICE[region]
@@ -169,16 +159,6 @@ export function monthBill(
             quantity: count,
             unitMinor: price.plusMinor,
             amountMinor: price.plusMinor * count,
-          },
-        ]
-      : []),
-    ...(phone
-      ? [
-          {
-            text: `Phone receptionist, ${where}`,
-            quantity: count,
-            unitMinor: price.phoneMinor,
-            amountMinor: price.phoneMinor * count,
           },
         ]
       : []),
@@ -239,17 +219,7 @@ function billMoves(
 }
 
 /** Plus added part way through a paid month: only the part of the month that is left. */
-export const plusBill = (
-  region: PriceRegion,
-  locations: number,
-  from: number,
-  periodStart: number,
-  periodEnd: number,
-) => addOnBill('plus', region, locations, from, periodStart, periodEnd)
-
-/** An add-on chosen part way through a paid month: only the part of the month that is left. */
-export function addOnBill(
-  addOn: AddOn,
+export function plusBill(
   region: PriceRegion,
   locations: number,
   from: number,
@@ -257,13 +227,13 @@ export function addOnBill(
   periodEnd: number,
 ): Bill {
   const count = Math.max(1, locations)
-  const unit = PRICE[region][addOn === 'plus' ? 'plusMinor' : 'phoneMinor']
+  const unit = PRICE[region].plusMinor
   const share = Math.min(1, Math.max(0, (periodEnd - from) / (periodEnd - periodStart)))
   const days = Math.max(1, Math.ceil((periodEnd - from) / DAY_MS))
   const all = Math.round((periodEnd - periodStart) / DAY_MS)
   return taxed(region, [
     {
-      text: `${ADD_ON_NAMES[addOn]}, ${plural(count, 'location', 'locations')}, for the ${plural(days, 'day', 'days')} left of ${all}`,
+      text: `Plus, ${plural(count, 'location', 'locations')}, for the ${plural(days, 'day', 'days')} left of ${all}`,
       quantity: count,
       unitMinor: unit,
       amountMinor: Math.round(unit * count * share),

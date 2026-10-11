@@ -8,6 +8,8 @@ import { talks } from '../talk'
 import type { Held } from '../talk'
 import { HISTORY_TURNS, askSaleane, askUse } from '../../src/assistant/ask'
 import type { Command } from '../../src/domain/commands'
+import { branchView } from '../../src/domain/branch'
+import { businessDate } from '../../src/domain/operations'
 
 /**
  * Ask Saleane for owners, managers and reception. Usage is kept per studio so the allowance holds
@@ -95,12 +97,17 @@ export function assistantRoutes() {
         })
         .strict()
         .parse(body)
+      // Stage 4: a general manager's questions are answered from their own location's view only.
+      const state =
+        org.role === 'general' && org.locationId
+          ? branchView(org.state, org.locationId, businessDate(org.state, at))
+          : org.state
       // The question's share is held first, so questions asked at the same moment cannot all pass
       // the checks; the turn checks the usage as it was before, and so refuses exactly when this did.
       const use = askUse(actor.id, at)
       const { held: reserved, result } = await holding(ctx, org.id, allowance, use, (before) =>
         askSaleane({
-          state: org.state,
+          state,
           role: org.role,
           personId: actor.id,
           text,

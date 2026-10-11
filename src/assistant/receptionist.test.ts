@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { seed } from '../domain/seed'
 import type { BusinessState } from '../domain/model'
 import { operations } from '../domain/operations'
-import { askReceptionist, receptionContext, receptionistSkills } from './receptionist'
+import { askReceptionist, listedTimes, receptionContext, receptionistSkills } from './receptionist'
+import { onlinePatchTestStop, patchTestSettings } from '../domain/patchTests'
 import type { ReceptionEffect, ReceptionTurn } from './receptionist'
 import { dateIn, partOfDay, timeIn } from './receptionistBrain'
 
@@ -93,7 +94,7 @@ describe('the AI receptionist in test mode', () => {
   it('lets a chat already counted carry on when the month is used up, but starts no new one', async () => {
     const full = {
       period: '2026-10',
-      used: { typed: 0, talkSeconds: 0, guestChats: 200, phoneSeconds: 0 },
+      used: { typed: 0, talkSeconds: 0, guestChats: 200 },
       spendByDay: {},
       recent: {},
     }
@@ -330,7 +331,7 @@ describe('the AI receptionist with several locations', () => {
           ? { ...x, notOfferedAt: [state.organisation.locationId, islington] }
           : x,
       ),
-      // Theo, who does both hair treatments, has left.
+      // Theo, who does the hair treatments and the colour patch test, has left.
       staff: state.staff.map((p) => (p.id === 'staff-theo' ? { ...p, archived: true } : p)),
     }
     const skill = receptionistSkills().find((x) => x.name === 'treatments')!
@@ -344,7 +345,7 @@ describe('the AI receptionist with several locations', () => {
     ])
     // A studio with one location keeps its plain list, with no locations named.
     const single = run(receptionContext(on(base), today, now), {})
-    expect(single).toHaveLength(5)
+    expect(single).toHaveLength(6)
     expect(single[0].locations).toBeUndefined()
   })
 })
@@ -504,5 +505,68 @@ describe('the AI receptionist answering simple questions', () => {
     expect(haircut.text).toMatch(/^Signature Cut & Finish: /)
     const cuticles = await chat('Do you do cuticle care?')
     expect(cuticles.text).toMatch(/^I cannot find that on our menu\. We offer /)
+  })
+})
+
+// Stage 3: with the studio's patch test rule on, a treatment that needs one is never offered.
+describe('the AI receptionist and a treatment that needs a patch test first', () => {
+  const stopping = (s = on(base)): BusinessState => ({
+    ...s,
+    operations: {
+      ...s.operations!,
+      patchTests: { ...patchTestSettings(s), stopOnline: true },
+    },
+  })
+  const asked = 'Any times for a gloss and tone on Thursday?'
+
+  it('says a patch test comes first and offers no time, the same for everyone', async () => {
+    const before = await chat(asked)
+    expect(before.text).toMatch(/^Gloss & Tone on Thursday 8 October: /)
+    expect(listedTimes(before).length).toBeGreaterThan(0)
+    const state = stopping()
+    const words = onlinePatchTestStop(state, 'service-gloss')!
+    const stopped = await chat(asked, [], state)
+    expect(stopped.text).toBe(words)
+    expect(stopped.proposals).toEqual([])
+    expect(listedTimes(stopped)).toEqual([])
+    // Ellie, known by the number she texts from, has a clear test: the time would still be
+    // booked on the page, where nobody is known, so she reads the same words.
+    const ellie = await askReceptionist({
+      state,
+      today,
+      now,
+      visitorId: 'v2',
+      text: asked,
+      channel: 'text',
+      guestId: 'client-3',
+      usage: undefined,
+    })
+    expect(ellie.status === 'answered' && ellie.text).toContain(words)
+    // The patch test itself, and treatments that need no test, are offered as before.
+    expect((await chat('Any times for a colour patch test on Thursday?', [], state)).text).toMatch(
+      /^Colour patch test on Thursday 8 October: /,
+    )
+    expect((await chat('Any times for a facial on Thursday?', [], state)).text).toMatch(
+      /^Skin Renewal Facial on Thursday 8 October: /,
+    )
+  })
+
+  it('refuses to offer a time directly and marks the treatment in the menu', () => {
+    const state = stopping()
+    const ctx = receptionContext(state, today, now, 'client-3')
+    const offer = receptionistSkills().find((x) => x.name === 'offer_time')!
+    if (offer.kind !== 'action') throw new Error('offer_time is an action skill')
+    const propose = offer.propose as (c: unknown, input: object) => unknown
+    expect(() =>
+      propose(ctx, { treatmentId: 'service-gloss', date: '2026-10-08', time: '14:00' }),
+    ).toThrow(/needs a patch test first/)
+    const menu = receptionistSkills().find((x) => x.name === 'treatments')!
+    if (menu.kind !== 'read') throw new Error('treatments is a read skill')
+    const listed = (menu.run as (c: unknown, i: object) => { id: string; patchTestFirst?: true }[])(
+      ctx,
+      {},
+    )
+    expect(listed.find((x) => x.id === 'service-gloss')?.patchTestFirst).toBe(true)
+    expect(listed.find((x) => x.id === 'service-facial')?.patchTestFirst).toBeUndefined()
   })
 })

@@ -5,6 +5,8 @@ import type { Appointment } from '../domain/model'
 import { money, timeLabel } from '../domain/format'
 import { shownStatus } from '../domain/selectors'
 import { Avatar, Empty, Status } from '../design'
+import { milestoneTag, visitMilestones } from '../domain/beforeVisit'
+import './moments.css'
 
 export function Agenda({
   appointments,
@@ -40,6 +42,11 @@ export function Agenda({
         const client = state.clients.find((c) => c.id === a.clientId)!
         const staff = state.staff.find((s) => s.id === a.staffId)!
         const service = state.services.find((s) => s.id === a.serviceId)!
+        // Stage 6: a quiet tag for a visit that brings a milestone, while it is still to come.
+        const moment =
+          a.status === 'confirmed' || a.status === 'arrived'
+            ? visitMilestones(state, a).map(milestoneTag)[0]
+            : undefined
         return (
           <Fragment key={a.id}>
             {nowHere && (
@@ -62,6 +69,7 @@ export function Agenda({
                 <Avatar small identity={client.id} name={client.name} tone={staff.tone} />
                 <span>
                   <strong>{client.name}</strong> <small>{service.name}</small>{' '}
+                  {moment && <span className="agenda-moment">{moment}</span>}{' '}
                   <span className="agenda-mobile-meta">
                     <span className="agenda-meta-staff">with {staff.name.split(' ')[0]}</span>{' '}
                     <span className="agenda-meta-status">

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { MessageCircle } from 'lucide-react'
 import { useStore } from '../state/context'
@@ -7,49 +7,6 @@ import { defaultReceptionist } from '../domain/receptionistSchema'
 import { Button, ErrorMessage } from '../design'
 import { useRun } from './usePayment'
 import { useAiLive } from './useAiLive'
-import { api } from '../state/api'
-
-/** NEXT-17: the phone line as the server sees it, for the studio's settings. */
-type PhoneStatus = {
-  connected: boolean
-  included: boolean
-  chosen: boolean
-  answering: boolean
-  minutes: { used: number; of: number }
-}
-
-function usePhoneStatus(saved: boolean) {
-  const { mode, slug, session } = useStore()
-  const orgId = session?.workspaces.find((w) => w.slug === slug)?.id
-  const [status, setStatus] = useState<PhoneStatus | null>(null)
-  useEffect(() => {
-    if (mode !== 'server' || !orgId) return
-    let active = true
-    api<PhoneStatus>(`/api/workspaces/${encodeURIComponent(orgId)}/phone`)
-      .then((found) => {
-        if (active) setStatus(found)
-      })
-      .catch(() => {})
-    return () => {
-      active = false
-    }
-  }, [mode, orgId, saved])
-  return status
-}
-
-/** What the phone choice does today, in one sentence. */
-function phoneWords(status: PhoneStatus | null, on: boolean) {
-  if (!status || !status.connected)
-    return 'Phone calls are not connected yet, so calls the desk misses are written down for a call back, as now.'
-  if (!status.included)
-    return status.chosen
-      ? 'The phone receptionist starts with your first paid month. Until then, calls the desk misses are written down for a call back.'
-      : 'Add the phone receptionist in Plan and billing first. Until then, calls the desk misses are written down for a call back.'
-  if (!on) return `Off. ${status.minutes.of} minutes of calls a month are included.`
-  return status.answering
-    ? `On: ${status.minutes.used} of ${status.minutes.of} minutes used this month. Once they are used, missed calls are written down for a call back.`
-    : `Not answering now: ${status.minutes.used} of ${status.minutes.of} minutes used this month, so missed calls are written down for a call back.`
-}
 import './management.css'
 
 /** V4: the owner or manager turns the AI receptionist on the booking page on or off. */
@@ -60,20 +17,14 @@ export function ReceptionistSettings() {
   const [handOver, setHandOver] = useState(current.handOver)
   const [texts, setTexts] = useState(current.texts ?? false)
   const [social, setSocial] = useState(current.social ?? false)
-  const [calls, setCalls] = useState(current.calls ?? false)
   const [saved, setSaved] = useState(false)
   const { run, pending, error } = useRun()
   const allowed = !blocked && can(role, 'receptionist')
   const live = useAiLive()
-  const phone = usePhoneStatus(saved)
-  // Nothing can be turned on that cannot work yet; turning it off always can.
-  const phoneReady = !!phone?.connected && (phone.included || phone.chosen)
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setSaved(false)
-    setSaved(
-      await run({ type: 'receptionist', settings: { enabled, handOver, texts, social, calls } }),
-    )
+    setSaved(await run({ type: 'receptionist', settings: { enabled, handOver, texts, social } }))
   }
   return (
     <section className="surface ops-panel" aria-labelledby="receptionist-settings">
@@ -133,21 +84,6 @@ export function ReceptionistSettings() {
             Also answer messages to your Instagram, Facebook and WhatsApp. It answers in the same
             app, says it is an AI, and steps back for an hour once someone from the team answers.
           </label>
-          <label className="ops-check ops-wide">
-            <input
-              type="checkbox"
-              checked={calls}
-              disabled={!allowed || (!calls && !phoneReady)}
-              aria-describedby="receptionist-calls-note"
-              onChange={(e) => setCalls(e.target.checked)}
-            />
-            Also answer calls the desk misses. It speaks in your studio’s voice, says it is an AI,
-            answers from your records, texts callers a link to book and takes messages. The call
-            shows on Today for the team to follow up.
-          </label>
-          <p className="ops-help ops-wide" id="receptionist-calls-note">
-            {phoneWords(phone, calls)}
-          </p>
         </div>
         <ErrorMessage error={error} />
         {allowed && (

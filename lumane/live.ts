@@ -51,25 +51,6 @@ export type LiveStart = {
   voice: string
 }
 
-/** How to answer a phone call the supplier has received. */
-export type CallAnswer = {
-  /** The voice's standing instructions for the whole call. */
-  instructions: string
-  /** The supplier's id for the voice. */
-  voice: string
-}
-
-/**
- * Phone calls that reach the supplier over SIP, each known by the session id the supplier's
- * webhook gives. Once accepted, a call is followed with `attach` like any other session.
- */
-export interface CallControl {
-  accept(id: string, input: CallAnswer): Promise<void>
-  /** Turns the call away with a SIP status, such as 486 (busy) or 603 (declined). */
-  reject(id: string, status: number): Promise<void>
-  hangup(id: string): Promise<void>
-}
-
 export interface VoiceLayer {
   name: string
   /** True when it calls a real supplier, which costs money and sends the person's voice away. */
@@ -81,8 +62,6 @@ export interface VoiceLayer {
   start(input: LiveStart): Promise<{ id: string; sdp: string }>
   /** Follows a running session; resolves once connected. */
   attach(id: string, onEvent: (event: LiveEvent) => void): Promise<LiveLine>
-  /** Phone calls, when the supplier takes them. */
-  calls?: CallControl
 }
 
 /** Why a session could not be started or followed. */
@@ -168,85 +147,55 @@ export function openaiLive(options: OpenAiLiveOptions): VoiceLayer {
   const base = options.baseUrl ?? 'https://api.openai.com/v1'
   const auth = { Authorization: `Bearer ${options.apiKey}` }
 
-  /** Sends one request to OpenAI, turning a failure into a `VoiceError` of the right kind. */
-  async function post(path: string, body?: unknown) {
-    let response: Response
-    try {
-      response = await fetcher(`${base}${path}`, {
-        method: 'POST',
-        headers: { ...auth, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
-        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-        signal: AbortSignal.timeout(timeoutMs),
-      })
-    } catch (error) {
-      throw new VoiceError(
-        'unreachable',
-        `OpenAI could not be reached: ${error instanceof Error ? error.message : String(error)}`,
-      )
-    }
-    if (!response.ok) {
-      const detail = await response.text().catch(() => '')
-      const kind =
-        response.status === 429
-          ? 'busy'
-          : [401, 402, 403].includes(response.status)
-            ? 'refused'
-            : response.status >= 500
-              ? 'unreachable'
-              : 'failed'
-      throw new VoiceError(kind, `OpenAI answered ${response.status}: ${detail.slice(0, 300)}`)
-    }
-    return response
-  }
-  const call = (id: string, action: string) => `/live/sessions/${encodeURIComponent(id)}/${action}`
-
   return {
     name: 'openai',
     live: true,
     model: options.model,
     minorPerMinute: options.minorPerMinute,
 
-    // A call reaches OpenAI over SIP from the studio's phone line, and the line negotiates the
-    // sound, so no audio format is given. As with talking, OpenAI keeps nothing from it.
-    calls: {
-      async accept(id, { instructions, voice }) {
-        await post(call(id, 'accept'), {
-          session: {
-            type: 'live',
-            model: options.model,
-            instructions,
-            store: false,
-            audio: { output: { voice } },
-            delegation: { type: 'client' },
-          },
-        })
-      },
-      async reject(id, status) {
-        await post(call(id, 'reject'), { status_code: status })
-      },
-      async hangup(id) {
-        await post(call(id, 'hangup'))
-      },
-    },
-
     async start({ sdp, instructions, voice }) {
-      const response = await post('/live/sessions', {
-        session: {
-          model: options.model,
-          instructions,
-          store: false,
-          audio: { output: { voice } },
-          delegation: { type: 'client' },
-          client: {
-            // Client events are named by type; server events by a selector object.
-            data_channel: {
-              allowed_client_events: ['session.close'],
-              allowed_server_events: [{ type: 'session.closed' }],
+      let response: Response
+      try {
+        response = await fetcher(`${base}/live/sessions`, {
+          method: 'POST',
+          headers: { ...auth, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session: {
+              model: options.model,
+              instructions,
+              store: false,
+              audio: { output: { voice } },
+              delegation: { type: 'client' },
+              client: {
+                // Client events are named by type; server events by a selector object.
+                data_channel: {
+                  allowed_client_events: ['session.close'],
+                  allowed_server_events: [{ type: 'session.closed' }],
+                },
+              },
             },
-          },
-        },
-        transport: { type: 'webrtc', sdp },
-      })
+            transport: { type: 'webrtc', sdp },
+          }),
+          signal: AbortSignal.timeout(timeoutMs),
+        })
+      } catch (error) {
+        throw new VoiceError(
+          'unreachable',
+          `OpenAI could not be reached: ${error instanceof Error ? error.message : String(error)}`,
+        )
+      }
+      if (!response.ok) {
+        const detail = await response.text().catch(() => '')
+        const kind =
+          response.status === 429
+            ? 'busy'
+            : [401, 402, 403].includes(response.status)
+              ? 'refused'
+              : response.status >= 500
+                ? 'unreachable'
+                : 'failed'
+        throw new VoiceError(kind, `OpenAI answered ${response.status}: ${detail.slice(0, 300)}`)
+      }
       const body = (await response.json().catch(() => undefined)) as
         { session?: { id?: unknown }; transport?: { sdp?: unknown } } | undefined
       const id = body?.session?.id

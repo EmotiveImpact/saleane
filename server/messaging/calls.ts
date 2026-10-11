@@ -29,13 +29,16 @@ export function recordPhoneCall(ctx: Context, slug: string, from: string) {
 
 /**
  * V1.5: keeps a guest's reply from the studio's email or text line for the inbox. A reply the
- * provider sends again is kept once. Returns whether a new reply was kept.
+ * provider sends again is kept once. Returns whether a new reply was kept. Stage 1: a text that
+ * is only STOP or START changes the clients' texts in the same transaction (textStop.ts).
+ * `test` is a text the team delivered in test mode (routes/testText.ts), recorded as theirs.
  */
 export function recordReply(
   ctx: Context,
   slug: string,
   channel: 'email' | 'sms',
   reply: InboundReply,
+  test?: { actorId: string },
 ) {
   const { db, now } = ctx
   return db.transaction(() => {
@@ -51,11 +54,17 @@ export function recordReply(
         body: reply.body.slice(0, 20000),
         providerRef: reply.providerRef.slice(0, 200),
       },
-      channel === 'sms' ? 'Text line' : 'Email line',
+      test ? 'Text line (test mode)' : channel === 'sms' ? 'Text line' : 'Email line',
       new Date(now()).toISOString(),
     )
     if (!result.ok || result.state === org.state) return false
-    ctx.persist(org, result.state, null, 'inbox.reply', result.recordId)
+    ctx.persist(
+      org,
+      result.state,
+      test?.actorId ?? null,
+      test ? 'inbox.test-text' : 'inbox.reply',
+      result.recordId,
+    )
     return true
   })
 }

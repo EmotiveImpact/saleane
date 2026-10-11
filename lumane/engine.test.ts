@@ -24,7 +24,7 @@ import type { Allowance, Brain, Skill, Usage, Voice } from '.'
 
 type Ctx = { role: 'owner' | 'guest'; count: number }
 const allowance: Allowance = {
-  monthly: { typed: 3, talkSeconds: 600, guestChats: 2, phoneSeconds: 0 },
+  monthly: { typed: 3, talkSeconds: 600, guestChats: 2 },
   dailySpendCeilingMinor: 100,
   monthlySpendCeilingMinor: 300,
   perPersonHourly: 2,

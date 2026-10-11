@@ -1,13 +1,14 @@
 /*
  * The reply box at the foot of an open conversation. On a large screen it stays in view at the
  * bottom while a long thread scrolls, and settles under the last message. On a phone it simply
- * follows the thread, so it never covers the conversation.
+ * follows the thread, so it never covers the conversation. Stage 6: until someone starts to
+ * reply it is one short line, so the conversation keeps the room.
  */
 .inbox-reply {
   display: grid;
   gap: 10px;
-  margin-bottom: var(--space-4);
-  padding: 14px 0 max(16px, env(safe-area-inset-bottom));
+  margin-bottom: var(--space-3);
+  padding: 12px 0 max(14px, env(safe-area-inset-bottom));
   border-top: 1px solid var(--line);
   background: var(--paper);
 }
@@ -71,10 +72,28 @@
   font-size: var(--text-meta);
   font-weight: var(--weight-strong);
 }
+.inbox-reply-write {
+  display: grid;
+  gap: 10px;
+}
 .inbox-reply textarea {
   width: 100%;
   min-height: 76px;
-  resize: vertical;
+  max-height: 280px;
+  resize: none;
+  transition: min-height var(--motion-calm, var(--motion-quick)) var(--ease-calm, ease-out);
+}
+/* Folded: the words and the button on one line; saved replies and the note wait until it opens. */
+.inbox-reply.is-compact .inbox-quick,
+.inbox-reply.is-compact .inbox-reply-foot p {
+  display: none;
+}
+.inbox-reply.is-compact .inbox-reply-write {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+}
+.inbox-reply.is-compact textarea {
+  min-height: 44px;
 }
 .inbox-reply-foot {
   display: flex;
@@ -120,6 +139,14 @@
   }
   .inbox-reply-foot .button {
     flex: 1 1 auto;
+  }
+  .inbox-reply.is-compact .inbox-reply-foot .button {
+    min-height: 44px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .inbox-reply textarea {
+    transition: none;
   }
 }
 @media (min-width: 821px) and (min-height: 640px) {

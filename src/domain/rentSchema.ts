@@ -7,15 +7,31 @@ export const RENT_LIMIT = 500
 export const RENT_PAYMENT_LIMIT = 5000
 export const rentMethods = ['cash', 'bank_transfer', 'external_card'] as const
 
-export const rentalInputSchema = z.object({
+/**
+ * The terms of a rental. Stage 3: rent is a fixed amount each week or month, a share of the
+ * renter's takings on the days they rent, or both. `amountMinor` is the fixed part (0 when there is
+ * none) and `percentBps` the share, in basis points (1000 is 10%).
+ */
+const rentalTerms = {
   staffId: id,
   space: z.enum(['chair', 'room']),
   resourceId: id.optional(),
-  amountMinor: minor.refine((n) => n > 0, 'Enter the rent.'),
+  amountMinor: minor,
+  /** Stage 3: the share of their takings, when the rent has one. */
+  percentBps: z.number().int().min(1).max(10000).optional(),
+  /**
+   * Stage 3: the products they sell are their own takings (and count towards the share). Absent or
+   * false: products come off the studio's shelf and stay the studio's sales.
+   */
+  products: z.boolean().optional(),
   every: z.enum(['week', 'month']),
   from: z.iso.date(),
-})
-export const rentalSchema = rentalInputSchema.extend({
+}
+export const rentalInputSchema = z
+  .object(rentalTerms)
+  .refine((r) => r.amountMinor > 0 || !!r.percentBps, 'Enter the rent.')
+export const rentalSchema = z.object({
+  ...rentalTerms,
   id,
   /** The last day of the agreement once it has ended. */
   to: z.iso.date().optional(),

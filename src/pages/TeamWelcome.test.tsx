@@ -14,9 +14,10 @@ vi.mock('../state/context', () => ({
 
 vi.mock('../state/api', () => ({ api: vi.fn() }))
 
-function welcome(role: 'general' | 'manager', onOpen = vi.fn()) {
+function welcome(role: 'general' | 'manager', onOpen = vi.fn(), required = false) {
   render(
     <TeamWelcome
+      required={required}
       studio="Fernleaf Rooms"
       role={role}
       place={role === 'general' ? 'Frome' : undefined}
@@ -48,7 +49,9 @@ test('a manager is told where to turn on two-step sign-in later, and can skip at
   await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
   await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
   expect(
-    screen.getByText('You can also turn it on later in Settings, under Team.'),
+    screen.getByText(
+      'You can also turn it on later in Settings, under Team, or on your account page.',
+    ),
   ).toBeInTheDocument()
   expect(onOpen).not.toHaveBeenCalled()
   await userEvent.click(screen.getByRole('button', { name: 'Skip the welcome' }))
@@ -81,4 +84,23 @@ test('keeps one main button on the sign-in screen, stepping back while two-step 
   await userEvent.click(screen.getByRole('button', { name: 'Back' }))
   await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
   expect(main()).toHaveClass('button-primary')
+})
+
+test('says two-step sign-in is needed when the studio asks everyone, and makes it the main job', async () => {
+  vi.mocked(api).mockResolvedValue({
+    secret: 'JBSWY3DPEHPK3PXP',
+    uri: 'otpauth://totp/SALEANE:sam?secret=JBSWY3DPEHPK3PXP&issuer=SALEANE',
+  } as never)
+  welcome('manager', vi.fn(), true)
+  await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
+  expect(
+    screen.getByText(/Fernleaf Rooms asks everyone to use two-step sign-in, so set it up now/),
+  ).toBeInTheDocument()
+  expect(screen.queryByText(/turn it on later/)).not.toBeInTheDocument()
+  expect(document.querySelectorAll('.button-primary')).toHaveLength(1)
+  expect(screen.getByRole('button', { name: 'Set up two-step sign-in' })).toHaveClass(
+    'button-primary',
+  )
+  expect(screen.getByRole('button', { name: /Open the studio/ })).toHaveClass('button-secondary')
 })

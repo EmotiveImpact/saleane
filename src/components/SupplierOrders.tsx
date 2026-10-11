@@ -7,7 +7,11 @@ import type { Command } from '../domain/commands'
 import { dateLabel } from '../domain/format'
 import { orderText, suggestedOrders, suppliers } from '../domain/purchasing'
 import type { PurchaseOrder, Supplier } from '../domain/purchasingSchema'
+import { ORDER_LINE_LIMIT } from '../domain/purchasingSchema'
 import { products } from '../domain/retail'
+import type { Product } from '../domain/retail'
+import { ScanField } from './ScanField'
+import type { ScanOutcome } from './ScanField'
 import { hasLocations, placeOf, places } from '../domain/locations'
 import { Button, ErrorMessage, Modal } from '../design'
 
@@ -296,6 +300,28 @@ function OrderDialog({
   const addable = stocked.filter((p) => !lines.some((l) => l.productId === p.id))
   const number = `PO-${(operations(state).purchaseOrders?.length ?? 0) + 1}`
 
+  /** Stage 2: scanning a product puts it on the order, or one more of it. */
+  function scanned(product: Product): ScanOutcome {
+    if (product.archived) return { problem: 'Choose products that are still stocked.' }
+    const line = lines.find((l) => l.productId === product.id)
+    if (!line && lines.length >= ORDER_LINE_LIMIT)
+      return { problem: `An order holds up to ${ORDER_LINE_LIMIT} products.` }
+    const quantity = (line && Number.isInteger(line.quantity) ? line.quantity : 0) + 1
+    if (quantity > 10000) return { problem: 'An order holds up to 10000 of one product.' }
+    setLines((current) =>
+      current.some((l) => l.productId === product.id)
+        ? current.map((l) => (l.productId === product.id ? { ...l, quantity } : l))
+        : [...current, { productId: product.id, quantity }],
+    )
+    setError('')
+    return {
+      done:
+        quantity > 1
+          ? `${quantity} × ${product.name} on this order.`
+          : `Added ${product.name} to the order.`,
+    }
+  }
+
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const chosen = lines.filter((l) => l.quantity > 0)
@@ -381,6 +407,9 @@ function OrderDialog({
               </select>
             </label>
           )}
+          <div className="ops-wide">
+            <ScanField action="Add" onProduct={scanned} disabled={pending} />
+          </div>
           {multiSite && (
             <label className="ops-wide">
               Deliver to
@@ -442,6 +471,31 @@ function ReceiveDialog({
     Object.fromEntries(order.lines.map((l) => [l.productId, String(l.quantity)])),
   )
   const name = (id: string) => products(state).find((p) => p.id === id)?.name ?? 'Product'
+  // Stage 2: unpacking by scanning starts from zero each count still showing the amount ordered
+  // (a count changed by hand stays as it is), then each scan adds one.
+  const [scanning, setScanning] = useState(false)
+  function scanned(product: Product): ScanOutcome {
+    if (!order.lines.some((l) => l.productId === product.id))
+      return {
+        problem: `${product.name} is not on order ${order.number}. Record it as a delivery of its own on Stock.`,
+      }
+    const start = scanning
+      ? arrived
+      : Object.fromEntries(
+          order.lines.map((l) => {
+            const count = arrived[l.productId] ?? ''
+            return [l.productId, count === String(l.quantity) ? '0' : count]
+          }),
+        )
+    const before = Number(start[product.id])
+    const next = (Number.isInteger(before) && before >= 0 ? before : 0) + 1
+    setArrived({ ...start, [product.id]: String(next) })
+    setScanning(true)
+    setError('')
+    return {
+      done: `${scanning ? '' : 'Counting by scan: the counts showing the amount ordered now start from zero. '}${next} × ${product.name} arrived.`,
+    }
+  }
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -470,6 +524,14 @@ function ReceiveDialog({
     >
       <form onSubmit={save} className="plan-form">
         <div className="ops-fields">
+          <div className="ops-wide">
+            <ScanField
+              action="Add one"
+              onProduct={scanned}
+              disabled={pending}
+              hint="Scanning as you unpack? The first scan starts from zero every count still showing the amount ordered, then each scan adds one."
+            />
+          </div>
           {order.lines.map((line) => (
             <label key={line.productId}>
               {name(line.productId)}

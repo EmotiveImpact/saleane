@@ -5,6 +5,7 @@ import { operations } from './operations'
 import { regions } from './group'
 import { DEFAULT_REGIONAL_LIMIT, REQUEST_LIMIT } from './approvalsSchema'
 import type { ApprovalRequest, Route, approvalCommandSchemas } from './approvalsSchema'
+import { carryOut, prepareRequest, startPrice } from './signoffs'
 
 export type ApprovalCommand = z.infer<(typeof approvalCommandSchemas)[number]>
 
@@ -42,26 +43,39 @@ export function runApprovalCommand(
 ) {
   const o = next.operations!
   if (command.type === 'approval-limit') {
-    o.approvals = { regionalLimitMinor: command.regionalLimitMinor }
+    o.approvals = { ...o.approvals, regionalLimitMinor: command.regionalLimitMinor }
     return 'approvals'
   }
+  if (command.type === 'signoff-rules') {
+    // Stage 4: the refund limits and the rota rule sit beside the regional limit.
+    const { generalRefundLimitMinor, managerRefundLimitMinor, rotaSignOff } = command
+    o.approvals = {
+      regionalLimitMinor:
+        command.regionalLimitMinor ?? o.approvals?.regionalLimitMinor ?? DEFAULT_REGIONAL_LIMIT,
+      ...(generalRefundLimitMinor !== null ? { generalRefundLimitMinor } : {}),
+      ...(managerRefundLimitMinor !== null ? { managerRefundLimitMinor } : {}),
+      ...(rotaSignOff !== 'off' ? { rotaSignOff } : {}),
+    }
+    return 'approvals'
+  }
+  if (command.type === 'request-start') return startPrice(next, command.requestId, now)
   if (command.type === 'request-raise') {
     const input = command.input
     if (!places(next).some((p) => p.id === input.locationId))
       throw new Error('That location is not open in this business.')
     const list = (o.requests ??= [])
     if (list.length >= REQUEST_LIMIT) throw new Error('Too many requests to keep.')
+    // Stage 4: a refund, price or rota request keeps what it asks for, checked as it is raised.
+    const asked = prepareRequest(next, input, now)
     const request: ApprovalRequest = {
       id: makeId(),
       locationId: input.locationId,
       kind: input.kind,
-      title: input.title,
-      ...(input.amountMinor !== undefined ? { amountMinor: input.amountMinor } : {}),
-      ...(input.note ? { note: input.note } : {}),
+      ...asked,
       ...routeFor(
         next,
         input.locationId,
-        input.amountMinor,
+        asked.amountMinor,
         command.managedRegions,
         command.raiserRegion,
       ),
@@ -79,6 +93,9 @@ export function runApprovalCommand(
     ...(command.note ? { note: command.note } : {}),
     at: now,
   }
+  // Stage 4: approving a rota change, or a new price whose day has come, makes it now. Approving
+  // a refund moves no money; it lets that refund be given back from the receipt.
+  if (command.outcome === 'approved') carryOut(next, request.id, now, makeId)
   return request.id
 }
 
@@ -96,6 +113,8 @@ export function stampRequestActors(before: BusinessState, after: BusinessState, 
     const previous = old.get(request.id)
     if (!previous) request.raisedBy = actor
     if (request.decision && !previous?.decision) request.decision.by = actor
+    if (request.carriedOut && !previous?.carriedOut && !request.carriedOut.by)
+      request.carriedOut.by = actor
   }
 }
 

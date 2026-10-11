@@ -3,7 +3,13 @@ import type { FormEvent } from 'react'
 import { Gift, Plus } from 'lucide-react'
 import { useStore } from '../state/context'
 import { businessDate, can, operations } from '../domain/operations'
-import { giftCardMonths, giftCards, giftStanding, normaliseCode } from '../domain/giftCards'
+import {
+  giftCardMonths,
+  giftCards,
+  giftStanding,
+  heldByHome,
+  normaliseCode,
+} from '../domain/giftCards'
 import type { GiftCard } from '../domain/giftCardsSchema'
 import { fullDateLabel, money, wholeMoney } from '../domain/format'
 import { parseMinor } from '../domain/money'
@@ -19,8 +25,10 @@ import {
 } from '../design'
 import { PaymentFields } from '../components/Plans'
 import { SoldAt } from '../components/SoldAt'
-import { asksSoldAt } from '../domain/locations'
+import { asksSoldAt, giftHome, hasLocations, placeOf, places } from '../domain/locations'
+import { recordDay } from '../domain/tillCount'
 import { usePayment, useRun } from '../components/usePayment'
+import { ReceiptActions } from '../components/ReceiptActions'
 import '../components/management.css'
 import '../components/plans.css'
 import '../giftCards.css'
@@ -39,14 +47,16 @@ type Dialog =
   | { kind: 'view'; cardId: string }
   | { kind: 'extend'; cardId: string }
   | { kind: 'cancel'; cardId: string }
+  | { kind: 'move'; cardId: string }
 
 /**
  * V1.5: gift cards and vouchers. The desk sells them and spends them at checkout; owners and
  * managers can give an expired card more time or cancel one. Money on a card is held for the
- * guest until it pays for a visit.
+ * guest until it pays for a visit. Stage 4: with more than one location, owners and managers can
+ * move a card to another location, and a general manager can pass on one that belongs to theirs.
  */
 export function GiftCards() {
-  const { state, role, blocked } = useStore()
+  const { state, role, blocked, branch } = useStore()
   const org = state.organisation
   const today = businessDate(state)
   const sandbox = operations(state).mode === 'sandbox'
@@ -64,6 +74,7 @@ export function GiftCards() {
   const [reason, setReason] = useState('')
   const [refund, setRefund] = useState('0')
   const [soldAt, setSoldAt] = useState('')
+  const [moveTo, setMoveTo] = useState('')
   const pay = usePayment()
   const { run, pending, error, setError } = useRun()
   if (role === 'practitioner')
@@ -93,6 +104,23 @@ export function GiftCards() {
     .reduce((sum, r) => sum + r.standing.balanceMinor, 0)
   const spent = rows.reduce((sum, r) => sum + r.standing.spentMinor, 0)
   const sold = rows.reduce((sum, r) => sum + r.card.valueMinor, 0)
+  // Stage 4: with several locations, each card belongs to one, and its money waits there.
+  const several = hasLocations(state)
+  const placeName = (id: string) => placeOf(state, id)?.name ?? 'a closed location'
+  const heldAt = [...heldByHome(state, today)].sort(
+    ([a], [b]) =>
+      places(state, true).findIndex((p) => p.id === a) -
+      places(state, true).findIndex((p) => p.id === b),
+  )
+  /** Open locations a card could move to: anywhere but where it belongs. */
+  const destinations = (card: GiftCard) =>
+    places(state).filter((place) => place.id !== giftHome(state, card))
+  /** Moving is for cards that can still be spent, and a general manager's own location's cards. */
+  const mayMove = (card: GiftCard) =>
+    may('gift-card-move') &&
+    giftStanding(card, today).state === 'active' &&
+    destinations(card).length > 0 &&
+    (role !== 'general' || giftHome(state, card) === branch)
   const open = (next: Dialog) => {
     setDialog(next)
     setError('')
@@ -117,6 +145,11 @@ export function GiftCards() {
     if (next.kind === 'cancel') {
       setReason('')
       setRefund('0')
+    }
+    if (next.kind === 'move') {
+      const card = giftCards(state).find((c) => c.id === next.cardId)!
+      setReason('')
+      setMoveTo(destinations(card)[0]?.id ?? '')
     }
   }
   const current =
@@ -161,6 +194,18 @@ export function GiftCards() {
         setDialog({ kind: 'view', cardId: current.id })
       return
     }
+    if (dialog.kind === 'move') {
+      if (
+        await run({
+          type: 'gift-card-move',
+          giftCardId: current.id,
+          locationId: moveTo,
+          reason: reason.trim(),
+        })
+      )
+        setDialog({ kind: 'view', cardId: current.id })
+      return
+    }
     if (dialog.kind === 'cancel') {
       const refundMinor = parseMinor(refund, 0)
       if (!Number.isFinite(refundMinor) || refundMinor < 0) {
@@ -191,6 +236,7 @@ export function GiftCards() {
     <div className="gift-page">
       <PageHeader
         variant="compact"
+        eyebrow="Business"
         title="Gift cards and vouchers."
         description={`Sold at the desk and spent at checkout. Each lasts ${giftCardMonths(state) / 12} years and can pay for any visit until it runs out.`}
         actions={
@@ -206,6 +252,12 @@ export function GiftCards() {
         <Stat label="Spent at visits" value={wholeMoney(spent, org)} />
         <Stat label="Sold in total" value={wholeMoney(sold, org)} />
       </Stats>
+      {several && heldAt.length > 0 && (
+        <p className="ops-help gift-held-at">
+          Waiting to be spent, by where each card belongs:{' '}
+          {heldAt.map(([id, minor]) => `${placeName(id)} ${wholeMoney(minor, org)}`).join(', ')}.
+        </p>
+      )}
       <p className="ops-help">
         Money paid for a gift card counts as takings only when the card pays for a visit. Until then
         it belongs to whoever holds the card.
@@ -253,6 +305,7 @@ export function GiftCards() {
                     From {card.purchaserName}
                     {card.recipientName ? ` for ${card.recipientName}` : ''}
                   </small>
+                  {several && <small>{placeName(giftHome(state, card))}</small>}
                 </span>
               </button>
             </li>
@@ -267,6 +320,7 @@ export function GiftCards() {
           description="Give the code to the buyer. It is all anyone needs to spend the card here."
         >
           <GiftCardFace card={soldCard} />
+          <ReceiptActions receiptKey={`gift-card:${soldCard.id}`} />
           <div className="ops-actions">
             <Button onClick={printCard}>Print</Button>
             <Button variant="secondary" onClick={() => setDialog(null)}>
@@ -283,6 +337,14 @@ export function GiftCards() {
           description={`${STATE_LABEL[currentStanding.state]} · ${money(currentStanding.balanceMinor, org, true)} left of ${money(current.valueMinor, org, true)}`}
         >
           <GiftCardFace card={current} />
+          {(several || !!current.moves?.length) && (
+            <p className="gift-where">
+              {current.moves?.length
+                ? `Belongs to ${placeName(giftHome(state, current))}. Sold at ${placeName(current.locationId ?? org.locationId)}.`
+                : `Sold at ${placeName(current.locationId ?? org.locationId)}, and belongs there.`}{' '}
+              It can be spent at any location.
+            </p>
+          )}
           <GiftHistory card={current} />
           {current.status === 'active' && currentStanding.balanceMinor > 0 && (
             <div className="ops-actions">
@@ -292,6 +354,11 @@ export function GiftCards() {
                   onClick={() => open({ kind: 'extend', cardId: current.id })}
                 >
                   Give more time
+                </Button>
+              )}
+              {mayMove(current) && (
+                <Button variant="quiet" onClick={() => open({ kind: 'move', cardId: current.id })}>
+                  Move to another location
                 </Button>
               )}
               {may('gift-card-cancel') && (
@@ -307,7 +374,10 @@ export function GiftCards() {
         </Modal>
       )}
       {dialog &&
-        (dialog.kind === 'sell' || dialog.kind === 'extend' || dialog.kind === 'cancel') && (
+        (dialog.kind === 'sell' ||
+          dialog.kind === 'extend' ||
+          dialog.kind === 'cancel' ||
+          dialog.kind === 'move') && (
           <Modal
             open
             onClose={() => {
@@ -318,14 +388,18 @@ export function GiftCards() {
                 ? 'Sell a gift card'
                 : dialog.kind === 'extend'
                   ? `Give ${current?.code} more time`
-                  : `Cancel ${current?.code}`
+                  : dialog.kind === 'move'
+                    ? `Move ${current?.code}`
+                    : `Cancel ${current?.code}`
             }
             description={
               dialog.kind === 'sell'
                 ? 'The payment is recorded now. The card can be spent on any visit.'
                 : dialog.kind === 'extend'
                   ? `It can be spent until ${current ? fullDateLabel(current.expiresOn, org.locale) : ''} at the moment. The earlier date stays in its history.`
-                  : `Nothing is deleted. Up to ${money(currentStanding?.balanceMinor ?? 0, org, true)} is left on it.`
+                  : dialog.kind === 'move'
+                    ? `It belongs to ${current ? placeName(giftHome(state, current)) : ''} now. Its code, balance, last day and history stay as they are.`
+                    : `Nothing is deleted. Up to ${money(currentStanding?.balanceMinor ?? 0, org, true)} is left on it.`
             }
           >
             <form onSubmit={submit} className="plan-form">
@@ -444,7 +518,38 @@ export function GiftCards() {
                   {parseMinor(refund, 0) > 0 && <PaymentFields {...pay.fields} verb="returned" />}
                 </>
               )}
-              {dialog.kind !== 'extend' && (
+              {dialog.kind === 'move' && current && (
+                <>
+                  <label className="ops-field">
+                    Move to
+                    <select value={moveTo} required onChange={(e) => setMoveTo(e.target.value)}>
+                      {destinations(current).map((place) => (
+                        <option key={place.id} value={place.id}>
+                          {place.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="ops-field">
+                    Why it is moving
+                    <input
+                      value={reason}
+                      required
+                      minLength={2}
+                      maxLength={300}
+                      placeholder="For example: the guest now lives nearer"
+                      onChange={(e) => setReason(e.target.value)}
+                    />
+                    <small>Kept on the card’s history.</small>
+                  </label>
+                  <p className="subtle">
+                    Money already taken for it and spent with it stays where it happened. What is
+                    left on it, {money(currentStanding?.balanceMinor ?? 0, org, true)}, counts at{' '}
+                    {placeName(moveTo)} from now on. It can still be spent at any location.
+                  </p>
+                </>
+              )}
+              {(dialog.kind === 'sell' || dialog.kind === 'cancel') && (
                 <p className="subtle demo-note">
                   {sandbox
                     ? 'Sample studio: no real money moves.'
@@ -465,7 +570,9 @@ export function GiftCards() {
                       ? `Record ${Number.isFinite(valueMinor) && valueMinor > 0 ? money(valueMinor, org, true) : 'sale'}`
                       : dialog.kind === 'extend'
                         ? 'Save new date'
-                        : 'Cancel card'}
+                        : dialog.kind === 'move'
+                          ? 'Move card'
+                          : 'Cancel card'}
                 </Button>
                 <Button variant="secondary" disabled={pending} onClick={() => setDialog(null)}>
                   {dialog.kind === 'cancel' ? 'Keep card' : 'Back'}
@@ -571,13 +678,24 @@ function GiftCardSample() {
 function GiftHistory({ card }: { card: GiftCard }) {
   const { state } = useStore()
   const org = state.organisation
-  const day = (instant: string) => fullDateLabel(instant.slice(0, 10), org.locale)
+  // The studio's own day, as receipts and the till show it.
+  const day = (instant: string) => fullDateLabel(recordDay(state, instant), org.locale)
   const receipt = (saleId: string) => state.sales.find((s) => s.id === saleId)?.receiptNumber
+  // Stage 4: with several locations, where it was sold and each move to another.
+  const placeName = (id: string) => placeOf(state, id)?.name ?? 'a closed location'
+  const soldAt =
+    hasLocations(state) || card.moves?.length
+      ? ` at ${placeName(card.locationId ?? org.locationId)}`
+      : ''
   const rows = [
     {
       at: card.soldAt,
-      text: `Sold for ${money(card.valueMinor, org, true)} by ${card.actor || 'the desk'}`,
+      text: `Sold for ${money(card.valueMinor, org, true)}${soldAt} by ${card.actor || 'the desk'}`,
     },
+    ...(card.moves ?? []).map((m) => ({
+      at: m.at,
+      text: `Moved from ${placeName(m.from)} to ${placeName(m.to)} by ${m.actor || 'a manager'}: ${m.reason}`,
+    })),
     ...card.redemptions.map((r) => ({
       at: r.at,
       text: `Paid ${money(r.amountMinor, org, true)} towards a visit${receipt(r.saleId) ? ` (receipt ${receipt(r.saleId)})` : ''}`,

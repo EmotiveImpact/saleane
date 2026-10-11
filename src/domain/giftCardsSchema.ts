@@ -59,6 +59,34 @@ const giftRefundSchema = z.object({
   actor: z.string(),
 })
 
+/**
+ * Stage 4: a card moved to another location, with why and who moved it. The card belongs to the
+ * last move's location from then on; where it was sold never changes, so money already taken and
+ * spent stays where it happened. Moves are only ever added.
+ */
+export const GIFT_MOVE_LIMIT = 50
+export const GIFT_MOVE_REASON_LIMIT = 300
+const giftMoveSchema = z
+  .object({
+    id,
+    /** Where it belonged before, and where it belongs now, both named in full. */
+    from: id,
+    to: id,
+    reason: z.string().trim().min(2).max(GIFT_MOVE_REASON_LIMIT),
+    at: z.iso.datetime(),
+    actor: z.string(),
+  })
+  .strict()
+export const giftCardMoveCommandSchema = z
+  .object({
+    type: z.literal('gift-card-move'),
+    giftCardId: id,
+    /** The location it moves to. */
+    locationId: id,
+    reason: z.string().trim().min(2).max(GIFT_MOVE_REASON_LIMIT),
+  })
+  .strict()
+
 export const giftCardSchema = z.object({
   id,
   organisationId: id,
@@ -96,5 +124,7 @@ export const giftCardSchema = z.object({
     .object({ at: z.iso.datetime(), actor: z.string(), reason: z.string().min(2).max(300) })
     .optional(),
   refunds: z.array(giftRefundSchema),
+  /** Stage 4: each move to another location, oldest first. */
+  moves: z.array(giftMoveSchema).max(GIFT_MOVE_LIMIT).optional(),
 })
 export type GiftCard = z.infer<typeof giftCardSchema>

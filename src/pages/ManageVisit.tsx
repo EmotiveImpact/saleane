@@ -15,6 +15,7 @@ import { GuestReview } from '../components/GuestReview'
 import { GuestForms } from '../components/GuestFormFill'
 import { GuestEmailNews } from '../components/GuestEmailNews'
 import { GuestMove } from '../components/GuestMove'
+import { GuestPlans } from '../components/GuestPlans'
 import { StudioContact } from '../components/StudioContact'
 import { returnNote, returnedToken } from '../state/guestReturn'
 import { readPendingMove } from '../state/guestMove'
@@ -236,6 +237,11 @@ export function ManageVisit() {
   const words = cancelWords(view, cutoff)
   const when = `${dateLabel(visit.date, org.locale)} at ${timeLabel(visit.startMinutes, org.locale)}`
   const cancelled = visit.status === 'cancelled'
+  const firstName = view.guest?.firstName
+  // The studio's own arrival words when it wrote some; otherwise a kind, general line.
+  const studioArrival = arrival.studioNote.trim()
+  const arrivalLine =
+    studioArrival || 'Please arrive a few minutes early, so there is time to settle in.'
   const monogram = org.name
     .split(' ')
     .map((word) => word[0])
@@ -244,6 +250,8 @@ export function ManageVisit() {
   return (
     <main className="guest-page visit-page">
       <header className="visit-hero">
+        {/* A house photograph that sets the mood. Studios cannot add their own photograph yet, so
+            nothing here says it is this studio's room. */}
         <img className="visit-hero-image" src={photos.entrance} alt="" />
         <div className="visit-hero-brand">
           <span className="atelier-monogram" aria-hidden="true">
@@ -256,7 +264,38 @@ export function ManageVisit() {
         </div>
       </header>
       <section className="guest-card visit-card" aria-labelledby="visit-heading">
-        <h1 id="visit-heading">{cancelled ? 'Your visit is cancelled.' : 'Your visit'}</h1>
+        {/* Stage 6: the guest's label, typed like a card made for one person. */}
+        <div className="visit-label">
+          <h1 id="visit-heading">
+            {cancelled
+              ? 'Your visit is cancelled.'
+              : firstName
+                ? `Your visit, ${firstName}.`
+                : 'Your visit'}
+          </h1>
+          <dl className="visit-label-lines">
+            <div>
+              <dt>Treatment</dt>
+              <dd>{visit.serviceName}</dd>
+            </div>
+            <div>
+              <dt>With</dt>
+              <dd>{visit.professional}</dd>
+            </div>
+            <div>
+              <dt>Date</dt>
+              <dd>{dateLabel(visit.date, org.locale)}</dd>
+            </div>
+            <div>
+              <dt>Time</dt>
+              <dd>
+                {timeLabel(visit.startMinutes, org.locale)}
+                <small>{visit.durationMinutes} minutes</small>
+              </dd>
+            </div>
+          </dl>
+          {visit.status === 'confirmed' && <p className="visit-label-arrival">{arrivalLine}</p>}
+        </div>
         {moved && (
           <p className="guest-notice" role="status" tabIndex={-1} ref={notice}>
             Your visit has moved to {when} with {visit.professional}. {org.name} can see the change.
@@ -273,21 +312,6 @@ export function ManageVisit() {
           </p>
         )}
         <dl className="guest-visit">
-          <div>
-            <dt>Treatment</dt>
-            <dd>{visit.serviceName}</dd>
-          </div>
-          <div>
-            <dt>When</dt>
-            <dd>
-              {when}
-              <small>{visit.durationMinutes} minutes</small>
-            </dd>
-          </div>
-          <div>
-            <dt>With</dt>
-            <dd>{visit.professional}</dd>
-          </div>
           {deposit.paidMinor > 0 && (
             <div>
               <dt>Deposit</dt>
@@ -309,13 +333,15 @@ export function ManageVisit() {
         {view.payment && !done && (
           <GuestPayment token={token} payment={view.payment} organisation={org} />
         )}
-        <StudioContact studio={org} />
+        <GuestPlans view={view} />
+        <StudioContact studio={org} map />
         <GuestForms token={token} view={view} onChange={setView} />
         <GuestFeedback token={token} view={view} onChange={setView} />
         <GuestReview view={view} />
         {visit.status === 'confirmed' && (
           <>
-            <BeforeYouArrive studioNote={arrival.studioNote} serviceNote={arrival.serviceNote} />
+            {/* The studio's own arrival words are on the label already. */}
+            <BeforeYouArrive serviceNote={arrival.serviceNote} />
             <AddToCalendar
               visit={{
                 uid: visit.calendarUid,
@@ -402,6 +428,21 @@ export function ManageVisit() {
             <a className="button button-primary" href={view.bookAgain.path}>
               <CalendarPlus size={16} aria-hidden="true" />
               Book again
+            </a>
+          </section>
+        )}
+        {view.usual && (
+          <section className="visit-again visit-usual" aria-labelledby="usual-heading">
+            <h2 id="usual-heading">Come back for your usual?</h2>
+            <p className="subtle">
+              {view.usual.serviceName}
+              {view.usual.professional ? ` with ${view.usual.professional}` : ''}
+              {view.usual.location ? ` at ${view.usual.location}` : ''}, from{' '}
+              {dateLabel(view.usual.date, org.locale)}. Choose a time on {org.name}’s booking page.
+            </p>
+            <a className="button button-secondary" href={view.usual.path}>
+              <CalendarPlus size={16} aria-hidden="true" />
+              Book your usual
             </a>
           </section>
         )}

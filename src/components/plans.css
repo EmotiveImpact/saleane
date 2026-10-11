@@ -6,8 +6,18 @@
 .plan-form .ops-actions {
   margin-top: 4px;
 }
+/* The client page's side column is narrow, so a plan reads top to bottom: its name and standing,
+   then its buttons on one line beneath, rather than squeezing the name beside them. */
 .client-plans .ops-record {
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+.client-plans .ops-record-copy {
+  flex: none;
+}
+.client-plans .plan-controls {
+  justify-content: flex-start;
 }
 .client-plans .ops-tag {
   margin-top: 8px;
@@ -107,4 +117,144 @@ fieldset.checkout-plans > label {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-variant-numeric: tabular-nums;
+}
+/* Stage 1: a membership paid each month from a saved card. Space and hairlines, no boxes. */
+.plan-card-line {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: var(--text-small);
+}
+.plan-card-line p,
+.plan-card-one {
+  margin: 0;
+}
+.plan-card-line p svg,
+.plan-card-one svg {
+  vertical-align: -2px;
+  margin-right: 4px;
+}
+.plan-card-line .plan-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-start;
+}
+.plan-card-line .button,
+.plan-card-month .ops-record .button {
+  max-width: 100%;
+  white-space: normal;
+  justify-self: start;
+}
+.plan-card-try {
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.plan-card-try span {
+  color: var(--muted);
+}
+.plan-card-choice {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.plan-card-choice legend {
+  margin-bottom: 8px;
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+}
+.plan-card-choice .card-route {
+  min-height: var(--target);
+}
+/* The words the client agrees to, set apart by hairlines rather than a box. */
+.plan-card-wording {
+  display: grid;
+  gap: 8px;
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.plan-card-wording strong {
+  font-size: var(--text-small);
+  color: var(--muted);
+}
+.plan-card-wording p {
+  margin: 0;
+  max-width: 60ch;
+  font-size: var(--text-lead);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.plan-card-agree {
+  min-height: var(--target);
+  align-items: center;
+}
+.plan-card-month {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--line);
+}
+.plan-card-month h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.plan-card-held {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--text-small);
+}
+.plan-card-held p {
+  margin: 4px 0 10px;
+  color: var(--muted);
+}
+.plan-card-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px 20px;
+  margin: 0;
+}
+.plan-card-totals dt {
+  font-size: var(--text-small);
+  color: var(--muted);
+}
+.plan-card-totals dd {
+  margin: 4px 0 0;
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+}
+.plan-card-more summary {
+  min-height: var(--target);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: var(--text-small);
+  font-weight: var(--weight-strong);
+}
+@media (max-width: 560px) {
+  .plan-card-month .ops-record {
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+  .plan-card-month .ops-record-copy {
+    flex-basis: 100%;
+  }
+  /* The main button sits full width at the foot of the form, where a thumb reaches it. */
+  .plan-card-setup .ops-actions .button {
+    flex: 1 1 100%;
+    white-space: normal;
+  }
 }

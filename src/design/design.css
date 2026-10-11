@@ -28,6 +28,19 @@
   margin-top: var(--space-1);
   font-size: var(--text-body);
 }
+/*
+ * The photo band: one house photograph above the heading of a page people arrive at. It runs
+ * the width of the page and fades softly into the words below, with no frame around it.
+ */
+.photo-strip {
+  height: clamp(120px, 11vw, 168px);
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius) var(--radius) 0 0;
+  background-size: cover;
+  background-repeat: no-repeat;
+  -webkit-mask-image: linear-gradient(to bottom, #000 40%, transparent);
+  mask-image: linear-gradient(to bottom, #000 40%, transparent);
+}
 
 /* Headline figures -------------------------------------------------------- */
 /*
@@ -230,6 +243,10 @@
 }
 
 @media (max-width: 650px) {
+  .photo-strip {
+    height: 104px;
+    margin-bottom: var(--space-1);
+  }
   .page-heading-compact {
     align-items: flex-start;
     gap: var(--space-3);

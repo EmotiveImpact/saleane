@@ -6,7 +6,7 @@ import { useStore } from '../state/context'
 import { useLiveRefresh } from '../state/useLive'
 import { bookedTimeShare, dayAppointments, dueClients } from '../domain/selectors'
 import { bookedTimeDefinition } from '../components/definitions'
-import { dateLabel, money } from '../domain/format'
+import { dateLabel, money, timeLabel } from '../domain/format'
 import { Button, Metric, photos } from '../design'
 import { businessMinutes } from '../domain/operations'
 import type { Appointment, Client } from '../domain/model'
@@ -18,6 +18,11 @@ import { BookingDialog } from '../components/BookingDialog'
 import { NeedsYou } from '../components/NeedsYou'
 import { TeamToday } from '../components/TeamToday'
 import type { BookingDefaults } from '../components/BookingDialog'
+import { FULLY_BOOKED_LINE, fullyBooked } from '../domain/moments'
+import { studioMilestone, studioMilestoneLine } from '../domain/beforeVisit'
+import { BeforeVisitCard } from '../components/BeforeVisitCard'
+import { placeOf } from '../domain/locations'
+import '../components/moments.css'
 
 function greeting(minutes: number) {
   if (minutes < 12 * 60) return 'Good morning'
@@ -50,7 +55,7 @@ function daySummary(day: Appointment[], clients: Client[], all: Appointment[]) {
 }
 
 export function Today() {
-  const { state, today, session } = useStore()
+  const { state, today, session, role, branch } = useStore()
   useLiveRefresh()
   const [appointmentId, setAppointmentId] = useState('')
   const [booking, setBooking] = useState<BookingDefaults | null>(null)
@@ -62,7 +67,26 @@ export function Today() {
   const changed = state.appointments.filter(
     (a) => a.date === today && (a.status === 'cancelled' || a.status === 'no_show'),
   )
-  const utilisation = Math.round(bookedTimeShare(state, today) * 100)
+  // Stage 4: a general manager's figure is for their own location, whose team they see.
+  const utilisation = Math.round(
+    bookedTimeShare(state, today, role === 'general' ? (branch ?? undefined) : undefined) * 100,
+  )
+  // Stage 6: once no time is left today for anyone's shortest treatment (their location only, for
+  // a general manager).
+  const full = fullyBooked(state, today, {
+    today,
+    locationId: role === 'general' ? (branch ?? undefined) : undefined,
+  })
+  const nowMinutes = businessMinutes(state)
+  // Stage 6: a quiet line when today carries the studio (or a general manager's location) past
+  // its hundredth, five hundredth or thousandth visit.
+  const milestone = studioMilestone(
+    state,
+    today,
+    role === 'general' ? (branch ?? undefined) : undefined,
+  )
+  const milestoneGuest =
+    milestone && state.clients.find((c) => c.id === milestone.appointment.clientId)
   return (
     <>
       <section className="greeting" aria-labelledby="greeting-title">
@@ -73,6 +97,18 @@ export function Today() {
             {session ? `, ${session.user.name.split(' ')[0]}.` : '.'}
           </h1>
           <p className="greeting-summary">{daySummary(day, state.clients, state.appointments)}</p>
+          {milestone && milestoneGuest && (
+            <p className="studio-milestone settle-in">
+              {studioMilestoneLine(
+                milestone,
+                role === 'general' && branch
+                  ? (placeOf(state, branch)?.name ?? state.organisation.name)
+                  : state.organisation.name,
+                milestoneGuest.name.split(' ')[0],
+                timeLabel(milestone.appointment.startMinutes, state.organisation.locale),
+              )}
+            </p>
+          )}
           <div className="page-actions">
             <Button onClick={() => setBooking({ date: today })}>
               <Plus size={17} />
@@ -121,6 +157,11 @@ export function Today() {
             <div>
               <h2>The day ahead</h2>
               <p>A welcome, a little care, a reason to come back.</p>
+              {full && (
+                <p className="fully-booked-line settle-in" role="status">
+                  {FULLY_BOOKED_LINE}
+                </p>
+              )}
             </div>
             <Link className="text-link" to="/calendar">
               Open calendar <ArrowUpRight size={15} />
@@ -144,7 +185,7 @@ export function Today() {
             appointments={hideCompleted ? day.filter((a) => a.status !== 'completed') : day}
             selectedId={appointmentId}
             onOpen={setAppointmentId}
-            nowMinutes={businessMinutes(state)}
+            nowMinutes={nowMinutes}
           />
           {changed.length > 0 && (
             <Link className="day-changes-link" to="/calendar">
@@ -155,6 +196,7 @@ export function Today() {
           )}
         </section>
         <aside className="today-aside">
+          <BeforeVisitCard nowMinutes={nowMinutes} onOpen={setAppointmentId} />
           <NeedsYou />
           <TeamToday />
           <Link className="booking-prompt" to="/booking">

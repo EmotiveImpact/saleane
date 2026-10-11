@@ -7,7 +7,7 @@ import { useStore } from '../state/context'
 import { depositPaid } from '../domain/commands'
 import { operations, can } from '../domain/operations'
 import { dateLabel, money, wholeMoney } from '../domain/format'
-import { parseMinor } from '../domain/money'
+import { minorInput, parseMinor } from '../domain/money'
 import {
   Button,
   ErrorMessage,
@@ -20,10 +20,18 @@ import {
 } from '../design'
 import '../components/management.css'
 import { TillCount } from '../components/TillCount'
+import { recordDay } from '../domain/tillCount'
 import { CardRefund } from '../components/CardPayments'
+import { RefundSignOff } from '../components/RefundSignOff'
+import { refundRefusal } from '../domain/signoffs'
 import { CarriedBalances } from '../components/Switching'
 import { PlansLedger } from '../components/Plans'
 import { giftCards, refundableOnReceipt } from '../domain/giftCards'
+import { otherReceipts } from '../domain/receipt'
+import { renterCounterSale, renterVisit } from '../domain/takings'
+import { ReceiptActions, ReceiptDialog } from '../components/ReceiptActions'
+import { OtherTillDialog, OtherTillRefunds, OtherTillRow } from '../components/OtherTillSales'
+import { otherTillSales, tillDay } from '../domain/otherTill'
 
 const methodLabel = (method: string) =>
   ({
@@ -48,10 +56,19 @@ export function Money() {
   const [refund, setRefund] = useState(false)
   const [depositId, setDepositId] = useState('')
   const [cardRefundId, setCardRefundId] = useState('')
+  // Stage 4: an approved refund opened from its sign-off, for exactly its amount.
+  const [giveBack, setGiveBack] = useState<number | undefined>()
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [shownDays, setShownDays] = useState(5)
+  // Stage 2: a walk-in, gift card or plan receipt open on its own, by its receipt key.
+  const [slipKey, setSlipKey] = useState('')
+  const [allOthers, setAllOthers] = useState(false)
+  // Stage 5: a sale or refund from a chain's own till, open on its own.
+  const [tillId, setTillId] = useState('')
+  const fromTills = otherTillSales(state)
+  const others = otherReceipts(state).sort((a, b) => b.at.localeCompare(a.at))
   const receipt = state.sales.find((sale) => sale.id === receiptId)
   const refundedPayment = state.payments.find((payment) => payment.id === cardRefundId)
   const paymentRefunded = (paymentId: string) =>
@@ -104,18 +121,32 @@ export function Money() {
         service.id ===
         state.appointments.find((appointment) => appointment.id === appointmentId)?.serviceId,
     )?.name ?? 'Visit'
-  // V2: products sold without a visit appear on their day beside the visit receipts.
+  // V2: products sold without a visit appear on their day beside the visit receipts. Each is
+  // filed under the studio's own day, the day its receipt and the till count give it.
   const counterByDay = (state.counterSales ?? []).reduce<
     Record<string, NonNullable<typeof state.counterSales>>
   >((days, sale) => {
-    ;(days[sale.paidAt.slice(0, 10)] ??= []).push(sale)
+    ;(days[recordDay(state, sale.paidAt)] ??= []).push(sale)
     return days
   }, {})
   const visitDays = state.sales.reduce<Record<string, typeof state.sales>>((days, sale) => {
-    ;(days[sale.paidAt.slice(0, 10)] ??= []).push(sale)
+    ;(days[recordDay(state, sale.paidAt)] ??= []).push(sale)
     return days
   }, {})
-  const receiptDays = [...new Set([...Object.keys(visitDays), ...Object.keys(counterByDay)])]
+  // Stage 5: sales from a chain's own tills, on the studio's own day each happened.
+  const tillByDay = fromTills
+    .filter((sale) => sale.kind === 'sale')
+    .reduce<Record<string, typeof fromTills>>((days, sale) => {
+      ;(days[tillDay(state, sale)] ??= []).push(sale)
+      return days
+    }, {})
+  const receiptDays = [
+    ...new Set([
+      ...Object.keys(visitDays),
+      ...Object.keys(counterByDay),
+      ...Object.keys(tillByDay),
+    ]),
+  ]
     .sort((a, b) => b.localeCompare(a))
     .map(
       (day) =>
@@ -123,8 +154,25 @@ export function Money() {
           day,
           (visitDays[day] ?? []).sort((a, b) => b.paidAt.localeCompare(a.paidAt)),
           counterByDay[day] ?? [],
+          (tillByDay[day] ?? []).sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)),
         ] as const,
     )
+  // Stage 3: a receipt for someone renting a chair or room is their own takings, not the studio's.
+  // Every receipt is still listed and the till still counts its cash.
+  const renterWords = (staffId: string | undefined, space: 'chair' | 'room', what = 'takings') =>
+    ` · ${state.staff.find((p) => p.id === staffId)?.name.split(' ')[0] ?? 'A renter'}’s own ${what}, renting a ${space}`
+  const renterNote = (sale: (typeof state.sales)[number]) => {
+    const visit = state.appointments.find((a) => a.id === sale.appointmentId)
+    const rental = visit && renterVisit(state, visit)
+    if (!rental) return ''
+    // Products from the studio's shelf stay the studio's sales, so only the treatment is theirs.
+    const what = sale.retail && !rental.products ? 'takings for the treatment' : 'takings'
+    return renterWords(rental.staffId, rental.space, what)
+  }
+  const counterNote = (sale: Parameters<typeof renterCounterSale>[1]) => {
+    const rental = renterCounterSale(state, sale)
+    return rental ? renterWords(rental.staffId, rental.space) : ''
+  }
   const counterRefunded = (counterSaleId: string) =>
     operations(state)
       .refunds.filter((r) => r.counterSaleId === counterSaleId)
@@ -141,6 +189,7 @@ export function Money() {
       setRefund(false)
       setDepositId('')
       setCardRefundId('')
+      setGiveBack(undefined)
       setError('')
     }
   }
@@ -150,6 +199,18 @@ export function Money() {
     const data = new FormData(event.currentTarget)
     if (data.get('confirmed') !== 'on') {
       setError('Tick the box to confirm where this refund was made first.')
+      return
+    }
+    // Stage 4: over the limit without a sign-off for exactly this, the server would refuse it too.
+    const refusal = refundRefusal(
+      state,
+      role,
+      { saleId: receipt.id },
+      parseMinor(data.get('amount')),
+      new Date().toISOString(),
+    )
+    if (refusal) {
+      setError(refusal)
       return
     }
     // V2: products the guest brought back, to go back on the shelf.
@@ -176,6 +237,7 @@ export function Money() {
         return
       }
       setRefund(false)
+      setGiveBack(undefined)
       setNotice(
         sandbox
           ? 'Simulated refund recorded. No money moved.'
@@ -326,23 +388,36 @@ export function Money() {
           </header>
           {tab === 'receipts' && (
             <>
-              {receiptDays.slice(0, shownDays).map(([day, sales, counter]) => (
+              {receiptDays.slice(0, shownDays).map(([day, sales, counter, tills]) => (
                 <section className="receipt-day" key={day} aria-label={dateLabel(day, locale)}>
                   <h3 className="receipt-day-heading">
                     <span>{dateLabel(day, locale)}</span>
                     <span>
                       {format(
-                        [...sales, ...counter].reduce((total, sale) => total + sale.totalMinor, 0),
+                        [...sales, ...counter, ...tills].reduce(
+                          (total, sale) => total + sale.totalMinor,
+                          0,
+                        ),
                       )}
                     </span>
                   </h3>
+                  {tills.map((sale) => (
+                    <OtherTillRow key={sale.id} sale={sale} onOpen={() => setTillId(sale.id)} />
+                  ))}
                   {counter.map((sale) => (
-                    <Link className="receipt-row" key={sale.id} to="/business/stock">
+                    <button
+                      type="button"
+                      className="receipt-row"
+                      key={sale.id}
+                      onClick={() => setSlipKey(`walk-in:${sale.id}`)}
+                    >
                       <span className="receipt-row-copy">
+                        <span className="sr-only">Open walk-in receipt </span>
                         <strong>Products without a visit</strong>
                         <small>
                           {sale.retail.lines.map((line) => line.name).join(', ')} ·{' '}
                           {methodLabel(sale.method)} · {sale.receiptNumber}
+                          {counterNote(sale)}
                           {counterRefunded(sale.id) > 0
                             ? ` · ${format(counterRefunded(sale.id))} refunded`
                             : ''}
@@ -350,7 +425,7 @@ export function Money() {
                       </span>
                       <span className="ops-record-money">{format(sale.totalMinor)}</span>
                       <ChevronRight size={16} />
-                    </Link>
+                    </button>
                   ))}
                   {sales.map((sale) => (
                     <button
@@ -369,6 +444,7 @@ export function Money() {
                         <small>
                           {serviceName(sale.appointmentId)} · {methodLabel(sale.method)}
                           {sale.receiptNumber ? ` · ${sale.receiptNumber}` : ''}
+                          {renterNote(sale)}
                           {refundFor(sale.id) > 0
                             ? ` · ${format(refundFor(sale.id))} refunded`
                             : ''}
@@ -384,6 +460,37 @@ export function Money() {
                 <Button variant="quiet" onClick={() => setShownDays((days) => days + 7)}>
                   Show earlier receipts
                 </Button>
+              )}
+              {others.length > 0 && (
+                <section className="receipt-day" aria-label="Gift cards and plans">
+                  <h3 className="receipt-day-heading">
+                    <span>Gift cards and plans</span>
+                  </h3>
+                  {(allOthers ? others : others.slice(0, 5)).map((other) => (
+                    <button
+                      type="button"
+                      className="receipt-row"
+                      key={other.key}
+                      onClick={() => setSlipKey(other.key)}
+                    >
+                      <span className="receipt-row-copy">
+                        <span className="sr-only">Open receipt for </span>
+                        <strong>{other.name}</strong>
+                        <small>
+                          {other.title} · {methodLabel(other.method)} · {other.number} ·{' '}
+                          {dateLabel(recordDay(state, other.at), locale)}
+                        </small>
+                      </span>
+                      <span className="ops-record-money">{format(other.amountMinor)}</span>
+                      <ChevronRight size={16} />
+                    </button>
+                  ))}
+                  {others.length > 5 && !allOthers && (
+                    <Button variant="quiet" onClick={() => setAllOthers(true)}>
+                      See all {others.length}
+                    </Button>
+                  )}
+                </section>
               )}
               {!receiptDays.length && (
                 <EmptyMoney
@@ -412,7 +519,7 @@ export function Money() {
                       </strong>
                       <small>
                         {methodLabel(payment.method)} ·{' '}
-                        {dateLabel(payment.recordedAt.slice(0, 10), state.organisation.locale)}
+                        {dateLabel(recordDay(state, payment.recordedAt), state.organisation.locale)}
                       </small>
                       <small>
                         {payment.reference
@@ -526,15 +633,16 @@ export function Money() {
                           {sandbox ? 'Simulated' : 'Recorded externally'}
                         </small>
                         <small>
-                          {dateLabel(entry.createdAt.slice(0, 10), state.organisation.locale)} ·{' '}
-                          {entry.actor}
+                          {dateLabel(recordDay(state, entry.createdAt), state.organisation.locale)}{' '}
+                          · {entry.actor}
                         </small>
                       </div>
                       <span className="ops-record-money">−{format(entry.amountMinor)}</span>
                     </div>
                   )
                 })}
-              {!config.refunds.length && (
+              <OtherTillRefunds onOpen={setTillId} />
+              {!config.refunds.length && !fromTills.some((x) => x.kind === 'refund') && (
                 <EmptyMoney
                   title="No refunds recorded."
                   detail="Open a paid receipt to record a refund you have already given back."
@@ -550,6 +658,12 @@ export function Money() {
             Treatment takings, tips, refunds and deposits not yet used mean different things, so
             each is shown on its own.
           </p>
+          {fromTills.length > 0 && (
+            <p>
+              Sales from your other tills are money those tills took. SALEANE records them for
+              takings and stock, and took no payment for them.
+            </p>
+          )}
           <p>
             {session?.services.payments
               ? 'Card payments taken through SALEANE appear here only once the payment provider confirms them.'
@@ -558,6 +672,7 @@ export function Money() {
         </aside>
       </div>
       <TillCount />
+      {tillId && <OtherTillDialog saleId={tillId} onClose={() => setTillId('')} />}
       {receipt && (
         <Modal
           open
@@ -659,6 +774,7 @@ export function Money() {
                   : 'Paid with a test card; no money moved.'
                 : 'A receipt for money recorded by hand; no card company was involved.'}
           </p>
+          {!refund && <ReceiptActions receiptKey={`visit:${receipt.id}`} />}
           {visit && (
             <Link className="text-link" onClick={close} to={`/clients/${visit.clientId}`}>
               Open client page
@@ -668,9 +784,11 @@ export function Money() {
             <CardRefund
               target={{ saleId: receipt.id }}
               maxMinor={cardRefundable(receipt.id)}
+              startMinor={giveBack}
               testMode={!receipt.processor?.live}
               onDone={() => {
                 setRefund(false)
+                setGiveBack(undefined)
                 setNotice('Refunded to the card. The refund is on the receipt.')
               }}
             />
@@ -692,6 +810,7 @@ export function Money() {
                     max={(refundableOnReceipt(receipt) - refundFor(receipt.id)) / 100}
                     step="0.01"
                     required
+                    defaultValue={giveBack !== undefined ? minorInput(giveBack) : undefined}
                   />
                 </label>
                 <label>
@@ -760,7 +879,14 @@ export function Money() {
                 <Button type="submit" disabled={pending || blocked}>
                   {pending ? 'Recording…' : 'Record refund'}
                 </Button>
-                <Button variant="secondary" disabled={pending} onClick={() => setRefund(false)}>
+                <Button
+                  variant="secondary"
+                  disabled={pending}
+                  onClick={() => {
+                    setRefund(false)
+                    setGiveBack(undefined)
+                  }}
+                >
                   Back to receipt
                 </Button>
               </div>
@@ -768,25 +894,44 @@ export function Money() {
           ) : (
             // The front desk reads receipts; refunds are for owners and managers (the server agrees).
             can(role, 'refund') && (
-              <div className="ops-actions">
-                <Button
-                  variant="secondary"
-                  disabled={blocked || refundFor(receipt.id) >= refundableOnReceipt(receipt)}
-                  onClick={() => {
+              <>
+                <RefundSignOff
+                  target={{ saleId: receipt.id }}
+                  onGiveBack={(amountMinor) => {
+                    setGiveBack(amountMinor)
                     setRefund(true)
                     setError('')
                   }}
-                >
-                  {sandbox
-                    ? 'Record simulated refund'
-                    : receipt.method === 'card' && cardRefundable(receipt.id) > 0
-                      ? 'Refund to the card'
-                      : 'Record external refund'}
-                </Button>
-              </div>
+                />
+                <div className="ops-actions">
+                  <Button
+                    variant="secondary"
+                    disabled={blocked || refundFor(receipt.id) >= refundableOnReceipt(receipt)}
+                    onClick={() => {
+                      setRefund(true)
+                      setError('')
+                    }}
+                  >
+                    {sandbox
+                      ? 'Record simulated refund'
+                      : receipt.method === 'card' && cardRefundable(receipt.id) > 0
+                        ? 'Refund to the card'
+                        : 'Record external refund'}
+                  </Button>
+                </div>
+              </>
             )
           )}
         </Modal>
+      )}
+      {slipKey && (
+        <ReceiptDialog receiptKey={slipKey} onClose={() => setSlipKey('')}>
+          {slipKey.startsWith('walk-in:') && can(role, 'refund') && (
+            <Link className="text-link" to="/business/stock">
+              Give money back from Stock
+            </Link>
+          )}
+        </ReceiptDialog>
       )}
       {refundedPayment && (
         <Modal
@@ -795,12 +940,19 @@ export function Money() {
           title="Refund to the card"
           description={`${clientName(refundedPayment.appointmentId)} · ${refundedPayment.kind === 'fee' ? 'Missed visit fee' : 'Deposit'}`}
         >
+          <RefundSignOff
+            target={{ paymentId: refundedPayment.id }}
+            onGiveBack={(amountMinor) => setGiveBack(amountMinor)}
+          />
           <CardRefund
+            key={giveBack ?? 'all'}
             target={{ paymentId: refundedPayment.id }}
             maxMinor={refundedPayment.amountMinor - paymentRefunded(refundedPayment.id)}
+            startMinor={giveBack}
             testMode={!refundedPayment.processor?.live}
             onDone={() => {
               setCardRefundId('')
+              setGiveBack(undefined)
               setNotice('Refunded to the card. It is listed under refund records.')
             }}
           />

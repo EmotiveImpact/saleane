@@ -10,6 +10,8 @@ import { balanceDue, feeAllowed, giftCardHoldProblem, guestPaymentFor } from '..
 import type { AttemptRow, CardRow, Payments } from '../payments/service'
 import { retailItemsSchema } from '../../src/domain/retailSchema'
 import { mayRemoveSavedCard } from '../../src/domain/paymentMethods'
+import { holdings, openCardAgreement } from '../../src/domain/plans'
+import { refundRefusal } from '../../src/domain/signoffs'
 import { openGuestLink, tokenSchema } from './guest'
 
 const keySchema = /^[A-Za-z0-9._:-]{8,100}$/
@@ -96,6 +98,8 @@ const refundInput = z
     paymentId: z.string().min(1).max(150).optional(),
     amountMinor: money.refine((v) => v > 0),
     reason: z.string().trim().min(3).max(300),
+    /** Stage 2: products the guest brought back, back on the shelf once the provider confirms. */
+    restock: retailItemsSchema.optional(),
   })
   .strict()
 const lookup = z
@@ -556,6 +560,8 @@ export function paymentRoutes(payments: Payments) {
       const data = refundInput.parse(body)
       if (!!data.saleId === !!data.paymentId)
         fail(400, 'Choose the receipt or the payment being refunded.')
+      const restock = data.restock?.length ? data.restock : undefined
+      if (restock && !data.saleId) fail(400, 'Only products on a receipt can come back.')
       const key = header(request, 'idempotency-key')
       if (!key || !keySchema.test(key))
         fail(400, 'Use an idempotency key between 8 and 100 safe characters.')
@@ -586,9 +592,22 @@ export function paymentRoutes(payments: Payments) {
           )
         if (data.amountMinor > remaining)
           fail(409, 'This is more than is left to refund on this card payment.')
+        // Stage 4: over a general manager's or manager's limit, only with a sign-off for this
+        // receipt and amount. It is used up when the card company confirms the refund.
+        const signOff = refundRefusal(
+          fresh.state,
+          fresh.role,
+          target,
+          data.amountMinor,
+          new Date(now()).toISOString(),
+        )
+        if (signOff) fail(403, signOff)
+        // Products going back are checked now against what the receipt sold, as a refund recorded
+        // by hand would be, and go back on the shelf only once the provider confirms the refund.
         rehearse(fresh, {
           type: 'refund',
           ...target,
+          ...(restock ? { restock } : {}),
           amountMinor: data.amountMinor,
           reason: data.reason,
           reference: 'rehearsal',
@@ -611,6 +630,7 @@ export function paymentRoutes(payments: Payments) {
           save_card: 0,
           refund_of: refundOf,
           reason: data.reason,
+          ...(restock ? { products: restock } : {}),
           request_key: key!,
           actor_id: actor.id,
         })
@@ -642,10 +662,38 @@ export function paymentRoutes(payments: Payments) {
       if (!card) fail(404, 'This card was not found.')
       if (!mayRemoveSavedCard(org.state, org.role, card!.client_id, org.locationId))
         fail(403, 'That client’s visits are at another location. Ask the owner or a manager.')
+      // Stage 1: an unclear membership payment is checked against this card before it goes.
+      if (
+        db.get(
+          "SELECT id FROM membership_charges WHERE organisation_id=? AND card_id=? AND status IN ('started','processing','unknown')",
+          org.id,
+          card!.id,
+        )
+      )
+        fail(
+          409,
+          'A membership payment from this card is still under way or unclear. Check it first.',
+        )
       if (!(await provider.removeCard(card!.method_ref)))
         fail(502, 'The payment provider did not confirm the card was removed. Try again.')
-      db.run('UPDATE saved_cards SET removed_at=? WHERE id=?', now(), card!.id)
-      ctx.audit(org, actor.id, 'card.removed', card!.id)
+      db.transaction(() => {
+        db.run('UPDATE saved_cards SET removed_at=? WHERE id=?', now(), card!.id)
+        ctx.audit(org, actor.id, 'card.removed', card!.id)
+        // Stage 1: a membership paid from this card stops being charged, and its record says why.
+        let fresh = ctx.orgFor(org.id, actor)
+        for (const holding of holdings(fresh.state))
+          if (openCardAgreement(holding)?.cardId === card!.id) {
+            const result = dispatch(
+              fresh.state,
+              { type: 'plan-card', holdingId: holding.id, reason: 'card_removed' },
+              actor.name,
+              new Date(now()).toISOString(),
+            )
+            if (!result.ok || result.state.revision === fresh.state.revision) continue
+            ctx.persist(fresh, result.state, actor.id, 'plan-card', result.recordId)
+            fresh = { ...fresh, state: result.state }
+          }
+      })
       reply(200, { ok: true })
       return true
     }

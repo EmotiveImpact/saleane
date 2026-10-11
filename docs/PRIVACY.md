@@ -1,6 +1,6 @@
 # SALEANE privacy and data lifecycle
 
-LOCAL-03 (PRD GOV-01). Prepared 6 October 2026. **The owner decided these rules on 7 October 2026.** Nothing in SALEANE deletes or anonymises records automatically. When a record reaches the end of its retention period it becomes due for deletion and waits until an owner or manager approves it. No deletion step is built yet. Confirming the periods with a qualified privacy adviser before a live pilot is still recommended.
+LOCAL-03 (PRD GOV-01). Prepared 6 October 2026. **The owner decided these rules on 7 October 2026.** Nothing in SALEANE deletes or anonymises records automatically. When a record reaches the end of its retention period it becomes due for deletion and waits until an owner or manager approves it or keeps it longer (Stage 6, Settings, Data & privacy, "Waiting for your decision"). Confirming the periods with a qualified privacy adviser before a live pilot is still recommended.
 
 ## Who can do what (decided)
 
@@ -42,13 +42,30 @@ Decided by the owner on 7 October 2026. The periods live in code in `src/domain/
 | Public booking holds                                         | Five minutes (enforced by expiry); rows not yet purged | Security; legitimate interests                                 |
 | Request receipts (idempotency)                               | Not yet set; bounded period after the request          | Integrity of money and bookings                                |
 
-**At the end of a period, an owner or manager decides.** Reaching the end of a period never deletes anything by itself. An owner or manager either approves the deletion or keeps the record longer by a number of months or years, with years as the default (`DELETION_APPROVERS` and `extendRetention` in `src/domain/dataRetention.ts`). Reception and practitioners cannot do either.
+**At the end of a period, an owner or manager decides.** Reaching the end of a period never deletes anything by itself. An owner or manager either approves the deletion or keeps the record longer by a number of months or years, with years as the default (`DELETION_APPROVERS` and `extendRetention` in `src/domain/dataRetention.ts`). Reception, practitioners, general managers and regional managers cannot do either; the server refuses them.
+
+### The decision step (Stage 6)
+
+`src/domain/retentionDue.ts` works out, on the studio's own day, which records are due:
+
+| Kind              | Due on                                                                                                                                                                                               | Never due while                                                                              |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Client details    | 2 years after the last day the studio had business with them: any visit booked (kept or not, including one ahead), purchase, message from them or the day they joined, across records with one email | they have an active package or membership, or money carried over from a previous system open |
+| Private feedback  | 2 years after it was given                                                                                                                                                                           |                                                                                              |
+| Unsent messages   | 90 days after it was written, on the studio's day                                                                                                                                                    | it was approved for sending (it may have gone out)                                           |
+| Waitlist requests | 90 days after the last day asked for                                                                                                                                                                 |                                                                                              |
+
+A date that does not exist moves to the end of its month (29 February 2024 plus two years is 28 February 2026). Keeping longer counts from the day of the decision and brings the record back on the new date.
+
+Deleting a client keeps the record as **Former client**: name, email (replaced by an address under the reserved `.invalid` domain that can never receive mail), phone, Good to remember, birthday, postcode area, notes, connections (and their name on the other person's connection entry), unsent messages, replies, answers on social apps, missed calls, waitlist requests and private feedback go. Receipts, payments, deposits, refunds, gift cards (the buyer's name becomes Former client), packages, patch tests, forms, consultations, consent history, messages approved for sending and booked visit terms stay, as the erasure review lists. Money records stay at least 6 years (UK) or 7 years (US) after the latest of them; this step never deletes a money record. On the server, a client with a card still saved cannot be deleted until the card is removed, and their visit links are turned off.
+
+Each decision is kept in the studio record and in Who changed what as who, when, which kind and how many (and until when, for keeping), never names, deleted record ids or the typed reason. A decision is all or nothing and refused if any record is no longer due, so nothing is deleted twice. Restoring a backup taken before a deletion brings those records back; they show as due again and wait for a new decision.
 
 ## Erasure
 
 The erasure review shows what a decided policy could remove (contact details, preferences, notes, unsent messages, connection links) and what must stay with its reason (receipts, payments, refunds, booked visit terms, consent history, audit history). Recording a request adds an audit row and shows it on the client. Withdrawing email marketing uses the existing consent command, which suppresses queued marketing messages; drafts stay unsent drafts.
 
-Decided on 7 October 2026: notes are included word for word with a warning, one open erasure request per client, and at the end of a period an owner or manager either approves deletion or extends it by months or years. Before any destructive step is built, decide: whether the name on kept receipts stays or becomes a reference; how a request is verified; how upcoming visits are handled; how erasure is reapplied after a backup restore; and how to answer within the legal deadline.
+Decided on 7 October 2026: notes are included word for word with a warning, one open erasure request per client, and at the end of a period an owner or manager either approves deletion or extends it by months or years. Stage 6 settles the name on kept receipts: it becomes "Former client". Recording an erasure request still deletes nothing by itself; acting on a request before the keeping period ends is not built yet. Still to decide: how a request is verified, how upcoming visits are handled, how erasure is reapplied after a backup restore, and how to answer within the legal deadline.
 
 ## The AI supplier (NEXT-12)
 

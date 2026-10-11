@@ -169,7 +169,21 @@ function proposed(s: BusinessState, command: OperatingCommand) {
       ...(o.timeOff ?? []),
       { ...command.input, id: 'proposed', createdAt: new Date(0).toISOString(), actor: '' },
     ]
-  else if (command.type === 'location') {
+  else if (command.type === 'time-off-change') {
+    // Stage 4: the earlier days are freed and the new ones taken.
+    const old = o.timeOff?.find((t) => t.id === command.timeOffId)
+    if (!old) return null
+    o.timeOff = [
+      ...o.timeOff!.filter((t) => t.id !== old.id),
+      {
+        ...command.input,
+        staffId: old.staffId,
+        id: 'proposed',
+        createdAt: new Date(0).toISOString(),
+        actor: '',
+      },
+    ]
+  } else if (command.type === 'location') {
     const list = (o.locations ??= [])
     const old = command.id ? list.find((l) => l.id === command.id) : undefined
     if (!old) return null

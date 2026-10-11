@@ -77,3 +77,10 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Stage 3: a day changed on the rota, named quietly as the rota names it. */
+.team-today-list .team-today-changed {
+  padding: 0 7px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+}

@@ -5,9 +5,9 @@ import {
   ADD_ONS,
   CONNECT_NOTES,
   INCLUDED,
+  PEOPLE_PER_LOCATION,
   PRICE,
   PROMISES,
-  STARTING_AMOUNTS,
   TRIAL_DAYS,
   priceLabel,
 } from '../domain/pricing'
@@ -40,11 +40,12 @@ export function Pricing() {
       <main className="pricing-main">
         <section className="pricing-hero" aria-labelledby="pricing-heading">
           <span className="eyebrow">Pricing</span>
-          <h1 id="pricing-heading">Everything included, with room to grow.</h1>
+          <h1 id="pricing-heading">One price for each location.</h1>
           <p>
-            One price for each location. Every feature is yours from the first day, with a generous
-            amount each month of the parts that run on AI and email. When you are busier, add more
-            of what you use. We limit amounts, never features.
+            Every feature is included, however many clients you look after. Each location comes with{' '}
+            {PEOPLE_PER_LOCATION} people taking bookings, and anyone who gives no treatments, such
+            as reception or a manager, is free. Busy studios can add more AI time or a receptionist
+            on the phone.
           </p>
         </section>
         <section className="pricing-offer" aria-label="The price">
@@ -66,10 +67,11 @@ export function Pricing() {
                 <small>per location, month to month</small>
               </span>
             </p>
-            <h2 className="pricing-subhead" id="every-feature">
-              Every feature, from day one
-            </h2>
-            <ul className="pricing-included" aria-labelledby="every-feature">
+            <p className="pricing-people">
+              Includes {PEOPLE_PER_LOCATION} people taking bookings. Each person beyond that is{' '}
+              <strong>{priceLabel(region, 'personMinor')}</strong> a month, {price.tax}.
+            </p>
+            <ul className="pricing-included">
               {INCLUDED.map((item) => (
                 <li key={item.text} className={item.connect ? 'pricing-connect' : undefined}>
                   {item.connect ? (
@@ -84,17 +86,6 @@ export function Pricing() {
                 </li>
               ))}
             </ul>
-            <h2 className="pricing-subhead" id="each-month">
-              Each month, to start with
-            </h2>
-            <dl className="pricing-amounts" aria-labelledby="each-month">
-              {STARTING_AMOUNTS.map((item) => (
-                <div key={item.text}>
-                  <dt>{item.amount}</dt>
-                  <dd>{item.text}</dd>
-                </div>
-              ))}
-            </dl>
             <Link className="button button-primary pricing-cta" to="/account">
               Set up your studio
             </Link>
@@ -110,17 +101,14 @@ export function Pricing() {
           />
         </section>
         <section className="pricing-addons" aria-labelledby="addons-heading">
-          <h2 id="addons-heading">Room to grow</h2>
-          <p className="pricing-section-intro">
-            Add more only when you need it, and take it away when you don’t. Nothing you already use
-            is ever held back.
-          </p>
+          <h2 id="addons-heading">Add-ons</h2>
           <ul>
             {ADD_ONS.map((addOn) => (
               <li key={addOn.id}>
                 <h3>{addOn.title}</h3>
                 <p className="pricing-addon-price">
-                  <strong>{priceLabel(region, addOn.amount)}</strong> {addOn.unit}, {price.tax}
+                  <strong>{priceLabel(region, addOn.amount)}</strong> a month for each location,{' '}
+                  {price.tax}
                 </p>
                 <p>{addOn.body}</p>
                 {'note' in addOn && (
@@ -159,8 +147,8 @@ export function Pricing() {
             <div>
               <dt>Text messages</dt>
               <dd>
-                Passed on at what the text provider charges, with nothing added. Emails about visits
-                are never counted.
+                Passed on at what the text provider charges, with nothing added. Emails are
+                included.
               </dd>
             </div>
           </dl>

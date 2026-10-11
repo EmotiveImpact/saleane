@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { paymentMethodSchema } from './paymentMethods'
+import { paymentMethodSchema, processorSchema } from './paymentMethods'
 
 /**
  * V1.5: packages and memberships. A studio offers them (an offer), and a client holds one once
@@ -50,6 +50,8 @@ const planPaymentSchema = z.object({
   recordedAt: z.iso.datetime(),
   /** A membership payment pays for the month starting on this date. */
   periodStart: civilDate.optional(),
+  /** Stage 1: set only when the payment provider took it from the client's saved card. */
+  processor: processorSchema.optional(),
 })
 const planUseSchema = z.object({
   id,
@@ -68,7 +70,32 @@ const planRefundSchema = z.object({
   reason: z.string().trim().min(2).max(300),
   createdAt: z.iso.datetime(),
   actor: z.string(),
+  /** Stage 1: set only when the payment provider returned it to the card it came from. */
+  processor: processorSchema.optional(),
 })
+
+/**
+ * Stage 1: the client's agreement that a membership is paid each month from one saved card. It
+ * keeps which card (the provider's own references stay on the server), the exact words the client
+ * agreed to, when and who recorded it, and the first month the card pays. It is never removed:
+ * turning card payments off, removing the card or ending the plan closes it.
+ */
+export const cardAgreementSchema = z.object({
+  id,
+  cardId: id,
+  brand: z.string().trim().min(1).max(40),
+  last4: z.string().regex(/^\d{4}$/),
+  wording: z.string().trim().min(20).max(1000),
+  agreedAt: z.iso.datetime(),
+  recordedBy: z.string(),
+  /** The first month the card pays: the first due date at least three days after agreeing. */
+  startsOn: civilDate,
+  endedAt: z.iso.datetime().optional(),
+  endedBy: z.string().optional(),
+  /** Turned off by staff, the card removed, the plan ended, or another card agreed instead. */
+  endReason: z.enum(['turned_off', 'card_removed', 'plan_ended', 'replaced']).optional(),
+})
+export type CardAgreement = z.infer<typeof cardAgreementSchema>
 
 export const holdingSchema = z.object({
   id,
@@ -98,5 +125,7 @@ export const holdingSchema = z.object({
   payments: z.array(planPaymentSchema),
   uses: z.array(planUseSchema),
   refunds: z.array(planRefundSchema),
+  /** Stage 1: a membership paid each month from a saved card; the last one may still be open. */
+  cardAgreements: z.array(cardAgreementSchema).optional(),
 })
 export type Holding = z.infer<typeof holdingSchema>

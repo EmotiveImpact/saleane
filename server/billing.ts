@@ -27,18 +27,16 @@ import {
 } from '../src/domain/pricing'
 import type { PriceRegion } from '../src/domain/pricing'
 import {
-  ADD_ON_NAMES,
   DAY_MS,
-  addOnBill,
   monthAfter,
   monthBill,
   nextRetry,
+  plusBill,
   lockedMessage,
   readOnlyMessage,
   taxed,
 } from '../src/domain/billing'
 import type {
-  AddOn,
   Bill,
   BillingSummary,
   BillingView,
@@ -59,8 +57,6 @@ type PlanRow = {
   period_end: number | null
   plus: number
   plus_next: number
-  phone: number
-  phone_next: number
   cancel_at_period_end: number
   overdue_since: number | null
   next_attempt_at: number | null
@@ -82,11 +78,10 @@ type InvoiceRow = {
   id: string
   organisation_id: string
   number: string
-  kind: 'month' | AddOn
+  kind: 'month' | 'plus'
   period_start: number
   period_end: number
   plus: number
-  phone: number
   currency: 'GBP' | 'USD'
   lines: string
   subtotal_minor: number
@@ -114,8 +109,6 @@ type SetupRow = {
   created_at: number
 }
 type Account = { id: string; name: string; email: string }
-type Extras = { plus: boolean; phone: boolean }
-const isAddOn = (kind: string | undefined) => kind === 'plus' || kind === 'phone'
 
 /** A payment with no clear answer is asked about again, with the same key, after this long. */
 const RECHECK_MS = 10 * 60000
@@ -166,7 +159,7 @@ export function testBillingProvider(origin: string): PaymentProvider {
 }
 
 const routeInput = {
-  addOn: z.object({ on: z.boolean() }).strict(),
+  plus: z.object({ on: z.boolean() }).strict(),
   stop: z.object({ stop: z.boolean() }).strict(),
   empty: z.object({}).strict(),
   bills: z
@@ -228,19 +221,6 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
       orgId,
     )
   const anchorOf = (at: number) => new Date(at).getUTCDate()
-  /** What the next month's bill carries: the add-ons chosen for it. */
-  const chosen = (row: PlanRow): Extras => ({ plus: !!row.plus_next, phone: !!row.phone_next })
-  /** NEXT-17: calls can reach the AI on this server, so the phone receptionist can be bought. */
-  const phoneConnected = () => !!ctx.phone && ctx.voice.live && !!ctx.voice.calls && ctx.ai.live
-  /** An add-on paid for part way through a month: on now, and on the bills after. */
-  const turnOn = (addOn: AddOn, orgId: string, time: number) =>
-    db.run(
-      `UPDATE studio_plans SET ${addOn}=1,${addOn}_next=1,updated_at=? WHERE organisation_id=?`,
-      time,
-      orgId,
-    )
-  const nextBill = (org: Org, row: PlanRow) =>
-    monthBill(regionOf(org), locationsOf(org), !!row.plus_next, peopleOf(org), !!row.phone_next)
 
   /** A real studio's plan, begun with its free trial the first time anything asks. */
   function planFor(org: Org): PlanRow | null {
@@ -258,16 +238,12 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
     return plan(org.id)!
   }
 
-  /**
-   * The studio's AI allowance now: its locations, Plus and the phone receptionist once paid for,
-   * and nothing when stopped.
-   */
+  /** The studio's AI allowance now: its locations, Plus once paid for, and nothing when stopped. */
   function allowance(org: Org) {
     const row = planFor(org)
     return allowanceFor({
       locations: locationsOf(org),
       plus: !!row?.plus && row.status !== 'trial',
-      phone: !!row?.phone && row.status !== 'trial',
       paused: row?.status === 'stopped',
     })
   }
@@ -305,26 +281,25 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
   /** Makes a bill, numbered in one sequence for real bills and another for test ones. */
   function addInvoice(
     org: Org,
-    kind: 'month' | AddOn,
+    kind: 'month' | 'plus',
     start: number,
     end: number,
-    extras: Extras,
+    plus: boolean,
     bill: Bill,
     as?: { id: string; number: string; createdAt: number },
   ) {
     const id = as?.id ?? randomUUID()
     db.run(
-      `INSERT INTO studio_invoices(id,organisation_id,number,kind,period_start,period_end,plus,phone,currency,lines,
+      `INSERT INTO studio_invoices(id,organisation_id,number,kind,period_start,period_end,plus,currency,lines,
          subtotal_minor,tax_minor,tax_label,total_minor,status,test,created_at)
-       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,'open',?,?)`,
+       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,'open',?,?)`,
       id,
       org.id,
       as?.number ?? nextNumber(),
       kind,
       start,
       end,
-      extras.plus ? 1 : 0,
-      extras.phone ? 1 : 0,
+      plus ? 1 : 0,
       PRICE[regionOf(org)].currency,
       JSON.stringify(bill.lines),
       bill.subtotalMinor,
@@ -345,13 +320,14 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
       start,
     )
     if (existing) return existing
+    const plus = !!row.plus_next
     return addInvoice(
       org,
       'month',
       start,
       monthAfter(start, row.anchor_day ?? anchorOf(start)),
-      chosen(row),
-      nextBill(org, row),
+      plus,
+      monthBill(regionOf(org), locationsOf(org), plus, peopleOf(org)),
     )
   }
 
@@ -362,16 +338,15 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
     db.run("UPDATE studio_invoices SET status='open',detail=? WHERE id=?", detail, bill.id)
     db.run(
       `UPDATE studio_plans SET status='overdue',stop_reason=NULL,overdue_since=?,next_attempt_at=?,
-         period_start=?,period_end=?,anchor_day=COALESCE(anchor_day,?),plus=?,phone=?,updated_at=?
+         period_start=?,period_end=?,anchor_day=COALESCE(anchor_day,?),plus=?,updated_at=?
        WHERE organisation_id=?`,
       since,
       nextRetry(since, time, RETRY_DAYS),
       bill.period_start,
       bill.period_end,
       anchorOf(bill.period_start),
-      // The month that is owed is the one being worked, with each add-on only if its bill has it.
+      // The month that is owed is the one being worked, with Plus only if its bill has it.
       bill.plus,
-      bill.phone,
       time,
       org.id,
     )
@@ -401,17 +376,21 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
         if (bill.kind === 'month')
           db.run(
             `UPDATE studio_plans SET status='active',stop_reason=NULL,period_start=?,period_end=?,
-               anchor_day=COALESCE(anchor_day,?),plus=?,phone=?,overdue_since=NULL,next_attempt_at=NULL,
+               anchor_day=COALESCE(anchor_day,?),plus=?,overdue_since=NULL,next_attempt_at=NULL,
                cancel_at_period_end=0,lock_at=NULL,locked_at=NULL,updated_at=? WHERE organisation_id=?`,
             bill.period_start,
             bill.period_end,
             anchorOf(bill.period_start),
             bill.plus,
-            bill.phone,
             time,
             org.id,
           )
-        else turnOn(bill.kind, org.id, time)
+        else
+          db.run(
+            'UPDATE studio_plans SET plus=1,plus_next=1,updated_at=? WHERE organisation_id=?',
+            time,
+            org.id,
+          )
         ctx.audit(org, actorId, test ? 'billing.test-paid' : 'billing.paid', bill.id, undefined, {
           fields: [{ f: 'totalMinor', to: bill.total_minor }],
         })
@@ -435,8 +414,8 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
         ctx.audit(org, actorId, 'billing.failed', bill.id, undefined, {
           fields: [{ f: 'totalMinor', to: bill.total_minor }],
         })
-        // An add-on part way through a month, or a fresh start after stopping, is simply not taken.
-        if (bill.kind !== 'month' || row.status === 'stopped') {
+        // Plus part way through a month, or a fresh start after stopping, is simply not taken.
+        if (bill.kind === 'plus' || row.status === 'stopped') {
           db.run(
             "UPDATE studio_invoices SET status='void',detail=?,closed_at=? WHERE id=?",
             `Not charged: ${outcome.detail}`,
@@ -520,7 +499,6 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
           start: String(bill.period_start),
           end: String(bill.period_end),
           plus: String(bill.plus),
-          phone: String(bill.phone),
           anchor: String(row.anchor_day ?? anchorOf(bill.period_start)),
           subtotal: String(bill.subtotal_minor),
           tax: String(bill.tax_minor),
@@ -612,7 +590,7 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
       row.organisation_id,
     ).changes
     if (Number(claimed) !== 1 || row.cancel_at_period_end) return
-    const bill = nextBill(org, row)
+    const bill = monthBill(regionOf(org), locationsOf(org), !!row.plus_next, peopleOf(org))
     tell(
       org,
       `Your SALEANE free trial ends on ${when(org, row.trial_ends_at)}`,
@@ -678,8 +656,8 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
       end = Number(mark.end),
       subtotal = Number(mark.subtotal)
     if (!mark.bill || !mark.number || !start || !end || !Number.isInteger(subtotal)) return null
-    const kind = mark.kind === 'plus' || mark.kind === 'phone' ? mark.kind : 'month'
-    const extras = { plus: mark.plus === '1', phone: mark.phone === '1' }
+    const kind = mark.kind === 'plus' ? 'plus' : 'month'
+    const plus = mark.plus === '1'
     if (kind === 'month') {
       const same = db.get<InvoiceRow>(
         "SELECT * FROM studio_invoices WHERE organisation_id=? AND kind='month' AND period_start=? AND status<>'void'",
@@ -690,22 +668,20 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
     }
     // Its own lines when they still add up to what was taken; otherwise one line for the lot.
     const fresh =
-      kind === 'month'
-        ? monthBill(regionOf(org), locationsOf(org), extras.plus, peopleOf(org), extras.phone)
-        : null
+      kind === 'month' ? monthBill(regionOf(org), locationsOf(org), plus, peopleOf(org)) : null
     const bill =
       fresh?.totalMinor === charge.amountMinor
         ? fresh
         : taxed(regionOf(org), [
             {
-              text: `${kind === 'month' ? 'SALEANE' : ADD_ON_NAMES[kind]}, as charged`,
+              text: `${kind === 'plus' ? 'Plus' : 'SALEANE'}, as charged`,
               quantity: 1,
               unitMinor: subtotal,
               amountMinor: subtotal,
             },
           ])
     const taken = !!db.get('SELECT 1 FROM studio_invoices WHERE number=?', mark.number)
-    return addInvoice(org, kind, start, end, extras, bill, {
+    return addInvoice(org, kind, start, end, plus, bill, {
       id: mark.bill,
       number: taken ? nextNumber() : mark.number,
       createdAt: Number(mark.made) || now(),
@@ -738,7 +714,7 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
         .sort(
           (a, b) =>
             Number(a.marks.start) - Number(b.marks.start) ||
-            Number(isAddOn(a.marks.kind)) - Number(isAddOn(b.marks.kind)),
+            Number(a.marks.kind === 'plus') - Number(b.marks.kind === 'plus'),
         )
       if (taken.some((c) => !invoice(billOf(c)) && !c.marks.number)) {
         console.error(
@@ -781,7 +757,7 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
             org.id,
             bill.period_start,
           )
-        if (bill.kind !== 'month' || later || after.status === 'stopped')
+        if (bill.kind === 'plus' || later || after.status === 'stopped')
           db.run(
             "UPDATE studio_invoices SET status='void',attempts=?,detail=?,closed_at=? WHERE id=?",
             attempts,
@@ -948,8 +924,8 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
         'month',
         start,
         monthAfter(start, anchorOf(start)),
-        chosen(row),
-        nextBill(org, row),
+        !!row.plus_next,
+        monthBill(regionOf(org), locationsOf(org), !!row.plus_next, peopleOf(org)),
       )
     })
     if (plan(org.id)!.status === 'stopped')
@@ -961,71 +937,54 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
     return charge(bill.id, actorId)
   }
 
-  /**
-   * An add-on on or off. On during a paid month charges the part left; off lasts until the month
-   * ends. Plus gives more AI; the phone receptionist answers the calls the desk misses.
-   */
-  async function setAddOn(org: Org, actorId: string, addOn: AddOn, on: boolean) {
+  /** Plus on or off. On during a paid month charges the part left; off lasts until the month ends. */
+  async function setPlus(org: Org, actorId: string, on: boolean) {
     const row = planFor(org)!
-    const name = addOn === 'plus' ? 'Plus' : 'the phone receptionist'
-    const has = addOn === 'plus' ? row.plus : row.phone
-    const wanted = addOn === 'plus' ? row.plus_next : row.phone_next
-    const changed = (from: boolean, to: boolean) =>
-      ctx.audit(org, actorId, `billing.${addOn}`, org.id, undefined, {
-        fields: [{ f: addOn, from, to }],
-      })
-    // Nothing is sold that cannot work yet: turning it off is always allowed.
-    if (on && addOn === 'phone' && !phoneConnected())
-      fail(409, 'Phone calls are not connected yet, so the phone receptionist cannot be added.')
-    if (!on || row.status === 'trial' || has) {
+    if (!on || row.status === 'trial' || row.plus) {
       if (on && !['trial', 'active'].includes(row.status))
-        fail(409, `Pay the open bill before adding ${name}.`)
+        fail(409, 'Pay the open bill before adding Plus.')
       db.transaction(() => {
         db.run(
-          `UPDATE studio_plans SET ${addOn}_next=?,updated_at=? WHERE organisation_id=?`,
+          'UPDATE studio_plans SET plus_next=?,updated_at=? WHERE organisation_id=?',
           on ? 1 : 0,
           now(),
           org.id,
         )
-        changed(!!wanted, on)
+        ctx.audit(org, actorId, 'billing.plus', org.id, undefined, {
+          fields: [{ f: 'plus', from: !!row.plus_next, to: on }],
+        })
       })
       return 'saved' as const
     }
-    if (row.status !== 'active') fail(409, `Pay the open bill before adding ${name}.`)
+    if (row.status !== 'active') fail(409, 'Pay the open bill before adding Plus.')
     if (!row.card_method_ref) fail(409, 'Add a card first.')
     if (row.held_at) fail(409, RESTORED)
     const time = now()
-    const part = addOnBill(
-      addOn,
-      regionOf(org),
-      locationsOf(org),
-      time,
-      row.period_start!,
-      row.period_end!,
-    )
+    const part = plusBill(regionOf(org), locationsOf(org), time, row.period_start!, row.period_end!)
     if (part.totalMinor < SMALLEST_CHARGE_MINOR) {
       db.transaction(() => {
-        turnOn(addOn, org.id, time)
-        changed(false, true)
+        db.run(
+          'UPDATE studio_plans SET plus=1,plus_next=1,updated_at=? WHERE organisation_id=?',
+          time,
+          org.id,
+        )
+        ctx.audit(org, actorId, 'billing.plus', org.id, undefined, {
+          fields: [{ f: 'plus', from: false, to: true }],
+        })
       })
       return 'saved' as const
     }
     const bill = db.transaction(() => {
       if (waiting(org.id))
         fail(409, 'A payment is still being checked. Nothing more is taken until it is.')
-      changed(false, true)
-      return addInvoice(
-        org,
-        addOn,
-        time,
-        row.period_end!,
-        { plus: addOn === 'plus', phone: addOn === 'phone' },
-        part,
-      )
+      ctx.audit(org, actorId, 'billing.plus', org.id, undefined, {
+        fields: [{ f: 'plus', from: false, to: true }],
+      })
+      return addInvoice(org, 'plus', time, row.period_end!, true, part)
     })
     const status = await charge(bill.id, actorId)
     if (status === 'void')
-      fail(402, `The card was declined, so ${name} was not added. Nothing was taken.`)
+      fail(402, 'The card was declined, so Plus was not added. Nothing was taken.')
     return status
   }
 
@@ -1079,7 +1038,7 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
       "SELECT * FROM studio_invoices WHERE organisation_id=? AND kind='month' AND status IN ('open','charging','unknown') ORDER BY created_at DESC",
       org.id,
     )
-    const coming = monthBill(region, locations, !!row.plus_next, people, !!row.phone_next)
+    const coming = monthBill(region, locations, !!row.plus_next, people)
     const used = current(storedUsage(ctx, org.id), new Date(time).toISOString()).used
     const ai = allowance(org).monthly
     return {
@@ -1092,9 +1051,6 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
       periodEnd: row.period_end,
       plus: !!row.plus && row.status !== 'trial',
       plusNext: !!row.plus_next,
-      phone: !!row.phone && row.status !== 'trial',
-      phoneNext: !!row.phone_next,
-      phoneConnected: phoneConnected(),
       cancelAtPeriodEnd: !!row.cancel_at_period_end,
       card: row.card_last4
         ? {
@@ -1138,7 +1094,6 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
         typed: { used: used.typed, of: ai.typed },
         guestChats: { used: used.guestChats, of: ai.guestChats },
         talkSeconds: { used: used.talkSeconds, of: ai.talkSeconds },
-        phoneSeconds: { used: used.phoneSeconds, of: ai.phoneSeconds },
       },
     }
   }
@@ -1180,6 +1135,8 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
     },
     /** Whether a studio is locked: only its owner can open it, and online booking is closed. */
     locked: (orgId: string) => !!plan(orgId)?.locked_at,
+    /** Whether a studio is read only (or locked) until its SALEANE bill is paid. */
+    readOnly: (orgId: string) => plan(orgId)?.status === 'stopped',
     /**
      * Refuses a change to a read-only studio, after the usual sign-in and access checks. A locked
      * studio is refused to everyone but the owner, even to read; the owner can still open the
@@ -1240,7 +1197,9 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
             locale: PRICE[regionOf(org!)].locale,
             currency: PRICE[regionOf(org!)].currency,
             amountMinor: setup!.then_pay
-              ? (openMonth(org!.id)?.total_minor ?? nextBill(org!, row).totalMinor)
+              ? (openMonth(org!.id)?.total_minor ??
+                monthBill(regionOf(org!), locationsOf(org!), !!row.plus_next, peopleOf(org!))
+                  .totalMinor)
               : 0,
           })
           return true
@@ -1331,9 +1290,9 @@ export function createBilling(ctx: Context, provider: PaymentProvider) {
         reply(200, { url: opened.ok ? opened.url : '' })
         return true
       }
-      if (action === 'plus' || action === 'phone') {
-        const { on } = routeInput.addOn.parse(body)
-        const outcome = await setAddOn(org, actor.id, action, on)
+      if (action === 'plus') {
+        const { on } = routeInput.plus.parse(body)
+        const outcome = await setPlus(org, actor.id, on)
         reply(200, { outcome, billing: view(org) })
         return true
       }

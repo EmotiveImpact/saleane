@@ -3,7 +3,14 @@ import type { FormEvent } from 'react'
 import { Layers, Plus, Repeat } from 'lucide-react'
 import { useStore } from '../state/context'
 import { businessDate, can, operations } from '../domain/operations'
-import { clientHoldings, holdings, offers, planStanding } from '../domain/plans'
+import {
+  cardRefundTarget,
+  clientHoldings,
+  holdings,
+  offers,
+  openCardAgreement,
+  planStanding,
+} from '../domain/plans'
 import type { Holding, Offer, OfferInput } from '../domain/plansSchema'
 import { dateLabel, money } from '../domain/format'
 import { minorInput, parseMinor } from '../domain/money'
@@ -14,6 +21,8 @@ import { usePayment, useRun } from './usePayment'
 import { SoldAt } from './SoldAt'
 import { asksSoldAt } from '../domain/locations'
 import type { Method } from './usePayment'
+import { CardSetUp, MembershipCardLine, MembershipCardPayments } from './PlanCards'
+import { useCardEnd, usePlanCards } from './usePlanCards'
 
 /**
  * V1.5 screens for packages and memberships: what the studio offers (Settings), what a client
@@ -386,7 +395,7 @@ const STATE_LABEL = {
 } as const
 
 export function ClientPlans({ clientId }: { clientId: string }) {
-  const { state, role, blocked } = useStore()
+  const { state, role, blocked, branch } = useStore()
   const org = state.organisation
   const today = businessDate(state)
   const client = state.clients.find((c) => c.id === clientId)
@@ -398,14 +407,19 @@ export function ClientPlans({ clientId }: { clientId: string }) {
     | { kind: 'sell' }
     | { kind: 'renew'; holding: Holding }
     | { kind: 'end'; holding: Holding }
+    | { kind: 'card'; holding: Holding }
     | null
   >(null)
   const [offerId, setOfferId] = useState('')
   const [reason, setReason] = useState('')
   const [refund, setRefund] = useState('0')
   const [soldAt, setSoldAt] = useState('')
+  // Stage 1: a membership sold here may then be set to be paid from a saved card.
+  const [byCard, setByCard] = useState(false)
   const pay = usePayment()
-  const { run, pending, error, setError } = useRun()
+  const { run, record, pending, error, setError } = useRun()
+  const cards = usePlanCards(clientId)
+  const ending = useCardEnd(dialog?.kind === 'end' ? dialog.holding.id : '', () => setDialog(null))
   const may = (action: string) => !blocked && can(role, action)
   if (!client || role === 'practitioner' || (!list.length && !(onSale.length && may('plan-sell'))))
     return null
@@ -415,6 +429,7 @@ export function ClientPlans({ clientId }: { clientId: string }) {
     setSoldAt(org.locationId)
     setReason('')
     setRefund('0')
+    setByCard(false)
     pay.reset()
     setError('')
   }
@@ -425,6 +440,11 @@ export function ClientPlans({ clientId }: { clientId: string }) {
       const refundMinor = parseMinor(refund, 0)
       if (!Number.isFinite(refundMinor) || refundMinor < 0) {
         setError('Enter the amount returned, zero or more, with up to two decimal places.')
+        return
+      }
+      // Stage 1: a month the card paid through SALEANE goes back to that card.
+      if (refundMinor > 0 && toCard) {
+        await ending.end(reason.trim(), refundMinor)
         return
       }
       if (refundMinor > 0 && !pay.ready) {
@@ -444,7 +464,8 @@ export function ClientPlans({ clientId }: { clientId: string }) {
       setError('Confirm the payment has already been received.')
       return
     }
-    const done = await run(
+    if (dialog.kind === 'card') return
+    const done = await record(
       dialog.kind === 'sell'
         ? {
             type: 'plan-sell',
@@ -455,11 +476,28 @@ export function ClientPlans({ clientId }: { clientId: string }) {
           }
         : { type: 'plan-renew', holdingId: dialog.holding.id, ...pay.payment },
     )
-    if (done) setDialog(null)
+    if (!done) return
+    // The client then hears the exact words and agrees before any card is set.
+    const sold =
+      dialog.kind === 'sell' && byCard && holdings(done.state).find((h) => h.id === done.recordId)
+    setDialog(sold && sold.kind === 'membership' ? { kind: 'card', holding: sold } : null)
   }
   const chosen = onSale.find((o) => o.id === offerId)
   const unused = dialog?.kind === 'end' ? planStanding(dialog.holding, today).unusedMinor : 0
   const sandbox = operations(state).mode === 'sandbox'
+  const target =
+    dialog?.kind === 'end' && cards.reply?.available
+      ? cardRefundTarget(dialog.holding, today)
+      : undefined
+  const toCard = !!target && parseMinor(refund, 0) > 0
+  const cardCap = target ? Math.min(unused, target.amountMinor) : 0
+  const paidFrom = dialog?.kind === 'end' ? dialog.holding.cardAgreements?.at(-1) : undefined
+  // Offered when selling a membership, to whoever may set card payments up where it is sold.
+  const offerCard =
+    chosen?.kind === 'membership' &&
+    !!cards.reply?.available &&
+    may('plan-card') &&
+    (role !== 'general' || (asksSoldAt(state, role) ? soldAt : org.locationId) === branch)
   return (
     <section className="surface client-cards client-plans" aria-labelledby="client-plans-heading">
       <h3 id="client-plans-heading">
@@ -475,6 +513,14 @@ export function ClientPlans({ clientId }: { clientId: string }) {
               <span className={`ops-tag ${standing.state === 'active' ? 'is-active' : ''}`}>
                 {STATE_LABEL[standing.state]}
               </span>
+              {cards.reply && (
+                <MembershipCardLine
+                  holding={holding}
+                  reply={cards.reply}
+                  onChanged={cards.load}
+                  onSetUp={() => start({ kind: 'card', holding })}
+                />
+              )}
             </div>
             {holding.status === 'active' && (
               <div className="ops-record-controls plan-controls">
@@ -506,7 +552,18 @@ export function ClientPlans({ clientId }: { clientId: string }) {
           <Plus size={16} aria-hidden="true" /> Sell a package or membership
         </Button>
       )}
-      {dialog && (
+      {dialog?.kind === 'card' && cards.reply && (
+        <CardSetUp
+          holding={dialog.holding}
+          reply={cards.reply}
+          onClose={() => setDialog(null)}
+          onDone={() => {
+            setDialog(null)
+            cards.load()
+          }}
+        />
+      )}
+      {dialog && dialog.kind !== 'card' && (
         <Modal
           open
           onClose={() => {
@@ -524,7 +581,9 @@ export function ClientPlans({ clientId }: { clientId: string }) {
               ? 'The first payment is recorded now. A membership is then paid each month.'
               : dialog.kind === 'renew'
                 ? `${dialog.holding.name} · ${money(dialog.holding.priceMinor, org, true)} for the next month`
-                : `Nothing is deleted. Up to ${money(unused, org, true)} is paid and not yet used.`
+                : target
+                  ? `Nothing is deleted. Up to ${money(cardCap, org, true)} of the month paid by card is not yet used.`
+                  : `Nothing is deleted. Up to ${money(unused, org, true)} is paid and not yet used.`
           }
         >
           <form onSubmit={submit} className="plan-form">
@@ -543,6 +602,29 @@ export function ClientPlans({ clientId }: { clientId: string }) {
               </label>
             )}
             {dialog.kind === 'sell' && <SoldAt value={soldAt} onChange={setSoldAt} />}
+            {dialog.kind === 'sell' && offerCard && (
+              <label className="ops-check plan-card-agree">
+                <input
+                  type="checkbox"
+                  checked={byCard}
+                  onChange={(e) => setByCard(e.target.checked)}
+                />
+                Take it from their saved card each month
+              </label>
+            )}
+            {dialog.kind === 'sell' && offerCard && byCard && (
+              <p className="subtle">
+                {cards.reply?.cards.length
+                  ? 'Next, read the client the exact words of the agreement and confirm they agree. The first payment, taken now, is recorded here as usual.'
+                  : `${client.name} has no saved card yet. They can save one from the link to their visit, once the studio offers it in Settings, Payments. You can set this up afterwards.`}
+              </p>
+            )}
+            {dialog.kind === 'renew' && openCardAgreement(dialog.holding) && (
+              <p className="subtle">
+                This membership is paid from a saved card. A month paid here is not taken from the
+                card.
+              </p>
+            )}
             {dialog.kind === 'end' && (
               <>
                 <label className="ops-field">
@@ -567,27 +649,71 @@ export function ClientPlans({ clientId }: { clientId: string }) {
                 </label>
               </>
             )}
-            {(dialog.kind !== 'end' || parseMinor(refund, 0) > 0) && (
-              <PaymentFields
-                {...pay.fields}
-                verb={dialog.kind === 'end' ? 'returned' : 'received'}
-              />
+            {toCard ? (
+              <p className="subtle">
+                This month was paid from the{' '}
+                {paidFrom ? `${paidFrom.brand} card ending ${paidFrom.last4}` : 'saved card'}{' '}
+                through SALEANE, so the money goes back to that card through the payment provider,
+                up to {money(cardCap, org, true)}. The membership ends once the provider confirms
+                it.
+                {cards.reply?.provider.live ? '' : ' Test mode: no money moves.'}
+              </p>
+            ) : (
+              (dialog.kind !== 'end' || parseMinor(refund, 0) > 0) && (
+                <PaymentFields
+                  {...pay.fields}
+                  verb={dialog.kind === 'end' ? 'returned' : 'received'}
+                />
+              )
             )}
-            <p className="subtle demo-note">
-              {sandbox
-                ? 'Sample studio: no real money moves.'
-                : 'SALEANE records this; it does not take or return the money itself.'}
-            </p>
-            <ErrorMessage error={error} />
+            {!toCard && (
+              <p className="subtle demo-note">
+                {sandbox
+                  ? 'Sample studio: no real money moves.'
+                  : 'SALEANE records this; it does not take or return the money itself.'}
+              </p>
+            )}
+            {dialog.kind === 'end' && ending.charge && (
+              <div className="card-attempt" role="status">
+                <strong>
+                  {ending.charge.status === 'succeeded'
+                    ? 'Returned to the card'
+                    : ending.charge.status === 'unknown'
+                      ? 'Unclear, check the provider before trying again'
+                      : ending.charge.status === 'failed'
+                        ? 'Not returned'
+                        : ending.charge.status === 'review'
+                          ? 'Returned, needs review'
+                          : 'Waiting for the payment provider'}{' '}
+                  · {money(ending.charge.amountMinor, org, true)}
+                </strong>
+                {ending.charge.detail && <p>{ending.charge.detail}</p>}
+                {ending.charge.status === 'unknown' && (
+                  <Button
+                    variant="secondary"
+                    disabled={ending.busy}
+                    onClick={() => void ending.check()}
+                  >
+                    Check again
+                  </Button>
+                )}
+              </div>
+            )}
+            <ErrorMessage error={error || (dialog.kind === 'end' ? ending.error : '')} />
             <div className="ops-actions">
-              <Button type="submit" disabled={pending || (dialog.kind === 'sell' && !chosen)}>
-                {pending
+              <Button
+                type="submit"
+                disabled={pending || ending.busy || (dialog.kind === 'sell' && !chosen)}
+              >
+                {pending || ending.busy
                   ? 'Saving…'
                   : dialog.kind === 'sell'
                     ? `Record ${chosen ? money(chosen.priceMinor, org, true) : 'sale'}`
                     : dialog.kind === 'renew'
                       ? `Record ${money(dialog.holding.priceMinor, org, true)}`
-                      : 'End plan'}
+                      : toCard
+                        ? 'Refund to the card and end'
+                        : 'End plan'}
               </Button>
               <Button variant="secondary" disabled={pending} onClick={() => setDialog(null)}>
                 Cancel
@@ -616,6 +742,7 @@ export function PlansLedger() {
   const taken = rows.reduce((sum, r) => sum + r.standing.paidMinor - r.standing.refundedMinor, 0)
   return (
     <div className="plans-ledger">
+      <MembershipCardPayments />
       <dl className="plans-totals">
         <div>
           <dt>Taken for plans</dt>

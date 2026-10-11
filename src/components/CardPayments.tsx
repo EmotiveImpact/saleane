@@ -6,8 +6,10 @@ import { api } from '../state/api'
 import { can, operations } from '../domain/operations'
 import { minorInput, parseMinor } from '../domain/money'
 import { mayRemoveSavedCard } from '../domain/paymentMethods'
+import { returnable } from '../domain/retail'
 import { money as formatMoney } from '../domain/format'
 import { Button, ErrorMessage } from '../design'
+import { refundRefusal, refundTarget } from '../domain/signoffs'
 
 type Attempt = {
   id: string
@@ -604,31 +606,52 @@ export function PaymentSettings() {
 export function CardRefund({
   target,
   maxMinor,
+  startMinor,
   testMode,
   onDone,
 }: {
   target: { saleId: string } | { paymentId: string }
   maxMinor: number
+  /** Stage 4: the amount to start with, such as a refund that was signed off. */
+  startMinor?: number
   testMode: boolean
   onDone: () => void
 }) {
   const { state, blocked, role } = useStore()
   const { attempt, error, busy, charge, check } = useCharge(onDone)
-  const [amount, setAmount] = useState(minorInput(maxMinor))
+  const [amount, setAmount] = useState(minorInput(Math.min(startMinor ?? maxMinor, maxMinor)))
   const [reason, setReason] = useState('')
+  // Stage 2: products the guest brought back, back on the shelf once the provider confirms.
+  const [back, setBack] = useState<Record<string, number>>({})
+  const lines =
+    'saleId' in target ? returnable(state, target.saleId).filter((line) => line.left > 0) : []
+  const restock = lines
+    .map((line) => ({ productId: line.productId, quantity: back[line.productId] ?? 0 }))
+    .filter((item) => Number.isInteger(item.quantity) && item.quantity > 0)
   const amountMinor = parseMinor(amount, 0)
   const valid =
     Number.isFinite(amountMinor) &&
     amountMinor > 0 &&
     amountMinor <= maxMinor &&
     reason.trim().length >= 3
+  // Stage 4: over a refund limit without a sign-off for exactly this, the server refuses it.
+  const refusal =
+    Number.isFinite(amountMinor) && amountMinor > 0
+      ? refundRefusal(state, role, refundTarget(target), amountMinor, new Date().toISOString())
+      : null
   return (
     <form
       className="card-refund"
       aria-busy={busy}
       onSubmit={(event) => {
         event.preventDefault()
-        if (valid) void charge('/card-refunds', { ...target, amountMinor, reason: reason.trim() })
+        if (valid)
+          void charge('/card-refunds', {
+            ...target,
+            amountMinor,
+            reason: reason.trim(),
+            ...(restock.length ? { restock } : {}),
+          })
       }}
     >
       <h3 className="ops-section-title">Refund to the card</h3>
@@ -662,6 +685,20 @@ export function CardRefund({
             onChange={(e) => setReason(e.target.value)}
           />
         </label>
+        {lines.map((line) => (
+          <label key={line.productId}>
+            {line.name} back on the shelf
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={line.left}
+              value={back[line.productId] ?? 0}
+              onChange={(e) => setBack({ ...back, [line.productId]: Number(e.target.value) })}
+            />
+            <small>Goes back on the shelf only once the refund is confirmed.</small>
+          </label>
+        ))}
       </div>
       {attempt && (
         <AttemptState
@@ -671,9 +708,13 @@ export function CardRefund({
           onCheck={() => void check()}
         />
       )}
+      {refusal && !attempt && <p className="ops-help">{refusal}</p>}
       <ErrorMessage error={error} />
       <div className="ops-actions">
-        <Button type="submit" disabled={!valid || busy || blocked || !can(role, 'refund')}>
+        <Button
+          type="submit"
+          disabled={!valid || !!refusal || busy || blocked || !can(role, 'refund')}
+        >
           {busy ? 'Refunding…' : 'Refund to the card'}
         </Button>
       </div>

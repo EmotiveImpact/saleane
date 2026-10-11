@@ -66,6 +66,9 @@ export function moveSampleDay(s: BusinessState, to: string): BusinessState {
     for (const hours of week) hours.day = (hours.day + turn) % 7
     week.sort((a, b) => a.day - b.day)
   }
+  // Stage 4: the weekdays a move took with it turn with them.
+  for (const move of moved.operations?.staffMoves ?? [])
+    for (const day of move.days) day.day = (day.day + turn) % 7
   return moved
 }
 
@@ -112,8 +115,18 @@ export function catchUpSampleDay(s: BusinessState, now: number) {
     o.missedCalls = o.missedCalls.flatMap((call) =>
       later(call.at) ? [] : later(call.lastAt) ? [{ ...call, lastAt: call.at, calls: 1 }] : [call],
     )
-  // NEXT-17: a call the AI receptionist has not answered yet.
-  if (o?.answeredCalls) o.answeredCalls = o.answeredCalls.filter((call) => !later(call.at))
+  // Stage 4: a request asked for later this morning was asked the morning before instead, and a
+  // refund request goes with the sample receipt it was for.
+  if (o?.requests)
+    o.requests = o.requests.flatMap((r) => {
+      const gone =
+        (r.refund?.saleId && !s.sales.some((x) => x.id === r.refund!.saleId)) ||
+        (r.refund?.paymentId && !s.payments.some((x) => x.id === r.refund!.paymentId)) ||
+        (r.refund?.counterSaleId &&
+          !(s.counterSales ?? []).some((x) => x.id === r.refund!.counterSaleId))
+      if (gone) return []
+      return [later(r.raisedAt) ? { ...r, raisedAt: dayBefore(r.raisedAt) } : r]
+    })
   if (s.replies) s.replies = s.replies.filter((reply) => !later(reply.receivedAt))
   if (s.feedback) s.feedback = s.feedback.filter((answer) => !later(answer.createdAt))
   if (s.consentRecords) s.consentRecords = s.consentRecords.filter((r) => !later(r.recordedAt))

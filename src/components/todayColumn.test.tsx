@@ -25,7 +25,7 @@ describe('Today’s side column', { timeout: 20000 }, () => {
     const user = userEvent.setup()
     show()
     const needs = screen.getByRole('region', { name: 'Needs you' })
-    expect(within(needs).getByText('5 waiting')).toBeInTheDocument()
+    expect(within(needs).getByText('4 waiting')).toBeInTheDocument()
     const calls = within(needs).getByRole('region', { name: 'Missed calls' })
     expect(within(calls).getByText(allText('2 to call back'))).toBeInTheDocument()
     expect(within(calls).getAllByRole('listitem')).toHaveLength(2)
@@ -38,7 +38,7 @@ describe('Today’s side column', { timeout: 20000 }, () => {
     await user.click(within(calls).getByRole('button', { name: 'Add' }))
     expect(within(calls).getByRole('status')).toHaveTextContent('Added to the list to call back.')
     expect(within(calls).getByText(allText('3 to call back'))).toBeInTheDocument()
-    expect(within(needs).getByText('6 waiting')).toBeInTheDocument()
+    expect(within(needs).getByText('5 waiting')).toBeInTheDocument()
     expect(within(calls).getAllByRole('listitem')).toHaveLength(2)
     const seeAll = within(calls).getByRole('button', { name: 'See all 3' })
     expect(seeAll).toHaveAttribute('aria-expanded', 'false')
@@ -48,37 +48,6 @@ describe('Today’s side column', { timeout: 20000 }, () => {
       'aria-expanded',
       'true',
     )
-  })
-
-  it('shows a call the AI receptionist answered, with its message, and marks it followed up', async () => {
-    const user = userEvent.setup()
-    show()
-    const needs = screen.getByRole('region', { name: 'Needs you' })
-    const answered = within(needs).getByRole('region', { name: 'Answered by the AI receptionist' })
-    expect(within(answered).getByText(allText('1 to read'))).toBeInTheDocument()
-    expect(within(answered).getByText('+44 7700 900321')).toBeInTheDocument()
-    expect(within(answered).getByText(/^09:37 · 3 minutes$/)).toBeInTheDocument()
-    expect(
-      within(answered).getByText(
-        'Can I bring my sister along to my facial on Saturday? She would like one too.',
-      ),
-    ).toBeInTheDocument()
-    expect(
-      within(answered).getByText(
-        'Texted a link to book Skin Renewal Facial with Maya Lewis, Saturday 10 October at 10:30. Nothing is booked until they confirm.',
-      ),
-    ).toBeInTheDocument()
-    await user.click(within(answered).getByText('What was said'))
-    expect(
-      within(answered).getByText('Hello, have you got anything for a facial on Saturday morning?'),
-    ).toBeVisible()
-    await user.click(
-      within(answered).getByRole('button', { name: 'Followed up the call from +44 7700 900321' }),
-    )
-    expect(within(needs).getByRole('status')).toHaveTextContent(
-      'The call from +44 7700 900321 is marked as followed up.',
-    )
-    expect(within(needs).getByText('4 waiting')).toBeInTheDocument()
   })
 
   it('keeps the team’s reminders with what needs someone', async () => {
@@ -92,7 +61,7 @@ describe('Today’s side column', { timeout: 20000 }, () => {
     await user.click(within(reminders).getByRole('button', { name: 'Add' }))
     expect(within(reminders).getByRole('status')).toHaveTextContent('Added to today’s reminders.')
     expect(within(reminders).getByText('Order more towels')).toBeInTheDocument()
-    expect(within(needs).getByText('6 waiting')).toBeInTheDocument()
+    expect(within(needs).getByText('5 waiting')).toBeInTheDocument()
 
     // One for later in the week is saved for its day, not listed today.
     await user.click(within(reminders).getByRole('button', { name: 'Add a reminder' }))
@@ -105,7 +74,7 @@ describe('Today’s side column', { timeout: 20000 }, () => {
     await user.click(within(reminders).getByRole('button', { name: 'Done: Order more towels' }))
     expect(within(reminders).getByRole('status')).toHaveTextContent('Done: Order more towels')
     expect(within(reminders).queryByRole('listitem')).not.toBeInTheDocument()
-    expect(within(needs).getByText('5 waiting')).toBeInTheDocument()
+    expect(within(needs).getByText('4 waiting')).toBeInTheDocument()
   })
 
   it('heads what SALEANE noticed with what the figures say', () => {

@@ -7,8 +7,16 @@ import { Button, ErrorMessage } from '../design'
 import { places } from '../domain/locations'
 import { fullDateLabel } from '../domain/format'
 import { StudioDateField } from './StudioDateField'
+import {
+  LOCATION_SCOPES,
+  isWriteScope,
+  keySummary,
+  readScopes,
+  scopeWords,
+  writeScopes,
+} from '../domain/accessKeys'
+import type { ApiScope as Scope } from '../domain/accessKeys'
 
-type Scope = 'appointments:read' | 'clients:read' | 'services:read' | 'takings:read'
 type AccessKey = {
   id: string
   name: string
@@ -22,20 +30,11 @@ type AccessKey = {
 }
 type Listing = { keys: AccessKey[]; apiVersion: string; sample: boolean; key?: string }
 
-const scopeLabel: Record<Scope, string> = {
-  'appointments:read': 'Visits',
-  'clients:read': 'Clients, with names, email and phone',
-  'services:read': 'Treatments, prices and the team',
-  'takings:read': 'Takings by day, with no names or receipts',
-}
-/** A key for one location reads that location's visits and the menu only. */
-const locationScopes: Scope[] = ['appointments:read', 'services:read']
-const scopes = Object.keys(scopeLabel) as Scope[]
-
 /**
- * V5: read-only access keys. Other software and partners (an accountant's tool, a branch's own
- * till, the studio's own reports) can read what the owner allows and change nothing. A key can be
- * kept to one location and stop on a chosen day, and can be revoked at any time.
+ * V5 and Stage 5: access keys. Other software and partners (an accountant's tool, a booking tool,
+ * a chain's own tills, the studio's own reports) can read what the owner allows and, when the
+ * owner ticks it, send in visits, clients and till sales through the same checks as the desk. A
+ * key can be kept to one location and stop on a chosen day, and can be revoked at any time.
  */
 export function AccessKeys() {
   const { mode, session, state, role, today } = useStore()
@@ -53,7 +52,8 @@ export function AccessKeys() {
   const [endsOn, setEndsOn] = useState('')
   const sites = places(state)
   const siteName = (id: string) => sites.find((p) => p.id === id)?.name ?? 'a closed location'
-  const offered = locationId ? locationScopes : scopes
+  const offered: readonly Scope[] = locationId ? LOCATION_SCOPES : [...readScopes, ...writeScopes]
+  const changes = chosen.some((x) => offered.includes(x) && isWriteScope(x))
   const when = (iso: string) =>
     new Intl.DateTimeFormat(state.organisation.locale, {
       day: 'numeric',
@@ -116,6 +116,27 @@ export function AccessKeys() {
     }
   }
 
+  function choice(scope: Scope) {
+    return (
+      <label className="checkbox-label access-key-scope" key={scope}>
+        <input
+          type="checkbox"
+          checked={chosen.includes(scope)}
+          aria-describedby={`scope-${scope.replace(':', '-')}`}
+          onChange={(e) =>
+            setChosen((now) =>
+              e.target.checked ? [...now, scope] : now.filter((x) => x !== scope),
+            )
+          }
+        />
+        <span>
+          {scopeWords[scope].label}
+          <small id={`scope-${scope.replace(':', '-')}`}>{scopeWords[scope].detail}</small>
+        </span>
+      </label>
+    )
+  }
+
   if (!allowed || listing?.sample) return null
   return (
     <section
@@ -128,9 +149,10 @@ export function AccessKeys() {
           <h2 id="access-keys-title">Access keys</h2>
           <p>
             Let other software read from your studio, such as your accountant&rsquo;s tool or your
-            own reports. A key can only read what you tick, never change anything, and stops working
-            the moment you revoke it. A partner&rsquo;s key can be kept to one location and stop on
-            a day you choose.
+            own reports, or send things in, such as a booking tool or a chain&rsquo;s own tills. A
+            key can only do what you tick, goes through the same checks as the desk, and stops
+            working the moment you revoke it. A partner&rsquo;s key can be kept to one location and
+            stop on a day you choose.
           </p>
         </div>
         <KeyRound size={21} />
@@ -156,9 +178,12 @@ export function AccessKeys() {
               <div>
                 <strong>{k.name}</strong>
                 <p>
-                  Starts sal_{k.prefix}. Reads {k.scopes.map((s) => scopeLabel[s]).join('; ')}
+                  Starts sal_{k.prefix}. {keySummary(k.scopes)}
                   {k.locationId ? `, at ${siteName(k.locationId)} only` : ''}.
                 </p>
+                {k.scopes.some(isWriteScope) && (
+                  <p>Its changes show in Who changed what under its name.</p>
+                )}
                 {k.endsOn && (
                   <p>
                     Works until the end of {fullDateLabel(k.endsOn, state.organisation.locale)}.
@@ -210,29 +235,29 @@ export function AccessKeys() {
               </select>
             </label>
           )}
+          {locationId && (
+            <p className="ops-help">
+              A key for one location reads and books its own visits, reads the treatments and team,
+              and sends in its own till&rsquo;s sales. Clients and takings belong to the whole
+              studio.
+            </p>
+          )}
           <fieldset className="message-settings">
             <legend>It may read</legend>
-            {locationId && (
-              <p className="ops-help">
-                A key for one location reads its visits and the treatments and team. Clients and
-                takings belong to the whole studio.
-              </p>
-            )}
-            {offered.map((scope) => (
-              <label className="checkbox-label" key={scope}>
-                <input
-                  type="checkbox"
-                  checked={chosen.includes(scope)}
-                  onChange={(e) =>
-                    setChosen((now) =>
-                      e.target.checked ? [...now, scope] : now.filter((x) => x !== scope),
-                    )
-                  }
-                />
-                {scopeLabel[scope]}
-              </label>
-            ))}
+            {offered.filter((scope) => !isWriteScope(scope)).map(choice)}
           </fieldset>
+          <details className="access-key-changes" open={changes || undefined}>
+            <summary>It may also change things</summary>
+            <fieldset className="message-settings">
+              <legend className="sr-only">It may change</legend>
+              {offered.filter(isWriteScope).map(choice)}
+              <p className="ops-help">
+                Every change goes through the same checks as the desk and shows in Who changed what
+                under this key&rsquo;s name. Connected software is still told about it, marked as
+                coming from this key.
+              </p>
+            </fieldset>
+          </details>
           <label>
             Stops working after (optional)
             <StudioDateField value={endsOn} min={today} onChange={setEndsOn} />

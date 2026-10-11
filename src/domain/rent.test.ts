@@ -154,9 +154,20 @@ describe('chair and room rent', () => {
   it('rejects rent recorded beyond what was due in the ledger', () => {
     for (const region of ['UK', 'US'] as const) expect(() => seed(region)).not.toThrow()
     const s = seed('UK')
-    const tampered = structuredClone(s)
+    // A fixed rent has a ceiling in the ledger. Theo's has a share of his takings, which can fall
+    // after it was paid when money is given back, so the command checks it when it is recorded.
+    const fixed = structuredClone(s)
+    const rental = fixed.operations!.rentals![0]
+    delete rental.percentBps
+    rental.amountMinor = fixed.operations!.rentPayments![0].amountMinor
+    fixed.operations!.rentPayments![1].amountMinor = rental.amountMinor
+    expect(() => parseState(fixed, 'UK')).not.toThrow()
+    const tampered = structuredClone(fixed)
     tampered.operations!.rentPayments![0].amountMinor += 1
     expect(() => parseState(tampered, 'UK')).toThrow('More rent')
+    const shared = structuredClone(s)
+    shared.operations!.rentPayments![0].amountMinor += 1
+    expect(() => parseState(shared, 'UK')).not.toThrow()
     const shifted = structuredClone(s)
     shifted.operations!.rentPayments![0].periodStart = '2026-09-08'
     expect(() => parseState(shifted, 'UK')).toThrow('rental periods')

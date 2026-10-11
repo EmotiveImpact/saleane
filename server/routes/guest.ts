@@ -15,6 +15,8 @@ import {
   visitStart,
 } from '../../src/domain/guest'
 import { guestMoveDays, guestMoveTimes, timeAhead } from '../../src/domain/guestMove'
+import { onlinePatchTestStop, patchTestFirst } from '../../src/domain/patchTests'
+import { instantFor } from '../../src/domain/operations'
 import type { Context, Org, Route } from '../context'
 import { feedbackForVisit, feedbackInputSchema, feedbackOpen } from '../../src/domain/feedback'
 import { waitlistTimesSchema } from '../../src/domain/waitlistSchema'
@@ -42,6 +44,8 @@ const GUEST_ACTOR = 'Guest (private link)'
 /** Why a visit cannot move online, as the guest reads it. */
 const MOVE_REFUSALS = {
   closed: 'This visit can no longer be moved online. Contact the studio.',
+  offer:
+    'This visit was booked at a quiet-time price for that time only, so it cannot be moved online. Contact the studio to change it.',
   off: 'The studio is not taking changes online at the moment. Contact the studio to move your visit.',
   cutoff: `It is less than ${GUEST_CANCEL_CUTOFF_HOURS} hours until your visit, so it can no longer be moved online. Contact the studio to change it.`,
 } as const
@@ -181,6 +185,107 @@ export function followGuestLinks(ctx: Context, org: Org, appointmentId: string) 
     appointmentId,
     now(),
   )
+}
+
+/** Why a move a guest asked for online was not made. */
+export type MoveRefusal =
+  | { reason: 'closed' | 'offer' | 'off' | 'cutoff' | 'day' | 'passed' | 'taken' }
+  | { reason: 'patch' | 'failed'; message: string }
+
+/**
+ * A guest's own move, from their private link or through Book with Google. Their move rules
+ * (`guestMoveBlock`: not after the visit starts, not while the studio takes no changes online, not
+ * within the cutoff), an open day they can move to, a time still ahead, the studio's patch test
+ * rule, and a time free for desk bookings and for guests holding a time on the booking page, in
+ * the exact room the check found, with its resting time. Then the same `reschedule` change the
+ * desk makes, so the visit's history and the "new time" message follow as they do for a move at
+ * the desk. Its event is recorded under `eventId`, so a retry can find the move it already made.
+ * `staffIds` are tried in order. Must run inside the caller's transaction.
+ */
+export function moveOnline(
+  ctx: Context,
+  org: Org,
+  appointmentId: string,
+  move: {
+    date: string
+    startMinutes: number
+    staffIds: readonly string[]
+    /** Who the change is recorded as, on the visit's history. */
+    actor: string
+    /** The change record's action. */
+    action: string
+    eventId: string
+    /** When the guest's link stops opening at the latest, if they used one. */
+    linkEnds?: number
+  },
+): { ok: true; state: BusinessState } | { ok: false; refusal: MoveRefusal } {
+  const { now, persist, withHolds } = ctx
+  const visit = org.state.appointments.find((a) => a.id === appointmentId)!
+  const blocked = guestMoveBlock(org.state, appointmentId, now())
+  if (blocked) return { ok: false, refusal: { reason: blocked } }
+  // Asking for the time the visit already has changes nothing.
+  if (
+    visit.date === move.date &&
+    visit.startMinutes === move.startMinutes &&
+    move.staffIds.includes(visit.staffId)
+  )
+    return { ok: true, state: org.state }
+  if (
+    !guestMoveDays(org.state, appointmentId, now(), move.linkEnds).some(
+      (d) => d.open && d.date === move.date,
+    )
+  )
+    return { ok: false, refusal: { reason: 'day' } }
+  if (!timeAhead(org.state, move.date, move.startMinutes, now()))
+    return { ok: false, refusal: { reason: 'passed' } }
+  // Stage 3: the studio's patch test rule, for the guest whose visit this is.
+  const patchStop = onlinePatchTestStop(org.state, visit.serviceId, {
+    clientId: visit.clientId,
+    start: instantFor(org.state, move.date, move.startMinutes),
+  })
+  if (patchStop) return { ok: false, refusal: { reason: 'patch', message: patchStop } }
+  const held = withHolds(org)
+  const at = new Date(now()).toISOString()
+  let staffId = ''
+  let resourceId: string | null = null
+  for (const candidate of move.staffIds) {
+    resourceId = rescheduleResource(
+      held,
+      appointmentId,
+      candidate,
+      move.date,
+      move.startMinutes,
+      at,
+    )
+    if (resourceId) {
+      staffId = candidate
+      break
+    }
+  }
+  if (!resourceId) return { ok: false, refusal: { reason: 'taken' } }
+  const result = dispatch(
+    org.state,
+    {
+      type: 'reschedule',
+      appointmentId,
+      staffId,
+      date: move.date,
+      startMinutes: move.startMinutes,
+      resourceId,
+    },
+    move.actor,
+    at,
+  )
+  if (!result.ok) return { ok: false, refusal: { reason: 'failed', message: result.error } }
+  if (result.state === org.state) return { ok: true, state: org.state }
+  const known = new Set(org.state.events.map((e) => e.id))
+  const event = result.state.events.find(
+    (e) => !known.has(e.id) && e.type === 'rescheduled' && e.appointmentId === appointmentId,
+  )
+  if (event) event.id = move.eventId
+  persist(org, result.state, null, move.action, appointmentId)
+  followGuestLinks(ctx, { ...org, state: result.state }, appointmentId)
+  return { ok: true, state: result.state }
 }
 
 /**
@@ -404,14 +509,27 @@ export async function guestRoutes(ctx: Context, route: Route): Promise<boolean> 
       : (days.find((d) => d.open && d.date === visit.date) ?? days.find((d) => d.open) ?? days[0])
     if (!day) fail(409, data.date ? 'Choose one of the days shown.' : MOVE_REFUSALS.closed)
     const anyone = data.anyone ?? false
+    // Stage 3: with the studio's patch test rule on, only times the guest's clear test covers.
+    const patchFirst = patchTestFirst(org.state, visit.serviceId)
+    const covered = (startMinutes: number) => {
+      try {
+        const start = instantFor(org.state, day!.date, startMinutes)
+        return !onlinePatchTestStop(org.state, visit.serviceId, { clientId: visit.clientId, start })
+      } catch {
+        return false
+      }
+    }
     reply(200, {
       days,
       date: day!.date,
       anyone,
       // Free for desk bookings and for guests holding a time on the booking page.
       times: day!.open
-        ? guestMoveTimes(withHolds(org), appointmentId, day!.date, now(), anyone)
+        ? guestMoveTimes(withHolds(org), appointmentId, day!.date, now(), anyone).filter((time) =>
+            covered(time.startMinutes),
+          )
         : [],
+      ...(patchFirst ? { patchTest: true } : {}),
     })
     return true
   }
@@ -447,59 +565,31 @@ export async function guestRoutes(ctx: Context, route: Route): Promise<boolean> 
           fail(409, 'This change was already made for another time. Reload to see your visit.')
         return viewOf(org, org.state, appointmentId)
       }
-      const blocked = guestMoveBlock(org.state, appointmentId, now())
-      if (blocked) fail(409, MOVE_REFUSALS[blocked])
-      const staffId = data.staffId ?? visit.staffId
-      // Asking for the time the visit already has changes nothing.
-      if (
-        visit.date === data.date &&
-        visit.startMinutes === data.startMinutes &&
-        visit.staffId === staffId
-      )
-        return viewOf(org, org.state, appointmentId)
-      if (
-        !guestMoveDays(org.state, appointmentId, now(), linkEnds).some(
-          (d) => d.open && d.date === data.date,
+      const result = moveOnline(ctx, org, appointmentId, {
+        date: data.date,
+        startMinutes: data.startMinutes,
+        staffIds: [data.staffId ?? visit.staffId],
+        actor: GUEST_ACTOR,
+        action: 'guest.move',
+        eventId,
+        linkEnds,
+      })
+      if (!result.ok) {
+        const { refusal } = result
+        if (refusal.reason === 'patch') fail(422, refusal.message)
+        fail(
+          409,
+          refusal.reason === 'failed'
+            ? refusal.message
+            : refusal.reason === 'day'
+              ? 'Choose one of the open days shown.'
+              : refusal.reason === 'passed'
+                ? 'That time has passed. Choose another time.'
+                : refusal.reason === 'taken'
+                  ? 'That time is no longer free. Choose another time.'
+                  : MOVE_REFUSALS[refusal.reason],
         )
-      )
-        fail(409, 'Choose one of the open days shown.')
-      if (!timeAhead(org.state, data.date, data.startMinutes, now()))
-        fail(409, 'That time has passed. Choose another time.')
-      // Free for desk bookings and for guests holding a time on the booking page, in the exact
-      // room the check found, with its resting time.
-      const resourceId = rescheduleResource(
-        withHolds(org),
-        appointmentId,
-        staffId,
-        data.date,
-        data.startMinutes,
-        new Date(now()).toISOString(),
-      )
-      if (!resourceId) fail(409, 'That time is no longer free. Choose another time.')
-      // The same change the desk makes, so the visit's history and the "new time" message to
-      // the guest follow exactly as they do for a move at the desk.
-      const result = dispatch(
-        org.state,
-        {
-          type: 'reschedule',
-          appointmentId,
-          staffId,
-          date: data.date,
-          startMinutes: data.startMinutes,
-          resourceId: resourceId!,
-        },
-        GUEST_ACTOR,
-        new Date(now()).toISOString(),
-      )
-      if (!result.ok) fail(409, result.error)
-      if (result.state === org.state) return viewOf(org, org.state, appointmentId)
-      const known = new Set(org.state.events.map((e) => e.id))
-      const event = result.state.events.find(
-        (e) => !known.has(e.id) && e.type === 'rescheduled' && e.appointmentId === appointmentId,
-      )
-      if (event) event.id = eventId
-      persist(org, result.state, null, 'guest.move', appointmentId)
-      followGuestLinks(ctx, { ...org, state: result.state }, appointmentId)
+      }
       return viewOf(org, result.state, appointmentId)
     })
     reply(200, view)

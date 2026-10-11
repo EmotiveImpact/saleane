@@ -11,7 +11,7 @@ import {
 import { dirname, resolve } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { fileURLToPath } from 'node:url'
-import { SCHEMA_VERSION } from './database'
+import { migrations } from './database'
 import { UNCONFIRMED } from './messaging/meta'
 import { parseState } from '../src/domain/model'
 import type { BusinessState } from '../src/domain/model'
@@ -28,10 +28,11 @@ export function validateDatabase(path: string) {
     const versions = database
       .prepare('SELECT version FROM schema_migrations ORDER BY version')
       .all()
-    // Exactly the contiguous steps this build knows: older files open through the app first.
+    // Exactly the steps this build knows, in order: older files open through the app first.
+    const known = migrations.map((migration) => migration.version)
     if (
-      versions.length !== SCHEMA_VERSION ||
-      versions.some((row, index) => Number(row.version) !== index + 1)
+      versions.length !== known.length ||
+      versions.some((row, index) => Number(row.version) !== known[index])
     )
       throw new Error('This database migration version is not supported.')
     const tables = database
@@ -127,6 +128,15 @@ function snapshot(source: string, destination: string, restore: boolean) {
               .prepare('UPDATE diary_links SET stopped_at=? WHERE stopped_at IS NULL')
               .run(time).changes,
           ),
+          // Stage 5: a quiet-time price booked since the backup would be unused again in the
+          // restored record, so no link from before the restore books a lower price.
+          offerLinksStopped: Number(
+            recovered
+              .prepare(
+                'UPDATE offer_links SET revoked_at=? WHERE revoked_at IS NULL AND used_at IS NULL',
+              )
+              .run(time).changes,
+          ),
           connectionsTurnedOff: Number(
             recovered
               .prepare('UPDATE connections SET active=0,updated_at=? WHERE active=1')
@@ -146,6 +156,29 @@ function snapshot(source: string, destination: string, restore: boolean) {
               )
               .run(
                 'Held when the studio was restored from a backup. It may have gone already, so check before sending again.',
+                time,
+              ).changes,
+          ),
+          // Stage 1: a membership's card may have been charged since the backup, and the restored
+          // record would not know, so card payments wait until the team checks the provider and
+          // turns them back on. A payment that was still waiting is kept as unclear.
+          membershipCardPaymentsHeld: Number(
+            recovered
+              .prepare(
+                `INSERT OR IGNORE INTO membership_card_holds(organisation_id,held_at)
+                 SELECT o.id,? FROM organisations o WHERE EXISTS (
+                   SELECT 1 FROM json_each(o.state,'$.holdings') h, json_each(h.value,'$.cardAgreements') a
+                   WHERE json_extract(a.value,'$.endedAt') IS NULL)`,
+              )
+              .run(time).changes,
+          ),
+          membershipPaymentsHeld: Number(
+            recovered
+              .prepare(
+                "UPDATE membership_charges SET status='unknown',detail=?,updated_at=? WHERE status IN ('started','processing')",
+              )
+              .run(
+                'Held when the studio was restored from a backup. It may have gone through, so check again.',
                 time,
               ).changes,
           ),

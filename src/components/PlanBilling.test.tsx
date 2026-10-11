@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { PlanBilling } from './PlanBilling'
 import { api } from '../state/api'
 import { seed } from '../domain/seed'
-import { DAY_MS, addOnBill, monthBill, plusBill } from '../domain/billing'
+import { DAY_MS, monthBill, plusBill } from '../domain/billing'
 import type { BillingView, InvoiceView } from '../domain/billing'
 import type { BusinessState } from '../domain/model'
 
@@ -35,9 +35,6 @@ const plan = (extra: Partial<BillingView> = {}): BillingView => ({
   periodEnd: null,
   plus: false,
   plusNext: false,
-  phone: false,
-  phoneNext: false,
-  phoneConnected: false,
   cancelAtPeriodEnd: false,
   card: null,
   locations: 1,
@@ -54,7 +51,6 @@ const plan = (extra: Partial<BillingView> = {}): BillingView => ({
     typed: { used: 12, of: 300 },
     guestChats: { used: 0, of: 200 },
     talkSeconds: { used: 0, of: 1800 },
-    phoneSeconds: { used: 0, of: 0 },
   },
   ...extra,
 })
@@ -130,7 +126,7 @@ test('says who the studio pays for beyond the people its locations include', asy
   const { unmount } = open()
   expect(
     await screen.findByText(
-      '£59 a month for each location, plus VAT, with 5 people taking bookings, Ask Saleane and the AI receptionist included. Each person beyond that is £9 a month. Month to month: stop whenever you like.',
+      '£59 a month for each location, plus VAT, with 5 people taking bookings, Ask SALEANE and the AI receptionist included. Each person beyond that is £9 a month. Month to month: stop whenever you like.',
     ),
   ).toBeInTheDocument()
   expect(
@@ -313,66 +309,6 @@ test('shows older bills a page at a time', async () => {
   expect(screen.queryByRole('button', { name: 'Show older bills' })).not.toBeInTheDocument()
 })
 
-test('the phone receptionist waits until calls are connected, then is added for the rest of the month', async () => {
-  const user = userEvent.setup()
-  const start = Date.parse('2026-10-01T00:00:00.000Z')
-  const end = Date.parse('2026-11-01T00:00:00.000Z')
-  const paid = plan({
-    status: 'active',
-    card,
-    periodStart: start,
-    periodEnd: end,
-    nextBill: { at: end, bill: monthBill('UK', 1, false, 3) },
-  })
-  let connected = false
-  vi.mocked(api).mockImplementation(async (path, init) => {
-    if (path === base) return { ...paid, phoneConnected: connected } as never
-    if (path === `${base}/phone`) {
-      expect(init).toEqual({ method: 'POST', body: { on: true } })
-      return {
-        outcome: 'paid',
-        billing: {
-          ...paid,
-          phoneConnected: true,
-          phone: true,
-          phoneNext: true,
-          ai: { ...paid.ai, phoneSeconds: { used: 240, of: 18000 } },
-        },
-      } as never
-    }
-    throw new Error(`Unexpected route ${path}`)
-  })
-  const first = open()
-  expect(await screen.findByText('Arrives when phone calls are connected.')).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Not yet' })).toBeDisabled()
-  expect(
-    screen.getByText(/^Answers the calls your desk misses\. It says it is an AI/),
-  ).toBeInTheDocument()
-  first.unmount()
-
-  connected = true
-  open()
-  await user.click(await screen.findByRole('button', { name: 'Add the phone receptionist' }))
-  const ask = screen.getByRole('dialog', { name: 'Add the phone receptionist now?' })
-  // £79 for the part of the month that is left, plus VAT.
-  const owed = `£${(addOnBill('phone', 'UK', 1, now, start, end).totalMinor / 100).toFixed(2)}`
-  expect(ask).toHaveTextContent(
-    `${owed} is taken now from the Visa ending 4242, for the rest of this month. From 1 November 2026 the phone receptionist is part of your monthly bill.`,
-  )
-  await user.click(
-    within(ask).getByRole('button', { name: `Add the phone receptionist for ${owed}` }),
-  )
-  expect(await screen.findByRole('status')).toHaveTextContent(
-    'The phone receptionist is on. Choose it in AI receptionist settings to start answering calls.',
-  )
-  expect(
-    screen.getByRole('button', { name: 'Turn the phone receptionist off' }),
-  ).toBeInTheDocument()
-  expect(screen.getByText('Minutes of calls answered by the AI receptionist')).toBeInTheDocument()
-  expect(screen.getByText('4 of 300 used')).toBeInTheDocument()
-  expect(screen.getByText(/For 1 location, with the phone receptionist\./)).toBeInTheDocument()
-})
-
 test('a read only studio can pay for a month from today, and cannot add Plus or stop', async () => {
   vi.mocked(api).mockResolvedValue(
     plan({
@@ -393,7 +329,7 @@ test('a read only studio can pay for a month from today, and cannot add Plus or 
   expect(screen.getByRole('button', { name: 'Add Plus' })).toBeDisabled()
   expect(screen.queryByRole('button', { name: /^Stop/ })).not.toBeInTheDocument()
   expect(
-    screen.getByText('Ask Saleane and the AI receptionist rest while the studio is read only.'),
+    screen.getByText('Ask SALEANE and the AI receptionist rest while the studio is read only.'),
   ).toBeInTheDocument()
 })
 

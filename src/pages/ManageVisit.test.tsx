@@ -381,6 +381,45 @@ test('after a cancellation, offers booking again and never says to contact the s
   expect(screen.queryByRole('button', { name: 'Move my visit' })).not.toBeInTheDocument()
 })
 
+test('after a completed visit, offers to book their usual on the booking page', async () => {
+  vi.mocked(api).mockResolvedValue({
+    ...view('none', 'completed'),
+    cancellation: { available: false, cutoffAt: '2026-10-06T08:00:00.000Z', outcome: 'none' },
+    usual: {
+      path: '/book/reference-studio?service=service-facial&staff=staff-maya&date=2026-11-04',
+      serviceName: 'Skin Renewal Facial',
+      professional: 'Maya',
+      date: '2026-11-04',
+    },
+  } as never)
+  render(<ManageVisit />)
+  expect(
+    await screen.findByRole('heading', { name: 'Come back for your usual?' }),
+  ).toBeInTheDocument()
+  expect(
+    screen.getByText(
+      'Skin Renewal Facial with Maya, from Wednesday 4 November. Choose a time on Reference Studio’s booking page.',
+    ),
+  ).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: /Book your usual/ })).toHaveAttribute(
+    'href',
+    '/book/reference-studio?service=service-facial&staff=staff-maya&date=2026-11-04',
+  )
+  // Nothing to cancel or move on a completed visit, and no history or other visits.
+  expect(screen.queryByRole('button', { name: 'Cancel this visit' })).not.toBeInTheDocument()
+  expect(screen.queryByText(/previous visits|your history/i)).not.toBeInTheDocument()
+})
+
+test('shows no usual without one', async () => {
+  vi.mocked(api).mockResolvedValue({
+    ...view('none', 'completed'),
+    cancellation: { available: false, cutoffAt: '2026-10-06T08:00:00.000Z', outcome: 'none' },
+  } as never)
+  render(<ManageVisit />)
+  await screen.findByText('Skin Renewal Facial')
+  expect(screen.queryByRole('link', { name: /Book your usual/ })).not.toBeInTheDocument()
+})
+
 test('mentions a deposit only when there is one', async () => {
   const user = userEvent.setup()
   vi.mocked(api).mockResolvedValue({
@@ -548,12 +587,100 @@ test('reads dates with the weekday and times on a 12-hour clock for a studio in 
     return moveTimes(body.date ?? '2026-10-08', body.anyone) as never
   })
   render(<ManageVisit />)
-  expect(await screen.findByText('Wednesday, October 7 at 09:00 AM')).toBeInTheDocument()
+  // The label sets the date and the time on lines of their own.
+  expect(await screen.findByText('Wednesday, October 7')).toBeInTheDocument()
+  expect(screen.getByText('09:00 AM')).toBeInTheDocument()
   expect(screen.getByText(/online until Tuesday, October 6 at 09:00 AM/)).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Move my visit' }))
   expect(await screen.findByRole('radio', { name: '10:00 AM' })).toBeInTheDocument()
   expect(screen.getByRole('radio', { name: /^Thu Oct 8/ })).toBeChecked()
   expect(
     screen.getByRole('group', { name: 'Free times on Thursday, October 8' }),
+  ).toBeInTheDocument()
+})
+
+test('shows the guest’s package, and stops offering it for a visit they cancel', async () => {
+  const user = userEvent.setup()
+  const plan = {
+    kind: 'package' as const,
+    name: 'Six facials',
+    state: 'active' as const,
+    visits: 6,
+    visitsLeft: 3,
+    endsOn: '2027-03-14',
+  }
+  vi.mocked(api).mockImplementation(
+    async (path) =>
+      (path === '/api/guest/visit'
+        ? { ...view('none'), plans: [{ ...plan, thisVisit: { outcome: 'covers' } }] }
+        : { ...view('none', 'cancelled'), plans: [plan] }) as never,
+  )
+  render(<ManageVisit />)
+  const section = await screen.findByRole('region', { name: 'Your package Six facials' })
+  expect(section).toHaveTextContent('3 of 6 visits left, until 14 March 2027.')
+  expect(section).toHaveTextContent('This visit can come off your package.')
+  // It sits with the visit, before how to reach the studio.
+  const contact = screen.getByRole('region', { name: 'Your studio' })
+  expect(section.compareDocumentPosition(contact) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  await user.click(screen.getByRole('button', { name: 'Cancel this visit' }))
+  await user.click(screen.getByRole('button', { name: 'Yes, cancel my visit' }))
+  await screen.findByRole('heading', { name: 'Your visit is cancelled.' })
+  const after = screen.getByRole('region', { name: 'Your package Six facials' })
+  expect(after).toHaveTextContent('3 of 6 visits left')
+  expect(after).not.toHaveTextContent('This visit')
+})
+
+test('says when only times a clear patch test covers can be chosen (Stage 3)', async () => {
+  const user = userEvent.setup()
+  vi.mocked(api).mockImplementation(async (path, options) => {
+    const body = options?.body as { date?: string; anyone?: boolean }
+    if (path === '/api/guest/visit') return movable() as never
+    return { ...moveTimes(body.date ?? '2026-10-07', body.anyone), patchTest: true } as never
+  })
+  render(<ManageVisit />)
+  await user.click(await screen.findByRole('button', { name: 'Move my visit' }))
+  expect(
+    await screen.findByText(
+      'This treatment needs a clear patch test that covers the visit, so only those times can be chosen here. For another time, contact the studio.',
+    ),
+  ).toBeInTheDocument()
+  expect(
+    screen.getByText(
+      'No times on Wednesday 7 October can be chosen here. Try another day, or contact the studio.',
+    ),
+  ).toBeInTheDocument()
+})
+
+test('sets the visit as a label for the guest, with the studio’s arrival words and a map', async () => {
+  vi.mocked(api).mockResolvedValue({
+    ...view('none'),
+    guest: { firstName: 'Amelia' },
+    arrival: { studioNote: 'Ring the bell at the blue door.', serviceNote: '' },
+  } as never)
+  render(<ManageVisit />)
+  expect(await screen.findByRole('heading', { name: 'Your visit, Amelia.' })).toBeInTheDocument()
+  const label = screen.getByRole('heading', { name: 'Your visit, Amelia.' }).parentElement!
+  expect(within(label).getByText('Skin Renewal Facial')).toBeInTheDocument()
+  expect(within(label).getByText('Maya')).toBeInTheDocument()
+  expect(within(label).getByText('Wednesday 7 October')).toBeInTheDocument()
+  expect(within(label).getByText('09:00')).toBeInTheDocument()
+  // The studio's own words, said once: on the label, not again under "Before you arrive".
+  expect(screen.getAllByText('Ring the bell at the blue door.')).toHaveLength(1)
+  expect(screen.queryByRole('heading', { name: 'Before you arrive' })).not.toBeInTheDocument()
+  // No map service is connected: an honest placeholder with the address, and directions still.
+  const map = screen.getByRole('figure', { name: 'Where Reference Studio is' })
+  expect(within(map).getByText('12 Example Mews, London')).toBeInTheDocument()
+  expect(within(map).getByText('Map shown when a map service is connected.')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: /Directions/ })).toBeInTheDocument()
+  // The house photograph is decoration and never claims to be this studio.
+  expect(document.querySelector('.visit-hero-image')).toHaveAttribute('alt', '')
+})
+
+test('gives general arrival guidance when the studio wrote none', async () => {
+  vi.mocked(api).mockResolvedValue(view('none') as never)
+  render(<ManageVisit />)
+  expect(await screen.findByRole('heading', { name: 'Your visit' })).toBeInTheDocument()
+  expect(
+    screen.getByText('Please arrive a few minutes early, so there is time to settle in.'),
   ).toBeInTheDocument()
 })

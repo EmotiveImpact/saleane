@@ -6,6 +6,7 @@ import { roleNames, studioRole } from '../domain/operations'
 import type { Role } from '../domain/operations'
 import { welcomeFor } from '../domain/welcome'
 import { TwoStepSettings } from '../components/TwoStepSettings'
+import { useStore } from '../state/context'
 import '../components/accessPanel.css'
 import './studioSetup.css'
 import './teamWelcome.css'
@@ -21,14 +22,16 @@ const STORY: Record<Step, { photo: string; line: string }> = {
 /**
  * Three short screens for someone who has just joined a studio from an invitation: what their
  * role does, where they will work from, and keeping their sign-in safe. They can turn on two-step
- * sign-in here, the only place a practitioner can, and skip the rest at any point. Nothing on
- * these screens changes the studio.
+ * sign-in here (or later on their account page), and skip the rest at any point. When the studio
+ * asks everyone to use it, the last screen says so, and skipping leads to "Protect your account".
+ * Nothing on these screens changes the studio.
  */
 export function TeamWelcome({
   studio,
   role,
   place,
   name,
+  required,
   pending,
   error,
   onOpen,
@@ -38,10 +41,16 @@ export function TeamWelcome({
   /** The location a general manager runs, or the region a regional manager looks after. */
   place?: string
   name: string
+  /** Stage 6: the studio asks everyone to use two-step sign-in, so it is not optional here. */
+  required?: boolean
   pending: boolean
   error: string
   onOpen: () => void
 }) {
+  const store = useStore()
+  // Stage 6: the studio asks for two-step sign-in and it is not on yet, so setting it up is the
+  // main job of the last screen and opening the studio steps back.
+  const mustSetUp = !!required && !store.session?.user.twoStep
   const [index, setIndex] = useState(0)
   // While two-step sign-in is being set up, that is the main job and the footer steps back.
   const [settingUp, setSettingUp] = useState(false)
@@ -128,12 +137,17 @@ export function TeamWelcome({
           {step === 'safe' && (
             <>
               <p className="setup-intro">
-                Your sign-in opens guests’ private details, so keep your password to yourself and
-                think about turning on two-step sign-in now.
+                {required
+                  ? `Your sign-in opens guests’ private details. ${studio} asks everyone to use two-step sign-in, so set it up now before you open the studio.`
+                  : 'Your sign-in opens guests’ private details, so keep your password to yourself and think about turning on two-step sign-in now.'}
               </p>
-              <TwoStepSettings startOpen onBusy={setSettingUp} />
-              {studioRole(role) && (
-                <p className="ops-help">You can also turn it on later in Settings, under Team.</p>
+              <TwoStepSettings startOpen onBusy={setSettingUp} lead={mustSetUp} />
+              {!required && (
+                <p className="ops-help">
+                  {studioRole(role)
+                    ? 'You can also turn it on later in Settings, under Team, or on your account page.'
+                    : 'You can also turn it on later on your account page.'}
+                </p>
               )}
             </>
           )}
@@ -156,7 +170,7 @@ export function TeamWelcome({
             <span />
           )}
           <Button
-            variant={last && settingUp ? 'secondary' : 'primary'}
+            variant={last && (settingUp || mustSetUp) ? 'secondary' : 'primary'}
             disabled={pending}
             onClick={() => (last ? onOpen() : setIndex(index + 1))}
           >

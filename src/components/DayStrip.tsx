@@ -70,7 +70,11 @@ export function DayStrip({
   const smooth = () =>
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
   // Brings a day into view without moving the page up or down.
-  const reveal = (tile: HTMLElement | undefined, align: 'start' | 'centre') => {
+  const reveal = (
+    tile: HTMLElement | undefined,
+    align: 'start' | 'centre',
+    behavior: ScrollBehavior = smooth(),
+  ) => {
     const strip = row.current
     if (!strip || !tile) return
     const left = tile.offsetLeft,
@@ -78,15 +82,20 @@ export function DayStrip({
     if (left >= strip.scrollLeft && right <= strip.scrollLeft + strip.clientWidth) return
     strip.scrollTo?.({
       left: align === 'start' ? left - 4 : left - (strip.clientWidth - tile.offsetWidth) / 2,
-      behavior: smooth(),
+      behavior,
     })
   }
   const tiles = () => [...(row.current?.querySelectorAll<HTMLElement>('.day-strip-day') ?? [])]
+  // A day chosen before the strip appears, such as from a link to a day weeks ahead, is shown at
+  // once: a gliding scroll as the page opens is cut short when the day counts arrive.
+  const opened = useRef(false)
   useEffect(() => {
     reveal(
       tiles().find((tile) => tile.dataset.date === value),
       'centre',
+      opened.current ? smooth() : 'auto',
     )
+    opened.current = true
     // Only a new choice scrolls; the helpers read the row as it is now.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value])

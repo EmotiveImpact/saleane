@@ -2,7 +2,7 @@ import type { BusinessState, Region } from './model'
 import { addDays } from './format'
 import { operations } from './operations'
 import { places } from './locations'
-import { serviceRevenue } from './selectors'
+import { renterVisit, serviceRevenue } from './takings'
 import { AREA_MIN_GROUP, postcodeArea } from './clientAreas'
 
 /**
@@ -250,7 +250,8 @@ export function mapAreas(
       r.seen.add(a.clientId)
     }
     const sale = sales.get(a.id)
-    if (sale) r.salesMinor += serviceRevenue(sale)
+    // Stage 3: a renter's own takings are theirs, not the studio's.
+    if (sale && !renterVisit(s, a)) r.salesMinor += serviceRevenue(sale)
   }
   for (const a of then) {
     const key = area.get(a.clientId)

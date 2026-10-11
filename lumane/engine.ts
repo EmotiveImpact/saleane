@@ -37,7 +37,7 @@ export type TurnInput<Ctx> = {
     usage: Usage | undefined
     personId: string
     at: string
-    kind: Exclude<Meter, 'talkSeconds' | 'phoneSeconds'>
+    kind: Exclude<Meter, 'talkSeconds'>
     /** How much of the meter this turn uses: 1 by default, 0 for a message in a chat already counted. */
     amount?: number
     /**
