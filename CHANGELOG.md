@@ -15,6 +15,15 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Twenty test cases say what a good answer must and must never do, including a client note that gives orders and a guest claiming to be the owner. `npm run evals` runs them against the real Claude once a key is set; every test run checks their safety rules against the test-mode assistant.
 - A guest's chat and offers are tied to an anonymous id that SALEANE forgets when it restarts, so after a restart a guest simply asks again.
 
+## 2026-10-11 · The design language, brought up to date after Radix and Motion
+
+**Status: documentation only; no screen changes.** [DESIGN_LANGUAGE](docs/DESIGN_LANGUAGE.md#decided-since-radix-and-motion).
+
+- The design language now opens with a dated list of every decision made since the library moved to Radix and Motion, each linking to its rule.
+- A new section, The frame, describes what surrounds every staff page: the sidebar and its fold, the top bar, the two menus under the studio's name and your own, the phone menu, notices and finding a client.
+- The 44px touch rule, hints (never browser title text), notices, welcomes for a new studio, Today on a phone, view switches that keep one place, folds in where things move, the assistant's name written once and the booking page's footer are written out in full.
+- The top bar, folded sidebar, view switch and booking footer rules come from Edem's comments on the demo of 11 October; the fixes themselves arrive with the demo's own change. Phone Today in tabs and the six moves from the finishing check are listed as still waiting for a yes.
+
 ## 2026-10-11 · The new photographs, on their screens
 
 **Status: built locally on 11 October 2026 and checked in a browser. The owner approved every placement on 11 October 2026.** [Evidence](docs/evidence/APP-PHOTOGRAPHS-IN-PLACE.md).
