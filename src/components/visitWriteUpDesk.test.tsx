@@ -51,7 +51,8 @@ test('reception writes up a visit the guest has arrived for, and it saves with a
   const user = userEvent.setup()
   commit.mockResolvedValue({ ok: true } as CommandResult)
   vi.mocked(api).mockImplementation(async (url) => {
-    if (!String(url).includes('/visits/')) return { mode: 'test', listens: false } as never
+    if (!String(url).includes('/visits/'))
+      return { mode: 'test', listens: false, aftercareEmail: true } as never
     return {
       heard: 'Facial with a calming mask. Drink plenty of water today.',
       note: 'Facial with a calming mask.',
@@ -79,7 +80,7 @@ test('reception writes up a visit the guest has arrived for, and it saves with a
     await screen.findByText('Saved. The aftercare is added to Amelia’s aftercare email.'),
   ).toBeInTheDocument()
   expect(vi.mocked(api).mock.calls[0][0]).toBe(
-    `/api/workspaces/${encodeURIComponent(store.state.organisation.id)}/write-up`,
+    `/api/workspaces/${encodeURIComponent(store.state.organisation.id)}/write-up?visit=visit-amelia`,
   )
 })
 

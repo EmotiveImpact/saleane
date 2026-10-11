@@ -194,6 +194,37 @@ describe('writing up a visit in test mode', () => {
     expect((await spoken(owner, mine, Buffer.from('fake audio'))).statusCode).toBe(409)
   })
 
+  it('says whether aftercare saved now still goes in the visit’s aftercare email', async () => {
+    start()
+    const { owner, maya, mine, theirs } = await linden()
+    const ahead = async (login: Login, visitId: string) =>
+      (
+        await api.inject({
+          url: `/api/workspaces/${login.orgId}/write-up?visit=${visitId}`,
+          headers: headers(login),
+        })
+      ).json<{ aftercareEmail?: boolean }>().aftercareEmail
+    // Still to come: there is nothing to write up, so nothing to add.
+    expect(await ahead(owner, mine)).toBe(false)
+    await saved(owner, { type: 'arrive', appointmentId: mine })
+    expect(await ahead(owner, mine)).toBe(true)
+    // A professional hears nothing about someone else's visit.
+    expect(await ahead(await practitioner(owner, maya), theirs)).toBeUndefined()
+    // Once the aftercare email is in the outbox, saved aftercare cannot join it.
+    const at = Date.parse('2026-10-06T08:00:00.000Z')
+    api.database.run(
+      `INSERT INTO outbox(id,organisation_id,dedupe_key,appointment_id,client_id,kind,channel,slot,recipient,subject,body,status,next_attempt_at,created_at,updated_at)
+       VALUES('sent-care',?,?,?,'client','aftercare','email','slot','amara@example.invalid','Care','Body','accepted',?,?,?)`,
+      owner.orgId,
+      `${mine}:aftercare:email:slot`,
+      mine,
+      at,
+      at,
+      at,
+    )
+    expect(await ahead(owner, mine)).toBe(false)
+  })
+
   it('keeps a professional to their own visits, once the guest has arrived', async () => {
     start()
     const { owner, maya, mine, theirs } = await linden()

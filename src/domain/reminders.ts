@@ -192,6 +192,22 @@ export function aftercareDue(s: BusinessState, a: Appointment, now: number) {
   )
 }
 
+/**
+ * NEXT-16: whether aftercare saved on this visit now will still go in the guest's aftercare email.
+ * Not once that email has gone (`sent`), nor two days after checkout, nor to a guest without email,
+ * nor while aftercare emails are switched off or the studio sends nothing.
+ */
+export function aftercareEmailAhead(s: BusinessState, a: Appointment, now: number, sent: boolean) {
+  if (sent || operations(s).mode !== 'local' || reminderSettings(s).aftercare === false)
+    return false
+  const client = s.clients.find((c) => c.id === a.clientId)
+  if (!client?.email || !channelsFor(s, client).includes('email')) return false
+  if (a.status === 'arrived') return true
+  if (a.status !== 'completed') return false
+  const paidAt = Date.parse(s.sales.find((sale) => sale.appointmentId === a.id)?.paidAt ?? '')
+  return now - paidAt < RECENT_MS
+}
+
 /** "You're due back" may go from a few days before the due date until two weeks after it. */
 const DUE_BACK_EARLY_DAYS = 3
 const DUE_BACK_LATE_DAYS = 14

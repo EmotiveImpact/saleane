@@ -7,7 +7,12 @@ import { VOICE_NOTE_SECONDS, WRITE_UP_WORDS_LIMIT } from '../assistant/writeUp'
 import { Button, ErrorMessage } from '../design'
 import './visitWriteUp.css'
 
-type WriteUpStatus = { mode: 'test' | 'live'; listens: boolean }
+type WriteUpStatus = {
+  mode: 'test' | 'live'
+  listens: boolean
+  /** Whether aftercare saved now still goes in this visit's aftercare email. */
+  aftercareEmail?: boolean
+}
 type WriteUpReply =
   | { heard: string; note: string; aftercare: string; status?: undefined }
   | { status: 'refused' | 'unheard' | 'unavailable'; text: string; heard?: string }
@@ -15,6 +20,10 @@ type WriteUpReply =
 /** Speech is recorded small: a two-minute note stays well under the server's one megabyte. */
 const BITS_PER_SECOND = 24_000
 const RECORDING_TYPES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg']
+
+/** When the visit's aftercare email has gone, or will not be sent, the aftercare stays on the visit. */
+const KEPT =
+  'Kept on the visit only: their aftercare email has gone or will not be sent. Message them if they need it.'
 
 const clock = (seconds: number) =>
   `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`
@@ -61,13 +70,13 @@ export function VisitWriteUp({
 
   useEffect(() => {
     let active = true
-    api<WriteUpStatus>(`${path}/write-up`)
+    api<WriteUpStatus>(`${path}/write-up?visit=${encodeURIComponent(appointmentId)}`)
       .then((next) => active && setStatus(next))
       .catch(() => active && setStatus({ mode: 'test', listens: false }))
     return () => {
       active = false
     }
-  }, [path])
+  }, [path, appointmentId])
   // A recording never outlives the screen it was started on, and the microphone is let go with it.
   // Each visit has its own copy of this screen (keyed by the visit), so a new visit starts afresh.
   useEffect(() => {
@@ -185,7 +194,9 @@ export function VisitWriteUp({
       await onSave(
         command,
         care.length >= 2
-          ? `Saved. The aftercare is added to ${guest}’s aftercare email.`
+          ? emailed
+            ? `Saved. The aftercare is added to ${guest}’s aftercare email.`
+            : 'Saved. The aftercare is kept on the visit, and no email will carry it.'
           : 'Saved to their history.',
       )
     ) {
@@ -197,6 +208,7 @@ export function VisitWriteUp({
   const listening = seconds !== null
   const listens = !!status?.listens && canRecord
   const live = status?.mode === 'live'
+  const emailed = status?.aftercareEmail === true
   const noteReady = (draft?.note.trim().length ?? 0) >= 2
   const careReady = (draft?.aftercare.trim().length ?? 0) >= 2
 
@@ -221,14 +233,20 @@ export function VisitWriteUp({
         <div className="visit-write-up-saved">
           <p className="visit-write-up-label">Aftercare for {guest}</p>
           <p>{aftercare}</p>
-          <small>Added to their aftercare email, after the treatment’s own aftercare.</small>
+          <small>
+            {emailed
+              ? 'Added to their aftercare email, after the treatment’s own aftercare.'
+              : KEPT}
+          </small>
           <Button
             variant="secondary"
             disabled={saving}
             onClick={() =>
               void onSave(
                 { type: 'visit-write-up', appointmentId, aftercare: null },
-                'The aftercare is removed from their aftercare email.',
+                emailed
+                  ? 'The aftercare is removed from their aftercare email.'
+                  : 'The aftercare is removed from the visit.',
               )
             }
           >
@@ -335,7 +353,9 @@ export function VisitWriteUp({
             onChange={(e) => setDraft({ ...draft, aftercare: e.target.value })}
           />
           <small id="write-up-aftercare-hint" className="subtle">
-            Added to their aftercare email, after the treatment’s own aftercare.
+            {emailed
+              ? 'Added to their aftercare email, after the treatment’s own aftercare.'
+              : KEPT}
             {aftercare ? ' It replaces the aftercare saved earlier.' : ''}
           </small>
           <span className="practitioner-actions">

@@ -6,7 +6,14 @@ import type { BusinessState } from './model'
 import { defaultOperations } from './operations'
 import { dueClients } from './selectors'
 import { dueBackOn } from './dueBack'
-import { BOOK_LINK, aftercareDue, composeMessage, dueBackDue, planMessages } from './reminders'
+import {
+  BOOK_LINK,
+  aftercareDue,
+  aftercareEmailAhead,
+  composeMessage,
+  dueBackDue,
+  planMessages,
+} from './reminders'
 import type { RecordedMessage } from './reminders'
 
 // V1.5: aftercare advice after a visit, and a "due back" note weeks later.
@@ -154,6 +161,25 @@ describe('aftercare written up after the visit', () => {
     expect(composeMessage(state, visit, 'aftercare', 'email').body).toContain(
       'Skip hot tools until Friday.',
     )
+  })
+
+  it('knows when aftercare saved now can no longer go in the aftercare email', () => {
+    const { state, visit } = studio()
+    const soon = Date.parse('2026-10-06T12:00:00.000Z')
+    expect(aftercareEmailAhead(state, visit, soon, false)).toBe(true)
+    // Its email has gone, or it is more than two days since checkout.
+    expect(aftercareEmailAhead(state, visit, soon, true)).toBe(false)
+    expect(aftercareEmailAhead(state, visit, Date.parse('2026-10-08T09:00:00.000Z'), false)).toBe(
+      false,
+    )
+    // A sample studio sends nothing.
+    expect(aftercareEmailAhead(seed('UK'), visit, soon, false)).toBe(false)
+    const client = state.clients.find((c) => c.id === visit.clientId)!
+    const noEmail = {
+      ...state,
+      clients: state.clients.map((c) => (c === client ? { ...c, email: '' } : c)),
+    }
+    expect(aftercareEmailAhead(noEmail, visit, soon, false)).toBe(false)
   })
 
   it('refuses a visit that did not go ahead, and a write-up with nothing in it', () => {

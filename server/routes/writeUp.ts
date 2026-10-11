@@ -8,6 +8,7 @@ import { TranscribeError, TRANSCRIBE_WORST_MINOR } from '../transcribe'
 import { businessDate, can, permissionFor } from '../../src/domain/operations'
 import { practitionerRefusal } from '../../src/domain/practitioner'
 import { branchRefusal } from '../../src/domain/branch'
+import { aftercareEmailAhead } from '../../src/domain/reminders'
 import type { Command } from '../../src/domain/commands'
 import { WRITE_UP_WORDS_LIMIT, testWriteUp, writeUpWith } from '../../src/assistant/writeUp'
 
@@ -25,7 +26,7 @@ export const WRITE_UP_WORST_MINOR = 3
 
 export function writeUpRoutes() {
   return async function writeUp(ctx: Context, route: Route): Promise<boolean> {
-    const { request, method, path, body, reply } = route
+    const { request, method, url, path, body, reply } = route
     if (path[1] !== 'workspaces') return false
     const status = path[3] === 'write-up' && path.length === 4
     const visit = path[3] === 'visits' && path.length === 6
@@ -35,23 +36,42 @@ export function writeUpRoutes() {
     const brain = ctx.ai.brainFor(org.state, 'ask')
     // Listening needs both OpenAI to write the note down and Claude to write it up.
     const listens = !!brain && ctx.transcriber.live
-    if (status) {
-      if (method !== 'GET') fail(405, 'Use GET.')
-      reply(200, { mode: brain ? 'live' : 'test', listens })
-      return true
-    }
-    if (method !== 'POST') fail(405, 'Use POST.')
-    const appointmentId = path[4]
     // Allowed exactly when saving a note on this visit would be.
-    const probe: Command = { type: 'visit-write-up', appointmentId, note: 'probe' }
-    if (!can(org.role, permissionFor(probe))) fail(403, 'Your role cannot write up visits.')
-    const today = businessDate(org.state, new Date(ctx.now()).toISOString())
-    const refusal =
-      org.role === 'practitioner'
+    const refusalFor = (appointmentId: string) => {
+      const probe: Command = { type: 'visit-write-up', appointmentId, note: 'probe' }
+      if (!can(org.role, permissionFor(probe))) return 'Your role cannot write up visits.'
+      const today = businessDate(org.state, new Date(ctx.now()).toISOString())
+      return org.role === 'practitioner'
         ? practitionerRefusal(org.state, org.staffId!, probe, today)
         : org.role === 'general'
           ? branchRefusal(org.state, org.locationId!, probe)
           : null
+    }
+    if (status) {
+      if (method !== 'GET') fail(405, 'Use GET.')
+      // With a visit named, whether aftercare saved on it now still goes in its aftercare email.
+      const asked = url.searchParams.get('visit')
+      const shown =
+        asked && !refusalFor(asked) ? org.state.appointments.find((a) => a.id === asked) : undefined
+      const sent =
+        !!shown &&
+        !!ctx.db.get(
+          "SELECT 1 AS found FROM outbox WHERE organisation_id=? AND appointment_id=? AND kind='aftercare'",
+          org.id,
+          shown.id,
+        )
+      reply(200, {
+        mode: brain ? 'live' : 'test',
+        listens,
+        ...(shown
+          ? { aftercareEmail: aftercareEmailAhead(org.state, shown, ctx.now(), sent) }
+          : {}),
+      })
+      return true
+    }
+    if (method !== 'POST') fail(405, 'Use POST.')
+    const appointmentId = path[4]
+    const refusal = refusalFor(appointmentId)
     if (refusal) fail(403, refusal)
     const found = org.state.appointments.find((a) => a.id === appointmentId)
     if (!found) fail(404, 'This visit is not in your studio.')

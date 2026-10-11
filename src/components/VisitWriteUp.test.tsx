@@ -17,7 +17,8 @@ const path = '/api/workspaces/org-1'
 test('writes up typed words, lets them change both parts, then saves only on Save', async () => {
   const user = userEvent.setup()
   vi.mocked(api).mockImplementation(async (url, options) => {
-    if (url === `${path}/write-up`) return { mode: 'test', listens: false } as never
+    if (url === `${path}/write-up?visit=visit-1`)
+      return { mode: 'test', listens: false, aftercareEmail: true } as never
     if (url === `${path}/visits/visit-1/write-up`) {
       expect(options?.body).toEqual({ words: 'Balayage with toner. Avoid hot water for two days.' })
       return {
@@ -69,7 +70,7 @@ test('writes up typed words, lets them change both parts, then saves only on Sav
 test('says what leaves SALEANE when live, and keeps their words when it fails', async () => {
   const user = userEvent.setup()
   vi.mocked(api).mockImplementation(async (url) => {
-    if (url === `${path}/write-up`) return { mode: 'live', listens: false } as never
+    if (url === `${path}/write-up?visit=visit-1`) return { mode: 'live', listens: false } as never
     return {
       status: 'unavailable',
       heard: 'Gel polish in Sienna.',
@@ -97,7 +98,7 @@ test('says what leaves SALEANE when live, and keeps their words when it fails', 
 
 test('shows saved aftercare and removes it on request', async () => {
   const user = userEvent.setup()
-  vi.mocked(api).mockResolvedValue({ mode: 'test', listens: false } as never)
+  vi.mocked(api).mockResolvedValue({ mode: 'test', listens: false, aftercareEmail: true } as never)
   const onSave = vi.fn().mockResolvedValue(true)
   render(
     <VisitWriteUp
@@ -114,6 +115,38 @@ test('shows saved aftercare and removes it on request', async () => {
   expect(onSave).toHaveBeenCalledWith(
     { type: 'visit-write-up', appointmentId: 'visit-1', aftercare: null },
     'The aftercare is removed from their aftercare email.',
+  )
+})
+
+test('says plainly when no email will carry the aftercare, as once its email has gone', async () => {
+  const user = userEvent.setup()
+  vi.mocked(api).mockImplementation(async (url) => {
+    if (url === `${path}/write-up?visit=visit-1`)
+      return { mode: 'test', listens: false, aftercareEmail: false } as never
+    return { heard: 'Keep it dry.', note: '', aftercare: 'Keep it dry tonight.' } as never
+  })
+  const onSave = vi.fn().mockResolvedValue(true)
+  render(
+    <VisitWriteUp
+      path={path}
+      appointmentId="visit-1"
+      guest="Amara"
+      aftercare="Use the purple shampoo."
+      saving={false}
+      onSave={onSave}
+    />,
+  )
+  expect(
+    await screen.findByText(/Kept on the visit only: their aftercare email has gone/),
+  ).toBeInTheDocument()
+  expect(screen.queryByText(/Added to their aftercare email/)).not.toBeInTheDocument()
+  await user.type(screen.getByLabelText('What you would say'), 'Keep it dry tonight.')
+  await user.click(screen.getByRole('button', { name: 'Write it up' }))
+  await screen.findByLabelText('Aftercare for Amara')
+  await user.click(screen.getByRole('button', { name: 'Save' }))
+  expect(onSave).toHaveBeenCalledWith(
+    { type: 'visit-write-up', appointmentId: 'visit-1', aftercare: 'Keep it dry tonight.' },
+    'Saved. The aftercare is kept on the visit, and no email will carry it.',
   )
 })
 
@@ -147,7 +180,7 @@ test('records a voice note and sends the recording itself', async () => {
   })
   let sent: unknown
   vi.mocked(api).mockImplementation(async (url, options) => {
-    if (url === `${path}/write-up`) return { mode: 'live', listens: true } as never
+    if (url === `${path}/write-up?visit=visit-1`) return { mode: 'live', listens: true } as never
     sent = options?.body
     return { heard: 'Lashes lifted.', note: 'Lashes lifted.', aftercare: '' } as never
   })
