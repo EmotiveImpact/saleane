@@ -19,6 +19,7 @@ import {
   openingHours,
   openingBill,
   openingImpact,
+  openingGaps,
   openingProblem,
   bookedWeekdays,
   priceLimits,
@@ -80,6 +81,7 @@ export function LocationOpening({
     [state, draft, id],
   )
   const problem = openingProblem(state, id, draft, impact)
+  const gaps = id === 'team' ? openingGaps(state, draft) : null
   const services = state.services.filter((x) => !x.archived)
   const offered = services.filter((x) => menuRow(draft, x).offered)
   const change = (patch: Partial<OpeningDraft>) => {
@@ -176,6 +178,7 @@ export function LocationOpening({
               {problem}
             </p>
           )}
+          {gaps && !problem && <p className="ops-help opening-gaps">{gaps}</p>}
         </section>
         {blocked && <p className="ops-help">Changes are paused until the connection is back.</p>}
         <ErrorMessage error={error} />
@@ -425,7 +428,9 @@ function Team({
           <li className="setup-row opening-person" key={person.id}>
             <div>
               <strong>{person.name}</strong>
-              <small>{usually(person.id) || 'No working days yet'}</small>
+              <small>
+                {person.role} · {usually(person.id) || 'No working days yet'}
+              </small>
             </div>
             <DayTicks
               who={person.name}
@@ -557,6 +562,7 @@ function Summary({ draft, offered }: { draft: OpeningDraft; offered: Service[] }
     }
   }, [real, state.organisation.id])
   const bill = plan && openingBill(plan, state.organisation, newBookingPeople(state, draft))
+  const gaps = openingGaps(state, draft)
   const lines = [
     ['Where', [draft.name.trim(), draft.address.trim()].join(', ')],
     [
@@ -593,6 +599,7 @@ function Summary({ draft, offered }: { draft: OpeningDraft; offered: Service[] }
           </li>
         ))}
       </ul>
+      {gaps && <p className="ops-help opening-gaps">{gaps}</p>}
       <div className="ops-banner opening-price-note">
         <ReceiptText size={20} aria-hidden="true" />
         {bill ? (

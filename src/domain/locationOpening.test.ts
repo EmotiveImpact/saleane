@@ -13,6 +13,7 @@ import {
   openingBill,
   openingCommand,
   openingDraft,
+  openingGaps,
   openingImpact,
   openingProblem,
   startingRooms,
@@ -153,6 +154,41 @@ describe('add a location', () => {
         newTeam: [{ key: 'n', name: 'Ines', role: 'Stylist', serviceIds: [], days: [5] }],
       }),
     ).toBe('Tick the treatments Ines gives.')
+  })
+
+  it('needs someone working here who gives a treatment on its menu', () => {
+    const s = studio()
+    // Hair only, with Maya, who gives facials: nobody here could take a booking.
+    const hairOnly = where(s, {
+      menu: Object.fromEntries(
+        s.services.map((x) => [
+          x.id,
+          { offered: x.category === 'Hair', price: (x.priceMinor / 100).toFixed(2) },
+        ]),
+      ),
+      days: { 'staff-maya': [4] },
+    })
+    expect(openingProblem(s, 'team', hairOnly)).toBe(
+      'Nobody you have chosen gives a treatment on the menu here, so guests could not book. Choose someone who does.',
+    )
+    expect(openingGaps(s, hairOnly)).toBeNull()
+    // Someone new who gives a cut is enough, and the treatment nobody gives yet is named.
+    const withIdris = {
+      ...hairOnly,
+      newTeam: [
+        { key: 'n', name: 'Idris', role: 'Stylist', serviceIds: ['service-cut'], days: [5] },
+      ],
+    }
+    expect(openingProblem(s, 'team', withIdris)).toBeNull()
+    expect(openingGaps(s, withIdris)).toBe(
+      'Nobody working here gives Gloss & Tone or Colour patch test yet, so guests cannot book them at Islington until someone does.',
+    )
+    // Theo gives both hair treatments, so nothing is left out.
+    expect(openingGaps(s, { ...hairOnly, days: { 'staff-theo': [4] } })).toBeNull()
+    // Someone ticked with no days here gives nothing here.
+    expect(
+      openingProblem(s, 'team', { ...hairOnly, days: { 'staff-maya': [4], 'staff-theo': [] } }),
+    ).toMatch(/^Nobody you have chosen/)
   })
 
   it('keeps the house rules: core treatments stay and prices stay in the band', () => {

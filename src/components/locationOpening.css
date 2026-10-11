@@ -155,6 +155,10 @@
   top: 5px;
   right: 7px;
 }
+/* Treatments nobody here gives yet: a quiet line, spaced like the step's other notes. */
+.opening-gaps {
+  margin: 22px 0 0;
+}
 .opening-booked-note {
   display: flex;
   align-items: baseline;

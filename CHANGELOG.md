@@ -51,6 +51,14 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - A call holds up to ten minutes before it is answered, ends itself when its time or the month's minutes run out, and is counted from what OpenAI reports. A call the AI cannot take (switched off, no minutes left, or no answer from OpenAI within 15 seconds) is written down as a missed call for a call back, as before.
 - The price page's phone receptionist line now says what it really does, instead of "books visits".
 
+## 2026-10-10 · A new location needs someone who gives its treatments
+
+**Status: built locally on 10 October 2026.** [Evidence](docs/evidence/SETUP-WIZARDS.md#someone-at-a-new-location-who-gives-its-treatments-10-october-2026).
+
+- Adding a location no longer lets it open with nobody working there who gives a treatment on its menu, which left it unable to take a single booking. The Team step says so and waits, and saving refuses it on the server too.
+- Treatments on its menu that nobody working there gives yet are named on the Team step and on Check, so the owner knows guests cannot book those there until someone does. The location can still open.
+- The Team step shows each person's role beside where they work, so the owner can see who gives what.
+
 ## 2026-10-10 · Marketing, in its own section (NEXT-14)
 
 **Status: built locally on 10 October 2026; email stays in test mode, so nothing is sent.** [Evidence](docs/evidence/NEXT-14-MARKETING.md).

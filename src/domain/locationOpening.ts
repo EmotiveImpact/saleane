@@ -8,7 +8,7 @@ import { parseMinor, minorInput } from './money'
 import { emailProblem, phoneProblem } from './studioContact'
 import { isUpcoming, scheduleImpact } from './schedule'
 import type { AffectedVisit } from './schedule'
-import { locationParts, suggestedRooms } from './setup'
+import { locationParts, openingCover, suggestedRooms } from './setup'
 import { monthBill, planDate } from './billing'
 import type { BillingView } from './billing'
 import { money } from './format'
@@ -247,11 +247,28 @@ export function openingProblem(
       if (!person.serviceIds.length) return `Tick the treatments ${who} gives.`
       if (!person.days.some((day) => open.has(day))) return `Choose the days ${who} works here.`
     }
+    if (!openingCover(s, openingCommand(s, draft)).given.length)
+      return 'Nobody you have chosen gives a treatment on the menu here, so guests could not book. Choose someone who does.'
     if (impact.length)
       return 'Some visits already booked would lose their professional. Choose other days for them, or move those visits first.'
     return null
   }
   return null
+}
+
+/**
+ * Treatments on the menu here that nobody working here gives yet, in a sentence, or null. Guests
+ * cannot book those here until someone does, though the location can still open.
+ */
+export function openingGaps(s: BusinessState, draft: OpeningDraft): string | null {
+  const { given, nobody } = openingCover(s, openingCommand(s, draft))
+  if (!given.length || !nobody.length) return null
+  const names = nobody.map((service) => service.name)
+  const list = new Intl.ListFormat(s.organisation.locale, { type: 'disjunction' }).format(
+    names.length > 3 ? [...names.slice(0, 3), `${names.length - 3} more`] : names,
+  )
+  const them = nobody.length === 1 ? 'it' : 'them'
+  return `Nobody working here gives ${list} yet, so guests cannot book ${them} at ${draft.name.trim()} until someone does.`
 }
 
 /**
