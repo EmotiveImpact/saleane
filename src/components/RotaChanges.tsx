@@ -17,7 +17,7 @@ import type { RotaCommand } from '../domain/rota'
 import { rotaSignOffNeeded, signOffRefusal } from '../domain/signoffs'
 import type { RotaAsk } from '../domain/approvalsSchema'
 import type { AffectedVisit } from '../domain/schedule'
-import { Button, ErrorMessage, Modal, SegmentedControl, TimeField } from '../design'
+import { Button, ErrorMessage, Modal, SegmentedControl, TimeField, Select } from '../design'
 
 const clockValue = (minutes: number) =>
   `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
@@ -256,7 +256,7 @@ export function RotaDayDialog({
                 {multiSite && !locationId && (
                   <label className="ops-wide">
                     At
-                    <select
+                    <Select
                       value={placeId}
                       onChange={(e) => {
                         setPlaceId(e.target.value)
@@ -268,7 +268,7 @@ export function RotaDayDialog({
                           {place.name}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </label>
                 )}
               </>

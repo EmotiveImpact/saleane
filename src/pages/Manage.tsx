@@ -29,7 +29,7 @@ import { useStore } from '../state/context'
 import type { Command } from '../domain/commands'
 import type { BusinessState } from '../domain/model'
 import type { OperatingCommand } from '../domain/commandSchema'
-import { TimeField } from '../design'
+import { TimeField, Select, Checkbox } from '../design'
 import { StudioDateField } from '../components/StudioDateField'
 import { scheduleImpact } from '../domain/schedule'
 import { businessDate, operations, can, permissionFor } from '../domain/operations'
@@ -564,7 +564,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                     </label>
                     <label>
                       Venue time zone
-                      <select name="timeZone" defaultValue={state.organisation.timeZone}>
+                      <Select name="timeZone" defaultValue={state.organisation.timeZone}>
                         {Array.from(
                           new Set([
                             state.organisation.timeZone,
@@ -580,7 +580,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                         ).map((zone) => (
                           <option key={zone}>{zone}</option>
                         ))}
-                      </select>
+                      </Select>
                     </label>
                     <div className="ops-field">
                       <span>Market & currency</span>
@@ -592,15 +592,11 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                     </div>
                   </div>
                   <label className="ops-check">
-                    <input
-                      type="checkbox"
-                      name="bookingEnabled"
-                      defaultChecked={config.bookingEnabled}
-                    />
+                    <Checkbox name="bookingEnabled" defaultChecked={config.bookingEnabled} />
                     Take bookings online
                   </label>
                   <label className="ops-check">
-                    <input type="checkbox" name="botCheck" defaultChecked={!!config.botCheck} />
+                    <Checkbox name="botCheck" defaultChecked={!!config.botCheck} />
                     Ask online guests to pass a quick bot check before a time is held
                   </label>
                   <p className="ops-help">
@@ -670,11 +666,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                     </label>
                   </div>
                   <label className="ops-check">
-                    <input
-                      name="taxInclusive"
-                      type="checkbox"
-                      defaultChecked={config.tax?.inclusive ?? false}
-                    />
+                    <Checkbox name="taxInclusive" defaultChecked={config.tax?.inclusive ?? false} />
                     Tax is already included in treatment prices
                   </label>
                   <p className="ops-help">
@@ -878,8 +870,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                         return (
                           <div className="ops-day" key={weekday}>
                             <label>
-                              <input
-                                type="checkbox"
+                              <Checkbox
                                 checked={!day.closed}
                                 onChange={(event) => update({ closed: !event.target.checked })}
                               />
@@ -1039,18 +1030,18 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                   </label>
                   <label>
                     Category
-                    <select name="category" defaultValue={service?.category ?? 'Skin'}>
+                    <Select name="category" defaultValue={service?.category ?? 'Skin'}>
                       <option>Skin</option>
                       <option>Body</option>
                       <option>Hair</option>
-                    </select>
+                    </Select>
                   </label>
                   <label>
                     Required space
-                    <select name="resourceType" defaultValue={service?.resourceType ?? 'treatment'}>
+                    <Select name="resourceType" defaultValue={service?.resourceType ?? 'treatment'}>
                       <option value="treatment">Treatment space</option>
                       <option value="chair">Styling chair</option>
-                    </select>
+                    </Select>
                   </label>
                   <label>
                     Duration (minutes)
@@ -1105,8 +1096,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                       {places(state).map((place) => (
                         <div className="service-place" key={place.id}>
                           <label className="ops-check">
-                            <input
-                              type="checkbox"
+                            <Checkbox
                               name={`offered-${place.id}`}
                               defaultChecked={!service?.notOfferedAt?.includes(place.id)}
                             />
@@ -1150,7 +1140,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                     </small>
                   </label>
                   <label className="ops-check ops-wide">
-                    <input type="checkbox" name="patchTest" defaultChecked={!!service?.patchTest} />
+                    <Checkbox name="patchTest" defaultChecked={!!service?.patchTest} />
                     Needs a patch test, such as a colour. Guests need a clear test before this
                     treatment.
                   </label>
@@ -1169,11 +1159,11 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                   </label>
                   <label>
                     Calendar colour
-                    <select name="tone" defaultValue={person?.tone ?? 'sage'}>
+                    <Select name="tone" defaultValue={person?.tone ?? 'sage'}>
                       <option value="sage">Sage</option>
                       <option value="blue">Stone blue</option>
                       <option value="sand">Warm sand</option>
-                    </select>
+                    </Select>
                   </label>
                   <fieldset className="ops-checks ops-wide">
                     <legend>Treatments they give</legend>
@@ -1181,8 +1171,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                       .filter((item) => !item.archived || person?.serviceIds.includes(item.id))
                       .map((item) => (
                         <label key={item.id}>
-                          <input
-                            type="checkbox"
+                          <Checkbox
                             name="serviceIds"
                             value={item.id}
                             defaultChecked={person?.serviceIds.includes(item.id)}
@@ -1196,8 +1185,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                   <fieldset className="ops-checks ops-wide">
                     <legend>Working hours</legend>
                     <label>
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={!customHours}
                         onChange={(event) => {
                           // Handled here so the preview uses the new choice, not the old one.
@@ -1226,11 +1214,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                           return (
                             <div className="ops-day" key={weekday}>
                               <label>
-                                <input
-                                  type="checkbox"
-                                  name={`own-${weekday}-on`}
-                                  defaultChecked={!day.closed}
-                                />
+                                <Checkbox name={`own-${weekday}-on`} defaultChecked={!day.closed} />
                                 {days[weekday]}
                               </label>
                               <label className="ops-field">
@@ -1256,7 +1240,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                               {(multiSite || day.locationId) && (
                                 <label className="ops-field">
                                   At
-                                  <select
+                                  <Select
                                     name={`own-${weekday}-loc`}
                                     aria-label={`${days[weekday]} location`}
                                     defaultValue={day.locationId ?? state.organisation.locationId}
@@ -1266,7 +1250,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                                         {place.name}
                                       </option>
                                     ))}
-                                  </select>
+                                  </Select>
                                 </label>
                               )}
                             </div>
@@ -1292,10 +1276,10 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
               {editor.kind === 'resource' && (
                 <label>
                   Resource type
-                  <select name="resourceType" defaultValue={resource?.type ?? 'treatment'}>
+                  <Select name="resourceType" defaultValue={resource?.type ?? 'treatment'}>
                     <option value="treatment">Treatment space</option>
                     <option value="chair">Styling chair</option>
-                  </select>
+                  </Select>
                 </label>
               )}
               {editor.kind === 'resource' && own && (
@@ -1307,7 +1291,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
               {editor.kind === 'resource' && !own && (multiSite || resource?.locationId) && (
                 <label>
                   Location
-                  <select
+                  <Select
                     name="locationId"
                     defaultValue={resource ? resourceLocation(state, resource) : undefined}
                   >
@@ -1316,19 +1300,19 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                         {place.name}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
               )}
               {editor.kind === 'resource' && (
                 <label>
                   Resting time after each visit
-                  <select name="restMinutes" defaultValue={String(resource?.restMinutes ?? 0)}>
+                  <Select name="restMinutes" defaultValue={String(resource?.restMinutes ?? 0)}>
                     {[0, 10, 15, 20, 30, 45, 60, 90, 120].map((m) => (
                       <option key={m} value={m}>
                         {m ? `${m} minutes empty` : 'None'}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                   <small>
                     The space stays empty this long after each visit, for airing, cooling or a deep
                     clean. The professional is free to work elsewhere. Visits already booked stay as
@@ -1339,8 +1323,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
               {editor.kind === 'resource' && (
                 <>
                   <label className="ops-check">
-                    <input type="checkbox" name="forTwo" defaultChecked={!!resource?.forTwo} />A
-                    room for two
+                    <Checkbox name="forTwo" defaultChecked={!!resource?.forTwo} />A room for two
                   </label>
                   <p className="ops-help">
                     Two people booked together, such as a couple, can have it at the same time.
@@ -1356,7 +1339,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                   </label>
                   <label>
                     Applies to
-                    <select name="staffId">
+                    <Select name="staffId">
                       <option value="">Whole venue</option>
                       {state.staff
                         .filter((item) => !item.archived)
@@ -1365,7 +1348,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
                             {item.name}
                           </option>
                         ))}
-                    </select>
+                    </Select>
                   </label>
                   <label>
                     From
@@ -1393,8 +1376,7 @@ export function Manage({ accessPanel }: { accessPanel?: ReactNode }) {
               )}
               {editor.id && (
                 <label className="ops-check ops-wide">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     name="archived"
                     defaultChecked={
                       service?.archived ?? person?.archived ?? resource?.archived ?? false

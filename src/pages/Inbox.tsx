@@ -13,7 +13,17 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useStore } from '../state/context'
 import { operations, can, leads } from '../domain/operations'
 import { dateLabel } from '../domain/format'
-import { Avatar, Button, ErrorMessage, Modal, PageHeader, SegmentedControl } from '../design'
+import {
+  Avatar,
+  Button,
+  ErrorMessage,
+  Modal,
+  MovingList,
+  MovingRow,
+  PageHeader,
+  SegmentedControl,
+  Select,
+} from '../design'
 import type { BusinessState } from '../domain/model'
 import { useInboxView } from '../state/inboxView'
 import { draftStale, namesATime, shownBody } from '../domain/cancelledTimes'
@@ -602,14 +612,14 @@ export function Inbox() {
             >
               <label>
                 Link to a client
-                <select value={linkTo} onChange={(e) => setLinkTo(e.target.value)} required>
+                <Select value={linkTo} onChange={(e) => setLinkTo(e.target.value)} required>
                   <option value="">Choose a client</option>
                   {state.clients.map((x) => (
                     <option key={x.id} value={x.id}>
                       {x.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
               <Button type="submit" variant="secondary" disabled={!allowedDraft || !!pending}>
                 Match to this client
@@ -723,48 +733,50 @@ export function Inbox() {
             {notice}
           </p>
           <ul className="inbox-rows">
-            {shown.map((c) => {
-              const isCurrent = view === 'columns' && current?.key === c.key
-              const last = c.items[c.items.length - 1]
-              const name = who(state, c)
-              return (
-                <li key={c.key}>
-                  <button
-                    type="button"
-                    className={`inbox-row ${isCurrent ? 'is-selected' : ''} ${c.unread ? 'is-unread' : ''}`}
-                    aria-current={isCurrent ? 'true' : undefined}
-                    onClick={() => open(c)}
-                  >
-                    <Avatar
-                      small
-                      identity={c.clientIds[0] ?? c.from}
-                      name={c.clientId ? name : '?'}
-                    />
-                    <span className="inbox-row-text">
-                      <span className="inbox-row-top">
-                        <strong>{name}</strong>
-                        <small>{when(c.lastAt)}</small>
+            <MovingList>
+              {shown.map((c) => {
+                const isCurrent = view === 'columns' && current?.key === c.key
+                const last = c.items[c.items.length - 1]
+                const name = who(state, c)
+                return (
+                  <MovingRow as="li" key={c.key}>
+                    <button
+                      type="button"
+                      className={`inbox-row ${isCurrent ? 'is-selected' : ''} ${c.unread ? 'is-unread' : ''}`}
+                      aria-current={isCurrent ? 'true' : undefined}
+                      onClick={() => open(c)}
+                    >
+                      <Avatar
+                        small
+                        identity={c.clientIds[0] ?? c.from}
+                        name={c.clientId ? name : '?'}
+                      />
+                      <span className="inbox-row-text">
+                        <span className="inbox-row-top">
+                          <strong>{name}</strong>
+                          <small>{when(c.lastAt)}</small>
+                        </span>
+                        <span className="inbox-preview">
+                          {last?.kind === 'reply' ? '' : 'You: '}
+                          {last ? snippet(itemText(last), 120) : ''}
+                        </span>
                       </span>
-                      <span className="inbox-preview">
-                        {last?.kind === 'reply' ? '' : 'You: '}
-                        {last ? snippet(itemText(last), 120) : ''}
-                      </span>
-                    </span>
-                    {(c.unread > 0 || c.drafts > 0) && (
-                      <span className={`ops-tag ${c.unread ? 'is-new' : ''}`}>
-                        {c.unread
-                          ? c.unread === 1
-                            ? 'New reply'
-                            : `${c.unread} new replies`
-                          : c.drafts === 1
-                            ? 'Draft'
-                            : `${c.drafts} drafts`}
-                      </span>
-                    )}
-                  </button>
-                </li>
-              )
-            })}
+                      {(c.unread > 0 || c.drafts > 0) && (
+                        <span className={`ops-tag ${c.unread ? 'is-new' : ''}`}>
+                          {c.unread
+                            ? c.unread === 1
+                              ? 'New reply'
+                              : `${c.unread} new replies`
+                            : c.drafts === 1
+                              ? 'Draft'
+                              : `${c.drafts} drafts`}
+                        </span>
+                      )}
+                    </button>
+                  </MovingRow>
+                )
+              })}
+            </MovingList>
           </ul>
           {!shown.length && (
             <div className="ops-no-records">
@@ -850,7 +862,7 @@ export function Inbox() {
             <div className="ops-fields">
               <label>
                 Client
-                <select
+                <Select
                   required
                   disabled={!!editingId}
                   value={clientId}
@@ -867,11 +879,11 @@ export function Inbox() {
                       {item.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
               <label>
                 Purpose
-                <select
+                <Select
                   disabled={!!editingId}
                   value={purpose}
                   onChange={(event) => {
@@ -882,11 +894,11 @@ export function Inbox() {
                 >
                   <option value="appointment">Visit update</option>
                   <option value="marketing">Marketing</option>
-                </select>
+                </Select>
               </label>
               <label>
                 Send by
-                <select
+                <Select
                   value={channel}
                   onChange={(event) => setChannel(event.target.value as typeof channel)}
                 >
@@ -899,12 +911,12 @@ export function Inbox() {
                         ? ' (texts are off)'
                         : ' (no mobile number)'}
                   </option>
-                </select>
+                </Select>
               </label>
               {saved.length > 0 && (
                 <label>
                   Start from a saved reply
-                  <select
+                  <Select
                     value=""
                     onChange={(event) => {
                       const pick = saved.find((r) => r.id === event.target.value)
@@ -917,12 +929,12 @@ export function Inbox() {
                         {r.name}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
               )}
               <label className="ops-wide">
                 Related visit (optional)
-                <select
+                <Select
                   value={appointmentId}
                   onChange={(event) => setAppointmentId(event.target.value)}
                 >
@@ -937,7 +949,7 @@ export function Inbox() {
                         {state.services.find((service) => service.id === item.serviceId)?.name}
                       </option>
                     ))}
-                </select>
+                </Select>
               </label>
               {channel === 'email' && (
                 <label className="ops-wide">
@@ -1036,11 +1048,11 @@ function NoteReply({
         <div className="ops-fields">
           <label>
             They answered
-            <select value={how} onChange={(e) => setHow(e.target.value as typeof how)}>
+            <Select value={how} onChange={(e) => setHow(e.target.value as typeof how)}>
               <option value="phone">By phone</option>
               <option value="in person">In person</option>
               <option value="elsewhere">Another way</option>
-            </select>
+            </Select>
           </label>
           <label className="ops-wide">
             What they said

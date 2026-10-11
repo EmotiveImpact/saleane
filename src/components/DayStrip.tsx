@@ -2,6 +2,7 @@ import { useEffect, useId, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { dateLabel } from '../domain/format'
+import { Tip } from '../design'
 import './dayStrip.css'
 
 export type DayStripDay = {
@@ -116,12 +117,16 @@ export function DayStrip({
         </span>
         {action}
         <span className="day-strip-scroll">
-          <button type="button" aria-label="Earlier dates" onClick={() => scroll(-1)}>
-            <ChevronLeft size={18} aria-hidden="true" />
-          </button>
-          <button type="button" aria-label="Later dates" onClick={() => scroll(1)}>
-            <ChevronRight size={18} aria-hidden="true" />
-          </button>
+          <Tip label="Earlier dates">
+            <button type="button" aria-label="Earlier dates" onClick={() => scroll(-1)}>
+              <ChevronLeft size={18} aria-hidden="true" />
+            </button>
+          </Tip>
+          <Tip label="Later dates">
+            <button type="button" aria-label="Later dates" onClick={() => scroll(1)}>
+              <ChevronRight size={18} aria-hidden="true" />
+            </button>
+          </Tip>
         </span>
       </div>
       <div className="day-strip-row" ref={row}>

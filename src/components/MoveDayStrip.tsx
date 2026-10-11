@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { Tip } from '../design'
 import './moveDayStrip.css'
 
 export type MoveStripDay = {
@@ -53,14 +54,16 @@ export function MoveDayStrip({
     <fieldset className="move-days">
       <legend>{label}</legend>
       <div className="move-days-row">
-        <button
-          type="button"
-          className="move-days-page"
-          aria-label="Earlier days"
-          onClick={() => page(-1)}
-        >
-          <ChevronLeft size={18} aria-hidden="true" />
-        </button>
+        <Tip label="Earlier days">
+          <button
+            type="button"
+            className="move-days-page"
+            aria-label="Earlier days"
+            onClick={() => page(-1)}
+          >
+            <ChevronLeft size={18} aria-hidden="true" />
+          </button>
+        </Tip>
         <div className="move-days-strip" ref={strip}>
           {days.map((day) => {
             const when = new Date(`${day.date}T12:00:00Z`)
@@ -86,14 +89,16 @@ export function MoveDayStrip({
             )
           })}
         </div>
-        <button
-          type="button"
-          className="move-days-page"
-          aria-label="Later days"
-          onClick={() => page(1)}
-        >
-          <ChevronRight size={18} aria-hidden="true" />
-        </button>
+        <Tip label="Later days">
+          <button
+            type="button"
+            className="move-days-page"
+            aria-label="Later days"
+            onClick={() => page(1)}
+          >
+            <ChevronRight size={18} aria-hidden="true" />
+          </button>
+        </Tip>
       </div>
     </fieldset>
   )

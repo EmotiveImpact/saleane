@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, Ref } from 'react'
 import { Link } from 'react-router-dom'
 import { Hourglass, Plus } from 'lucide-react'
 import { useStore } from '../state/context'
@@ -20,7 +20,7 @@ import type { WaitlistEntry, WaitlistInput, WaitlistTime } from '../domain/waitl
 import { addDays, dateLabel, timeLabel } from '../domain/format'
 import { feedbackDay } from '../domain/feedback'
 import type { Command } from '../domain/commands'
-import { Button, ErrorMessage, Modal } from '../design'
+import { Button, ErrorMessage, Modal, MovingRow, Select, Checkbox } from '../design'
 import { hasLocations, places } from '../domain/locations'
 import { StudioDateField } from './StudioDateField'
 import './management.css'
@@ -104,7 +104,7 @@ export function WaitlistForm({ clientId, onClose }: { clientId?: string; onClose
           {!clientId && (
             <label className="ops-wide">
               Client
-              <select
+              <Select
                 required
                 value={input.clientId}
                 onChange={(e) => change({ clientId: e.target.value })}
@@ -115,12 +115,12 @@ export function WaitlistForm({ clientId, onClose }: { clientId?: string; onClose
                     {c.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           )}
           <label>
             Treatment
-            <select
+            <Select
               value={input.serviceId}
               onChange={(e) => change({ serviceId: e.target.value, staffId: undefined })}
             >
@@ -129,11 +129,11 @@ export function WaitlistForm({ clientId, onClose }: { clientId?: string; onClose
                   {s.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label>
             With
-            <select
+            <Select
               value={input.staffId ?? ''}
               onChange={(e) => change({ staffId: e.target.value || undefined })}
             >
@@ -143,12 +143,12 @@ export function WaitlistForm({ clientId, onClose }: { clientId?: string; onClose
                   {p.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           {hasLocations(state) && (
             <label>
               Where
-              <select
+              <Select
                 value={input.locationId ?? ''}
                 onChange={(e) => change({ locationId: e.target.value || undefined })}
               >
@@ -158,7 +158,7 @@ export function WaitlistForm({ clientId, onClose }: { clientId?: string; onClose
                     {place.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           )}
           <label>
@@ -188,8 +188,7 @@ export function WaitlistForm({ clientId, onClose }: { clientId?: string; onClose
             <legend>Times that suit (none ticked means any time)</legend>
             {WAITLIST_TIMES.map((time) => (
               <label key={time}>
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={input.times.includes(time)}
                   onChange={(e) =>
                     change({
@@ -231,9 +230,12 @@ export function WaitlistForm({ clientId, onClose }: { clientId?: string; onClose
 export function WaitlistCard({
   entry,
   showClient = true,
+  ref,
 }: {
   entry: WaitlistEntry
   showClient?: boolean
+  /** Lets the waiting list slide the cards around it when this one is offered or removed. */
+  ref?: Ref<HTMLLIElement>
 }) {
   const { state } = useStore()
   const allowed = useWaitlistAllowed()
@@ -252,7 +254,7 @@ export function WaitlistCard({
     `${dateLabel(o.date, org.locale)} at ${timeLabel(o.startMinutes, org.locale)}`
   const heading = `${showClient ? `${client?.name ?? 'Client'} · ` : ''}${serviceName}`
   return (
-    <li className="waitlist-card">
+    <MovingRow as="li" ref={ref} className="waitlist-card">
       <div className="waitlist-card-copy">
         <strong>
           {showClient && client ? (
@@ -325,7 +327,7 @@ export function WaitlistCard({
         />
       )}
       {removing && <RemoveDialog entry={entry} onClose={() => setRemoving(false)} />}
-    </li>
+    </MovingRow>
   )
 }
 

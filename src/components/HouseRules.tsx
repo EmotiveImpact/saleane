@@ -4,7 +4,7 @@ import { Scale } from 'lucide-react'
 import { useStore } from '../state/context'
 import { can } from '../domain/operations'
 import { houseRules, ruleBreaches } from '../domain/brandRules'
-import { Button, ErrorMessage } from '../design'
+import { Button, ErrorMessage, Select, Checkbox } from '../design'
 
 const bands = [5, 10, 15, 20, 25]
 
@@ -64,7 +64,7 @@ export function HouseRules() {
         <div className="ops-fields">
           <label className="ops-wide">
             Prices at other locations
-            <select
+            <Select
               value={band}
               disabled={!allowed || pending}
               onChange={(e) => setBand(e.target.value)}
@@ -76,15 +76,14 @@ export function HouseRules() {
                   Within {n}% of the house price
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <fieldset className="ops-checks ops-wide">
             <legend>Core treatments, on every location’s menu</legend>
             {menu.length === 0 && <p className="subtle">No treatments on the menu yet.</p>}
             {menu.map((service) => (
               <label key={service.id}>
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={core.includes(service.id)}
                   disabled={!allowed || pending}
                   onChange={(e) =>

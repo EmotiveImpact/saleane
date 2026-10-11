@@ -37,7 +37,8 @@
   min-width: 0;
   padding: 26px;
 }
-.ops-panel + .ops-panel {
+.ops-panel + .ops-panel,
+.accounts-page > .empty-photo + .ops-panel {
   margin-top: 22px;
 }
 .ops-panel > header {
@@ -204,7 +205,9 @@
   padding: 7px 0;
 }
 .ops-checks input,
-.ops-check input {
+.ops-check input,
+.ops-checks .tick,
+.ops-check .tick {
   margin-top: 2px;
 }
 /* A radio in a list of choices sits small beside its words, as a tick box does. */
@@ -940,7 +943,8 @@
   justify-items: start;
 }
 .settings-body label,
-.settings-body select {
+.settings-body select,
+.settings-body .select-trigger {
   width: 100%;
   max-width: 460px;
 }

@@ -20,7 +20,7 @@ import {
   offerDiscounts,
 } from '../domain/quietOffersSchema'
 import type { MessageOffer, OfferDiscount, QuietOfferSettings } from '../domain/quietOffersSchema'
-import { Button, ErrorMessage } from '../design'
+import { Button, ErrorMessage, Select, Checkbox } from '../design'
 import { useRun } from './usePayment'
 import './quietOffers.css'
 
@@ -208,7 +208,7 @@ export function QuietOffers() {
               </label>
               <label>
                 Each lower price stays open for
-                <select
+                <Select
                   value={openHours}
                   onChange={(e) => {
                     setOpenHours(Number(e.target.value) as QuietOfferSettings['openHours'])
@@ -220,7 +220,7 @@ export function QuietOffers() {
                       {hourWords[hours]}, or until the time starts
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
               {services.length > 0 && (
                 <details className="quiet-offer-left-out">
@@ -236,8 +236,7 @@ export function QuietOffers() {
                   <div className="quiet-offer-services">
                     {services.map((service) => (
                       <label key={service.id} className="checkbox-label">
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={leftOutIds.includes(service.id)}
                           onChange={(e) => {
                             setLeftOutIds((ids) =>

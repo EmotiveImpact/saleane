@@ -85,7 +85,8 @@
 .day-strip-day:hover {
   border-color: var(--brand);
 }
-.day-strip-day:has(input:focus-visible) {
+.day-strip-day:has(input:focus-visible),
+.day-strip-day:has(.tick:focus-visible) {
   outline: 3px solid var(--ink);
   outline-offset: 2px;
 }

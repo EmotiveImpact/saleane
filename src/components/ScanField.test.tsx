@@ -178,7 +178,8 @@ describe('scanning on Stock', { timeout: 20000 }, () => {
       { name: 'Stock and details for Calming Cleansing Balm' },
       { timeout: 8000 },
     )
-    await user.click(within(balm).getByRole('button', { name: 'Count' }))
+    await user.click(within(balm).getByRole('button', { name: /^More/ }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Correct the count' }))
     const dialog = screen.getByRole('dialog', { name: 'Correct the count' })
     const count = within(dialog).getByLabelText('How many are on the shelf now')
     // The scanner types into the number field the dialog opened on; the count still goes up by one.

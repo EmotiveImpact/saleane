@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import {
   Avatar,
   Button,
@@ -10,19 +10,29 @@ import {
   Empty,
   ErrorMessage,
   LoadingShapes,
+  Menu,
+  MenuItem,
+  MenuSeparator,
   Metric,
   Modal,
   MoreOptions,
+  MovingList,
+  MovingRow,
   PageHeader,
   SegmentedControl,
+  Select,
   Stat,
   Stats,
   Status,
+  Switch,
   Tabs,
   TimeChoices,
   TimeField,
+  Tip,
   WizardSteps,
   photos,
+  Checkbox,
+  notify,
 } from '../design'
 import {
   audiences,
@@ -102,16 +112,32 @@ const corners = [
 const components = [
   ['PageHeader', 'native', 'The top of every staff page: eyebrow, title, one line, actions'],
   ['Button', 'native', 'Primary, secondary, quiet and light. Name the action'],
-  ['SegmentedControl', 'Radix Toggle Group', 'One choice between views of the same thing'],
-  ['Tabs', 'Radix Tabs', 'Sections that replace each other in place'],
+  ['SegmentedControl', 'Radix Toggle Group, Motion', 'One choice between views of the same thing'],
+  ['Tabs', 'Radix Tabs, Motion', 'Sections that replace each other in place'],
+  ['Menu, MenuItem, MenuChoices', 'Radix Dropdown Menu', 'A few things to do from one button'],
+  ['Tip', 'Radix Tooltip', 'A hint beside an arrow or icon whose meaning is not written on it'],
+  ['Select', 'Radix Select', 'One choice from a list, drawn in SALEANE’s own fields'],
+  [
+    'Checkbox, Switch',
+    'Radix Checkbox, Radix Switch',
+    'A tick in a list, or a setting that is on or off',
+  ],
+  [
+    'Notices, notify',
+    'Radix Toast',
+    'A short corner notice for something that happened out of view',
+  ],
   ['Metric, Stats, Stat', 'native', 'Label, figure and a plain line saying what it covers'],
   ['Definition', 'Radix Popover', 'How a figure is measured, by tap, click or keyboard'],
   ['Status', 'native', 'A visit’s state as words and a dot'],
   ['Avatar', 'native', 'A fictional portrait or initials beside a visible name'],
   ['TimeChoices', 'native radios', 'Picking a time from a short list'],
   ['DateStrip', 'native radios', 'The next fortnight, each day saying if it has space'],
-  ['DateField, TimeField', 'Radix Popover, select', 'A date or time in a form, written out'],
-  ['Modal', 'Radix Dialog', 'One decision or one record. Escape closes it'],
+  ['DateField, TimeField', 'Radix Popover, Radix Select', 'A date or time in a form, written out'],
+  ['Modal', 'Radix Dialog, Motion', 'One decision or one record. Escape closes it'],
+  ['MovingList, MovingRow', 'Motion', 'A list that changes while someone is looking at it'],
+  ['CalmMotion, ChosenMark', 'Motion', 'The one calm timing, and the mark under a chosen tab'],
+  ['MoreOptions', 'native disclosure', 'Settings most people never change, behind one line'],
   ['WizardSteps, ChoiceTiles, WizardFooter', 'native', 'A rare job of a few steps'],
   ['ScrollNav', 'native', 'A row of links that scrolls sideways on a phone'],
   ['Empty, ErrorMessage', 'native', 'Nothing here yet, or something that failed'],
@@ -231,6 +257,10 @@ export function DesignLanguage() {
   const [kind, setKind] = useState<'skin' | 'hair' | null>('skin')
   const [modal, setModal] = useState(false)
   const [settled, setSettled] = useState(0)
+  const [room, setRoom] = useState('treatment-1')
+  const [reminders, setReminders] = useState(true)
+  const [hideDone, setHideDone] = useState(false)
+  const [arrivals, setArrivals] = useState(['Amelia Carter, 10:00', 'Theo Bennett, 11:30'])
   return (
     <div className="library">
       <PageHeader
@@ -516,7 +546,8 @@ export function DesignLanguage() {
         <h2 id="components">Components</h2>
         <p className="library-lead">
           Imported from <code>src/design</code>. Interactive pieces are built on Radix (Dialog,
-          Tabs, Toggle Group, Popover) and take their look from the tokens above.
+          Dropdown Menu, Tooltip, Toast, Select, Checkbox, Switch, Tabs, Toggle Group, Popover) and
+          take their look from the tokens above. Movement comes from Motion, in one calm timing.
         </p>
         <StackTable
           caption="Every component in the library"
@@ -726,6 +757,129 @@ export function DesignLanguage() {
         </div>
 
         <div className="library-specimen">
+          <h3>Menus and hints</h3>
+          <p>
+            A row with several actions shows the everyday one and keeps the rest under More. Arrow
+            keys move through the menu, Escape closes it, and focus goes back to the button. A hint
+            names an arrow or icon on hover and keyboard focus; the button keeps its own words for
+            screen readers, because a phone has no hover.
+          </p>
+          <div className="library-row">
+            <Button variant="quiet">Delivery</Button>
+            <Menu
+              label="More for the example product"
+              trigger={
+                <Button variant="quiet" aria-label="More for the example product">
+                  More
+                  <ChevronDown size={16} aria-hidden="true" />
+                </Button>
+              }
+            >
+              <MenuItem onSelect={() => notify('An example: nothing was recorded.')}>
+                Used in treatments
+              </MenuItem>
+              <MenuItem onSelect={() => notify('An example: nothing was recorded.')}>
+                Correct the count
+              </MenuItem>
+              <MenuSeparator />
+              <MenuItem onSelect={() => notify('An example: nothing was changed.')}>
+                Edit details
+              </MenuItem>
+            </Menu>
+            <Tip label="Previous day">
+              <button className="icon-button" aria-label="Previous day">
+                <ChevronLeft size={18} />
+              </button>
+            </Tip>
+            <Tip label="Next day">
+              <button className="icon-button" aria-label="Next day">
+                <ChevronRight size={18} />
+              </button>
+            </Tip>
+          </div>
+        </div>
+
+        <div className="library-specimen">
+          <h3>Choosing from a list, ticks and switches</h3>
+          <p>
+            Drop-downs open SALEANE’s own list on every phone and computer. A tick is for one thing
+            in a list or form; a switch is for a setting that takes effect as a whole.
+          </p>
+          <div className="library-row library-row-gap">
+            <div className="library-field">
+              <span aria-hidden="true">Room</span>
+              <Select
+                aria-label="Example room"
+                value={room}
+                onChange={(event) => setRoom(event.target.value)}
+              >
+                <option value="treatment-1">Treatment room 1</option>
+                <option value="treatment-2">Treatment room 2</option>
+                <option value="nail-bar">The nail bar</option>
+              </Select>
+            </div>
+            <label className="checkbox-label">
+              <Checkbox
+                checked={hideDone}
+                onChange={(event) => setHideDone(event.target.checked)}
+              />
+              Hide finished visits
+            </label>
+            <label className="checkbox-label">
+              <Switch
+                checked={reminders}
+                onChange={(event) => setReminders(event.target.checked)}
+              />
+              Send reminders
+            </label>
+          </div>
+        </div>
+
+        <div className="library-specimen">
+          <h3>Notices</h3>
+          <p>
+            For something that happened where the person may not be looking, such as a pop-up that
+            closed as it saved. It says what really happened (saved, recorded, queued) and never
+            more. Where a saved line already sits beside the button, no notice is needed.
+          </p>
+          <Button
+            variant="secondary"
+            onClick={() => notify('Delivery of 6 recorded. 14 in stock.')}
+          >
+            Show an example notice
+          </Button>
+        </div>
+
+        <div className="library-specimen">
+          <h3>A list that moves</h3>
+          <p>
+            Rows already there simply appear. After that a new row settles in, a row that goes
+            fades, and the rows around it slide into place instead of jumping.
+          </p>
+          <div className="library-row">
+            <Button
+              variant="secondary"
+              onClick={() =>
+                setArrivals((list) =>
+                  list.length > 3 ? list.slice(1) : ['Sophia Reed, 09:30', ...list],
+                )
+              }
+            >
+              {arrivals.length > 3 ? 'Take the first away' : 'A visit arrives'}
+            </Button>
+          </div>
+          <ul className="library-moving">
+            <MovingList>
+              {arrivals.map((arrival) => (
+                <MovingRow as="li" key={arrival}>
+                  {arrival}
+                </MovingRow>
+              ))}
+            </MovingList>
+          </ul>
+        </div>
+
+        <div className="library-specimen">
           <h3>Empty and error states</h3>
           <p>
             A small gap in a list says so in one line. A page with nothing in it yet opens with a
@@ -764,8 +918,7 @@ export function DesignLanguage() {
           <p>Settings most people never change sit behind one quiet line that opens in place.</p>
           <MoreOptions label="More booking settings">
             <label className="checkbox-label">
-              <input type="checkbox" /> Ask online guests to pass a quick check before a time is
-              held
+              <Checkbox /> Ask online guests to pass a quick check before a time is held
             </label>
           </MoreOptions>
         </div>
@@ -775,7 +928,9 @@ export function DesignLanguage() {
           <p>
             Dialogs, steps, saved lines and pages filling in all arrive the same way: a fade with a
             few pixels of settling, over <code>--motion-calm</code>. Add the class{' '}
-            <code>settle</code> to anything that appears in place. Reduced motion removes it.
+            <code>settle</code> to anything that appears in place. Motion uses the same timing for
+            panels, menus, the sidebar, the mark under a chosen tab, calendar views and lists. Pages
+            loading, scrolling and typing never move. Reduced motion removes all of it.
           </p>
           <Button variant="secondary" onClick={() => setSettled((n) => n + 1)}>
             Show it again

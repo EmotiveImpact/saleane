@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import * as Popover from '@radix-ui/react-popover'
+import { Popover } from 'radix-ui'
 import { Minus, Plus, X } from 'lucide-react'
 import { useStore } from '../state/context'
 import { stock } from '../domain/operations'

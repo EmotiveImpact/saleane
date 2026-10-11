@@ -13,7 +13,7 @@ import type { Product } from '../domain/retail'
 import { ScanField } from './ScanField'
 import type { ScanOutcome } from './ScanField'
 import { hasLocations, placeOf, places } from '../domain/locations'
-import { Button, ErrorMessage, Modal } from '../design'
+import { Button, ErrorMessage, Modal, Select, Checkbox } from '../design'
 
 /**
  * V2: reordering from suppliers. Suggested orders for low stock, orders the studio has placed and
@@ -362,7 +362,7 @@ function OrderDialog({
         <div className="ops-fields">
           <label className="ops-wide">
             Supplier
-            <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
+            <Select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
               {suppliers(state)
                 .filter((x) => !x.archived)
                 .map((x) => (
@@ -370,7 +370,7 @@ function OrderDialog({
                     {x.name}
                   </option>
                 ))}
-            </select>
+            </Select>
           </label>
           {lines.map((line, i) => (
             <label key={line.productId}>
@@ -392,7 +392,7 @@ function OrderDialog({
           {addable.length > 0 && (
             <label className="ops-wide">
               Add a product
-              <select
+              <Select
                 value=""
                 onChange={(e) =>
                   e.target.value && setLines([...lines, { productId: e.target.value, quantity: 1 }])
@@ -404,7 +404,7 @@ function OrderDialog({
                     {p.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           )}
           <div className="ops-wide">
@@ -413,13 +413,13 @@ function OrderDialog({
           {multiSite && (
             <label className="ops-wide">
               Deliver to
-              <select value={placeId} onChange={(e) => setPlaceId(e.target.value)}>
+              <Select value={placeId} onChange={(e) => setPlaceId(e.target.value)}>
                 {places(state).map((place) => (
                   <option key={place.id} value={place.id}>
                     {place.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           )}
           <label className="ops-wide">
@@ -439,8 +439,8 @@ function OrderDialog({
           </pre>
         )}
         <label className="ops-check">
-          <input type="checkbox" checked={placed} onChange={(e) => setPlaced(e.target.checked)} />I
-          have placed this order with the supplier.
+          <Checkbox checked={placed} onChange={(e) => setPlaced(e.target.checked)} />I have placed
+          this order with the supplier.
         </label>
         <ErrorMessage error={error} />
         <div className="ops-actions">
@@ -629,11 +629,7 @@ function SupplierDialog({
           </label>
           {supplier && (
             <label className="ops-check ops-wide">
-              <input
-                type="checkbox"
-                checked={archived}
-                onChange={(e) => setArchived(e.target.checked)}
-              />
+              <Checkbox checked={archived} onChange={(e) => setArchived(e.target.checked)} />
               No longer used
             </label>
           )}

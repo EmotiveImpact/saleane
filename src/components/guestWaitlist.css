@@ -10,7 +10,9 @@
   cursor: pointer;
 }
 .guest-waitlist-check input,
-.guest-waitlist-times input {
+.guest-waitlist-times input,
+.guest-waitlist-check .tick,
+.guest-waitlist-times .tick {
   width: 20px;
   height: 20px;
   min-height: 0;

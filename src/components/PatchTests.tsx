@@ -20,7 +20,7 @@ import type { PatchTestState } from '../domain/patchTests'
 import type { PatchTest } from '../domain/patchTestsSchema'
 import type { Appointment } from '../domain/model'
 import { dateLabel, timeLabel } from '../domain/format'
-import { Button, ErrorMessage, Modal, TimeField } from '../design'
+import { Button, ErrorMessage, Modal, TimeField, Select, Checkbox } from '../design'
 import { StudioDateField } from './StudioDateField'
 import { useRun } from './usePayment'
 import { useSeeAll } from './seeAll'
@@ -150,7 +150,7 @@ export function PatchTestForm({ clientId, onClose }: { clientId: string; onClose
           </label>
           <label>
             Done by
-            <select
+            <Select
               value={staffId}
               disabled={role === 'practitioner'}
               onChange={(e) => setStaffId(e.target.value)}
@@ -161,11 +161,11 @@ export function PatchTestForm({ clientId, onClose }: { clientId: string; onClose
                   {p.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label>
             Skin checked?
-            <select
+            <Select
               value={outcome}
               onChange={(e) => setOutcome(e.target.value as '' | 'clear' | 'reaction')}
             >
@@ -174,7 +174,7 @@ export function PatchTestForm({ clientId, onClose }: { clientId: string; onClose
                 {tooSoon ? `Clear (after ${settings.hoursBefore} hours)` : 'Yes, clear'}
               </option>
               <option value="reaction">Yes, a reaction</option>
-            </select>
+            </Select>
           </label>
           <label className="ops-wide">
             Where it was placed, or anything to note (optional)
@@ -578,8 +578,7 @@ export function PatchTestRules() {
             />
           </label>
           <label className="ops-check ops-wide">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={remind}
               disabled={!allowed}
               onChange={(e) => setRemind(e.target.checked)}
@@ -589,8 +588,7 @@ export function PatchTestRules() {
           </label>
           <div className="ops-wide patch-online">
             <label className="ops-check">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={stopOnline}
                 disabled={!allowed}
                 aria-describedby={`${ids}-online-help`}
@@ -610,7 +608,7 @@ export function PatchTestRules() {
           </div>
           <div className="ops-wide ops-field">
             <label htmlFor={`${ids}-test`}>The patch test guests can book online</label>
-            <select
+            <Select
               id={`${ids}-test`}
               value={testServiceId}
               disabled={!allowed}
@@ -623,7 +621,7 @@ export function PatchTestRules() {
                   {x.name}
                 </option>
               ))}
-            </select>
+            </Select>
             <small id={`${ids}-test-help`}>
               Offered to guests when a treatment needs a patch test first, and to the desk as Book
               the patch test first.

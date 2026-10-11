@@ -32,7 +32,8 @@
   font-size: var(--text-meta);
   font-weight: var(--weight-body);
 }
-.inbox-reply-channel select {
+.inbox-reply-channel select,
+.inbox-reply-channel .select-trigger {
   width: auto;
   min-height: 34px;
   padding: 5px 10px;
@@ -134,7 +135,8 @@
   }
   .inbox-quick-chip,
   .inbox-quick-edit,
-  .inbox-reply-channel select {
+  .inbox-reply-channel select,
+  .inbox-reply-channel .select-trigger {
     min-height: 40px;
   }
   .inbox-reply-foot .button {

@@ -51,6 +51,8 @@ import {
   WizardSteps,
   photos,
   useWizardStep,
+  Select,
+  Checkbox,
 } from '../design'
 import { HoursList, RemoveButton, RoomCards } from '../components/SetupParts'
 import '../components/management.css'
@@ -514,7 +516,7 @@ function TreatmentsScreen({
                 </label>
                 <label>
                   Length
-                  <select
+                  <Select
                     value={row.minutes}
                     onChange={(e) => update(row.key, { minutes: Number(e.target.value) })}
                   >
@@ -525,11 +527,11 @@ function TreatmentsScreen({
                           {lengthLabel(m)}
                         </option>
                       ))}
-                  </select>
+                  </Select>
                 </label>
                 <label>
                   Kind
-                  <select
+                  <Select
                     value={row.category}
                     onChange={(e) => {
                       const category = e.target.value as Service['category']
@@ -542,11 +544,11 @@ function TreatmentsScreen({
                     {KINDS.map((k) => (
                       <option key={k}>{k}</option>
                     ))}
-                  </select>
+                  </Select>
                 </label>
                 <label>
                   Needs
-                  <select
+                  <Select
                     value={row.place}
                     onChange={(e) =>
                       update(row.key, { place: e.target.value as 'treatment' | 'chair' })
@@ -554,7 +556,7 @@ function TreatmentsScreen({
                   >
                     <option value="treatment">Treatment room</option>
                     <option value="chair">Styling chair</option>
-                  </select>
+                  </Select>
                 </label>
                 <RemoveButton
                   name={row.name || 'this treatment'}
@@ -655,8 +657,7 @@ function TeamScreen({
                       const on = row.serviceIds.includes(service.id)
                       return (
                         <label key={service.id} className="setup-tick">
-                          <input
-                            type="checkbox"
+                          <Checkbox
                             checked={on}
                             onChange={() =>
                               update(row.key, {
@@ -926,7 +927,7 @@ function MoneyScreen({
       <div className="ops-fields">
         <label>
           Missed visit and late cancellation fee
-          <select
+          <Select
             value={value.feePercent}
             onChange={(e) => onChange({ ...value, feePercent: Number(e.target.value) })}
           >
@@ -934,15 +935,14 @@ function MoneyScreen({
             <option value={25}>Up to 25% of the booked price</option>
             <option value={50}>Up to 50% of the booked price</option>
             <option value={100}>Up to the full booked price</option>
-          </select>
+          </Select>
           <small>
             Only for a missed visit or one cancelled less than 24 hours ahead. It comes off any
             deposit paid, and a person charges it, never SALEANE by itself.
           </small>
         </label>
         <label className="ops-check">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={value.saveCard}
             onChange={(e) => onChange({ ...value, saveCard: e.target.checked })}
           />
@@ -971,8 +971,7 @@ function MoneyScreen({
             />
           </label>
           <label className="ops-check">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={value.included}
               onChange={(e) => onChange({ ...value, included: e.target.checked })}
             />
@@ -1077,7 +1076,7 @@ function OpenScreen({
       {ready && (
         <>
           <label className="ops-check setup-online">
-            <input type="checkbox" checked={online} onChange={(e) => onChange(e.target.checked)} />
+            <Checkbox checked={online} onChange={(e) => onChange(e.target.checked)} />
             <span>
               <strong>Take bookings online</strong>
               <small>Guests can book from your booking page at the times you are open.</small>

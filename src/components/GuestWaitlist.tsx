@@ -5,7 +5,7 @@ import { guestViewSchema } from '../domain/guest'
 import type { GuestView } from '../domain/guest'
 import { WAITLIST_TIMES } from '../domain/waitlistSchema'
 import type { WaitlistTime } from '../domain/waitlistSchema'
-import { Button, ErrorMessage } from '../design'
+import { Button, ErrorMessage, Checkbox } from '../design'
 import './guestWaitlist.css'
 
 const NAMES: Record<WaitlistTime, string> = {
@@ -91,15 +91,14 @@ export function GuestWaitlist({
       </p>
       <form onSubmit={submit}>
         <label className="guest-waitlist-check">
-          <input type="checkbox" checked={anyone} onChange={(e) => setAnyone(e.target.checked)} />
+          <Checkbox checked={anyone} onChange={(e) => setAnyone(e.target.checked)} />
           Anyone is fine, not only {who}
         </label>
         <fieldset className="guest-waitlist-times">
           <legend>Times that suit you (leave empty for any time)</legend>
           {offered.map((time) => (
             <label key={time}>
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={times.includes(time)}
                 onChange={(e) =>
                   setTimes(

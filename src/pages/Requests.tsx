@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Send } from 'lucide-react'
 import { useStore } from '../state/context'
-import { Button, DateField, Empty, ErrorMessage, Modal, PageHeader } from '../design'
+import { Button, DateField, Empty, ErrorMessage, Modal, PageHeader, Select } from '../design'
 import { addDays, dateLabel, money } from '../domain/format'
 import { minorInput, parseMinor } from '../domain/money'
 import { offeredAt, places, serviceAt } from '../domain/locations'
@@ -284,7 +284,7 @@ export function RequestForm({
         <div className="ops-fields">
           <label>
             Location
-            <select
+            <Select
               value={locationId}
               disabled={pending}
               onChange={(e) => {
@@ -297,11 +297,11 @@ export function RequestForm({
                   {p.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label>
             Kind
-            <select
+            <Select
               value={kind}
               disabled={pending}
               onChange={(e) => {
@@ -313,13 +313,13 @@ export function RequestForm({
               <option value="spend">Spending</option>
               {menu.length > 0 && <option value="price">A new price</option>}
               <option value="other">Something else</option>
-            </select>
+            </Select>
           </label>
           {pricing ? (
             <>
               <label className="ops-wide">
                 Treatment
-                <select
+                <Select
                   value={treatment.id}
                   disabled={pending}
                   onChange={(e) => setServiceId(e.target.value)}
@@ -329,7 +329,7 @@ export function RequestForm({
                       {t.name}, {money(t.priceMinor, org, true)} now
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
               <label>
                 New price in {org.currency}
@@ -779,7 +779,7 @@ function RulesForm({
           </label>
           <label>
             A general manager’s rota changes
-            <select
+            <Select
               value={rota}
               disabled={pending}
               onChange={(e) => setRota(e.target.value as 'off' | 'extra' | 'all')}
@@ -787,7 +787,7 @@ function RulesForm({
               <option value="off">Need no sign-off</option>
               <option value="extra">Extra days need a sign-off</option>
               <option value="all">Every change needs a sign-off</option>
-            </select>
+            </Select>
             <small>An extra day is a day someone does not usually work.</small>
           </label>
           {regional && (

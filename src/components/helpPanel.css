@@ -159,6 +159,7 @@
   font-weight: var(--weight-strong);
 }
 .help-form select,
+.help-form .select-trigger,
 .help-form textarea {
   width: 100%;
   font: inherit;

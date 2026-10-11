@@ -29,7 +29,17 @@ import type { RetailItems } from '../domain/retailSchema'
 import { CheckoutProducts, ReceiptProducts } from './CheckoutProducts'
 import { findGiftCard, giftCards, giftStanding } from '../domain/giftCards'
 import '../components/plans.css'
-import { Avatar, Button, ErrorMessage, Modal, Status, TimeChoices, photos } from '../design'
+import {
+  Avatar,
+  Button,
+  ErrorMessage,
+  Modal,
+  Status,
+  TimeChoices,
+  photos,
+  Select,
+  Checkbox,
+} from '../design'
 import { StudioDateField } from './StudioDateField'
 import { BookingDialog } from './BookingDialog'
 import { CardCheckout, VisitCardPanel } from './CardPayments'
@@ -648,7 +658,7 @@ export function AppointmentDialog({
             {multiSite && (
               <label>
                 Location
-                <select
+                <Select
                   value={placeId}
                   disabled={busy}
                   onChange={(e) => {
@@ -662,12 +672,12 @@ export function AppointmentDialog({
                       {place.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             )}
             <label>
               Professional
-              <select
+              <Select
                 value={staffId}
                 disabled={busy}
                 onChange={(e) => {
@@ -690,7 +700,7 @@ export function AppointmentDialog({
                       {person.name}
                     </option>
                   ))}
-              </select>
+              </Select>
             </label>
           </div>
           <TimeChoices
@@ -1077,7 +1087,7 @@ export function AppointmentDialog({
             <div className="checkout-payment">
               <label>
                 Payment method
-                <select
+                <Select
                   value={method}
                   disabled={busy}
                   onChange={(e) => {
@@ -1099,7 +1109,7 @@ export function AppointmentDialog({
                       <option value="external_card">External card payment</option>
                     </>
                   )}
-                </select>
+                </Select>
               </label>
               {!sandbox && !byCard && (
                 <>
@@ -1112,8 +1122,7 @@ export function AppointmentDialog({
                     />
                   </label>
                   <label className="checkbox-label consent-label">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={collected}
                       onChange={(event) => setCollected(event.target.checked)}
                     />

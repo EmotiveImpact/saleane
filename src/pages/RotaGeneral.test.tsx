@@ -12,6 +12,7 @@ import type { Command } from '../domain/commands'
 import type { BusinessState } from '../domain/model'
 import { operations } from '../domain/operations'
 import { branchChangeRefusal, branchRefusal, branchView } from '../domain/branch'
+import { choicesIn } from '../test/choices'
 
 // Stage 4: a general manager's Rota and rooms. Their screens read the branch view, and every
 // change goes through the same checks the server makes.
@@ -239,11 +240,7 @@ describe('the rota for a general manager', () => {
     await user.click(screen.getByRole('button', { name: 'Add time off' }))
     let dialog = screen.getByRole('dialog', { name: 'Add time off' })
     const who = within(dialog).getByRole('combobox', { name: 'Who' })
-    expect(
-      within(who)
-        .getAllByRole('option')
-        .map((o) => o.textContent),
-    ).toEqual(['Nia Fictional'])
+    expect((await choicesIn(user, who)).map((o) => o.text)).toEqual(['Nia Fictional'])
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
     // Nia's holiday on Monday 12 and Tuesday 13 October is theirs to change.
     await user.click(

@@ -48,7 +48,8 @@
 .booking-preview-bar a:hover {
   text-decoration-color: var(--paper);
 }
-.booking-preview-bar select {
+.booking-preview-bar select,
+.booking-preview-bar .select-trigger {
   min-height: 32px;
   width: auto;
   padding: 4px 8px;

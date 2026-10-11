@@ -126,7 +126,6 @@
 .segmented-underline .segmented-item[data-state='on'] {
   color: var(--ink);
   font-weight: var(--weight-strong);
-  border-color: var(--ink);
 }
 .segmented-pill,
 .segmented-icon {
@@ -153,7 +152,6 @@
 }
 .segmented-pill .segmented-item[data-state='on'],
 .segmented-icon .segmented-item[data-state='on'] {
-  background: var(--ink);
   color: var(--paper);
 }
 .segmented-chips {
@@ -185,6 +183,32 @@
   color: var(--ink);
 }
 
+/* The chosen mark (ChosenMark): the one shape or line under whatever is chosen. It sits behind
+   the words, and Motion slides it from one choice to the next. */
+.segmented-item,
+.tabs-trigger {
+  position: relative;
+  isolation: isolate;
+  transition: color var(--motion-quick) ease-out;
+}
+.chosen-mark {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.segmented-underline .chosen-mark {
+  inset: auto 0 -2px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--ink);
+}
+.segmented-pill .chosen-mark,
+.segmented-icon .chosen-mark {
+  background: var(--ink);
+}
+
 /* Tabs (Radix Tabs) ------------------------------------------------------- */
 .tabs-list {
   display: flex;
@@ -210,36 +234,54 @@
   color: var(--ink);
 }
 .tabs-trigger[data-state='active'] {
-  background: var(--sage);
   color: var(--ink-deep);
+}
+.tabs-trigger .chosen-mark {
+  background: var(--sage);
 }
 .tabs-panel:focus-visible {
   outline-offset: 6px;
 }
 
-/* Phones: every choice is at least 40px to tap; desktop keeps its compact sizes. */
-@media (max-width: 650px) {
-  .segmented-pill .segmented-item,
-  .segmented-chips .segmented-item {
+/* Phones and touch screens: every choice takes at least a 44px touch (`--target`); a computer with
+   a mouse keeps its compact sizes. A pill keeps its inset look: each choice reaches out over the
+   pill's thin rim, so a thumb on the rim still lands on it. */
+@media (max-width: 650px), (pointer: coarse) {
+  .segmented-pill .segmented-item {
     min-height: 40px;
   }
   .segmented-icon .segmented-item {
-    width: 40px;
+    width: var(--target);
     height: 40px;
   }
+  .segmented-pill .segmented-item::after,
+  .segmented-icon .segmented-item::after {
+    content: '';
+    position: absolute;
+    inset: -3px -1px;
+  }
+  .segmented-icon .segmented-item::after {
+    inset: -2px 0;
+  }
+  .segmented-chips .segmented-item {
+    min-height: var(--target);
+  }
   .segmented-underline .segmented-item {
-    min-height: 40px;
-    min-width: 40px;
+    min-height: var(--target);
+    min-width: var(--target);
+  }
+  .select-item {
+    min-height: var(--target);
   }
 }
-/* The small "i" keeps its size but takes a 40px touch. */
+/* The small "i" keeps its size but takes a 44px touch. */
 .definition-trigger {
   position: relative;
 }
 .definition-trigger::after {
   content: '';
   position: absolute;
-  inset: -9px;
+  inset: -11px;
 }
 
 @media (max-width: 650px) {
@@ -415,9 +457,11 @@
   text-align: left;
 }
 .tabs-vertical .tabs-trigger[data-state='active'] {
-  background: var(--paper);
   color: var(--ink);
   font-weight: var(--weight-strong);
+}
+.tabs-vertical .tabs-trigger .chosen-mark {
+  background: var(--paper);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 6%, transparent);
 }
 /* Grouped vertical tabs: short lists under quiet headings, kept in view while the panel
@@ -504,6 +548,12 @@
     translate: 32px 0;
   }
 }
+/* The phone menu slides all the way in from its edge, as a drawer does. */
+@keyframes calm-arrive-start {
+  from {
+    translate: -100% 0;
+  }
+}
 @keyframes calm-breathe {
   50% {
     opacity: 0.5;
@@ -521,6 +571,16 @@
 }
 .dialog-content.dialog-side[data-state='open'] {
   animation-name: calm-arrive-side;
+}
+.dialog-content.dialog-start[data-state='open'] {
+  animation-name: calm-arrive-start;
+}
+/* A dialog that has just closed leaves as a still copy in a layer of its own (motion.tsx), so
+   nothing in it can be clicked or read while it fades. */
+.leaving-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
 }
 .definition-content[data-state='open'] {
   animation: calm-fade var(--motion-quick) ease-out;

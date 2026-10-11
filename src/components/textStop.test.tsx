@@ -8,6 +8,7 @@ import { seed } from '../domain/seed'
 import { dispatch } from '../domain/commands'
 import { DEMO_DATE } from '../domain/model'
 import { storageKey } from '../state/storage'
+import { choicesIn } from '../test/choices'
 
 // Stage 1: what the team sees after a client texts STOP to the studio's line.
 function stoppedStudio() {
@@ -85,6 +86,7 @@ describe('after a STOP by text', { timeout: 20000 }, () => {
       ),
     ).toBeInTheDocument()
     expect(screen.getByLabelText('Reply by')).toHaveValue('email')
-    expect(screen.getByRole('option', { name: 'Text (texts are off)' })).toBeDisabled()
+    const offered = await choicesIn(user, screen.getByLabelText('Reply by'))
+    expect(offered.find((o) => o.text === 'Text (texts are off)')?.disabled).toBe(true)
   })
 })

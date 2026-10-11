@@ -158,6 +158,10 @@
 .shelf-actions .button + .button {
   border-left: 1px solid var(--line);
 }
+.shelf-actions .shelf-more {
+  gap: 4px;
+  padding-right: 12px;
+}
 .shelf-actions .button:focus-visible {
   outline-offset: -3px;
 }
@@ -213,7 +217,7 @@
     border-radius: var(--radius-control);
   }
   .shelf-actions .button {
-    min-height: 42px;
+    min-height: var(--target);
     padding: 8px 4px;
   }
 }
@@ -298,7 +302,8 @@
   margin: 0 0 0.9rem;
   font-size: 0.9rem;
 }
-.stock-where select {
+.stock-where select,
+.stock-where .select-trigger {
   min-width: min(14rem, 100%);
 }
 

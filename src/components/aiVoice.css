@@ -26,11 +26,13 @@
     border-color 160ms ease,
     background-color 160ms ease;
 }
-.ai-tone:has(input:checked) {
+.ai-tone:has(input:checked),
+.ai-tone:has(.tick[data-state='checked']) {
   border-color: var(--ink);
   background: var(--sage-soft);
 }
-.ai-tone:has(input:focus-visible) {
+.ai-tone:has(input:focus-visible),
+.ai-tone:has(.tick:focus-visible) {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
 }

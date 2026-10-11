@@ -5,7 +5,7 @@ import { useStore } from '../state/context'
 import { can } from '../domain/operations'
 import { birthdayIsReal } from '../domain/model'
 import type { Client } from '../domain/model'
-import { Button, ErrorMessage } from '../design'
+import { Button, ErrorMessage, Select } from '../design'
 import '../guest-extras.css'
 
 const two = (n: number) => String(n).padStart(2, '0')
@@ -64,25 +64,25 @@ export function ClientBirthday({ client }: { client: Client }) {
           <legend className="sr-only">Birthday, month and day</legend>
           <label>
             Month
-            <select value={month} onChange={(e) => setMonth(e.target.value)}>
+            <Select value={month} onChange={(e) => setMonth(e.target.value)}>
               <option value="">Not shared</option>
               {months.map((m) => (
                 <option key={m.value} value={m.value}>
                   {m.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label>
             Day
-            <select value={day} onChange={(e) => setDay(e.target.value)}>
+            <Select value={day} onChange={(e) => setDay(e.target.value)}>
               <option value="">–</option>
               {Array.from({ length: 31 }, (_, i) => two(i + 1)).map((d) => (
                 <option key={d} value={d}>
                   {Number(d)}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         </fieldset>
         <p className="subtle">

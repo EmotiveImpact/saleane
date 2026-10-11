@@ -5,7 +5,7 @@ import { api } from '../state/api'
 import { textNumber } from '../domain/reminders'
 import { numberLabel } from '../domain/phone'
 import type { ReplyKeyword } from '../domain/inboxSchema'
-import { Button, ErrorMessage, Modal } from '../design'
+import { Button, ErrorMessage, Modal, Select } from '../design'
 import './inboxReply.css'
 import './textStop.css'
 
@@ -93,14 +93,14 @@ export function TestText({ onClose }: { onClose: () => void }) {
         <div className="ops-fields">
           <label className="ops-wide">
             From
-            <select value={who} onChange={(event) => setWho(event.target.value)}>
+            <Select value={who} onChange={(event) => setWho(event.target.value)}>
               {withNumbers.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name} · {numberLabel(textNumber(c.phone)!)}
                 </option>
               ))}
               <option value="other">A number not on file</option>
-            </select>
+            </Select>
           </label>
           {who === 'other' && (
             <label className="ops-wide">

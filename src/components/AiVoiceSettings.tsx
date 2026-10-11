@@ -8,7 +8,7 @@ import { STUDIO_WORDS_LIMIT, TONES } from '../domain/receptionistSchema'
 import type { Tone } from '../domain/receptionistSchema'
 import { TONE_CHOICES, aiVoice } from '../assistant/tone'
 import { DEFAULT_VOICE, VOICES } from '../assistant/voices'
-import { Button, ErrorMessage } from '../design'
+import { Button, ErrorMessage, Select } from '../design'
 import { useRun } from './usePayment'
 import './management.css'
 import './aiVoice.css'
@@ -110,14 +110,14 @@ export function AiVoiceSettings() {
           </label>
           <label>
             {ASK_NAME}’s voice
-            <select value={voice} disabled={!allowed} onChange={(e) => setVoice(e.target.value)}>
+            <Select value={voice} disabled={!allowed} onChange={(e) => setVoice(e.target.value)}>
               {VOICES.map((v) => (
                 <option key={v.key} value={v.key}>
                   {v.label}
                   {v.key === DEFAULT_VOICE ? ` (${APP_NAME}’s own)` : ''}
                 </option>
               ))}
-            </select>
+            </Select>
             <small>
               {talking
                 ? `The voice your team hears when they talk to ${ASK_NAME}. Each person can choose their own in ${ASK_NAME}. Now: ${voiceName(voice)}.`

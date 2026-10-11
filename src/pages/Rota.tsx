@@ -21,7 +21,16 @@ import {
   usuallyAt,
   weekTeam,
 } from '../domain/team'
-import { Avatar, Button, ErrorMessage, Modal, PageHeader, useScrollEdges } from '../design'
+import {
+  Avatar,
+  Button,
+  ErrorMessage,
+  Modal,
+  PageHeader,
+  useScrollEdges,
+  Select,
+  Tip,
+} from '../design'
 import '../components/management.css'
 import '../rota.css'
 import { StudioDateField } from '../components/StudioDateField'
@@ -167,23 +176,27 @@ export function Rota() {
         <header className="rota-head">
           <h2 id="rota-heading">Week of {dateLabel(monday, org.locale)}</h2>
           <div className="rota-nav">
-            <Button
-              variant="quiet"
-              aria-label="Previous week"
-              onClick={() => setMonday(addDays(monday, -7))}
-            >
-              <ChevronLeft size={16} aria-hidden="true" />
-            </Button>
+            <Tip label="Previous week">
+              <Button
+                variant="quiet"
+                aria-label="Previous week"
+                onClick={() => setMonday(addDays(monday, -7))}
+              >
+                <ChevronLeft size={16} aria-hidden="true" />
+              </Button>
+            </Tip>
             <Button variant="secondary" onClick={() => setMonday(mondayOf(today))}>
               This week
             </Button>
-            <Button
-              variant="quiet"
-              aria-label="Next week"
-              onClick={() => setMonday(addDays(monday, 7))}
-            >
-              <ChevronRight size={16} aria-hidden="true" />
-            </Button>
+            <Tip label="Next week">
+              <Button
+                variant="quiet"
+                aria-label="Next week"
+                onClick={() => setMonday(addDays(monday, 7))}
+              >
+                <ChevronRight size={16} aria-hidden="true" />
+              </Button>
+            </Tip>
           </div>
         </header>
         {canEdit && weekAhead && (lastWeek || stillToCome > 0) && (
@@ -688,13 +701,13 @@ function TimeOffDialog({
           {!editing && (
             <label className="ops-wide">
               Who
-              <select value={staffId} onChange={(e) => setStaffId(e.target.value)}>
+              <Select value={staffId} onChange={(e) => setStaffId(e.target.value)}>
                 {team.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           )}
           <label>
@@ -714,13 +727,13 @@ function TimeOffDialog({
           </label>
           <label>
             Kind
-            <select value={kind} onChange={(e) => setKind(e.target.value as TimeOff['kind'])}>
+            <Select value={kind} onChange={(e) => setKind(e.target.value as TimeOff['kind'])}>
               {timeOffKinds.map((k) => (
                 <option key={k} value={k}>
                   {TIME_OFF_LABEL[k]}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label>
             Note (optional)

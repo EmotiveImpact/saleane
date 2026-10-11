@@ -3,7 +3,7 @@ import type { BusinessState } from '../domain/model'
 import { money, timeLabel } from '../domain/format'
 import { serviceAt } from '../domain/locations'
 import { TOGETHER_MOST } from '../domain/together'
-import { Button } from '../design'
+import { Button, Select } from '../design'
 import { ClientPicker } from './ClientPicker'
 import type { PartyGuest, PartyRow } from './party'
 import './together.css'
@@ -174,7 +174,7 @@ export function TogetherSection({
                 <div className="form-grid">
                   <label className="form-grid-wide">
                     Treatment
-                    <select
+                    <Select
                       aria-label={`Treatment for ${person}`}
                       value={guest.serviceId}
                       disabled={busy}
@@ -188,11 +188,11 @@ export function TogetherSection({
                           {money(serviceAt(item, locationId).priceMinor, state.organisation)}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </label>
                   <label>
                     Professional
-                    <select
+                    <Select
                       aria-label={`Professional for ${person}`}
                       value={guest.staffId}
                       disabled={busy}
@@ -204,11 +204,11 @@ export function TogetherSection({
                           {p.name}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </label>
                   <label>
                     Time
-                    <select
+                    <Select
                       aria-label={`Time for ${person}`}
                       value={row.start ?? ''}
                       disabled={busy || !row.times.length}
@@ -220,7 +220,7 @@ export function TogetherSection({
                           {timeLabel(time, locale)}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </label>
                 </div>
                 <small className="together-note">
