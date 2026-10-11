@@ -169,6 +169,11 @@ describe('consistent local backups and fresh-path recovery', () => {
     api.database.run(
       "INSERT INTO recovery_codes(account_id,code_hash,created_at) SELECT id,'code-hash',0 FROM accounts",
     )
+    // NEXT-15: a passkey, which may be removed (a lost phone) after the backup is taken.
+    api.database.run(
+      `INSERT INTO passkeys(id,account_id,public_key,counter,transports,device_type,backed_up,name,created_at)
+       SELECT 'passkey-before-backup',id,x'00',0,'[]','multiDevice',1,'iPhone',0 FROM accounts`,
+    )
     // NEXT-02: a bill still owed, which may be paid after the backup is taken.
     api.database.run(
       `INSERT INTO studio_invoices(id,organisation_id,number,kind,period_start,period_end,plus,currency,lines,subtotal_minor,tax_minor,total_minor,status,test,created_at)
@@ -187,6 +192,7 @@ describe('consistent local backups and fresh-path recovery', () => {
       recoveryCodesRetired: 1,
       accessKeysRevoked: 1,
       diaryLinksStopped: 1,
+      passkeysStopped: 1,
       connectionsTurnedOff: 1,
       socialAccountsToConfirm: 1,
       messagesHeld: 1,
@@ -212,6 +218,10 @@ describe('consistent local backups and fresh-path recovery', () => {
       // The access key no longer reads anything.
       expect((await reads(recovered)).statusCode).toBe(401)
       expect(recovered.database.all('SELECT * FROM api_keys WHERE revoked_at IS NULL')).toEqual([])
+      // Nor does the passkey; its person adds the device again.
+      expect(
+        recovered.database.all('SELECT removed_why FROM passkeys WHERE removed_at IS NOT NULL'),
+      ).toEqual([{ removed_why: 'restore' }])
       // Nor does the diary link; whoever wants it makes a new one.
       expect((await diaryReads(recovered)).statusCode).toBe(404)
       expect(recovered.database.all('SELECT * FROM account_links WHERE used_at IS NULL')).toEqual(

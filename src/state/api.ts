@@ -25,8 +25,12 @@ export type Session = {
     emailConfirmed?: boolean
     /** NEXT-04: when two-step sign-in was turned on and how many recovery codes are left. */
     twoStep?: { since: number; recoveryLeft: number } | null
+    /** NEXT-15: how many devices sign in with Face ID or a fingerprint. */
+    passkeys?: number
   }
   csrf: string
+  /** NEXT-15: whether this address allows passkeys (a domain on https, or localhost). */
+  passkeysHere?: boolean
   workspaces: WorkspaceAccess[]
   services: { email: boolean; payments: boolean }
   localOnly: boolean
