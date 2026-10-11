@@ -223,7 +223,8 @@ export function CardSetUp({
         ) : reply.cards.length === 0 ? (
           <p className="subtle">
             {client?.name ?? 'This client'} has no saved card yet. They can save one from the link
-            to their visit, once the studio offers it in Settings, Payments & tax. Then set this up here.
+            to their visit, once the studio offers it in Settings, Payments & tax. Then set this up
+            here.
           </p>
         ) : (
           <>
