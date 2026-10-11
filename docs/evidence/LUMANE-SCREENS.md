@@ -40,7 +40,7 @@ The installer has not yet been run by a coding agent on a real second app; that 
 
 ## Automated checks
 
-`npm run check` passed: lint, strict TypeScript, the application, server and backup builds, 2,060 application tests and CHECK_SERVER server tests. `npm run format:check` passed.
+`npm run check` passed: lint, strict TypeScript, the application, server and backup builds, 2,060 application tests and 650 server tests (2 skipped, as before). `npm run format:check` passed.
 
 - `lumane/react/parts.test.tsx`: the approval card shows done only once saved, answers once however fast the taps (a double tap and a Not now while saving reach the app once), goes back to waiting when saving fails and saves on the second try, never shows a Not now as done, and puts its behaviour on the app's own button while keeping the app's class and click. The question box asks the trimmed question and empties, never asks an empty one or while busy, and can be held by the app. The conversation says "You asked" or "You said", keeps the newest line in view on new lines and when a card changes, and not on opening. The talk bar counts down ("Talking · 4:05 left") without interrupting, and Stop and Talk cannot be pressed twice. The usage line and its near and reached states. The default look's colours read clearly on the page and on a waiting change's tint, in light and dark, and a grey that would not read is named.
 - `lumane/react/panel.test.tsx`: the two pretend apps above.
