@@ -2,6 +2,12 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-12 · The studio's name reads properly on a practitioner's phone
+
+**Status: built locally on 12 October 2026 and checked in Chromium at 320, 390, 768 and 1440 px.** The owner said yes on 12 October 2026.
+
+- On a phone, a practitioner's day squeezed the studio's name, their own name and the location into a narrow gap beside the wordmark, so "The Linden Rooms" broke over two lines and ran into four. At 560 px and narrower the studio's name now has its own line under the wordmark and the buttons, kept to one line. The practitioner's name and location are left out there, since "Your day, Maya." says who it is. A regional manager's page keeps its area line on the same row. Laptops and tablets are unchanged.
+
 ## 2026-10-11 · LUMANE hardened: nothing lost, nothing claimed, every turn on record
 
 **Status: built locally on 11 October 2026, in test mode; the eval cases are written but not yet run against the real Claude, which needs SALEANE's Anthropic key.** The owner said yes to the four fixes in the study on 11 October 2026. [Evidence](docs/evidence/LUMANE-HARDENING.md).
