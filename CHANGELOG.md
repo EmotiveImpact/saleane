@@ -2,6 +2,12 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-13 · Ask SALEANE answers in the click-through demo again
+
+**Status: built locally on 13 October 2026 and checked in the demo in Chromium.**
+
+- The demo's stand-in for Node's streams gains `off` and `writableFinished`, which the hardened Ask SALEANE (LUMANE) uses on the response. Without them every question in the demo came back "The local service could not complete this request". The app itself was unaffected.
+
 ## 2026-10-13 · Today on a phone, in three tabs with counts
 
 **Status: built locally on 13 October 2026 and checked in Chromium at 1440, 1024, 768, 390 and 320 px, not yet in Safari or Firefox. The owner said yes on 13 October 2026 and it was merged to main the same day on the owner's "merge"; nothing deployed.** [Evidence](docs/evidence/TODAY-TABS.md).

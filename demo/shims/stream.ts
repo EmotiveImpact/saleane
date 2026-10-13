@@ -21,6 +21,9 @@ class Emitter {
     )
     return this
   }
+  off(event: string, listener: Listener) {
+    return this.removeListener(event, listener)
+  }
   emit(event: string, ...args: unknown[]) {
     for (const listener of this.listeners.get(event) ?? []) listener(...args)
     return true
@@ -59,13 +62,18 @@ export class Writable extends Emitter {
   ) {
     super()
   }
+  /** True once the whole response has been written, as on Node's own streams. */
+  writableFinished = false
   write(chunk: unknown) {
     this.options.write(chunk, 'utf8', () => {})
     return true
   }
   end(chunk?: unknown) {
     if (chunk !== undefined && chunk !== null && chunk !== '') this.write(chunk)
-    queueMicrotask(() => this.emit('finish'))
+    queueMicrotask(() => {
+      this.writableFinished = true
+      this.emit('finish')
+    })
     return this
   }
 }
