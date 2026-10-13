@@ -49,7 +49,7 @@ UK and US behaviours differ in currency, date/clock conventions, telephone count
 
 ## 3. Information architecture
 
-Operator navigation: **Today, Calendar, Clients, Inbox, Business**. Inbox shows one conversation per guest: drafts to approve, what went out and its delivery status, and guests' replies once the studio's lines are connected. Broader campaigns remain a later gate. Business has Overview, Money and Manage sections. Search finds clients. Workspace controls expose market, demo recovery and export. Booking is a separate guest route with the business’s brand.
+Operator navigation (11 October 2026): **Today, Calendar, Clients, Waitlist, Inbox, Marketing, Money, Team, Business, Settings**, with each person's own preferences and signing in on **You**, from their name. Inbox shows one conversation per guest: drafts to approve, what went out and its delivery status, and guests' replies once the studio's lines are connected. Marketing holds campaigns and automatic messages. Money is takings, gift cards, stock and the accountant's files; Team is people, the rota and pay; Business is how the studio is doing; Settings is how it runs, in four groups with Find a setting. Search finds clients. Workspace controls expose market, demo recovery and export. Booking is a separate guest route with the business’s brand.
 
 | Route                | Intent                                      | Required connection                                                                        |
 | -------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------ |
@@ -58,7 +58,10 @@ Operator navigation: **Today, Calendar, Clients, Inbox, Business**. Inbox shows 
 | `/clients`           | Find and understand a relationship          | Stable client ID; completed visits/spend; next visit; explicit segments                    |
 | `/clients/:clientId` | Recover the person’s story                  | Event timeline, linked receipts, explicit referral/household edges, familiar professionals |
 | `/booking`           | Make an appointment with the business       | Same service and availability rules as operator booking                                    |
+| `/money`             | Settle, sell and count                      | Receipts with fund provenance, gift card balances, stock movements, accountant exports     |
+| `/team`              | Who does what, when, and what they earned   | Professional capabilities and weekly hours, rota changes, commission and tips              |
 | `/business`          | Understand operational outcomes             | Derived receipt/cohort data, definitions, exact values and export                          |
+| `/you`               | One person's own preferences and sign-in    | Browser preferences; password, two-step and passkeys for the signed-in account only        |
 
 No duplicate appointment record belongs to a screen. A timeline is a projection, not a second system of record.
 

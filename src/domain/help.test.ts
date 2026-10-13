@@ -21,15 +21,15 @@ const routes = [
   ...[...app.matchAll(/pathname === '([^']+)'/g)].map((m) => m[1]),
 ]
 /** Every Settings section, from the list Settings draws. */
-const sections = [...source('../pages/Manage.tsx').matchAll(/\{ id: '([a-z-]+)', label:/g)].map(
+const sections = [...source('../pages/Manage.tsx').matchAll(/\{\s*id: '([a-z-]+)',\s*label:/g)].map(
   (m) => m[1],
 )
 const ids = (list: readonly { id: string }[]) => list.map((a) => a.id)
 
 describe('help inside the app', () => {
   it('sends people only to screens and Settings sections that exist', () => {
-    expect(sections).toContain('billing')
-    expect(routes).toContain('/business/money')
+    expect(sections).toEqual(expect.arrayContaining(['billing', 'business', 'notes', 'workspace']))
+    expect(routes).toEqual(expect.arrayContaining(['/money', '/team', '/you']))
     for (const article of HELP_ARTICLES)
       for (const place of [...article.screens, ...(article.to ? [article.to] : [])]) {
         const [path, query] = place.split('?')
@@ -84,7 +84,7 @@ describe('help inside the app', () => {
       'unpaid',
     ])
     expect(helpForScreen('/settings', '?section=billing', 'manager')).toEqual([])
-    expect(ids(helpForScreen('/business/money', '', 'reception'))).toEqual([
+    expect(ids(helpForScreen('/money', '', 'reception'))).toEqual([
       'till',
       'receipts',
       'cash-drawer',
@@ -224,7 +224,9 @@ describe('help inside the app', () => {
     expect(first('sales from another till', 'general')).toBe('other-tills')
     expect(ids(searchHelp('api key', 'manager'))).not.toContain('access-keys')
     expect(ids(searchHelp('other till sales', 'reception'))).not.toContain('other-tills')
+    // Linked diaries sit with the other connected software.
     expect(ids(helpForScreen('/settings', '?section=connections', 'owner'))).toEqual([
+      'diaries',
       'access-keys',
       'send-in',
     ])

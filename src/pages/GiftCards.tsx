@@ -82,7 +82,7 @@ export function GiftCards() {
   if (role === 'practitioner')
     return (
       <div className="gift-page">
-        <PageHeader variant="compact" eyebrow="Business" title="Gift cards and vouchers." />
+        <PageHeader variant="compact" eyebrow="Money" title="Gift cards and vouchers." />
         <Empty title="For the front desk">Gift cards are sold and spent at the front desk.</Empty>
       </div>
     )
@@ -246,7 +246,7 @@ export function GiftCards() {
     <div className="gift-page">
       <PageHeader
         variant="compact"
-        eyebrow="Business"
+        eyebrow="Money"
         title="Gift cards and vouchers."
         description={`Sold at the desk and spent at checkout. Each lasts ${giftCardMonths(state) / 12} years and can pay for any visit until it runs out.`}
         actions={

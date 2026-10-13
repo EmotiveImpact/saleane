@@ -31,6 +31,8 @@ export function Tabs<T extends string>({
   picker,
   disabled = false,
   orientation = 'horizontal',
+  find,
+  empty,
   children,
 }: {
   label: string
@@ -43,6 +45,10 @@ export function Tabs<T extends string>({
   disabled?: boolean
   /** Vertical lists sit beside the panel, as on the Settings page. */
   orientation?: 'horizontal' | 'vertical'
+  /** A field above grouped lists that narrows them, such as "Find a setting". */
+  find?: ReactNode
+  /** What the grouped lists say when the field has narrowed them to nothing. */
+  empty?: ReactNode
   children: ReactNode
 }) {
   const group = useId()
@@ -74,6 +80,8 @@ export function Tabs<T extends string>({
     >
       {groups ? (
         <div className="tabs-groups" role="group" aria-label={label}>
+          {find}
+          {groups.length === 0 && empty}
           {groups.map((group) => (
             <div className="tabs-group" key={group.label}>
               <p className="tabs-group-label" aria-hidden="true">

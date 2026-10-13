@@ -214,7 +214,7 @@ test('says how to save a card when the client has none', async () => {
   await user.click(await screen.findByRole('button', { name: 'Pay each month from a saved card' }))
   expect(
     screen.getByText(
-      'Amelia Carter has no saved card yet. They can save one from the link to their visit, once the studio offers it in Settings, Payments. Then set this up here.',
+      'Amelia Carter has no saved card yet. They can save one from the link to their visit, once the studio offers it in Settings, Payments & tax. Then set this up here.',
     ),
   ).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Set up card payments' })).toBeNull()

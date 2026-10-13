@@ -25,8 +25,8 @@ import { useRun } from './usePayment'
 import './quietOffers.css'
 
 /**
- * Stage 5: the owner's lower price for quiet times, in Settings › Messages beside the messages to
- * guests. Anyone may read it; only the owner changes it, since it is money. Changing it never
+ * Stage 5: the owner's lower price for quiet times, on the Waitlist beside the guests it may go
+ * to. Anyone may read it; only the owner changes it, since it is money. Changing it never
  * changes an invitation already written: each keeps the price it was written with.
  */
 

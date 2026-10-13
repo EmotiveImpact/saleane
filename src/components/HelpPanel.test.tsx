@@ -65,7 +65,7 @@ test('offers the guides for the screen first, and only those the person can use'
 })
 
 test('keeps guides from people who cannot do them', () => {
-  const { dialog } = open('/business/money', 'reception')
+  const { dialog } = open('/money', 'reception')
   expect(within(dialog).getByRole('list', { name: 'On this screen' })).toHaveTextContent(
     'Count the till at the end of the day',
   )

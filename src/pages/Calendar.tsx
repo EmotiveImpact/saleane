@@ -212,7 +212,7 @@ export function Calendar() {
         title="Your calendar opens with your team."
         action={
           role === 'owner' || role === 'manager' ? (
-            <FirstStep to="/settings?section=staff">Add your team</FirstStep>
+            <FirstStep to="/team">Add your team</FirstStep>
           ) : undefined
         }
       >

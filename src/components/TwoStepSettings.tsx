@@ -35,7 +35,7 @@ function save(name: string, content: string) {
 /**
  * NEXT-04: turning two-step sign-in on and off for the person signed in. The key is shown once,
  * as a QR code and as text; recovery codes are shown once and kept only as hashes. Stage 6: for
- * everyone with an account, whatever their role, on their account page as well as in Settings.
+ * everyone with an account, whatever their role, on their account page as well as on the You page.
  */
 export function TwoStepSettings({
   onChange,

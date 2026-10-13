@@ -1,17 +1,9 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import {
-  ArrowLeft,
-  FilePenLine,
-  MailWarning,
-  Megaphone,
-  MessageSquarePlus,
-  Plus,
-  Search,
-} from 'lucide-react'
+import { ArrowLeft, FilePenLine, MailWarning, MessageSquarePlus, Plus, Search } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useStore } from '../state/context'
-import { operations, can, leads } from '../domain/operations'
+import { operations, can } from '../domain/operations'
 import { dateLabel } from '../domain/format'
 import {
   Avatar,
@@ -665,12 +657,6 @@ export function Inbox() {
         description="Each guest’s messages in one place: what you wrote, what went out on its own and what they wrote back."
         actions={
           <>
-            {leads(role) && (
-              <Link className="button button-secondary" to="/marketing">
-                <Megaphone size={17} />
-                Messages to clients
-              </Link>
-            )}
             <Button disabled={!allowedDraft || !state.clients.length} onClick={() => startDraft()}>
               <Plus size={17} />
               Write a draft

@@ -138,7 +138,7 @@ export function Accounts() {
         <Empty
           photo={photos.windowLight}
           photoPosition="40% center"
-          eyebrow="Business"
+          eyebrow="Money"
           level={1}
           title="Ready for your accountant."
         >
@@ -149,7 +149,7 @@ export function Accounts() {
         <>
           <PageHeader
             variant="compact"
-            eyebrow="Business"
+            eyebrow="Money"
             title="For your accountant."
             description="Spreadsheets for the month and a day-by-day summary of takings, tax, tips and refunds."
           />
@@ -242,7 +242,7 @@ export function Accounts() {
               >
                 Tax summary
               </Button>
-              <Link className="button button-quiet" to="/business/pay">
+              <Link className="button button-quiet" to="/team/pay">
                 Commission and tips on Pay
               </Link>
             </div>

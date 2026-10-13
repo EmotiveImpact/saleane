@@ -8,6 +8,17 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 - On a phone, a practitioner's day squeezed the studio's name, their own name and the location into a narrow gap beside the wordmark, so "The Linden Rooms" broke over two lines and ran into four. At 560 px and narrower the studio's name now has its own line under the wordmark and the buttons, kept to one line. The practitioner's name and location are left out there, since "Your day, Maya." says who it is. A regional manager's page keeps its area line on the same row. Laptops and tablets are unchanged.
 
+## 2026-10-11 · A tidier SALEANE: Money, Team, a shorter Settings and You
+
+**Status: built locally on 11 October 2026 and checked in Chromium at 1440px and 390px, not yet in Safari or Firefox. The owner chose "Build all" on the plan of 11 October 2026; waiting for the owner's "merge".** [Evidence](docs/evidence/TIDIER-LAYOUT.md).
+
+- Money and Team have their own places in the sidebar, after Marketing. Money holds Takings, Gift cards, Stock and Accounts; Team holds People (who does what, and who can sign in), Rota and Pay. Business keeps how the studio is doing: Overview, Feedback, Client areas and How you compare, with Branch visits and Requests once there are several locations or sign-offs. Reception has no Business and lands on Money.
+- Settings is four groups (Studio; Treatments and payments; Guests; Studio account) instead of five, with 19 sections instead of 21. On a computer, Find a setting narrows them by name or by everyday words such as "VAT", "parking" or "Google".
+- Studio details is about a quarter of its old length. Tax moved to Payments & tax; the online booking switch, the bot check, booking links, Book with Google, booking through ChatGPT or Claude and social accounts moved to Booking page & colours; notes for before and after a visit have their own section; the Google and Apple diaries joined Connected software. "Switching over" is now "Moving in".
+- You, from your name at the top, holds what is yours alone: your preferences, your password, two-step sign-in and Face ID, and your accounts and studios. The owner's switch asking everyone to use two-step sign-in stays on Team and links there.
+- The six moves from the finishing check: Inbox loses its old "Messages to clients" button (Marketing has it); the look of visit emails stays in Settings and the birthday email is shown only in Marketing; the quiet-time price sits on the Waitlist; Design language shows in the demo only and Refresh records is gone from the footer.
+- Older links still land: `/business/money`, `/business/rota` and the rest open their new pages, and `?section=staff`, `preferences` and `diaries` open Team, You and Connected software. Help's guides and every link in the app point at the new places, and a new guide explains opening or closing online booking.
+
 ## 2026-10-11 · Moving in, stage 3: gift cards, packages and credit from the old system's own files
 
 **Status: built locally on 11 October 2026; the owner approved merging on 13 October 2026; nothing deployed.** [Evidence](docs/evidence/MOVING-03.md).

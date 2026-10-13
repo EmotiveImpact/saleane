@@ -177,7 +177,7 @@ export function Pay() {
     <div className="pay-page">
       <PageHeader
         variant="compact"
-        eyebrow="Business"
+        eyebrow="Team"
         title="What the team has earned."
         description="Commission and tips for each person. SALEANE works it out; you pay people through your own payroll."
         actions={

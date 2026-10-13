@@ -75,7 +75,7 @@ export function SwitchingSettings() {
     <section className="surface ops-panel settings-panel">
       <header>
         <div>
-          <h2>Moving from another system</h2>
+          <h2>Moving in</h2>
           <p>Bring your studio across one checked file at a time.</p>
         </div>
         <ArrowRightLeft size={21} />

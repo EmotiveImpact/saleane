@@ -269,7 +269,7 @@ export function StaffMoveDialog({
             </ul>
             <p className="subtle">
               Change {preview.rotaDays.length === 1 ? 'it' : 'them'} on the{' '}
-              <Link to="/business/rota">rota</Link> if {first} should be at {placeName(to)} instead.
+              <Link to="/team/rota">rota</Link> if {first} should be at {placeName(to)} instead.
             </p>
           </div>
         )}
@@ -560,7 +560,7 @@ export function StaffMovesPanel({ onNotice }: { onNotice: (message: string) => v
 }
 
 /**
- * In someone's details in Settings: any move still to come, which the locations in their weekly
+ * In someone's details on the Team page: any move still to come, which the locations in their weekly
  * hours already show, and the way to move them from a date.
  */
 export function StaffMoveEntry({
