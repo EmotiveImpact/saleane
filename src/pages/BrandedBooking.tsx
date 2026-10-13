@@ -647,7 +647,7 @@ export function BrandedBooking() {
             )}
           </div>
           <footer className="booking-powered">
-            Considered care. Connected by <span className="mini-saleane">SALEANE</span>
+            Connected by <span className="mini-saleane">SALEANE</span>
           </footer>
         </>
       )}
