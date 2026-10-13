@@ -579,7 +579,7 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
     ],
     note: 'Marketing comes across only where your old system recorded that the client agreed. Visits keep the price each guest was quoted, and nobody is sent a confirmation. Gift cards keep their codes, and packages their visits left; they were paid for in your old system, so none of it counts as takings here.',
     to: '/clients',
-    screens: ['/clients', '/settings?section=switching', '/business/gift-cards'],
+    screens: ['/clients', '/settings?section=switching', '/money/gift-cards'],
     roles: RUNS,
     words:
       'import csv excel spreadsheet move switch fresha phorest timely treatwell booksy square vagaro appointments bookings package course credit balance',

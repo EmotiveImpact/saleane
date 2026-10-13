@@ -1326,7 +1326,7 @@ describe('moving clients in from another system', () => {
     expect(screen.getByText('Carried over from Timely, where it was paid for')).toBeInTheDocument()
     // Gift cards keep their printed code and are never counted as sold here.
     cleanup()
-    await show('/business/gift-cards')
+    await show('/money/gift-cards')
     expect(await screen.findByText('GV58214')).toBeInTheDocument()
     expect(screen.getAllByText('Carried over from Timely')).toHaveLength(2)
     expect(
