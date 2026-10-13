@@ -30,6 +30,17 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - The 44px touch rule, hints (never browser title text), notices, welcomes for a new studio, Today on a phone, view switches that keep one place, folds in where things move, the assistant's name written once and the booking page's footer are written out in full.
 - The top bar, folded sidebar, view switch and booking footer rules come from Edem's comments on the demo of 11 October; the fixes themselves arrive with the demo's own change. Phone Today in tabs and the six moves from the finishing check are listed as still waiting for a yes.
 
+## 2026-10-11 · A steadier calendar and a calmer top bar
+
+**Status: built locally on 11 October 2026 from the owner's comments on the demo, and checked in Chromium at 390, 800, 1024, 1180, 1440 and 1600px, not yet in Safari or Firefox.**
+
+- **Calendar.** Today, Week and Month sit at the far right of the calendar's toolbar and hold the same spot in every view and on every day. The date and the day layout buttons keep their room in Week and Month, so nothing beside them moves. On a phone the switch keeps its own row under the date.
+- **Top bar.** The page's name gives way before any button covers it. Below 1200px the assistant's button reads "Ask" with its icon, and Find a client, Help and your menu become round icons, each keeping its full name for screen readers. The "things to mention" words are read out but no longer shown; the dot shows them.
+- **Phone.** Your avatar sits inside its button, as far from the edge as the menu button on the left.
+- **Folded sidebar.** Hovering it swaps the S for the button that opens it, in the same spot, and a click on any empty part of the sidebar opens it. Its icons still go straight to their pages.
+- **Help.** The "All help" arrow has the same room inside its hover shade as the words.
+- **Booking page.** The footer reads "Connected by SALEANE".
+
 ## 2026-10-11 · The new photographs, on their screens
 
 **Status: built locally on 11 October 2026 and checked in a browser. The owner approved every placement on 11 October 2026.** [Evidence](docs/evidence/APP-PHOTOGRAPHS-IN-PLACE.md).
