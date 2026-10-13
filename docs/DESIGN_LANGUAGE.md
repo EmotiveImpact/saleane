@@ -37,8 +37,7 @@ Edem asked on 11 October 2026 for the whole library to run on Radix and Motion. 
 15. **A top bar that never crowds, and a folded sidebar that opens easily.** From Edem's comments on the demo, 11 October. See [The frame](#the-frame).
 16. **The booking page's footer says "Connected by SALEANE"** and nothing more. See [Voice](#voice).
 17. **Where things live.** Money and Team have their own places in the sidebar, Business keeps how the studio is doing, Settings is four groups with Find a setting, and what is yours alone (your preferences, password, two-step sign-in and Face ID) is on You, from your name (Edem, "Build all", 11 October). The six moves from the finishing check came with it. See [The frame](#the-frame).
-
-Still waiting for a yes, so not yet a rule: phone Today in tabs with a count on each.
+18. **Today on a phone is three tabs, each with its count.** The day, Needs you and Team; a computer keeps the columns side by side and gives each heading the same count (Edem, 13 October). See [Patterns](#patterns).
 
 ## Tokens
 
@@ -110,6 +109,7 @@ All are exported from `src/design/index.ts`. Interactive primitives use Radix (t
 | `Button`                          | native                       | Actions. Primary, secondary, quiet, light. Name the action, not the control                                                     |
 | `SegmentedControl`                | Radix Toggle Group, Motion   | One choice between views of the same content: a period, a filter, a layout. Always keeps one selected                           |
 | `Tabs`                            | Radix Tabs, Motion           | Sections that replace each other in place (Manage)                                                                              |
+| `Count`                           | native                       | A figure beside a tab or heading: "10 to come", "5 waiting". Soft rose only when something waits on someone                     |
 | `Menu`, `MenuItem`, `MenuChoices` | Radix Dropdown Menu          | A few things to do from one button: the studio and your own name at the top, More on a row with several actions                 |
 | `Tip`                             | Radix Tooltip                | A hint beside an arrow or icon whose meaning is not written on it. Hover and keyboard only, so it never holds anything needed   |
 | `Select`                          | Radix Select                 | One choice from a list. Written like a `<select>`, with `<option>` and `<optgroup>`; forms still read a plain value             |
@@ -198,7 +198,7 @@ What stays around every staff page.
 - **Hints.** An arrow or icon whose meaning is not written on it gets a `Tip`. It never holds anything a person must read to act, because a phone has no hover; the button keeps its own words or `aria-label`. Browser title text is not used for hints, since it shows late, only to a mouse and never on a phone. The email preview's frame keeps its `title`, which is its name for screen readers.
 - **Notices.** Use `notify` when something was confirmed where the person may not be looking (a pop-up that closed as it saved). Where a saved line already sits beside the button, keep the line and send no notice. Stock is the reference: a delivery, a count, stock used and a move each say what was recorded.
 - **A new studio.** Pages that would open on figures at nought or an empty grid (Business, Accounts, Client areas, Marketing's Audience, Stock, the Calendar before anyone is on the team) open with the `Empty` welcome, saying what will appear and, where it helps, the next step. Accounts keeps its Xero or QuickBooks set-up below the welcome, the Waitlist keeps the quiet-time price, and Audience keeps the words guests agree to. Today shows no figures until the first visit is booked. An owner who has not finished setting up is sent back to where they left off.
-- **Today on a phone.** What needs someone comes before the day's list. A strip under the greeting names what is waiting (calls to return, calls the AI answered, patch tests to sort, reminders), and each item jumps to its card. It shows only on phones, and only when something waits.
+- **Today on a phone.** Under the greeting, three tabs share the width: The day (the figures, the visits still to come, before they arrive, clients worth a nudge and specials), Needs you (calls to return, calls the AI answered, patch tests to sort, reminders) and Team (who is working, clocking in and out, your booking page). Each tab carries its `Count`, read out in words ("Needs you, 5 waiting"), and Needs you's is soft rose when something waits. Today opens on The day. A computer keeps the columns side by side, each heading with the same count, worked out once in `todayCounts.ts` so they always agree. The tabs take the place of the phone strip that named what was waiting.
 - **Wizards.** A job with a few distinct steps runs in a `Modal` with `WizardSteps` along the top: one job per step, Continue held until the step is complete, Back always there, nothing saved until the last step, and that step saying in plain sentences what will happen. Each step opens at the top with its heading focused (`useWizardStep`). Moving in (`MovingIn.tsx`) is the reference.
 
 ## Where things move

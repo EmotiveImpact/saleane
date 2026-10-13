@@ -37,18 +37,13 @@
 }
 .needs-you-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
   padding: 0 2px;
 }
 .needs-you-head h2 {
   font-size: 24px;
-}
-.needs-you-head span {
-  color: var(--muted);
-  font-size: var(--text-micro);
-  white-space: nowrap;
 }
 .needs-card {
   min-width: 0;
@@ -314,51 +309,4 @@
 }
 .answered-said li.is-caller span {
   color: var(--brand-ink);
-}
-
-/* On a phone, a strip near the top of Today names what is waiting and jumps to it. */
-.waiting-strip {
-  display: none;
-}
-.needs-you-head h2,
-.needs-card-head h3 {
-  scroll-margin-top: 96px;
-}
-@media (max-width: 650px) {
-  .waiting-strip {
-    display: grid;
-    gap: 10px;
-    margin-bottom: 20px;
-    padding: 14px 16px 16px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-panel);
-    background: var(--paper);
-  }
-  .waiting-strip-title {
-    color: var(--muted);
-    font-size: var(--text-micro);
-    font-weight: var(--weight-strong);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
-  .waiting-strip ul {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-  .waiting-strip a {
-    display: inline-flex;
-    align-items: center;
-    min-height: var(--target);
-    padding: 8px 14px;
-    border-radius: var(--radius-pill);
-    background: var(--rose-soft);
-    color: var(--rose-ink);
-    font-size: var(--text-meta);
-    font-weight: var(--weight-strong);
-    text-decoration: none;
-  }
 }

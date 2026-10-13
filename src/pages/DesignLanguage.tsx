@@ -26,6 +26,7 @@ import {
   Status,
   Switch,
   Tabs,
+  Count,
   TimeChoices,
   TimeField,
   Tip,
@@ -114,6 +115,7 @@ const components = [
   ['Button', 'native', 'Primary, secondary, quiet and light. Name the action'],
   ['SegmentedControl', 'Radix Toggle Group, Motion', 'One choice between views of the same thing'],
   ['Tabs', 'Radix Tabs, Motion', 'Sections that replace each other in place'],
+  ['Count', 'native', 'A figure beside a tab or heading; rose when something waits'],
   ['Menu, MenuItem, MenuChoices', 'Radix Dropdown Menu', 'A few things to do from one button'],
   ['Tip', 'Radix Tooltip', 'A hint beside an arrow or icon whose meaning is not written on it'],
   ['Select', 'Radix Select', 'One choice from a list, drawn in SALEANE’s own fields'],
@@ -595,7 +597,8 @@ export function DesignLanguage() {
           <h3>Tabs</h3>
           <p>
             For sections that replace each other in place. A long list, as in Settings, splits into
-            named groups and becomes one select on a phone.
+            named groups and becomes one select on a phone. A tab can carry a count, as Today's do
+            on a phone; it turns rose only when something waits on someone.
           </p>
           <Tabs
             label="Example sections"
@@ -603,8 +606,24 @@ export function DesignLanguage() {
             onChange={setTab}
             tabs={[
               { value: 'services', label: 'Treatments' },
-              { value: 'team', label: 'Team' },
-              { value: 'hours', label: 'Hours & closures' },
+              {
+                value: 'team',
+                label: (
+                  <>
+                    Team <Count n={3} words="professionals" />
+                  </>
+                ),
+                text: 'Team',
+              },
+              {
+                value: 'requests',
+                label: (
+                  <>
+                    Requests <Count n={2} words="waiting" attention />
+                  </>
+                ),
+                text: 'Requests',
+              },
             ]}
           >
             <p className="library-panel">
@@ -612,7 +631,7 @@ export function DesignLanguage() {
                 ? 'Treatments panel'
                 : tab === 'team'
                   ? 'Team panel'
-                  : 'Hours and closures panel'}
+                  : 'Requests panel'}
             </p>
           </Tabs>
         </div>

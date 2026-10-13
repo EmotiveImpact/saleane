@@ -2,6 +2,16 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-13 · Today on a phone, in three tabs with counts
+
+**Status: built locally on 13 October 2026 and checked in Chromium at 1440, 1024, 768, 390 and 320 px, not yet in Safari or Firefox. The owner said yes on 13 October 2026 and it was merged to main the same day on the owner's "merge"; nothing deployed.** [Evidence](docs/evidence/TODAY-TABS.md).
+
+- On a phone, Today has three tabs under the greeting: The day, Needs you and Team, each with its count ("10", "5", "3"). Today opens on The day, which holds the figures, the visits, before they arrive, clients worth a nudge and specials. Needs you holds the calls to return, the calls the AI answered, patch tests and reminders; Team holds who is working, clocking in and out, and your booking page. The page on The day is about 3,900px instead of 5,700px, and Needs you is a tap away instead of 2,600px down.
+- The Needs you count turns soft rose when something waits; the others stay plain. A screen reader hears each tab with its count in words, such as "Needs you 5 waiting", and the arrow keys move between them.
+- On a computer the columns stay side by side, and each heading carries the same count: "10 to come" beside The day ahead, "5 waiting" beside Needs you and "3 professionals" beside Your team today. The counts come from one place, so the tabs, the headings and the cards always agree, and they follow the day: logging a call raises Needs you at once.
+- The strip under the greeting that named what was waiting on a phone is gone; the tabs take its place.
+- `Count` joins the design library for a figure beside a tab or heading, and `/design-language` shows it on a tab row.
+
 ## 2026-10-12 · The studio's name reads properly on a practitioner's phone
 
 **Status: built locally on 12 October 2026 and checked in Chromium at 320, 390, 768 and 1440 px.** The owner said yes on 12 October 2026.
@@ -10,7 +20,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-11 · A tidier SALEANE: Money, Team, a shorter Settings and You
 
-**Status: built locally on 11 October 2026 and checked in Chromium at 1440px and 390px, not yet in Safari or Firefox. The owner chose "Build all" on the plan of 11 October 2026; waiting for the owner's "merge".** [Evidence](docs/evidence/TIDIER-LAYOUT.md).
+**Status: built locally on 11 October 2026 and checked in Chromium at 1440px and 390px, not yet in Safari or Firefox. The owner chose "Build all" on the plan of 11 October 2026; merged to main on 13 October 2026 on the owner's "merge it all". Nothing is deployed.** [Evidence](docs/evidence/TIDIER-LAYOUT.md).
 
 - Money and Team have their own places in the sidebar, after Marketing. Money holds Takings, Gift cards, Stock and Accounts; Team holds People (who does what, and who can sign in), Rota and Pay. Business keeps how the studio is doing: Overview, Feedback, Client areas and How you compare, with Branch visits and Requests once there are several locations or sign-offs. Reception has no Business and lands on Money.
 - Settings is four groups (Studio; Treatments and payments; Guests; Studio account) instead of five, with 19 sections instead of 21. On a computer, Find a setting narrows them by name or by everyday words such as "VAT", "parking" or "Google".

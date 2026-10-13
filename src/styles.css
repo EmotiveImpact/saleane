@@ -930,6 +930,42 @@ fieldset {
   font-size: var(--text-micro);
   color: var(--muted);
 }
+.day-ahead-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+/* On a phone, Today's three tabs share the width evenly, each with its count. */
+.today-tabs .tabs-list {
+  flex-wrap: nowrap;
+  gap: 4px;
+  margin-bottom: 18px;
+}
+.today-tabs .tabs-trigger {
+  flex: 1 1 0;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 8px;
+  white-space: nowrap;
+}
+@media (max-width: 360px) {
+  .today-tabs .tabs-list {
+    gap: 2px;
+  }
+  .today-tabs .tabs-trigger {
+    gap: 5px;
+    padding-inline: 4px;
+    font-size: var(--text-small);
+  }
+}
+.today-tab {
+  display: grid;
+  gap: 20px;
+}
+.today-tab > .metrics-band {
+  margin: 0;
+}
 .today-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 294px;
