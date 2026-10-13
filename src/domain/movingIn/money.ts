@@ -1,7 +1,7 @@
 import type { BusinessState } from '../model'
 import { businessDate, operations } from '../operations'
 import { carriedCode, normaliseCode } from '../giftCards'
-import { planStanding } from '../plans'
+import { giftCodeSchema } from '../giftCardsSchema'
 import { fullDateLabel, money } from '../format'
 import { dateOrder, internationalPhone, tidyName } from './clients'
 import type { MovingClient, MovingFile } from './clients'
@@ -711,10 +711,40 @@ export function reviewMoney(
   // Gift cards: each code once, and never one already here.
   const taken = new Set((state.giftCards ?? []).map((card) => normaliseCode(card.code)))
   const seenCodes = new Map<string, CardIn>()
+  // A card with no code to keep got a new one when it came across, so on a second try it is
+  // known by what else it carried: its last digits, what was left on it, and who it was for.
+  const cardLike = (codeBefore: string, balance: number, valueBefore: number | '', to: string) =>
+    [codeBefore, balance, valueBefore, nameKey(to.slice(0, 100))].join('|')
+  const codesIn = new Set(cardsIn.flatMap((card) => (card.code ? [card.code] : [])))
+  const newCodesHere = new Map<string, number>()
+  for (const card of state.giftCards ?? []) {
+    if (!card.carried || codesIn.has(card.code)) continue
+    if (!card.carried.codeBefore && !giftCodeSchema.safeParse(card.code).success) continue
+    const like = cardLike(
+      card.carried.codeBefore ?? '',
+      card.valueMinor,
+      card.carried.valueBeforeMinor ?? '',
+      card.recipientName,
+    )
+    newCodesHere.set(like, (newCodesHere.get(like) ?? 0) + 1)
+  }
   const cards: PlannedCard[] = []
   for (const card of cardsIn) {
     const { row } = card
-    if (card.code) {
+    if (!card.code) {
+      const like = cardLike(
+        card.codeBefore ?? '',
+        card.balance,
+        card.valueBefore ?? '',
+        card.recipient,
+      )
+      const here = newCodesHere.get(like) ?? 0
+      if (here > 0) {
+        newCodesHere.set(like, here - 1)
+        leave(row, 'here', 'This gift card came across before, with a new code. It stays as it is.')
+        continue
+      }
+    } else {
       const first = seenCodes.get(card.code)
       if (first) {
         leave(
@@ -763,8 +793,27 @@ export function reviewMoney(
   }
 
   // Packages: whose each is, then which treatment it is for, asked only about packages that can
-  // otherwise come across.
-  const holdings = state.holdings ?? []
+  // otherwise come across. A client can buy the same package twice, so a package already here is
+  // known by what it carried (its visits left, worth and last day), and a second copy is numbered.
+  const NUMBERED = /\s\((\d+)\)$/
+  const packageLike = (client: string, name: string, visits: number, worth: number, end = '') =>
+    [client, nameKey(name.replace(NUMBERED, '')), visits, worth, end].join('|')
+  const packagesHere = new Map<string, number>()
+  const numbersTaken = new Map<string, Set<number>>()
+  for (const h of state.holdings ?? []) {
+    if (!h.carried) continue
+    const like = packageLike(
+      h.clientId,
+      h.name,
+      h.visits,
+      h.priceMinor,
+      h.carried.noEnd ? '' : h.endsOn,
+    )
+    packagesHere.set(like, (packagesHere.get(like) ?? 0) + 1)
+    const named = `${h.clientId}|${nameKey(h.name.replace(NUMBERED, ''))}`
+    const numbers = numbersTaken.get(named) ?? new Set<number>()
+    numbersTaken.set(named, numbers.add(Number(NUMBERED.exec(h.name)?.[1] ?? 1)))
+  }
   const seenPackages = new Map<string, PackageIn>()
   const waiting: { p: PackageIn; found: Found }[] = []
   for (const p of packagesIn) {
@@ -774,9 +823,17 @@ export function reviewMoney(
       row.detail = found.problem
       continue
     }
-    const sameKey = [keyOf(found), nameKey(p.name), p.visitsLeft, p.endsOn ?? ''].join('|')
+    // The same report added twice lists each package twice; two alike in one report are two.
+    const sameKey = [
+      keyOf(found),
+      nameKey(p.name),
+      p.visitsLeft,
+      p.valueMinor,
+      p.startedOn ?? '',
+      p.endsOn ?? '',
+    ].join('|')
     const first = seenPackages.get(sameKey)
-    if (first) {
+    if (first && first.row.fileName !== row.fileName) {
       leave(
         row,
         'combined',
@@ -784,18 +841,13 @@ export function reviewMoney(
       )
       continue
     }
-    seenPackages.set(sameKey, p)
-    if (
-      found.id &&
-      holdings.some(
-        (h) =>
-          h.carried &&
-          h.clientId === found.id &&
-          h.name === p.name &&
-          h.status === 'active' &&
-          planStanding(h, today).visitsLeft > 0,
-      )
-    ) {
+    if (!first) seenPackages.set(sameKey, p)
+    const like = found.id
+      ? packageLike(found.id, p.name, p.visitsLeft, p.valueMinor, p.endsOn)
+      : undefined
+    const here = like ? (packagesHere.get(like) ?? 0) : 0
+    if (like && here > 0) {
+      packagesHere.set(like, here - 1)
       leave(row, 'here', `${found.name} already has ${p.name} in SALEANE. It stays as it is.`)
       continue
     }
@@ -810,7 +862,6 @@ export function reviewMoney(
     suggestTreatment,
   )
   const packages: PlannedPackage[] = []
-  const namesUsed = new Map<string, number>()
   for (const { p, found } of waiting) {
     const { row } = p
     const t = treatments.find((m) => m.key === packageKey(p.matchName))!
@@ -822,10 +873,13 @@ export function reviewMoney(
       row.detail = `Choose which of your treatments “${t.name}” is for.`
       continue
     }
-    // The same package bought twice by one client comes across as two, told apart by number.
+    // The same package bought twice by one client comes across as two, told apart by the first
+    // number not already taken here.
     const nameFor = `${keyOf(found)}|${nameKey(p.name)}`
-    const times = (namesUsed.get(nameFor) ?? 0) + 1
-    namesUsed.set(nameFor, times)
+    const numbers = numbersTaken.get(nameFor) ?? new Set<number>()
+    let times = 1
+    while (numbers.has(times)) times += 1
+    numbersTaken.set(nameFor, numbers.add(times))
     const name = times > 1 ? `${p.name.slice(0, 95)} (${times})` : p.name
     if (times > 1)
       row.notes.push(

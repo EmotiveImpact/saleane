@@ -395,6 +395,40 @@ describe('money from other systems', () => {
     expect(review.counts.used).toBe(1)
   })
 
+  it('finds Square’s cards already here when the file is added again', () => {
+    const squareFile = () =>
+      file('gift-cards.csv', [
+        'PAN Suffix,Current outstanding Amount',
+        '4821,£25.00',
+        '4821,£25.00',
+        '7310,£40.00',
+      ])
+    const first = reviewMoney([squareFile()], studio(), [], none, 'square', now)
+    expect(first.cards).toHaveLength(3)
+    // Only the first part was saved before the owner tried again.
+    const s = studio()
+    const { cards } = moneyRows(first, s)
+    const saved = apply(s, {
+      type: 'import-gift-cards',
+      source: 'Square',
+      cards: cards.slice(0, 2),
+      reviewed: true,
+    })
+    const again = reviewMoney([squareFile()], saved, [], none, 'square', now)
+    expect(again.rows.map((r) => r.status)).toEqual(['here', 'here', 'ready'])
+    expect(again.rows[0].detail).toBe(
+      'This gift card came across before, with a new code. It stays as it is.',
+    )
+    expect(again.cards).toEqual([
+      {
+        codeBefore: 'ending 7310',
+        balanceMinor: 4000,
+        purchaserName: 'A Square customer',
+        recipientName: '',
+      },
+    ])
+  })
+
   it('leaves a card whose code is already here, and a card listed twice, alone', () => {
     const s = studio()
     const sold = apply(s, {
@@ -429,6 +463,69 @@ describe('money from other systems', () => {
         issuedOn: '2026-03-01',
       },
     ])
+  })
+
+  it('keeps two alike packages in one report as two, and a report added twice once', () => {
+    const report = (name: string) =>
+      file(name, [
+        'Customer,Package,Status,Expiry,Payment,Visits available,Visits redeemed',
+        'Nina Patel,Course of 6 Skin Renewal Facials,Active,30/06/2027,£480.00,4,2',
+        'Nina Patel,Course of 6 Skin Renewal Facials,Active,30/06/2027,£480.00,4,2',
+      ])
+    const review = reviewMoney(
+      [report('Customer package details.csv'), report('Customer package details (1).csv')],
+      studio(),
+      [],
+      none,
+      'timely',
+      now,
+    )
+    expect(review.rows.map((r) => r.status)).toEqual(['ready', 'ready', 'combined', 'combined'])
+    expect(review.packages.map((p) => p.name)).toEqual([
+      'Course of 6 Skin Renewal Facials',
+      'Course of 6 Skin Renewal Facials (2)',
+    ])
+    expect(review.packageVisits).toBe(8)
+  })
+
+  it('finds the very package already saved when a package report is added again', () => {
+    const report = () =>
+      file('Customer package details.csv', [
+        'Customer,Package,Status,Expiry,Payment,Visits available,Visits redeemed',
+        'Nina Patel,Course of 6 Skin Renewal Facials,Active,30/06/2027,£480.00,4,2',
+        'Nina Patel,Course of 6 Skin Renewal Facials,Active,31/12/2027,£480.00,6,0',
+      ])
+    const s = studio()
+    const first = reviewMoney([report()], s, [], none, 'timely', now)
+    expect(first.packages.map((p) => [p.name, p.visitsLeft])).toEqual([
+      ['Course of 6 Skin Renewal Facials', 4],
+      ['Course of 6 Skin Renewal Facials (2)', 6],
+    ])
+    // Only the second was saved before the owner tried again.
+    const { packages } = moneyRows(first, s)
+    let saved = apply(s, {
+      type: 'import-packages',
+      source: 'Timely',
+      packages: packages.slice(1),
+      reviewed: true,
+    })
+    const again = reviewMoney([report()], saved, [], none, 'timely', now)
+    expect(again.rows.map((r) => r.status)).toEqual(['ready', 'here'])
+    expect(again.packages.map((p) => [p.name, p.visitsLeft])).toEqual([
+      ['Course of 6 Skin Renewal Facials', 4],
+    ])
+    saved = apply(saved, {
+      type: 'import-packages',
+      source: 'Timely',
+      packages: moneyRows(again, saved).packages,
+      reviewed: true,
+    })
+    expect(saved.holdings!.map((h) => [h.name, h.visits])).toEqual([
+      ['Course of 6 Skin Renewal Facials (2)', 6],
+      ['Course of 6 Skin Renewal Facials', 4],
+    ])
+    const third = reviewMoney([report()], saved, [], none, 'timely', now)
+    expect(third.rows.map((r) => r.status)).toEqual(['here', 'here'])
   })
 
   it('asks which way round a credit file’s amounts go, suggesting Phorest’s own way', () => {
