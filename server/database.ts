@@ -920,6 +920,53 @@ export const migrations: Migration[] = [
         CREATE UNIQUE INDEX studio_invoices_attempt ON studio_invoices(attempt_key) WHERE attempt_key IS NOT NULL;
       `),
   },
+  {
+    version: 38,
+    // LUMANE's hardening. A change Ask or the receptionist prepares is kept here until a person
+    // decides, so a restart does not lose it, and its record says approved when they tap Approve
+    // and applied only once the change has saved. A conversation's last few lines are kept here
+    // for an hour after its last message, so the AI never reads earlier lines a browser sent. Each
+    // turn leaves a record of what it did, without any words: the pathways it used, how many calls
+    // to the AI, the time and the cost.
+    up: (connection) =>
+      connection.exec(`
+        CREATE TABLE assistant_proposals (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          audience TEXT NOT NULL CHECK(audience IN ('team','guests')), person TEXT NOT NULL,
+          skill TEXT NOT NULL, summary TEXT NOT NULL, effect TEXT NOT NULL CHECK(json_valid(effect)),
+          fingerprint TEXT NOT NULL,
+          status TEXT NOT NULL CHECK(status IN ('waiting','approved','applied','declined','expired')),
+          proposed_at INTEGER NOT NULL, expires_at INTEGER NOT NULL CHECK(expires_at>proposed_at),
+          decided_at INTEGER, applied_at INTEGER,
+          CHECK((status='waiting')=(decided_at IS NULL)),
+          CHECK((status='applied')=(applied_at IS NOT NULL))
+        ) STRICT;
+        CREATE INDEX assistant_proposals_approved ON assistant_proposals(organisation_id,person,fingerprint) WHERE status='approved';
+        CREATE INDEX assistant_proposals_age ON assistant_proposals(expires_at);
+        CREATE TABLE assistant_chats (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          audience TEXT NOT NULL CHECK(audience IN ('team','guests')), person TEXT NOT NULL,
+          turns TEXT NOT NULL CHECK(json_valid(turns)),
+          started_at INTEGER NOT NULL, expires_at INTEGER NOT NULL CHECK(expires_at>started_at)
+        ) STRICT;
+        CREATE INDEX assistant_chats_expiry ON assistant_chats(expires_at);
+        CREATE TABLE assistant_turns (
+          id TEXT PRIMARY KEY, organisation_id TEXT NOT NULL REFERENCES organisations(id),
+          audience TEXT NOT NULL CHECK(audience IN ('team','guests')),
+          doorway TEXT NOT NULL CHECK(doorway IN ('panel','talk','chat','sms','instagram','facebook','whatsapp','phone')),
+          account_id TEXT REFERENCES accounts(id),
+          status TEXT NOT NULL CHECK(status IN ('answered','refused','unavailable')), reason TEXT,
+          ended TEXT NOT NULL CHECK(ended IN ('answered','steps','spend','time','left','unavailable','refused')),
+          steps INTEGER NOT NULL CHECK(steps>=0), ms INTEGER NOT NULL CHECK(ms>=0),
+          cost_minor REAL NOT NULL CHECK(cost_minor>=0), corrected INTEGER NOT NULL CHECK(corrected>=0),
+          prepared INTEGER NOT NULL CHECK(prepared>=0), skills TEXT NOT NULL CHECK(json_valid(skills)),
+          model TEXT NOT NULL, at INTEGER NOT NULL,
+          CHECK((audience='team')=(account_id IS NOT NULL))
+        ) STRICT;
+        CREATE INDEX assistant_turns_recent ON assistant_turns(organisation_id,at);
+        CREATE INDEX assistant_turns_age ON assistant_turns(at);
+      `),
+  },
 ]
 /**
  * SQLite cannot widen a CHECK constraint in place, so a new kind of guest message rebuilds the

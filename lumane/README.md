@@ -43,7 +43,25 @@ Lumane owns the parts that are the same for every app:
   gathers what was heard and answers each question in turn; the app holds a talk's whole window
   of the allowance first and settles it with the seconds the supplier reports (`settle` with an
   `amount`).
-- **Audit.** Every skill use is recorded with who asked and what happened.
+- **The last check on every reply.** `checkReply` reads each reply before it is shown or spoken.
+  A sentence that says something was done ("I've moved her", "Done!", "you're booked in") is
+  taken out when nothing has been approved, and a plain note says what is waiting, in the app's
+  own words (the pack's `reply.notes`). An app adds claims of its own (SALEANE adds taking a
+  payment or a refund). Sentences about what has not happened ("nothing is booked") or about
+  what approving will do ("once you approve, it's done") are left alone; a claim made before the
+  approval is mentioned ("I've booked you in, so tap Approve") is not.
+- **What each turn did.** Every turn returns a `report` without any words: how many calls it
+  made to the AI, why it ended, how long it took, how many sentences the last check took out,
+  and each skill used with what came of it. The app keeps it as it chooses.
+- **A person leaving.** An app passes a `signal`. Once the person has gone, no further call to
+  the AI starts, nothing the turn prepared is kept, and what it cost so far still counts.
+- **Evals.** `judge` compares a turn with what a good answer must, or must never, do
+  (`evals.ts`). An app writes its cases as data and runs them against the real AI before a new
+  model, new instructions or a new skill reaches anyone. SALEANE's are in `evals/`.
+- **Audit.** Every turn returns each skill use with what happened (`audit` and
+  `report.skills`). Lumane keeps nothing itself: the app keeps the record, the conversation and
+  each proposal until a person decides. SALEANE keeps them in its database, so a restart loses
+  nothing the team was about to approve.
 
 Rules: nothing in this folder imports from the app that uses it, and nothing here knows about
 salons, bookings or money.

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { scriptedBrain } from '../../lumane'
 import { seed } from '../domain/seed'
 import type { BusinessState } from '../domain/model'
 import { operations } from '../domain/operations'
@@ -569,5 +570,63 @@ describe('the AI receptionist and a treatment that needs a patch test first', ()
     )
     expect(listed.find((x) => x.id === 'service-gloss')?.patchTestFirst).toBe(true)
     expect(listed.find((x) => x.id === 'service-facial')?.patchTestFirst).toBeUndefined()
+  })
+})
+
+describe('LUMANE’s last check on what the receptionist says', () => {
+  // A message prepared for the guest to send, then a reply that claims more than happened.
+  const claiming = (text: string) =>
+    scriptedBrain((_r, step) =>
+      step === 0
+        ? {
+            calls: [
+              {
+                id: 'c1',
+                name: 'pass_to_team',
+                input: {
+                  name: 'Ama Owusu',
+                  contact: 'ama@example.com',
+                  message: 'Can I bring my daughter?',
+                },
+              },
+            ],
+          }
+        : { text, calls: [] },
+    )
+  const say = (text: string, channel?: 'text' | 'phone') =>
+    askReceptionist({
+      state: on(base),
+      today,
+      now,
+      visitorId: 'v1',
+      text: 'Can you ask if I can bring my daughter?',
+      usage: undefined,
+      brain: claiming(text),
+      ...(channel ? { channel } : {}),
+    })
+
+  it('never tells a guest something was sent or booked when it was only prepared', async () => {
+    const result = await say("I've sent your message to the team. They will reply by email.")
+    expect(result).toMatchObject({
+      status: 'answered',
+      text: 'They will reply by email. Nothing is booked or sent until you choose it.',
+      report: { corrected: 1 },
+    })
+  })
+
+  it('on a call or by text, says only that nothing is booked yet, as the link is the message', async () => {
+    for (const channel of ['text', 'phone'] as const)
+      expect((await say('I have texted you a link to book Thursday at 11.', channel)).text).toBe(
+        'Nothing is booked until you confirm it.',
+      )
+    expect((await say('I will text you a link to book Thursday at 11.', 'phone')).text).toBe(
+      'I will text you a link to book Thursday at 11.',
+    )
+  })
+
+  it('never says it took a payment or a refund', async () => {
+    expect((await say('I’ve refunded your deposit, so you are all set.')).text).toBe(
+      'Nothing is booked or sent until you choose it.',
+    )
   })
 })

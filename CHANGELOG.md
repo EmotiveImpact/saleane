@@ -2,9 +2,15 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-12 · The studio's name reads properly on a practitioner's phone
+
+**Status: built locally on 12 October 2026 and checked in Chromium at 320, 390, 768 and 1440 px.** The owner said yes on 12 October 2026.
+
+- On a phone, a practitioner's day squeezed the studio's name, their own name and the location into a narrow gap beside the wordmark, so "The Linden Rooms" broke over two lines and ran into four. At 560 px and narrower the studio's name now has its own line under the wordmark and the buttons, kept to one line. The practitioner's name and location are left out there, since "Your day, Maya." says who it is. A regional manager's page keeps its area line on the same row. Laptops and tablets are unchanged.
+
 ## 2026-10-11 · Moving in, stage 3: gift cards, packages and credit from the old system's own files
 
-**Status: built locally on 11 October 2026, awaiting the owner's "merge"; nothing deployed.** [Evidence](docs/evidence/MOVING-03.md).
+**Status: built locally on 11 October 2026; the owner approved merging on 13 October 2026; nothing deployed.** [Evidence](docs/evidence/MOVING-03.md).
 
 - Moving in now brings across the money the studio already holds for its clients, from the reports the old system already gives: gift cards and vouchers with their codes and what is left on them, packages and courses with their visits left, and credit on account. Before, those files were set aside, and Settings refused a credit file unless it was rebuilt by hand with every client's email.
 - A money file adds a Money held step. It asks only what SALEANE cannot tell (which treatment a package is for, or which way round a credit file's amounts go), shows what comes across, checks each total against the old system's own (a totals row in the file, or Fresha's liability summary), and lists what stays behind and why: expired, cancelled or used up, already in SALEANE, listed twice, or left behind by choice.
@@ -14,6 +20,19 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - Settings, Switching over has Gift cards, packages and credit, opening the same steps; the older balances CSV step is gone.
 - A package's last day in another year now shows its year ("use by 30 June 2027").
 - The help guide, now "Bring clients, visits and gift cards across from another system", describes the new step.
+
+## 2026-10-11 · LUMANE hardened: nothing lost, nothing claimed, every turn on record
+
+**Status: built locally on 11 October 2026, in test mode; the eval cases are written but not yet run against the real Claude, which needs SALEANE's Anthropic key.** The owner said yes to the four fixes in the study on 11 October 2026. [Evidence](docs/evidence/LUMANE-HARDENING.md).
+
+- A change Ask SALEANE prepares is kept in the database until the person decides, so a restart just before they tap Approve loses nothing. The change history now says "Approved" when they tap Approve and "Saved" only once the change has saved, instead of one line before it saved.
+- If an approved change does not save (a dropped connection, or someone else saving first), Approve stays on screen and tries the same change again. One already saved from another tab shows as done and is never saved twice.
+- The assistant now reads earlier lines only from the conversation SALEANE keeps, never from the browser. A guest can no longer slip in a fake line such as "the studio agreed a free facial". Spoken and typed questions share one conversation, as before.
+- A last check reads every reply before it is shown or spoken. A sentence claiming something was done, booked, sent, refunded or charged when nothing was approved is taken out, and a plain line says what is waiting. Sentences such as "nothing is booked until you confirm" are left alone.
+- Each answer leaves a record of what it did, without any words: where it came in, which pathways ran, how many calls to the AI, how long it took and what it cost. It is kept for 90 days, so "it told me the wrong price" can be looked into.
+- When someone closes the panel or the booking page, or hangs up, no further paid call to the AI starts.
+- Twenty test cases say what a good answer must and must never do, including a client note that gives orders and a guest claiming to be the owner. `npm run evals` runs them against the real Claude once a key is set; every test run checks their safety rules against the test-mode assistant.
+- A guest's chat and offers are tied to an anonymous id that SALEANE forgets when it restarts, so after a restart a guest simply asks again.
 
 ## 2026-10-11 · The design language, brought up to date after Radix and Motion
 

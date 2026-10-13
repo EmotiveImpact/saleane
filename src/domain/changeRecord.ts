@@ -248,6 +248,8 @@ const serverWords: Record<string, Words> = {
   'membership.cards-resumed': ['money', 'Turned membership card payments back on after a restore'],
   'assistant.proposed': ['settings', `Asked ${ASK_NAME} to suggest a change`],
   'assistant.approved': ['settings', `Approved a change ${ASK_NAME} suggested`],
+  // LUMANE's hardening: recorded only once the approved change has saved.
+  'assistant.applied': ['settings', `Saved a change ${ASK_NAME} suggested`],
   'assistant.declined': ['settings', `Turned down a change ${ASK_NAME} suggested`],
   'assistant.talked': ['settings', `Talked to ${ASK_NAME}`],
   'outbox.retry': ['messages', 'Tried sending a message again'],

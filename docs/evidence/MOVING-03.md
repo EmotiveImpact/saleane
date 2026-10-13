@@ -1,6 +1,6 @@
 # MOVING-03 · Moving in, stage 3: gift cards, packages and credit from the old system's own files
 
-**Status: built locally on 11 October 2026, awaiting the owner's "merge"; nothing deployed.**
+**Status: built locally on 11 October 2026; the owner approved merging on 13 October 2026; nothing deployed.**
 
 Stages 1 and 2 brought clients and upcoming visits across. This stage brings across the money the studio already holds for its clients: gift cards and vouchers with their codes and what is left on them, packages and courses with their visits left, and credit on account. It reads the old system's own reports, in the same steps as the clients and visits, and holds each total up against the old system's own.
 

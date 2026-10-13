@@ -48,6 +48,8 @@ export type AskInput = {
   use?: ReturnType<typeof askUse>
   /** The question was spoken and the answer will be read aloud. */
   spoken?: boolean
+  /** Set when the person has gone, so no further call to the AI is paid for. */
+  signal?: AbortSignal
 }
 
 /** One earlier line of the conversation, as the person saw it. */
@@ -73,6 +75,8 @@ export function askSaleane(input: AskInput): Promise<TurnResult> {
     skills: team.skills(),
     ctx,
     instructions: team.instructions,
+    ...(team.reply ? { reply: team.reply } : {}),
+    ...(input.signal ? { signal: input.signal } : {}),
     context: input.spoken ? `${askFacts(ctx)}\n${SPOKEN}` : askFacts(ctx),
     timeLimitMs: TURN_TIME_LIMIT_MS,
     history: (input.history ?? [])

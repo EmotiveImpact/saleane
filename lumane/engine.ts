@@ -3,7 +3,8 @@ import { check, record } from './allowance'
 import type { Allowance, Meter, Usage } from './allowance'
 import type { Brain, BrainMessage, ToolSpec } from './brain'
 import { BrainError } from './brain'
-import { standingInstructions } from './rules'
+import { checkReply, standingInstructions } from './rules'
+import type { ReplyNotes } from './rules'
 import { SkillRefusal } from './skill'
 import type { Proposal, Skill } from './skill'
 
@@ -61,6 +62,29 @@ export type TurnInput<Ctx> = {
   /** Minutes before a proposal goes stale. */
   proposalMinutes?: number
   newId?: () => string
+  /**
+   * Set when the person has gone, such as a closed page. No further call to the AI starts, and
+   * nothing the turn prepared is kept, since nobody is there to approve it.
+   */
+  signal?: AbortSignal
+  /**
+   * The app's own words for LUMANE's last check on the reply (see `checkReply`): more claims it
+   * should never make, and what to say instead, in its own voice.
+   */
+  reply?: { claims?: RegExp[]; notes?: Partial<ReplyNotes> }
+}
+
+/**
+ * What happened in one turn, without its words, so the app can keep a record of every turn: how
+ * many calls it made to the AI, why it ended, how long it took, how many sentences the reply
+ * check took out, and each pathway used with what came of it.
+ */
+export type TurnReport = {
+  steps: number
+  ended: 'answered' | 'steps' | 'spend' | 'time' | 'left' | 'unavailable' | 'refused'
+  ms: number
+  corrected: number
+  skills: { skill: string; outcome: AuditEntry['outcome'] }[]
 }
 
 export type TurnResult<Effect = unknown> =
@@ -69,6 +93,7 @@ export type TurnResult<Effect = unknown> =
       reason: 'allowance' | 'rate' | 'spend'
       text: string
       usage: Usage | undefined
+      report: TurnReport
     }
   | {
       status: 'answered'
@@ -78,20 +103,23 @@ export type TurnResult<Effect = unknown> =
       usage: Usage
       costMinor: number
       audit: AuditEntry[]
+      report: TurnReport
     }
   | {
       /**
-       * The AI supplier could not answer. Nothing it proposed is kept and the request does not
-       * count against the monthly amount, but whatever it cost is still recorded.
+       * The AI supplier could not answer, or the person left before it finished. Nothing it
+       * proposed is kept and the request does not count against the monthly amount, but whatever
+       * it cost is still recorded.
        */
       status: 'unavailable'
-      reason: BrainError['kind']
+      reason: BrainError['kind'] | 'left'
       /** What went wrong, for the people running the app; never shown to the person asking. */
       detail: string
       text: string
       usage: Usage
       costMinor: number
       audit: AuditEntry[]
+      report: TurnReport
     }
 
 export function toolSpecs<Ctx>(skills: Skill<Ctx>[], ctx: Ctx): ToolSpec[] {
@@ -125,9 +153,17 @@ export async function runTurn<Ctx>(input: TurnInput<Ctx>): Promise<TurnResult> {
     at: meter.at,
     worstCaseMinor: meter.worstCaseMinor,
   }
+  const clock = input.clock ?? Date.now
+  const started = clock()
   const allowed = check(meter.allowance, meter.usage, request)
   if (!allowed.ok)
-    return { status: 'refused', reason: allowed.reason, text: allowed.message, usage: meter.usage }
+    return {
+      status: 'refused',
+      reason: allowed.reason,
+      text: allowed.message,
+      usage: meter.usage,
+      report: { steps: 0, ended: 'refused', ms: 0, corrected: 0, skills: [] },
+    }
 
   const newId = input.newId ?? (() => crypto.randomUUID())
   const expiresAt = new Date(
@@ -138,19 +174,46 @@ export async function runTurn<Ctx>(input: TurnInput<Ctx>): Promise<TurnResult> {
   const messages: BrainMessage[] = [...input.history, { role: 'user', text: input.text }]
   const proposals: PendingProposal[] = []
   const audit: AuditEntry[] = []
-  const clock = input.clock ?? Date.now
-  const started = clock()
   let costMinor = 0
   // Each call carries the whole conversation so far, so the next is taken to cost at least as
   // much as the costliest before it.
   let costliest = 0
   let text = STOPPED
+  let steps = 0
+  let ended: TurnReport['ended'] = 'steps'
+  const report = (end: TurnReport['ended'], corrected = 0): TurnReport => ({
+    steps,
+    ended: end,
+    ms: Math.max(0, clock() - started),
+    corrected,
+    skills: audit.map(({ skill, outcome }) => ({ skill, outcome })),
+  })
+  const unavailable = (reason: BrainError['kind'] | 'left', detail: string) =>
+    ({
+      status: 'unavailable',
+      reason,
+      detail,
+      text: UNAVAILABLE,
+      usage: record(meter.usage, { ...request, amount: 0 }, costMinor),
+      costMinor,
+      audit,
+      report: report(reason === 'left' ? 'left' : 'unavailable'),
+    }) as const
 
   for (let step = 0; step < (input.maxSteps ?? 6); step++) {
+    // Nobody is there to read the answer, so no further call is paid for.
+    if (input.signal?.aborted) return unavailable('left', 'The person left before the answer.')
     // Each call to the AI is checked first: a turn that would pass its share with another call
     // like the costliest so far, or has taken too long, stops rather than starting another.
-    if (step > 0 && costMinor + costliest > meter.worstCaseMinor) break
-    if (step > 0 && input.timeLimitMs !== undefined && clock() - started >= input.timeLimitMs) break
+    if (step > 0 && costMinor + costliest > meter.worstCaseMinor) {
+      ended = 'spend'
+      break
+    }
+    if (step > 0 && input.timeLimitMs !== undefined && clock() - started >= input.timeLimitMs) {
+      ended = 'time'
+      break
+    }
+    steps++
     let reply
     try {
       reply = await input.brain.respond({
@@ -161,15 +224,10 @@ export async function runTurn<Ctx>(input: TurnInput<Ctx>): Promise<TurnResult> {
       })
     } catch (error) {
       costMinor += error instanceof BrainError ? error.costMinor : 0
-      return {
-        status: 'unavailable',
-        reason: error instanceof BrainError ? error.kind : 'failed',
-        detail: error instanceof Error ? error.message : String(error),
-        text: UNAVAILABLE,
-        usage: record(meter.usage, { ...request, amount: 0 }, costMinor),
-        costMinor,
-        audit,
-      }
+      return unavailable(
+        error instanceof BrainError ? error.kind : 'failed',
+        error instanceof Error ? error.message : String(error),
+      )
     }
     costMinor += reply.costMinor
     costliest = Math.max(costliest, reply.costMinor)
@@ -181,6 +239,7 @@ export async function runTurn<Ctx>(input: TurnInput<Ctx>): Promise<TurnResult> {
     })
     if (!reply.calls.length) {
       text = reply.text?.trim() || 'Sorry, I have no answer for that.'
+      ended = 'answered'
       break
     }
     for (const call of reply.calls) {
@@ -196,14 +255,19 @@ export async function runTurn<Ctx>(input: TurnInput<Ctx>): Promise<TurnResult> {
     }
   }
 
+  // The person left while the last answer was written: nobody will read it or approve anything.
+  if (input.signal?.aborted) return unavailable('left', 'The person left before the answer.')
+  // LUMANE's last check: nothing is done until a person approves it, whatever the reply says.
+  const checked = checkReply(text, proposals.length > 0, input.reply)
   return {
     status: 'answered',
-    text,
+    text: checked.text,
     proposals,
     messages,
     usage: record(meter.usage, request, costMinor),
     costMinor,
     audit,
+    report: report(ended, checked.corrected),
   }
 }
 

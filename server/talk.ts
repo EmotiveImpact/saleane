@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import { conversation, talkWindowSeconds, voiceFor } from '../lumane'
-import type { Allowance, Conversation, LiveEvent, LiveLine, PendingProposal } from '../lumane'
+import type { Allowance, Conversation, LiveEvent, LiveLine } from '../lumane'
 import type { UseRequest } from '../lumane'
 import { askSaleane, HISTORY_TURNS } from '../src/assistant/ask'
+import type { AskTurn } from '../src/assistant/ask'
 import {
   SHORTEST_TALK_SECONDS,
   TALK_FAILED,
@@ -16,13 +17,17 @@ import {
   talkUse,
 } from '../src/assistant/talk'
 import { DEFAULT_VOICE, VOICES } from '../src/assistant/voices'
-import type { Command } from '../src/domain/commands'
 import { operations } from '../src/domain/operations'
 import { holding, reserveFor, settleUse } from './aiUsage'
+import {
+  commandFingerprint,
+  keepChat,
+  keepProposals,
+  modelOf,
+  recordTurn,
+} from './assistantRecords'
 import type { Actor, Context, Org } from './context'
 import { ASK_NAME } from '../src/assistant/name'
-
-export type Held = PendingProposal<Command> & { organisationId: string; accountId: string }
 
 type Talk = {
   id: string
@@ -36,6 +41,10 @@ type Talk = {
   window: number
   use: UseRequest
   talk: Conversation
+  /** The panel's conversation, which each question heard and its answer join. */
+  conversation?: string
+  /** Called off as the talk ends, so no further call to Claude is paid for. */
+  ending: AbortController
   line?: LiveLine
   /** What the supplier reported when the talk ended, in seconds. */
   reported?: number
@@ -70,7 +79,7 @@ type Started =
   | { status: 'talking'; id: string; sdp: string; seconds: number }
   | { status: 'refused' | 'unavailable'; text: string }
 
-export function talks(held: Map<string, Held>) {
+export function talks() {
   const open = new Map<string, Talk>()
   /** Starts still under way for each person in each studio, so two tabs start one after another. */
   const starting = new Map<string, Promise<unknown>>()
@@ -151,8 +160,10 @@ export function talks(held: Map<string, Held>) {
   function close(ctx: Context, talk: Talk) {
     if (talk.released || talk.closing) return
     talk.closing = true
-    // Whoever ended it has left: nothing more is asked of Claude while OpenAI finishes.
+    // Whoever ended it has left: nothing more is asked of Claude while OpenAI finishes, and a
+    // question being answered makes no further call.
     talk.talk.stop()
+    talk.ending.abort()
     later(talk, TALK_GRACE_SECONDS, () => finish(ctx, talk, 'unconfirmed'))
     try {
       talk.line?.close()
@@ -206,6 +217,7 @@ export function talks(held: Map<string, Held>) {
     sdp: string,
     askedAt: number,
     gone: () => boolean,
+    chat: string | undefined,
   ): Promise<Started> {
     if (stopped) return { status: 'unavailable', text: NOT_NOW }
     // The browser left before its turn (the tab closed, or the network dropped): OpenAI is not
@@ -278,6 +290,8 @@ export function talks(held: Map<string, Held>) {
       startedAt: ctx.now(),
       window: use.amount,
       use,
+      ...(chat ? { conversation: chat } : {}),
+      ending: new AbortController(),
       timers: [],
       closing: false,
       reattached: false,
@@ -288,7 +302,7 @@ export function talks(held: Map<string, Held>) {
         failed: TALK_FAILED,
         historyTurns: HISTORY_TURNS / 2,
         think: async (heard, history) => {
-          const thought = await answer(ctx, org.id, actor, heard, history)
+          const thought = await answer(ctx, org.id, actor, heard, history, talk)
           // Someone whose access was removed mid-talk is not answered, and the talk ends.
           if (!thought) {
             close(ctx, talk)
@@ -350,12 +364,14 @@ export function talks(held: Map<string, Held>) {
       sdp: string,
       /** True once the browser that asked has gone, so nobody can receive the talk. */
       gone: () => boolean = () => false,
+      /** The panel's conversation, which what is said joins. */
+      chat?: string,
     ): Promise<Started> {
       const key = `${org.id}:${actor.id}`
       const askedAt = ctx.now()
       const run = (starting.get(key) ?? Promise.resolve())
         .catch(() => undefined)
-        .then(() => begin(ctx, org, actor, allowance, sdp, askedAt, gone))
+        .then(() => begin(ctx, org, actor, allowance, sdp, askedAt, gone, chat))
       starting.set(key, run)
       try {
         return await run
@@ -389,6 +405,7 @@ export function talks(held: Map<string, Held>) {
       for (const talk of open.values()) {
         if (talk.released) continue
         talk.talk.stop()
+        talk.ending.abort()
         try {
           talk.line?.close()
         } catch {
@@ -426,7 +443,8 @@ export function talks(held: Map<string, Held>) {
     orgId: string,
     actor: Actor,
     heard: string,
-    history: { from: 'you' | 'saleane'; text: string }[],
+    history: AskTurn[],
+    talk: Pick<Talk, 'conversation' | 'ending'>,
   ) {
     let org: Org
     try {
@@ -454,8 +472,12 @@ export function talks(held: Map<string, Held>) {
         brain,
         use,
         spoken: true,
+        signal: talk.ending.signal,
       }),
     )
+    // SALEANE stopped while Claude answered: its records are closed, so nothing is written, and
+    // the share held lapses as it was stored to.
+    if (stopped) return undefined
     // Access may have changed while Claude answered. An answer prepared with access the person no
     // longer has is not said, kept or offered for approval; what it cost still counts, and the
     // talk ends.
@@ -465,35 +487,52 @@ export function talks(held: Map<string, Held>) {
     } catch {
       now = undefined
     }
+    const model = modelOf(ctx, true)
     if (!now || now.role !== org.role) {
       const costMinor = result.status === 'refused' ? 0 : result.costMinor
-      if (reserved || result.status !== 'refused')
-        ctx.db.transaction(() => settleUse(ctx, org.id, use, { counted: false, costMinor }))
+      ctx.db.transaction(() => {
+        if (reserved || result.status !== 'refused')
+          settleUse(ctx, org.id, use, { counted: false, costMinor })
+        recordTurn(ctx, org.id, 'team', 'talk', actor.id, model, result)
+      })
       return undefined
     }
     if (result.status === 'refused') {
-      if (reserved)
-        ctx.db.transaction(() => settleUse(ctx, org.id, use, { counted: false, costMinor: 0 }))
+      ctx.db.transaction(() => {
+        if (reserved) settleUse(ctx, org.id, use, { counted: false, costMinor: 0 })
+        recordTurn(ctx, org.id, 'team', 'talk', actor.id, model, result)
+      })
       return { text: result.text }
     }
     const answered = result.status === 'answered'
-    if (!answered)
+    if (!answered && result.reason !== 'left')
       console.error(
         `[SALEANE] ${ASK_NAME}'s AI could not answer a spoken question (${result.reason}).`,
       )
+    // A change it prepares is kept for the person to approve on screen, through a restart, and
+    // what was said joins the panel's conversation.
     ctx.db.transaction(() => {
       settleUse(ctx, org.id, use, { counted: answered, costMinor: result.costMinor })
-      if (answered)
-        for (const proposal of result.proposals)
-          ctx.audit(org, actor.id, 'assistant.proposed', proposal.id)
+      recordTurn(ctx, org.id, 'team', 'talk', actor.id, model, result)
+      if (!answered) return
+      keepProposals(ctx, org.id, 'team', actor.id, result.proposals, commandFingerprint)
+      for (const proposal of result.proposals)
+        ctx.audit(org, actor.id, 'assistant.proposed', proposal.id)
+      if (talk.conversation)
+        keepChat<AskTurn>(
+          ctx,
+          org.id,
+          'team',
+          actor.id,
+          talk.conversation,
+          [
+            { from: 'you', text: heard.slice(0, 500) },
+            { from: 'saleane', text: result.text },
+          ],
+          HISTORY_TURNS,
+        )
     })
     if (!answered) return { text: result.text }
-    for (const proposal of result.proposals)
-      held.set(proposal.id, {
-        ...(proposal as PendingProposal<Command>),
-        organisationId: org.id,
-        accountId: actor.id,
-      })
     return {
       text: result.text,
       proposals: result.proposals.map(({ id, summary, expiresAt }) => ({ id, summary, expiresAt })),
