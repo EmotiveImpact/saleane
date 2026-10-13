@@ -385,7 +385,16 @@ function WorkspaceApp() {
       <a className="skip-link" href="#main-content">
         Skip to content
       </a>
-      <aside className="sidebar" aria-label="Studio navigation">
+      <aside
+        className="sidebar"
+        aria-label="Studio navigation"
+        // Folded, a click on any empty part of the sidebar opens it in full. Links and buttons keep
+        // their own clicks, and the fold button does the same for the keyboard.
+        onClick={(event) => {
+          if (rail && !(event.target as Element).closest('a, button, input, select, textarea'))
+            setRail(false)
+        }}
+      >
         <div className="sidebar-brand">
           <Link to="/today" className="wordmark" aria-label="SALEANE, Today">
             <span className="wordmark-full" aria-hidden="true">
@@ -591,7 +600,8 @@ function WorkspaceApp() {
             <button className="ask-button" onClick={() => setAsking(true)}>
               <Sparkles size={17} />
               <span>
-                {ASK_NAME}
+                {/* On a smaller screen the button says just "Ask"; its full name stays for screen readers. */}
+                Ask <span className="ask-name-rest">{ASK_NAME.replace(/^Ask\s*/, '')}</span>
                 {noticed > 0 && (
                   <span className="ask-count">
                     , {noticed} {noticed === 1 ? 'thing' : 'things'} to mention

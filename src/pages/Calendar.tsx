@@ -259,22 +259,6 @@ export function Calendar() {
                   : dateLabel(date, locale)}
             </h2>
           </div>
-          <SegmentedControl
-            label="Calendar period"
-            appearance="pill"
-            className="calendar-period"
-            // Today reads as chosen only on today itself; another opened day leaves it free to press.
-            value={period === 'day' ? (date === today ? 'day' : ('' as 'day')) : period}
-            onChange={(next) => {
-              if (next === 'day') setDate(today)
-              setPeriod(next)
-            }}
-            options={[
-              { value: 'day', label: 'Today' },
-              { value: 'week', label: 'Week' },
-              { value: 'month', label: 'Month' },
-            ]}
-          />
           <div className="calendar-filters">
             <label className="calendar-date-picker">
               Jump to date
@@ -314,7 +298,8 @@ export function Calendar() {
                 </Select>
               </>
             )}
-            {period === 'day' && (
+            {/* Week and Month keep this space, so the filters and the switch beside them stay put. */}
+            <div className="day-layout-slot" inert={period !== 'day'} data-shown={period === 'day'}>
               <SegmentedControl
                 label="Day layout"
                 appearance="icon"
@@ -325,8 +310,25 @@ export function Calendar() {
                   { value: 'agenda', label: <List size={16} />, accessibleLabel: 'Agenda view' },
                 ]}
               />
-            )}
+            </div>
           </div>
+          {/* Far right in every view, so the switch never moves as the views change. */}
+          <SegmentedControl
+            label="Calendar period"
+            appearance="pill"
+            className="calendar-period"
+            // Today reads as chosen only on today itself; another opened day leaves it free to press.
+            value={period === 'day' ? (date === today ? 'day' : ('' as 'day')) : period}
+            onChange={(next) => {
+              if (next === 'day') setDate(today)
+              setPeriod(next)
+            }}
+            options={[
+              { value: 'day', label: 'Today' },
+              { value: 'week', label: 'Week' },
+              { value: 'month', label: 'Month' },
+            ]}
+          />
           {full && (
             <p className="fully-booked-line settle-in" role="status">
               {FULLY_BOOKED_LINE}

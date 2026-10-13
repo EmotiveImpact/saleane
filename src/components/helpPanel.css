@@ -95,11 +95,15 @@
   gap: 16px;
   justify-items: start;
 }
+/* The arrow keeps the same room inside its hover shade as the words do; the shade reaches out
+   past the column so the arrow still lines up with the text below. */
 .help-back {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding-left: 0;
+  padding-left: 12px;
+  padding-right: 14px;
+  margin-left: -12px;
 }
 .help-summary {
   font-size: 17px;
