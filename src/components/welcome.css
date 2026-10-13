@@ -1,0 +1,1178 @@
+/*
+ * The welcome as SALEANE opens: five short films (Welcome.tsx). Ported from the mockup the owner
+ * approved on 11 October 2026. A phone shape (taller than wide) puts the words at the foot of the
+ * photograph; a computer shape (wider than tall) puts them at the left. Sizes follow the screen,
+ * in container units, so the films look the same on every size of each.
+ *
+ * Every animation's starting point is its hidden state and every resting style is its last frame,
+ * so with motion turned down the finished frame is simply there.
+ */
+/* The opening screen while a studio's records load. */
+.candidate-loading.opening-screen {
+  min-height: 100dvh;
+  gap: 14px;
+  background: var(--palette-warm-bg);
+}
+.opening-screen h1 {
+  margin: 0;
+  font-family: var(--font-editorial);
+  font-weight: var(--weight-editorial);
+  font-size: var(--text-title-m);
+}
+.opening-screen p {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+.opening-mark {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+  color: var(--ink);
+}
+.opening-mark b {
+  font-family: var(--font-editorial);
+  font-weight: 400;
+  font-size: 22px;
+  letter-spacing: 0.42em;
+  margin-right: -0.42em;
+}
+.opening-mark i {
+  position: relative;
+  display: block;
+  width: 74px;
+  height: 1px;
+  background: var(--brand);
+  animation: welcome-draw 0.9s var(--ease-calm) 0.15s both;
+}
+.opening-mark i::after {
+  content: '';
+  position: absolute;
+  right: -2.5px;
+  top: -2.5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--rose);
+}
+@media (prefers-reduced-motion: reduce) {
+  .opening-mark i {
+    animation: none;
+  }
+}
+
+@property --welcome-r {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 170%;
+}
+@property --welcome-p {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 140%;
+}
+
+.welcome-film {
+  /* The welcome always stays light, in the studio's own first and second colours. */
+  --welcome-ivory: var(--palette-warm-bg);
+  --welcome-line: #e4ddd5;
+  --welcome-ink: var(--palette-ink);
+  --welcome-muted: var(--palette-muted);
+  --welcome-first: var(--brand);
+  --welcome-first-ink: var(--brand-ink);
+  --welcome-rose: var(--rose);
+  --welcome-gold: #d6b073;
+  --ease-film: cubic-bezier(0.7, 0, 0.2, 1);
+  --T: 4.8;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  overflow: hidden;
+  container: welcome-film / size;
+  background: var(--welcome-ivory);
+  color: var(--welcome-ink);
+  font-family: var(--font-display);
+  isolation: isolate;
+  transition: opacity 0.6s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.welcome-film[data-phase='leave'] {
+  opacity: 0;
+  pointer-events: none;
+}
+.welcome-film[data-scene='back'] {
+  --T: 2.4;
+}
+.welcome-film[data-scene='evening'] {
+  --T: 5.2;
+  --welcome-ivory: #f8efe5;
+}
+.welcome-film[data-scene='first'],
+.welcome-film[data-scene='birthday'] {
+  --T: 5.6;
+}
+/* Ivory while the photographs load: the same ivory as the opening screen, so nothing flashes. */
+.welcome-film[data-phase='ready'] .film-scene {
+  visibility: hidden;
+}
+
+.film-scene {
+  position: absolute;
+  inset: 0;
+  isolation: isolate;
+  background: var(--welcome-ivory);
+  font-size: min(4.1cqw, 2.2cqh);
+  line-height: 1.55;
+}
+.film-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.film-grain {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  pointer-events: none;
+  opacity: 0.09;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .25 0 0 0 0 .22 0 0 0 0 .2 0 0 0 .8 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Soft ivory where the words sit: from below on a phone, from the left on a computer. */
+.film-shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      to top,
+      var(--welcome-ivory) 0%,
+      var(--welcome-ivory) 27%,
+      color-mix(in srgb, var(--welcome-ivory) 72%, transparent) 42%,
+      transparent 62%
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--welcome-ivory) 88%, transparent),
+      transparent 17%
+    );
+}
+
+/* The chosen mark: the name, with a line and a rose dot drawn under it. */
+.film-mark {
+  position: absolute;
+  z-index: 4;
+  top: 6.5cqh;
+  left: 0;
+  right: 0;
+  display: grid;
+  gap: 0.65em;
+  justify-items: center;
+}
+.film-mark b {
+  font-family: var(--font-editorial);
+  font-weight: 400;
+  font-size: 0.95em;
+  letter-spacing: 0.42em;
+  margin-right: -0.42em;
+}
+.film-mark i {
+  position: relative;
+  display: block;
+  width: 3.4em;
+  height: 1px;
+  background: var(--welcome-first);
+  transform-origin: 50% 50%;
+}
+.film-mark i::after {
+  content: '';
+  position: absolute;
+  right: -2.5px;
+  top: -2.5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--welcome-rose);
+}
+
+.film-hello {
+  position: absolute;
+  z-index: 4;
+  left: 8cqw;
+  right: 8cqw;
+  bottom: 12cqh;
+  display: grid;
+  gap: 0.5em;
+}
+.film-eyebrow {
+  margin: 0;
+  font-size: max(0.66em, var(--text-eyebrow));
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--welcome-muted);
+}
+.film-hello h2 {
+  margin: 0;
+  font-family: var(--font-editorial);
+  font-weight: 300;
+  font-size: 2.5em;
+  line-height: 1.02;
+  letter-spacing: -0.012em;
+  text-wrap: balance;
+}
+.film-line {
+  margin: 0;
+  max-width: 24em;
+  color: var(--welcome-muted);
+  text-wrap: pretty;
+}
+
+.film-progress {
+  position: absolute;
+  z-index: 4;
+  left: 8cqw;
+  bottom: 5.5cqh;
+  width: 46cqw;
+  display: grid;
+  gap: 0.75em;
+  font-size: max(0.74em, var(--text-micro));
+}
+.film-steps {
+  position: relative;
+  height: 1.4em;
+  color: var(--welcome-muted);
+}
+.film-steps span {
+  position: absolute;
+  inset: 0;
+  white-space: nowrap;
+  opacity: 0;
+}
+.film-steps .s3 {
+  opacity: 1;
+  color: var(--welcome-first-ink);
+}
+.film-bar {
+  position: relative;
+  height: 1px;
+  background: var(--welcome-line);
+  opacity: 0;
+}
+.film-bar i {
+  position: absolute;
+  inset: 0;
+  background: var(--welcome-first);
+  transform-origin: 0 50%;
+}
+
+/* Skip sits top right on a phone, clear of the words, and bottom right on a computer. */
+.film-skip {
+  position: absolute;
+  z-index: 10;
+  right: 4cqw;
+  top: max(3cqh, env(safe-area-inset-top));
+  min-height: var(--target, 44px);
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--welcome-ivory) 82%, transparent);
+  color: var(--welcome-muted);
+  font: inherit;
+  font-size: var(--text-small);
+  cursor: pointer;
+  opacity: 0.85;
+  transition:
+    opacity var(--motion-quick),
+    color var(--motion-quick);
+}
+.film-skip:hover,
+.film-skip:focus-visible {
+  opacity: 1;
+  color: var(--welcome-ink);
+}
+.film-skip:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+/* Numbers on rolling reels. */
+.film-odo {
+  display: inline-flex;
+  font-family: var(--font-editorial);
+  font-weight: 300;
+  line-height: 1;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.film-reel {
+  display: inline-block;
+  height: 1em;
+  overflow: hidden;
+  mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent);
+}
+.film-strip {
+  display: grid;
+  transform: translateY(var(--to));
+}
+.film-strip span {
+  height: 1em;
+}
+
+/* 1. First open of the day: the room, seen through the name. */
+.welcome-film[data-scene='morning'] .film-photo {
+  transform-origin: 50% 55%;
+}
+.film-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  mix-blend-mode: screen;
+  background:
+    radial-gradient(
+      40% 32% at 50% 44%,
+      color-mix(in srgb, var(--welcome-first) 14%, var(--welcome-ivory)),
+      transparent 70%
+    ),
+    radial-gradient(70% 50% at 25% 15%, #fffdf8, transparent 70%), var(--welcome-ivory);
+  mask-image: radial-gradient(
+    circle at 50% 47%,
+    transparent var(--welcome-r),
+    #000 calc(var(--welcome-r) + 22%)
+  );
+}
+.film-big {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 47%;
+  transform: translateY(-50%);
+  text-align: center;
+  color: #000;
+  font-family: var(--font-editorial);
+  font-weight: 400;
+  font-size: 17cqw;
+  line-height: 1;
+  white-space: nowrap;
+  letter-spacing: 0.03em;
+  margin-right: -0.03em;
+}
+.film-leak {
+  position: absolute;
+  z-index: 3;
+  width: 90cqmax;
+  height: 90cqmax;
+  left: -45cqmax;
+  top: -20cqmax;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  mix-blend-mode: screen;
+  background: radial-gradient(
+    closest-side,
+    rgba(255, 222, 182, 0.7),
+    rgba(255, 200, 170, 0.25) 55%,
+    transparent
+  );
+}
+.welcome-film[data-scene='morning'] .film-shade,
+.welcome-film[data-scene='first'] .film-shade {
+  z-index: 3;
+}
+.is-playing[data-scene='morning'] .film-photo {
+  animation: welcome-push 6.5s var(--ease-calm) both;
+}
+.is-playing[data-scene='morning'] .film-big {
+  animation: welcome-tighten 2.4s var(--ease-calm) 0.15s both;
+}
+.is-playing[data-scene='morning'] .film-big .film-word > span {
+  animation: welcome-letter 1.15s var(--ease-calm) calc(0.25s + var(--i) * 85ms) both;
+}
+.is-playing[data-scene='morning'] .film-veil {
+  animation: welcome-veil-open 1.7s var(--ease-film) 2.25s both;
+}
+.is-playing[data-scene='morning'] .film-leak {
+  animation: welcome-leak 2.6s ease-in-out 2s both;
+}
+.is-playing[data-scene='morning'] .film-shade {
+  animation: welcome-fade-in 1s ease 3s both;
+}
+.is-playing[data-scene='morning'] .film-mark b {
+  animation: welcome-track-in 1.2s var(--ease-calm) 3.2s both;
+}
+.is-playing[data-scene='morning'] .film-mark i {
+  animation: welcome-draw 0.9s var(--ease-calm) 3.45s both;
+}
+.is-playing[data-scene='morning'] .film-hello > * {
+  animation: welcome-rise 1s var(--ease-calm) 3.35s both;
+}
+.is-playing[data-scene='morning'] .film-hello h2 {
+  animation-delay: 3.47s;
+}
+.is-playing[data-scene='morning'] .film-hello .film-line {
+  animation-delay: 3.65s;
+}
+
+/* 2. Coming back later: a band of light passes. */
+.film-sweep {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: var(--welcome-ivory);
+  mask-image: linear-gradient(
+    100deg,
+    transparent var(--welcome-p),
+    #000 calc(var(--welcome-p) + 32%)
+  );
+}
+.film-glint {
+  position: absolute;
+  z-index: 3;
+  top: -10%;
+  bottom: -10%;
+  width: 26cqw;
+  left: -30cqw;
+  opacity: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  background: linear-gradient(100deg, transparent, rgba(255, 246, 228, 0.75), transparent);
+}
+.welcome-film[data-scene='back'] .film-shade {
+  z-index: 1;
+}
+.is-playing[data-scene='back'] .film-photo {
+  animation: welcome-slide-settle 2.6s var(--ease-calm) both;
+}
+.is-playing[data-scene='back'] .film-sweep {
+  animation: welcome-sweep 1.25s var(--ease-film) 0.1s both;
+}
+.is-playing[data-scene='back'] .film-glint {
+  animation: welcome-glint 1.3s var(--ease-film) 0.1s both;
+}
+.is-playing[data-scene='back'] .film-mark b {
+  animation: welcome-track-in 0.9s var(--ease-calm) 0.55s both;
+}
+.is-playing[data-scene='back'] .film-mark i {
+  animation: welcome-draw 0.7s var(--ease-calm) 0.75s both;
+}
+.is-playing[data-scene='back'] .film-hello > * {
+  animation: welcome-rise 0.8s var(--ease-calm) 0.7s both;
+}
+.is-playing[data-scene='back'] .film-hello h2 {
+  animation-delay: 0.8s;
+}
+.is-playing[data-scene='back'] .film-hello .film-line {
+  animation-delay: 0.95s;
+}
+
+/* 3. Closing up: the light goes down warm while the day's visits count up. */
+.welcome-film[data-scene='evening'] .film-photo {
+  transform-origin: 60% 40%;
+  filter: brightness(0.97) saturate(1.06);
+}
+.film-dusk {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(222, 150, 92, 0.42),
+    color-mix(in srgb, var(--welcome-rose) 20%, transparent) 48%,
+    transparent 80%
+  );
+}
+.film-sun {
+  position: absolute;
+  z-index: 1;
+  width: 70cqmin;
+  height: 70cqmin;
+  right: 4%;
+  top: 46%;
+  border-radius: 50%;
+  opacity: 0.45;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  background: radial-gradient(
+    closest-side,
+    rgba(255, 206, 150, 0.9),
+    rgba(255, 180, 140, 0.25) 60%,
+    transparent
+  );
+}
+.welcome-film[data-scene='evening'] .film-shade {
+  z-index: 2;
+}
+.film-figure {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.45em;
+  margin-top: 0.2em;
+}
+.film-figure .film-odo {
+  font-size: 3.6em;
+}
+.film-unit {
+  color: var(--welcome-muted);
+  line-height: 1.3;
+}
+.film-figure .film-unit {
+  padding-bottom: 0.3em;
+}
+.is-playing[data-scene='evening'] .film-photo {
+  animation: welcome-dusk-photo 5.4s var(--ease-calm) both;
+}
+.is-playing[data-scene='evening'] .film-dusk {
+  animation: welcome-dusk-fall 3.4s var(--ease-calm) 0.3s both;
+}
+.is-playing[data-scene='evening'] .film-sun {
+  animation: welcome-sun-set 5s var(--ease-calm) 0.1s both;
+}
+.is-playing[data-scene='evening'] .film-shade {
+  animation: welcome-fade-in 1.2s ease 0.5s both;
+}
+.is-playing[data-scene='evening'] .film-mark b {
+  animation: welcome-track-in 1.1s var(--ease-calm) 1s both;
+}
+.is-playing[data-scene='evening'] .film-mark i {
+  animation: welcome-draw 0.8s var(--ease-calm) 1.25s both;
+}
+.is-playing[data-scene='evening'] .film-hello > * {
+  animation: welcome-rise 1s var(--ease-calm) 1.5s both;
+}
+.is-playing[data-scene='evening'] .film-hello h2 {
+  animation-delay: 1.62s;
+}
+.is-playing[data-scene='evening'] .film-hello .film-figure {
+  animation-delay: 2s;
+}
+.is-playing[data-scene='evening'] .film-strip {
+  animation: welcome-roll 2s var(--ease-calm) calc(2.15s + var(--i) * 140ms) both;
+}
+
+/* 4. The very first sign in: the name on two ivory doors, which open onto the studio. */
+.film-door {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50.5%;
+  z-index: 4;
+  box-shadow: 0 0 60px rgba(60, 40, 30, 0.12);
+  transform: translateX(var(--out));
+}
+.film-door-left {
+  left: 0;
+  --out: -102%;
+  background: linear-gradient(to right, var(--welcome-ivory), #f6f2ec);
+}
+.film-door-right {
+  right: 0;
+  --out: 102%;
+  background: linear-gradient(to left, var(--welcome-ivory), #f6f2ec);
+}
+.film-invite {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.9em;
+  padding-inline: 6cqw;
+  text-align: center;
+  opacity: 0;
+}
+.film-by {
+  font-family: var(--font-editorial);
+  font-size: 0.7em;
+  letter-spacing: 0.42em;
+  margin-right: -0.42em;
+}
+.film-welcomes {
+  font-family: var(--font-editorial);
+  font-style: italic;
+  font-weight: 300;
+  font-size: 1.1em;
+  color: var(--welcome-muted);
+}
+.film-name {
+  font-family: var(--font-editorial);
+  font-weight: 300;
+  font-size: 3.3em;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.film-word {
+  white-space: nowrap;
+}
+.film-big .film-word > span,
+.film-name .film-word > span {
+  display: inline-block;
+}
+.welcome-film[data-scene='first'] .film-photo {
+  transform-origin: 50% 60%;
+}
+.is-playing[data-scene='first'] .film-photo {
+  animation: welcome-push-deep 7s var(--ease-calm) 1.4s both;
+}
+.is-playing[data-scene='first'] .film-invite {
+  animation: welcome-invite 2.9s ease 0.1s both;
+}
+.is-playing[data-scene='first'] .film-name .film-word > span {
+  animation: welcome-letter 1s var(--ease-calm) calc(0.55s + var(--i) * 55ms) both;
+}
+.is-playing[data-scene='first'] .film-welcomes {
+  animation: welcome-rise 0.9s var(--ease-calm) 0.35s both;
+}
+.is-playing[data-scene='first'] .film-door {
+  animation: welcome-door-open 1.8s var(--ease-film) 2.45s both;
+}
+.is-playing[data-scene='first'] .film-shade {
+  animation: welcome-fade-in 1s ease 3.4s both;
+}
+.is-playing[data-scene='first'] .film-mark b {
+  animation: welcome-track-in 1.1s var(--ease-calm) 3.6s both;
+}
+.is-playing[data-scene='first'] .film-mark i {
+  animation: welcome-draw 0.8s var(--ease-calm) 3.85s both;
+}
+.is-playing[data-scene='first'] .film-hello > * {
+  animation: welcome-rise 1s var(--ease-calm) 3.75s both;
+}
+.is-playing[data-scene='first'] .film-hello h2 {
+  animation-delay: 3.87s;
+}
+.is-playing[data-scene='first'] .film-hello .film-line {
+  animation-delay: 4.05s;
+}
+
+/* 5. The studio's birthday: a slow ribbon of photographs and the year's visits. */
+.welcome-film[data-scene='birthday'] .film-scene {
+  background:
+    radial-gradient(
+      50% 36% at 50% 72%,
+      color-mix(in srgb, var(--welcome-rose) 13%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      40% 30% at 20% 20%,
+      color-mix(in srgb, var(--welcome-gold) 14%, transparent),
+      transparent 70%
+    ),
+    var(--welcome-ivory);
+}
+.welcome-film[data-scene='birthday'] .film-mark {
+  top: 5.5cqh;
+}
+.film-ribbon {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 16cqh;
+  height: 37cqh;
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent);
+}
+.film-roll {
+  display: flex;
+  gap: 1.6cqw;
+  height: 100%;
+  width: max-content;
+}
+.film-roll figure {
+  flex: none;
+  width: 34cqw;
+  height: 100%;
+  margin: 0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.film-roll figure:nth-child(even) {
+  transform: translateY(7%);
+  height: 86%;
+}
+.film-roll img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.film-tally {
+  position: absolute;
+  z-index: 4;
+  left: 0;
+  right: 0;
+  top: 58cqh;
+  display: grid;
+  justify-items: center;
+  gap: 0.35em;
+  padding-inline: 8cqw;
+  text-align: center;
+}
+.film-tally .film-odo {
+  font-size: 4.4em;
+}
+.film-comma {
+  font-family: var(--font-editorial);
+  font-weight: 300;
+}
+.film-thanks {
+  margin: 0.25em 0 0;
+  font-family: var(--font-editorial);
+  font-style: italic;
+  font-weight: 300;
+  font-size: 1.45em;
+}
+.welcome-film[data-scene='birthday'] .film-progress {
+  left: 50%;
+  transform: translateX(-50%);
+  justify-items: center;
+}
+.welcome-film[data-scene='birthday'] .film-steps span {
+  text-align: center;
+}
+.is-playing[data-scene='birthday'] .film-ribbon {
+  animation: welcome-ribbon-in 1.7s var(--ease-film) 0.15s both;
+}
+.is-playing[data-scene='birthday'] .film-roll {
+  animation: welcome-drift 26s linear 0.15s both;
+}
+.is-playing[data-scene='birthday'] .film-roll figure {
+  animation: welcome-tile-in 1.2s var(--ease-calm) calc(0.2s + var(--i) * 70ms) both;
+}
+.is-playing[data-scene='birthday'] .film-roll figure:nth-child(even) {
+  animation-name: welcome-tile-in-even;
+}
+.is-playing[data-scene='birthday'] .film-mark b {
+  animation: welcome-track-in 1.1s var(--ease-calm) 0.4s both;
+}
+.is-playing[data-scene='birthday'] .film-mark i {
+  animation: welcome-draw 0.8s var(--ease-calm) 0.65s both;
+}
+.is-playing[data-scene='birthday'] .film-tally > * {
+  animation: welcome-rise 1s var(--ease-calm) 1.3s both;
+}
+.is-playing[data-scene='birthday'] .film-tally .film-odo {
+  animation-delay: 1.45s;
+}
+.is-playing[data-scene='birthday'] .film-tally .film-unit {
+  animation-delay: 1.7s;
+}
+.is-playing[data-scene='birthday'] .film-tally .film-thanks {
+  animation-delay: 3.3s;
+}
+.is-playing[data-scene='birthday'] .film-strip {
+  animation: welcome-roll 2.3s var(--ease-calm) calc(1.55s + var(--i) * 140ms) both;
+}
+
+/*
+ * The birthday's sparks: a layer of their own above everything, which nobody can click, so they
+ * carry on past the film into the app. They start with the thank you and fade by five seconds.
+ */
+.film-sparks {
+  --welcome-rose: var(--rose);
+  --welcome-gold: #d6b073;
+  position: fixed;
+  inset: 0;
+  z-index: 201;
+  pointer-events: none;
+  font-size: min(4.1vw, 2.2vh);
+  animation: welcome-sparks-life 5s linear both;
+}
+.film-sparks i {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: var(--s);
+  height: var(--s);
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: 0 0 0.6em var(--c);
+  opacity: 0;
+  animation: welcome-spark var(--dur) cubic-bezier(0.3, 0.6, 0.4, 1) var(--d) 2 backwards;
+}
+@media (orientation: landscape) {
+  .film-sparks {
+    font-size: min(2.5vh, 1.6vw);
+  }
+}
+
+/* The loading line under every film, timed by --T, the film's length in seconds. */
+.is-playing .film-bar {
+  animation:
+    welcome-fade-in 0.5s ease 0.2s both,
+    welcome-fade-out 0.7s ease calc(var(--T) * 1s + 0.1s) forwards;
+}
+.is-playing .film-bar i {
+  animation: welcome-load calc(var(--T) * 1s - 0.3s) cubic-bezier(0.4, 0, 0.2, 1) 0.3s both;
+}
+.is-playing .film-steps .s1 {
+  animation:
+    welcome-step-in 0.5s var(--ease-calm) 0.3s both,
+    welcome-step-out 0.4s ease calc(var(--T) * 0.36s) forwards;
+}
+.is-playing .film-steps .s2 {
+  animation:
+    welcome-step-in 0.5s var(--ease-calm) calc(var(--T) * 0.36s + 0.2s) both,
+    welcome-step-out 0.4s ease calc(var(--T) * 0.72s) forwards;
+}
+.is-playing .film-steps .s3 {
+  animation: welcome-step-in 0.6s var(--ease-calm) calc(var(--T) * 0.72s + 0.2s) both;
+}
+
+/* A computer, or anything wider than it is tall: the words at the left, the mark top left. */
+@container welcome-film (orientation: landscape) {
+  .film-scene {
+    font-size: min(2.5cqh, 1.6cqw);
+  }
+  .film-shade {
+    background: linear-gradient(
+      to right,
+      var(--welcome-ivory) 0%,
+      var(--welcome-ivory) 24%,
+      color-mix(in srgb, var(--welcome-ivory) 74%, transparent) 37%,
+      transparent 60%
+    );
+  }
+  .film-mark {
+    top: 8cqh;
+    left: 6.5cqw;
+    right: auto;
+    justify-items: start;
+  }
+  .film-mark i {
+    transform-origin: 0 50%;
+  }
+  .film-hello {
+    left: 6.5cqw;
+    right: auto;
+    width: 30cqw;
+    bottom: 15cqh;
+  }
+  .film-progress {
+    left: 6.5cqw;
+    bottom: 7cqh;
+    width: 17cqw;
+  }
+  .film-skip {
+    top: auto;
+    right: 5cqw;
+    bottom: 4cqh;
+  }
+  .film-big {
+    font-size: 15cqw;
+  }
+  .film-name {
+    font-size: 4.4em;
+  }
+  [data-scene='birthday'] .film-mark {
+    left: 0;
+    right: 0;
+    justify-items: center;
+  }
+  [data-scene='birthday'] .film-mark i {
+    transform-origin: 50% 50%;
+  }
+  [data-scene='birthday'] .film-progress {
+    left: 50%;
+    width: 22cqw;
+  }
+  .film-ribbon {
+    top: 15cqh;
+    height: 42cqh;
+  }
+  .film-roll figure {
+    width: 14.5cqw;
+  }
+  .film-tally {
+    top: 61.5cqh;
+  }
+  .film-tally .film-odo {
+    font-size: 4em;
+  }
+}
+
+@keyframes welcome-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes welcome-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes welcome-push {
+  from {
+    transform: scale(1.28);
+  }
+  to {
+    transform: scale(1.03);
+  }
+}
+@keyframes welcome-push-deep {
+  from {
+    transform: scale(1.4);
+  }
+  to {
+    transform: scale(1.02);
+  }
+}
+@keyframes welcome-tighten {
+  from {
+    letter-spacing: 0.3em;
+    margin-right: -0.3em;
+  }
+}
+@keyframes welcome-letter {
+  from {
+    opacity: 0;
+    transform: translateY(0.3em);
+    filter: blur(10px);
+  }
+}
+@keyframes welcome-veil-open {
+  from {
+    --welcome-r: -25%;
+  }
+  to {
+    --welcome-r: 170%;
+  }
+}
+@keyframes welcome-leak {
+  0% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+  40% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(150cqw);
+  }
+}
+@keyframes welcome-track-in {
+  from {
+    opacity: 0;
+    letter-spacing: 0.9em;
+    filter: blur(4px);
+  }
+}
+@keyframes welcome-draw {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes welcome-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.8em);
+    filter: blur(6px);
+  }
+}
+@keyframes welcome-slide-settle {
+  from {
+    transform: translateX(4%) scale(1.1);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes welcome-sweep {
+  from {
+    --welcome-p: -35%;
+  }
+  to {
+    --welcome-p: 140%;
+  }
+}
+@keyframes welcome-glint {
+  0% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(170cqw);
+  }
+}
+@keyframes welcome-dusk-photo {
+  from {
+    transform: scale(1.12);
+    filter: brightness(1.14) saturate(0.72) contrast(0.94);
+  }
+}
+@keyframes welcome-dusk-fall {
+  from {
+    opacity: 0;
+    transform: translateY(-35%);
+  }
+}
+@keyframes welcome-sun-set {
+  from {
+    top: 8%;
+    opacity: 0.95;
+  }
+}
+@keyframes welcome-roll {
+  from {
+    transform: translateY(0);
+  }
+}
+@keyframes welcome-invite {
+  0% {
+    opacity: 0;
+    transform: scale(1.02);
+  }
+  14% {
+    opacity: 1;
+    transform: none;
+  }
+  78% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+@keyframes welcome-door-open {
+  from {
+    transform: translateX(0);
+  }
+}
+@keyframes welcome-ribbon-in {
+  from {
+    clip-path: inset(0 50% 0 50%);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes welcome-drift {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-34%);
+  }
+}
+@keyframes welcome-tile-in {
+  from {
+    opacity: 0;
+    transform: translateY(14%) scale(0.96);
+  }
+}
+@keyframes welcome-tile-in-even {
+  from {
+    opacity: 0;
+    transform: translateY(24%) scale(0.96);
+  }
+  to {
+    transform: translateY(7%);
+  }
+}
+@keyframes welcome-sparks-life {
+  0%,
+  82% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes welcome-spark {
+  0% {
+    opacity: 0;
+    transform: translate(0, 4vh) scale(0.4);
+  }
+  12% {
+    opacity: 1;
+  }
+  75% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--sway), -34vh) scale(1);
+  }
+}
+@keyframes welcome-load {
+  0% {
+    transform: scaleX(0);
+  }
+  30% {
+    transform: scaleX(0.36);
+  }
+  55% {
+    transform: scaleX(0.62);
+  }
+  80% {
+    transform: scaleX(0.9);
+  }
+  100% {
+    transform: scaleX(1);
+  }
+}
+@keyframes welcome-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.6em);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes welcome-step-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-0.6em);
+  }
+}
+
+/* Less motion: the finished frame fades up and away, and nothing moves or blurs. */
+@keyframes welcome-still-in {
+  from {
+    opacity: 0;
+  }
+}
+.welcome-film[data-still] *,
+.welcome-film[data-still] *::after {
+  animation: none !important;
+}
+.welcome-film[data-still].is-playing .film-scene {
+  animation: welcome-still-in 0.6s ease both !important;
+}
+.welcome-film[data-still] .film-steps .s1,
+.welcome-film[data-still] .film-steps .s2 {
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .welcome-film *,
+  .welcome-film *::after {
+    animation: none !important;
+  }
+  .welcome-film.is-playing .film-scene {
+    animation: welcome-still-in 0.6s ease both !important;
+  }
+  .film-sparks {
+    display: none;
+  }
+}

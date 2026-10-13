@@ -913,6 +913,23 @@
   font-weight: var(--weight-strong);
   margin-bottom: 10px;
 }
+/* Your preferences: watch any of the welcomes that play as SALEANE opens. */
+.welcome-watch {
+  margin-top: 14px;
+  display: grid;
+  gap: 12px;
+}
+.welcome-watch p {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+.welcome-watch > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .settings-booking-link {
   display: flex;
   align-items: center;

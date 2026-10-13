@@ -16,6 +16,8 @@ export type WorkspaceAccess = {
   locked?: boolean
   /** Stage 6: the studio asks everyone to use two-step sign-in. */
   twoStepRequired?: boolean
+  /** When the studio joined SALEANE, in milliseconds: its birthday, and whether it is new. */
+  openedAt?: number
 }
 export type Session = {
   user: {
@@ -27,6 +29,8 @@ export type Session = {
     twoStep?: { since: number; recoveryLeft: number } | null
     /** NEXT-15: how many devices sign in with Face ID or a fingerprint. */
     passkeys?: number
+    /** When the account was made, in milliseconds, so a new person's first welcome is theirs. */
+    joinedAt?: number
   }
   csrf: string
   /** NEXT-15: whether this address allows passkeys (a domain on https, or localhost). */

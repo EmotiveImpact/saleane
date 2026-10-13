@@ -144,6 +144,12 @@ describe('local sessions and request boundary', () => {
       localOnly: true,
       services: { email: false, payments: false, ai: false, voice: false },
     })
+    // The welcome as SALEANE opens knows when the account and the studio were made, and nothing
+    // more: a new person's very first welcome, and the studio's birthday.
+    expect(signedIn.json()).toMatchObject({
+      user: { joinedAt: clock },
+      workspaces: [{ name: 'Fresh Studio', openedAt: clock }],
+    })
   })
   it('rejects anonymous reads, bad credentials and expired sessions, and revokes logout', async () => {
     expect((await api.inject({ url: '/api/session' })).statusCode).toBe(401)

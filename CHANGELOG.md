@@ -2,6 +2,17 @@
 
 Released entries describe observed implementation. An explicitly in-progress entry records work awaiting verification, not a shipped capability. Product versions are separate from stored-state schema versions.
 
+## 2026-10-13 · A welcome as SALEANE opens
+
+**Status: built locally on 13 October 2026 and walked in Chromium at 390 and 1440 px, signed in and in the fictional demo. Waiting for the owner's "merge".** The owner approved the five films on 11 October 2026 and asked for them to be built on 13 October. [Evidence](docs/evidence/WELCOME-FILMS.md).
+
+- Opening SALEANE now plays one short film over the studio's first page, then fades into it. SALEANE chooses it from the clock and the diary: the first open of the day (the room seen through the letters of SALEANE), coming back after an hour or more away (a band of light and who is next), closing up once the day's last visit has ended (the light goes down warm while the day's visits count up), the very first sign in while an account or studio is new (the studio's name on two ivory doors, which open) and the studio's birthday with SALEANE (a ribbon of photographs, the year's finished visits, and gold and rose sparks that carry on into the app for five seconds at most). Opening again a few minutes later plays nothing.
+- Every word comes from the studio's records: the person's first name, the studio and its location, today's visits without cancelled or missed ones, who is next and their treatment. "All looked after" appears only when every visit is finished; otherwise it says how many are still to finish.
+- The mark is the name only, with its line and rose dot, as chosen on 11 October. The colours follow the studio's own first and second colours.
+- A tap, a click, scrolling or any key skips it, and Skip is always on screen. Screen readers hear the greeting once. With reduced motion the finished frame fades up and away. Your preferences has a choice to open straight to the studio instead, and buttons to watch any of the five.
+- While a studio's records load, the opening screen is the same ivory with the name and its line drawn once.
+- The session now says when the account and the studio were made, so the very first welcome and the birthday are true. Nothing else is shared, and which films have played is remembered in that browser only.
+
 ## 2026-10-12 · The studio's name reads properly on a practitioner's phone
 
 **Status: built locally on 12 October 2026 and checked in Chromium at 320, 390, 768 and 1440 px.** The owner said yes on 12 October 2026.
