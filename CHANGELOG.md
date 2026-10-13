@@ -40,7 +40,8 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - The approval card takes one answer at a time, however fast someone taps, and only says "Done" once the change has saved. If saving fails, Approve comes back so they can try again.
 - An app without a design system can take LUMANE's own look, set by four choices: a colour, a font, the corners, and light or dark. Writing in the chosen colour is darkened or lightened until it reads clearly.
 - LUMANE can now be installed in another app. In a coding agent, `/lumane:install` reads the app, asks five questions (the name, how it sounds, the pathways, what each account includes and the look), writes and checks the pack, adds the Ask button and panel in the app's design and opens a pull request for a person's yes. It never merges, deploys or adds a key.
-- An install page asks the same five questions with a live preview of Ask that follows every choice, writes the real pack, checks it, and gives the answers to paste into a coding agent. `npm run lumane:page` builds it as one file.
+- An install page asks the same five questions with a live preview of Ask that follows every choice, writes the real pack, checks it, and gives the answers to paste into a coding agent, including the default look's colour, font, corners and light or dark when that look is chosen. `npm run lumane:page` builds it as one file.
+- The coding agent copies into an app only what runs there, leaving out LUMANE's tests and the installer's own tools, so the app needs nothing beyond React and Zod. It offers an app's own design only when it found one, and never asks more than four choices at once.
 - We looked at building the parts on assistant-ui and chose our own instead: it would have added about 114 KB to every app's page for parts that need far less.
 
 ## 2026-10-11 · LUMANE hardened: nothing lost, nothing claimed, every turn on record

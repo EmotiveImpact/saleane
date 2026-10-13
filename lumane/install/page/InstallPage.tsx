@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { packProblems } from '../../pack'
-import { AskPanel, DEFAULT_LOOK, fullLook, lookProblems, palette } from '../../react'
+import { AskPanel, DEFAULT_LOOK, fullLook, palette } from '../../react'
 import type { Look } from '../../react'
 import {
   ALLOWANCE_CHOICES,
@@ -53,10 +53,10 @@ export function InstallPage({ apps, pause }: { apps: AppFindings[]; pause?: numb
     setWritten(null)
   }
 
-  const problems = [
-    ...answerProblems(findings, answers),
-    ...(answers.look === 'default' ? lookProblems(look) : []),
-  ]
+  // The default look's four choices travel with the answers only while that look is chosen.
+  const given = { ...answers, defaultLook: answers.look === 'default' ? look : undefined }
+  const problems = answerProblems(findings, given)
+  const handover = `/lumane:install\n${answersText(given)}`
   const shownLook =
     answers.look === 'plain' ? 'plain' : answers.look === 'own' ? findings.design?.look : look
   const tone = typeof answers.tone === 'object' ? 'own' : answers.tone
@@ -287,12 +287,12 @@ export function InstallPage({ apps, pause }: { apps: AppFindings[]; pause?: numb
                   {answers.look === 'own' ? ` in ${findings.name}’s own design` : ''}, and opens a
                   pull request for your yes.
                 </p>
-                <pre className="install-handover">{`/lumane:install\n${answersText(answers)}`}</pre>
+                <pre className="install-handover">{handover}</pre>
                 <div className="install-row">
                   <button
                     type="button"
                     className="go"
-                    onClick={() => void copy(`/lumane:install\n${answersText(answers)}`, 'answers')}
+                    onClick={() => void copy(handover, 'answers')}
                   >
                     {copied === 'answers' ? 'Copied' : 'Copy for the coding agent'}
                   </button>

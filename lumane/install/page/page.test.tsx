@@ -95,6 +95,20 @@ describe('the install page', () => {
     expect(screen.getByRole('button', { name: 'Write the pack' })).toBeEnabled()
   })
 
+  it('hands over the default look’s four choices as previewed', async () => {
+    const user = show()
+    await user.click(screen.getByRole('button', { name: /LUMANE’s default look/ }))
+    await user.click(
+      within(screen.getByRole('group', { name: 'Light or dark' })).getByRole('button', {
+        name: 'Dark',
+      }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Write the pack' }))
+    expect(screen.getByRole('status').querySelector('.install-handover')?.textContent).toContain(
+      "Look: default (colour #3949AB; font 'Figtree Variable', 'Figtree', system-ui, sans-serif; corners soft; scheme dark)",
+    )
+  })
+
   it('stops a pack that is not ready before anything is written', async () => {
     const user = show()
     await user.click(screen.getByRole('button', { name: 'Type your own' }))

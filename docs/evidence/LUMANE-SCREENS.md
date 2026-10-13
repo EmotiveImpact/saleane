@@ -36,11 +36,13 @@ Built into one file with `npm run lumane:page` and opened in Chromium at 1440 an
 
 `/lumane:install` is a Claude Code plugin in `lumane/install/plugin`, listed by the repository's own marketplace file (`.claude-plugin/marketplace.json`). `claude plugin validate ./lumane/install/plugin --strict` and `claude plugin validate ./` both pass. Its instructions ask the same five questions as the page (a test reads them from both), in two rounds because a coding agent's question tool takes four at a time, and keep the rules that never bend: a draft pull request only, never merged or deployed, no keys, and changes that only prepare. `pack-template.md` shows the agent exactly the pack and check this installer writes, and a test keeps it identical to `examples/caleane.pack.ts`.
 
+After a review on 13 October 2026, three things were put right, each with a test. The agent copies into an app only what runs there: every test file and the installer's own page, pretend apps and plugin are left out, and a test walks what is left and finds it imports only React and Zod and reaches nothing left out. The agent offers an app's own design only when it found one, and splits the pathways so no question has more than four options. The install page now hands over the default look's four choices (`Look: default (colour #3949AB; font …; corners soft; scheme dark)`), and the agent builds from them, so what was previewed is what gets built.
+
 The installer has not yet been run by a coding agent on a real second app; that needs one.
 
 ## Automated checks
 
-`npm run check` passed: lint, strict TypeScript, the application, server and backup builds, 2,060 application tests and 650 server tests (2 skipped, as before). `npm run format:check` passed.
+`npm run check` passed: lint, strict TypeScript, the application, server and backup builds, 2,104 application tests and 650 server tests (2 skipped, as before), after bringing in main on 13 October 2026. `npm run format:check` passed.
 
 - `lumane/react/parts.test.tsx`: the approval card shows done only once saved, answers once however fast the taps (a double tap and a Not now while saving reach the app once), goes back to waiting when saving fails and saves on the second try, never shows a Not now as done, and puts its behaviour on the app's own button while keeping the app's class and click. The question box asks the trimmed question and empties, never asks an empty one or while busy, and can be held by the app. The conversation says "You asked" or "You said", keeps the newest line in view on new lines and when a card changes, and not on opening. The talk bar counts down ("Talking · 4:05 left") without interrupting, and Stop and Talk cannot be pressed twice. The usage line and its near and reached states. The default look's colours read clearly on the page and on a waiting change's tint, in light and dark, and a grey that would not read is named.
 - `lumane/react/panel.test.tsx`: the two pretend apps above.

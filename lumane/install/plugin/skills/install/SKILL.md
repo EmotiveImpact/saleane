@@ -60,7 +60,8 @@ Three short lines, then the questions. For example:
 
 If `$ARGUMENTS` holds a block that starts with `LUMANE answers`, it was copied from the LUMANE
 install page. Show those answers back in five lines and ask one question, "Use these answers?",
-with Yes and Change something. On yes, skip step 3.
+with Yes and Change something. On yes, skip step 3. A `Look: default (...)` line carries the
+default look's four choices: its colour, font, corners and scheme.
 
 ## 3. Ask the five questions
 
@@ -80,21 +81,31 @@ recommend, and list it first.
    amounts (recommended)" (300 typed questions and 30 minutes of talking), "More" (1,000 typed
    questions and 120 minutes of talking). Typing their own means their own amounts. Say that
    LUMANE stops before going over, so it never costs more than planned.
-4. Header `Look`: "How should it look?" Options: "[App]'s own design (recommended)" (your
-   colours, fonts and corners), "LUMANE's default look" (set by a colour, a font, the corners
-   and light or dark), "Plain parts only" (no styling at all; your team dresses them).
+4. Header `Look`: "How should it look?" When step 1 found the app's design, the options are
+   "[App]'s own design (recommended)" (your colours, fonts and corners), "LUMANE's default look"
+   (set by a colour, a font, the corners and light or dark) and "Plain parts only" (no styling at
+   all; your team dresses them). When it found none, leave out the app's own design and recommend
+   LUMANE's default look.
 
 **Second call**, the pathways, with `multiSelect: true`. With four or fewer, one question,
-header `Pathways`: "Which pathways should it have?" With more, two questions: header `Look ups`
-for the `read` pathways and header `Changes` for the `action` pathways. Each option's
-description says "Looks only." or "Waits for a person to approve it."
+header `Pathways`: "Which pathways should it have?" With more, split them so no question has more
+than four options: the `read` pathways under header `Look ups` and the `action` pathways under
+header `Changes`, and when one kind has more than four, continue it in `Look ups 2` or
+`Changes 2`. Ask up to four of these questions in a call, and make another call for the rest.
+Each option's description says "Looks only." or "Waits for a person to approve it."
 
 ## 4. Bring LUMANE into the app
 
 If the app already has LUMANE (a `lumane/` folder, or a `lumane` package), use it. Otherwise copy
 the `lumane/` folder from https://github.com/EmotiveImpact/saleane at one fixed commit, unchanged,
-leaving out `lumane/install/plugin`, and note the commit in the pull request. LUMANE needs `react`
-and `zod`; reuse the versions the app has. Import it the way the app imports its own folders.
+and note the commit in the pull request. Copy only what runs in the app, leaving out:
+
+- every test file (`*.test.ts` and `*.test.tsx`);
+- `lumane/install/plugin/`, `lumane/install/page/`, `lumane/install/examples/` and
+  `lumane/install/examples.ts`, which are this installer's own tools and pretend apps.
+
+What is left needs only `react` and `zod`; reuse the versions the app has. Import it the way the
+app imports its own folders.
 
 ## 5. Write the pack
 
@@ -152,8 +163,9 @@ it is an AI and that changes wait for approval. Choose by the Look answer:
   ```
 
 - **LUMANE's default look**: `<AskPanel name="Ask [Name]" look={{ colour, font, corners, scheme }}
-transport={...} />`, importing `lumane/react/look.css` once. Start from the app's main colour
-  and font.
+transport={...} />`, importing `lumane/react/look.css` once. Use the four choices from the
+  install page's `Look: default (...)` line when there is one; otherwise start from the app's
+  main colour and font.
 - **Plain parts only**: `<AskPanel look="plain" ... />` with no stylesheet.
 
 Look at it at a wide screen and at a phone's width (390 pixels) before going on.

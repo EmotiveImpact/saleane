@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { dirname, join, relative, resolve, sep } from 'node:path'
 import { format, resolveConfig } from 'prettier'
 import { SkillRefusal, packProblems } from '..'
 import type { Pack, Skill } from '..'
@@ -56,6 +56,11 @@ describe('the five questions', () => {
       if (!q.multiple) expect(q.options[0].recommended).toBe(true)
     }
     expect(questions[0].options.map((o) => o.title)).toEqual(['Ask Caleane', 'Ask Cal'])
+    // Neither asks more than four options at once, and only offers a design that was found.
+    expect(skillFile).toContain('so no question has more\nthan four options')
+    expect(skillFile).toContain(
+      'When it found none, leave out the app’s own design'.replace('’', "'"),
+    )
     expect(questions[2].options.map((o) => o.about)).toEqual([
       'Looks only.',
       'Looks only.',
@@ -128,6 +133,35 @@ describe('the answers', () => {
     expect(readAnswers(`/lumane:install ${text}`)).toEqual(answers)
     expect(readAnswers('Install it please')).toBeNull()
     expect(readAnswers(text.replace('Look: own', 'Look: purple'))).toBeNull()
+  })
+
+  it('carry the default look’s four choices, so the coding agent builds what was previewed', () => {
+    const answers: InstallAnswers = {
+      ...recommendedAnswers(TALLY),
+      defaultLook: {
+        colour: '#6B3FA0',
+        font: "'Newsreader', Georgia, serif",
+        corners: 'round',
+        scheme: 'dark',
+      },
+    }
+    const text = answersText(answers)
+    expect(text).toContain(
+      "Look: default (colour #6B3FA0; font 'Newsreader', Georgia, serif; corners round; scheme dark)",
+    )
+    expect(readAnswers(text)).toEqual(answers)
+    // A bare "default", as a person might type it, leaves the choices to the coding agent.
+    expect(readAnswers(text.replace(/Look: .*/, 'Look: default'))).toEqual({
+      ...answers,
+      defaultLook: undefined,
+    })
+    expect(answerProblems(TALLY, answers)).toEqual([])
+    expect(
+      answerProblems(TALLY, {
+        ...answers,
+        defaultLook: { ...answers.defaultLook!, colour: '#777' },
+      }),
+    ).toEqual(['Writing on this colour would be hard to read. Choose a deeper or a paler one.'])
   })
 
   it('keep the AI’s cost inside what each account includes', () => {
@@ -215,6 +249,43 @@ describe('the coding agent’s installer', () => {
     expect(existsSync(join(process.cwd(), entry.source, 'skills', 'install', 'SKILL.md'))).toBe(
       true,
     )
+  })
+
+  it('copies into an app only what runs there, which needs nothing but React and Zod', () => {
+    const left = [
+      'lumane/install/plugin/',
+      'lumane/install/page/',
+      'lumane/install/examples/',
+      'lumane/install/examples.ts',
+    ]
+    for (const path of [...left, '`*.test.ts`', '`*.test.tsx`'])
+      expect(skillFile.replace(/\s+/g, ' '), `the coding agent leaves out ${path}`).toContain(path)
+    const root = process.cwd()
+    const copied = (readdirSync(join(root, 'lumane'), { recursive: true }) as string[])
+      .map((f) => join('lumane', f).split(sep).join('/'))
+      .filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f))
+      .filter((f) => !left.some((l) => f === l || f.startsWith(l)))
+    expect(copied).toContain('lumane/react/panel.tsx')
+    for (const file of copied) {
+      const source = readFileSync(join(root, file), 'utf8')
+      for (const [, path] of source.matchAll(/^(?:import .*|\}|export .*) from '([^']+)'/gm)) {
+        if (!path.startsWith('.')) {
+          expect(['react', 'zod'], `${file} imports ${path}`).toContain(path)
+          continue
+        }
+        // A file of its own that it reaches must be copied too. (A path with no file behind it is
+        // the text of a pack the installer writes, not an import.)
+        const target = relative(root, resolve(root, dirname(file), path))
+          .split(sep)
+          .join('/')
+        const reached = ['.ts', '.tsx', '/index.ts'].map((end) => target + end)
+        if (reached.some((f) => existsSync(join(root, f))))
+          expect(
+            reached.some((f) => copied.includes(f)),
+            `${file} reaches ${path}, which is left out`,
+          ).toBe(true)
+      }
+    }
   })
 
   it('shows the agent exactly the pack and the check this installer writes', () => {

@@ -1,3 +1,5 @@
+import { lookProblems } from '../react/look'
+import type { Look } from '../react/look'
 import type { AppFindings } from './findings'
 
 /** The five answers that set LUMANE up in an app. */
@@ -10,6 +12,8 @@ export type InstallAnswers = {
   /** What each account includes each month. */
   allowances: { typed: number; talkMinutes: number }
   look: 'own' | 'default' | 'plain'
+  /** With LUMANE's default look, its four choices, so the coding agent builds what was previewed. */
+  defaultLook?: Look
 }
 
 export type Tone = keyof typeof TONES
@@ -180,6 +184,8 @@ export function answerProblems(findings: AppFindings, answers: InstallAnswers): 
     problems.push('Talking minutes need to be a whole number from 0 to 10,000.')
   if (answers.look === 'own' && !findings.design)
     problems.push(`LUMANE did not find ${findings.name}’s design, so choose another look.`)
+  if (answers.look === 'default' && answers.defaultLook)
+    problems.push(...lookProblems(answers.defaultLook))
   return problems
 }
 
@@ -195,9 +201,19 @@ export function answersText(answers: InstallAnswers) {
     `Tone: ${tone}`,
     `Pathways: ${answers.pathways.join(', ')}`,
     `Allowances: ${answers.allowances.typed} typed questions, ${answers.allowances.talkMinutes} talking minutes`,
-    `Look: ${answers.look}`,
+    `Look: ${lookText(answers)}`,
   ].join('\n')
 }
+
+/** "own", "plain", or "default" with its four choices, which no font name can confuse. */
+function lookText({ look, defaultLook }: InstallAnswers) {
+  if (look !== 'default' || !defaultLook) return look
+  const { colour, font, corners, scheme } = defaultLook
+  return `default (colour ${colour}; font ${font}; corners ${corners}; scheme ${scheme})`
+}
+
+const LOOK_TEXT =
+  /^default \(colour (#[0-9a-f]{3}|#[0-9a-f]{6}); font ([^;]+); corners (square|soft|round); scheme (light|dark)\)$/i
 
 /** Reads a block written by `answersText`; `null` when it is not one. */
 export function readAnswers(text: string): InstallAnswers | null {
@@ -212,8 +228,10 @@ export function readAnswers(text: string): InstallAnswers | null {
   const tone = field('Tone')
   const pathways = field('Pathways')
   const allowances = field('Allowances')?.match(/^(\d+) typed questions, (\d+) talking minutes$/)
-  const look = field('Look')
-  if (!name || !tone || pathways === undefined || !allowances || !look) return null
+  const lookLine = field('Look')
+  if (!name || !tone || pathways === undefined || !allowances || !lookLine) return null
+  const chosen = lookLine.match(LOOK_TEXT)
+  const look = chosen ? 'default' : lookLine
   if (look !== 'own' && look !== 'default' && look !== 'plain') return null
   const ownTone = tone.startsWith('own: ') ? { own: tone.slice(5) } : null
   if (!ownTone && !(tone in TONES)) return null
@@ -223,6 +241,14 @@ export function readAnswers(text: string): InstallAnswers | null {
     pathways: pathways ? pathways.split(',').map((p) => p.trim()) : [],
     allowances: { typed: Number(allowances[1]), talkMinutes: Number(allowances[2]) },
     look,
+    ...(chosen && {
+      defaultLook: {
+        colour: chosen[1],
+        font: chosen[2].trim(),
+        corners: chosen[3].toLowerCase() as Look['corners'],
+        scheme: chosen[4].toLowerCase() as Look['scheme'],
+      },
+    }),
   }
 }
 
