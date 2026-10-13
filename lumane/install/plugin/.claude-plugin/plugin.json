@@ -1,0 +1,10 @@
+{
+  "name": "lumane",
+  "version": "0.1.0",
+  "description": "Installs LUMANE in an app as \"Ask\" and the app's name: five questions, a checked pack, the Ask button and panel in the app's own design, and a pull request for your yes.",
+  "author": {
+    "name": "EmotiveImpact"
+  },
+  "homepage": "https://github.com/EmotiveImpact/saleane/tree/main/lumane",
+  "keywords": ["assistant", "ai", "installer"]
+}

@@ -63,5 +63,59 @@ Lumane owns the parts that are the same for every app:
   each proposal until a person decides. SALEANE keeps them in its database, so a restart loses
   nothing the team was about to approve.
 
-Rules: nothing in this folder imports from the app that uses it, and nothing here knows about
-salons, bookings or money.
+## Screen parts (`react/`)
+
+The parts every app's Ask needs on screen, with the behaviour that must be the same everywhere
+and no look of their own:
+
+- **The conversation** (`Conversation`, `Message`, `Thinking`, `Starter`): screen readers hear
+  each new line without being interrupted and are told whether a question was typed or said;
+  the newest line stays in view as lines arrive and as a card changes, and opening the panel
+  leaves the scroll alone.
+- **The approval card** (`ApprovalCard`): one change waiting for a person. It takes one answer
+  at a time however fast the taps, shows done only once the app says the change is saved, goes
+  back to waiting if saving fails so the person can try again, and never shows a "not now" as
+  done.
+- **The question box** (`Composer`): asks the trimmed question and empties, never asks an empty
+  one or a second while an answer is on its way.
+- **Talking** (`TalkButton`, `TalkBar`): cannot start twice, counts down without interrupting a
+  screen reader each second, and cannot be stopped twice.
+- **The usage line** (`UsageLine`): "3 of 300 questions used this month. 4 of 30 talking minutes
+  used.", marked near at four fifths and reached at the limit.
+
+Each app dresses the parts in its own design: through class names, and through `asChild`, which
+puts a part's behaviour on the app's own button (`<ApprovalCard.Approve asChild><Button>…`).
+SALEANE's Ask panel is built this way and looks as it did. An app without a design system takes
+`AskPanel`, the whole panel made of the parts, in LUMANE's default look (`LookScope` and
+`look.css`), set by four choices: a colour, a font, the corners, and light or dark. Colours for
+writing are worked out to read clearly (`lookProblems` says when a colour would not). With
+`look="plain"` the parts carry no look at all. Words the parts write themselves are plain
+British English, and an app changes any of them with `AskWords`.
+
+The parts are our own, about 1,100 lines with no dependency beyond React. We looked at
+assistant-ui (MIT) first: it would have added about 114 KB (compressed) to every app's page and
+its own way of holding the conversation, where LUMANE keeps the conversation and every prepared
+change on the app's server. No code was copied from it.
+
+## The installer (`install/`)
+
+LUMANE installs itself in an app with five questions: the name, how it sounds, the pathways,
+what each account includes and the look (`installQuestions`). From the answers it writes the
+pack (`packSource`, the file `src/lumane.pack.ts`) with every pathway refusing plainly until it
+is connected to the app's code, and the check that stays in the app's tests (`packTestSource`).
+`packFrom` builds the same pack in memory so it can be checked with `packProblems` before
+anything is written. `examples/caleane.pack.ts` is what it writes for a pretend calendar app.
+
+- **In a coding agent:** `/lumane:install` (`install/plugin`, a Claude Code plugin). It reads the
+  app, asks the five questions, writes and checks the pack, connects the pathways, adds the Ask
+  button and panel in the app's design and opens a draft pull request for a person's yes. It
+  never merges, deploys or adds a key. To use it: `/plugin marketplace add EmotiveImpact/saleane`,
+  then `/plugin install lumane@saleane`.
+- **In a chat app:** the install page (`install/page`, built into one file by
+  `npm run lumane:page`) asks the same questions with a live preview of Ask that follows every
+  choice. It writes the real pack and runs the real check, then gives the person the answers to
+  paste after `/lumane:install`, since a page cannot open a pull request itself.
+
+Rules: nothing in this folder imports from the app that uses it, and the engine and its parts
+know nothing about salons, bookings or money. The installer's pretend apps (a calendar and an
+invoicing app) are examples for its page and tests only.

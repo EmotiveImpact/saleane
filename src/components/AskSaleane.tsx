@@ -1,8 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
 import { Check, Mic, Sparkles, Square } from 'lucide-react'
 import { decide, usedOf } from '../../lumane'
 import type { PendingProposal, Usage } from '../../lumane'
+import {
+  ApprovalCard,
+  Composer,
+  Conversation,
+  Message,
+  Starter,
+  TalkBar,
+  TalkButton,
+  Thinking,
+  UsageLine,
+} from '../../lumane/react'
+import type { Decided, UsageItem } from '../../lumane/react'
 import { ASK_WAIT_MS, HISTORY_TURNS, askSaleane } from '../assistant/ask'
 import { ALLOWANCES } from '../assistant/saleane'
 import { TALK_START_WAIT_MS } from '../assistant/talk'
@@ -19,7 +30,8 @@ import './ask-saleane.css'
 import { ASK_NAME } from '../assistant/name'
 
 type Meter = { used: number; allowance: number; talk?: { used: number; allowance: number } }
-type Suggestion = { id: string; summary: string; state: 'waiting' | 'saving' | 'done' | 'declined' }
+/** A change Ask prepared. Whether it waits, is saving or was decided is kept by its card. */
+type Suggestion = { id: string; summary: string }
 type Entry =
   | { id: string; from: 'you'; text: string; spoken?: boolean }
   | { id: string; from: 'saleane'; text: string; suggestions: Suggestion[] }
@@ -55,7 +67,8 @@ const usageKey = (orgId: string) => `saleane.ask-usage.v1.${orgId}`
  * Ask Saleane, the studio assistant. In the browser demo it runs here in test mode against the
  * demo record; signed in, the server answers, with Claude once SALEANE has its key (NEXT-12), and
  * keeps the studio's allowance. Anything that changes the record is a suggestion until approved,
- * and is then saved like any desk change.
+ * and is then saved like any desk change. The panel is built from LUMANE's screen parts, dressed
+ * in SALEANE's own design.
  */
 export function AskSaleane({ onClose }: { onClose: () => void }) {
   const { state, mode, slug, session, role, commit, today } = useStore()
@@ -101,7 +114,6 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
   // Signed in, the server keeps this conversation's last few lines and reads only those, never
   // lines sent from here. Its id is named here, so a talk started first joins the same one.
   const conversation = useRef<string>(crypto.randomUUID())
-  const end = useRef<HTMLDivElement | null>(null)
   const base = orgId ? `/api/workspaces/${encodeURIComponent(orgId)}/assistant` : ''
 
   useEffect(() => {
@@ -156,10 +168,6 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
     },
     [base],
   )
-
-  useEffect(() => {
-    end.current?.scrollIntoView?.({ block: 'end' })
-  }, [entries])
 
   async function ask(question: string) {
     const trimmed = question.trim()
@@ -216,11 +224,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
           id: `${id}-reply`,
           from: 'saleane',
           text: answer.text,
-          suggestions: answer.proposals.map((p) => ({
-            id: p.id,
-            summary: p.summary,
-            state: 'waiting' as const,
-          })),
+          suggestions: answer.proposals.map((p) => ({ id: p.id, summary: p.summary })),
         },
       ])
     } catch (caught) {
@@ -246,11 +250,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
             id: `${you}-reply`,
             from: 'saleane',
             text: turn.answer,
-            suggestions: turn.proposals.map((p) => ({
-              id: p.id,
-              summary: p.summary,
-              state: 'waiting' as const,
-            })),
+            suggestions: turn.proposals.map((p) => ({ id: p.id, summary: p.summary })),
           })
       }
       return next.length === list.length ? list : next
@@ -371,21 +371,9 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
     }
   }
 
-  const mark = (id: string, next: Suggestion['state']) =>
-    setEntries((list) =>
-      list.map((e) =>
-        e.from === 'saleane'
-          ? {
-              ...e,
-              suggestions: e.suggestions.map((s) => (s.id === id ? { ...s, state: next } : s)),
-            }
-          : e,
-      ),
-    )
-
-  async function decide(id: string, approve: boolean) {
+  /** Approves or turns down a suggestion, and says what its card shows next. */
+  async function decide(id: string, approve: boolean): Promise<Decided> {
     setError('')
-    mark(id, 'saving')
     // Signed in, the server keeps an approval until its change is saved, so an approval can be
     // tried again if its own request or the save after it fails, even when the answer never came.
     let retry = false
@@ -402,35 +390,35 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
           throw new Error('This suggestion has expired. Ask again.')
         }
         // Saved already, from another tab or before the connection dropped: nothing to save again.
-        if (r.outcome === 'applied') {
-          mark(id, 'done')
-          return
-        }
+        if (r.outcome === 'applied') return 'done'
         command = r.command
       } else {
         const proposal = held.current.get(id)
         held.current.delete(id)
         command = demoDecision(proposal, approve)
       }
-      if (!approve) {
-        mark(id, 'declined')
-        return
-      }
+      if (!approve) return 'declined'
       const result = await commit(command!)
       if (!result.ok) throw new Error(result.error)
-      mark(id, 'done')
+      return 'done'
     } catch (caught) {
       // A suggestion the server no longer has (expired, turned down) cannot be tried again.
       const gone = caught instanceof ApiError && caught.status === 404
-      mark(id, retry && !gone ? 'waiting' : 'declined')
       setError(caught instanceof Error ? caught.message : 'This change could not be saved.')
+      return retry && !gone ? 'waiting' : 'declined'
     }
   }
 
-  const submit = (event: FormEvent) => {
-    event.preventDefault()
-    void ask(text)
-  }
+  // The usage line: typed questions, and talking minutes while the studio can talk.
+  const usage: UsageItem[] = meter
+    ? [
+        { used: meter.used, allowance: meter.allowance, unit: 'uses', noun: 'questions' },
+        // While talking, its whole time is held, so the countdown shows what is left instead.
+        ...(canTalk && !talk && meter.talk
+          ? [{ ...meter.talk, unit: 'seconds' as const, noun: 'talking minutes' }]
+          : []),
+      ]
+    : []
 
   return (
     <Modal
@@ -448,7 +436,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
           {canTalk &&
             ' When you talk, your voice goes to OpenAI, which listens and speaks the answers Claude gives.'}
         </p>
-        <div className="ask-thread" aria-live="polite">
+        <Conversation className="ask-thread" follow={entries} endClassName="ask-end">
           {!entries.length && opening.length > 0 && (
             <div className="ask-nudges">
               <span className="ask-name">
@@ -458,9 +446,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
                 {opening.map((n) => (
                   <li key={n.id}>
                     <p>{n.text}</p>
-                    <button className="ask-starter" onClick={() => void ask(n.ask)}>
-                      {n.ask}
-                    </button>
+                    <Starter className="ask-starter" text={n.ask} onAsk={(q) => void ask(q)} />
                   </li>
                 ))}
               </ul>
@@ -469,67 +455,66 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
           {!entries.length && (
             <div className="ask-starters">
               {STARTERS.map((starter) => (
-                <button key={starter} className="ask-starter" onClick={() => void ask(starter)}>
-                  {starter}
-                </button>
+                <Starter
+                  key={starter}
+                  className="ask-starter"
+                  text={starter}
+                  onAsk={(q) => void ask(q)}
+                />
               ))}
             </div>
           )}
           {entries.map((entry) =>
             entry.from === 'you' ? (
-              <p key={entry.id} className="ask-bubble ask-you">
-                {entry.spoken && <Mic size={13} aria-hidden="true" className="ask-spoken" />}
-                <span className="sr-only">{entry.spoken ? 'You said: ' : 'You asked: '}</span>
+              <Message
+                key={entry.id}
+                from="person"
+                spoken={entry.spoken}
+                className="ask-bubble ask-you"
+                icon={entry.spoken && <Mic size={13} aria-hidden="true" className="ask-spoken" />}
+              >
                 {entry.text}
-              </p>
+              </Message>
             ) : (
-              <div key={entry.id} className="ask-bubble ask-reply">
+              <Message key={entry.id} from="assistant" className="ask-bubble ask-reply">
                 <span className="ask-name">
                   <Sparkles size={14} aria-hidden="true" /> SALEANE
                 </span>
                 <p>{entry.text}</p>
                 {entry.suggestions.map((s) => (
-                  <div key={s.id} className="ask-suggestion">
-                    <p>{s.summary}</p>
-                    {s.state === 'waiting' || s.state === 'saving' ? (
-                      <div className="ask-actions">
-                        <Button
-                          disabled={s.state === 'saving'}
-                          onClick={() => void decide(s.id, true)}
-                        >
-                          Approve
-                        </Button>
-                        <Button
-                          variant="quiet"
-                          disabled={s.state === 'saving'}
-                          onClick={() => void decide(s.id, false)}
-                        >
-                          Not now
-                        </Button>
-                      </div>
-                    ) : (
-                      <p className="ask-outcome" role="status">
-                        {s.state === 'done' ? (
-                          <>
-                            <Check size={14} aria-hidden="true" /> Done. Saved to your records.
-                          </>
-                        ) : (
-                          'Left as it was.'
-                        )}
-                      </p>
-                    )}
-                  </div>
+                  <ApprovalCard.Root
+                    key={s.id}
+                    className="ask-suggestion"
+                    onDecide={(approve) => decide(s.id, approve)}
+                  >
+                    <ApprovalCard.Summary>{s.summary}</ApprovalCard.Summary>
+                    <ApprovalCard.Actions className="ask-actions">
+                      <ApprovalCard.Approve asChild>
+                        <Button>Approve</Button>
+                      </ApprovalCard.Approve>
+                      <ApprovalCard.Decline asChild>
+                        <Button variant="quiet">Not now</Button>
+                      </ApprovalCard.Decline>
+                    </ApprovalCard.Actions>
+                    <ApprovalCard.Outcome
+                      className="ask-outcome"
+                      done={
+                        <>
+                          <Check size={14} aria-hidden="true" /> Done. Saved to your records.
+                        </>
+                      }
+                    />
+                  </ApprovalCard.Root>
                 ))}
-              </div>
+              </Message>
             ),
           )}
           {(busy || talk?.thinking) && (
-            <p className="ask-bubble ask-reply ask-thinking" role="status">
+            <Thinking className="ask-bubble ask-reply ask-thinking">
               Looking at your records…
-            </p>
+            </Thinking>
           )}
-          <div ref={end} className="ask-end" />
-        </div>
+        </Conversation>
         {error && (
           <p role="alert" className="ask-error">
             {error}
@@ -540,45 +525,43 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
         </p>
         <div className="ask-footer">
           {talk && (
-            <div className="ask-talk">
-              <span className="ask-talk-dot" aria-hidden="true" />
-              <p>
-                {talk.ending ? 'Ending the talk…' : 'Talking'}
-                {!talk.ending && (
-                  <span className="ask-talk-left" role="timer" aria-live="off">
-                    {' '}
-                    · {clockLabel(talk.secondsLeft)} left
-                  </span>
-                )}
-              </p>
-              <Button variant="secondary" disabled={talk.ending} onClick={() => void stopTalk()}>
-                <Square size={14} aria-hidden="true" /> Stop
-              </Button>
-            </div>
+            <TalkBar.Root className="ask-talk" ending={talk.ending}>
+              <TalkBar.Dot className="ask-talk-dot" />
+              <TalkBar.Status>
+                <TalkBar.Countdown className="ask-talk-left" seconds={talk.secondsLeft}>
+                  {(time) => <> · {time} left</>}
+                </TalkBar.Countdown>
+              </TalkBar.Status>
+              <TalkBar.Stop asChild onStop={() => void stopTalk()}>
+                <Button variant="secondary">
+                  <Square size={14} aria-hidden="true" /> Stop
+                </Button>
+              </TalkBar.Stop>
+            </TalkBar.Root>
           )}
-          <form className="ask-form" onSubmit={submit}>
-            <label className="sr-only" htmlFor="ask-saleane-text">
-              Your question
-            </label>
-            <input
-              id="ask-saleane-text"
-              value={text}
-              maxLength={500}
-              autoComplete="off"
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Ask about today or a client…"
-            />
-            <Button type="submit" disabled={busy || !text.trim()}>
-              Ask
-            </Button>
+          <Composer.Root
+            className="ask-form"
+            onAsk={(question) => void ask(question)}
+            busy={busy}
+            value={text}
+            onValueChange={setText}
+            inputId="ask-saleane-text"
+          >
+            <Composer.Label />
+            <Composer.Input placeholder="Ask about today or a client…" />
+            <Composer.Send asChild>
+              <Button>Ask</Button>
+            </Composer.Send>
             {canTalk && !talk && (
-              <Button variant="secondary" disabled={starting} onClick={() => void startTalk()}>
-                <Mic size={16} aria-hidden="true" />
-                {/* On a phone the microphone alone shows it, so the question box keeps its room. */}
-                <span className="ask-talk-label">{starting ? 'Starting…' : 'Talk'}</span>
-              </Button>
+              <TalkButton asChild starting={starting} onStart={() => void startTalk()}>
+                <Button variant="secondary">
+                  <Mic size={16} aria-hidden="true" />
+                  {/* On a phone the microphone alone shows it, so the question box keeps its room. */}
+                  <span className="ask-talk-label">{starting ? 'Starting…' : 'Talk'}</span>
+                </Button>
+              </TalkButton>
             )}
-          </form>
+          </Composer.Root>
           {canTalk && !talk && (
             <label className="ask-voice">
               Voice
@@ -598,16 +581,7 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
               </Select>
             </label>
           )}
-          {meter && (
-            <p className="ask-meter">
-              {meter.used} of {meter.allowance} questions used this month.
-              {/* While talking, its whole time is held, so the countdown shows what is left instead. */}
-              {canTalk &&
-                !talk &&
-                meter.talk &&
-                ` ${Math.ceil(meter.talk.used / 60)} of ${Math.floor(meter.talk.allowance / 60)} talking minutes used.`}
-            </p>
-          )}
+          {meter && <UsageLine className="ask-meter" items={usage} />}
         </div>
       </div>
     </Modal>
@@ -622,12 +596,6 @@ function meterFrom(usage: ServerUsage): Meter {
       ? {}
       : { talk: { used: usage.used.talkSeconds ?? 0, allowance: usage.allowance.talkSeconds } }),
   }
-}
-
-/** Minutes and seconds, as a talk's countdown shows them: "4:05". */
-function clockLabel(seconds: number) {
-  const whole = Math.max(0, Math.round(seconds))
-  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`
 }
 
 function demoMeter(orgId: string): Meter {

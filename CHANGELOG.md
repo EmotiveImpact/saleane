@@ -42,6 +42,18 @@ Released entries describe observed implementation. An explicitly in-progress ent
 - A package's last day in another year now shows its year ("use by 30 June 2027").
 - The help guide, now "Bring clients, visits and gift cards across from another system", describes the new step.
 
+## 2026-10-11 · Ask's screen parts, for any app's design, and LUMANE's installer
+
+**Status: built locally on 11 October 2026 and checked in a browser; no screen in SALEANE looks different. The installer has been tried only on two pretend apps.** The owner approved stage 2 and the installer on 11 October 2026. [Evidence](docs/evidence/LUMANE-SCREENS.md).
+
+- The Ask panel's working parts now belong to LUMANE: the conversation, the approval card, the question box, the talk button and bar, and the usage line. They carry no look of their own, so any app dresses them in its own design. SALEANE's Ask panel is built from them and looks exactly as it did; the before and after pictures match.
+- The approval card takes one answer at a time, however fast someone taps, and only says "Done" once the change has saved. If saving fails, Approve comes back so they can try again.
+- An app without a design system can take LUMANE's own look, set by four choices: a colour, a font, the corners, and light or dark. Writing in the chosen colour is darkened or lightened until it reads clearly.
+- LUMANE can now be installed in another app. In a coding agent, `/lumane:install` reads the app, asks five questions (the name, how it sounds, the pathways, what each account includes and the look), writes and checks the pack, adds the Ask button and panel in the app's design and opens a pull request for a person's yes. It never merges, deploys or adds a key.
+- An install page asks the same five questions with a live preview of Ask that follows every choice, writes the real pack, checks it, and gives the answers to paste into a coding agent, including the default look's colour, font, corners and light or dark when that look is chosen. `npm run lumane:page` builds it as one file.
+- The coding agent copies into an app only what runs there, leaving out LUMANE's tests and the installer's own tools, so the app needs nothing beyond React and Zod. It offers an app's own design only when it found one, and never asks more than four choices at once.
+- We looked at building the parts on assistant-ui and chose our own instead: it would have added about 114 KB to every app's page for parts that need far less.
+
 ## 2026-10-11 · LUMANE hardened: nothing lost, nothing claimed, every turn on record
 
 **Status: built locally on 11 October 2026, in test mode; the eval cases are written but not yet run against the real Claude, which needs SALEANE's Anthropic key.** The owner said yes to the four fixes in the study on 11 October 2026. [Evidence](docs/evidence/LUMANE-HARDENING.md).

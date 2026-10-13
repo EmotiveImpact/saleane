@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { z } from 'zod'
 import {
   BrainError,
@@ -377,18 +377,35 @@ describe('Lumane allowances', () => {
 describe('Lumane boundary', () => {
   it('imports nothing from the app that uses it', () => {
     const folder = join(process.cwd(), 'lumane')
-    for (const file of readdirSync(folder).filter((f) => f.endsWith('.ts'))) {
+    const files = (readdirSync(folder, { recursive: true }) as string[]).filter((f) =>
+      /\.tsx?$/.test(f),
+    )
+    expect(files).toContain(join('react', 'approval.tsx'))
+    const packages = [
+      'zod',
+      'vitest',
+      'react',
+      'prettier',
+      'react-dom/client',
+      'vite',
+      '@vitejs/plugin-react',
+      '@testing-library/react',
+      '@testing-library/user-event',
+    ]
+    for (const file of files) {
       const source = readFileSync(join(folder, file), 'utf8')
       const imports = [...source.matchAll(/^(?:import .*|\}|export .*) from '([^']+)'/gm)].map(
         (m) => m[1],
       )
-      for (const path of imports)
+      for (const path of imports) {
+        // A path of its own must stay inside this folder, wherever the file sits in it.
+        const inside =
+          path.startsWith('.') && resolve(folder, dirname(file), path).startsWith(folder)
         expect(
-          ['zod', 'vitest', '.'].includes(path) ||
-            path.startsWith('./') ||
-            path.startsWith('node:'),
+          inside || packages.includes(path) || path.startsWith('node:'),
           `${file} imports ${path}`,
         ).toBe(true)
+      }
     }
   })
 })
