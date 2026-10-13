@@ -20,3 +20,7 @@ Recorded 13 October 2026 in Chromium (Playwright) against the development server
 - `src/domain/welcomeScene.test.ts`: the first open of the day plays once, nothing within the hour, "welcome back" from 60 minutes away and a new first open the next day; the doors only while an account or studio is under seven days old and never twice; closing up only after the last visit has ended and not before 16:00, once a day, and never on a day with nothing booked; the birthday on the day or within six days after, once a year, across the new year and for 29 February; the words count today's visits without cancelled ones, name who is next and their treatment, call the day "all looked after" only when every visit is finished, open the doors for a new studio or a new member, count the birthday year's finished visits only, and never use an em dash.
 - `src/components/Welcome.test.tsx`: nothing plays without a browser that can say how it feels about motion; the first open plays once and is remembered, with the greeting read once to screen readers and the film itself hidden from them; nobody who turned it off sees it; Skip, a tap and any key all start it leaving at once.
 - `server/app.test.ts`: the session carries when the account and the studio were made.
+
+## Full run
+
+After bringing in main at c27e9f8, `npm run check` passed: 234 app test files (2,031 tests) and 77 server test files (650 passed, 2 skipped), with lint, types and build clean. `npm run format:check` passed.
