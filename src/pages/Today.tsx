@@ -7,7 +7,7 @@ import { useLiveRefresh } from '../state/useLive'
 import { bookedTimeShare, dayAppointments, dueClients } from '../domain/selectors'
 import { bookedTimeDefinition } from '../components/definitions'
 import { dateLabel, money, timeLabel } from '../domain/format'
-import { Button, Metric, photos, Checkbox } from '../design'
+import { Button, Count, Metric, Tabs, photos, Checkbox, usePhoneWidth } from '../design'
 import { businessMinutes } from '../domain/operations'
 import type { Appointment, Client } from '../domain/model'
 import { Agenda } from '../components/Agenda'
@@ -15,8 +15,9 @@ import { SmartInsights } from '../components/SmartInsights'
 import { Specials } from '../components/Specials'
 import { AppointmentDialog } from '../components/AppointmentDialog'
 import { BookingDialog } from '../components/BookingDialog'
-import { NeedsYou, WaitingStrip } from '../components/NeedsYou'
+import { NeedsYou } from '../components/NeedsYou'
 import { TeamToday } from '../components/TeamToday'
+import { useTeamToday, useWaiting } from '../components/todayCounts'
 import type { BookingDefaults } from '../components/BookingDialog'
 import { FULLY_BOOKED_LINE, fullyBooked } from '../domain/moments'
 import { studioMilestone, studioMilestoneLine } from '../domain/beforeVisit'
@@ -29,6 +30,9 @@ function greeting(minutes: number) {
   if (minutes < 17 * 60) return 'Good afternoon'
   return 'Good evening'
 }
+
+/** On a phone, Today's three tabs. */
+type TodayTab = 'day' | 'needs' | 'team'
 
 const counts = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten']
 const spell = (n: number) => counts[n] ?? String(n)
@@ -60,10 +64,17 @@ export function Today() {
   const [appointmentId, setAppointmentId] = useState('')
   const [booking, setBooking] = useState<BookingDefaults | null>(null)
   const [hideCompleted, setHideCompleted] = useState(false)
+  // On a phone the day, what needs you and the team are three tabs, each with its count, in place
+  // of one long column. A computer keeps them side by side, each heading with the same count.
+  const phone = usePhoneWidth()
+  const [tab, setTab] = useState<TodayTab>('day')
+  const waiting = useWaiting().total
+  const team = useTeamToday().length
   const day = dayAppointments(state)
   const due = dueClients(state)
   const booked = day.reduce((sum, a) => sum + a.bookedPriceMinor, 0)
   const completed = day.filter((a) => a.status === 'completed').length
+  const toCome = day.length - completed
   const changed = state.appointments.filter(
     (a) => a.date === today && (a.status === 'cancelled' || a.status === 'no_show'),
   )
@@ -87,6 +98,90 @@ export function Today() {
   )
   const milestoneGuest =
     milestone && state.clients.find((c) => c.id === milestone.appointment.clientId)
+  // A new studio's first figures would all be nought; the list of first steps comes first.
+  const figures = state.appointments.length > 0 && (
+    <div className="metrics-band">
+      <Metric
+        label="Booked for today"
+        value={money(booked, state.organisation)}
+        detail="Before discounts, tax adjustments and tips"
+      />
+      <Metric
+        label="Visits"
+        value={day.length}
+        detail={`${completed} complete · ${toCome} still to come`}
+      />
+      <Metric
+        label="Time booked"
+        value={`${utilisation}%`}
+        detail="Today, of open professional hours"
+        definition={bookedTimeDefinition.map((line) => (
+          <p key={line}>{line}</p>
+        ))}
+      />
+      <Metric label="Ready to return" value={due.length} detail="Clients with no next visit" />
+    </div>
+  )
+  const dayAhead = (
+    <section className="surface schedule-surface" aria-labelledby="day-ahead-title">
+      <div className="section-heading">
+        <div>
+          <div className="day-ahead-title">
+            <h2 id="day-ahead-title">The day ahead</h2>
+            <Count n={toCome} words="to come" shown />
+          </div>
+          <p>A welcome, a little care, a reason to come back.</p>
+          {full && (
+            <p className="fully-booked-line settle-in" role="status">
+              {FULLY_BOOKED_LINE}
+            </p>
+          )}
+        </div>
+        <Link className="text-link" to="/calendar">
+          Open calendar <ArrowUpRight size={15} />
+        </Link>
+      </div>
+      <div className="schedule-toolbar">
+        <span>
+          <span className="live-dot" />
+          {day.filter((a) => a.status === 'arrived').length} in the studio
+        </span>
+        <label className="checkbox-label">
+          <Checkbox checked={hideCompleted} onChange={(e) => setHideCompleted(e.target.checked)} />
+          Hide completed
+        </label>
+      </div>
+      <Agenda
+        appointments={hideCompleted ? day.filter((a) => a.status !== 'completed') : day}
+        selectedId={appointmentId}
+        onOpen={setAppointmentId}
+        nowMinutes={nowMinutes}
+      />
+      {changed.length > 0 && (
+        <Link className="day-changes-link" to="/calendar">
+          {changed.filter((a) => a.status === 'cancelled').length} cancelled ·{' '}
+          {changed.filter((a) => a.status === 'no_show').length} missed. Review today’s changes{' '}
+          <ArrowUpRight size={14} />
+        </Link>
+      )}
+    </section>
+  )
+  const bookingPrompt = (
+    <Link className="booking-prompt" to="/booking">
+      <span className="mini-wordmark">
+        {state.organisation.name
+          .split(' ')
+          .map((n) => n[0])
+          .slice(0, 2)
+          .join('')}
+      </span>
+      <span>
+        <strong>Your booking experience</strong>
+        <small>See what your clients see</small>
+      </span>
+      <ArrowUpRight size={18} />
+    </Link>
+  )
   return (
     <>
       <section className="greeting" aria-labelledby="greeting-title">
@@ -129,99 +224,77 @@ export function Today() {
           style={{ backgroundImage: `url(${photos.today})` }}
         />
       </section>
-      <WaitingStrip />
-      {/* A new studio's first figures would all be nought; the list of first steps comes first. */}
-      {state.appointments.length > 0 && (
-        <div className="metrics-band">
-          <Metric
-            label="Booked for today"
-            value={money(booked, state.organisation)}
-            detail="Before discounts, tax adjustments and tips"
-          />
-          <Metric
-            label="Visits"
-            value={day.length}
-            detail={`${completed} complete · ${day.length - completed} still to come`}
-          />
-          <Metric
-            label="Time booked"
-            value={`${utilisation}%`}
-            detail="Today, of open professional hours"
-            definition={bookedTimeDefinition.map((line) => (
-              <p key={line}>{line}</p>
-            ))}
-          />
-          <Metric label="Ready to return" value={due.length} detail="Clients with no next visit" />
+      {!phone && figures}
+      <GetReady />
+      {phone ? (
+        <div className="today-tabs">
+          <Tabs<TodayTab>
+            label="Today"
+            value={tab}
+            onChange={setTab}
+            tabs={[
+              {
+                value: 'day',
+                label: (
+                  <>
+                    The day <Count n={toCome} words="to come" />
+                  </>
+                ),
+                text: 'The day',
+              },
+              {
+                value: 'needs',
+                label: (
+                  <>
+                    Needs you <Count n={waiting} words="waiting" attention />
+                  </>
+                ),
+                text: 'Needs you',
+              },
+              {
+                value: 'team',
+                label: (
+                  <>
+                    Team <Count n={team} words={team === 1 ? 'professional' : 'professionals'} />
+                  </>
+                ),
+                text: 'Team',
+              },
+            ]}
+          >
+            {tab === 'day' && (
+              <div className="today-tab">
+                {figures}
+                {dayAhead}
+                <BeforeVisitCard nowMinutes={nowMinutes} onOpen={setAppointmentId} />
+                <SmartInsights onBook={setBooking} />
+                <Specials />
+              </div>
+            )}
+            {tab === 'needs' && <NeedsYou />}
+            {tab === 'team' && (
+              <div className="today-tab">
+                <TeamToday />
+                {bookingPrompt}
+              </div>
+            )}
+          </Tabs>
+        </div>
+      ) : (
+        <div className="today-layout">
+          {dayAhead}
+          <aside className="today-aside">
+            <BeforeVisitCard nowMinutes={nowMinutes} onOpen={setAppointmentId} />
+            <NeedsYou />
+            <TeamToday />
+            {bookingPrompt}
+          </aside>
+          <div className="today-ideas">
+            <SmartInsights onBook={setBooking} />
+            <Specials />
+          </div>
         </div>
       )}
-      <GetReady />
-      <div className="today-layout">
-        <section className="surface schedule-surface">
-          <div className="section-heading">
-            <div>
-              <h2>The day ahead</h2>
-              <p>A welcome, a little care, a reason to come back.</p>
-              {full && (
-                <p className="fully-booked-line settle-in" role="status">
-                  {FULLY_BOOKED_LINE}
-                </p>
-              )}
-            </div>
-            <Link className="text-link" to="/calendar">
-              Open calendar <ArrowUpRight size={15} />
-            </Link>
-          </div>
-          <div className="schedule-toolbar">
-            <span>
-              <span className="live-dot" />
-              {day.filter((a) => a.status === 'arrived').length} in the studio
-            </span>
-            <label className="checkbox-label">
-              <Checkbox
-                checked={hideCompleted}
-                onChange={(e) => setHideCompleted(e.target.checked)}
-              />
-              Hide completed
-            </label>
-          </div>
-          <Agenda
-            appointments={hideCompleted ? day.filter((a) => a.status !== 'completed') : day}
-            selectedId={appointmentId}
-            onOpen={setAppointmentId}
-            nowMinutes={nowMinutes}
-          />
-          {changed.length > 0 && (
-            <Link className="day-changes-link" to="/calendar">
-              {changed.filter((a) => a.status === 'cancelled').length} cancelled ·{' '}
-              {changed.filter((a) => a.status === 'no_show').length} missed. Review today’s changes{' '}
-              <ArrowUpRight size={14} />
-            </Link>
-          )}
-        </section>
-        <aside className="today-aside">
-          <BeforeVisitCard nowMinutes={nowMinutes} onOpen={setAppointmentId} />
-          <NeedsYou />
-          <TeamToday />
-          <Link className="booking-prompt" to="/booking">
-            <span className="mini-wordmark">
-              {state.organisation.name
-                .split(' ')
-                .map((n) => n[0])
-                .slice(0, 2)
-                .join('')}
-            </span>
-            <span>
-              <strong>Your booking experience</strong>
-              <small>See what your clients see</small>
-            </span>
-            <ArrowUpRight size={18} />
-          </Link>
-        </aside>
-        <div className="today-ideas">
-          <SmartInsights onBook={setBooking} />
-          <Specials />
-        </div>
-      </div>
       {appointmentId && (
         <AppointmentDialog
           key={appointmentId}

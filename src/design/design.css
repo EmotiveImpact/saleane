@@ -243,6 +243,30 @@
   outline-offset: 6px;
 }
 
+/* Count: a small figure beside a tab or a heading. Soft rose when something waits on someone, so
+   the deep rose figure still reads at 4.5:1. */
+.count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: var(--radius-pill);
+  background: var(--stone);
+  color: var(--ink);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  line-height: 1;
+  white-space: nowrap;
+}
+.count[data-attention] {
+  background: var(--rose-soft);
+  color: var(--rose-ink);
+}
+
 /* Phones and touch screens: every choice takes at least a 44px touch (`--target`); a computer with
    a mouse keeps its compact sizes. A pill keeps its inset look: each choice reaches out over the
    pill's thin rim, so a thumb on the rim still lands on it. */

@@ -5,11 +5,12 @@ import { useStore } from '../state/context'
 import { availableMinutes, dayAppointments } from '../domain/selectors'
 import { hasLocations, placeOf, staffLocationOn } from '../domain/locations'
 import { clockedIn, clockTime } from '../domain/hours'
-import { Avatar, Button } from '../design'
+import { Avatar, Button, Count } from '../design'
 import { can, rotaChangeOn, timeOffOn } from '../domain/operations'
 import { changeKind } from '../domain/rota'
 import { useClock } from '../state/clock'
 import { TeamClock } from './Clock'
+import { useTeamToday } from './todayCounts'
 import './teamToday.css'
 
 /**
@@ -18,14 +19,10 @@ import './teamToday.css'
  * a picture of it.
  */
 export function TeamToday() {
-  const { state, today, role, blocked, branch } = useStore()
+  const { state, today, role, blocked } = useStore()
   const [clocking, setClocking] = useState(false)
   const now = Date.parse(useClock(30_000))
-  // Stage 4: a general manager sees the people whose day today is at their location.
-  const own = role === 'general' && branch ? branch : undefined
-  const team = state.staff.filter(
-    (p) => !p.archived && (!own || staffLocationOn(state, p.id, today) === own),
-  )
+  const team = useTeamToday()
   if (!team.length) return null
   const day = dayAppointments(state, today)
   const multiSite = hasLocations(state)
@@ -33,9 +30,7 @@ export function TeamToday() {
     <section className="team-today" aria-labelledby="team-today-title">
       <div className="team-today-head">
         <h2 id="team-today-title">Your team today</h2>
-        <span>
-          {team.length} {team.length === 1 ? 'professional' : 'professionals'}
-        </span>
+        <Count n={team.length} words={team.length === 1 ? 'professional' : 'professionals'} shown />
       </div>
       <ul className="team-today-list">
         {team.map((staff) => {
