@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { proposalApplied } from '../assistantRecords'
 import { digest, token } from '../auth'
 import { canonical, fail, header } from '../http'
 import {
@@ -415,6 +416,10 @@ export async function workspaceRoutes(ctx: Context, route: Route): Promise<boole
           result.state.revision,
           now(),
         )
+        // A change Ask suggested is recorded as applied only now, as it saves with its receipt.
+        const suggested = proposalApplied(ctx, org.id, actor.id, fingerprint)
+        if (suggested)
+          ctx.audit(org, actor.id, 'assistant.applied', suggested, result.state.revision)
         return result
       })
       const { state, ...outcome } = result

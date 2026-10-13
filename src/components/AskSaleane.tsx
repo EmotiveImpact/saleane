@@ -12,7 +12,7 @@ import type { Command } from '../domain/commands'
 import { nudges } from '../domain/nudges'
 import { operations } from '../domain/operations'
 import { DEFAULT_VOICE, VOICES } from '../assistant/voices'
-import { api } from '../state/api'
+import { ApiError, api } from '../state/api'
 import { useStore } from '../state/context'
 import { Button, Modal, Select } from '../design'
 import './ask-saleane.css'
@@ -98,6 +98,9 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
     }
   }
   const held = useRef(new Map<string, PendingProposal<Command>>())
+  // Signed in, the server keeps this conversation's last few lines and reads only those, never
+  // lines sent from here. Its id is named here, so a talk started first joins the same one.
+  const conversation = useRef<string>(crypto.randomUUID())
   const end = useRef<HTMLDivElement | null>(null)
   const base = orgId ? `/api/workspaces/${encodeURIComponent(orgId)}/assistant` : ''
 
@@ -173,9 +176,15 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
         const r = await api<{
           text: string
           proposals: { id: string; summary: string }[]
+          conversation?: string
           usage: ServerUsage
-        }>(base, { method: 'POST', body: { text: trimmed, history }, timeoutMs: ASK_WAIT_MS })
+        }>(base, {
+          method: 'POST',
+          body: { text: trimmed, conversation: conversation.current },
+          timeoutMs: ASK_WAIT_MS,
+        })
         setMeter(meterFrom(r.usage))
+        if (r.conversation) conversation.current = r.conversation
         answer = r
       } else {
         const at = new Date().toISOString()
@@ -288,16 +297,19 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
         async (sdp) => {
           if (call.signal.aborted) return null
           const r = await api<
-            | { status: 'talking'; id: string; sdp: string; seconds: number; usage: ServerUsage }
-            | { status: 'refused' | 'unavailable'; text: string; usage: ServerUsage }
+            (
+              | { status: 'talking'; id: string; sdp: string; seconds: number }
+              | { status: 'refused' | 'unavailable'; text: string }
+            ) & { usage: ServerUsage; conversation?: string }
           >(`${base}/talk`, {
             method: 'POST',
-            body: { sdp },
+            body: { sdp, conversation: conversation.current },
             // Longer than SALEANE lets a start take, including a wait behind an earlier one, so
             // a slow start is never left running with nobody holding its id.
             timeoutMs: TALK_START_WAIT_MS,
           })
           setMeter(meterFrom(r.usage))
+          if (r.conversation) conversation.current = r.conversation
           if (r.status !== 'talking') {
             setNotice({ text: r.text })
             return null
@@ -374,14 +386,26 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
   async function decide(id: string, approve: boolean) {
     setError('')
     mark(id, 'saving')
+    // Signed in, the server keeps an approval until its change is saved, so an approval can be
+    // tried again if its own request or the save after it fails, even when the answer never came.
+    let retry = false
     try {
       let command: Command | undefined
       if (mode === 'server') {
+        retry = approve
         const r = await api<{ outcome: string; command?: Command }>(`${base}/proposals/${id}`, {
           method: 'POST',
           body: { approve },
         })
-        if (r.outcome === 'expired') throw new Error('This suggestion has expired. Ask again.')
+        if (r.outcome === 'expired') {
+          retry = false
+          throw new Error('This suggestion has expired. Ask again.')
+        }
+        // Saved already, from another tab or before the connection dropped: nothing to save again.
+        if (r.outcome === 'applied') {
+          mark(id, 'done')
+          return
+        }
         command = r.command
       } else {
         const proposal = held.current.get(id)
@@ -396,7 +420,9 @@ export function AskSaleane({ onClose }: { onClose: () => void }) {
       if (!result.ok) throw new Error(result.error)
       mark(id, 'done')
     } catch (caught) {
-      mark(id, 'declined')
+      // A suggestion the server no longer has (expired, turned down) cannot be tried again.
+      const gone = caught instanceof ApiError && caught.status === 404
+      mark(id, retry && !gone ? 'waiting' : 'declined')
       setError(caught instanceof Error ? caught.message : 'This change could not be saved.')
     }
   }

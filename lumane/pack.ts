@@ -1,4 +1,5 @@
 import type { Meter } from './allowance'
+import type { ReplyNotes } from './rules'
 import type { Skill } from './skill'
 import type { Voice } from './voice'
 
@@ -48,6 +49,11 @@ export type Audience<Ctx, Effect = unknown, M extends Meter = Meter> = {
   meter: M
   /** Where they meet the assistant, in the app's own words, such as "The Ask panel". */
   doorways: string[]
+  /**
+   * The app's words for LUMANE's last check on each reply: more claims to take out, such as
+   * "refunded", and what to say instead in the app's own voice. LUMANE's own claims always apply.
+   */
+  reply?: { claims?: RegExp[]; notes?: Partial<ReplyNotes> }
 }
 
 /** The name the app's team sees: "Ask" and the app's name, such as "Ask SALEANE". */
