@@ -2,9 +2,11 @@ import type { Command, ContactInput } from './commandSchema'
 import type { Appointment, BusinessState, Client, RelationshipEvent } from './model'
 import { availableAllocation } from './allocation'
 import { staffLocationOn } from './locations'
-import { operations } from './operations'
+import { businessDate, operations } from './operations'
 import type { ImportBatch } from './operations'
 import { dateLabel, money, timeLabel } from './format'
+import { carryGiftCards, giftStanding } from './giftCards'
+import { carryPackages, planStanding } from './plans'
 
 /**
  * PILOT-03: moving a studio from its previous booking system. Services, upcoming visits and
@@ -13,7 +15,15 @@ import { dateLabel, money, timeLabel } from './format'
  */
 type SwitchingCommand = Extract<
   Command,
-  { type: 'import-services' | 'import-appointments' | 'import-balances' | 'balance-settle' }
+  {
+    type:
+      | 'import-services'
+      | 'import-appointments'
+      | 'import-balances'
+      | 'import-gift-cards'
+      | 'import-packages'
+      | 'balance-settle'
+  }
 >
 type AddEvent = (
   event: Omit<RelationshipEvent, 'id' | 'organisationId' | 'occurredAt' | 'actor'>,
@@ -120,6 +130,17 @@ export function alreadyBooked(s: BusinessState, clientId: string, date: string, 
   )
 }
 
+const IMPORT_KIND = {
+  'import-services': 'services',
+  'import-appointments': 'appointments',
+  'import-balances': 'balances',
+  'import-gift-cards': 'giftCards',
+  'import-packages': 'packages',
+} as const satisfies Record<
+  Exclude<SwitchingCommand['type'], 'balance-settle'>,
+  ImportBatch['kind']
+>
+
 export function runSwitchingCommand(
   next: BusinessState,
   command: SwitchingCommand,
@@ -147,19 +168,18 @@ export function runSwitchingCommand(
   }
   const batch: ImportBatch = {
     id: makeId(),
-    kind:
-      command.type === 'import-services'
-        ? 'services'
-        : command.type === 'import-appointments'
-          ? 'appointments'
-          : 'balances',
+    kind: IMPORT_KIND[command.type],
     source: command.source,
     createdAt: now,
     actor: 'Local operator',
     recordIds: [],
     totalMinor: 0,
   }
-  if (command.type === 'import-services') {
+  if (command.type === 'import-gift-cards') {
+    carryGiftCards(next, command, batch, now, makeId, addEvent)
+  } else if (command.type === 'import-packages') {
+    carryPackages(next, command, batch, now, makeId, addEvent)
+  } else if (command.type === 'import-services') {
     const names = new Set(
       next.services.filter((s) => !s.archived).map((s) => s.name.trim().toLowerCase()),
     )
@@ -299,6 +319,13 @@ export function runSwitchingCommand(
   return batch.id
 }
 
+/** The old system a carried-over gift card or package came from, as its import names it. */
+export function carriedSource(s: BusinessState, importId: string) {
+  return (
+    (operations(s).imports ?? []).find((batch) => batch.id === importId)?.source ?? 'the old system'
+  )
+}
+
 /** What each logged import still stands at, for checking against the old system. */
 export function importStanding(s: BusinessState, batch: ImportBatch) {
   if (batch.kind === 'appointments') {
@@ -314,6 +341,18 @@ export function importStanding(s: BusinessState, batch: ImportBatch) {
       upcoming: rows.filter((b) => !b.settled).length,
       changed: rows.filter((b) => b.settled).length,
     }
+  }
+  // Moving in, stage 3: cards and packages still to spend, and those used, ended or cancelled.
+  const today = businessDate(s)
+  if (batch.kind === 'giftCards') {
+    const cards = (s.giftCards ?? []).filter((c) => c.carried?.importId === batch.id)
+    const open = cards.filter((c) => giftStanding(c, today).state === 'active').length
+    return { upcoming: open, changed: cards.length - open }
+  }
+  if (batch.kind === 'packages') {
+    const plans = (s.holdings ?? []).filter((h) => h.carried?.importId === batch.id)
+    const open = plans.filter((h) => planStanding(h, today).state === 'active').length
+    return { upcoming: open, changed: plans.length - open }
   }
   return { upcoming: batch.recordIds.length, changed: 0 }
 }

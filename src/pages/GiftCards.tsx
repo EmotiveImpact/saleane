@@ -28,6 +28,7 @@ import { PaymentFields } from '../components/Plans'
 import { SoldAt } from '../components/SoldAt'
 import { asksSoldAt, giftHome, hasLocations, placeOf, places } from '../domain/locations'
 import { recordDay } from '../domain/tillCount'
+import { carriedSource } from '../domain/switching'
 import { usePayment, useRun } from '../components/usePayment'
 import { ReceiptActions } from '../components/ReceiptActions'
 import '../components/management.css'
@@ -97,14 +98,22 @@ export function GiftCards() {
           card.code === code ||
           card.code.replace(/-/g, '').includes(code.replace(/-/g, '')) ||
           card.purchaserName.toLowerCase().includes(needle) ||
-          card.recipientName.toLowerCase().includes(needle),
+          card.recipientName.toLowerCase().includes(needle) ||
+          // A card carried over with a new code is still found by what its old code showed.
+          (!!card.carried?.codeBefore && card.carried.codeBefore.toLowerCase().includes(needle)),
       )
     : rows
   const held = rows
     .filter((r) => r.standing.state === 'active')
     .reduce((sum, r) => sum + r.standing.balanceMinor, 0)
   const spent = rows.reduce((sum, r) => sum + r.standing.spentMinor, 0)
-  const sold = rows.reduce((sum, r) => sum + r.card.valueMinor, 0)
+  // A card carried over from the old system was sold there, so it is not counted as sold here.
+  const sold = rows.filter((r) => !r.card.carried).reduce((sum, r) => sum + r.card.valueMinor, 0)
+  const carriedFrom = [
+    ...new Set(
+      rows.flatMap((r) => (r.card.carried ? [carriedSource(state, r.card.carried.importId)] : [])),
+    ),
+  ]
   // Stage 4: with several locations, each card belongs to one, and its money waits there.
   const several = hasLocations(state)
   const placeName = (id: string) => placeOf(state, id)?.name ?? 'a closed location'
@@ -262,6 +271,8 @@ export function GiftCards() {
       <p className="ops-help">
         Money paid for a gift card counts as takings only when the card pays for a visit. Until then
         it belongs to whoever holds the card.
+        {carriedFrom.length > 0 &&
+          ` Cards carried over from ${new Intl.ListFormat('en-GB', { type: 'conjunction' }).format(carriedFrom)} were paid for there, so they are not in Sold in total.`}
       </p>
       {rows.length > 0 && (
         <label className="ops-field gift-search">
@@ -306,6 +317,9 @@ export function GiftCards() {
                     From {card.purchaserName}
                     {card.recipientName ? ` for ${card.recipientName}` : ''}
                   </small>
+                  {card.carried && (
+                    <small>Carried over from {carriedSource(state, card.carried.importId)}</small>
+                  )}
                   {several && <small>{placeName(giftHome(state, card))}</small>}
                 </span>
               </button>
@@ -338,6 +352,7 @@ export function GiftCards() {
           description={`${STATE_LABEL[currentStanding.state]} · ${money(currentStanding.balanceMinor, org, true)} left of ${money(current.valueMinor, org, true)}`}
         >
           <GiftCardFace card={current} />
+          {current.carried && <CarriedNote card={current} />}
           {(several || !!current.moves?.length) && (
             <p className="gift-where">
               {current.moves?.length
@@ -675,6 +690,29 @@ function GiftCardSample() {
   )
 }
 
+/** Where a card carried over from the old system came from, and what changed on the way. */
+function CarriedNote({ card }: { card: GiftCard }) {
+  const { state } = useStore()
+  const org = state.organisation
+  const carried = card.carried!
+  const from = carriedSource(state, carried.importId)
+  return (
+    <p className="gift-where">
+      Carried over from {from}
+      {carried.valueBeforeMinor && carried.valueBeforeMinor !== card.valueMinor
+        ? `, where it was bought for ${money(carried.valueBeforeMinor, org, true)}`
+        : ''}
+      .{' '}
+      {carried.codeBefore
+        ? `It had the code ${carried.codeBefore} there, so give the guest this new one.`
+        : `It keeps the code from ${from}.`}
+      {carried.noExpiry
+        ? ` It had no last day in ${from}, so it lasts until ${fullDateLabel(card.expiresOn, org.locale)} here.`
+        : ''}
+    </p>
+  )
+}
+
 /** Everything that has happened to a card, oldest first. */
 function GiftHistory({ card }: { card: GiftCard }) {
   const { state } = useStore()
@@ -691,7 +729,9 @@ function GiftHistory({ card }: { card: GiftCard }) {
   const rows = [
     {
       at: card.soldAt,
-      text: `Sold for ${money(card.valueMinor, org, true)}${soldAt} by ${card.actor || 'the desk'}`,
+      text: card.carried
+        ? `Carried over from ${carriedSource(state, card.carried.importId)} with ${money(card.valueMinor, org, true)} left to spend, paid for there`
+        : `Sold for ${money(card.valueMinor, org, true)}${soldAt} by ${card.actor || 'the desk'}`,
     },
     ...(card.moves ?? []).map((m) => ({
       at: m.at,

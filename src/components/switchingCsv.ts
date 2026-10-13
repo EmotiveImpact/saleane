@@ -1,15 +1,15 @@
 import type { Command } from '../domain/commands'
 import type { BusinessState, Service } from '../domain/model'
 import { parseMinor } from '../domain/money'
-import { clientsByEmail } from '../domain/switching'
 import { readCsv } from './clientImportCsv'
 
 /**
  * PILOT-03: reading the files a studio exports from its old system. Each row is checked against
  * SALEANE's own records and shown for review; nothing here saves anything. Clients and upcoming
- * visits come across through moving in (MovingIn.tsx), which reads each old system's own files.
+ * visits, gift cards, packages and credit come across through moving in (MovingIn.tsx), which
+ * reads each old system's own files.
  */
-export type SwitchKind = 'services' | 'balances'
+export type SwitchKind = 'services'
 export type SwitchRow<T> = {
   record: number
   cells: string[]
@@ -22,19 +22,14 @@ export type SwitchRow<T> = {
 }
 export type SwitchPreview<T> = { rows: SwitchRow<T>[]; columns: string[]; ignored: string[] }
 export type ServiceRow = Extract<Command, { type: 'import-services' }>['services'][number]
-export type BalanceRow = Extract<Command, { type: 'import-balances' }>['balances'][number]
 
-export const SWITCH_MAX_ROWS = { services: 200, balances: 500 } as const
+export const SWITCH_MAX_ROWS = { services: 200 } as const
 
 /** The headings each file needs, and the ones it may carry. */
 export const SWITCH_COLUMNS = {
   services: {
     required: ['name', 'duration', 'price'],
     optional: ['deposit', 'category', 'buffer', 'space', 'description', 'professionals'],
-  },
-  balances: {
-    required: ['email', 'amount'],
-    optional: ['name', 'type', 'note'],
   },
 } as const
 
@@ -184,68 +179,6 @@ export function previewServicesCsv(
         resourceType,
         staffIds,
       },
-    }
-  })
-  return { rows, columns: file.columns, ignored: file.ignored }
-}
-
-export function previewBalancesCsv(
-  source: string,
-  state: BusinessState,
-): SwitchPreview<BalanceRow> {
-  const file = table(source, 'balances')
-  const open = new Set(
-    (state.operations?.balances ?? []).filter((b) => !b.settled).map((b) => b.clientId),
-  )
-  const rows = file.rows.map(({ values, record }): SwitchRow<BalanceRow> => {
-    const cells = file.columns.map((header) => file.at(values, header))
-    if (values.length !== file.headers.length)
-      return problem(
-        record,
-        cells,
-        `Expected ${file.headers.length} columns; found ${values.length}.`,
-      )
-    const email = file.at(values, 'email').toLowerCase()
-    const name = file.at(values, 'name')
-    const matches = clientsByEmail(state.clients, email, name)
-    if (matches.length !== 1)
-      return problem(
-        record,
-        cells,
-        matches.length
-          ? 'email: Several clients share this email. Add a name column.'
-          : 'email: No client has this email. Import clients first.',
-      )
-    const typeText = file.at(values, 'type').toLowerCase()
-    const kind =
-      !typeText || ['credit', 'gift card', 'account credit'].includes(typeText)
-        ? 'credit'
-        : ['owed', 'owing', 'debt', 'unpaid'].includes(typeText)
-          ? 'owed'
-          : null
-    if (!kind) return problem(record, cells, 'type: Use credit or owed.')
-    const amount = csvMoney(file.at(values, 'amount'))
-    if (!Number.isFinite(amount) || amount <= 0)
-      return problem(record, cells, 'amount: Use an amount above zero, such as 25.00.')
-    const note = file.at(values, 'note')
-    if (note.length > 200) return problem(record, cells, 'note: Use at most 200 characters.')
-    const client = matches[0]
-    if (open.has(client.id))
-      return problem(
-        record,
-        cells,
-        `${client.name} already has an open carried-over balance. Close it first, or leave this row out.`,
-        'duplicate',
-      )
-    open.add(client.id)
-    return {
-      record,
-      cells,
-      status: 'ready',
-      detail: `${client.name}: ${kind === 'credit' ? 'credit to use or return' : 'owed to the studio'}.`,
-      amountMinor: amount,
-      depositMinor: 0,
-      value: { clientId: client.id, kind, amountMinor: amount, note },
     }
   })
   return { rows, columns: file.columns, ignored: file.ignored }

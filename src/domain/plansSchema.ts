@@ -97,11 +97,28 @@ export const cardAgreementSchema = z.object({
 })
 export type CardAgreement = z.infer<typeof cardAgreementSchema>
 
+/**
+ * Moving in, stage 3: a package the client bought in the studio's old system, brought across with
+ * the visits it had left. Its price is what those visits are worth, recorded as paid to the old
+ * system, so it is money the studio holds for the client and never counted as a sale here.
+ */
+const carriedPlanSchema = z
+  .object({
+    /** The import that brought it across, with the old system's name. */
+    importId: id,
+    /** All the visits it was bought with in the old system, when the file says. */
+    visitsBefore: z.number().int().min(1).max(100).optional(),
+    /** The old system gave it no last day; SALEANE keeps it for ten years. */
+    noEnd: z.literal(true).optional(),
+  })
+  .strict()
+
 export const holdingSchema = z.object({
   id,
   organisationId: id,
   clientId: id,
-  offerId: id,
+  /** The offer it was sold from. A package carried over from the old system has none. */
+  offerId: id.optional(),
   kind: z.enum(['package', 'membership']),
   /** The terms when it was bought. */
   name: z.string().min(2).max(100),
@@ -127,5 +144,7 @@ export const holdingSchema = z.object({
   refunds: z.array(planRefundSchema),
   /** Stage 1: a membership paid each month from a saved card; the last one may still be open. */
   cardAgreements: z.array(cardAgreementSchema).optional(),
+  /** Moving in, stage 3: brought across from the old system rather than sold here. */
+  carried: carriedPlanSchema.optional(),
 })
 export type Holding = z.infer<typeof holdingSchema>

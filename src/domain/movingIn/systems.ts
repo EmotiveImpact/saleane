@@ -1,5 +1,6 @@
 import { headingKey } from './fields'
 import type { ClientField } from './fields'
+import type { MoneyField } from './moneyFields'
 import type { VisitField } from './visitFields'
 
 /**
@@ -38,19 +39,35 @@ export const SYSTEM_NAME: Record<OldSystem, string> = {
 export const UK_FIRST: OldSystem[] = ['fresha', 'phorest', 'timely', 'treatwell', 'booksy']
 
 /**
- * What a file holds. Clients (stage 1) and upcoming visits (stage 2) come across; the others are
+ * What a file holds. Clients (stage 1), upcoming visits (stage 2), and gift cards, packages and
+ * credit (stage 3) come across; a totals file is read only to check against. The others are
  * recognised and named, not saved.
  */
-export type FileKind = 'clients' | 'visits' | 'giftCards' | 'packages' | 'payments' | 'unknown'
+export type FileKind =
+  | 'clients'
+  | 'visits'
+  | 'giftCards'
+  | 'packages'
+  | 'credit'
+  | 'totals'
+  | 'memberships'
+  | 'payments'
+  | 'unknown'
 
 export const KIND_LABEL: Record<FileKind, string> = {
   clients: 'client list',
   visits: 'visits',
   giftCards: 'gift cards and vouchers',
-  packages: 'packages, courses or memberships',
+  packages: 'packages and courses',
+  credit: 'client credit',
+  totals: 'totals of money held for clients',
+  memberships: 'memberships',
   payments: 'payments and sales',
   unknown: 'something SALEANE does not recognise yet',
 }
+
+/** The kinds that come across in the money step. */
+export const MONEY_KINDS: readonly FileKind[] = ['giftCards', 'packages', 'credit', 'totals']
 
 /** Where to find each list in the old system, in the owner's words. */
 export const WHERE_TO_EXPORT: Record<OldSystem, string> = {
@@ -97,6 +114,31 @@ export const WHERE_TO_EXPORT_VISITS: Record<OldSystem, string> = {
     'Download your upcoming visits (often called appointments or bookings) as a CSV or Excel file, from today onwards. Any layout is fine.',
 }
 
+/**
+ * Where to find gift cards, packages and client credit. As with visits, only routes research
+ * confirmed are given; otherwise the owner is told which report to ask for.
+ */
+export const WHERE_TO_EXPORT_MONEY: Record<OldSystem, string> = {
+  fresha:
+    'In Fresha, open Reports and download your gift cards list, with each code and what is left on it, as CSV or Excel. Add the liability summary too, so SALEANE can check its total against Fresha’s.',
+  phorest:
+    'In Phorest, open Reports and export Vouchers Outstanding. Client courses and client credit print as PDFs, so ask Phorest’s support team for them as spreadsheets.',
+  timely:
+    'In Timely, open Reports and export Customer gift voucher details, Customer package details and Customer credit details, each as CSV or Excel.',
+  treatwell:
+    'Gift cards bought on Treatwell belong to Treatwell, so they stay there. Add any gift cards or packages you sold yourself as a spreadsheet.',
+  booksy:
+    'Ask Booksy’s support team for your gift cards, packages and client credit as spreadsheets. In the UK, email info.gb@booksy.com.',
+  square:
+    'In Square, download your gift cards list. Square shares only the last four digits of each card, so each one gets a new SALEANE code for the desk to give the guest.',
+  vagaro:
+    'In Vagaro, open Reports and export Packages (choose All Packages) and your gift cards report to Excel.',
+  glossgenius:
+    'Ask GlossGenius’s support team for your gift cards and packages as a spreadsheet, with what is left on each.',
+  other:
+    'Download your gift cards, packages and client credit as CSV or Excel files, with what is left on each. Any layout is fine.',
+}
+
 type Layout = {
   system: OldSystem
   kind: FileKind
@@ -108,6 +150,10 @@ type Layout = {
   fields?: Record<string, ClientField | null>
   /** The same for a visits file. */
   visitFields?: Record<string, VisitField | null>
+  /** The same for a gift card, package, credit or totals file. */
+  moneyFields?: Record<string, MoneyField | null>
+  /** Why a recognised file is not read, in the owner's words. */
+  unread?: string
 }
 
 const k = headingKey
@@ -159,15 +205,27 @@ const LAYOUTS: Layout[] = [
   },
   {
     system: 'fresha',
-    kind: 'giftCards',
-    report: 'liability report',
+    kind: 'totals',
+    report: 'liability summary',
     needs: ['Liability type', 'Closing balance'],
+    moneyFields: {
+      [k('Liability type')]: 'type',
+      [k('Closing balance')]: 'balance',
+      [k('Opening balance')]: null,
+      [k('Collections')]: null,
+      [k('Redemptions')]: null,
+      [k('Expirations')]: null,
+      [k('Refunds')]: null,
+      [k('Net change')]: null,
+    },
   },
   {
     system: 'fresha',
     kind: 'giftCards',
     report: 'liability activity',
     needs: ['Liability type', 'Activity', 'Sale number'],
+    unread:
+      'This lists each time money was added or spent, not what is left on each card. Add Fresha’s gift cards list for the cards, and its liability summary for the total.',
   },
   {
     system: 'fresha',
@@ -181,12 +239,30 @@ const LAYOUTS: Layout[] = [
     kind: 'giftCards',
     report: 'vouchers outstanding',
     needs: ['Serial Number', 'Remaining', 'Issue Date'],
+    moneyFields: {
+      [k('Serial Number')]: 'code',
+      [k('Client')]: 'client',
+      [k('Branch Sold')]: null,
+      [k('Remaining')]: 'balance',
+      [k('Issue Date')]: 'issued',
+      [k('Expiry Date')]: 'expiry',
+    },
   },
   {
     system: 'phorest',
     kind: 'packages',
     report: 'client courses',
     needs: ['Course Description', 'Remaining'],
+    // "Total" and "Remaining" count visits; the "Gross" columns are money.
+    moneyFields: {
+      [k('Client Name')]: 'client',
+      [k('Course Description')]: 'name',
+      [k('Purchase Date')]: 'issued',
+      [k('Total')]: 'visitsTotal',
+      [k('Total Gross')]: 'value',
+      [k('Remaining')]: 'visitsLeft',
+      [k('Remaining Gross')]: 'balance',
+    },
   },
   {
     system: 'phorest',
@@ -208,12 +284,47 @@ const LAYOUTS: Layout[] = [
     kind: 'giftCards',
     report: 'customer gift voucher details',
     needs: ['Gift Voucher', 'Recipient', 'Outstanding'],
+    // The code cell also holds the last day: "GV58214 (expires 31/03/2027)".
+    moneyFields: {
+      [k('Customer')]: 'client',
+      [k('Gift Voucher')]: 'name',
+      [k('Recipient')]: 'recipient',
+      [k('Status')]: 'status',
+      [k('Code')]: 'code',
+      [k('Amount')]: 'value',
+      [k('Redeemed')]: 'redeemed',
+      [k('Outstanding')]: 'balance',
+    },
   },
   {
     system: 'timely',
-    kind: 'giftCards',
+    kind: 'credit',
     report: 'customer credit details',
     needs: ['Reason', 'Redeemed', 'Outstanding'],
+    moneyFields: {
+      [k('Customer')]: 'client',
+      [k('Reason')]: 'note',
+      [k('Status')]: 'status',
+      [k('Expiry')]: 'expiry',
+      [k('Amount')]: 'value',
+      [k('Redeemed')]: 'redeemed',
+      [k('Outstanding')]: 'balance',
+    },
+  },
+  {
+    system: 'timely',
+    kind: 'packages',
+    report: 'customer package details',
+    needs: ['Package', 'Visits available'],
+    moneyFields: {
+      [k('Customer')]: 'client',
+      [k('Package')]: 'name',
+      [k('Status')]: 'status',
+      [k('Expiry')]: 'expiry',
+      [k('Payment')]: 'value',
+      [k('Visits available')]: 'visitsLeft',
+      [k('Visits redeemed')]: 'visitsUsed',
+    },
   },
   {
     system: 'timely',
@@ -241,6 +352,10 @@ const LAYOUTS: Layout[] = [
     kind: 'giftCards',
     report: 'gift cards',
     needs: ['PAN Suffix'],
+    moneyFields: {
+      [k('PAN Suffix')]: 'codeEnd',
+      [k('Current outstanding Amount')]: 'balance',
+    },
   },
   // Vagaro (confirmed official column lists).
   {
@@ -286,10 +401,19 @@ const LAYOUTS: Layout[] = [
     kind: 'packages',
     report: 'packages',
     needs: ['# of Visits Remaining'],
+    moneyFields: {
+      [k('Purchase Date')]: 'issued',
+      [k('Customer')]: 'client',
+      [k('Initial Amount')]: 'value',
+      [k('Current Amount')]: 'balance',
+      [k('# of Visits Remaining')]: 'visitsLeft',
+      [k('Expiration Date')]: 'expiry',
+      [k('Status')]: 'status',
+    },
   },
   {
     system: 'vagaro',
-    kind: 'packages',
+    kind: 'memberships',
     report: 'memberships',
     needs: ['Membership Card ID'],
   },
@@ -309,6 +433,8 @@ export type Recognised = {
   report: string | null
   fields: Record<string, ClientField | null>
   visitFields: Record<string, VisitField | null>
+  moneyFields: Record<string, MoneyField | null>
+  unread: string | null
 }
 
 /** Which system and report a file's headings come from, when SALEANE knows the layout. */
@@ -325,6 +451,8 @@ export function recogniseLayout(headings: string[]): Recognised | null {
         report: best.report,
         fields: best.fields ?? {},
         visitFields: best.visitFields ?? {},
+        moneyFields: best.moneyFields ?? {},
+        unread: best.unread ?? null,
       }
     : null
 }
@@ -332,10 +460,15 @@ export function recogniseLayout(headings: string[]): Recognised | null {
 /** A file SALEANE has no layout for, judged from its columns. */
 export function guessKind(headings: string[], hasClientColumns: boolean): FileKind {
   const text = headings.map((h) => h.toLowerCase()).join(' | ')
-  if (/voucher|gift ?card|liabilit/.test(text)) return 'giftCards'
-  if (/course|package|membership|sessions? (left|remaining)|visits remaining/.test(text))
+  if (/liabilit/.test(text) && /closing balance/.test(text)) return 'totals'
+  if (/voucher|gift ?card|liabilit|pan suffix/.test(text)) return 'giftCards'
+  if (/course|package|(sessions?|visits|treatments) (left|remaining|available)/.test(text))
     return 'packages'
+  if (/membership/.test(text)) return 'memberships'
   if (/payment method|transaction|sale number|receipt/.test(text)) return 'payments'
+  // A client list may carry each client's credit; a file of credit alone has no email or phone.
+  if (!hasClientColumns && /credit|account balance|outstanding balance|owed|debt/.test(text))
+    return 'credit'
   if (
     /(service|treatment)/.test(text) &&
     /(date|time|start|scheduled)/.test(text) &&

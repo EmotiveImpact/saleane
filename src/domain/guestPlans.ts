@@ -8,6 +8,7 @@ import {
   openCardAgreement,
   planStanding,
   plansForVisit,
+  planVisits,
 } from './plans'
 import { businessDate } from './operations'
 
@@ -155,7 +156,7 @@ export function guestPlans(s: BusinessState, appointmentId: string, now: number)
       kind: holding.kind,
       name: holding.name,
       state: active ? 'active' : 'unpaid',
-      ...(active ? { visits: holding.visits, visitsLeft: standing.visitsLeft } : {}),
+      ...(active ? { visits: planVisits(holding), visitsLeft: standing.visitsLeft } : {}),
       ...(holding.kind === 'package' ? { endsOn: holding.endsOn } : {}),
       ...(holding.kind === 'membership' && holding.discountPercent
         ? { discountPercent: holding.discountPercent }
