@@ -12,6 +12,7 @@ Recorded 13 October 2026 in Chromium (Playwright) against the development server
 - **Turning it off.** "Open straight to the studio" in Your preferences stopped it playing on the next open. The five previews sit behind "Watch a welcome again" (`MoreOptions`) and still play from there at both sizes. Skipping by key is covered by the tests below.
 - **Reduced motion.** With reduced motion the finished frame faded up (the `data-still` film) and nothing moved.
 - **Both shapes.** Words at the foot on a phone with Skip at the top right; words at the left on a computer with Skip at the bottom right. The big SALEANE fits inside the screen at 320, 390, 768 and 1440 px, and a studio's name on the doors breaks only between words.
+- **Positions tidied (Edem, 13 October).** Checked at 1440 × 900, 1280 × 720, 1024 × 768, 768 × 1024, 390 × 844 and 360 × 640. Skip now sits level with the name on a phone and with the steps on a computer, in line with the words' margin; the birthday's steps and their line are centred under the thank you (the text had drifted right of centre and the line had vanished); the fade behind the words on a computer runs further, so a line such as "Next is Ava at 11:00, Lymphatic Massage." no longer crosses the photograph; a long birthday heading breaks evenly on a small phone.
 - **A clash found and fixed.** The team welcome already used a `welcome-mark` class, which drew a stray circle in the signed-in film. The film's classes now start `film-` under one `welcome-film` root.
 - **Console:** no page errors in either journey.
 

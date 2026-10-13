@@ -211,6 +211,7 @@
 }
 .film-eyebrow {
   margin: 0;
+  text-wrap: balance;
   font-size: max(0.66em, var(--text-eyebrow));
   letter-spacing: 0.2em;
   text-transform: uppercase;
@@ -270,12 +271,18 @@
   transform-origin: 0 50%;
 }
 
-/* Skip sits top right on a phone, clear of the words, and bottom right on a computer. */
+/*
+ * Skip sits top right on a phone, level with the name and in line with the words' margin, and
+ * bottom right on a computer, level with the steps.
+ */
 .film-skip {
   position: absolute;
   z-index: 10;
-  right: 4cqw;
-  top: max(3cqh, env(safe-area-inset-top));
+  right: 8cqw;
+  top: max(
+    calc(6.5cqh + 0.74 * min(4.1cqw, 2.2cqh) - var(--target, 44px) / 2),
+    env(safe-area-inset-top)
+  );
   min-height: var(--target, 44px);
   padding: 0 18px;
   border: 0;
@@ -669,6 +676,12 @@
 .welcome-film[data-scene='birthday'] .film-mark {
   top: 5.5cqh;
 }
+.welcome-film[data-scene='birthday'] .film-skip {
+  top: max(
+    calc(5.5cqh + 0.74 * min(4.1cqw, 2.2cqh) - var(--target, 44px) / 2),
+    env(safe-area-inset-top)
+  );
+}
 .film-ribbon {
   position: absolute;
   left: 0;
@@ -731,7 +744,6 @@
 .welcome-film[data-scene='birthday'] .film-progress {
   left: 50%;
   transform: translateX(-50%);
-  justify-items: center;
 }
 .welcome-film[data-scene='birthday'] .film-steps span {
   text-align: center;
@@ -834,9 +846,9 @@
     background: linear-gradient(
       to right,
       var(--welcome-ivory) 0%,
-      var(--welcome-ivory) 24%,
-      color-mix(in srgb, var(--welcome-ivory) 74%, transparent) 37%,
-      transparent 60%
+      var(--welcome-ivory) 28%,
+      color-mix(in srgb, var(--welcome-ivory) 82%, transparent) 40%,
+      transparent 62%
     );
   }
   .film-mark {
@@ -861,8 +873,8 @@
   }
   .film-skip {
     top: auto;
-    right: 5cqw;
-    bottom: 4cqh;
+    right: 6.5cqw;
+    bottom: calc(7cqh + (0.74 * min(2.5cqh, 1.6cqw) * 2.15 + 1px - var(--target, 44px)) / 2);
   }
   .film-big {
     font-size: 15cqw;
@@ -877,6 +889,9 @@
   }
   [data-scene='birthday'] .film-mark i {
     transform-origin: 50% 50%;
+  }
+  .welcome-film[data-scene='birthday'] .film-skip {
+    top: auto;
   }
   [data-scene='birthday'] .film-progress {
     left: 50%;
