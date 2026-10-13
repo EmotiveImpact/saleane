@@ -4,7 +4,7 @@ Released entries describe observed implementation. An explicitly in-progress ent
 
 ## 2026-10-13 · Today on a phone, in three tabs with counts
 
-**Status: built locally on 13 October 2026 and checked in Chromium at 1440, 1024, 768, 390 and 320 px, not yet in Safari or Firefox. The owner said yes on 13 October 2026; waiting for the owner's "merge".** [Evidence](docs/evidence/TODAY-TABS.md).
+**Status: built locally on 13 October 2026 and checked in Chromium at 1440, 1024, 768, 390 and 320 px, not yet in Safari or Firefox. The owner said yes on 13 October 2026 and it was merged to main the same day on the owner's "merge"; nothing deployed.** [Evidence](docs/evidence/TODAY-TABS.md).
 
 - On a phone, Today has three tabs under the greeting: The day, Needs you and Team, each with its count ("10", "5", "3"). Today opens on The day, which holds the figures, the visits, before they arrive, clients worth a nudge and specials. Needs you holds the calls to return, the calls the AI answered, patch tests and reminders; Team holds who is working, clocking in and out, and your booking page. The page on The day is about 3,900px instead of 5,700px, and Needs you is a tap away instead of 2,600px down.
 - The Needs you count turns soft rose when something waits; the others stay plain. A screen reader hears each tab with its count in words, such as "Needs you 5 waiting", and the arrow keys move between them.
