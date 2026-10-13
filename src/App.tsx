@@ -159,6 +159,7 @@ const DesignLanguage = lazy(() =>
   import('./pages/DesignLanguage').then((module) => ({ default: module.DesignLanguage })),
 )
 import { useClock } from './state/clock'
+import { OpeningMark, Welcome } from './components/Welcome'
 import './account.css'
 import { ASK_NAME } from './assistant/name'
 
@@ -358,15 +359,21 @@ function WorkspaceApp() {
     )
   if (loading)
     return (
-      <main className="candidate-loading">
-        <span className="wordmark">SALEANE</span>
-        <h1>Opening your studio…</h1>
+      <main className="candidate-loading opening-screen">
+        <OpeningMark />
+        <h1>Opening your studio</h1>
         <p role="status">Loading your saved records.</p>
       </main>
     )
   // NEXT-02: a locked studio opens only for its owner, and only to pay or download its records.
   if (mode === 'server' && billing?.locked) return <LockedStudio />
-  if (location.pathname === '/setup') return <StudioSetup key={state.organisation.id} />
+  if (location.pathname === '/setup')
+    return (
+      <>
+        <StudioSetup key={state.organisation.id} />
+        <Welcome />
+      </>
+    )
   if (location.pathname === '/booking')
     return mode === 'server' ? (
       <Navigate to={`/book/${slug}${location.search}`} replace />
@@ -864,6 +871,7 @@ function WorkspaceApp() {
         </Suspense>
       )}
       <Notices />
+      <Welcome />
     </div>
   )
 }
@@ -873,8 +881,8 @@ export function App() {
     <CalmMotion>
       <Suspense
         fallback={
-          <main className="candidate-loading">
-            <span className="wordmark">SALEANE</span>
+          <main className="candidate-loading opening-screen">
+            <OpeningMark />
             <p role="status">Loading…</p>
           </main>
         }

@@ -1,15 +1,17 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Download, Palette, RotateCcw, SlidersHorizontal, Store } from 'lucide-react'
+import { Download, Palette, Play, RotateCcw, SlidersHorizontal, Store } from 'lucide-react'
 import { useStore } from '../state/context'
 import { storageKey } from '../state/storage'
-import { Button, ErrorMessage, Select, photos } from '../design'
+import { Button, ErrorMessage, MoreOptions, Select, photos } from '../design'
 import { coloursFor, firstColours, saveColours, secondColours } from '../state/studioColours'
 import type { StudioColours } from '../state/studioColours'
 import type { StudioLook } from '../domain/brandRulesSchema'
 import { can, operations } from '../domain/operations'
 import { readInboxView, saveInboxView } from '../state/inboxView'
 import type { InboxView } from '../state/inboxView'
+import { setWelcomeOff, watchWelcome, welcomeOff } from '../state/welcomeMemory'
+import { WELCOME_NAMES, WELCOME_SCENES } from '../domain/welcomeScene'
 
 /**
  * The parts of Settings that are not studio records: each person's own
@@ -57,9 +59,16 @@ function Choice<T extends string>({
 export function PreferencesSection() {
   const { session } = useStore()
   const [inboxView, setInboxView] = useState(() => readInboxView(session?.user.id))
+  const [welcome, setWelcome] = useState<'on' | 'off'>(() =>
+    welcomeOff(session?.user.id) ? 'off' : 'on',
+  )
   function choose(next: InboxView) {
     setInboxView(next)
     saveInboxView(session?.user.id, next)
+  }
+  function chooseWelcome(next: 'on' | 'off') {
+    setWelcome(next)
+    setWelcomeOff(session?.user.id, next === 'off')
   }
   return (
     <section className="surface ops-panel settings-panel">
@@ -80,6 +89,33 @@ export function PreferencesSection() {
           { value: 'panel', label: 'List with a side panel' },
         ]}
       />
+      <Choice
+        legend="Welcome when SALEANE opens"
+        name="welcome"
+        value={welcome}
+        onChange={chooseWelcome}
+        options={[
+          { value: 'on', label: 'Play it' },
+          { value: 'off', label: 'Open straight to the studio' },
+        ]}
+      />
+      <MoreOptions label="Watch a welcome again">
+        <div className="welcome-watch">
+          <p>
+            A short film greets you as SALEANE opens: one for the first open of the day, coming back
+            later, closing up, your very first sign in and the studio’s birthday. Watch any of them
+            now with today’s visits.
+          </p>
+          <div>
+            {WELCOME_SCENES.map((scene) => (
+              <Button key={scene} variant="secondary" onClick={() => watchWelcome(scene)}>
+                <Play size={15} aria-hidden="true" />
+                {WELCOME_NAMES[scene]}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </MoreOptions>
     </section>
   )
 }

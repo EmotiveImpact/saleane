@@ -89,8 +89,8 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
   }
   if (method === 'GET' && url.pathname === '/api/session') {
     const actor = actorFor(request)
-    const account = db.get<{ confirmed: number | null; twoStep: number | null }>(
-      'SELECT email_confirmed_at AS confirmed, totp_enabled_at AS twoStep FROM accounts WHERE id=?',
+    const account = db.get<{ confirmed: number | null; twoStep: number | null; joinedAt: number }>(
+      'SELECT email_confirmed_at AS confirmed, totp_enabled_at AS twoStep, created_at AS joinedAt FROM accounts WHERE id=?',
       actor.id,
     )
     reply(200, {
@@ -105,6 +105,8 @@ export async function authRoutes(ctx: Context, route: Route): Promise<boolean> {
           : null,
         // NEXT-15: how many devices can sign in with Face ID or a fingerprint.
         passkeys: passkeyCount(ctx, actor.id),
+        // The welcome as SALEANE opens greets a new person's very first visit (welcomeScene.ts).
+        joinedAt: account?.joinedAt,
       },
       csrf: actor.csrf,
       passkeysHere: !!passkeys,

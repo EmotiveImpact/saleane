@@ -36,6 +36,7 @@ Edem asked on 11 October 2026 for the whole library to run on Radix and Motion. 
 14. **A view switch never moves.** The calendar's Today, Week and Month switch keeps one spot at the far right in every view (Edem, 11 October). See [Patterns](#patterns).
 15. **A top bar that never crowds, and a folded sidebar that opens easily.** From Edem's comments on the demo, 11 October. See [The frame](#the-frame).
 16. **The booking page's footer says "Connected by SALEANE"** and nothing more. See [Voice](#voice).
+17. **A welcome as SALEANE opens.** Five short films chosen by the moment, the one exception to "nothing moves while a page loads" (Edem, 11 and 13 October). See [Where things move](#where-things-move).
 
 Still waiting for a yes, so not yet rules: phone Today in tabs with a count on each, and the six moves from the finishing check (grouping Business's tabs, a "You" section for your own sign-in, and the rest).
 
@@ -211,10 +212,20 @@ Movement answers something a person did, so the eye can follow it. Motion (`moti
 | Guest booking steps           | Slide forward and back                                                               | `useStepArrival`                 |
 | Ticks and switches            | The tick settles in; the knob slides                                                 | `Checkbox`, `Switch`             |
 | Folds                         | Open and close to their height, where the browser can                                | `controls.css`                   |
+| The welcome as SALEANE opens  | One short film over the first page, then a fade into it (below)                      | `Welcome`, `welcome.css`         |
 
 Everything is placed before the screen is drawn, so nothing flashes, and rows already there when a page opens simply appear.
 
 Never: pages loading, scrolling, typing (including checkout), or anything that loops. `useMotionAllowed` is false for reduced motion and in tests, and then every change happens at once.
+
+**The one exception: the welcome as SALEANE opens** (Edem chose it on 11 October 2026 and asked for it to be built on 13 October). Opening the app is the one moment SALEANE moves without being asked, as a short film over the studio's first page:
+
+- **Five films, chosen by the moment**, never at random: the first open of the day (the room seen through the letters of SALEANE, which open into it), coming back after an hour or more away (a band of light and who is next, under two and a half seconds), closing up once the day's last visit has ended (the light goes down warm while the day's visits count up), the very first sign in (the studio's name on two ivory doors, which open), and the studio's birthday with SALEANE (a ribbon of photographs, the year's visits and gold and rose sparks for five seconds at most, which carry on into the app). Opening again a few minutes later plays nothing. The rules are in `domain/welcomeScene.ts`.
+- **Every word is true.** Names, counts, times and who is next come from the studio's records. "All looked after" appears only when every visit is finished. The birthday counts finished visits in that year.
+- **Name only.** The small mark is the name with a line and a rose dot drawn under it (Edem's choice, 11 October). Colours follow the studio's first and second colours; the welcome always stays light.
+- **It never holds anyone up.** A tap, a click, scrolling or any key skips it, and the key still does its own job. Skip sits top right on a phone and bottom right on a computer. Screen readers hear the greeting once; the film itself is hidden from them.
+- **Less motion, or none.** With reduced motion the finished frame fades up and away. Your preferences can turn it off for that person, and can play any of the five as a preview. The test runner never plays it uninvited.
+- **The opening screen** while a studio's records load is the same ivory with the name, its line drawn once, so the film starts without a flash.
 
 ## Voice
 

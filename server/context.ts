@@ -295,8 +295,9 @@ export function createContext(options: ApiOptions) {
         mode: string
         locked: number
         twoStep: number | null
+        openedAt: number
       }>(
-        `SELECT o.id,o.slug,m.role,m.staff_id AS staffId,json_extract(o.state,'$.organisation.name') AS name,json_extract(o.state,'$.organisation.region') AS region,json_extract(o.state,'$.operations.mode') AS mode,
+        `SELECT o.id,o.slug,m.role,m.staff_id AS staffId,o.created_at AS openedAt,json_extract(o.state,'$.organisation.name') AS name,json_extract(o.state,'$.organisation.region') AS region,json_extract(o.state,'$.operations.mode') AS mode,
            EXISTS(SELECT 1 FROM studio_plans p WHERE p.organisation_id=o.id AND p.locked_at IS NOT NULL) AS locked,
            json_extract(o.state,'$.operations.twoStep.forEveryone') AS twoStep
          FROM memberships m JOIN organisations o ON o.id=m.organisation_id WHERE m.account_id=? ORDER BY o.created_at,o.id`,
