@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Download, Palette, Play, RotateCcw, SlidersHorizontal, Store } from 'lucide-react'
 import { useStore } from '../state/context'
 import { storageKey } from '../state/storage'
-import { Button, ErrorMessage, Select, photos } from '../design'
+import { Button, ErrorMessage, MoreOptions, Select, photos } from '../design'
 import { coloursFor, firstColours, saveColours, secondColours } from '../state/studioColours'
 import type { StudioColours } from '../state/studioColours'
 import type { StudioLook } from '../domain/brandRulesSchema'
@@ -99,21 +99,23 @@ export function PreferencesSection() {
           { value: 'off', label: 'Open straight to the studio' },
         ]}
       />
-      <div className="welcome-watch">
-        <p>
-          A short film greets you as SALEANE opens: one for the first open of the day, coming back
-          later, closing up, your very first sign in and the studio’s birthday. Watch any of them
-          now with today’s visits.
-        </p>
-        <div>
-          {WELCOME_SCENES.map((scene) => (
-            <Button key={scene} variant="secondary" onClick={() => watchWelcome(scene)}>
-              <Play size={15} aria-hidden="true" />
-              {WELCOME_NAMES[scene]}
-            </Button>
-          ))}
+      <MoreOptions label="Watch a welcome again">
+        <div className="welcome-watch">
+          <p>
+            A short film greets you as SALEANE opens: one for the first open of the day, coming back
+            later, closing up, your very first sign in and the studio’s birthday. Watch any of them
+            now with today’s visits.
+          </p>
+          <div>
+            {WELCOME_SCENES.map((scene) => (
+              <Button key={scene} variant="secondary" onClick={() => watchWelcome(scene)}>
+                <Play size={15} aria-hidden="true" />
+                {WELCOME_NAMES[scene]}
+              </Button>
+            ))}
+          </div>
         </div>
-      </div>
+      </MoreOptions>
     </section>
   )
 }

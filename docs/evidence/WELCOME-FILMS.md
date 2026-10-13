@@ -9,7 +9,7 @@ Recorded 13 October 2026 in Chromium (Playwright) against the development server
 - **The first open of the day, in the demo.** A fresh browser opened Today and the morning film played: the room inside the letters, then "Good morning", "Twelve visits today. Next is Ava at 11:00, Lymphatic Massage." from the sample diary ([laptop](WELCOME-FILMS-morning-1440.jpg)). It left by itself after about five and a half seconds; a reload a moment later played nothing.
 - **Coming back later.** With "last in view" set to two hours earlier, opening again played "Welcome back" with who is next ([phone](WELCOME-FILMS-back-390.jpg)). A click skipped it at once.
 - **Closing up and the birthday,** watched from Your preferences ([closing up](WELCOME-FILMS-evening-1440.jpg), [birthday](WELCOME-FILMS-birthday-1440.jpg)). Watched in the morning, closing up is shown as it will look when the day's last visit ends (17:00 in the sample). The birthday counted the sample's finished visits in the last twelve months (370) and its sparks carried on over Today, then faded.
-- **Turning it off.** "Open straight to the studio" in Your preferences stopped it playing on the next open. Skipping by key is covered by the tests below.
+- **Turning it off.** "Open straight to the studio" in Your preferences stopped it playing on the next open. The five previews sit behind "Watch a welcome again" (`MoreOptions`) and still play from there at both sizes. Skipping by key is covered by the tests below.
 - **Reduced motion.** With reduced motion the finished frame faded up (the `data-still` film) and nothing moved.
 - **Both shapes.** Words at the foot on a phone with Skip at the top right; words at the left on a computer with Skip at the bottom right. The big SALEANE fits inside the screen at 320, 390, 768 and 1440 px, and a studio's name on the doors breaks only between words.
 - **A clash found and fixed.** The team welcome already used a `welcome-mark` class, which drew a stray circle in the signed-in film. The film's classes now start `film-` under one `welcome-film` root.
@@ -24,3 +24,14 @@ Recorded 13 October 2026 in Chromium (Playwright) against the development server
 ## Full run
 
 After bringing in main at c27e9f8, `npm run check` passed: 234 app test files (2,031 tests) and 77 server test files (650 passed, 2 skipped), with lint, types and build clean. `npm run format:check` passed.
+
+## Quality bar at 1440px and 390px
+
+- One main job and one button: the film has one quiet Skip (44px high, top right on a phone, bottom right on a computer); the preferences section keeps its two choices.
+- Tucked away: the five previews sit behind "Watch a welcome again".
+- No card inside a card; nothing scrolls sideways at either size.
+- Photographs: one per film, framed full screen and fading into the words. The birthday's ribbon of photographs is the one exception, chosen in the mockup.
+- Loading: pages still load with `LoadingShapes`; only the very first load, before any studio's records are here, shows the opening screen with the name.
+- Motion: the films are the documented exception to "nothing moves while a page loads" (decision 17); with reduced motion only the finished frame fades up.
+- Colours: the studio's first colour and the design tokens, plus a few light and dusk tones kept as variables on the film's own root.
+- The choice chips in Your preferences are the existing `Choice` component at 38px, the same as the Inbox layout choice beside them.
