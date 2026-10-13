@@ -568,21 +568,21 @@ export const HELP_ARTICLES: readonly HelpArticle[] = [
   },
   {
     id: 'import-clients',
-    title: 'Bring clients and visits across from another system',
+    title: 'Bring clients, visits and gift cards across from another system',
     group: 'Clients',
     summary:
-      'Move your client list and upcoming visits in from Fresha, Phorest, Timely, Treatwell, Booksy or any other system, exactly as you download them.',
+      'Move your client list, upcoming visits, gift cards, packages and credit in from Fresha, Phorest, Timely, Treatwell, Booksy or any other system, exactly as you download them.',
     steps: [
-      'Open Clients and choose Import clients, or open Settings, then Moving in. Treatments and balances are there too.',
-      'Choose where you are moving from, then add your client list and your upcoming visits, CSV or Excel, as they come.',
-      'Answer anything SALEANE is unsure of, check the clients and the visits against your old system, then tick and choose Bring them across.',
+      'Open Clients and choose Import clients, or open Settings, then Moving in. Treatments are there too.',
+      'Choose where you are moving from, then add the files your old system gives: the client list, upcoming visits, gift cards, packages and credit, CSV or Excel, as they come.',
+      'Answer anything SALEANE is unsure of, check each step against your old system’s own totals, then tick and choose Bring them across.',
     ],
-    note: 'Marketing comes across only where your old system recorded that the client agreed. Visits keep the price each guest was quoted, any deposit paid before the move counts as paid, and nobody is sent a confirmation.',
+    note: 'Marketing comes across only where your old system recorded that the client agreed. Visits keep the price each guest was quoted, and nobody is sent a confirmation. Gift cards keep their codes, and packages their visits left; they were paid for in your old system, so none of it counts as takings here.',
     to: '/clients',
-    screens: ['/clients', '/settings?section=switching'],
+    screens: ['/clients', '/settings?section=switching', '/business/gift-cards'],
     roles: RUNS,
     words:
-      'import csv excel spreadsheet move switch fresha phorest timely treatwell booksy appointments bookings',
+      'import csv excel spreadsheet move switch fresha phorest timely treatwell booksy square vagaro appointments bookings package course credit balance',
   },
   {
     id: 'client-notes',

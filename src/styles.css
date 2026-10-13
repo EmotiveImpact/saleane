@@ -420,8 +420,7 @@ fieldset {
   transition: opacity var(--motion-quick);
 }
 .sidebar:hover .sidebar-fold,
-.sidebar-fold:focus-visible,
-.app-shell[data-rail] .sidebar-fold {
+.sidebar-fold:focus-visible {
   opacity: 1;
 }
 .sidebar-fold:hover {
@@ -440,10 +439,30 @@ fieldset {
     padding-left: 12px;
     padding-right: 12px;
   }
+  /* Folded, the S holds the top; hovering the sidebar swaps it for the button that opens it, in
+     the same spot, and a click anywhere empty on the sidebar opens it too. */
+  .app-shell[data-rail] .sidebar {
+    cursor: e-resize;
+  }
+  .app-shell[data-rail] .sidebar :is(a, button) {
+    cursor: pointer;
+  }
   .app-shell[data-rail] .sidebar-brand {
-    flex-direction: column;
+    position: relative;
+    justify-content: center;
     margin: 0;
-    gap: 6px;
+  }
+  .app-shell[data-rail] .sidebar-fold {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+  }
+  .app-shell[data-rail] .wordmark {
+    transition: opacity var(--motion-quick);
+  }
+  .app-shell[data-rail] .sidebar:hover .wordmark,
+  .app-shell[data-rail] .sidebar:has(.sidebar-fold:focus-visible) .wordmark {
+    opacity: 0;
   }
   .app-shell[data-rail] .wordmark-full {
     display: none;
@@ -622,6 +641,7 @@ fieldset {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 24px;
   padding: 16px 36px;
   background: rgba(250, 248, 245, 0.92);
   backdrop-filter: blur(8px);
@@ -636,6 +656,18 @@ fieldset {
   gap: 16px;
   min-width: 0;
   white-space: nowrap;
+}
+/* The page's name gives way (with an ellipsis) before the buttons ever sit on top of it. */
+.app-header > div:first-child {
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+.app-header > div:first-child > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.app-header > div:last-child {
+  flex: none;
 }
 .header-studio {
   font-weight: var(--weight-strong);
@@ -725,20 +757,40 @@ fieldset {
   line-height: 18px;
   text-align: center;
 }
-/* Narrower screens keep the header on one line: the dot alone says there is something to mention. */
+/* The dot says there is something to mention; the words stay for screen readers. */
+.ask-count {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+/* Smaller screens keep the header calm and on one line: "Ask" with its icon, and the search, help
+   and your menu as icons, each keeping its full name for screen readers. */
 @media (max-width: 1200px) {
-  .ask-count {
+  .ask-name-rest,
+  .global-search span,
+  .help-button span,
+  .operator-button > span:not(.avatar) {
     position: absolute;
     width: 1px;
     height: 1px;
     overflow: hidden;
     clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
   }
   .global-search {
     min-width: 0;
   }
+  .global-search,
+  .help-button {
+    padding: 7px 10px;
+  }
   .search-key {
     display: none;
+  }
+  .app-header > div:last-child {
+    gap: 10px;
   }
 }
 .demo-notice {
@@ -1136,7 +1188,7 @@ fieldset {
   padding: 14px 20px;
   display: flex;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   border-bottom: 1px solid var(--line);
   flex-wrap: wrap;
 }
@@ -1150,7 +1202,9 @@ fieldset {
   font-weight: var(--weight-strong);
   letter-spacing: -0.01em;
   font-size: var(--text-lead);
-  margin: 0 12px 0 4px;
+  margin: 0 8px 0 4px;
+  /* The longest date ("Week of Monday 28 September") sets the room, so every view shares it. */
+  min-width: 14.2em;
 }
 .date-controls .icon-button {
   width: 40px;
@@ -1165,11 +1219,12 @@ fieldset {
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-left: auto;
 }
 .calendar-filters select,
 .calendar-filters .select-trigger {
   min-height: 36px;
-  width: 158px;
+  width: 150px;
   padding: 6px 10px;
   font-size: var(--text-meta);
 }
@@ -1351,9 +1406,15 @@ fieldset {
   color: var(--brand-ink);
   pointer-events: none;
 }
+/* Week and Month keep the day layout's space, so nothing beside it moves. */
+.day-layout-slot[data-shown='false'] {
+  visibility: hidden;
+}
 /* Month: every day at a glance, how full it is and its first few visits. */
 .calendar-period {
   align-self: center;
+  /* Always at the far right, so Today, Week and Month never move as the views change. */
+  margin-left: auto;
 }
 .month-view {
   border: 1px solid var(--line);
@@ -3570,6 +3631,10 @@ fieldset {
   .header-divider {
     display: none;
   }
+  /* The avatar sits inside its touch target, as the menu button does on the left. */
+  .operator-button {
+    padding: 0 10px;
+  }
   .demo-notice {
     padding: 8px 18px;
     font-size: var(--text-micro);
@@ -3699,6 +3764,12 @@ fieldset {
   .calendar-filters {
     width: 100%;
     justify-content: space-between;
+    margin-left: 0;
+    order: 1;
+  }
+  /* On a phone the switch keeps its own steady row under the date, above the filters. */
+  .calendar-period {
+    margin-left: 0;
   }
   .calendar-filters select,
   .calendar-filters .select-trigger {

@@ -1179,6 +1179,170 @@ describe('moving clients in from another system', () => {
     expect(screen.queryByText('Demo deposit recorded')).not.toBeInTheDocument()
   })
 
+  it('brings gift cards, packages and credit across from Timely’s own reports', async () => {
+    const user = userEvent.setup()
+    await show('/clients')
+    await user.click(screen.getByRole('button', { name: 'Import clients' }))
+    await user.click(screen.getByRole('button', { name: 'Timely' }))
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(
+      screen.getByText(/export Customer gift voucher details, Customer package details/),
+    ).toBeInTheDocument()
+    const csv = (lines: string[]) => lines.join('\n')
+    await user.upload(screen.getByLabelText(/Drop files here/), [
+      new File(
+        [
+          csv([
+            'FirstName,LastName,CompanyName,isVIP,SMS Number,Email Address,Date of Birth,Gender,SMS marketing',
+            'Femi,Adeyemi,,TRUE,07700 900311,femi.adeyemi@example.com,14/02/1990,Male,TRUE',
+          ]),
+        ],
+        'customers.csv',
+        { type: 'text/csv' },
+      ),
+      new File(
+        [
+          csv([
+            'Customer,Gift Voucher,Recipient,Status,Code,Amount,Redeemed,Outstanding',
+            'Olivia James,£50 Gift Voucher,Hannah James,Active,GV58214 (expires 31/03/2027),£50.00,£20.00,£30.00',
+            'Femi Adeyemi,£95 Gift Voucher,,Active,GV40981 (expires never),£95.00,£0.00,£95.00',
+            'Grace Chen,£60 Gift Voucher,Mei Chen,Active,GV11873 (expires 01/09/2026),£60.00,£0.00,£60.00',
+            'Total,,,,,£205.00,£20.00,£185.00',
+          ]),
+        ],
+        'Customer gift voucher details.csv',
+        { type: 'text/csv' },
+      ),
+      new File(
+        [
+          csv([
+            'Customer,Package,Status,Expiry,Payment,Visits available,Visits redeemed',
+            'Nina Patel,Course of 6 Skin Renewal Facials,Active,30/06/2027,£480.00,4,2',
+            'Femi Adeyemi,Massage course of 3,Active,31/01/2027,£210.00,3,0',
+          ]),
+        ],
+        'Customer package details.csv',
+        { type: 'text/csv' },
+      ),
+      new File(
+        [
+          csv([
+            'Customer,Reason,Status,Expiry,Amount,Redeemed,Outstanding',
+            'Charlotte Hayes,Refund for a cancelled visit,Active,never,£25.00,£0.00,£25.00',
+          ]),
+        ],
+        'Customer credit details.csv',
+        { type: 'text/csv' },
+      ),
+    ])
+    expect(
+      await screen.findByText(/Timely customer gift voucher details · 3 rows/),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('list', { name: 'Moving in steps' }).querySelectorAll('li'),
+    ).toHaveLength(5)
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+
+    expect(screen.getByRole('heading', { name: 'Check a few things first' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+    const questions = document.querySelector('.moving-questions') as HTMLElement
+    await user.selectOptions(
+      within(questions).getByLabelText('What “Massage course of 3” is'),
+      'service-lymphatic',
+    )
+    expect(
+      screen.getByRole('heading', { name: 'Check gift cards, packages and credit' }),
+    ).toBeInTheDocument()
+    const summary = document.querySelector('.ops-summary') as HTMLElement
+    expect(within(summary).getByText('Gift cards').nextSibling).toHaveTextContent('2')
+    expect(within(summary).getByText('Packages').nextSibling).toHaveTextContent('2')
+    expect(within(summary).getByText('Credit').nextSibling).toHaveTextContent('£25.00')
+    expect(
+      screen.getByText('Gift cards match the total in Customer gift voucher details.csv'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        '£185.00 in all. £125.00 comes across, and £60.00 on 1 gift card that expired stays behind.',
+      ),
+    ).toBeInTheDocument()
+    const attention = screen.getByRole('region', {
+      name: 'Gift cards, packages and credit to look at',
+    })
+    expect(within(attention).getByText('1 gift card staying behind')).toBeInTheDocument()
+    expect(within(attention).getByText('Expired on 1 September 2026.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Continue' }))
+
+    expect(
+      screen.getByText(
+        '1 client, 2 gift cards, 2 packages and 1 balance are ready to come across from Timely.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/none of it counts as takings in SALEANE/)).toBeInTheDocument()
+    await user.click(screen.getByRole('checkbox', { name: /I have checked the 1 client, 2 gift/ }))
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Bring 1 client, 2 gift cards, 2 packages and 1 balance across',
+      }),
+    )
+    expect(
+      await screen.findByRole('heading', {
+        name: '1 client, 2 gift cards, 2 packages and 1 balance brought across from Timely',
+      }),
+    ).toBeInTheDocument()
+    const saved = JSON.parse(localStorage.getItem('saleane.demo.v1.UK')!)
+    const femi = saved.clients.find((c: { name: string }) => c.name === 'Femi Adeyemi')
+    const carried = saved.giftCards.filter((c: { carried?: unknown }) => c.carried)
+    expect(
+      carried.map((c: { code: string; valueMinor: number; clientId?: string }) => [
+        c.code,
+        c.valueMinor,
+        c.clientId,
+      ]),
+    ).toEqual([
+      ['GV58214', 3000, 'client-2'],
+      ['GV40981', 9500, femi.id],
+    ])
+    expect(
+      saved.holdings
+        .filter((h: { carried?: unknown }) => h.carried)
+        .map((h: { clientId: string; visits: number; priceMinor: number }) => [
+          h.clientId,
+          h.visits,
+          h.priceMinor,
+        ]),
+    ).toEqual([
+      ['client-8', 4, 32000],
+      [femi.id, 3, 21000],
+    ])
+    expect(saved.operations.balances).toMatchObject([
+      { clientId: 'client-13', kind: 'credit', amountMinor: 2500 },
+    ])
+
+    // The client's page counts the visits used in Timely, and says where it was paid for.
+    cleanup()
+    await show('/clients/client-8')
+    expect(await screen.findByText('4 of 6 visits left · use by 30 June 2027')).toBeInTheDocument()
+    expect(screen.getByText('Carried over from Timely, where it was paid for')).toBeInTheDocument()
+    // Gift cards keep their printed code and are never counted as sold here.
+    cleanup()
+    await show('/business/gift-cards')
+    expect(await screen.findByText('GV58214')).toBeInTheDocument()
+    expect(screen.getAllByText('Carried over from Timely')).toHaveLength(2)
+    expect(
+      screen.getByText(/Cards carried over from Timely were paid for there, so they are not in/),
+    ).toBeInTheDocument()
+  })
+
+  it('opens the same steps from Settings for gift cards, packages and credit', async () => {
+    const user = userEvent.setup()
+    await show('/settings?section=switching')
+    await user.click(
+      screen.getByRole('button', { name: 'Review a file: gift cards, packages and credit' }),
+    )
+    expect(screen.getByRole('heading', { name: 'Where are you moving from?' })).toBeInTheDocument()
+  })
+
   it('opens the same steps from Settings for upcoming visits', async () => {
     const user = userEvent.setup()
     await show('/settings?section=switching')

@@ -17,6 +17,15 @@ export const GIFT_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 export const giftCodeSchema = z
   .string()
   .regex(/^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/, 'Enter the 12-character code.')
+/**
+ * A card carried over from the studio's old system keeps the code already printed on it, so cards
+ * in guests' purses still work. It is kept as the desk would type it: capitals and numbers, with
+ * twelve characters grouped in fours like SALEANE's own.
+ */
+export const CARRIED_CODE = /^(?:[A-Z0-9]{4,40}|[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4})$/
+const carriedCodeSchema = z.string().regex(CARRIED_CODE)
+/** A carried-over card with no last day in the old system is kept for this long, and can be given more. */
+export const CARRIED_NO_EXPIRY_MONTHS = 120
 
 /** What the desk enters to sell one. */
 export const giftCardInputSchema = z
@@ -87,10 +96,28 @@ export const giftCardMoveCommandSchema = z
   })
   .strict()
 
+/**
+ * Moving in, stage 3: a card the studio sold in its old system, brought across with what was left
+ * to spend on it. Its value is that balance, recorded as paid to the old system, so it is money the
+ * studio holds for the guest and never counted as a sale here.
+ */
+const carriedGiftSchema = z
+  .object({
+    /** The import that brought it across, with the old system's name. */
+    importId: id,
+    /** What it was bought for in the old system, when the file says. */
+    valueBeforeMinor: minor.optional(),
+    /** The old system gave it no last day; SALEANE keeps it for ten years, and can give more. */
+    noExpiry: z.literal(true).optional(),
+    /** What the old system showed of a code SALEANE could not keep, such as "ending 4821". */
+    codeBefore: z.string().min(1).max(40).optional(),
+  })
+  .strict()
+
 export const giftCardSchema = z.object({
   id,
   organisationId: id,
-  code: giftCodeSchema,
+  code: z.union([giftCodeSchema, carriedCodeSchema]),
   kind: z.enum(['money', 'service']),
   serviceId: id.optional(),
   /** The treatment's name when it was sold, kept even if the service is renamed or archived. */
@@ -126,5 +153,7 @@ export const giftCardSchema = z.object({
   refunds: z.array(giftRefundSchema),
   /** Stage 4: each move to another location, oldest first. */
   moves: z.array(giftMoveSchema).max(GIFT_MOVE_LIMIT).optional(),
+  /** Moving in, stage 3: brought across from the old system rather than sold here. */
+  carried: carriedGiftSchema.optional(),
 })
 export type GiftCard = z.infer<typeof giftCardSchema>

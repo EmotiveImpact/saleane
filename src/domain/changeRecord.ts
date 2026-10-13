@@ -186,6 +186,8 @@ const commandWords: Record<Command['type'], Words> = {
   'import-services': ['settings', 'Brought in treatments from another system'],
   'import-appointments': ['visits', 'Brought in visits from another system'],
   'import-balances': ['money', 'Brought in balances from another system'],
+  'import-gift-cards': ['money', 'Brought in gift cards from another system'],
+  'import-packages': ['money', 'Brought in packages from another system'],
   'balance-settle': ['money', 'Settled a brought-in balance'],
   'import-clients': ['clients', 'Brought in clients from another system'],
   // Stage 4: one message from the studio to its clients.

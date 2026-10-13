@@ -548,30 +548,36 @@ export function receiptEmail(r: Receipt) {
 /** Gift cards and plan payments, which have no receipt of their own in the record. */
 export function otherReceipts(s: BusinessState) {
   const client = (id: string | undefined) => s.clients.find((c) => c.id === id)?.name
+  // Moving in, stage 3: cards and packages carried over were sold in the old system, not here.
+  const soldHere = (p: { method: string }) => p.method !== 'previous_system'
   return [
-    ...(s.giftCards ?? []).map((card, index) => ({
-      key: receiptKey({ kind: 'gift-card', id: card.id }),
-      kind: 'gift-card' as const,
-      number: `GC-${index + 1}`,
-      title: card.kind === 'service' ? 'Voucher sold' : 'Gift card sold',
-      name: client(card.clientId) ?? card.purchaserName,
-      method: card.payment.method,
-      amountMinor: card.payment.amountMinor,
-      at: card.payment.recordedAt,
-      locationId: card.locationId ?? s.organisation.locationId,
-    })),
-    ...(s.holdings ?? []).flatMap((holding, index) =>
-      holding.payments.map((payment, n) => ({
-        key: receiptKey({ kind: 'plan', id: holding.id, payment: payment.id }),
-        kind: 'plan' as const,
-        number: n === 0 ? `PL-${index + 1}` : `PL-${index + 1}-${n + 1}`,
-        title: n === 0 ? `${holding.name} sold` : `${holding.name}, monthly payment`,
-        name: client(holding.clientId) ?? 'Client',
-        method: payment.method,
-        amountMinor: payment.amountMinor,
-        at: payment.recordedAt,
-        locationId: holding.locationId ?? s.organisation.locationId,
+    ...(s.giftCards ?? [])
+      .flatMap((card, index) => (soldHere(card.payment) ? [{ card, index }] : []))
+      .map(({ card, index }) => ({
+        key: receiptKey({ kind: 'gift-card', id: card.id }),
+        kind: 'gift-card' as const,
+        number: `GC-${index + 1}`,
+        title: card.kind === 'service' ? 'Voucher sold' : 'Gift card sold',
+        name: client(card.clientId) ?? card.purchaserName,
+        method: card.payment.method,
+        amountMinor: card.payment.amountMinor,
+        at: card.payment.recordedAt,
+        locationId: card.locationId ?? s.organisation.locationId,
       })),
+    ...(s.holdings ?? []).flatMap((holding, index) =>
+      holding.payments
+        .flatMap((payment, n) => (soldHere(payment) ? [{ payment, n }] : []))
+        .map(({ payment, n }) => ({
+          key: receiptKey({ kind: 'plan', id: holding.id, payment: payment.id }),
+          kind: 'plan' as const,
+          number: n === 0 ? `PL-${index + 1}` : `PL-${index + 1}-${n + 1}`,
+          title: n === 0 ? `${holding.name} sold` : `${holding.name}, monthly payment`,
+          name: client(holding.clientId) ?? 'Client',
+          method: payment.method,
+          amountMinor: payment.amountMinor,
+          at: payment.recordedAt,
+          locationId: holding.locationId ?? s.organisation.locationId,
+        })),
     ),
   ]
 }

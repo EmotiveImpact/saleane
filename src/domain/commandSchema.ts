@@ -452,6 +452,62 @@ export const operatingCommandSchema = z.discriminatedUnion('type', [
       .max(500),
     reviewed: z.literal(true),
   }),
+  // Moving in, stage 3: gift cards and packages the old system sold, with what is left on each.
+  z.object({
+    type: z.literal('import-gift-cards'),
+    source: importSource,
+    cards: z
+      .array(
+        z.object({
+          /** The code printed on the card; without one, the card is given a new SALEANE code. */
+          code: z.string().trim().max(40).optional(),
+          /**
+           * What the old system showed of a code SALEANE cannot keep, such as "ending 4821" when
+           * Square shares only the last four digits, so the desk can tell the guest's card apart.
+           */
+          codeBefore: z.string().trim().min(1).max(40).optional(),
+          /** What is left to spend: the card's value from now on. */
+          balanceMinor: money.refine((n) => n > 0),
+          /** What it was bought for in the old system, when the file says. */
+          valueBeforeMinor: money.optional(),
+          /** The client who bought it, when they are a client here. */
+          clientId: id.optional(),
+          purchaserName: z.string().trim().max(100),
+          recipientName: z.string().trim().max(100),
+          issuedOn: z.iso.date().optional(),
+          /** The last day it can be spent; none means the old system gave it no last day. */
+          expiresOn: z.iso.date().optional(),
+        }),
+      )
+      .min(1)
+      .max(200),
+    reviewed: z.literal(true),
+  }),
+  z.object({
+    type: z.literal('import-packages'),
+    source: importSource,
+    packages: z
+      .array(
+        z.object({
+          clientId: id,
+          /** The package's name in the old system. */
+          name: z.string().trim().min(2).max(100),
+          /** The treatments each visit covers. */
+          serviceIds: z.array(id).min(1).max(100),
+          visitsLeft: z.number().int().min(1).max(100),
+          /** All the visits it was bought with, when the file says. */
+          visitsBefore: z.number().int().min(1).max(100).optional(),
+          /** What the visits left are worth: paid to the old system and held for the client. */
+          valueMinor: money,
+          startedOn: z.iso.date().optional(),
+          /** The last day it can be used; none means the old system gave it no last day. */
+          endsOn: z.iso.date().optional(),
+        }),
+      )
+      .min(1)
+      .max(200),
+    reviewed: z.literal(true),
+  }),
   z.object({
     type: z.literal('balance-settle'),
     balanceId: id,

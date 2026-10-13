@@ -10,7 +10,7 @@ import { planMessages } from './reminders'
 import { clientExport } from './privacy'
 import { guestPayment } from './guest'
 import { cashForDay } from './tillCount'
-import { csvMoney, previewBalancesCsv, previewServicesCsv } from '../components/switchingCsv'
+import { csvMoney, previewServicesCsv } from '../components/switchingCsv'
 
 // PILOT-03: a studio moving across from its previous booking system.
 const now = '2026-10-06T08:00:00.000Z'
@@ -67,21 +67,6 @@ describe('reading old system files', () => {
       staffIds: ['staff-maya'],
     })
     expect(preview.rows[3].detail).toContain('more than the price')
-  })
-
-  it('previews balances and refuses a second open one for the same client', () => {
-    const s = local()
-    const preview = previewBalancesCsv(
-      [
-        'email,amount,type,note',
-        'amelia.carter@example.com,25.00,credit,Gift card',
-        'olivia.james@example.com,10,owed,',
-        'amelia.carter@example.com,5,credit,',
-        'ellie.brooks@example.com,0,credit,',
-      ].join('\n'),
-      s,
-    )
-    expect(preview.rows.map((r) => r.status)).toEqual(['ready', 'ready', 'duplicate', 'problem'])
   })
 })
 
